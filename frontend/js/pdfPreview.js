@@ -15,6 +15,9 @@ import { pdfExportErrorDialog } from './dialogs.js';
 
 const previewDebounceMs = 320;
 const previewMode = 'pdf-preview';
+const previewFramePath = '/pdf/preview-frame.html';
+const previewBridgeChannel = 'figaro-pdf-preview-v1';
+const previewBridgeRecoveryMs = 700;
 
 let previewTimer = null;
 let previewRequestId = 0;
@@ -34,25 +37,29 @@ const preview = {
     stylesheetError: '',
 };
 
-// The preview document is replaced after a debounced edit, so scroll state
-// needs to outlive an iframe document. Keep one relative position for the
-// Markdown source and its rendered counterpart rather than coupling their
-// very different pixel heights.
+// The preview frame is deliberately cross-origin/sandboxed. Keep the scroll
+// state in the application and exchange it through the bridge rather than
+// reading frame.contentDocument or frame.contentWindow's DOM directly.
 const scrollSync = {
     editor: null,
     editorListener: null,
-    previewWindow: null,
-    previewDocument: null,
-    previewScrollListener: null,
-    previewLinkListener: null,
-    pendingProgress: 0,
+    pendingDocumentProgress: 0,
+    documentProgress: 0,
     lastProgress: 0,
     resetOnNextRender: true,
     suppressEditor: false,
     suppressPreview: false,
     editorFrame: null,
-    previewFrame: null,
-    restoreFrame: null,
+};
+
+const previewBridge = {
+    frame: null,
+    window: null,
+    ready: false,
+    bootstrapToken: '',
+    token: '',
+    render: null,
+    recoveryTimer: null,
 };
 
 function normalizeVaultPath(value, baseDirectory = '') {
@@ -140,8 +147,8 @@ export function rebasePDFPreviewStylesheetURLs(css, stylesheetPath) {
 }
 
 function safeStyleText(css) {
-    // The iframe is sandboxed without scripts, and this prevents a literal
-    // closing style tag from escaping the generated document altogether.
+    // The fixed preview bridge copies this stylesheet as text. Prevent a
+    // literal closing tag from escaping the generated print document first.
     return String(css || '').replace(/<\/style/gi, '<\\/style');
 }
 
@@ -176,11 +183,6 @@ export function buildPDFPreviewDocument(printableHTML, { notePath, stylesheetPat
     const head = printable.head || printable.documentElement.appendChild(printable.createElement('head'));
     const body = printable.body || printable.documentElement.appendChild(printable.createElement('body'));
     body.classList.add('figaro-pdf-preview-body');
-
-    const csp = printable.createElement('meta');
-    csp.setAttribute('http-equiv', 'Content-Security-Policy');
-    csp.setAttribute('content', 'default-src \'none\'; img-src data: \'self\'; style-src \'unsafe-inline\' \'self\'; font-src data: \'self\'');
-    head.appendChild(csp);
 
     const base = printable.createElement('base');
     base.href = vaultURL(parentDirectory(notePath), true);
@@ -259,6 +261,95 @@ export function getPDFPreviewFragmentID(href) {
     }
 }
 
+function decodePreviewPath(value) {
+    try {
+        return decodeURI(value);
+    } catch (_) {
+        return value;
+    }
+}
+
+function splitPreviewLinkReference(href) {
+    const value = String(href || '').trim();
+    const fragmentIndex = value.indexOf('#');
+    const pathAndQuery = fragmentIndex < 0 ? value : value.slice(0, fragmentIndex);
+    const queryIndex = pathAndQuery.indexOf('?');
+    return {
+        path: queryIndex < 0 ? pathAndQuery : pathAndQuery.slice(0, queryIndex),
+        fragmentID: fragmentIndex < 0 ? '' : getPDFPreviewFragmentID(value.slice(fragmentIndex)),
+    };
+}
+
+function externalPreviewURL(href) {
+    const value = String(href || '').trim();
+    const protocolMatch = value.match(/^([a-z][a-z0-9+.-]*):/i);
+    const protocolRelative = value.startsWith('//');
+    if (!protocolMatch && !protocolRelative) return '';
+
+    try {
+        const url = new URL(protocolRelative ? `https:${value}` : value);
+        return ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol) ? url.href : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function isExplicitPreviewURL(href) {
+    const value = String(href || '').trim();
+    return value.startsWith('//') || /^[a-z][a-z0-9+.-]*:/i.test(value);
+}
+
+function resolvePreviewVaultLink(href) {
+    const { path, fragmentID } = splitPreviewLinkReference(href);
+    if (!path) return { path: '', fragmentID };
+
+    const normalizedPath = decodePreviewPath(path);
+    const vaultPath = normalizedPath.startsWith('/vault/')
+        ? normalizeVaultPath(normalizedPath.slice('/vault/'.length))
+        : normalizeVaultPath(normalizedPath, parentDirectory(preview.path));
+    return { path: vaultPath, fragmentID };
+}
+
+function openExternalPreviewURL(url) {
+    try {
+        if (typeof window.runtime?.BrowserOpenURL === 'function') {
+            window.runtime.BrowserOpenURL(url);
+            return true;
+        }
+        if (typeof window.open === 'function') {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return true;
+        }
+    } catch (error) {
+        log.warn('Could not open PDF preview link:', error);
+    }
+    return false;
+}
+
+async function openPreviewVaultLink(path) {
+    if (!path) {
+        setPreviewStatus('This preview link does not point to a vault file.', 'error');
+        return;
+    }
+    try {
+        const { handleFileOpen } = await import('./app.js');
+        await handleFileOpen(path);
+    } catch (error) {
+        log.warn('Could not open linked vault file from PDF preview:', error);
+        setPreviewStatus(`Could not open ${path}.`, 'error');
+    }
+}
+
+function createPreviewBridgeToken() {
+    if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+    return `figaro-preview-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function previewBridgeFrameURL() {
+    if (!previewBridge.bootstrapToken) previewBridge.bootstrapToken = createPreviewBridgeToken();
+    return `${previewFramePath}#${encodeURIComponent(previewBridge.bootstrapToken)}`;
+}
+
 function scheduleAnimationFrame(callback) {
     if (typeof globalThis.requestAnimationFrame === 'function') {
         return globalThis.requestAnimationFrame(callback);
@@ -311,104 +402,162 @@ function setElementScrollProgress(element, progress, suppressKey) {
     return true;
 }
 
-function frameScrollMetrics(frame) {
+function clearPreviewBridgeRecovery() {
+    if (previewBridge.recoveryTimer) clearTimeout(previewBridge.recoveryTimer);
+    previewBridge.recoveryTimer = null;
+}
+
+function postPreviewBridgeMessage(message) {
+    const { frame } = panelElements();
+    if (!frame || frame !== previewBridge.frame || !previewBridge.ready || !previewBridge.window) return false;
     try {
-        const doc = frame?.contentDocument;
-        const win = frame?.contentWindow;
-        const element = doc?.scrollingElement || doc?.documentElement || doc?.body;
-        if (!element) return null;
-        // The scrolling element's client height is the authoritative viewport
-        // size. Fall back only when an engine reports it as zero.
-        const clientHeight = finiteMetric(element.clientHeight) ||
-            finiteMetric(doc.documentElement?.clientHeight) ||
-            finiteMetric(doc.body?.clientHeight) ||
-            finiteMetric(win?.innerHeight);
-        const scrollHeight = Math.max(
-            finiteMetric(element.scrollHeight),
-            finiteMetric(doc.documentElement?.scrollHeight),
-            finiteMetric(doc.body?.scrollHeight),
-            clientHeight
-        );
-        return {
-            element,
-            clientHeight,
-            scrollHeight,
-            scrollTop: Math.max(finiteMetric(element.scrollTop), finiteMetric(win?.scrollY)),
-        };
-    } catch (_) {
-        return null;
+        previewBridge.window.postMessage({
+            channel: previewBridgeChannel,
+            ...message,
+            token: message.token || previewBridge.token,
+            bootstrapToken: previewBridge.bootstrapToken,
+        }, '*');
+        return true;
+    } catch (error) {
+        // A sandboxed or externally navigated frame must never be inspected.
+        // Reloading the fixed bridge document is the safe recovery path.
+        log.warn('Could not send a PDF preview bridge message:', error);
+        previewBridge.ready = false;
+        return false;
     }
 }
 
-function frameScrollProgress(frame) {
-    const metrics = frameScrollMetrics(frame);
-    return metrics
-        ? scrollProgressForMetrics(metrics.scrollTop, metrics.scrollHeight, metrics.clientHeight)
-        : scrollSync.lastProgress;
+function flushPreviewBridgeRender() {
+    if (!isPreviewOpen() || !previewBridge.render) return false;
+    return postPreviewBridgeMessage(previewBridge.render);
 }
 
-function printableDocumentStart(frame, metrics) {
+function queuePreviewBridgeRender(frame, html, documentProgress) {
+    previewBridge.frame = frame;
+    previewBridge.token = createPreviewBridgeToken();
+    previewBridge.render = {
+        type: 'render',
+        token: previewBridge.token,
+        html,
+        documentProgress: clampProgress(documentProgress),
+    };
+    return flushPreviewBridgeRender();
+}
+
+function schedulePreviewBridgeRecovery(frame) {
+    clearPreviewBridgeRecovery();
+    if (!isPreviewOpen() || !frame) return;
+    previewBridge.recoveryTimer = setTimeout(() => {
+        previewBridge.recoveryTimer = null;
+        if (!isPreviewOpen() || panelElements().frame !== frame || previewBridge.ready) return;
+        // If an unexpected navigation ever happens, replace it with the
+        // application-owned bridge instead of leaving a blank cross-origin
+        // document in the right pane.
+        previewBridge.bootstrapToken = createPreviewBridgeToken();
+        previewBridge.token = '';
+        previewBridge.window = null;
+        frame.src = previewBridgeFrameURL();
+    }, previewBridgeRecoveryMs);
+}
+
+function handlePreviewFrameLoad(frame) {
+    clearPreviewBridgeRecovery();
+    previewBridge.frame = frame;
+    previewBridge.ready = false;
     try {
-        const doc = frame?.contentDocument;
-        const main = doc?.querySelector('main.figaro-print-document');
-        if (!main || !metrics) return 0;
-
-        // main.offsetTop is the common case: cover and TOC are normal block
-        // siblings before it. Retain a rectangle fallback for unusual print
-        // styles that establish a different offset parent.
-        let offset = finiteMetric(main.offsetTop);
-        let parent = main.offsetParent;
-        while (parent && parent !== doc.body) {
-            offset += finiteMetric(parent.offsetTop);
-            parent = parent.offsetParent;
-        }
-        if (offset <= 0 && typeof main.getBoundingClientRect === 'function' &&
-            typeof metrics.element.getBoundingClientRect === 'function') {
-            const mainRect = main.getBoundingClientRect();
-            const scrollRect = metrics.element.getBoundingClientRect();
-            offset = metrics.scrollTop + finiteMetric(mainRect.top) - finiteMetric(scrollRect.top);
-        }
-        const maximum = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
-        return Math.min(maximum, Math.max(0, offset));
+        // A WindowProxy is safe to retain and use only for postMessage. Do not
+        // dereference its document or DOM: this frame is intentionally opaque.
+        previewBridge.window = frame?.contentWindow || null;
     } catch (_) {
-        return 0;
+        previewBridge.window = null;
     }
+    try {
+        previewBridge.window?.postMessage({ channel: previewBridgeChannel, type: 'ping' }, '*');
+    } catch (_) {
+        // The recovery timer below will restore the application-owned frame.
+    }
+    schedulePreviewBridgeRecovery(frame);
 }
 
-function frameContentProgress(frame) {
-    const metrics = frameScrollMetrics(frame);
-    if (!metrics) return scrollSync.lastProgress;
-    return scrollProgressForContentRegion(
-        metrics.scrollTop,
-        metrics.scrollHeight,
-        metrics.clientHeight,
-        printableDocumentStart(frame, metrics)
-    );
+function handlePreviewBridgeLink(href) {
+    const value = String(href || '').trim();
+    if (!value) return;
+
+    const fragmentID = getPDFPreviewFragmentID(value);
+    if (fragmentID) {
+        postPreviewBridgeMessage({ type: 'scroll-fragment', fragment: fragmentID });
+        return;
+    }
+
+    const externalURL = externalPreviewURL(value);
+    if (externalURL) {
+        if (openExternalPreviewURL(externalURL)) {
+            setPreviewStatus('Opened external link in your browser.');
+        } else {
+            setPreviewStatus('Could not open the external link.', 'error');
+        }
+        return;
+    }
+
+    if (isExplicitPreviewURL(value)) {
+        setPreviewStatus('This link type cannot be opened from the PDF preview.', 'error');
+        return;
+    }
+
+    const vaultLink = resolvePreviewVaultLink(value);
+    if (vaultLink.path === preview.path && vaultLink.fragmentID) {
+        postPreviewBridgeMessage({ type: 'scroll-fragment', fragment: vaultLink.fragmentID });
+        return;
+    }
+    void openPreviewVaultLink(vaultLink.path);
 }
 
-function setFrameScrollProgress(frame, progress) {
-    const metrics = frameScrollMetrics(frame);
-    if (!metrics) return false;
-    const nextTop = scrollTopForProgress(progress, metrics.scrollHeight, metrics.clientHeight);
-    if (Math.abs(metrics.scrollTop - nextTop) < 0.5) return false;
-    deferSuppression('suppressPreview');
-    metrics.element.scrollTop = nextTop;
-    return true;
-}
+function handlePreviewBridgeMessage(event) {
+    const message = event.data;
+    if (!message || message.channel !== previewBridgeChannel) return;
+    const { frame } = panelElements();
+    if (!frame) return;
+    if (!previewBridge.window) {
+        try {
+            previewBridge.frame = frame;
+            previewBridge.window = frame.contentWindow || null;
+        } catch (_) {
+            return;
+        }
+    }
+    if (event.source !== previewBridge.window) return;
+    if (String(message.bootstrapToken || '') !== previewBridge.bootstrapToken) return;
 
-function setFrameContentProgress(frame, progress) {
-    const metrics = frameScrollMetrics(frame);
-    if (!metrics) return false;
-    const nextTop = scrollTopForContentProgress(
-        progress,
-        metrics.scrollHeight,
-        metrics.clientHeight,
-        printableDocumentStart(frame, metrics)
-    );
-    if (Math.abs(metrics.scrollTop - nextTop) < 0.5) return false;
-    deferSuppression('suppressPreview');
-    metrics.element.scrollTop = nextTop;
-    return true;
+    if (message.type === 'ready') {
+        previewBridge.ready = true;
+        clearPreviewBridgeRecovery();
+        flushPreviewBridgeRender();
+        return;
+    }
+
+    if (!previewBridge.ready || message.token !== previewBridge.token) return;
+    if (message.type === 'rendered') {
+        setPreviewLoading(false);
+        ensureEditorScrollSync();
+        return;
+    }
+    if (message.type === 'render-error') {
+        setPreviewLoading(false);
+        setPreviewStatus(message.message || 'Could not render the PDF preview.', 'error');
+        return;
+    }
+    if (message.type === 'reference-missing') {
+        setPreviewStatus(`Reference not found: #${String(message.fragment || '')}`, 'error');
+        return;
+    }
+    if (message.type === 'link') {
+        handlePreviewBridgeLink(message.href);
+        return;
+    }
+    if (message.type === 'scroll') {
+        scrollSync.documentProgress = clampProgress(message.documentProgress);
+        if (!message.programmatic) syncPreviewScrollToEditor(clampProgress(message.contentProgress));
+    }
 }
 
 function clearEditorScrollSync() {
@@ -422,11 +571,11 @@ function clearEditorScrollSync() {
 function syncEditorScrollToPreview() {
     if (!isPreviewOpen() || !activePreviewSource() || scrollSync.suppressEditor) return;
     const editor = activeEditorScroller();
-    const frame = panelElements().frame;
-    if (!editor || !frame) return;
+    if (!editor) return;
     const progress = scrollProgressForElement(editor);
     scrollSync.lastProgress = progress;
-    setFrameContentProgress(frame, progress);
+    deferSuppression('suppressPreview');
+    postPreviewBridgeMessage({ type: 'set-content-progress', progress });
 }
 
 function ensureEditorScrollSync() {
@@ -448,113 +597,28 @@ function ensureEditorScrollSync() {
     return editor;
 }
 
-function syncPreviewScrollToEditor(frame) {
+function syncPreviewScrollToEditor(progress) {
     if (!isPreviewOpen() || !activePreviewSource() || scrollSync.suppressPreview) return;
     const editor = ensureEditorScrollSync();
     if (!editor) return;
-    const progress = frameContentProgress(frame);
     scrollSync.lastProgress = progress;
     setElementScrollProgress(editor, progress, 'suppressEditor');
 }
 
-function clearPreviewFrameInteractions() {
-    if (scrollSync.previewWindow && scrollSync.previewScrollListener) {
-        scrollSync.previewWindow.removeEventListener('scroll', scrollSync.previewScrollListener);
-    }
-    if (scrollSync.previewDocument && scrollSync.previewLinkListener) {
-        scrollSync.previewDocument.removeEventListener('click', scrollSync.previewLinkListener);
-    }
-    scrollSync.previewWindow = null;
-    scrollSync.previewDocument = null;
-    scrollSync.previewScrollListener = null;
-    scrollSync.previewLinkListener = null;
-}
-
-function scrollPreviewFragmentIntoView(frame, target) {
-    if (!target) return;
-    if (typeof target.scrollIntoView === 'function') {
-        target.scrollIntoView({ block: 'start', inline: 'nearest' });
-    } else {
-        const metrics = frameScrollMetrics(frame);
-        if (metrics) metrics.element.scrollTop = finiteMetric(target.offsetTop);
-    }
-    scheduleAnimationFrame(() => syncPreviewScrollToEditor(frame));
-}
-
-function installPreviewFrameInteractions(frame) {
-    let doc;
-    let win;
-    try {
-        doc = frame?.contentDocument;
-        win = frame?.contentWindow;
-    } catch (_) {
-        return;
-    }
-    if (!doc || !win) return;
-    if (scrollSync.previewWindow === win && scrollSync.previewDocument === doc) return;
-
-    clearPreviewFrameInteractions();
-    scrollSync.previewWindow = win;
-    scrollSync.previewDocument = doc;
-    scrollSync.previewScrollListener = () => {
-        if (scrollSync.suppressPreview || scrollSync.previewFrame !== null) return;
-        scrollSync.previewFrame = scheduleAnimationFrame(() => {
-            scrollSync.previewFrame = null;
-            syncPreviewScrollToEditor(frame);
-        });
-    };
-    scrollSync.previewLinkListener = event => {
-        const link = event.target?.closest?.('a[href]');
-        const href = link?.getAttribute('href');
-        if (!link || !String(href || '').trim().startsWith('#')) return;
-        // The iframe has a vault-local <base>, which would otherwise resolve
-        // even a missing #fragment as a filesystem URL. Keep every fragment
-        // navigation inside this rendered document.
-        event.preventDefault();
-        const fragmentID = getPDFPreviewFragmentID(href);
-        if (!fragmentID) return;
-        const target = doc.getElementById(fragmentID);
-        if (!target) return;
-        scrollPreviewFragmentIntoView(frame, target);
-    };
-    win.addEventListener('scroll', scrollSync.previewScrollListener, { passive: true });
-    doc.addEventListener('click', scrollSync.previewLinkListener);
-}
-
-function capturePreviewScrollProgress(frame) {
+function capturePreviewScrollProgress() {
     if (scrollSync.resetOnNextRender) {
         scrollSync.resetOnNextRender = false;
         return 0;
     }
-    // Preserve the actual rendered position across srcdoc replacement. It
-    // avoids jumping away from a cover that the reader deliberately opened,
-    // while scroll events still use the body-only mapping above.
-    const progress = frameScrollProgress(frame);
-    scrollSync.lastProgress = progress;
-    return progress;
-}
-
-function restorePreviewScrollAfterLoad(frame) {
-    cancelScheduledAnimationFrame(scrollSync.restoreFrame);
-    scrollSync.restoreFrame = scheduleAnimationFrame(() => {
-        scrollSync.restoreFrame = null;
-        if (!isPreviewOpen() || panelElements().frame !== frame) return;
-        setFrameScrollProgress(frame, scrollSync.pendingProgress);
-        scrollSync.lastProgress = scrollSync.pendingProgress;
-        ensureEditorScrollSync();
-    });
+    return scrollSync.documentProgress;
 }
 
 function resetScrollSync() {
     clearEditorScrollSync();
-    clearPreviewFrameInteractions();
     cancelScheduledAnimationFrame(scrollSync.editorFrame);
-    cancelScheduledAnimationFrame(scrollSync.previewFrame);
-    cancelScheduledAnimationFrame(scrollSync.restoreFrame);
     scrollSync.editorFrame = null;
-    scrollSync.previewFrame = null;
-    scrollSync.restoreFrame = null;
-    scrollSync.pendingProgress = 0;
+    scrollSync.pendingDocumentProgress = 0;
+    scrollSync.documentProgress = 0;
     scrollSync.lastProgress = 0;
     scrollSync.resetOnNextRender = true;
     scrollSync.suppressEditor = false;
@@ -569,7 +633,7 @@ function handlePreviewTabSwitch(event) {
     }
     scheduleAnimationFrame(() => {
         const editor = ensureEditorScrollSync();
-        if (editor) setElementScrollProgress(editor, frameContentProgress(panelElements().frame), 'suppressEditor');
+        if (editor) setElementScrollProgress(editor, scrollSync.lastProgress, 'suppressEditor');
     });
 }
 
@@ -614,7 +678,7 @@ function ensurePreviewPanel() {
         <p class="pdf-preview-status" aria-live="polite">Preparing live preview…</p>
         <div class="pdf-preview-stage">
             <div class="pdf-preview-loading" hidden>Updating preview…</div>
-            <iframe class="pdf-preview-frame" title="Live PDF preview" sandbox="allow-same-origin"></iframe>
+            <iframe class="pdf-preview-frame" title="Live PDF preview" src="${previewBridgeFrameURL()}" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
         </div>
     `;
     content.appendChild(panel);
@@ -747,6 +811,7 @@ function setPreviewLoading(isLoading) {
 
 async function renderPreview() {
     const requestId = ++previewRequestId;
+    let awaitingBridgeRender = false;
     // An empty Markdown note is still a valid printable document. Opening the
     // pane only schedules rendering after its source has been loaded, so the
     // path/mode check is sufficient here.
@@ -763,15 +828,16 @@ async function renderPreview() {
 
         const { frame } = panelElements();
         if (!frame) return;
-        // Replacing srcdoc normally resets the iframe to its top. Capture the
-        // Markdown editor's relative position when it is the source note, or
-        // the preview's own position while styling from a CSS tab.
-        scrollSync.pendingProgress = capturePreviewScrollProgress(frame);
-        frame.srcdoc = buildPDFPreviewDocument(printable, {
+        // The fixed sandboxed frame receives a document snapshot through its
+        // message bridge. It keeps arbitrary print CSS out of the app chrome
+        // without requiring the parent to access a frame DOM.
+        scrollSync.pendingDocumentProgress = capturePreviewScrollProgress();
+        queuePreviewBridgeRender(frame, buildPDFPreviewDocument(printable, {
             notePath: preview.path,
             stylesheetPath: preview.stylesheetPath,
             stylesheetContent: preview.stylesheetContent,
-        });
+        }), scrollSync.pendingDocumentProgress);
+        awaitingBridgeRender = true;
         updatePreviewMeta();
         setPreviewStatus(preview.stylesheetError ? 'Live preview updated — using the built-in style.' : 'Live preview up to date.');
     } catch (error) {
@@ -779,7 +845,7 @@ async function renderPreview() {
         log.error('PDF preview failed:', error);
         setPreviewStatus(error?.message || 'Could not render the PDF preview.', 'error');
     } finally {
-        if (requestId === previewRequestId) setPreviewLoading(false);
+        if (requestId === previewRequestId && !awaitingBridgeRender) setPreviewLoading(false);
     }
 }
 
@@ -979,6 +1045,10 @@ export async function openPDFPreview({ path, title, content } = {}) {
     if (resizer) resizer.classList.add('visible');
     updatePreviewMeta();
     setPreviewStatus('Preparing live preview…');
+    const frame = panel.querySelector('.pdf-preview-frame');
+    if (frame && (previewBridge.frame !== frame || !previewBridge.ready)) {
+        handlePreviewFrameLoad(frame);
+    }
     ensureEditorScrollSync();
     window.dispatchEvent(new Event('resize'));
     schedulePDFPreviewRefresh(0);
@@ -991,7 +1061,11 @@ export function closePDFPreview({ keepSidebarOpen = false } = {}) {
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = null;
     previewRequestId++;
+    clearPreviewBridgeRecovery();
+    previewBridge.render = null;
+    previewBridge.token = '';
     resetScrollSync();
+    setPreviewLoading(false);
     if (panel) panel.hidden = true;
 
     if (sidebar?.dataset.mode === previewMode) {
@@ -1020,6 +1094,7 @@ export function initPDFPreview() {
         document.addEventListener('vault-file-tree-refreshed', handleFileTreeRefresh);
         document.addEventListener('close-pdf-preview', event => closePDFPreview(event.detail || {}));
         document.addEventListener('tab-switched', handlePreviewTabSwitch);
+        window.addEventListener('message', handlePreviewBridgeMessage);
     }
 
     if (!panel.dataset.bound) {
@@ -1029,12 +1104,11 @@ export function initPDFPreview() {
             if (action === 'generate-pdf') generatePDF();
             if (action === 'open-stylesheet') openPreviewStylesheet();
         });
-        panel.querySelector('.pdf-preview-frame')?.addEventListener('load', event => {
-            const frame = event.currentTarget;
-            installPreviewFrameInteractions(frame);
-            restorePreviewScrollAfterLoad(frame);
-            setPreviewLoading(false);
+        const frame = panel.querySelector('.pdf-preview-frame');
+        frame?.addEventListener('load', event => {
+            handlePreviewFrameLoad(event.currentTarget);
         });
+        if (frame) handlePreviewFrameLoad(frame);
     }
 }
 

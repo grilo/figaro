@@ -18,6 +18,8 @@ All notable user-facing changes are recorded here from this point forward.
   rewriting, open-tab path updates, and refreshed rewritten links.
 - Regression coverage for PDF styling, live preview, file creation, rename,
   session repair, and Linux desktop integration.
+- `ARCHITECTURE.md`, a decision-oriented reference for non-obvious subsystem
+  boundaries, including the PDF preview security model and message protocol.
 
 ### Changed
 
@@ -46,9 +48,16 @@ All notable user-facing changes are recorded here from this point forward.
   and the native Wails window now uses Figaro's bundled icon.
 - Settings now receive recoverable defaults at startup, while workspace state
   is normalized from the dedicated session file.
+- PDF preview and export now render the six supported quoted callouts—Note,
+  Warning, Info, Tip, Danger, and Example—with stable styling hooks and
+  starter-stylesheet color controls.
 
 ### Fixed
 
+- PDF preview no longer couples the application to a sandboxed iframe DOM.
+  A fixed local bridge handles links and scrolling by validated messages, so
+  external URLs, footnote returns, and vault links cannot replace the preview
+  with a cross-origin or filesystem document.
 - Active title-bar actions now draw from the current theme's accent color
   instead of a fixed blue, and the reading-time indicator explicitly says
   “min read”.

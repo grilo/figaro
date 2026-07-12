@@ -1633,6 +1633,19 @@ func TestEmbedFS_HasStarterPrintStylesheet(t *testing.T) {
 	}
 }
 
+func TestEmbedFS_HasPDFPreviewBridge(t *testing.T) {
+	data, err := assets.ReadFile("frontend/pdf/preview-frame.html")
+	if err != nil {
+		t.Fatalf("embedded assets missing PDF preview bridge: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "figaro-pdf-preview-v1") ||
+		!strings.Contains(content, "postMessage") ||
+		!strings.Contains(content, "bootstrapToken") {
+		t.Fatal("PDF preview bridge is missing its protocol or frame-authentication contract")
+	}
+}
+
 func TestEmbedFS_HasFontFiles(t *testing.T) {
 	files := []string{
 		"frontend/fonts/fonts.css",

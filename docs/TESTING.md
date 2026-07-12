@@ -39,7 +39,7 @@ go test -race . ./internal/... ./cmd/...
 npm run lint
 npm run test:unit
 
-# Browser-level printable-document test
+# Browser-level printable-document and isolated-preview tests
 npx playwright install chromium # first run only
 npm run test:pdf
 ```
@@ -57,6 +57,14 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   guards.
 - Browser rendering of cover pages, table of contents, Mermaid, Vega, and
   Vega-Lite in the PDF export pipeline.
+- The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
+  frame, external links cannot navigate it away, and fragment/footnote-return
+  links remain in the rendered document.
+
+The browser suite is intentionally not a substitute for the desktop webview:
+when changing the PDF preview bridge, also run the packaged Linux build and
+exercise it in Wails/WebKitGTK. The preview's origin/sandbox boundary is
+documented in [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 ## Generating browser assets
 

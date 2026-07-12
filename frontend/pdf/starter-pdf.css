@@ -36,6 +36,18 @@
   --figaro-emphasis: #3d4a54;
   --figaro-mark-background: #fff0ad;
   --figaro-mark-ink: var(--figaro-ink);
+  --figaro-callout-note: #0b7285;
+  --figaro-callout-note-soft: #e6f5f7;
+  --figaro-callout-warning: #a86919;
+  --figaro-callout-warning-soft: #fff3d6;
+  --figaro-callout-info: #176f9a;
+  --figaro-callout-info-soft: #e8f4fa;
+  --figaro-callout-tip: #28794d;
+  --figaro-callout-tip-soft: #e8f6ed;
+  --figaro-callout-danger: #b42318;
+  --figaro-callout-danger-soft: #fff0ee;
+  --figaro-callout-example: #7352a1;
+  --figaro-callout-example-soft: #f4edfb;
   color-scheme: light;
 }
 
@@ -250,6 +262,67 @@ body {
   padding: .15em 1.2em;
   border-left: 3px solid var(--figaro-accent);
   color: var(--figaro-muted);
+}
+
+/*
+ * Obsidian-style callouts use > [!note], [!warning], [!info], [!tip],
+ * [!danger], or [!example]. Figaro emits the type class and data attributes
+ * below, so every part can be restyled without matching the Markdown source.
+ */
+.figaro-print-callout {
+  --figaro-callout-color: var(--figaro-callout-note);
+  margin: 1.35em 0;
+  padding: .9em 1.1em;
+  border: 1px solid color-mix(in srgb, var(--figaro-callout-color) 30%, var(--figaro-rule));
+  border-left: 4px solid var(--figaro-callout-color);
+  border-radius: 6px;
+  background: var(--figaro-callout-note-soft);
+  color: var(--figaro-ink);
+}
+
+.figaro-print-callout::before {
+  content: attr(data-callout-label);
+  display: block;
+  margin: 0 0 .4em;
+  color: var(--figaro-callout-color);
+  font-family: Arial, sans-serif;
+  font-size: .76em;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.figaro-print-callout > :first-child { margin-top: 0; }
+.figaro-print-callout > :last-child { margin-bottom: 0; }
+
+.figaro-print-callout-note {
+  --figaro-callout-color: var(--figaro-callout-note);
+  background: var(--figaro-callout-note-soft);
+}
+
+.figaro-print-callout-warning {
+  --figaro-callout-color: var(--figaro-callout-warning);
+  background: var(--figaro-callout-warning-soft);
+}
+
+.figaro-print-callout-info {
+  --figaro-callout-color: var(--figaro-callout-info);
+  background: var(--figaro-callout-info-soft);
+}
+
+.figaro-print-callout-tip {
+  --figaro-callout-color: var(--figaro-callout-tip);
+  background: var(--figaro-callout-tip-soft);
+}
+
+.figaro-print-callout-danger {
+  --figaro-callout-color: var(--figaro-callout-danger);
+  background: var(--figaro-callout-danger-soft);
+}
+
+.figaro-print-callout-example {
+  --figaro-callout-color: var(--figaro-callout-example);
+  background: var(--figaro-callout-example-soft);
 }
 
 .figaro-print-document ul,

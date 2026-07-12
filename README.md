@@ -205,7 +205,7 @@ The PDF tests verify the full application-controlled contract: frontmatter, cove
 - **Browser dependencies** keep the editor, Markdown renderer, KaTeX, Mermaid, Vega, Vega-Lite, Vim mode, and language grammars available without a runtime package install. Generated modules are recreated locally with `npm run vendor` before desktop builds; KaTeX ships only its production JavaScript, CSS, and font assets. Python and Rust grammar support does not add a Python or Rust runtime to Figaro.
 - **The vault** is the source of truth. Configuration lives under `.config/`; content remains portable files.
 
-For the complete behaviour contract and implementation notes, see [the product specification](docs/PROMPT.md). The test layout and commands are documented in [the testing guide](docs/TESTING.md).
+For the complete behaviour contract and implementation notes, see [the product specification](docs/PROMPT.md). Non-obvious implementation decisions are collected in [the architecture notes](ARCHITECTURE.md), and the test layout and commands are documented in [the testing guide](docs/TESTING.md).
 
 ## Repository layout
 

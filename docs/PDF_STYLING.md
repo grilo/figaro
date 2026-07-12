@@ -16,9 +16,14 @@ outside Figaro are picked up when the file tree refreshes too.
 The editable stylesheet is applied after the preview's screen geometry, so
 ordinary `html` and `body` rules affect the page just as they do in the final
 PDF. The preview preserves its position after a refresh and synchronizes
-relative scrolling with the active source Markdown note. Table-of-contents and
-footnote links that start with `#` stay within the rendered preview instead of
-navigating to a vault URL.
+relative scrolling with the active source Markdown note. Table-of-contents,
+footnote, and return links stay within the rendered preview instead of
+navigating to a vault URL. Web links open in your default browser, while
+vault-local document links open through Figaro rather than replacing the
+preview frame. The preview uses a fixed sandboxed document and a narrow
+message bridge, so note CSS remains isolated while link actions cannot
+navigate the preview away from Figaro; see [Architecture notes](../ARCHITECTURE.md)
+for the implementation rationale.
 
 Use **Generate PDF** in the preview toolbar to persist the exact Markdown and
 selected stylesheet snapshots currently shown in the preview, then run the
@@ -123,6 +128,7 @@ its semantic HTML, so standard selectors such as `p`, `table`, `blockquote`,
 | Contents wrapper | `nav.figaro-print-toc`, `h2.figaro-print-toc-title`, `ol.figaro-print-toc-list` |
 | Contents levels | `.figaro-toc-level-1` through `.figaro-toc-level-6` |
 | Markdown headings | `.figaro-print-document h1` through `.figaro-print-document h6` |
+| Callouts | `blockquote.figaro-print-callout`, `.figaro-print-callout-note`, `.figaro-print-callout-warning`, `.figaro-print-callout-info`, `.figaro-print-callout-tip`, `.figaro-print-callout-danger`, `.figaro-print-callout-example` |
 | Task lists | `.figaro-print-task-list`, `.figaro-print-task-item`, `.figaro-print-task-checkbox`, `.figaro-print-task-label` |
 | Printable diagrams | `figure.figaro-print-diagram`, `.figaro-print-diagram-content` |
 | Math | `.katex-block`, `.katex-display`, `.katex` |
@@ -141,6 +147,14 @@ element so the cover title and contents title can have independent designs:
 Cover and contents sections receive `.figaro-print-page-break` when present.
 For other authored content, CSS can use `break-before`, `break-after`,
 `break-inside`, and their `page-break-*` fallbacks where appropriate.
+
+## Callouts
+
+Printable Markdown recognizes these quoted callout markers: `> [!note]`,
+`> [!warning]`, `> [!info]`, `> [!tip]`, `> [!danger]`, and `> [!example]`.
+They remain semantic `blockquote` elements and gain a callout class and
+`data-callout-type` / `data-callout-label` attributes. The bundled starter
+stylesheet exposes a color and soft-background variable for each type.
 
 ## Headers are not page headers
 

@@ -182,6 +182,43 @@ describe('Interactive PDF export', () => {
         expect(printable.body.textContent).not.toContain('This unused definition is not printed.');
     });
 
+    test('renders recognised quoted callouts with stable type hooks', () => {
+        const content = [
+            '> [!note] A helpful note',
+            '>',
+            '> Its body keeps **Markdown** formatting.',
+            '',
+            '> [!warning] Take care',
+            '',
+            '> [!info] More detail',
+            '',
+            '> [!tip] A useful shortcut',
+            '',
+            '> [!danger] A risky action',
+            '',
+            '> [!example] A concrete example',
+            '',
+            '> An ordinary quote stays ordinary.',
+        ].join('\n');
+
+        const printable = parseHTML(renderPrintableMarkdown(content, 'Callouts'));
+        const callouts = Array.from(printable.querySelectorAll('blockquote.figaro-print-callout'));
+
+        expect(callouts.map(callout => callout.dataset.calloutType)).toEqual([
+            'note', 'warning', 'info', 'tip', 'danger', 'example',
+        ]);
+        expect(callouts.map(callout => callout.dataset.calloutLabel)).toEqual([
+            'Note', 'Warning', 'Info', 'Tip', 'Danger', 'Example',
+        ]);
+        expect(callouts[0].classList.contains('figaro-print-callout-note')).toBe(true);
+        expect(callouts[0].textContent).toContain('A helpful note');
+        expect(callouts[0].textContent).toContain('Markdown formatting.');
+        expect(callouts[0].textContent).not.toContain('[!note]');
+        expect(callouts[0].querySelector('strong').textContent).toBe('Markdown');
+        expect(printable.querySelectorAll('blockquote:not(.figaro-print-callout)')).toHaveLength(1);
+        expect(printable.querySelector('style').textContent).toContain('.figaro-print-callout-danger');
+    });
+
     test('uses the vendored plugins for anchored headings, math, highlights, tasks, subscripts, and superscripts', () => {
         const content = [
             '---',

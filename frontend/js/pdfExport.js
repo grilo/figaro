@@ -21,6 +21,16 @@ const defaultPrintCSS = `
   pre { padding: 12px; overflow-wrap: break-word; white-space: pre-wrap; background: #f6f8fa; border-radius: 6px; break-inside: avoid; }
   pre code { padding: 0; background: none; }
   blockquote { border-left: 4px solid #d0d7de; margin: 1em 0; padding: 0 16px; color: #57606a; }
+  .figaro-print-callout { --figaro-print-callout-color: #0969da; margin: 1em 0; padding: .85em 1em; border: 1px solid #c8d9eb; border-left: 4px solid var(--figaro-print-callout-color); border-radius: 6px; background: #eef6ff; color: #202124; break-inside: avoid; page-break-inside: avoid; }
+  .figaro-print-callout::before { content: attr(data-callout-label); display: block; margin: 0 0 .35em; color: var(--figaro-print-callout-color); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .78em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .figaro-print-callout > :first-child { margin-top: 0; }
+  .figaro-print-callout > :last-child { margin-bottom: 0; }
+  .figaro-print-callout-note { --figaro-print-callout-color: #0969da; border-color: #b6d5f5; background: #eef6ff; }
+  .figaro-print-callout-warning { --figaro-print-callout-color: #9a6700; border-color: #ebcf8f; background: #fff8c5; }
+  .figaro-print-callout-info { --figaro-print-callout-color: #0550ae; border-color: #b6d5f5; background: #eef6ff; }
+  .figaro-print-callout-tip { --figaro-print-callout-color: #1a7f37; border-color: #a8dbb5; background: #eefbf0; }
+  .figaro-print-callout-danger { --figaro-print-callout-color: #cf222e; border-color: #f2b8bd; background: #fff1f2; }
+  .figaro-print-callout-example { --figaro-print-callout-color: #8250df; border-color: #d8c5f5; background: #f8f2ff; }
   table { border-collapse: collapse; width: 100%; break-inside: avoid; }
   th, td { border: 1px solid #d0d7de; padding: 8px 12px; vertical-align: top; }
   th { background: #f6f8fa; }
@@ -64,6 +74,15 @@ const defaultPrintCSS = `
   @media print { .figaro-print-page-break { break-after: page !important; page-break-after: always !important; } }
 `;
 
+const printCalloutTypes = Object.freeze({
+    note: 'Note',
+    warning: 'Warning',
+    info: 'Info',
+    tip: 'Tip',
+    danger: 'Danger',
+    example: 'Example',
+});
+
 function frontmatterBoolean(value) {
     return /^(?:true|yes|on|1)$/i.test(String(value || '').trim());
 }
@@ -73,12 +92,45 @@ function frontmatterTOCDepth(value) {
     return Number.isFinite(depth) ? Math.max(0, Math.min(6, depth)) : 0;
 }
 
+function trimLeadingTextNodes(element, characters) {
+    let remaining = characters;
+    const children = Array.from(element.childNodes);
+    for (const child of children) {
+        if (remaining <= 0) break;
+        if (child.nodeType !== 3) continue;
+        const value = child.nodeValue || '';
+        const consumed = Math.min(remaining, value.length);
+        child.nodeValue = value.slice(consumed);
+        remaining -= consumed;
+        if (!child.nodeValue) child.remove();
+    }
+}
+
+/** Turn recognised Obsidian-style quoted callouts into printable callout blocks. */
+function decoratePrintCallouts(container) {
+    for (const quote of container.querySelectorAll('blockquote')) {
+        const firstParagraph = Array.from(quote.children).find(child => child.tagName === 'P');
+        if (!firstParagraph) continue;
+
+        const match = firstParagraph.textContent.match(/^\s*\[!(note|warning|info|tip|danger|example)\](?:[ \t]+)?/i);
+        if (!match) continue;
+
+        const type = match[1].toLowerCase();
+        quote.classList.add('figaro-print-callout', `figaro-print-callout-${type}`);
+        quote.dataset.calloutType = type;
+        quote.dataset.calloutLabel = printCalloutTypes[type];
+        quote.setAttribute('aria-label', `${printCalloutTypes[type]} callout`);
+        trimLeadingTextNodes(firstParagraph, match[0].length);
+    }
+}
+
 function renderMarkdownBody(renderer, markdown) {
     const rendered = renderer.render(markdown);
     if (typeof document === 'undefined') return { body: rendered, headings: [] };
 
     const template = document.createElement('template');
     template.innerHTML = rendered;
+    decoratePrintCallouts(template.content);
     const headings = [];
     template.content.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(element => {
         const text = element.textContent.trim();

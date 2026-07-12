@@ -30,6 +30,10 @@ jest.mock('../frontend/js/tabManager.js', () => ({
     saveFileSnapshot: jest.fn().mockResolvedValue({ success: true }),
 }));
 
+jest.mock('../frontend/js/app.js', () => ({
+    handleFileOpen: jest.fn().mockResolvedValue(undefined),
+}));
+
 import {
     buildPDFPreviewDocument,
     closePDFPreview,
@@ -45,9 +49,10 @@ import {
 } from '../frontend/js/pdfPreview.js';
 import { exportMarkdownToPDF, renderPrintableMarkdownWithDiagrams } from '../frontend/js/pdfExport.js';
 import { saveFileSnapshot } from '../frontend/js/tabManager.js';
+import { handleFileOpen } from '../frontend/js/app.js';
 
-function waitForPreview() {
-    return new Promise(resolve => setTimeout(resolve, 20));
+function waitForPreview(delay = 40) {
+    return new Promise(resolve => setTimeout(resolve, delay));
 }
 
 function setScrollMetrics(element, { scrollTop = 0, scrollHeight, clientHeight }) {
@@ -56,6 +61,38 @@ function setScrollMetrics(element, { scrollTop = 0, scrollHeight, clientHeight }
         scrollHeight: { configurable: true, value: scrollHeight },
         clientHeight: { configurable: true, value: clientHeight },
     });
+}
+
+const previewBridgeChannel = 'figaro-pdf-preview-v1';
+
+function previewBridgeBootstrapToken(frame) {
+    const fragment = String(frame.getAttribute('src') || '').split('#').slice(1).join('#');
+    return decodeURIComponent(fragment);
+}
+
+function dispatchBridgeMessage(frame, message) {
+    window.dispatchEvent(new MessageEvent('message', {
+        source: frame.contentWindow,
+        data: { channel: previewBridgeChannel, ...message, bootstrapToken: previewBridgeBootstrapToken(frame) },
+    }));
+}
+
+function postedBridgeMessages(postMessage) {
+    return postMessage.mock.calls.map(([message]) => message)
+        .filter(message => message?.channel === previewBridgeChannel);
+}
+
+function latestBridgeRender(postMessage) {
+    return postedBridgeMessages(postMessage).filter(message => message.type === 'render').at(-1);
+}
+
+async function openReadyPreview(options) {
+    await openPDFPreview(options);
+    const frame = document.querySelector('.pdf-preview-frame');
+    const postMessage = jest.spyOn(frame.contentWindow, 'postMessage').mockImplementation(() => {});
+    dispatchBridgeMessage(frame, { type: 'ready' });
+    await waitForPreview();
+    return { frame, postMessage, render: () => latestBridgeRender(postMessage) };
 }
 
 describe('live PDF preview', () => {
@@ -139,7 +176,7 @@ describe('live PDF preview', () => {
         expect(getPDFPreviewFragmentID('notes/other.md#intro')).toBe('');
     });
 
-    test('synchronizes the active Markdown scroller and keeps fragment clicks inside the preview', async () => {
+    test('synchronizes the active Markdown scroller through the bridge without accessing iframe DOM', async () => {
         mockState.openTabs = [{ id: 'notes/report.md', type: 'file', path: 'notes/report.md' }];
         mockState.activeTabId = 'notes/report.md';
         const editorScroller = document.createElement('div');
@@ -147,50 +184,95 @@ describe('live PDF preview', () => {
         setScrollMetrics(editorScroller, { scrollTop: 300, scrollHeight: 1000, clientHeight: 400 });
         document.getElementById('editor-container').appendChild(editorScroller);
 
-        await openPDFPreview({ path: 'notes/report.md', title: 'report.md' });
-        await waitForPreview();
-        const frame = document.querySelector('.pdf-preview-frame');
-        frame.dispatchEvent(new Event('load'));
-        const previewDocument = frame.contentDocument;
-        const previewScroller = previewDocument.scrollingElement || previewDocument.documentElement;
-        setScrollMetrics(previewScroller, { scrollTop: 0, scrollHeight: 2000, clientHeight: 500 });
-        previewDocument.body.innerHTML = '<section class="figaro-print-cover"></section><main class="figaro-print-document"></main>';
-        Object.defineProperty(previewDocument.querySelector('main'), 'offsetTop', { configurable: true, value: 600 });
+        const { frame, postMessage, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        const token = render().token;
 
         editorScroller.dispatchEvent(new Event('scroll'));
         await waitForPreview();
-        expect(previewScroller.scrollTop).toBe(1050);
+        expect(postedBridgeMessages(postMessage)).toContainEqual(expect.objectContaining({
+            type: 'set-content-progress',
+            token,
+            progress: 0.5,
+        }));
 
-        previewScroller.scrollTop = 780;
-        frame.contentWindow.dispatchEvent(new Event('scroll'));
+        dispatchBridgeMessage(frame, {
+            type: 'scroll',
+            token,
+            documentProgress: 0.65,
+            contentProgress: 0.2,
+            programmatic: false,
+        });
         await waitForPreview();
         expect(editorScroller.scrollTop).toBe(120);
 
-        previewDocument.body.innerHTML = '<a id="jump" href="#target">jump</a><p id="target">destination</p>';
-        const target = previewDocument.getElementById('target');
-        Object.defineProperties(target, {
-            offsetTop: { configurable: true, value: 1200 },
-            scrollIntoView: { configurable: true, value: undefined },
+        dispatchBridgeMessage(frame, {
+            type: 'link',
+            token,
+            href: 'report.md#target',
         });
-        const click = new previewDocument.defaultView.MouseEvent('click', { bubbles: true, cancelable: true });
-        previewDocument.getElementById('jump').dispatchEvent(click);
+        expect(postedBridgeMessages(postMessage)).toContainEqual(expect.objectContaining({
+            type: 'scroll-fragment',
+            token,
+            fragment: 'target',
+        }));
+    });
 
-        expect(click.defaultPrevented).toBe(true);
-        expect(previewScroller.scrollTop).toBe(1200);
+    test('routes bridge link requests without allowing the iframe to navigate', async () => {
+        const open = jest.spyOn(window, 'open').mockImplementation(() => null);
+        try {
+            const { frame, postMessage, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+            const token = render().token;
+            expect(frame.getAttribute('src')).toMatch(/^\/pdf\/preview-frame\.html#/);
+            expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
+
+            dispatchBridgeMessage(frame, { type: 'link', token, href: 'https://example.test/guide' });
+            expect(open).toHaveBeenCalledWith('https://example.test/guide', '_blank', 'noopener,noreferrer');
+            expect(isPDFPreviewOpen()).toBe(true);
+
+            dispatchBridgeMessage(frame, { type: 'link', token, href: '../guide.md' });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(handleFileOpen).toHaveBeenCalledWith('guide.md');
+
+            dispatchBridgeMessage(frame, { type: 'reference-missing', token, fragment: 'footnote-ref1' });
+            expect(document.querySelector('.pdf-preview-status').textContent).toContain('footnote-ref1');
+            expect(postedBridgeMessages(postMessage).some(message => message.type === 'render')).toBe(true);
+        } finally {
+            open.mockRestore();
+        }
+    });
+
+    test('rejects a message from a frame that does not have the current bootstrap token', async () => {
+        const open = jest.spyOn(window, 'open').mockImplementation(() => null);
+        try {
+            const { frame, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+            window.dispatchEvent(new MessageEvent('message', {
+                source: frame.contentWindow,
+                data: {
+                    channel: previewBridgeChannel,
+                    type: 'link',
+                    token: render().token,
+                    bootstrapToken: 'a-foreign-document-cannot-forge-this',
+                    href: 'https://example.test/guide',
+                },
+            }));
+
+            expect(open).not.toHaveBeenCalled();
+            expect(isPDFPreviewOpen()).toBe(true);
+        } finally {
+            open.mockRestore();
+        }
     });
 
     test('opens in the right pane and refreshes the iframe after an in-memory CSS change', async () => {
-        await openPDFPreview({ path: 'notes/report.md', title: 'report.md' });
-        await waitForPreview();
+        const { frame, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
 
         const sidebar = document.getElementById('right-sidebar');
         const panel = document.getElementById('pdf-preview-panel');
-        const frame = panel.querySelector('.pdf-preview-frame');
         expect(isPDFPreviewOpen()).toBe(true);
         expect(sidebar.dataset.mode).toBe('pdf-preview');
         expect(panel.hidden).toBe(false);
         expect(panel.querySelector('.pdf-preview-document-title').textContent).toBe('report');
-        expect(frame.srcdoc).toContain('rebeccapurple');
+        expect(render().html).toContain('rebeccapurple');
         expect(renderPrintableMarkdownWithDiagrams).toHaveBeenCalledWith(
             expect.stringContaining('# Report'),
             'report'
@@ -201,21 +283,19 @@ describe('live PDF preview', () => {
         }));
         await new Promise(resolve => setTimeout(resolve, 360));
 
-        expect(frame.srcdoc).toContain('color: teal');
+        expect(render().html).toContain('color: teal');
         expect(renderPrintableMarkdownWithDiagrams).toHaveBeenCalledTimes(2);
     });
 
     test('renders an empty Markdown note instead of leaving the pane blank', async () => {
-        await openPDFPreview({ path: 'notes/empty.md', title: 'empty.md' });
-        await waitForPreview();
+        const { render } = await openReadyPreview({ path: 'notes/empty.md', title: 'empty.md' });
 
         expect(renderPrintableMarkdownWithDiagrams).toHaveBeenCalledWith('', 'empty');
-        expect(document.querySelector('.pdf-preview-frame').srcdoc).toContain('figaro-print-document');
+        expect(render().html).toContain('figaro-print-document');
     });
 
     test('refreshes the selected stylesheet after the vault file tree reports an external change', async () => {
-        await openPDFPreview({ path: 'notes/report.md', title: 'report.md' });
-        await waitForPreview();
+        const { render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
         window.pywebview.api.read_file.mockImplementation(path => {
             if (path === 'notes/styles/print.css') {
                 return Promise.resolve({ path, mtime: 12, content: '.figaro-print-document { color: midnightblue; }' });
@@ -244,7 +324,7 @@ describe('live PDF preview', () => {
         }));
         await new Promise(resolve => setTimeout(resolve, 360));
 
-        expect(document.querySelector('.pdf-preview-frame').srcdoc).toContain('midnightblue');
+        expect(render().html).toContain('midnightblue');
     });
 
     test('generates the PDF from the current preview via the existing export behavior', async () => {

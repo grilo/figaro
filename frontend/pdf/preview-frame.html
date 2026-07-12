@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  This document deliberately runs inside a sandboxed iframe without
+  allow-same-origin. It owns the printable DOM and communicates with the
+  application only through postMessage; see ARCHITECTURE.md for the rationale.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; script-src 'nonce-figaro-pdf-preview-bridge'; style-src 'unsafe-inline' 'self' wails: http://wails.localhost; img-src data: 'self' wails: http://wails.localhost; font-src data: 'self' wails: http://wails.localhost; connect-src 'none'; form-action 'none'">
+<script nonce="figaro-pdf-preview-bridge">
+(() => {
+    'use strict';
+
+    const channel = 'figaro-pdf-preview-v1';
+    const xlinkNamespace = 'http://www.w3.org/1999/xlink';
+    const bootstrapToken = (() => {
+        try {
+            return decodeURIComponent(String(window.location.hash || '').slice(1));
+        } catch (_) {
+            return String(window.location.hash || '').slice(1);
+        }
+    })();
+    let sessionToken = '';
+    let scheduledScrollReport = null;
+    let scheduledProgrammatic = false;
+    let programmaticScroll = false;
+
+    function finiteMetric(value) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : 0;
+    }
+
+    function clampProgress(value) {
+        return Math.max(0, Math.min(1, finiteMetric(value)));
+    }
+
+    function nextFrame(callback) {
+        if (typeof window.requestAnimationFrame === 'function') {
+            return window.requestAnimationFrame(callback);
+        }
+        return window.setTimeout(callback, 0);
+    }
+
+    function send(type, payload = {}) {
+        window.parent.postMessage({
+            channel,
+            type,
+            token: sessionToken,
+            bootstrapToken,
+            ...payload,
+        }, '*');
+    }
+
+    function currentMetrics() {
+        const root = document.scrollingElement || document.documentElement || document.body;
+        if (!root) return null;
+        const clientHeight = finiteMetric(root.clientHeight) ||
+            finiteMetric(document.documentElement && document.documentElement.clientHeight) ||
+            finiteMetric(document.body && document.body.clientHeight) ||
+            finiteMetric(window.innerHeight);
+        const scrollHeight = Math.max(
+            finiteMetric(root.scrollHeight),
+            finiteMetric(document.documentElement && document.documentElement.scrollHeight),
+            finiteMetric(document.body && document.body.scrollHeight),
+            clientHeight
+        );
+        return {
+            root,
+            clientHeight,
+            scrollHeight,
+            scrollTop: Math.max(finiteMetric(root.scrollTop), finiteMetric(window.scrollY)),
+        };
+    }
+
+    function documentStart(metrics) {
+        const main = document.querySelector('main.figaro-print-document');
+        if (!main || !metrics) return 0;
+
+        let offset = finiteMetric(main.offsetTop);
+        let parent = main.offsetParent;
+        while (parent && parent !== document.body) {
+            offset += finiteMetric(parent.offsetTop);
+            parent = parent.offsetParent;
+        }
+        if (offset <= 0 && typeof main.getBoundingClientRect === 'function' &&
+            typeof metrics.root.getBoundingClientRect === 'function') {
+            const mainRect = main.getBoundingClientRect();
+            const scrollRect = metrics.root.getBoundingClientRect();
+            offset = metrics.scrollTop + finiteMetric(mainRect.top) - finiteMetric(scrollRect.top);
+        }
+        const maximum = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+        return Math.min(maximum, Math.max(0, offset));
+    }
+
+    function documentProgress(metrics) {
+        const maximum = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+        return maximum > 0 ? clampProgress(metrics.scrollTop / maximum) : 0;
+    }
+
+    function contentProgress(metrics) {
+        const maximum = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+        const start = Math.min(maximum, Math.max(0, documentStart(metrics)));
+        const available = maximum - start;
+        return available > 0 ? clampProgress((metrics.scrollTop - start) / available) : 0;
+    }
+
+    function reportScroll(programmatic = false) {
+        if (!sessionToken) return;
+        const metrics = currentMetrics();
+        if (!metrics) return;
+        send('scroll', {
+            documentProgress: documentProgress(metrics),
+            contentProgress: contentProgress(metrics),
+            programmatic: Boolean(programmatic),
+        });
+    }
+
+    function scheduleScrollReport(programmatic = false) {
+        scheduledProgrammatic = scheduledProgrammatic || programmatic || programmaticScroll;
+        if (scheduledScrollReport !== null) return;
+        scheduledScrollReport = nextFrame(() => {
+            const wasProgrammatic = scheduledProgrammatic;
+            scheduledScrollReport = null;
+            scheduledProgrammatic = false;
+            reportScroll(wasProgrammatic);
+        });
+    }
+
+    function setScrollTop(nextTop, reportAsProgrammatic = true) {
+        const metrics = currentMetrics();
+        if (!metrics) return;
+        if (Math.abs(metrics.scrollTop - nextTop) < 0.5) return;
+
+        programmaticScroll = reportAsProgrammatic;
+        metrics.root.scrollTop = nextTop;
+        nextFrame(() => {
+            scheduleScrollReport(reportAsProgrammatic);
+            programmaticScroll = false;
+        });
+    }
+
+    function setDocumentProgress(progress) {
+        const metrics = currentMetrics();
+        if (!metrics) return;
+        const maximum = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+        setScrollTop(maximum * clampProgress(progress));
+    }
+
+    function setContentProgress(progress) {
+        const metrics = currentMetrics();
+        if (!metrics) return;
+        const maximum = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+        const start = Math.min(maximum, Math.max(0, documentStart(metrics)));
+        setScrollTop(start + (maximum - start) * clampProgress(progress));
+    }
+
+    function copyAttributes(source, destination) {
+        for (const attribute of Array.from(source.attributes || [])) {
+            destination.setAttribute(attribute.name, attribute.value);
+        }
+    }
+
+    function replaceManagedHead(parsed) {
+        document.head.querySelectorAll('[data-figaro-preview-managed]').forEach(node => node.remove());
+        for (const source of parsed.head.querySelectorAll('base, link[rel="stylesheet"], style')) {
+            const destination = document.createElement(source.tagName.toLowerCase());
+            copyAttributes(source, destination);
+            destination.dataset.figaroPreviewManaged = 'true';
+            if (destination.tagName === 'BASE') {
+                // If the bridge were ever unavailable, the sandbox blocks this
+                // fallback popup instead of letting a link replace this frame.
+                destination.setAttribute('target', '_blank');
+            }
+            if (destination.tagName === 'STYLE') destination.textContent = source.textContent || '';
+            document.head.appendChild(destination);
+        }
+    }
+
+    function sanitizeBody(body) {
+        body.querySelectorAll('script, iframe, object, embed, form, meta, link').forEach(node => node.remove());
+        body.querySelectorAll('*').forEach(element => {
+            for (const attribute of Array.from(element.attributes || [])) {
+                if (/^on/i.test(attribute.name) || attribute.name.toLowerCase() === 'srcdoc') {
+                    element.removeAttribute(attribute.name);
+                }
+            }
+            if (String(element.tagName || '').toLowerCase() === 'a') {
+                element.setAttribute('target', '_blank');
+                element.setAttribute('rel', 'noopener noreferrer');
+            }
+        });
+    }
+
+    function applyPreviewDocument(html) {
+        const parsed = new DOMParser().parseFromString(String(html || ''), 'text/html');
+        replaceManagedHead(parsed);
+        document.title = parsed.title || 'Live PDF preview';
+        sanitizeBody(parsed.body);
+        document.body.className = parsed.body.className;
+        document.body.innerHTML = parsed.body.innerHTML;
+    }
+
+    function linkFromEvent(event) {
+        let node = event.target;
+        while (node && node !== document) {
+            if (node.nodeType === 1 && String(node.tagName || '').toLowerCase() === 'a') {
+                const href = node.getAttribute('href') || node.getAttributeNS?.(xlinkNamespace, 'href');
+                if (href) return { node, href };
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    function fragmentID(href) {
+        const value = String(href || '').trim();
+        if (!value.startsWith('#') || value.length < 2) return '';
+        try {
+            return decodeURIComponent(value.slice(1));
+        } catch (_) {
+            return value.slice(1);
+        }
+    }
+
+    function scrollToFragment(fragment) {
+        const target = document.getElementById(String(fragment || ''));
+        if (!target) {
+            send('reference-missing', { fragment: String(fragment || '') });
+            return false;
+        }
+        target.scrollIntoView({ block: 'start', inline: 'nearest' });
+        nextFrame(() => reportScroll(false));
+        return true;
+    }
+
+    function handleLink(event) {
+        const link = linkFromEvent(event);
+        if (!link) return;
+        event.preventDefault();
+
+        const fragment = fragmentID(link.href);
+        if (fragment) {
+            scrollToFragment(fragment);
+            return;
+        }
+
+        send('link', { href: link.href });
+    }
+
+    document.addEventListener('click', handleLink, true);
+    document.addEventListener('auxclick', event => {
+        if (event.button === 1) handleLink(event);
+    }, true);
+    window.addEventListener('scroll', () => scheduleScrollReport(false), { passive: true });
+    document.addEventListener('scroll', () => scheduleScrollReport(false), true);
+
+    window.addEventListener('message', event => {
+        if (event.source !== window.parent) return;
+        const message = event.data;
+        if (!message || message.channel !== channel) return;
+
+        if (message.type === 'ping') {
+            send('ready');
+            return;
+        }
+
+        if (String(message.bootstrapToken || '') !== bootstrapToken) return;
+
+        if (message.type === 'render') {
+            const renderToken = String(message.token || '');
+            sessionToken = renderToken;
+            try {
+                applyPreviewDocument(message.html);
+                nextFrame(() => nextFrame(() => {
+                    // Rendering can be superseded while styles or diagrams
+                    // settle. Only the latest snapshot may restore scroll or
+                    // tell the parent that its render is complete.
+                    if (sessionToken !== renderToken) return;
+                    setDocumentProgress(message.documentProgress);
+                    send('rendered');
+                }));
+            } catch (error) {
+                if (sessionToken !== renderToken) return;
+                send('render-error', { message: error && error.message ? error.message : 'Could not render the preview.' });
+            }
+            return;
+        }
+
+        if (!sessionToken || message.token !== sessionToken) return;
+        if (message.type === 'set-content-progress') setContentProgress(message.progress);
+        if (message.type === 'set-document-progress') setDocumentProgress(message.progress);
+        if (message.type === 'scroll-fragment') scrollToFragment(message.fragment);
+    });
+
+    window.addEventListener('DOMContentLoaded', () => send('ready'), { once: true });
+})();
+</script>
+</head>
+<body></body>
+</html>
