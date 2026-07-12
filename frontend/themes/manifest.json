@@ -1,7 +1,11 @@
 [
   {
     "id": "default",
-    "name": "Default Dark"
+    "name": "Figaro Dark"
+  },
+  {
+    "id": "figaro-light",
+    "name": "Figaro Light"
   },
   {
     "id": "github",

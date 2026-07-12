@@ -345,8 +345,12 @@ html, body {
 }
 .topbar-action-btn.active {
     color: var(--accent-color);
-    background: rgba(88, 101, 242, 0.1);
-    border-color: rgba(88, 101, 242, 0.25);
+    /* Fall back to the theme's regular surfaces on older webviews. */
+    background: var(--hover-bg);
+    border-color: var(--accent-color);
+    /* Let the selected action inherit the character of the active theme. */
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
 }
 .topbar-action-btn svg {
     flex-shrink: 0;

@@ -1107,6 +1107,28 @@ func TestEnsureSettingsDefaultsCreatesDefaultsForMissingAndEmptyFiles(t *testing
 	}
 }
 
+func TestEnsureSettingsDefaultsMigratesLegacyFigaroDarkTheme(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	settingsPath := filepath.Join(vaultPath, ".config", "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"theme":"figaro-dark"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	app.ensureSettingsDefaults()
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		t.Fatal(err)
+	}
+	if settings["theme"] != "default" {
+		t.Fatalf("expected legacy Figaro Dark theme ID to migrate to default, got %#v", settings["theme"])
+	}
+}
+
 func TestAutoCommitSaveReconfiguresScheduler(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
@@ -1326,6 +1348,8 @@ func TestGetThemes(t *testing.T) {
 	}
 	foundGitHubLight := false
 	foundGitHubDark := false
+	foundFigaroLight := false
+	foundFigaroDark := false
 	for _, theme := range themeList {
 		if theme.ID == "github" && theme.Name == "GitHub Light" {
 			foundGitHubLight = true
@@ -1333,12 +1357,24 @@ func TestGetThemes(t *testing.T) {
 		if theme.ID == "github-dark" && theme.Name == "GitHub Dark" {
 			foundGitHubDark = true
 		}
+		if theme.ID == "figaro-light" && theme.Name == "Figaro Light" {
+			foundFigaroLight = true
+		}
+		if theme.ID == "default" && theme.Name == "Figaro Dark" {
+			foundFigaroDark = true
+		}
 	}
 	if !foundGitHubLight {
 		t.Error("expected GitHub Light in the available themes")
 	}
 	if !foundGitHubDark {
 		t.Error("expected GitHub Dark in the available themes")
+	}
+	if !foundFigaroLight {
+		t.Error("expected Figaro Light in the available themes")
+	}
+	if !foundFigaroDark {
+		t.Error("expected Figaro Dark in the available themes")
 	}
 }
 
@@ -1379,6 +1415,32 @@ func TestGetThemeCSS_GitHubDark(t *testing.T) {
 	}
 	if !strings.Contains(result["css"], "--bg-color: #0d1117") {
 		t.Error("expected GitHub Dark theme CSS to be available")
+	}
+}
+
+func TestGetThemeCSS_FigaroThemes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	for themeID, expected := range map[string]string{
+		"figaro-light": "--accent-color: #c12b20",
+		"default":      "--accent-color: #e84d3d",
+	} {
+		result, err := app.GetThemeCSS(themeID)
+		if err != nil {
+			t.Fatalf("GetThemeCSS(%s) error: %v", themeID, err)
+		}
+		if !strings.Contains(result["css"], expected) {
+			t.Errorf("expected %s CSS to contain %q", themeID, expected)
+		}
+	}
+
+	legacyResult, err := app.GetThemeCSS("figaro-dark")
+	if err != nil {
+		t.Fatalf("GetThemeCSS(figaro-dark) error: %v", err)
+	}
+	if !strings.Contains(legacyResult["css"], "--accent-color: #e84d3d") {
+		t.Error("expected legacy figaro-dark ID to resolve to Figaro Dark")
 	}
 }
 

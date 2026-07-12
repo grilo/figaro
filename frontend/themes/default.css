@@ -1,62 +1,104 @@
 :root {
-    --bg-color: #1e1e1e;
-    --sidebar-bg: #151515;
-    --panel-bg: #18191c;
-    --text-color: #dcddde;
-    --text-muted: #72767d;
-    --text-dim: #4f545c;
-    --accent-color: #5865f2;
-    --accent-hover: #4752c4;
-    --active-bg: #2f3136;
-    --hover-bg: #222428;
-    --border-color: #2d2d2d;
-    --border-light: #3a3a3a;
-    --danger-color: #ed4245;
-    --danger-hover: #c03537;
-    --success-color: #3ba55c;
-    --warning-color: #faa61a;
-    --scrollbar-track: #1e1e1e;
-    --scrollbar-thumb: #3a3a3a;
-    --scrollbar-thumb-hover: #4a4a4a;
-    --selection-bg: #3a3f4b;
-    --focus-ring: rgba(88, 101, 242, 0.4);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+    /* Figaro Dark — midnight fur, ivory detail, and a red leather collar. */
+    --bg-color: #171614;
+    --sidebar-bg: #0f100f;
+    --panel-bg: #24211d;
+    --text-color: #f7efe3;
+    --text-muted: #c0b2a1;
+    --text-dim: #83776a;
+    --accent-color: #e84d3d;
+    --accent-hover: #ff6d5c;
+    --active-bg: #512720;
+    --hover-bg: #2c2823;
+    --border-color: #463d34;
+    --border-light: #675b4e;
+    --danger-color: #f06457;
+    --danger-hover: #ff8b80;
+    --success-color: #69bd84;
+    --warning-color: #e3aa57;
+    --scrollbar-track: #121210;
+    --scrollbar-thumb: #584d42;
+    --scrollbar-thumb-hover: #716457;
+    --selection-bg: #703128;
+    --focus-ring: rgba(232, 77, 61, 0.46);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.44);
+    --shadow-md: 0 5px 16px rgba(0, 0, 0, 0.54);
+    --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.68);
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
     --font-size: 16px;
     --font-size-sm: 14px;
     --line-height: 1.6;
-    /* Markdown syntax highlighting */
-    --cursor-color: #dcddde;
-    --cursor-bg: #dcddde;
-    --cursor-text: #1e1e1e;
-    --heading-color: var(--accent-color);
-    --bold-color: var(--text-color);
-    --italic-color: var(--text-color);
-    --link-color: #9b7fc4;
-    --link-hover-color: #b39ddb;
-    --url-color: #58a6ff;
-    --hashtag-color: #5865f2;
-    --code-bg: rgba(255, 255, 255, 0.05);
-    --quote-color: var(--text-muted);
-    --quote-border: var(--border-light);
-    --highlight-bg: rgba(250, 166, 26, 0.25);
-    --callout-note-color: #3b82f6;
-    --callout-warning-color: #f59e0b;
-    --callout-info-color: #06b6d4;
-    --callout-tip-color: #10b981;
-    --callout-danger-color: #ef4444;
-    --callout-example-color: #8b5cf6;
-    --code-keyword-color: #c792ea;
-    --code-string-color: #c3e88d;
-    --code-number-color: #f78c6c;
-    --code-function-color: #82aaff;
-    --code-comment-color: #546e7a;
-    --code-type-color: #ffcb6b;
-    --code-variable-color: #eeffff;
-    --code-operator-color: #89ddff;
-    --code-builtin-color: #f07178;
 
+    --cursor-color: #fff7eb;
+    --cursor-bg: #fff7eb;
+    --cursor-text: #171614;
+    --heading-color: #fff7eb;
+    --bold-color: #fff9ef;
+    --italic-color: #eadfd0;
+    --link-color: #f47d6d;
+    --link-hover-color: #ffa193;
+    --url-color: #8ccceb;
+    --hashtag-color: #f0ae72;
+    --code-bg: rgba(255, 244, 229, 0.075);
+    --quote-color: #c0b2a1;
+    --quote-border: #675b4e;
+    --highlight-bg: rgba(230, 173, 83, 0.31);
+    --callout-note-color: #81c8eb;
+    --callout-warning-color: #e3aa57;
+    --callout-info-color: #82afd4;
+    --callout-tip-color: #69bd84;
+    --callout-danger-color: #f06457;
+    --callout-example-color: #c6a4eb;
+    --code-keyword-color: #f47d6d;
+    --code-string-color: #9bd39f;
+    --code-number-color: #e6bd73;
+    --code-function-color: #8bc9eb;
+    --code-comment-color: #908274;
+    --code-type-color: #c6a4eb;
+    --code-variable-color: #f7efe3;
+    --code-operator-color: #dfc2a3;
+    --code-builtin-color: #fa9688;
+}
+
+/* A low-key echo of the icon: red collar warmth against almost-black fur. */
+#app {
+    background:
+        radial-gradient(64rem 38rem at -12% -16%, rgba(232, 77, 61, 0.14), transparent 56%),
+        radial-gradient(48rem 34rem at 108% 110%, rgba(255, 247, 235, 0.05), transparent 64%),
+        var(--bg-color);
+}
+
+.top-bar,
+.tab-bar,
+.sidebar {
+    background: linear-gradient(180deg, #151412 0%, #0e0f0e 100%) !important;
+}
+
+.top-bar {
+    position: relative;
+}
+
+.top-bar::after {
+    content: '';
+    position: absolute;
+    right: 18px;
+    bottom: 0;
+    left: 18px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(232, 77, 61, 0.68), transparent);
+    pointer-events: none;
+}
+
+.editor-panel,
+.cm-editor {
+    background:
+        radial-gradient(46rem 30rem at 4% -12%, rgba(232, 77, 61, 0.075), transparent 56%),
+        var(--bg-color) !important;
+}
+
+.tab.active {
+    background: linear-gradient(180deg, rgba(255, 247, 235, 0.10), rgba(255, 247, 235, 0.045)) !important;
+    border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color)) !important;
+    box-shadow: inset 0 -2px 0 var(--accent-color), 0 8px 18px rgba(0, 0, 0, 0.18);
 }

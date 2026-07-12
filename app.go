@@ -58,6 +58,19 @@ var hexColorRe = regexp.MustCompile(`^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$`)
 
 var themeIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
+const legacyFigaroDarkThemeID = "figaro-dark"
+
+// canonicalThemeID keeps the original default theme ID stable while allowing
+// Figaro Dark to replace the former Default Dark without breaking saved
+// settings created during the brief standalone Figaro Dark release.
+func canonicalThemeID(themeID string) string {
+	normalized := strings.TrimSpace(strings.ToLower(themeID))
+	if normalized == legacyFigaroDarkThemeID {
+		return "default"
+	}
+	return normalized
+}
+
 // isHashtagBoundaryOK checks that the character before a match at position `pos`
 // is not a word character and not another '#'.
 func isHashtagBoundaryOK(s string, matchStart int) bool {
@@ -1828,14 +1841,14 @@ func (a *App) GetThemes() (map[string]interface{}, error) {
 		data, err = readProjectAsset(path) // fallback for dev mode
 		if err != nil {
 			return map[string]interface{}{
-				"themes": []ThemeInfo{{ID: "default", Name: "Default Dark"}},
+				"themes": []ThemeInfo{{ID: "default", Name: "Figaro Dark"}},
 			}, nil
 		}
 	}
 	var themes []ThemeInfo
 	if err := json.Unmarshal(data, &themes); err != nil {
 		return map[string]interface{}{
-			"themes": []ThemeInfo{{ID: "default", Name: "Default Dark"}},
+			"themes": []ThemeInfo{{ID: "default", Name: "Figaro Dark"}},
 		}, nil
 	}
 	return map[string]interface{}{"themes": themes}, nil
@@ -1843,7 +1856,7 @@ func (a *App) GetThemes() (map[string]interface{}, error) {
 
 // GetThemeCSS returns the raw CSS for a theme.
 func (a *App) GetThemeCSS(themeID string) (map[string]string, error) {
-	themeID = strings.TrimSpace(strings.ToLower(themeID))
+	themeID = canonicalThemeID(themeID)
 	if !themeIDRe.MatchString(themeID) {
 		return nil, fmt.Errorf("invalid theme id")
 	}
@@ -1924,6 +1937,9 @@ func (a *App) ensureSettingsDefaults() {
 		case string:
 			rawValue, ok := settings[key].(string)
 			value := strings.TrimSpace(rawValue)
+			if key == "theme" {
+				value = canonicalThemeID(value)
+			}
 			if !ok || value == "" {
 				settings[key] = fallbackValue
 				changed = true
@@ -1973,6 +1989,7 @@ func (a *App) ThemeLoad() (map[string]string, error) {
 		return map[string]string{"theme": "default"}, nil
 	}
 	theme, _ := settings["theme"].(string)
+	theme = canonicalThemeID(theme)
 	if theme == "" {
 		theme = "default"
 	}
@@ -1996,7 +2013,7 @@ func (a *App) ThemeSave(themeID string) (*SaveFileResult, error) {
 	if err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}
-	settings["theme"] = themeID
+	settings["theme"] = canonicalThemeID(themeID)
 	if err := a.writeSettingsFile(settings); err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}

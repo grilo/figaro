@@ -1085,7 +1085,7 @@ function updateStats(text) {
     const re = document.getElementById('reading-time');
     if (we) we.textContent = `${w} words`;
     if (ce) ce.textContent = `${c} chars`;
-    if (re) re.textContent = `${rt} min`;
+    if (re) re.textContent = `${rt} min read`;
 }
 
 async function saveActiveFile() {

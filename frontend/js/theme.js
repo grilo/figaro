@@ -88,7 +88,7 @@ export async function getThemes() {
     } catch (e) {
         log.warn('Failed to load theme list:', e);
     }
-    return [{ id: 'default', name: 'Default Dark' }];
+    return [{ id: 'default', name: 'Figaro Dark' }];
 }
 
 function withTimeout(promise, ms, msg) {

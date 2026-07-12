@@ -101,7 +101,7 @@ function createMockDOM() {
             <footer id="status-bar" class="status-bar">
                 <span id="status-text">Ready</span>
                 <span id="cursor-position">Ln 1, Col 1</span>
-                <span id="reading-time">0 min</span>
+                <span id="reading-time">0 min read</span>
                 <span id="word-count">0 words</span>
                 <span id="char-count">0 chars</span>
                 <a id="backlinks-status" class="status-backlinks">0 backlinks</a>

@@ -15,14 +15,13 @@ trap 'rm -f "$master_icon"' EXIT
 
 mkdir -p build/windows assets/branding frontend
 
-# The supplied artwork is a wide presentation canvas. Extract its central
-# rounded-square mark and restore transparent corners before scaling it into
-# the square icon master used by Wails, the webview, and desktop shells.
+# The source artwork is a square Figaro icon. Normalize it into the canonical
+# 1024px rounded-square master, restoring transparent corners before scaling
+# it into the Wails, webview, and desktop-shell variants.
 magick \
-    \( "$source_art" -crop 440x440+484+98 +repage \) \
-    \( -size 440x440 xc:none -fill white -draw "roundrectangle 8,3 431,437 87,87" \) \
+    "$source_art" -filter Lanczos -resize '1024x1024^' -gravity center -extent 1024x1024 \
+    \( -size 1024x1024 xc:none -fill white -draw "roundrectangle 0,0 1023,1023 184,184" \) \
     -alpha off -compose CopyOpacity -composite \
-    -filter Lanczos -resize 1024x1024 \
     "$master_icon"
 
 for target in appicon.png build/appicon.png assets/branding/figaro.fullsize.png; do

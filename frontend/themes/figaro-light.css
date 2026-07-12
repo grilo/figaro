@@ -1,0 +1,105 @@
+:root {
+    /* Figaro Light — the icon's ivory tile with ink, collar red, and brass. */
+    --bg-color: #fcf7ef;
+    --sidebar-bg: #eee0d0;
+    --panel-bg: #fffaf2;
+    --text-color: #261e17;
+    --text-muted: #756256;
+    --text-dim: #a18b79;
+    --accent-color: #c12b20;
+    --accent-hover: #981f18;
+    --active-bg: #f5d9ce;
+    --hover-bg: #f5eadc;
+    --border-color: #dac5b0;
+    --border-light: #bea48c;
+    --danger-color: #c12b20;
+    --danger-hover: #981f18;
+    --success-color: #28794d;
+    --warning-color: #a86919;
+    --scrollbar-track: #f8efe3;
+    --scrollbar-thumb: #bca58e;
+    --scrollbar-thumb-hover: #967d65;
+    --selection-bg: #efbbb0;
+    --focus-ring: rgba(193, 43, 32, 0.30);
+    --shadow-sm: 0 1px 2px rgba(48, 31, 20, 0.10);
+    --shadow-md: 0 5px 16px rgba(48, 31, 20, 0.14);
+    --shadow-lg: 0 14px 34px rgba(48, 31, 20, 0.18);
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace;
+    --font-size: 16px;
+    --font-size-sm: 14px;
+    --line-height: 1.6;
+
+    --cursor-color: #261e17;
+    --cursor-bg: #261e17;
+    --cursor-text: #fffaf2;
+    --heading-color: #261e17;
+    --bold-color: #201812;
+    --italic-color: #584438;
+    --link-color: #a82b22;
+    --link-hover-color: #7d1d17;
+    --url-color: #1c719d;
+    --hashtag-color: #bc6a23;
+    --code-bg: rgba(77, 49, 30, 0.075);
+    --quote-color: #756256;
+    --quote-border: #bea48c;
+    --highlight-bg: #f4d78e;
+    --callout-note-color: #217fae;
+    --callout-warning-color: #a86919;
+    --callout-info-color: #39789d;
+    --callout-tip-color: #28794d;
+    --callout-danger-color: #c12b20;
+    --callout-example-color: #7955a9;
+    --code-keyword-color: #ad3027;
+    --code-string-color: #28794d;
+    --code-number-color: #9a5918;
+    --code-function-color: #206f9b;
+    --code-comment-color: #897563;
+    --code-type-color: #7955a9;
+    --code-variable-color: #30251d;
+    --code-operator-color: #7a4b27;
+    --code-builtin-color: #a8342b;
+}
+
+/* The rounded tile becomes a soft paper surface instead of a flat beige UI. */
+#app {
+    background:
+        radial-gradient(58rem 34rem at -14% -18%, rgba(193, 43, 32, 0.10), transparent 57%),
+        radial-gradient(46rem 30rem at 108% 112%, rgba(190, 145, 88, 0.11), transparent 66%),
+        var(--bg-color);
+}
+
+.top-bar,
+.tab-bar,
+.sidebar {
+    background: linear-gradient(180deg, #f2e6d7 0%, #e9dac8 100%) !important;
+}
+
+.top-bar {
+    position: relative;
+}
+
+.top-bar::after {
+    content: '';
+    position: absolute;
+    right: 18px;
+    bottom: 0;
+    left: 18px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(193, 43, 32, 0.55), transparent);
+    pointer-events: none;
+}
+
+.editor-panel,
+.cm-editor {
+    background:
+        radial-gradient(48rem 31rem at 5% -14%, rgba(193, 43, 32, 0.055), transparent 58%),
+        radial-gradient(34rem 25rem at 104% 108%, rgba(190, 145, 88, 0.075), transparent 68%),
+        var(--bg-color) !important;
+}
+
+.tab.active {
+    background: linear-gradient(180deg, rgba(255, 253, 248, 0.88), rgba(248, 234, 220, 0.82)) !important;
+    border-color: color-mix(in srgb, var(--accent-color) 28%, var(--border-color)) !important;
+    box-shadow: inset 0 -2px 0 var(--accent-color), 0 7px 16px rgba(69, 42, 24, 0.09);
+}

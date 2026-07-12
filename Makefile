@@ -113,7 +113,9 @@ ensure-frontend-assets:
 	fi
 
 ensure-icons:
-	@if [ ! -f appicon.png ] || [ ! -f build/appicon.png ] || [ ! -f frontend/icon-32.png ] || [ ! -f frontend/favicon.ico ]; then \
+	@if [ ! -f appicon.png ] || [ ! -f build/appicon.png ] || [ ! -f frontend/icon-32.png ] || [ ! -f frontend/icon-256.png ] || [ ! -f frontend/favicon.ico ] || \
+		[ figaro.appicon.png -nt appicon.png ] || [ figaro.appicon.png -nt build/appicon.png ] || [ figaro.appicon.png -nt frontend/icon-32.png ] || [ figaro.appicon.png -nt frontend/icon-256.png ] || [ figaro.appicon.png -nt frontend/favicon.ico ] || \
+		[ scripts/generate-icons.sh -nt appicon.png ]; then \
 		$(MAKE) icons; \
 	fi
 

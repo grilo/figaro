@@ -29,7 +29,7 @@ figaro combines the durability of plain Markdown with a desktop workspace that h
 | --- | --- | --- |
 | Live Markdown preview with tables, task lists, callouts, footnotes, math, images, and internal links | Vault file tree, tabs, global search, backlinks, date-aware calendar, and persistent sessions | Mermaid, Vega, Vega-Lite, editable Draw.io SVGs, and interactive PDF export |
 | CodeMirror-powered editing for Markdown and supported source files such as CSS, JavaScript, JSON, Go, Python, Rust, SQL, YAML, and more | Hashtag-driven Kanban with custom columns, drag-and-drop task moves, and optional local Git auto-commit history | Cover pages, depth-limited tables of contents, and vault-local print stylesheets |
-| Optional Vim mode, language-aware syntax highlighting, folding, completion, and theme-aware indent guides | Drag-reorderable and pinnable tabs, recent notes, and a Welcome workspace when no editor tab remains | Sixteen built-in themes, separate prose/code font pickers, font size and reading-width controls |
+| Optional Vim mode, language-aware syntax highlighting, folding, completion, and theme-aware indent guides | Drag-reorderable and pinnable tabs, recent notes, and a Welcome workspace when no editor tab remains | Seventeen built-in themes, including Figaro Light and Figaro Dark, plus separate prose/code font pickers, font size and reading-width controls |
 
 ## A workspace built around plain files
 

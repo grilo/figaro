@@ -6,6 +6,8 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Added
 
+- Figaro Light and Figaro Dark (the new default), two built-in themes derived
+  from Figaro's warm ivory, black fur, and red badge palette.
 - Live **PDF Preview** in the right sidebar for Markdown notes. It uses the
   same printable document structure as export, supports the selected
   frontmatter stylesheet, refreshes after Markdown or CSS edits, and exposes a
@@ -19,6 +21,11 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Figaro Dark now replaces Default Dark without changing saved `default`
+  preferences; both Figaro themes received richer paper, fur, collar, and
+  brass-inspired surface treatments.
+- Rebuilt all packaged application icons from the cleaned Figaro badge asset,
+  including Wails, webview, favicon, Windows, and desktop-shell sizes.
 - Markdown context menus now offer **Preview PDF**; PDF generation remains an
   explicit action inside the preview pane.
 - PDF preview now applies the selected stylesheet after its screen-only
@@ -42,6 +49,12 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- Active title-bar actions now draw from the current theme's accent color
+  instead of a fixed blue, and the reading-time indicator explicitly says
+  “min read”.
+- Linux startup now removes stale Figaro launcher icons, writes a content-
+  versioned icon path, and refreshes the desktop caches so Fedora and GNOME do
+  not retain a previous icon after an upgrade.
 - Right-clicking empty file-tree space now opens vault-root actions.
 - Preview-only white paper styling no longer overrides a user stylesheet's
   `html` background or inherited text color.

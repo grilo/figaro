@@ -23,7 +23,7 @@ const mockApi = {
     code_font_save: jest.fn(() => Promise.resolve({ success: true })),
     get_theme_css: jest.fn(() => Promise.resolve({ css: ':root { --bg-color: #111; }' })),
     theme_save: jest.fn(() => Promise.resolve({ success: true })),
-    get_themes: jest.fn(() => Promise.resolve({ themes: [{ id: 'default', name: 'Default Dark' }] })),
+    get_themes: jest.fn(() => Promise.resolve({ themes: [{ id: 'default', name: 'Figaro Dark' }] })),
     vim_load: jest.fn(() => Promise.resolve({ enabled: false })),
 };
 
