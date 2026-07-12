@@ -1,0 +1,38 @@
+xjs.txt
+xobsidian.txt
+.aider*
+.DS_Store
+Thumbs.db
+reasonix.toml
+.reasonix/
+
+# Dependency installs and generated browser assets.
+/node_modules/
+/frontend/vendored/@marijn/
+/frontend/vendored/codemirror/
+/frontend/vendored/crelt/
+/frontend/vendored/importmap.json
+/frontend/vendored/katex/
+/frontend/vendored/lezer/
+/frontend/vendored/markdown-it-plugins/
+/frontend/vendored/style-mod/
+/frontend/vendored/w3c-keyname/
+/frontend/wailsjs/
+
+# Generated build output and application icon derivatives.
+/build/
+/appicon.png
+/assets/branding/figaro.fullsize.png
+/frontend/icon-*.png
+/frontend/favicon.ico
+/figaro
+/test-results/
+/playwright-report/
+/coverage/
+
+# Local workspace data. The leading slash deliberately preserves internal/vault source.
+/vault/
+
+# Local backups and machine-specific helpers.
+*.bak
+scripts/*.local.sh

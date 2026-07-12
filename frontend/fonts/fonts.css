@@ -1,0 +1,316 @@
+/* === Editor Fonts — vendored locally === */
+
+/* Figtree */
+@font-face {
+    font-family: 'Figtree';
+    src: url('figtree-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Figtree';
+    src: url('figtree-500.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Figtree';
+    src: url('figtree-600.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Figtree';
+    src: url('figtree-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Atkinson Hyperlegible */
+@font-face {
+    font-family: 'Atkinson Hyperlegible';
+    src: url('atkinson-hyperlegible-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Atkinson Hyperlegible';
+    src: url('atkinson-hyperlegible-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* IBM Plex Sans */
+@font-face {
+    font-family: 'IBM Plex Sans';
+    src: url('ibm-plex-sans-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'IBM Plex Sans';
+    src: url('ibm-plex-sans-500.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'IBM Plex Sans';
+    src: url('ibm-plex-sans-600.woff2') format('woff2');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'IBM Plex Sans';
+    src: url('ibm-plex-sans-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Fira Sans — open-source Frutiger alternative */
+@font-face {
+    font-family: 'Fira Sans';
+    src: url('fira-sans-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Fira Sans';
+    src: url('fira-sans-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Fira Sans';
+    src: url('fira-sans-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Fira Sans';
+    src: url('fira-sans-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* EB Garamond — open-source FS Brabo alternative */
+@font-face {
+    font-family: 'EB Garamond';
+    src: url('eb-garamond-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'EB Garamond';
+    src: url('eb-garamond-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'EB Garamond';
+    src: url('eb-garamond-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'EB Garamond';
+    src: url('eb-garamond-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Crimson Pro — open-source Gazette alternative */
+@font-face {
+    font-family: 'Crimson Pro';
+    src: url('crimson-pro-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Crimson Pro';
+    src: url('crimson-pro-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Crimson Pro';
+    src: url('crimson-pro-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Crimson Pro';
+    src: url('crimson-pro-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Exo 2 — open-source Eurostile alternative */
+@font-face {
+    font-family: 'Exo 2';
+    src: url('exo-2-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Exo 2';
+    src: url('exo-2-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Exo 2';
+    src: url('exo-2-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Exo 2';
+    src: url('exo-2-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Dancing Script — open-source Fabiol alternative */
+@font-face {
+    font-family: 'Dancing Script';
+    src: url('dancing-script-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Dancing Script';
+    src: url('dancing-script-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Dancing Script';
+    src: url('dancing-script-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Dancing Script';
+    src: url('dancing-script-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Overpass */
+@font-face {
+    font-family: 'Overpass';
+    src: url('overpass-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Overpass';
+    src: url('overpass-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Overpass';
+    src: url('overpass-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Overpass';
+    src: url('overpass-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Alegreya (serif) */
+@font-face {
+    font-family: 'Alegreya';
+    src: url('alegreya-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya';
+    src: url('alegreya-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya';
+    src: url('alegreya-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya';
+    src: url('alegreya-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Alegreya Sans */
+@font-face {
+    font-family: 'Alegreya Sans';
+    src: url('alegreya-sans-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya Sans';
+    src: url('alegreya-sans-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya Sans';
+    src: url('alegreya-sans-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* JetBrains Mono */
+@font-face {
+    font-family: 'JetBrains Mono';
+    src: url('jetbrains-mono-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    src: url('jetbrains-mono-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    src: url('jetbrains-mono-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    src: url('jetbrains-mono-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Work Sans */
+@font-face {
+    font-family: 'Work Sans';
+    src: url('work-sans-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Work Sans';
+    src: url('work-sans-500.woff2') format('woff2');
+    font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Work Sans';
+    src: url('work-sans-600.woff2') format('woff2');
+    font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Work Sans';
+    src: url('work-sans-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* ETbb */
+@font-face {
+    font-family: 'ETbb';
+    src: url('etbb-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'ETbb';
+    src: url('etbb-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}
+
+/* Reforma 1918 */
+@font-face {
+    font-family: 'Reforma 1918';
+    src: url('reforma-400.woff2') format('woff2');
+    font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+    font-family: 'Reforma 1918';
+    src: url('reforma-700.woff2') format('woff2');
+    font-weight: 700; font-style: normal; font-display: swap;
+}

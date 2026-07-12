@@ -1,0 +1,66 @@
+[
+  {
+    "id": "default",
+    "name": "Default Dark"
+  },
+  {
+    "id": "github",
+    "name": "GitHub Light"
+  },
+  {
+    "id": "github-dark",
+    "name": "GitHub Dark"
+  },
+  {
+    "id": "catppuccin-mocha",
+    "name": "Catppuccin Mocha"
+  },
+  {
+    "id": "catppuccin-macchiato",
+    "name": "Catppuccin Macchiato"
+  },
+  {
+    "id": "zenburn",
+    "name": "Zenburn"
+  },
+  {
+    "id": "gruvbox-dark",
+    "name": "Gruvbox Dark"
+  },
+  {
+    "id": "gruvbox-light",
+    "name": "Gruvbox Light"
+  },
+  {
+    "id": "nord",
+    "name": "Nord"
+  },
+  {
+    "id": "one-dark",
+    "name": "One Dark"
+  },
+  {
+    "id": "one-dark-vivid",
+    "name": "One Dark Vivid"
+  },
+  {
+    "id": "night-owl",
+    "name": "Night Owl"
+  },
+  {
+    "id": "cobalt2",
+    "name": "Cobalt2"
+  },
+  {
+    "id": "ayu-dark",
+    "name": "Ayu Dark"
+  },
+  {
+    "id": "ayu-mirage",
+    "name": "Ayu Mirage"
+  },
+  {
+    "id": "ayu-light",
+    "name": "Ayu Light"
+  }
+]

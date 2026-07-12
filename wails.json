@@ -1,0 +1,36 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "figaro",
+  "outputfilename": "figaro",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:url": "http://localhost:34115",
+  "frontend:dir": "frontend",
+  "frontend:dist": "frontend",
+  "author": {
+    "name": "figaro",
+    "email": "dev@figaro.local"
+  },
+  "info": {
+    "companyName": "figaro",
+    "productName": "figaro",
+    "productVersion": "2.0.0",
+    "copyright": "MIT",
+    "comments": "Local Markdown Knowledge Base — Go/Wails Edition"
+  },
+  "app": {
+    "window": {
+      "title": "figaro",
+      "width": 1280,
+      "height": 800,
+      "minWidth": 800,
+      "minHeight": 500,
+      "frameless": true,
+      "transparent": false,
+      "resizable": true,
+      "fullscreen": false,
+      "startState": 0
+    }
+  }
+}

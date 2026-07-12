@@ -1,0 +1,240 @@
+<p align="center">
+  <img src="figaro.appicon.png" width="112" alt="figaro logo">
+</p>
+
+<h1 align="center">figaro</h1>
+
+<p align="center">
+  A local-first Markdown workspace for notes, tasks, diagrams, and beautiful printable documents.
+</p>
+
+<p align="center">
+  Your knowledge stays in ordinary files, in a folder you control. No account, cloud service, or proprietary database required.
+</p>
+
+> **Figaro** is a desktop personal knowledge manager designed to make a plain-folder vault feel focused, capable, and pleasant to use.
+
+## Why figaro?
+
+figaro combines the durability of plain Markdown with a desktop workspace that helps you write, navigate, plan, and publish without putting your notes behind a service.
+
+- **Own your data.** Notes, images, source files, editable diagrams, settings, and history live in your local vault.
+- **Write without leaving the flow.** Markdown is rendered live, while the active line remains ordinary source text for precise editing.
+- **Turn notes into action.** Hashtags become a drag-and-drop Kanban board; date links feed a calendar; links produce backlinks.
+- **Ship polished documents.** Frontmatter can add a cover page, table of contents, and a note-specific print stylesheet before an interactive PDF export that preserves links and references.
+
+## Highlights
+
+| Write | Organize | Visualize and share |
+| --- | --- | --- |
+| Live Markdown preview with tables, task lists, callouts, footnotes, math, images, and internal links | Vault file tree, tabs, global search, backlinks, date-aware calendar, and persistent sessions | Mermaid, Vega, Vega-Lite, editable Draw.io SVGs, and interactive PDF export |
+| CodeMirror-powered editing for Markdown and supported source files such as CSS, JavaScript, JSON, Go, Python, Rust, SQL, YAML, and more | Hashtag-driven Kanban with custom columns, drag-and-drop task moves, and optional local Git auto-commit history | Cover pages, depth-limited tables of contents, and vault-local print stylesheets |
+| Optional Vim mode, language-aware syntax highlighting, folding, completion, and theme-aware indent guides | Drag-reorderable and pinnable tabs, recent notes, and a Welcome workspace when no editor tab remains | Sixteen built-in themes, separate prose/code font pickers, font size and reading-width controls |
+
+## A workspace built around plain files
+
+Every vault is an ordinary directory. Markdown remains Markdown, images remain image files, code remains code, and Draw.io diagrams are saved as editable `.drawio.svg` files. figaro stores its own small amount of application state in `.config/` inside the vault, rather than converting your notes into a database.
+
+The default vault is `./vault`. Point figaro at another location with the `VAULT_PATH` environment variable:
+
+~~~bash
+VAULT_PATH="$HOME/Documents/notes" make dev
+~~~
+
+On first launch, an empty vault receives a welcome note with examples and a short getting-started guide.
+
+### Search, planning, and history
+
+The sidebar search finds both note names and Markdown body text. It supports title-only, recent-notes, and case-sensitive filters, plus keyboard navigation. The Calendar highlights daily notes named `YYYY-MM-DD.md` and notes that link to them; date links open a workspace results tab. The Home tab keeps the last eight opened notes and up to six unfinished Kanban cards close at hand.
+
+Saving and versioning are intentionally separate. **Auto-Save** writes the active dirty file on the interval you choose, while **Auto-Commit** is an optional, off-by-default local Git scheduler. This keeps normal file saving fast and predictable while letting you opt into version history.
+
+## Markdown, diagrams, and PDFs
+
+### Markdown and code
+
+figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks.
+
+Files recognised by CodeMirror's language registry open in the same editor as proper code files, with syntax highlighting, folding, completions, Vim support, and indentation guides. Unsupported or binary files stay safely non-editable in the file tree.
+
+### Diagrams
+
+Use fenced blocks for live Mermaid, Vega, and Vega-Lite output:
+
+~~~~markdown
+~~~mermaid
+flowchart TD
+  Idea --> Draft --> Publish
+~~~
+
+~~~vega-lite
+{
+  "data": { "values": [{ "month": "Jul", "notes": 12 }] },
+  "mark": "bar",
+  "encoding": {
+    "x": { "field": "month", "type": "nominal" },
+    "y": { "field": "notes", "type": "quantitative" }
+  }
+}
+~~~
+~~~~
+
+Create a Draw.io diagram from the File Tree context menu. figaro opens diagrams.net for editing and saves a self-contained `.drawio.svg` file. Once saved, that SVG continues to render normally in notes even when you are offline; only opening the Draw.io editor needs a connection to diagrams.net.
+
+### Properties and interactive PDF export
+
+Leading YAML frontmatter is presented as a compact Properties card. It can control document metadata and the printable layout without changing your Markdown body:
+
+~~~yaml
+---
+title: "Quarterly review"
+subtitle: "What changed and what comes next"
+author: "Ada Lovelace"
+date: 2026-07-12
+cover-page: true
+toc-depth: 2
+print-stylesheet: "pdf.css"
+---
+~~~
+
+- `cover-page: true` creates one title page.
+- `toc-depth` accepts `0` through `6`; `0` disables the table of contents.
+- `print-stylesheet` selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`.
+- Footnotes such as `[^source]` print as numbered links to a final Footnotes section, with links back to each reference.
+- Mermaid, Vega, and Vega-Lite blocks are rendered to inline SVG for the printed document.
+
+Choose **Export to PDF** from a Markdown file's context menu or the editor context menu. figaro first looks for an installed Chrome/Chromium-family browser, including Ungoogled Chromium and its Flatpak launcher, then Edge; on macOS it can use the system Safari/WebKit engine. It writes `<note>.pdf` beside the Markdown file (safely replacing the previous export) and opens it with your default viewer. The export deliberately aborts if no viable browser engine is found rather than creating a PDF with dead links, TOC entries, or footnote references.
+
+An export of the active dirty note uses the current editor content without forcing a save first. A `print-stylesheet` must be a vault-local relative CSS path; it overrides a sibling `_print.css` for that note.
+
+## Getting started
+
+### Prerequisites
+
+- Go 1.25 or newer
+- Node.js 20 or newer for JavaScript tooling and tests
+- Wails v2 CLI
+- The platform dependencies required by Wails. On Linux, the included `scripts/build-fedora.sh` checks the Fedora packages it uses.
+- A locally installed Chrome, Chromium (including Ungoogled Chromium and Flatpak installs), Brave, or Edge browser for interactive PDF export. macOS can fall back to its built-in Safari/WebKit engine.
+- ImageMagick 7 for the generated application icons; `make dev` and package builds create them automatically when absent.
+
+Install the Wails CLI version that matches this project's Go dependency:
+
+~~~bash
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+~~~
+
+### Run in development
+
+~~~bash
+git clone https://github.com/grilo/figaro.git
+cd figaro
+
+go mod download
+npm ci
+npm run vendor
+
+make dev
+~~~
+
+For browser DevTools alongside the Wails app:
+
+~~~bash
+./scripts/debug.sh
+~~~
+
+The development file server is then available at `http://localhost:34115`.
+The script also enables the loopback-only WebKit inspector for that development
+session. Normal launches leave it disabled; to opt in manually, run
+`FIGARO_WEBKIT_INSPECTOR=1 make dev`.
+
+### Build a desktop binary
+
+~~~bash
+make linux
+make windows
+make darwin
+make icons          # regenerate all icon variants from figaro.appicon.png
+~~~
+
+The Makefile generates missing browser assets and icon variants, then checks the required native tooling before starting a build. It
+automatically selects Wails' WebKitGTK 4.1 support on distributions such as
+current Fedora; WebKitGTK 4.0 is also supported. The current Windows target
+uses Wails' pure-Go WebView2 path, so it cross-builds from Linux without
+MinGW-w64. Wails v2 builds Linux only on Linux and macOS only on macOS; `make
+all` selects the targets supported by the current host. For Fedora Linux,
+`./scripts/build-fedora.sh` performs the same prerequisite checks and produces
+`build/bin/figaro`.
+
+For contributor setup, verification commands, and the platform build notes in one place, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Test the project
+
+The test suite covers the Go vault backend, CodeMirror behaviour, tab/session state, diagram rendering, and the printable-document pipeline.
+
+~~~bash
+# Generate ignored browser assets before testing the full application surface.
+npm ci
+npm run vendor
+
+# Go backend
+go vet . ./internal/... ./cmd/...
+go test . ./internal/... ./cmd/...
+go test -race . ./internal/... ./cmd/...
+
+# JavaScript unit and integration tests
+npm run lint
+npm run test:unit
+
+# Real-browser PDF/diagram integration test
+npx playwright install chromium    # first time only
+npm run test:pdf
+~~~
+
+The PDF tests verify the full application-controlled contract: frontmatter, cover/TOC structure, CSS selection, inline Mermaid/Vega SVG, browser-discovery order, and actual PDF link/destination annotations.
+
+## Architecture
+
+`figaro` is deliberately small and direct:
+
+- **Go + Wails v2** provides the desktop shell, vault-safe filesystem operations, optional local Git auto-commit history, settings, and browser-backed interactive PDF export. Reusable backend modules live under `internal/`; the Wails bootstrap remains at the repository root by convention.
+- **Vanilla JavaScript + CodeMirror 6** provides the editor, live Markdown experience, workspace UI, and on-demand language support.
+- **Browser dependencies** keep the editor, Markdown renderer, KaTeX, Mermaid, Vega, Vega-Lite, Vim mode, and language grammars available without a runtime package install. Generated modules are recreated locally with `npm run vendor` before desktop builds; KaTeX ships only its production JavaScript, CSS, and font assets. Python and Rust grammar support does not add a Python or Rust runtime to Figaro.
+- **The vault** is the source of truth. Configuration lives under `.config/`; content remains portable files.
+
+For the complete behaviour contract and implementation notes, see [the product specification](docs/PROMPT.md). The test layout and commands are documented in [the testing guide](docs/TESTING.md).
+
+## Repository layout
+
+```
+cmd/devserver/       Small static server used by browser-level tests and debugging
+docs/                Product notes and contributor-facing testing guidance
+internal/vault/      Root-scoped vault filesystem primitives
+internal/links/      Pure Markdown link rewriting used by file moves
+internal/history/    Local Git history and auto-commit service
+frontend/            Wails webview, CodeMirror modules, themes, fonts, and vendored assets
+scripts/             Optional build, debug, and vendor-maintenance helpers
+assets/branding/     Generated square icon master used by application packages
+tests/frontend/      Jest unit, UI-integration, and stale-response tests
+tests/e2e/           Playwright browser tests
+main.go              Wails entry point and embedded frontend assets
+*.go / *_test.go     Wails-facing backend facade and co-located integration tests
+```
+
+Local vault data, generated binaries, test reports, and machine-specific helper
+scripts are ignored for new work. Keep personal notes and build outputs outside
+commits when contributing.
+
+## Current limitations
+
+- figaro is a desktop, single-vault application; it does not provide cloud sync, encryption, mobile clients, or a plugin system yet.
+- The Draw.io editor is intentionally lightweight and uses the hosted diagrams.net editor. Saved SVG output remains local and offline-readable.
+- PDF output uses a browser already installed on the machine. If none can be found, figaro explains how to install Chrome or Chromium instead of generating a degraded PDF.
+
+## Contributing
+
+Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, supported build targets, verification commands, and repository conventions.
+
+## License
+
+No license file has been selected for this repository yet. Choose and add one before redistributing figaro.
