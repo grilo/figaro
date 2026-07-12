@@ -26,6 +26,92 @@ type PDFExportResult struct {
 	Error       string `json:"error,omitempty"`
 }
 
+const starterPrintStylesheetAsset = "frontend/pdf/starter-pdf.css"
+
+// StarterPrintStylesheetResult describes the deliberate, one-time copy of
+// Figaro's editable print stylesheet into a vault. Created is false when the
+// selected CSS file already existed and can be used without being overwritten.
+type StarterPrintStylesheetResult struct {
+	Success bool   `json:"success"`
+	Path    string `json:"path,omitempty"`
+	Created bool   `json:"created"`
+	Error   string `json:"error,omitempty"`
+}
+
+// CreateStarterPrintStylesheet copies the bundled, documented starter CSS to
+// a vault-local path relative to a Markdown note. It is intentionally invoked
+// only by an explicit Properties action: app startup and PDF export never add
+// or modify a user's CSS files.
+func (a *App) CreateStarterPrintStylesheet(sourcePath string, stylesheetRef string) (*StarterPrintStylesheetResult, error) {
+	if !strings.HasSuffix(strings.ToLower(strings.TrimSpace(sourcePath)), ".md") {
+		return &StarterPrintStylesheetResult{Success: false, Error: "PDF stylesheets can only be created for a Markdown note"}, nil
+	}
+
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	sourceRel, err := vaultRelativePath(sourcePath)
+	if err != nil {
+		return &StarterPrintStylesheetResult{Success: false, Error: err.Error()}, nil
+	}
+	if strings.TrimSpace(stylesheetRef) == "" {
+		stylesheetRef = "pdf.css"
+	}
+	cssRel, err := a.resolvePrintStylesheet(filepath.Dir(sourceRel), stylesheetRef)
+	if err != nil {
+		return &StarterPrintStylesheetResult{Success: false, Error: err.Error()}, nil
+	}
+
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+
+	result := &StarterPrintStylesheetResult{Success: true, Path: filepath.ToSlash(cssRel)}
+	if info, statErr := root.Stat(cssRel); statErr == nil {
+		if info.IsDir() {
+			return &StarterPrintStylesheetResult{Success: false, Error: fmt.Sprintf("print stylesheet %q is a directory", strings.TrimSpace(stylesheetRef))}, nil
+		}
+		if _, readErr := readPrintCSS(root, cssRel, fmt.Sprintf("print stylesheet %q", strings.TrimSpace(stylesheetRef)), true); readErr != nil {
+			return &StarterPrintStylesheetResult{Success: false, Error: readErr.Error()}, nil
+		}
+		return result, nil
+	} else if !os.IsNotExist(statErr) {
+		return nil, fmt.Errorf("inspect print stylesheet: %w", statErr)
+	}
+
+	css, err := loadStarterPrintStylesheet()
+	if err != nil {
+		return nil, err
+	}
+	if err := createRootFile(root, cssRel, css, 0644); err != nil {
+		// A competing local operation may have created the file between Stat and
+		// CreateFile. Preserve that file and offer it instead of replacing it.
+		if os.IsExist(err) {
+			if _, readErr := readPrintCSS(root, cssRel, fmt.Sprintf("print stylesheet %q", strings.TrimSpace(stylesheetRef)), true); readErr != nil {
+				return &StarterPrintStylesheetResult{Success: false, Error: readErr.Error()}, nil
+			}
+			return result, nil
+		}
+		return nil, fmt.Errorf("create starter print stylesheet: %w", err)
+	}
+	result.Created = true
+	return result, nil
+}
+
+func loadStarterPrintStylesheet() ([]byte, error) {
+	css, err := assets.ReadFile(starterPrintStylesheetAsset)
+	if err == nil {
+		return css, nil
+	}
+	css, fallbackErr := readProjectAsset(starterPrintStylesheetAsset)
+	if fallbackErr != nil {
+		return nil, fmt.Errorf("load bundled starter print stylesheet: embedded asset: %v; source fallback: %w", err, fallbackErr)
+	}
+	return css, nil
+}
+
 // ExportPDF creates an interactive PDF with a locally installed browser engine.
 // Native WebKitGTK printing is deliberately not a fallback: it paints links but
 // currently omits their PDF annotations, making references and navigation lose

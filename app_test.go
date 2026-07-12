@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -902,6 +903,7 @@ func TestGetLinkedNotesForDate(t *testing.T) {
 func TestSaveAndLoadSession(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "hello.md", "# Hello")
 
 	sessionData := map[string]interface{}{
 		"openTabs": []map[string]interface{}{
@@ -937,9 +939,41 @@ func TestLoadSession_Empty(t *testing.T) {
 	if len(result) != 0 {
 		t.Errorf("expected empty map, got %v", result)
 	}
+	data, err := os.ReadFile(filepath.Join(vaultPath, ".config", "session.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "{}" {
+		t.Fatalf("expected a default session record, got %q", data)
+	}
 }
 
-func TestLoadSession_InvalidJSONReturnsError(t *testing.T) {
+func TestLoadSession_BlankFileResetsToDefaultWorkspace(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	path := filepath.Join(vaultPath, ".config", "session.json")
+	if err := os.WriteFile(path, []byte(" \n\t"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := app.LoadSession()
+	if err != nil {
+		t.Fatalf("LoadSession should recover from a blank session: %v", err)
+	}
+	if len(result) != 0 {
+		t.Fatalf("expected reset workspace, got %v", result)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "{}" {
+		t.Fatalf("expected blank session to be replaced with {}, got %q", data)
+	}
+}
+
+func TestLoadSession_InvalidJSONResetsToDefaultWorkspace(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
 
@@ -948,8 +982,128 @@ func TestLoadSession_InvalidJSONReturnsError(t *testing.T) {
 		t.Fatalf("write invalid session: %v", err)
 	}
 
-	if _, err := app.LoadSession(); err == nil {
-		t.Fatal("expected invalid session JSON to return an error")
+	result, err := app.LoadSession()
+	if err != nil {
+		t.Fatalf("LoadSession should recover from invalid JSON: %v", err)
+	}
+	if len(result) != 0 {
+		t.Fatalf("expected reset workspace, got %v", result)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "{}" {
+		t.Fatalf("expected invalid session to be replaced with {}, got %q", data)
+	}
+}
+
+func TestLoadSessionPrunesMissingTabsAndWorkspaceReferences(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/real.md", "# Real")
+	if err := os.MkdirAll(filepath.Join(vaultPath, "notes", "open"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := app.SaveSession(map[string]interface{}{
+		"openTabs": []map[string]interface{}{
+			{"id": "real.md", "type": "file", "path": "notes/real.md", "title": "Real"},
+			{"id": "gone.md", "type": "file", "path": "notes/gone.md", "title": "Gone"},
+			{"id": "home", "type": "home", "title": "Welcome"},
+		},
+		"activeTabId":      "gone.md",
+		"selectedFilePath": "notes/gone.md",
+		"expandedDirs":     []string{"notes/open", "notes/gone"},
+		"pinnedTabs":       []string{"real.md", "gone.md", "home"},
+		"cursorStates": map[string]interface{}{
+			"real.md": map[string]interface{}{"anchor": 3},
+			"gone.md": map[string]interface{}{"anchor": 8},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := app.LoadSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tabs, ok := loaded["openTabs"].([]interface{})
+	if !ok || len(tabs) != 2 {
+		t.Fatalf("expected only real and Welcome tabs, got %#v", loaded["openTabs"])
+	}
+	if _, exists := loaded["activeTabId"]; exists {
+		t.Fatalf("missing active tab should have been removed: %#v", loaded)
+	}
+	if _, exists := loaded["selectedFilePath"]; exists {
+		t.Fatalf("missing selected file should have been removed: %#v", loaded)
+	}
+	if got := loaded["pinnedTabs"]; !reflect.DeepEqual(got, []interface{}{"real.md", "home"}) {
+		t.Fatalf("unexpected cleaned pins: %#v", got)
+	}
+	if got := loaded["expandedDirs"]; !reflect.DeepEqual(got, []interface{}{"notes/open"}) {
+		t.Fatalf("unexpected cleaned directories: %#v", got)
+	}
+	cursors, ok := loaded["cursorStates"].(map[string]interface{})
+	if !ok || len(cursors) != 1 || cursors["real.md"] == nil {
+		t.Fatalf("unexpected cleaned cursors: %#v", loaded["cursorStates"])
+	}
+}
+
+func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	settingsPath := filepath.Join(vaultPath, ".config", "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"theme":"","openTabs":[{"id":"gone.md"}],"font":42,"auto_save_minutes":5}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	app.ensureSettingsDefaults()
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		t.Fatal(err)
+	}
+	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["vim"] != false || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(0) {
+		t.Fatalf("unexpected normalized settings: %#v", settings)
+	}
+	if _, exists := settings["openTabs"]; exists {
+		t.Fatalf("legacy workspace state should not remain in settings: %#v", settings)
+	}
+	if _, exists := settings["auto_save_minutes"]; exists {
+		t.Fatalf("legacy autosave key should not remain in settings: %#v", settings)
+	}
+}
+
+func TestEnsureSettingsDefaultsCreatesDefaultsForMissingAndEmptyFiles(t *testing.T) {
+	for _, empty := range []bool{false, true} {
+		t.Run(map[bool]string{false: "missing", true: "empty"}[empty], func(t *testing.T) {
+			app, vaultPath := newTestApp(t)
+			defer os.RemoveAll(vaultPath)
+			settingsPath := filepath.Join(vaultPath, ".config", "settings.json")
+			if empty {
+				if err := os.WriteFile(settingsPath, nil, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			app.ensureSettingsDefaults()
+			data, err := os.ReadFile(settingsPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var settings map[string]interface{}
+			if err := json.Unmarshal(data, &settings); err != nil {
+				t.Fatal(err)
+			}
+			if settings["theme"] != "default" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(0) {
+				t.Fatalf("unexpected defaults: %#v", settings)
+			}
+		})
 	}
 }
 
@@ -1397,6 +1551,17 @@ func TestEmbedFS_HasStylesCSS(t *testing.T) {
 	_, err := assets.ReadFile("frontend/styles.css")
 	if err != nil {
 		t.Fatalf("embedded assets missing styles.css: %v", err)
+	}
+}
+
+func TestEmbedFS_HasStarterPrintStylesheet(t *testing.T) {
+	data, err := assets.ReadFile(starterPrintStylesheetAsset)
+	if err != nil {
+		t.Fatalf("embedded assets missing starter print stylesheet: %v", err)
+	}
+	if !strings.Contains(string(data), ".figaro-print-cover-title") ||
+		!strings.Contains(string(data), ".figaro-print-document") {
+		t.Fatal("starter print stylesheet is missing its stable PDF hooks")
 	}
 }
 

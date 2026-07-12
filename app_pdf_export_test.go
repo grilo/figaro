@@ -128,6 +128,74 @@ func TestPrepareInteractivePDFDocumentRejectsMissingOrBinarySelectedStylesheet(t
 	}
 }
 
+func TestCreateStarterPrintStylesheetCopiesBundledCSSWithoutOverwriting(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/report.md", "# Report")
+
+	created, err := app.CreateStarterPrintStylesheet("notes/report.md", "pdf.css")
+	if err != nil {
+		t.Fatalf("CreateStarterPrintStylesheet error: %v", err)
+	}
+	if !created.Success || !created.Created || created.Path != "notes/pdf.css" {
+		t.Fatalf("unexpected create result: %#v", created)
+	}
+	stylesheetPath := filepath.Join(vaultPath, "notes", "pdf.css")
+	stylesheet, err := os.ReadFile(stylesheetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, hook := range []string{
+		".figaro-print-document",
+		".figaro-print-cover-title",
+		".figaro-print-cover-author",
+		".figaro-print-cover-date",
+		".figaro-print-toc-title",
+		".figaro-toc-level-6",
+		".figaro-print-diagram",
+		".footnote-backref",
+	} {
+		if !strings.Contains(string(stylesheet), hook) {
+			t.Errorf("starter stylesheet is missing documented hook %q", hook)
+		}
+	}
+
+	const userCSS = "/* user-owned stylesheet */\nbody { color: rebeccapurple; }\n"
+	if err := os.WriteFile(stylesheetPath, []byte(userCSS), 0644); err != nil {
+		t.Fatal(err)
+	}
+	existing, err := app.CreateStarterPrintStylesheet("notes/report.md", "pdf.css")
+	if err != nil {
+		t.Fatalf("CreateStarterPrintStylesheet existing error: %v", err)
+	}
+	if !existing.Success || existing.Created || existing.Path != "notes/pdf.css" {
+		t.Fatalf("existing stylesheet should be offered unchanged, got %#v", existing)
+	}
+	data, err := os.ReadFile(stylesheetPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != userCSS {
+		t.Fatalf("starter creation overwrote user CSS: %q", data)
+	}
+}
+
+func TestCreateStarterPrintStylesheetRejectsUnsafeReferences(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/report.md", "# Report")
+
+	for _, ref := range []string{"../../outside.css", "https://example.com/print.css", "print.less"} {
+		result, err := app.CreateStarterPrintStylesheet("notes/report.md", ref)
+		if err != nil {
+			t.Fatalf("CreateStarterPrintStylesheet(%q) returned unexpected error: %v", ref, err)
+		}
+		if result.Success || result.Error == "" {
+			t.Errorf("unsafe stylesheet ref %q unexpectedly succeeded: %#v", ref, result)
+		}
+	}
+}
+
 func TestWriteInteractivePDFWorkspaceIncludesKaTeXStylesheetAndFonts(t *testing.T) {
 	requireGeneratedKaTeXRuntime(t)
 	workspace := t.TempDir()

@@ -400,7 +400,22 @@ function createEditorView() {
             frontmatterField = createFrontmatterField(
                 StateField, StateEffect, EditorView, Decoration, WidgetType, mouseSelectingField,
                 () => getRelativePrintStylesheets(getState('fileTreeData') || [], getActiveFilePath()),
-                getDefaultAuthor
+                getDefaultAuthor,
+                {
+                    getActiveFilePath,
+                    onStylesheetReady: async stylesheetPath => {
+                        try {
+                            const { refreshFileTree } = await import('./fileTree.js');
+                            await refreshFileTree();
+                            const { handleFileOpen } = await import('./app.js');
+                            await handleFileOpen(stylesheetPath);
+                        } catch (error) {
+                            // The stylesheet was created successfully even if
+                            // its tab cannot be opened immediately.
+                            log.warn('[frontmatter] starter stylesheet created but could not be opened: ' + (error.message || error));
+                        }
+                    },
+                }
             );
         } catch (error) {
             log.warn('[frontmatter] create failed: ' + (error.message || error));

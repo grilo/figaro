@@ -62,6 +62,7 @@ export const state = {
     recentFiles: [],            // Recently visited notes for the Home tab
     _restoredTabs: null,
     _restoredActiveTabId: null,
+    _restoredCursorStates: null,
     
     // Global Search
     globalSearchQuery: '',      // Global search query
@@ -272,6 +273,8 @@ export function persistState() {
     localStorage.setItem('openTabs', JSON.stringify(serializable));
     if (state.activeTabId) {
         localStorage.setItem('activeTabId', state.activeTabId);
+    } else {
+        localStorage.removeItem('activeTabId');
     }
     if (state.selectedCalDateStr) {
         localStorage.setItem('selectedCalDate', state.selectedCalDateStr);
@@ -315,6 +318,8 @@ subscribe('openTabs', () => {
         localStorage.setItem('openTabs', JSON.stringify(serializable));
         if (state.activeTabId) {
             localStorage.setItem('activeTabId', state.activeTabId);
+        } else {
+            localStorage.removeItem('activeTabId');
         }
     } catch (e) { /* noop */ }
 });
@@ -322,6 +327,8 @@ subscribe('activeTabId', () => {
     try {
         if (state.activeTabId) {
             localStorage.setItem('activeTabId', state.activeTabId);
+        } else {
+            localStorage.removeItem('activeTabId');
         }
     } catch (e) { /* noop */ }
 });

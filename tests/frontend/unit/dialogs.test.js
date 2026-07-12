@@ -5,18 +5,27 @@ describe('New note dialog', () => {
         document.body.innerHTML = '';
     });
 
-    test('communicates the target folder and adds the Markdown extension once', async () => {
+    test('communicates the target folder and uses an in-input Markdown default', async () => {
         const result = newNoteDialog('Projects/Planning');
         const overlay = document.querySelector('.custom-modal-overlay');
         expect(overlay.textContent).toContain('Projects/Planning/');
-        expect(overlay.querySelector('.new-note-extension').textContent).toBe('.md');
 
         const input = overlay.querySelector('#new-note-name');
-        input.value = 'Quarterly plan.md';
+        expect(input.value).toBe('Untitled.md');
+        input.value = 'Quarterly plan';
         overlay.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 
         await expect(result).resolves.toBe('Quarterly plan.md');
         expect(document.querySelector('.custom-modal-overlay')).toBeNull();
+    });
+
+    test('preserves an explicitly supplied file extension', async () => {
+        const result = newNoteDialog('Themes');
+        const overlay = document.querySelector('.custom-modal-overlay');
+        overlay.querySelector('#new-note-name').value = 'print.css';
+        overlay.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+        await expect(result).resolves.toBe('print.css');
     });
 
     test('keeps the dialog open with an understandable validation message for a path', async () => {

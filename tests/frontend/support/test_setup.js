@@ -13,6 +13,7 @@ window.pywebview = {
         save_session: jest.fn().mockResolvedValue({ success: true }),
         load_session: jest.fn().mockResolvedValue({}),
         create_file: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() / 1000 }),
+        create_starter_print_stylesheet: jest.fn().mockResolvedValue({ success: true, path: "pdf.css", created: true }),
         create_directory: jest.fn().mockResolvedValue({ success: true }),
         delete_path: jest.fn().mockResolvedValue({ success: true }),
         rename_path: jest.fn().mockResolvedValue({ success: true }),

@@ -126,6 +126,8 @@ describe('Interactive PDF export', () => {
         expect(window.markdownit).toHaveBeenCalledWith({ html: false, linkify: true, typographer: true });
         expect(html).toContain('<title>Fallback &lt;note&gt;</title>');
         expect(html).toContain('@page { margin: 18mm; }');
+        expect(html).toContain('.figaro-print-document h1');
+        expect(printable.querySelector('main.figaro-print-document')).not.toBeNull();
         expect(printable.querySelector('h1')).toMatchObject({ id: 'introduction', textContent: 'Introduction' });
         expect(printable.querySelector('strong').textContent).toBe('bold');
         expect(printable.querySelector('em').textContent).toBe('emphasised');
@@ -349,10 +351,13 @@ describe('Interactive PDF export', () => {
         expect(covers).toHaveLength(1);
         expect(pageBreaks).toHaveLength(1);
         expect(covers[0]).toBe(pageBreaks[0]);
-        expect(covers[0].querySelector('h1').textContent).toBe('Figaro Export Guide');
+        expect(covers[0].querySelector('.figaro-print-cover-title').textContent).toBe('Figaro Export Guide');
         expect(covers[0].querySelector('.figaro-print-cover-subtitle').textContent).toBe('A polished PDF');
         expect(covers[0].querySelector('.figaro-print-cover-meta').textContent).toContain('Ada Lovelace');
         expect(covers[0].querySelector('.figaro-print-cover-meta').textContent).toContain('2026-07-11');
+        expect(covers[0].querySelector('.figaro-print-cover-author').textContent).toBe('Ada Lovelace');
+        expect(covers[0].querySelector('.figaro-print-cover-date').textContent).toBe('2026-07-11');
+        expect(printable.querySelector('main.figaro-print-document h1').textContent).toBe('Introduction');
         expect(printable.querySelector('.figaro-print-toc')).toBeNull();
     });
 
@@ -392,6 +397,8 @@ describe('Interactive PDF export', () => {
         expect(cover.compareDocumentPosition(toc) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(hrefs).toEqual(['#introduction', '#install', '#introduction-2', '#usage']);
         expect(hrefs).not.toContain('#deep-detail');
+        expect(toc.querySelector('.figaro-print-toc-title').textContent).toBe('Contents');
+        expect(toc.querySelector('.figaro-print-toc-list')).not.toBeNull();
         expect(printable.getElementById('introduction').textContent).toBe('Introduction');
         expect(printable.getElementById('introduction-2').textContent).toBe('Introduction');
         expect(printable.getElementById('deep-detail').textContent).toBe('Deep detail');

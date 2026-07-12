@@ -246,6 +246,8 @@ export function frontmatterPropertyChange(source, key, value) {
  * Create a leading YAML skeleton with useful PDF-export defaults. The caller
  * supplies the OS username; title and date are derived locally so this helper
  * remains deterministic in tests when those values are passed explicitly.
+ * A custom print stylesheet is deliberately opt-in: PDF export uses the
+ * built-in style until the author creates or selects a vault-local CSS file.
  */
 export function frontmatterTemplateChange(source, defaults = {}) {
     const text = String(source || '');
@@ -261,7 +263,6 @@ export function frontmatterTemplateChange(source, defaults = {}) {
         `date: ${formatFrontmatterScalar(date)}`,
         'cover-page: false',
         'toc-depth: 0',
-        'print-stylesheet: "pdf.css"',
         '---',
         '',
     ].join(lineEnding);

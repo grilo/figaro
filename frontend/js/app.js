@@ -321,15 +321,43 @@ function restoreOpenTabs() {
     
     state._restoredTabs = null;
     state._restoredActiveTabId = null;
-    
-    for (const t of restoredTabs) {
-        const restored = restoredTabOpenArgs(t);
-        if (restored) {
-            openTab(restored.id, restored.title, restored.type, restored.data);
+
+    const filePaths = new Set();
+    const directoryPaths = new Set();
+    const collectTreePaths = items => {
+        for (const item of items || []) {
+            if (item?.type === 'file' && item.path) filePaths.add(item.path);
+            if (item?.type === 'directory' && item.path) {
+                directoryPaths.add(item.path);
+                collectTreePaths(item.children);
+            }
         }
+    };
+    collectTreePaths(getState('fileTreeData'));
+    if (state.selectedFilePath && !filePaths.has(state.selectedFilePath)) {
+        setState('selectedFilePath', null);
+    }
+    if (state.expandedDirs instanceof Set) {
+        state.expandedDirs = new Set([...state.expandedDirs].filter(path => directoryPaths.has(path)));
     }
     
-    if (restoredActiveId) {
+    const openedIDs = new Set();
+    for (const t of restoredTabs) {
+        const restored = restoredTabOpenArgs(t);
+        if (!restored) continue;
+        if ((restored.type === 'file' || restored.type === 'drawio') && !filePaths.has(restored.data.path)) continue;
+        openTab(restored.id, restored.title, restored.type, restored.data);
+        openedIDs.add(restored.id);
+    }
+
+    if (!openedIDs.size) {
+        setState('pinnedTabs', []);
+        state._restoredCursorStates = null;
+        return false;
+    }
+    setState('pinnedTabs', (getState('pinnedTabs') || []).filter(id => openedIDs.has(id)));
+    
+    if (restoredActiveId && openedIDs.has(restoredActiveId)) {
         switchTab(restoredActiveId);
     }
 
@@ -417,34 +445,13 @@ export async function initApp() {
     await initTheme();
     
     if (!didRestore) {
-    // Load default file or show welcome
-        const fileTreeData = getState('fileTreeData');
-        if (fileTreeData && fileTreeData.length > 0) {
-        // Find first .md file
-            const findFirstMd = (items) => {
-                for (const item of items) {
-                    if (item.type === 'file' && item.name.endsWith('.md')) {
-                        return item.path;
-                    }
-                    if (item.type === 'directory' && item.children) {
-                        const found = findFirstMd(item.children);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            };
-
-            const firstMd = findFirstMd(fileTreeData);
-            if (firstMd) {
-                await handleFileOpen(firstMd);
-            } else {
-            // Create welcome note
-                openTab('Welcome.md', 'Welcome', 'file', { path: 'Welcome.md', isNew: true });
-            }
-        } else {
-            openTab('Welcome.md', 'Welcome', 'file', { path: 'Welcome.md', isNew: true });
-        }
+        // A missing, empty, or pruned workspace starts from the real Welcome
+        // surface instead of opening an arbitrary note or a phantom file tab.
+        openTab('home', 'Welcome', 'home');
     }
+    // Persist the repaired workspace, including the Welcome fallback, so the
+    // next launch cannot try to resurrect removed paths.
+    saveSession();
     
     statusBar.set('Ready');
 

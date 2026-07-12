@@ -422,13 +422,11 @@ function handleContextMenu(e) {
     e.preventDefault();
     
     const node = e.target.closest('.file-tree-node');
-    if (!node) return;
-    
-    const item = node.closest('.file-tree-item');
-    if (!item) return;
-    
-    const path = item.dataset.path;
-    const type = item.dataset.type;
+    const item = node?.closest('.file-tree-item');
+    // The event is delegated from #file-tree, so a right-click on its empty
+    // space is a vault-root action rather than a no-op.
+    const path = item?.dataset.path || '';
+    const type = item?.dataset.type || 'root';
     
     // Set context target state
     setState('contextTargetType', type);
@@ -469,7 +467,7 @@ function handleContextMenu(e) {
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="new-file">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                New Note
+                New File
             </div>
             <div class="context-menu-item" data-action="new-drawio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="m9.5 9.5 5 5"/></svg>
@@ -478,6 +476,10 @@ function handleContextMenu(e) {
             <div class="context-menu-item" data-action="new-folder">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                 New Folder
+            </div>
+            <div class="context-menu-item" data-action="rename">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                Rename
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="reveal">
@@ -493,7 +495,7 @@ function handleContextMenu(e) {
         menuHTML = `
             <div class="context-menu-item" data-action="new-file">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                New Note
+                New File
             </div>
             <div class="context-menu-item" data-action="new-drawio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="m9.5 9.5 5 5"/></svg>
@@ -502,6 +504,10 @@ function handleContextMenu(e) {
             <div class="context-menu-item" data-action="new-folder">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
                 New Folder
+            </div>
+            <div class="context-menu-item" data-action="rename">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                Rename
             </div>
             <div class="context-menu-separator"></div>
             <div class="context-menu-item" data-action="reveal">
@@ -518,7 +524,7 @@ function handleContextMenu(e) {
         menuHTML = `
             <div class="context-menu-item" data-action="new-file">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                New Note
+                New File
             </div>
             <div class="context-menu-item" data-action="new-drawio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="m9.5 9.5 5 5"/></svg>
@@ -571,6 +577,10 @@ function handleContextMenu(e) {
 
         case 'new-drawio':
             await createNewDrawioDiagramIn(getState('contextTargetPath'), getState('contextTargetType'));
+            break;
+
+        case 'rename':
+            await renameTreePath(getState('contextTargetPath'), getState('contextTargetType'));
             break;
                 
         case 'delete':
@@ -749,12 +759,12 @@ async function createNewFileIn(targetPath, targetType) {
     try {
         const result = await window.pywebview.api.create_file(
             parentDir ? `${parentDir}/${fileName}` : fileName,
-            `# ${fileName.replace('.md', '')}\n\n`
+            /\.md$/i.test(fileName) ? `# ${fileName.slice(0, -3)}\n\n` : ''
         );
         
         if (result.success) {
             await refreshFileTree();
-            handleFileOpen(result.path);
+            await handleFileOpen(result.path);
         } else {
             alert(result.error || 'Failed to create file');
         }
@@ -823,6 +833,74 @@ async function createNewFolderIn(targetPath, targetType) {
     } catch (err) {
         log.error('Create folder failed:', err);
         alert('Failed to create folder');
+    }
+}
+
+function remapTreePath(path, oldPath, newPath) {
+    const current = String(path || '');
+    if (current === oldPath) return newPath;
+    return current.startsWith(oldPath + '/')
+        ? newPath + current.slice(oldPath.length)
+        : current;
+}
+
+function remapTreeSelection(oldPath, newPath) {
+    const selected = getState('selectedFilePath');
+    const nextSelected = remapTreePath(selected, oldPath, newPath);
+    if (nextSelected !== selected) setState('selectedFilePath', nextSelected);
+
+    const selectedPaths = getState('selectedFilePaths') || [];
+    const nextSelectedPaths = [...new Set(selectedPaths.map(path => remapTreePath(path, oldPath, newPath)))];
+    if (nextSelectedPaths.some((path, index) => path !== selectedPaths[index]) || nextSelectedPaths.length !== selectedPaths.length) {
+        setState('selectedFilePaths', nextSelectedPaths);
+    }
+}
+
+async function renameTreePath(path, type) {
+    if (!path || (type !== 'file' && type !== 'directory')) return;
+
+    const oldName = path.split('/').pop() || path;
+    const kind = type === 'directory' ? 'folder' : 'file';
+    const proposedName = await promptDialog(`Rename ${kind}`, `Enter a new ${kind} name:`, oldName);
+    const nextName = String(proposedName || '').trim();
+    if (!nextName || nextName === oldName) return;
+    if (/[\\/]/.test(nextName)) {
+        alert('Choose a name, not a path.');
+        return;
+    }
+    if (/^\.+$/.test(nextName) || Array.from(nextName).some(character => character.charCodeAt(0) < 0x20)) {
+        alert('Choose a valid name.');
+        return;
+    }
+
+    const separator = path.lastIndexOf('/');
+    const newPath = separator >= 0 ? `${path.slice(0, separator + 1)}${nextName}` : nextName;
+    try {
+        const saveState = await prepareTabsForPathMove(path);
+        if (!saveState.success) {
+            alert(saveState.error || 'Save open files before renaming');
+            return;
+        }
+        const result = await window.pywebview.api.rename_path(path, newPath);
+        if (!result.success) {
+            alert(result.error || `Failed to rename ${kind}`);
+            return;
+        }
+
+        const movedFrom = result.old_path || path;
+        const movedTo = result.path || newPath;
+        await refreshFileTree();
+        updateTabsForMovedPath(movedFrom, movedTo);
+        remapTreeSelection(movedFrom, movedTo);
+        await refreshTabsForUpdatedLinks(result.updated_links);
+        const linkCount = Array.isArray(result.updated_links) ? result.updated_links.length : 0;
+        if (linkCount) {
+            statusBar.set(`Updated links in ${linkCount} ${linkCount === 1 ? 'note' : 'notes'}`);
+            setTimeout(() => statusBar.set('Ready'), 2500);
+        }
+    } catch (err) {
+        log.error('Rename failed:', err);
+        alert(`Failed to rename ${kind}`);
     }
 }
 

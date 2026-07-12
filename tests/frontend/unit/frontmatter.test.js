@@ -58,10 +58,10 @@ describe('frontmatter parsing', () => {
             author: 'Ada Lovelace',
             date: '2026-07-12',
         })).toMatchObject({
-            insert: '---\ntitle: "Quarterly report"\nsubtitle: ""\nauthor: "Ada Lovelace"\ndate: 2026-07-12\ncover-page: false\ntoc-depth: 0\nprint-stylesheet: "pdf.css"\n---\n\n',
+            insert: '---\ntitle: "Quarterly report"\nsubtitle: ""\nauthor: "Ada Lovelace"\ndate: 2026-07-12\ncover-page: false\ntoc-depth: 0\n---\n\n',
         });
         expect(frontmatterTemplateChange('', { author: 'ada', date: '2026-07-12' })).toMatchObject({
-            insert: '---\ntitle: ""\nsubtitle: ""\nauthor: ada\ndate: 2026-07-12\ncover-page: false\ntoc-depth: 0\nprint-stylesheet: "pdf.css"\n---\n',
+            insert: '---\ntitle: ""\nsubtitle: ""\nauthor: ada\ndate: 2026-07-12\ncover-page: false\ntoc-depth: 0\n---\n',
         });
     });
 });
@@ -101,6 +101,7 @@ describe('frontmatter Properties card', () => {
         expect(view.dom.querySelector('.cm-frontmatter-panel')).not.toBeNull();
         expect(view.dom.querySelector('.cm-frontmatter-panel').classList.contains('cm-frontmatter-panel--enter')).toBe(true);
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('PDF layout');
+        expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Table of Contents');
         expect(view.dom.querySelector('.cm-frontmatter-panel-chips').textContent).toContain('title: Report');
         const stylesheetToggle = view.dom.querySelector('.cm-frontmatter-combobox-toggle');
         stylesheetToggle.click();
@@ -186,12 +187,89 @@ describe('frontmatter Properties card', () => {
         expect(template).toMatch(/date: \d{4}-\d{2}-\d{2}/);
         expect(template).toContain('cover-page: false');
         expect(template).toContain('toc-depth: 0');
-        expect(template).toContain('print-stylesheet: "pdf.css"');
+        expect(template).not.toContain('print-stylesheet:');
         expect(template.endsWith('---\n\n# Body')).toBe(true);
         expect(view.dom.querySelector('.cm-frontmatter-panel')).toBeNull();
         expect(view.dom.querySelector('.cm-frontmatter')).toBeNull();
         expect(view.state.selection.main.head).toBe(template.indexOf('subtitle: "') + 'subtitle: "'.length);
         expect(view.dom.querySelectorAll('.cm-frontmatter-source-line')).toHaveLength(2);
+    });
+
+    test('creates a starter stylesheet only after an explicit Properties action', async () => {
+        const promptForStylesheet = jest.fn().mockResolvedValue('pdf.css');
+        const createStarterStylesheet = jest.fn().mockResolvedValue({
+            success: true,
+            path: 'notes/pdf.css',
+            created: true,
+        });
+        const onStylesheetReady = jest.fn().mockResolvedValue(undefined);
+        const field = createFrontmatterField(
+            StateField,
+            StateEffect,
+            EditorView,
+            Decoration,
+            WidgetType,
+            null,
+            () => [],
+            () => '',
+            {
+                getActiveFilePath: () => 'notes/report.md',
+                promptForStylesheet,
+                createStarterStylesheet,
+                onStylesheetReady,
+            }
+        );
+        view = new EditorView({
+            state: EditorState.create({ doc: '---\ntitle: Report\n---\n# Body', extensions: [field] }),
+            parent: document.body,
+        });
+
+        view.dom.querySelector('.cm-frontmatter').click();
+        const createStarter = view.dom.querySelector('.cm-frontmatter-create-stylesheet');
+        expect(createStarter).not.toBeNull();
+        createStarter.click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(promptForStylesheet).toHaveBeenCalledWith('pdf.css');
+        expect(createStarterStylesheet).toHaveBeenCalledWith('notes/report.md', 'pdf.css');
+        expect(view.state.doc.toString()).toContain('print-stylesheet: pdf.css');
+        expect(onStylesheetReady).toHaveBeenCalledWith('notes/pdf.css');
+    });
+
+    test('asks before selecting an existing stylesheet', async () => {
+        const confirmUseExistingStylesheet = jest.fn().mockResolvedValue(false);
+        const createStarterStylesheet = jest.fn().mockResolvedValue({
+            success: true,
+            path: 'notes/pdf.css',
+            created: false,
+        });
+        const field = createFrontmatterField(
+            StateField,
+            StateEffect,
+            EditorView,
+            Decoration,
+            WidgetType,
+            null,
+            () => [],
+            () => '',
+            {
+                getActiveFilePath: () => 'notes/report.md',
+                promptForStylesheet: async () => 'pdf.css',
+                confirmUseExistingStylesheet,
+                createStarterStylesheet,
+            }
+        );
+        view = new EditorView({
+            state: EditorState.create({ doc: '---\ntitle: Report\n---\n# Body', extensions: [field] }),
+            parent: document.body,
+        });
+
+        view.dom.querySelector('.cm-frontmatter').click();
+        view.dom.querySelector('.cm-frontmatter-create-stylesheet').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(confirmUseExistingStylesheet).toHaveBeenCalledWith('pdf.css');
+        expect(view.state.doc.toString()).not.toContain('print-stylesheet:');
     });
 
     test('does not offer a second properties block while YAML is being typed', () => {

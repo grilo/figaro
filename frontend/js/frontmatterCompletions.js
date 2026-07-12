@@ -96,9 +96,9 @@ function valueCompletions(before, context, getFileTree, getActiveFilePath) {
     if (key !== 'print-stylesheet') return null;
 
     const uniquePaths = getRelativePrintStylesheets(getFileTree?.() || [], getActiveFilePath?.() || '');
-    const options = (uniquePaths.length ? uniquePaths : ['styles/print.css']).map(path => ({
+    const options = (uniquePaths.length ? uniquePaths : ['pdf.css']).map(path => ({
         label: path,
-        detail: uniquePaths.length ? 'Vault CSS file' : 'Example vault CSS path',
+        detail: uniquePaths.length ? 'Vault CSS file' : 'Create from PDF layout',
         apply: yamlScalar(path),
         type: 'file',
     }));

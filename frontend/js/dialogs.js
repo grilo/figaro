@@ -174,11 +174,12 @@ export function promptDialog(title, message, defaultValue = '') {
 }
 
 /**
- * A focused note-creation dialog. Unlike the generic prompt, it makes the
- * destination and automatic .md extension clear before creating anything.
+ * A focused file-creation dialog. Names without an extension become Markdown
+ * notes, while an explicit extension is preserved for CSS, JavaScript, and
+ * other source files.
  *
  * @param {string} parentDirectory Vault-relative destination directory
- * @returns {Promise<string|null>} Canonical Markdown filename or null
+ * @returns {Promise<string|null>} Canonical vault filename or null
  */
 export function newNoteDialog(parentDirectory = '') {
     return new Promise((resolve) => {
@@ -194,8 +195,8 @@ export function newNoteDialog(parentDirectory = '') {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 12v6M9 15h6"/></svg>
                     </span>
                     <div>
-                        <h3 id="new-note-title">New note</h3>
-                        <p>Create a Markdown note and open it straight away.</p>
+                        <h3 id="new-note-title">New file</h3>
+                        <p>Create a Markdown note by default, or enter another file extension.</p>
                     </div>
                 </div>
                 <div class="new-note-location">
@@ -205,15 +206,14 @@ export function newNoteDialog(parentDirectory = '') {
                 <label class="new-note-field" for="new-note-name">
                     <span>Name</span>
                     <span class="new-note-input-wrap">
-                        <input id="new-note-name" class="custom-modal-input" type="text" value="Untitled" autocomplete="off" spellcheck="false" aria-describedby="new-note-help new-note-error">
-                        <span class="new-note-extension">.md</span>
+                        <input id="new-note-name" class="custom-modal-input" type="text" value="Untitled.md" autocomplete="off" spellcheck="false" aria-describedby="new-note-help new-note-error">
                     </span>
                 </label>
-                <p class="new-note-help" id="new-note-help">Use a note name, not a path. The Markdown extension is added automatically.</p>
+                <p class="new-note-help" id="new-note-help">Use a file name, not a path. Names without an extension use .md.</p>
                 <p class="new-note-error" id="new-note-error" role="alert" hidden></p>
                 <div class="custom-modal-buttons">
                     <button type="button" class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                    <button type="submit" class="custom-modal-btn custom-modal-btn-confirm">Create note</button>
+                    <button type="submit" class="custom-modal-btn custom-modal-btn-confirm">Create file</button>
                 </div>
             </form>
         `;
@@ -242,15 +242,14 @@ export function newNoteDialog(parentDirectory = '') {
         const submit = () => {
             const filename = normaliseNewNoteFilename(input.value);
             if (!filename) {
-                showError('Enter a name for the new note.');
+                showError('Enter a name for the new file.');
                 return;
             }
             if (/[\\/]/.test(filename)) {
                 showError('Choose a name, not a path.');
                 return;
             }
-            const bareName = filename.slice(0, -3);
-            if (/^\.+$/.test(bareName)) {
+            if (/^\.+$/.test(filename)) {
                 showError('Choose a name other than dots.');
                 return;
             }
@@ -372,10 +371,9 @@ export function pdfExportErrorDialog(error, options = {}) {
 }
 
 function normaliseNewNoteFilename(value) {
-    let filename = String(value || '').trim();
-    if (/\.md$/i.test(filename)) filename = filename.slice(0, -3).trimEnd();
+    const filename = String(value || '').trim();
     if (!filename || Array.from(filename).some(character => character.charCodeAt(0) < 0x20)) return '';
-    return filename + '.md';
+    return filename.includes('.') ? filename : filename + '.md';
 }
 
 /**

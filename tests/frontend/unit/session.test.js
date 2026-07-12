@@ -24,6 +24,7 @@ describe('session persistence', () => {
         setState('activeTabId', null);
         state._restoredTabs = null;
         state._restoredActiveTabId = null;
+        state._restoredCursorStates = null;
     });
 
     test('sends a newer snapshot only after the older one finishes', async () => {
@@ -116,5 +117,30 @@ describe('session persistence', () => {
             { id: 'note.md', type: 'file', title: 'Note', path: 'note.md' },
         ]);
         expect(state._restoredActiveTabId).toBe('note.md');
+    });
+
+    test('does not revive webview-local workspace state when the vault session is empty', async () => {
+        setState('expandedDirs', new Set(['missing-folder']));
+        setState('selectedFilePath', 'missing.md');
+        setState('pinnedTabs', ['missing.md']);
+        setState('openTabs', [{ id: 'missing.md', type: 'file', title: 'Missing', path: 'missing.md' }]);
+        setState('activeTabId', 'missing.md');
+        state._restoredTabs = [{ id: 'missing.md', type: 'file', title: 'Missing', path: 'missing.md' }];
+        state._restoredActiveTabId = 'missing.md';
+        state._restoredCursorStates = { 'missing.md': { anchor: 12 } };
+        window.pywebview.api.load_session.mockResolvedValueOnce({});
+
+        await expect(loadSession()).resolves.toBe(false);
+
+        expect(state.expandedDirs).toEqual(new Set());
+        expect(state.selectedFilePath).toBeNull();
+        expect(state.pinnedTabs).toEqual([]);
+        expect(state.openTabs).toEqual([]);
+        expect(state.activeTabId).toBeNull();
+        expect(state._restoredTabs).toBeNull();
+        expect(state._restoredActiveTabId).toBeNull();
+        expect(state._restoredCursorStates).toBeNull();
+        expect(localStorage.getItem('openTabs')).toBe('[]');
+        expect(localStorage.getItem('activeTabId')).toBeNull();
     });
 });

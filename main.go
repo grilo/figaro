@@ -39,6 +39,12 @@ func main() {
 
 	app := NewApp(vaultPath)
 	app.devInspectorAddress = inspectorAddress
+	linuxWindowIcon, iconErr := assets.ReadFile("frontend/icon-256.png")
+	if iconErr != nil {
+		// The launcher still has a filesystem-installed icon on Linux; this
+		// only affects the native window/dock representation.
+		log.Printf("[desktop] Could not load native Linux window icon: %v", iconErr)
+	}
 	log.Println("App created, launching Wails...")
 	vaultHandler := vaultFileHandler(app.vaultPath)
 	if closer, ok := vaultHandler.(interface{ Close() error }); ok {
@@ -89,7 +95,11 @@ func main() {
 			WindowIsTranslucent:  false,
 		},
 		Linux: &linux.Options{
-			// Linux WebKitGTK frameless window
+			// Match the .desktop entry's StartupWMClass and explicitly provide
+			// the PNG GTK uses for the running window/dock icon. Without Icon,
+			// Wails falls back to the generic GTK application glyph.
+			Icon:        linuxWindowIcon,
+			ProgramName: "figaro",
 		},
 	})
 

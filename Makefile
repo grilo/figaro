@@ -151,5 +151,6 @@ icons:
 
 install-desktop:
 	rm -f ~/.local/share/applications/figaro.desktop
-	rm -rf ~/.local/share/icons/hicolor/*/apps/figaro.png
+	rm -f ~/.local/share/icons/hicolor/*/apps/figaro.png
+	rm -f ~/.local/share/icons/hicolor/*/apps/io.github.figaro.Figaro.png
 	@echo "Desktop integration cleared — restart app to reinstall"

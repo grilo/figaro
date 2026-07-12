@@ -1,0 +1,420 @@
+/*
+ * Figaro PDF stylesheet
+ *
+ * This file is an editable starter copied into your vault when you choose
+ * "Create starter" in Properties → PDF layout. It loads after Figaro's built-in
+ * print CSS, so its rules intentionally override the defaults.
+ *
+ * The stable Figaro-only hooks are prefixed with .figaro-print- or
+ * .figaro-toc-. Markdown content itself is inside .figaro-print-document.
+ * See docs/PDF_STYLING.md for the full styling reference.
+ */
+
+@page {
+  size: A4;
+  margin: 18mm 16mm 20mm;
+}
+
+:root {
+  --figaro-ink: #1f2933;
+  --figaro-muted: #62707c;
+  --figaro-rule: #d8dee4;
+  --figaro-paper: #ffffff;
+  --figaro-soft: #f5f7f8;
+  --figaro-accent: #0b7285;
+  --figaro-accent-soft: #e6f5f7;
+  --figaro-code: #22303a;
+  color-scheme: light;
+}
+
+html {
+  color: var(--figaro-ink);
+  background: var(--figaro-paper);
+}
+
+body {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 0;
+  color: var(--figaro-ink);
+  background: var(--figaro-paper);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11pt;
+  line-height: 1.62;
+}
+
+/*
+ * Cover page
+ *
+ * .figaro-print-cover-title is deliberately separate from document h1s.
+ * Author and date are emitted only when their frontmatter values exist.
+ */
+.figaro-print-cover {
+  display: grid;
+  min-height: 242mm;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 24mm 14mm;
+  text-align: center;
+  background: linear-gradient(145deg, #f7fbfb, var(--figaro-paper) 58%);
+}
+
+.figaro-print-cover-inner {
+  max-width: 145mm;
+}
+
+.figaro-print-cover-kicker {
+  margin: 0 0 1.4em;
+  color: var(--figaro-accent);
+  font-family: Arial, sans-serif;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.figaro-print-cover-title,
+.figaro-print-cover h1 {
+  margin: 0;
+  border: 0;
+  color: var(--figaro-ink);
+  font-size: 31pt;
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+.figaro-print-cover-subtitle {
+  margin: 1.1em 0 0;
+  color: var(--figaro-muted);
+  font-size: 15pt;
+  line-height: 1.38;
+}
+
+.figaro-print-cover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .45em 1.1em;
+  margin: 2.8em 0 0;
+  color: var(--figaro-muted);
+  font-family: Arial, sans-serif;
+  font-size: 9pt;
+}
+
+.figaro-print-cover-author,
+.figaro-print-cover-date {
+  white-space: nowrap;
+}
+
+.figaro-print-cover-author + .figaro-print-cover-date::before {
+  margin-right: 1.1em;
+  color: var(--figaro-rule);
+  content: "•";
+}
+
+/*
+ * Generated contents page. Each list item carries a depth class from
+ * .figaro-toc-level-1 through .figaro-toc-level-6.
+ */
+.figaro-print-toc {
+  max-width: 150mm;
+  margin: 0 auto;
+  padding: 8mm 0;
+}
+
+.figaro-print-toc-title,
+.figaro-print-toc h2 {
+  margin: 0 0 1.2em;
+  padding-bottom: .45em;
+  border-bottom: 2px solid var(--figaro-accent);
+  color: var(--figaro-ink);
+  font-family: Arial, sans-serif;
+  font-size: 18pt;
+  line-height: 1.2;
+}
+
+.figaro-print-toc-list,
+.figaro-print-toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.figaro-print-toc li {
+  margin: .48em 0;
+  line-height: 1.35;
+}
+
+.figaro-print-toc .figaro-toc-level-1 {
+  margin-top: .85em;
+  color: var(--figaro-ink);
+  font-family: Arial, sans-serif;
+  font-weight: 700;
+}
+
+.figaro-print-toc .figaro-toc-level-2 { margin-left: 1.35em; }
+.figaro-print-toc .figaro-toc-level-3 { margin-left: 2.7em; font-size: .94em; }
+.figaro-print-toc .figaro-toc-level-4 { margin-left: 4.05em; font-size: .9em; }
+.figaro-print-toc .figaro-toc-level-5 { margin-left: 5.4em; font-size: .87em; }
+.figaro-print-toc .figaro-toc-level-6 { margin-left: 6.75em; font-size: .84em; }
+
+.figaro-print-toc a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * Markdown document body. Scope heading rules here so cover and contents
+ * titles remain independently stylable.
+ */
+.figaro-print-document > :first-child {
+  margin-top: 0;
+}
+
+.figaro-print-document h1,
+.figaro-print-document h2,
+.figaro-print-document h3,
+.figaro-print-document h4,
+.figaro-print-document h5,
+.figaro-print-document h6 {
+  color: var(--figaro-ink);
+  font-family: Arial, sans-serif;
+  line-height: 1.22;
+  break-after: avoid-page;
+  page-break-after: avoid;
+}
+
+.figaro-print-document h1 {
+  margin: 2.1em 0 .65em;
+  padding-bottom: .28em;
+  border-bottom: 2px solid var(--figaro-accent);
+  font-size: 22pt;
+}
+
+.figaro-print-document h2 {
+  margin: 1.8em 0 .55em;
+  padding-bottom: .22em;
+  border-bottom: 1px solid var(--figaro-rule);
+  font-size: 16pt;
+}
+
+.figaro-print-document h3 { margin: 1.55em 0 .45em; font-size: 13pt; }
+.figaro-print-document h4 { margin: 1.4em 0 .4em; font-size: 11.5pt; }
+.figaro-print-document h5 { margin: 1.3em 0 .35em; font-size: 10.5pt; }
+.figaro-print-document h6 { margin: 1.2em 0 .3em; color: var(--figaro-muted); font-size: 9.5pt; }
+
+.figaro-print-document p,
+.figaro-print-document li {
+  orphans: 3;
+  widows: 3;
+}
+
+.figaro-print-document a {
+  color: var(--figaro-accent);
+  text-decoration-thickness: .08em;
+  text-underline-offset: .14em;
+}
+
+.figaro-print-document strong { font-weight: 700; }
+.figaro-print-document em { color: #3d4a54; }
+
+.figaro-print-document mark {
+  padding: .04em .12em;
+  border-radius: 2px;
+  background: #fff0ad;
+  color: inherit;
+}
+
+.figaro-print-document hr,
+.footnotes-sep {
+  height: 0;
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--figaro-rule);
+}
+
+.figaro-print-document blockquote {
+  margin: 1.35em 0;
+  padding: .15em 1.2em;
+  border-left: 3px solid var(--figaro-accent);
+  color: var(--figaro-muted);
+}
+
+.figaro-print-document ul,
+.figaro-print-document ol {
+  padding-left: 1.55em;
+}
+
+.figaro-print-document li + li {
+  margin-top: .24em;
+}
+
+/* Markdown task lists are emitted by the printable Markdown renderer. */
+.figaro-print-task-list {
+  margin: 1em 0;
+  padding-left: 0 !important;
+  list-style: none;
+}
+
+.figaro-print-task-item {
+  list-style: none;
+}
+
+.figaro-print-task-checkbox {
+  width: .95em;
+  height: .95em;
+  margin: 0 .55em 0 0;
+  accent-color: var(--figaro-accent);
+  vertical-align: -.08em;
+}
+
+.figaro-print-task-label {
+  vertical-align: middle;
+}
+
+/* Tables, source code, and quoted material should not split when avoidable. */
+.figaro-print-document table,
+.figaro-print-document pre,
+.figaro-print-document blockquote {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.figaro-print-document table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25em 0;
+  font-size: .93em;
+}
+
+.figaro-print-document th,
+.figaro-print-document td {
+  padding: .55em .7em;
+  border: 1px solid var(--figaro-rule);
+  vertical-align: top;
+}
+
+.figaro-print-document th {
+  background: var(--figaro-soft);
+  color: var(--figaro-ink);
+  font-family: Arial, sans-serif;
+  font-weight: 700;
+  text-align: left;
+}
+
+.figaro-print-document code,
+.figaro-print-document pre {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: .88em;
+}
+
+.figaro-print-document code {
+  padding: .12em .28em;
+  border-radius: 3px;
+  background: var(--figaro-soft);
+  color: var(--figaro-code);
+}
+
+.figaro-print-document pre {
+  margin: 1.25em 0;
+  padding: 1em 1.1em;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  border: 1px solid var(--figaro-rule);
+  border-radius: 5px;
+  background: var(--figaro-soft);
+}
+
+.figaro-print-document pre code {
+  padding: 0;
+  background: transparent;
+}
+
+/* Images, diagrams, and KaTeX output remain within the printable area. */
+.figaro-print-document img,
+.figaro-print-document svg,
+.figaro-print-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.figaro-print-document img {
+  display: block;
+  margin: 1.35em auto;
+}
+
+.figaro-print-diagram {
+  margin: 1.5em 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.figaro-print-diagram-content {
+  display: flex;
+  justify-content: center;
+}
+
+.figaro-print-diagram svg {
+  display: block;
+  margin: 0 auto;
+}
+
+.katex-block,
+.katex-display {
+  margin: 1.35em 0;
+  overflow-x: auto;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Endnotes emitted by the footnote plugin. */
+.footnote-ref {
+  font-size: .74em;
+  line-height: 0;
+  vertical-align: super;
+}
+
+.footnote-ref > a:first-child,
+.footnote-backref {
+  text-decoration: none;
+}
+
+.footnotes {
+  margin-top: 0;
+  padding-top: 0;
+  color: var(--figaro-muted);
+  font-size: .9em;
+}
+
+.footnotes ol {
+  padding-left: 1.45em;
+}
+
+.footnotes li {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.footnotes li + li {
+  margin-top: .65em;
+}
+
+.footnote-backref {
+  margin-left: .35em;
+  white-space: nowrap;
+}
+
+/* Add this class in generated HTML only when you intentionally need a break. */
+.figaro-print-page-break {
+  break-after: page;
+  page-break-after: always;
+}
+
+@media print {
+  .figaro-print-page-break {
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+}
+

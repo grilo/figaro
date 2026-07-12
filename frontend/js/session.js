@@ -4,10 +4,25 @@
  */
 
 import { log } from './log.js';
-import { state } from './state.js';
+import { state, setState } from './state.js';
 import { restoreSessionTabs, serializeSessionTabs } from './sessionTabs.js';
 
 let sessionSaveQueue = Promise.resolve();
+
+function resetPortableWorkspaceState() {
+    // localStorage is only a webview-local recovery cache. The vault session
+    // is authoritative for tabs and file-tree state, so a missing or repaired
+    // session must not resurrect stale paths from an older vault view.
+    setState('expandedDirs', new Set());
+    setState('selectedFilePath', null);
+    setState('selectedFilePaths', []);
+    setState('pinnedTabs', []);
+    setState('activeTabId', null);
+    setState('openTabs', []);
+    state._restoredTabs = null;
+    state._restoredActiveTabId = null;
+    state._restoredCursorStates = null;
+}
 
 /**
  * Load session state from backend and apply to app state
@@ -16,21 +31,22 @@ let sessionSaveQueue = Promise.resolve();
 export async function loadSession() {
     try {
         const session = await window.pywebview.api.load_session();
-        if (!session || !Object.keys(session).length) return false;
+        resetPortableWorkspaceState();
+        if (!session || Array.isArray(session) || !Object.keys(session).length) return false;
 
         // Restore expanded directories
         if (session.expandedDirs && Array.isArray(session.expandedDirs)) {
-            state.expandedDirs = new Set(session.expandedDirs);
+            setState('expandedDirs', new Set(session.expandedDirs));
         }
 
         // Restore selected file
         if (session.selectedFilePath) {
-            state.selectedFilePath = session.selectedFilePath;
+            setState('selectedFilePath', session.selectedFilePath);
         }
 
         // Restore pinned tabs
         if (session.pinnedTabs && Array.isArray(session.pinnedTabs)) {
-            state.pinnedTabs = session.pinnedTabs;
+            setState('pinnedTabs', session.pinnedTabs);
         }
 
         // Store tabs for restore after file tree loads. The normalizer also
@@ -49,6 +65,7 @@ export async function loadSession() {
 
         return true;
     } catch (e) {
+        resetPortableWorkspaceState();
         log.warn('Failed to load session:', e);
         return false;
     }

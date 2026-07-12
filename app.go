@@ -13,6 +13,7 @@ import (
 	"os/user"
 	pathpkg "path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	goruntime "runtime"
 	"sort"
@@ -298,6 +299,7 @@ func (a *App) ensureWelcomeNote() {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	log.Println("[go] App.startup() — Wails context captured")
+	a.ensureSettingsDefaults()
 
 	// Desktop integration uses Linux's XDG/GNOME conventions. Other Wails
 	// platforms provide their own app registration model.
@@ -1457,33 +1459,213 @@ func (a *App) SaveSession(data map[string]interface{}) (*SaveFileResult, error) 
 	a.sessionMu.Lock()
 	defer a.sessionMu.Unlock()
 
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	if err := a.writeVaultFileAtomic(".config/session.json", jsonData, 0600); err != nil {
+	if err := a.writeSessionData(data); err != nil {
 		return nil, err
 	}
 	return &SaveFileResult{Success: true}, nil
 }
 
-// LoadSession loads session state from vault/.config/session.json.
+func (a *App) writeSessionData(data map[string]interface{}) error {
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return err
+	}
+	return a.writeVaultFileAtomic(".config/session.json", jsonData, 0600)
+}
+
+// LoadSession loads session state from vault/.config/session.json. It repairs
+// malformed or stale records as it reads them so an old tab cannot leave the
+// client trying to restore a file that no longer exists.
 func (a *App) LoadSession() (map[string]interface{}, error) {
-	a.sessionMu.RLock()
-	defer a.sessionMu.RUnlock()
+	a.sessionMu.Lock()
+	defer a.sessionMu.Unlock()
 
 	data, err := a.readVaultFile(".config/session.json")
 	if os.IsNotExist(err) {
-		return map[string]interface{}{}, nil
+		defaults := map[string]interface{}{}
+		if err := a.writeSessionData(defaults); err != nil {
+			return nil, err
+		}
+		return defaults, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read session: %w", err)
 	}
 	var result map[string]interface{}
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("parse session: %w", err)
+	if len(bytes.TrimSpace(data)) == 0 || json.Unmarshal(data, &result) != nil || result == nil {
+		defaults := map[string]interface{}{}
+		if err := a.writeSessionData(defaults); err != nil {
+			return nil, err
+		}
+		return defaults, nil
 	}
-	return result, nil
+
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	normalized := normalizeSessionData(root, result)
+	if !reflect.DeepEqual(result, normalized) {
+		if err := a.writeSessionData(normalized); err != nil {
+			return nil, err
+		}
+	}
+	return normalized, nil
+}
+
+func sessionString(value interface{}) string {
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(text)
+}
+
+func sessionFilePath(root *os.Root, value interface{}) (string, bool) {
+	clean, err := vaultRelativePath(sessionString(value))
+	if err != nil || clean == "." {
+		return "", false
+	}
+	info, err := root.Stat(clean)
+	if err != nil || info.IsDir() {
+		return "", false
+	}
+	return filepath.ToSlash(clean), true
+}
+
+func sessionDirectoryPath(root *os.Root, value interface{}) (string, bool) {
+	clean, err := vaultRelativePath(sessionString(value))
+	if err != nil || clean == "." {
+		return "", false
+	}
+	info, err := root.Stat(clean)
+	if err != nil || !info.IsDir() {
+		return "", false
+	}
+	return filepath.ToSlash(clean), true
+}
+
+func normalizeSessionData(root *os.Root, source map[string]interface{}) map[string]interface{} {
+	normalized := make(map[string]interface{})
+	validTabIDs := make(map[string]bool)
+	fileTabIDs := make(map[string]bool)
+	tabs := make([]interface{}, 0)
+
+	if candidates, ok := source["openTabs"].([]interface{}); ok {
+		for _, candidate := range candidates {
+			tab, ok := candidate.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			typeName := sessionString(tab["type"])
+			var cleaned map[string]interface{}
+			var tabID string
+			switch typeName {
+			case "home":
+				tabID = "home"
+				title := sessionString(tab["title"])
+				if title == "" {
+					title = "Welcome"
+				}
+				cleaned = map[string]interface{}{"id": tabID, "type": "home", "title": title}
+			case "calendar":
+				date := sessionString(tab["dateStr"])
+				if date == "" {
+					continue
+				}
+				tabID = sessionString(tab["id"])
+				if tabID == "" {
+					tabID = "calendar-" + date
+				}
+				title := sessionString(tab["title"])
+				if title == "" {
+					title = "Calendar: " + date
+				}
+				cleaned = map[string]interface{}{"id": tabID, "type": "calendar", "title": title, "dateStr": date}
+			case "file", "drawio":
+				path, valid := sessionFilePath(root, tab["path"])
+				if !valid {
+					continue
+				}
+				tabID = sessionString(tab["id"])
+				if tabID == "" {
+					tabID = path
+				}
+				title := sessionString(tab["title"])
+				if title == "" {
+					title = filepath.Base(path)
+				}
+				cleaned = map[string]interface{}{"id": tabID, "type": typeName, "title": title, "path": path}
+			default:
+				continue
+			}
+			if validTabIDs[tabID] {
+				continue
+			}
+			validTabIDs[tabID] = true
+			if typeName == "file" {
+				fileTabIDs[tabID] = true
+			}
+			tabs = append(tabs, cleaned)
+		}
+	}
+	if len(tabs) > 0 {
+		normalized["openTabs"] = tabs
+	}
+
+	if activeTabID := sessionString(source["activeTabId"]); validTabIDs[activeTabID] {
+		normalized["activeTabId"] = activeTabID
+	}
+	if selectedPath, valid := sessionFilePath(root, source["selectedFilePath"]); valid {
+		normalized["selectedFilePath"] = selectedPath
+	}
+
+	if candidates, ok := source["expandedDirs"].([]interface{}); ok {
+		directories := make([]interface{}, 0, len(candidates))
+		seen := make(map[string]bool)
+		for _, candidate := range candidates {
+			if path, valid := sessionDirectoryPath(root, candidate); valid && !seen[path] {
+				seen[path] = true
+				directories = append(directories, path)
+			}
+		}
+		if len(directories) > 0 {
+			normalized["expandedDirs"] = directories
+		}
+	}
+
+	if candidates, ok := source["pinnedTabs"].([]interface{}); ok {
+		pinned := make([]interface{}, 0, len(candidates))
+		seen := make(map[string]bool)
+		for _, candidate := range candidates {
+			id := sessionString(candidate)
+			if id != "" && validTabIDs[id] && !seen[id] {
+				seen[id] = true
+				pinned = append(pinned, id)
+			}
+		}
+		if len(pinned) > 0 {
+			normalized["pinnedTabs"] = pinned
+		}
+	}
+
+	if cursors, ok := source["cursorStates"].(map[string]interface{}); ok {
+		cleaned := make(map[string]interface{})
+		for id, cursor := range cursors {
+			if fileTabIDs[id] {
+				cleaned[id] = cursor
+			}
+		}
+		if len(cleaned) > 0 {
+			normalized["cursorStates"] = cleaned
+		}
+	}
+
+	if theme := sessionString(source["theme"]); theme != "" {
+		normalized["theme"] = theme
+	}
+	return normalized
 }
 
 // ============================================================================
@@ -1674,6 +1856,111 @@ func (a *App) GetThemeCSS(themeID string) (map[string]string, error) {
 		}
 	}
 	return map[string]string{"css": string(data)}, nil
+}
+
+var legacyWorkspaceSettingKeys = []string{
+	"openTabs",
+	"activeTabId",
+	"selectedFilePath",
+	"expandedDirs",
+	"pinnedTabs",
+	"cursorStates",
+}
+
+func defaultSettings() map[string]interface{} {
+	return map[string]interface{}{
+		"theme":               "default",
+		"font":                "inter",
+		"code_font":           "theme-mono",
+		"vim":                 false,
+		"auto_save_seconds":   300,
+		"auto_commit_seconds": 0,
+	}
+}
+
+func nonNegativeWholeSetting(value interface{}) (int, bool) {
+	switch number := value.(type) {
+	case int:
+		return number, number >= 0
+	case float64:
+		if number < 0 || math.Trunc(number) != number || number > float64(math.MaxInt) {
+			return 0, false
+		}
+		return int(number), true
+	default:
+		return 0, false
+	}
+}
+
+// ensureSettingsDefaults makes the settings file a real, recoverable config
+// record. Older versions could leave workspace-tab data in this file, while a
+// missing, empty, or malformed file only happened to work through scattered
+// frontend fallbacks.
+func (a *App) ensureSettingsDefaults() {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
+	settings, err := a.readSettingsFile()
+	changed := false
+	if err != nil || settings == nil {
+		if err != nil {
+			log.Printf("[settings] Resetting invalid settings file: %v", err)
+		}
+		settings = make(map[string]interface{})
+		changed = true
+	}
+	// Convert the old minute-based autosave preference before filling the
+	// modern seconds key. This preserves a user's prior setting while leaving
+	// the resulting settings file with one canonical representation.
+	if _, hasSeconds := settings["auto_save_seconds"]; !hasSeconds {
+		if minutes, valid := nonNegativeWholeSetting(settings["auto_save_minutes"]); valid {
+			settings["auto_save_seconds"] = minutes * 60
+			changed = true
+		}
+	}
+
+	for key, fallback := range defaultSettings() {
+		switch fallbackValue := fallback.(type) {
+		case string:
+			rawValue, ok := settings[key].(string)
+			value := strings.TrimSpace(rawValue)
+			if !ok || value == "" {
+				settings[key] = fallbackValue
+				changed = true
+			} else if value != rawValue {
+				settings[key] = value
+				changed = true
+			}
+		case bool:
+			if _, ok := settings[key].(bool); !ok {
+				settings[key] = fallbackValue
+				changed = true
+			}
+		case int:
+			_, valid := nonNegativeWholeSetting(settings[key])
+			if !valid {
+				settings[key] = fallbackValue
+				changed = true
+			}
+		}
+	}
+	if _, exists := settings["auto_save_minutes"]; exists {
+		delete(settings, "auto_save_minutes")
+		changed = true
+	}
+
+	for _, key := range legacyWorkspaceSettingKeys {
+		if _, exists := settings[key]; exists {
+			delete(settings, key)
+			changed = true
+		}
+	}
+	if !changed {
+		return
+	}
+	if err := a.writeSettingsFile(settings); err != nil {
+		log.Printf("[settings] Could not write normalized settings: %v", err)
+	}
 }
 
 // ThemeLoad loads the saved theme from vault/.config/settings.json.

@@ -13,8 +13,8 @@ const defaultPrintCSS = `
   @page { margin: 18mm; }
   :root { color-scheme: light; }
   body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; color: #202124; padding: 0; max-width: 820px; margin: 0 auto; }
-  h1, h2 { border-bottom: 1px solid #e6e6e6; padding-bottom: .3em; }
-  h1, h2, h3 { break-after: avoid-page; }
+  .figaro-print-document h1, .figaro-print-document h2 { border-bottom: 1px solid #e6e6e6; padding-bottom: .3em; }
+  .figaro-print-document h1, .figaro-print-document h2, .figaro-print-document h3, .figaro-print-document h4, .figaro-print-document h5, .figaro-print-document h6 { break-after: avoid-page; page-break-after: avoid; }
   pre, code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
   code { background: #f4f4f5; padding: .15em .3em; border-radius: 3px; }
   pre { padding: 12px; overflow-wrap: break-word; white-space: pre-wrap; background: #f6f8fa; border-radius: 6px; break-inside: avoid; }
@@ -30,12 +30,13 @@ const defaultPrintCSS = `
   .figaro-print-cover { min-height: 70vh; display: grid; place-items: center; box-sizing: border-box; padding: 24mm 12mm; text-align: center; }
   .figaro-print-cover-inner { max-width: 680px; }
   .figaro-print-cover-kicker { margin: 0 0 1.2em; color: #57606a; font-size: .72em; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-  .figaro-print-cover h1 { margin: 0; border: 0; font-size: 2.6em; line-height: 1.15; }
+  .figaro-print-cover-title { margin: 0; border: 0; font-size: 2.6em; line-height: 1.15; }
   .figaro-print-cover-subtitle { margin: 1em 0 0; color: #57606a; font-size: 1.2em; }
   .figaro-print-cover-meta { display: flex; justify-content: center; gap: .6em 1.2em; flex-wrap: wrap; margin-top: 2.6em; color: #57606a; }
+  .figaro-print-cover-author, .figaro-print-cover-date { white-space: nowrap; }
   .figaro-print-toc { max-width: 720px; margin: 0 auto; padding: 6mm 0; }
-  .figaro-print-toc h2 { margin-top: 0; }
-  .figaro-print-toc ol { margin: 0; padding: 0; list-style: none; }
+  .figaro-print-toc-title { margin-top: 0; }
+  .figaro-print-toc-list { margin: 0; padding: 0; list-style: none; }
   .figaro-print-toc li { margin: .45em 0; }
   .figaro-print-toc .figaro-toc-level-2 { margin-left: 1.25em; font-size: .95em; }
   .figaro-print-toc .figaro-toc-level-3 { margin-left: 2.5em; font-size: .9em; }
@@ -94,14 +95,15 @@ function renderCoverPage(markdown, fallbackTitle) {
     const subtitle = getFrontmatterValue(markdown, 'subtitle') || getFrontmatterValue(markdown, 'description');
     const author = getFrontmatterValue(markdown, 'author');
     const date = getFrontmatterValue(markdown, 'date') || getFrontmatterValue(markdown, 'created');
-    const metadata = [author, date].filter(Boolean)
-        .map(value => `<span>${escapeHtml(value)}</span>`)
-        .join('');
+    const metadata = [
+        author ? `<span class="figaro-print-cover-author">${escapeHtml(author)}</span>` : '',
+        date ? `<span class="figaro-print-cover-date">${escapeHtml(date)}</span>` : '',
+    ].filter(Boolean).join('');
 
     return `<section class="figaro-print-cover figaro-print-page-break">
   <div class="figaro-print-cover-inner">
     <p class="figaro-print-cover-kicker">Figaro</p>
-    <h1>${escapeHtml(title)}</h1>
+    <h1 class="figaro-print-cover-title">${escapeHtml(title)}</h1>
     ${subtitle ? `<p class="figaro-print-cover-subtitle">${escapeHtml(subtitle)}</p>` : ''}
     ${metadata ? `<div class="figaro-print-cover-meta">${metadata}</div>` : ''}
   </div>
@@ -116,7 +118,7 @@ function renderTableOfContents(headings, depth) {
     const items = entries.map(heading =>
         `<li class="figaro-toc-level-${heading.level}"><a href="#${escapeHtml(heading.id)}">${escapeHtml(heading.text)}</a></li>`
     ).join('');
-    return `<nav class="figaro-print-toc figaro-print-page-break" aria-label="Table of contents"><h2>Contents</h2><ol>${items}</ol></nav>`;
+    return `<nav class="figaro-print-toc figaro-print-page-break" aria-label="Table of contents"><h2 class="figaro-print-toc-title">Contents</h2><ol class="figaro-print-toc-list">${items}</ol></nav>`;
 }
 
 export function renderPrintableMarkdown(markdown, title = 'Document') {
@@ -139,7 +141,7 @@ export function renderPrintableMarkdown(markdown, title = 'Document') {
 <title>${escapeHtml(title)}</title>
 <style>${defaultPrintCSS}</style>
 </head>
-<body>${cover}${toc}${body}</body>
+<body>${cover}${toc}<main class="figaro-print-document">${body}</main></body>
 </html>`;
 }
 

@@ -2368,7 +2368,10 @@ html, body {
 /* Document Properties: compact by default, with an optional structured PDF
    layout panel. YAML remains available as an advanced/source view. */
 .cm-frontmatter {
-    width: min(100%, var(--editor-width));
+    width: 100%;
+    max-width: var(--editor-width);
+    min-width: 0;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -2384,6 +2387,7 @@ html, body {
     text-align: left;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
+    overflow: hidden;
 }
 
 .cm-frontmatter:hover,
@@ -2395,6 +2399,7 @@ html, body {
 }
 
 .cm-frontmatter-disclosure {
+    flex: 0 0 auto;
     color: var(--text-dim);
     font-size: 18px;
     line-height: 12px;
@@ -2402,17 +2407,21 @@ html, body {
 }
 
 .cm-frontmatter-label {
+    flex: 0 0 auto;
     color: var(--text-color);
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .cm-frontmatter-count {
+    flex: 0 0 auto;
     color: var(--text-dim);
     white-space: nowrap;
 }
 
 .cm-frontmatter-chips {
     display: flex;
+    flex: 1 1 auto;
     min-width: 0;
     align-items: center;
     gap: 5px;
@@ -2486,7 +2495,10 @@ html, body {
 }
 
 .cm-frontmatter-panel {
-    width: min(100%, var(--editor-width));
+    width: 100%;
+    max-width: var(--editor-width);
+    min-width: 0;
+    box-sizing: border-box;
     margin: 2px auto 16px;
     padding: 12px;
     border: 1px solid var(--border-color);
@@ -2514,11 +2526,17 @@ html, body {
 }
 
 .cm-frontmatter-panel-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-weight: 650;
+    white-space: nowrap;
 }
 
 .cm-frontmatter-panel-actions {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     gap: 4px;
 }
@@ -2614,6 +2632,39 @@ html, body {
     display: flex;
     width: 100%;
     min-width: 0;
+}
+
+.cm-frontmatter-stylesheet-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.cm-frontmatter-create-stylesheet {
+    min-height: 28px;
+    padding: 4px 7px;
+    border: 1px solid var(--border-color);
+    color: var(--accent-color);
+    white-space: nowrap;
+}
+
+.cm-frontmatter-create-stylesheet:hover,
+.cm-frontmatter-create-stylesheet:focus-visible {
+    border-color: var(--accent-color);
+}
+
+.cm-frontmatter-create-stylesheet:disabled {
+    cursor: wait;
+    opacity: .6;
+}
+
+.cm-frontmatter-panel-hint {
+    margin: -1px 0 0;
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.35;
 }
 
 .cm-frontmatter-combobox-trigger {
@@ -3334,9 +3385,9 @@ html, body {
     box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
-/* New note: a purpose-built creation flow instead of a generic browser-like
-   prompt. It gives the destination and extension enough visual hierarchy to
-   prevent accidental nested paths or duplicate .md suffixes. */
+/* New file: a purpose-built creation flow instead of a generic browser-like
+   prompt. It gives the destination and default extension enough visual
+   hierarchy while keeping an explicitly entered extension intact. */
 .new-note-modal {
     width: min(420px, calc(100vw - 32px));
     min-width: 0;
@@ -3450,14 +3501,6 @@ html, body {
 .new-note-input-wrap .custom-modal-input:focus {
     border: 0;
     box-shadow: none;
-}
-
-.new-note-extension {
-    padding: 0 12px 0 6px;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    user-select: none;
 }
 
 .new-note-help,

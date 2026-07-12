@@ -13,6 +13,7 @@ import {
     hasLeadingFrontmatter,
     parseFrontmatter,
 } from './frontmatter.js';
+import { confirmDialog, promptDialog } from './dialogs.js';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'print-stylesheet']);
 const COVER_PROPERTY_KEYS = new Set(['title', 'subtitle', 'description', 'author', 'date', 'created']);
@@ -202,7 +203,7 @@ function createStylesheetCombobox(value, stylesheets, onCommit) {
     input.className = 'cm-frontmatter-panel-input';
     input.type = 'text';
     input.value = value;
-    input.placeholder = 'Use sibling _print.css';
+    input.placeholder = 'Built-in style (or _print.css)';
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-label', 'Print stylesheet');
     input.setAttribute('aria-autocomplete', 'list');
@@ -312,8 +313,35 @@ export function createFrontmatterField(
     _mouseSelectingField,
     getPrintStylesheets = () => [],
     getDefaultAuthor = () => '',
+    options = {},
 ) {
     const setMode = StateEffect.define();
+    const {
+        getActiveFilePath = () => '',
+        promptForStylesheet = suggestedPath => promptDialog(
+            'Create PDF stylesheet',
+            'Create an editable starter stylesheet relative to this note.',
+            suggestedPath
+        ),
+        confirmUseExistingStylesheet = stylesheetPath => confirmDialog(
+            'Use existing PDF stylesheet?',
+            `"${stylesheetPath}" already exists and will not be changed. Use it for this note?`,
+            false,
+            false,
+            { confirmLabel: 'Use stylesheet' }
+        ),
+        createStarterStylesheet = async (notePath, stylesheetPath) => {
+            const create = globalThis.pywebview?.api?.create_starter_print_stylesheet;
+            if (typeof create !== 'function') {
+                return { success: false, error: 'Creating a starter PDF stylesheet is unavailable because the backend is not connected.' };
+            }
+            return create(notePath, stylesheetPath);
+        },
+        onStylesheetReady = async () => {},
+        reportStylesheetError = message => {
+            if (typeof globalThis.alert === 'function') globalThis.alert(message);
+        },
+    } = options || {};
 
     const changeProperty = (view, key, value) => {
         const change = frontmatterPropertyChange(view.state.doc.toString(), key, value);
@@ -505,7 +533,7 @@ export function createFrontmatterField(
                 });
             }
             pdfSection.appendChild(createFieldRow(
-                'Contents',
+                'Table of Contents',
                 createThemedSelect(
                     String(currentDepth),
                     tocOptions,
@@ -521,7 +549,57 @@ export function createFrontmatterField(
                 stylesheets,
                 value => changeProperty(view, 'print-stylesheet', value)
             );
-            pdfSection.appendChild(createFieldRow('Print stylesheet', stylesheetInput));
+            const stylesheetControl = document.createElement('div');
+            stylesheetControl.className = 'cm-frontmatter-stylesheet-control';
+            stylesheetControl.appendChild(stylesheetInput);
+
+            let creatingStylesheet = false;
+            const createStarter = makeButton(
+                'cm-frontmatter-panel-action cm-frontmatter-create-stylesheet',
+                'Create starter',
+                'Create an editable starter PDF stylesheet',
+                async () => {
+                    if (creatingStylesheet || view.isDestroyed) return;
+
+                    const suggestedPath = getFrontmatterValue(view.state.doc.toString(), 'print-stylesheet') || 'pdf.css';
+                    const stylesheetPath = await promptForStylesheet(suggestedPath);
+                    const normalizedPath = String(stylesheetPath || '').trim();
+                    if (!normalizedPath || view.isDestroyed) return;
+
+                    const notePath = String(getActiveFilePath() || '').trim();
+                    if (!notePath) {
+                        reportStylesheetError('Open a Markdown note before creating a PDF stylesheet.');
+                        return;
+                    }
+
+                    creatingStylesheet = true;
+                    createStarter.disabled = true;
+                    createStarter.setAttribute('aria-busy', 'true');
+                    try {
+                        const result = await createStarterStylesheet(notePath, normalizedPath);
+                        if (!result?.success) {
+                            reportStylesheetError(result?.error || 'Could not create the starter PDF stylesheet.');
+                            return;
+                        }
+                        if (!result.created && !await confirmUseExistingStylesheet(normalizedPath)) return;
+
+                        changeProperty(view, 'print-stylesheet', normalizedPath);
+                        await onStylesheetReady(result.path || normalizedPath);
+                    } catch (error) {
+                        reportStylesheetError(error?.message || 'Could not create the starter PDF stylesheet.');
+                    } finally {
+                        creatingStylesheet = false;
+                        createStarter.disabled = false;
+                        createStarter.removeAttribute('aria-busy');
+                    }
+                }
+            );
+            stylesheetControl.appendChild(createStarter);
+            pdfSection.appendChild(createFieldRow('Print stylesheet', stylesheetControl));
+            const stylesheetHint = document.createElement('p');
+            stylesheetHint.className = 'cm-frontmatter-panel-hint';
+            stylesheetHint.textContent = 'Leave blank for the built-in style or an existing sibling _print.css. Create starter copies an editable example into your vault.';
+            pdfSection.appendChild(stylesheetHint);
             panel.appendChild(pdfSection);
 
             if (coverInput.checked) {

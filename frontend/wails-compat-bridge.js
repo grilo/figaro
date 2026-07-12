@@ -78,6 +78,7 @@
     'commit_all_files':            'CommitAllFiles',
     'commit_current_file':         'CommitCurrentFile',
     'create_file':                 'CreateFile',
+    'create_starter_print_stylesheet': 'CreateStarterPrintStylesheet',
     'create_directory':            'CreateDirectory',
     'delete_path':                 'DeletePath',
     'rename_path':                 'RenamePath',

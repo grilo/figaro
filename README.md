@@ -93,6 +93,7 @@ author: "Ada Lovelace"
 date: 2026-07-12
 cover-page: true
 toc-depth: 2
+# Optional: choose Create starter in PDF layout first.
 print-stylesheet: "pdf.css"
 ---
 ~~~
@@ -103,9 +104,11 @@ print-stylesheet: "pdf.css"
 - Footnotes such as `[^source]` print as numbered links to a final Footnotes section, with links back to each reference.
 - Mermaid, Vega, and Vega-Lite blocks are rendered to inline SVG for the printed document.
 
+PDF exports use a polished built-in style by default. To customize one, choose **Create starter** in the Properties panel's **PDF layout** section. Figaro proposes a note-local `pdf.css`, copies its comprehensive editable example only after you confirm, selects it for the note, and opens it. It never creates stylesheets during startup or export, and it never overwrites an existing CSS file. See [PDF styling](docs/PDF_STYLING.md) for the stable selectors, page-layout guidance, and the distinction between document headings and unsupported repeated page headers/footers.
+
 Choose **Export to PDF** from a Markdown file's context menu or the editor context menu. figaro first looks for an installed Chrome/Chromium-family browser, including Ungoogled Chromium and its Flatpak launcher, then Edge; on macOS it can use the system Safari/WebKit engine. It writes `<note>.pdf` beside the Markdown file (safely replacing the previous export) and opens it with your default viewer. The export deliberately aborts if no viable browser engine is found rather than creating a PDF with dead links, TOC entries, or footnote references.
 
-An export of the active dirty note uses the current editor content without forcing a save first. A `print-stylesheet` must be a vault-local relative CSS path; it overrides a sibling `_print.css` for that note.
+An export of the active dirty note uses the current editor content without forcing a save first. A `print-stylesheet` must be a vault-local relative CSS path; it overrides a sibling `_print.css` for that note. Leave it blank or omit it to retain the built-in style.
 
 ## Getting started
 

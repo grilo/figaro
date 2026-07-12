@@ -8,27 +8,45 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
-// ensureDesktopIntegration installs the Linux launcher and icon assets on
-// first run. Keeping it in a Linux-only compilation unit prevents other
-// desktop targets from carrying GNOME/XDG command paths at all.
+const linuxDesktopIconName = "io.github.figaro.Figaro"
+
+func linuxDataHome(homeDir string) string {
+	if configured := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); configured != "" && filepath.IsAbs(configured) {
+		return configured
+	}
+	return filepath.Join(homeDir, ".local", "share")
+}
+
+func linuxDesktopEntry(exePath string, iconPath string) string {
+	return fmt.Sprintf(`[Desktop Entry]
+Type=Application
+Name=figaro
+Comment=Local Markdown Knowledge Base
+Exec=%s %%U
+Icon=%s
+Terminal=false
+Categories=Office;TextEditor;Utility;
+StartupWMClass=figaro
+MimeType=text/markdown;
+`, exePath, iconPath)
+}
+
+// ensureDesktopIntegration refreshes the Linux launcher and icon assets on
+// every launch. The earlier "already installed" shortcut meant old generic
+// icon metadata survived upgrades indefinitely. Keeping it in a Linux-only
+// compilation unit prevents other desktop targets from carrying GNOME/XDG
+// command paths at all.
 func (a *App) ensureDesktopIntegration() {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Printf("[desktop] Cannot get home dir: %v", err)
 		return
 	}
-	desktopFile := filepath.Join(homeDir, ".local", "share", "applications", "figaro.desktop")
-
-	if _, err := os.Stat(desktopFile); err == nil {
-		log.Printf("[desktop] Already installed at %s — skipping", desktopFile)
-		return
-	} else if !os.IsNotExist(err) {
-		log.Printf("[desktop] Cannot inspect %s: %v", desktopFile, err)
-		return
-	}
-	log.Printf("[desktop] No desktop file at %s — installing...", desktopFile)
+	dataHome := linuxDataHome(homeDir)
+	desktopFile := filepath.Join(dataHome, "applications", "figaro.desktop")
 
 	exePath, err := os.Executable()
 	if err != nil {
@@ -51,18 +69,18 @@ func (a *App) ensureDesktopIntegration() {
 			}
 		}
 
-		destDir := filepath.Join(homeDir, ".local", "share", "icons", "hicolor", fmt.Sprintf("%dx%d", size, size), "apps")
+		destDir := filepath.Join(dataHome, "icons", "hicolor", fmt.Sprintf("%dx%d", size, size), "apps")
 		if err := os.MkdirAll(destDir, 0755); err != nil { // #nosec G301,G703 -- XDG public icon path beneath the current user's home.
 			log.Printf("[desktop] Cannot create %s: %v", destDir, err)
 			continue
 		}
-		destPath := filepath.Join(destDir, "figaro.png")
+		destPath := filepath.Join(destDir, linuxDesktopIconName+".png")
 		if err := os.WriteFile(destPath, data, 0644); err != nil { // #nosec G306,G703 -- desktop shells require readable icon files in the XDG icon path.
 			log.Printf("[desktop] Cannot write %s: %v", destPath, err)
 		}
 	}
 
-	scalableDir := filepath.Join(homeDir, ".local", "share", "icons", "hicolor", "scalable", "apps")
+	scalableDir := filepath.Join(dataHome, "icons", "hicolor", "scalable", "apps")
 	if err := os.MkdirAll(scalableDir, 0755); err != nil { // #nosec G301,G703 -- XDG public icon path beneath the current user's home.
 		log.Printf("[desktop] Cannot create %s: %v", scalableDir, err)
 	} else {
@@ -73,28 +91,19 @@ func (a *App) ensureDesktopIntegration() {
 		}
 		if readErr != nil {
 			log.Printf("[desktop] Cannot read scalable icon: %v", readErr)
-		} else if err := os.WriteFile(filepath.Join(scalableDir, "figaro.png"), data, 0644); err != nil { // #nosec G306,G703 -- desktop shells require readable icon files in the XDG icon path.
+		} else if err := os.WriteFile(filepath.Join(scalableDir, linuxDesktopIconName+".png"), data, 0644); err != nil { // #nosec G306,G703 -- desktop shells require readable icon files in the XDG icon path.
 			log.Printf("[desktop] Cannot write scalable icon: %v", err)
 		}
 	}
 
-	iconRoot := filepath.Join(homeDir, ".local", "share", "icons", "hicolor")
+	iconRoot := filepath.Join(dataHome, "icons", "hicolor")
 	gtkCache := exec.Command("gtk-update-icon-cache", "-f", "-t", iconRoot) // #nosec G204 -- fixed Linux utility; no shell is used and iconRoot is from os.UserHomeDir.
 	if out, err := gtkCache.CombinedOutput(); err != nil {
 		log.Printf("[desktop] gtk-update-icon-cache: %s (non-critical)", string(out))
 	}
 
-	desktopContent := fmt.Sprintf(`[Desktop Entry]
-Type=Application
-Name=figaro
-Comment=Local Markdown Knowledge Base
-Exec=%s %%U
-Icon=figaro
-Terminal=false
-Categories=Office;TextEditor;Utility;
-StartupWMClass=figaro
-MimeType=text/markdown;
-`, exePath)
+	iconPath := filepath.Join(iconRoot, "256x256", "apps", linuxDesktopIconName+".png")
+	desktopContent := linuxDesktopEntry(exePath, iconPath)
 
 	if err := os.MkdirAll(filepath.Dir(desktopFile), 0755); err != nil { // #nosec G301,G703 -- XDG application path beneath the current user's home.
 		log.Printf("[desktop] Cannot create application directory: %v", err)
@@ -105,10 +114,10 @@ MimeType=text/markdown;
 		return
 	}
 
-	applicationsDir := filepath.Join(homeDir, ".local", "share", "applications")
+	applicationsDir := filepath.Join(dataHome, "applications")
 	if out, err := exec.Command("update-desktop-database", applicationsDir).CombinedOutput(); err != nil { // #nosec G204 -- fixed Linux utility; no shell is used and applicationsDir is from os.UserHomeDir.
 		log.Printf("[desktop] update-desktop-database: %s (non-critical)", string(out))
 	}
 
-	log.Println("[desktop] Desktop integration installed")
+	log.Println("[desktop] Desktop integration refreshed")
 }

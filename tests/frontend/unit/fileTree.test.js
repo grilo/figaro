@@ -53,7 +53,8 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 import { state, setState, getState } from '../frontend/js/state.js';
 import { openTab, handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
-import { confirmDialog, promptDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, newNoteDialog, promptDialog } from '../frontend/js/dialogs.js';
+import { prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 
 function deferred() {
     let resolve;
@@ -187,6 +188,73 @@ describe('File Tree', () => {
         node.click();
 
         expect(handleFileOpen).toHaveBeenCalledWith('themes/_print.css');
+    });
+
+    test('opens a root context menu when right-clicking empty file-tree space', () => {
+        state.fileTreeData = [];
+        initFileTree();
+
+        const tree = document.getElementById('file-tree');
+        tree.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 32,
+            clientY: 48,
+        }));
+
+        const menu = document.querySelector('.context-menu');
+        expect(menu).not.toBeNull();
+        expect(menu.textContent).toContain('New File');
+        expect(menu.textContent).toContain('New Folder');
+        expect(menu.textContent).not.toContain('Rename');
+        expect(menu.textContent).not.toContain('Delete');
+        expect(state.contextTargetType).toBe('root');
+        expect(state.contextTargetPath).toBe('');
+    });
+
+    test('creates a non-Markdown file without appending .md or Markdown starter content', async () => {
+        state.fileTreeData = [];
+        newNoteDialog.mockResolvedValueOnce('print.css');
+        window.pywebview.api.create_file.mockResolvedValueOnce({ success: true, path: 'print.css' });
+        initFileTree();
+
+        const tree = document.getElementById('file-tree');
+        tree.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+        document.querySelector('.context-menu [data-action="new-file"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.pywebview.api.create_file).toHaveBeenCalledWith('print.css', '');
+        expect(handleFileOpen).toHaveBeenCalledWith('print.css');
+    });
+
+    test('renames a tree item and refreshes tabs whose backlinks were rewritten', async () => {
+        state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 100 }];
+        state.selectedFilePath = 'notes/draft.md';
+        state.selectedFilePaths = ['notes/draft.md'];
+        promptDialog.mockResolvedValueOnce('final.md');
+        window.pywebview.api.rename_path.mockResolvedValueOnce({
+            success: true,
+            old_path: 'notes/draft.md',
+            path: 'notes/final.md',
+            updated_links: ['notes/references.md'],
+        });
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('.file-tree-node').dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        document.querySelector('.context-menu [data-action="rename"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(promptDialog).toHaveBeenCalledWith('Rename file', 'Enter a new file name:', 'draft.md');
+        expect(prepareTabsForPathMove).toHaveBeenCalledWith('notes/draft.md');
+        expect(window.pywebview.api.rename_path).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
+        expect(updateTabsForMovedPath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
+        expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith(['notes/references.md']);
+        expect(state.selectedFilePath).toBe('notes/final.md');
+        expect(state.selectedFilePaths).toEqual(['notes/final.md']);
     });
 
     describe('findTreeItem', () => {
