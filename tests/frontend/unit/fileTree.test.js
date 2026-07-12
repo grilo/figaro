@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, toggleDirectory, findTreeItem, refreshFileTree, getContextMenuPosition, isInvalidMoveDestination } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, getContextMenuPosition, isInvalidMoveDestination } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -204,12 +204,66 @@ describe('File Tree', () => {
 
         const menu = document.querySelector('.context-menu');
         expect(menu).not.toBeNull();
-        expect(menu.textContent).toContain('New File');
-        expect(menu.textContent).toContain('New Folder');
-        expect(menu.textContent).not.toContain('Rename');
-        expect(menu.textContent).not.toContain('Delete');
+        expect([...menu.querySelectorAll('[data-action]')].map(item => item.dataset.action)).toEqual([
+            'open-new-tab', 'merge-notes', 'preview-pdf',
+            'new-file', 'new-drawio', 'new-folder', 'rename', 'reveal', 'delete',
+        ]);
+        expect(menu.querySelector('[data-action="new-file"]').classList.contains('disabled')).toBe(false);
+        for (const action of ['open-new-tab', 'merge-notes', 'preview-pdf', 'rename', 'reveal', 'delete']) {
+            expect(menu.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
+        }
         expect(state.contextTargetType).toBe('root');
         expect(state.contextTargetPath).toBe('');
+    });
+
+    test('keeps the same action order for files, folders, and the vault root', () => {
+        const actionsFor = options => {
+            const surface = document.createElement('div');
+            surface.innerHTML = buildFileTreeContextMenuHTML(options);
+            return [...surface.querySelectorAll('[data-action]')].map(item => item.dataset.action);
+        };
+        const expectedActions = [
+            'open-new-tab', 'merge-notes', 'preview-pdf',
+            'new-file', 'new-drawio', 'new-folder', 'rename', 'reveal', 'delete',
+        ];
+
+        expect(actionsFor({ type: 'root' })).toEqual(expectedActions);
+        expect(actionsFor({ type: 'directory', path: 'notes' })).toEqual(expectedActions);
+        expect(actionsFor({ type: 'file', path: 'notes/report.md', selectedPaths: ['notes/other.md'] })).toEqual(expectedActions);
+    });
+
+    test('keeps a root action surface below a short file list', () => {
+        state.fileTreeData = [{ name: 'only-note.md', path: 'only-note.md', type: 'file', mtime: 1 }];
+        initFileTree();
+        renderFileTree();
+
+        const rootSurface = document.querySelector('.file-tree-root-dropzone');
+        expect(rootSurface).not.toBeNull();
+        rootSurface.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 28,
+            clientY: 180,
+        }));
+
+        expect(document.querySelector('.context-menu').textContent).toContain('New File');
+        expect(state.contextTargetType).toBe('root');
+    });
+
+    test('offers PDF preview instead of direct export for Markdown files', () => {
+        state.fileTreeData = [{ name: 'report.md', path: 'notes/report.md', type: 'file', mtime: 100 }];
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('.file-tree-node').dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        const menu = document.querySelector('.context-menu');
+        expect(menu.textContent).toContain('Preview PDF');
+        expect(menu.textContent).not.toContain('Export to PDF');
+        expect(menu.querySelector('[data-action="preview-pdf"]')).not.toBeNull();
     });
 
     test('creates a non-Markdown file without appending .md or Markdown starter content', async () => {

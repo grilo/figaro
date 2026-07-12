@@ -45,6 +45,40 @@ describe('Editor Module - CodeMirror Initialization', () => {
         });
     });
 
+    test('keeps a selection when its own context menu is opened', async () => {
+        const { shouldPreserveSelectionForContextMenu } = await import('../frontend/js/editor.js');
+
+        expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 12 } }, 8)).toBe(true);
+        expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 12 } }, 13)).toBe(false);
+        expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 4 } }, 4)).toBe(false);
+    });
+
+    test('copies the selected editor-state text through the Clipboard API', async () => {
+        const { copyEditorSelection } = await import('../frontend/js/editor.js');
+        const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+        const writeText = jest.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { writeText },
+        });
+
+        try {
+            const view = {
+                state: {
+                    selection: { main: { from: 6, to: 10 } },
+                    sliceDoc: jest.fn(() => 'copy'),
+                },
+            };
+
+            await expect(copyEditorSelection(view)).resolves.toBe(true);
+            expect(view.state.sliceDoc).toHaveBeenCalledWith(6, 10);
+            expect(writeText).toHaveBeenCalledWith('copy');
+        } finally {
+            if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard);
+            else delete navigator.clipboard;
+        }
+    });
+
     describe('Editor View Creation', () => {
         test('createEditorView should return null when container missing', async () => {
             const { createEditorView } = await import('../frontend/js/editor.js');
@@ -134,6 +168,33 @@ describe('Editor Module - CodeMirror Initialization', () => {
 
             const content = view.state.doc.toString();
             expect(content).toBe('# Hello World\n\nType something here.');
+        });
+
+        test('opens and closes the native find panel', async () => {
+            const { initEditor, createEditorView, openEditorSearch, closeSearchPanel } = await import('../frontend/js/editor.js');
+
+            await initEditor();
+            const view = createEditorView();
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: 'Find this phrase. Find it again.' }
+            });
+
+            expect(openEditorSearch()).toBe(true);
+            const panel = view.dom.querySelector('.cm-panel.cm-search');
+            expect(panel).not.toBeNull();
+            expect(panel.querySelector('input[name="search"]')).not.toBeNull();
+
+            expect(closeSearchPanel()).toBe(true);
+            expect(view.dom.querySelector('.cm-panel.cm-search')).toBeNull();
+
+            view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'f',
+                ctrlKey: true,
+                bubbles: true,
+                cancelable: true,
+            }));
+            expect(view.dom.querySelector('.cm-panel.cm-search')).not.toBeNull();
+            expect(closeSearchPanel()).toBe(true);
         });
 
         test('calculates the adjacent source line after an unexpected vertical skip', async () => {

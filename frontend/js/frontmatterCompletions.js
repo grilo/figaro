@@ -3,7 +3,7 @@
  *
  * Most entries are conventional note metadata. `print-stylesheet` is the one
  * Figaro-specific property: it controls the vault-local stylesheet used by the
- * interactive Export to PDF flow.
+ * live PDF preview and export flow.
  */
 
 import { getFrontmatterRegionAt } from './frontmatter.js';
@@ -24,7 +24,7 @@ export const frontmatterProperties = [
     {
         label: 'print-stylesheet',
         detail: 'Figaro PDF stylesheet',
-        info: 'Vault-local .css path, relative to this note. Overrides sibling _print.css for Export to PDF.',
+        info: 'Vault-local .css path, relative to this note. Used by PDF preview and export; overrides sibling _print.css.',
         apply: 'print-stylesheet: ',
         type: 'property',
         boost: 10,

@@ -8,7 +8,7 @@ import { saveSession } from './session.js';
 import { openTab, handleFileOpen } from './app.js';
 import { closeTabsForDeletedPath, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
-import { confirmDialog, newNoteDialog, pdfExportErrorDialog, promptDialog } from './dialogs.js';
+import { confirmDialog, newNoteDialog, promptDialog } from './dialogs.js';
 import { isDrawioDiagramPath } from './drawio.js';
 import { isEditableCodeMirrorFile } from './languageSupport.js';
 
@@ -41,6 +41,99 @@ function positionContextMenu(menu, clientX, clientY) {
     const { left, top } = getContextMenuPosition(clientX, clientY, menu.getBoundingClientRect());
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
+}
+
+const fileTreeContextMenuActions = [
+    {
+        action: 'open-new-tab',
+        label: 'Open in New Tab',
+        icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline>',
+    },
+    {
+        action: 'merge-notes',
+        label: 'Merge Notes',
+        icon: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
+    },
+    {
+        action: 'preview-pdf',
+        label: 'Preview PDF',
+        icon: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/>',
+    },
+    { separator: true },
+    {
+        action: 'new-file',
+        label: 'New File',
+        icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline>',
+    },
+    {
+        action: 'new-drawio',
+        label: 'New Draw.io Diagram',
+        icon: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="m9.5 9.5 5 5"/>',
+    },
+    {
+        action: 'new-folder',
+        label: 'New Folder',
+        icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>',
+    },
+    {
+        action: 'rename',
+        label: 'Rename',
+        icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    },
+    { separator: true },
+    {
+        action: 'reveal',
+        label: 'Reveal in File Explorer',
+        icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>',
+    },
+    {
+        action: 'delete',
+        label: 'Delete',
+        danger: true,
+        icon: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
+    },
+];
+
+function fileTreeContextMenuItemHTML({ action, label, icon, danger }, enabled) {
+    const classes = ['context-menu-item'];
+    if (danger) classes.push('danger');
+    if (!enabled) classes.push('disabled');
+    return `
+        <div class="${classes.join(' ')}" data-action="${action}"${enabled ? '' : ' aria-disabled="true"'}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>
+            ${label}
+        </div>`;
+}
+
+/**
+ * The file tree always presents the same action inventory. Context determines
+ * which entries are enabled, rather than making the menu jump between shapes.
+ */
+export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selectedPaths = [], openPath = '' } = {}) {
+    const normalizedType = type === 'file' || type === 'directory' ? type : 'root';
+    const targetPath = String(path || '');
+    const isFile = normalizedType === 'file';
+    const isTarget = normalizedType !== 'root';
+    const isMarkdownFile = isFile && targetPath.toLowerCase().endsWith('.md');
+    const isOpenableFile = isFile && (isDrawioDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath));
+    const mergePaths = [...new Set([targetPath, ...(selectedPaths || []), openPath].filter(Boolean))];
+    const canMerge = isMarkdownFile && mergePaths.length >= 2;
+    const enabled = {
+        'open-new-tab': isOpenableFile,
+        'merge-notes': canMerge,
+        'preview-pdf': isMarkdownFile,
+        'new-file': true,
+        'new-drawio': true,
+        'new-folder': true,
+        rename: isTarget,
+        reveal: isTarget,
+        delete: isTarget,
+    };
+
+    return fileTreeContextMenuActions.map(item => item.separator
+        ? '<div class="context-menu-separator"></div>'
+        : fileTreeContextMenuItemHTML(item, Boolean(enabled[item.action]))
+    ).join('');
 }
 
 /**
@@ -86,6 +179,7 @@ export async function refreshFileTree() {
         if (requestId !== fileTreeRequestId) return;
         setState('fileTreeData', treeData);
         renderFileTree();
+        document.dispatchEvent(new CustomEvent('vault-file-tree-refreshed', { detail: { tree: treeData } }));
         statusBar.set('Ready');
     } catch (err) {
         if (requestId !== fileTreeRequestId) return;
@@ -107,11 +201,15 @@ export function renderFileTree() {
     if (!container) return;
     
     if (!treeData || treeData.length === 0) {
-        container.innerHTML = '<div class="file-tree-empty">No files in vault</div>';
+        container.innerHTML = '<div class="file-tree-empty">No files in vault</div><div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
         return;
     }
     
-    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths);
+    // Keep a real flexing surface after short file lists. Delegated context
+    // events then reach #file-tree even when the user clicks below the last
+    // file, making an empty/new vault easy to populate.
+    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths) +
+        '<div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
 }
 
 /**
@@ -420,157 +518,55 @@ function initContextMenu() {
 
 function handleContextMenu(e) {
     e.preventDefault();
-    
+
     const node = e.target.closest('.file-tree-node');
     const item = node?.closest('.file-tree-item');
     // The event is delegated from #file-tree, so a right-click on its empty
     // space is a vault-root action rather than a no-op.
     const path = item?.dataset.path || '';
     const type = item?.dataset.type || 'root';
-    
-    // Set context target state
+
     setState('contextTargetType', type);
     setState('contextTargetPath', path);
-    
-    // Remove existing menu
+
     if (contextMenu) contextMenu.remove();
-    
-    // Create context menu
+
     contextMenu = document.createElement('div');
     contextMenu.className = 'context-menu';
-    
-    let menuHTML = '';
-    
-    const multiPaths = getState('selectedFilePaths') || [];
-    const openPath = getState('selectedFilePath');
-    const isMarkdownFile = path.toLowerCase().endsWith('.md');
-    const isOpenableFile = isDrawioDiagramPath(path) || isEditableCodeMirrorFile(path);
-    // Include right-clicked file, multi-selected files, and currently open file
-    const mergePaths = [...new Set([path, ...multiPaths, openPath].filter(Boolean))];
-    const canMerge = isMarkdownFile && mergePaths.length >= 2;
-
-    if (type === 'file') {
-        menuHTML = `
-            <div class="context-menu-item ${isOpenableFile ? '' : 'disabled'}" data-action="open-new-tab">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                Open in New Tab
-            </div>
-            <div class="context-menu-item ${canMerge ? '' : 'disabled'}" data-action="merge-notes">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                Merge Notes
-            </div>
-            ${isMarkdownFile ? `
-            <div class="context-menu-item" data-action="export-pdf">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
-                Export to PDF
-            </div>` : ''}
-            <div class="context-menu-separator"></div>
-            <div class="context-menu-item" data-action="new-file">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                New File
-            </div>
-            <div class="context-menu-item" data-action="new-drawio">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="m9.5 9.5 5 5"/></svg>
-                New Draw.io Diagram
-            </div>
-            <div class="context-menu-item" data-action="new-folder">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                New Folder
-            </div>
-            <div class="context-menu-item" data-action="rename">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                Rename
-            </div>
-            <div class="context-menu-separator"></div>
-            <div class="context-menu-item" data-action="reveal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                Reveal in File Explorer
-            </div>
-            <div class="context-menu-item danger" data-action="delete">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                Delete
-            </div>
-        `;
-    } else if (type === 'directory') {
-        menuHTML = `
-            <div class="context-menu-item" data-action="new-file">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                New File
-            </div>
-            <div class="context-menu-item" data-action="new-drawio">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="m9.5 9.5 5 5"/></svg>
-                New Draw.io Diagram
-            </div>
-            <div class="context-menu-item" data-action="new-folder">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                New Folder
-            </div>
-            <div class="context-menu-item" data-action="rename">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                Rename
-            </div>
-            <div class="context-menu-separator"></div>
-            <div class="context-menu-item" data-action="reveal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                Reveal in File Explorer
-            </div>
-            <div class="context-menu-item danger" data-action="delete">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                Delete
-            </div>
-        `;
-    } else {
-        // Root context menu
-        menuHTML = `
-            <div class="context-menu-item" data-action="new-file">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                New File
-            </div>
-            <div class="context-menu-item" data-action="new-drawio">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="2"/><circle cx="16" cy="16" r="2"/><path d="m9.5 9.5 5 5"/></svg>
-                New Draw.io Diagram
-            </div>
-            <div class="context-menu-item" data-action="new-folder">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                New Folder
-            </div>
-        `;
-    }
-    
-    contextMenu.innerHTML = menuHTML;
+    contextMenu.innerHTML = buildFileTreeContextMenuHTML({
+        type,
+        path,
+        selectedPaths: getState('selectedFilePaths') || [],
+        openPath: getState('selectedFilePath'),
+    });
     document.body.appendChild(contextMenu);
     positionContextMenu(contextMenu, e.clientX, e.clientY);
-    
-    // Handle menu item clicks
-    contextMenu.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const menuItem = e.target.closest('.context-menu-item');
-        if (!menuItem) {
-            // Click was on separator or empty area — ignore
+
+    contextMenu.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        const menuItem = event.target.closest('.context-menu-item');
+        if (!menuItem || menuItem.classList.contains('disabled') || menuItem.getAttribute('aria-disabled') === 'true') {
             return;
         }
-        
-        const action = menuItem.dataset.action;
-        // Skip disabled items
-        if (menuItem.classList.contains('disabled')) return;
 
+        const action = menuItem.dataset.action;
         contextMenu.remove();
         contextMenu = null;
-        
+
         switch (action) {
         case 'open-new-tab':
             if (getState('contextTargetType') === 'file') {
-                const tp = getState('contextTargetPath');
-                if (isDrawioDiagramPath(tp) || isEditableCodeMirrorFile(tp)) {
-                    openTab(tp, tp.split('/').pop(), isDrawioDiagramPath(tp) ? 'drawio' : 'file', { path: tp }, true);
+                const targetPath = getState('contextTargetPath');
+                if (isDrawioDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath)) {
+                    openTab(targetPath, targetPath.split('/').pop(), isDrawioDiagramPath(targetPath) ? 'drawio' : 'file', { path: targetPath }, true);
                 }
             }
             break;
-                
+
         case 'new-file':
             await createNewFileIn(getState('contextTargetPath'), getState('contextTargetType'));
             break;
-                
+
         case 'new-folder':
             await createNewFolderIn(getState('contextTargetPath'), getState('contextTargetType'));
             break;
@@ -582,7 +578,7 @@ function handleContextMenu(e) {
         case 'rename':
             await renameTreePath(getState('contextTargetPath'), getState('contextTargetType'));
             break;
-                
+
         case 'delete':
             await deletePath(getState('contextTargetPath'), getState('contextTargetType'));
             break;
@@ -595,14 +591,14 @@ function handleContextMenu(e) {
             await mergeSelectedNotes();
             break;
 
-        case 'export-pdf':
+        case 'preview-pdf':
             try {
-                const { exportFileToPDF } = await import('./pdfExport.js');
+                const { openPDFPreview } = await import('./pdfPreview.js');
                 const targetPath = getState('contextTargetPath');
-                await exportFileToPDF(targetPath, targetPath.split('/').pop());
+                await openPDFPreview({ path: targetPath, title: targetPath.split('/').pop() });
             } catch (err) {
-                log.error('Interactive PDF export failed:', err);
-                await pdfExportErrorDialog(err);
+                log.error('PDF preview failed:', err);
+                alert(err?.message || 'Could not open the PDF preview.');
             }
             break;
 
@@ -611,6 +607,7 @@ function handleContextMenu(e) {
         }
     });
 }
+
 
 async function mergeSelectedNotes() {
     const sel = getState('selectedFilePaths') || [];

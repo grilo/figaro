@@ -5,7 +5,7 @@
 
 import { log } from './log.js';
 import { state, initState, subscribe, setState, getState } from './state.js';
-import { initEditor, getEditorContent } from './editor.js';
+import { initEditor, getEditorContent, openEditorSearch } from './editor.js';
 import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot } from './tabManager.js';
 import { initFileTree, refreshFileTree } from './fileTree.js';
 import { initCalendar, renderCalendar } from './calendar.js';
@@ -19,6 +19,7 @@ import { restoredTabOpenArgs } from './sessionTabs.js';
 import { initTheme } from './theme.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
+import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -124,35 +125,59 @@ function initTopBar() {
     const calBtn = document.getElementById('topbar-calendar');
     const rightSidebar = document.getElementById('right-sidebar');
     const rightTitle = document.getElementById('right-sidebar-title');
+    const closeCalendarPanel = () => {
+        if (!rightSidebar || rightSidebar.dataset.mode !== 'calendar') return;
+        delete rightSidebar.dataset.mode;
+        rightSidebar.classList.remove('open');
+        rightSidebar.style.width = '';
+        rightSidebar.style.minWidth = '';
+        document.getElementById('right-sidebar-resizer')?.classList.remove('visible');
+        calBtn?.classList.remove('active');
+        window.dispatchEvent(new Event('resize'));
+    };
+    const openCalendarPanel = () => {
+        if (!rightSidebar) return;
+        document.dispatchEvent(new CustomEvent('close-history-panel'));
+        closePDFPreview({ keepSidebarOpen: true });
+
+        const calGrid = document.getElementById('calendar-grid');
+        const calLinks = document.getElementById('cal-linked-notes');
+        const calToolbar = rightSidebar.querySelector('.calendar-toolbar');
+        const histContent = document.getElementById('history-content');
+        if (calGrid) calGrid.style.display = '';
+        if (calLinks) calLinks.style.display = '';
+        if (calToolbar) calToolbar.style.display = '';
+        if (histContent) histContent.style.display = 'none';
+        if (rightTitle) rightTitle.textContent = 'Calendar';
+        rightSidebar.dataset.mode = 'calendar';
+        rightSidebar.classList.remove('pdf-preview-mode');
+        rightSidebar.classList.add('open');
+        document.getElementById('right-sidebar-resizer')?.classList.add('visible');
+        calBtn?.classList.add('active');
+        renderCalendar();
+        window.dispatchEvent(new Event('resize'));
+    };
     if (calBtn && rightSidebar) {
         calBtn.addEventListener('click', () => {
-            const isOpen = rightSidebar.classList.contains('open');
-            if (isOpen) {
-                rightSidebar.classList.remove('open');
-                calBtn.classList.remove('active');
-            } else {
-                // Show calendar content, hide history
-                const calGrid = document.getElementById('calendar-grid');
-                const calLinks = document.getElementById('cal-linked-notes');
-                const calToolbar = rightSidebar.querySelector('.calendar-toolbar');
-                const histContent = document.getElementById('history-content');
-                if (calGrid) calGrid.style.display = '';
-                if (calLinks) calLinks.style.display = '';
-                if (calToolbar) calToolbar.style.display = '';
-                if (histContent) histContent.style.display = 'none';
-                if (rightTitle) rightTitle.textContent = 'Calendar';
-                rightSidebar.classList.add('open');
-                calBtn.classList.add('active');
-                import('./calendar.js').then(m => m.renderCalendar());
-            }
+            if (rightSidebar.classList.contains('open') && rightSidebar.dataset.mode === 'calendar') closeCalendarPanel();
+            else openCalendarPanel();
         });
     }
     // Close button
     const rsClose = document.getElementById('right-sidebar-close');
     if (rsClose && rightSidebar) {
         rsClose.addEventListener('click', () => {
-            rightSidebar.classList.remove('open');
-            if (calBtn) calBtn.classList.remove('active');
+            if (rightSidebar.dataset.mode === 'pdf-preview') closePDFPreview();
+            else if (rightSidebar.dataset.mode === 'history') document.dispatchEvent(new CustomEvent('close-history-panel'));
+            else if (rightSidebar.dataset.mode === 'calendar') closeCalendarPanel();
+            else {
+                rightSidebar.classList.remove('open');
+                rightSidebar.style.width = '';
+                rightSidebar.style.minWidth = '';
+                document.getElementById('right-sidebar-resizer')?.classList.remove('visible');
+                calBtn?.classList.remove('active');
+                window.dispatchEvent(new Event('resize'));
+            }
         });
     }
 
@@ -261,6 +286,17 @@ function initKeyboardShortcuts() {
             e.preventDefault();
             const input = document.getElementById('global-search-input');
             if (input) input.focus();
+        }
+
+        // Ctrl/Cmd + F: Find in the active document. Register this at the app
+        // level as well as in CodeMirror so it remains reliable when focus is
+        // briefly on a tab, rendered widget, or other editor-adjacent control.
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'f') {
+            const activeTab = getActiveTab();
+            if (activeTab?.type === 'file') {
+                e.preventDefault();
+                openEditorSearch();
+            }
         }
         
         // Ctrl/Cmd + S: Save current file
@@ -441,6 +477,9 @@ export async function initApp() {
 
     // Initialize history panel
     initHistoryPanel();
+
+    // PDF preview shares the right sidebar with Calendar and History.
+    initPDFPreview();
 
     await initTheme();
     

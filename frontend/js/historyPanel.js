@@ -13,10 +13,7 @@ let historyModeRequestId = 0;
 let historyModeTabId = null;
 
 export function initHistoryPanel() {
-    const closeBtn = document.getElementById('right-sidebar-close');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeHistoryPanel);
-    }
+    document.addEventListener('close-history-panel', closeHistoryPanel);
 
     // Status bar click
     const countEl = document.getElementById('history-count');
@@ -69,7 +66,7 @@ export function updateHistoryCount(filePath) {
 
 export async function refreshHistoryIfOpen() {
     const sidebar = document.getElementById('right-sidebar');
-    if (!sidebar || !sidebar.classList.contains('open')) return;
+    if (!sidebar || !sidebar.classList.contains('open') || sidebar.dataset.mode !== 'history') return;
     if (!currentFilePath) return;
 
     const content = document.getElementById('history-content') || document.getElementById('right-sidebar-content');
@@ -79,7 +76,7 @@ export async function refreshHistoryIfOpen() {
 
     try {
         const entries = await window.pywebview.api.get_file_history(filePath);
-        if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || !content.isConnected) return;
+        if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content.isConnected) return;
         renderHistoryList(content, entries);
         updateHistoryCount(filePath);
     } catch (_) { /* noop */ }
@@ -89,7 +86,7 @@ async function toggleHistoryPanel() {
     const sidebar = document.getElementById('right-sidebar');
     if (!sidebar) return;
 
-    if (sidebar.classList.contains('open')) {
+    if (sidebar.classList.contains('open') && sidebar.dataset.mode === 'history') {
         closeHistoryPanel();
     } else {
         await openHistoryPanel();
@@ -99,6 +96,11 @@ async function toggleHistoryPanel() {
 async function openHistoryPanel() {
     const sidebar = document.getElementById('right-sidebar');
     if (!sidebar || !currentFilePath) return;
+
+    // History owns the right pane while open. Ask the preview to release its
+    // isolated frame first so editing a CSS file can switch here cleanly.
+    document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
+    document.getElementById('topbar-calendar')?.classList.remove('active');
 
     // Show history content, hide calendar content
     const calGrid = document.getElementById('calendar-grid');
@@ -113,9 +115,11 @@ async function openHistoryPanel() {
     if (histContent) histContent.style.display = '';
     if (rightTitle) rightTitle.textContent = 'History';
 
+    sidebar.dataset.mode = 'history';
+    sidebar.classList.remove('pdf-preview-mode');
     sidebar.classList.add('open');
     const resizer2 = document.getElementById('right-sidebar-resizer');
-    if (resizer2) resizer2.style.display = '';
+    if (resizer2) resizer2.classList.add('visible');
 
     const content = document.getElementById('history-content');
     if (!content) return;
@@ -126,10 +130,10 @@ async function openHistoryPanel() {
 
     try {
         const entries = await window.pywebview.api.get_file_history(filePath);
-        if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || !content.isConnected) return;
+        if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content.isConnected) return;
         renderHistoryList(content, entries);
     } catch (e) {
-        if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || !content.isConnected) return;
+        if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content.isConnected) return;
         content.innerHTML = '<div class="history-empty">Failed to load history</div>';
         log.error('[history] Failed to load:', e);
     }
@@ -187,7 +191,7 @@ async function viewHistoryVersion(hash) {
     try {
         const versionContent = await window.pywebview.api.get_file_version(filePath, hash);
         const sidebar = document.getElementById('right-sidebar');
-        if (requestId !== historyVersionRequestId || currentFilePath !== filePath || !sidebar?.classList.contains('open') || !content?.isConnected) return;
+        if (requestId !== historyVersionRequestId || currentFilePath !== filePath || !sidebar?.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content?.isConnected) return;
         await enterHistoryMode(versionContent);
     } catch (e) {
         log.error('[history] Failed to load version: ' + (typeof e === 'string' ? e : (e.message || String(e))));
@@ -274,18 +278,22 @@ async function exitHistoryMode() {
 }
 
 export function closeHistoryPanel() {
+    const sidebar = document.getElementById('right-sidebar');
+    const ownsSidebar = sidebar?.dataset.mode === 'history';
+    if (!ownsSidebar && !viewingHistory) return;
+
     // Invalidate any in-flight list or version request before changing the UI.
     historyListRequestId++;
     historyVersionRequestId++;
     historyModeRequestId++;
-    const sidebar = document.getElementById('right-sidebar');
     const resizer = document.getElementById('right-sidebar-resizer');
-    if (sidebar) {
+    if (sidebar && ownsSidebar) {
+        delete sidebar.dataset.mode;
         sidebar.classList.remove('open');
         sidebar.style.width = '';
         sidebar.style.minWidth = '';
     }
-    if (resizer) resizer.style.display = 'none';
+    if (resizer && ownsSidebar) resizer.classList.remove('visible');
 
     if (viewingHistory) exitHistoryMode();
 
@@ -313,8 +321,9 @@ function initRightSidebarResizer() {
     function onMouseMove(e) {
         const diff = startX - e.clientX;
         let newWidth = startWidth + diff;
-        if (newWidth < 240) newWidth = 240;
-        if (newWidth > 480) newWidth = 480;
+        const isPDFPreview = sidebar.classList.contains('pdf-preview-mode');
+        if (newWidth < (isPDFPreview ? 340 : 240)) newWidth = isPDFPreview ? 340 : 240;
+        if (newWidth > (isPDFPreview ? 680 : 480)) newWidth = isPDFPreview ? 680 : 480;
         sidebar.style.width = newWidth + 'px';
         sidebar.style.minWidth = newWidth + 'px';
         document.documentElement.style.setProperty('--right-sidebar-width', newWidth + 'px');

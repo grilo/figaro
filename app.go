@@ -2116,7 +2116,7 @@ func (a *App) WindowMinimize() {
 	}
 }
 
-// WindowMaximize toggles fullscreen.
+// WindowMaximize toggles between maximized and normal window size.
 func (a *App) WindowMaximize() {
 	if a.ctx != nil {
 		safeRuntimeCall(func() { runtime.WindowToggleMaximise(a.ctx) })

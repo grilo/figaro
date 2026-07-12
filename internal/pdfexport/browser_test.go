@@ -3,6 +3,7 @@ package pdfexport
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -288,8 +289,9 @@ func TestBrowserLaunchArgumentsPrefixFlatpakBeforeChromiumFlags(t *testing.T) {
 
 func TestRenderPDFViaCDPPrintsAnnotatedBrowserPDF(t *testing.T) {
 	var (
-		methods []string
-		mu      sync.Mutex
+		methods     []string
+		printParams map[string]any
+		mu          sync.Mutex
 	)
 	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -334,6 +336,13 @@ func TestRenderPDFViaCDPPrintsAnnotatedBrowserPDF(t *testing.T) {
 					return
 				}
 			case "Page.printToPDF":
+				var params map[string]any
+				if err := json.Unmarshal(command.Params, &params); err != nil {
+					return
+				}
+				mu.Lock()
+				printParams = params
+				mu.Unlock()
 				if !respond(map[string]any{"data": base64.StdEncoding.EncodeToString([]byte("%PDF-1.7\nannotated links"))}) {
 					return
 				}
@@ -371,6 +380,9 @@ func TestRenderPDFViaCDPPrintsAnnotatedBrowserPDF(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
+	if printParams["printBackground"] != true {
+		t.Fatalf("expected PDF rendering to include CSS backgrounds, got %#v", printParams["printBackground"])
+	}
 	for _, expected := range []string{
 		"Target.createTarget",
 		"Target.attachToTarget",

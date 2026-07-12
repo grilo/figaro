@@ -198,6 +198,23 @@
     });
   }
 
+  // Frameless windows do not receive a platform title bar automatically.
+  // Match the expected desktop convention on the non-interactive part of our
+  // custom top bar while leaving buttons, inputs, and links alone.
+  function installTitleBarDoubleClick(goApp) {
+    var topBar = document.querySelector('.top-bar');
+    if (!topBar || topBar.dataset.wailsTitlebarToggleBound) return;
+    topBar.dataset.wailsTitlebarToggleBound = 'true';
+
+    topBar.addEventListener('dblclick', function (event) {
+      if (event.target && event.target.closest && event.target.closest('button, input, textarea, select, a, [contenteditable="true"]')) {
+        return;
+      }
+      event.preventDefault();
+      try { goApp.WindowMaximize(); } catch (e) { console.error(e); }
+    });
+  }
+
   // ── Install bridge once Go bindings are ready ───────────────────────────
   waitForGo().then(function (goApp) {
     if (!goApp) {
@@ -232,6 +249,9 @@
 
     // Install resize-grip drag handler
     installResizeGrip(goApp);
+
+    // Desktop-standard maximize/restore on a title-bar double click.
+    installTitleBarDoubleClick(goApp);
 
     setStatus('Ready');
 

@@ -644,7 +644,7 @@ html, body {
     flex-direction: column;
     width: 100%;
     min-width: 0;
-    overflow-y: auto;
+    overflow: hidden;
     overflow-x: hidden;
     min-height: 0;
     opacity: 1;
@@ -691,7 +691,12 @@ html, body {
 }
 
 #file-tree {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
     min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 /* Settings workspace tab */
 #settings-panel {
@@ -977,6 +982,7 @@ html, body {
 }
 
 .file-tree-list {
+    flex: 0 0 auto;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -1125,6 +1131,13 @@ html, body {
     color: var(--text-dim);
     font-size: var(--font-size-sm);
     text-align: center;
+}
+
+/* Deliberate empty-area hit target for vault-root actions. It fills unused
+   sidebar height after short lists without adding visual noise. */
+.file-tree-root-dropzone {
+    flex: 1 1 72px;
+    min-height: 72px;
 }
 
 .file-tree-item.drag-over > .file-tree-node {
@@ -2913,20 +2926,62 @@ html, body {
 .cm-panels {
     background: var(--panel-bg) !important;
     border-top: 1px solid var(--border-color) !important;
+    color: var(--text-color) !important;
 }
 
 .cm-panel.cm-search {
-    padding: 8px 12px !important;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 9px 40px 9px 14px !important;
+    color: var(--text-color) !important;
+    font-size: 13px;
+    line-height: 1.3;
+    gap: 7px 10px;
 }
 
-.cm-search-field {
+.cm-panel.cm-search > br {
+    flex-basis: 100%;
+    height: 0;
+    margin: 0;
+}
+
+.cm-panel.cm-search > input,
+.cm-panel.cm-search > button,
+.cm-panel.cm-search > label {
+    margin: 0 !important;
+}
+
+.cm-search-field,
+.cm-panel.cm-search .cm-textfield {
+    box-sizing: border-box;
+    min-height: 32px;
+    padding: 5px 10px !important;
     background: var(--bg-color) !important;
     border: 1px solid var(--border-color) !important;
     color: var(--text-color) !important;
     border-radius: 4px !important;
+    font: inherit !important;
+    font-size: 13px !important;
 }
 
-.cm-search-field:focus {
+.cm-panel.cm-search .cm-textfield[name="search"] {
+    flex: 1 1 250px;
+    min-width: 190px;
+}
+
+.cm-panel.cm-search .cm-textfield[name="replace"] {
+    flex: 1 1 230px;
+    min-width: 170px;
+}
+
+.cm-panel.cm-search .cm-textfield::placeholder {
+    color: var(--text-dim);
+    opacity: 1;
+}
+
+.cm-search-field:focus,
+.cm-panel.cm-search .cm-textfield:focus {
     border-color: var(--accent-color) !important;
     box-shadow: 0 0 0 2px var(--focus-ring) !important;
 }
@@ -2940,6 +2995,108 @@ html, body {
 
 .cm-button:hover {
     background: var(--active-bg) !important;
+}
+
+.cm-panel.cm-search .cm-button {
+    min-height: 32px;
+    padding: 5px 10px !important;
+    background-image: none !important;
+    color: var(--text-color) !important;
+    font: inherit !important;
+    font-size: 12px !important;
+    line-height: 1;
+}
+
+.cm-panel.cm-search .cm-button:focus-visible {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--focus-ring) !important;
+    outline: none;
+}
+
+.cm-panel.cm-search > label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 32px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--hover-bg) 72%, transparent);
+    color: var(--text-muted) !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.cm-panel.cm-search > label:hover,
+.cm-panel.cm-search > label:focus-within {
+    border-color: var(--border-color);
+    background: var(--hover-bg);
+    color: var(--text-color) !important;
+}
+
+.cm-panel.cm-search > label:has(input:checked) {
+    border-color: color-mix(in srgb, var(--accent-color) 65%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 16%, var(--hover-bg));
+    color: var(--text-color) !important;
+}
+
+.cm-panel.cm-search > label > input[type="checkbox"] {
+    appearance: none;
+    display: grid;
+    width: 15px;
+    height: 15px;
+    place-content: center;
+    margin: 0 !important;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background: var(--bg-color);
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+.cm-panel.cm-search > label > input[type="checkbox"]:checked {
+    border-color: var(--accent-color);
+    background: var(--accent-color);
+}
+
+.cm-panel.cm-search > label > input[type="checkbox"]:checked::after {
+    color: white;
+    content: "✓";
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.cm-panel.cm-search > label > input[type="checkbox"]:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+    outline: none;
+}
+
+.cm-panel.cm-search [name="close"] {
+    color: var(--text-muted) !important;
+    font-size: 20px !important;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cm-panel.cm-search [name="close"]:hover,
+.cm-panel.cm-search [name="close"]:focus-visible {
+    color: var(--text-color) !important;
+    outline: none;
+}
+
+@media (max-width: 560px) {
+    .cm-panel.cm-search {
+        padding-right: 30px !important;
+    }
+
+    .cm-panel.cm-search .cm-textfield[name="search"],
+    .cm-panel.cm-search .cm-textfield[name="replace"] {
+        flex-basis: 100%;
+    }
 }
 
 /* Markdown Syntax Highlighting */
@@ -3905,6 +4062,17 @@ html, body {
     min-width: 240px !important;
     pointer-events: auto;
 }
+
+/* PDF preview is deliberately roomier than calendar/history. Its controls
+   stay fixed while the isolated paper surface scrolls independently. */
+.right-sidebar.pdf-preview-mode {
+    max-width: min(680px, 62vw);
+}
+
+.right-sidebar.pdf-preview-mode.open {
+    width: max(420px, var(--right-sidebar-width, 480px)) !important;
+    min-width: 340px !important;
+}
 .right-sidebar-header,
 .right-sidebar-content {
     opacity: 0;
@@ -3950,6 +4118,12 @@ html, body {
     padding: 8px 0;
 }
 
+.right-sidebar.pdf-preview-mode .right-sidebar-content {
+    display: flex;
+    overflow: hidden;
+    padding: 0;
+}
+
 /* Right sidebar resizer */
 .right-sidebar-resizer {
     display: none !important;
@@ -3960,7 +4134,164 @@ html, body {
     transition: background var(--transition-fast);
     flex-shrink: 0;
 }
+.right-sidebar-resizer.visible { display: block !important; }
 .right-sidebar-resizer:hover { background: var(--accent-color); }
+
+.pdf-preview-panel {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    background: var(--panel-bg);
+}
+
+.pdf-preview-panel[hidden] { display: none; }
+
+.pdf-preview-toolbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 11px;
+    border-bottom: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--panel-bg) 92%, var(--sidebar-bg));
+}
+
+.pdf-preview-document-meta {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.pdf-preview-document-title,
+.pdf-preview-stylesheet {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdf-preview-document-title {
+    color: var(--text-color);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.pdf-preview-stylesheet {
+    width: max-content;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent-color);
+    font: inherit;
+    font-size: 10px;
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pdf-preview-stylesheet:hover:not(:disabled),
+.pdf-preview-stylesheet:focus-visible:not(:disabled) {
+    color: var(--text-color);
+    outline: none;
+    text-decoration: underline;
+}
+
+.pdf-preview-stylesheet:disabled {
+    color: var(--text-dim);
+    cursor: default;
+}
+
+.pdf-preview-stylesheet[data-error="true"] { color: var(--danger-color); }
+
+.pdf-preview-generate {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 5px;
+    min-height: 29px;
+    padding: 5px 8px;
+    border: 1px solid color-mix(in srgb, var(--accent-color) 68%, var(--border-color));
+    border-radius: 5px;
+    background: var(--accent-color);
+    color: #fff;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 650;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.pdf-preview-generate svg {
+    width: 13px;
+    height: 13px;
+}
+
+.pdf-preview-generate:hover:not(:disabled),
+.pdf-preview-generate:focus-visible:not(:disabled) {
+    background: var(--accent-hover);
+    outline: 1px solid var(--focus-ring);
+}
+
+.pdf-preview-generate:disabled {
+    cursor: wait;
+    opacity: .65;
+}
+
+.pdf-preview-status {
+    flex: 0 0 auto;
+    min-height: 16px;
+    margin: 0;
+    padding: 5px 11px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-dim);
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+.pdf-preview-status[data-kind="error"] { color: var(--danger-color); }
+
+.pdf-preview-stage {
+    position: relative;
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    background: #cdd3da;
+}
+
+.pdf-preview-frame {
+    width: 100%;
+    min-height: 100%;
+    flex: 1;
+    border: 0;
+    background: #fff;
+}
+
+.pdf-preview-loading {
+    position: absolute;
+    z-index: 1;
+    top: 8px;
+    right: 9px;
+    padding: 3px 6px;
+    border: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--panel-bg) 88%, transparent);
+    color: var(--text-muted);
+    font-size: 10px;
+    pointer-events: none;
+}
+
+@media (max-width: 760px) {
+    .right-sidebar.pdf-preview-mode.open {
+        width: min(100vw, 560px) !important;
+        min-width: min(100vw, 340px) !important;
+    }
+
+    .pdf-preview-generate span { display: none; }
+    .pdf-preview-generate { padding: 6px 7px; }
+}
 
 /* History list items */
 .history-item {

@@ -4,6 +4,30 @@ Figaro's PDF export has a polished built-in style. A custom stylesheet is
 optional and is intended for document-specific branding, typography, and print
 layout.
 
+## Live preview
+
+Choose **Preview PDF** from a Markdown note's context menu, editor context
+menu, or **Properties → PDF layout**. The right pane renders the same
+printable document structure used for export inside an isolated preview, so a
+note stylesheet cannot change the application interface. It updates after a
+short delay while you edit the note or its selected stylesheet; changes saved
+outside Figaro are picked up when the file tree refreshes too.
+
+The editable stylesheet is applied after the preview's screen geometry, so
+ordinary `html` and `body` rules affect the page just as they do in the final
+PDF. The preview preserves its position after a refresh and synchronizes
+relative scrolling with the active source Markdown note. Table-of-contents and
+footnote links that start with `#` stay within the rendered preview instead of
+navigating to a vault URL.
+
+Use **Generate PDF** in the preview toolbar to persist the exact Markdown and
+selected stylesheet snapshots currently shown in the preview, then run the
+native PDF export. This also covers an edit followed immediately by
+**Generate PDF**—the export does not fall back to an older saved stylesheet.
+The preview is a screen representation of the printable document; final
+pagination remains the browser engine's responsibility and is most accurately
+checked in the generated PDF.
+
 ## Create and select a stylesheet
 
 Open a Markdown note's **Properties → PDF layout** panel and choose **Create
@@ -47,6 +71,39 @@ The Chromium export uses A4 by default and honors CSS page size settings. Use
 }
 ```
 
+## Theme colors and advanced overrides
+
+For ordinary page, cover, and text colors, edit the **Quick theme controls** at
+the top of the starter stylesheet. The later rules consume those variables, so
+these common customizations do not require selector-order knowledge:
+
+```css
+:root {
+  --figaro-paper: #000;
+  --figaro-cover-background: #000;
+  --figaro-ink: #ffe600;
+  --figaro-muted: #cbd5e1;
+  --figaro-soft: #16202a;
+  --figaro-code: #e2e8f0;
+}
+```
+
+Use a selector override only for a genuinely selector-specific design change.
+Put it at the **end** of the stylesheet—after any `body` or cover defaults—so
+normal CSS cascade rules apply predictably:
+
+```css
+html,
+body,
+.figaro-print-cover {
+  color: yellow;
+  background: black;
+}
+```
+
+The bundled starter has a **Personal overrides** comment at its end for this
+advanced use.
+
 The starter file at `frontend/pdf/starter-pdf.css` is the complete editable
 example copied into a vault. It demonstrates every stable Figaro selector
 listed below.
@@ -71,7 +128,7 @@ its semantic HTML, so standard selectors such as `p`, `table`, `blockquote`,
 | Math | `.katex-block`, `.katex-display`, `.katex` |
 | Footnotes | `.footnote-ref`, `.footnotes-sep`, `.footnotes`, `.footnote-backref` |
 
-The generated order is cover, contents, then
+The generated order is cover, table of contents, then
 `main.figaro-print-document`. Scope document-heading rules to that `main`
 element so the cover title and contents title can have independent designs:
 
@@ -92,4 +149,3 @@ not provide repeated running page headers or footers: the browser export has
 its native header/footer feature disabled, and browser CSS margin boxes are not
 a portable replacement. Do not rely on `@top-*` or `@bottom-*` rules for a
 cross-platform Figaro PDF.
-

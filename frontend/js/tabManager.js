@@ -975,7 +975,7 @@ async function persistFileSnapshot(tab, content, generation) {
     try {
         const result = await save(tab.mtime);
         if (result.success) {
-            applySaveSuccess(tab, result, generation, 'Saved');
+            applySaveSuccess(tab, result, generation, 'Saved', content);
             return result;
         }
 
@@ -983,7 +983,7 @@ async function persistFileSnapshot(tab, content, generation) {
         if (shouldOverwrite) {
             const forceResult = await save(0);
             if (forceResult.success) {
-                applySaveSuccess(tab, forceResult, generation, 'Saved (forced)');
+                applySaveSuccess(tab, forceResult, generation, 'Saved (forced)', content);
                 return forceResult;
             }
             return forceResult;
@@ -996,7 +996,7 @@ async function persistFileSnapshot(tab, content, generation) {
     }
 }
 
-function applySaveSuccess(tab, result, generation, message) {
+function applySaveSuccess(tab, result, generation, message, content) {
     tab.mtime = result.mtime;
     const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
     tabsForPath.forEach(candidate => {
@@ -1007,6 +1007,9 @@ function applySaveSuccess(tab, result, generation, message) {
     tab.dirty = false;
     tab._content = null;
     updateTabTitle(tab.id, tab.title);
+    document.dispatchEvent(new CustomEvent('vault-file-saved', {
+        detail: { path: tab.path, content, mtime: result.mtime }
+    }));
     statusBar.set(message);
     import('./calendar.js').then(m => m.renderCalendar()).catch(() => {});
     refreshHistoryIfOpen();

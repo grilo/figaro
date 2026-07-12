@@ -35,7 +35,7 @@ let EditorView, EditorState, StateField, StateEffect, RangeSetBuilder, Prec, Com
     bracketMatching, autocompletion, completionKeymap, indentUnit,
     markdownLanguage, markdownKeymap,
     ViewPlugin, Decoration, WidgetType,
-    showPanel, EditorSelection,
+    EditorSelection,
     syntaxTree, indentMore, indentLess,
     syntaxHighlighting, HighlightStyle, tags;
 
@@ -51,8 +51,11 @@ let fileModeRequest = 0;
 let markdownModeExtensions = null;
 let codeModeExtensions = null;
 let codeHighlighting = null;
-let searchPanel = null;
-let searchHighlightField = null;
+let searchExtension = null;
+let searchKeymap = [];
+let openNativeSearchPanel = null;
+let closeNativeSearchPanel = null;
+let isNativeSearchPanelOpen = null;
 const footnoteReturnPositions = new Map();
 
 let indentationMarkers = null;
@@ -112,11 +115,11 @@ export function moveCursorVerticallySafely(view, forward) {
 async function loadCodeMirrorModules() {
     try {
         const [
-            cmView, cmState, cmCommands, cmLanguage, cmMarkdown, cmAutocomplete, cmHighlight
+            cmView, cmState, cmCommands, cmLanguage, cmMarkdown, cmAutocomplete, cmHighlight, cmSearch
         ] = await Promise.all([
             import('@codemirror/view'), import('@codemirror/state'), import('@codemirror/commands'),
             import('@codemirror/language'), import('@codemirror/lang-markdown'),
-            import('@codemirror/autocomplete'), import('@lezer/highlight')
+            import('@codemirror/autocomplete'), import('@lezer/highlight'), import('@codemirror/search')
         ]);
         ({ indentationMarkers } = await import('@replit/codemirror-indentation-markers'));
         ({ EditorView, keymap } = cmView);
@@ -127,8 +130,14 @@ async function loadCodeMirrorModules() {
         ({ lineNumbers, highlightActiveLineGutter } = cmView);
         ({ markdownLanguage, markdownKeymap } = cmMarkdown);
         ({ ViewPlugin, Decoration, WidgetType } = cmView);
-        ({ showPanel } = cmView);
         ({ tags } = cmHighlight);
+        ({
+            search: searchExtension,
+            searchKeymap,
+            openSearchPanel: openNativeSearchPanel,
+            closeSearchPanel: closeNativeSearchPanel,
+            searchPanelOpen: isNativeSearchPanelOpen,
+        } = cmSearch);
         codeHighlighting = syntaxHighlighting(HighlightStyle.define([
             { tag: [tags.keyword, tags.operatorKeyword, tags.controlKeyword, tags.definitionKeyword], color: 'var(--code-keyword-color)' },
             { tag: [tags.string, tags.special(tags.string)], color: 'var(--code-string-color)' },
@@ -657,13 +666,6 @@ function createEditorView() {
         }
     });
 
-    searchHighlightField = StateField.define({
-        create() { return Decoration.none; },
-        update(deco, tr) { return tr.docChanged ? deco.map(tr.changes) : deco; },
-        provide: f => EditorView.decorations.from(f)
-    });
-
-
     // Helper: compute vault-relative path from target
     function makeLinkPath(targetPath) {
         // Always use vault-relative paths (absolute relative to vault root)
@@ -820,7 +822,7 @@ function createEditorView() {
             lineNumbers(),
             highlightActiveLineGutter(),
             history(), foldGutter(), bracketMatching(),
-            searchHighlightField,
+            searchExtension({ top: false }),
             EditorView.updateListener.of(update => {
                 if (update.docChanged) handleDocChange(update);
                 if (update.selectionSet) updateCursorPosition(update);
@@ -890,11 +892,8 @@ function createEditorView() {
                 contextmenu: handleContextMenu
             }),
             keymap.of([
-                ...defaultKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap,
+                ...searchKeymap, ...defaultKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap,
                 { key: 'Tab', run: indentMore, shift: indentLess },
-                { key: 'Ctrl-f', run: () => { toggleSearchPanel(); return true; } },
-                { key: 'Meta-f', run: () => { toggleSearchPanel(); return true; } },
-                { key: 'Escape', run: () => { closeSearchPanel(); return true; } }
             ])
         ]
     });
@@ -1060,8 +1059,15 @@ function handleDocChange(update) {
     if (_programmaticChange) { _programmaticChange = false; updateStats(update.state.doc.toString()); return; }
     const at = getState('openTabs').find(t => t.id === getState('activeTabId'));
     if (at && at.type === 'file') {
+        const content = update.state.doc.toString();
         import('./tabManager.js').then(({ markTabDirty }) => markTabDirty(at.id));
-        updateStats(update.state.doc.toString());
+        updateStats(content);
+        // Consumers such as the PDF preview receive the in-memory snapshot,
+        // so a live preview never waits for autosave or briefly shows stale
+        // on-disk text.
+        document.dispatchEvent(new CustomEvent('file-content-changed', {
+            detail: { path: at.path, content }
+        }));
     }
 }
 function updateCursorPosition(update) {
@@ -1087,59 +1093,26 @@ async function saveActiveFile() {
     return saveActiveTabFile();
 }
 
-function toggleSearchPanel() { const v = getEditorView(); if (!v) return; searchPanel ? closeSearchPanel() : openSearchPanel(v); }
+/** Open the native CodeMirror find panel and focus its query field. */
+export function openEditorSearch() {
+    const view = getEditorView();
+    if (!view || typeof openNativeSearchPanel !== 'function') return false;
+    return openNativeSearchPanel(view);
+}
 
-function openSearchPanel(view) {
-    const panel = document.createElement('div'); panel.className = 'cm-panel cm-search';
-    panel.innerHTML = '<div class="search-panel-header"><input type="text" class="cm-search-field" placeholder="Find in note..." spellcheck="false"><span class="cm-search-count"></span><button class="cm-button cm-search-prev" title="Previous (Shift+Enter)">\u2191</button><button class="cm-button cm-search-next" title="Next (Enter)">\u2193</button><button class="cm-button cm-search-close" title="Close (Esc)">\u2715</button></div><div class="cm-search-options"><label><input type="checkbox" class="cm-search-case"> Match case</label><label><input type="checkbox" class="cm-search-word"> Whole word</label><label><input type="checkbox" class="cm-search-regex"> Regex</label></div>';
-    const input = panel.querySelector('.cm-search-field'), countEl = panel.querySelector('.cm-search-count');
-    const prevBtn = panel.querySelector('.cm-search-prev'), nextBtn = panel.querySelector('.cm-search-next');
-    const closeBtn = panel.querySelector('.cm-search-close');
-    const caseCb = panel.querySelector('.cm-search-case'), wordCb = panel.querySelector('.cm-search-word'), regexCb = panel.querySelector('.cm-search-regex');
-    let cm = [], ci = -1;
-    function doSearch() {
-        const q = input.value;
-        if (!q) { clearHighlights(view); countEl.textContent = ''; return; }
-        const flags = caseCb.checked ? 'g' : 'gi';
-        const re = new RegExp(regexCb.checked ? q : q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
-        cm = []; let m; const t = view.state.doc.toString();
-        while ((m = re.exec(t)) !== null) { cm.push({ from: m.index, to: m.index + m[0].length }); if (!re.global) break; }
-        ci = cm.length > 0 ? 0 : -1;
-        updateHighlights(view, cm, ci); updateCount();
-        if (cm.length > 0) navigateToMatch(view, 0);
-    }
-    function updateCount() {
-        countEl.textContent = cm.length === 0 ? 'No matches' : `${ci + 1} / ${cm.length}`;
-        countEl.style.color = cm.length === 0 ? 'var(--danger-color)' : 'var(--success-color)';
-    }
-    function navigateToMatch(view, idx) {
-        if (idx < 0 || idx >= cm.length) return;
-        view.dispatch({ selection: { anchor: cm[idx].from, head: cm[idx].to }, scrollIntoView: true });
-        ci = idx; updateCount(); updateHighlights(view, cm, ci);
-    }
-    input.addEventListener('input', doSearch);
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); navigateToMatch(view, e.shiftKey ? ci - 1 : ci + 1); }
-        else if (e.key === 'Escape') closeSearchPanel();
-    });
-    prevBtn.addEventListener('click', () => navigateToMatch(view, ci - 1));
-    nextBtn.addEventListener('click', () => navigateToMatch(view, ci + 1));
-    closeBtn.addEventListener('click', closeSearchPanel);
-    caseCb.addEventListener('change', doSearch); wordCb.addEventListener('change', doSearch); regexCb.addEventListener('change', doSearch);
-    view.dispatch({ effects: showPanel.of({ panel, position: 'bottom' }) });
-    searchPanel = panel; input.focus();
+function toggleSearchPanel() {
+    const view = getEditorView();
+    if (!view || typeof openNativeSearchPanel !== 'function') return false;
+    return isNativeSearchPanelOpen?.(view.state)
+        ? closeNativeSearchPanel(view)
+        : openNativeSearchPanel(view);
 }
 
 function closeSearchPanel() {
-    const v = getEditorView();
-    if (v && searchPanel) { v.dispatch({ effects: showPanel.of(null) }); clearHighlights(v); searchPanel = null; }
+    const view = getEditorView();
+    if (!view || typeof closeNativeSearchPanel !== 'function') return false;
+    return closeNativeSearchPanel(view);
 }
-function updateHighlights(view, matches, ci) {
-    const b = new RangeSetBuilder();
-    matches.forEach((m, i) => b.add(m.from, m.to, Decoration.mark({ class: i === ci ? 'cm-searchMatch-selected' : 'cm-searchMatch' })));
-    view.dispatch({ effects: searchHighlightField.reconfigure(b.finish()) });
-}
-function clearHighlights(view) { view.dispatch({ effects: searchHighlightField.reconfigure(Decoration.none) }); }
 
 function footnoteReturnKey(label) {
     return `${getState('activeTabId') || 'editor'}\u0000${label}`;
@@ -1228,11 +1201,111 @@ function handleClick(event, _view) {
         event.preventDefault();
     }
 }
+
+/**
+ * Match native editor behavior: a context click inside an existing selection
+ * should operate on that selection, while a click elsewhere moves the caret.
+ */
+export function shouldPreserveSelectionForContextMenu(selection, position) {
+    const range = selection?.main || selection;
+    const from = Number(range?.from);
+    const to = Number(range?.to);
+    const point = Number(position);
+    return Number.isFinite(from) && Number.isFinite(to) && Number.isFinite(point) &&
+        from !== to && point >= from && point <= to;
+}
+
+function selectedEditorText(view) {
+    const range = view?.state?.selection?.main;
+    if (!range || range.from === range.to) return '';
+    if (typeof view.state.sliceDoc === 'function') return view.state.sliceDoc(range.from, range.to);
+    return view.state.doc?.sliceString?.(range.from, range.to) || '';
+}
+
+function legacyCopyTextToClipboard(text) {
+    if (typeof document === 'undefined' || typeof document.execCommand !== 'function') return false;
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+
+    const previouslyFocused = document.activeElement;
+    textarea.focus();
+    textarea.select();
+    try {
+        return document.execCommand('copy') === true;
+    } finally {
+        textarea.remove();
+        previouslyFocused?.focus?.();
+    }
+}
+
+/** Copy explicit editor-state text, independent of the browser DOM selection. */
+export async function copyTextToClipboard(text) {
+    const value = String(text || '');
+    if (!value) return false;
+
+    const clipboard = typeof navigator === 'undefined' ? null : navigator.clipboard;
+    if (typeof clipboard?.writeText === 'function') {
+        try {
+            await clipboard.writeText(value);
+            return true;
+        } catch (_) {
+            // Wails/webview permission policies vary. The legacy path below is
+            // still invoked from the menu click, so it retains user activation.
+        }
+    }
+    return legacyCopyTextToClipboard(value);
+}
+
+export async function copyEditorSelection(view) {
+    return copyTextToClipboard(selectedEditorText(view));
+}
+
+async function cutEditorSelection(view) {
+    const range = view?.state?.selection?.main;
+    const text = selectedEditorText(view);
+    if (!range || !text) return false;
+
+    const { from, to } = range;
+    if (!await copyTextToClipboard(text)) return false;
+
+    view.dispatch({
+        changes: { from, to, insert: '' },
+        selection: { anchor: from },
+    });
+    return true;
+}
+
+async function pasteIntoEditor(view) {
+    const clipboard = typeof navigator === 'undefined' ? null : navigator.clipboard;
+    if (typeof clipboard?.readText === 'function') {
+        try {
+            const text = await clipboard.readText();
+            const range = view.state.selection.main;
+            view.dispatch({
+                changes: { from: range.from, to: range.to, insert: text },
+                selection: { anchor: range.from + text.length },
+            });
+            return true;
+        } catch (_) {
+            // Fall back for embedded runtimes that expose only the legacy API.
+        }
+    }
+
+    view.focus?.();
+    return typeof document !== 'undefined' && typeof document.execCommand === 'function' && document.execCommand('paste') === true;
+}
+
 function handleContextMenu(event, view) {
     event.preventDefault();
     
     const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-    if (pos !== null) {
+    if (pos !== null && !shouldPreserveSelectionForContextMenu(view.state.selection, pos)) {
         view.dispatch({ selection: { anchor: pos, head: pos } });
     }
 
@@ -1240,11 +1313,14 @@ function handleContextMenu(event, view) {
     if (existing) existing.remove();
 
     const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
+    const hasSelection = Boolean(selectedEditorText(view));
+    const selectionDisabledClass = hasSelection ? '' : ' disabled';
+    const selectionDisabledAttribute = hasSelection ? '' : ' aria-disabled="true"';
     const printAction = activeTab?.path?.toLowerCase().endsWith('.md') ? `
         <div class="context-menu-separator"></div>
-        <div class="context-menu-item" data-action="export-pdf">
+        <div class="context-menu-item" data-action="preview-pdf">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
-            Export to PDF
+            Preview PDF
         </div>` : '';
 
     const menu = document.createElement('div');
@@ -1253,11 +1329,11 @@ function handleContextMenu(event, view) {
     menu.style.top = `${event.clientY}px`;
 
     menu.innerHTML = `
-        <div class="context-menu-item" data-action="cut">
+        <div class="context-menu-item${selectionDisabledClass}" data-action="cut"${selectionDisabledAttribute}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/></svg>
             Cut
         </div>
-        <div class="context-menu-item" data-action="copy">
+        <div class="context-menu-item${selectionDisabledClass}" data-action="copy"${selectionDisabledAttribute}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             Copy
         </div>
@@ -1276,21 +1352,27 @@ function handleContextMenu(event, view) {
 
     menu.addEventListener('click', async (ev) => {
         const item = ev.target.closest('.context-menu-item');
-        if (!item) return;
+        if (!item || item.classList.contains('disabled') || item.getAttribute('aria-disabled') === 'true') return;
         menu.remove();
         const action = item.dataset.action;
-        if (action === 'cut') document.execCommand('cut');
-        else if (action === 'copy') document.execCommand('copy');
-        else if (action === 'paste') document.execCommand('paste');
+        if (action === 'cut') {
+            if (!await cutEditorSelection(view)) statusBar.set('Could not copy selection to clipboard');
+        } else if (action === 'copy') {
+            if (!await copyEditorSelection(view)) statusBar.set('Could not copy selection to clipboard');
+        } else if (action === 'paste') await pasteIntoEditor(view);
         else if (action === 'select-all') {
             const doc = view.state.doc;
             view.dispatch({ selection: { anchor: 0, head: doc.length } });
-        } else if (action === 'export-pdf') {
+        } else if (action === 'preview-pdf') {
             try {
-                const { exportActiveMarkdownToPDF } = await import('./pdfExport.js');
-                await exportActiveMarkdownToPDF();
+                const { openPDFPreview } = await import('./pdfPreview.js');
+                await openPDFPreview({
+                    path: activeTab.path,
+                    title: activeTab.title,
+                    content: view.state.doc.toString(),
+                });
             } catch (error) {
-                log.error('Interactive PDF export failed:', error);
+                log.error('PDF preview failed:', error);
                 await pdfExportErrorDialog(error);
             }
         }

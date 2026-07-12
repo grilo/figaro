@@ -12,7 +12,8 @@ import { createPrintMarkdownRenderer } from '../vendored/markdown-it-plugins/ind
 const defaultPrintCSS = `
   @page { margin: 18mm; }
   :root { color-scheme: light; }
-  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; color: #202124; padding: 0; max-width: 820px; margin: 0 auto; }
+  html { color: #202124; }
+  body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; color: inherit; padding: 0; max-width: 820px; margin: 0 auto; }
   .figaro-print-document h1, .figaro-print-document h2 { border-bottom: 1px solid #e6e6e6; padding-bottom: .3em; }
   .figaro-print-document h1, .figaro-print-document h2, .figaro-print-document h3, .figaro-print-document h4, .figaro-print-document h5, .figaro-print-document h6 { break-after: avoid-page; page-break-after: avoid; }
   pre, code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }

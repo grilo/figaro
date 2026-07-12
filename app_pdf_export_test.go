@@ -159,6 +159,16 @@ func TestCreateStarterPrintStylesheetCopiesBundledCSSWithoutOverwriting(t *testi
 			t.Errorf("starter stylesheet is missing documented hook %q", hook)
 		}
 	}
+	for _, rule := range []string{
+		"--figaro-page-background: var(--figaro-paper)",
+		"--figaro-cover-background: var(--figaro-page-background)",
+		"background: var(--figaro-page-background)",
+		"background: var(--figaro-cover-background)",
+	} {
+		if !strings.Contains(string(stylesheet), rule) {
+			t.Errorf("starter stylesheet is missing a quick-theme color hook: %q", rule)
+		}
+	}
 
 	const userCSS = "/* user-owned stylesheet */\nbody { color: rebeccapurple; }\n"
 	if err := os.WriteFile(stylesheetPath, []byte(userCSS), 0644); err != nil {

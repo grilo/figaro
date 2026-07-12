@@ -1517,10 +1517,15 @@ func TestEmbedFS_HasBridgeScript(t *testing.T) {
 
 func TestEmbedFS_HasVendoredCodeMirror(t *testing.T) {
 	requireGeneratedFrontendAssets(t)
-	// Verify a key generated dependency is reachable — the editor won't boot without it.
-	_, err := assets.ReadFile("frontend/vendored/codemirror/state/index.js")
-	if err != nil {
-		t.Fatalf("embedded assets missing vendored/codemirror/state/index.js: %v", err)
+	// Verify core generated dependencies are reachable — the editor and its
+	// in-document find panel won't boot without them.
+	for _, path := range []string{
+		"frontend/vendored/codemirror/state/index.js",
+		"frontend/vendored/codemirror/search/index.js",
+	} {
+		if _, err := assets.ReadFile(path); err != nil {
+			t.Fatalf("embedded assets missing %s: %v", path, err)
+		}
 	}
 }
 
@@ -1560,7 +1565,8 @@ func TestEmbedFS_HasStarterPrintStylesheet(t *testing.T) {
 		t.Fatalf("embedded assets missing starter print stylesheet: %v", err)
 	}
 	if !strings.Contains(string(data), ".figaro-print-cover-title") ||
-		!strings.Contains(string(data), ".figaro-print-document") {
+		!strings.Contains(string(data), ".figaro-print-document") ||
+		!strings.Contains(string(data), "--figaro-page-background") {
 		t.Fatal("starter print stylesheet is missing its stable PDF hooks")
 	}
 }
@@ -1726,6 +1732,20 @@ func TestDrag_NoWebkitAppRegion(t *testing.T) {
 				t.Errorf("%s:%d should NOT use -webkit-app-region — use --wails-draggable instead", file, i+1)
 			}
 		}
+	}
+}
+
+func TestDrag_TitleBarDoubleClickTogglesMaximize(t *testing.T) {
+	data, err := os.ReadFile("frontend/wails-compat-bridge.js")
+	if err != nil {
+		t.Fatalf("cannot read wails-compat-bridge.js: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "installTitleBarDoubleClick") || !strings.Contains(content, "dblclick") {
+		t.Error("the custom title bar must handle double-click maximize/restore")
+	}
+	if !strings.Contains(content, "goApp.WindowMaximize()") {
+		t.Error("title-bar double click must use the existing native maximize toggle")
 	}
 }
 

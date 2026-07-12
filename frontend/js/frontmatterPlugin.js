@@ -338,6 +338,10 @@ export function createFrontmatterField(
             return create(notePath, stylesheetPath);
         },
         onStylesheetReady = async () => {},
+        onPreviewPDF = async ({ path, title, content }) => {
+            const { openPDFPreview } = await import('./pdfPreview.js');
+            return openPDFPreview({ path, title, content });
+        },
         reportStylesheetError = message => {
             if (typeof globalThis.alert === 'function') globalThis.alert(message);
         },
@@ -600,6 +604,26 @@ export function createFrontmatterField(
             stylesheetHint.className = 'cm-frontmatter-panel-hint';
             stylesheetHint.textContent = 'Leave blank for the built-in style or an existing sibling _print.css. Create starter copies an editable example into your vault.';
             pdfSection.appendChild(stylesheetHint);
+            const previewPDF = makeButton(
+                'cm-frontmatter-panel-action cm-frontmatter-preview-pdf',
+                'Preview PDF',
+                'Open a live PDF preview',
+                async () => {
+                    const notePath = String(getActiveFilePath() || '').trim();
+                    if (!notePath) {
+                        reportStylesheetError('Open a Markdown note before previewing its PDF.');
+                        return;
+                    }
+                    const currentSource = view.state.doc.toString();
+                    const noteTitle = getFrontmatterValue(currentSource, 'title') || notePath.split('/').pop().replace(/\.md$/i, '');
+                    try {
+                        await onPreviewPDF({ path: notePath, title: noteTitle, content: currentSource });
+                    } catch (error) {
+                        reportStylesheetError(error?.message || 'Could not open the PDF preview.');
+                    }
+                }
+            );
+            pdfSection.appendChild(previewPDF);
             panel.appendChild(pdfSection);
 
             if (coverInput.checked) {

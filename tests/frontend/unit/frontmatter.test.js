@@ -272,6 +272,40 @@ describe('frontmatter Properties card', () => {
         expect(view.state.doc.toString()).not.toContain('print-stylesheet:');
     });
 
+    test('opens a live PDF preview from the PDF layout controls', async () => {
+        const onPreviewPDF = jest.fn().mockResolvedValue(undefined);
+        const field = createFrontmatterField(
+            StateField,
+            StateEffect,
+            EditorView,
+            Decoration,
+            WidgetType,
+            null,
+            () => [],
+            () => '',
+            {
+                getActiveFilePath: () => 'notes/report.md',
+                onPreviewPDF,
+            }
+        );
+        view = new EditorView({
+            state: EditorState.create({ doc: '---\ntitle: Quarterly Report\n---\n# Body', extensions: [field] }),
+            parent: document.body,
+        });
+
+        view.dom.querySelector('.cm-frontmatter').click();
+        const preview = view.dom.querySelector('.cm-frontmatter-preview-pdf');
+        expect(preview).not.toBeNull();
+        preview.click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(onPreviewPDF).toHaveBeenCalledWith({
+            path: 'notes/report.md',
+            title: 'Quarterly Report',
+            content: '---\ntitle: Quarterly Report\n---\n# Body',
+        });
+    });
+
     test('does not offer a second properties block while YAML is being typed', () => {
         const field = createFrontmatterField(StateField, StateEffect, EditorView, Decoration, WidgetType, null);
         view = new EditorView({
