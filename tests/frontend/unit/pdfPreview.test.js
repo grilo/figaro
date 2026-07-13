@@ -217,6 +217,54 @@ describe('live PDF preview', () => {
         }));
     });
 
+    test('coalesces rapid editor scrolls and ignores the matching programmatic echo', async () => {
+        mockState.openTabs = [{ id: 'notes/report.md', type: 'file', path: 'notes/report.md' }];
+        mockState.activeTabId = 'notes/report.md';
+        const editorScroller = document.createElement('div');
+        editorScroller.className = 'cm-scroller';
+        setScrollMetrics(editorScroller, { scrollTop: 0, scrollHeight: 1000, clientHeight: 400 });
+        document.getElementById('editor-container').appendChild(editorScroller);
+
+        const { frame, postMessage, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        const token = render().token;
+        postMessage.mockClear();
+
+        editorScroller.scrollTop = 100;
+        editorScroller.dispatchEvent(new Event('scroll'));
+        await waitForPreview(20);
+        editorScroller.scrollTop = 220;
+        editorScroller.dispatchEvent(new Event('scroll'));
+        await waitForPreview(5);
+        editorScroller.scrollTop = 320;
+        editorScroller.dispatchEvent(new Event('scroll'));
+        await waitForPreview(5);
+        editorScroller.scrollTop = 420;
+        editorScroller.dispatchEvent(new Event('scroll'));
+        await waitForPreview(70);
+
+        const updates = postedBridgeMessages(postMessage)
+            .filter(message => message.type === 'set-content-progress');
+        expect(updates.length).toBeLessThanOrEqual(2);
+        expect(updates.at(-1)).toEqual(expect.objectContaining({
+            token,
+            progress: 0.7,
+        }));
+
+        postMessage.mockClear();
+        dispatchBridgeMessage(frame, {
+            type: 'scroll',
+            token,
+            documentProgress: 0.7,
+            contentProgress: 0.2,
+            programmatic: false,
+        });
+        await waitForPreview(20);
+        editorScroller.dispatchEvent(new Event('scroll'));
+        await waitForPreview(40);
+        expect(postedBridgeMessages(postMessage)
+            .filter(message => message.type === 'set-content-progress')).toHaveLength(0);
+    });
+
     test('routes bridge link requests without allowing the iframe to navigate', async () => {
         const open = jest.spyOn(window, 'open').mockImplementation(() => null);
         try {

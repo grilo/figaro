@@ -15,6 +15,9 @@
 
     const channel = 'figaro-pdf-preview-v1';
     const xlinkNamespace = 'http://www.w3.org/1999/xlink';
+    // Keep the printable document's own scroll path native. This cap only
+    // controls bridge notifications for the companion editor pane.
+    const scrollReportIntervalMs = 34;
     const bootstrapToken = (() => {
         try {
             return decodeURIComponent(String(window.location.hash || '').slice(1));
@@ -24,8 +27,10 @@
     })();
     let sessionToken = '';
     let scheduledScrollReport = null;
+    let delayedScrollReport = null;
     let scheduledProgrammatic = false;
     let programmaticScroll = false;
+    let lastScrollReportAt = Number.NEGATIVE_INFINITY;
 
     function finiteMetric(value) {
         const number = Number(value);
@@ -41,6 +46,13 @@
             return window.requestAnimationFrame(callback);
         }
         return window.setTimeout(callback, 0);
+    }
+
+    function monotonicNow() {
+        const now = window.performance && typeof window.performance.now === 'function'
+            ? window.performance.now()
+            : Date.now();
+        return Number.isFinite(now) ? now : Date.now();
     }
 
     function send(type, payload = {}) {
@@ -110,6 +122,7 @@
         if (!sessionToken) return;
         const metrics = currentMetrics();
         if (!metrics) return;
+        lastScrollReportAt = monotonicNow();
         send('scroll', {
             documentProgress: documentProgress(metrics),
             contentProgress: contentProgress(metrics),
@@ -117,15 +130,31 @@
         });
     }
 
-    function scheduleScrollReport(programmatic = false) {
+    function flushScheduledScrollReport() {
+        const wasProgrammatic = scheduledProgrammatic;
+        scheduledScrollReport = null;
+        scheduledProgrammatic = false;
+        reportScroll(wasProgrammatic);
+    }
+
+    function scheduleScrollReport(programmatic = false, immediate = false) {
         scheduledProgrammatic = scheduledProgrammatic || programmatic || programmaticScroll;
         if (scheduledScrollReport !== null) return;
-        scheduledScrollReport = nextFrame(() => {
-            const wasProgrammatic = scheduledProgrammatic;
-            scheduledScrollReport = null;
-            scheduledProgrammatic = false;
-            reportScroll(wasProgrammatic);
-        });
+        if (immediate && delayedScrollReport !== null) {
+            window.clearTimeout(delayedScrollReport);
+            delayedScrollReport = null;
+        }
+        if (delayedScrollReport !== null) return;
+
+        const elapsed = monotonicNow() - lastScrollReportAt;
+        if (immediate || elapsed >= scrollReportIntervalMs) {
+            scheduledScrollReport = nextFrame(flushScheduledScrollReport);
+            return;
+        }
+        delayedScrollReport = window.setTimeout(() => {
+            delayedScrollReport = null;
+            flushScheduledScrollReport();
+        }, Math.max(0, scrollReportIntervalMs - elapsed));
     }
 
     function setScrollTop(nextTop, reportAsProgrammatic = true) {
@@ -231,7 +260,9 @@
             return false;
         }
         target.scrollIntoView({ block: 'start', inline: 'nearest' });
-        nextFrame(() => reportScroll(false));
+        // Fragment navigation is intentional and should update the editor
+        // promptly, bypassing the ordinary scrolling cadence cap.
+        nextFrame(() => scheduleScrollReport(false, true));
         return true;
     }
 

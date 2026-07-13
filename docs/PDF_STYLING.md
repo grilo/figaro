@@ -16,7 +16,9 @@ outside Figaro are picked up when the file tree refreshes too.
 The editable stylesheet is applied after the preview's screen geometry, so
 ordinary `html` and `body` rules affect the page just as they do in the final
 PDF. The preview preserves its position after a refresh and synchronizes
-relative scrolling with the active source Markdown note. Table-of-contents,
+relative scrolling with the active source Markdown note. Its own scrolling
+stays native and smooth; the companion editor receives coalesced position
+updates rather than a cross-frame update for every display frame. Table-of-contents,
 footnote, and return links stay within the rendered preview instead of
 navigating to a vault URL. Web links open in your default browser, while
 vault-local document links open through Figaro rather than replacing the

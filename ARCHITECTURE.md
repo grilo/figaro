@@ -85,6 +85,15 @@ The frame captures anchor activation itself, before browser navigation:
 - Vault-local links are sent to the parent and opened through Figaro.
 - Unsupported schemes stay in the frame and produce an explanatory status.
 
+Scroll synchronization is deliberately lower-frequency than native scrolling.
+The frame and CodeMirror each scroll locally at the display's normal cadence;
+only the latest document-relative position crosses the bridge, at most about
+30 times per second. Bursts are coalesced and a trailing update preserves the
+final position. Programmatic editor movement is recognized as such so a delayed
+browser scroll event cannot echo back into the preview. Do not make scroll
+events a one-for-one bridge protocol: that makes WebKitGTK pay a cross-frame
+message and a CodeMirror position update for every visual frame.
+
 As defence in depth, the frame gives copied document links a blocked popup
 fallback and the parent reloads the fixed bridge document if it stops reporting
 ready. `postMessage('*')` is intentional here because a sandbox without

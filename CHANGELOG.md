@@ -34,6 +34,9 @@ All notable user-facing changes are recorded here from this point forward.
   geometry, preserves relative scroll position across live refreshes, syncs
   scroll position with the active Markdown note, and keeps in-document
   fragment links inside the preview.
+- PDF preview/editor scroll synchronization now coalesces rapid updates at a
+  bounded cadence, preserving the final position without making the printable
+  frame pay for a cross-frame update on every display refresh.
 - Preview/editor scrolling now maps around generated cover and table-of-
   contents sections, keeping Markdown source positions aligned with the
   printable document body.

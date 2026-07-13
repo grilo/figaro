@@ -18,6 +18,10 @@ const previewMode = 'pdf-preview';
 const previewFramePath = '/pdf/preview-frame.html';
 const previewBridgeChannel = 'figaro-pdf-preview-v1';
 const previewBridgeRecoveryMs = 700;
+// Native scrolling must remain free to run at display refresh rate. The
+// companion pane is only a visual reference, so update it at a modest bounded
+// rate and always send the final coalesced position.
+const previewScrollSyncIntervalMs = 34;
 
 let previewTimer = null;
 let previewRequestId = 0;
@@ -50,6 +54,10 @@ const scrollSync = {
     suppressEditor: false,
     suppressPreview: false,
     editorFrame: null,
+    editorSyncTimer: null,
+    pendingEditorProgress: null,
+    lastEditorSyncAt: Number.NEGATIVE_INFINITY,
+    expectedEditorScroll: null,
 };
 
 const previewBridge = {
@@ -366,6 +374,11 @@ function cancelScheduledAnimationFrame(handle) {
     }
 }
 
+function monotonicNow() {
+    const now = globalThis.performance?.now?.();
+    return Number.isFinite(now) ? now : Date.now();
+}
+
 function deferSuppression(key) {
     const token = {};
     scrollSync[key] = token;
@@ -397,8 +410,25 @@ function setElementScrollProgress(element, progress, suppressKey) {
     if (!element) return false;
     const nextTop = scrollTopForProgress(progress, element.scrollHeight, element.clientHeight);
     if (Math.abs(finiteMetric(element.scrollTop) - nextTop) < 0.5) return false;
+    if (suppressKey === 'suppressEditor') {
+        // Browser engines are allowed to dispatch a scroll event later than
+        // the synchronous assignment below. Retaining the expected position
+        // prevents that event from being mistaken for a second user gesture.
+        scrollSync.expectedEditorScroll = { element, top: nextTop };
+    }
     deferSuppression(suppressKey);
     element.scrollTop = nextTop;
+    return true;
+}
+
+function consumesExpectedEditorScroll(editor) {
+    const expected = scrollSync.expectedEditorScroll;
+    if (!expected) return false;
+    if (expected.element !== editor || Math.abs(finiteMetric(editor.scrollTop) - expected.top) >= 0.75) {
+        scrollSync.expectedEditorScroll = null;
+        return false;
+    }
+    scrollSync.expectedEditorScroll = null;
     return true;
 }
 
@@ -564,8 +594,46 @@ function clearEditorScrollSync() {
     if (scrollSync.editor && scrollSync.editorListener) {
         scrollSync.editor.removeEventListener('scroll', scrollSync.editorListener);
     }
+    if (scrollSync.editorSyncTimer !== null) clearTimeout(scrollSync.editorSyncTimer);
     scrollSync.editor = null;
     scrollSync.editorListener = null;
+    scrollSync.editorSyncTimer = null;
+    scrollSync.pendingEditorProgress = null;
+    scrollSync.lastEditorSyncAt = Number.NEGATIVE_INFINITY;
+    scrollSync.expectedEditorScroll = null;
+}
+
+function flushEditorScrollToPreview() {
+    const progress = scrollSync.pendingEditorProgress;
+    scrollSync.pendingEditorProgress = null;
+    if (!Number.isFinite(progress) || !isPreviewOpen() || !activePreviewSource() || scrollSync.suppressEditor) return false;
+    if (!postPreviewBridgeMessage({ type: 'set-content-progress', progress })) {
+        // The bridge can briefly be unavailable while its fixed document
+        // starts. Keep the latest position for the next editor movement.
+        scrollSync.pendingEditorProgress = progress;
+        return false;
+    }
+    scrollSync.lastEditorSyncAt = monotonicNow();
+    deferSuppression('suppressPreview');
+    return true;
+}
+
+function queueEditorScrollToPreview(progress) {
+    scrollSync.pendingEditorProgress = clampProgress(progress);
+    const elapsed = monotonicNow() - scrollSync.lastEditorSyncAt;
+    if (elapsed >= previewScrollSyncIntervalMs) {
+        if (scrollSync.editorSyncTimer !== null) {
+            clearTimeout(scrollSync.editorSyncTimer);
+            scrollSync.editorSyncTimer = null;
+        }
+        return flushEditorScrollToPreview();
+    }
+    if (scrollSync.editorSyncTimer !== null) return true;
+    scrollSync.editorSyncTimer = setTimeout(() => {
+        scrollSync.editorSyncTimer = null;
+        flushEditorScrollToPreview();
+    }, Math.max(0, previewScrollSyncIntervalMs - elapsed));
+    return true;
 }
 
 function syncEditorScrollToPreview() {
@@ -574,8 +642,7 @@ function syncEditorScrollToPreview() {
     if (!editor) return;
     const progress = scrollProgressForElement(editor);
     scrollSync.lastProgress = progress;
-    deferSuppression('suppressPreview');
-    postPreviewBridgeMessage({ type: 'set-content-progress', progress });
+    queueEditorScrollToPreview(progress);
 }
 
 function ensureEditorScrollSync() {
@@ -587,7 +654,7 @@ function ensureEditorScrollSync() {
 
     scrollSync.editor = editor;
     scrollSync.editorListener = () => {
-        if (scrollSync.suppressEditor || scrollSync.editorFrame !== null) return;
+        if (scrollSync.suppressEditor || consumesExpectedEditorScroll(editor) || scrollSync.editorFrame !== null) return;
         scrollSync.editorFrame = scheduleAnimationFrame(() => {
             scrollSync.editorFrame = null;
             syncEditorScrollToPreview();

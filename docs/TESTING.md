@@ -59,7 +59,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   Vega-Lite in the PDF export pipeline.
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
-  links remain in the rendered document.
+  links remain in the rendered document. High-frequency scroll reports are
+  coalesced before they can cause a matching burst of editor updates.
 
 The browser suite is intentionally not a substitute for the desktop webview:
 when changing the PDF preview bridge, also run the packaged Linux build and
