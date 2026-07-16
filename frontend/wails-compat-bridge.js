@@ -220,6 +220,31 @@
     });
   }
 
+  // Native edge resizing, snapping, and window-manager shortcuts do not pass
+  // through Figaro's custom controls. Observe the resulting browser resize so
+  // the backend can remember the last normal dimensions and maximized state.
+  function installWindowStateCapture(goApp) {
+    if (!goApp.WindowCaptureState) return;
+
+    var captureTimer = null;
+    function capture() {
+      captureTimer = null;
+      try {
+        var result = goApp.WindowCaptureState();
+        if (result && typeof result.catch === 'function') {
+          result.catch(function () {});
+        }
+      } catch (e) {}
+    }
+    function scheduleCapture() {
+      if (captureTimer !== null) clearTimeout(captureTimer);
+      captureTimer = setTimeout(capture, 250);
+    }
+
+    window.addEventListener('resize', scheduleCapture, { passive: true });
+    scheduleCapture();
+  }
+
   // ── Install bridge once Go bindings are ready ───────────────────────────
   waitForGo().then(function (goApp) {
     if (!goApp) {
@@ -257,6 +282,9 @@
 
     // Desktop-standard maximize/restore on a title-bar double click.
     installTitleBarDoubleClick(goApp);
+
+    // Persist machine-local size/state after native window changes.
+    installWindowStateCapture(goApp);
 
     setStatus('Ready');
 

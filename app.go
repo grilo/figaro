@@ -45,6 +45,7 @@ type App struct {
 	sessionMu           sync.RWMutex
 	mu                  sync.RWMutex
 	settingsMu          sync.RWMutex
+	windowStateMu       sync.Mutex
 	calendarMu          sync.Mutex
 	watcherMu           sync.Mutex
 	fileVersions        map[string]float64
@@ -54,6 +55,8 @@ type App struct {
 	vaultWatcher        *vaultWatcher
 	watcherStopping     bool
 	history             *HistoryService
+	windowStatePath     string
+	windowState         windowState
 }
 
 // SystemColumns are the three built-in kanban columns always present.
@@ -177,6 +180,7 @@ func NewApp(vaultPath string) *App {
 		fileVersions:  make(map[string]float64),
 		kanbanColors:  make(map[string]string),
 		kanbanColumns: append([]string{}, SystemColumns...),
+		windowState:   defaultWindowState(),
 	}
 	a.loadColors()
 
@@ -361,6 +365,7 @@ func (a *App) startup(ctx context.Context) {
 // domReady is called from OnDomReady; defined in main.go.
 // shutdown is called from OnShutdown.
 func (a *App) shutdown(ctx context.Context) {
+	a.captureWindowState(ctx)
 	a.stopVaultWatcher()
 	if a.history != nil {
 		a.history.StartAutoCommit(0)
@@ -2779,6 +2784,7 @@ func readPrintCSS(root *os.Root, rel string, label string, required bool) (strin
 // WindowMinimize minimizes the application window.
 func (a *App) WindowMinimize() {
 	if a.ctx != nil {
+		a.captureWindowState(a.ctx)
 		safeRuntimeCall(func() { runtime.WindowMinimise(a.ctx) })
 	}
 }
@@ -2786,6 +2792,9 @@ func (a *App) WindowMinimize() {
 // WindowMaximize toggles between maximized and normal window size.
 func (a *App) WindowMaximize() {
 	if a.ctx != nil {
+		// Preserve the current normal dimensions before entering maximized
+		// state. A resize observation records the resulting state afterwards.
+		a.captureWindowState(a.ctx)
 		safeRuntimeCall(func() { runtime.WindowToggleMaximise(a.ctx) })
 	}
 }

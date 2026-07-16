@@ -39,6 +39,17 @@ func main() {
 
 	app := NewApp(vaultPath)
 	app.devInspectorAddress = inspectorAddress
+	windowState, windowStatePath, windowStateErr := loadMachineWindowState()
+	if windowStateErr != nil {
+		log.Printf("[window] Using default window state: %v", windowStateErr)
+	}
+	app.configureWindowState(windowStatePath, windowState)
+	windowStartState := options.Normal
+	if windowState.Maximized {
+		windowStartState = options.Maximised
+	}
+	// Position is deliberately absent from windowState. Wails centers the
+	// initial window on Windows, macOS, and Linux before applying this state.
 	linuxWindowIcon, iconErr := assets.ReadFile("frontend/icon-256.png")
 	if iconErr != nil {
 		// The launcher still has a filesystem-installed icon on Linux; this
@@ -56,11 +67,12 @@ func main() {
 	}
 
 	err := wails.Run(&options.App{
-		Title:     "figaro",
-		Width:     1280,
-		Height:    800,
-		MinWidth:  800,
-		MinHeight: 500,
+		Title:            "figaro",
+		Width:            windowState.Width,
+		Height:           windowState.Height,
+		MinWidth:         minimumWindowWidth,
+		MinHeight:        minimumWindowHeight,
+		WindowStartState: windowStartState,
 		// Frameless for native custom title bar
 		Frameless: true,
 		// AssetServer serves embedded frontend files
