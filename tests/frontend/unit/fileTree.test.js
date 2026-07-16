@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -35,6 +35,7 @@ jest.mock('../frontend/js/statusBar.js', () => ({
 
 jest.mock('../frontend/js/dialogs.js', () => ({
     confirmDialog: jest.fn().mockResolvedValue(true),
+    messageDialog: jest.fn().mockResolvedValue(undefined),
     promptDialog: jest.fn().mockResolvedValue('test.md'),
     newNoteDialog: jest.fn().mockResolvedValue('test.md'),
     pdfExportErrorDialog: jest.fn().mockResolvedValue(undefined)
@@ -46,6 +47,7 @@ jest.mock('../frontend/js/session.js', () => ({
 
 jest.mock('../frontend/js/tabManager.js', () => ({
     closeTabsForDeletedPath: jest.fn(),
+    prepareTabsForPathCopy: jest.fn().mockResolvedValue({ success: true }),
     prepareTabsForPathMove: jest.fn().mockResolvedValue({ success: true }),
     refreshTabsForUpdatedLinks: jest.fn().mockResolvedValue(false),
     updateTabsForMovedPath: jest.fn(),
@@ -54,8 +56,8 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { openTab, handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
-import { confirmDialog, newNoteDialog, promptDialog } from '../frontend/js/dialogs.js';
-import { prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
+import { confirmDialog, messageDialog, newNoteDialog, promptDialog } from '../frontend/js/dialogs.js';
+import { prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 
 function deferred() {
@@ -79,6 +81,7 @@ describe('File Tree', () => {
         state.selectedFilePaths = [];
         state.openTabs = [];
         state.activeTabId = null;
+        clearFileTreeClipboard();
     });
 
     describe('buildTreeHTML', () => {
@@ -278,6 +281,117 @@ describe('File Tree', () => {
         }
     });
 
+    test('maps native file-manager drops to the containing vault folder', () => {
+        state.fileTreeData = [{
+            name: 'Projects', path: 'Projects', type: 'directory', children: [
+                { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1 },
+            ],
+        }];
+        state.expandedDirs = new Set(['Projects']);
+        initFileTree();
+        renderFileTree();
+
+        const folder = document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node');
+        const file = document.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node');
+        const root = document.querySelector('.file-tree-root-dropzone');
+        expect(externalDropTargetDirectory(folder)).toBe('Projects');
+        expect(externalDropTargetDirectory(file)).toBe('Projects');
+        expect(externalDropTargetDirectory(root)).toBe('');
+        expect(externalDropTargetDirectory(document.body)).toBeNull();
+    });
+
+    test('copies native paths instead of moving them and expands the destination', async () => {
+        state.fileTreeData = [{ name: 'Imported', path: 'Imported', type: 'directory', children: [] }];
+        state.expandedDirs = new Set();
+        window.pywebview.api.copy_external_paths.mockResolvedValueOnce({
+            success: true,
+            paths: ['Imported/report.md', 'Imported/Assets'],
+        });
+        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+
+        await expect(copyExternalDrop([
+            'C:\\Users\\Writer\\report.md',
+            'C:\\Users\\Writer\\Assets',
+        ], 'Imported')).resolves.toBe(true);
+
+        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledWith([
+            'C:\\Users\\Writer\\report.md',
+            'C:\\Users\\Writer\\Assets',
+        ], 'Imported', false);
+        expect(window.pywebview.api.move_path).not.toHaveBeenCalled();
+        expect(state.expandedDirs).toContain('Imported');
+        expect(saveSession).toHaveBeenCalled();
+    });
+
+    test('registers the Wails native file drop callback for the file tree', async () => {
+        state.fileTreeData = [{ name: 'Inbox', path: 'Inbox', type: 'directory', children: [] }];
+        initFileTree();
+        renderFileTree();
+        let callback;
+        const runtime = {
+            OnFileDrop: jest.fn((handler) => { callback = handler; }),
+        };
+        const folder = document.querySelector('.file-tree-item[data-path="Inbox"] > .file-tree-node');
+        const originalElementFromPoint = document.elementFromPoint;
+        document.elementFromPoint = jest.fn().mockReturnValue(folder);
+        window.pywebview.api.copy_external_paths.mockResolvedValueOnce({ success: true, paths: ['Inbox/note.md'] });
+        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+
+        expect(initNativeFileDrops(runtime)).toBe(true);
+        expect(runtime.OnFileDrop).toHaveBeenCalledWith(expect.any(Function), true);
+        callback(42, 84, ['/home/writer/note.md']);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledWith(['/home/writer/note.md'], 'Inbox', false);
+        document.elementFromPoint = originalElementFromPoint;
+    });
+
+    test('asks before replacing a conflicting external drop', async () => {
+        state.fileTreeData = [{ name: 'Imported', path: 'Imported', type: 'directory', children: [] }];
+        window.pywebview.api.copy_external_paths
+            .mockResolvedValueOnce({
+                success: false,
+                conflicts: ['Imported/report.md'],
+                error: 'One or more items already exist in the destination',
+            })
+            .mockResolvedValueOnce({ success: true, paths: ['Imported/report.md'] });
+        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+        confirmDialog.mockResolvedValueOnce('confirm');
+
+        await expect(copyExternalDrop(['/home/writer/report.md'], 'Imported')).resolves.toBe(true);
+
+        expect(confirmDialog).toHaveBeenCalledWith(
+            'Replace existing item?',
+            expect.stringContaining('“report.md”'),
+            true,
+            false,
+            { confirmLabel: 'Replace' }
+        );
+        expect(window.pywebview.api.copy_external_paths).toHaveBeenNthCalledWith(
+            1, ['/home/writer/report.md'], 'Imported', false
+        );
+        expect(window.pywebview.api.copy_external_paths).toHaveBeenNthCalledWith(
+            2, ['/home/writer/report.md'], 'Imported', true
+        );
+    });
+
+    test('leaves the destination unchanged when replacement is cancelled', async () => {
+        window.pywebview.api.copy_external_paths.mockResolvedValueOnce({
+            success: false,
+            conflicts: ['report.md'],
+            error: 'One or more items already exist in the destination',
+        });
+        confirmDialog.mockResolvedValueOnce(false);
+
+        await expect(copyExternalDrop(['/home/writer/report.md'], '')).resolves.toBe(false);
+
+        expect(confirmDialog).toHaveBeenCalled();
+        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledTimes(1);
+        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledWith(
+            ['/home/writer/report.md'], '', false
+        );
+    });
+
     test('opens CodeMirror-supported source files from the tree', () => {
         state.fileTreeData = [{
             name: '_print.css',
@@ -311,10 +425,11 @@ describe('File Tree', () => {
         expect(menu).not.toBeNull();
         expect([...menu.querySelectorAll('[data-action]')].map(item => item.dataset.action)).toEqual([
             'open-new-tab', 'merge-notes', 'preview-pdf',
+            'copy', 'paste',
             'new-file', 'new-drawio', 'new-folder', 'rename', 'reveal', 'delete',
         ]);
         expect(menu.querySelector('[data-action="new-file"]').classList.contains('disabled')).toBe(false);
-        for (const action of ['open-new-tab', 'merge-notes', 'preview-pdf', 'rename', 'reveal', 'delete']) {
+        for (const action of ['open-new-tab', 'merge-notes', 'preview-pdf', 'copy', 'paste', 'rename', 'reveal', 'delete']) {
             expect(menu.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
         }
         expect(state.contextTargetType).toBe('root');
@@ -329,12 +444,94 @@ describe('File Tree', () => {
         };
         const expectedActions = [
             'open-new-tab', 'merge-notes', 'preview-pdf',
+            'copy', 'paste',
             'new-file', 'new-drawio', 'new-folder', 'rename', 'reveal', 'delete',
         ];
 
         expect(actionsFor({ type: 'root' })).toEqual(expectedActions);
         expect(actionsFor({ type: 'directory', path: 'notes' })).toEqual(expectedActions);
         expect(actionsFor({ type: 'file', path: 'notes/report.md', selectedPaths: ['notes/other.md'] })).toEqual(expectedActions);
+    });
+
+    test('copies an internal folder to its original parent and selects the uniquely named copy', async () => {
+        state.fileTreeData = [{
+            name: 'Projects', path: 'Projects', type: 'directory', children: [
+                { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1 },
+            ],
+        }];
+        window.pywebview.api.copy_path.mockResolvedValueOnce({ success: true, path: 'Projects copy' });
+        window.pywebview.api.get_file_tree.mockResolvedValueOnce([
+            ...state.fileTreeData,
+            { name: 'Projects copy', path: 'Projects copy', type: 'directory', children: [] },
+        ]);
+
+        expect(copyInternalPath('Projects', 'directory')).toBe(true);
+        await expect(pasteInternalClipboard('', 'root')).resolves.toBe(true);
+
+        expect(prepareTabsForPathCopy).toHaveBeenCalledWith('Projects');
+        expect(window.pywebview.api.copy_path).toHaveBeenCalledWith('Projects', '');
+        expect(prepareTabsForPathCopy.mock.invocationCallOrder[0]).toBeLessThan(
+            window.pywebview.api.copy_path.mock.invocationCallOrder[0]
+        );
+        expect(state.selectedTreePath).toBe('Projects copy');
+        expect(messageDialog).not.toHaveBeenCalled();
+    });
+
+    test('refuses to paste a folder into itself or a descendant before calling the backend', async () => {
+        copyInternalPath('Projects', 'directory');
+
+        await expect(pasteInternalClipboard('Projects/Archive', 'directory')).resolves.toBe(false);
+
+        expect(window.pywebview.api.copy_path).not.toHaveBeenCalled();
+        expect(messageDialog).toHaveBeenCalledWith(
+            'Operation refused',
+            'A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead.'
+        );
+        expect(isInvalidCopyDestination('Projects', 'Projects')).toBe(true);
+        expect(isInvalidCopyDestination('Projects', 'Projects/Archive')).toBe(true);
+        expect(isInvalidCopyDestination('Projects', '')).toBe(false);
+    });
+
+    test('does not copy stale disk content when a dirty source cannot be saved', async () => {
+        copyInternalPath('Projects', 'directory');
+        prepareTabsForPathCopy.mockResolvedValueOnce({
+            success: false,
+            error: 'Could not save "plan.md" before copying it',
+        });
+
+        await expect(pasteInternalClipboard('', 'root')).resolves.toBe(false);
+
+        expect(window.pywebview.api.copy_path).not.toHaveBeenCalled();
+        expect(messageDialog).toHaveBeenCalledWith(
+            'Copy failed',
+            'Could not save "plan.md" before copying it'
+        );
+    });
+
+    test('uses a folder as the paste destination and a file parent as the paste destination', () => {
+        expect(internalPasteTargetDirectory('Archive', 'directory')).toBe('Archive');
+        expect(internalPasteTargetDirectory('Archive/readme.md', 'file')).toBe('Archive');
+        expect(internalPasteTargetDirectory('readme.md', 'file')).toBe('');
+        expect(internalPasteTargetDirectory('', 'root')).toBe('');
+    });
+
+    test('supports Ctrl/Cmd+C and Ctrl/Cmd+V while the file tree is focused', async () => {
+        state.fileTreeData = [
+            { name: 'note.md', path: 'note.md', type: 'file', mtime: 1 },
+            { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+        ];
+        state.selectedTreePath = 'note.md';
+        window.pywebview.api.copy_path.mockResolvedValueOnce({ success: true, path: 'Archive/note.md' });
+        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+        initFileTree();
+
+        const tree = document.getElementById('file-tree');
+        tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }));
+        state.selectedTreePath = 'Archive';
+        tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.pywebview.api.copy_path).toHaveBeenCalledWith('note.md', 'Archive');
     });
 
     test('keeps a root action surface below a short file list', () => {
@@ -353,6 +550,18 @@ describe('File Tree', () => {
 
         expect(document.querySelector('.context-menu').textContent).toContain('New File');
         expect(state.contextTargetType).toBe('root');
+    });
+
+    test('selects the vault root surface for keyboard paste', () => {
+        state.fileTreeData = [{ name: 'Folder', path: 'Folder', type: 'directory', children: [] }];
+        state.selectedTreePath = 'Folder';
+        initFileTree();
+
+        document.querySelector('.file-tree-root-dropzone').click();
+
+        expect(state.selectedTreePath).toBeNull();
+        expect(document.activeElement).toBe(document.getElementById('file-tree'));
+        expect(saveSession).toHaveBeenCalled();
     });
 
     test('offers PDF preview instead of direct export for Markdown files', () => {

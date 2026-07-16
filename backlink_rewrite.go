@@ -94,3 +94,60 @@ func restoreVaultLinkRewrites(root *os.Root, rewrites []vaultLinkRewrite) error 
 	}
 	return nil
 }
+
+// rewriteCopiedMarkdownLinks updates only Markdown files in a newly created
+// copy. Incoming links elsewhere deliberately keep pointing at the original.
+func rewriteCopiedMarkdownLinks(root *os.Root, sourceRoot string, copiedRoot string) ([]string, error) {
+	sourceRoot = filepath.Clean(sourceRoot)
+	copiedRoot = filepath.Clean(copiedRoot)
+	var updatedPaths []string
+
+	err := fs.WalkDir(root.FS(), filepath.ToSlash(copiedRoot), func(rel string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return fmt.Errorf("walk copied path %q: %w", rel, walkErr)
+		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("copied path changed into a symbolic link: %q", rel)
+		}
+		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
+			return nil
+		}
+
+		copiedPath := filepath.FromSlash(rel)
+		relative, err := filepath.Rel(copiedRoot, copiedPath)
+		if err != nil {
+			return fmt.Errorf("resolve copied path %q: %w", rel, err)
+		}
+		sourcePath := sourceRoot
+		if relative != "." {
+			sourcePath = filepath.Join(sourceRoot, relative)
+		}
+		data, err := root.ReadFile(copiedPath)
+		if err != nil {
+			return fmt.Errorf("read copied Markdown %q: %w", rel, err)
+		}
+		updated := links.RewriteMarkdownLinksForCopy(
+			string(data),
+			filepath.ToSlash(sourcePath),
+			filepath.ToSlash(copiedPath),
+			filepath.ToSlash(sourceRoot),
+			filepath.ToSlash(copiedRoot),
+		)
+		if updated == string(data) {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return fmt.Errorf("inspect copied Markdown %q: %w", rel, err)
+		}
+		if err := writeRootFileAtomic(root, copiedPath, []byte(updated), info.Mode().Perm()); err != nil {
+			return fmt.Errorf("rewrite links in copied Markdown %q: %w", rel, err)
+		}
+		updatedPaths = append(updatedPaths, filepath.ToSlash(copiedPath))
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return updatedPaths, nil
+}

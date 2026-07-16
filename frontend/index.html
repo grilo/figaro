@@ -262,33 +262,32 @@
                 <div id="tab-panels" class="tab-panels"></div>
             </main>
 
-
-            <!-- Right Sidebar (used for Calendar + History) -->
-        <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer"></div>
+            <!-- Right Sidebar (used for Calendar + History + PDF preview) -->
             <aside id="right-sidebar" class="right-sidebar collapsed">
-            <div class="right-sidebar-header">
-                <span id="right-sidebar-title" class="right-sidebar-title">Calendar</span>
-                <button id="right-sidebar-close" class="right-sidebar-close" title="Close">×</button>
-            </div>
-            <div id="right-sidebar-content" class="right-sidebar-content">
-                <div class="calendar-toolbar">
-                    <button id="cal-prev-month" class="icon-btn" title="Previous Month">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </button>
-                    <span id="cal-month-year" class="cal-month-year"></span>
-                    <button id="cal-next-month" class="icon-btn" title="Next Month">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </button>
+                <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
+                <div class="right-sidebar-header">
+                    <span id="right-sidebar-title" class="right-sidebar-title">Calendar</span>
+                    <button id="right-sidebar-close" class="right-sidebar-close" title="Close">×</button>
                 </div>
-                <div id="calendar-grid" class="calendar-grid"></div>
-                <div id="cal-linked-notes" class="cal-linked-notes"></div>
-                <div id="history-content" style="display:none"></div>
-            </div>
-        </aside>
+                <div id="right-sidebar-content" class="right-sidebar-content">
+                    <div class="calendar-toolbar">
+                        <button id="cal-prev-month" class="icon-btn" title="Previous Month">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                        </button>
+                        <span id="cal-month-year" class="cal-month-year"></span>
+                        <button id="cal-next-month" class="icon-btn" title="Next Month">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="calendar-grid" class="calendar-grid"></div>
+                    <div id="cal-linked-notes" class="cal-linked-notes"></div>
+                    <div id="history-content" style="display:none"></div>
+                </div>
+            </aside>
             </div>
         <footer id="status-bar" class="status-bar">
             <div class="status-left">

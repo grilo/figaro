@@ -53,6 +53,19 @@ func MovedVaultPath(value string, oldRel string, newRel string) string {
 // explicit relative links in a Markdown document that itself moved. The latter
 // preserves the meaning of links within a moved folder.
 func RewriteMarkdownLinksForMove(content string, sourceRel string, futureSourceRel string, oldRel string, newRel string) string {
+	return rewriteMarkdownLinksForPathMapping(content, sourceRel, futureSourceRel, oldRel, newRel)
+}
+
+// RewriteMarkdownLinksForCopy adjusts links in one newly copied Markdown
+// document. Targets inside sourceRoot follow the copied tree, while relative
+// targets outside it continue to resolve to the original vault item. Callers
+// deliberately apply this only to copied files; incoming links elsewhere in
+// the vault must keep pointing to the source.
+func RewriteMarkdownLinksForCopy(content string, sourceRel string, copiedSourceRel string, sourceRoot string, copiedRoot string) string {
+	return rewriteMarkdownLinksForPathMapping(content, sourceRel, copiedSourceRel, sourceRoot, copiedRoot)
+}
+
+func rewriteMarkdownLinksForPathMapping(content string, sourceRel string, futureSourceRel string, oldRel string, newRel string) string {
 	lines := strings.SplitAfter(content, "\n")
 	inFence := false
 	for index, line := range lines {

@@ -696,12 +696,27 @@ html, body {
 }
 
 #file-tree {
+    --wails-drop-target: drop;
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
+}
+
+#file-tree:focus {
+    outline: none;
+}
+
+#file-tree:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 55%, transparent);
+    outline-offset: -1px;
+}
+
+#file-tree.wails-drop-target-active,
+#file-tree .file-tree-item.wails-drop-target-active > .file-tree-node {
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
 }
 /* Settings workspace tab */
 #settings-panel {
@@ -4113,6 +4128,7 @@ html, body {
 
 /* Right Sidebar */
 .right-sidebar {
+    position: relative;
     width: 0 !important;
     min-width: 0 !important;
     max-width: 480px;
@@ -4199,15 +4215,17 @@ html, body {
 /* Right sidebar resizer */
 .right-sidebar-resizer {
     display: none !important;
-    position: absolute;
+    left: 0 !important;
+    right: auto !important;
+    width: 6px !important;
     cursor: col-resize;
-    width: 4px;
     background: transparent;
     transition: background var(--transition-fast);
     flex-shrink: 0;
 }
 .right-sidebar-resizer.visible { display: block !important; }
-.right-sidebar-resizer:hover { background: var(--accent-color); }
+.right-sidebar-resizer:hover,
+.right-sidebar-resizer.is-dragging { background: var(--accent-color); }
 
 .pdf-preview-panel {
     display: flex;
@@ -4530,6 +4548,53 @@ html, body {
     white-space: nowrap;
 }
 
+.settings-card .pdf-browser-setting {
+    align-items: start;
+}
+
+.pdf-browser-setting-copy {
+    min-width: 0;
+}
+
+.settings-panel-tab .pdf-browser-status {
+    max-width: 430px;
+    margin: 5px 0 0 22px;
+    overflow-wrap: anywhere;
+}
+
+.pdf-browser-status[data-kind="configured"] { color: var(--text-color); }
+.pdf-browser-status[data-kind="error"] { color: var(--danger-color); }
+
+.pdf-browser-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+}
+
+.settings-action-btn {
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.settings-action-btn:hover:not(:disabled),
+.settings-action-btn:focus-visible:not(:disabled) {
+    border-color: var(--accent-color);
+    outline: none;
+}
+
+.settings-action-btn:disabled {
+    cursor: wait;
+    opacity: .65;
+}
+
 .settings-card .theme-picker-menu,
 .settings-card .font-picker-menu {
     left: 0;
@@ -4611,6 +4676,10 @@ html, body {
     .settings-card .theme-picker-btn,
     .settings-card .font-picker-btn {
         width: 100%;
+    }
+    .pdf-browser-actions {
+        width: 100%;
+        justify-content: flex-start;
     }
 }
 /* ── Link Hover Preview Tooltip ── */

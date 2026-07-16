@@ -16,6 +16,9 @@ All notable user-facing changes are recorded here from this point forward.
   flow for note-local or shared print CSS.
 - File-tree **Rename** actions for files and folders, including backlink
   rewriting, open-tab path updates, and refreshed rewritten links.
+- Internal file-tree **Copy/Paste** for files and complete folders, including
+  keyboard shortcuts, dirty-source persistence, link-aware copied Markdown,
+  non-overwriting `copy` names, and actionable recursive-folder-copy refusal.
 - Regression coverage for PDF styling, live preview, file creation, rename,
   session repair, and Linux desktop integration.
 - `ARCHITECTURE.md`, a decision-oriented reference for non-obvious subsystem

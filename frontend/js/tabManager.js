@@ -692,28 +692,44 @@ export async function prepareTabsForPathMove(path) {
     const tabsToPrepare = [...new Map([...affected, ...dirtyMarkdownTabs]
         .map(tab => [tab.id, tab])).values()];
 
+    return persistTabsBeforePathOperation(tabsToPrepare, 'moving');
+}
+
+/**
+ * Persist dirty file-backed tabs inside a source path before copying from disk.
+ * Unlike a move, copying rewrites no existing backlink sources elsewhere, so
+ * unrelated dirty Markdown tabs are intentionally left alone.
+ */
+export async function prepareTabsForPathCopy(path) {
+    const normalized = normalizeTabPath(path);
+    const affected = getState('openTabs').filter(tab => isFileBackedTab(tab) &&
+        (normalizeTabPath(tab.path) === normalized || normalizeTabPath(tab.path).startsWith(normalized + '/')));
+    return persistTabsBeforePathOperation(affected, 'copying');
+}
+
+async function persistTabsBeforePathOperation(tabsToPrepare, operation) {
     for (const tab of tabsToPrepare) {
         if (tab.type === 'drawio') {
             const panel = [...document.querySelectorAll('.tab-panel')]
                 .find(candidate => candidate.dataset.tabId === tab.id);
             if (tab.dirty || panel?._drawioSession?.saving) {
-                return { success: false, error: `Save "${tab.title}" before moving it` };
+                return { success: false, error: `Save "${tab.title}" before ${operation} it` };
             }
             continue;
         }
         if (!tab.dirty) continue;
         const content = tab.id === getState('activeTabId') ? getEditorContent() : tab._content;
         if (typeof content !== 'string') {
-            return { success: false, error: `Could not save "${tab.title}" before moving it` };
+            return { success: false, error: `Could not save "${tab.title}" before ${operation} it` };
         }
         try {
             const result = await saveFileSnapshot(tab, content);
             if (!result?.success) {
-                return { success: false, error: result?.error || `Could not save "${tab.title}" before moving it` };
+                return { success: false, error: result?.error || `Could not save "${tab.title}" before ${operation} it` };
             }
         } catch (error) {
-            log.warn('Could not save tab before move:', error);
-            return { success: false, error: `Could not save "${tab.title}" before moving it` };
+            log.warn(`Could not save tab before ${operation}:`, error);
+            return { success: false, error: `Could not save "${tab.title}" before ${operation} it` };
         }
     }
 
@@ -1087,6 +1103,7 @@ export default {
     replaceActiveFileTab,
     updateTabsForMovedPath,
     prepareTabsForPathMove,
+    prepareTabsForPathCopy,
     refreshTabsForUpdatedLinks,
     closeTabsForDeletedPath,
     saveActiveFile,
@@ -1213,6 +1230,23 @@ function renderSettingsTab(panel, _tab) {
                         <option value="14400">4 hours</option>
                         <option value="28800">8 hours</option>
                     </select>
+                </div>
+            </div>
+            <!-- PDF Export -->
+            <div class="settings-card">
+                <div class="settings-card-title">PDF Export</div>
+                <div class="settings-section pdf-browser-setting">
+                    <div class="pdf-browser-setting-copy">
+                        <div class="settings-section-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/><path d="m8 10 2 2 5-5"/></svg>
+                            <span>Browser engine</span>
+                        </div>
+                        <p id="pdf-browser-status" class="settings-section-desc pdf-browser-status">Loading browser preference…</p>
+                    </div>
+                    <div class="pdf-browser-actions">
+                        <button type="button" id="pdf-browser-choose" class="settings-action-btn">Choose…</button>
+                        <button type="button" id="pdf-browser-clear" class="settings-action-btn" hidden>Use automatic</button>
+                    </div>
                 </div>
             </div>
         </div>`;

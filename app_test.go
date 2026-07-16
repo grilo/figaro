@@ -1312,6 +1312,31 @@ func TestThemeAndFontSavePreserveAllTypographyPreferences(t *testing.T) {
 	}
 }
 
+func TestPDFBrowserPreferenceLoadsAndClears(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	path := filepath.Join(vaultPath, "browser", "chrome")
+	if err := app.storePDFBrowserPath(path); err != nil {
+		t.Fatalf("storePDFBrowserPath: %v", err)
+	}
+
+	loaded, err := app.PDFBrowserLoad()
+	if err != nil {
+		t.Fatalf("PDFBrowserLoad: %v", err)
+	}
+	if !loaded.Success || loaded.Path != path {
+		t.Fatalf("unexpected browser preference: %+v", loaded)
+	}
+	cleared, err := app.PDFBrowserClear()
+	if err != nil || !cleared.Success {
+		t.Fatalf("PDFBrowserClear: result=%+v err=%v", cleared, err)
+	}
+	loaded, err = app.PDFBrowserLoad()
+	if err != nil || !loaded.Success || loaded.Path != "" {
+		t.Fatalf("expected automatic discovery after clear: result=%+v err=%v", loaded, err)
+	}
+}
+
 func TestThemeLoad_Default(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

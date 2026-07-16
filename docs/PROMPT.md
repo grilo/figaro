@@ -124,6 +124,7 @@ Each theme defines these properties (with theme-specific colors):
 | **Create directory** | Creates a new folder. |
 | **Delete** | Deletes a file or directory (recursive). Triggers kanban column rescan. |
 | **Move** | Moves a file or folder to a target directory. Prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. |
+| **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. Copying a folder into itself or one of its descendants is refused because it would recurse. |
 | **Rename** | Moves the file to a new name within the same directory with the same link-rewrite and open-tab protections. |
 
 ### 3.3 File Tree (Sidebar)
@@ -133,6 +134,10 @@ Each theme defines these properties (with theme-specific colors):
 - CodeMirror-supported source files (for example CSS, HTML, JavaScript/TypeScript, JSON, Go, Python, Rust, SQL, YAML, Dockerfiles, and maintained legacy modes) open in the same editor with their language parser loaded on demand.
 - Editable Draw.io diagrams use the .drawio.svg suffix. They open in the Draw.io editor while remaining normal SVG assets when embedded in Markdown.
 - **Ctrl/Cmd+Click** adds/removes a Markdown file to the multi-selection (highlighted with an accent-tinted background and outline).
+- **Ctrl/Cmd+C** copies the selected tree file or folder to Figaro's internal file clipboard. **Ctrl/Cmd+V** pastes it into the selected folder, or beside the selected file. The same commands are available from the tree context menu; the clipboard remains available for repeated pastes during the current application session. Paste first saves dirty open files inside the copied source so the duplicate matches the visible editor content. A dirty Draw.io SVG must finish its own explicit save before copying because its editor has an independent save protocol.
+- Pasting into the source's parent creates a sibling copy. Names use a descriptive suffix before a file extension: `Projects` becomes `Projects copy`, then `Projects copy 2`; `report.md` becomes `report copy.md`. Draw.io copies retain the complete `.drawio.svg` suffix.
+- Links are rewritten only within copied Markdown. A link to another copied item follows that new counterpart; a relative link leaving the copied tree is recalculated so it still reaches the original external vault item. Root-relative Markdown links and wiki links receive the copied path when their target is inside the copied tree. External URLs, fragments, fenced code, source files, and incoming links elsewhere in the vault remain unchanged.
+- Pasting a copied folder onto itself or any descendant shows an **Operation refused** dialog explaining that the user should select its parent folder to create a sibling copy. No filesystem write occurs.
 - Folder expansion is explicit user-owned state. The exact expanded-directory set is stored in the vault session and restored on startup; restoring or switching tabs never opens additional ancestors. The active-file highlight follows tab changes when that file is visible, without rewriting the folder configuration.
 
 ### 3.4 Multi-Select and Merge
@@ -154,6 +159,8 @@ Each theme defines these properties (with theme-specific colors):
 | Open in New Tab | Markdown or CodeMirror-supported source file | Opens file in a new tab (doesn't replace current file tab) |
 | Merge Notes | File (2+ candidate notes) | Appends checked source notes to the active/context-selected master with an interactive checkbox list. Disabled when fewer than 2 candidates are available. |
 | Preview PDF | Markdown file | Opens a live right-pane preview using the frontmatter-driven layout; **Generate PDF** runs the detected local browser engine export. |
+| Copy | File or Directory | Places the selected item on Figaro's internal file clipboard without changing it. |
+| Paste | File, Directory, or vault root (after Copy) | Saves dirty source tabs, then copies into a selected directory, beside a selected file, or into the vault root. Collisions receive a `copy` suffix and never overwrite existing content; copied Markdown links preserve their resolved targets. |
 | New Draw.io Diagram | File, folder, or vault root | Creates an editable .drawio.svg diagram in the selected location. |
 | Reveal in File Explorer | File or Directory | Opens the containing folder with the native Linux, macOS, or Windows file manager |
 | New Note | File or Directory | Prompts for name, creates `.md` file in that directory, opens it |
@@ -398,6 +405,10 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Returns: the entered string, or null if cancelled/dismissed.
 - Enter submits; Escape cancels.
 
+### 11.3 Message Dialog
+- Modal overlay with a title, plain-text message, and one OK button.
+- Used for acknowledgement-only failures such as refusing a recursive folder copy; Enter, Escape, overlay click, or OK dismisses it.
+
 ---
 
 ## 12. State & Data Flow
@@ -473,6 +484,8 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 | Drag file/folder | File tree | Move to target directory |
 | Right-click | File tree | Context menu |
 | Ctrl/Cmd+Click file | File tree | Multi-select for merging |
+| Ctrl/Cmd+C | Focused file tree | Copy selected file/folder to the internal clipboard |
+| Ctrl/Cmd+V | Focused file tree | Paste into selected folder, beside selected file, or at vault root |
 | Middle-click tab | Tab bar | Close tab |
 | Right-click tab | Tab bar | Pin/Unpin tab |
 | Right-click editor | Editor | Context menu (Cut, Copy, Paste, Select All, Preview PDF) |

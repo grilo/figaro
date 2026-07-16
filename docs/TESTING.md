@@ -102,6 +102,27 @@ Use the Welcome note as the minimum native regression: put the cursor on line
 return to line 36. Also navigate across each newly added widget from above and
 below, and verify mouse placement and drag selection around it.
 
+## File-tree copy regressions
+
+Internal file-tree copy/paste is non-destructive: collisions must allocate
+`copy` / `copy 2` sibling names, dirty source tabs must save before the backend
+reads them, copied Markdown links must preserve their resolved vault targets,
+and folder copies must never target the source folder or any descendant.
+Changes to tree actions, tab persistence, link rewriting, vault copy helpers,
+path validation, or duplicate naming must retain Go coverage for the filesystem
+and link results plus frontend coverage for commands and refusal dialogs.
+
+Run the focused contract before the full suites:
+
+```bash
+go test . -run 'TestCopyPath'
+go test ./internal/links -run 'Copy'
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/fileTree.test.js \
+  tests/frontend/unit/dialogs.test.js \
+  tests/frontend/unit/tabManager.test.js
+```
+
 ## Generating browser assets
 
 Generated browser dependencies are ignored under `frontend/vendored/`; the

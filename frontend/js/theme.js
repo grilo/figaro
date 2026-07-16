@@ -156,12 +156,81 @@ export async function initSettingsPanel(root = document) {
         initFontSize(root);
         initTextWidth(root);
         initAutoSave(root);
+        await initPDFBrowserSetting(root);
 
         await initFontPicker(root);
         initCodeFontPicker(root);
     } catch (e) {
         log.error('[settings] initSettingsPanel crashed:', e);
     }
+}
+
+function browserPathLabel(path) {
+    const normalized = String(path || '').replaceAll('\\', '/');
+    return normalized.split('/').filter(Boolean).pop() || normalized;
+}
+
+/** Bind the optional PDF-browser override to the native executable chooser. */
+export async function initPDFBrowserSetting(root = document) {
+    const status = findIn(root, '#pdf-browser-status');
+    const choose = findIn(root, '#pdf-browser-choose');
+    const clear = findIn(root, '#pdf-browser-clear');
+    if (!status || !choose || !clear) return;
+
+    const render = (path = '', error = '') => {
+        const configured = Boolean(path);
+        status.dataset.kind = error ? 'error' : configured ? 'configured' : 'automatic';
+        status.textContent = error || (configured
+            ? `Using ${browserPathLabel(path)}. Automatic discovery remains available if it moves.`
+            : 'Automatic detection (Chrome, Chromium, Edge, or Brave).');
+        status.title = path || '';
+        clear.hidden = !configured;
+    };
+
+    try {
+        const result = await window.pywebview.api.pdf_browser_load();
+        if (!isActivePanel(root)) return;
+        render(result?.path || '', result?.success === false ? result.error : '');
+    } catch (error) {
+        if (!isActivePanel(root)) return;
+        render('', error?.message || 'Could not load the browser preference.');
+    }
+
+    choose.addEventListener('click', async () => {
+        choose.disabled = true;
+        status.dataset.kind = 'checking';
+        status.textContent = 'Checking the selected browser…';
+        try {
+            const result = await window.pywebview.api.pdf_browser_choose();
+            if (!isActivePanel(root)) return;
+            if (result?.cancelled) {
+                const current = await window.pywebview.api.pdf_browser_load();
+                if (isActivePanel(root)) render(current?.path || '');
+            } else if (result?.success === false) {
+                const current = await window.pywebview.api.pdf_browser_load();
+                if (isActivePanel(root)) render(current?.path || '', result.error || 'The selected browser is not usable.');
+            } else {
+                render(result?.path || '');
+            }
+        } catch (error) {
+            if (isActivePanel(root)) render('', error?.message || 'Could not choose the browser executable.');
+        } finally {
+            if (isActivePanel(root)) choose.disabled = false;
+        }
+    });
+
+    clear.addEventListener('click', async () => {
+        clear.disabled = true;
+        try {
+            const result = await window.pywebview.api.pdf_browser_clear();
+            if (!isActivePanel(root)) return;
+            render('', result?.success === false ? (result.error || 'Could not restore automatic detection.') : '');
+        } catch (error) {
+            if (isActivePanel(root)) render('', error?.message || 'Could not restore automatic detection.');
+        } finally {
+            if (isActivePanel(root)) clear.disabled = false;
+        }
+    });
 }
 
 function initCheatsheet() {

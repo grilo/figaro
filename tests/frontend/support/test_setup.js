@@ -18,6 +18,8 @@ window.pywebview = {
         delete_path: jest.fn().mockResolvedValue({ success: true }),
         rename_path: jest.fn().mockResolvedValue({ success: true }),
         move_path: jest.fn().mockResolvedValue({ success: true }),
+        copy_path: jest.fn().mockResolvedValue({ success: true, path: '' }),
+        copy_external_paths: jest.fn().mockResolvedValue({ success: true, paths: [] }),
         search_files: jest.fn().mockResolvedValue([]),
         search_backlinks: jest.fn().mockResolvedValue([]),
         get_commit_count: jest.fn().mockResolvedValue(0),
@@ -45,6 +47,9 @@ window.pywebview = {
         get_tomorrow_link: jest.fn().mockReturnValue("2024-01-16"),
         get_yesterday_link: jest.fn().mockReturnValue("2024-01-14"),
         export_pdf: jest.fn().mockResolvedValue({ success: true, path: '/tmp/document.pdf', engine: 'chromium' }),
+        pdf_browser_load: jest.fn().mockResolvedValue({ success: true, path: '' }),
+        pdf_browser_choose: jest.fn().mockResolvedValue({ success: false, cancelled: true }),
+        pdf_browser_clear: jest.fn().mockResolvedValue({ success: true }),
     }
 };
 
@@ -84,8 +89,8 @@ function createMockDOM() {
                     <div id="tab-panels" class="tab-panels"></div>
                     <div id="editor-container"></div>
                 </main>
-                <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer"></div>
                 <aside id="right-sidebar" class="right-sidebar collapsed">
+                    <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
                     <div class="right-sidebar-header">
                         <span id="right-sidebar-title" class="right-sidebar-title">Calendar</span>
                         <button id="right-sidebar-close" class="right-sidebar-close">×</button>

@@ -1,4 +1,4 @@
-import { newNoteDialog, pdfExportErrorDialog } from '../frontend/js/dialogs.js';
+import { messageDialog, newNoteDialog, pdfExportErrorDialog } from '../frontend/js/dialogs.js';
 
 describe('New note dialog', () => {
     beforeEach(() => {
@@ -55,6 +55,23 @@ describe('New note dialog', () => {
         await expect(second).resolves.toBeNull();
     });
 
+    test('shows an operation-refused message with one acknowledgement action', async () => {
+        const result = messageDialog(
+            'Operation refused',
+            'A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead.'
+        );
+        const overlay = document.querySelector('.custom-modal-overlay');
+
+        expect(overlay.textContent).toContain('Operation refused');
+        expect(overlay.textContent).toContain('recursive copy');
+        expect(overlay.textContent).toContain('Select its parent folder');
+        expect(overlay.querySelector('.custom-modal-btn-cancel')).toBeNull();
+        overlay.querySelector('.custom-modal-btn-confirm').click();
+
+        await expect(result).resolves.toBeUndefined();
+        expect(document.querySelector('.custom-modal-overlay')).toBeNull();
+    });
+
     test('explains a missing browser engine with an in-app PDF export dialog', async () => {
         const result = pdfExportErrorDialog(new Error('No browser engine was found for interactive PDF export.'));
         const dialog = document.querySelector('.pdf-export-error-modal');
@@ -66,6 +83,21 @@ describe('New note dialog', () => {
 
         dialog.querySelector('.custom-modal-btn-confirm').click();
         await expect(result).resolves.toBeUndefined();
+        expect(document.querySelector('.custom-modal-overlay')).toBeNull();
+    });
+
+    test('offers the native browser chooser directly after automatic discovery fails', async () => {
+        window.pywebview.api.pdf_browser_choose.mockResolvedValueOnce({
+            success: true,
+            path: 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+            engine: 'edge',
+        });
+        const result = pdfExportErrorDialog(new Error('No browser engine was found for interactive PDF export.'));
+        const dialog = document.querySelector('.pdf-export-error-modal');
+
+        dialog.querySelector('.pdf-browser-choose-btn').click();
+        await expect(result).resolves.toBeUndefined();
+        expect(window.pywebview.api.pdf_browser_choose).toHaveBeenCalledTimes(1);
         expect(document.querySelector('.custom-modal-overlay')).toBeNull();
     });
 

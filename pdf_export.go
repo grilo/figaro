@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/url"
 	"os"
 	pathpkg "path"
@@ -122,7 +123,20 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 		ctx = context.Background()
 	}
 
-	browser, err := pdfexport.FindBrowser(ctx)
+	var browser pdfexport.Browser
+	var err error
+	if configuredPath := a.configuredPDFBrowserPath(); configuredPath != "" {
+		browser, err = pdfexport.BrowserForExecutable(ctx, configuredPath)
+		if err != nil {
+			// A browser may have been uninstalled or moved since it was chosen.
+			// Keep automatic discovery available, but retain the exact rejection
+			// in the application log so Windows installation layouts are visible.
+			log.Printf("[pdf-browser] Configured executable %q is unusable; falling back to automatic discovery: %v", configuredPath, err)
+		}
+	}
+	if browser.Executable == "" {
+		browser, err = pdfexport.FindBrowser(ctx)
+	}
 	if err != nil {
 		return &PDFExportResult{Success: false, Error: err.Error()}, nil
 	}

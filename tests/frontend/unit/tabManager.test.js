@@ -78,6 +78,7 @@ import {
     movedTabPath,
     replaceActiveFileTab,
     updateTabsForMovedPath,
+    prepareTabsForPathCopy,
     prepareTabsForPathMove,
     refreshTabsForUpdatedLinks,
     closeTabsForDeletedPath,
@@ -202,6 +203,15 @@ describe('Tab Manager', () => {
             expect(secondPanel).not.toBe(firstPanel);
             expect(initSettingsPanel).toHaveBeenCalledTimes(2);
             expect(initSettingsPanel).toHaveBeenLastCalledWith(secondPanel);
+        });
+
+        test('renders a browser executable fallback in Settings', () => {
+            openTab('settings', 'Settings', 'settings');
+            const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
+
+            expect(panel.querySelector('#pdf-browser-status')).not.toBeNull();
+            expect(panel.querySelector('#pdf-browser-choose').textContent).toContain('Choose');
+            expect(panel.querySelector('#pdf-browser-clear').textContent).toContain('automatic');
         });
 
         test('does not let an older read overwrite a newer load of the same tab', async () => {
@@ -421,6 +431,35 @@ describe('Tab Manager', () => {
                 error: 'Save "Diagram" before moving it',
             });
             expect(window.pywebview.api.save_file).not.toHaveBeenCalled();
+        });
+
+        test('requires an explicitly saved Draw.io editor before copying it', async () => {
+            mockState.openTabs = [{ id: 'diagrams/design.drawio.svg', title: 'Design', type: 'drawio', path: 'diagrams/design.drawio.svg', dirty: true }];
+            mockState.activeTabId = 'diagrams/design.drawio.svg';
+
+            await expect(prepareTabsForPathCopy('diagrams')).resolves.toEqual({
+                success: false,
+                error: 'Save "Design" before copying it',
+            });
+            expect(window.pywebview.api.save_file).not.toHaveBeenCalled();
+        });
+
+        test('saves dirty source content before copying without saving unrelated dirty notes', async () => {
+            mockState.openTabs = [
+                { id: 'Projects/plan.md', title: 'Plan', type: 'file', path: 'Projects/plan.md', dirty: true, mtime: 10 },
+                { id: 'outside.md', title: 'Outside', type: 'file', path: 'outside.md', dirty: true, mtime: 20, _content: 'unrelated dirty content' },
+            ];
+            mockState.activeTabId = 'Projects/plan.md';
+            getEditorContent.mockReturnValueOnce('latest visible plan');
+
+            await expect(prepareTabsForPathCopy('Projects')).resolves.toEqual({ success: true });
+
+            expect(window.pywebview.api.save_file).toHaveBeenCalledTimes(1);
+            expect(window.pywebview.api.save_file).toHaveBeenCalledWith(
+                'Projects/plan.md', 'latest visible plan', 10
+            );
+            expect(mockState.openTabs[0].dirty).toBe(false);
+            expect(mockState.openTabs[1].dirty).toBe(true);
         });
 
         test('does not move a Draw.io tab while its SVG save is still in flight', async () => {

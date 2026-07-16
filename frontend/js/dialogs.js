@@ -93,6 +93,56 @@ export function confirmDialog(title, message, isDanger = false, html = false, op
 }
 
 /**
+ * Show an informational dialog with one acknowledgement button.
+ * @param {string} title - Dialog title
+ * @param {string} message - Plain-text dialog message
+ * @returns {Promise<void>} Resolves when dismissed
+ */
+export function messageDialog(title, message) {
+    return new Promise((resolve) => {
+        closeActiveModal();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'custom-modal-overlay';
+        overlay.innerHTML = `
+            <div class="custom-modal">
+                <h3>${escapeHtml(title)}</h3>
+                <div class="custom-modal-body">${escapeHtml(message)}</div>
+                <div class="custom-modal-buttons">
+                    <button class="custom-modal-btn custom-modal-btn-confirm">OK</button>
+                </div>
+            </div>
+        `;
+
+        const confirmBtn = overlay.querySelector('.custom-modal-btn-confirm');
+        const cleanup = () => {
+            overlay.remove();
+            if (activeModal === overlay) activeModal = null;
+            if (activeModalDismiss === dismiss) activeModalDismiss = null;
+            document.removeEventListener('keydown', handleKeydown);
+        };
+        const dismiss = () => {
+            cleanup();
+            resolve();
+        };
+        const handleKeydown = (event) => {
+            if (event.key === 'Escape' || event.key === 'Enter') dismiss();
+        };
+
+        confirmBtn.addEventListener('click', dismiss);
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) dismiss();
+        });
+
+        document.body.appendChild(overlay);
+        activeModal = overlay;
+        activeModalDismiss = dismiss;
+        document.addEventListener('keydown', handleKeydown);
+        setTimeout(() => confirmBtn.focus(), 0);
+    });
+}
+
+/**
  * Show prompt dialog
  * @param {string} title - Dialog title
  * @param {string} message - Dialog message
@@ -332,16 +382,18 @@ export function pdfExportErrorDialog(error, options = {}) {
                     <p class="pdf-export-error-detail">Saved at ${escapeHtml(exportedPath)}. Open it from the file tree or your file manager.</p>` : noBrowser ? `
                     <div class="pdf-export-error-guidance">
                         <strong>What to do</strong>
-                        <span>Install or expose Chrome, Chromium, Ungoogled Chromium, or Edge, then try Export to PDF again.</span>
+                        <span class="pdf-browser-recovery-message">Install or expose Chrome, Chromium, Ungoogled Chromium, or Edge, or choose the installed executable here or in Settings.</span>
                     </div>` : `
                     <p class="pdf-export-error-detail">${escapeHtml(detail)}</p>`}
                 <div class="custom-modal-buttons">
+                    ${noBrowser ? '<button type="button" class="custom-modal-btn custom-modal-btn-cancel pdf-browser-choose-btn">Choose browser…</button>' : ''}
                     <button type="button" class="custom-modal-btn custom-modal-btn-confirm">Got it</button>
                 </div>
             </section>
         `;
 
         const closeButton = overlay.querySelector('.custom-modal-btn-confirm');
+        const chooseButton = overlay.querySelector('.pdf-browser-choose-btn');
         const cleanup = () => {
             overlay.remove();
             if (activeModal === overlay) activeModal = null;
@@ -359,6 +411,29 @@ export function pdfExportErrorDialog(error, options = {}) {
         };
 
         closeButton.addEventListener('click', dismiss);
+        chooseButton?.addEventListener('click', async () => {
+            const recovery = overlay.querySelector('.pdf-browser-recovery-message');
+            chooseButton.disabled = true;
+            chooseButton.textContent = 'Checking…';
+            try {
+                const result = await window.pywebview.api.pdf_browser_choose();
+                if (result?.success) {
+                    cleanup();
+                    resolve();
+                    return;
+                }
+                if (!result?.cancelled && recovery) {
+                    recovery.textContent = result?.error || 'The selected executable cannot create PDFs.';
+                }
+            } catch (chooseError) {
+                if (recovery) recovery.textContent = chooseError?.message || 'Could not open the browser chooser.';
+            } finally {
+                if (chooseButton.isConnected) {
+                    chooseButton.disabled = false;
+                    chooseButton.textContent = 'Choose browser…';
+                }
+            }
+        });
         overlay.addEventListener('click', (event) => {
             if (event.target === overlay) dismiss();
         });

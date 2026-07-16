@@ -33,3 +33,30 @@ func TestRewriteMarkdownLinksForMovePreservesMovedFolderRelativeLinks(t *testing
 		t.Fatalf("rewritten relative links = %q, want %q", got, want)
 	}
 }
+
+func TestRewriteMarkdownLinksForCopyPreservesInternalAndExternalTargets(t *testing.T) {
+	fence := "```"
+	got := RewriteMarkdownLinksForCopy(
+		"[Nearby](./guide.md)\n"+
+			"[Outside](../outside.md#section)\n"+
+			"[Vault internal](docs/guide.md)\n"+
+			"[Root internal](/docs/guide.md)\n"+
+			"[[docs/guide|Copied guide]]\n"+
+			"[Web](https://example.com/docs/guide.md)\n"+
+			fence+"md\n[Code](../outside.md)\n"+fence+"\n",
+		"docs/readme.md",
+		"archive/docs/readme.md",
+		"docs",
+		"archive/docs",
+	)
+	want := "[Nearby](./guide.md)\n" +
+		"[Outside](../../outside.md#section)\n" +
+		"[Vault internal](archive/docs/guide.md)\n" +
+		"[Root internal](/archive/docs/guide.md)\n" +
+		"[[archive/docs/guide|Copied guide]]\n" +
+		"[Web](https://example.com/docs/guide.md)\n" +
+		fence + "md\n[Code](../outside.md)\n" + fence + "\n"
+	if got != want {
+		t.Fatalf("copied links = %q, want %q", got, want)
+	}
+}

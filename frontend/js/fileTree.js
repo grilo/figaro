@@ -6,9 +6,9 @@ import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
 import { saveSession } from './session.js';
 import { openTab, handleFileOpen } from './app.js';
-import { closeTabsForDeletedPath, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
+import { closeTabsForDeletedPath, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
-import { confirmDialog, newNoteDialog, promptDialog } from './dialogs.js';
+import { confirmDialog, messageDialog, newNoteDialog, promptDialog } from './dialogs.js';
 import { isDrawioDiagramPath } from './drawio.js';
 import { isEditableCodeMirrorFile } from './languageSupport.js';
 
@@ -17,6 +17,10 @@ let dragSourceNode = null;
 let contextMenu = null;
 let fileTreeRequestId = 0;
 let scheduledTreeRefresh = null;
+let nativeFileDropInitialized = false;
+let externalCopyInProgress = false;
+let internalClipboard = null;
+let internalCopyInProgress = false;
 
 const contextMenuViewportMargin = 8;
 
@@ -59,6 +63,17 @@ const fileTreeContextMenuActions = [
         action: 'preview-pdf',
         label: 'Preview PDF',
         icon: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/>',
+    },
+    { separator: true },
+    {
+        action: 'copy',
+        label: 'Copy',
+        icon: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+    },
+    {
+        action: 'paste',
+        label: 'Paste',
+        icon: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>',
     },
     { separator: true },
     {
@@ -110,7 +125,7 @@ function fileTreeContextMenuItemHTML({ action, label, icon, danger }, enabled) {
  * The file tree always presents the same action inventory. Context determines
  * which entries are enabled, rather than making the menu jump between shapes.
  */
-export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selectedPaths = [], openPath = '' } = {}) {
+export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selectedPaths = [], openPath = '', clipboardPath = '' } = {}) {
     const normalizedType = type === 'file' || type === 'directory' ? type : 'root';
     const targetPath = String(path || '');
     const isFile = normalizedType === 'file';
@@ -123,6 +138,8 @@ export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selecte
         'open-new-tab': isOpenableFile,
         'merge-notes': canMerge,
         'preview-pdf': isMarkdownFile,
+        copy: isTarget,
+        paste: Boolean(clipboardPath),
         'new-file': true,
         'new-drawio': true,
         'new-folder': true,
@@ -144,6 +161,7 @@ export function initFileTree() {
     renderFileTree();
     initFileTreeEvents();
     initContextMenu();
+    initNativeFileDrops();
 
     // Keep the active-file highlight in sync without changing folder state.
     // expandedDirs belongs to the user: restoring or switching tabs must not
@@ -274,11 +292,23 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
 function initFileTreeEvents() {
     const container = document.getElementById('file-tree');
     if (!container) return;
+    container.tabIndex = 0;
+    if (!container.getAttribute('aria-label')) container.setAttribute('aria-label', 'Vault file tree');
     
     // Click delegation for nodes
     container.addEventListener('click', (e) => {
         const node = e.target.closest('.file-tree-node');
-        if (!node) return;
+        if (!node) {
+            if (e.target.closest('.file-tree-root-dropzone')) {
+                container.focus({ preventScroll: true });
+                setState('selectedTreePath', null);
+                setState('selectedFilePaths', []);
+                saveSession();
+                renderFileTree();
+            }
+            return;
+        }
+        container.focus({ preventScroll: true });
         
         const item = node.closest('.file-tree-item');
         if (!item) return;
@@ -351,6 +381,7 @@ function initFileTreeEvents() {
     
     // Context menu (right-click)
     container.addEventListener('contextmenu', handleContextMenu);
+    container.addEventListener('keydown', handleFileTreeKeydown);
 }
 
 /**
@@ -395,6 +426,112 @@ export function findTreeItem(items, path) {
     return null;
 }
 
+/** Clear the in-app file clipboard, for example when switching vaults. */
+export function clearFileTreeClipboard() {
+    internalClipboard = null;
+}
+
+/** Store one vault item for non-destructive internal copy/paste. */
+export function copyInternalPath(path, type) {
+    const normalizedPath = String(path || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+    if (!normalizedPath || (type !== 'file' && type !== 'directory')) return false;
+    internalClipboard = { path: normalizedPath, type };
+    statusBar.set(`Copied “${normalizedPath.split('/').pop()}”`);
+    return true;
+}
+
+/** Resolve where Paste writes for a file-tree context target. */
+export function internalPasteTargetDirectory(path, type) {
+    const normalizedPath = String(path || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+    if (type === 'directory') return normalizedPath;
+    if (type === 'file') {
+        const separator = normalizedPath.lastIndexOf('/');
+        return separator >= 0 ? normalizedPath.slice(0, separator) : '';
+    }
+    return '';
+}
+
+/** A folder copy cannot target that folder or any directory beneath it. */
+export function isInvalidCopyDestination(sourcePath, targetDirectory) {
+    const source = String(sourcePath || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+    const target = String(targetDirectory || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+    return Boolean(source) && (target === source || target.startsWith(source + '/'));
+}
+
+async function showRecursiveCopyRefusal() {
+    await messageDialog(
+        'Operation refused',
+        'A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead.'
+    );
+}
+
+/** Paste the in-app clipboard into the selected folder (or a file's parent). */
+export async function pasteInternalClipboard(targetPath = '', targetType = 'root') {
+    if (!internalClipboard || internalCopyInProgress) return false;
+    const source = { ...internalClipboard };
+    const targetDirectory = internalPasteTargetDirectory(targetPath, targetType);
+    if (source.type === 'directory' && isInvalidCopyDestination(source.path, targetDirectory)) {
+        await showRecursiveCopyRefusal();
+        return false;
+    }
+
+    internalCopyInProgress = true;
+    try {
+        statusBar.set(`Saving “${source.path.split('/').pop()}” before copying…`);
+        const saveState = await prepareTabsForPathCopy(source.path);
+        if (!saveState.success) {
+            await messageDialog('Copy failed', saveState.error || 'The source could not be saved before copying.');
+            statusBar.set('Copy failed');
+            return false;
+        }
+        statusBar.set(`Copying “${source.path.split('/').pop()}”…`);
+        const result = await window.pywebview.api.copy_path(source.path, targetDirectory);
+        if (!result?.success) {
+            if (String(result?.error || '').toLowerCase().includes('recursive copy')) {
+                await showRecursiveCopyRefusal();
+            } else {
+                await messageDialog('Copy failed', result?.error || 'The item could not be copied.');
+            }
+            statusBar.set('Copy failed');
+            return false;
+        }
+        if (targetDirectory) {
+            const expandedDirs = new Set(getState('expandedDirs'));
+            expandedDirs.add(targetDirectory);
+            setState('expandedDirs', expandedDirs);
+            saveSession();
+        }
+        if (result.path) setState('selectedTreePath', result.path);
+        await refreshFileTree();
+        const copiedName = String(result.path || source.path).replaceAll('\\', '/').split('/').pop();
+        statusBar.set(`Created “${copiedName}”`);
+        setTimeout(() => statusBar.set('Ready'), 2500);
+        return true;
+    } catch (error) {
+        log.error('Internal copy failed:', error);
+        await messageDialog('Copy failed', error?.message || 'The item could not be copied.');
+        statusBar.set('Copy failed');
+        return false;
+    } finally {
+        internalCopyInProgress = false;
+    }
+}
+
+function handleFileTreeKeydown(event) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+    const key = event.key.toLowerCase();
+    const treeData = getState('fileTreeData') || [];
+    const selectedPath = getState('selectedTreePath');
+    const selectedItem = selectedPath ? findTreeItem(treeData, selectedPath) : null;
+    if (key === 'c' && selectedItem) {
+        event.preventDefault();
+        copyInternalPath(selectedItem.path, selectedItem.type);
+    } else if (key === 'v' && internalClipboard) {
+        event.preventDefault();
+        pasteInternalClipboard(selectedItem?.path || '', selectedItem?.type || 'root').catch(() => {});
+    }
+}
+
 /**
  * Drag and drop handlers
  */
@@ -436,7 +573,8 @@ export function isInvalidMoveDestination(sourcePath, targetDir) {
 
 function handleDragOver(e) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    const externalFiles = Array.from(e.dataTransfer?.types || []).includes('Files') && !dragSourceNode;
+    e.dataTransfer.dropEffect = externalFiles ? 'copy' : 'move';
     
     const node = e.target.closest('.file-tree-node');
     if (!node) return;
@@ -462,6 +600,12 @@ function handleDragLeave(e) {
 
 async function handleDrop(e) {
     e.preventDefault();
+    // Wails resolves native absolute paths at the window level. Do not feed an
+    // Explorer/Nautilus/Finder drop through the internal vault move handler.
+    if (!dragSourceNode || Array.from(e.dataTransfer?.types || []).includes('Files')) {
+        document.querySelectorAll('.file-tree-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+        return;
+    }
     
     const node = e.target.closest('.file-tree-node');
     if (!node) return;
@@ -514,6 +658,85 @@ async function handleDrop(e) {
     }
 }
 
+/** Resolve the vault folder represented by an external drop target. */
+export function externalDropTargetDirectory(element) {
+    const tree = element?.closest?.('#file-tree');
+    if (!tree) return null;
+    const item = element.closest('.file-tree-item');
+    if (!item) return '';
+    const path = String(item.dataset.path || '');
+    if (item.dataset.type === 'directory') return path;
+    const separator = path.lastIndexOf('/');
+    return separator >= 0 ? path.slice(0, separator) : '';
+}
+
+/** Copy absolute native paths into the folder under the drop coordinates. */
+export async function copyExternalDrop(paths, targetDirectory) {
+    if (externalCopyInProgress || !Array.isArray(paths) || paths.length === 0 || targetDirectory === null) return false;
+    externalCopyInProgress = true;
+    statusBar.set(`Copying ${paths.length} dropped ${paths.length === 1 ? 'item' : 'items'}…`);
+    try {
+        let result = await window.pywebview.api.copy_external_paths(paths, targetDirectory, false);
+        const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
+        if (!result?.success && conflicts.length > 0) {
+            const names = conflicts.map(path => String(path).replaceAll('\\', '/').split('/').pop()).filter(Boolean);
+            const visibleNames = names.slice(0, 6).map(name => `“${name}”`).join(', ');
+            const remaining = names.length > 6 ? ` and ${names.length - 6} more` : '';
+            const noun = conflicts.length === 1 ? 'item already exists' : 'items already exist';
+            const confirmed = await confirmDialog(
+                conflicts.length === 1 ? 'Replace existing item?' : 'Replace existing items?',
+                `${conflicts.length} ${noun} in the destination: ${visibleNames}${remaining}. Replace ${conflicts.length === 1 ? 'it' : 'them'} with the dropped ${conflicts.length === 1 ? 'item' : 'items'}?`,
+                true,
+                false,
+                { confirmLabel: conflicts.length === 1 ? 'Replace' : 'Replace all' }
+            );
+            if (!confirmed) {
+                statusBar.set('Copy cancelled');
+                setTimeout(() => statusBar.set('Ready'), 1800);
+                return false;
+            }
+            statusBar.set(`Replacing ${conflicts.length} existing ${conflicts.length === 1 ? 'item' : 'items'}…`);
+            result = await window.pywebview.api.copy_external_paths(paths, targetDirectory, true);
+        }
+        if (!result?.success) {
+            alert(result?.error || 'Could not copy the dropped items');
+            statusBar.set('Copy failed');
+            return false;
+        }
+        if (targetDirectory) {
+            const expandedDirs = new Set(getState('expandedDirs'));
+            expandedDirs.add(targetDirectory);
+            setState('expandedDirs', expandedDirs);
+            saveSession();
+        }
+        await refreshFileTree();
+        const copied = Array.isArray(result.paths) ? result.paths.length : paths.length;
+        statusBar.set(`Copied ${copied} ${copied === 1 ? 'item' : 'items'} into the vault`);
+        setTimeout(() => statusBar.set('Ready'), 2500);
+        return true;
+    } catch (error) {
+        log.error('External file copy failed:', error);
+        alert(error?.message || 'Could not copy the dropped items');
+        statusBar.set('Copy failed');
+        return false;
+    } finally {
+        externalCopyInProgress = false;
+    }
+}
+
+/** Register Wails' cross-platform native path drop callback once. */
+export function initNativeFileDrops(runtime = window.runtime) {
+    if (nativeFileDropInitialized || typeof runtime?.OnFileDrop !== 'function') return false;
+    runtime.OnFileDrop((x, y, paths) => {
+        const element = document.elementFromPoint(x, y);
+        const targetDirectory = externalDropTargetDirectory(element);
+        if (targetDirectory === null) return;
+        copyExternalDrop(paths, targetDirectory).catch(() => {});
+    }, true);
+    nativeFileDropInitialized = true;
+    return true;
+}
+
 /**
  * Context menu handling
  */
@@ -529,6 +752,8 @@ function initContextMenu() {
 
 function handleContextMenu(e) {
     e.preventDefault();
+
+    e.currentTarget?.focus?.({ preventScroll: true });
 
     const node = e.target.closest('.file-tree-node');
     const item = node?.closest('.file-tree-item');
@@ -559,6 +784,7 @@ function handleContextMenu(e) {
         path,
         selectedPaths: getState('selectedFilePaths') || [],
         openPath: getState('selectedFilePath'),
+        clipboardPath: internalClipboard?.path || '',
     });
     document.body.appendChild(contextMenu);
     positionContextMenu(contextMenu, e.clientX, e.clientY);
@@ -582,6 +808,14 @@ function handleContextMenu(e) {
                     openTab(targetPath, targetPath.split('/').pop(), isDrawioDiagramPath(targetPath) ? 'drawio' : 'file', { path: targetPath }, true);
                 }
             }
+            break;
+
+        case 'copy':
+            copyInternalPath(getState('contextTargetPath'), getState('contextTargetType'));
+            break;
+
+        case 'paste':
+            await pasteInternalClipboard(getState('contextTargetPath'), getState('contextTargetType'));
             break;
 
         case 'new-file':

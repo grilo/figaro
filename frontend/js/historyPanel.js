@@ -300,16 +300,18 @@ export function closeHistoryPanel() {
     window.dispatchEvent(new Event('resize'));
 }
 
-function initRightSidebarResizer() {
+export function initRightSidebarResizer() {
     const resizer = document.getElementById('right-sidebar-resizer');
     const sidebar = document.getElementById('right-sidebar');
-    if (!resizer || !sidebar) return;
+    if (!resizer || !sidebar || resizer.dataset.bound === 'true') return;
+    resizer.dataset.bound = 'true';
 
     let startX, startWidth;
 
     resizer.addEventListener('mousedown', (e) => {
         e.preventDefault();
         sidebar.classList.add('open');
+        resizer.classList.add('is-dragging');
         startX = e.clientX;
         startWidth = sidebar.offsetWidth || 320;
         document.addEventListener('mousemove', onMouseMove);
@@ -330,6 +332,7 @@ function initRightSidebarResizer() {
     }
 
     function onMouseUp() {
+        resizer.classList.remove('is-dragging');
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
         document.body.style.cursor = '';

@@ -35,6 +35,8 @@ figaro combines the durability of plain Markdown with a desktop workspace that h
 
 Every vault is an ordinary directory. Markdown remains Markdown, images remain image files, code remains code, and Draw.io diagrams are saved as editable `.drawio.svg` files. figaro stores its own small amount of application state in `.config/` inside the vault, rather than converting your notes into a database.
 
+The file tree supports internal Copy/Paste for files and complete folders through its context menu or Ctrl/Cmd+C and Ctrl/Cmd+V while the tree is focused. Paste saves dirty source tabs first, and repeated or same-folder pastes never overwrite content: Figaro creates `Folder copy`, `Folder copy 2`, or `note copy.md`. Links inside copied Markdown are adjusted so internal links follow copied counterparts and links leaving the copied tree still reach their original vault targets; incoming links elsewhere continue to point at the source. A folder cannot be pasted into itself or one of its descendants, and the refusal dialog directs you to select its parent for a sibling copy.
+
 The default vault is `./vault`. Point figaro at another location with the `VAULT_PATH` environment variable:
 
 ~~~bash

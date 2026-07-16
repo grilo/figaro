@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -44,7 +45,7 @@ type Browser struct {
 type NoBrowserError struct{}
 
 func (NoBrowserError) Error() string {
-	return "No browser engine was found for interactive PDF export. Install or expose Chrome, Chromium (including Ungoogled Chromium), or Edge, then try again."
+	return "No browser engine was found for interactive PDF export. Install or expose Chrome, Chromium (including Ungoogled Chromium), or Edge, or choose its executable in Settings, then try again."
 }
 
 // IsNoBrowserError reports whether err is the actionable discovery failure.
@@ -67,6 +68,9 @@ type FinderOptions struct {
 	LookPath func(string) (string, error)
 	Stat     func(string) (os.FileInfo, error)
 	Probe    func(context.Context, Browser) error
+	// Trace receives each discovery decision, including paths that were not
+	// present and executables rejected by the headless capability probe.
+	Trace func(string)
 }
 
 // FindBrowser selects the first viable local browser. The order is deliberate:
@@ -79,6 +83,9 @@ func FindBrowser(ctx context.Context) (Browser, error) {
 		LookPath: exec.LookPath,
 		Stat:     os.Stat,
 		Probe:    ProbeChromiumHeadless,
+		Trace: func(message string) {
+			log.Printf("[pdf-browser] %s", message)
+		},
 	})
 }
 
@@ -100,15 +107,24 @@ func FindBrowserWith(ctx context.Context, options FinderOptions) (Browser, error
 	if options.Probe == nil {
 		options.Probe = ProbeChromiumHeadless
 	}
+	trace := func(format string, args ...interface{}) {
+		if options.Trace != nil {
+			options.Trace(fmt.Sprintf(format, args...))
+		}
+	}
 
+	trace("starting automatic discovery for %s", options.GOOS)
 	seen := make(map[string]struct{})
 	for _, candidate := range browserCandidates(options.GOOS, options.Getenv) {
-		executable, ok := resolveExecutable(candidate.path, options.LookPath, options.Stat)
-		if !ok {
+		trace("checking %s candidate %q", candidate.engine, candidate.path)
+		executable, err := resolveExecutable(candidate.path, options.LookPath, options.Stat)
+		if err != nil {
+			trace("candidate unavailable: %v", err)
 			continue
 		}
 		key := strings.ToLower(filepath.Clean(executable)) + "\x00" + strings.Join(candidate.args, "\x00")
 		if _, duplicate := seen[key]; duplicate {
+			trace("skipping duplicate executable %q", executable)
 			continue
 		}
 		seen[key] = struct{}{}
@@ -119,30 +135,93 @@ func FindBrowserWith(ctx context.Context, options FinderOptions) (Browser, error
 		}
 
 		if candidate.engine == EngineSafari {
+			trace("selected %s executable %q", browser.Engine, browser.Executable)
 			return browser, nil
 		}
+		trace("probing %s executable %q with launcher arguments %q", browser.Engine, browser.Executable, browser.Arguments)
 		if err := options.Probe(ctx, browser); err == nil {
+			trace("selected %s executable %q", browser.Engine, browser.Executable)
 			return browser, nil
+		} else {
+			trace("rejected %s executable %q: %v", browser.Engine, browser.Executable, err)
 		}
 	}
 
+	trace("automatic discovery exhausted every candidate without finding a usable browser")
 	return Browser{}, NoBrowserError{}
 }
 
-func resolveExecutable(path string, lookPath func(string) (string, error), stat func(string) (os.FileInfo, error)) (string, bool) {
+func resolveExecutable(path string, lookPath func(string) (string, error), stat func(string) (os.FileInfo, error)) (string, error) {
 	if path == "" {
-		return "", false
+		return "", errors.New("empty executable path")
 	}
 	if filepath.IsAbs(path) {
 		info, err := stat(path)
-		return path, err == nil && !info.IsDir()
+		if err != nil {
+			return "", fmt.Errorf("stat %q: %w", path, err)
+		}
+		if info.IsDir() {
+			return "", fmt.Errorf("%q is a directory", path)
+		}
+		return path, nil
 	}
 	resolved, err := lookPath(path)
 	if err != nil {
-		return "", false
+		return "", fmt.Errorf("look up %q on PATH: %w", path, err)
 	}
 	info, err := stat(resolved)
-	return resolved, err == nil && !info.IsDir()
+	if err != nil {
+		return "", fmt.Errorf("stat resolved executable %q: %w", resolved, err)
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("resolved executable %q is a directory", resolved)
+	}
+	return resolved, nil
+}
+
+// BrowserForExecutable validates a browser selected explicitly by the user.
+// The executable name is used only for the result label; capability is decided
+// by the same headless probe used during automatic discovery.
+func BrowserForExecutable(ctx context.Context, executable string) (Browser, error) {
+	trace := func(format string, args ...interface{}) {
+		log.Printf("[pdf-browser] "+format, args...)
+	}
+	trimmed := strings.TrimSpace(executable)
+	trace("checking user-selected executable %q", trimmed)
+	if trimmed == "" {
+		return Browser{}, errors.New("no browser executable was selected")
+	}
+	if !filepath.IsAbs(trimmed) {
+		return Browser{}, fmt.Errorf("browser executable must be an absolute path: %q", trimmed)
+	}
+	resolved, err := resolveExecutable(trimmed, exec.LookPath, os.Stat)
+	if err != nil {
+		trace("user-selected executable is unavailable: %v", err)
+		return Browser{}, err
+	}
+	browser := Browser{Engine: engineForExecutable(resolved), Executable: resolved}
+	if err := ProbeChromiumHeadless(ctx, browser); err != nil {
+		trace("user-selected executable %q failed the headless probe: %v", resolved, err)
+		return Browser{}, fmt.Errorf("selected browser cannot create PDFs: %w", err)
+	}
+	trace("selected configured %s executable %q", browser.Engine, browser.Executable)
+	return browser, nil
+}
+
+func engineForExecutable(executable string) Engine {
+	// Accept either separator so diagnostics and persisted Windows paths remain
+	// classifiable in cross-platform tests and support tooling.
+	name := strings.ToLower(filepath.Base(strings.ReplaceAll(executable, "\\", "/")))
+	switch {
+	case strings.Contains(name, "edge"):
+		return EngineEdge
+	case strings.Contains(name, "brave"):
+		return EngineBrave
+	case strings.Contains(name, "chromium"):
+		return EngineChromium
+	default:
+		return EngineChrome
+	}
 }
 
 func browserCandidates(goos string, getenv func(string) string) []candidate {

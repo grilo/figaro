@@ -50,6 +50,7 @@ import {
 import { exportMarkdownToPDF, renderPrintableMarkdownWithDiagrams } from '../frontend/js/pdfExport.js';
 import { saveFileSnapshot } from '../frontend/js/tabManager.js';
 import { handleFileOpen } from '../frontend/js/app.js';
+import { initRightSidebarResizer } from '../frontend/js/historyPanel.js';
 
 function waitForPreview(delay = 40) {
     return new Promise(resolve => setTimeout(resolve, delay));
@@ -333,6 +334,30 @@ describe('live PDF preview', () => {
 
         expect(render().html).toContain('color: teal');
         expect(renderPrintableMarkdownWithDiagrams).toHaveBeenCalledTimes(2);
+    });
+
+    test('keeps the PDF preview resize handle attached to the pane and changes its width on drag', async () => {
+        await openPDFPreview({ path: 'notes/report.md', title: 'report.md' });
+        const sidebar = document.getElementById('right-sidebar');
+        const resizer = document.getElementById('right-sidebar-resizer');
+        Object.defineProperty(sidebar, 'offsetWidth', { configurable: true, value: 480 });
+        initRightSidebarResizer();
+
+        expect(resizer.parentElement).toBe(sidebar);
+        expect(resizer.classList.contains('visible')).toBe(true);
+
+        resizer.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 900,
+        }));
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 800 }));
+        expect(sidebar.style.width).toBe('580px');
+        expect(sidebar.style.minWidth).toBe('580px');
+        expect(resizer.classList.contains('is-dragging')).toBe(true);
+
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        expect(resizer.classList.contains('is-dragging')).toBe(false);
     });
 
     test('renders an empty Markdown note instead of leaving the pane blank', async () => {

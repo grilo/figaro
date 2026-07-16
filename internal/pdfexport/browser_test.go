@@ -193,6 +193,62 @@ func TestFindBrowserReturnsActionableNoBrowserError(t *testing.T) {
 	}
 }
 
+func TestFindBrowserTraceExplainsMissingAndRejectedCandidates(t *testing.T) {
+	temporary := t.TempDir()
+	chromePath := filepath.Join(temporary, "chrome")
+	if err := os.WriteFile(chromePath, []byte("browser"), 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	var trace []string
+	_, err := FindBrowserWith(context.Background(), FinderOptions{
+		GOOS:   "windows",
+		Getenv: func(string) string { return "" },
+		LookPath: func(name string) (string, error) {
+			if name == "chrome.exe" {
+				return chromePath, nil
+			}
+			return "", os.ErrNotExist
+		},
+		Stat: func(path string) (os.FileInfo, error) {
+			if path == chromePath {
+				return os.Stat(path)
+			}
+			return nil, os.ErrNotExist
+		},
+		Probe: func(context.Context, Browser) error { return errors.New("headless disabled") },
+		Trace: func(message string) { trace = append(trace, message) },
+	})
+	if !IsNoBrowserError(err) {
+		t.Fatalf("expected NoBrowserError, got %v", err)
+	}
+	joined := strings.Join(trace, "\n")
+	if !containsAll(joined,
+		`starting automatic discovery for windows`,
+		`checking chrome candidate "chrome.exe"`,
+		`rejected chrome executable`,
+		`headless disabled`,
+		`checking edge candidate "msedge.exe"`,
+		`candidate unavailable`,
+		`discovery exhausted every candidate`,
+	) {
+		t.Fatalf("discovery trace omitted an actionable decision:\n%s", joined)
+	}
+}
+
+func TestEngineForUserSelectedExecutable(t *testing.T) {
+	for name, expected := range map[string]Engine{
+		`C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe`: EngineEdge,
+		"/opt/google/chrome/chrome":                                   EngineChrome,
+		"/usr/bin/chromium":                                           EngineChromium,
+		"/opt/brave.com/brave/brave-browser":                          EngineBrave,
+	} {
+		if got := engineForExecutable(name); got != expected {
+			t.Errorf("engineForExecutable(%q) = %q, want %q", name, got, expected)
+		}
+	}
+}
+
 func TestFindBrowserSupportsUngoogledChromiumFlatpak(t *testing.T) {
 	temporary := t.TempDir()
 	flatpakPath := filepath.Join(temporary, "flatpak")

@@ -70,6 +70,12 @@ func main() {
 		},
 		// Native window canvas — matches sidebar bg, blends with rounded corners
 		BackgroundColour: &options.RGBA{R: 21, G: 21, B: 21, A: 255},
+		DragAndDrop: &options.DragAndDrop{
+			// Resolve native paths from Explorer, Nautilus, and Finder. The
+			// frontend accepts drops only on the file tree and the backend copies
+			// them under the root-scoped vault filesystem.
+			EnableFileDrop: true,
+		},
 		// Bind the App struct so all exported methods become JS-callable
 		Bind: []interface{}{
 			app,
