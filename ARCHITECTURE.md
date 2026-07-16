@@ -12,8 +12,12 @@ Figaro is a Wails desktop application with three deliberately separate layers:
   history, native window integration, and browser-backed PDF export.
 - The frontend owns the workspace UI, CodeMirror editor, transient editor
   state, rendering, and accessibility behavior.
-- The vault is the source of truth for notes and files. Figaro-specific state
-  lives beneath the vault's `.config/` directory rather than in a database.
+- The vault is the source of truth for notes and files. Vault-specific settings
+  and workspace state live beneath its `.config/` directory rather than in a
+  database.
+- Display-dependent native window state is the deliberate exception: it lives
+  in the operating system's per-user local application-data directory and is
+  never written into or derived from the selected vault.
 
 The Wails asset server embeds `frontend/` at package-build time. Backend code
 may use an on-disk fallback during development, but a released application must
@@ -27,6 +31,53 @@ dedicated session record. Keeping them separate makes startup recovery
 predictable: malformed, missing, or old session data can be discarded without
 damaging user preferences. Compatibility cleanup removes legacy tab keys from
 `settings.json` rather than trying to merge two competing sources of truth.
+
+## Machine-local window state
+
+Window geometry belongs to the host, not the vault. A vault may be synced or
+opened on machines whose monitors, scaling, and window-manager conventions are
+unrelated, so `window-state.json` is a separate machine-local record with only
+four fields: schema `version` (currently `1`), normal `width`, normal `height`,
+and `maximized`. Coordinates and a minimized flag are intentionally absent.
+
+The platform locations are:
+
+| Platform | State record |
+| --- | --- |
+| Linux | `$XDG_CONFIG_HOME/figaro/window-state.json`, falling back to `$HOME/.config/figaro/window-state.json` |
+| macOS | `$HOME/Library/Application Support/figaro/window-state.json` |
+| Windows | `%LocalAppData%\figaro\window-state.json` |
+
+Linux and macOS use Go's `os.UserConfigDir`. Windows deliberately uses
+`os.UserCacheDir`, whose Windows implementation resolves to `LocalAppData`;
+`os.UserConfigDir` would select roaming AppData and could transfer display
+state to a different computer. The directory and file are requested with
+`0700` and `0600` permissions respectively on systems that implement Unix
+permission bits.
+
+The state machine preserves the last useful desktop presentation:
+
+- A normal observation replaces width and height and clears `maximized`.
+- A maximized observation sets `maximized` but retains the previous normal
+  dimensions, giving the native backend usable restore bounds.
+- A minimized, fullscreen, or transitional observation is ignored. Figaro's
+  own minimize action captures the preceding normal/maximized state first.
+- The frontend schedules an initial capture after the Wails bridge connects.
+  Native browser resize events are then debounced by 250 ms before capture so
+  edge resizing, snapping, and window-manager shortcuts are covered even when
+  they bypass the custom controls. Shutdown performs a final capture, and the
+  custom maximize action captures normal bounds before toggling.
+
+At startup, the stored normal dimensions configure the native Wails window,
+the backend centers it without restoring coordinates, and only then is the
+saved maximized state applied. The normal default is `1280 × 800`; dimensions
+below `800 × 500` are clamped to that minimum. A missing record uses the
+default without error. Malformed JSON, an unsupported schema version,
+non-positive dimensions, or a dimension above the `32768` corruption guard is
+rejected and also falls back to the default. A later valid capture rewrites the
+record. A path lookup failure disables persistence for that launch; a write
+failure is logged and may be retried by a later capture. Neither prevents
+startup or normal application use.
 
 ## Theme identity and generated assets
 

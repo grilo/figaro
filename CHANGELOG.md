@@ -23,6 +23,10 @@ All notable user-facing changes are recorded here from this point forward.
   session repair, and Linux desktop integration.
 - `ARCHITECTURE.md`, a decision-oriented reference for non-obvious subsystem
   boundaries, including the PDF preview security model and message protocol.
+- Machine-local desktop window-state persistence across Linux, macOS, and
+  Windows. Figaro restores the last normal size and maximized state while
+  deliberately centering every launch and never restoring minimized state or
+  screen coordinates.
 
 ### Changed
 

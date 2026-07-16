@@ -33,7 +33,7 @@ figaro combines the durability of plain Markdown with a desktop workspace that h
 
 ## A workspace built around plain files
 
-Every vault is an ordinary directory. Markdown remains Markdown, images remain image files, code remains code, and Draw.io diagrams are saved as editable `.drawio.svg` files. figaro stores its own small amount of application state in `.config/` inside the vault, rather than converting your notes into a database.
+Every vault is an ordinary directory. Markdown remains Markdown, images remain image files, code remains code, and Draw.io diagrams are saved as editable `.drawio.svg` files. figaro stores vault-specific settings and workspace state in `.config/` inside the vault, rather than converting your notes into a database. Display-dependent window state is kept separately in the operating system's per-user local application-data directory, so syncing or moving a vault cannot carry one computer's window geometry to another.
 
 The file tree supports internal Copy/Paste for files and complete folders through its context menu or Ctrl/Cmd+C and Ctrl/Cmd+V while the tree is focused. Paste saves dirty source tabs first, and repeated or same-folder pastes never overwrite content: Figaro creates `Folder copy`, `Folder copy 2`, or `note copy.md`. Links inside copied Markdown are adjusted so internal links follow copied counterparts and links leaving the copied tree still reach their original vault targets; incoming links elsewhere continue to point at the source. A folder cannot be pasted into itself or one of its descendants, and the refusal dialog directs you to select its parent for a sibling copy.
 
@@ -44,6 +44,18 @@ VAULT_PATH="$HOME/Documents/notes" make dev
 ~~~
 
 On first launch, an empty vault receives a welcome note with examples and a short getting-started guide.
+
+### Desktop window state
+
+figaro remembers the window's last normal width and height and whether it was maximized. It deliberately does not remember screen coordinates: every launch is centered by the native Wails window backend, avoiding an unreachable frameless window after a monitor is disconnected or its layout changes. Minimized, fullscreen, and incomplete transition states are never restored; closing while minimized retains the last meaningful normal or maximized state.
+
+The default normal size is `1280 × 800`, and restored dimensions are clamped to the application's `800 × 500` minimum. A missing, malformed, unsupported, zero/negative, or implausibly large state record falls back to the safe default. Window state is stored outside the vault at:
+
+- Linux: `$XDG_CONFIG_HOME/figaro/window-state.json`, or `$HOME/.config/figaro/window-state.json` when `XDG_CONFIG_HOME` is unset.
+- macOS: `$HOME/Library/Application Support/figaro/window-state.json`.
+- Windows: `%LocalAppData%\figaro\window-state.json`.
+
+If the platform cannot provide or write its local application-data directory, figaro remains usable with the safe defaults but cannot persist the changes for the next launch.
 
 ### Search, planning, and history
 

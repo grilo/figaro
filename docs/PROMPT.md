@@ -111,7 +111,7 @@ Each theme defines these properties (with theme-specific colors):
 - A single root folder (created on first run if missing).
 - All file paths are normalized to forward slashes and validated to prevent escaping the vault root.
 - **Dot-files hidden**: Files and directories starting with `.` (such as `.config/`) are excluded from the file tree UI and from kanban/calendar scans.
-- **Configuration**: Application state that requires persistence (e.g., kanban column colors, theme selection, vim mode) is stored in `vault/.config/` as JSON files.
+- **Vault configuration**: Portable, vault-specific state that requires persistence (e.g., kanban column colors, theme selection, vim mode, and workspace session) is stored in `vault/.config/` as JSON files. Host-specific window state is the exception and follows the machine-local contract in section 24.
 - A new empty vault receives a welcome note; existing vault contents are never replaced.
 
 ### 3.2 Supported Operations
@@ -727,6 +727,28 @@ Multiple layers prevent a white flash before CSS loads:
 - Window controls (minimize, maximize, close) in the top bar, routed through the Wails compat bridge.
 - Resize grip in the status bar corner: drag to resize, calls `WindowSetSize` via the Go backend.
 - `WindowStartResize(direction)` for programmatic edge resizing (N/S/E/W/NE/NW/SE/SW).
+
+### 24.1 Persisted State Contract
+- Persist only schema version `1`, the last normal width, the last normal height, and whether the window was maximized.
+- Never persist `x`/`y` coordinates. The native Wails backend centers the window on every launch so a disconnected or rearranged monitor cannot strand the frameless title bar off-screen.
+- Never persist or restore minimized state. A minimize action first captures the preceding normal or maximized presentation; shutdown while minimized therefore reuses that last meaningful state.
+- Ignore fullscreen and incomplete/transitional observations rather than treating their dimensions as normal restore geometry.
+- A normal observation updates width/height and clears the maximized flag. A maximized observation changes only the flag, preserving the normal dimensions as native restore bounds.
+- Schedule an initial capture after the Wails compatibility bridge connects. Capture again before Figaro's minimize/maximize controls act, during shutdown, and 250 ms after native browser resize events settle. The debounced resize path covers native edge resizing, snapping, and window-manager shortcuts that bypass custom controls.
+
+### 24.2 Startup and Recovery
+- Default normal dimensions are `1280 × 800`; minimum dimensions are `800 × 500`.
+- Load normal dimensions into the Wails application options, allow Wails to center the initial window, then apply the saved maximized start state when present.
+- Clamp saved dimensions below the minimum. Treat malformed JSON, unsupported schema versions, non-positive dimensions, and either dimension above `32768` as invalid and use the safe default.
+- A missing record is a normal first-launch condition and uses the default. A valid later capture creates or repairs the record.
+- Failure to locate the platform directory is logged and disables persistence for that launch. A write failure is logged and may be retried by a later capture. Neither failure prevents the application from starting or operating.
+
+### 24.3 Machine-Local Storage
+- Window state is host-specific and must never be stored in `vault/.config/settings.json` or `session.json`.
+- Linux: `$XDG_CONFIG_HOME/figaro/window-state.json`, or `$HOME/.config/figaro/window-state.json` when `XDG_CONFIG_HOME` is unset.
+- macOS: `$HOME/Library/Application Support/figaro/window-state.json`.
+- Windows: `%LocalAppData%\figaro\window-state.json`; do not use roaming `%AppData%` for display-dependent state.
+- Request `0700` for the application directory and `0600` for the record where the platform supports Unix permission bits.
 
 ---
 
