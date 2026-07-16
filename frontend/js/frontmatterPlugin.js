@@ -13,7 +13,7 @@ import {
     hasLeadingFrontmatter,
     parseFrontmatter,
 } from './frontmatter.js';
-import { confirmDialog, promptDialog } from './dialogs.js';
+import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { wrapBlockWidget } from './blockWidget.js';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'print-stylesheet']);
@@ -322,7 +322,13 @@ export function createFrontmatterField(
         promptForStylesheet = suggestedPath => promptDialog(
             'Create PDF stylesheet',
             'Create an editable starter stylesheet relative to this note.',
-            suggestedPath
+            suggestedPath,
+            {
+                icon: 'file-add',
+                label: 'Stylesheet path',
+                confirmLabel: 'Create stylesheet',
+                help: 'Use a vault-relative .css path. Existing files are never overwritten.',
+            }
         ),
         confirmUseExistingStylesheet = stylesheetPath => confirmDialog(
             'Use existing PDF stylesheet?',
@@ -343,9 +349,7 @@ export function createFrontmatterField(
             const { openPDFPreview } = await import('./pdfPreview.js');
             return openPDFPreview({ path, title, content });
         },
-        reportStylesheetError = message => {
-            if (typeof globalThis.alert === 'function') globalThis.alert(message);
-        },
+        reportStylesheetError = message => errorDialog('Couldn’t create PDF stylesheet', message, 'The PDF stylesheet could not be created.'),
     } = options || {};
 
     const changeProperty = (view, key, value) => {

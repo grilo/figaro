@@ -1,4 +1,4 @@
-import { messageDialog, newNoteDialog, pdfExportErrorDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, promptDialog, renamePathDialog } from '../frontend/js/dialogs.js';
 
 describe('New note dialog', () => {
     beforeEach(() => {
@@ -81,7 +81,7 @@ describe('New note dialog', () => {
         expect(dialog.textContent).toContain('Ungoogled Chromium');
         expect(dialog.textContent).toContain('clickable');
 
-        dialog.querySelector('.custom-modal-btn-confirm').click();
+        dialog.querySelector('.custom-modal-btn-cancel').click();
         await expect(result).resolves.toBeUndefined();
         expect(document.querySelector('.custom-modal-overlay')).toBeNull();
     });
@@ -111,5 +111,105 @@ describe('New note dialog', () => {
         expect(dialog.textContent).toContain('Projects/Quarterly review.pdf');
         dialog.querySelector('.custom-modal-btn-confirm').click();
         await expect(result).resolves.toBeUndefined();
+    });
+
+    test('uses accessible semantics, safe destructive focus, and restores focus', async () => {
+        const trigger = document.createElement('button');
+        document.body.appendChild(trigger);
+        trigger.focus();
+
+        const result = confirmDialog('Delete permanently?', 'This cannot be undone.', true);
+        const overlay = document.querySelector('.custom-modal-overlay');
+        const dialog = overlay.querySelector('[role="dialog"]');
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(dialog.getAttribute('aria-modal')).toBe('true');
+        expect(dialog.classList.contains('custom-modal--danger')).toBe(true);
+        const cancelButton = dialog.querySelector('.custom-modal-btn-cancel');
+        const deleteButton = dialog.querySelector('.custom-modal-btn-delete');
+        expect(document.activeElement).toBe(cancelButton);
+
+        cancelButton.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Tab',
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        }));
+        expect(document.activeElement).toBe(deleteButton);
+
+        deleteButton.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Tab',
+            bubbles: true,
+            cancelable: true,
+        }));
+        expect(document.activeElement).toBe(cancelButton);
+        cancelButton.click();
+
+        await expect(result).resolves.toBe(false);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    test('keeps text-entry prompts open on backdrop clicks and validates inline', async () => {
+        const result = promptDialog('New folder', 'Choose a folder name.', 'Drafts', {
+            validate: value => value.includes('/') ? 'Choose a name, not a path.' : '',
+        });
+        const overlay = document.querySelector('.custom-modal-overlay');
+        const input = overlay.querySelector('.custom-modal-input');
+
+        overlay.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        expect(document.querySelector('.custom-modal-overlay')).toBe(overlay);
+        input.value = 'nested/path';
+        overlay.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        expect(overlay.querySelector('.custom-modal-error').textContent).toContain('name, not a path');
+
+        input.value = 'Archive';
+        input.dispatchEvent(new Event('input'));
+        overlay.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        await expect(result).resolves.toBe('Archive');
+    });
+
+    test('gives rename path context, selects the stem, and validates before closing', async () => {
+        const result = renamePathDialog('Projects/Quarterly/report.md', 'file');
+        const overlay = document.querySelector('.custom-modal-overlay');
+        const input = overlay.querySelector('.custom-modal-input');
+        const confirm = overlay.querySelector('.custom-modal-btn-confirm');
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(overlay.textContent).toContain('Projects/Quarterly/');
+        expect(input.selectionStart).toBe(0);
+        expect(input.selectionEnd).toBe('report'.length);
+        expect(confirm.disabled).toBe(true);
+
+        input.value = 'nested/report.md';
+        input.dispatchEvent(new Event('input'));
+        overlay.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        expect(overlay.querySelector('.custom-modal-error').textContent).toContain('name, not a path');
+        expect(document.querySelector('.custom-modal-overlay')).toBe(overlay);
+
+        input.value = 'summary.md';
+        input.dispatchEvent(new Event('input'));
+        expect(confirm.disabled).toBe(false);
+        overlay.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        await expect(result).resolves.toBe('summary.md');
+    });
+
+    test('requires at least one source and returns the selected merge order', async () => {
+        const result = mergeNotesDialog('a.md', ['b.md', 'c.md']);
+        const overlay = document.querySelector('.custom-modal-overlay');
+        const checkboxes = [...overlay.querySelectorAll('.merge-checkbox')];
+        const confirm = overlay.querySelector('.custom-modal-btn-delete');
+
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event('change'));
+        });
+        expect(confirm.disabled).toBe(true);
+
+        checkboxes[1].checked = true;
+        checkboxes[1].dispatchEvent(new Event('change'));
+        expect(confirm.disabled).toBe(false);
+        confirm.click();
+        await expect(result).resolves.toEqual([1]);
     });
 });

@@ -542,9 +542,18 @@ export async function initApp() {
             if (dirty.length > 0) {
                 const names = dirty.map(t => t.title).join(', ');
                 const choice = await window.confirmDialog?.(
-                    'Unsaved Changes',
-                    `<p>You have unsaved changes in: <b>${names}</b></p><p>How would you like to proceed?</p>`,
-                    false, true, { confirmLabel: 'Save & Exit', cancelLabel: 'Cancel', extraLabel: 'Exit without saving' }
+                    'Unsaved changes',
+                    `These files have unsaved changes: ${names}\n\nSave them before exiting?`,
+                    false,
+                    false,
+                    {
+                        tone: 'warning',
+                        icon: 'warning',
+                        confirmLabel: 'Save and exit',
+                        cancelLabel: 'Keep editing',
+                        extraLabel: 'Exit without saving',
+                        extraDanger: true,
+                    }
                 );
                 if (choice === 'confirm') {
                     // Save all dirty, then quit

@@ -30,6 +30,14 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- All application dialogs now share a polished responsive shell, consistent
+  icon and tone language, clearer action hierarchy, focus containment and
+  restoration, reduced-motion support, and cross-theme contrast. Browser-style
+  alerts have been replaced by in-app error messages.
+- File and folder rename now uses a dedicated contextual dialog with the
+  current location, file-stem selection, inline name validation, an unchanged
+  state guard, and link-update guidance. Merge, overwrite, unsaved-change, PDF
+  recovery, creation, and Kanban dialogs received the same UX pass.
 - The PDF preview splitter can now use substantially more of the workspace
   while preserving a 320 px editor floor. When the editor becomes narrow its
   decorative horizontal padding contracts, then restores automatically.
@@ -74,6 +82,10 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- Destructive confirmations now identify the exact consequence, use explicit
+  labels, and focus Cancel first. Text-entry and merge dialogs no longer lose
+  work from an accidental backdrop click, and every modal traps focus and
+  returns it to the invoking control when closed.
 - Chrome, Chromium, Edge, and Brave detection no longer relies on a separate
   `--headless --version` probe, whose launcher behavior could produce opaque
   Windows errors despite a valid executable. Validation now uses the same CDP

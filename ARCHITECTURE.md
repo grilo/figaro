@@ -227,6 +227,35 @@ that has moved or no longer starts is logged and automatic discovery continues.
 Startup diagnostics retain the failing executable, launch stage, timeout, and
 captured browser output so chooser errors are actionable.
 
+## Dialog system and focus boundary
+
+All application-owned dialogs are created by `frontend/js/dialogs.js`; feature
+modules must not call the browser's `alert`, `confirm`, or `prompt` functions or
+append an independent modal overlay. The shared shell supplies the semantic
+`role="dialog"`/`aria-modal` relationship, labelled headings, tone and icon
+language, responsive sizing, reduced-motion behavior, and one action footer.
+It also makes the application inert, traps Tab within the dialog, handles
+Escape as cancellation, and restores the element that previously held focus.
+Opening a second dialog cancels and resolves the first instead of leaving a
+detached promise or key listener behind.
+
+Backdrop dismissal is allowed for acknowledgement and confirmation dialogs,
+where it is equivalent to cancel. Text-entry and merge dialogs require an
+explicit Cancel or Escape so an accidental click cannot discard typed input or
+checkbox choices. Destructive confirmations initially focus Cancel and use a
+red, consequence-specific action label; ordinary confirmations initially focus
+their primary action. Validation belongs beside the relevant input and keeps
+the dialog open.
+
+Rename, new-file, merge-notes, and PDF-browser recovery are purpose-built
+compositions on the same lifecycle. Rename shows the parent folder, selects a
+file's stem without hiding its editable extension, disables an unchanged
+submission, validates unsafe names inline, and reminds the user about link
+rewriting. Merge identifies the destination, preserves visible source order,
+requires at least one checked source, and labels the final action as deleting
+those sources. Backend failures use the shared error dialog rather than an OS
+or webview alert.
+
 ## Rename and link rewriting
 
 File-tree rename is more than a filesystem move. It delegates path changes to

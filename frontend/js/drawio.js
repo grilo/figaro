@@ -7,6 +7,7 @@
  */
 
 import { log } from './log.js';
+import { errorDialog } from './dialogs.js';
 
 export const drawioEditorOrigin = 'https://embed.diagrams.net';
 const drawioEditorURL = `${drawioEditorOrigin}/?embed=1&proto=json&spin=1&ui=atlas&libraries=1&saveAndExit=1`;
@@ -204,7 +205,7 @@ async function persistExportedSVG(panel, tab, session, data) {
         session.setStatus('Save failed');
         session.post({ action: 'spinner', show: 0 });
         log.error('Unable to save draw.io SVG:', error);
-        alert(error?.message || 'Could not save the diagram');
+        await errorDialog('Couldn’t save diagram', error, 'The diagram could not be saved.');
     }
 }
 

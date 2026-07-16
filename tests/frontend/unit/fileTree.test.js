@@ -35,8 +35,11 @@ jest.mock('../frontend/js/statusBar.js', () => ({
 
 jest.mock('../frontend/js/dialogs.js', () => ({
     confirmDialog: jest.fn().mockResolvedValue(true),
+    errorDialog: jest.fn().mockResolvedValue(undefined),
+    mergeNotesDialog: jest.fn().mockResolvedValue([0]),
     messageDialog: jest.fn().mockResolvedValue(undefined),
     promptDialog: jest.fn().mockResolvedValue('test.md'),
+    renamePathDialog: jest.fn().mockResolvedValue('test.md'),
     newNoteDialog: jest.fn().mockResolvedValue('test.md'),
     pdfExportErrorDialog: jest.fn().mockResolvedValue(undefined)
 }));
@@ -56,7 +59,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { openTab, handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
-import { confirmDialog, messageDialog, newNoteDialog, promptDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, errorDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
 import { prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 
@@ -485,7 +488,8 @@ describe('File Tree', () => {
         expect(window.pywebview.api.copy_path).not.toHaveBeenCalled();
         expect(messageDialog).toHaveBeenCalledWith(
             'Operation refused',
-            'A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead.'
+            'A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead.',
+            { icon: 'warning', tone: 'warning' }
         );
         expect(isInvalidCopyDestination('Projects', 'Projects')).toBe(true);
         expect(isInvalidCopyDestination('Projects', 'Projects/Archive')).toBe(true);
@@ -502,9 +506,10 @@ describe('File Tree', () => {
         await expect(pasteInternalClipboard('', 'root')).resolves.toBe(false);
 
         expect(window.pywebview.api.copy_path).not.toHaveBeenCalled();
-        expect(messageDialog).toHaveBeenCalledWith(
-            'Copy failed',
-            'Could not save "plan.md" before copying it'
+        expect(errorDialog).toHaveBeenCalledWith(
+            'Couldn’t copy item',
+            'Could not save "plan.md" before copying it',
+            'The source could not be saved before copying.'
         );
     });
 
@@ -599,7 +604,7 @@ describe('File Tree', () => {
         state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 100 }];
         state.selectedFilePath = 'notes/draft.md';
         state.selectedFilePaths = ['notes/draft.md'];
-        promptDialog.mockResolvedValueOnce('final.md');
+        renamePathDialog.mockResolvedValueOnce('final.md');
         window.pywebview.api.rename_path.mockResolvedValueOnce({
             success: true,
             old_path: 'notes/draft.md',
@@ -616,7 +621,7 @@ describe('File Tree', () => {
         document.querySelector('.context-menu [data-action="rename"]').click();
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(promptDialog).toHaveBeenCalledWith('Rename file', 'Enter a new file name:', 'draft.md');
+        expect(renamePathDialog).toHaveBeenCalledWith('notes/draft.md', 'file');
         expect(prepareTabsForPathMove).toHaveBeenCalledWith('notes/draft.md');
         expect(window.pywebview.api.rename_path).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
         expect(updateTabsForMovedPath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');

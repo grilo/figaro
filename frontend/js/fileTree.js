@@ -8,7 +8,7 @@ import { saveSession } from './session.js';
 import { openTab, handleFileOpen } from './app.js';
 import { closeTabsForDeletedPath, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
-import { confirmDialog, messageDialog, newNoteDialog, promptDialog } from './dialogs.js';
+import { confirmDialog, errorDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
 import { isDrawioDiagramPath } from './drawio.js';
 import { isEditableCodeMirrorFile } from './languageSupport.js';
 
@@ -461,7 +461,8 @@ export function isInvalidCopyDestination(sourcePath, targetDirectory) {
 async function showRecursiveCopyRefusal() {
     await messageDialog(
         'Operation refused',
-        'A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead.'
+        'A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead.',
+        { tone: 'warning', icon: 'warning' }
     );
 }
 
@@ -480,7 +481,7 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
         statusBar.set(`Saving “${source.path.split('/').pop()}” before copying…`);
         const saveState = await prepareTabsForPathCopy(source.path);
         if (!saveState.success) {
-            await messageDialog('Copy failed', saveState.error || 'The source could not be saved before copying.');
+            await errorDialog('Couldn’t copy item', saveState.error, 'The source could not be saved before copying.');
             statusBar.set('Copy failed');
             return false;
         }
@@ -490,7 +491,7 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
             if (String(result?.error || '').toLowerCase().includes('recursive copy')) {
                 await showRecursiveCopyRefusal();
             } else {
-                await messageDialog('Copy failed', result?.error || 'The item could not be copied.');
+                await errorDialog('Couldn’t copy item', result?.error, 'The item could not be copied.');
             }
             statusBar.set('Copy failed');
             return false;
@@ -509,7 +510,7 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
         return true;
     } catch (error) {
         log.error('Internal copy failed:', error);
-        await messageDialog('Copy failed', error?.message || 'The item could not be copied.');
+        await errorDialog('Couldn’t copy item', error, 'The item could not be copied.');
         statusBar.set('Copy failed');
         return false;
     } finally {
@@ -624,14 +625,14 @@ async function handleDrop(e) {
     
     // Prevent dropping into self or children
     if (isInvalidMoveDestination(sourcePath, targetDir)) {
-        alert('Cannot move item into itself');
+        await messageDialog('Move not available', 'An item cannot be moved into itself or one of its descendants.', { tone: 'warning' });
         return;
     }
     
     try {
         const saveState = await prepareTabsForPathMove(sourcePath);
         if (!saveState.success) {
-            alert(saveState.error || 'Save open files before moving them');
+            await errorDialog('Couldn’t move item', saveState.error, 'Save open files before moving them.');
             return;
         }
         const result = await window.pywebview.api.move_path(sourcePath, targetDir);
@@ -650,11 +651,11 @@ async function handleDrop(e) {
                 setTimeout(() => statusBar.set('Ready'), 2500);
             }
         } else {
-            alert(result.error || 'Failed to move');
+            await errorDialog('Couldn’t move item', result.error, 'The item could not be moved.');
         }
     } catch (err) {
         log.error('Move failed:', err);
-        alert('Failed to move');
+        await errorDialog('Couldn’t move item', err, 'The item could not be moved.');
     }
 }
 
@@ -699,7 +700,7 @@ export async function copyExternalDrop(paths, targetDirectory) {
             result = await window.pywebview.api.copy_external_paths(paths, targetDirectory, true);
         }
         if (!result?.success) {
-            alert(result?.error || 'Could not copy the dropped items');
+            await errorDialog('Couldn’t copy dropped items', result?.error, 'The dropped items could not be copied.');
             statusBar.set('Copy failed');
             return false;
         }
@@ -716,7 +717,7 @@ export async function copyExternalDrop(paths, targetDirectory) {
         return true;
     } catch (error) {
         log.error('External file copy failed:', error);
-        alert(error?.message || 'Could not copy the dropped items');
+        await errorDialog('Couldn’t copy dropped items', error, 'The dropped items could not be copied.');
         statusBar.set('Copy failed');
         return false;
     } finally {
@@ -853,7 +854,7 @@ function handleContextMenu(e) {
                 await openPDFPreview({ path: targetPath, title: targetPath.split('/').pop() });
             } catch (err) {
                 log.error('PDF preview failed:', err);
-                alert(err?.message || 'Could not open the PDF preview.');
+                await errorDialog('Couldn’t open PDF preview', err, 'The PDF preview could not be opened.');
             }
             break;
 
@@ -873,94 +874,7 @@ async function mergeSelectedNotes() {
     const paths = [...new Set(ctx && !all.includes(ctx) ? [ctx, ...all] : all)];
     if (paths.length < 2) return;
 
-    const masterName = paths[0].split('/').pop();
-    const sourceNames = paths.slice(1).map(p => p.split('/').pop());
-
-    // Build custom modal with checkboxes
-    const existing = document.querySelector('.custom-modal-overlay');
-    if (existing) existing.remove();
-
-    const checkedIndices = await new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'custom-modal-overlay';
-
-        const sourceRows = sourceNames.map((n, i) =>
-            `<label class="merge-file-row">
-                <input type="checkbox" class="merge-checkbox" data-index="${i}" checked>
-                <span class="merge-file-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                </span>
-                <span class="merge-file-name">${escapeHtml(n)}</span>
-            </label>`
-        ).join('');
-
-        overlay.innerHTML = `
-            <div class="custom-modal">
-                <h3>Merge Notes</h3>
-                <div class="custom-modal-body">
-                    <div class="merge-confirm">
-                        <div class="merge-dest-row">
-                            <span class="merge-dest-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                    <polyline points="14 2 14 8 20 8"/>
-                                </svg>
-                            </span>
-                            <span class="merge-dest-label">Into</span>
-                            <span class="merge-dest-name">${escapeHtml(masterName)}</span>
-                        </div>
-                        <span class="merge-sources-label">Select sources to merge</span>
-                        ${sourceRows}
-                        <div class="merge-warning">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                                <line x1="12" y1="9" x2="12" y2="13"/>
-                                <line x1="12" y1="17" x2="12.01" y2="17"/>
-                            </svg>
-                            Checked notes will be permanently deleted after merging.
-                        </div>
-                    </div>
-                </div>
-                <div class="custom-modal-buttons">
-                    <button class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                    <button class="custom-modal-btn custom-modal-btn-confirm">Merge</button>
-                </div>
-            </div>
-        `;
-
-        const cancelBtn = overlay.querySelector('.custom-modal-btn-cancel');
-        const confirmBtn = overlay.querySelector('.custom-modal-btn-confirm');
-        const checkboxes = overlay.querySelectorAll('.merge-checkbox');
-
-        const cleanup = () => {
-            overlay.remove();
-            document.removeEventListener('keydown', handleKeydown);
-        };
-
-        const handleKeydown = (e) => {
-            if (e.key === 'Escape') { cleanup(); resolve(null); }
-        };
-
-        cancelBtn.addEventListener('click', () => { cleanup(); resolve(null); });
-
-        confirmBtn.addEventListener('click', () => {
-            const checked = [];
-            checkboxes.forEach(cb => { if (cb.checked) checked.push(parseInt(cb.dataset.index)); });
-            cleanup();
-            resolve(checked);
-        });
-
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) { cleanup(); resolve(null); }
-        });
-
-        document.body.appendChild(overlay);
-        document.addEventListener('keydown', handleKeydown);
-        setTimeout(() => confirmBtn.focus(), 0);
-    });
+    const checkedIndices = await mergeNotesDialog(paths[0], paths.slice(1));
 
     if (!checkedIndices || checkedIndices.length === 0) return;
 
@@ -989,11 +903,11 @@ async function mergeSelectedNotes() {
             }, 300);
         } else {
             document.querySelectorAll('.file-tree-item.merging').forEach(el => el.classList.remove('merging'));
-            alert(result.error || 'Merge failed');
+            await errorDialog('Couldn’t merge notes', result.error, 'The selected notes could not be merged.');
         }
     } catch (err) {
         document.querySelectorAll('.file-tree-item.merging').forEach(el => el.classList.remove('merging'));
-        alert('Merge failed: ' + (err.message || err));
+        await errorDialog('Couldn’t merge notes', err, 'The selected notes could not be merged.');
     }
 }
 
@@ -1019,11 +933,11 @@ async function createNewFileIn(targetPath, targetType) {
             await refreshFileTree();
             await handleFileOpen(result.path);
         } else {
-            alert(result.error || 'Failed to create file');
+            await errorDialog('Couldn’t create file', result.error, 'The file could not be created.');
         }
     } catch (err) {
         log.error('Create file failed:', err);
-        alert('Failed to create file');
+        await errorDialog('Couldn’t create file', err, 'The file could not be created.');
     }
 }
 
@@ -1035,7 +949,14 @@ async function createNewDrawioDiagramIn(targetPath, targetType) {
         parentDir = targetPath.substring(0, targetPath.lastIndexOf('/'));
     }
 
-    const name = await promptDialog('New Draw.io Diagram', 'Enter diagram name:', 'Untitled.drawio.svg');
+    const name = await promptDialog('New Draw.io diagram', 'Create an editable diagram in this folder.', 'Untitled.drawio.svg', {
+        icon: 'file-add',
+        label: 'Diagram name',
+        confirmLabel: 'Create diagram',
+        context: parentDir ? parentDir + '/' : 'Vault root',
+        help: 'The .drawio.svg extension is added automatically when needed.',
+        validate: validateTreeItemName,
+    });
     if (!name?.trim()) return;
 
     let fileName = name.trim();
@@ -1049,7 +970,7 @@ async function createNewDrawioDiagramIn(targetPath, targetType) {
             ''
         );
         if (!result.success) {
-            alert(result.error || 'Failed to create diagram');
+            await errorDialog('Couldn’t create diagram', result.error, 'The diagram could not be created.');
             return;
         }
 
@@ -1057,7 +978,7 @@ async function createNewDrawioDiagramIn(targetPath, targetType) {
         openTab(result.path, fileName, 'drawio', { path: result.path, mtime: result.mtime });
     } catch (err) {
         log.error('Create draw.io diagram failed:', err);
-        alert('Failed to create diagram');
+        await errorDialog('Couldn’t create diagram', err, 'The diagram could not be created.');
     }
 }
 
@@ -1070,7 +991,13 @@ async function createNewFolderIn(targetPath, targetType) {
         parentDir = targetPath.substring(0, targetPath.lastIndexOf('/'));
     }
     
-    const name = await promptDialog('New Folder', 'Enter folder name:', 'New Folder');
+    const name = await promptDialog('New folder', 'Create a folder for organizing files and notes.', 'New Folder', {
+        icon: 'folder',
+        label: 'Folder name',
+        confirmLabel: 'Create folder',
+        context: parentDir ? parentDir + '/' : 'Vault root',
+        validate: validateTreeItemName,
+    });
     if (!name) return;
     
     try {
@@ -1081,11 +1008,11 @@ async function createNewFolderIn(targetPath, targetType) {
         if (result.success) {
             await refreshFileTree();
         } else {
-            alert(result.error || 'Failed to create folder');
+            await errorDialog('Couldn’t create folder', result.error, 'The folder could not be created.');
         }
     } catch (err) {
         log.error('Create folder failed:', err);
-        alert('Failed to create folder');
+        await errorDialog('Couldn’t create folder', err, 'The folder could not be created.');
     }
 }
 
@@ -1118,29 +1045,21 @@ async function renameTreePath(path, type) {
 
     const oldName = path.split('/').pop() || path;
     const kind = type === 'directory' ? 'folder' : 'file';
-    const proposedName = await promptDialog(`Rename ${kind}`, `Enter a new ${kind} name:`, oldName);
+    const proposedName = await renamePathDialog(path, type);
     const nextName = String(proposedName || '').trim();
     if (!nextName || nextName === oldName) return;
-    if (/[\\/]/.test(nextName)) {
-        alert('Choose a name, not a path.');
-        return;
-    }
-    if (/^\.+$/.test(nextName) || Array.from(nextName).some(character => character.charCodeAt(0) < 0x20)) {
-        alert('Choose a valid name.');
-        return;
-    }
 
     const separator = path.lastIndexOf('/');
     const newPath = separator >= 0 ? `${path.slice(0, separator + 1)}${nextName}` : nextName;
     try {
         const saveState = await prepareTabsForPathMove(path);
         if (!saveState.success) {
-            alert(saveState.error || 'Save open files before renaming');
+            await errorDialog(`Couldn’t rename ${kind}`, saveState.error, `Save open files before renaming this ${kind}.`);
             return;
         }
         const result = await window.pywebview.api.rename_path(path, newPath);
         if (!result.success) {
-            alert(result.error || `Failed to rename ${kind}`);
+            await errorDialog(`Couldn’t rename ${kind}`, result.error, `The ${kind} could not be renamed.`);
             return;
         }
 
@@ -1157,15 +1076,18 @@ async function renameTreePath(path, type) {
         }
     } catch (err) {
         log.error('Rename failed:', err);
-        alert(`Failed to rename ${kind}`);
+        await errorDialog(`Couldn’t rename ${kind}`, err, `The ${kind} could not be renamed.`);
     }
 }
 
 async function deletePath(path) {
     const name = path.split('/').pop();
     const confirmed = await confirmDialog(
-        'Delete',
-        `Delete "${name}"? This cannot be undone.`
+        'Delete permanently?',
+        `“${name}” will be removed from the vault. This cannot be undone.`,
+        true,
+        false,
+        { confirmLabel: 'Delete permanently' }
     );
     
     if (!confirmed) return;
@@ -1182,12 +1104,21 @@ async function deletePath(path) {
                 setState('selectedTreePath', null);
             }
         } else {
-            alert(result.error || 'Failed to delete');
+            await errorDialog('Couldn’t delete item', result.error, 'The item could not be deleted.');
         }
     } catch (err) {
         log.error('Delete failed:', err);
-        alert('Failed to delete');
+        await errorDialog('Couldn’t delete item', err, 'The item could not be deleted.');
     }
+}
+
+function validateTreeItemName(value) {
+    const name = String(value || '').trim();
+    if (!name) return 'Enter a name.';
+    if (/[\\/]/.test(name)) return 'Choose a name, not a path.';
+    if (/^\.+$/.test(name)) return 'Choose a name other than dots.';
+    if (Array.from(name).some(character => character.charCodeAt(0) < 0x20)) return 'The name contains an unsupported control character.';
+    return '';
 }
 
 /**

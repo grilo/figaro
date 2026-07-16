@@ -125,7 +125,7 @@ Each theme defines these properties (with theme-specific colors):
 | **Delete** | Deletes a file or directory (recursive). Triggers kanban column rescan. |
 | **Move** | Moves a file or folder to a target directory. Prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. |
 | **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. Copying a folder into itself or one of its descendants is refused because it would recurse. |
-| **Rename** | Moves the file to a new name within the same directory with the same link-rewrite and open-tab protections. |
+| **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline, disables an unchanged rename, and then moves the item within the same directory with the same link-rewrite and open-tab protections. |
 
 ### 3.3 File Tree (Sidebar)
 - Displays folders before files, both sorted alphabetically.
@@ -404,20 +404,26 @@ open so newer or unsaved text cannot be discarded.
 
 ## 11. Dialogs
 
-### 11.1 Confirm Dialog
-- Modal overlay (dark backdrop, centered card).
-- Title, message (plain text or HTML if `html=true`), Cancel button, and Confirm button.
-- Returns: confirmed (true) or cancelled/dismissed (false).
-- Dismiss on: overlay click, Escape, or Cancel button.
+### 11.1 Shared Modal Contract
+- Every application-owned modal is created by `frontend/js/dialogs.js`; feature modules do not use browser `alert`, `confirm`, or `prompt` boxes and do not create independent overlays.
+- The shared responsive card provides a labelled `role="dialog"`, `aria-modal="true"`, consistent icon/tone variants, a content region, and one action footer. It is visually checked in both Figaro Light and Figaro Dark and disables animation under `prefers-reduced-motion`.
+- While open, the application surface is inert, Tab and Shift+Tab remain inside the modal, Escape follows the dialog's cancel path, and closing restores focus to the invoking control. Opening another modal cleanly cancels the previous one.
+- Acknowledgement and confirmation dialogs may treat backdrop activation as dismiss/cancel. Text-entry and merge dialogs do not close on backdrop activation, preventing accidental loss of input or selection.
 
-### 11.2 Prompt Dialog
-- Modal overlay with a title, message, text input (pre-filled with a default value, auto-focused, text selected), Cancel and OK buttons.
-- Returns: the entered string, or null if cancelled/dismissed.
-- Enter submits; Escape cancels.
+### 11.2 Confirm Dialog
+- Shows a concise consequence and action-specific labels rather than generic OK text. Ordinary confirmations focus the primary action; destructive confirmations use the danger treatment and focus Cancel first.
+- Supports a third action for the application-exit flow: **Save and exit**, **Keep editing**, or the danger-styled **Exit without saving**.
+- Delete, overwrite, merge, unsaved-tab, and replace-existing flows explicitly state what data will be removed or overwritten.
 
-### 11.3 Message Dialog
-- Modal overlay with a title, plain-text message, and one OK button.
-- Used for acknowledgement-only failures such as refusing a recursive folder copy; Enter, Escape, overlay click, or OK dismisses it.
+### 11.3 Text Entry and Rename
+- Generic prompts use a real labelled form, optional location context and helper text, inline validation, Cancel, and a purpose-specific submit label. Enter submits and Escape cancels.
+- File/folder rename uses its own composition: current parent folder, new-name label, link-update guidance, and inline errors for empty names, paths, dots, or control characters. An unchanged value cannot be submitted. A file opens with its stem selected while its extension remains visible and editable.
+- New-file, new-folder, Draw.io, PDF-stylesheet, and Kanban-column prompts use the same field and validation language.
+
+### 11.4 Message, Error, Merge, and Recovery Dialogs
+- Informational and warning messages have one acknowledgement action. Operational failures use the danger-styled in-app error dialog; no native browser alerts remain.
+- Merge Notes identifies the destination, lists ordered checkbox sources, disables submission when none are selected, warns that selected sources are deleted, and uses **Merge and delete sources** as its final action.
+- PDF export recovery distinguishes a successfully saved PDF from export failure. Missing-browser recovery makes **Choose browser…** the primary action and **Not now** the cancel action, retaining inline chooser errors without closing the dialog.
 
 ---
 

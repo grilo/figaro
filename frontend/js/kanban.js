@@ -6,7 +6,7 @@ import { log } from './log.js';
 import { setState, getState } from './state.js';
 import { openTab } from './app.js';
 import { statusBar } from './statusBar.js';
-import { confirmDialog, promptDialog } from './dialogs.js';
+import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 
 let draggedCard = null;
 let kanbanColumns = [];
@@ -407,13 +407,13 @@ async function moveCard(card, targetColumn) {
             // Reload active file if it's the one we modified
             reloadActiveFileIfNeeded(filePath);
         } else {
-            alert(result.error || 'Failed to move task');
+            await errorDialog('Couldn’t move task', result.error, 'The task could not be moved.');
             statusBar.set('Ready');
         }
     } catch (err) {
         if (mutationId !== kanbanMutationId) return;
         log.error('Move task failed:', err);
-        alert('Failed to move task');
+        await errorDialog('Couldn’t move task', err, 'The task could not be moved.');
         statusBar.set('Ready');
     }
 }
@@ -445,19 +445,21 @@ async function refreshAfterKanbanMutation(mutationId) {
  * Rename column
  */
 async function renameColumn(oldName) {
-    const newName = await promptDialog('Rename Column', `Rename "#${oldName}" to:`, oldName);
+    const newName = await promptDialog('Rename column', `Choose a new hashtag for #${oldName}.`, oldName, {
+        icon: 'edit',
+        label: 'Column hashtag',
+        confirmLabel: 'Rename column',
+        help: 'Spaces become hyphens. Use letters, numbers, underscores, and hyphens.',
+        validate: value => {
+            const sanitized = String(value || '').trim().toLowerCase().replace(/\s+/g, '-');
+            if (!/^[a-z][a-z0-9_-]*$/i.test(sanitized)) return 'Start with a letter and use only letters, numbers, underscores, or hyphens.';
+            if (sanitized !== oldName && kanbanColumns.includes(sanitized)) return `#${sanitized} already exists.`;
+            return '';
+        },
+    });
     if (!newName || newName === oldName) return;
     
     const sanitized = newName.trim().toLowerCase().replace(/\s+/g, '-');
-    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(sanitized)) {
-        alert('Invalid column name');
-        return;
-    }
-    
-    if (kanbanColumns.includes(sanitized)) {
-        alert('Column already exists');
-        return;
-    }
 
     const mutationId = beginKanbanMutation();
     
@@ -473,12 +475,12 @@ async function renameColumn(oldName) {
             // Reload active file if it has the old tag
             reloadActiveFileIfNeeded(null, oldName);
         } else {
-            alert(result.error || 'Failed to rename column');
+            await errorDialog('Couldn’t rename column', result.error, 'The column could not be renamed.');
         }
     } catch (err) {
         if (mutationId !== kanbanMutationId) return;
         log.error('Rename column failed:', err);
-        alert('Failed to rename column');
+        await errorDialog('Couldn’t rename column', err, 'The column could not be renamed.');
     }
 }
 
@@ -487,8 +489,11 @@ async function renameColumn(oldName) {
  */
 async function deleteColumn(name) {
     const confirmed = await confirmDialog(
-        'Delete Column',
-        `Delete column "#${name}"? This will remove the tag from all tasks.`
+        'Delete column?',
+        `#${name} will be removed from every task that uses it. The notes remain in the vault.`,
+        true,
+        false,
+        { confirmLabel: 'Delete column' }
     );
     if (!confirmed) return;
 
@@ -506,12 +511,12 @@ async function deleteColumn(name) {
             // Reload active file if it has the deleted tag
             reloadActiveFileIfNeeded(null, name);
         } else {
-            alert(result.error || 'Failed to delete column');
+            await errorDialog('Couldn’t delete column', result.error, 'The column could not be deleted.');
         }
     } catch (err) {
         if (mutationId !== kanbanMutationId) return;
         log.error('Delete column failed:', err);
-        alert('Failed to delete column');
+        await errorDialog('Couldn’t delete column', err, 'The column could not be deleted.');
     }
 }
 
@@ -531,12 +536,12 @@ async function removeTagFromTask(filePath, lineNum, tag) {
             // Reload active file
             reloadActiveFileIfNeeded(filePath);
         } else {
-            alert(result.error || 'Failed to remove tag');
+            await errorDialog('Couldn’t remove tag', result.error, 'The tag could not be removed from this task.');
         }
     } catch (err) {
         if (mutationId !== kanbanMutationId) return;
         log.error('Remove tag failed:', err);
-        alert('Failed to remove tag');
+        await errorDialog('Couldn’t remove tag', err, 'The tag could not be removed from this task.');
     }
 }
 

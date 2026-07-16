@@ -308,7 +308,17 @@ describe('Tab Manager', () => {
             await closeTab('tab1');
             
             expect(getState('openTabs').length).toBe(2);
-            expect(window.confirmDialog).toHaveBeenCalledWith('Unsaved Changes', '"Tab 1" has unsaved changes. Close anyway?');
+            expect(window.confirmDialog).toHaveBeenCalledWith(
+                'Discard unsaved changes?',
+                '“Tab 1” has changes that have not been saved. Closing it will discard them.',
+                true,
+                false,
+                {
+                    confirmLabel: 'Discard and close',
+                    cancelLabel: 'Keep editing',
+                    icon: 'warning',
+                }
+            );
         });
 
         test('should unpin tab when closing', () => {

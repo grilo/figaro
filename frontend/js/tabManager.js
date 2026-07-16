@@ -534,7 +534,13 @@ export async function closeTab(tabId, event) {
     if (tab.type === 'home' && tabs.length === 1) return false;
     
     if (tab.dirty && (tab.type === 'file' || tab.type === 'drawio')) {
-        const shouldClose = await window.confirmDialog('Unsaved Changes', `"${tab.title}" has unsaved changes. Close anyway?`);
+        const shouldClose = await window.confirmDialog(
+            'Discard unsaved changes?',
+            `“${tab.title}” has changes that have not been saved. Closing it will discard them.`,
+            true,
+            false,
+            { confirmLabel: 'Discard and close', cancelLabel: 'Keep editing', icon: 'warning' }
+        );
         if (!shouldClose) return false;
     }
     
@@ -995,7 +1001,13 @@ async function persistFileSnapshot(tab, content, generation) {
             return result;
         }
 
-        const shouldOverwrite = await window.confirmDialog('File Changed Externally', 'This file has been modified by another application. Overwrite with your changes?');
+        const shouldOverwrite = await window.confirmDialog(
+            'File changed outside Figaro',
+            'Another application saved a newer version of this file. Overwriting will replace those external changes with the version currently open in Figaro.',
+            true,
+            false,
+            { confirmLabel: 'Overwrite file', cancelLabel: 'Keep external version', icon: 'warning' }
+        );
         if (shouldOverwrite) {
             const forceResult = await save(0);
             if (forceResult.success) {

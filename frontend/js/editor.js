@@ -1482,12 +1482,11 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
         } else {
             const fileName = linkPath.split('/').pop();
             const fullPath = linkPath.endsWith('.md') ? linkPath : linkPath + '.md';
-            const msg = [
-                `<p>The note <b>${fileName}</b> doesn't exist yet.</p>`,
-                `<p>Path: <code>${fullPath}</code></p>`,
-                '<p>Would you like to create it?</p>'
-            ].join('');
-            const sc = await window.confirmDialog('Create New Note?', msg, false, true);
+            const msg = `The note “${fileName}” doesn’t exist yet.\n\nPath: ${fullPath}`;
+            const sc = await window.confirmDialog('Create this note?', msg, false, false, {
+                icon: 'file-add',
+                confirmLabel: 'Create note',
+            });
             if (sc) {
                 const fpath = linkPath.endsWith('.md') ? linkPath : linkPath + '.md';
                 const fname = fpath.split('/').pop();

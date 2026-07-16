@@ -335,9 +335,11 @@ function initCheatsheet() {
     cheatsheetTrigger.dataset.initialized = 'true';
     let closeTimer = null;
 
-    const setOpen = (open) => {
+    const setOpen = (open, { restoreFocus = false } = {}) => {
+        const changed = cheatsheetPopup.classList.contains('open') !== open;
         cheatsheetPopup.classList.toggle('open', open);
         cheatsheetTrigger.setAttribute('aria-expanded', String(open));
+        if (!open && restoreFocus && changed) cheatsheetTrigger.focus();
     };
     const cancelClose = () => {
         if (closeTimer) window.clearTimeout(closeTimer);
@@ -361,18 +363,20 @@ function initCheatsheet() {
     cheatsheetTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
         open();
+        setTimeout(() => cheatsheetClose?.focus(), 0);
     });
-    cheatsheetTrigger.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape') return;
-        setOpen(false);
-        cheatsheetTrigger.blur();
+    wrapper.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || !cheatsheetPopup.classList.contains('open')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        cancelClose();
+        setOpen(false, { restoreFocus: true });
     });
     if (cheatsheetClose) {
         cheatsheetClose.addEventListener('click', (e) => {
             e.stopPropagation();
             cancelClose();
-            setOpen(false);
-            cheatsheetClose.blur();
+            setOpen(false, { restoreFocus: true });
         });
     }
     document.addEventListener('click', (e) => {
