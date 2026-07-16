@@ -607,6 +607,28 @@ func TestExtractHashtags_CaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestExtractHashtags_RequiresWhitespaceBoundaries(t *testing.T) {
+	app, _ := newTestApp(t)
+
+	content := "#start\nPlan #todo next\n[Guide](#link) #done \nPunctuation (#ignored) #kept\n#end"
+	got := app.extractHashtags(content)
+	want := []string{"start", "todo", "done", "kept", "end"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("extractHashtags() = %v, want %v", got, want)
+	}
+}
+
+func TestHashtagEditsIgnoreMarkdownAnchors(t *testing.T) {
+	content := "See [Guide](#todo) and task #todo "
+
+	if got, want := replaceHashtag(content, "todo", "done"), "See [Guide](#todo) and task #done "; got != want {
+		t.Errorf("replaceHashtag() = %q, want %q", got, want)
+	}
+	if got, want := removeHashtag(content, "todo"), "See [Guide](#todo) and task "; got != want {
+		t.Errorf("removeHashtag() = %q, want %q", got, want)
+	}
+}
+
 func TestGetKanbanColumns(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
@@ -660,6 +682,32 @@ func TestGetKanbanBoard(t *testing.T) {
 	// The "Just a note #custom" line should appear in custom column
 	if len(board["custom"]) != 1 {
 		t.Errorf("expected 1 custom card, got %d", len(board["custom"]))
+	}
+}
+
+func TestGetKanbanBoard_IgnoresMarkdownAnchors(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Read [guide](#todo) [section](#reference)\n- [ ] Actual task #todo\n")
+	app.syncKanbanColumns()
+
+	board, err := app.GetKanbanBoard()
+	if err != nil {
+		t.Fatalf("GetKanbanBoard error: %v", err)
+	}
+	if got := len(board["todo"]); got != 1 {
+		t.Errorf("expected only the standalone #todo task, got %d cards: %v", got, board["todo"])
+	}
+
+	columns, err := app.GetKanbanColumns()
+	if err != nil {
+		t.Fatalf("GetKanbanColumns error: %v", err)
+	}
+	for _, column := range columns["columns"].([]string) {
+		if column == "reference" {
+			t.Error("markdown anchor #reference should not create a Kanban column")
+		}
 	}
 }
 
@@ -1014,6 +1062,7 @@ func TestLoadSessionPrunesMissingTabsAndWorkspaceReferences(t *testing.T) {
 		},
 		"activeTabId":      "gone.md",
 		"selectedFilePath": "notes/gone.md",
+		"selectedTreePath": "notes/open",
 		"expandedDirs":     []string{"notes/open", "notes/gone"},
 		"pinnedTabs":       []string{"real.md", "gone.md", "home"},
 		"cursorStates": map[string]interface{}{
@@ -1038,6 +1087,9 @@ func TestLoadSessionPrunesMissingTabsAndWorkspaceReferences(t *testing.T) {
 	}
 	if _, exists := loaded["selectedFilePath"]; exists {
 		t.Fatalf("missing selected file should have been removed: %#v", loaded)
+	}
+	if got := loaded["selectedTreePath"]; got != "notes/open" {
+		t.Fatalf("selected directory should persist as tree focus, got %#v", got)
 	}
 	if got := loaded["pinnedTabs"]; !reflect.DeepEqual(got, []interface{}{"real.md", "home"}) {
 		t.Fatalf("unexpected cleaned pins: %#v", got)
@@ -1378,6 +1430,19 @@ func TestGetThemes(t *testing.T) {
 	}
 }
 
+func TestEmbeddedThemeAssetPath(t *testing.T) {
+	for _, name := range []string{"manifest.json", "default.css", "github-dark.css"} {
+		got := embeddedThemeAssetPath(name)
+		want := "frontend/themes/" + name
+		if got != want {
+			t.Errorf("embeddedThemeAssetPath(%q) = %q, want %q", name, got, want)
+		}
+		if _, err := assets.ReadFile(got); err != nil {
+			t.Errorf("embedded theme asset %q is unavailable: %v", got, err)
+		}
+	}
+}
+
 func TestGetThemeCSS(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
@@ -1610,7 +1675,7 @@ func TestEmbedFS_HasCodeLanguageRegistry(t *testing.T) {
 func requireGeneratedFrontendAssets(t *testing.T) {
 	t.Helper()
 	if _, err := assets.ReadFile("frontend/vendored/codemirror/state/index.js"); err != nil {
-		t.Skip("generated frontend assets are absent; run npm run vendor before desktop or browser verification")
+		t.Skip("generated frontend assets are absent; run make bootstrap before desktop or browser verification")
 	}
 }
 

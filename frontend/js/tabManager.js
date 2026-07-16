@@ -1011,7 +1011,10 @@ function applySaveSuccess(tab, result, generation, message, content) {
         detail: { path: tab.path, content, mtime: result.mtime }
     }));
     statusBar.set(message);
-    import('./calendar.js').then(m => m.renderCalendar()).catch(() => {});
+    import('./calendar.js').then(({ invalidateCalendarCache, refreshCalendarIfVisible }) => {
+        invalidateCalendarCache();
+        refreshCalendarIfVisible();
+    }).catch(() => {});
     refreshHistoryIfOpen();
     setTimeout(() => statusBar.set('Ready'), 1000);
 }

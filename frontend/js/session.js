@@ -15,6 +15,7 @@ function resetPortableWorkspaceState() {
     // session must not resurrect stale paths from an older vault view.
     setState('expandedDirs', new Set());
     setState('selectedFilePath', null);
+    setState('selectedTreePath', null);
     setState('selectedFilePaths', []);
     setState('pinnedTabs', []);
     setState('activeTabId', null);
@@ -42,6 +43,11 @@ export async function loadSession() {
         // Restore selected file
         if (session.selectedFilePath) {
             setState('selectedFilePath', session.selectedFilePath);
+        }
+        // Older sessions only stored the active file. Use it as the initial
+        // tree focus until a dedicated file-or-folder selection is saved.
+        if (session.selectedTreePath || session.selectedFilePath) {
+            setState('selectedTreePath', session.selectedTreePath || session.selectedFilePath);
         }
 
         // Restore pinned tabs
@@ -92,6 +98,7 @@ export function saveSession() {
         openTabs,
         activeTabId: state.activeTabId || null,
         selectedFilePath: state.selectedFilePath || null,
+        selectedTreePath: state.selectedTreePath || null,
         expandedDirs,
         pinnedTabs: state.pinnedTabs || [],
         cursorStates,

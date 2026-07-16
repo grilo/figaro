@@ -16,6 +16,7 @@ import { isEditableCodeMirrorFile } from './languageSupport.js';
 let dragSourceNode = null;
 let contextMenu = null;
 let fileTreeRequestId = 0;
+let scheduledTreeRefresh = null;
 
 const contextMenuViewportMargin = 8;
 
@@ -144,7 +145,8 @@ export function initFileTree() {
     initFileTreeEvents();
     initContextMenu();
 
-    // Auto-highlight active file and expand its ancestors in the Vault tree
+    // Keep the active file discoverable and expand its ancestors without
+    // replacing an explicitly selected folder in the tree.
     subscribe('activeTabId', () => {
         const tabs = getState('openTabs');
         const activeId = getState('activeTabId');
@@ -188,6 +190,17 @@ export async function refreshFileTree() {
     }
 }
 
+// Native vault events may arrive in quick batches for an editor's atomic save
+// or a directory move. Coalesce them into one full tree request instead of
+// keeping a permanent polling loop alive.
+export function scheduleFileTreeRefresh(delay = 180) {
+    if (scheduledTreeRefresh) clearTimeout(scheduledTreeRefresh);
+    scheduledTreeRefresh = setTimeout(() => {
+        scheduledTreeRefresh = null;
+        refreshFileTree().catch(() => {});
+    }, Math.max(0, Number(delay) || 0));
+}
+
 /**
  * Render file tree from state data
  */
@@ -195,7 +208,8 @@ export function renderFileTree() {
     const container = document.getElementById('file-tree');
     const treeData = getState('fileTreeData');
     const expandedDirs = getState('expandedDirs');
-    const selectedPath = getState('selectedFilePath');
+    const selectedPath = getState('selectedTreePath');
+    const activeFilePath = getState('selectedFilePath');
     const selectedPaths = getState('selectedFilePaths') || [];
     
     if (!container) return;
@@ -208,20 +222,21 @@ export function renderFileTree() {
     // Keep a real flexing surface after short file lists. Delegated context
     // events then reach #file-tree even when the user clicks below the last
     // file, making an empty/new vault easy to populate.
-    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths) +
+    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath) +
         '<div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
 }
 
 /**
  * Build tree HTML recursively
  */
-export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0) {
+export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0, activeFilePath = null) {
     let html = '<ul class="file-tree-list">';
     
     for (const item of items) {
         const isDir = item.type === 'directory';
         const isExpanded = expandedDirs.has(item.path);
         const isSelected = item.path === selectedPath;
+        const isActiveFile = !isDir && item.path === activeFilePath;
         const isMultiSelected = selectedPaths.includes(item.path);
         const hasChildren = isDir && item.children && item.children.length > 0;
         const isDrawioDiagram = !isDir && isDrawioDiagramPath(item.path);
@@ -229,7 +244,7 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
         
         html += `
             <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" data-path="${escapeHtml(item.path)}" data-type="${item.type}">
-                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''}" draggable="true">
+                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''}" draggable="true">
                     ${isDir ? `
                         <span class="node-chevron">${hasChildren ? `
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -253,7 +268,7 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
                 </div>
                 ${isDir && hasChildren ? `
                     <div class="file-tree-children">
-                        ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1)}
+                        ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1, activeFilePath)}
                     </div>
                 ` : ''}
             </li>
@@ -283,7 +298,11 @@ function initFileTreeEvents() {
         const type = item.dataset.type;
         
         if (type === 'directory') {
+            setState('selectedTreePath', path);
+            setState('selectedFilePaths', []);
             toggleDirectory(path);
+            saveSession();
+            renderFileTree();
         } else if (type === 'file') {
             const isDiagram = isDrawioDiagramPath(path);
             const isMarkdown = path.toLowerCase().endsWith('.md');
@@ -306,6 +325,7 @@ function initFileTreeEvents() {
                 if (!isEditable && !isDiagram) return;
                 // Single select and open
                 setState('selectedFilePath', path);
+                setState('selectedTreePath', path);
                 setState('selectedFilePaths', []);
                 if (isDiagram) {
                     openTab(path, path.split('/').pop(), 'drawio', { path });
@@ -487,7 +507,10 @@ async function handleDrop(e) {
             await refreshFileTree();
             
             // Update open tabs if paths changed
-            updateTabsForMovedPath(result.old_path || sourcePath, result.path || sourcePath);
+            const movedFrom = result.old_path || sourcePath;
+            const movedTo = result.path || sourcePath;
+            updateTabsForMovedPath(movedFrom, movedTo);
+            remapTreeSelection(movedFrom, movedTo);
             await refreshTabsForUpdatedLinks(result.updated_links);
             const linkCount = Array.isArray(result.updated_links) ? result.updated_links.length : 0;
             if (linkCount) {
@@ -525,6 +548,16 @@ function handleContextMenu(e) {
     // space is a vault-root action rather than a no-op.
     const path = item?.dataset.path || '';
     const type = item?.dataset.type || 'root';
+
+    // A folder is a first-class tree selection even when it has no tab to
+    // open. Keep right-click selection consistent with a normal click before
+    // presenting actions for that folder.
+    if (type === 'directory') {
+        setState('selectedTreePath', path);
+        setState('selectedFilePaths', []);
+        saveSession();
+        renderFileTree();
+    }
 
     setState('contextTargetType', type);
     setState('contextTargetPath', path);
@@ -730,6 +763,7 @@ async function mergeSelectedNotes() {
             setTimeout(async () => {
                 await refreshFileTree();
                 setState('selectedFilePath', mergePaths[0]);
+                setState('selectedTreePath', mergePaths[0]);
             }, 300);
         } else {
             document.querySelectorAll('.file-tree-item.merging').forEach(el => el.classList.remove('merging'));
@@ -846,6 +880,10 @@ function remapTreeSelection(oldPath, newPath) {
     const nextSelected = remapTreePath(selected, oldPath, newPath);
     if (nextSelected !== selected) setState('selectedFilePath', nextSelected);
 
+    const selectedTreePath = getState('selectedTreePath');
+    const nextSelectedTreePath = remapTreePath(selectedTreePath, oldPath, newPath);
+    if (nextSelectedTreePath !== selectedTreePath) setState('selectedTreePath', nextSelectedTreePath);
+
     const selectedPaths = getState('selectedFilePaths') || [];
     const nextSelectedPaths = [...new Set(selectedPaths.map(path => remapTreePath(path, oldPath, newPath)))];
     if (nextSelectedPaths.some((path, index) => path !== selectedPaths[index]) || nextSelectedPaths.length !== selectedPaths.length) {
@@ -917,6 +955,10 @@ async function deletePath(path) {
             
             // Close any tabs for deleted files
             closeTabsForDeletedPath(path);
+            const selectedTreePath = getState('selectedTreePath');
+            if (selectedTreePath === path || selectedTreePath?.startsWith(path + '/')) {
+                setState('selectedTreePath', null);
+            }
         } else {
             alert(result.error || 'Failed to delete');
         }

@@ -30,7 +30,8 @@ export const state = {
     // File Tree
     fileTreeData: null,         // Cached file tree structure
     expandedDirs: new Set(),    // Set of expanded directory paths
-    selectedFilePath: null,     // Currently selected file in tree
+    selectedFilePath: null,     // File currently active in an editor tab
+    selectedTreePath: null,     // Focused tree item (file or directory)
     selectedFilePaths: [],      // Multi-selected file paths (for merge)
     
     // Search
@@ -234,6 +235,10 @@ export function initState() {
     if (savedSelectedFile) {
         state.selectedFilePath = savedSelectedFile;
     }
+    const savedSelectedTreePath = localStorage.getItem('selectedTreePath');
+    if (savedSelectedTreePath) {
+        state.selectedTreePath = savedSelectedTreePath;
+    }
 
     // Store open tabs for later restoration (after file tree is loaded)
     const savedOpenTabs = localStorage.getItem('openTabs');
@@ -279,6 +284,11 @@ export function persistState() {
     if (state.selectedCalDateStr) {
         localStorage.setItem('selectedCalDate', state.selectedCalDateStr);
     }
+    if (state.selectedTreePath) {
+        localStorage.setItem('selectedTreePath', state.selectedTreePath);
+    } else {
+        localStorage.removeItem('selectedTreePath');
+    }
 }
 
 // Auto-persist on changes
@@ -309,6 +319,15 @@ subscribe('selectedFilePath', () => {
             localStorage.setItem('selectedFilePath', state.selectedFilePath);
         } else {
             localStorage.removeItem('selectedFilePath');
+        }
+    } catch (e) { /* noop */ }
+});
+subscribe('selectedTreePath', () => {
+    try {
+        if (state.selectedTreePath) {
+            localStorage.setItem('selectedTreePath', state.selectedTreePath);
+        } else {
+            localStorage.removeItem('selectedTreePath');
         }
     } catch (e) { /* noop */ }
 });

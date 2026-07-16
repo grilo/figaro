@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -40,9 +41,14 @@ type App struct {
 	sessionMu           sync.RWMutex
 	mu                  sync.RWMutex
 	settingsMu          sync.RWMutex
+	calendarMu          sync.Mutex
+	watcherMu           sync.Mutex
 	fileVersions        map[string]float64
 	kanbanColumns       []string
 	kanbanColors        map[string]string
+	calendarIndex       *calendarDateIndex
+	vaultWatcher        *vaultWatcher
+	watcherStopping     bool
 	history             *HistoryService
 }
 
@@ -50,7 +56,8 @@ type App struct {
 var SystemColumns = []string{"todo", "wip", "done"}
 
 // hashtagRe matches #tagname (bare, without boundary checks).
-// Use findHashtags() / replaceHashtag() / removeHashtag() for full boundary validation.
+// Use findHashtags() / replaceHashtag() / removeHashtag() for standalone-tag
+// boundary validation.
 var hashtagRe = regexp.MustCompile(`#([a-zA-Z][a-zA-Z0-9_-]*)\b`)
 
 // isHexColor checks if a tag looks like a hex color (#RGB or #RRGGBB).
@@ -71,28 +78,31 @@ func canonicalThemeID(themeID string) string {
 	return normalized
 }
 
-// isHashtagBoundaryOK checks that the character before a match at position `pos`
-// is not a word character and not another '#'.
-func isHashtagBoundaryOK(s string, matchStart int) bool {
-	if matchStart == 0 {
-		return true
+// isHashtagBoundaryOK reports whether a hashtag is a standalone token. Tags
+// must be surrounded by whitespace (or a document boundary), so markdown
+// anchors such as [guide](#section) are never treated as Kanban hashtags.
+func isHashtagBoundaryOK(s string, matchStart, matchEnd int) bool {
+	if matchStart > 0 {
+		previous, _ := utf8.DecodeLastRuneInString(s[:matchStart])
+		if !unicode.IsSpace(previous) {
+			return false
+		}
 	}
-	prev := s[matchStart-1]
-	if prev == '#' {
-		return false
-	}
-	if (prev >= 'a' && prev <= 'z') || (prev >= 'A' && prev <= 'Z') || (prev >= '0' && prev <= '9') || prev == '_' {
-		return false
+	if matchEnd < len(s) {
+		next, _ := utf8.DecodeRuneInString(s[matchEnd:])
+		if !unicode.IsSpace(next) {
+			return false
+		}
 	}
 	return true
 }
 
-// findHashtags extracts valid hashtags from content, respecting word boundaries.
+// findHashtags extracts valid standalone hashtags from content.
 func findHashtags(content string) []string {
 	seen := make(map[string]bool)
 	var tags []string
 	for _, idx := range hashtagRe.FindAllStringSubmatchIndex(content, -1) {
-		if len(idx) >= 4 && isHashtagBoundaryOK(content, idx[0]) {
+		if len(idx) >= 4 && isHashtagBoundaryOK(content, idx[0], idx[1]) {
 			tag := strings.ToLower(content[idx[2]:idx[3]])
 			if !seen[tag] && !hexColorRe.MatchString(tag) {
 				seen[tag] = true
@@ -109,7 +119,7 @@ func replaceHashtag(content, oldTag, newTag string) string {
 	var result strings.Builder
 	last := 0
 	for _, idx := range pat.FindAllStringSubmatchIndex(content, -1) {
-		if isHashtagBoundaryOK(content, idx[0]) {
+		if isHashtagBoundaryOK(content, idx[0], idx[1]) {
 			result.WriteString(content[last:idx[0]])
 			result.WriteString("#" + newTag)
 			last = idx[1]
@@ -119,15 +129,22 @@ func replaceHashtag(content, oldTag, newTag string) string {
 	return result.String()
 }
 
-// removeHashtag removes all occurrences of #tag with optional trailing whitespace.
+// removeHashtag removes all standalone occurrences of #tag with trailing whitespace.
 func removeHashtag(content, tag string) string {
-	pat := regexp.MustCompile(`#` + regexp.QuoteMeta(tag) + `\b\s*`)
+	pat := regexp.MustCompile(`#` + regexp.QuoteMeta(tag) + `\b`)
 	var result strings.Builder
 	last := 0
 	for _, idx := range pat.FindAllStringSubmatchIndex(content, -1) {
-		if isHashtagBoundaryOK(content, idx[0]) {
+		if isHashtagBoundaryOK(content, idx[0], idx[1]) {
 			result.WriteString(content[last:idx[0]])
 			last = idx[1]
+			for last < len(content) {
+				r, size := utf8.DecodeRuneInString(content[last:])
+				if !unicode.IsSpace(r) {
+					break
+				}
+				last += size
+			}
 		}
 	}
 	result.WriteString(content[last:])
@@ -158,7 +175,6 @@ func NewApp(vaultPath string) *App {
 		kanbanColumns: append([]string{}, SystemColumns...),
 	}
 	a.loadColors()
-	a.syncKanbanColumns()
 
 	// Initialize git history service
 	hs, err := NewHistoryService(absPath)
@@ -320,14 +336,86 @@ func (a *App) startup(ctx context.Context) {
 		go a.ensureDesktopIntegration()
 	}
 	a.ensureWelcomeNote()
+	a.watcherMu.Lock()
+	a.watcherStopping = false
+	a.watcherMu.Unlock()
+
+	// Recursively registering native directory watches can touch a large vault.
+	// Do it after startup returns so the first Wails window is never held up by
+	// filesystem enumeration.
+	go a.startVaultWatcher()
+
+	// Scanning a large vault for Kanban tags must not delay the first window.
+	// The frontend starts with the built-in columns and refreshes when this
+	// background index is ready.
+	go func() {
+		a.syncKanbanColumns()
+		a.emitRuntimeEvent("vault:kanban-indexed")
+	}()
 }
 
 // domReady is called from OnDomReady; defined in main.go.
 // shutdown is called from OnShutdown.
 func (a *App) shutdown(ctx context.Context) {
+	a.stopVaultWatcher()
 	if a.history != nil {
 		a.history.StartAutoCommit(0)
 	}
+}
+
+func (a *App) startVaultWatcher() {
+	watcher, err := newVaultWatcher(a.vaultPath, a.handleVaultFilesystemChange)
+	if err != nil {
+		// A vault can live on a filesystem which does not expose native watch
+		// support. The application remains fully usable; only external-change
+		// updates require a manual refresh in that case.
+		log.Printf("[watcher] native vault watcher unavailable: %v", err)
+		return
+	}
+
+	a.watcherMu.Lock()
+	if a.watcherStopping {
+		a.watcherMu.Unlock()
+		watcher.Close()
+		return
+	}
+	previous := a.vaultWatcher
+	a.vaultWatcher = watcher
+	a.watcherMu.Unlock()
+	if previous != nil {
+		previous.Close()
+	}
+	go watcher.Run()
+}
+
+func (a *App) stopVaultWatcher() {
+	a.watcherMu.Lock()
+	a.watcherStopping = true
+	watcher := a.vaultWatcher
+	a.vaultWatcher = nil
+	a.watcherMu.Unlock()
+	if watcher != nil {
+		watcher.Close()
+	}
+}
+
+func (a *App) handleVaultFilesystemChange() {
+	a.vaultMu.Lock()
+	a.resetFileVersionsLocked()
+	a.invalidateCalendarIndexLocked()
+	a.vaultMu.Unlock()
+
+	// External editors may add/remove tags. Keep that slower scan off the UI
+	// path, then tell the frontend to refresh its affected views once.
+	a.syncKanbanColumns()
+	a.emitRuntimeEvent("vault:changed")
+}
+
+func (a *App) emitRuntimeEvent(name string) {
+	if a.ctx == nil || name == "" {
+		return
+	}
+	runtime.EventsEmit(a.ctx, name)
 }
 
 // ============================================================================
@@ -924,6 +1012,11 @@ func (a *App) syncKanbanColumns() {
 // syncKanbanColumnsLocked requires vaultMu to be held (for reading or
 // writing), so a scan observes a coherent vault snapshot.
 func (a *App) syncKanbanColumnsLocked() {
+	// Every caller reaches this after a Markdown mutation (or initial index
+	// setup). Keep calendar data in the same coherent-vault lifecycle rather
+	// than making calendar clicks rediscover changes through a full scan.
+	a.invalidateCalendarIndexLocked()
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -1003,7 +1096,7 @@ func (a *App) GetKanbanBoard() (map[string][]KanbanCard, error) {
 		lines := strings.Split(string(data), "\n")
 		for lineNum, line := range lines {
 			for _, idx := range hashtagRe.FindAllStringSubmatchIndex(line, -1) {
-				if len(idx) >= 4 && isHashtagBoundaryOK(line, idx[0]) {
+				if len(idx) >= 4 && isHashtagBoundaryOK(line, idx[0], idx[1]) {
 					tag := strings.ToLower(line[idx[2]:idx[3]])
 					if columnSet[tag] {
 						// Clean display text
@@ -1307,29 +1400,11 @@ func (a *App) GetLinkedNotesForDate(dateStr string) ([]LinkedNote, error) {
 	a.vaultMu.RLock()
 	defer a.vaultMu.RUnlock()
 
-	pattern := regexp.MustCompile(`\[.*?\]\(` + regexp.QuoteMeta(dateStr) + `\.md\)`)
-	var results []LinkedNote
-	if err := a.walkVaultMarkdown(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
-		lines := strings.Split(string(data), "\n")
-		for i, line := range lines {
-			if pattern.MatchString(line) {
-				results = append(results, LinkedNote{
-					Path:    rel,
-					Name:    info.Name(),
-					LineNum: i + 1,
-					Snippet: strings.TrimSpace(line),
-					Mtime:   float64(info.ModTime().UnixNano()) / 1e9,
-				})
-				break
-			}
-		}
-		return nil
-	}); err != nil {
+	index, err := a.calendarIndexLocked()
+	if err != nil {
 		return nil, err
 	}
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Mtime > results[j].Mtime
-	})
+	results := append([]LinkedNote(nil), index.linkedNotes[dateStr]...)
 	return results, nil
 }
 
@@ -1347,32 +1422,8 @@ func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, err
 	a.vaultMu.RLock()
 	defer a.vaultMu.RUnlock()
 
-	daysWithNotes := make(map[int]bool)
-	daysWithLinks := make(map[int]bool)
-
-	if err := a.walkVaultMarkdown(func(_ *os.Root, _ string, info fs.FileInfo, data []byte) error {
-		name := info.Name()
-		// Check if it's a daily note YYYY-MM-DD.md
-		if matched, _ := regexp.MatchString(`^\d{4}-\d{2}-\d{2}\.md$`, name); matched {
-			dateStr := strings.TrimSuffix(name, ".md")
-			t, err := time.Parse("2006-01-02", dateStr)
-			if err == nil && t.Year() == year && int(t.Month()) == month {
-				daysWithNotes[t.Day()] = true
-			}
-		}
-		// Check for links to daily notes
-		content := string(data)
-		for day := 1; day <= 31; day++ {
-			dateStr := fmt.Sprintf("%04d-%02d-%02d", year, month, day)
-			escaped := regexp.QuoteMeta(dateStr)
-			if matched, _ := regexp.MatchString(`\[.*?\]\(`+escaped+`\.md\)`, content); matched {
-				daysWithLinks[day] = true
-			} else if matched, _ := regexp.MatchString(`\[`+escaped+`\]\(\)`, content); matched {
-				daysWithLinks[day] = true
-			}
-		}
-		return nil
-	}); err != nil {
+	index, err := a.calendarIndexLocked()
+	if err != nil {
 		return nil, err
 	}
 
@@ -1402,26 +1453,13 @@ func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, err
 		}
 	}
 
-	notesList := keysToList(daysWithNotes)
-	linksList := keysToList(daysWithLinks)
-	sort.Ints(notesList)
-	sort.Ints(linksList)
-
 	return &CalendarMonthData{
 		Year:          year,
 		Month:         month,
-		DaysWithNotes: notesList,
-		DaysWithLinks: linksList,
+		DaysWithNotes: calendarMonthDates(index.dailyNotes, year, month),
+		DaysWithLinks: calendarMonthDates(index.linkedDays, year, month),
 		Calendar:      cal,
 	}, nil
-}
-
-func keysToList(m map[int]bool) []int {
-	list := make([]int, 0, len(m))
-	for k := range m {
-		list = append(list, k)
-	}
-	return list
 }
 
 // GetTodayLink returns today's date string.
@@ -1559,6 +1597,20 @@ func sessionDirectoryPath(root *os.Root, value interface{}) (string, bool) {
 	return filepath.ToSlash(clean), true
 }
 
+// sessionTreePath accepts either a file or a directory because tree focus is
+// independent from the active editor file. It still validates the path against
+// the vault before persisting it across launches.
+func sessionTreePath(root *os.Root, value interface{}) (string, bool) {
+	clean, err := vaultRelativePath(sessionString(value))
+	if err != nil || clean == "." {
+		return "", false
+	}
+	if _, err := root.Stat(clean); err != nil {
+		return "", false
+	}
+	return filepath.ToSlash(clean), true
+}
+
 func normalizeSessionData(root *os.Root, source map[string]interface{}) map[string]interface{} {
 	normalized := make(map[string]interface{})
 	validTabIDs := make(map[string]bool)
@@ -1632,6 +1684,9 @@ func normalizeSessionData(root *os.Root, source map[string]interface{}) map[stri
 	}
 	if selectedPath, valid := sessionFilePath(root, source["selectedFilePath"]); valid {
 		normalized["selectedFilePath"] = selectedPath
+	}
+	if selectedTreePath, valid := sessionTreePath(root, source["selectedTreePath"]); valid {
+		normalized["selectedTreePath"] = selectedTreePath
 	}
 
 	if candidates, ok := source["expandedDirs"].([]interface{}); ok {
@@ -1833,9 +1888,16 @@ type ThemeInfo struct {
 	Name string `json:"name"`
 }
 
+// embeddedThemeAssetPath builds a logical embed.FS path. These paths are
+// always slash-separated, including when the application itself runs on
+// Windows, so filepath.Join must not be used here.
+func embeddedThemeAssetPath(name string) string {
+	return pathpkg.Join("frontend", "themes", name)
+}
+
 // GetThemes returns the list of available themes from themes/manifest.json.
 func (a *App) GetThemes() (map[string]interface{}, error) {
-	path := filepath.Join("frontend", "themes", "manifest.json")
+	path := embeddedThemeAssetPath("manifest.json")
 	data, err := assets.ReadFile(path)
 	if err != nil {
 		data, err = readProjectAsset(path) // fallback for dev mode
@@ -1860,7 +1922,7 @@ func (a *App) GetThemeCSS(themeID string) (map[string]string, error) {
 	if !themeIDRe.MatchString(themeID) {
 		return nil, fmt.Errorf("invalid theme id")
 	}
-	path := filepath.Join("frontend", "themes", themeID+".css")
+	path := embeddedThemeAssetPath(themeID + ".css")
 	data, err := assets.ReadFile(path)
 	if err != nil {
 		data, err = readProjectAsset(path) // fallback for dev mode
@@ -1875,6 +1937,7 @@ var legacyWorkspaceSettingKeys = []string{
 	"openTabs",
 	"activeTabId",
 	"selectedFilePath",
+	"selectedTreePath",
 	"expandedDirs",
 	"pinnedTabs",
 	"cursorStates",

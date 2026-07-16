@@ -10,6 +10,25 @@ import { openTab } from './app.js';
 let calendarRequestId = 0;
 let linkedNotesRequestId = 0;
 const calendarResultsRequestIds = new Map();
+const calendarMonthCache = new Map();
+const linkedNotesCache = new Map();
+
+/**
+ * Drop cached calendar data after a vault mutation or filesystem event.
+ * Rendering remains lazy: a hidden calendar never triggers a replacement scan.
+ */
+export function invalidateCalendarCache() {
+    calendarMonthCache.clear();
+    linkedNotesCache.clear();
+}
+
+/** Re-render only when the calendar panel is actually visible. */
+export function refreshCalendarIfVisible() {
+    const sidebar = document.getElementById('right-sidebar');
+    if (sidebar?.classList.contains('open') && sidebar.dataset.mode === 'calendar') {
+        renderCalendar();
+    }
+}
 
 /**
  * Initialize calendar module
@@ -59,19 +78,30 @@ export function renderCalendar() {
  * Load calendar data from backend
  */
 async function loadCalendarData(year, month) {
-    try {
-        const result = await window.pywebview.api.get_calendar_month_data(year, month);
-        return result;
-    } catch (err) {
-        log.error('Calendar data load failed:', err);
-        return {
-            year,
-            month,
-            days_with_notes: [],
-            days_with_links: [],
-            calendar: []
-        };
-    }
+    const cacheKey = `${year}-${month}`;
+    const cached = calendarMonthCache.get(cacheKey);
+    if (cached) return cached;
+
+    const request = (async () => {
+        try {
+            const result = await window.pywebview.api.get_calendar_month_data(year, month);
+            return result;
+        } catch (err) {
+            // A failed request must not poison a later retry after the bridge
+            // reconnects or an external vault becomes available again.
+            calendarMonthCache.delete(cacheKey);
+            log.error('Calendar data load failed:', err);
+            return {
+                year,
+                month,
+                days_with_notes: [],
+                days_with_links: [],
+                calendar: []
+            };
+        }
+    })();
+    calendarMonthCache.set(cacheKey, request);
+    return request;
 }
 
 /**
@@ -172,13 +202,21 @@ function renderLinkedNotes(container, data, selectedDateStr, renderId) {
  * Load linked notes for a date
  */
 async function loadLinkedNotes(dateStr) {
-    try {
-        const result = await window.pywebview.api.get_linked_notes_for_date(dateStr);
-        return result || [];
-    } catch (err) {
-        log.error('Linked notes load failed:', err);
-        return [];
-    }
+    const cached = linkedNotesCache.get(dateStr);
+    if (cached) return cached;
+
+    const request = (async () => {
+        try {
+            const result = await window.pywebview.api.get_linked_notes_for_date(dateStr);
+            return result || [];
+        } catch (err) {
+            linkedNotesCache.delete(dateStr);
+            log.error('Linked notes load failed:', err);
+            return [];
+        }
+    })();
+    linkedNotesCache.set(dateStr, request);
+    return request;
 }
 
 /**

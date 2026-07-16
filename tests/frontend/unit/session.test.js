@@ -20,6 +20,7 @@ describe('session persistence', () => {
         setState('expandedDirs', new Set());
         setState('pinnedTabs', []);
         setState('selectedFilePath', null);
+        setState('selectedTreePath', null);
         setState('openTabs', []);
         setState('activeTabId', null);
         state._restoredTabs = null;
@@ -89,6 +90,21 @@ describe('session persistence', () => {
         ]);
     });
 
+    test('persists and restores a folder selected in the file tree', async () => {
+        setState('selectedTreePath', 'Projects/Planning');
+        await saveSession();
+        expect(window.pywebview.api.save_session.mock.calls.at(-1)[0].selectedTreePath).toBe('Projects/Planning');
+
+        window.pywebview.api.load_session.mockResolvedValueOnce({
+            selectedTreePath: 'Projects/Planning',
+            expandedDirs: ['Projects', 'Projects/Planning'],
+        });
+        await expect(loadSession()).resolves.toBe(true);
+
+        expect(state.selectedTreePath).toBe('Projects/Planning');
+        expect(state.expandedDirs).toEqual(new Set(['Projects', 'Projects/Planning']));
+    });
+
     test('restores a persisted Draw.io diagram into an editor tab', () => {
         expect(restoredTabOpenArgs({
             id: 'diagrams/system.drawio.svg',
@@ -122,6 +138,7 @@ describe('session persistence', () => {
     test('does not revive webview-local workspace state when the vault session is empty', async () => {
         setState('expandedDirs', new Set(['missing-folder']));
         setState('selectedFilePath', 'missing.md');
+        setState('selectedTreePath', 'missing-folder');
         setState('pinnedTabs', ['missing.md']);
         setState('openTabs', [{ id: 'missing.md', type: 'file', title: 'Missing', path: 'missing.md' }]);
         setState('activeTabId', 'missing.md');
@@ -134,6 +151,7 @@ describe('session persistence', () => {
 
         expect(state.expandedDirs).toEqual(new Set());
         expect(state.selectedFilePath).toBeNull();
+        expect(state.selectedTreePath).toBeNull();
         expect(state.pinnedTabs).toEqual([]);
         expect(state.openTabs).toEqual([]);
         expect(state.activeTabId).toBeNull();

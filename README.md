@@ -117,7 +117,7 @@ An export of the active dirty note uses the current editor content without forci
 - Go 1.25 or newer
 - Node.js 20 or newer for JavaScript tooling and tests
 - Wails v2 CLI
-- The platform dependencies required by Wails. On Linux, the included `scripts/build-fedora.sh` checks the Fedora packages it uses.
+- The platform dependencies required by Wails. On Linux, Figaro uses GTK3 with WebKitGTK 4.1 when available (WebKitGTK 4.0 is also supported).
 - A locally installed Chrome, Chromium (including Ungoogled Chromium and Flatpak installs), Brave, or Edge browser for interactive PDF export. macOS can fall back to its built-in Safari/WebKit engine.
 - ImageMagick 7 for the generated application icons; `make dev` and package builds create them automatically when absent.
 
@@ -127,16 +127,21 @@ Install the Wails CLI version that matches this project's Go dependency:
 go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 ~~~
 
+On Linux, run `make doctor` before your first build. It checks the actual
+`pkg-config` libraries and prints a package-manager-specific command if
+anything is missing. For example, Fedora needs
+`gcc pkgconf-pkg-config gtk3-devel webkit2gtk4.1-devel ImageMagick`; current
+Debian/Ubuntu uses `build-essential pkg-config libgtk-3-dev
+libwebkit2gtk-4.1-dev imagemagick` (or `libwebkit2gtk-4.0-dev` on older
+releases).
+
 ### Run in development
 
 ~~~bash
 git clone https://github.com/grilo/figaro.git
 cd figaro
 
-go mod download
-npm ci
-npm run vendor
-
+make bootstrap
 make dev
 ~~~
 
@@ -160,14 +165,17 @@ make darwin
 make icons          # regenerate all icon variants from figaro.appicon.png
 ~~~
 
-The Makefile generates missing browser assets and icon variants, then checks the required native tooling before starting a build. It
-automatically selects Wails' WebKitGTK 4.1 support on distributions such as
-current Fedora; WebKitGTK 4.0 is also supported. The current Windows target
-uses Wails' pure-Go WebView2 path, so it cross-builds from Linux without
-MinGW-w64. Wails v2 builds Linux only on Linux and macOS only on macOS; `make
-all` selects the targets supported by the current host. For Fedora Linux,
-`./scripts/build-fedora.sh` performs the same prerequisite checks and produces
-`build/bin/figaro`.
+The Makefile prepares a clean checkout itself: it downloads Go modules, runs
+`npm ci` when the locked frontend dependencies are absent or changed, and
+regenerates vendored browser assets when their inputs or outputs require it.
+It also generates missing icon variants and prints actionable native-package
+hints through `make doctor`. It automatically selects Wails' WebKitGTK 4.1
+support on distributions such as current Fedora; WebKitGTK 4.0 is also
+supported. The current Windows target uses Wails' pure-Go WebView2 path, so it
+cross-builds from Linux without MinGW-w64. Wails v2 builds Linux only on Linux
+and macOS only on macOS; `make all` selects the targets supported by the
+current host. `./scripts/build-fedora.sh` is a convenience wrapper around
+`make linux`.
 
 For contributor setup, verification commands, and the platform build notes in one place, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -176,9 +184,8 @@ For contributor setup, verification commands, and the platform build notes in on
 The test suite covers the Go vault backend, CodeMirror behaviour, tab/session state, diagram rendering, and the printable-document pipeline.
 
 ~~~bash
-# Generate ignored browser assets before testing the full application surface.
-npm ci
-npm run vendor
+# Prepare ignored browser assets before testing a fresh checkout.
+make bootstrap
 
 # Go backend
 go vet . ./internal/... ./cmd/...
@@ -202,7 +209,7 @@ The PDF tests verify the full application-controlled contract: frontmatter, cove
 
 - **Go + Wails v2** provides the desktop shell, vault-safe filesystem operations, optional local Git auto-commit history, settings, and browser-backed interactive PDF export. Reusable backend modules live under `internal/`; the Wails bootstrap remains at the repository root by convention.
 - **Vanilla JavaScript + CodeMirror 6** provides the editor, live Markdown experience, workspace UI, and on-demand language support.
-- **Browser dependencies** keep the editor, Markdown renderer, KaTeX, Mermaid, Vega, Vega-Lite, Vim mode, and language grammars available without a runtime package install. Generated modules are recreated locally with `npm run vendor` before desktop builds; KaTeX ships only its production JavaScript, CSS, and font assets. Python and Rust grammar support does not add a Python or Rust runtime to Figaro.
+- **Browser dependencies** keep the editor, Markdown renderer, KaTeX, Mermaid, Vega, Vega-Lite, Vim mode, and language grammars available without a runtime package install. The Makefile recreates generated modules before desktop builds (or on demand with `make vendor`); KaTeX ships only its production JavaScript, CSS, and font assets. Python and Rust grammar support does not add a Python or Rust runtime to Figaro.
 - **The vault** is the source of truth. Configuration lives under `.config/`; content remains portable files.
 
 For the complete behaviour contract and implementation notes, see [the product specification](docs/PROMPT.md). Non-obvious implementation decisions are collected in [the architecture notes](ARCHITECTURE.md), and the test layout and commands are documented in [the testing guide](docs/TESTING.md).

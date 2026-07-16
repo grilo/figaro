@@ -225,14 +225,14 @@ In **edit mode** (cursor on the link line or intersecting the link's range), raw
 | **Middle** | No | Open in new tab alongside |
 
 ### 4.6 Date Shortcuts
-Typing `@today`, `@tomorrow`, or `@yesterday` and pressing Space auto-replaces with `[YYYY-MM-DD](YYYY-MM-DD.md)`.
+Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For example, `@to` lists **today** before **tomorrow**. Accept with Enter, Tab, or Space to insert `[YYYY-MM-DD](YYYY-MM-DD.md)`.
 
 ---
 
 ## 5. CodeMirror 6 Extensions
 
 ### 5.1 Core Extensions
-`lineNumbers()`, `highlightActiveLineGutter()`, `history()`, `foldGutter()`, `bracketMatching()`, `autocompletion()`. `lineWrapping` and the live-preview extensions are installed only for Markdown; source-code files load a language support extension through a CodeMirror `Compartment`.
+`lineNumbers()`, `highlightActiveLineGutter()`, `history()`, `bracketMatching()`, `autocompletion()`. `lineWrapping` and live-preview extensions are installed only for Markdown; `foldGutter()` and its keymap are installed only for source-code files through CodeMirror `Compartment`s.
 
 ### 5.2 codemirror-live-markdown Extensions
 | Extension | Purpose |
@@ -251,10 +251,11 @@ Typing `@today`, `@tomorrow`, or `@yesterday` and pressing Space auto-replaces w
 ### 5.3 Custom Extensions
 | Extension | Type | Purpose |
 |-----------|------|---------|
-| `hashtagPlugin` | ViewPlugin | Detects `#tag` via regex, wraps in `cm-hashtag` class |
+| `hashtagPlugin` | ViewPlugin | Decorates standalone whitespace-delimited `#tag` tokens, excluding markdown anchors |
 | `widgetPlugin` | ViewPlugin | Bullet list markers → Unicode glyphs; `[ ]`/`[x]` → interactive checkboxes |
 | `extrasPlugin` | ViewPlugin | `==highlight==`, `[^footnote]`, HRs (`cm-hr-passive`/`cm-hr-active`), callouts |
-| `wikilinkPlugin` | ViewPlugin | `@today`/`@tomorrow`/`@yesterday` auto-replace; empty link autofill |
+| `dateShortcutCompletions` | Completion source | `@today`/`@tomorrow`/`@yesterday` date-link suggestions |
+| `emptyLinkAutofillPlugin` | ViewPlugin | Fills `[]()` links from their visible text |
 | `hrPlugin` | ViewPlugin (extrasPlugin) | Horizontal rules with active-line toggle via `Decoration.line` |
 | `mathField` | StateField | `$inline$` and `$$block$$` LaTeX rendering via KaTeX |
 | `vimCompartment` | Compartment | Dynamic vim mode (on/off via `reconfigure`) |
@@ -269,14 +270,14 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 
 ### 6.1 Column System
 - Three **system columns** always present and shown last: `todo`, `wip`, `done`.
-- Custom columns discovered from `#tag` anywhere in vault files, sorted alphabetically.
+- Custom columns discovered from standalone whitespace-delimited `#tag` tokens in vault files, sorted alphabetically. Markdown anchors such as `[guide](#section)` are ignored.
 - Columns are rescanned after every file save, create, delete, tag rename, and tag deletion.
 - The kanban board always fetches fresh columns from the backend every time it is rendered.
 - A custom column disappears on the next rescan once its final matching hashtag is gone; the three system columns remain.
 
 ### 6.2 Task Discovery
 - The board scans every line of every `.md` file in the vault.
-- **Any line** that contains a hashtag matching a known column name has its task placed in that column.
+- **Any line** that contains a standalone hashtag matching a known column name has its task placed in that column.
 - Display text: line with checkbox markers, list markers, and matching tag stripped in order.
 - The same line can appear in multiple columns if it contains multiple known hashtags.
 
@@ -321,7 +322,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 7.3 Calendar and Daily Notes
 - The top-bar Calendar control opens the right sidebar's monthly grid. A day is marked when a vault note is named `YYYY-MM-DD.md` or another Markdown note links to that daily note.
 - Selecting a marked day lists notes that link to its daily note; selecting a listed note opens it in a file tab. Today is always selectable.
-- `@today`, `@tomorrow`, and `@yesterday` expand to date links. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
+- `@today`, `@tomorrow`, and `@yesterday` offer date-link completions. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
 - The selected date is stored locally for the webview; the calendar scans only Markdown content and ignores dot-directories and symlinks like the rest of the vault scanner.
 
 ### 7.4 Welcome/Home Workspace
@@ -360,7 +361,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 
 ### 9.1 Architecture
 - `StateField`-based plugin at `frontend/js/mathPlugin.js` (safe for block decorations).
-- KaTeX v0.17.0 is generated as a slim browser runtime at `frontend/vendored/katex/` by `npm run vendor`; `index.html` loads its global minified script and CSS. The generated directory contains only the license, manifest, minified JS/CSS, and their required fonts—no KaTeX source, CLI, tests, or Python build helpers.
+- KaTeX v0.17.0 is generated as a slim browser runtime at `frontend/vendored/katex/` by the `make bootstrap` / `make vendor` workflow; `index.html` loads its global minified script and CSS. The generated directory contains only the license, manifest, minified JS/CSS, and their required fonts—no KaTeX source, CLI, tests, or Python build helpers.
 
 ### 9.2 Syntax
 | Type | Syntax | Rendering |
@@ -454,7 +455,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 
 | Input | Context | Action |
 |-------|---------|--------|
-| `@today` / `@tomorrow` / `@yesterday` | Editor | Insert date link |
+| `@today` / `@tomorrow` / `@yesterday` | Editor | Show date-link completions |
 | `[` + text | Editor | Trigger link autocomplete |
 | ↑ / ↓ / Tab | Autocomplete | Navigate suggestions |
 | Enter | Autocomplete | Accept suggestion |
@@ -906,7 +907,9 @@ graph TD
 
 | Target | Output | Requirements |
 |--------|--------|-------------|
-| `make linux` | `build/bin/figaro` (amd64) | gcc |
+| `make bootstrap` | Prepared checkout | Go modules, locked npm dependencies, vendored browser assets, icons |
+| `make doctor` | Prerequisite report | Prints package-manager install hints |
+| `make linux` | `build/bin/figaro` (amd64) | Linux host, GCC, pkg-config, GTK3, WebKitGTK 4.1 or 4.0 |
 | `make windows` | `build/bin/figaro.exe` (amd64) | Go + Wails CLI |
 | `make darwin` | `build/bin/figaro-darwin` (amd64+arm64) | macOS host |
 | `make dev` | Dev server | — |
@@ -1013,7 +1016,10 @@ make icons        # Regenerate icon assets from figaro.appicon.png
 
 On Linux, `make all` runs the Linux and Windows targets; on macOS it runs the
 Darwin target. The Makefile checks for Wails and the host-specific native
-dependencies before it starts a package build.
+dependencies before it starts a package build. It prepares a clean checkout by
+running `go mod download`, `npm ci` when the lockfile inputs have changed, and
+the vendor generator when its inputs or output files require it. `make doctor`
+prints a concrete package-manager command for missing native dependencies.
 
 ### 35.3 Test Suite
 ```bash

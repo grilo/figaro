@@ -17,6 +17,10 @@ describe('Code file editor mode', () => {
         await initEditor();
         const view = createEditorView();
 
+        // Markdown has live-preview replacements, so it deliberately leaves
+        // folding and its gutter chevrons disabled.
+        expect(view.dom.querySelector('.cm-foldGutter')).toBeNull();
+
         await expect(configureEditorForFile('themes/_print.css')).resolves.toBe(true);
         view.dispatch({
             changes: { from: 0, to: view.state.doc.length, insert: '/* ![not-a-markdown-image](x.png) */\n.note {\n    color: rebeccapurple;\n}' },
@@ -29,6 +33,7 @@ describe('Code file editor mode', () => {
         expect(syntaxTree(view.state).topNode.name).toBe('StyleSheet');
         expect(view.dom.querySelector('.cm-link-widget')).toBeNull();
         expect(view.dom.querySelector('.cm-indent-markers')).not.toBeNull();
+        expect(view.dom.querySelector('.cm-foldGutter')).not.toBeNull();
         expect(getIndentUnit(view.state)).toBe(2);
         expect(view.state.tabSize).toBe(2);
         view.dispatch({ selection: { anchor: view.state.doc.line(2).from } });
@@ -43,5 +48,8 @@ describe('Code file editor mode', () => {
         expect(view).toBe(before);
         expect(view.dom.classList.contains('cm-code-file')).toBe(true);
         expect(view.state.doc.toString()).toBe('package main');
+
+        await expect(configureEditorForFile('notes/example.md')).resolves.toBe(true);
+        expect(view.dom.querySelector('.cm-foldGutter')).toBeNull();
     });
 });

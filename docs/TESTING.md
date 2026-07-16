@@ -26,9 +26,8 @@ helpers without exposing implementation details merely for testing.
 ## Commands
 
 ```bash
-# Install dependencies and generate the ignored browser modules first.
-npm ci
-npm run vendor
+# Prepare dependencies and generate ignored browser modules first.
+make bootstrap
 
 # Application packages: Wails facade, internal modules, and dev commands
 go vet . ./internal/... ./cmd/...
@@ -71,10 +70,11 @@ documented in [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 Generated browser dependencies are ignored under `frontend/vendored/`; the
 desktop build embeds the regenerated files and never fetches packages at
-runtime. Run this from the repository root after `npm ci`:
+runtime. `make bootstrap` performs this automatically. To force just a
+browser-asset refresh, run this from the repository root:
 
 ```bash
-npm run vendor
+make vendor
 ```
 
 Run the full frontend and browser suites after regeneration. Do not commit the

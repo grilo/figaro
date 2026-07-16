@@ -12,6 +12,7 @@ import { getFootnoteAtPosition, resolveFootnoteNavigation } from './footnotes.js
 import { getFileLanguage, loadLanguageSupport } from './languageSupport.js';
 import { createFrontmatterField } from './frontmatterPlugin.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
+import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
 import { pdfExportErrorDialog } from './dialogs.js';
 import {
     livePreviewPlugin,
@@ -29,13 +30,12 @@ import {
 } from 'codemirror-live-markdown';
 
 // CodeMirror 6 imports (loaded from local vendor directory)
-let EditorView, EditorState, StateField, StateEffect, RangeSetBuilder, Prec, Compartment,
-    lineNumbers, highlightActiveLineGutter,
-    keymap, defaultKeymap, cursorLineUp, cursorLineDown, history, historyKeymap, foldGutter, foldKeymap,
-    bracketMatching, autocompletion, completionKeymap, indentUnit,
+let EditorView, EditorState, StateField, StateEffect, RangeSetBuilder, Compartment,
+    lineNumbers, highlightActiveLineGutter, drawSelection,
+    keymap, defaultKeymap, history, historyKeymap, foldGutter, foldKeymap,
+    bracketMatching, autocompletion, completionKeymap, acceptCompletion, indentUnit,
     markdownLanguage, markdownKeymap,
     ViewPlugin, Decoration, WidgetType,
-    EditorSelection,
     syntaxTree, indentMore, indentLess,
     syntaxHighlighting, HighlightStyle, tags;
 
@@ -45,6 +45,7 @@ let vimCompartment = null;
 let imageBasePathCompartment = null;
 let readOnlyCompartment = null;
 let fileModeCompartment = null;
+let foldingCompartment = null;
 let vimActive = false;
 let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: null };
 let fileModeRequest = 0;
@@ -68,48 +69,14 @@ export function isBlockquoteLine(line) {
     return /^ {0,3}>\s?/.test(line);
 }
 
-/**
- * CodeMirror's normal vertical movement is pixel-based so that it can follow
- * wrapped visual lines. Live Markdown can replace source with widgets, and a
- * WebKit layout edge case can occasionally make that calculation skip several
- * source lines. Keep the normal command, then repair only that bad outcome.
- */
-export function adjacentLinePositionForUnexpectedVerticalSkip(document, beforePosition, afterPosition, forward) {
-    const sourceLine = document.lineAt(beforePosition);
-    const movedLine = document.lineAt(afterPosition);
-    const targetNumber = sourceLine.number + (forward ? 1 : -1);
-    const skippedLines = forward
-        ? movedLine.number > sourceLine.number + 1
-        : movedLine.number < sourceLine.number - 1;
-    if (!skippedLines || targetNumber < 1 || targetNumber > document.lines) return null;
+const bulletMarkers = ['\u2022', '\u25E6', '\u25AA'];
 
-    const targetLine = document.line(targetNumber);
-    const sourceColumn = beforePosition - sourceLine.from;
-    return targetLine.from + Math.min(sourceColumn, targetLine.length);
-}
-
-export function moveCursorVerticallySafely(view, forward) {
-    const before = view.state.selection.main;
-    if (!before.empty || view.state.selection.ranges.length !== 1) return false;
-
-    const move = forward ? cursorLineDown : cursorLineUp;
-    if (!move || !move(view)) return false;
-
-    const after = view.state.selection.main;
-    const targetPosition = adjacentLinePositionForUnexpectedVerticalSkip(
-        view.state.doc,
-        before.head,
-        after.head,
-        forward
-    );
-    if (targetPosition === null) return true;
-
-    view.dispatch({
-        selection: EditorSelection.cursor(targetPosition, after.assoc, after.bidiLevel, after.goalColumn),
-        scrollIntoView: true,
-        userEvent: 'select',
-    });
-    return true;
+// Lezer includes the current BulletList in the ancestor chain for ListMark,
+// so depth 1 is the top-level list. Cycle a conventional, stable hierarchy
+// rather than shifting the first marker or flattening every deeper level.
+export function bulletMarkerForListDepth(depth) {
+    const normalizedDepth = Math.max(1, Math.floor(Number(depth) || 1));
+    return bulletMarkers[(normalizedDepth - 1) % bulletMarkers.length];
 }
 
 async function loadCodeMirrorModules() {
@@ -122,11 +89,11 @@ async function loadCodeMirrorModules() {
             import('@codemirror/autocomplete'), import('@lezer/highlight'), import('@codemirror/search')
         ]);
         ({ indentationMarkers } = await import('@replit/codemirror-indentation-markers'));
-        ({ EditorView, keymap } = cmView);
-        ({ EditorState, StateField, StateEffect, RangeSetBuilder, Prec, Compartment, EditorSelection } = cmState);
-        ({ defaultKeymap, cursorLineUp, cursorLineDown, history, historyKeymap, indentMore, indentLess } = cmCommands);
+        ({ EditorView, keymap, drawSelection } = cmView);
+        ({ EditorState, StateField, StateEffect, RangeSetBuilder, Compartment } = cmState);
+        ({ defaultKeymap, history, historyKeymap, indentMore, indentLess } = cmCommands);
         ({ foldGutter, foldKeymap, bracketMatching, syntaxTree, indentUnit, syntaxHighlighting, HighlightStyle } = cmLanguage);
-        ({ autocompletion, completionKeymap } = cmAutocomplete);
+        ({ autocompletion, completionKeymap, acceptCompletion } = cmAutocomplete);
         ({ lineNumbers, highlightActiveLineGutter } = cmView);
         ({ markdownLanguage, markdownKeymap } = cmMarkdown);
         ({ ViewPlugin, Decoration, WidgetType } = cmView);
@@ -444,6 +411,12 @@ function createEditorView() {
                     // Skip hex colors (#RGB, #RRGGBB, #RRGGBBAA)
                     if (/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$|^[0-9a-fA-F]{8}$/.test(m[1])) continue;
                     const s = from + m.index;
+                    const e = s + m[0].length;
+                    const previous = s > 0 ? view.state.doc.sliceString(s - 1, s) : '';
+                    const next = e < view.state.doc.length ? view.state.doc.sliceString(e, e + 1) : '';
+                    // Kanban tags are standalone whitespace-delimited tokens.
+                    // This excludes markdown anchors such as [guide](#section).
+                    if ((previous && !/\s/.test(previous)) || (next && !/\s/.test(next))) continue;
                     builder.add(s, s + m[0].length, Decoration.mark({
                         class: 'cm-hashtag', attributes: { 'data-tag': m[1].toLowerCase() }
                     }));
@@ -514,7 +487,7 @@ function createEditorView() {
                             if (isOrdered) {
                                 widgetChar = m[2] + ' ';
                             } else {
-                                widgetChar = ['\u2022', '\u25E6', '\u25AA'][Math.min(depth, 2)] + ' ';
+                                widgetChar = bulletMarkerForListDepth(depth) + ' ';
                             }
                             decos.push(Decoration.replace({
                                 widget: bulletW(widgetChar)
@@ -614,9 +587,9 @@ function createEditorView() {
         }
     }, { decorations: v => v.decorations });
 
-    // Wikilink/Date shortcut plugin + empty-link autofill
+    // Empty-link autofill
 
-    const wikilinkPlugin = ViewPlugin.fromClass(class {
+    const emptyLinkAutofillPlugin = ViewPlugin.fromClass(class {
         update(update) {
             if (update.docChanged) {
                 const doc = update.state.doc;
@@ -624,22 +597,6 @@ function createEditorView() {
                 if (sel.empty) {
                     const ls = doc.lineAt(sel.head).from;
                     const before = doc.sliceString(ls, sel.head);
-                    const triggers = { '@today': 0, '@tomorrow': 1, '@yesterday': -1 };
-                    for (const [t, off] of Object.entries(triggers)) {
-                        if (before.endsWith(t)) {
-                            const d = new Date(); d.setDate(d.getDate() + off);
-                            const ds = d.toISOString().split('T')[0];
-                            const rep = `[${ds}](${ds}.md)`;
-                            queueMicrotask(() => {
-                                const v = update.view;
-                                if (!v.isDestroyed) v.dispatch({
-                                    changes: { from: sel.head - t.length, to: sel.head, insert: rep },
-                                    selection: { anchor: sel.head - t.length + rep.length }
-                                });
-                            });
-                            break;
-                        }
-                    }
                     // Empty link autofill: [text]() → [text](dir/text.md)
                     const emptyLink = before.match(/\[([^\]]+)\]\(\)$/);
                     if (emptyLink) {
@@ -750,17 +707,19 @@ function createEditorView() {
         getFileTree: () => getState('fileTreeData') || [],
         getActiveFilePath,
     });
+    const dateShortcutCompletions = createDateShortcutCompletionSource();
 
     vimCompartment = new Compartment();
     imageBasePathCompartment = new Compartment();
     readOnlyCompartment = new Compartment();
     fileModeCompartment = new Compartment();
+    foldingCompartment = new Compartment();
 
     const markdownExtensionsForPath = () => [
         collapseOnSelectionFacet.of(true),
         mouseSelectingField,
         EditorView.lineWrapping,
-        autocompletion({ override: [frontmatterCompletions, fileLinkCompletions, imageCompletions] }),
+        autocompletion({ override: [frontmatterCompletions, dateShortcutCompletions, fileLinkCompletions, imageCompletions] }),
         markdownLanguage,
         markdownStylePlugin,
         livePreviewPlugin,
@@ -776,15 +735,11 @@ function createEditorView() {
         hashtagPlugin,
         widgetPlugin,
         extrasPlugin,
-        wikilinkPlugin,
+        emptyLinkAutofillPlugin,
         EditorView.domEventHandlers({
             mousedown: handleMouseDown,
             click: handleClick,
         }),
-        Prec.high(keymap.of([
-            { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
-            { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },
-        ])),
         keymap.of(markdownKeymap),
     ];
     const codeExtensionsForSupport = (support) => [
@@ -821,7 +776,8 @@ function createEditorView() {
             fileModeCompartment.of(markdownExtensionsForPath()),
             lineNumbers(),
             highlightActiveLineGutter(),
-            history(), foldGutter(), bracketMatching(),
+            foldingCompartment.of([]),
+            history(), bracketMatching(), drawSelection(),
             searchExtension({ top: false }),
             EditorView.updateListener.of(update => {
                 if (update.docChanged) handleDocChange(update);
@@ -892,8 +848,8 @@ function createEditorView() {
                 contextmenu: handleContextMenu
             }),
             keymap.of([
-                ...searchKeymap, ...defaultKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap,
-                { key: 'Tab', run: indentMore, shift: indentLess },
+                ...searchKeymap, ...defaultKeymap, ...historyKeymap, ...completionKeymap,
+                { key: 'Tab', run: view => acceptCompletion(view) || indentMore(view), shift: indentLess },
             ])
         ]
     });
@@ -991,7 +947,7 @@ function applyFileLanguageUI(view, language) {
  */
 async function configureEditorForFile(path) {
     const view = getEditorView();
-    if (!view || view.isDestroyed || !fileModeCompartment) return false;
+    if (!view || view.isDestroyed || !fileModeCompartment || !foldingCompartment) return false;
 
     const request = ++fileModeRequest;
     let language = getFileLanguage(path);
@@ -1017,9 +973,13 @@ async function configureEditorForFile(path) {
     }
 
     if (request !== fileModeRequest || view.isDestroyed) return false;
+    const foldingExtensions = language.kind === 'code' && foldGutter && foldKeymap
+        ? [foldGutter(), keymap.of(foldKeymap)]
+        : [];
     view.dispatch({
         effects: [
             fileModeCompartment.reconfigure(extensions),
+            foldingCompartment.reconfigure(foldingExtensions),
             imageBasePathCompartment.reconfigure(
                 language.kind === 'markdown' ? imageFieldForPath(path) : []
             ),

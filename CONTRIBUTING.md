@@ -13,13 +13,11 @@ Install the following before working on the project:
 - Wails v2 CLI
 - The native build dependencies required by Wails for your platform
 
-Install Wails once, then install the repository dependencies:
+Install Wails once, then prepare the repository:
 
 ```bash
 go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
-go mod download
-npm ci
-npm run vendor
+make bootstrap
 ```
 
 Start the desktop app with:
@@ -49,12 +47,14 @@ make icons # regenerate all app icon variants from figaro.appicon.png
 ```
 
 `make linux` builds the native Linux target and checks for GTK3 plus WebKitGTK
-4.0 or 4.1 first. The current Windows target uses Wails' pure-Go WebView2 path
-and cross-builds from Linux without MinGW-w64; macOS builds still require a
-macOS host. Wails also requires a Linux host for Linux builds, while `make all`
-selects the outputs supported by the current host. See the `help` target in the
-[Makefile](Makefile). On Fedora, `./scripts/build-fedora.sh` checks the
-platform packages used by its build workflow.
+4.0 or 4.1 first. `make doctor` prints the package-manager command for missing
+tools and headers; WebKitGTK 4.1 is preferred and 4.0 remains supported. The
+current Windows target uses Wails' pure-Go WebView2 path and cross-builds from
+Linux without MinGW-w64; macOS builds still require a macOS host. Wails also
+requires a Linux host for Linux builds, while `make all` selects the outputs
+supported by the current host. See the `help` target in the [Makefile](Makefile).
+On Fedora, `./scripts/build-fedora.sh` delegates to the same `make linux`
+workflow.
 
 ## Verify a change
 
@@ -62,8 +62,8 @@ Run the checks relevant to the files you touched before opening a pull
 request. Run the complete set for changes that cross the Go/frontend boundary:
 
 ```bash
-# Regenerate ignored browser assets first.
-npm run vendor
+# Prepare a fresh checkout (or regenerate ignored browser assets).
+make bootstrap
 
 # Application packages (root Wails facade, internal modules, and dev commands)
 go vet . ./internal/... ./cmd/...
@@ -88,15 +88,14 @@ outputs, and personal notes out of commits.
 updates every shipped icon from `figaro.appicon.png`. The output is ignored;
 the Makefile regenerates it automatically before desktop builds.
 
-Generated browser modules are ignored under `frontend/vendored/`. Recreate
-them after `npm ci` and whenever dependencies change:
+Generated browser modules are ignored under `frontend/vendored/`. The Makefile
+recreates them automatically. To refresh them explicitly, run:
 
 ```bash
-npm run vendor             # CodeMirror and related browser modules
-npm run vendor:markdown    # Markdown-It bundle plus KaTeX browser runtime assets
+make vendor
 ```
 
-`npm run vendor:markdown` copies only KaTeX's production browser assets:
+The vendor workflow copies only KaTeX's production browser assets:
 minified JavaScript, minified CSS, the CSS-referenced fonts, its license, and
 a versioned manifest. It intentionally excludes KaTeX source, tests, CLI, and
 upstream build tooling, including its Python maintenance scripts.

@@ -26,6 +26,7 @@ const DEFAULTS = {
     openTabs: [],
     pinnedTabs: [],
     selectedFilePath: null,
+    selectedTreePath: null,
     selectedCalDateStr: null,
     expandedDirs: new Set(),
     _restoredTabs: null,
@@ -130,6 +131,12 @@ describe('State Management', () => {
             expect(getState('selectedFilePath')).toBe('notes/hello.md');
         });
 
+        test('should restore selectedTreePath from localStorage', () => {
+            localStorage.setItem('selectedTreePath', 'notes/projects');
+            initState();
+            expect(getState('selectedTreePath')).toBe('notes/projects');
+        });
+
         test('should restore openTabs to _restoredTabs', () => {
             const tabs = [{ id: 'hello.md', type: 'file', title: 'hello', path: 'hello.md' }];
             localStorage.setItem('openTabs', JSON.stringify(tabs));
@@ -171,6 +178,12 @@ describe('State Management', () => {
             persistState();
             expect(localStorage.getItem('selectedCalDate')).toBe('2024-01-15');
         });
+
+        test('should save selectedTreePath to localStorage', () => {
+            setState('selectedTreePath', 'notes/projects');
+            persistState();
+            expect(localStorage.getItem('selectedTreePath')).toBe('notes/projects');
+        });
     });
 
     describe('auto-persist subscriptions', () => {
@@ -200,6 +213,13 @@ describe('State Management', () => {
             setState('selectedFilePath', 'some.md');
             setState('selectedFilePath', null);
             expect(localStorage.getItem('selectedFilePath')).toBeNull();
+        });
+
+        test('should auto-persist selectedTreePath on change', () => {
+            setState('selectedTreePath', 'notes/projects');
+            expect(localStorage.getItem('selectedTreePath')).toBe('notes/projects');
+            setState('selectedTreePath', null);
+            expect(localStorage.getItem('selectedTreePath')).toBeNull();
         });
 
         test('should auto-persist openTabs as serializable subset', () => {

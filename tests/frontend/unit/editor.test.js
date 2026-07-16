@@ -197,24 +197,6 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(closeSearchPanel()).toBe(true);
         });
 
-        test('calculates the adjacent source line after an unexpected vertical skip', async () => {
-            const { EditorState } = await import('@codemirror/state');
-            const { adjacentLinePositionForUnexpectedVerticalSkip } = await import('../frontend/js/editor.js');
-            const state = EditorState.create({ doc: 'one\ntwo\nthree\nfour\nfive' });
-
-            expect(adjacentLinePositionForUnexpectedVerticalSkip(
-                state.doc,
-                state.doc.line(4).from,
-                state.doc.line(1).from,
-                false
-            )).toBe(state.doc.line(3).from);
-            expect(adjacentLinePositionForUnexpectedVerticalSkip(
-                state.doc,
-                state.doc.line(4).from,
-                state.doc.line(3).from,
-                false
-            )).toBeNull();
-        });
     });
 });
 

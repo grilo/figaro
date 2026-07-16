@@ -3,6 +3,7 @@
  * Verifies that fonts actually render when applied (not just CSS variable changes)
  */
 import { testUtils } from './test_setup.js';
+import { readFileSync } from 'node:fs';
 
 // Mock editor with querySelector for direct DOM manipulation
 const mockCmEditor = document.createElement('div');
@@ -47,6 +48,7 @@ beforeEach(() => {
     `;
     document.body.appendChild(mockCmEditor);
     document.documentElement.style.removeProperty('--font-editor');
+    document.documentElement.style.removeProperty('--font-ui');
 });
 
 async function loadThemeModule() {
@@ -106,6 +108,23 @@ describe('Font Rendering', () => {
 
         await new Promise(r => setTimeout(r, 300));
         expect(document.documentElement.style.getPropertyValue('--font-editor')).toContain('Figtree');
+    });
+
+    test('UI font variable follows the setting so dialogs and context menus inherit it', async () => {
+        const { initSettingsPanel } = await loadThemeModule();
+        await initSettingsPanel();
+
+        const items = document.querySelectorAll('.font-picker-item');
+        Array.from(items).find(i => i.dataset.id === 'figtree').click();
+        await new Promise(r => setTimeout(r, 300));
+
+        expect(document.documentElement.style.getPropertyValue('--font-ui')).toContain('Figtree');
+    });
+
+    test('overlay surfaces use the UI font variable', () => {
+        const stylesheet = readFileSync('frontend/styles.css', 'utf8');
+        expect(stylesheet).toMatch(/\.context-menu\s*\{[^}]*font-family:\s*var\(--font-ui\)/s);
+        expect(stylesheet).toMatch(/\.custom-modal\s*\{[^}]*font-family:\s*var\(--font-ui\)/s);
     });
 
     test('Font family string includes fallback', async () => {

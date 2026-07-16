@@ -350,6 +350,10 @@ function applyFont(fontId, initial, root = document) {
         if (nameEl && fontInfo) nameEl.textContent = fontInfo.name;
 
         document.documentElement.style.setProperty('--font-editor', family);
+        // Overlay UI is mounted directly under <body>, outside #app. Keep it
+        // on the chosen reading font without changing the intentionally
+        // separate code-font setting.
+        document.documentElement.style.setProperty('--font-ui', family);
 
         // Inject CSS override — fonts.css handles @font-face declarations
         let style = document.getElementById('dynamic-font-style');

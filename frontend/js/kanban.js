@@ -27,8 +27,16 @@ const COLOR_PALETTE = [
  * Initialize kanban module
  */
 export function initKanban() {
-    // Preload columns and board data, then update sidebar badges
-    loadKanbanColumns().then(() => updateKanbanBadges());
+    refreshKanbanData().catch(() => {});
+}
+
+// Refresh lightweight Kanban state after the backend finishes an initial or
+// externally-triggered vault index. If the board is visible, update it too.
+export async function refreshKanbanData() {
+    await loadKanbanColumns();
+    await updateKanbanBadges();
+    const container = getBoardContainer();
+    if (container) await renderKanbanBoard(container.id);
 }
 
 /**
@@ -569,5 +577,6 @@ function escapeHtml(text) {
 
 export default {
     initKanban,
+    refreshKanbanData,
     renderKanbanBoard
 };

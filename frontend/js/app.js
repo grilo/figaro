@@ -7,8 +7,8 @@ import { log } from './log.js';
 import { state, initState, subscribe, setState, getState } from './state.js';
 import { initEditor, getEditorContent, openEditorSearch } from './editor.js';
 import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot } from './tabManager.js';
-import { initFileTree, refreshFileTree } from './fileTree.js';
-import { initCalendar, renderCalendar } from './calendar.js';
+import { initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
+import { initCalendar, renderCalendar, invalidateCalendarCache, refreshCalendarIfVisible } from './calendar.js';
 import { initKanban } from './kanban.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, promptDialog } from './dialogs.js';
@@ -20,6 +20,7 @@ import { initTheme } from './theme.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
+import { registerVaultChangeEvents } from './vaultEvents.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -29,6 +30,7 @@ window.confirmDialog = confirmDialog;
 window.promptDialog = promptDialog;
 
 let autoSaveTimer = null;
+let vaultEventsInitialized = false;
 
 function configureAutoSave(seconds) {
     if (autoSaveTimer) {
@@ -43,6 +45,27 @@ function configureAutoSave(seconds) {
             saveActiveTabFile();
         }
     }, seconds * 1000);
+}
+
+// Wails exposes the same event API on Linux/WebKit, Windows/WebView2, and
+// macOS/WKWebView. A native backend watcher emits these notifications, so the
+// UI can react to real filesystem changes without a full tree poll every few
+// seconds.
+export function initVaultChangeNotifications(runtime = window.runtime) {
+    if (vaultEventsInitialized) return false;
+    const registered = registerVaultChangeEvents(runtime, {
+        onVaultChanged: () => {
+            invalidateCalendarCache();
+            scheduleFileTreeRefresh();
+            refreshCalendarIfVisible();
+            import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});
+        },
+        onKanbanIndexed: () => {
+            import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});
+        },
+    });
+    if (registered) vaultEventsInitialized = true;
+    return registered;
 }
 
 /**
@@ -373,6 +396,9 @@ function restoreOpenTabs() {
     if (state.selectedFilePath && !filePaths.has(state.selectedFilePath)) {
         setState('selectedFilePath', null);
     }
+    if (state.selectedTreePath && !filePaths.has(state.selectedTreePath) && !directoryPaths.has(state.selectedTreePath)) {
+        setState('selectedTreePath', null);
+    }
     if (state.expandedDirs instanceof Set) {
         state.expandedDirs = new Set([...state.expandedDirs].filter(path => directoryPaths.has(path)));
     }
@@ -450,21 +476,22 @@ export async function initApp() {
     
     // Initialize tab manager
     initTabManager();
+
+    // Register before the first vault request. If the background Kanban index
+    // finishes while the initial tree is loading, the ready event is still
+    // observed and the sidebar can refresh its derived data.
+    initVaultChangeNotifications();
     
     // Initialize file tree
     statusBar.set('Loading file tree...');
     await refreshFileTree();
     initFileTree();
 
-    // Periodic file tree refresh (every 3 seconds)
-    setInterval(() => { refreshFileTree().catch(() => {}); }, 3000);
-
     // Restore previously open tabs (after file tree is available)
     const didRestore = restoreOpenTabs();
     
     // Initialize calendar
     initCalendar();
-    renderCalendar();
     
     // Initialize kanban
     initKanban();

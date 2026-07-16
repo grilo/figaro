@@ -231,7 +231,7 @@ func TestWriteInteractivePDFWorkspaceIncludesKaTeXStylesheetAndFonts(t *testing.
 func requireGeneratedKaTeXRuntime(t *testing.T) {
 	t.Helper()
 	if _, err := assets.ReadFile("frontend/vendored/katex/dist/katex.min.css"); err != nil {
-		t.Skip("generated KaTeX runtime is absent; run npm run vendor before PDF verification")
+		t.Skip("generated KaTeX runtime is absent; run make bootstrap before PDF verification")
 	}
 }
 

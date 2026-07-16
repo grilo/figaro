@@ -4,13 +4,14 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, getContextMenuPosition, isInvalidMoveDestination } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
     fileTreeData: null,
     expandedDirs: new Set(),
     selectedFilePath: null,
+    selectedTreePath: null,
     selectedFilePaths: [],
     openTabs: [],
     activeTabId: null
@@ -55,6 +56,7 @@ import { openTab, handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { confirmDialog, newNoteDialog, promptDialog } from '../frontend/js/dialogs.js';
 import { prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
+import { saveSession } from '../frontend/js/session.js';
 
 function deferred() {
     let resolve;
@@ -73,6 +75,7 @@ describe('File Tree', () => {
         state.fileTreeData = null;
         state.expandedDirs = new Set();
         state.selectedFilePath = null;
+        state.selectedTreePath = null;
         state.selectedFilePaths = [];
         state.openTabs = [];
         state.activeTabId = null;
@@ -123,6 +126,19 @@ describe('File Tree', () => {
             expect(html).toContain('selected');
         });
 
+        test('keeps a selected folder distinct from the active file', () => {
+            const items = [{
+                name: 'Projects', path: 'Projects', type: 'directory', children: [
+                    { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1000 }
+                ]
+            }];
+            const surface = document.createElement('div');
+            surface.innerHTML = buildTreeHTML(items, new Set(['Projects']), 'Projects', [], 0, 'Projects/plan.md');
+
+            expect(surface.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').classList.contains('selected')).toBe(true);
+            expect(surface.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('active-file')).toBe(true);
+        });
+
         test('should render items in given order', () => {
             const items = [
                 { name: 'alpha', path: 'alpha', type: 'directory', children: [] },
@@ -171,6 +187,39 @@ describe('File Tree', () => {
             'drawio',
             { path: 'Diagrams/architecture.drawio.svg' }
         );
+    });
+
+    test('persists a clicked directory selection while its active note remains visible', () => {
+        state.fileTreeData = [{
+            name: 'Projects', path: 'Projects', type: 'directory', children: [
+                { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 100 }
+            ]
+        }];
+        state.selectedFilePath = 'Projects/plan.md';
+        initFileTree();
+
+        document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').click();
+
+        expect(state.selectedTreePath).toBe('Projects');
+        expect(document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').classList.contains('selected')).toBe(true);
+        expect(document.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('active-file')).toBe(true);
+        expect(saveSession).toHaveBeenCalled();
+    });
+
+    test('coalesces filesystem-triggered tree refreshes instead of polling continuously', async () => {
+        jest.useFakeTimers();
+        try {
+            scheduleFileTreeRefresh(180);
+            scheduleFileTreeRefresh(180);
+            jest.advanceTimersByTime(179);
+            expect(window.pywebview.api.get_file_tree).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(1);
+            await Promise.resolve();
+            expect(window.pywebview.api.get_file_tree).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     test('opens CodeMirror-supported source files from the tree', () => {
