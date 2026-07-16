@@ -87,6 +87,12 @@ All notable user-facing changes are recorded here from this point forward.
   and text colors, avoiding selector-order concerns for normal theming.
 - Ctrl/Cmd+F now opens CodeMirror's native in-document find panel, with match
   navigation and case-sensitive, whole-word, and regular-expression options.
+- Vim `:wq` and `:x` now wait for the current buffer to save successfully
+  before closing its tab; Vim `/`, `n`, and `N` search behavior now has
+  regression coverage as well.
+- The Vim preference now applies during startup—even when Home opens before
+  the editor exists—and the Settings switch, live mode, persisted value, and
+  subsequent application runs remain synchronized.
 - The in-document find panel now uses Figaro's themed colors throughout, with
   readable option labels, styled checkbox states, and clearer focus feedback.
 - The in-document find panel now uses roomier, more readable inputs and

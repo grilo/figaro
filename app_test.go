@@ -1373,8 +1373,19 @@ func TestVimSaveAndLoad(t *testing.T) {
 		t.Error("vim should be enabled")
 	}
 
+	// A fresh application instance must read the same on-disk preference,
+	// matching a real process restart.
+	restarted := NewApp(vaultPath)
+	vim, err = restarted.VimLoad()
+	if err != nil {
+		t.Fatalf("VimLoad after restart error: %v", err)
+	}
+	if !vim["enabled"] {
+		t.Error("vim should remain enabled after restart")
+	}
+
 	// Toggle back to false
-	result, err = app.VimSave(false)
+	result, err = restarted.VimSave(false)
 	if err != nil {
 		t.Fatalf("VimSave error: %v", err)
 	}
@@ -1384,6 +1395,15 @@ func TestVimSaveAndLoad(t *testing.T) {
 	}
 	if vim["enabled"] {
 		t.Error("vim should be disabled")
+	}
+
+	restartedAgain := NewApp(vaultPath)
+	vim, err = restartedAgain.VimLoad()
+	if err != nil {
+		t.Fatalf("VimLoad after second restart error: %v", err)
+	}
+	if vim["enabled"] {
+		t.Error("vim should remain disabled after restart")
 	}
 }
 

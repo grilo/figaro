@@ -26,6 +26,7 @@ jest.mock('../frontend/js/editor.js', () => ({
     createEditorView: jest.fn(),
     setEditorContent: jest.fn(),
     getEditorContent: jest.fn(() => ''),
+    toggleVim: jest.fn(() => Promise.resolve(true)),
 }));
 
 const mockApi = {

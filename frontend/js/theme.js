@@ -10,6 +10,12 @@ let themeStyleEl = null;
 let themeRequestId = 0;
 let fontSaveQueue = Promise.resolve();
 let codeFontSaveQueue = Promise.resolve();
+let currentVimEnabled = false;
+let persistedVimEnabled = false;
+let vimPreferenceLoaded = false;
+let vimPreferenceLoadPromise = null;
+let vimPreferenceRevision = 0;
+let vimSaveQueue = Promise.resolve();
 
 function isActivePanel(root) {
     return root === document || (!!root && root.isConnected && !root._settingsPanelDisposed);
@@ -52,6 +58,7 @@ export async function initTheme() {
     await applyTheme(themeId);
     applyFont(fontId, true);
     applyCodeFont(codeFontId, true);
+    await initVimPreference();
 }
 
 export async function applyTheme(themeId) {
@@ -98,6 +105,90 @@ function withTimeout(promise, ms, msg) {
     ]);
 }
 
+function syncVimToggles(enabled) {
+    document.querySelectorAll('#vim-toggle').forEach(toggle => {
+        toggle.checked = enabled;
+    });
+}
+
+async function applyVimPreference(enabled) {
+    const { toggleVim } = await import('./editor.js');
+    await toggleVim(enabled);
+}
+
+export function getVimPreference() { return currentVimEnabled; }
+
+/** Load and apply the persisted Vim preference exactly once per application run. */
+export async function initVimPreference() {
+    if (vimPreferenceLoaded) return currentVimEnabled;
+    if (vimPreferenceLoadPromise) return vimPreferenceLoadPromise;
+
+    vimPreferenceLoadPromise = (async () => {
+        try {
+            const result = await window.pywebview.api.vim_load();
+            currentVimEnabled = !!(result && result.enabled);
+            persistedVimEnabled = currentVimEnabled;
+            vimPreferenceLoaded = true;
+            syncVimToggles(currentVimEnabled);
+            await applyVimPreference(currentVimEnabled);
+        } catch (error) {
+            // Leave the preference reloadable so opening Settings can recover
+            // from a transient startup bridge failure.
+            vimPreferenceLoaded = false;
+            log.warn('Could not load Vim preference:', error);
+        } finally {
+            vimPreferenceLoadPromise = null;
+        }
+        return currentVimEnabled;
+    })();
+    return vimPreferenceLoadPromise;
+}
+
+/** Apply a Vim choice immediately and keep the persisted setting in the same state. */
+export async function setVimPreference(enabled) {
+    if (!vimPreferenceLoaded) await initVimPreference();
+
+    const requested = Boolean(enabled);
+    const revision = ++vimPreferenceRevision;
+    currentVimEnabled = requested;
+    syncVimToggles(requested);
+
+    try {
+        await applyVimPreference(requested);
+    } catch (error) {
+        log.warn('Could not apply Vim preference:', error);
+        if (revision === vimPreferenceRevision) {
+            currentVimEnabled = persistedVimEnabled;
+            syncVimToggles(currentVimEnabled);
+            try { await applyVimPreference(currentVimEnabled); } catch (_) { /* original failure is logged above */ }
+        }
+        return false;
+    }
+
+    const saveAttempt = vimSaveQueue.then(async () => {
+        const result = await window.pywebview.api.vim_save(requested);
+        if (!result?.success) throw new Error(result?.error || 'Vim preference was not saved');
+        persistedVimEnabled = requested;
+        return true;
+    });
+    vimSaveQueue = saveAttempt.catch(() => {});
+
+    try {
+        await saveAttempt;
+        return true;
+    } catch (error) {
+        log.warn('Could not save Vim preference:', error);
+        // Only the latest choice may roll back the live editor. An older failed
+        // request must not overwrite a newer toggle that is still queued.
+        if (revision === vimPreferenceRevision) {
+            currentVimEnabled = persistedVimEnabled;
+            syncVimToggles(currentVimEnabled);
+            try { await applyVimPreference(currentVimEnabled); } catch (_) { /* already logged above */ }
+        }
+        return false;
+    }
+}
+
 export async function initSettingsPanel(root = document) {
     log.debug('[settings] initSettingsPanel started');
     try {
@@ -140,16 +231,17 @@ export async function initSettingsPanel(root = document) {
         // Vim toggle
         const vimToggle = findIn(root, '#vim-toggle');
         if (vimToggle) {
-            try {
-                const result = await window.pywebview.api.vim_load();
-                if (!isActivePanel(root)) return;
-                vimToggle.checked = !!(result && result.enabled);
-                if (vimToggle.checked) import('./editor.js').then(({ toggleVim }) => toggleVim(true));
-            } catch (e) { /* noop */ }
+            const enabled = await initVimPreference();
+            if (!isActivePanel(root)) return;
+            vimToggle.checked = enabled;
             vimToggle.addEventListener('change', async () => {
-                const enabled = vimToggle.checked;
-                import('./editor.js').then(({ toggleVim }) => toggleVim(enabled));
-                try { await window.pywebview.api.vim_save(enabled); } catch (e) { /* noop */ }
+                const requested = vimToggle.checked;
+                vimToggle.disabled = true;
+                const saved = await setVimPreference(requested);
+                if (!isActivePanel(root)) return;
+                vimToggle.checked = getVimPreference();
+                vimToggle.disabled = false;
+                vimToggle.title = saved ? '' : 'Could not save Vim preference; the previous setting was restored.';
             });
         }
 
@@ -600,4 +692,7 @@ function initAutoSave(root) {
     }
 }
 
-export default { initTheme, applyTheme, getCurrentTheme, getCurrentFont, getThemes, initSettingsPanel };
+export default {
+    initTheme, applyTheme, getCurrentTheme, getCurrentFont, getThemes,
+    initVimPreference, getVimPreference, setVimPreference, initSettingsPanel
+};

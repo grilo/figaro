@@ -345,6 +345,12 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Uses `@replit/codemirror-vim` (vendored at `frontend/vendored/@replit/codemirror-vim/`).
 - Loaded dynamically via CodeMirror `Compartment` — no page reload required.
 - Preference persisted to `vault/.config/settings.json` (`"vim": true/false`).
+- The persisted preference is loaded once during application startup and is
+  the single source of truth for both the Settings switch and live editor. If
+  startup opens on Home before an editor exists, the requested mode is applied
+  when the first file creates the editor. Reopening Settings never re-applies
+  a stale value. A persistence failure restores the last confirmed setting in
+  both the switch and editor.
 
 ### 8.2 Custom Ex Commands
 | Command | Action |
@@ -352,14 +358,18 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 | `:w` / `:write` | Save current file |
 | `:e <file>` / `:edit` | Open/create file relative to current file's directory |
 | `:q` / `:quit` | Close current tab |
-| `:wq` | Save and close |
-| `:x` / `:xit` | Save and close |
+| `:wq` | Save the current buffer, wait for confirmed success, then close |
+| `:x` / `:xit` | Save the current buffer, wait for confirmed success, then close |
+
+`:wq` and `:x` never close ahead of their asynchronous save. If the save fails,
+or if the buffer changes while that save is in flight, the file tab remains
+open so newer or unsaved text cannot be discarded.
 
 ### 8.3 Built-in Vim Features
-- `/pattern` — search forward
+- `/pattern` — open the Vim search prompt and search forward from the cursor
 - `?pattern` — search backward
 - `:s/old/new/g` — substitute
-- `n` / `N` — next/previous match
+- `n` / `N` — next/previous match after a search
 - All standard vim motions, operators, and visual mode
 
 ---

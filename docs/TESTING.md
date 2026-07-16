@@ -123,6 +123,28 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/tabManager.test.js
 ```
 
+## Vim command regressions
+
+Vim commands are exercised through the real vendored CodeMirror Vim adapter,
+not by calling their implementation helpers directly. `:wq` and `:x` must
+keep the tab open until the exact current buffer has saved successfully, while
+`/`, `n`, and `N` must open the query prompt and navigate forward and backward
+between matches. The preference contract also covers startup application,
+Home-first delayed editor creation, live Settings changes, failed-save
+rollback, reopened Settings, and backend persistence across fresh application
+instances. Changes to editor keymaps, save queuing, tab closing, Settings, or
+the Vim dependency must retain this coverage.
+
+Run the focused contract with:
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/vimCommands.test.js \
+  tests/frontend/unit/vimSettings.test.js \
+  tests/frontend/unit/vimVisual.test.js
+go test . -run 'TestVim'
+```
+
 ## Generating browser assets
 
 Generated browser dependencies are ignored under `frontend/vendored/`; the

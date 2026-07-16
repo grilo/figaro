@@ -47,6 +47,10 @@ let readOnlyCompartment = null;
 let fileModeCompartment = null;
 let foldingCompartment = null;
 let vimActive = false;
+let vimRequested = false;
+let vimRequestId = 0;
+let vimModeCM = null;
+let vimModeChangeHandler = null;
 let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: null };
 let fileModeRequest = 0;
 let markdownModeExtensions = null;
@@ -907,6 +911,13 @@ function createEditorView() {
 
     editorView = new EditorView({ state: editorState, parent: container });
 
+    // The persisted preference may load while the Home tab is active, before
+    // an EditorView exists. Apply that requested state as soon as a file first
+    // creates the shared editor.
+    if (vimRequested) {
+        toggleVim(true).catch(error => log.warn('Could not enable Vim mode:', error));
+    }
+
     // Mouse drag tracking for live preview
     editorView.contentDOM.addEventListener('mousedown', () => {
         if (activeFileLanguage.kind !== 'markdown') return;
@@ -1102,6 +1113,33 @@ function updateStats(text) {
 async function saveActiveFile() {
     const { saveActiveFile: saveActiveTabFile } = await import('./tabManager.js');
     return saveActiveTabFile();
+}
+
+/** Save the exact active editor buffer, then close only after save success. */
+export async function saveAndCloseActiveFile() {
+    const tabManager = await import('./tabManager.js');
+    const tab = tabManager.getActiveTab();
+    if (!tab || tab.type !== 'file' || !tab.path) return false;
+
+    const content = getEditorContent();
+    try {
+        const result = await tabManager.saveFileSnapshot(tab, content);
+        if (!result?.success) return false;
+
+        const currentTab = (getState('openTabs') || []).find(candidate => candidate.id === tab.id);
+        if (currentTab !== tab) return false;
+        // A new edit may land while an asynchronous save is in flight. Never
+        // close that newer buffer merely because the older snapshot saved.
+        if (getState('activeTabId') === tab.id && getEditorContent() !== content) {
+            tabManager.markTabDirty(tab.id);
+            statusBar.set('File changed during save; tab kept open');
+            return false;
+        }
+        return tabManager.closeTab(tab.id);
+    } catch (error) {
+        log.warn('Could not save and close the active file:', error);
+        return false;
+    }
 }
 
 /** Open the native CodeMirror find panel and focus its query field. */
@@ -1482,20 +1520,39 @@ function restoreCursorState(_tabId, cs) {
 }
 
 async function toggleVim(enable) {
-    if (!vimCompartment || !editorView) return;
-    if (enable) {
+    const requested = Boolean(enable);
+    const requestChanged = vimRequested !== requested;
+    vimRequested = requested;
+    if (!vimCompartment || !editorView) {
+        if (requestChanged) ++vimRequestId;
+        return false;
+    }
+    if (vimActive === requested) {
+        // A request for the opposite state can arrive while the dynamic Vim
+        // module is still loading. Invalidate that pending request even though
+        // the editor already happens to be in the newly requested state.
+        if (requestChanged) ++vimRequestId;
+        return true;
+    }
+    const requestId = ++vimRequestId;
+
+    if (requested) {
         const { vim, Vim, getCM } = await import('@replit/codemirror-vim');
-        editorView.dispatch({ effects: vimCompartment.reconfigure(vim()) });
+        if (!vimRequested || requestId !== vimRequestId || !editorView) return false;
+
+        const view = editorView;
+        view.dispatch({ effects: vimCompartment.reconfigure(vim()) });
+        vimActive = true;
 
         // Register custom ex commands after a short delay (vim needs to init)
         setTimeout(() => {
-            const cm = getCM(editorView);
+            if (!vimActive || !vimRequested || requestId !== vimRequestId || editorView !== view) return;
+            const cm = getCM(view);
             if (!cm || !Vim) return;
 
             // :w — save file
             Vim.defineEx('write', 'w', () => {
-                // saveActiveFile is in scope
-                saveActiveFile();
+                saveActiveFile().catch(error => log.warn('Vim :write failed:', error));
             });
 
             // :e <filename> — open/create file relative to current file's directory
@@ -1525,42 +1582,47 @@ async function toggleVim(enable) {
 
             // :wq / :x — save and close
             Vim.defineEx('wq', 'wq', () => {
-                saveActiveFile();
-                import('./app.js').then(({ getActiveTab, closeTab }) => {
-                    const tab = getActiveTab();
-                    if (tab) closeTab(tab.id);
-                });
+                saveAndCloseActiveFile().catch(error => log.warn('Vim :wq failed:', error));
             });
             Vim.defineEx('xit', 'x', () => {
-                saveActiveFile();
-                import('./app.js').then(({ getActiveTab, closeTab }) => {
-                    const tab = getActiveTab();
-                    if (tab) closeTab(tab.id);
-                });
+                saveAndCloseActiveFile().catch(error => log.warn('Vim :xit failed:', error));
             });
         }, 100);
 
         // Track vim mode for status bar
-        vimActive = true;
         updateVimStatus('normal');
-        const cm = getCM(editorView);
+        view.dom.classList.add('vim-normal');
+        const cm = getCM(view);
         if (cm) {
-            cm.on('vim-mode-change', (e) => {
+            if (vimModeCM && vimModeChangeHandler) {
+                vimModeCM.off('vim-mode-change', vimModeChangeHandler);
+            }
+            vimModeCM = cm;
+            vimModeChangeHandler = (e) => {
                 updateVimStatus(e.mode);
                 // Add class to editor for visual mode CSS highlights
-                const dom = editorView.dom;
+                const dom = view.dom;
                 dom.classList.toggle('vim-visual', e.mode && e.mode.startsWith('visual'));
                 dom.classList.toggle('vim-normal', e.mode === 'normal');
                 dom.classList.toggle('vim-insert', e.mode === 'insert');
-            });
+            };
+            cm.on('vim-mode-change', vimModeChangeHandler);
         }
     } else {
+        if (vimModeCM && vimModeChangeHandler) {
+            vimModeCM.off('vim-mode-change', vimModeChangeHandler);
+        }
+        vimModeCM = null;
+        vimModeChangeHandler = null;
         editorView.dispatch({ effects: vimCompartment.reconfigure([]) });
         vimActive = false;
         updateVimStatus(null);
         if (editorView) editorView.dom.classList.remove('vim-visual', 'vim-normal', 'vim-insert');
     }
+    return true;
 }
+
+function isVimEnabled() { return vimActive; }
 
 function updateVimStatus(mode) {
     const el = document.getElementById('file-type');
@@ -1584,5 +1646,5 @@ function updateVimStatus(mode) {
 export { initEditor, createEditorView, getEditorView,
     getEditorContent, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
-    saveCursorState, restoreCursorState, toggleVim, setImageBasePath, setReadOnly,
+    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setImageBasePath, setReadOnly,
     configureEditorForFile };
