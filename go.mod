@@ -6,7 +6,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/wailsapp/wails/v2 v2.12.0
+	github.com/wailsapp/wails/v2 v2.13.0
 	golang.org/x/sys v0.45.0
 )
 
