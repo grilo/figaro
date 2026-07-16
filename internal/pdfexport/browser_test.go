@@ -41,9 +41,9 @@ func TestFindBrowserPrefersChromeBeforeOtherEngines(t *testing.T) {
 			}
 		},
 		Stat: os.Stat,
-		Probe: func(_ context.Context, browser Browser) error {
+		Validate: func(_ context.Context, browser Browser) error {
 			if browser.Executable != chromePath {
-				t.Fatalf("unexpected probe before Chrome selection: %+v", browser)
+				t.Fatalf("unexpected validation before Chrome selection: %+v", browser)
 			}
 			return nil
 		},
@@ -56,7 +56,7 @@ func TestFindBrowserPrefersChromeBeforeOtherEngines(t *testing.T) {
 	}
 }
 
-func TestFindBrowserSkipsAChromeBinaryWithoutHeadlessSupport(t *testing.T) {
+func TestFindBrowserSkipsAChromeBinaryThatFailsRealStartupValidation(t *testing.T) {
 	temporary := t.TempDir()
 	chromePath := filepath.Join(temporary, "chrome")
 	chromiumPath := filepath.Join(temporary, "chromium")
@@ -85,12 +85,12 @@ func TestFindBrowserSkipsAChromeBinaryWithoutHeadlessSupport(t *testing.T) {
 			}
 			return os.Stat(path)
 		},
-		Probe: func(_ context.Context, browser Browser) error {
+		Validate: func(_ context.Context, browser Browser) error {
 			if browser.Executable == chromePath {
 				return errors.New("unsupported")
 			}
 			if browser.Engine != EngineChromium || browser.Executable != chromiumPath {
-				t.Fatalf("unexpected fallback probe: %+v", browser)
+				t.Fatalf("unexpected fallback validation: %+v", browser)
 			}
 			return nil
 		},
@@ -127,9 +127,9 @@ func TestFindBrowserFindsEdgeOnWindowsAfterChromeAndChromium(t *testing.T) {
 			return "", errors.New("not installed")
 		},
 		Stat: os.Stat,
-		Probe: func(_ context.Context, browser Browser) error {
+		Validate: func(_ context.Context, browser Browser) error {
 			if browser.Executable != edgePath {
-				t.Fatalf("expected Edge probe, got %+v", browser)
+				t.Fatalf("expected Edge validation, got %+v", browser)
 			}
 			return nil
 		},
@@ -164,8 +164,8 @@ func TestFindBrowserUsesSafariAsTheLastMacOSFallback(t *testing.T) {
 			}
 			return nil, os.ErrNotExist
 		},
-		Probe: func(_ context.Context, browser Browser) error {
-			t.Fatalf("Safari must not be probed with Chromium flags: %+v", browser)
+		Validate: func(_ context.Context, browser Browser) error {
+			t.Fatalf("Safari must not be validated with Chromium flags: %+v", browser)
 			return nil
 		},
 	})
@@ -183,7 +183,7 @@ func TestFindBrowserReturnsActionableNoBrowserError(t *testing.T) {
 		Getenv:   func(string) string { return "" },
 		LookPath: func(string) (string, error) { return "", os.ErrNotExist },
 		Stat:     func(string) (os.FileInfo, error) { return nil, os.ErrNotExist },
-		Probe:    func(context.Context, Browser) error { return nil },
+		Validate: func(context.Context, Browser) error { return nil },
 	})
 	if !IsNoBrowserError(err) {
 		t.Fatalf("expected NoBrowserError, got %v", err)
@@ -216,8 +216,8 @@ func TestFindBrowserTraceExplainsMissingAndRejectedCandidates(t *testing.T) {
 			}
 			return nil, os.ErrNotExist
 		},
-		Probe: func(context.Context, Browser) error { return errors.New("headless disabled") },
-		Trace: func(message string) { trace = append(trace, message) },
+		Validate: func(context.Context, Browser) error { return errors.New("headless disabled") },
+		Trace:    func(message string) { trace = append(trace, message) },
 	})
 	if !IsNoBrowserError(err) {
 		t.Fatalf("expected NoBrowserError, got %v", err)
@@ -249,6 +249,22 @@ func TestEngineForUserSelectedExecutable(t *testing.T) {
 	}
 }
 
+func TestBrowserForExecutableDoesNotRunASeparateVersionProbe(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "chrome.exe")
+	// A plain test file cannot be executed. Resolution succeeding therefore
+	// proves manual selection does not invoke `--headless --version`.
+	if err := os.WriteFile(path, []byte("not an executable"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	browser, err := BrowserForExecutable(context.Background(), path)
+	if err != nil {
+		t.Fatalf("resolve selected browser: %v", err)
+	}
+	if browser.Executable != path || browser.Engine != EngineChrome {
+		t.Fatalf("unexpected selected browser: %+v", browser)
+	}
+}
+
 func TestFindBrowserSupportsUngoogledChromiumFlatpak(t *testing.T) {
 	temporary := t.TempDir()
 	flatpakPath := filepath.Join(temporary, "flatpak")
@@ -266,7 +282,7 @@ func TestFindBrowserSupportsUngoogledChromiumFlatpak(t *testing.T) {
 			return "", os.ErrNotExist
 		},
 		Stat: os.Stat,
-		Probe: func(_ context.Context, candidate Browser) error {
+		Validate: func(_ context.Context, candidate Browser) error {
 			if candidate.Executable != flatpakPath {
 				return errors.New("not a Flatpak launcher")
 			}
@@ -333,6 +349,12 @@ func TestChromiumLaunchArgumentsUseLoopbackDevToolsAndEphemeralProfile(t *testin
 	}
 	if strings.Contains(arguments, "--print-to-pdf") {
 		t.Fatalf("direct CLI printing must not be used: %q", arguments)
+	}
+	if strings.Contains(arguments, "--version") {
+		t.Fatalf("version probes must not stand in for real CDP startup: %q", arguments)
+	}
+	if strings.Contains(arguments, "--disable-extensions") {
+		t.Fatalf("managed Chrome policies may reject forced extension disabling: %q", arguments)
 	}
 }
 

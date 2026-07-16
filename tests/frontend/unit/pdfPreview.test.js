@@ -340,7 +340,9 @@ describe('live PDF preview', () => {
         await openPDFPreview({ path: 'notes/report.md', title: 'report.md' });
         const sidebar = document.getElementById('right-sidebar');
         const resizer = document.getElementById('right-sidebar-resizer');
+        const main = document.getElementById('main-content');
         Object.defineProperty(sidebar, 'offsetWidth', { configurable: true, value: 480 });
+        Object.defineProperty(main, 'offsetWidth', { configurable: true, value: 800 });
         initRightSidebarResizer();
 
         expect(resizer.parentElement).toBe(sidebar);
@@ -351,13 +353,106 @@ describe('live PDF preview', () => {
             cancelable: true,
             clientX: 900,
         }));
-        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 800 }));
-        expect(sidebar.style.width).toBe('580px');
-        expect(sidebar.style.minWidth).toBe('580px');
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 600 }));
+        expect(sidebar.style.width).toBe('780px');
+        expect(sidebar.style.minWidth).toBe('780px');
         expect(resizer.classList.contains('is-dragging')).toBe(true);
+        expect(sidebar.classList.contains('is-resizing')).toBe(true);
+        expect(document.body.classList.contains('right-sidebar-resizing')).toBe(true);
+        expect(main.classList.contains('pdf-preview-compact-editor')).toBe(true);
+
+        // The preview can consume the editor's former outer margins, but the
+        // editor always retains its 320px manipulation floor.
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 0 }));
+        expect(sidebar.style.width).toBe('960px');
 
         document.dispatchEvent(new MouseEvent('mouseup'));
         expect(resizer.classList.contains('is-dragging')).toBe(false);
+        expect(sidebar.classList.contains('is-resizing')).toBe(false);
+        expect(document.body.classList.contains('right-sidebar-resizing')).toBe(false);
+    });
+
+    test('pauses both scroll-sync directions while resizing and realigns once after settling', async () => {
+        mockState.openTabs = [{ id: 'notes/report.md', type: 'file', path: 'notes/report.md' }];
+        mockState.activeTabId = 'notes/report.md';
+        const editorScroller = document.createElement('div');
+        editorScroller.className = 'cm-scroller';
+        setScrollMetrics(editorScroller, { scrollTop: 300, scrollHeight: 1000, clientHeight: 400 });
+        document.getElementById('editor-container').appendChild(editorScroller);
+
+        const { frame, postMessage, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        const token = render().token;
+        const sidebar = document.getElementById('right-sidebar');
+        const resizer = document.getElementById('right-sidebar-resizer');
+        const main = document.getElementById('main-content');
+        Object.defineProperty(sidebar, 'offsetWidth', { configurable: true, value: 480 });
+        Object.defineProperty(main, 'offsetWidth', { configurable: true, value: 800 });
+        initRightSidebarResizer();
+        postMessage.mockClear();
+
+        resizer.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 900,
+        }));
+        expect(postedBridgeMessages(postMessage)).toContainEqual(expect.objectContaining({
+            type: 'set-scroll-sync-paused',
+            paused: true,
+        }));
+
+        dispatchBridgeMessage(frame, {
+            type: 'scroll',
+            token,
+            documentProgress: 0.8,
+            contentProgress: 0.1,
+            programmatic: false,
+        });
+        editorScroller.scrollTop = 420;
+        editorScroller.dispatchEvent(new Event('scroll'));
+        await waitForPreview(45);
+        expect(editorScroller.scrollTop).toBe(420);
+        expect(postedBridgeMessages(postMessage)
+            .filter(message => message.type === 'set-content-progress')).toHaveLength(0);
+
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        await waitForPreview(110);
+        expect(postedBridgeMessages(postMessage)).toContainEqual(expect.objectContaining({
+            type: 'set-scroll-sync-paused',
+            paused: false,
+        }));
+        expect(postedBridgeMessages(postMessage)
+            .filter(message => message.type === 'set-content-progress')).toEqual([
+            expect.objectContaining({ progress: 0.7 }),
+        ]);
+    });
+
+    test('unpauses the reusable preview frame when closing during resize settling', async () => {
+        const { postMessage } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        const sidebar = document.getElementById('right-sidebar');
+        const resizer = document.getElementById('right-sidebar-resizer');
+        const main = document.getElementById('main-content');
+        Object.defineProperty(sidebar, 'offsetWidth', { configurable: true, value: 480 });
+        Object.defineProperty(main, 'offsetWidth', { configurable: true, value: 800 });
+        initRightSidebarResizer();
+        postMessage.mockClear();
+
+        resizer.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 900,
+        }));
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        closePDFPreview();
+
+        const pauseMessages = postedBridgeMessages(postMessage)
+            .filter(message => message.type === 'set-scroll-sync-paused');
+        expect(pauseMessages).toEqual([
+            expect.objectContaining({ paused: true }),
+            expect.objectContaining({ paused: false }),
+        ]);
+        await waitForPreview(100);
+        expect(postedBridgeMessages(postMessage)
+            .filter(message => message.type === 'set-scroll-sync-paused')).toHaveLength(2);
     });
 
     test('renders an empty Markdown note instead of leaving the pane blank', async () => {

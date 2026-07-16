@@ -44,6 +44,12 @@ func main() {
 		log.Printf("[window] Using default window state: %v", windowStateErr)
 	}
 	app.configureWindowState(windowStatePath, windowState)
+	machineSettingsPath, machineSettingsErr := currentMachineSettingsPath()
+	if machineSettingsErr != nil {
+		log.Printf("[settings] Machine-local settings are unavailable: %v", machineSettingsErr)
+	} else {
+		app.configureMachineSettings(machineSettingsPath)
+	}
 	windowStartState := options.Normal
 	if windowState.Maximized {
 		windowStartState = options.Maximised

@@ -12,6 +12,7 @@ import { getState } from './state.js';
 import { getPrintStylesheet } from './frontmatter.js';
 import { exportMarkdownToPDF, renderPrintableMarkdownWithDiagrams } from './pdfExport.js';
 import { pdfExportErrorDialog } from './dialogs.js';
+import { updateRightSidebarEditorLayout } from './historyPanel.js';
 
 const previewDebounceMs = 320;
 const previewMode = 'pdf-preview';
@@ -22,6 +23,7 @@ const previewBridgeRecoveryMs = 700;
 // companion pane is only a visual reference, so update it at a modest bounded
 // rate and always send the final coalesced position.
 const previewScrollSyncIntervalMs = 34;
+const previewResizeSettleMs = 80;
 
 let previewTimer = null;
 let previewRequestId = 0;
@@ -58,6 +60,8 @@ const scrollSync = {
     pendingEditorProgress: null,
     lastEditorSyncAt: Number.NEGATIVE_INFINITY,
     expectedEditorScroll: null,
+    resizing: false,
+    resizeResumeTimer: null,
 };
 
 const previewBridge = {
@@ -562,6 +566,7 @@ function handlePreviewBridgeMessage(event) {
         previewBridge.ready = true;
         clearPreviewBridgeRecovery();
         flushPreviewBridgeRender();
+        if (scrollSync.resizing) postPreviewBridgeMessage({ type: 'set-scroll-sync-paused', paused: true });
         return;
     }
 
@@ -585,6 +590,7 @@ function handlePreviewBridgeMessage(event) {
         return;
     }
     if (message.type === 'scroll') {
+        if (scrollSync.resizing) return;
         scrollSync.documentProgress = clampProgress(message.documentProgress);
         if (!message.programmatic) syncPreviewScrollToEditor(clampProgress(message.contentProgress));
     }
@@ -606,7 +612,7 @@ function clearEditorScrollSync() {
 function flushEditorScrollToPreview() {
     const progress = scrollSync.pendingEditorProgress;
     scrollSync.pendingEditorProgress = null;
-    if (!Number.isFinite(progress) || !isPreviewOpen() || !activePreviewSource() || scrollSync.suppressEditor) return false;
+    if (!Number.isFinite(progress) || !isPreviewOpen() || !activePreviewSource() || scrollSync.suppressEditor || scrollSync.resizing) return false;
     if (!postPreviewBridgeMessage({ type: 'set-content-progress', progress })) {
         // The bridge can briefly be unavailable while its fixed document
         // starts. Keep the latest position for the next editor movement.
@@ -619,6 +625,7 @@ function flushEditorScrollToPreview() {
 }
 
 function queueEditorScrollToPreview(progress) {
+    if (scrollSync.resizing) return false;
     scrollSync.pendingEditorProgress = clampProgress(progress);
     const elapsed = monotonicNow() - scrollSync.lastEditorSyncAt;
     if (elapsed >= previewScrollSyncIntervalMs) {
@@ -637,7 +644,7 @@ function queueEditorScrollToPreview(progress) {
 }
 
 function syncEditorScrollToPreview() {
-    if (!isPreviewOpen() || !activePreviewSource() || scrollSync.suppressEditor) return;
+    if (!isPreviewOpen() || !activePreviewSource() || scrollSync.suppressEditor || scrollSync.resizing) return;
     const editor = activeEditorScroller();
     if (!editor) return;
     const progress = scrollProgressForElement(editor);
@@ -654,7 +661,7 @@ function ensureEditorScrollSync() {
 
     scrollSync.editor = editor;
     scrollSync.editorListener = () => {
-        if (scrollSync.suppressEditor || consumesExpectedEditorScroll(editor) || scrollSync.editorFrame !== null) return;
+        if (scrollSync.resizing || scrollSync.suppressEditor || consumesExpectedEditorScroll(editor) || scrollSync.editorFrame !== null) return;
         scrollSync.editorFrame = scheduleAnimationFrame(() => {
             scrollSync.editorFrame = null;
             syncEditorScrollToPreview();
@@ -665,7 +672,7 @@ function ensureEditorScrollSync() {
 }
 
 function syncPreviewScrollToEditor(progress) {
-    if (!isPreviewOpen() || !activePreviewSource() || scrollSync.suppressPreview) return;
+    if (!isPreviewOpen() || !activePreviewSource() || scrollSync.suppressPreview || scrollSync.resizing) return;
     const editor = ensureEditorScrollSync();
     if (!editor) return;
     scrollSync.lastProgress = progress;
@@ -681,6 +688,8 @@ function capturePreviewScrollProgress() {
 }
 
 function resetScrollSync() {
+    const frameWasPausedForResize = scrollSync.resizing || scrollSync.resizeResumeTimer !== null;
+    if (scrollSync.resizeResumeTimer !== null) clearTimeout(scrollSync.resizeResumeTimer);
     clearEditorScrollSync();
     cancelScheduledAnimationFrame(scrollSync.editorFrame);
     scrollSync.editorFrame = null;
@@ -690,6 +699,43 @@ function resetScrollSync() {
     scrollSync.resetOnNextRender = true;
     scrollSync.suppressEditor = false;
     scrollSync.suppressPreview = false;
+    scrollSync.resizing = false;
+    scrollSync.resizeResumeTimer = null;
+    // Closing or replacing a preview during the short post-resize settle
+    // window must not leave the reusable frame permanently paused.
+    if (frameWasPausedForResize) postPreviewBridgeMessage({ type: 'set-scroll-sync-paused', paused: false });
+}
+
+function suspendScrollSyncForResize(event) {
+    if (event.detail?.mode !== previewMode || !isPreviewOpen()) return;
+    if (scrollSync.resizeResumeTimer !== null) clearTimeout(scrollSync.resizeResumeTimer);
+    scrollSync.resizeResumeTimer = null;
+    scrollSync.resizing = true;
+    cancelScheduledAnimationFrame(scrollSync.editorFrame);
+    scrollSync.editorFrame = null;
+    if (scrollSync.editorSyncTimer !== null) clearTimeout(scrollSync.editorSyncTimer);
+    scrollSync.editorSyncTimer = null;
+    scrollSync.pendingEditorProgress = null;
+    scrollSync.expectedEditorScroll = null;
+    postPreviewBridgeMessage({ type: 'set-scroll-sync-paused', paused: true });
+}
+
+function resumeScrollSyncAfterResize(event) {
+    if (event.detail?.mode !== previewMode || !scrollSync.resizing) return;
+    if (scrollSync.resizeResumeTimer !== null) clearTimeout(scrollSync.resizeResumeTimer);
+    // Width changes can enqueue a final iframe scroll after pointer release.
+    // Keep both directions quiet until that resize-originated event is stale.
+    scrollSync.resizeResumeTimer = setTimeout(() => {
+        scrollSync.resizeResumeTimer = null;
+        if (!isPreviewOpen()) {
+            scrollSync.resizing = false;
+            return;
+        }
+        scrollSync.resizing = false;
+        postPreviewBridgeMessage({ type: 'set-scroll-sync-paused', paused: false });
+        scrollSync.lastEditorSyncAt = Number.NEGATIVE_INFINITY;
+        syncEditorScrollToPreview();
+    }, previewResizeSettleMs);
 }
 
 function handlePreviewTabSwitch(event) {
@@ -1110,6 +1156,7 @@ export async function openPDFPreview({ path, title, content } = {}) {
     sidebar.classList.remove('collapsed');
     if (rightTitle) rightTitle.textContent = 'PDF Preview';
     if (resizer) resizer.classList.add('visible');
+    scheduleAnimationFrame(() => updateRightSidebarEditorLayout());
     updatePreviewMeta();
     setPreviewStatus('Preparing live preview…');
     const frame = panel.querySelector('.pdf-preview-frame');
@@ -1144,6 +1191,7 @@ export function closePDFPreview({ keepSidebarOpen = false } = {}) {
             sidebar.style.minWidth = '';
         }
     }
+    updateRightSidebarEditorLayout();
     if (!keepSidebarOpen) resizer?.classList.remove('visible');
     preview.path = '';
     preview.content = '';
@@ -1161,6 +1209,8 @@ export function initPDFPreview() {
         document.addEventListener('vault-file-tree-refreshed', handleFileTreeRefresh);
         document.addEventListener('close-pdf-preview', event => closePDFPreview(event.detail || {}));
         document.addEventListener('tab-switched', handlePreviewTabSwitch);
+        document.addEventListener('right-sidebar-resize-start', suspendScrollSyncForResize);
+        document.addEventListener('right-sidebar-resize-end', resumeScrollSyncAfterResize);
         window.addEventListener('message', handlePreviewBridgeMessage);
     }
 

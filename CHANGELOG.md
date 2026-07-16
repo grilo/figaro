@@ -30,6 +30,16 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- The PDF preview splitter can now use substantially more of the workspace
+  while preserving a 320 px editor floor. When the editor becomes narrow its
+  decorative horizontal padding contracts, then restores automatically.
+- PDF preview/editor scroll synchronization pauses while the splitter moves
+  and performs one editor-to-preview alignment after resize events settle,
+  eliminating reflow-driven resize jitter without losing line-level sync.
+- Manually selected PDF browsers now live in cross-platform machine-local
+  settings instead of the vault. Existing vault preferences migrate once, and
+  a browser is accepted only after its real isolated headless DevTools engine
+  starts successfully.
 - Figaro Dark now replaces Default Dark without changing saved `default`
   preferences; both Figaro themes received richer paper, fur, collar, and
   brass-inspired surface treatments.
@@ -64,6 +74,14 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- Chrome, Chromium, Edge, and Brave detection no longer relies on a separate
+  `--headless --version` probe, whose launcher behavior could produce opaque
+  Windows errors despite a valid executable. Validation now uses the same CDP
+  startup as export, reports launch-stage output, and falls back to automatic
+  discovery when a saved executable becomes unavailable.
+- Chromium startup no longer forces `--disable-extensions`; the isolated
+  temporary profile provides separation without conflicting with managed
+  browser policy.
 - PDF preview no longer couples the application to a sandboxed iframe DOM.
   A fixed local bridge handles links and scrolling by validated messages, so
   external URLs, footnote returns, and vault links cannot replace the preview

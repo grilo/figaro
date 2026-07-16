@@ -33,7 +33,7 @@ figaro combines the durability of plain Markdown with a desktop workspace that h
 
 ## A workspace built around plain files
 
-Every vault is an ordinary directory. Markdown remains Markdown, images remain image files, code remains code, and Draw.io diagrams are saved as editable `.drawio.svg` files. figaro stores vault-specific settings and workspace state in `.config/` inside the vault, rather than converting your notes into a database. Display-dependent window state is kept separately in the operating system's per-user local application-data directory, so syncing or moving a vault cannot carry one computer's window geometry to another.
+Every vault is an ordinary directory. Markdown remains Markdown, images remain image files, code remains code, and Draw.io diagrams are saved as editable `.drawio.svg` files. figaro stores vault-specific settings and workspace state in `.config/` inside the vault, rather than converting your notes into a database. Device-specific window state and the selected PDF-browser executable are kept separately in the operating system's per-user local application-data directory, so syncing or moving a vault cannot carry one computer's window geometry or installed-software paths to another.
 
 The file tree supports internal Copy/Paste for files and complete folders through its context menu or Ctrl/Cmd+C and Ctrl/Cmd+V while the tree is focused. Paste saves dirty source tabs first, and repeated or same-folder pastes never overwrite content: Figaro creates `Folder copy`, `Folder copy 2`, or `note copy.md`. Links inside copied Markdown are adjusted so internal links follow copied counterparts and links leaving the copied tree still reach their original vault targets; incoming links elsewhere continue to point at the source. A folder cannot be pasted into itself or one of its descendants, and the refusal dialog directs you to select its parent for a sibling copy.
 
@@ -56,6 +56,12 @@ The default normal size is `1280 × 800`, and restored dimensions are clamped to
 - Windows: `%LocalAppData%\figaro\window-state.json`.
 
 If the platform cannot provide or write its local application-data directory, figaro remains usable with the safe defaults but cannot persist the changes for the next launch.
+
+### Machine-local browser selection
+
+PDF export normally discovers an installed Chrome/Chromium-family browser automatically. If needed, choose a specific executable under **Settings → PDF Export → Browser engine**. figaro verifies the choice by starting its real headless PDF engine with an isolated temporary profile; a matching filename or version response alone is not accepted. If a configured browser is later moved, removed, or cannot start, export falls back to automatic discovery.
+
+The selected executable is device-specific and is stored outside the vault in `machine-settings.json`: beside `window-state.json` under `$XDG_CONFIG_HOME/figaro` (or `$HOME/.config/figaro`) on Linux, `$HOME/Library/Application Support/figaro` on macOS, and `%LocalAppData%\figaro` on Windows. Existing vault-scoped browser selections are migrated once; an existing machine-local choice takes precedence.
 
 ### Search, planning, and history
 
@@ -120,7 +126,9 @@ print-stylesheet: "pdf.css"
 
 PDF exports use a polished built-in style by default. To customize one, choose **Create starter** in the Properties panel's **PDF layout** section. Figaro proposes a note-local `pdf.css`, copies its comprehensive editable example only after you confirm, selects it for the note, and opens it. It never creates stylesheets during startup or export, and it never overwrites an existing CSS file. See [PDF styling](docs/PDF_STYLING.md) for the stable selectors, page-layout guidance, and the distinction between document headings and unsupported repeated page headers/footers.
 
-Choose **Preview PDF** from a Markdown file's context menu, editor context menu, or the Properties panel. Figaro opens a live, isolated preview in the right pane and refreshes it shortly after Markdown or the selected CSS stylesheet changes. Choose **Generate PDF** in that pane when the result is ready. figaro then looks for an installed Chrome/Chromium-family browser, including Ungoogled Chromium and its Flatpak launcher, then Edge; on macOS it can use the system Safari/WebKit engine. It writes `<note>.pdf` beside the Markdown file (safely replacing the previous export) and opens it with your default viewer. The export deliberately aborts if no viable browser engine is found rather than creating a PDF with dead links, TOC entries, or footnote references.
+Choose **Preview PDF** from a Markdown file's context menu, editor context menu, or the Properties panel. Figaro opens a live, isolated preview in the right pane and refreshes it shortly after Markdown or the selected CSS stylesheet changes. Drag its splitter to make the preview wider: it can grow until the editor reaches a 320 px working width, and the editor's decorative side padding contracts when space is tight. Editor/preview line synchronization is paused during the drag and aligned once after release, preventing resize jitter while preserving synchronized reading position.
+
+Choose **Generate PDF** in that pane when the result is ready. figaro then looks for an installed Chrome/Chromium-family browser, including Ungoogled Chromium and its Flatpak launcher, then Edge; on macOS it can use the system Safari/WebKit engine. Chromium candidates are accepted only after the same isolated headless DevTools startup used by a real export succeeds. It writes `<note>.pdf` beside the Markdown file (safely replacing the previous export) and opens it with your default viewer. The export deliberately aborts if no viable browser engine is found rather than creating a PDF with dead links, TOC entries, or footnote references.
 
 An export of the active dirty note uses the current editor content without forcing a save first. A `print-stylesheet` must be a vault-local relative CSS path; it overrides a sibling `_print.css` for that note. Leave it blank or omit it to retain the built-in style.
 

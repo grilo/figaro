@@ -29,6 +29,13 @@ function render(frame, html, token = 'preview-token') {
     }));
 }
 
+function sendBridgeCommand(frame, type, payload = {}, token = 'preview-token') {
+    frame.window.dispatchEvent(new frame.window.MessageEvent('message', {
+        source: window,
+        data: { channel: bridgeChannel, type, token, ...payload },
+    }));
+}
+
 function bridgeMessages(sendToParent) {
     return sendToParent.mock.calls.map(([message]) => message)
         .filter(message => message?.channel === bridgeChannel);
@@ -112,6 +119,31 @@ describe('PDF preview frame bridge', () => {
             const rendered = bridgeMessages(frame.sendToParent)
                 .filter(message => message.type === 'rendered');
             expect(rendered).toEqual([expect.objectContaining({ token: 'second-token' })]);
+        } finally {
+            frame.iframe.remove();
+            frame.sendToParent.mockRestore();
+        }
+    });
+
+    test('suppresses resize-originated scroll reports until synchronization resumes', async () => {
+        const frame = createFrame();
+        try {
+            render(frame, '<!doctype html><html><body><main class="figaro-print-document">Body</main></body></html>');
+            await waitForFrame();
+            frame.sendToParent.mockClear();
+
+            sendBridgeCommand(frame, 'set-scroll-sync-paused', { paused: true });
+            frame.window.dispatchEvent(new frame.window.Event('scroll'));
+            await waitForFrame();
+            expect(bridgeMessages(frame.sendToParent).filter(message => message.type === 'scroll')).toHaveLength(0);
+
+            sendBridgeCommand(frame, 'set-scroll-sync-paused', { paused: false });
+            frame.window.dispatchEvent(new frame.window.Event('scroll'));
+            await waitForFrame();
+            expect(bridgeMessages(frame.sendToParent)).toContainEqual(expect.objectContaining({
+                type: 'scroll',
+                token: 'preview-token',
+            }));
         } finally {
             frame.iframe.remove();
             frame.sendToParent.mockRestore();

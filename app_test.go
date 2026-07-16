@@ -1315,6 +1315,8 @@ func TestThemeAndFontSavePreserveAllTypographyPreferences(t *testing.T) {
 func TestPDFBrowserPreferenceLoadsAndClears(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
+	machinePath := machineSettingsPath(t.TempDir())
+	app.configureMachineSettings(machinePath)
 	path := filepath.Join(vaultPath, "browser", "chrome")
 	if err := app.storePDFBrowserPath(path); err != nil {
 		t.Fatalf("storePDFBrowserPath: %v", err)
@@ -1334,6 +1336,9 @@ func TestPDFBrowserPreferenceLoadsAndClears(t *testing.T) {
 	loaded, err = app.PDFBrowserLoad()
 	if err != nil || !loaded.Success || loaded.Path != "" {
 		t.Fatalf("expected automatic discovery after clear: result=%+v err=%v", loaded, err)
+	}
+	if !strings.HasSuffix(machinePath, filepath.Join("figaro", "machine-settings.json")) || strings.HasPrefix(machinePath, vaultPath) {
+		t.Fatalf("browser preference is not machine-local: %q", machinePath)
 	}
 }
 

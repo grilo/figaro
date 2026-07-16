@@ -72,23 +72,35 @@ func windowStatePath(configDir string) string {
 	return filepath.Join(configDir, "figaro", "window-state.json")
 }
 
-// machineWindowStatePath uses the platform-specific, per-user local root:
+// machineLocalConfigRoot uses the platform-specific, per-user local root:
 // XDG_CONFIG_HOME on Linux, Library/Application Support on macOS, and
 // LocalAppData on Windows. Windows' UserConfigDir points at roaming AppData,
-// which is intentionally unsuitable for display-dependent state.
-func machineWindowStatePath() (string, error) {
+// which is intentionally unsuitable for device-specific application state.
+func machineLocalConfigRoot() (string, error) {
+	return machineLocalConfigRootFor(goruntime.GOOS, os.UserConfigDir, os.UserCacheDir)
+}
+
+func machineLocalConfigRootFor(goos string, userConfigDir func() (string, error), userCacheDir func() (string, error)) (string, error) {
 	var configDir string
 	var err error
-	if goruntime.GOOS == "windows" {
+	if goos == "windows" {
 		// UserCacheDir is backed by LocalAppData on Windows. The record remains
 		// ordinary application data; this choice prevents it roaming to a PC
 		// with a different display configuration.
-		configDir, err = os.UserCacheDir()
+		configDir, err = userCacheDir()
 	} else {
-		configDir, err = os.UserConfigDir()
+		configDir, err = userConfigDir()
 	}
 	if err != nil {
 		return "", fmt.Errorf("locate machine-local user directory: %w", err)
+	}
+	return configDir, nil
+}
+
+func machineWindowStatePath() (string, error) {
+	configDir, err := machineLocalConfigRoot()
+	if err != nil {
+		return "", err
 	}
 	return windowStatePath(configDir), nil
 }

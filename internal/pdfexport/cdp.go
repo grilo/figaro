@@ -19,9 +19,65 @@ import (
 )
 
 const (
-	browserRenderTimeout = 45 * time.Second
-	browserStartTimeout  = 12 * time.Second
+	browserRenderTimeout     = 45 * time.Second
+	browserStartTimeout      = 12 * time.Second
+	browserValidationTimeout = 15 * time.Second
 )
+
+// ValidateChromiumHeadless performs the same isolated-profile and DevTools
+// startup used by a real export. This deliberately avoids command-line
+// version probes: a launcher accepting --version neither proves that headless
+// CDP works nor behaves consistently across Windows, macOS, and Linux.
+func ValidateChromiumHeadless(ctx context.Context, browser Browser) error {
+	if browser.Engine == EngineSafari {
+		return errors.New("Safari uses the native macOS PDF renderer")
+	}
+	if strings.TrimSpace(browser.Executable) == "" {
+		return errors.New("browser executable is empty")
+	}
+	workspace, err := os.MkdirTemp("", "figaro-browser-check-*")
+	if err != nil {
+		return fmt.Errorf("create browser validation workspace: %w", err)
+	}
+	defer os.RemoveAll(workspace)
+	profileDir := filepath.Join(workspace, "profile")
+	if err := os.MkdirAll(profileDir, 0700); err != nil {
+		return fmt.Errorf("create browser validation profile: %w", err)
+	}
+
+	validationCtx, cancel := context.WithTimeout(ctx, browserValidationTimeout)
+	defer cancel()
+	process, err := startChromiumProcess(validationCtx, browser, profileDir)
+	if err != nil {
+		return err
+	}
+	closed := false
+	defer func() {
+		if closed {
+			process.waitForExitOrKill(2 * time.Second)
+			return
+		}
+		process.killAndWait()
+	}()
+
+	endpoint, err := waitForDevToolsEndpoint(validationCtx, profileDir, process)
+	if err != nil {
+		return err
+	}
+	client, err := dialDevTools(validationCtx, endpoint)
+	if err != nil {
+		return fmt.Errorf("connect to browser PDF engine: %w", err)
+	}
+	defer client.Close()
+	if _, err := client.call(validationCtx, "Browser.getVersion", nil, ""); err != nil {
+		return fmt.Errorf("verify browser PDF engine: %w", err)
+	}
+	if err := client.notify(validationCtx, "Browser.close", nil, ""); err != nil {
+		return fmt.Errorf("close browser validation session: %w", err)
+	}
+	closed = true
+	return nil
+}
 
 // RenderChromiumPDF renders through Chrome DevTools Protocol instead of
 // Chromium's --print-to-pdf shortcut. The protocol exposes the same
@@ -84,7 +140,6 @@ func chromiumLaunchArguments(profileDir string) []string {
 		"--disable-gpu",
 		"--no-first-run",
 		"--no-default-browser-check",
-		"--disable-extensions",
 		"--remote-debugging-address=127.0.0.1",
 		// Let Chromium choose an ephemeral local port. It records the selected
 		// port in DevToolsActivePort, avoiding a time-of-check/time-of-use race
@@ -202,10 +257,11 @@ func waitForDevToolsEndpoint(ctx context.Context, profileDir string, process *ch
 		select {
 		case <-startCtx.Done():
 			if errors.Is(startCtx.Err(), context.DeadlineExceeded) {
+				prefix := fmt.Sprintf("browser PDF engine did not become ready within %s", browserStartTimeout)
 				if lastErr != nil {
-					return "", fmt.Errorf("browser PDF engine did not become ready: %w", lastErr)
+					prefix += ": " + lastErr.Error()
 				}
-				return "", errors.New("browser PDF engine did not become ready")
+				return "", browserProcessError(prefix, nil, process.output.String())
 			}
 			return "", startCtx.Err()
 		case <-ticker.C:

@@ -12,6 +12,10 @@ let historyVersionRequestId = 0;
 let historyModeRequestId = 0;
 let historyModeTabId = null;
 
+const pdfPreviewMinimumWidth = 340;
+const pdfPreviewMinimumEditorWidth = 320;
+const compactEditorThreshold = 560;
+
 export function initHistoryPanel() {
     document.addEventListener('close-history-panel', closeHistoryPanel);
 
@@ -300,43 +304,106 @@ export function closeHistoryPanel() {
     window.dispatchEvent(new Event('resize'));
 }
 
+function elementWidth(element) {
+    if (!element) return 0;
+    const rectWidth = Number(element.getBoundingClientRect?.().width);
+    if (Number.isFinite(rectWidth) && rectWidth > 0) return rectWidth;
+    const offsetWidth = Number(element.offsetWidth);
+    return Number.isFinite(offsetWidth) && offsetWidth > 0 ? offsetWidth : 0;
+}
+
+export function updateRightSidebarEditorLayout(remainingEditorWidth = null) {
+    const sidebar = document.getElementById('right-sidebar');
+    const main = document.getElementById('main-content');
+    if (!main) return;
+    const isPDFPreview = Boolean(sidebar?.classList.contains('open') && sidebar.classList.contains('pdf-preview-mode'));
+    const measuredWidth = Number.isFinite(remainingEditorWidth) ? remainingEditorWidth : elementWidth(main);
+    main.classList.toggle('pdf-preview-compact-editor', isPDFPreview && measuredWidth > 0 && measuredWidth < compactEditorThreshold);
+}
+
+function resizeEvent(type, sidebar, width) {
+    document.dispatchEvent(new CustomEvent(type, {
+        detail: {
+            mode: sidebar.dataset.mode || '',
+            width,
+        },
+    }));
+}
+
 export function initRightSidebarResizer() {
     const resizer = document.getElementById('right-sidebar-resizer');
     const sidebar = document.getElementById('right-sidebar');
     if (!resizer || !sidebar || resizer.dataset.bound === 'true') return;
     resizer.dataset.bound = 'true';
 
-    let startX, startWidth;
+    let startX, startWidth, workspaceWidth, activePointerId = null;
 
-    resizer.addEventListener('mousedown', (e) => {
+    const beginDrag = (e) => {
         e.preventDefault();
         sidebar.classList.add('open');
+        sidebar.classList.add('is-resizing');
         resizer.classList.add('is-dragging');
         startX = e.clientX;
         startWidth = sidebar.offsetWidth || 320;
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+        const main = document.getElementById('main-content');
+        workspaceWidth = elementWidth(main) + startWidth;
+        activePointerId = Number.isFinite(e.pointerId) ? e.pointerId : null;
+        if (activePointerId !== null) {
+            try { resizer.setPointerCapture?.(activePointerId); } catch (_) { /* WebKit may reject capture during teardown. */ }
+        }
+        const moveEvent = activePointerId === null ? 'mousemove' : 'pointermove';
+        const upEvent = activePointerId === null ? 'mouseup' : 'pointerup';
+        document.addEventListener(moveEvent, onMove);
+        document.addEventListener(upEvent, endDrag);
+        if (activePointerId !== null) document.addEventListener('pointercancel', endDrag);
+        document.body.classList.add('right-sidebar-resizing');
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
-    });
+        resizeEvent('right-sidebar-resize-start', sidebar, startWidth);
+    };
 
-    function onMouseMove(e) {
+    function onMove(e) {
+        if (activePointerId !== null && e.pointerId !== activePointerId) return;
         const diff = startX - e.clientX;
         let newWidth = startWidth + diff;
         const isPDFPreview = sidebar.classList.contains('pdf-preview-mode');
-        if (newWidth < (isPDFPreview ? 340 : 240)) newWidth = isPDFPreview ? 340 : 240;
-        if (newWidth > (isPDFPreview ? 680 : 480)) newWidth = isPDFPreview ? 680 : 480;
+        const minimumWidth = isPDFPreview ? pdfPreviewMinimumWidth : 240;
+        const maximumWidth = isPDFPreview
+            ? Math.max(minimumWidth, workspaceWidth - pdfPreviewMinimumEditorWidth)
+            : 480;
+        newWidth = Math.min(maximumWidth, Math.max(minimumWidth, newWidth));
         sidebar.style.width = newWidth + 'px';
         sidebar.style.minWidth = newWidth + 'px';
         document.documentElement.style.setProperty('--right-sidebar-width', newWidth + 'px');
+        updateRightSidebarEditorLayout(workspaceWidth - newWidth);
+        resizeEvent('right-sidebar-resize', sidebar, newWidth);
     }
 
-    function onMouseUp() {
+    function endDrag(e) {
+        if (activePointerId !== null && Number.isFinite(e?.pointerId) && e.pointerId !== activePointerId) return;
+        const pointerId = activePointerId;
+        const moveEvent = pointerId === null ? 'mousemove' : 'pointermove';
+        const upEvent = pointerId === null ? 'mouseup' : 'pointerup';
+        document.removeEventListener(moveEvent, onMove);
+        document.removeEventListener(upEvent, endDrag);
+        document.removeEventListener('pointercancel', endDrag);
+        if (pointerId !== null) {
+            try { resizer.releasePointerCapture?.(pointerId); } catch (_) { /* Capture may already be gone. */ }
+        }
+        activePointerId = null;
         resizer.classList.remove('is-dragging');
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
+        sidebar.classList.remove('is-resizing');
+        document.body.classList.remove('right-sidebar-resizing');
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        updateRightSidebarEditorLayout();
+        resizeEvent('right-sidebar-resize-end', sidebar, sidebar.offsetWidth || startWidth);
         window.dispatchEvent(new Event('resize'));
+    }
+
+    if (typeof window.PointerEvent === 'function') {
+        resizer.addEventListener('pointerdown', beginDrag);
+    } else {
+        resizer.addEventListener('mousedown', beginDrag);
     }
 }

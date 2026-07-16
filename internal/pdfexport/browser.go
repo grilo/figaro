@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 )
 
 // Engine identifies the local rendering engine selected for an export.
@@ -67,9 +66,9 @@ type FinderOptions struct {
 	Getenv   func(string) string
 	LookPath func(string) (string, error)
 	Stat     func(string) (os.FileInfo, error)
-	Probe    func(context.Context, Browser) error
+	Validate func(context.Context, Browser) error
 	// Trace receives each discovery decision, including paths that were not
-	// present and executables rejected by the headless capability probe.
+	// present and executables rejected by the real headless startup validation.
 	Trace func(string)
 }
 
@@ -82,7 +81,7 @@ func FindBrowser(ctx context.Context) (Browser, error) {
 		Getenv:   os.Getenv,
 		LookPath: exec.LookPath,
 		Stat:     os.Stat,
-		Probe:    ProbeChromiumHeadless,
+		Validate: ValidateChromiumHeadless,
 		Trace: func(message string) {
 			log.Printf("[pdf-browser] %s", message)
 		},
@@ -104,8 +103,8 @@ func FindBrowserWith(ctx context.Context, options FinderOptions) (Browser, error
 	if options.Stat == nil {
 		options.Stat = os.Stat
 	}
-	if options.Probe == nil {
-		options.Probe = ProbeChromiumHeadless
+	if options.Validate == nil {
+		options.Validate = ValidateChromiumHeadless
 	}
 	trace := func(format string, args ...interface{}) {
 		if options.Trace != nil {
@@ -138,8 +137,8 @@ func FindBrowserWith(ctx context.Context, options FinderOptions) (Browser, error
 			trace("selected %s executable %q", browser.Engine, browser.Executable)
 			return browser, nil
 		}
-		trace("probing %s executable %q with launcher arguments %q", browser.Engine, browser.Executable, browser.Arguments)
-		if err := options.Probe(ctx, browser); err == nil {
+		trace("validating %s executable %q with launcher arguments %q", browser.Engine, browser.Executable, browser.Arguments)
+		if err := options.Validate(ctx, browser); err == nil {
 			trace("selected %s executable %q", browser.Engine, browser.Executable)
 			return browser, nil
 		} else {
@@ -179,10 +178,10 @@ func resolveExecutable(path string, lookPath func(string) (string, error), stat 
 	return resolved, nil
 }
 
-// BrowserForExecutable validates a browser selected explicitly by the user.
-// The executable name is used only for the result label; capability is decided
-// by the same headless probe used during automatic discovery.
-func BrowserForExecutable(ctx context.Context, executable string) (Browser, error) {
+// BrowserForExecutable resolves a browser selected explicitly by the user.
+// Capability is validated separately through ValidateChromiumHeadless so file
+// selection and an actual isolated CDP startup remain distinct failure stages.
+func BrowserForExecutable(_ context.Context, executable string) (Browser, error) {
 	trace := func(format string, args ...interface{}) {
 		log.Printf("[pdf-browser] "+format, args...)
 	}
@@ -200,10 +199,6 @@ func BrowserForExecutable(ctx context.Context, executable string) (Browser, erro
 		return Browser{}, err
 	}
 	browser := Browser{Engine: engineForExecutable(resolved), Executable: resolved}
-	if err := ProbeChromiumHeadless(ctx, browser); err != nil {
-		trace("user-selected executable %q failed the headless probe: %v", resolved, err)
-		return Browser{}, fmt.Errorf("selected browser cannot create PDFs: %w", err)
-	}
 	trace("selected configured %s executable %q", browser.Engine, browser.Executable)
 	return browser, nil
 }
@@ -357,33 +352,6 @@ func browserCandidates(goos string, getenv func(string) string) []candidate {
 	}
 
 	return candidates
-}
-
-// ProbeChromiumHeadless verifies that the executable accepts Chromium's
-// headless switch before Figaro begins an export. A browser merely found on PATH
-// is not sufficient: users should get a useful install message rather than a
-// partially exported document.
-func ProbeChromiumHeadless(ctx context.Context, browser Browser) error {
-	probeTimeout := 3 * time.Second
-	if isFlatpakBrowser(browser) {
-		// Flatpak must start its sandbox before invoking the browser. It is
-		// consistently slower than a direct executable, especially after a
-		// reboot, so do not mistake a healthy installed browser for missing.
-		probeTimeout = 12 * time.Second
-	}
-	probeCtx, cancel := context.WithTimeout(ctx, probeTimeout)
-	defer cancel()
-
-	arguments := append([]string(nil), browser.Arguments...)
-	arguments = append(arguments, "--headless", "--version")
-	command := exec.CommandContext(probeCtx, browser.Executable, arguments...) // #nosec G204 -- executable and launcher arguments are selected from fixed local browser discovery heuristics.
-	if output, err := command.CombinedOutput(); err != nil {
-		if errors.Is(probeCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("browser headless probe timed out")
-		}
-		return fmt.Errorf("browser does not support headless mode: %s", strings.TrimSpace(string(output)))
-	}
-	return nil
 }
 
 func isFlatpakBrowser(browser Browser) bool {

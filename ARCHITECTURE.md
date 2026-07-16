@@ -15,9 +15,10 @@ Figaro is a Wails desktop application with three deliberately separate layers:
 - The vault is the source of truth for notes and files. Vault-specific settings
   and workspace state live beneath its `.config/` directory rather than in a
   database.
-- Display-dependent native window state is the deliberate exception: it lives
-  in the operating system's per-user local application-data directory and is
-  never written into or derived from the selected vault.
+- Device-specific application state is the deliberate exception: native
+  window state and the selected PDF-browser executable live in the operating
+  system's per-user local application-data directory and are never written
+  into or derived from the selected vault.
 
 The Wails asset server embeds `frontend/` at package-build time. Backend code
 may use an on-disk fallback during development, but a released application must
@@ -32,7 +33,16 @@ predictable: malformed, missing, or old session data can be discarded without
 damaging user preferences. Compatibility cleanup removes legacy tab keys from
 `settings.json` rather than trying to merge two competing sources of truth.
 
-## Machine-local window state
+## Machine-local application state
+
+Machine-local records contain facts about one computer, never portable vault
+preferences. Figaro currently keeps window geometry in `window-state.json` and
+the selected PDF-browser executable in `machine-settings.json`. Both use the
+same cross-platform application-data root, but separate schemas allow a broken
+optional browser preference to be repaired without discarding safe window
+restore bounds.
+
+### Window state
 
 Window geometry belongs to the host, not the vault. A vault may be synced or
 opened on machines whose monitors, scaling, and window-manager conventions are
@@ -79,6 +89,28 @@ record. A path lookup failure disables persistence for that launch; a write
 failure is logged and may be retried by a later capture. Neither prevents
 startup or normal application use.
 
+### PDF-browser preference
+
+The PDF browser selected in Settings describes software installed on this
+computer, so it is stored in the versioned `machine-settings.json` record,
+never `vault/.config/settings.json`. Its platform locations are:
+
+| Platform | Machine settings record |
+| --- | --- |
+| Linux | `$XDG_CONFIG_HOME/figaro/machine-settings.json`, falling back to `$HOME/.config/figaro/machine-settings.json` |
+| macOS | `$HOME/Library/Application Support/figaro/machine-settings.json` |
+| Windows | `%LocalAppData%\figaro\machine-settings.json` |
+
+Schema version `1` has one optional `pdf_browser_path` field. Choosing a browser
+does not trust the filename or a `--version` subprocess: Figaro launches the
+selected executable with the same isolated profile and Chrome DevTools
+Protocol path used by export, calls `Browser.getVersion`, and persists the path
+only when that succeeds. Clearing the setting removes the field and restores
+automatic discovery. An old vault-scoped `pdf_browser_path` is copied to the
+machine record once and then removed from the vault; an already configured
+machine-local value wins. If migration cannot safely write the local record,
+the legacy value is left in place for a later attempt.
+
 ## Theme identity and generated assets
 
 The built-in default theme ID remains `default` even though its user-facing
@@ -124,7 +156,7 @@ forge `ready` and receive the printable document snapshot.
 
 | Direction | Messages | Purpose |
 | --- | --- | --- |
-| Parent → frame | `render`, `set-content-progress`, `set-document-progress`, `scroll-fragment`, `ping` | Supply the printable snapshot and synchronize position. |
+| Parent → frame | `render`, `set-content-progress`, `set-document-progress`, `set-scroll-sync-paused`, `scroll-fragment`, `ping` | Supply the printable snapshot, synchronize position, and suspend synchronization during splitter resizing. |
 | Frame → parent | `ready`, `rendered`, `render-error`, `scroll`, `link`, `reference-missing` | Report lifecycle, navigation requests, and scrolling. |
 
 The frame captures anchor activation itself, before browser navigation:
@@ -144,6 +176,20 @@ final position. Programmatic editor movement is recognized as such so a delayed
 browser scroll event cannot echo back into the preview. Do not make scroll
 events a one-for-one bridge protocol: that makes WebKitGTK pay a cross-frame
 message and a CodeMirror position update for every visual frame.
+
+Dragging the PDF splitter temporarily pauses both synchronization directions
+and disables pointer interaction with the frame. This prevents reflow-driven
+frame scroll events from fighting the user's resize gesture. On release, the
+parent waits 80 ms for resize events to settle, resumes the bridge, and sends
+one authoritative editor-to-preview position. Any queued frame scroll report
+is cancelled when the pause message arrives.
+
+The preview has a 340 px minimum width and no arbitrary maximum. While space
+is available, the splitter instead preserves a 320 px editor floor. When the
+remaining editor becomes narrower than 560 px, CodeMirror's horizontal content
+padding contracts from 24 px to 12 px; it returns to the normal padding when
+space is restored. Pointer capture keeps the gesture alive outside the narrow
+splitter, and sidebar transitions are disabled only for the active drag.
 
 As defence in depth, the frame gives copied document links a blocked popup
 fallback and the parent reloads the fixed bridge document if it stops reporting
@@ -170,6 +216,17 @@ Before **Generate PDF**, Figaro saves the exact in-memory Markdown and selected
 stylesheet snapshots used by the preview. This avoids a race where an edit is
 visible in the pane but an older on-disk version is exported.
 
+Chromium-family discovery validates capability through the same startup path
+as export: an isolated temporary profile, remote debugging endpoint, WebSocket
+connection, and `Browser.getVersion` request. A separate `--headless --version`
+probe is intentionally absent because launcher and Windows process behavior do
+not prove that the PDF engine is usable. Figaro also avoids forcing
+`--disable-extensions`, which managed Chrome installations may reject; the
+temporary profile already isolates user extensions. A configured executable
+that has moved or no longer starts is logged and automatic discovery continues.
+Startup diagnostics retain the failing executable, launch stage, timeout, and
+captured browser output so chooser errors are actionable.
+
 ## Rename and link rewriting
 
 File-tree rename is more than a filesystem move. It delegates path changes to
@@ -194,3 +251,9 @@ test for the PDF preview. Before releasing changes to the preview bridge, run
 the real WebKitGTK/Wails path on Linux as well as the browser/PDF integration
 tests. The regression suite should specifically prove that no user click can
 navigate the preview frame away from Figaro's local bridge.
+
+The frontend unit suite also covers the splitter's editor floor, compact
+padding state, synchronization pause, and single post-resize alignment. Go
+tests inject browser validation for deterministic discovery-order checks; the
+opt-in system-browser test exercises the real isolated CDP validation on a
+developer machine.

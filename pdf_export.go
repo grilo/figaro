@@ -127,6 +127,9 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 	var err error
 	if configuredPath := a.configuredPDFBrowserPath(); configuredPath != "" {
 		browser, err = pdfexport.BrowserForExecutable(ctx, configuredPath)
+		if err == nil {
+			err = pdfexport.ValidateChromiumHeadless(ctx, browser)
+		}
 		if err != nil {
 			// A browser may have been uninstalled or moved since it was chosen.
 			// Keep automatic discovery available, but retain the exact rejection

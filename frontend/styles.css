@@ -1779,6 +1779,13 @@ html, body {
     min-width: 0;
 }
 
+/* When a wide PDF preview leaves the editor with little horizontal room,
+   preserve the document itself and yield the editor's decorative gutters. */
+.main-content.pdf-preview-compact-editor .cm-content {
+    padding-right: 12px !important;
+    padding-left: 12px !important;
+}
+
 /* Tab Bar */
 .tab-bar {
     position: relative;
@@ -4154,12 +4161,22 @@ html, body {
 /* PDF preview is deliberately roomier than calendar/history. Its controls
    stay fixed while the isolated paper surface scrolls independently. */
 .right-sidebar.pdf-preview-mode {
-    max-width: min(680px, 62vw);
+    max-width: none;
 }
 
 .right-sidebar.pdf-preview-mode.open {
-    width: max(420px, var(--right-sidebar-width, 480px)) !important;
+    width: max(340px, var(--right-sidebar-width, 480px)) !important;
     min-width: 340px !important;
+}
+
+/* Direct manipulation must track the pointer exactly. Normal open/close
+   transitions resume as soon as the splitter is released. */
+.right-sidebar.is-resizing {
+    transition: none;
+}
+
+body.right-sidebar-resizing .pdf-preview-frame {
+    pointer-events: none;
 }
 .right-sidebar-header,
 .right-sidebar-content {

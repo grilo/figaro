@@ -45,6 +45,7 @@ type App struct {
 	sessionMu           sync.RWMutex
 	mu                  sync.RWMutex
 	settingsMu          sync.RWMutex
+	machineSettingsMu   sync.RWMutex
 	windowStateMu       sync.Mutex
 	calendarMu          sync.Mutex
 	watcherMu           sync.Mutex
@@ -57,6 +58,7 @@ type App struct {
 	history             *HistoryService
 	windowStatePath     string
 	windowState         windowState
+	machineSettingsPath string
 }
 
 // SystemColumns are the three built-in kanban columns always present.
@@ -336,6 +338,7 @@ func (a *App) ensureWelcomeNote() {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	log.Println("[go] App.startup() — Wails context captured")
+	a.migrateLegacyPDFBrowserPreference()
 	a.ensureSettingsDefaults()
 
 	// Desktop integration uses Linux's XDG/GNOME conventions. Other Wails
@@ -2449,7 +2452,6 @@ func defaultSettings() map[string]interface{} {
 		"theme":               "default",
 		"font":                "inter",
 		"code_font":           "theme-mono",
-		"pdf_browser_path":    "",
 		"vim":                 false,
 		"auto_save_seconds":   300,
 		"auto_commit_seconds": 0,
@@ -2505,8 +2507,7 @@ func (a *App) ensureSettingsDefaults() {
 			if key == "theme" {
 				value = canonicalThemeID(value)
 			}
-			optionalEmpty := key == "pdf_browser_path"
-			if !ok || (!optionalEmpty && value == "") {
+			if !ok || value == "" {
 				settings[key] = fallbackValue
 				changed = true
 			} else if value != rawValue {
@@ -2559,15 +2560,11 @@ type PDFBrowserSettingResult struct {
 // PDFBrowserLoad returns the explicitly configured PDF browser, if any.
 // Automatic discovery remains active when Path is empty.
 func (a *App) PDFBrowserLoad() (*PDFBrowserSettingResult, error) {
-	a.settingsMu.RLock()
-	defer a.settingsMu.RUnlock()
-
-	settings, err := a.readSettingsFile()
+	path, err := a.loadPDFBrowserPath()
 	if err != nil {
 		return &PDFBrowserSettingResult{Success: false, Error: err.Error()}, nil
 	}
-	path, _ := settings["pdf_browser_path"].(string)
-	return &PDFBrowserSettingResult{Success: true, Path: strings.TrimSpace(path)}, nil
+	return &PDFBrowserSettingResult{Success: true, Path: path}, nil
 }
 
 // PDFBrowserChoose opens the native file chooser, verifies the selected
@@ -2593,6 +2590,14 @@ func (a *App) PDFBrowserChoose() (*PDFBrowserSettingResult, error) {
 	if err != nil {
 		return &PDFBrowserSettingResult{Success: false, Path: selected, Error: err.Error()}, nil
 	}
+	if err := pdfexport.ValidateChromiumHeadless(ctx, browser); err != nil {
+		log.Printf("[pdf-browser] User-selected executable %q failed real headless startup validation: %v", browser.Executable, err)
+		return &PDFBrowserSettingResult{
+			Success: false,
+			Path:    selected,
+			Error:   fmt.Sprintf("selected browser could not start its PDF engine: %v", err),
+		}, nil
+	}
 	if err := a.storePDFBrowserPath(browser.Executable); err != nil {
 		return &PDFBrowserSettingResult{Success: false, Path: selected, Error: err.Error()}, nil
 	}
@@ -2609,29 +2614,6 @@ func (a *App) PDFBrowserClear() (*PDFBrowserSettingResult, error) {
 		return &PDFBrowserSettingResult{Success: false, Error: err.Error()}, nil
 	}
 	return &PDFBrowserSettingResult{Success: true}, nil
-}
-
-func (a *App) storePDFBrowserPath(path string) error {
-	a.settingsMu.Lock()
-	defer a.settingsMu.Unlock()
-	settings, err := a.readSettingsFile()
-	if err != nil {
-		return err
-	}
-	settings["pdf_browser_path"] = strings.TrimSpace(path)
-	return a.writeSettingsFile(settings)
-}
-
-func (a *App) configuredPDFBrowserPath() string {
-	a.settingsMu.RLock()
-	defer a.settingsMu.RUnlock()
-	settings, err := a.readSettingsFile()
-	if err != nil {
-		log.Printf("[pdf-browser] Could not read configured browser path: %v", err)
-		return ""
-	}
-	path, _ := settings["pdf_browser_path"].(string)
-	return strings.TrimSpace(path)
 }
 
 // ThemeLoad loads the saved theme from vault/.config/settings.json.

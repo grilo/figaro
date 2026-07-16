@@ -30,6 +30,7 @@
     let delayedScrollReport = null;
     let scheduledProgrammatic = false;
     let programmaticScroll = false;
+    let scrollSyncPaused = false;
     let lastScrollReportAt = Number.NEGATIVE_INFINITY;
 
     function finiteMetric(value) {
@@ -119,7 +120,7 @@
     }
 
     function reportScroll(programmatic = false) {
-        if (!sessionToken) return;
+        if (!sessionToken || scrollSyncPaused) return;
         const metrics = currentMetrics();
         if (!metrics) return;
         lastScrollReportAt = monotonicNow();
@@ -134,10 +135,24 @@
         const wasProgrammatic = scheduledProgrammatic;
         scheduledScrollReport = null;
         scheduledProgrammatic = false;
+        if (scrollSyncPaused) return;
         reportScroll(wasProgrammatic);
     }
 
+    function cancelScheduledScrollReports() {
+        if (scheduledScrollReport !== null) {
+            window.cancelAnimationFrame?.(scheduledScrollReport);
+            window.clearTimeout(scheduledScrollReport);
+        }
+        if (delayedScrollReport !== null) window.clearTimeout(delayedScrollReport);
+        scheduledScrollReport = null;
+        delayedScrollReport = null;
+        scheduledProgrammatic = false;
+        programmaticScroll = false;
+    }
+
     function scheduleScrollReport(programmatic = false, immediate = false) {
+        if (scrollSyncPaused) return;
         scheduledProgrammatic = scheduledProgrammatic || programmatic || programmaticScroll;
         if (scheduledScrollReport !== null) return;
         if (immediate && delayedScrollReport !== null) {
@@ -320,6 +335,11 @@
         }
 
         if (!sessionToken || message.token !== sessionToken) return;
+        if (message.type === 'set-scroll-sync-paused') {
+            scrollSyncPaused = Boolean(message.paused);
+            if (scrollSyncPaused) cancelScheduledScrollReports();
+            return;
+        }
         if (message.type === 'set-content-progress') setContentProgress(message.progress);
         if (message.type === 'set-document-progress') setDocumentProgress(message.progress);
         if (message.type === 'scroll-fragment') scrollToFragment(message.fragment);
