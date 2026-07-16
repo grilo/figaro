@@ -83,6 +83,8 @@ describe('live diagram preview', () => {
         document.body.appendChild(diagramDOM);
         await flush();
 
+        expect(diagramDOM.classList.contains('cm-block-widget')).toBe(true);
+        expect(diagramDOM.classList.contains('cm-block-widget--diagram')).toBe(true);
         expect(diagramDOM.querySelectorAll('svg')).toHaveLength(1);
         expect(window.mermaid.render).toHaveBeenCalled();
 

@@ -10,6 +10,7 @@
  */
 import { log } from './log.js';
 import { diagramLanguages, renderDiagramSVG } from './diagramRenderer.js';
+import { wrapBlockWidget } from './blockWidget.js';
 
 export { diagramLanguages };
 
@@ -140,7 +141,7 @@ function createDiagramWidget(WidgetType) {
 
             dom.append(label, content);
             this.renderInto(content);
-            return dom;
+            return wrapBlockWidget(dom, 'cm-block-widget--diagram');
         }
 
         async renderInto(container) {

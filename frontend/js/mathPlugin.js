@@ -5,6 +5,7 @@
 
 import { StateField } from '@codemirror/state';
 import { EditorView, WidgetType, Decoration } from '@codemirror/view';
+import { markBlockWidget } from './blockWidget.js';
 
 class MathWidget extends WidgetType {
     constructor(text, displayMode) {
@@ -16,6 +17,7 @@ class MathWidget extends WidgetType {
     toDOM() {
         const span = document.createElement('span');
         span.className = this.displayMode ? 'cm-math-block' : 'cm-math-inline';
+        if (this.displayMode) markBlockWidget(span);
         try {
             if (window.katex) {
                 window.katex.render(this.text, span, { displayMode: this.displayMode, throwOnError: false });

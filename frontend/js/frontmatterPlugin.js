@@ -14,6 +14,7 @@ import {
     parseFrontmatter,
 } from './frontmatter.js';
 import { confirmDialog, promptDialog } from './dialogs.js';
+import { wrapBlockWidget } from './blockWidget.js';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'print-stylesheet']);
 const COVER_PROPERTY_KEYS = new Set(['title', 'subtitle', 'description', 'author', 'date', 'created']);
@@ -425,7 +426,7 @@ export function createFrontmatterField(
                 if (!view.isDestroyed) view.dispatch({ effects: setMode.of('panel') });
                 view.focus();
             });
-            return button;
+            return wrapBlockWidget(button, 'cm-block-widget--frontmatter');
         }
 
         ignoreEvent() { return true; }
@@ -473,7 +474,7 @@ export function createFrontmatterField(
                     }
                 }
             );
-            return button;
+            return wrapBlockWidget(button, 'cm-block-widget--add-properties');
         }
 
         ignoreEvent() { return true; }
@@ -698,7 +699,7 @@ export function createFrontmatterField(
             });
             otherSection.append(otherTitle, chips, addProperty);
             panel.appendChild(otherSection);
-            return panel;
+            return wrapBlockWidget(panel, 'cm-block-widget--frontmatter-panel');
         }
 
         ignoreEvent() { return true; }

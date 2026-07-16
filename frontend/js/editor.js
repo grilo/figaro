@@ -30,12 +30,12 @@ import {
 } from 'codemirror-live-markdown';
 
 // CodeMirror 6 imports (loaded from local vendor directory)
-let EditorView, EditorState, StateField, StateEffect, RangeSetBuilder, Compartment,
+let EditorView, EditorState, StateField, StateEffect, RangeSetBuilder, Prec, Compartment,
     lineNumbers, highlightActiveLineGutter, drawSelection,
-    keymap, defaultKeymap, history, historyKeymap, foldGutter, foldKeymap,
+    keymap, defaultKeymap, cursorLineUp, cursorLineDown, history, historyKeymap, foldGutter, foldKeymap,
     bracketMatching, autocompletion, completionKeymap, acceptCompletion, indentUnit,
     markdownLanguage, markdownKeymap,
-    ViewPlugin, Decoration, WidgetType,
+    ViewPlugin, Decoration, WidgetType, EditorSelection,
     syntaxTree, indentMore, indentLess,
     syntaxHighlighting, HighlightStyle, tags;
 
@@ -69,6 +69,53 @@ export function isBlockquoteLine(line) {
     return /^ {0,3}>\s?/.test(line);
 }
 
+/**
+ * Return the adjacent source-line position only when the browser's visual
+ * cursor calculation unexpectedly skipped multiple document lines.
+ */
+export function adjacentLinePositionForUnexpectedVerticalSkip(document, beforePosition, afterPosition, forward) {
+    const sourceLine = document.lineAt(beforePosition);
+    const movedLine = document.lineAt(afterPosition);
+    const targetNumber = sourceLine.number + (forward ? 1 : -1);
+    const skippedLines = forward
+        ? movedLine.number > sourceLine.number + 1
+        : movedLine.number < sourceLine.number - 1;
+    if (!skippedLines || targetNumber < 1 || targetNumber > document.lines) return null;
+
+    const targetLine = document.line(targetNumber);
+    const sourceColumn = beforePosition - sourceLine.from;
+    return targetLine.from + Math.min(sourceColumn, targetLine.length);
+}
+
+/**
+ * Preserve CodeMirror's normal visual-line movement, but contain any remaining
+ * engine-specific height-map error to one source line. Correct widget geometry
+ * is the primary fix; this is a last-resort guard for desktop webviews.
+ */
+export function moveCursorVerticallySafely(view, forward) {
+    const before = view.state.selection.main;
+    if (!before.empty || view.state.selection.ranges.length !== 1) return false;
+
+    const move = forward ? cursorLineDown : cursorLineUp;
+    if (!move || !move(view)) return false;
+
+    const after = view.state.selection.main;
+    const targetPosition = adjacentLinePositionForUnexpectedVerticalSkip(
+        view.state.doc,
+        before.head,
+        after.head,
+        forward
+    );
+    if (targetPosition === null) return true;
+
+    view.dispatch({
+        selection: EditorSelection.cursor(targetPosition, after.assoc, after.bidiLevel, after.goalColumn),
+        scrollIntoView: true,
+        userEvent: 'select',
+    });
+    return true;
+}
+
 const bulletMarkers = ['\u2022', '\u25E6', '\u25AA'];
 
 // Lezer includes the current BulletList in the ancestor chain for ListMark,
@@ -90,8 +137,8 @@ async function loadCodeMirrorModules() {
         ]);
         ({ indentationMarkers } = await import('@replit/codemirror-indentation-markers'));
         ({ EditorView, keymap, drawSelection } = cmView);
-        ({ EditorState, StateField, StateEffect, RangeSetBuilder, Compartment } = cmState);
-        ({ defaultKeymap, history, historyKeymap, indentMore, indentLess } = cmCommands);
+        ({ EditorState, StateField, StateEffect, RangeSetBuilder, Prec, Compartment, EditorSelection } = cmState);
+        ({ defaultKeymap, cursorLineUp, cursorLineDown, history, historyKeymap, indentMore, indentLess } = cmCommands);
         ({ foldGutter, foldKeymap, bracketMatching, syntaxTree, indentUnit, syntaxHighlighting, HighlightStyle } = cmLanguage);
         ({ autocompletion, completionKeymap, acceptCompletion } = cmAutocomplete);
         ({ lineNumbers, highlightActiveLineGutter } = cmView);
@@ -740,6 +787,10 @@ function createEditorView() {
             mousedown: handleMouseDown,
             click: handleClick,
         }),
+        Prec.high(keymap.of([
+            { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
+            { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },
+        ])),
         keymap.of(markdownKeymap),
     ];
     const codeExtensionsForSupport = (support) => [

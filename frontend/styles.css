@@ -2399,6 +2399,32 @@ html, body {
 
 /* Document Properties: compact by default, with an optional structured PDF
    layout panel. YAML remains available as an advanced/source view. */
+.cm-block-widget {
+    box-sizing: border-box;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* CodeMirror measures the root returned by a block WidgetType. Keep visual
+   breathing room as padding on that measured, transparent root. Never put
+   vertical margins on it or on the widget surface inside it. */
+.cm-block-widget-spacing {
+    display: flow-root;
+    width: 100%;
+}
+
+.cm-block-widget--frontmatter {
+    padding: 2px 0 14px;
+}
+
+.cm-block-widget--add-properties {
+    padding: 3px 0 14px;
+}
+
+.cm-block-widget--frontmatter-panel {
+    padding: 2px 0 16px;
+}
+
 .cm-frontmatter {
     width: 100%;
     max-width: var(--editor-width);
@@ -2407,7 +2433,7 @@ html, body {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 2px auto 14px;
+    margin: 0 auto;
     padding: 8px 10px;
     border: 1px solid var(--border-color);
     border-radius: 7px;
@@ -2487,7 +2513,7 @@ html, body {
 .cm-add-properties {
     display: inline-flex;
     align-items: center;
-    margin: 3px 0 14px;
+    margin: 0;
     padding: 4px 8px;
     border: 1px dashed var(--border-light);
     border-radius: 5px;
@@ -2531,7 +2557,7 @@ html, body {
     max-width: var(--editor-width);
     min-width: 0;
     box-sizing: border-box;
-    margin: 2px auto 16px;
+    margin: 0 auto;
     padding: 12px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -4650,13 +4676,36 @@ html, body {
 }
 
 /* ── Live Diagram Widget (Mermaid, Vega, Vega-Lite) ── */
+.cm-block-widget--diagram {
+    padding: 8px 0;
+}
+
 .cm-live-diagram {
     display: block;
-    margin: 8px 0;
+    margin: 0;
     background: #fff;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow-x: auto;
+}
+
+/* Block roots supplied by codemirror-live-markdown must follow the same
+   measured-height contract. The source-toggle's former bottom margin becomes
+   measured padding; the other roots intentionally have no outside spacing. */
+.cm-codeblock-widget,
+.cm-table-widget,
+.cm-table-editor,
+.cm-image-widget,
+.cm-math-block {
+    box-sizing: border-box;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.cm-table-source-toggle {
+    box-sizing: border-box;
+    margin: 0 !important;
+    padding-bottom: 6px;
 }
 .cm-live-diagram-label {
     padding: 4px 12px;

@@ -43,3 +43,37 @@ When writing the TypeScript extension, you must adhere to the following CodeMirr
 2.  **State Triggers:** Recompute the decoration set dynamically if and only if: the document changes (`update.docChanged`), the selection changes (`update.selectionSet`), or the view scrolls (`update.viewportChanged`).
 3.  **Coordinate Sorting Rule:** You must collect all decorations in a mutable array, ensure they are strictly sorted by their incremental document positions, and then construct the final set using `Decoration.set(builder, true)`. Overlapping or unsorted ranges will crash the editor.
 4.  **No Layout Snapping:** Ensure inline styles retain their typographic metrics (font-size, line-height) across both states so that text does not shift horizontally or vertically when the cursor enters a line.
+
+## 4. Block Widget Geometry Contract
+
+CodeMirror's vertical cursor movement, click mapping, selections, and scrolling
+depend on its internal height map matching the browser's rendered layout. The
+DOM element returned by a block `WidgetType.toDOM()` is the measured boundary.
+Anything that occupies vertical space outside that boundary can corrupt
+coordinate calculations and make the cursor jump across unrelated source
+lines.
+
+Every decoration created with `block: true` must follow these rules:
+
+1. The widget root and its visual surface must have zero top and bottom
+   margins. This includes widgets supplied by vendored extensions.
+2. Visual spacing around a widget must be measured. Use the transparent
+   wrapper provided by `frontend/js/blockWidget.js` and express spacing as
+   wrapper padding. Widgets that need no surrounding spacing must still use
+   the shared block-widget marker.
+3. Do not allow child margins to collapse outside the measured root. The
+   shared spacing wrapper establishes the required formatting context.
+4. Adding a new block widget, changing a block widget's DOM structure, or
+   changing its spacing CSS requires updating
+   `tests/frontend/unit/blockWidgetLayout.test.js` so the new root and surface
+   are covered by the contract test.
+5. Do not treat the Arrow Up/Down safety guard as permission to violate this
+   contract. It is defense in depth; correct widget geometry is the primary
+   fix and also protects mouse placement, selection, and scrolling.
+
+Before merging any block-widget change, run the required checks documented in
+[`TESTING.md`](TESTING.md#block-widget-and-cursor-regressions). Layout changes
+must also be exercised in the packaged desktop webview. At minimum, open the
+Welcome note, place the cursor on `### Text formatting` (line 36), and verify
+that Arrow Up moves to line 35 and Arrow Down returns to line 36 without a
+larger jump.

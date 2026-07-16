@@ -197,6 +197,57 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(closeSearchPanel()).toBe(true);
         });
 
+        test('contains an unexpected vertical jump to the adjacent source line', async () => {
+            const { EditorState } = await import('@codemirror/state');
+            const { adjacentLinePositionForUnexpectedVerticalSkip } = await import('../frontend/js/editor.js');
+            const state = EditorState.create({ doc: 'one\ntwo\nthree\nfour\nfive' });
+
+            expect(adjacentLinePositionForUnexpectedVerticalSkip(
+                state.doc,
+                state.doc.line(4).to,
+                state.doc.line(1).to,
+                false
+            )).toBe(state.doc.line(3).from + state.doc.line(4).length);
+            expect(adjacentLinePositionForUnexpectedVerticalSkip(
+                state.doc,
+                state.doc.line(2).from + 1,
+                state.doc.line(5).from,
+                true
+            )).toBe(state.doc.line(3).from + 1);
+            expect(adjacentLinePositionForUnexpectedVerticalSkip(
+                state.doc,
+                state.doc.line(4).from,
+                state.doc.line(3).from,
+                false
+            )).toBeNull();
+        });
+
+        test('repairs a bad engine cursor result after normal vertical movement', async () => {
+            const { EditorSelection, EditorState, Transaction } = await import('@codemirror/state');
+            const { initEditor, moveCursorVerticallySafely } = await import('../frontend/js/editor.js');
+            await initEditor();
+
+            let state = EditorState.create({
+                doc: 'one\ntwo\nthree\nfour\nfive',
+                selection: { anchor: 18 },
+            });
+            const view = {
+                get state() { return state; },
+                moveVertically: jest.fn(() => EditorSelection.cursor(state.doc.line(1).to)),
+                moveToLineBoundary: jest.fn(),
+                dispatch: transaction => {
+                    state = transaction instanceof Transaction
+                        ? transaction.state
+                        : state.update(transaction).state;
+                },
+            };
+
+            expect(moveCursorVerticallySafely(view, false)).toBe(true);
+            expect(view.moveVertically).toHaveBeenCalledTimes(1);
+            expect(state.doc.lineAt(state.selection.main.head).number).toBe(3);
+            expect(state.selection.main.head - state.doc.line(3).from).toBe(4);
+        });
+
     });
 });
 

@@ -66,6 +66,42 @@ when changing the PDF preview bridge, also run the packaged Linux build and
 exercise it in Wails/WebKitGTK. The preview's origin/sandbox boundary is
 documented in [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
+## Block widget and cursor regressions
+
+CodeMirror block widgets have a strict measured-height contract documented in
+[`LIVEPREVIEW.md`](LIVEPREVIEW.md#4-block-widget-geometry-contract). Any new
+`block: true` decoration, widget DOM change, or widget spacing change must:
+
+1. Use the shared block-widget wrapper or marker from
+   `frontend/js/blockWidget.js`.
+2. Keep vertical margins off the measured widget root and visual surface. Put
+   intentional surrounding space in measured wrapper padding.
+3. Add the widget root and surface to
+   `tests/frontend/unit/blockWidgetLayout.test.js`.
+4. Run the contract, cursor fallback, full frontend, and browser checks:
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/blockWidgetLayout.test.js \
+  tests/frontend/unit/editor.test.js
+npm run lint
+npm run test:unit
+npm run test:pdf
+```
+
+Because jsdom has no real layout and Chromium may tolerate geometry that fails
+in a desktop webview, automated browser success is not sufficient for a block
+layout change. Run the packaged application on every affected desktop engine:
+
+- Linux: WebKitGTK.
+- Windows: WebView2.
+- macOS: WKWebView when the change is intended for macOS distribution.
+
+Use the Welcome note as the minimum native regression: put the cursor on line
+36, `### Text formatting`; Arrow Up must move to line 35, and Arrow Down must
+return to line 36. Also navigate across each newly added widget from above and
+below, and verify mouse placement and drag selection around it.
+
 ## Generating browser assets
 
 Generated browser dependencies are ignored under `frontend/vendored/`; the

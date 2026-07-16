@@ -93,12 +93,15 @@ describe('frontmatter Properties card', () => {
 
         const card = view.dom.querySelector('.cm-frontmatter');
         expect(card).not.toBeNull();
+        expect(card.parentElement.classList.contains('cm-block-widget')).toBe(true);
+        expect(card.parentElement.classList.contains('cm-block-widget--frontmatter')).toBe(true);
         expect(card.textContent).toContain('Properties');
         expect(card.textContent).toContain('4 properties');
 
         card.click();
         expect(view.dom.querySelector('.cm-frontmatter')).toBeNull();
         expect(view.dom.querySelector('.cm-frontmatter-panel')).not.toBeNull();
+        expect(view.dom.querySelector('.cm-frontmatter-panel').parentElement.classList.contains('cm-block-widget--frontmatter-panel')).toBe(true);
         expect(view.dom.querySelector('.cm-frontmatter-panel').classList.contains('cm-frontmatter-panel--enter')).toBe(true);
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('PDF layout');
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Table of Contents');
@@ -172,6 +175,7 @@ describe('frontmatter Properties card', () => {
 
         const add = view.dom.querySelector('.cm-add-properties');
         expect(add).not.toBeNull();
+        expect(add.parentElement.classList.contains('cm-block-widget--add-properties')).toBe(true);
         let editorMouseDowns = 0;
         view.contentDOM.addEventListener('mousedown', () => { editorMouseDowns++; });
         add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
