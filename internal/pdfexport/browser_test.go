@@ -79,10 +79,18 @@ func TestFindBrowserSkipsAChromeBinaryWithoutHeadlessSupport(t *testing.T) {
 				return "", errors.New("not installed")
 			}
 		},
-		Stat: os.Stat,
+		Stat: func(path string) (os.FileInfo, error) {
+			if path != chromePath && path != chromiumPath {
+				return nil, os.ErrNotExist
+			}
+			return os.Stat(path)
+		},
 		Probe: func(_ context.Context, browser Browser) error {
 			if browser.Executable == chromePath {
 				return errors.New("unsupported")
+			}
+			if browser.Engine != EngineChromium || browser.Executable != chromiumPath {
+				t.Fatalf("unexpected fallback probe: %+v", browser)
 			}
 			return nil
 		},
