@@ -145,25 +145,14 @@ export function initFileTree() {
     initFileTreeEvents();
     initContextMenu();
 
-    // Keep the active file discoverable and expand its ancestors without
-    // replacing an explicitly selected folder in the tree.
+    // Keep the active-file highlight in sync without changing folder state.
+    // expandedDirs belongs to the user: restoring or switching tabs must not
+    // reopen ancestors that the user explicitly collapsed.
     subscribe('activeTabId', () => {
         const tabs = getState('openTabs');
         const activeId = getState('activeTabId');
         const activeTab = tabs.find(t => t.id === activeId);
         if (activeTab && (activeTab.type === 'file' || activeTab.type === 'drawio') && activeTab.path) {
-            // Expand all ancestor directories
-            const parts = activeTab.path.split('/');
-            const expanded = new Set(getState('expandedDirs'));
-            let changed = false;
-            for (let i = 0; i < parts.length - 1; i++) {
-                const dirPath = parts.slice(0, i + 1).join('/');
-                if (!expanded.has(dirPath)) {
-                    expanded.add(dirPath);
-                    changed = true;
-                }
-            }
-            if (changed) setState('expandedDirs', expanded);
             setState('selectedFilePath', activeTab.path);
             renderFileTree();
         }
@@ -301,7 +290,6 @@ function initFileTreeEvents() {
             setState('selectedTreePath', path);
             setState('selectedFilePaths', []);
             toggleDirectory(path);
-            saveSession();
             renderFileTree();
         } else if (type === 'file') {
             const isDiagram = isDrawioDiagramPath(path);

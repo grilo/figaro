@@ -51,7 +51,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
     updateTabsForMovedPath: jest.fn(),
 }));
 
-import { state, setState, getState } from '../frontend/js/state.js';
+import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { openTab, handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { confirmDialog, newNoteDialog, promptDialog } from '../frontend/js/dialogs.js';
@@ -204,6 +204,62 @@ describe('File Tree', () => {
         expect(document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').classList.contains('selected')).toBe(true);
         expect(document.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('active-file')).toBe(true);
         expect(saveSession).toHaveBeenCalled();
+    });
+
+    test('restoring nested file tabs does not overwrite the exact expanded-folder set', () => {
+        state.fileTreeData = [
+            {
+                name: 'Projects', path: 'Projects', type: 'directory', children: [{
+                    name: 'Alpha', path: 'Projects/Alpha', type: 'directory', children: [
+                        { name: 'active.md', path: 'Projects/Alpha/active.md', type: 'file', mtime: 1 },
+                    ],
+                }],
+            },
+            {
+                name: 'Archive', path: 'Archive', type: 'directory', children: [{
+                    name: 'Old', path: 'Archive/Old', type: 'directory', children: [
+                        { name: 'closed.md', path: 'Archive/Old/closed.md', type: 'file', mtime: 1 },
+                    ],
+                }],
+            },
+            {
+                name: 'Manual', path: 'Manual', type: 'directory', children: [{
+                    name: 'Kept', path: 'Manual/Kept', type: 'directory', children: [
+                        { name: 'note.md', path: 'Manual/Kept/note.md', type: 'file', mtime: 1 },
+                    ],
+                }],
+            },
+        ];
+        const restoredExpansion = new Set(['Manual', 'Manual/Kept']);
+        state.expandedDirs = new Set(restoredExpansion);
+        state.openTabs = [
+            { id: 'Projects/Alpha/active.md', type: 'file', path: 'Projects/Alpha/active.md' },
+            { id: 'Archive/Old/closed.md', type: 'file', path: 'Archive/Old/closed.md' },
+        ];
+        initFileTree();
+
+        const activeTabListener = subscribe.mock.calls
+            .find(([key]) => key === 'activeTabId')?.[1];
+        expect(activeTabListener).toEqual(expect.any(Function));
+
+        // restoreOpenTabs activates every restored tab before selecting the
+        // persisted active one. None of those activations may rewrite the
+        // user's folder configuration.
+        for (const tabId of [
+            'Projects/Alpha/active.md',
+            'Archive/Old/closed.md',
+            'Projects/Alpha/active.md',
+        ]) {
+            state.activeTabId = tabId;
+            activeTabListener();
+        }
+
+        expect(state.expandedDirs).toEqual(restoredExpansion);
+        expect(state.selectedFilePath).toBe('Projects/Alpha/active.md');
+        expect(document.querySelector('.file-tree-item[data-path="Manual"]').classList.contains('expanded')).toBe(true);
+        expect(document.querySelector('.file-tree-item[data-path="Manual/Kept"]').classList.contains('expanded')).toBe(true);
+        expect(document.querySelector('.file-tree-item[data-path="Projects"]').classList.contains('expanded')).toBe(false);
+        expect(document.querySelector('.file-tree-item[data-path="Archive"]').classList.contains('expanded')).toBe(false);
     });
 
     test('coalesces filesystem-triggered tree refreshes instead of polling continuously', async () => {

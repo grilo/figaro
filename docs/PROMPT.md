@@ -133,7 +133,7 @@ Each theme defines these properties (with theme-specific colors):
 - CodeMirror-supported source files (for example CSS, HTML, JavaScript/TypeScript, JSON, Go, Python, Rust, SQL, YAML, Dockerfiles, and maintained legacy modes) open in the same editor with their language parser loaded on demand.
 - Editable Draw.io diagrams use the .drawio.svg suffix. They open in the Draw.io editor while remaining normal SVG assets when embedded in Markdown.
 - **Ctrl/Cmd+Click** adds/removes a Markdown file to the multi-selection (highlighted with an accent-tinted background and outline).
-- The currently open file is highlighted. The Vault tree automatically expands ancestor directories and highlights the active file when switching tabs or following links.
+- Folder expansion is explicit user-owned state. The exact expanded-directory set is stored in the vault session and restored on startup; restoring or switching tabs never opens additional ancestors. The active-file highlight follows tab changes when that file is visible, without rewriting the folder configuration.
 
 ### 3.4 Multi-Select and Merge
 - Multiple files can be selected with Ctrl/Cmd+Click.
@@ -411,6 +411,7 @@ The frontend holds a shared state object that tracks:
 - Kanban board data and columns.
 - Theme state, pinned tabs, and recent files.
 - Search query, filters, and result set.
+- The exact set of expanded file-tree directories.
 - Left and right sidebar width plus collapsed/open state.
 
 The application uses two persistence layers deliberately:

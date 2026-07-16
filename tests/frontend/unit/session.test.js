@@ -37,15 +37,18 @@ describe('session persistence', () => {
 
         setState('openTabs', [{ id: 'first.md', type: 'file', title: 'First', path: 'first.md' }]);
         setState('activeTabId', 'first.md');
+        setState('expandedDirs', new Set(['First', 'First/Nested']));
         const firstSave = saveSession();
 
         setState('openTabs', [{ id: 'second.md', type: 'file', title: 'Second', path: 'second.md' }]);
         setState('activeTabId', 'second.md');
+        setState('expandedDirs', new Set(['Second']));
         const secondSave = saveSession();
         await Promise.resolve();
 
         expect(window.pywebview.api.save_session).toHaveBeenCalledTimes(1);
         expect(window.pywebview.api.save_session.mock.calls[0][0].activeTabId).toBe('first.md');
+        expect(window.pywebview.api.save_session.mock.calls[0][0].expandedDirs).toEqual(['First', 'First/Nested']);
 
         slow.resolve({ success: true });
         await firstSave;
@@ -53,6 +56,7 @@ describe('session persistence', () => {
 
         expect(window.pywebview.api.save_session).toHaveBeenCalledTimes(2);
         expect(window.pywebview.api.save_session.mock.calls[1][0].activeTabId).toBe('second.md');
+        expect(window.pywebview.api.save_session.mock.calls[1][0].expandedDirs).toEqual(['Second']);
 
         fast.resolve({ success: true });
         await secondSave;
