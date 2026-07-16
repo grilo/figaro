@@ -126,5 +126,13 @@ the assembled webview rather than one JavaScript package in isolation.
   changes.
 - Add a regression test for a bug fix, especially for file moves, sessions,
   rendering, or concurrency.
+- Treat feature-specific tests as part of every feature: directly exercise the
+  new success case and its cancellation/error or collision behavior at each
+  affected backend, frontend, editor, preview, and export boundary. Generic
+  smoke coverage does not replace a named regression test.
+- Every CodeMirror extension, widget, keymap, or layout change must retain
+  focused cursor-movement coverage (including feature keys), the block-widget
+  geometry contract when applicable, and the native-webview checks in
+  `docs/TESTING.md`.
 - Keep user-facing workflow changes in `README.md` and the detailed behavior
   contract in `docs/PROMPT.md` in the same change.

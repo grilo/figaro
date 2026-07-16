@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"io/fs"
 	"log"
 	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
@@ -626,12 +628,36 @@ func isBinaryFileContent(data []byte) bool {
 
 // SaveFileResult is the return value of SaveFile.
 type SaveFileResult struct {
-	Success      bool     `json:"success"`
-	Error        string   `json:"error,omitempty"`
-	Mtime        float64  `json:"mtime,omitempty"`
-	Path         string   `json:"path,omitempty"`
-	OldPath      string   `json:"old_path,omitempty"`
-	UpdatedLinks []string `json:"updated_links,omitempty"`
+	Success        bool              `json:"success"`
+	Error          string            `json:"error,omitempty"`
+	Mtime          float64           `json:"mtime,omitempty"`
+	Path           string            `json:"path,omitempty"`
+	OldPath        string            `json:"old_path,omitempty"`
+	UpdatedLinks   []string          `json:"updated_links,omitempty"`
+	MergeAvailable bool              `json:"merge_available,omitempty"`
+	MovedPaths     map[string]string `json:"moved_paths,omitempty"`
+}
+
+const maxClipboardImageBytes = 25 << 20
+
+var clipboardImageExtensions = map[string]string{
+	"image/png":    ".png",
+	"image/jpeg":   ".jpg",
+	"image/gif":    ".gif",
+	"image/webp":   ".webp",
+	"image/bmp":    ".bmp",
+	"image/x-icon": ".ico",
+}
+
+var clipboardImageExtensionOrder = []string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"}
+
+// ClipboardImageResult describes an image saved beside an active Markdown
+// note and the portable, note-relative Markdown that should be inserted.
+type ClipboardImageResult struct {
+	Success  bool   `json:"success"`
+	Error    string `json:"error,omitempty"`
+	Path     string `json:"path,omitempty"`
+	Markdown string `json:"markdown,omitempty"`
 }
 
 // SaveFile writes content to a file, with optional conflict detection via expected_mtime.
@@ -735,6 +761,114 @@ func (a *App) CreateFile(relPath string, content string) (*SaveFileResult, error
 	mtime := a.recordFileVersionLocked(a.vaultAbsolutePath(cleanRel), info)
 	a.syncKanbanColumnsLocked()
 	return &SaveFileResult{Success: true, Mtime: mtime, Path: relPath}, nil
+}
+
+// SaveClipboardImage decodes an image pasted into a Markdown editor and
+// creates image1, image2, and so on beside that note without overwriting an
+// existing image. The detected byte format, rather than the browser-provided
+// MIME label, determines the file extension.
+func (a *App) SaveClipboardImage(noteRelPath string, declaredMIME string, encodedData string) (*ClipboardImageResult, error) {
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	noteClean, err := vaultRelativePath(noteRelPath)
+	if err != nil {
+		return nil, err
+	}
+	if noteClean == "." {
+		return &ClipboardImageResult{Success: false, Error: "An active Markdown file is required"}, nil
+	}
+	declaredMIME = strings.ToLower(strings.TrimSpace(strings.SplitN(declaredMIME, ";", 2)[0]))
+	if declaredMIME != "" && !strings.HasPrefix(declaredMIME, "image/") {
+		return &ClipboardImageResult{Success: false, Error: "Clipboard content is not an image"}, nil
+	}
+	if encodedData == "" {
+		return &ClipboardImageResult{Success: false, Error: "Clipboard image is empty"}, nil
+	}
+	if len(encodedData) > base64.StdEncoding.EncodedLen(maxClipboardImageBytes+1) {
+		return &ClipboardImageResult{Success: false, Error: "Clipboard image is larger than 25 MB"}, nil
+	}
+	imageData, err := base64.StdEncoding.DecodeString(encodedData)
+	if err != nil {
+		return &ClipboardImageResult{Success: false, Error: "Clipboard image data is invalid"}, nil
+	}
+	if len(imageData) == 0 {
+		return &ClipboardImageResult{Success: false, Error: "Clipboard image is empty"}, nil
+	}
+	if len(imageData) > maxClipboardImageBytes {
+		return &ClipboardImageResult{Success: false, Error: "Clipboard image is larger than 25 MB"}, nil
+	}
+
+	detectedMIME := strings.SplitN(http.DetectContentType(imageData), ";", 2)[0]
+	extension, supported := clipboardImageExtensions[detectedMIME]
+	if !supported {
+		return &ClipboardImageResult{Success: false, Error: "Clipboard image format is not supported"}, nil
+	}
+
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	directory := filepath.Dir(noteClean)
+	directoryInfo, err := root.Stat(directory)
+	if os.IsNotExist(err) {
+		return &ClipboardImageResult{Success: false, Error: "The note directory no longer exists"}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !directoryInfo.IsDir() {
+		return &ClipboardImageResult{Success: false, Error: "The note directory is not a folder"}, nil
+	}
+
+	for index := 1; index < 10000; index++ {
+		available, err := clipboardImageIndexAvailable(root, directory, index)
+		if err != nil {
+			return nil, err
+		}
+		if !available {
+			continue
+		}
+		filename := fmt.Sprintf("image%d%s", index, extension)
+		imagePath := filename
+		if directory != "." {
+			imagePath = filepath.Join(directory, filename)
+		}
+		if err := createRootFile(root, imagePath, imageData, 0644); os.IsExist(err) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		info, err := root.Stat(imagePath)
+		if err != nil {
+			return nil, fmt.Errorf("inspect pasted image: %w", err)
+		}
+		a.recordFileVersionLocked(a.vaultAbsolutePath(imagePath), info)
+		return &ClipboardImageResult{
+			Success:  true,
+			Path:     filepath.ToSlash(imagePath),
+			Markdown: fmt.Sprintf("![Image%d](%s)", index, filename),
+		}, nil
+	}
+	return &ClipboardImageResult{Success: false, Error: "Could not find an available image filename"}, nil
+}
+
+func clipboardImageIndexAvailable(root *os.Root, directory string, index int) (bool, error) {
+	for _, extension := range clipboardImageExtensionOrder {
+		filename := fmt.Sprintf("image%d%s", index, extension)
+		candidate := filename
+		if directory != "." {
+			candidate = filepath.Join(directory, filename)
+		}
+		if _, err := root.Lstat(candidate); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
 }
 
 // CreateDirectory creates a new folder in the vault.
@@ -891,7 +1025,311 @@ func (a *App) MovePath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 	} else {
 		newRel = filepath.Join(newRel, base)
 	}
+	if destinationInfo, destinationErr := root.Lstat(newRel); destinationErr == nil {
+		if sourceInfo.IsDir() && destinationInfo.IsDir() {
+			return &SaveFileResult{
+				Success:        false,
+				Error:          "Destination directory already exists",
+				OldPath:        filepath.ToSlash(sourceClean),
+				Path:           filepath.ToSlash(newRel),
+				MergeAvailable: true,
+			}, nil
+		}
+	} else if !os.IsNotExist(destinationErr) {
+		return nil, destinationErr
+	}
 	return a.renamePathLocked(sourceClean, newRel)
+}
+
+type directoryMergeRename struct {
+	oldPath string
+	newPath string
+}
+
+// MergeDirectory moves one vault directory into an existing same-named
+// destination directory. Existing subdirectories are merged recursively and
+// colliding files receive " (copy)", " (copy 2)", and so on. The frontend
+// calls this only after the user confirms the merge offered by MovePath.
+func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileResult, error) {
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	sourceClean, err := vaultRelativePath(sourceRel)
+	if err != nil {
+		return nil, err
+	}
+	targetClean, err := vaultRelativePath(targetDirRel)
+	if err != nil {
+		return nil, err
+	}
+	if sourceClean == "." {
+		return &SaveFileResult{Success: false, Error: "Cannot merge vault root"}, nil
+	}
+	if targetClean == sourceClean || strings.HasPrefix(targetClean, sourceClean+string(filepath.Separator)) {
+		return &SaveFileResult{Success: false, Error: "Cannot move a directory into itself"}, nil
+	}
+
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	sourceInfo, err := root.Lstat(sourceClean)
+	if os.IsNotExist(err) {
+		return &SaveFileResult{Success: false, Error: "Source not found"}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	destination := filepath.Join(targetClean, filepath.Base(sourceClean))
+	if targetClean == "." {
+		destination = filepath.Base(sourceClean)
+	}
+	destinationInfo, err := root.Lstat(destination)
+	if os.IsNotExist(err) {
+		return &SaveFileResult{Success: false, Error: "Destination directory no longer exists"}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !sourceInfo.IsDir() || !destinationInfo.IsDir() {
+		return &SaveFileResult{Success: false, Error: "Both merge paths must be directories"}, nil
+	}
+
+	renames := make([]directoryMergeRename, 0)
+	movedPaths := make(map[string]string)
+	updatedLinkSet := make(map[string]struct{})
+	if err := a.prepareDirectoryMergeCollisionsLocked(root, sourceClean, destination, &renames, movedPaths, updatedLinkSet); err != nil {
+		rollbackErr := a.rollbackDirectoryMergeRenamesLocked(renames)
+		return &SaveFileResult{Success: false, Error: errors.Join(err, rollbackErr).Error()}, nil
+	}
+
+	linkRewrites, err := collectVaultLinkRewrites(root, sourceClean, destination)
+	if err != nil {
+		rollbackErr := a.rollbackDirectoryMergeRenamesLocked(renames)
+		return &SaveFileResult{Success: false, Error: errors.Join(fmt.Errorf("collect links for merge: %w", err), rollbackErr).Error()}, nil
+	}
+	createdPaths := make([]string, 0)
+	if err := copyPreparedDirectoryMerge(root, sourceClean, destination, &createdPaths); err != nil {
+		cleanupErr := removeMergedPaths(root, createdPaths)
+		rollbackErr := a.rollbackDirectoryMergeRenamesLocked(renames)
+		return &SaveFileResult{Success: false, Error: errors.Join(fmt.Errorf("copy merged directory: %w", err), cleanupErr, rollbackErr).Error()}, nil
+	}
+	applied, err := applyVaultLinkRewrites(root, linkRewrites)
+	if err != nil {
+		restoreErr := restoreVaultLinkRewrites(root, applied)
+		cleanupErr := removeMergedPaths(root, createdPaths)
+		rollbackErr := a.rollbackDirectoryMergeRenamesLocked(renames)
+		return &SaveFileResult{Success: false, Error: errors.Join(err, restoreErr, cleanupErr, rollbackErr).Error()}, nil
+	}
+	if err := root.RemoveAll(sourceClean); err != nil {
+		return &SaveFileResult{Success: false, Error: fmt.Sprintf("Merged contents were copied, but the source folder could not be removed: %v", err)}, nil
+	}
+
+	finalUpdatedLinkSet := make(map[string]struct{}, len(updatedLinkSet)+len(linkRewrites))
+	for path := range updatedLinkSet {
+		cleanPath := filepath.Clean(filepath.FromSlash(path))
+		if vaultPathIsSameOrDescendant(sourceClean, cleanPath) {
+			relative, relativeErr := filepath.Rel(sourceClean, cleanPath)
+			if relativeErr == nil {
+				cleanPath = destination
+				if relative != "." {
+					cleanPath = filepath.Join(destination, relative)
+				}
+			}
+		}
+		finalUpdatedLinkSet[filepath.ToSlash(cleanPath)] = struct{}{}
+	}
+	for _, rewrite := range linkRewrites {
+		finalUpdatedLinkSet[filepath.ToSlash(rewrite.path)] = struct{}{}
+	}
+	updatedLinks := make([]string, 0, len(finalUpdatedLinkSet))
+	for path := range finalUpdatedLinkSet {
+		updatedLinks = append(updatedLinks, path)
+	}
+	sort.Strings(updatedLinks)
+	a.resetFileVersionsLocked()
+	a.syncKanbanColumnsLocked()
+	return &SaveFileResult{
+		Success:      true,
+		OldPath:      filepath.ToSlash(sourceClean),
+		Path:         filepath.ToSlash(destination),
+		MovedPaths:   movedPaths,
+		UpdatedLinks: updatedLinks,
+	}, nil
+}
+
+func (a *App) prepareDirectoryMergeCollisionsLocked(
+	root *os.Root,
+	sourceDir string,
+	destinationDir string,
+	renames *[]directoryMergeRename,
+	movedPaths map[string]string,
+	updatedLinks map[string]struct{},
+) error {
+	directory, err := root.Open(sourceDir)
+	if err != nil {
+		return err
+	}
+	entries, readErr := directory.ReadDir(-1)
+	closeErr := directory.Close()
+	if readErr != nil || closeErr != nil {
+		return errors.Join(readErr, closeErr)
+	}
+	for _, entry := range entries {
+		sourcePath := filepath.Join(sourceDir, entry.Name())
+		destinationPath := filepath.Join(destinationDir, entry.Name())
+		sourceInfo, err := root.Lstat(sourcePath)
+		if err != nil {
+			return err
+		}
+		destinationInfo, destinationErr := root.Lstat(destinationPath)
+		if os.IsNotExist(destinationErr) {
+			continue
+		}
+		if destinationErr != nil {
+			return destinationErr
+		}
+		if sourceInfo.IsDir() && destinationInfo.IsDir() {
+			if err := a.prepareDirectoryMergeCollisionsLocked(root, sourcePath, destinationPath, renames, movedPaths, updatedLinks); err != nil {
+				return err
+			}
+			continue
+		}
+
+		renamedSource, err := nextParenthesizedMergePath(root, sourcePath, destinationDir, sourceInfo.IsDir())
+		if err != nil {
+			return err
+		}
+		result, err := a.renamePathLocked(sourcePath, renamedSource)
+		if err != nil {
+			return err
+		}
+		if !result.Success {
+			return errors.New(result.Error)
+		}
+		*renames = append(*renames, directoryMergeRename{oldPath: sourcePath, newPath: renamedSource})
+		finalPath := filepath.Join(destinationDir, filepath.Base(renamedSource))
+		movedPaths[filepath.ToSlash(sourcePath)] = filepath.ToSlash(finalPath)
+		for _, path := range result.UpdatedLinks {
+			updatedLinks[path] = struct{}{}
+		}
+	}
+	return nil
+}
+
+func (a *App) rollbackDirectoryMergeRenamesLocked(renames []directoryMergeRename) error {
+	var rollbackErrors []error
+	for index := len(renames) - 1; index >= 0; index-- {
+		rename := renames[index]
+		result, err := a.renamePathLocked(rename.newPath, rename.oldPath)
+		if err != nil {
+			rollbackErrors = append(rollbackErrors, err)
+		} else if !result.Success {
+			rollbackErrors = append(rollbackErrors, errors.New(result.Error))
+		}
+	}
+	return errors.Join(rollbackErrors...)
+}
+
+func nextParenthesizedMergePath(root *os.Root, sourcePath string, destinationDir string, isDirectory bool) (string, error) {
+	name := filepath.Base(sourcePath)
+	sourceDir := filepath.Dir(sourcePath)
+	for index := 1; index < 10000; index++ {
+		candidateName := parenthesizedCopyCollisionName(name, isDirectory, index)
+		sourceCandidate := filepath.Join(sourceDir, candidateName)
+		destinationCandidate := filepath.Join(destinationDir, candidateName)
+		sourceAvailable, err := rootPathAvailable(root, sourceCandidate)
+		if err != nil {
+			return "", err
+		}
+		destinationAvailable, err := rootPathAvailable(root, destinationCandidate)
+		if err != nil {
+			return "", err
+		}
+		if sourceAvailable && destinationAvailable {
+			return sourceCandidate, nil
+		}
+	}
+	return "", fmt.Errorf("could not find an available merge name for %q", name)
+}
+
+func rootPathAvailable(root *os.Root, path string) (bool, error) {
+	if _, err := root.Lstat(path); os.IsNotExist(err) {
+		return true, nil
+	} else if err != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+func parenthesizedCopyCollisionName(name string, isDirectory bool, index int) string {
+	suffix := " (copy)"
+	if index > 1 {
+		suffix = fmt.Sprintf(" (copy %d)", index)
+	}
+	if isDirectory {
+		return name + suffix
+	}
+	extension := filepath.Ext(name)
+	if strings.HasSuffix(strings.ToLower(name), ".drawio.svg") {
+		extension = name[len(name)-len(".drawio.svg"):]
+	}
+	if extension == "" || extension == name {
+		return name + suffix
+	}
+	return strings.TrimSuffix(name, extension) + suffix + extension
+}
+
+func copyPreparedDirectoryMerge(root *os.Root, sourceDir string, destinationDir string, createdPaths *[]string) error {
+	directory, err := root.Open(sourceDir)
+	if err != nil {
+		return err
+	}
+	entries, readErr := directory.ReadDir(-1)
+	closeErr := directory.Close()
+	if readErr != nil || closeErr != nil {
+		return errors.Join(readErr, closeErr)
+	}
+	for _, entry := range entries {
+		sourcePath := filepath.Join(sourceDir, entry.Name())
+		destinationPath := filepath.Join(destinationDir, entry.Name())
+		sourceInfo, err := root.Lstat(sourcePath)
+		if err != nil {
+			return err
+		}
+		destinationInfo, destinationErr := root.Lstat(destinationPath)
+		if destinationErr == nil && sourceInfo.IsDir() && destinationInfo.IsDir() {
+			if err := copyPreparedDirectoryMerge(root, sourcePath, destinationPath, createdPaths); err != nil {
+				return err
+			}
+			continue
+		}
+		if destinationErr == nil {
+			return fmt.Errorf("merge collision was not resolved for %q", filepath.ToSlash(sourcePath))
+		}
+		if !os.IsNotExist(destinationErr) {
+			return destinationErr
+		}
+		created, err := copyVaultTree(root, sourcePath, destinationPath)
+		if created {
+			*createdPaths = append(*createdPaths, destinationPath)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeMergedPaths(root *os.Root, paths []string) error {
+	var cleanupErrors []error
+	for index := len(paths) - 1; index >= 0; index-- {
+		if err := root.RemoveAll(paths[index]); err != nil && !os.IsNotExist(err) {
+			cleanupErrors = append(cleanupErrors, err)
+		}
+	}
+	return errors.Join(cleanupErrors...)
 }
 
 const recursiveCopyError = "A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead."
@@ -1096,10 +1534,11 @@ func copyVaultTree(root *os.Root, source, destination string) (bool, error) {
 // CopyExternalResult reports the vault-relative top-level paths imported from
 // a native file manager drop. Sources are never removed.
 type CopyExternalResult struct {
-	Success   bool     `json:"success"`
-	Paths     []string `json:"paths,omitempty"`
-	Conflicts []string `json:"conflicts,omitempty"`
-	Error     string   `json:"error,omitempty"`
+	Success            bool     `json:"success"`
+	Paths              []string `json:"paths,omitempty"`
+	Conflicts          []string `json:"conflicts,omitempty"`
+	DirectoryConflicts []string `json:"directory_conflicts,omitempty"`
+	Error              string   `json:"error,omitempty"`
 }
 
 type externalCopyPlan struct {
@@ -1150,6 +1589,7 @@ func (a *App) CopyExternalPaths(sourcePaths []string, targetDirRel string, repla
 	}
 	plans := make([]externalCopyPlan, 0, len(sourcePaths))
 	conflicts := make([]string, 0)
+	directoryConflicts := make([]string, 0)
 	seenDestinations := make(map[string]struct{}, len(sourcePaths))
 	for _, suppliedPath := range sourcePaths {
 		source := filepath.Clean(strings.TrimSpace(suppliedPath))
@@ -1190,6 +1630,9 @@ func (a *App) CopyExternalPaths(sourcePaths []string, targetDirRel string, repla
 			}
 			replace = true
 			conflicts = append(conflicts, filepath.ToSlash(destination))
+			if info.IsDir() && destinationInfo.IsDir() {
+				directoryConflicts = append(directoryConflicts, filepath.ToSlash(destination))
+			}
 		} else if !os.IsNotExist(destinationErr) {
 			return nil, destinationErr
 		}
@@ -1205,9 +1648,10 @@ func (a *App) CopyExternalPaths(sourcePaths []string, targetDirRel string, repla
 	}
 	if len(conflicts) > 0 && !replaceExisting {
 		return &CopyExternalResult{
-			Success:   false,
-			Conflicts: conflicts,
-			Error:     "One or more items already exist in the destination",
+			Success:            false,
+			Conflicts:          conflicts,
+			DirectoryConflicts: directoryConflicts,
+			Error:              "One or more items already exist in the destination",
 		}, nil
 	}
 
@@ -1272,6 +1716,140 @@ func (a *App) CopyExternalPaths(sourcePaths []string, targetDirRel string, repla
 		paths[index] = filepath.ToSlash(path)
 	}
 	return &CopyExternalResult{Success: true, Paths: paths}, nil
+}
+
+// MergeExternalPaths imports native files and directories without replacing
+// anything already in the vault. Existing same-named directories merge
+// recursively; every other collision receives a parenthesized copy suffix.
+func (a *App) MergeExternalPaths(sourcePaths []string, targetDirRel string) (*CopyExternalResult, error) {
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	if len(sourcePaths) == 0 {
+		return &CopyExternalResult{Success: false, Error: "No files or folders were dropped"}, nil
+	}
+	targetClean, err := vaultRelativePath(targetDirRel)
+	if err != nil {
+		return &CopyExternalResult{Success: false, Error: err.Error()}, nil
+	}
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	targetInfo, err := root.Lstat(targetClean)
+	if err != nil {
+		return &CopyExternalResult{Success: false, Error: "Drop destination no longer exists"}, nil
+	}
+	if !targetInfo.IsDir() {
+		return &CopyExternalResult{Success: false, Error: "Drop destination is not a folder"}, nil
+	}
+	targetAbsolute, err := filepath.EvalSymlinks(a.vaultAbsolutePath(targetClean))
+	if err != nil {
+		return nil, fmt.Errorf("resolve drop destination: %w", err)
+	}
+
+	seenNames := make(map[string]struct{}, len(sourcePaths))
+	sources := make([]string, 0, len(sourcePaths))
+	for _, suppliedPath := range sourcePaths {
+		source := filepath.Clean(strings.TrimSpace(suppliedPath))
+		if source == "." || !filepath.IsAbs(source) {
+			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Dropped path must be absolute: %q", suppliedPath)}, nil
+		}
+		info, err := os.Lstat(source)
+		if err != nil {
+			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot inspect %q: %v", filepath.Base(source), err)}, nil
+		}
+		if info.Mode()&fs.ModeSymlink != 0 || (!info.IsDir() && !info.Mode().IsRegular()) {
+			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot import unsupported path %q", filepath.Base(source))}, nil
+		}
+		if err := validateExternalCopyTree(source); err != nil {
+			return &CopyExternalResult{Success: false, Error: err.Error()}, nil
+		}
+		nameKey := filepath.Base(source)
+		if goruntime.GOOS == "windows" {
+			nameKey = strings.ToLower(nameKey)
+		}
+		if _, duplicate := seenNames[nameKey]; duplicate {
+			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("More than one dropped item is named %q", filepath.Base(source))}, nil
+		}
+		seenNames[nameKey] = struct{}{}
+		resolvedSource, err := filepath.EvalSymlinks(source)
+		if err != nil {
+			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot resolve %q: %v", filepath.Base(source), err)}, nil
+		}
+		if info.IsDir() && pathIsWithin(resolvedSource, filepath.Join(targetAbsolute, filepath.Base(source))) {
+			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot copy folder %q into itself", filepath.Base(source))}, nil
+		}
+		sources = append(sources, source)
+	}
+
+	createdPaths := make([]string, 0)
+	paths := make([]string, 0, len(sources))
+	for _, source := range sources {
+		destination := filepath.Join(targetClean, filepath.Base(source))
+		if targetClean == "." {
+			destination = filepath.Base(source)
+		}
+		actualDestination, err := copyExternalTreeMerged(root, source, destination, &createdPaths)
+		if err != nil {
+			cleanupErr := removeMergedPaths(root, createdPaths)
+			return &CopyExternalResult{Success: false, Error: errors.Join(fmt.Errorf("could not merge %q: %w", filepath.Base(source), err), cleanupErr).Error()}, nil
+		}
+		paths = append(paths, filepath.ToSlash(actualDestination))
+	}
+	a.syncKanbanColumnsLocked()
+	return &CopyExternalResult{Success: true, Paths: paths}, nil
+}
+
+func copyExternalTreeMerged(root *os.Root, source string, destination string, createdPaths *[]string) (string, error) {
+	sourceInfo, err := os.Lstat(source)
+	if err != nil {
+		return "", err
+	}
+	destinationInfo, destinationErr := root.Lstat(destination)
+	if destinationErr == nil && sourceInfo.IsDir() && destinationInfo.IsDir() {
+		entries, err := os.ReadDir(source)
+		if err != nil {
+			return "", err
+		}
+		for _, entry := range entries {
+			if _, err := copyExternalTreeMerged(root, filepath.Join(source, entry.Name()), filepath.Join(destination, entry.Name()), createdPaths); err != nil {
+				return "", err
+			}
+		}
+		return destination, nil
+	}
+	actualDestination := destination
+	if destinationErr == nil {
+		actualDestination, err = nextParenthesizedExternalDestination(root, destination, sourceInfo.IsDir())
+		if err != nil {
+			return "", err
+		}
+	} else if !os.IsNotExist(destinationErr) {
+		return "", destinationErr
+	}
+	created, err := copyExternalTree(root, source, actualDestination)
+	if created {
+		*createdPaths = append(*createdPaths, actualDestination)
+	}
+	return actualDestination, err
+}
+
+func nextParenthesizedExternalDestination(root *os.Root, destination string, isDirectory bool) (string, error) {
+	directory := filepath.Dir(destination)
+	name := filepath.Base(destination)
+	for index := 1; index < 10000; index++ {
+		candidate := filepath.Join(directory, parenthesizedCopyCollisionName(name, isDirectory, index))
+		available, err := rootPathAvailable(root, candidate)
+		if err != nil {
+			return "", err
+		}
+		if available {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("could not find an available merge name for %q", name)
 }
 
 func createExternalCopyBackupRoot(root *os.Root) (string, error) {

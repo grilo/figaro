@@ -298,13 +298,25 @@ cat > "$VENDOR_DIR/importmap.json" << 'EOF'
     "@marijn/find-cluster-break": "./@marijn/find-cluster-break/index.js",
     "crelt": "./crelt/index.js",
     "w3c-keyname": "./w3c-keyname/index.js",
-    "style-mod": "./style-mod/index.js"
+    "style-mod": "./style-mod/index.js",
+    "codemirror-markdown-tables": "./codemirror-markdown-tables/index.js"
   }
 }
 EOF
 
 echo "Bundling locally vendored Markdown-It plugins..."
 node scripts/vendor-markdown-renderer.mjs
+
+echo "Bundling codemirror-markdown-tables with its non-CodeMirror dependencies..."
+mkdir -p "$VENDOR_DIR/codemirror-markdown-tables"
+./node_modules/.bin/esbuild node_modules/codemirror-markdown-tables/dist/codemirror-markdown-tables.js \
+    --bundle \
+    --format=esm \
+    --target=es2020 \
+    --minify \
+    --external:@codemirror/* \
+    --external:@lezer/* \
+    --outfile="$VENDOR_DIR/codemirror-markdown-tables/index.js"
 
 echo "Verifying downloads..."
 echo "  Theme CSS: $([ -f "$VENDOR_DIR/codemirror/theme-one-dark/style.min.css" ] && echo "✓" || echo "✗")"

@@ -1,11 +1,15 @@
 package main
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
+
+const tinyPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 
 func TestRootScopedFileOperationsRejectEscapingSymlinks(t *testing.T) {
 	app, vaultPath := newTestApp(t)
@@ -30,6 +34,67 @@ func TestRootScopedFileOperationsRejectEscapingSymlinks(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(outside, "new.md")); !os.IsNotExist(err) {
 		t.Fatalf("vault operation wrote outside the root: %v", err)
+	}
+}
+
+func TestSaveClipboardImageCreatesRelativeMarkdownAndNeverOverwrites(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/capture.md", "Before screenshot\n")
+
+	first, err := app.SaveClipboardImage("notes/capture.md", "image/png", tinyPNGBase64)
+	if err != nil {
+		t.Fatalf("SaveClipboardImage first paste: %v", err)
+	}
+	if !first.Success || first.Path != "notes/image1.png" || first.Markdown != "![Image1](image1.png)" {
+		t.Fatalf("unexpected first clipboard image result: %+v", first)
+	}
+	wantBytes, err := base64.StdEncoding.DecodeString(tinyPNGBase64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(filepath.Join(vaultPath, "notes", "image1.png")); err != nil || string(got) != string(wantBytes) {
+		t.Fatalf("pasted image bytes were not preserved: bytes=%d err=%v", len(got), err)
+	}
+
+	second, err := app.SaveClipboardImage("notes/capture.md", "image/png", tinyPNGBase64)
+	if err != nil {
+		t.Fatalf("SaveClipboardImage collision paste: %v", err)
+	}
+	if !second.Success || second.Path != "notes/image2.png" || second.Markdown != "![Image2](image2.png)" {
+		t.Fatalf("clipboard collision was not allocated safely: %+v", second)
+	}
+	if got := readTestFile(t, vaultPath, "notes/capture.md"); got != "Before screenshot\n" {
+		t.Fatalf("saving the clipboard asset unexpectedly changed the note: %q", got)
+	}
+}
+
+func TestSaveClipboardImageRejectsInvalidPayloadWithoutCreatingAFile(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/capture.md", "unchanged\n")
+
+	for _, test := range []struct {
+		name string
+		mime string
+		data string
+	}{
+		{name: "invalid base64", mime: "image/png", data: "not-base64"},
+		{name: "non-image bytes", mime: "image/png", data: base64.StdEncoding.EncodeToString([]byte("plain text"))},
+		{name: "non-image MIME", mime: "text/plain", data: tinyPNGBase64},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := app.SaveClipboardImage("notes/capture.md", test.mime, test.data)
+			if err != nil {
+				t.Fatalf("SaveClipboardImage: %v", err)
+			}
+			if result.Success || result.Error == "" {
+				t.Fatalf("expected a visible refusal, got %+v", result)
+			}
+		})
+	}
+	if _, err := os.Stat(filepath.Join(vaultPath, "notes", "image1.png")); !os.IsNotExist(err) {
+		t.Fatalf("invalid clipboard input created an image: %v", err)
 	}
 }
 
@@ -78,6 +143,87 @@ func TestMovePathRejectsDirectoryIntoOwnDescendant(t *testing.T) {
 	}
 	if result.Success || result.Error == "" {
 		t.Fatalf("expected self-descendant move to fail, got %+v", result)
+	}
+}
+
+func TestMovePathOffersAndPerformsNonDestructiveDirectoryMerge(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Drafts/report.md", "moved report")
+	writeTestFile(t, vaultPath, "Drafts/report (copy).md", "existing source copy")
+	writeTestFile(t, vaultPath, "Drafts/new.md", "[Report](./report.md)\n")
+	writeTestFile(t, vaultPath, "Drafts/shared/from-source.md", "source nested")
+	writeTestFile(t, vaultPath, "Archive/Drafts/report.md", "kept destination report")
+	writeTestFile(t, vaultPath, "Archive/Drafts/shared/from-destination.md", "destination nested")
+	writeTestFile(t, vaultPath, "index.md", "[Draft](Drafts/report.md)\n")
+
+	preflight, err := app.MovePath("Drafts", "Archive")
+	if err != nil {
+		t.Fatalf("MovePath preflight: %v", err)
+	}
+	if preflight.Success || !preflight.MergeAvailable || preflight.Error != "Destination directory already exists" {
+		t.Fatalf("expected mergeable directory conflict, got %+v", preflight)
+	}
+	if _, err := os.Stat(filepath.Join(vaultPath, "Drafts", "report.md")); err != nil {
+		t.Fatalf("preflight changed the source directory: %v", err)
+	}
+
+	result, err := app.MergeDirectory("Drafts", "Archive")
+	if err != nil {
+		t.Fatalf("MergeDirectory: %v", err)
+	}
+	if !result.Success || result.OldPath != "Drafts" || result.Path != "Archive/Drafts" {
+		t.Fatalf("unexpected merge result: %+v", result)
+	}
+	if got := result.MovedPaths["Drafts/report.md"]; got != "Archive/Drafts/report (copy 2).md" {
+		t.Fatalf("collision path was not reported: %+v", result.MovedPaths)
+	}
+	for _, stalePath := range result.UpdatedLinks {
+		if strings.HasPrefix(stalePath, "Drafts/") {
+			t.Fatalf("merge reported a stale source link path: %+v", result.UpdatedLinks)
+		}
+	}
+	if !slices.Contains(result.UpdatedLinks, "Archive/Drafts/new.md") || !slices.Contains(result.UpdatedLinks, "index.md") {
+		t.Fatalf("merge did not report current rewritten note paths: %+v", result.UpdatedLinks)
+	}
+	if _, err := os.Stat(filepath.Join(vaultPath, "Drafts")); !os.IsNotExist(err) {
+		t.Fatalf("successful merge did not remove the source: %v", err)
+	}
+	for path, want := range map[string]string{
+		"Archive/Drafts/report.md":                  "kept destination report",
+		"Archive/Drafts/report (copy).md":           "existing source copy",
+		"Archive/Drafts/report (copy 2).md":         "moved report",
+		"Archive/Drafts/shared/from-source.md":      "source nested",
+		"Archive/Drafts/shared/from-destination.md": "destination nested",
+	} {
+		if got := readTestFile(t, vaultPath, path); got != want {
+			t.Fatalf("unexpected merged content for %q: %q", path, got)
+		}
+	}
+	if got := readTestFile(t, vaultPath, "Archive/Drafts/new.md"); got != "[Report](./report%20%28copy%202%29.md)\n" {
+		t.Fatalf("relative link did not follow its collision copy: %q", got)
+	}
+	if got := readTestFile(t, vaultPath, "index.md"); got != "[Draft](Archive/Drafts/report%20%28copy%202%29.md)\n" {
+		t.Fatalf("incoming link did not follow its collision copy: %q", got)
+	}
+}
+
+func TestParenthesizedCopyCollisionNamePreservesExtensions(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		isDirectory bool
+		index       int
+		want        string
+	}{
+		{name: "report.md", index: 1, want: "report (copy).md"},
+		{name: "report.md", index: 2, want: "report (copy 2).md"},
+		{name: "diagram.drawio.svg", index: 1, want: "diagram (copy).drawio.svg"},
+		{name: "Assets", isDirectory: true, index: 1, want: "Assets (copy)"},
+	} {
+		if got := parenthesizedCopyCollisionName(test.name, test.isDirectory, test.index); got != test.want {
+			t.Errorf("parenthesizedCopyCollisionName(%q, %v, %d) = %q, want %q", test.name, test.isDirectory, test.index, got, test.want)
+		}
 	}
 }
 
@@ -277,6 +423,56 @@ func TestCopyExternalPathsCopiesFilesAndFoldersWithoutRemovingSources(t *testing
 	}
 	if got, err := os.ReadFile(filepath.Join(folderSource, "nested", "image.txt")); err != nil || string(got) != "asset" {
 		t.Fatalf("source folder was changed or removed: content=%q err=%v", got, err)
+	}
+}
+
+func TestMergeExternalPathsMergesDirectoriesAndKeepsCollisionCopies(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "Imported/Assets/report.md", "kept destination")
+	writeTestFile(t, vaultPath, "Imported/Assets/report (copy).md", "kept first copy")
+	writeTestFile(t, vaultPath, "Imported/Assets/shared/destination.txt", "destination nested")
+
+	sourceRoot := t.TempDir()
+	source := filepath.Join(sourceRoot, "Assets")
+	if err := os.MkdirAll(filepath.Join(source, "shared"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "report.md"), []byte("dropped report"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "shared", "source.txt"), []byte("source nested"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	preflight, err := app.CopyExternalPaths([]string{source}, "Imported", false)
+	if err != nil {
+		t.Fatalf("CopyExternalPaths preflight: %v", err)
+	}
+	if preflight.Success || len(preflight.DirectoryConflicts) != 1 || preflight.DirectoryConflicts[0] != "Imported/Assets" {
+		t.Fatalf("expected an existing-directory merge warning, got %+v", preflight)
+	}
+
+	result, err := app.MergeExternalPaths([]string{source}, "Imported")
+	if err != nil {
+		t.Fatalf("MergeExternalPaths: %v", err)
+	}
+	if !result.Success || len(result.Paths) != 1 || result.Paths[0] != "Imported/Assets" {
+		t.Fatalf("unexpected external merge result: %+v", result)
+	}
+	for path, want := range map[string]string{
+		"Imported/Assets/report.md":              "kept destination",
+		"Imported/Assets/report (copy).md":       "kept first copy",
+		"Imported/Assets/report (copy 2).md":     "dropped report",
+		"Imported/Assets/shared/destination.txt": "destination nested",
+		"Imported/Assets/shared/source.txt":      "source nested",
+	} {
+		if got := readTestFile(t, vaultPath, path); got != want {
+			t.Fatalf("unexpected merged import content for %q: %q", path, got)
+		}
+	}
+	if got, err := os.ReadFile(filepath.Join(source, "report.md")); err != nil || string(got) != "dropped report" {
+		t.Fatalf("external merge changed its source: %q, %v", got, err)
 	}
 }
 

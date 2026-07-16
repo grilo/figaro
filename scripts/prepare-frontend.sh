@@ -56,6 +56,7 @@ required_vendor_files=(
     frontend/vendored/codemirror/state/index.js
     frontend/vendored/codemirror/view/index.js
     frontend/vendored/codemirror/autocomplete/index.js
+    frontend/vendored/codemirror-markdown-tables/index.js
     frontend/vendored/importmap.json
     frontend/vendored/markdown-it-plugins/index.js
     frontend/vendored/katex/dist/katex.min.js

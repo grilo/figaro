@@ -73,6 +73,7 @@
     "@mdit/plugin-tasklist": "1.0.1",
     "@replit/codemirror-vim": "^6.3.0",
     "codemirror-live-markdown": "^0.5.1-alpha.1",
+    "codemirror-markdown-tables": "1.0.0",
     "katex": "^0.17.0",
     "markdown-it": "^14.3.0",
     "playwright": "^1.61.1",

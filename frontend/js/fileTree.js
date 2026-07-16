@@ -629,33 +629,68 @@ async function handleDrop(e) {
         return;
     }
     
+    await moveInternalPath(sourcePath, targetDir);
+}
+
+/** Move one tree item, offering a non-destructive directory merge on conflict. */
+export async function moveInternalPath(sourcePath, targetDir) {
     try {
         const saveState = await prepareTabsForPathMove(sourcePath);
         if (!saveState.success) {
             await errorDialog('Couldn’t move item', saveState.error, 'Save open files before moving them.');
-            return;
+            return false;
         }
-        const result = await window.pywebview.api.move_path(sourcePath, targetDir);
-        if (result.success) {
-            await refreshFileTree();
-            
-            // Update open tabs if paths changed
-            const movedFrom = result.old_path || sourcePath;
-            const movedTo = result.path || sourcePath;
+        let result = await window.pywebview.api.move_path(sourcePath, targetDir);
+        let merged = false;
+        if (!result?.success && result?.merge_available) {
+            const directoryName = String(sourcePath || '').replaceAll('\\', '/').split('/').pop();
+            const confirmed = await confirmDialog(
+                'Destination directory already exists',
+                `A directory named “${directoryName}” already exists in the destination. Merge the moved directory into it instead? Existing files will be kept; filename collisions will be added as “name (copy).ext”, “name (copy 2).ext”, and so on.`,
+                false,
+                false,
+                { confirmLabel: 'Merge contents', tone: 'warning', icon: 'merge' }
+            );
+            if (!confirmed) {
+                statusBar.set('Move cancelled');
+                setTimeout(() => statusBar.set('Ready'), 1800);
+                return false;
+            }
+            statusBar.set(`Merging “${directoryName}”…`);
+            result = await window.pywebview.api.merge_directory(sourcePath, targetDir);
+            merged = true;
+        }
+        if (!result?.success) {
+            await errorDialog('Couldn’t move item', result?.error, 'The item could not be moved.');
+            return false;
+        }
+
+        await refreshFileTree();
+
+        // Collision-specific paths must be remapped before the general folder
+        // prefix so dirty/open tabs follow their parenthesized copy names.
+        for (const [movedFrom, movedTo] of Object.entries(result.moved_paths || {})) {
             updateTabsForMovedPath(movedFrom, movedTo);
             remapTreeSelection(movedFrom, movedTo);
-            await refreshTabsForUpdatedLinks(result.updated_links);
-            const linkCount = Array.isArray(result.updated_links) ? result.updated_links.length : 0;
-            if (linkCount) {
-                statusBar.set(`Updated links in ${linkCount} ${linkCount === 1 ? 'note' : 'notes'}`);
-                setTimeout(() => statusBar.set('Ready'), 2500);
-            }
-        } else {
-            await errorDialog('Couldn’t move item', result.error, 'The item could not be moved.');
         }
+        const movedFrom = result.old_path || sourcePath;
+        const movedTo = result.path || sourcePath;
+        updateTabsForMovedPath(movedFrom, movedTo);
+        remapTreeSelection(movedFrom, movedTo);
+        await refreshTabsForUpdatedLinks(result.updated_links);
+        const linkCount = Array.isArray(result.updated_links) ? result.updated_links.length : 0;
+        if (linkCount) {
+            statusBar.set(`Updated links in ${linkCount} ${linkCount === 1 ? 'note' : 'notes'}`);
+            setTimeout(() => statusBar.set('Ready'), 2500);
+        } else if (merged) {
+            statusBar.set(`Merged “${String(movedTo).replaceAll('\\', '/').split('/').pop()}”`);
+            setTimeout(() => statusBar.set('Ready'), 2500);
+        }
+        return true;
     } catch (err) {
         log.error('Move failed:', err);
         await errorDialog('Couldn’t move item', err, 'The item could not be moved.');
+        return false;
     }
 }
 
@@ -680,24 +715,42 @@ export async function copyExternalDrop(paths, targetDirectory) {
         let result = await window.pywebview.api.copy_external_paths(paths, targetDirectory, false);
         const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
         if (!result?.success && conflicts.length > 0) {
+            const directoryConflicts = Array.isArray(result?.directory_conflicts) ? result.directory_conflicts : [];
             const names = conflicts.map(path => String(path).replaceAll('\\', '/').split('/').pop()).filter(Boolean);
             const visibleNames = names.slice(0, 6).map(name => `“${name}”`).join(', ');
             const remaining = names.length > 6 ? ` and ${names.length - 6} more` : '';
-            const noun = conflicts.length === 1 ? 'item already exists' : 'items already exist';
-            const confirmed = await confirmDialog(
-                conflicts.length === 1 ? 'Replace existing item?' : 'Replace existing items?',
-                `${conflicts.length} ${noun} in the destination: ${visibleNames}${remaining}. Replace ${conflicts.length === 1 ? 'it' : 'them'} with the dropped ${conflicts.length === 1 ? 'item' : 'items'}?`,
-                true,
-                false,
-                { confirmLabel: conflicts.length === 1 ? 'Replace' : 'Replace all' }
-            );
-            if (!confirmed) {
-                statusBar.set('Copy cancelled');
-                setTimeout(() => statusBar.set('Ready'), 1800);
-                return false;
+            if (directoryConflicts.length > 0) {
+                const confirmed = await confirmDialog(
+                    directoryConflicts.length === 1 ? 'Destination directory already exists' : 'Destination directories already exist',
+                    `${directoryConflicts.length === 1 ? 'A dropped directory already exists' : `${directoryConflicts.length} dropped directories already exist`} in the destination: ${visibleNames}${remaining}. Merge the directory contents instead? Existing files will be kept; filename collisions will be added as “name (copy).ext”, “name (copy 2).ext”, and so on.`,
+                    false,
+                    false,
+                    { confirmLabel: 'Merge contents', tone: 'warning', icon: 'merge' }
+                );
+                if (!confirmed) {
+                    statusBar.set('Copy cancelled');
+                    setTimeout(() => statusBar.set('Ready'), 1800);
+                    return false;
+                }
+                statusBar.set(`Merging ${directoryConflicts.length} dropped ${directoryConflicts.length === 1 ? 'directory' : 'directories'}…`);
+                result = await window.pywebview.api.merge_external_paths(paths, targetDirectory);
+            } else {
+                const noun = conflicts.length === 1 ? 'item already exists' : 'items already exist';
+                const confirmed = await confirmDialog(
+                    conflicts.length === 1 ? 'Replace existing item?' : 'Replace existing items?',
+                    `${conflicts.length} ${noun} in the destination: ${visibleNames}${remaining}. Replace ${conflicts.length === 1 ? 'it' : 'them'} with the dropped ${conflicts.length === 1 ? 'item' : 'items'}?`,
+                    true,
+                    false,
+                    { confirmLabel: conflicts.length === 1 ? 'Replace' : 'Replace all' }
+                );
+                if (!confirmed) {
+                    statusBar.set('Copy cancelled');
+                    setTimeout(() => statusBar.set('Ready'), 1800);
+                    return false;
+                }
+                statusBar.set(`Replacing ${conflicts.length} existing ${conflicts.length === 1 ? 'item' : 'items'}…`);
+                result = await window.pywebview.api.copy_external_paths(paths, targetDirectory, true);
             }
-            statusBar.set(`Replacing ${conflicts.length} existing ${conflicts.length === 1 ? 'item' : 'items'}…`);
-            result = await window.pywebview.api.copy_external_paths(paths, targetDirectory, true);
         }
         if (!result?.success) {
             await errorDialog('Couldn’t copy dropped items', result?.error, 'The dropped items could not be copied.');

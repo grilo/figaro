@@ -56,7 +56,8 @@ lines.
 Every decoration created with `block: true` must follow these rules:
 
 1. The widget root and its visual surface must have zero top and bottom
-   margins. This includes widgets supplied by vendored extensions.
+   margins. This includes widgets supplied by vendored extensions such as the
+   `.tbl-table-widget` root from `codemirror-markdown-tables`.
 2. Visual spacing around a widget must be measured. Use the transparent
    wrapper provided by `frontend/js/blockWidget.js` and express spacing as
    wrapper padding. Widgets that need no surrounding spacing must still use

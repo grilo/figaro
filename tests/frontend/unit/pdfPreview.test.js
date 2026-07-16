@@ -164,6 +164,18 @@ describe('live PDF preview', () => {
             .toBeGreaterThan(styles.indexOf(printable.querySelector('#figaro-preview-surface')));
     });
 
+    test('preserves semantic Markdown tables in the isolated PDF preview document', () => {
+        const printableHTML = '<!doctype html><html><head></head><body><main class="figaro-print-document"><table><thead><tr><th style="text-align:center">Status</th></tr></thead><tbody><tr><td style="text-align:center">Ready</td></tr></tbody></table></main></body></html>';
+        const previewHTML = buildPDFPreviewDocument(printableHTML, { notePath: 'notes/report.md' });
+        const printable = new DOMParser().parseFromString(previewHTML, 'text/html');
+        const table = printable.querySelector('.figaro-print-document table');
+
+        expect(table).not.toBeNull();
+        expect(table.querySelector('th').style.textAlign).toBe('center');
+        expect(table.querySelector('td').textContent).toBe('Ready');
+        expect(printable.body.classList.contains('figaro-pdf-preview-body')).toBe(true);
+    });
+
     test('keeps scroll synchronization relative and recognizes only same-document links', () => {
         expect(scrollProgressForMetrics(300, 1000, 400)).toBe(0.5);
         expect(scrollProgressForMetrics(90, 80, 40)).toBe(1);

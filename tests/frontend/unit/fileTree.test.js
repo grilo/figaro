@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -378,6 +378,36 @@ describe('File Tree', () => {
         );
     });
 
+    test('warns and merges a dropped directory without replacing filename collisions', async () => {
+        state.fileTreeData = [{ name: 'Imported', path: 'Imported', type: 'directory', children: [] }];
+        window.pywebview.api.copy_external_paths.mockResolvedValueOnce({
+            success: false,
+            conflicts: ['Imported/Assets'],
+            directory_conflicts: ['Imported/Assets'],
+            error: 'One or more items already exist in the destination',
+        });
+        window.pywebview.api.merge_external_paths.mockResolvedValueOnce({
+            success: true,
+            paths: ['Imported/Assets'],
+        });
+        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+
+        await expect(copyExternalDrop(['/home/writer/Assets'], 'Imported')).resolves.toBe(true);
+
+        expect(confirmDialog).toHaveBeenCalledWith(
+            'Destination directory already exists',
+            expect.stringContaining('Merge the directory contents instead?'),
+            false,
+            false,
+            expect.objectContaining({ confirmLabel: 'Merge contents', tone: 'warning' })
+        );
+        expect(window.pywebview.api.merge_external_paths).toHaveBeenCalledWith(
+            ['/home/writer/Assets'],
+            'Imported'
+        );
+        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledTimes(1);
+    });
+
     test('leaves the destination unchanged when replacement is cancelled', async () => {
         window.pywebview.api.copy_external_paths.mockResolvedValueOnce({
             success: false,
@@ -672,6 +702,56 @@ describe('File Tree', () => {
         test('allows moving a file into its current parent and normalizes separators', () => {
             expect(isInvalidMoveDestination('projects/note.md', 'projects')).toBe(false);
             expect(isInvalidMoveDestination('projects\\note.md', 'archive')).toBe(false);
+        });
+
+        test('warns before merging an existing destination directory and remaps collision copies', async () => {
+            window.pywebview.api.move_path.mockResolvedValueOnce({
+                success: false,
+                error: 'Destination directory already exists',
+                merge_available: true,
+                old_path: 'Drafts',
+                path: 'Archive/Drafts',
+            });
+            window.pywebview.api.merge_directory.mockResolvedValueOnce({
+                success: true,
+                old_path: 'Drafts',
+                path: 'Archive/Drafts',
+                moved_paths: {
+                    'Drafts/report.md': 'Archive/Drafts/report (copy).md',
+                },
+                updated_links: ['index.md'],
+            });
+
+            await expect(moveInternalPath('Drafts', 'Archive')).resolves.toBe(true);
+
+            expect(confirmDialog).toHaveBeenCalledWith(
+                'Destination directory already exists',
+                expect.stringContaining('Merge the moved directory into it instead?'),
+                false,
+                false,
+                expect.objectContaining({ confirmLabel: 'Merge contents', tone: 'warning' })
+            );
+            expect(window.pywebview.api.merge_directory).toHaveBeenCalledWith('Drafts', 'Archive');
+            expect(updateTabsForMovedPath).toHaveBeenNthCalledWith(
+                1,
+                'Drafts/report.md',
+                'Archive/Drafts/report (copy).md'
+            );
+            expect(updateTabsForMovedPath).toHaveBeenNthCalledWith(2, 'Drafts', 'Archive/Drafts');
+            expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith(['index.md']);
+        });
+
+        test('leaves both directories untouched when the merge warning is cancelled', async () => {
+            window.pywebview.api.move_path.mockResolvedValueOnce({
+                success: false,
+                merge_available: true,
+            });
+            confirmDialog.mockResolvedValueOnce(false);
+
+            await expect(moveInternalPath('Drafts', 'Archive')).resolves.toBe(false);
+
+            expect(window.pywebview.api.merge_directory).not.toHaveBeenCalled();
+            expect(updateTabsForMovedPath).not.toHaveBeenCalled();
         });
     });
 

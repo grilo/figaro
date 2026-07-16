@@ -43,6 +43,8 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-block-widget--add-properties')).toMatch(/padding:\s*3px 0 14px/);
         expect(declarationsFor('.cm-block-widget--frontmatter-panel')).toMatch(/padding:\s*2px 0 16px/);
         expect(declarationsFor('.cm-block-widget--diagram')).toMatch(/padding:\s*8px 0/);
+        expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-top:\s*0\s*!important/);
+        expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-bottom:\s*0\s*!important/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/margin:\s*0\s*!important/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/padding-bottom:\s*6px/);
     });

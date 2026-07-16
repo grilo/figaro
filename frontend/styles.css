@@ -66,6 +66,28 @@
     --code-variable-color: #eeffff;
     --code-operator-color: #89ddff;
     --code-builtin-color: #f07178;
+    /* codemirror-markdown-tables inherits the active Figaro theme. Defining
+       these at :root also supports older desktop webviews without :has(). */
+    --tbl-theme-row-background: var(--bg-color);
+    --tbl-theme-header-row-background: var(--hover-bg);
+    --tbl-theme-even-row-background: var(--bg-color);
+    --tbl-theme-odd-row-background: var(--panel-bg);
+    --tbl-theme-border-color: var(--border-color);
+    --tbl-theme-border-hover-color: var(--border-light);
+    --tbl-theme-border-active-color: var(--accent-color);
+    --tbl-theme-outline-color: var(--focus-ring);
+    --tbl-theme-text-color: var(--text-color);
+    --tbl-theme-menu-background: var(--panel-bg);
+    --tbl-theme-menu-border-color: var(--border-color);
+    --tbl-theme-menu-text-color: var(--text-color);
+    --tbl-theme-menu-hover-background: var(--active-bg);
+    --tbl-theme-menu-hover-text-color: var(--text-color);
+    --tbl-theme-select-all-blur-overlay: color-mix(in srgb, var(--accent-color) 12%, transparent);
+    --tbl-theme-select-all-focus-overlay: color-mix(in srgb, var(--accent-color) 20%, transparent);
+    --tbl-style-font-family: var(--font-editor);
+    --tbl-style-font-size: inherit;
+    --tbl-style-menu-font-family: var(--font-sans);
+    --tbl-style-menu-font-size: 12px;
     --sidebar-width: 300px;
     --top-bar-height: 36px;
     --status-bar-height: 24px;
@@ -5236,8 +5258,16 @@ body.right-sidebar-resizing .pdf-preview-frame {
 .cm-codeblock-widget,
 .cm-table-widget,
 .cm-table-editor,
+.tbl-table-widget,
 .cm-image-widget,
 .cm-math-block {
+    box-sizing: border-box;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* codemirror-markdown-tables returns this element as its measured block root. */
+.tbl-table-widget {
     box-sizing: border-box;
     margin-top: 0 !important;
     margin-bottom: 0 !important;

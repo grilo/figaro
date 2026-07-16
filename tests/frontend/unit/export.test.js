@@ -141,6 +141,31 @@ describe('Interactive PDF export', () => {
         expect(printable.querySelector('pre > code.language-javascript').textContent).toContain('const answer = 42;');
     });
 
+    test('renders aligned Markdown tables with the printable preview and PDF styling contract', () => {
+        const content = [
+            '| Name | Status | Total |',
+            '| :--- | :---: | ---: |',
+            '| Alpha | Ready | 12 |',
+            '| Beta | Waiting | 3 |',
+        ].join('\n');
+
+        const printable = parseHTML(renderPrintableMarkdown(content, 'Table report'));
+        const table = printable.querySelector('main.figaro-print-document > table');
+        const headers = Array.from(table.querySelectorAll('thead th'));
+        const cells = Array.from(table.querySelectorAll('tbody td'));
+
+        expect(table).not.toBeNull();
+        expect(table.querySelectorAll('tbody tr')).toHaveLength(2);
+        expect(headers.map(header => header.style.textAlign)).toEqual(['left', 'center', 'right']);
+        expect(cells.slice(0, 3).map(cell => cell.style.textAlign)).toEqual(['left', 'center', 'right']);
+        expect(cells.map(cell => cell.textContent.trim())).toEqual([
+            'Alpha', 'Ready', '12', 'Beta', 'Waiting', '3',
+        ]);
+        expect(printable.querySelector('style').textContent).toContain('table {');
+        expect(printable.querySelector('style').textContent).toContain('border-collapse: collapse');
+        expect(printable.querySelector('style').textContent).toContain('break-inside: avoid');
+    });
+
     test('renders plugin footnotes into numbered links and endnotes without touching code', () => {
         const content = [
             '# Footnotes',

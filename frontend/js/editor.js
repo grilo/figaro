@@ -14,6 +14,8 @@ import { createFrontmatterField } from './frontmatterPlugin.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
 import { pdfExportErrorDialog } from './dialogs.js';
+import { handleClipboardImagePaste, pasteClipboardImage } from './clipboardImage.js';
+import { markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
 import {
     livePreviewPlugin,
     markdownStylePlugin,
@@ -21,8 +23,6 @@ import {
     linkPlugin,
     codeBlockField,
     imageField,
-    tableField,
-    tableEditorPlugin,
     collapseOnSelectionFacet,
     mouseSelectingField,
     setMouseSelecting,
@@ -760,6 +760,39 @@ function createEditorView() {
     });
     const dateShortcutCompletions = createDateShortcutCompletionSource();
 
+    // codemirror-markdown-tables owns both the rendered table and its nested
+    // cell editors. Keep document-wide undo/search bindings global while the
+    // ordinary editing bindings operate inside the active cell.
+    const markdownTableExtension = markdownTables({
+        theme: TableTheme.dark.with({
+            '--tbl-theme-row-background': 'var(--bg-color)',
+            '--tbl-theme-header-row-background': 'var(--hover-bg)',
+            '--tbl-theme-even-row-background': 'var(--bg-color)',
+            '--tbl-theme-odd-row-background': 'var(--panel-bg)',
+            '--tbl-theme-border-color': 'var(--border-color)',
+            '--tbl-theme-border-hover-color': 'var(--border-light)',
+            '--tbl-theme-border-active-color': 'var(--accent-color)',
+            '--tbl-theme-outline-color': 'var(--focus-ring)',
+            '--tbl-theme-text-color': 'var(--text-color)',
+            '--tbl-theme-menu-background': 'var(--panel-bg)',
+            '--tbl-theme-menu-border-color': 'var(--border-color)',
+            '--tbl-theme-menu-text-color': 'var(--text-color)',
+            '--tbl-theme-menu-hover-background': 'var(--active-bg)',
+            '--tbl-theme-menu-hover-text-color': 'var(--text-color)',
+        }),
+        style: TableStyle.default.with({
+            '--tbl-style-font-family': 'var(--font-editor)',
+            '--tbl-style-font-size': 'inherit',
+            '--tbl-style-menu-font-family': 'var(--font-sans)',
+            '--tbl-style-menu-font-size': '12px',
+        }),
+        selectionType: 'codemirror',
+        handlePosition: 'inside',
+        lineWrapping: 'wrap',
+        extensions: [keymap.of(defaultKeymap)],
+        globalKeyBindings: [...historyKeymap, ...searchKeymap],
+    });
+
     vimCompartment = new Compartment();
     imageBasePathCompartment = new Compartment();
     readOnlyCompartment = new Compartment();
@@ -780,8 +813,7 @@ function createEditorView() {
         linkPreview(),
         ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages }),
         ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
-        tableField,
-        tableEditorPlugin(),
+        markdownTableExtension,
         mathField,
         hashtagPlugin,
         widgetPlugin,
@@ -790,6 +822,7 @@ function createEditorView() {
         EditorView.domEventHandlers({
             mousedown: handleMouseDown,
             click: handleClick,
+            paste: handleClipboardImagePaste,
         }),
         Prec.high(keymap.of([
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
@@ -1332,6 +1365,21 @@ async function cutEditorSelection(view) {
 
 async function pasteIntoEditor(view) {
     const clipboard = typeof navigator === 'undefined' ? null : navigator.clipboard;
+    if (activeFileLanguage.kind === 'markdown' && typeof clipboard?.read === 'function') {
+        try {
+            const items = await clipboard.read();
+            for (const item of items) {
+                const imageType = Array.from(item?.types || []).find(type =>
+                    String(type).toLowerCase().startsWith('image/')
+                );
+                if (!imageType) continue;
+                return pasteClipboardImage(view, await item.getType(imageType));
+            }
+        } catch (_) {
+            // Keyboard paste events remain the most compatible image path in
+            // embedded webviews; continue to text/legacy fallbacks here.
+        }
+    }
     if (typeof clipboard?.readText === 'function') {
         try {
             const text = await clipboard.readText();

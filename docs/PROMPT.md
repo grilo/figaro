@@ -123,7 +123,7 @@ Each theme defines these properties (with theme-specific colors):
 | **Create file** | Creates a `.md` file with a `# Title` header. Triggers kanban column rescan. |
 | **Create directory** | Creates a new folder. |
 | **Delete** | Deletes a file or directory (recursive). Triggers kanban column rescan. |
-| **Move** | Moves a file or folder to a target directory. Prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. |
+| **Move** | Moves a file or folder to a target directory. Prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. |
 | **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. Copying a folder into itself or one of its descendants is refused because it would recurse. |
 | **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline, disables an unchanged rename, and then moves the item within the same directory with the same link-rewrite and open-tab protections. |
 
@@ -151,7 +151,7 @@ Each theme defines these properties (with theme-specific colors):
 - Any file or folder label can be dragged.
 - Drop targets are folder labels or the empty area of the tree (which means vault root).
 - Visual feedback: the dragged item fades, the drop target highlights.
-- On drop, the item is moved and the tree refreshes. If any open tab referenced the moved path, its ID is updated.
+- On drop, the item is moved and the tree refreshes. If any open tab referenced the moved path, its ID is updated. A same-named existing destination directory is never silently replaced: Figaro offers to merge it, preserves both trees, and applies parenthesized copy names to file collisions. Native filesystem directory drops use the same warning and merge rule while leaving their external sources intact.
 
 ### 3.6 Context Menu (Right-Click in File Tree)
 | Menu item | Available on | Behavior |
@@ -190,8 +190,8 @@ Each theme defines these properties (with theme-specific colors):
 - **Highlight**: `==text==` renders with a warm amber background highlight.
 - **Footnotes**: `[^1]` references render as superscript accent-colored links.
 - **Callouts**: `> [!note]`, `> [!warning]`, `> [!info]`, `> [!tip]`, `> [!danger]`, `> [!example]` blocks render with colored left borders and tinted backgrounds matching the callout type (via `--callout-*-color` variables).
-- **Images**: `![alt](src)` renders inline images via `imageField`.
-- **Tables**: Markdown tables render as styled widgets with editing support via `tableField` + `tableEditorPlugin`.
+- **Images**: `![alt](src)` renders inline images via `imageField`. Pasting a raster image from the system clipboard into an open Markdown note writes `image1.<ext>`, `image2.<ext>`, and so on beside that note, inserts note-relative Markdown such as `![Image1](image1.png)`, refreshes the file tree, and displays the new asset immediately. The backend detects the actual PNG, JPEG, GIF, WebP, BMP, or ICO bytes, limits clipboard images to 25 MB, and never overwrites an existing numbered image. A failed write leaves the editor selection and document unchanged.
+- **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
 - **Math**: `$inline$` and `$$block$$` LaTeX math renders via KaTeX (StateField-based plugin).
 - In-note search with match highlighting and navigation.
 - **Auto-save**: the active dirty file tab is saved on the configured interval (5 seconds, 10 seconds, 30 seconds, 1 minute, 5 minutes, or Off), when switching away, and when choosing **Save & Exit**. It writes content only; Git commits are controlled separately by Auto-Commit.
@@ -250,8 +250,7 @@ Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For e
 | `linkPlugin()` | Renders `[text](url)` as clickable link widgets |
 | `codeBlockField({ lineNumbers: true })` | Fenced code blocks with syntax highlighting, line numbers, copy button |
 | `imageField({})` | Renders `![alt](src)` as inline images |
-| `tableField` | Renders markdown tables as styled widgets |
-| `tableEditorPlugin()` | Interactive table editing (source/widget toggle, add/delete rows/cols) |
+| `markdownTables()` | Interactive GFM table rendering, formatting, cell navigation, and row/column editing via `codemirror-markdown-tables` |
 | `collapseOnSelectionFacet` | Collapses live-preview widgets when cursor enters the line |
 | `mouseSelectingField` | Tracks mouse-drag state so live preview doesn't collapse during selection |
 
@@ -502,6 +501,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 | Ctrl/Cmd+Click file | File tree | Multi-select for merging |
 | Ctrl/Cmd+C | Focused file tree | Copy selected file/folder to the internal clipboard |
 | Ctrl/Cmd+V | Focused file tree | Paste into selected folder, beside selected file, or at vault root |
+| Ctrl/Cmd+V | Markdown editor | Paste clipboard text normally, or save a clipboard image beside the note and insert its relative Markdown |
 | Middle-click tab | Tab bar | Close tab |
 | Right-click tab | Tab bar | Pin/Unpin tab |
 | Right-click editor | Editor | Context menu (Cut, Copy, Paste, Select All, Preview PDF) |
@@ -529,7 +529,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 7. No sync or cloud backup.
 8. Single vault only.
 9. PDF export requires a supported browser engine already installed on the machine. Chrome/Chromium discovery includes Ungoogled Chromium and Flatpak launchers; a specific executable can be selected in Settings and is stored machine-locally. Chromium candidates must successfully start an isolated headless DevTools session rather than merely answer a version probe. This is intentional: annotated links and footnote destinations are more valuable than a degraded native-print fallback.
-10. No image paste/upload handling.
+10. Clipboard image paste supports raster images up to 25 MB; there is no separate image-upload UI.
 11. No formatting toolbar (keyboard-only).
 12. No split editor / multiple panes.
 13. No vim/emacs keybindings (except optional vim mode).
@@ -841,6 +841,13 @@ Figaro initializes a local Git repository in the vault, but saving and committin
   - If typed prefix starts with `/` → absolute path from vault root: `![name](/path/to/photo.png)`
   - Otherwise → relative path from current note's directory: `![name](../../attachments/photo.png)`
 - Same logic applies to `[` link autocomplete for `.md` files.
+
+### 26.4 Clipboard Image Paste
+- A native image paste is intercepted before the webview can insert an object-replacement character or local filesystem URL.
+- The image is base64-encoded for the Wails bridge and passed to `SaveClipboardImage`; the backend validates the detected raster format and writes it through the root-scoped vault filesystem.
+- Names are allocated across supported raster extensions as `image1`, `image2`, and so on, so an existing image is never replaced. The returned Markdown uses the matching capitalized alt text (`Image1`, `Image2`) and a same-directory filename.
+- The link replaces the current selection only after persistence succeeds. If the user changes notes while the asynchronous write is running, the asset remains safely saved but is not inserted into the wrong document.
+- Keyboard paste events and the editor context-menu Paste action share this behavior. Plain-text clipboard content continues through the normal CodeMirror paste path.
 
 ---
 

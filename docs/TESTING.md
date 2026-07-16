@@ -66,6 +66,25 @@ when changing the PDF preview bridge, also run the packaged Linux build and
 exercise it in Wails/WebKitGTK. The preview's origin/sandbox boundary is
 documented in [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
+## Feature-specific regression contract
+
+Tests ship with the behavior they protect. Every feature and bug fix must add
+or update a focused test whose name describes that exact behavior; relying on
+an unrelated smoke test or only running the existing suite is not enough.
+Cover each boundary the feature crosses:
+
+1. Go tests for filesystem, persistence, link rewriting, or Wails-facing
+   results.
+2. Frontend unit/integration tests for the user action, confirmation/cancel
+   path, state changes, and backend arguments.
+3. CodeMirror DOM and keyboard tests for editor extensions.
+4. Printable-renderer and real-browser tests for Markdown that appears in PDF
+   preview or export.
+
+For a Markdown feature, use the same representative source in the editor,
+printable HTML, preview frame, and browser PDF checks. Assert semantic DOM and
+important layout—not merely that the source text occurs somewhere.
+
 ## Block widget and cursor regressions
 
 CodeMirror block widgets have a strict measured-height contract documented in
@@ -102,6 +121,37 @@ Use the Welcome note as the minimum native regression: put the cursor on line
 return to line 36. Also navigate across each newly added widget from above and
 below, and verify mouse placement and drag selection around it.
 
+Interactive Markdown tables add a stricter cursor matrix. Test Arrow keys
+within and across cells, Tab and Shift+Tab between cells, Enter down a column,
+and Arrow Up/Down from source lines immediately above and below the table.
+Confirm that leaving the first/last cell returns to the adjacent document line
+without skipping, and verify mouse placement plus drag selection at every
+table edge. Keep the focused automated checks in
+`tests/frontend/unit/markdownTables.test.js` and
+`tests/e2e/markdownTables.spec.js`.
+
+## Clipboard image paste regressions
+
+Clipboard image paste crosses binary persistence, the Wails bridge, an
+asynchronous CodeMirror transaction, the existing image widget, preview, and
+PDF export. Retain focused coverage for the exact generated Markdown and
+bytes, note-relative placement, sequential collision names, invalid/oversized
+refusal without a document edit, and plain-text paste fallthrough. The browser
+test must dispatch a real `ClipboardEvent` through CodeMirror, load the saved
+relative image, verify the cursor remains on adjacent source lines, and render
+the same image through PDF preview and a generated PDF.
+
+Run the focused contract with:
+
+```bash
+go test . -run 'TestSaveClipboardImage'
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/clipboardImage.test.js \
+  tests/frontend/unit/editor.test.js \
+  tests/frontend/unit/imageSystem.test.js
+npx playwright test tests/e2e/clipboardImagePaste.spec.js
+```
+
 ## File-tree copy regressions
 
 Internal file-tree copy/paste is non-destructive: collisions must allocate
@@ -122,6 +172,14 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/dialogs.test.js \
   tests/frontend/unit/tabManager.test.js
 ```
+
+Directory drag/drop merges are separately non-destructive. An existing
+same-named destination directory must produce a merge warning; cancellation
+must write nothing. Confirmation recursively merges folders, retains existing
+files, gives colliding moved/imported entries parenthesized names such as
+`report (copy).md` and `report (copy 2).md`, and keeps open tabs plus backlinks
+on the resulting paths. Retain Go coverage for internal and native-drop merges
+and frontend coverage for both confirmation flows.
 
 ## Vim command regressions
 

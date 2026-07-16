@@ -4,12 +4,45 @@
  * Run in browser or with jsdom/Jest
  */
 
+// codemirror-markdown-tables follows the editor's light/dark media state.
+// jsdom does not provide matchMedia, while every supported desktop webview does.
+if (typeof window.matchMedia !== 'function') {
+    window.matchMedia = jest.fn().mockImplementation(query => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+    }));
+}
+if (typeof window.ResizeObserver !== 'function') {
+    window.ResizeObserver = class ResizeObserver {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+    };
+}
+if (typeof Range.prototype.getClientRects !== 'function') {
+    Range.prototype.getClientRects = () => [{
+        top: 0, right: 8, bottom: 16, left: 0, width: 8, height: 16,
+    }];
+}
+if (typeof Range.prototype.getBoundingClientRect !== 'function') {
+    Range.prototype.getBoundingClientRect = () => ({
+        top: 0, right: 8, bottom: 16, left: 0, width: 8, height: 16,
+    });
+}
+
 // Mock pywebview API
 window.pywebview = {
     api: {
         get_file_tree: jest.fn().mockResolvedValue([]),
         read_file: jest.fn().mockResolvedValue({ content: "", mtime: Date.now() / 1000, path: "" }),
         save_file: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() / 1000 }),
+        save_clipboard_image: jest.fn().mockResolvedValue({ success: true, path: 'image1.png', markdown: '![Image1](image1.png)' }),
         save_session: jest.fn().mockResolvedValue({ success: true }),
         load_session: jest.fn().mockResolvedValue({}),
         create_file: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() / 1000 }),
@@ -18,8 +51,10 @@ window.pywebview = {
         delete_path: jest.fn().mockResolvedValue({ success: true }),
         rename_path: jest.fn().mockResolvedValue({ success: true }),
         move_path: jest.fn().mockResolvedValue({ success: true }),
+        merge_directory: jest.fn().mockResolvedValue({ success: true }),
         copy_path: jest.fn().mockResolvedValue({ success: true, path: '' }),
         copy_external_paths: jest.fn().mockResolvedValue({ success: true, paths: [] }),
+        merge_external_paths: jest.fn().mockResolvedValue({ success: true, paths: [] }),
         search_files: jest.fn().mockResolvedValue([]),
         search_backlinks: jest.fn().mockResolvedValue([]),
         get_commit_count: jest.fn().mockResolvedValue(0),

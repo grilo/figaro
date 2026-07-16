@@ -80,7 +80,8 @@
         "@replit/codemirror-vim": "/vendored/@replit/codemirror-vim/dist/index.js",
         "@replit/codemirror-indentation-markers": "/vendored/@replit/codemirror-indentation-markers/dist/index.js",
         "katex": "/vendored/katex/dist/katex.min.js",
-        "codemirror-live-markdown": "/vendored/codemirror-live-markdown/index.js"
+        "codemirror-live-markdown": "/vendored/codemirror-live-markdown/index.js",
+        "codemirror-markdown-tables": "/vendored/codemirror-markdown-tables/index.js"
       }
     }
     </script>
@@ -107,11 +108,14 @@
                     get_file_tree: mock([{name:'Welcome.md',path:'Welcome.md',type:'file',mtime:1}]),
                     read_file: mock({content:'# Welcome\n\nStart writing.',path:'Welcome.md',mtime:1}),
                     save_file: mock({success:true}),
+                    save_clipboard_image: mock({success:true,path:'image1.png',markdown:'![Image1](image1.png)'}),
                     create_file: mock({success:true}),
                     create_directory: mock({success:true}),
                     delete_path: mock({success:true}),
                     rename_path: mock({success:true}),
                     move_path: mock({success:true}),
+                    merge_directory: mock({success:true}),
+                    merge_external_paths: mock({success:true,paths:[]}),
                     search_files: mock([]),
                     search_backlinks: mock([]),
                     get_kanban_columns: mock({columns:['todo','wip','done'],colors:{}}),
