@@ -2,6 +2,16 @@
 
 These requirements apply to every change in this repository.
 
+## Changelog updates are part of every feature
+
+- Every user-facing feature, behavior change, and bug fix must update
+  `CHANGELOG.md` under `Unreleased` in the same change. A feature is not
+  complete until its changelog entry describes the outcome in user-facing
+  language.
+- Keep entries concise and place them under Added, Changed, or Fixed as
+  appropriate. Before finishing any implementation, explicitly check that the
+  current feature has a matching changelog entry.
+
 ## Feature-specific tests are part of the feature
 
 - Every new behavior and every bug fix must add or update a regression test

@@ -121,6 +121,8 @@ the assembled webview rather than one JavaScript package in isolation.
 
 - Format Go with `gofmt`; run the JavaScript linter rather than hand-formatting
   vendored dependencies.
+- Update `CHANGELOG.md` under `Unreleased` for every user-facing feature,
+  behavior change, and bug fix; changelog work is part of feature completion.
 - Prefer root-scoped vault filesystem operations over absolute-path checks.
 - Preserve unsaved editor content during asynchronous or filesystem-driven
   changes.

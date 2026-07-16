@@ -6,6 +6,18 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Added
 
+- Interactive GFM Markdown tables powered by `codemirror-markdown-tables`,
+  with automatic formatting, row and column controls, keyboard cell
+  navigation, cursor-safe movement around the table, and matching table
+  rendering in PDF preview and export.
+- Clipboard image paste for Markdown notes. Pasting a screenshot or supported
+  raster image saves a collision-safe `image1`, `image2`, and so on beside the
+  note, inserts portable relative Markdown, refreshes the file tree, and
+  renders the image immediately in the editor, PDF preview, and export.
+- Non-destructive directory drag/drop merging. When a same-named destination
+  folder exists, Figaro now offers to merge recursively while retaining both
+  directory trees and naming file collisions `name (copy).ext`,
+  `name (copy 2).ext`, and so on.
 - Figaro Light and Figaro Dark (the new default), two built-in themes derived
   from Figaro's warm ivory, black fur, and red badge palette.
 - Live **PDF Preview** in the right sidebar for Markdown notes. It uses the
