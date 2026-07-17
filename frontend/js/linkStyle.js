@@ -2,6 +2,7 @@ import { confirmDialog, errorDialog } from './dialogs.js';
 import { log } from './log.js';
 
 const validStyles = new Set(['markdown', 'wikilink']);
+const styleLabels = { markdown: 'Markdown', wikilink: 'Wikilinks' };
 let currentStyle = 'markdown';
 let preferenceLoaded = false;
 let preferenceLoadPromise = null;
@@ -10,10 +11,23 @@ function canonicalStyle(value) {
     return validStyles.has(value) ? value : 'markdown';
 }
 
-function syncLinkStyleSelectors() {
-    document.querySelectorAll('#link-style-select').forEach(select => {
-        select.value = currentStyle;
+function renderLinkStyleControl(trigger) {
+    if (!trigger) return;
+    trigger.value = currentStyle;
+    trigger.dataset.value = currentStyle;
+
+    const picker = trigger.closest('.link-style-picker');
+    const label = picker?.querySelector('#link-style-current-name');
+    if (label) label.textContent = styleLabels[currentStyle];
+    picker?.querySelectorAll('[data-link-style]').forEach(option => {
+        const selected = option.dataset.linkStyle === currentStyle;
+        option.setAttribute('aria-selected', String(selected));
+        option.classList.toggle('selected', selected);
     });
+}
+
+function syncLinkStyleSelectors() {
+    document.querySelectorAll('#link-style-select').forEach(renderLinkStyleControl);
 }
 
 export function getLinkStylePreference() {
@@ -91,20 +105,100 @@ export async function requestLinkStyleChange(requestedStyle) {
 }
 
 export async function initLinkStyleSetting(root = document) {
-    const select = root?.querySelector?.('#link-style-select');
-    if (!select) return;
+    const trigger = root?.querySelector?.('#link-style-select');
+    if (!trigger) return;
     await initLinkStylePreference();
-    if (!select.isConnected) return;
-    select.value = currentStyle;
-    select.addEventListener('change', async () => {
-        const requested = select.value;
-        select.disabled = true;
-        await requestLinkStyleChange(requested);
-        if (select.isConnected) {
-            select.value = currentStyle;
-            select.disabled = false;
+    if (!trigger.isConnected) return;
+    renderLinkStyleControl(trigger);
+    if (trigger.dataset.linkStyleBound === 'true') return;
+
+    const picker = trigger.closest('.link-style-picker');
+    const menu = picker?.querySelector('#link-style-menu');
+    const options = Array.from(menu?.querySelectorAll('[data-link-style]') || []);
+    if (!picker || !menu || !options.length) return;
+    trigger.dataset.linkStyleBound = 'true';
+
+    let activeIndex = Math.max(0, options.findIndex(option => option.dataset.linkStyle === currentStyle));
+    const setActive = index => {
+        activeIndex = (index + options.length) % options.length;
+        options.forEach((option, optionIndex) => option.classList.toggle('active', optionIndex === activeIndex));
+        trigger.setAttribute('aria-activedescendant', options[activeIndex].id);
+    };
+    const setOpen = (open) => {
+        const shouldOpen = Boolean(open && !trigger.disabled);
+        trigger.setAttribute('aria-expanded', String(shouldOpen));
+        menu.hidden = !shouldOpen;
+        menu.classList.toggle('open', shouldOpen);
+        if (shouldOpen) {
+            setActive(options.findIndex(option => option.dataset.linkStyle === currentStyle));
+        } else {
+            trigger.removeAttribute('aria-activedescendant');
+            options.forEach(option => option.classList.remove('active'));
+        }
+    };
+
+    const choose = async (requested) => {
+        if (trigger.disabled || !validStyles.has(requested)) return;
+        setOpen(false);
+        trigger.disabled = true;
+        picker.setAttribute('aria-busy', 'true');
+        try {
+            await requestLinkStyleChange(requested);
+        } finally {
+            if (trigger.isConnected) {
+                renderLinkStyleControl(trigger);
+                trigger.disabled = false;
+                picker.removeAttribute('aria-busy');
+                trigger.focus();
+            }
+        }
+    };
+
+    trigger.addEventListener('click', event => {
+        event.stopPropagation();
+        setOpen(trigger.getAttribute('aria-expanded') !== 'true');
+    });
+    trigger.addEventListener('keydown', event => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (trigger.getAttribute('aria-expanded') !== 'true') {
+                setOpen(true);
+            } else {
+                setActive(activeIndex + (event.key === 'ArrowDown' ? 1 : -1));
+            }
+        } else if ((event.key === 'Enter' || event.key === ' ') && trigger.getAttribute('aria-expanded') === 'true') {
+            event.preventDefault();
+            void choose(options[activeIndex].dataset.linkStyle);
+        } else if (event.key === 'Home' || event.key === 'End') {
+            if (trigger.getAttribute('aria-expanded') === 'true') {
+                event.preventDefault();
+                setActive(event.key === 'Home' ? 0 : options.length - 1);
+            }
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            setOpen(false);
+            trigger.focus();
         }
     });
+    menu.addEventListener('pointermove', event => {
+        const option = event.target.closest('[data-link-style]');
+        if (option) setActive(options.indexOf(option));
+    });
+    menu.addEventListener('click', event => {
+        const option = event.target.closest('[data-link-style]');
+        if (!option) return;
+        event.stopPropagation();
+        void choose(option.dataset.linkStyle);
+    });
+
+    const closeOnOutsideClick = event => {
+        if (!trigger.isConnected) {
+            document.removeEventListener('click', closeOnOutsideClick);
+        } else if (!picker.contains(event.target)) {
+            setOpen(false);
+        }
+    };
+    document.addEventListener('click', closeOnOutsideClick);
 }
 
 export function resetLinkStyleForTests() {

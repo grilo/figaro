@@ -50,6 +50,8 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- The Links style setting now uses a fully themed, keyboard-accessible
+  combobox instead of a platform-native dropdown.
 - Kanban reflects hashtags from unsaved editor buffers without forcing a save,
   and keeps long cards compact while preserving their full text on hover.
 - Calendar and Kanban now live in a fixed footer below the file tree. Calendar

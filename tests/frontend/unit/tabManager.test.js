@@ -226,6 +226,20 @@ describe('Tab Manager', () => {
             expect(panel.querySelector('#pdf-browser-clear').textContent).toContain('automatic');
         });
 
+        test('renders Links style as a themed accessible combobox instead of a native select', () => {
+            openTab('settings', 'Settings', 'settings');
+            const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
+            const trigger = panel.querySelector('#link-style-select');
+            const menu = panel.querySelector('#link-style-menu');
+
+            expect(trigger.tagName).toBe('BUTTON');
+            expect(trigger.classList.contains('settings-picker-btn')).toBe(true);
+            expect(trigger.getAttribute('role')).toBe('combobox');
+            expect(trigger.getAttribute('aria-controls')).toBe('link-style-menu');
+            expect(menu.getAttribute('role')).toBe('listbox');
+            expect(menu.querySelectorAll('[role="option"]')).toHaveLength(2);
+        });
+
         test('does not let an older read overwrite a newer load of the same tab', async () => {
             const firstA = deferred();
             const latestA = deferred();

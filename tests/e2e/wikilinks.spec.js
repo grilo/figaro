@@ -1,5 +1,47 @@
 import { expect, test } from '@playwright/test';
 
+test('styles the Links style setting as a themed keyboard-accessible combobox', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.locator('#topbar-settings').click();
+
+    const trigger = page.locator('#link-style-select');
+    const menu = page.locator('#link-style-menu');
+    await expect(trigger).toBeVisible();
+    await expect(trigger).toHaveAttribute('role', 'combobox');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toHaveText(/Markdown|Wikilinks/);
+
+    const closedStyles = await trigger.evaluate(element => {
+        const style = getComputedStyle(element);
+        return {
+            backgroundColor: style.backgroundColor,
+            borderRadius: Number.parseFloat(style.borderRadius),
+            borderStyle: style.borderStyle,
+            fontFamily: style.fontFamily,
+        };
+    });
+    expect(closedStyles.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(closedStyles.borderRadius).toBeGreaterThanOrEqual(6);
+    expect(closedStyles.borderStyle).toBe('solid');
+    expect(closedStyles.fontFamily).toBeTruthy();
+
+    await trigger.focus();
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(menu).toBeVisible();
+    await expect(menu.locator('[role="option"]')).toHaveCount(2);
+    await expect.poll(() => trigger.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none');
+    await expect.poll(() => menu.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none');
+    await expect(trigger).toHaveAttribute('aria-activedescendant', /link-style-option-/);
+
+    await page.keyboard.press('Escape');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(menu).toBeHidden();
+    await expect(trigger).toBeFocused();
+});
+
 test('keeps conventional alias widgets navigable, selectable, and cursor-safe', async ({ page }) => {
     await page.goto('/');
 	await page.waitForFunction(() => window._appReady === true);

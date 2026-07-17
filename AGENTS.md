@@ -46,12 +46,28 @@ These requirements apply to every change in this repository.
   for the syntax feature. Preview and export may share a renderer, but both
   user workflows must remain explicitly asserted.
 
+## All UI elements must be deliberately styled
+
+- Every new or changed visible element must use Figaro's theme tokens and
+  established component language. Shipping raw browser or operating-system
+  defaults for controls, menus, dialogs, states, spacing, or typography is not
+  considered complete.
+- Style every state the user can encounter, including hover, keyboard focus,
+  active/open, selected, disabled, loading, empty, validation, and error states
+  where applicable. Preserve accessible names, contrast, focus indication,
+  reduced-motion behavior, and keyboard operation while styling.
+- Add a focused real-browser regression for visual UI work. Assert the
+  component structure and meaningful computed styles or geometry, plus its
+  keyboard/focus behavior; a jsdom-only assertion is not sufficient.
+
 ## Prepare the Git handoff, but never commit
 
 - Once requested work is complete and verified, write a concise, helpful
-  proposed commit message to `.git/COMMIT_TEMPLATE` and configure the
-  repository-local `commit.template` setting to use it. Keep the template
-  current with the complete change so a plain `git commit` opens that proposed
-  message for the user to review and edit.
+  proposed commit message to `.git/COMMIT_TEMPLATE`. Keep the repository's
+  `prepare-commit-msg` hook configured to copy that proposal into a new plain
+  `git commit`; do not configure `commit.template`, because Git rejects an
+  otherwise valid commit when that template is saved without edits. The user
+  must be able to review the proposed message and finish with an unchanged
+  `:wq`.
 - Never run `git commit` on the user's behalf. Preparing the message and local
   template is the final handoff; the user owns the review and commit action.

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Populate a new commit with Codex's reviewed proposal without using
+# commit.template. Git rejects an unchanged commit.template, while content
+# inserted by this hook may be accepted unchanged after the editor opens.
+message_file=$1
+message_source=${2-}
+
+case "$message_source" in
+    '') ;;
+    *) exit 0 ;;
+esac
+
+proposal=${FIGARO_COMMIT_TEMPLATE:-$(git rev-parse --git-path COMMIT_TEMPLATE 2>/dev/null)}
+if [ -n "$proposal" ] && [ -f "$proposal" ] && [ -s "$proposal" ]; then
+    cp "$proposal" "$message_file"
+fi

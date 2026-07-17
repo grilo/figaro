@@ -17,22 +17,89 @@ import {
     resetLinkStyleForTests,
 } from '../frontend/js/linkStyle.js';
 
+function renderLinkStyleSetting() {
+    document.body.innerHTML = `<div class="settings-picker link-style-picker">
+        <button type="button" id="link-style-select" class="settings-picker-btn" role="combobox"
+                aria-controls="link-style-menu" aria-expanded="false">
+            <span id="link-style-current-name">Markdown</span>
+        </button>
+        <div id="link-style-menu" class="settings-picker-menu" role="listbox" hidden>
+            <button id="link-style-option-wikilink" data-link-style="wikilink" role="option" aria-selected="false">Wikilinks</button>
+            <button id="link-style-option-markdown" data-link-style="markdown" role="option" aria-selected="false">Markdown</button>
+        </div>
+    </div>`;
+}
+
 describe('vault link style workflow', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         resetLinkStyleForTests();
-        document.body.innerHTML = '<select id="link-style-select"><option value="markdown">Markdown</option><option value="wikilink">Wikilinks</option></select>';
+        renderLinkStyleSetting();
         window.pywebview.api.link_style_load = jest.fn().mockResolvedValue({ style: 'markdown' });
         window.pywebview.api.change_link_style = jest.fn().mockImplementation((style) =>
             Promise.resolve({ success: true, style, rewritten: 2, updated_links: ['index.md'] }));
         prepareTabsForVaultLinkRewrite.mockResolvedValue({ success: true });
     });
 
-    test('loads the persisted preference into the Settings combobox', async () => {
+    test('loads the persisted preference into the themed Settings combobox', async () => {
         window.pywebview.api.link_style_load.mockResolvedValueOnce({ style: 'wikilink' });
         await initLinkStyleSetting(document);
         expect(getLinkStylePreference()).toBe('wikilink');
         expect(document.getElementById('link-style-select').value).toBe('wikilink');
+        expect(document.getElementById('link-style-current-name').textContent).toBe('Wikilinks');
+        expect(document.getElementById('link-style-option-wikilink').getAttribute('aria-selected')).toBe('true');
+        expect(document.getElementById('link-style-option-markdown').getAttribute('aria-selected')).toBe('false');
+    });
+
+    test('opens and closes the themed combobox with pointer and keyboard controls', async () => {
+        await initLinkStyleSetting(document);
+        const trigger = document.getElementById('link-style-select');
+        const menu = document.getElementById('link-style-menu');
+
+        trigger.click();
+        expect(trigger.getAttribute('aria-expanded')).toBe('true');
+        expect(menu.hidden).toBe(false);
+        expect(trigger.getAttribute('aria-activedescendant')).toBe('link-style-option-markdown');
+
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        expect(trigger.getAttribute('aria-activedescendant')).toBe('link-style-option-wikilink');
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(trigger.getAttribute('aria-expanded')).toBe('false');
+        expect(menu.hidden).toBe(true);
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    test('applies a keyboard-selected link style and restores focus to the themed combobox', async () => {
+        confirmDialog.mockResolvedValueOnce('extra');
+        await initLinkStyleSetting(document);
+        const trigger = document.getElementById('link-style-select');
+
+        trigger.click();
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.pywebview.api.change_link_style).toHaveBeenCalledWith('wikilink', false);
+        expect(trigger.value).toBe('wikilink');
+        expect(document.getElementById('link-style-current-name').textContent).toBe('Wikilinks');
+        expect(trigger.disabled).toBe(false);
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    test('restores the themed combobox after cancelling a pointer selection', async () => {
+        confirmDialog.mockResolvedValueOnce(false);
+        await initLinkStyleSetting(document);
+        const trigger = document.getElementById('link-style-select');
+
+        trigger.click();
+        document.getElementById('link-style-option-wikilink').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.pywebview.api.change_link_style).not.toHaveBeenCalled();
+        expect(trigger.value).toBe('markdown');
+        expect(trigger.getAttribute('aria-expanded')).toBe('false');
+        expect(trigger.disabled).toBe(false);
+        expect(document.activeElement).toBe(trigger);
     });
 
     test('cancellation restores the prior preference without backend changes', async () => {

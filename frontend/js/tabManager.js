@@ -1262,10 +1262,31 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
                         <span>Links style</span>
                     </div>
-                    <select id="link-style-select" class="auto-save-select" aria-label="Links style">
-                        <option value="wikilink">Wikilinks</option>
-                        <option value="markdown">Markdown</option>
-                    </select>
+                    <div class="settings-picker link-style-picker">
+                        <button type="button" id="link-style-select" class="settings-picker-btn"
+                                role="combobox" aria-label="Links style" aria-haspopup="listbox"
+                                aria-controls="link-style-menu" aria-expanded="false">
+                            <span id="link-style-current-name">Wikilinks</span>
+                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+                                <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                        <div id="link-style-menu" class="settings-picker-menu" role="listbox"
+                             aria-label="Links style options" hidden>
+                            <button type="button" class="settings-picker-item" role="option"
+                                    id="link-style-option-wikilink" data-link-style="wikilink"
+                                    aria-selected="false" tabindex="-1">
+                                <span>Wikilinks</span>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                            </button>
+                            <button type="button" class="settings-picker-item" role="option"
+                                    id="link-style-option-markdown" data-link-style="markdown"
+                                    aria-selected="false" tabindex="-1">
+                                <span>Markdown</span>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <!-- Automation -->
