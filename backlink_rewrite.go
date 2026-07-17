@@ -17,6 +17,7 @@ type vaultLinkRewrite struct {
 	path     string
 	original []byte
 	updated  []byte
+	mode     os.FileMode
 }
 
 func collectVaultLinkRewrites(root *os.Root, oldRel string, newRel string) ([]vaultLinkRewrite, error) {
@@ -65,6 +66,7 @@ func collectVaultLinkRewrites(root *os.Root, oldRel string, newRel string) ([]va
 			path:     filepath.FromSlash(futureSourceRel),
 			original: data,
 			updated:  []byte(updated),
+			mode:     info.Mode().Perm(),
 		})
 		return nil
 	})
@@ -77,7 +79,11 @@ func collectVaultLinkRewrites(root *os.Root, oldRel string, newRel string) ([]va
 func applyVaultLinkRewrites(root *os.Root, rewrites []vaultLinkRewrite) ([]vaultLinkRewrite, error) {
 	applied := make([]vaultLinkRewrite, 0, len(rewrites))
 	for _, rewrite := range rewrites {
-		if err := writeRootFileAtomic(root, rewrite.path, rewrite.updated, 0644); err != nil {
+		mode := rewrite.mode
+		if mode == 0 {
+			mode = 0644
+		}
+		if err := writeRootFileAtomic(root, rewrite.path, rewrite.updated, mode); err != nil {
 			return applied, fmt.Errorf("rewrite links in %q: %w", filepath.ToSlash(rewrite.path), err)
 		}
 		applied = append(applied, rewrite)
@@ -88,7 +94,11 @@ func applyVaultLinkRewrites(root *os.Root, rewrites []vaultLinkRewrite) ([]vault
 func restoreVaultLinkRewrites(root *os.Root, rewrites []vaultLinkRewrite) error {
 	for index := len(rewrites) - 1; index >= 0; index-- {
 		rewrite := rewrites[index]
-		if err := writeRootFileAtomic(root, rewrite.path, rewrite.original, 0644); err != nil {
+		mode := rewrite.mode
+		if mode == 0 {
+			mode = 0644
+		}
+		if err := writeRootFileAtomic(root, rewrite.path, rewrite.original, mode); err != nil {
 			return fmt.Errorf("restore links in %q: %w", filepath.ToSlash(rewrite.path), err)
 		}
 	}

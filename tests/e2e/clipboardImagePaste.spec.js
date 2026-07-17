@@ -8,23 +8,23 @@ test('pastes a clipboard screenshot beside the note, renders it, and preserves a
         body: Buffer.from(tinyPNGBase64, 'base64'),
     }));
     await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true && typeof window.pywebview?.api?.save_clipboard_image === 'function');
 
     await page.evaluate(async ({ png }) => {
-        const state = await import('/js/state.js');
         const editor = await import('/js/editor.js');
+		const tabs = await import('/js/tabManager.js');
         window.__clipboardImageCalls = [];
 
         await editor.initEditor();
         const view = editor.createEditorView();
-        await editor.configureEditorForFile('notes/capture.md');
-        editor.setEditorContent('Before\n\nAfter');
-        while (view.state.doc.toString() !== 'Before\n\nAfter') {
+		tabs.openTab('capture', 'Capture', 'file', { path: 'notes/capture.md', mtime: 1, isNew: true });
+		while (editor.getEditorDocumentTabId() !== 'capture') {
             await new Promise(resolve => setTimeout(resolve, 10));
         }
-        // The normal debug bootstrap may finish while the editor modules load;
-        // establish the active note and backend stub immediately before paste.
-        state.setState('openTabs', [{ id: 'capture', type: 'file', path: 'notes/capture.md' }]);
-        state.setState('activeTabId', 'capture');
+		editor.setEditorContent('Before\n\nAfter', 'capture');
+		while (view.state.doc.toString() !== 'Before\n\nAfter') {
+			await new Promise(resolve => setTimeout(resolve, 10));
+		}
         window.pywebview.api.save_clipboard_image = async (notePath, mimeType, encodedData) => {
             window.__clipboardImageCalls.push({ notePath, mimeType, encodedData });
             return {
@@ -101,4 +101,61 @@ test('pastes a clipboard screenshot beside the note, renders it, and preserves a
     await expect(previewImage).toHaveJSProperty('naturalWidth', 1);
     const pdf = await page.pdf({ format: 'A4', printBackground: true });
     expect(pdf.byteLength).toBeGreaterThan(4000);
+});
+
+test('uses Async Clipboard bytes when a Linux-style paste event exposes no image File', async ({ page }) => {
+    await page.goto('/');
+	await page.waitForFunction(() => window._appReady === true);
+
+    await page.evaluate(async ({ png }) => {
+        const state = await import('/js/state.js');
+        const editor = await import('/js/editor.js');
+        await editor.initEditor();
+        const view = editor.getEditorView() || editor.createEditorView();
+        const tab = { id: 'linux-clipboard', type: 'file', path: 'notes/linux-clipboard.md', title: 'Linux clipboard' };
+        state.setState('openTabs', [tab]);
+        state.setState('activeTabId', tab.id);
+        editor.setEditorContent('', tab.id);
+        while (editor.getEditorDocumentTabId() !== tab.id) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
+        const bytes = Uint8Array.from(atob(png), character => character.charCodeAt(0));
+        const image = new Blob([bytes], { type: 'image/png' });
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { read: async () => [{ types: ['image/png'], getType: async () => image }] },
+        });
+        window.__linuxClipboardCalls = [];
+        window.pywebview.api.save_clipboard_image = async (notePath, mimeType, encodedData) => {
+            window.__linuxClipboardCalls.push({ notePath, mimeType, encodedData });
+            return { success: true, path: 'notes/image1.png', markdown: '![Image1](image1.png)' };
+        };
+
+        const paste = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
+        Object.defineProperty(paste, 'clipboardData', {
+            value: {
+                types: ['image/png'],
+                items: [{ kind: 'file', type: 'image/png', getAsFile: () => null }],
+                files: [],
+            },
+        });
+        view.contentDOM.dispatchEvent(paste);
+        window.__linuxClipboardPrevented = paste.defaultPrevented;
+        window.__linuxClipboardView = view;
+    }, { png: tinyPNGBase64 });
+
+    await expect.poll(() => page.evaluate(() => window.__linuxClipboardView.state.doc.toString()))
+        .toBe('![Image1](image1.png)');
+    expect(await page.evaluate(() => ({
+        prevented: window.__linuxClipboardPrevented,
+        calls: window.__linuxClipboardCalls.map(call => ({
+            notePath: call.notePath,
+            mimeType: call.mimeType,
+            validPNG: call.encodedData.startsWith('iVBORw0KGgo'),
+        })),
+    }))).toEqual({
+        prevented: true,
+        calls: [{ notePath: 'notes/linux-clipboard.md', mimeType: 'image/png', validPNG: true }],
+    });
 });

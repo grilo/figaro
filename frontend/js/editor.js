@@ -16,6 +16,8 @@ import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js
 import { pdfExportErrorDialog, tableConversionDialog } from './dialogs.js';
 import { handleClipboardImagePaste, pasteClipboardImage } from './clipboardImage.js';
 import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } from './clipboardTable.js';
+import { noteLinkCompletion, noteLinkCompletionMatch } from './linkCompletions.js';
+import { getLinkStylePreference } from './linkStyle.js';
 import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
 import {
     livePreviewPlugin,
@@ -298,7 +300,7 @@ function linkPreview() {
                 const re = new RegExp(WIKI_LINK_RE.source, 'g');
                 while ((m = re.exec(lineText)) !== null) {
                     if (offset >= m.index && offset <= m.index + m[0].length) {
-                        const wikiName = m[2] || m[1];
+                        const wikiName = normalizeWikiLinkTarget(m[1]);
                         console.log('[linkPreview] wikilink found:', wikiName);
                         this.showTooltip(event, wikiName, false);
                         return;
@@ -771,9 +773,9 @@ function createEditorView() {
         const pos = ctx.pos, doc = ctx.state.doc;
         const line = doc.lineAt(pos), ls = line.from;
         const before = doc.sliceString(ls, pos);
-        const match = before.match(/\[([^\]]*)$/);
+        const match = noteLinkCompletionMatch(before);
         if (!match) return null;
-        const rawPrefix = match[1];
+        const rawPrefix = match.prefix;
         const prefix = rawPrefix.toLowerCase();
         const fileTreeData = getState('fileTreeData') || [];
         const mdFiles = [];
@@ -787,15 +789,13 @@ function createEditorView() {
         if (!mdFiles.length) return null;
         // Sort by modification time, most recent first
         mdFiles.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
-        const rf = ls + match.index;
+        const rf = ls + match.fromOffset;
         const options = mdFiles
             .filter(f => f.name.toLowerCase().startsWith(prefix) || f.path.toLowerCase().startsWith(prefix))
             .slice(0, 10).map(f => ({
                 label: f.name, detail: f.path,
                 apply: (view, comp, from, to) => {
-                    const linkPath = makeLinkPath(f.path);
-                    const encodedPath = linkPath.replace(/ /g, '%20');
-                    const rep = `[${f.name}](${encodedPath}) `;
+                    const rep = noteLinkCompletion(getLinkStylePreference(), f);
                     view.dispatch({ changes: { from, to, insert: rep }, selection: { anchor: from + rep.length } });
                 }
             }));
@@ -867,7 +867,9 @@ function createEditorView() {
         livePreviewPlugin,
         editorTheme,
         ...(Array.isArray(frontmatterField) ? frontmatterField : [frontmatterField]),
-        linkPlugin(),
+        linkPlugin({
+            onWikiLinkClick: target => handleLinkClick(normalizeWikiLinkTarget(target), target, true),
+        }),
         linkPreview(),
         ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages }),
         ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
@@ -1050,17 +1052,34 @@ function getEditorContent() { const v = getEditorView(); return v ? v.state.doc.
 
 let _programmaticChange = false;
 let _pendingContent = null;
-function setEditorContent(content) {
+let editorDocumentTabId = null;
+
+/**
+ * Replace the shared editor document. When tabId is supplied, the deferred
+ * CodeMirror transaction is allowed to land only while that tab is still
+ * active. This prevents a rapid A -> B -> A switch from mounting B's delayed
+ * document into A's editor.
+ */
+function setEditorContent(content, tabId = undefined) {
     if (typeof content !== 'string') return;
-    _pendingContent = content;
+    const request = {
+        content,
+        tabId: tabId === undefined ? editorDocumentTabId : tabId,
+    };
+    _pendingContent = request;
     const v = getEditorView();
     if (!v || v.isDestroyed) return;
 
     // Use setTimeout(0) to fully exit CodeMirror's current measurement cycle
     setTimeout(() => {
-        if (v.isDestroyed || _pendingContent !== content) return;
-        if (v.state.doc.toString() === content) return; // Already set
+        if (v.isDestroyed || _pendingContent !== request) return;
+        if (request.tabId != null && getState('activeTabId') !== request.tabId) return;
+        if (v.state.doc.toString() === content) {
+            editorDocumentTabId = request.tabId;
+            return;
+        }
         try {
+            editorDocumentTabId = request.tabId;
             _programmaticChange = true;
             v.dispatch({
                 changes: { from: 0, to: v.state.doc.length, insert: content },
@@ -1072,6 +1091,8 @@ function setEditorContent(content) {
         }
     }, 0);
 }
+
+function getEditorDocumentTabId() { return editorDocumentTabId; }
 
 function imageFieldForPath(docPath) {
     const dir = docPath ? docPath.substring(0, docPath.lastIndexOf('/') + 1) : '';
@@ -1171,9 +1192,11 @@ function focusEditor() { const v = getEditorView(); if (v) v.focus(); }
 
 function handleDocChange(update) {
     if (_programmaticChange) { _programmaticChange = false; updateStats(update.state.doc.toString()); return; }
-    const at = getState('openTabs').find(t => t.id === getState('activeTabId'));
+    const at = getState('openTabs').find(t => t.id === editorDocumentTabId);
     if (at && at.type === 'file') {
         const content = update.state.doc.toString();
+        at._content = content;
+        at._editGeneration = (at._editGeneration || 0) + 1;
         import('./tabManager.js').then(({ markTabDirty }) => markTabDirty(at.id));
         updateStats(content);
         // Consumers such as the PDF preview receive the in-memory snapshot,
@@ -1293,13 +1316,20 @@ function handleMouseDown(event, view) {
     if (event.button !== 0 && event.button !== 1) return;
     const replaceCurrent = event.button === 0;
 
+    const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
+
     // Handle clicks on link widgets (don't move cursor, navigate directly)
     const linkEl = event.target.closest('.cm-link-widget');
     if (linkEl) {
         event.preventDefault();
         if (linkEl.classList.contains('cm-wikilink-widget')) {
-            const fname = linkEl.textContent + '.md';
-            handleLinkClick(fname, linkEl.textContent, replaceCurrent);
+            // The widget's own click listener receives its real target for a left
+            // click. Middle-click has no click event, so recover the source token.
+            if (event.button === 1 && position !== null) {
+                const line = view.state.doc.lineAt(position);
+                const wiki = wikiLinkAtPosition(line.text, position - line.from);
+                if (wiki) handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, false);
+            }
         } else {
             const href = linkEl.getAttribute('href');
             if (href) {
@@ -1313,7 +1343,7 @@ function handleMouseDown(event, view) {
         return true;
     }
 
-    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    const pos = position;
     if (pos === null) return;
     if (event.button === 0 && handleFootnoteNavigation(event, view, pos)) return true;
     const doc = view.state.doc, line = doc.lineAt(pos), lt = line.text, col = pos - line.from;
@@ -1334,6 +1364,36 @@ function handleMouseDown(event, view) {
             event.preventDefault(); handleLinkClick(m[2], m[1], replaceCurrent); return;
         }
     }
+    const wiki = wikiLinkAtPosition(lt, col);
+    if (wiki) {
+        event.preventDefault();
+        handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, replaceCurrent);
+        return true;
+    }
+}
+
+/** Parse the conventional target-first wikilink covering a source position. */
+export function wikiLinkAtPosition(line, column) {
+    const links = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+    let match;
+    while ((match = links.exec(String(line || ''))) !== null) {
+        if (column < match.index || column > match.index + match[0].length) continue;
+        return {
+            target: match[1].trim(),
+            label: (match[2] || match[1]).trim(),
+        };
+    }
+    return null;
+}
+
+/** Convert an editor wikilink target into a readable vault note path. */
+export function normalizeWikiLinkTarget(target) {
+    let value = String(target || '').trim();
+    try { value = decodeURI(value); } catch (_) { /* keep source spelling */ }
+    const suffixAt = value.search(/[?#]/);
+    if (suffixAt >= 0) value = value.slice(0, suffixAt);
+    if (value && !value.toLowerCase().endsWith('.md')) value += '.md';
+    return value.replace(/^\/+/, '');
 }
 function handleClick(event, _view) {
     // Block browser default navigation for link widgets
@@ -1796,7 +1856,7 @@ function updateVimStatus(mode) {
 }
 
 export { initEditor, createEditorView, getEditorView,
-    getEditorContent, setEditorContent, focusEditor,
+    getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
     saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setImageBasePath, setReadOnly,
     configureEditorForFile, normalizeWebKitShiftTab };

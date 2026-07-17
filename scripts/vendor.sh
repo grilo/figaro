@@ -318,6 +318,11 @@ mkdir -p "$VENDOR_DIR/codemirror-markdown-tables"
     --external:@lezer/* \
     --outfile="$VENDOR_DIR/codemirror-markdown-tables/index.js"
 
+echo "Vendoring the searchable Lucide SVG catalog..."
+mkdir -p "$VENDOR_DIR/lucide"
+cp node_modules/lucide/dist/umd/lucide.min.js "$VENDOR_DIR/lucide/lucide.min.js"
+cp node_modules/lucide/LICENSE "$VENDOR_DIR/lucide/LICENSE"
+
 echo "Verifying downloads..."
 echo "  Theme CSS: $([ -f "$VENDOR_DIR/codemirror/theme-one-dark/style.min.css" ] && echo "✓" || echo "✗")"
 echo "  View: $([ -f "$VENDOR_DIR/codemirror/view/index.js" ] && echo "✓" || echo "✗")"

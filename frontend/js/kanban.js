@@ -7,6 +7,7 @@ import { setState, getState } from './state.js';
 import { openTab } from './app.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
+import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
 
 let draggedCard = null;
 let kanbanColumns = [];
@@ -16,18 +17,131 @@ let kanbanBoardRequestId = 0;
 let kanbanColumnsRequestId = 0;
 let kanbanBadgeRequestId = 0;
 let kanbanMutationId = 0;
+let liveRefreshTimer = null;
+let liveRefreshInitialized = false;
 
-const COLOR_PALETTE = [
-    '', '#ef4444', '#f97316', '#f59e0b', '#eab308',
-    '#22c55e', '#14b8a6', '#3b82f6', '#6366f1',
-    '#a855f7', '#ec4899', '#6b7280'
-];
+export const KANBAN_CARD_TEXT_LIMIT = 120;
 
 /**
  * Initialize kanban module
  */
 export function initKanban() {
+    if (!liveRefreshInitialized) {
+        liveRefreshInitialized = true;
+        document.addEventListener('file-content-changed', scheduleLiveKanbanRefresh);
+    }
     refreshKanbanData().catch(() => {});
+}
+
+function scheduleLiveKanbanRefresh() {
+    if (liveRefreshTimer) clearTimeout(liveRefreshTimer);
+    liveRefreshTimer = setTimeout(() => {
+        liveRefreshTimer = null;
+        refreshKanbanData().catch(() => {});
+    }, 80);
+}
+
+function standaloneHashtags(line) {
+    const matches = [];
+    const seen = new Set();
+    const expression = /#([a-zA-Z][a-zA-Z0-9_-]*)\b/g;
+    let match;
+    while ((match = expression.exec(String(line || ''))) !== null) {
+        const before = match.index > 0 ? line.slice(0, match.index) : '';
+        const after = line.slice(match.index + match[0].length);
+        if (before && !/\s$/u.test(before)) continue;
+        if (after && !/^\s/u.test(after)) continue;
+        const tag = match[1].toLowerCase();
+        if (/^(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(tag) || seen.has(tag)) continue;
+        seen.add(tag);
+        matches.push(tag);
+    }
+    return matches;
+}
+
+function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function removeDisplayHashtag(value, tag) {
+    const expression = new RegExp(`#${escapeRegExp(tag)}\\b`, 'gi');
+    return String(value).replace(expression, (match, offset, source) => {
+        const before = offset > 0 ? source.slice(0, offset) : '';
+        const after = source.slice(offset + match.length);
+        if ((before && !/\s$/u.test(before)) || (after && !/^\s/u.test(after))) return match;
+        return '';
+    }).replace(/\s{2,}/g, ' ').trim();
+}
+
+/** Parse one dirty Markdown snapshot using the backend Kanban card contract. */
+export function kanbanCardsForBuffer(file, content) {
+    const fileName = String(file || '').replaceAll('\\', '/').split('/').pop() || String(file || '');
+    const cards = [];
+    String(content || '').split('\n').forEach((line, index) => {
+        for (const tag of standaloneHashtags(line)) {
+            const display = removeDisplayHashtag(
+                line.trim().replace(/^[-*+]\s*\[[ x]\]\s*/i, ''),
+                tag
+            );
+            cards.push({
+                file,
+                file_name: fileName,
+                line: index + 1,
+                text: display,
+                tag,
+            });
+        }
+    });
+    return cards;
+}
+
+function dirtyKanbanBuffers() {
+    const snapshots = new Map();
+    for (const tab of getState('openTabs') || []) {
+        if (tab?.type === 'file' && tab.dirty && tab.path && typeof tab._content === 'string') {
+            snapshots.set(tab.path, tab._content);
+        }
+    }
+    return snapshots;
+}
+
+/** Replace saved cards for dirty files with their current in-memory cards. */
+export function overlayDirtyKanbanBuffers(boardData, snapshots = dirtyKanbanBuffers()) {
+    const board = {};
+    const dirtyPaths = new Set(snapshots.keys());
+    for (const [column, tasks] of Object.entries(boardData || {})) {
+        board[column] = (tasks || []).filter(task => !dirtyPaths.has(task.file));
+    }
+    for (const [file, content] of snapshots) {
+        for (const card of kanbanCardsForBuffer(file, content)) {
+            if (!board[card.tag]) board[card.tag] = [];
+            board[card.tag].push(card);
+        }
+    }
+    return board;
+}
+
+function appendDirtyColumns(columns) {
+    const result = [...columns];
+    const seen = new Set(result);
+    const discovered = new Set();
+    for (const [file, content] of dirtyKanbanBuffers()) {
+        for (const card of kanbanCardsForBuffer(file, content)) {
+            if (!seen.has(card.tag)) discovered.add(card.tag);
+        }
+    }
+    const systemIndex = result.findIndex(column => ['todo', 'wip', 'done'].includes(column));
+    const insertion = systemIndex < 0 ? result.length : systemIndex;
+    result.splice(insertion, 0, ...[...discovered].sort());
+    return result;
+}
+
+/** Cap card copy without splitting surrogate pairs; the ellipsis is included. */
+export function truncateKanbanCardText(value, limit = KANBAN_CARD_TEXT_LIMIT) {
+    const text = String(value || '');
+    const characters = Array.from(text);
+    if (characters.length <= limit) return text;
+    return characters.slice(0, Math.max(0, limit - 1)).join('') + '…';
 }
 
 // Refresh lightweight Kanban state after the backend finishes an initial or
@@ -45,7 +159,7 @@ export async function refreshKanbanData() {
 async function updateKanbanBadges() {
     const requestId = ++kanbanBadgeRequestId;
     try {
-        const boardData = await window.pywebview.api.get_kanban_board();
+        const boardData = overlayDirtyKanbanBuffers(await window.pywebview.api.get_kanban_board());
         if (requestId !== kanbanBadgeRequestId) return;
         setState('kanbanBoardData', boardData);
         
@@ -76,10 +190,10 @@ async function loadKanbanColumns() {
         const result = await window.pywebview.api.get_kanban_columns();
         if (requestId !== kanbanColumnsRequestId) return false;
         if (result && result.columns) {
-            kanbanColumns = result.columns;
+            kanbanColumns = appendDirtyColumns(result.columns);
             kanbanColors = result.colors || {};
         } else {
-            kanbanColumns = result || [];
+            kanbanColumns = appendDirtyColumns(result || []);
             kanbanColors = {};
         }
         setState('kanbanColumns', kanbanColumns);
@@ -108,7 +222,7 @@ export async function renderKanbanBoard(containerId, focusCol = null) {
     
     try {
         // Load board data
-        const boardData = await window.pywebview.api.get_kanban_board();
+        const boardData = overlayDirtyKanbanBuffers(await window.pywebview.api.get_kanban_board());
         if (requestId !== kanbanBoardRequestId || !container.isConnected) return;
         setState('kanbanBoardData', boardData);
         
@@ -242,7 +356,7 @@ function showColorPicker(anchorBtn, columnName) {
     const currentColor = kanbanColors[columnName] || '';
     
     let swatchesHtml = '';
-    for (const c of COLOR_PALETTE) {
+    for (const c of ACCENT_COLOR_PALETTE) {
         const isActive = c === currentColor;
         const label = c === '' ? '✕' : '';
         swatchesHtml += `
@@ -309,13 +423,15 @@ function renderCards(tasks) {
         return '<div class="kanban-empty">No tasks</div>';
     }
     
-    return tasks.map(task => `
+    return tasks.map(task => {
+        const displayText = truncateKanbanCardText(task.text);
+        return `
         <div class="kanban-card" 
              draggable="true" 
-             data-file="${escapeHtml(task.file)}" 
+             data-file="${escapeAttribute(task.file)}"
              data-line="${task.line}"
-             data-tag="${task.tag}">
-            <div class="kanban-card-text">${escapeHtml(task.text)}</div>
+             data-tag="${escapeAttribute(task.tag)}">
+            <div class="kanban-card-text" title="${escapeAttribute(task.text)}">${escapeHtml(displayText)}</div>
             <div class="kanban-card-meta">
                 <span class="kanban-card-source">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
@@ -326,7 +442,7 @@ function renderCards(tasks) {
                 </button>
             </div>
         </div>
-    `).join('');
+    `; }).join('');
 }
 
 /**
@@ -578,6 +694,10 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function escapeAttribute(text) {
+    return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export default {

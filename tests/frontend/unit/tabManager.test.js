@@ -30,6 +30,7 @@ jest.mock('../frontend/js/state.js', () => ({
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn().mockReturnValue({ isDestroyed: false }),
     getEditorContent: jest.fn().mockReturnValue(''),
+    getEditorDocumentTabId: jest.fn().mockReturnValue(null),
     setEditorContent: jest.fn(),
     focusEditor: jest.fn(),
     saveCursorState: jest.fn().mockReturnValue({ anchor: 0, head: 0 }),
@@ -62,7 +63,7 @@ jest.mock('../frontend/js/theme.js', () => ({
 }));
 
 import { state, setState, getState } from '../frontend/js/state.js';
-import { getEditorView, getEditorContent, setEditorContent, focusEditor, saveCursorState, restoreCursorState } from '../frontend/js/editor.js';
+import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, restoreCursorState } from '../frontend/js/editor.js';
 import { initSettingsPanel } from '../frontend/js/theme.js';
 // confirmDialog accessed via window.confirmDialog
 
@@ -80,6 +81,7 @@ import {
     updateTabsForMovedPath,
     prepareTabsForPathCopy,
     prepareTabsForPathMove,
+	prepareTabsForVaultLinkRewrite,
     refreshTabsForUpdatedLinks,
     closeTabsForDeletedPath,
     saveFileSnapshot,
@@ -111,6 +113,8 @@ describe('Tab Manager', () => {
         mockState.activeTabId = null;
         mockState.pinnedTabs = [];
         mockState.recentFiles = [];
+        getEditorDocumentTabId.mockReturnValue(null);
+        getEditorContent.mockReturnValue('');
     });
 
     describe('openTab', () => {
@@ -124,6 +128,14 @@ describe('Tab Manager', () => {
             expect(tab.mtime).toBe(1000);
             expect(tab.dirty).toBe(false);
             expect(getState('activeTabId')).toBe('test.md');
+        });
+
+        test('mounts a newly created path as an empty document owned by its tab', async () => {
+            openTab('fresh.md', 'Fresh', 'file', { path: 'fresh.md', isNew: true });
+            await testUtils.waitFor(0);
+
+            expect(setEditorContent).toHaveBeenCalledWith('', 'fresh.md');
+            expect(window.pywebview.api.read_file).not.toHaveBeenCalled();
         });
 
         test('should create new calendar tab', () => {
@@ -232,7 +244,7 @@ describe('Tab Manager', () => {
             firstA.resolve({ content: 'Stale A content', mtime: 1, path: 'a.md' });
             await testUtils.waitFor(0);
 
-            expect(setEditorContent).toHaveBeenLastCalledWith('Latest A content');
+            expect(setEditorContent).toHaveBeenLastCalledWith('Latest A content', 'a');
         });
     });
 
@@ -265,6 +277,26 @@ describe('Tab Manager', () => {
             await switchTab('tab1');
             
             expect(getEditorContent).toHaveBeenCalled();
+        });
+
+        test('rapid switching saves each dirty tab from its owned buffer instead of the stale visible document', async () => {
+            const saveB = deferred();
+            window.pywebview.api.save_file.mockImplementationOnce(() => saveB.promise);
+            mockState.openTabs = [
+                { id: 'a', title: 'A', type: 'file', path: 'a.md', dirty: true, _content: 'A draft', _editGeneration: 1 },
+                { id: 'b', title: 'B', type: 'file', path: 'b.md', dirty: true, _content: 'B draft', _editGeneration: 1 },
+            ];
+            mockState.activeTabId = 'b';
+            getEditorDocumentTabId.mockReturnValue('a');
+            getEditorContent.mockReturnValue('A still visible');
+
+            switchTab('a');
+            await testUtils.waitFor(0);
+
+            expect(window.pywebview.api.save_file).toHaveBeenCalledWith('b.md', 'B draft', 0);
+            expect(mockState.openTabs[1]._content).toBe('B draft');
+            saveB.resolve({ success: true, mtime: 3 });
+            await testUtils.waitFor(0);
         });
     });
 
@@ -500,6 +532,41 @@ describe('Tab Manager', () => {
             );
         });
 
+		test('saves every dirty Markdown buffer before a vault-wide link rewrite', async () => {
+			mockState.openTabs = [
+				{ id: 'active.md', title: 'Active', type: 'file', path: 'active.md', dirty: true, mtime: 10 },
+				{ id: 'notes/other.md', title: 'Other', type: 'file', path: 'notes/other.md', dirty: true, mtime: 20, _content: 'other latest' },
+				{ id: 'code.js', title: 'Code', type: 'file', path: 'code.js', dirty: true, mtime: 30, _content: 'code latest' },
+			];
+			mockState.activeTabId = 'active.md';
+			getEditorContent.mockReturnValueOnce('active latest');
+
+			await expect(prepareTabsForVaultLinkRewrite()).resolves.toEqual({ success: true });
+			expect(window.pywebview.api.save_file).toHaveBeenCalledTimes(2);
+			expect(window.pywebview.api.save_file).toHaveBeenCalledWith('active.md', 'active latest', 10);
+			expect(window.pywebview.api.save_file).toHaveBeenCalledWith('notes/other.md', 'other latest', 20);
+		});
+
+		test('cancels a vault-wide rewrite if a note changes while its save is in flight', async () => {
+			const save = deferred();
+			const tab = { id: 'active.md', title: 'Active', type: 'file', path: 'active.md', dirty: true, mtime: 10 };
+			mockState.openTabs = [tab];
+			mockState.activeTabId = tab.id;
+			getEditorContent.mockReturnValueOnce('snapshot');
+			window.pywebview.api.save_file.mockReturnValueOnce(save.promise);
+
+			const preparing = prepareTabsForVaultLinkRewrite();
+			await testUtils.waitFor(0);
+			tab._editGeneration = 1;
+			tab.dirty = true;
+			save.resolve({ success: true, mtime: 11 });
+
+			await expect(preparing).resolves.toEqual({
+				success: false,
+				error: '"Active" changed while it was being saved; links were not rewritten',
+			});
+		});
+
         test('refreshes clean open tabs whose links were rewritten on disk', async () => {
             mockState.openTabs = [{ id: 'notes/backlink.md', title: 'Backlink', type: 'file', path: 'notes/backlink.md', dirty: false }];
             mockState.activeTabId = 'notes/backlink.md';
@@ -508,7 +575,7 @@ describe('Tab Manager', () => {
             });
 
             await expect(refreshTabsForUpdatedLinks(['notes/backlink.md'])).resolves.toBe(true);
-            expect(setEditorContent).toHaveBeenCalledWith('[Moved](archive/moved.txt)');
+            expect(setEditorContent).toHaveBeenCalledWith('[Moved](archive/moved.txt)', 'notes/backlink.md');
             expect(mockState.openTabs[0]).toEqual(expect.objectContaining({
                 _content: '[Moved](archive/moved.txt)', mtime: 42,
             }));

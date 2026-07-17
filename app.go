@@ -27,6 +27,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"figaro/internal/links"
 	"figaro/internal/pdfexport"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -916,6 +917,9 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 	if err := root.RemoveAll(cleanRel); err != nil {
 		return nil, err
 	}
+	if err := a.removeFileTreeStylePathsLocked(cleanRel); err != nil {
+		log.Printf("[file-tree] Could not remove styles for deleted path %q: %v", filepath.ToSlash(cleanRel), err)
+	}
 	a.resetFileVersionsLocked()
 	a.syncKanbanColumnsLocked()
 	return &SaveFileResult{Success: true}, nil
@@ -976,6 +980,9 @@ func (a *App) renamePathLocked(oldRel string, newRel string) (*SaveFileResult, e
 	}
 	a.resetFileVersionsLocked()
 	a.syncKanbanColumnsLocked()
+	if err := a.rewriteFileTreeStylePathsLocked(oldClean, newClean, false); err != nil {
+		log.Printf("[file-tree] Could not move styles from %q to %q: %v", filepath.ToSlash(oldClean), filepath.ToSlash(newClean), err)
+	}
 	updatedLinks := make([]string, 0, len(linkRewrites))
 	for _, rewrite := range linkRewrites {
 		updatedLinks = append(updatedLinks, filepath.ToSlash(rewrite.path))
@@ -1150,6 +1157,9 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 	sort.Strings(updatedLinks)
 	a.resetFileVersionsLocked()
 	a.syncKanbanColumnsLocked()
+	if err := a.mergeFileTreeStylePathsLocked(sourceClean, destination); err != nil {
+		log.Printf("[file-tree] Could not preserve styles after directory merge: %v", err)
+	}
 	return &SaveFileResult{
 		Success:      true,
 		OldPath:      filepath.ToSlash(sourceClean),
@@ -1409,6 +1419,9 @@ func (a *App) CopyPath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 	}
 
 	a.syncKanbanColumnsLocked()
+	if err := a.rewriteFileTreeStylePathsLocked(sourceClean, destination, true); err != nil {
+		log.Printf("[file-tree] Could not copy styles from %q to %q: %v", filepath.ToSlash(sourceClean), filepath.ToSlash(destination), err)
+	}
 	return &SaveFileResult{Success: true, Path: filepath.ToSlash(destination), UpdatedLinks: updatedLinks}, nil
 }
 
@@ -3030,6 +3043,7 @@ func defaultSettings() map[string]interface{} {
 		"theme":               "default",
 		"font":                "inter",
 		"code_font":           "theme-mono",
+		"link_style":          string(links.MarkdownLinkStyle),
 		"vim":                 false,
 		"auto_save_seconds":   300,
 		"auto_commit_seconds": 0,
@@ -3084,6 +3098,12 @@ func (a *App) ensureSettingsDefaults() {
 			value := strings.TrimSpace(rawValue)
 			if key == "theme" {
 				value = canonicalThemeID(value)
+			} else if key == "link_style" {
+				if style, valid := links.ParseLinkStyle(value); valid {
+					value = string(style)
+				} else {
+					value = ""
+				}
 			}
 			if !ok || value == "" {
 				settings[key] = fallbackValue

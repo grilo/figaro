@@ -6,6 +6,10 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Added
 
+- Vault-wide **Links style** settings for conventional target-first Wikilinks
+  or Markdown links, including preference-aware note autocomplete, safe
+  existing-note conversion, open-buffer reloads, and matching editor, PDF
+  preview, and export rendering.
 - Interactive GFM Markdown tables powered by `codemirror-markdown-tables`,
   with `|`-triggered size completion, automatic CSV/TSV/spreadsheet paste,
   previewed selection conversion, formatting, row and column controls,
@@ -15,6 +19,9 @@ All notable user-facing changes are recorded here from this point forward.
   raster image saves a collision-safe `image1`, `image2`, and so on beside the
   note, inserts portable relative Markdown, refreshes the file tree, and
   renders the image immediately in the editor, PDF preview, and export.
+- Searchable Lucide icons and shared accent colors for individual files and
+  folders. Appearance is stored with the vault, follows rename, move, copy,
+  merge, and delete operations, and can be reset from the file-tree menu.
 - Non-destructive directory drag/drop merging. When a same-named destination
   folder exists, Figaro now offers to merge recursively while retaining both
   directory trees and naming file collisions `name (copy).ext`,
@@ -43,6 +50,8 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Kanban reflects hashtags from unsaved editor buffers without forcing a save,
+  and keeps long cards compact while preserving their full text on hover.
 - Calendar and Kanban now live in a fixed footer below the file tree. Calendar
   expands inline, Kanban and the title-bar Settings gear open, focus, or close
   their single workspace tabs with short entrance and exit transitions, and
@@ -106,6 +115,14 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- Wikilink aliases now open their actual vault targets, and link-preview
+  tooltips no longer intercept clicks.
+- Rapid file-tab switching no longer saves the visible document into the wrong
+  tab or lets a delayed document replacement overwrite the tab switched back
+  to.
+- Linux WebKitGTK screenshot paste now recovers image bytes when paste events
+  omit the file or its MIME metadata, while ordinary text paste still falls
+  through unchanged.
 - Shift+Tab now moves backward through interactive Markdown table cells in
   WebKitGTK instead of moving focus out of the editor.
 - The packaged WebKitGTK editor now initializes its lazily loaded indentation

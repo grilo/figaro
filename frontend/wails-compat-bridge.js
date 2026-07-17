@@ -65,6 +65,8 @@
   // ── Method name mapping: legacy snake_case → Go PascalCase ──────────────
   var methodMap = {
     'get_file_tree':               'GetFileTree',
+    'get_file_tree_styles':        'GetFileTreeStyles',
+    'set_file_tree_style':         'SetFileTreeStyle',
     'read_file':                   'ReadFile',
     'read_diagram':                'ReadDiagram',
     'save_file':                   'SaveFile',
@@ -116,6 +118,8 @@
     'code_font_save':              'CodeFontSave',
     'vim_load':                    'VimLoad',
     'vim_save':                    'VimSave',
++    'link_style_load':              'LinkStyleLoad',
+    'change_link_style':            'ChangeLinkStyle',
     'pdf_browser_load':            'PDFBrowserLoad',
     'pdf_browser_choose':          'PDFBrowserChoose',
     'pdf_browser_clear':           'PDFBrowserClear',

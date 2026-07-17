@@ -21,6 +21,7 @@ import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
+import { initLinkStylePreference } from './linkStyle.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -445,6 +446,7 @@ export async function initApp() {
     // Guard against double initialization
     if (window._appInitialized) return;
     window._appInitialized = true;
+    window._appReady = false;
     
     statusBar.set('Initializing...');
     
@@ -464,6 +466,7 @@ export async function initApp() {
     // Wait for backend bridge
     statusBar.set('Connecting to backend...');
     await waitForBackendBridge();
+    await initLinkStylePreference();
 
     // Load saved session from vault/.config/session.json
     await loadSession();
@@ -519,6 +522,7 @@ export async function initApp() {
     saveSession();
     
     statusBar.set('Ready');
+    window._appReady = true;
 
     window.addEventListener('figaro:auto-save-interval', (event) => {
         configureAutoSave(Number(event.detail?.seconds) || 0);

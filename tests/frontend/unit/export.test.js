@@ -141,6 +141,17 @@ describe('Interactive PDF export', () => {
         expect(printable.querySelector('pre > code.language-javascript').textContent).toContain('const answer = 42;');
     });
 
+	test('renders conventional wikilinks in printable preview and export HTML without parsing code', () => {
+		const content = 'See [[docs/Guide Note.md#start|Readable guide]] and `[[literal.md|code]]`.';
+		const printable = parseHTML(renderPrintableMarkdown(content, 'Wikilinks'));
+		const link = printable.querySelector('a.figaro-wikilink');
+
+		expect(link.textContent).toBe('Readable guide');
+		expect(link.getAttribute('href')).toBe('/vault/docs/Guide%20Note.md#start');
+		expect(link.dataset.wikilinkTarget).toBe('docs/Guide Note.md#start');
+		expect(printable.querySelector('code').textContent).toBe('[[literal.md|code]]');
+	});
+
     test('renders aligned Markdown tables with the printable preview and PDF styling contract', () => {
         const content = [
             '| Name | Status | Total |',

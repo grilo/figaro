@@ -45,3 +45,13 @@ These requirements apply to every change in this repository.
 - Add focused editor tests plus printable-renderer and real-browser PDF tests
   for the syntax feature. Preview and export may share a renderer, but both
   user workflows must remain explicitly asserted.
+
+## Prepare the Git handoff, but never commit
+
+- Once requested work is complete and verified, write a concise, helpful
+  proposed commit message to `.git/COMMIT_TEMPLATE` and configure the
+  repository-local `commit.template` setting to use it. Keep the template
+  current with the complete change so a plain `git commit` opens that proposed
+  message for the user to review and edit.
+- Never run `git commit` on the user's behalf. Preparing the message and local
+  template is the final handoff; the user owns the review and commit action.

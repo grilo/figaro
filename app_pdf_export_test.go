@@ -77,6 +77,23 @@ func TestPrepareInteractivePDFDocumentAllowsMissingSiblingStylesheet(t *testing.
 	}
 }
 
+func TestPrepareInteractivePDFDocumentRebasesPrintableWikilinksFromVaultRoot(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/report.md", "# Report")
+	writeTestFile(t, vaultPath, "shared/Guide Note.md", "# Guide")
+	html := `<p><a class="figaro-wikilink" href="/vault/shared/Guide%20Note.md#start" data-wikilink-target="shared/Guide Note.md#start">Guide</a></p>`
+
+	document, _, err := app.prepareInteractivePDFDocument("Report", html, "notes/report.md", "")
+	if err != nil {
+		t.Fatalf("prepareInteractivePDFDocument error: %v", err)
+	}
+	want := `href="` + localFileURL(filepath.Join(vaultPath, "shared/Guide Note.md"), false) + `#start"`
+	if !strings.Contains(document, want) {
+		t.Fatalf("expected vault-root wikilink %q in %q", want, document)
+	}
+}
+
 func TestPrepareInteractivePDFDocumentRejectsInvalidRequestsAndStylesheets(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

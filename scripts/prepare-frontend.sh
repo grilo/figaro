@@ -60,6 +60,7 @@ required_vendor_files=(
     frontend/vendored/importmap.json
     frontend/vendored/markdown-it-plugins/index.js
     frontend/vendored/katex/dist/katex.min.js
+    frontend/vendored/lucide/lucide.min.js
 )
 needs_vendor=false
 if [[ "${FIGARO_FORCE_VENDOR:-}" == "1" ]]; then

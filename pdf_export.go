@@ -11,6 +11,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"figaro/internal/pdfexport"
@@ -233,7 +234,28 @@ func (a *App) prepareInteractivePDFDocument(title string, htmlContent string, so
 		return "", "", err
 	}
 	sourceDir := a.vaultAbsolutePath(sourceDirRel)
+	htmlContent = rewritePrintableVaultLinks(htmlContent, a.vaultPath)
 	return enrichInteractivePDFHTML(title, htmlContent, localFileURL(sourceDir, true), stylesheetURL), sourceDir, nil
+}
+
+var printableVaultLinkRe = regexp.MustCompile(`href="/vault/([^"?#]*)([?#][^"]*)?"`)
+
+// Printable wikilinks use /vault/ URLs so the isolated live preview can open
+// them. PDF generation replaces only that explicit namespace with a local file
+// URL rooted inside the selected vault.
+func rewritePrintableVaultLinks(document string, vaultPath string) string {
+	return printableVaultLinkRe.ReplaceAllStringFunc(document, func(match string) string {
+		parts := printableVaultLinkRe.FindStringSubmatch(match)
+		decoded, err := url.PathUnescape(parts[1])
+		if err != nil {
+			return match
+		}
+		rel, err := vaultRelativePath(decoded)
+		if err != nil || !strings.HasSuffix(strings.ToLower(rel), ".md") {
+			return match
+		}
+		return `href="` + html.EscapeString(localFileURL(filepath.Join(vaultPath, rel), false)+parts[2]) + `"`
+	})
 }
 
 func (a *App) interactivePrintStylesheetURL(root *os.Root, sourceDir string, printStylesheet string) (string, error) {

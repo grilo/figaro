@@ -91,6 +91,7 @@
     <script src="/vendored/vega/vega.min.js"></script>
     <script src="/vendored/vega/vega-lite.min.js"></script>
     <script src="/vendored/vega/vega-embed.min.js"></script>
+    <script src="/vendored/lucide/lucide.min.js"></script>
     <!-- Wails C++ bridge auto-initializes window.go — no explicit JS needed -->
     <!-- Wails compatibility: bridge (deferred so DOM is ready) -->
     <script src="/wails-compat-bridge.js" defer></script>
@@ -98,7 +99,7 @@
         import { initApp } from './js/app.js';
         let bootTries = 0;
         function bootWhenReady() {
-            if (window.pywebview && window.pywebview.api) {
+			if (window.pywebview?.api?.get_file_tree) {
                 initApp();
             } else if (bootTries++ > 40) {
                 // No Wails backend — boot UI for CSS debugging in browser
@@ -106,6 +107,8 @@
                 const mock = (val) => () => Promise.resolve(val);
                 window.pywebview = { api: {
                     get_file_tree: mock([{name:'Welcome.md',path:'Welcome.md',type:'file',mtime:1}]),
+                    get_file_tree_styles: mock({version:1,entries:{},recent_icons:[]}),
+                    set_file_tree_style: mock({version:1,entries:{},recent_icons:[]}),
                     read_file: mock({content:'# Welcome\n\nStart writing.',path:'Welcome.md',mtime:1}),
                     save_file: mock({success:true}),
                     save_clipboard_image: mock({success:true,path:'image1.png',markdown:'![Image1](image1.png)'}),
@@ -141,6 +144,8 @@
                     theme_save: mock({success:true}),
                     vim_load: mock({enabled:false}),
                     vim_save: mock({success:true}),
+					link_style_load: mock({style:'markdown'}),
+					change_link_style: mock({success:true,style:'markdown',updated_links:[]}),
                     font_save: mock({success:true}),
                     code_font_save: mock({success:true}),
                     get_file_history: mock([]),

@@ -3,6 +3,7 @@
  */
 
 import { log } from './log.js';
+import { initLinkStyleSetting } from './linkStyle.js';
 let currentTheme = 'default';
 let currentFont = 'inter';
 let currentCodeFont = 'theme-mono';
@@ -248,6 +249,7 @@ export async function initSettingsPanel(root = document) {
         initFontSize(root);
         initTextWidth(root);
         initAutoSave(root);
+        await initLinkStyleSetting(root);
         await initPDFBrowserSetting(root);
 
         await initFontPicker(root);

@@ -6,7 +6,7 @@ import { log } from './log.js';
 import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, settingsIcon, homeIcon } from './icons.js';
 import { setState, getState, subscribe, recordRecentFile } from './state.js';
 import { saveSession } from './session.js';
-import { getEditorView, getEditorContent, setEditorContent, focusEditor, saveCursorState, restoreCursorState, configureEditorForFile } from './editor.js';
+import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, restoreCursorState, configureEditorForFile } from './editor.js';
 import { statusBar } from './statusBar.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
 import { playEntranceAnimation, playExitAnimation } from './motion.js';
@@ -355,7 +355,7 @@ export function switchTab(tabId) {
         if (currentTab && currentTab.type === 'file') {
             // Cache content in memory BEFORE switching away (survives even if save fails)
             const ed = getEditorView();
-            if (ed && ed.state) {
+            if (ed && ed.state && getEditorDocumentTabId() === currentTab.id) {
                 currentTab._content = ed.state.doc.toString();
             }
             currentTab.cursorState = saveCursorState(currentActiveId);
@@ -365,7 +365,7 @@ export function switchTab(tabId) {
     if (currentActiveId && currentActiveId !== tabId) {
         const currentTab = tabs.find(t => t.id === currentActiveId);
         if (currentTab && currentTab.dirty && currentTab.type === 'file') {
-            saveActiveFile();
+            saveFileSnapshot(currentTab, contentSnapshotForTab(currentTab));
         }
     }
     
@@ -431,7 +431,18 @@ async function renderTabContent(tab) {
 }
 
 async function renderFileTab(panel, tab) {
-    if (!tab.isNew && tab.path) loadFileContent(tab);
+    if (!tab.path) return;
+    if (tab.isNew) {
+        const loadId = (tab._loadGeneration || 0) + 1;
+        tab._loadGeneration = loadId;
+        const configured = await configureEditorForFile(tab.path);
+        if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
+        if (tab._content == null) tab._content = '';
+        setEditorContent(tab._content, tab.id);
+        document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
+        return;
+    }
+    loadFileContent(tab);
 }
 
 async function loadFileContent(tab) {
@@ -444,7 +455,7 @@ async function loadFileContent(tab) {
         if (tab._content != null && tab.dirty) {
             const configured = await configureEditorForFile(tab.path);
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
-            setEditorContent(tab._content);
+            setEditorContent(tab._content, tab.id);
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
             focusSearchLine(tab);
             return;
@@ -459,7 +470,7 @@ async function loadFileContent(tab) {
             if (tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
             const configured = await configureEditorForFile(tab.path);
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
-            setEditorContent(result.content);
+            setEditorContent(result.content, tab.id);
             tab._content = result.content;
             tab.mtime = result.mtime;
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
@@ -723,6 +734,13 @@ export async function prepareTabsForPathCopy(path) {
     return persistTabsBeforePathOperation(affected, 'copying');
 }
 
+/** Save every dirty Markdown tab before a vault-wide link rewrite. */
+export async function prepareTabsForVaultLinkRewrite() {
+    const dirtyMarkdownTabs = getState('openTabs').filter(tab =>
+        tab?.type === 'file' && tab.dirty && /\.md$/i.test(tab.path || ''));
+    return persistTabsBeforePathOperation(dirtyMarkdownTabs, 'rewriting links in');
+}
+
 async function persistTabsBeforePathOperation(tabsToPrepare, operation) {
     for (const tab of tabsToPrepare) {
         if (tab.type === 'drawio') {
@@ -742,6 +760,9 @@ async function persistTabsBeforePathOperation(tabsToPrepare, operation) {
             const result = await saveFileSnapshot(tab, content);
             if (!result?.success) {
                 return { success: false, error: result?.error || `Could not save "${tab.title}" before ${operation} it` };
+            }
+            if (tab.dirty) {
+                return { success: false, error: `"${tab.title}" changed while it was being saved; links were not rewritten` };
             }
         } catch (error) {
             log.warn(`Could not save tab before ${operation}:`, error);
@@ -780,7 +801,7 @@ export async function refreshTabsForUpdatedLinks(paths) {
             tab._content = file.content;
             tab.mtime = file.mtime;
             if (tab.id === getState('activeTabId')) {
-                setEditorContent(file.content);
+                setEditorContent(file.content, tab.id);
             }
             changed = true;
         } catch (error) {
@@ -976,7 +997,16 @@ function handleTabContextMenu(e) {
 export function saveActiveFile() {
     const activeTab = getActiveTab();
     if (!activeTab || activeTab.type !== 'file' || !getEditorView()) return Promise.resolve(null);
-    return saveFileSnapshot(activeTab, getEditorContent());
+    return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab));
+}
+
+function contentSnapshotForTab(tab) {
+    const ownerId = getEditorDocumentTabId();
+    if (ownerId === tab.id) return getEditorContent();
+    if (ownerId == null && getState('activeTabId') === tab.id && typeof tab._content !== 'string') {
+        return getEditorContent();
+    }
+    return typeof tab._content === 'string' ? tab._content : '';
 }
 
 // Queue saves by path. Every subsequent save reads the tab's latest mtime only
@@ -987,11 +1017,12 @@ export function saveFileSnapshot(tab, content) {
 
     const path = tab.path;
     const generation = (tab._saveGeneration || 0) + 1;
+    const editGeneration = tab._editGeneration || 0;
     tab._saveGeneration = generation;
     const previous = saveQueues.get(path) || Promise.resolve();
     const queued = previous
         .catch(() => {})
-        .then(() => persistFileSnapshot(tab, content, generation));
+        .then(() => persistFileSnapshot(tab, content, generation, editGeneration));
 
     saveQueues.set(path, queued);
     queued.finally(() => {
@@ -1000,14 +1031,14 @@ export function saveFileSnapshot(tab, content) {
     return queued;
 }
 
-async function persistFileSnapshot(tab, content, generation) {
+async function persistFileSnapshot(tab, content, generation, editGeneration) {
     const path = tab.path;
     const save = async (expectedMtime) => window.pywebview.api.save_file(path, content, expectedMtime || 0);
 
     try {
         const result = await save(tab.mtime);
         if (result.success) {
-            applySaveSuccess(tab, result, generation, 'Saved', content);
+            applySaveSuccess(tab, result, generation, editGeneration, 'Saved', content);
             return result;
         }
 
@@ -1021,7 +1052,7 @@ async function persistFileSnapshot(tab, content, generation) {
         if (shouldOverwrite) {
             const forceResult = await save(0);
             if (forceResult.success) {
-                applySaveSuccess(tab, forceResult, generation, 'Saved (forced)', content);
+                applySaveSuccess(tab, forceResult, generation, editGeneration, 'Saved (forced)', content);
                 return forceResult;
             }
             return forceResult;
@@ -1034,7 +1065,7 @@ async function persistFileSnapshot(tab, content, generation) {
     }
 }
 
-function applySaveSuccess(tab, result, generation, message, content) {
+function applySaveSuccess(tab, result, generation, editGeneration, message, content) {
     tab.mtime = result.mtime;
     const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
     tabsForPath.forEach(candidate => {
@@ -1042,13 +1073,16 @@ function applySaveSuccess(tab, result, generation, message, content) {
     });
     if (tab._saveGeneration !== generation) return;
 
-    tab.dirty = false;
-    tab._content = null;
+    const savedLatestEdit = (tab._editGeneration || 0) === editGeneration;
+    if (savedLatestEdit) {
+        tab.dirty = false;
+        tab._content = null;
+    }
     updateTabTitle(tab.id, tab.title);
     document.dispatchEvent(new CustomEvent('vault-file-saved', {
         detail: { path: tab.path, content, mtime: result.mtime }
     }));
-    statusBar.set(message);
+    statusBar.set(savedLatestEdit ? message : 'Saved older snapshot; newer changes remain');
     import('./calendar.js').then(({ invalidateCalendarCache, refreshCalendarIfVisible }) => {
         invalidateCalendarCache();
         refreshCalendarIfVisible();
@@ -1126,6 +1160,7 @@ export default {
     updateTabsForMovedPath,
     prepareTabsForPathMove,
     prepareTabsForPathCopy,
+    prepareTabsForVaultLinkRewrite,
     refreshTabsForUpdatedLinks,
     closeTabsForDeletedPath,
     saveActiveFile,
@@ -1221,6 +1256,16 @@ function renderSettingsTab(panel, _tab) {
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
+                        <span>Links style</span>
+                    </div>
+                    <select id="link-style-select" class="auto-save-select" aria-label="Links style">
+                        <option value="wikilink">Wikilinks</option>
+                        <option value="markdown">Markdown</option>
+                    </select>
                 </div>
             </div>
             <!-- Automation -->

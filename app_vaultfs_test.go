@@ -69,6 +69,20 @@ func TestSaveClipboardImageCreatesRelativeMarkdownAndNeverOverwrites(t *testing.
 	}
 }
 
+func TestSaveClipboardImageSniffsLinuxClipboardBytesWhenMIMEIsMissing(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "capture.md", "")
+
+	result, err := app.SaveClipboardImage("capture.md", "", tinyPNGBase64)
+	if err != nil {
+		t.Fatalf("SaveClipboardImage missing MIME: %v", err)
+	}
+	if !result.Success || result.Path != "image1.png" || result.Markdown != "![Image1](image1.png)" {
+		t.Fatalf("missing Linux MIME metadata was not recovered by byte sniffing: %+v", result)
+	}
+}
+
 func TestSaveClipboardImageRejectsInvalidPayloadWithoutCreatingAFile(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

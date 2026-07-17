@@ -59,6 +59,16 @@ describe('Editor Module - CodeMirror Initialization', () => {
         expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 4 } }, 4)).toBe(false);
     });
 
+	test('resolves conventional wikilink targets independently from their aliases', async () => {
+		const { normalizeWikiLinkTarget, wikiLinkAtPosition } = await import('../frontend/js/editor.js');
+		const line = 'See [[notes/Guide Note.md#start|Readable guide]] now';
+		expect(wikiLinkAtPosition(line, 12)).toEqual({
+			target: 'notes/Guide Note.md#start',
+			label: 'Readable guide',
+		});
+		expect(normalizeWikiLinkTarget('notes/Guide%20Note#start')).toBe('notes/Guide Note.md');
+	});
+
     test('normalizes WebKitGTK Unidentified Shift+Tab for nested table editors', async () => {
         const { normalizeWebKitShiftTab } = await import('../frontend/js/editor.js');
         const target = document.createElement('div');
@@ -596,6 +606,18 @@ describe('Extras behavior verification', () => {
             await new Promise(r => setTimeout(r, 100));
             expect(view.dom.querySelectorAll('.cm-wikilink-widget').length).toBe(1);
         });
+
+		test('editor renders a conventional target-first wikilink using its alias', async () => {
+			document.body.innerHTML = '<div id="editor-container"></div>';
+			const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+			await initEditor();
+			const view = createEditorView();
+			view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'See [[notes/Welcome.md|Welcome]].' } });
+			await new Promise(r => setTimeout(r, 100));
+			const widget = view.dom.querySelector('.cm-wikilink-widget');
+			expect(widget).not.toBeNull();
+			expect(widget.textContent).toBe('Welcome');
+		});
 
         test('editor survives multiple content dispatches', async () => {
             document.body.innerHTML = '<div id="editor-container"></div>';

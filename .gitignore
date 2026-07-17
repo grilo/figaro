@@ -14,6 +14,7 @@ reasonix.toml
 /frontend/vendored/importmap.json
 /frontend/vendored/katex/
 /frontend/vendored/lezer/
+/frontend/vendored/lucide/
 /frontend/vendored/markdown-it-plugins/
 /frontend/vendored/style-mod/
 /frontend/vendored/w3c-keyname/

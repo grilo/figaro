@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -36,6 +36,7 @@ jest.mock('../frontend/js/statusBar.js', () => ({
 jest.mock('../frontend/js/dialogs.js', () => ({
     confirmDialog: jest.fn().mockResolvedValue(true),
     errorDialog: jest.fn().mockResolvedValue(undefined),
+    fileTreeStyleDialog: jest.fn().mockResolvedValue(null),
     mergeNotesDialog: jest.fn().mockResolvedValue([0]),
     messageDialog: jest.fn().mockResolvedValue(undefined),
     promptDialog: jest.fn().mockResolvedValue('test.md'),
@@ -59,7 +60,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { openTab, handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
-import { confirmDialog, errorDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
 import { prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 
@@ -85,6 +86,7 @@ describe('File Tree', () => {
         state.openTabs = [];
         state.activeTabId = null;
         clearFileTreeClipboard();
+        delete window.lucide;
     });
 
     describe('buildTreeHTML', () => {
@@ -156,6 +158,77 @@ describe('File Tree', () => {
             const alphaPos = html.indexOf('alpha');
             const zebraPos = html.indexOf('zebra.md');
             expect(alphaPos).toBeLessThan(zebraPos);
+        });
+
+        test('renders a persisted Lucide icon and Kanban palette color for a specific path', () => {
+            window.lucide = { icons: { Star: [['path', { d: 'M12 2 15 9 22 9 17 14 19 22 12 18 5 22 7 14 2 9 9 9Z' }]] } };
+            const items = [{ name: 'priority.md', path: 'priority.md', type: 'file', mtime: 1000 }];
+            const surface = document.createElement('div');
+            surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, null, {
+                'priority.md': { icon: 'Star', color: '#f59e0b' },
+            });
+
+            const node = surface.querySelector('.file-tree-node');
+            expect(node.classList.contains('custom-icon')).toBe(true);
+            expect(node.classList.contains('custom-color')).toBe(true);
+            expect(node.style.getPropertyValue('--file-tree-entry-color')).toBe('#f59e0b');
+            expect(node.querySelector('.node-icon path').getAttribute('d')).toContain('M12 2');
+        });
+    });
+
+    describe('path appearance', () => {
+        beforeEach(() => {
+            state.fileTreeData = [{ name: 'note.md', path: 'note.md', type: 'file', mtime: 1000 }];
+            fileTreeStyleDialog.mockReset().mockResolvedValue({ icon: 'Star', color: '#3b82f6' });
+            window.pywebview.api.set_file_tree_style.mockResolvedValue({
+                version: 1,
+                entries: { 'note.md': { icon: 'Star', color: '#3b82f6' } },
+                recent_icons: ['Star'],
+            });
+        });
+
+        test('saves a right-click appearance choice and redraws the entry', async () => {
+            const changed = await customizeTreePath('note.md', 'file');
+
+            expect(changed).toBe(true);
+            expect(fileTreeStyleDialog).toHaveBeenCalledWith(expect.objectContaining({
+                name: 'note.md',
+                type: 'file',
+            }));
+            expect(window.pywebview.api.set_file_tree_style).toHaveBeenCalledWith('note.md', 'Star', '#3b82f6');
+        });
+
+        test('does not write when the appearance dialog is cancelled', async () => {
+            fileTreeStyleDialog.mockResolvedValueOnce(null);
+
+            await expect(customizeTreePath('note.md', 'file')).resolves.toBe(false);
+            expect(window.pywebview.api.set_file_tree_style).not.toHaveBeenCalled();
+        });
+
+        test('reset removes both overrides', async () => {
+            fileTreeStyleDialog.mockResolvedValueOnce({ icon: '', color: '' });
+
+            await expect(customizeTreePath('note.md', 'file')).resolves.toBe(true);
+            expect(window.pywebview.api.set_file_tree_style).toHaveBeenCalledWith('note.md', '', '');
+        });
+
+        test('reports a persistence error without replacing the current appearance', async () => {
+            window.pywebview.api.get_file_tree_styles.mockResolvedValueOnce({
+                version: 1,
+                entries: { 'note.md': { color: '#ef4444' } },
+                recent_icons: [],
+            });
+            await loadFileTreeStyles();
+            window.pywebview.api.set_file_tree_style.mockRejectedValueOnce(new Error('Disk is full'));
+
+            await expect(customizeTreePath('note.md', 'file')).resolves.toBe(false);
+            expect(errorDialog).toHaveBeenCalledWith(
+                'Couldn’t style entry',
+                expect.objectContaining({ message: 'Disk is full' }),
+                'The file-tree appearance could not be saved.'
+            );
+            expect(document.querySelector('.file-tree-node').style.getPropertyValue('--file-tree-entry-color'))
+                .toBe('#ef4444');
         });
     });
 
@@ -459,10 +532,10 @@ describe('File Tree', () => {
         expect([...menu.querySelectorAll('[data-action]')].map(item => item.dataset.action)).toEqual([
             'open-new-tab', 'merge-notes', 'preview-pdf',
             'copy', 'paste',
-            'new-file', 'new-drawio', 'new-folder', 'rename', 'reveal', 'delete',
+            'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'reveal', 'delete',
         ]);
         expect(menu.querySelector('[data-action="new-file"]').classList.contains('disabled')).toBe(false);
-        for (const action of ['open-new-tab', 'merge-notes', 'preview-pdf', 'copy', 'paste', 'rename', 'reveal', 'delete']) {
+        for (const action of ['open-new-tab', 'merge-notes', 'preview-pdf', 'copy', 'paste', 'rename', 'customize-style', 'reveal', 'delete']) {
             expect(menu.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
         }
         expect(state.contextTargetType).toBe('root');
@@ -478,7 +551,7 @@ describe('File Tree', () => {
         const expectedActions = [
             'open-new-tab', 'merge-notes', 'preview-pdf',
             'copy', 'paste',
-            'new-file', 'new-drawio', 'new-folder', 'rename', 'reveal', 'delete',
+            'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'reveal', 'delete',
         ];
 
         expect(actionsFor({ type: 'root' })).toEqual(expectedActions);

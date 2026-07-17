@@ -1120,7 +1120,7 @@ func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
 	if err := json.Unmarshal(data, &settings); err != nil {
 		t.Fatal(err)
 	}
-	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["vim"] != false || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(0) {
+	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(0) {
 		t.Fatalf("unexpected normalized settings: %#v", settings)
 	}
 	if _, exists := settings["openTabs"]; exists {
@@ -1178,6 +1178,102 @@ func TestEnsureSettingsDefaultsMigratesLegacyFigaroDarkTheme(t *testing.T) {
 	}
 	if settings["theme"] != "default" {
 		t.Fatalf("expected legacy Figaro Dark theme ID to migrate to default, got %#v", settings["theme"])
+	}
+}
+
+func TestEnsureSettingsDefaultsRepairsInvalidLinkStyle(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	settingsPath := filepath.Join(vaultPath, ".config", "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"link_style":"custom"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	app.ensureSettingsDefaults()
+	loaded, err := app.LinkStyleLoad()
+	if err != nil || loaded["style"] != "markdown" {
+		t.Fatalf("LinkStyleLoad() = %#v, %v; want Markdown default", loaded, err)
+	}
+}
+
+func TestChangeLinkStyleRewritesOnlyExistingVaultNoteLinksAndPersistsPreference(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "Welcome.md", "# Welcome")
+	writeTestFile(t, vaultPath, "docs/Guide Note.md", "# Guide")
+	writeTestFile(t, vaultPath, "index.md", "[Welcome](Welcome.md) [Guide](docs/Guide%20Note.md#start) [Missing](missing.md) [Web](https://example.com) `[[Welcome.md]]`")
+	if err := os.Chmod(filepath.Join(vaultPath, "index.md"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := app.ChangeLinkStyle("wikilink", true)
+	if err != nil || !result.Success {
+		t.Fatalf("ChangeLinkStyle(wikilink) = %#v, %v", result, err)
+	}
+	if result.Rewritten != 2 || !reflect.DeepEqual(result.UpdatedLinks, []string{"index.md"}) {
+		t.Fatalf("unexpected rewrite result: %#v", result)
+	}
+	wantWiki := "[[Welcome.md|Welcome]] [[docs/Guide Note.md#start|Guide]] [Missing](missing.md) [Web](https://example.com) `[[Welcome.md]]`"
+	if got := readTestFile(t, vaultPath, "index.md"); got != wantWiki {
+		t.Fatalf("rewritten note = %q, want %q", got, wantWiki)
+	}
+	if info, statErr := os.Stat(filepath.Join(vaultPath, "index.md")); statErr != nil || info.Mode().Perm() != 0600 {
+		t.Fatalf("rewrite changed note permissions: %v, %v", info, statErr)
+	}
+	loaded, _ := app.LinkStyleLoad()
+	if loaded["style"] != "wikilink" {
+		t.Fatalf("saved style = %#v, want wikilink", loaded)
+	}
+
+	result, err = app.ChangeLinkStyle("markdown", true)
+	if err != nil || !result.Success || result.Rewritten != 2 {
+		t.Fatalf("ChangeLinkStyle(markdown) = %#v, %v", result, err)
+	}
+	wantMarkdown := "[Welcome](Welcome.md) [Guide](docs/Guide%20Note.md#start) [Missing](missing.md) [Web](https://example.com) `[[Welcome.md]]`"
+	if got := readTestFile(t, vaultPath, "index.md"); got != wantMarkdown {
+		t.Fatalf("round-trip note = %q, want %q", got, wantMarkdown)
+	}
+}
+
+func TestChangeLinkStyleCanKeepExistingLinksAndRejectsInvalidStyles(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "Welcome.md", "# Welcome")
+	writeTestFile(t, vaultPath, "index.md", "[Welcome](Welcome.md)")
+
+	kept, err := app.ChangeLinkStyle("wikilink", false)
+	if err != nil || !kept.Success || kept.Rewritten != 0 || len(kept.UpdatedLinks) != 0 {
+		t.Fatalf("keep-existing result = %#v, %v", kept, err)
+	}
+	if got := readTestFile(t, vaultPath, "index.md"); got != "[Welcome](Welcome.md)" {
+		t.Fatalf("keep-existing changed note to %q", got)
+	}
+
+	rejected, err := app.ChangeLinkStyle("custom", true)
+	if err != nil || rejected.Success {
+		t.Fatalf("invalid style result = %#v, %v", rejected, err)
+	}
+	if got := readTestFile(t, vaultPath, "index.md"); got != "[Welcome](Welcome.md)" {
+		t.Fatalf("invalid style changed note to %q", got)
+	}
+}
+
+func TestChangeLinkStyleRollsBackNotesWhenSettingsCannotBeRead(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "Welcome.md", "# Welcome")
+	writeTestFile(t, vaultPath, "index.md", "[Welcome](Welcome.md)")
+	settingsPath := filepath.Join(vaultPath, ".config", "settings.json")
+	if err := os.Mkdir(settingsPath, 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := app.ChangeLinkStyle("wikilink", true)
+	if err != nil || result.Success {
+		t.Fatalf("expected recoverable settings failure, got %#v, %v", result, err)
+	}
+	if got := readTestFile(t, vaultPath, "index.md"); got != "[Welcome](Welcome.md)" {
+		t.Fatalf("failed preference save left a partial rewrite: %q", got)
 	}
 }
 

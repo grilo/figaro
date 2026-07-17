@@ -7,6 +7,8 @@
  */
 
 import { analyzeTabularText, markdownTableFromRows } from './markdownTableConversion.js';
+import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
+import { lucideIconLabel, renderLucideIcon, searchLucideIcons } from './lucideIcons.js';
 
 let activeModal = null;
 let activeModalDismiss = null;
@@ -667,6 +669,109 @@ export function pdfExportErrorDialog(error, options = {}) {
     });
 }
 
+/** Choose a path-specific Lucide icon and shared palette color. */
+export function fileTreeStyleDialog({ name, type, current = {}, recentIcons = [] } = {}) {
+    return new Promise(resolve => {
+        let selectedIcon = String(current.icon || '');
+        let selectedColor = String(current.color || '');
+        const validRecent = [...new Set(recentIcons)].filter(icon => renderLucideIcon(icon)).slice(0, 10);
+        const iconButton = icon => `
+            <button type="button" class="file-tree-style-icon-option${icon === selectedIcon ? ' selected' : ''}" data-icon="${escapeHtml(icon)}" title="${escapeHtml(lucideIconLabel(icon))}" aria-label="${escapeHtml(lucideIconLabel(icon))}">
+                ${renderLucideIcon(icon, { size: 20 })}
+            </button>`;
+        const { overlay } = createDialogShell({
+            title: `Style ${type === 'directory' ? 'folder' : 'file'}`,
+            description: name || 'Vault entry',
+            icon: type === 'directory' ? 'folder' : 'file',
+            className: 'file-tree-style-modal',
+            content: `
+                <div class="file-tree-style-preview" aria-live="polite">
+                    <span class="file-tree-style-preview-icon"></span>
+                    <span class="file-tree-style-preview-name">${escapeHtml(name || '')}</span>
+                </div>
+                <fieldset class="file-tree-style-fieldset">
+                    <legend>Color</legend>
+                    <div class="file-tree-style-colors">
+                        ${ACCENT_COLOR_PALETTE.map(color => `
+                            <button type="button" class="file-tree-style-color${color === selectedColor ? ' selected' : ''}" data-color="${color}" style="${color ? `--swatch:${color}` : ''}" aria-label="${color || 'Default color'}" title="${color || 'Default color'}">${color ? '' : '×'}</button>
+                        `).join('')}
+                    </div>
+                </fieldset>
+                <fieldset class="file-tree-style-fieldset" ${validRecent.length ? '' : 'hidden'}>
+                    <legend>Recently used</legend>
+                    <div class="file-tree-style-icons file-tree-style-recent-icons">${validRecent.map(iconButton).join('')}</div>
+                </fieldset>
+                <label class="file-tree-style-search-label" for="file-tree-style-search">Search all Lucide icons</label>
+                <input id="file-tree-style-search" class="custom-modal-input file-tree-style-search" type="search" autocomplete="off" spellcheck="false" placeholder="Try folder, star, book…">
+                <div class="file-tree-style-search-status">Type to search the icon catalog.</div>
+                <div class="file-tree-style-icons file-tree-style-search-results" role="listbox" aria-label="Lucide icon results"></div>
+            `,
+            footer: `
+                <button type="button" class="custom-modal-btn file-tree-style-reset">Reset</button>
+                <span class="custom-modal-button-spacer"></span>
+                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                <button type="button" class="custom-modal-btn custom-modal-btn-confirm">Apply</button>
+            `,
+        });
+        const preview = overlay.querySelector('.file-tree-style-preview');
+        const previewIcon = overlay.querySelector('.file-tree-style-preview-icon');
+        const search = overlay.querySelector('.file-tree-style-search');
+        const searchStatus = overlay.querySelector('.file-tree-style-search-status');
+        const searchResults = overlay.querySelector('.file-tree-style-search-results');
+        const cancel = overlay.querySelector('.custom-modal-btn-cancel');
+        const apply = overlay.querySelector('.custom-modal-btn-confirm');
+        const reset = overlay.querySelector('.file-tree-style-reset');
+        let lifecycle = null;
+
+        const updatePreview = () => {
+            preview.style.color = selectedColor || '';
+            previewIcon.innerHTML = renderLucideIcon(selectedIcon, { size: 20 }) ||
+                renderLucideIcon(type === 'directory' ? 'Folder' : 'File', { size: 20 });
+            overlay.querySelectorAll('.file-tree-style-icon-option').forEach(button => {
+                button.classList.toggle('selected', button.dataset.icon === selectedIcon);
+            });
+            overlay.querySelectorAll('.file-tree-style-color').forEach(button => {
+                button.classList.toggle('selected', button.dataset.color === selectedColor);
+            });
+        };
+        const chooseIcon = event => {
+            const button = event.target.closest('.file-tree-style-icon-option');
+            if (!button) return;
+            selectedIcon = button.dataset.icon;
+            updatePreview();
+        };
+        const settle = value => {
+            if (!lifecycle.close()) return;
+            resolve(value);
+        };
+
+        overlay.querySelector('.file-tree-style-recent-icons')?.addEventListener('click', chooseIcon);
+        searchResults.addEventListener('click', chooseIcon);
+        overlay.querySelector('.file-tree-style-colors').addEventListener('click', event => {
+            const button = event.target.closest('.file-tree-style-color');
+            if (!button) return;
+            selectedColor = button.dataset.color;
+            updatePreview();
+        });
+        search.addEventListener('input', () => {
+            const matches = searchLucideIcons(search.value);
+            searchResults.innerHTML = matches.map(iconButton).join('');
+            searchStatus.textContent = search.value.trim()
+                ? `${matches.length} ${matches.length === 1 ? 'icon' : 'icons'} shown`
+                : 'Type to search the icon catalog.';
+            updatePreview();
+        });
+        lifecycle = activateModal(overlay, {
+            initialFocus: search,
+            onDismiss: () => resolve(null),
+        });
+        cancel.addEventListener('click', () => settle(null));
+        apply.addEventListener('click', () => settle({ icon: selectedIcon, color: selectedColor }));
+        reset.addEventListener('click', () => settle({ icon: '', color: '' }));
+        updatePreview();
+    });
+}
+
 function normaliseNewNoteFilename(value) {
     const filename = String(value || '').trim();
     if (!filename || Array.from(filename).some(character => character.charCodeAt(0) < 0x20)) return '';
@@ -694,6 +799,7 @@ function escapeHtml(text) {
 export default {
     confirmDialog,
     errorDialog,
+    fileTreeStyleDialog,
     messageDialog,
     mergeNotesDialog,
     newNoteDialog,

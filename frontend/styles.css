@@ -3640,6 +3640,125 @@ html, body {
     font-family: var(--font-mono);
 }
 
+.file-tree-item > .file-tree-node.custom-color .node-icon,
+.file-tree-item > .file-tree-node.custom-color .node-name {
+    color: var(--file-tree-entry-color) !important;
+}
+
+.file-tree-node.custom-icon .node-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Searchable file/folder appearance picker. */
+.custom-modal.file-tree-style-modal {
+    width: min(620px, calc(100vw - 32px));
+    max-width: 620px;
+}
+
+.file-tree-style-modal .custom-modal-content {
+    display: grid;
+    gap: 14px;
+    max-height: min(66vh, 620px);
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.file-tree-style-preview {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+.file-tree-style-preview-icon,
+.file-tree-style-icon-option {
+    display: grid;
+    place-items: center;
+}
+
+.file-tree-style-preview-name {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-tree-style-fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.file-tree-style-fieldset legend,
+.file-tree-style-search-label {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.file-tree-style-colors,
+.file-tree-style-icons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    gap: 6px;
+}
+
+.file-tree-style-color,
+.file-tree-style-icon-option {
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--hover-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.file-tree-style-color {
+    background: var(--swatch, var(--bg-color));
+    color: var(--text-muted);
+    font-size: 18px;
+}
+
+.file-tree-style-color:hover,
+.file-tree-style-icon-option:hover {
+    border-color: var(--border-light);
+    color: var(--text-color);
+}
+
+.file-tree-style-color.selected,
+.file-tree-style-icon-option.selected {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.file-tree-style-search {
+    margin-bottom: 0;
+}
+
+.file-tree-style-search-status {
+    min-height: 16px;
+    color: var(--text-dim);
+    font-size: 11px;
+}
+
+.file-tree-style-search-results:empty {
+    display: none;
+}
+
 /* ==========================================================================
    Modals
    ========================================================================== */
@@ -5417,6 +5536,7 @@ body.right-sidebar-resizing .pdf-preview-frame {
 }
 /* ── Link Hover Preview Tooltip ── */
 .link-hover-preview {
+	pointer-events: none;
     padding: 8px 12px;
     background: var(--panel-bg);
     border: 1px solid var(--border-color);

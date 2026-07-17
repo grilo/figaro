@@ -1,4 +1,4 @@
-import { confirmDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, promptDialog, renamePathDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, promptDialog, renamePathDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
 
 describe('New note dialog', () => {
     beforeEach(() => {
@@ -245,5 +245,58 @@ describe('New note dialog', () => {
 
         await expect(result).resolves.toBeNull();
         expect(document.querySelector('.custom-modal-overlay')).toBeNull();
+    });
+});
+
+describe('File-tree appearance dialog', () => {
+    const lineIcon = d => [['path', { d }]];
+
+    beforeEach(() => {
+        document.body.innerHTML = '';
+        window.lucide = {
+            icons: {
+                File: lineIcon('M4 2h10l6 6v14H4z'),
+                Folder: lineIcon('M2 5h8l2 3h10v12H2z'),
+                FolderHeart: lineIcon('M2 5h8l2 3h10v12H2z M12 17l-3-3'),
+                Star: lineIcon('M12 2 15 9 22 9 17 14 19 22 12 18Z'),
+            },
+        };
+    });
+
+    afterEach(() => {
+        delete window.lucide;
+    });
+
+    test('searches the Lucide catalog and applies an icon and shared palette color', async () => {
+        const result = fileTreeStyleDialog({
+            name: 'Projects',
+            type: 'directory',
+            current: { icon: 'Star', color: '#ef4444' },
+            recentIcons: ['Star'],
+        });
+        const overlay = document.querySelector('.custom-modal-overlay');
+        const search = overlay.querySelector('.file-tree-style-search');
+        search.value = 'folder heart';
+        search.dispatchEvent(new Event('input', { bubbles: true }));
+
+        const match = overlay.querySelector('.file-tree-style-search-results [data-icon="FolderHeart"]');
+        expect(match).toBeTruthy();
+        match.click();
+        overlay.querySelector('[data-color="#3b82f6"]').click();
+        overlay.querySelector('.custom-modal-btn-confirm').click();
+
+        await expect(result).resolves.toEqual({ icon: 'FolderHeart', color: '#3b82f6' });
+    });
+
+    test('reset explicitly restores both default settings', async () => {
+        const result = fileTreeStyleDialog({
+            name: 'note.md',
+            type: 'file',
+            current: { icon: 'Star', color: '#ef4444' },
+            recentIcons: ['Star'],
+        });
+        document.querySelector('.file-tree-style-reset').click();
+
+        await expect(result).resolves.toEqual({ icon: '', color: '' });
     });
 });

@@ -40,6 +40,8 @@ if (typeof Range.prototype.getBoundingClientRect !== 'function') {
 window.pywebview = {
     api: {
         get_file_tree: jest.fn().mockResolvedValue([]),
+        get_file_tree_styles: jest.fn().mockResolvedValue({ version: 1, entries: {}, recent_icons: [] }),
+        set_file_tree_style: jest.fn().mockResolvedValue({ version: 1, entries: {}, recent_icons: [] }),
         read_file: jest.fn().mockResolvedValue({ content: "", mtime: Date.now() / 1000, path: "" }),
         save_file: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() / 1000 }),
         save_clipboard_image: jest.fn().mockResolvedValue({ success: true, path: 'image1.png', markdown: '![Image1](image1.png)' }),
@@ -79,6 +81,8 @@ window.pywebview = {
         get_today_link: jest.fn().mockReturnValue("2024-01-15"),
         get_os_username: jest.fn().mockResolvedValue('Test User'),
         code_font_save: jest.fn().mockResolvedValue({ success: true }),
+		link_style_load: jest.fn().mockResolvedValue({ style: 'markdown' }),
+		change_link_style: jest.fn().mockResolvedValue({ success: true, style: 'markdown', updated_links: [] }),
         get_tomorrow_link: jest.fn().mockReturnValue("2024-01-16"),
         get_yesterday_link: jest.fn().mockReturnValue("2024-01-14"),
         export_pdf: jest.fn().mockResolvedValue({ success: true, path: '/tmp/document.pdf', engine: 'chromium' }),

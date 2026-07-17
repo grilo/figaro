@@ -9,14 +9,54 @@ export const MAX_CLIPBOARD_IMAGE_BYTES = 25 * 1024 * 1024;
 export function clipboardImageFile(clipboardData) {
     const items = Array.from(clipboardData?.items || []);
     for (const item of items) {
-        if (item?.kind === 'file' && String(item.type || '').toLowerCase().startsWith('image/')) {
-            const file = item.getAsFile?.();
-            if (file) return file;
+        if (item?.kind !== 'file') continue;
+        const file = item.getAsFile?.();
+        if (!file) continue;
+        const itemType = String(item.type || '').toLowerCase();
+        const fileType = String(file.type || '').toLowerCase();
+        // WebKitGTK may expose raw screenshot bytes as an unnamed File with
+        // no MIME metadata. Go performs the authoritative byte sniff later.
+        if (itemType.startsWith('image/') || fileType.startsWith('image/') || (!itemType && !fileType)) {
+            return file;
         }
     }
-    return Array.from(clipboardData?.files || []).find(file =>
-        String(file?.type || '').toLowerCase().startsWith('image/')
-    ) || null;
+    return Array.from(clipboardData?.files || []).find(file => {
+        const type = String(file?.type || '').toLowerCase();
+        return type.startsWith('image/') || !type;
+    }) || null;
+}
+
+function clipboardTypes(clipboardData) {
+    return Array.from(clipboardData?.types || clipboardData?.items || [])
+        .map(value => String(value?.type || value || '').toLowerCase())
+        .filter(Boolean);
+}
+
+/** Read the first raw image exposed by the modern Async Clipboard API. */
+export async function readClipboardImage(clipboard = navigator.clipboard) {
+    if (typeof clipboard?.read !== 'function') return null;
+    const entries = await clipboard.read();
+    for (const entry of entries || []) {
+        const type = Array.from(entry?.types || []).find(candidate =>
+            String(candidate || '').toLowerCase().startsWith('image/'));
+        if (!type) continue;
+        const blob = await entry.getType(type);
+        if (blob) return blob;
+    }
+    return null;
+}
+
+/**
+ * Older WebKitGTK paste events can omit the image File even when raw image
+ * data is on the clipboard. Claim only image-advertising or otherwise empty
+ * Linux/WebKit events, so normal text and rich-text paste still fall through.
+ */
+export function shouldReadClipboardImageAsync(clipboardData, userAgent = navigator.userAgent, clipboard = navigator.clipboard) {
+    if (typeof clipboard?.read !== 'function') return false;
+    const types = clipboardTypes(clipboardData);
+    if (types.some(type => type.startsWith('image/'))) return true;
+    if (types.some(type => ['text/plain', 'text/html', 'text/uri-list'].includes(type))) return false;
+    return /linux/i.test(String(userAgent || '')) && /applewebkit/i.test(String(userAgent || ''));
 }
 
 /** Encode a browser Blob for the JSON-safe Wails bridge. */
@@ -64,7 +104,8 @@ export async function pasteClipboardImage(view, imageFile) {
         reportImagePasteFailure('Open a Markdown file before pasting an image.');
         return false;
     }
-    if (!imageFile || !String(imageFile.type || '').toLowerCase().startsWith('image/')) return false;
+    const declaredType = String(imageFile?.type || '').toLowerCase();
+    if (!imageFile || (declaredType && !declaredType.startsWith('image/'))) return false;
     if (Number(imageFile.size) > MAX_CLIPBOARD_IMAGE_BYTES) {
         reportImagePasteFailure('Clipboard images must be 25 MB or smaller.');
         return false;
@@ -108,13 +149,30 @@ export async function pasteClipboardImage(view, imageFile) {
     }
 }
 
+async function pasteClipboardImageFromAsyncClipboard(view) {
+    try {
+        const image = await readClipboardImage();
+        if (!image) throw new Error('The Linux clipboard did not expose readable image data.');
+        return pasteClipboardImage(view, image);
+    } catch (error) {
+        log.warn('Could not read a Linux clipboard image:', error);
+        reportImagePasteFailure(error);
+        return false;
+    }
+}
+
 /**
  * CodeMirror paste handler. Image events are claimed synchronously so the
  * webview never inserts an object replacement character or a local file URL.
  */
 export function handleClipboardImagePaste(event, view) {
     const imageFile = clipboardImageFile(event?.clipboardData);
-    if (!imageFile) return false;
+    if (!imageFile) {
+        if (!shouldReadClipboardImageAsync(event?.clipboardData)) return false;
+        event.preventDefault();
+        void pasteClipboardImageFromAsyncClipboard(view);
+        return true;
+    }
     event.preventDefault();
     void pasteClipboardImage(view, imageFile);
     return true;

@@ -8,9 +8,10 @@ import { saveSession } from './session.js';
 import { openTab, handleFileOpen } from './app.js';
 import { closeTabsForDeletedPath, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
-import { confirmDialog, errorDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
+import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
 import { isDrawioDiagramPath } from './drawio.js';
 import { isEditableCodeMirrorFile } from './languageSupport.js';
+import { renderLucideIcon } from './lucideIcons.js';
 
 
 let dragSourceNode = null;
@@ -21,6 +22,7 @@ let nativeFileDropInitialized = false;
 let externalCopyInProgress = false;
 let internalClipboard = null;
 let internalCopyInProgress = false;
+let fileTreeStyles = { version: 1, entries: {}, recent_icons: [] };
 
 const contextMenuViewportMargin = 8;
 
@@ -96,6 +98,11 @@ const fileTreeContextMenuActions = [
         label: 'Rename',
         icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
     },
+    {
+        action: 'customize-style',
+        label: 'Customize appearance…',
+        icon: '<circle cx="12" cy="12" r="9"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="16" cy="14" r="1"/><path d="M12 21a3 3 0 0 1 0-6h1"/>',
+    },
     { separator: true },
     {
         action: 'reveal',
@@ -144,6 +151,7 @@ export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selecte
         'new-drawio': true,
         'new-folder': true,
         rename: isTarget,
+        'customize-style': isTarget && (!isFile || isOpenableFile),
         reveal: isTarget,
         delete: isTarget,
     };
@@ -159,6 +167,7 @@ export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selecte
  */
 export function initFileTree() {
     renderFileTree();
+    loadFileTreeStyles().catch(() => {});
     initFileTreeEvents();
     initContextMenu();
     initNativeFileDrops();
@@ -184,8 +193,15 @@ export async function refreshFileTree() {
     const requestId = ++fileTreeRequestId;
     try {
         statusBar.set('Loading file tree...');
-        const treeData = await window.pywebview.api.get_file_tree();
+        const [treeData, styles] = await Promise.all([
+            window.pywebview.api.get_file_tree(),
+            window.pywebview.api.get_file_tree_styles().catch(error => {
+                log.warn('Could not refresh file-tree appearance:', error);
+                return fileTreeStyles;
+            }),
+        ]);
         if (requestId !== fileTreeRequestId) return;
+        fileTreeStyles = normalizeFileTreeStyles(styles);
         setState('fileTreeData', treeData);
         renderFileTree();
         document.dispatchEvent(new CustomEvent('vault-file-tree-refreshed', { detail: { tree: treeData } }));
@@ -194,6 +210,25 @@ export async function refreshFileTree() {
         if (requestId !== fileTreeRequestId) return;
         log.error('Failed to load file tree:', err);
         statusBar.set('Failed to load file tree');
+    }
+}
+
+function normalizeFileTreeStyles(styles) {
+    return {
+        version: Number(styles?.version) || 1,
+        entries: styles?.entries && typeof styles.entries === 'object' ? styles.entries : {},
+        recent_icons: Array.isArray(styles?.recent_icons) ? styles.recent_icons.slice(0, 10) : [],
+    };
+}
+
+export async function loadFileTreeStyles() {
+    try {
+        fileTreeStyles = normalizeFileTreeStyles(await window.pywebview.api.get_file_tree_styles());
+        renderFileTree();
+        return fileTreeStyles;
+    } catch (error) {
+        log.warn('Could not load file-tree appearance:', error);
+        return fileTreeStyles;
     }
 }
 
@@ -236,7 +271,7 @@ export function renderFileTree() {
 /**
  * Build tree HTML recursively
  */
-export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0, activeFilePath = null) {
+export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries) {
     let html = '<ul class="file-tree-list">';
     
     for (const item of items) {
@@ -248,34 +283,39 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
         const hasChildren = isDir && item.children && item.children.length > 0;
         const isDrawioDiagram = !isDir && isDrawioDiagramPath(item.path);
         const isNonMd = !isDir && !isEditableCodeMirrorFile(item.path) && !isDrawioDiagram;
+        const appearance = styles?.[item.path] || {};
+        const customIcon = appearance.icon ? renderLucideIcon(appearance.icon, { size: 16 }) : '';
+        const customColor = /^#[0-9a-f]{6}$/i.test(appearance.color || '') ? appearance.color : '';
+        const appearanceClasses = `${customIcon ? 'custom-icon' : ''} ${customColor ? 'custom-color' : ''}`.trim();
+        const appearanceStyle = customColor ? ` style="--file-tree-entry-color:${customColor}"` : '';
         
         html += `
             <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" data-path="${escapeHtml(item.path)}" data-type="${item.type}">
-                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''}" draggable="true">
+                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${appearanceClasses}" draggable="true"${appearanceStyle}>
                     ${isDir ? `
                         <span class="node-chevron">${hasChildren ? `
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>` : ''}</span>
                         <span class="node-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            ${customIcon || `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                            </svg>
+                            </svg>`}
                         </span>
                     ` : `
                         <span class="node-chevron"></span>
                         <span class="node-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            ${customIcon || `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                 <polyline points="14 2 14 8 20 8"></polyline>
-                            </svg>
+                            </svg>`}
                         </span>
                     `}
                     <span class="node-name">${escapeHtml(item.name)}</span>
                 </div>
                 ${isDir && hasChildren ? `
                     <div class="file-tree-children">
-                        ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1, activeFilePath)}
+                        ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1, activeFilePath, styles)}
                     </div>
                 ` : ''}
             </li>
@@ -888,6 +928,10 @@ function handleContextMenu(e) {
             await renameTreePath(getState('contextTargetPath'), getState('contextTargetType'));
             break;
 
+        case 'customize-style':
+            await customizeTreePath(getState('contextTargetPath'), getState('contextTargetType'));
+            break;
+
         case 'delete':
             await deletePath(getState('contextTargetPath'), getState('contextTargetType'));
             break;
@@ -915,6 +959,32 @@ function handleContextMenu(e) {
             break;
         }
     });
+}
+
+export async function customizeTreePath(path, type) {
+    if (!path || (type !== 'file' && type !== 'directory')) return false;
+    const item = findTreeItem(getState('fileTreeData') || [], path);
+    if (!item) return false;
+    if (type === 'file' && !isEditableCodeMirrorFile(path) && !isDrawioDiagramPath(path)) return false;
+
+    const choice = await fileTreeStyleDialog({
+        name: item.name,
+        type,
+        current: fileTreeStyles.entries[path] || {},
+        recentIcons: fileTreeStyles.recent_icons,
+    });
+    if (!choice) return false;
+    try {
+        const styles = await window.pywebview.api.set_file_tree_style(path, choice.icon || '', choice.color || '');
+        fileTreeStyles = normalizeFileTreeStyles(styles);
+        renderFileTree();
+        statusBar.set(choice.icon || choice.color ? `Styled “${item.name}”` : `Reset appearance for “${item.name}”`);
+        setTimeout(() => statusBar.set('Ready'), 1600);
+        return true;
+    } catch (error) {
+        await errorDialog('Couldn’t style entry', error, 'The file-tree appearance could not be saved.');
+        return false;
+    }
 }
 
 

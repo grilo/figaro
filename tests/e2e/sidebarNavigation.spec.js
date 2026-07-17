@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('keeps workspace destinations in the sidebar and expands Calendar inline', async ({ page }) => {
     await page.goto('/');
-    await page.waitForFunction(() => window._appInitialized === true);
+	await page.waitForFunction(() => window._appReady === true);
     await page.evaluate(async () => {
         const { setState } = await import('/js/state.js');
         setState('openTabs', []);
