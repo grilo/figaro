@@ -47,12 +47,17 @@ repeat the save work. Ambiguous broad changes such as moves, merges, or an
 unscoped notification deliberately invalidate and rebuild one coherent
 snapshot; correctness wins over a speculative partial update.
 
-Each indexed file owns its own tag, Kanban-card, daily-note, and date-link
-contributions. A known one-file update removes its old contributions before
-adding its new ones, retaining unrelated card slices and Calendar projections.
-This keeps the common save/watcher path proportional to the changed note and
-its affected tags/dates; a full derived rebuild remains reserved for the first
-lazy scan and genuinely broad filesystem changes.
+Each indexed file owns its own tag, Kanban-card, daily-note, date-link,
+case-folded search, trigram, and Markdown-backlink contributions. A known
+one-file update removes its old contributions before adding its new ones,
+retaining unrelated card slices, Calendar projections, and reverse-link
+entries. Case-insensitive searches intersect compact three-byte substring
+postings before verifying the original note text; exceptionally large or
+high-entropy notes remain in a bounded fallback set so correctness never
+depends on indexing every term. Case-sensitive searches intentionally use the
+original text. This keeps the common save/watcher path proportional to the
+changed note and its affected derived data; a full derived rebuild remains
+reserved for the first lazy scan and genuinely broad filesystem changes.
 
 The `vault:changed` event includes `tree_changed`. Content-only changes refresh
 dependent data without requesting a new file tree; directory or entry changes

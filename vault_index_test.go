@@ -150,3 +150,44 @@ func TestVaultIndexKeepsUnchangedDerivedContributionsOnKnownSave(t *testing.T) {
 		t.Fatalf("board after replacement = %#v", board)
 	}
 }
+
+func TestVaultIndexUpdatesSearchAndBacklinksWithoutReplacingUnchangedProjection(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "source.md", "Old searchable phrase\n[Target](target.md)\n")
+	writeTestFile(t, vaultPath, "stable.md", "[Stable-target](stable-target.md)\n")
+
+	if _, err := app.SearchFiles("searchable", false); err != nil {
+		t.Fatalf("initial SearchFiles: %v", err)
+	}
+	stableBacklinks := app.vaultIndex.backlinksByTarget["stable-target.md"]
+	if len(stableBacklinks) != 1 {
+		t.Fatalf("stable backlinks = %#v, want one contribution", stableBacklinks)
+	}
+	stableBacklink := &stableBacklinks[0]
+
+	saved, err := app.SaveFile("source.md", "Replacement searchable phrase\n[Next](next.md)\n", 0)
+	if err != nil || !saved.Success {
+		t.Fatalf("SaveFile: result=%+v err=%v", saved, err)
+	}
+
+	oldResults, err := app.SearchFiles("old searchable", false)
+	if err != nil || len(oldResults) != 0 {
+		t.Fatalf("old indexed search results = %#v, err=%v", oldResults, err)
+	}
+	newResults, err := app.SearchFiles("replacement searchable", false)
+	if err != nil || len(newResults) != 1 || newResults[0].Path != "source.md" {
+		t.Fatalf("replacement indexed search results = %#v, err=%v", newResults, err)
+	}
+	oldBacklinks, err := app.SearchBacklinks("target.md")
+	if err != nil || len(oldBacklinks) != 0 {
+		t.Fatalf("stale backlinks after indexed save = %#v, err=%v", oldBacklinks, err)
+	}
+	newBacklinks, err := app.SearchBacklinks("next.md")
+	if err != nil || len(newBacklinks) != 1 || newBacklinks[0].Path != "source.md" {
+		t.Fatalf("replacement backlinks after indexed save = %#v, err=%v", newBacklinks, err)
+	}
+	updatedStableBacklinks := app.vaultIndex.backlinksByTarget["stable-target.md"]
+	if len(updatedStableBacklinks) != 1 || &updatedStableBacklinks[0] != stableBacklink {
+		t.Fatalf("known save rebuilt an unchanged backlink contribution: %#v", updatedStableBacklinks)
+	}
+}

@@ -2152,14 +2152,24 @@ func (a *App) SearchFiles(query string, caseSensitive bool) ([]SearchResult, err
 		return nil, err
 	}
 
+	searchQuery := query
+	candidates := map[string]struct{}(nil)
+	if !caseSensitive {
+		searchQuery = strings.ToLower(query)
+		candidates = index.searchCandidates(searchQuery)
+	}
+
 	var results []SearchResult
 	for _, path := range index.paths {
+		if candidates != nil {
+			if _, found := candidates[path]; !found {
+				continue
+			}
+		}
 		file := index.files[path]
 		content := file.content
-		searchQuery := query
 		if !caseSensitive {
-			searchQuery = strings.ToLower(query)
-			content = strings.ToLower(content)
+			content = file.searchLower
 		}
 		if !strings.Contains(content, searchQuery) {
 			continue
@@ -2211,30 +2221,21 @@ func (a *App) SearchBacklinks(targetPath string) ([]BacklinkResult, error) {
 
 	targetName := strings.TrimSuffix(filepath.Base(targetPath), ".md")
 	targetRel := strings.ReplaceAll(targetPath, "\\", "/")
-	// Build pattern: [targetName](targetRel) or [targetName](targetName.md)
-	// Case-insensitive matching.
-	pattern := regexp.MustCompile(
-		`(?i)\[` + regexp.QuoteMeta(targetName) + `\]\((` + regexp.QuoteMeta(targetRel) + `|` + regexp.QuoteMeta(targetName) + `\.md)\)`,
-	)
 
 	// Wails serializes a nil Go slice as null. Backlinks are a collection, so
 	// preserve the API contract and return [] when no notes link to the target.
 	results := make([]BacklinkResult, 0)
-	for _, path := range index.paths {
-		file := index.files[path]
-		lines := strings.Split(file.content, "\n")
-		for i, line := range lines {
-			if pattern.MatchString(line) {
-				results = append(results, BacklinkResult{
-					Path:    file.path,
-					Name:    file.name,
-					LineNum: i + 1,
-					Snippet: strings.TrimSpace(line),
-					Mtime:   file.mtime,
-				})
-				break // One match per file
+	bySource := make(map[string]BacklinkResult)
+	for _, target := range []string{targetRel, targetName + ".md"} {
+		for _, backlink := range index.backlinksByTarget[strings.ToLower(target)] {
+			previous, found := bySource[backlink.Path]
+			if !found || backlink.LineNum < previous.LineNum {
+				bySource[backlink.Path] = backlink
 			}
 		}
+	}
+	for _, backlink := range bySource {
+		results = append(results, backlink)
 	}
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Mtime > results[j].Mtime

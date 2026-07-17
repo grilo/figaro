@@ -6,6 +6,10 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Case-insensitive search and backlink lookups now use incrementally updated
+  text and reverse-link projections, so repeated queries avoid rescanning
+  unrelated notes while retaining substring, path, basename, and
+  case-sensitive matching behavior.
 - Removed the unused legacy automation harness and its obsolete Welcome-note
   attribution.
 - Saving or externally updating one Markdown note now changes only that note's

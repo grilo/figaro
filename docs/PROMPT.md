@@ -325,13 +325,14 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ## 7. Discovery Views
 
 ### 7.1 Backlinks Panel
-- Searches the shared Markdown index for matching links to a given note (by path or basename), case-insensitive.
+- Reads incrementally maintained reverse Markdown links for a given note (by path or basename), case-insensitive, without rescanning unrelated note text.
 - Returns each match with source file path, line number, snippet, and modification time, sorted newest first.
 - Status bar shows backlink count; clickable link opens backlinks tab when >0.
 - Backlinks tab renders in same view as calendar results.
 
 ### 7.2 Global Search
 - The left-sidebar search field searches Markdown note bodies and note filenames. It waits briefly while the user types and ignores stale responses from earlier queries.
+- Case-insensitive body searches use the index's folded-text substring terms, then verify candidate notes before displaying matches; case-sensitive searches compare the original source text.
 - Results show a filename, vault-relative path, first matching line, line number, and additional-match count. Filename matches rank ahead of body-only matches; otherwise newer files rank first.
 - **Titles** limits results to filenames, **Recent** limits them to the eight recently opened notes, and **Aa** enables case-sensitive matching. Filters persist locally in the webview.
 - Use ↑/↓ to select a result, Enter to open the selected result, or Escape to clear and close search. Opening a result positions the editor at its first matching line.

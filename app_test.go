@@ -598,6 +598,25 @@ func TestSearchFiles_CaseSensitive(t *testing.T) {
 	}
 }
 
+func TestSearchFiles_IndexedSubstringSearch(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "important.md", "This important detail must remain searchable.\n")
+	writeTestFile(t, vaultPath, "other.md", "A different note.\n")
+
+	results, err := app.SearchFiles("portant", false)
+	if err != nil {
+		t.Fatalf("SearchFiles error: %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "important.md" {
+		t.Fatalf("substring search results = %#v, want important.md", results)
+	}
+	if got, want := results[0].Matches, []SearchMatch{{Line: 1, Text: "This important detail must remain searchable."}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("substring matches = %#v, want %#v", got, want)
+	}
+}
+
 func TestSearchBacklinks(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
@@ -612,6 +631,28 @@ func TestSearchBacklinks(t *testing.T) {
 	}
 	if len(results) != 2 {
 		t.Fatalf("expected 2 backlinks, got %d", len(results))
+	}
+}
+
+func TestSearchBacklinks_IndexedPathAndBasenameMatchesKeepEarliestSourceLine(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "folder/target.md", "# Target\n")
+	writeTestFile(t, vaultPath, "source.md", "[Target](target.md)\n[Target](folder/target.md)\n")
+
+	results, err := app.SearchBacklinks("folder/target.md")
+	if err != nil {
+		t.Fatalf("SearchBacklinks error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("indexed backlinks = %#v, want one source result", results)
+	}
+	if got, want := results, []BacklinkResult{{
+		Path: "source.md", Name: "source.md", LineNum: 1,
+		Snippet: "[Target](target.md)", Mtime: results[0].Mtime,
+	}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("indexed backlinks = %#v, want first source link only", got)
 	}
 }
 
