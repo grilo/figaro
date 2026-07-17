@@ -53,6 +53,14 @@ schedule the normal coalesced tree refresh. The initial index is still built
 after the first Wails window is allowed to appear, so indexing does not delay
 startup.
 
+The frontend has two complementary hot paths. An unsaved Kanban change is
+projected from the dirty tab buffers on the next animation frame, without an
+RPC; backend refreshes remain for saved or native changes. The file tree still
+receives the complete structural model for correct sorting and session restore,
+but it renders descendants only for explicitly expanded folders. This prevents
+large collapsed trees from imposing a hidden DOM/layout cost on ordinary tab
+switches.
+
 ## Session state is not settings
 
 `settings.json` stores durable preferences such as theme, fonts, and feature

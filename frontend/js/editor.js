@@ -80,6 +80,9 @@ let fileModeRequest = 0;
 let markdownModeExtensions = null;
 let codeModeExtensions = null;
 const footnoteReturnPositions = new Map();
+const linkPreviewCache = new Map();
+const linkPreviewRequests = new Map();
+const linkPreviewCacheTTL = 30_000;
 
 // CodeMirror's indentUnit is the single source of truth for both Tab / Shift+Tab
 // and the indentation-marker extension. Keep the visual tab width in CSS in
@@ -88,6 +91,31 @@ const codeIndentUnit = '  ';
 
 export function isBlockquoteLine(line) {
     return /^ {0,3}>\s?/.test(line);
+}
+
+// Link hover can fire repeatedly while the pointer crosses a rendered link's
+// child nodes. Keep the preview informative without reopening the same note on
+// every mouse event; a short TTL avoids presenting a long-lived stale preview.
+export function fetchLinkPreviewFile(path) {
+    const key = String(path || '');
+    const cached = linkPreviewCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+    if (linkPreviewRequests.has(key)) return linkPreviewRequests.get(key);
+
+    const request = Promise.resolve(backend().ReadFile(key)).then(value => {
+        linkPreviewCache.set(key, { value, expiresAt: Date.now() + linkPreviewCacheTTL });
+        return value;
+    }).finally(() => linkPreviewRequests.delete(key));
+    linkPreviewRequests.set(key, request);
+    return request;
+}
+
+export function invalidateLinkPreviewCache(path = null) {
+    if (path === null) {
+        linkPreviewCache.clear();
+        return;
+    }
+    linkPreviewCache.delete(String(path));
 }
 
 /**
@@ -257,11 +285,8 @@ function linkPreview() {
             const pos = this.view.posAtCoords({ x: event.clientX, y: event.clientY });
             if (pos === null) return;
 
-            console.log('[linkPreview] hover detected, pos:', pos);
-
             const tree = syntaxTree(this.view.state);
             let node = tree.resolveInner(pos, -1);
-            console.log('[linkPreview] innermost node:', node?.name, 'from:', node?.from, 'to:', node?.to);
 
             while (node && !LINK_TYPES.has(node.name)) {
                 node = node.parent;
@@ -279,16 +304,12 @@ function linkPreview() {
                 while ((m = re.exec(lineText)) !== null) {
                     if (offset >= m.index && offset <= m.index + m[0].length) {
                         const wikiName = normalizeWikiLinkTarget(m[1]);
-                        console.log('[linkPreview] wikilink found:', wikiName);
                         this.showTooltip(event, wikiName, false);
                         return;
                     }
                 }
-                console.log('[linkPreview] no link node found, pos:', pos, 'node:', node?.name);
                 return;
             }
-
-            console.log('[linkPreview] link node found:', node.name);
 
             const text = this.view.state.doc.sliceString(node.from, node.to);
             let url;
@@ -309,11 +330,9 @@ function linkPreview() {
             }
 
             if (!url) {
-                console.log('[linkPreview] could not extract URL from:', text);
                 return;
             }
 
-            console.log('[linkPreview] showing tooltip for:', url);
             this.showTooltip(event, url, /^https?:\/\//.test(url));
         };
 
@@ -337,7 +356,8 @@ function linkPreview() {
                 dom.innerHTML = '<span class="lh-type">File link</span><span class="lh-path">' + displayUrl + '</span><span class="lh-status lh-checking">...</span>';
                 const statusEl = dom.querySelector('.lh-status');
                 const resolvedUrl = resolveRelativeUrl(displayUrl);
-                backend().ReadFile(resolvedUrl).then(r => {
+                fetchLinkPreviewFile(resolvedUrl).then(r => {
+                    if (!dom.isConnected) return;
                     const content = typeof r === 'string' ? r : (r && r.content) || '';
                     if (content) {
                         statusEl.className = 'lh-status lh-exists';
@@ -357,7 +377,8 @@ function linkPreview() {
                         statusEl.textContent = '✗ Not found';
                     }
                 }).catch(err => {
-                    console.error('[linkPreview] fetchContent failed:', err);
+                    if (!dom.isConnected) return;
+                    log.debug('[linkPreview] fetchContent failed:', err);
                     statusEl.className = 'lh-status lh-missing';
                     statusEl.textContent = '✗ Not found';
                 });

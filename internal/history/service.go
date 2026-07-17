@@ -226,7 +226,16 @@ func (h *Service) getFileHistoryLocked(relPath string) ([]Entry, error) {
 		return nil, fmt.Errorf("history service not initialized")
 	}
 
-	commits, err := h.repo.Log(&git.LogOptions{Order: git.LogOrderCommitterTime, All: true})
+	fileName := filepath.ToSlash(relPath)
+	// Let go-git filter the log by paths changed in each commit instead of
+	// opening every commit tree and merely checking whether the file happened
+	// to exist at that point in history. This also keeps the status-bar count
+	// accurate when other notes are committed.
+	commits, err := h.repo.Log(&git.LogOptions{
+		Order:    git.LogOrderCommitterTime,
+		All:      true,
+		FileName: &fileName,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("get log: %w", err)
 	}
@@ -234,13 +243,6 @@ func (h *Service) getFileHistoryLocked(relPath string) ([]Entry, error) {
 
 	var entries []Entry
 	err = commits.ForEach(func(commit *object.Commit) error {
-		tree, treeErr := commit.Tree()
-		if treeErr != nil {
-			return nil
-		}
-		if _, findErr := tree.FindEntry(relPath); findErr != nil {
-			return nil
-		}
 		entries = append(entries, Entry{
 			Hash:      commit.Hash.String(),
 			Timestamp: float64(commit.Author.When.UnixNano()) / 1e9,

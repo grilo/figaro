@@ -12,13 +12,12 @@ import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
 
 let draggedCard = null;
 let kanbanColumns = [];
+let savedKanbanColumns = ['todo', 'wip', 'done'];
 let kanbanColors = {};
 const persistedColumns = new Set();
 let kanbanBoardRequestId = 0;
-let kanbanColumnsRequestId = 0;
-let kanbanBadgeRequestId = 0;
 let kanbanMutationId = 0;
-let liveRefreshTimer = null;
+let liveRefreshFrame = null;
 let liveRefreshInitialized = false;
 
 export const KANBAN_CARD_TEXT_LIMIT = 120;
@@ -35,11 +34,17 @@ export function initKanban() {
 }
 
 function scheduleLiveKanbanRefresh() {
-    if (liveRefreshTimer) clearTimeout(liveRefreshTimer);
-    liveRefreshTimer = setTimeout(() => {
-        liveRefreshTimer = null;
-        refreshKanbanData().catch(() => {});
-    }, 80);
+    if (liveRefreshFrame !== null) return;
+    const refresh = () => {
+        liveRefreshFrame = null;
+        refreshKanbanFromDirtyBuffers();
+    };
+    // Repaint on the next frame instead of asking the backend to rediscover
+    // the vault after every keystroke. The dirty editor snapshots are already
+    // in state and are the authoritative source until they are saved.
+    liveRefreshFrame = typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame(refresh)
+        : setTimeout(refresh, 0);
 }
 
 function standaloneHashtags(line) {
@@ -131,6 +136,12 @@ function appendDirtyColumns(columns) {
             if (!seen.has(card.tag)) discovered.add(card.tag);
         }
     }
+    for (const systemColumn of ['todo', 'wip', 'done']) {
+        if (!seen.has(systemColumn)) {
+            result.push(systemColumn);
+            seen.add(systemColumn);
+        }
+    }
     const systemIndex = result.findIndex(column => ['todo', 'wip', 'done'].includes(column));
     const insertion = systemIndex < 0 ? result.length : systemIndex;
     result.splice(insertion, 0, ...[...discovered].sort());
@@ -145,68 +156,73 @@ export function truncateKanbanCardText(value, limit = KANBAN_CARD_TEXT_LIMIT) {
     return characters.slice(0, Math.max(0, limit - 1)).join('') + '…';
 }
 
-// Refresh lightweight Kanban state after the backend finishes an initial or
-// externally-triggered vault index. If the board is visible, update it too.
-export async function refreshKanbanData() {
-    await loadKanbanColumns();
-    await updateKanbanBadges();
-    const container = getBoardContainer();
-    if (container) await renderKanbanBoard(container.id);
-}
-
-/**
- * Update kanban badge counts in the sidebar header
- */
-async function updateKanbanBadges() {
-    const requestId = ++kanbanBadgeRequestId;
+// Refresh Kanban from the backend after startup, a save, or a native
+// filesystem change. Fetch the board once: its cards also drive the badges and
+// any open board rather than each surface issuing its own vault query.
+export async function refreshKanbanData({ focusCol = null, container = getBoardContainer() } = {}) {
+    const requestId = ++kanbanBoardRequestId;
     try {
-        const boardData = overlayDirtyKanbanBuffers(await backend().GetKanbanBoard());
-        if (requestId !== kanbanBadgeRequestId) return;
+        const [columnResult, savedBoard] = await Promise.all([
+            backend().GetKanbanColumns(),
+            backend().GetKanbanBoard(),
+        ]);
+        if (requestId !== kanbanBoardRequestId) return false;
+        applyKanbanColumns(columnResult);
+        const boardData = overlayDirtyKanbanBuffers(savedBoard);
         setState('kanbanBoardData', boardData);
-        
-        const container = document.getElementById('kanban-badges');
-        if (!container) return;
-        
-        let html = '';
-        for (const col of kanbanColumns) {
-            const count = (boardData[col] || []).length;
-            const color = kanbanColors[col];
-            if (color && count > 0) {
-                html += `<span class="badge" style="background:${color};color:#fff">${count}</span>`;
-            }
-        }
-        container.innerHTML = html;
-    } catch (err) {
-        if (requestId !== kanbanBadgeRequestId) return;
-        log.error('Failed to update kanban badges:', err);
-    }
-}
-
-/**
- * Load kanban columns from backend
- */
-async function loadKanbanColumns() {
-    const requestId = ++kanbanColumnsRequestId;
-    try {
-        const result = await backend().GetKanbanColumns();
-        if (requestId !== kanbanColumnsRequestId) return false;
-        if (result && result.columns) {
-            kanbanColumns = appendDirtyColumns(result.columns);
-            kanbanColors = result.colors || {};
-        } else {
-            kanbanColumns = appendDirtyColumns(result || []);
-            kanbanColors = {};
-        }
-        setState('kanbanColumns', kanbanColumns);
+        persistedColumns.clear();
+        for (const column of savedKanbanColumns) persistedColumns.add(column);
+        renderKanbanSnapshot(boardData, focusCol, container);
         return true;
     } catch (err) {
-        if (requestId !== kanbanColumnsRequestId) return false;
-        log.error('Failed to load kanban columns:', err);
-        kanbanColumns = ['todo', 'wip', 'done'];
-        kanbanColors = {};
-        setState('kanbanColumns', kanbanColumns);
+        if (requestId !== kanbanBoardRequestId) return false;
+        log.error('Failed to refresh Kanban:', err);
         return false;
     }
+}
+
+// Reproject the existing saved board with dirty tabs only. This is the hot
+// typing path and intentionally never calls the backend.
+function refreshKanbanFromDirtyBuffers() {
+    const boardData = overlayDirtyKanbanBuffers(getState('kanbanBoardData') || {});
+    kanbanColumns = appendDirtyColumns(savedKanbanColumns);
+    setState('kanbanColumns', kanbanColumns);
+    setState('kanbanBoardData', boardData);
+    renderKanbanSnapshot(boardData);
+}
+
+function applyKanbanColumns(result) {
+    if (result && result.columns) {
+        savedKanbanColumns = [...result.columns];
+        kanbanColors = result.colors || {};
+    } else {
+        savedKanbanColumns = [...(result || [])];
+        kanbanColors = {};
+    }
+    kanbanColumns = appendDirtyColumns(savedKanbanColumns);
+    setState('kanbanColumns', kanbanColumns);
+}
+
+function renderKanbanBadges(boardData) {
+    const container = document.getElementById('kanban-badges');
+    if (!container) return;
+
+    let html = '';
+    for (const column of kanbanColumns) {
+        const count = (boardData[column] || []).length;
+        const color = kanbanColors[column];
+        if (color && count > 0) {
+            html += `<span class="badge" style="background:${color};color:#fff">${count}</span>`;
+        }
+    }
+    container.innerHTML = html;
+}
+
+function renderKanbanSnapshot(boardData, focusCol = null, container = getBoardContainer()) {
+    renderKanbanBadges(boardData);
+    if (!container || !container.isConnected) return;
+    renderColumns(container, boardData, focusCol);
+    initKanbanDragDrop(container);
 }
 
 /**
@@ -217,33 +233,15 @@ async function loadKanbanColumns() {
 export async function renderKanbanBoard(containerId, focusCol = null) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    const requestId = ++kanbanBoardRequestId;
-    
     container.innerHTML = '<div class="kanban-loading">Loading board...</div>';
-    
-    try {
-        // Load board data
-        const boardData = overlayDirtyKanbanBuffers(await backend().GetKanbanBoard());
-        if (requestId !== kanbanBoardRequestId || !container.isConnected) return;
-        setState('kanbanBoardData', boardData);
-        
-        // Always reload columns to pick up newly discovered tags
-        await loadKanbanColumns();
-        if (requestId !== kanbanBoardRequestId || !container.isConnected) return;
-        
-        persistedColumns.clear();
-        for (const col of kanbanColumns) persistedColumns.add(col);
-        
-        // Render columns
-        renderColumns(container, boardData, focusCol);
-        
-        // Set up drag-drop
-        initKanbanDragDrop(container);
-        
-    } catch (err) {
-        if (requestId !== kanbanBoardRequestId || !container.isConnected) return;
-        log.error('Failed to render kanban board:', err);
+    const refreshed = await refreshKanbanData({ focusCol, container });
+    if (!container.isConnected) return;
+    // A newer request may already have painted this shared board container.
+    // Never replace that valid snapshot with an error from the stale request.
+    if (!refreshed) {
+        if (!container.querySelector('.kanban-loading')) return;
         container.innerHTML = '<div class="kanban-error">Failed to load board</div>';
+        return;
     }
 }
 
@@ -544,18 +542,13 @@ function getBoardContainer() {
 
 function beginKanbanMutation() {
     kanbanBoardRequestId++;
-    kanbanColumnsRequestId++;
-    kanbanBadgeRequestId++;
     return ++kanbanMutationId;
 }
 
 async function refreshAfterKanbanMutation(mutationId) {
     if (mutationId !== kanbanMutationId) return false;
-    const container = getBoardContainer();
-    if (container) await renderKanbanBoard(container.id);
-    if (mutationId !== kanbanMutationId) return false;
-    await updateKanbanBadges();
-    return mutationId === kanbanMutationId;
+    const refreshed = await refreshKanbanData();
+    return refreshed && mutationId === kanbanMutationId;
 }
 
 /**

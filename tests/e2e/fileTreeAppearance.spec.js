@@ -55,3 +55,26 @@ test('applies and cancels a searchable file-tree icon and color workflow', async
     await expect(dialog).toBeHidden();
     expect(await page.evaluate(() => window.__fileTreeStyleCalls)).toHaveLength(1);
 });
+
+test('mounts descendants only when their folder is expanded', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    await page.evaluate(async () => {
+        const app = (await import('/js/backend.js')).backend();
+        app.GetFileTree = async () => [{
+            name: 'Projects', path: 'Projects', type: 'directory', children: [{
+                name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1,
+            }],
+        }];
+        app.GetFileTreeStyles = async () => ({ version: 1, entries: {}, recent_icons: [] });
+        const { refreshFileTree } = await import('/js/fileTree.js');
+        await refreshFileTree();
+    });
+
+    const nested = page.locator('.file-tree-item[data-path="Projects/plan.md"]');
+    await expect(nested).toHaveCount(0);
+    await page.locator('.file-tree-item[data-path="Projects"] > .file-tree-node').click();
+    await expect(nested).toBeVisible();
+    await expect(nested.locator('.node-name')).toHaveText('plan.md');
+});

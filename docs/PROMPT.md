@@ -140,6 +140,7 @@ Each theme defines these properties (with theme-specific colors):
 - Links are rewritten only within copied Markdown. A link to another copied item follows that new counterpart; a relative link leaving the copied tree is recalculated so it still reaches the original external vault item. Root-relative Markdown links and wiki links receive the copied path when their target is inside the copied tree. External URLs, fragments, fenced code, source files, and incoming links elsewhere in the vault remain unchanged.
 - Pasting a copied folder onto itself or any descendant shows an **Operation refused** dialog explaining that the user should select its parent folder to create a sibling copy. No filesystem write occurs.
 - Folder expansion is explicit user-owned state. The exact expanded-directory set is stored in the vault session and restored on startup; restoring or switching tabs never opens additional ancestors. The active-file highlight follows tab changes when that file is visible, without rewriting the folder configuration.
+- Collapsed folders do not mount their descendant rows. Expanding a folder renders its existing tree data on demand, preserving the same sorting, styling, keyboard, and context-menu behavior.
 - Any non-greyed-out file or directory can be right-clicked and assigned a searchable Lucide icon plus a shared Kanban-palette color. The picker shows up to ten recently used icons and a **Reset** action. The top-level `Inbox` has a default Mail icon, which an explicit custom icon can replace. Appearance is persisted in the vault and follows rename, move, copy, merge, and delete operations.
 
 ### 3.4 Multi-Select and Merge
@@ -295,7 +296,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Display text: line with checkbox markers, list markers, and matching tag stripped in order.
 - Card text is limited to 120 characters and ends in an ellipsis when more source text exists; hovering exposes the complete text.
 - The same line can appear in multiple columns if it contains multiple known hashtags.
-- The active Markdown editor contributes its in-memory buffer immediately, so typing or removing a hashtag updates an open Kanban board before the file is saved.
+- The active Markdown editor contributes its in-memory buffer on the next animation frame, so typing or removing a hashtag updates an open Kanban board before the file is saved without a backend request.
 
 ### 6.3 Board Layout
 - **Header**: Title ("Kanban Task Board") plus instruction text.
@@ -582,7 +583,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 - The editor showing that file reloads to reflect the change.
 
 ### 16.4 Editor-Kanban Bidirectional Sync
-- Editor → Kanban: typing a new `#tag` updates the open board immediately from the unsaved active buffer; saving persists it for later scans. Clicking a `#tag` opens kanban focused on that column.
+- Editor → Kanban: typing a new `#tag` updates the open board immediately from the unsaved active buffer without a backend request; saving persists it for later indexed reads. Clicking a `#tag` opens kanban focused on that column.
 - Kanban → Editor: moving a card rewrites the tag in the file; the editor reloads from disk.
 - **Important tradeoff**: Editor reloads after kanban mutations discard the editor's undo history and any unsaved local edits.
 

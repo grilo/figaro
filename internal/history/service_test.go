@@ -93,6 +93,30 @@ func TestFileUncommittedStatusTracksOnlyTheRequestedPath(t *testing.T) {
 	}
 }
 
+func TestFileHistoryCountsOnlyCommitsThatChangedTheRequestedFile(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, "active.md"), "first\n")
+	if err := service.CommitFile("active.md"); err != nil {
+		t.Fatalf("commit active.md: %v", err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, "other.md"), "other\n")
+	if err := service.CommitFile("other.md"); err != nil {
+		t.Fatalf("commit other.md: %v", err)
+	}
+
+	history, err := service.GetFileHistory("active.md")
+	if err != nil {
+		t.Fatalf("GetFileHistory(active.md): %v", err)
+	}
+	if len(history) != 1 {
+		t.Fatalf("active.md history = %#v, want only its one changing commit", history)
+	}
+}
+
 func TestCommitFileRefusesUnrelatedStagedChangesWithoutChangingTheIndex(t *testing.T) {
 	dir := t.TempDir()
 	service, err := New(dir)

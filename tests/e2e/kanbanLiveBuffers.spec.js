@@ -20,12 +20,20 @@ test('renders unsaved hashtags immediately and keeps long Kanban cards compact',
         state.setState('openTabs', [tab]);
         state.setState('activeTabId', tab.id);
         window.__kanbanLiveSaveCalls = [];
+        window.__kanbanBoardReads = 0;
+        window.__kanbanColumnReads = 0;
         app.SaveFile = async (...args) => {
             window.__kanbanLiveSaveCalls.push(args);
             return { success: true, mtime: 2 };
         };
-        app.GetKanbanColumns = async () => ({ columns: ['todo', 'wip', 'done'], colors: {} });
-        app.GetKanbanBoard = async () => ({ todo: [], wip: [], done: [] });
+        app.GetKanbanColumns = async () => {
+            window.__kanbanColumnReads++;
+            return { columns: ['todo', 'wip', 'done'], colors: {} };
+        };
+        app.GetKanbanBoard = async () => {
+            window.__kanbanBoardReads++;
+            return { todo: [], wip: [], done: [] };
+        };
 
         const panels = document.getElementById('tab-panels');
         panels.classList.add('active');
@@ -33,6 +41,11 @@ test('renders unsaved hashtags immediately and keeps long Kanban cards compact',
         panels.innerHTML = '<div id="kanban-board-main" class="tab-panel active"></div>';
         await kanban.renderKanbanBoard('kanban-board-main');
         kanban.initKanban();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        window.__kanbanReadsBeforeTyping = {
+            board: window.__kanbanBoardReads,
+            columns: window.__kanbanColumnReads,
+        };
     }, { text: fullText });
 
     const urgent = page.locator('.kanban-column[data-column="urgent"]');
@@ -55,4 +68,6 @@ test('renders unsaved hashtags immediately and keeps long Kanban cards compact',
         .toHaveText('Brand-new unsaved card');
     await expect(page.locator('.kanban-column[data-column="urgent"]')).toHaveCount(0);
     expect(await page.evaluate(() => window.__kanbanLiveSaveCalls)).toEqual([]);
+    expect(await page.evaluate(() => window.__kanbanBoardReads)).toBe(await page.evaluate(() => window.__kanbanReadsBeforeTyping.board));
+    expect(await page.evaluate(() => window.__kanbanColumnReads)).toBe(await page.evaluate(() => window.__kanbanReadsBeforeTyping.columns));
 });

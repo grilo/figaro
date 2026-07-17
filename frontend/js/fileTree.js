@@ -368,7 +368,7 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
                     `}
                     <span class="node-name">${escapeHtml(item.name)}</span>
                 </div>
-                ${isDir && hasChildren ? `
+                ${isDir && hasChildren && isExpanded ? `
                     <div class="file-tree-children">
                         ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1, activeFilePath, styles, openFilePaths)}
                     </div>

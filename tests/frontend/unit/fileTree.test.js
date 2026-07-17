@@ -108,13 +108,28 @@ describe('File Tree', () => {
                 ]}
             ];
             
-            const html = buildTreeHTML(items, new Set(), null);
+            const html = buildTreeHTML(items, new Set(['folder']), null);
             
             expect(html).toContain('note.md');
             expect(html).toContain('folder');
             expect(html).toContain('inner.md');
             expect(html).toContain('<svg');
             expect(html).toContain('file-tree-item');
+        });
+
+        test('does not mount descendants of collapsed directories', () => {
+            const items = [{
+                name: 'folder', path: 'folder', type: 'directory', children: [
+                    { name: 'nested.md', path: 'folder/nested.md', type: 'file', mtime: 1 },
+                ],
+            }];
+
+            const collapsed = buildTreeHTML(items, new Set(), null);
+            const expanded = buildTreeHTML(items, new Set(['folder']), null);
+
+            expect(collapsed).not.toContain('nested.md');
+            expect(collapsed).not.toContain('file-tree-children');
+            expect(expanded).toContain('nested.md');
         });
 
         test('should mark expanded directories', () => {
@@ -1112,7 +1127,8 @@ describe('File Tree', () => {
                     ]}
                 ]}
             ];
-            // Only 'a' expanded — 'a/b' is collapsed (CSS-hidden but still in DOM)
+            // Only 'a' expanded — descendants of a/b are omitted from the DOM
+            // until the user expands it.
             const expanded = new Set(['a']);
             const html = buildTreeHTML(items, expanded, null);
             const div = document.createElement('div');
@@ -1128,11 +1144,9 @@ describe('File Tree', () => {
             expect(b).not.toBeNull();
             expect(countGuideAncestors(b)).toBe(1);
 
-            // c.md: in the DOM but hidden (parent collapsed).
-            // It is inside TWO .file-tree-children: 'a/b' (collapsed) + 'a' (expanded)
+            // c.md is not mounted while its parent remains collapsed.
             const c = div.querySelector('.file-tree-item[data-path="a/b/c.md"]');
-            expect(c).not.toBeNull();
-            expect(countGuideAncestors(c)).toBe(2);
+            expect(c).toBeNull();
         });
     });
 

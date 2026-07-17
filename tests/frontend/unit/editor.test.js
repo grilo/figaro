@@ -59,7 +59,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
         expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 4 } }, 4)).toBe(false);
     });
 
-	test('resolves conventional wikilink targets independently from their aliases', async () => {
+    test('resolves conventional wikilink targets independently from their aliases', async () => {
 		const { normalizeWikiLinkTarget, wikiLinkAtPosition } = await import('../frontend/js/editor.js');
 		const line = 'See [[notes/Guide Note.md#start|Readable guide]] now';
 		expect(wikiLinkAtPosition(line, 12)).toEqual({
@@ -68,6 +68,23 @@ describe('Editor Module - CodeMirror Initialization', () => {
 		});
 		expect(normalizeWikiLinkTarget('notes/Guide%20Note#start')).toBe('notes/Guide Note.md');
 	});
+
+    test('reuses a short-lived file read for repeated link hover previews', async () => {
+        const { fetchLinkPreviewFile, invalidateLinkPreviewCache } = await import('../frontend/js/editor.js');
+        invalidateLinkPreviewCache();
+        window.go.main.App.ReadFile.mockResolvedValueOnce({ content: '# Linked note', path: 'notes/linked.md' });
+
+        const [first, second] = await Promise.all([
+            fetchLinkPreviewFile('notes/linked.md'),
+            fetchLinkPreviewFile('notes/linked.md'),
+        ]);
+
+        expect(first).toEqual(second);
+        expect(window.go.main.App.ReadFile).toHaveBeenCalledTimes(1);
+        invalidateLinkPreviewCache('notes/linked.md');
+        await fetchLinkPreviewFile('notes/linked.md');
+        expect(window.go.main.App.ReadFile).toHaveBeenCalledTimes(2);
+    });
 
     test('normalizes WebKitGTK Unidentified Shift+Tab for nested table editors', async () => {
         const { normalizeWebKitShiftTab } = await import('../frontend/js/editor.js');

@@ -65,15 +65,20 @@ describe('live Kanban buffers and compact cards', () => {
             _content: 'A newly typed item #urgent',
         }]);
         initKanban();
+        await testUtils.waitFor(20);
+        window.go.main.App.GetKanbanBoard.mockClear();
+        window.go.main.App.GetKanbanColumns.mockClear();
         document.dispatchEvent(new CustomEvent('file-content-changed', {
             detail: { path: 'note.md', content: 'A newly typed item #urgent' },
         }));
-        await testUtils.waitFor(120);
+        await testUtils.waitFor(40);
 
         const board = document.getElementById('kanban-board-main');
         expect(board.textContent).toContain('#urgent');
         expect(board.textContent).toContain('A newly typed item');
         expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
+        expect(window.go.main.App.GetKanbanBoard).not.toHaveBeenCalled();
+        expect(window.go.main.App.GetKanbanColumns).not.toHaveBeenCalled();
     });
 
     test('renders the compact text while retaining the full card text in its title', async () => {
