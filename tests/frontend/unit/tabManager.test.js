@@ -65,6 +65,8 @@ jest.mock('../frontend/js/theme.js', () => ({
 import { state, setState, getState } from '../frontend/js/state.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, restoreCursorState } from '../frontend/js/editor.js';
 import { initSettingsPanel } from '../frontend/js/theme.js';
+import { setAutoCommitMode } from '../frontend/js/automation.js';
+import { statusBar } from '../frontend/js/statusBar.js';
 // confirmDialog accessed via window.confirmDialog
 
 import { 
@@ -100,7 +102,8 @@ function deferred() {
 window.pywebview = { api: {
     save_file: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() }),
     save_session: jest.fn().mockResolvedValue({ success: true }),
-    read_file: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' })
+    read_file: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
+    commit_current_file: jest.fn().mockResolvedValue(null),
 } };
 
 describe('Tab Manager', () => {
@@ -115,6 +118,7 @@ describe('Tab Manager', () => {
         mockState.recentFiles = [];
         getEditorDocumentTabId.mockReturnValue(null);
         getEditorContent.mockReturnValue('');
+        setAutoCommitMode(3600);
     });
 
     describe('openTab', () => {
@@ -238,6 +242,9 @@ describe('Tab Manager', () => {
             expect(trigger.getAttribute('aria-controls')).toBe('link-style-menu');
             expect(menu.getAttribute('role')).toBe('listbox');
             expect(menu.querySelectorAll('[role="option"]')).toHaveLength(2);
+            expect(panel.querySelector('#line-numbers-toggle')).not.toBeNull();
+            expect(panel.querySelector('#auto-commit-interval option[value="-1"]').textContent).toBe('On Save');
+            expect(panel.querySelector('#auto-commit-interval').value).toBe('3600');
         });
 
         test('does not let an older read overwrite a newer load of the same tab', async () => {
@@ -608,6 +615,38 @@ describe('Tab Manager', () => {
     });
 
     describe('save queue', () => {
+        test('On Save commits the saved file while interval modes do not', async () => {
+            const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            window.pywebview.api.save_file.mockResolvedValue({ success: true, mtime: 11 });
+
+            setAutoCommitMode(-1);
+            await saveFileSnapshot(tab, 'saved and committed');
+            expect(window.pywebview.api.commit_current_file).toHaveBeenCalledWith('note.md');
+
+            window.pywebview.api.commit_current_file.mockClear();
+            tab.dirty = true;
+            setAutoCommitMode(3600);
+            await saveFileSnapshot(tab, 'saved only');
+            expect(window.pywebview.api.commit_current_file).not.toHaveBeenCalled();
+        });
+
+        test('On Save keeps a successful save and reports a failed history commit', async () => {
+            const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            window.pywebview.api.save_file.mockResolvedValue({ success: true, mtime: 11 });
+            window.pywebview.api.commit_current_file.mockRejectedValueOnce(new Error('git unavailable'));
+            setAutoCommitMode(-1);
+
+            await expect(saveFileSnapshot(tab, 'saved despite Git failure')).resolves.toEqual(
+                expect.objectContaining({ success: true }),
+            );
+            expect(tab.dirty).toBe(false);
+            expect(statusBar.set).toHaveBeenLastCalledWith('Saved; history commit failed');
+        });
+
         test('serializes snapshots for one file using the prior save revision', async () => {
             let resolveFirst;
             let resolveSecond;

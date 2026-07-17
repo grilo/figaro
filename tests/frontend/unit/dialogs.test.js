@@ -1,4 +1,4 @@
-import { confirmDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, promptDialog, renamePathDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, pdfStyleReferenceDialog, promptDialog, renamePathDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
 
 describe('New note dialog', () => {
     beforeEach(() => {
@@ -219,6 +219,8 @@ describe('New note dialog', () => {
         const header = dialog.querySelector('.table-conversion-checkbox input');
         const preview = dialog.querySelector('.table-conversion-preview');
 
+        expect(dialog.querySelector('.table-conversion-combobox [role="combobox"]')).not.toBeNull();
+        expect(dialog.querySelector('.table-conversion-select').classList.contains('select-combobox-native')).toBe(true);
         expect(dialog.querySelector('.table-conversion-summary').textContent).toContain('Tab detected');
         expect(preview.textContent).toContain('| Alpha | 2 |');
         header.checked = false;
@@ -245,6 +247,20 @@ describe('New note dialog', () => {
 
         await expect(result).resolves.toBeNull();
         expect(document.querySelector('.custom-modal-overlay')).toBeNull();
+    });
+});
+
+describe('PDF style reference dialog', () => {
+    test('shows the generated body HTML and every class/id as themed CSS targets', async () => {
+        const result = pdfStyleReferenceDialog('<!doctype html><html><body class="figaro-pdf-preview-body"><main id="report" class="figaro-print-document"><h1 class="title">Report</h1></main></body></html>');
+        const dialog = document.querySelector('.pdf-style-reference-modal');
+
+        expect(dialog.querySelector('.pdf-style-selector-list').textContent).toContain('#report');
+        expect(dialog.querySelector('.pdf-style-selector-list').textContent).toContain('.figaro-print-document');
+        expect(dialog.querySelector('.pdf-style-reference-html').textContent).toContain('<body class="figaro-pdf-preview-body">');
+
+        dialog.querySelector('.custom-modal-btn-confirm').click();
+        await expect(result).resolves.toBeUndefined();
     });
 });
 
@@ -275,6 +291,7 @@ describe('File-tree appearance dialog', () => {
             recentIcons: ['Star'],
         });
         const overlay = document.querySelector('.custom-modal-overlay');
+        expect(overlay.textContent.match(/Projects/g)).toHaveLength(1);
         const search = overlay.querySelector('.file-tree-style-search');
         search.value = 'folder heart';
         search.dispatchEvent(new Event('input', { bubbles: true }));

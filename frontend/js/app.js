@@ -22,6 +22,7 @@ import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
 import { initLinkStylePreference } from './linkStyle.js';
+import { setAutoCommitMode } from './automation.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -63,6 +64,9 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
         },
         onKanbanIndexed: () => {
             import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});
+        },
+        onHistoryChanged: () => {
+            document.dispatchEvent(new CustomEvent('vault-history-changed'));
         },
     });
     if (registered) vaultEventsInitialized = true;
@@ -467,6 +471,9 @@ export async function initApp() {
     statusBar.set('Connecting to backend...');
     await waitForBackendBridge();
     await initLinkStylePreference();
+    try {
+        setAutoCommitMode(await window.pywebview.api.auto_commit_load());
+    } catch (_) { /* keep the one-hour default */ }
 
     // Load saved session from vault/.config/session.json
     await loadSession();

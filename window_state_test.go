@@ -174,3 +174,23 @@ func TestWindowStateFrontendCapturesNativeResize(t *testing.T) {
 		}
 	}
 }
+
+func TestWindowStateFrontendDoesNotCaptureBeforeFirstNativeResize(t *testing.T) {
+	data, err := os.ReadFile("frontend/wails-compat-bridge.js")
+	if err != nil {
+		t.Fatalf("read compatibility bridge: %v", err)
+	}
+	content := string(data)
+	start := strings.Index(content, "function installWindowStateCapture")
+	if start < 0 {
+		t.Fatal("could not locate window-state capture installation")
+	}
+	end := strings.Index(content[start:], "// ── Install bridge")
+	if end < 0 {
+		t.Fatal("could not locate the end of window-state capture installation")
+	}
+	section := content[start : start+end]
+	if strings.Contains(section, "scheduleCapture();") {
+		t.Fatal("window-state capture still queries GTK eagerly during startup")
+	}
+}

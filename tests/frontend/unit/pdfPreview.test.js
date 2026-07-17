@@ -24,6 +24,7 @@ jest.mock('../frontend/js/pdfExport.js', () => ({
 
 jest.mock('../frontend/js/dialogs.js', () => ({
     pdfExportErrorDialog: jest.fn().mockResolvedValue(undefined),
+    pdfStyleReferenceDialog: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../frontend/js/tabManager.js', () => ({
@@ -52,6 +53,7 @@ import { exportMarkdownToPDF, renderPrintableMarkdownWithDiagrams } from '../fro
 import { saveFileSnapshot } from '../frontend/js/tabManager.js';
 import { handleFileOpen } from '../frontend/js/app.js';
 import { initRightSidebarResizer } from '../frontend/js/historyPanel.js';
+import { pdfStyleReferenceDialog } from '../frontend/js/dialogs.js';
 
 function waitForPreview(delay = 40) {
     return new Promise(resolve => setTimeout(resolve, delay));
@@ -371,6 +373,18 @@ describe('live PDF preview', () => {
         expect(renderPrintableMarkdownWithDiagrams).toHaveBeenCalledTimes(2);
     });
 
+    test('opens a styled CSS helper with the current generated HTML contract', async () => {
+        const { render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        const helper = document.querySelector('[data-action="style-reference"]');
+
+        expect(helper.title).toMatch(/HTML, classes, and IDs/i);
+        helper.click();
+        await waitForPreview(0);
+
+        expect(pdfStyleReferenceDialog).toHaveBeenCalledWith(expect.stringContaining('figaro-print-document'));
+        expect(pdfStyleReferenceDialog).toHaveBeenCalledWith(render().html);
+    });
+
     test('keeps the PDF preview resize handle attached to the pane and changes its width on drag', async () => {
         await openPDFPreview({ path: 'notes/report.md', title: 'report.md' });
         const sidebar = document.getElementById('right-sidebar');
@@ -383,12 +397,14 @@ describe('live PDF preview', () => {
         expect(resizer.parentElement).toBe(sidebar);
         expect(resizer.classList.contains('visible')).toBe(true);
 
-        resizer.dispatchEvent(new MouseEvent('mousedown', {
+        const dragStart = typeof window.PointerEvent === 'function' ? 'pointerdown' : 'mousedown';
+        const DragEvent = typeof window.PointerEvent === 'function' ? window.PointerEvent : MouseEvent;
+        resizer.dispatchEvent(new DragEvent(dragStart, {
             bubbles: true,
             cancelable: true,
             clientX: 900,
         }));
-        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 600 }));
+        document.dispatchEvent(new DragEvent(dragStart === 'pointerdown' ? 'pointermove' : 'mousemove', { clientX: 600 }));
         expect(sidebar.style.width).toBe('780px');
         expect(sidebar.style.minWidth).toBe('780px');
         expect(resizer.classList.contains('is-dragging')).toBe(true);
@@ -398,10 +414,10 @@ describe('live PDF preview', () => {
 
         // The preview can consume the editor's former outer margins, but the
         // editor always retains its 320px manipulation floor.
-        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 0 }));
+        document.dispatchEvent(new DragEvent(dragStart === 'pointerdown' ? 'pointermove' : 'mousemove', { clientX: 0 }));
         expect(sidebar.style.width).toBe('960px');
 
-        document.dispatchEvent(new MouseEvent('mouseup'));
+        document.dispatchEvent(new DragEvent(dragStart === 'pointerdown' ? 'pointerup' : 'mouseup'));
         expect(resizer.classList.contains('is-dragging')).toBe(false);
         expect(sidebar.classList.contains('is-resizing')).toBe(false);
         expect(document.body.classList.contains('right-sidebar-resizing')).toBe(false);
@@ -425,7 +441,9 @@ describe('live PDF preview', () => {
         initRightSidebarResizer();
         postMessage.mockClear();
 
-        resizer.dispatchEvent(new MouseEvent('mousedown', {
+        const dragStart = typeof window.PointerEvent === 'function' ? 'pointerdown' : 'mousedown';
+        const DragEvent = typeof window.PointerEvent === 'function' ? window.PointerEvent : MouseEvent;
+        resizer.dispatchEvent(new DragEvent(dragStart, {
             bubbles: true,
             cancelable: true,
             clientX: 900,
@@ -449,7 +467,7 @@ describe('live PDF preview', () => {
         expect(postedBridgeMessages(postMessage)
             .filter(message => message.type === 'set-content-progress')).toHaveLength(0);
 
-        document.dispatchEvent(new MouseEvent('mouseup'));
+        document.dispatchEvent(new DragEvent(dragStart === 'pointerdown' ? 'pointerup' : 'mouseup'));
         await waitForPreview(110);
         expect(postedBridgeMessages(postMessage)).toContainEqual(expect.objectContaining({
             type: 'set-scroll-sync-paused',
@@ -471,12 +489,14 @@ describe('live PDF preview', () => {
         initRightSidebarResizer();
         postMessage.mockClear();
 
-        resizer.dispatchEvent(new MouseEvent('mousedown', {
+        const dragStart = typeof window.PointerEvent === 'function' ? 'pointerdown' : 'mousedown';
+        const DragEvent = typeof window.PointerEvent === 'function' ? window.PointerEvent : MouseEvent;
+        resizer.dispatchEvent(new DragEvent(dragStart, {
             bubbles: true,
             cancelable: true,
             clientX: 900,
         }));
-        document.dispatchEvent(new MouseEvent('mouseup'));
+        document.dispatchEvent(new DragEvent(dragStart === 'pointerdown' ? 'pointerup' : 'mouseup'));
         closePDFPreview();
 
         const pauseMessages = postedBridgeMessages(postMessage)

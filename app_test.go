@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ============================================================================
@@ -94,6 +95,26 @@ func TestSafePath_BackslashNormalized(t *testing.T) {
 	}
 	if !strings.Contains(abs, filepath.Join("notes", "hello.md")) {
 		t.Errorf("backslashes not normalized: %s", abs)
+	}
+}
+
+func TestFileHasUncommittedChangesValidatesVaultPathAndFollowsCommit(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "note.md", "draft\n")
+
+	dirty, err := app.FileHasUncommittedChanges("note.md")
+	if err != nil || !dirty {
+		t.Fatalf("new note status = %v, %v; want dirty", dirty, err)
+	}
+	if err := app.CommitCurrentFile("note.md"); err != nil {
+		t.Fatalf("CommitCurrentFile: %v", err)
+	}
+	dirty, err = app.FileHasUncommittedChanges("note.md")
+	if err != nil || dirty {
+		t.Fatalf("committed note status = %v, %v; want clean", dirty, err)
+	}
+	if _, err := app.FileHasUncommittedChanges("../outside.md"); err == nil {
+		t.Fatal("expected traversal status lookup to be rejected")
 	}
 }
 
@@ -482,6 +503,27 @@ func TestCreateDirectory(t *testing.T) {
 	info, err := os.Stat(filepath.Join(vaultPath, "newdir"))
 	if err != nil || !info.IsDir() {
 		t.Error("directory should exist")
+	}
+}
+
+func TestCreateInboxNoteUsesTimestampAndNeverOverwritesCollision(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	createdAt := time.Date(2026, time.July, 17, 14, 35, 22, 0, time.Local)
+
+	first, err := app.createInboxNoteAt(createdAt)
+	if err != nil || !first.Success || first.Path != "Inbox/2026-07-17-143522.md" {
+		t.Fatalf("first Inbox note: result=%+v err=%v", first, err)
+	}
+	if err := os.WriteFile(filepath.Join(vaultPath, filepath.FromSlash(first.Path)), []byte("keep me"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	second, err := app.createInboxNoteAt(createdAt)
+	if err != nil || !second.Success || second.Path != "Inbox/2026-07-17-143522-2.md" {
+		t.Fatalf("colliding Inbox note: result=%+v err=%v", second, err)
+	}
+	if got := readTestFile(t, vaultPath, first.Path); got != "keep me" {
+		t.Fatalf("Inbox collision overwrote the existing note: %q", got)
 	}
 }
 
@@ -1120,7 +1162,7 @@ func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
 	if err := json.Unmarshal(data, &settings); err != nil {
 		t.Fatal(err)
 	}
-	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(0) {
+	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["line_numbers"] != false || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(3600) {
 		t.Fatalf("unexpected normalized settings: %#v", settings)
 	}
 	if _, exists := settings["openTabs"]; exists {
@@ -1152,7 +1194,7 @@ func TestEnsureSettingsDefaultsCreatesDefaultsForMissingAndEmptyFiles(t *testing
 			if err := json.Unmarshal(data, &settings); err != nil {
 				t.Fatal(err)
 			}
-			if settings["theme"] != "default" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(0) {
+			if settings["theme"] != "default" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(3600) {
 				t.Fatalf("unexpected defaults: %#v", settings)
 			}
 		})
@@ -1296,6 +1338,42 @@ func TestAutoCommitSaveReconfiguresScheduler(t *testing.T) {
 	}
 	if app.history.SchedulerActive() {
 		t.Fatal("expected AutoCommitSave to stop the scheduler")
+	}
+
+	if err := app.AutoCommitSave(-1); err != nil {
+		t.Fatalf("enable on-save auto-commit: %v", err)
+	}
+	if app.history.SchedulerActive() {
+		t.Fatal("On Save must not leave an interval scheduler running")
+	}
+	if got := app.AutoCommitLoad(); got != -1 {
+		t.Fatalf("AutoCommitLoad() = %d, want On Save sentinel -1", got)
+	}
+	if err := app.AutoCommitSave(-2); err == nil {
+		t.Fatal("invalid negative auto-commit mode was accepted")
+	}
+}
+
+func TestConfiguredAutoCommitStartsAfterRestartExceptOnSaveMode(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	defer app.history.StartAutoCommit(0)
+
+	if err := app.AutoCommitSave(3600); err != nil {
+		t.Fatal(err)
+	}
+	app.history.StartAutoCommit(0)
+	app.startConfiguredAutoCommit()
+	if !app.history.SchedulerActive() {
+		t.Fatal("persisted one-hour auto-commit did not restart its scheduler")
+	}
+
+	if err := app.AutoCommitSave(-1); err != nil {
+		t.Fatal(err)
+	}
+	app.startConfiguredAutoCommit()
+	if app.history.SchedulerActive() {
+		t.Fatal("On Save mode must not start an interval scheduler")
 	}
 }
 
@@ -1518,6 +1596,25 @@ func TestVimLoad_Default(t *testing.T) {
 	}
 	if vim["enabled"] {
 		t.Error("vim should default to false")
+	}
+}
+
+func TestLineNumbersSaveLoadAndDefault(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	loaded, err := app.LineNumbersLoad()
+	if err != nil || loaded["enabled"] {
+		t.Fatalf("LineNumbersLoad default = %#v, %v; want disabled", loaded, err)
+	}
+	result, err := app.LineNumbersSave(true)
+	if err != nil || !result.Success {
+		t.Fatalf("LineNumbersSave(true) = %#v, %v", result, err)
+	}
+	restarted := NewApp(vaultPath)
+	loaded, err = restarted.LineNumbersLoad()
+	if err != nil || !loaded["enabled"] {
+		t.Fatalf("LineNumbersLoad after restart = %#v, %v; want enabled", loaded, err)
 	}
 }
 

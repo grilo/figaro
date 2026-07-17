@@ -10,6 +10,7 @@ import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorConte
 import { statusBar } from './statusBar.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
 import { playEntranceAnimation, playExitAnimation } from './motion.js';
+import { shouldCommitOnSave } from './automation.js';
 
 /**
  * View Manager — shows either the editor or tab panels, never both.
@@ -371,6 +372,10 @@ export function switchTab(tabId) {
     
     setState('activeTabId', tabId);
     saveTabsToStorage();
+
+    document.dispatchEvent(new CustomEvent('active-tab-changed', {
+        detail: { path: tab.type === 'file' ? tab.path : null, type: tab.type },
+    }));
 
     if (tab.type === 'file' && tab.path) {
         recordRecentFile(tab.path, tab.title);
@@ -875,6 +880,9 @@ export function markTabDirty(tabId) {
         tab.dirty = true;
         setState('openTabs', [...tabs]);
         renderTabBar();
+        if (tab.id === getState('activeTabId') && tab.path) {
+            document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: tab.path } }));
+        }
     }
 }
 
@@ -1038,7 +1046,7 @@ async function persistFileSnapshot(tab, content, generation, editGeneration) {
     try {
         const result = await save(tab.mtime);
         if (result.success) {
-            applySaveSuccess(tab, result, generation, editGeneration, 'Saved', content);
+            await applySaveSuccess(tab, result, generation, editGeneration, 'Saved', content);
             return result;
         }
 
@@ -1052,7 +1060,7 @@ async function persistFileSnapshot(tab, content, generation, editGeneration) {
         if (shouldOverwrite) {
             const forceResult = await save(0);
             if (forceResult.success) {
-                applySaveSuccess(tab, forceResult, generation, editGeneration, 'Saved (forced)', content);
+                await applySaveSuccess(tab, forceResult, generation, editGeneration, 'Saved (forced)', content);
                 return forceResult;
             }
             return forceResult;
@@ -1065,12 +1073,21 @@ async function persistFileSnapshot(tab, content, generation, editGeneration) {
     }
 }
 
-function applySaveSuccess(tab, result, generation, editGeneration, message, content) {
+async function applySaveSuccess(tab, result, generation, editGeneration, message, content) {
     tab.mtime = result.mtime;
     const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
     tabsForPath.forEach(candidate => {
         candidate.mtime = result.mtime;
     });
+    let historyCommitFailed = false;
+    if (shouldCommitOnSave()) {
+        try {
+            await window.pywebview.api.commit_current_file(tab.path);
+        } catch (error) {
+            historyCommitFailed = true;
+            log.warn('File saved, but its history commit failed:', error);
+        }
+    }
     if (tab._saveGeneration !== generation) return;
 
     const savedLatestEdit = (tab._editGeneration || 0) === editGeneration;
@@ -1082,7 +1099,9 @@ function applySaveSuccess(tab, result, generation, editGeneration, message, cont
     document.dispatchEvent(new CustomEvent('vault-file-saved', {
         detail: { path: tab.path, content, mtime: result.mtime }
     }));
-    statusBar.set(savedLatestEdit ? message : 'Saved older snapshot; newer changes remain');
+    statusBar.set(historyCommitFailed
+        ? 'Saved; history commit failed'
+        : (savedLatestEdit ? message : 'Saved older snapshot; newer changes remain'));
     import('./calendar.js').then(({ invalidateCalendarCache, refreshCalendarIfVisible }) => {
         invalidateCalendarCache();
         refreshCalendarIfVisible();
@@ -1259,6 +1278,19 @@ function renderSettingsTab(panel, _tab) {
                 </div>
                 <div class="settings-section">
                     <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M1 6h.01M1 12h.01M1 18h.01"/></svg>
+                        <span>Line numbers</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-row-label">Show line numbers</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="line-numbers-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
                         <span>Links style</span>
                     </div>
@@ -1312,11 +1344,12 @@ function renderSettingsTab(panel, _tab) {
                         <span>Auto-Commit</span>
                     </div>
                     <select id="auto-commit-interval" class="auto-save-select">
-                        <option value="0" selected>Off</option>
-                        <option value="3600">1 hour</option>
+                        <option value="-1">On Save</option>
+                        <option value="3600" selected>1 hour</option>
                         <option value="7200">2 hours</option>
                         <option value="14400">4 hours</option>
                         <option value="28800">8 hours</option>
+                        <option value="0">Off</option>
                     </select>
                 </div>
             </div>

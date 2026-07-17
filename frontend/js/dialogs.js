@@ -9,6 +9,7 @@
 import { analyzeTabularText, markdownTableFromRows } from './markdownTableConversion.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
 import { lucideIconLabel, renderLucideIcon, searchLucideIcons } from './lucideIcons.js';
+import { enhanceSelectCombobox } from './selectCombobox.js';
 
 let activeModal = null;
 let activeModalDismiss = null;
@@ -35,6 +36,7 @@ const dialogIcons = {
     trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m7 7 1 13h8l1-13"/><path d="M10 11v5M14 11v5"/>',
     merge: '<path d="M7 4v3a5 5 0 0 0 5 5h5"/><path d="m14 9 3 3-3 3"/><path d="M7 20v-3a5 5 0 0 1 5-5"/>',
     table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16M15 4v16"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/>',
 };
 
 function iconSVG(name) {
@@ -335,6 +337,10 @@ export function tableConversionDialog(sourceText) {
         const error = overlay.querySelector('.table-conversion-error');
         const cancelButton = overlay.querySelector('.custom-modal-btn-cancel');
         const confirmButton = overlay.querySelector('.custom-modal-btn-confirm');
+        enhanceSelectCombobox(delimiter, {
+            className: 'table-conversion-combobox',
+            ariaLabel: 'Table delimiter',
+        });
         let lifecycle = null;
         let convertedMarkdown = '';
 
@@ -669,6 +675,68 @@ export function pdfExportErrorDialog(error, options = {}) {
     });
 }
 
+/** Show the exact printable body markup and its reusable CSS selectors. */
+export function pdfStyleReferenceDialog(documentHTML) {
+    return new Promise(resolve => {
+        const parsed = new DOMParser().parseFromString(String(documentHTML || ''), 'text/html');
+        const rawHTML = parsed.body?.outerHTML || String(documentHTML || '');
+        const ids = [...new Set(Array.from(parsed.querySelectorAll('[id]')).map(element => `#${element.id}`))].sort();
+        const classes = [...new Set(Array.from(parsed.querySelectorAll('[class]')).flatMap(element =>
+            Array.from(element.classList).map(className => `.${className}`)
+        ))].sort();
+        const selectorChip = selector => `<code class="pdf-style-selector">${escapeHtml(selector)}</code>`;
+        const { overlay } = createDialogShell({
+            title: 'Figaro PDF style reference',
+            description: 'Use these selectors and the generated body markup when editing your print stylesheet.',
+            icon: 'file',
+            className: 'pdf-style-reference-modal',
+            content: `
+                <section class="pdf-style-reference-section" aria-labelledby="pdf-style-selectors-title">
+                    <div class="pdf-style-reference-heading">
+                        <h4 id="pdf-style-selectors-title">Classes and IDs</h4>
+                        <span>${classes.length} classes · ${ids.length} IDs</span>
+                    </div>
+                    <div class="pdf-style-selector-list" tabindex="0">
+                        ${[...ids, ...classes].map(selectorChip).join('') || '<span class="pdf-style-reference-empty">No selectors in this document.</span>'}
+                    </div>
+                </section>
+                <section class="pdf-style-reference-section" aria-labelledby="pdf-style-html-title">
+                    <div class="pdf-style-reference-heading"><h4 id="pdf-style-html-title">Generated body HTML</h4><span>Current preview</span></div>
+                    <pre class="pdf-style-reference-html" tabindex="0"><code>${escapeHtml(rawHTML)}</code></pre>
+                </section>
+            `,
+            footer: `
+                <button type="button" class="custom-modal-btn pdf-style-copy">Copy HTML</button>
+                <span class="custom-modal-button-spacer"></span>
+                <button type="button" class="custom-modal-btn custom-modal-btn-confirm">Close</button>
+            `,
+        });
+        const closeButton = overlay.querySelector('.custom-modal-btn-confirm');
+        const copyButton = overlay.querySelector('.pdf-style-copy');
+        let lifecycle = null;
+        const settle = () => {
+            if (!lifecycle.close()) return;
+            resolve();
+        };
+        lifecycle = activateModal(overlay, {
+            initialFocus: closeButton,
+            onDismiss: resolve,
+        });
+        closeButton.addEventListener('click', settle);
+        copyButton.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(rawHTML);
+                copyButton.textContent = 'Copied';
+            } catch (_) {
+                copyButton.textContent = 'Copy unavailable';
+            }
+            setTimeout(() => {
+                if (copyButton.isConnected) copyButton.textContent = 'Copy HTML';
+            }, 1200);
+        });
+    });
+}
+
 /** Choose a path-specific Lucide icon and shared palette color. */
 export function fileTreeStyleDialog({ name, type, current = {}, recentIcons = [] } = {}) {
     return new Promise(resolve => {
@@ -681,7 +749,7 @@ export function fileTreeStyleDialog({ name, type, current = {}, recentIcons = []
             </button>`;
         const { overlay } = createDialogShell({
             title: `Style ${type === 'directory' ? 'folder' : 'file'}`,
-            description: name || 'Vault entry',
+            description: 'Choose a color and Lucide icon for this vault entry.',
             icon: type === 'directory' ? 'folder' : 'file',
             className: 'file-tree-style-modal',
             content: `
@@ -804,6 +872,7 @@ export default {
     mergeNotesDialog,
     newNoteDialog,
     pdfExportErrorDialog,
+    pdfStyleReferenceDialog,
     promptDialog,
     renamePathDialog,
     tableConversionDialog,

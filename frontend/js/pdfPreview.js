@@ -11,7 +11,7 @@ import { log } from './log.js';
 import { getState } from './state.js';
 import { getPrintStylesheet } from './frontmatter.js';
 import { exportMarkdownToPDF, renderPrintableMarkdownWithDiagrams } from './pdfExport.js';
-import { pdfExportErrorDialog } from './dialogs.js';
+import { pdfExportErrorDialog, pdfStyleReferenceDialog } from './dialogs.js';
 import { updateRightSidebarEditorLayout } from './historyPanel.js';
 
 const previewDebounceMs = 320;
@@ -41,6 +41,7 @@ const preview = {
     stylesheetContent: '',
     stylesheetMtime: null,
     stylesheetError: '',
+    documentHTML: '',
 };
 
 // The preview frame is deliberately cross-origin/sandboxed. Keep the scroll
@@ -830,6 +831,7 @@ function panelElements() {
         frame: panel.querySelector('.pdf-preview-frame'),
         generate: panel.querySelector('[data-action="generate-pdf"]'),
         openStylesheet: panel.querySelector('[data-action="open-stylesheet"]'),
+        styleReference: panel.querySelector('[data-action="style-reference"]'),
     };
 }
 
@@ -851,10 +853,15 @@ function ensurePreviewPanel() {
                 <span class="pdf-preview-document-title"></span>
                 <button type="button" class="pdf-preview-stylesheet" data-action="open-stylesheet" title="Open the active print stylesheet" disabled></button>
             </div>
-            <button type="button" class="pdf-preview-generate" data-action="generate-pdf">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
-                <span>Generate PDF</span>
-            </button>
+            <div class="pdf-preview-actions">
+                <button type="button" class="pdf-preview-style-reference" data-action="style-reference" title="Show Figaro’s generated HTML, classes, and IDs" aria-label="Open PDF style reference">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 9 4 12l4 3M16 9l4 3-4 3M14 5l-4 14"/></svg>
+                </button>
+                <button type="button" class="pdf-preview-generate" data-action="generate-pdf">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
+                    <span>Generate PDF</span>
+                </button>
+            </div>
         </div>
         <p class="pdf-preview-status" aria-live="polite">Preparing live preview…</p>
         <div class="pdf-preview-stage">
@@ -1003,11 +1010,12 @@ async function renderPreview() {
         // message bridge. It keeps arbitrary print CSS out of the app chrome
         // without requiring the parent to access a frame DOM.
         scrollSync.pendingDocumentProgress = capturePreviewScrollProgress();
-        queuePreviewBridgeRender(frame, buildPDFPreviewDocument(printable, {
+        preview.documentHTML = buildPDFPreviewDocument(printable, {
             notePath: preview.path,
             stylesheetPath: preview.stylesheetPath,
             stylesheetContent: preview.stylesheetContent,
-        }), scrollSync.pendingDocumentProgress);
+        });
+        queuePreviewBridgeRender(frame, preview.documentHTML, scrollSync.pendingDocumentProgress);
         awaitingBridgeRender = true;
         updatePreviewMeta();
         setPreviewStatus(preview.stylesheetError ? 'Live preview updated — using the built-in style.' : 'Live preview up to date.');
@@ -1176,6 +1184,12 @@ async function openPreviewStylesheet() {
     await handleFileOpen(preview.stylesheetPath);
 }
 
+async function openPDFStyleReference() {
+    if (!preview.documentHTML) await renderPreview();
+    if (!preview.documentHTML) return;
+    await pdfStyleReferenceDialog(preview.documentHTML);
+}
+
 export async function openPDFPreview({ path, title, content } = {}) {
     if (!path || !/\.md$/i.test(path)) throw new Error('PDF preview is only available for Markdown files.');
     initPDFPreview();
@@ -1201,6 +1215,7 @@ export async function openPDFPreview({ path, title, content } = {}) {
     preview.stylesheetContent = '';
     preview.stylesheetMtime = null;
     preview.stylesheetError = '';
+    preview.documentHTML = '';
 
     if (!preview.content && !await loadPreviewSource(preview.path)) {
         throw new Error('Markdown file could not be read for preview.');
@@ -1251,6 +1266,7 @@ export function closePDFPreview({ keepSidebarOpen = false } = {}) {
     if (!keepSidebarOpen) resizer?.classList.remove('visible');
     preview.path = '';
     preview.content = '';
+    preview.documentHTML = '';
     window.dispatchEvent(new Event('resize'));
 }
 
@@ -1276,6 +1292,7 @@ export function initPDFPreview() {
             const action = event.target.closest('[data-action]')?.dataset.action;
             if (action === 'generate-pdf') generatePDF();
             if (action === 'open-stylesheet') openPreviewStylesheet();
+            if (action === 'style-reference') openPDFStyleReference();
         });
         const frame = panel.querySelector('.pdf-preview-frame');
         frame?.addEventListener('load', event => {

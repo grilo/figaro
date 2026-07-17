@@ -200,13 +200,6 @@ func (a *App) domReady(ctx context.Context) {
 		})();
 	`)
 
-	// Start auto-commit scheduler (if configured)
-	if a.history != nil {
-		interval := a.AutoCommitLoad()
-		if interval > 0 {
-			a.history.StartAutoCommit(interval)
-		}
-	}
 }
 
 // vaultFileServer holds an os.Root open for the lifetime of Wails' local asset

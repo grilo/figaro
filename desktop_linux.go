@@ -60,7 +60,7 @@ func linuxIconDirectories(iconRoot string) []string {
 }
 
 func isStaleLinuxFigaroIcon(filename string, currentAssetName string) bool {
-	if filename == linuxLegacyDesktopIconName+".png" || filename == linuxDesktopIconName+".png" {
+	if filename == linuxLegacyDesktopIconName+".png" {
 		return true
 	}
 	return strings.HasPrefix(filename, linuxDesktopIconName+"-") &&
@@ -165,6 +165,13 @@ func (a *App) ensureDesktopIntegration() {
 		if err := os.WriteFile(destPath, data, 0644); err != nil { // #nosec G306,G703 -- desktop shells require readable icon files in the XDG icon path.
 			log.Printf("[desktop] Cannot write %s: %v", destPath, err)
 		}
+		// GNOME's Dash groups running windows by a stable desktop identity.
+		// Keep a conventional theme-name alias even though the content-hashed
+		// copy remains useful for forcing decoded-image cache refreshes.
+		stablePath := filepath.Join(destDir, linuxDesktopIconName+".png")
+		if err := os.WriteFile(stablePath, data, 0644); err != nil { // #nosec G306,G703 -- desktop shells require readable icon files in the XDG icon path.
+			log.Printf("[desktop] Cannot write %s: %v", stablePath, err)
+		}
 	}
 
 	scalableDir := filepath.Join(dataHome, "icons", "hicolor", "scalable", "apps")
@@ -174,6 +181,9 @@ func (a *App) ensureDesktopIntegration() {
 		if err := os.WriteFile(filepath.Join(scalableDir, iconAssetName+".png"), primaryIcon, 0644); err != nil { // #nosec G306,G703 -- desktop shells require readable icon files in the XDG icon path.
 			log.Printf("[desktop] Cannot write scalable icon: %v", err)
 		}
+		if err := os.WriteFile(filepath.Join(scalableDir, linuxDesktopIconName+".png"), primaryIcon, 0644); err != nil { // #nosec G306,G703 -- desktop shells require readable icon files in the XDG icon path.
+			log.Printf("[desktop] Cannot write stable scalable icon: %v", err)
+		}
 	}
 
 	gtkCache := exec.Command("gtk-update-icon-cache", "-f", "-t", iconRoot) // #nosec G204 -- fixed Linux utility; no shell is used and iconRoot is from os.UserHomeDir.
@@ -181,8 +191,10 @@ func (a *App) ensureDesktopIntegration() {
 		log.Printf("[desktop] gtk-update-icon-cache: %s (non-critical)", string(out))
 	}
 
-	iconPath := filepath.Join(iconRoot, "256x256", "apps", iconAssetName+".png")
-	desktopContent := linuxDesktopEntry(exePath, iconPath)
+	// A stable icon theme name is required for reliable running-window/Dash
+	// matching; absolute content-hashed paths can render in the app grid yet
+	// disappear when GNOME groups the live window.
+	desktopContent := linuxDesktopEntry(exePath, linuxDesktopIconName)
 
 	if err := os.MkdirAll(filepath.Dir(desktopFile), 0755); err != nil { // #nosec G301,G703 -- XDG application path beneath the current user's home.
 		log.Printf("[desktop] Cannot create application directory: %v", err)

@@ -195,6 +195,7 @@ func NewApp(vaultPath string) *App {
 		log.Println("[history] Failed to init:", err)
 	} else {
 		hs.SetVaultReadLocker(&a.vaultMu)
+		hs.SetCommitCallback(func() { a.emitRuntimeEvent("vault:history-changed") })
 		a.history = hs
 	}
 
@@ -343,6 +344,7 @@ func (a *App) startup(ctx context.Context) {
 	log.Println("[go] App.startup() — Wails context captured")
 	a.migrateLegacyPDFBrowserPreference()
 	a.ensureSettingsDefaults()
+	a.startConfiguredAutoCommit()
 
 	// Desktop integration uses Linux's XDG/GNOME conventions. Other Wails
 	// platforms provide their own app registration model.
@@ -368,10 +370,15 @@ func (a *App) startup(ctx context.Context) {
 	}()
 }
 
+func (a *App) startConfiguredAutoCommit() {
+	if a.history != nil {
+		a.history.StartAutoCommit(a.AutoCommitLoad())
+	}
+}
+
 // domReady is called from OnDomReady; defined in main.go.
 // shutdown is called from OnShutdown.
 func (a *App) shutdown(ctx context.Context) {
-	a.captureWindowState(ctx)
 	a.stopVaultWatcher()
 	if a.history != nil {
 		a.history.StartAutoCommit(0)
@@ -713,10 +720,33 @@ func (a *App) SaveFile(relPath string, content string, expectedMtime float64) (*
 
 // CommitCurrentFile commits the given file to git history (used by auto-commit scheduler).
 func (a *App) CommitCurrentFile(relPath string) error {
+	cleanRel, err := vaultRelativePath(relPath)
+	if err != nil {
+		return err
+	}
+	if cleanRel == "." {
+		return fmt.Errorf("a file path is required")
+	}
 	if a.history != nil {
-		return a.history.CommitFile(relPath)
+		return a.history.CommitFile(cleanRel)
 	}
 	return nil
+}
+
+// FileHasUncommittedChanges scopes Git status to one vault file so the status
+// bar never conflates the active note with unrelated worktree changes.
+func (a *App) FileHasUncommittedChanges(relPath string) (bool, error) {
+	cleanRel, err := vaultRelativePath(relPath)
+	if err != nil {
+		return false, err
+	}
+	if cleanRel == "." {
+		return false, fmt.Errorf("a file path is required")
+	}
+	if a.history == nil {
+		return false, nil
+	}
+	return a.history.HasUncommittedChanges(cleanRel)
 }
 
 // CommitAllFiles commits all modified tracked files (used by auto-commit scheduler).
@@ -762,6 +792,51 @@ func (a *App) CreateFile(relPath string, content string) (*SaveFileResult, error
 	mtime := a.recordFileVersionLocked(a.vaultAbsolutePath(cleanRel), info)
 	a.syncKanbanColumnsLocked()
 	return &SaveFileResult{Success: true, Mtime: mtime, Path: relPath}, nil
+}
+
+// CreateInboxNote creates a collision-safe timestamped Markdown note in the
+// vault's real Inbox directory. Keeping Inbox as an ordinary folder means the
+// note participates in Git history, file-tree styling, links, and external
+// editing exactly like every other vault file.
+func (a *App) CreateInboxNote() (*SaveFileResult, error) {
+	return a.createInboxNoteAt(time.Now())
+}
+
+func (a *App) createInboxNoteAt(createdAt time.Time) (*SaveFileResult, error) {
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	if err := root.MkdirAll("Inbox", 0755); err != nil {
+		return nil, fmt.Errorf("create Inbox: %w", err)
+	}
+
+	base := createdAt.Local().Format("2006-01-02-150405")
+	for suffix := 1; suffix <= 10_000; suffix++ {
+		filename := base + ".md"
+		if suffix > 1 {
+			filename = fmt.Sprintf("%s-%d.md", base, suffix)
+		}
+		relPath := filepath.ToSlash(filepath.Join("Inbox", filename))
+		if err := createRootFile(root, relPath, nil, 0644); err != nil {
+			if os.IsExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("create Inbox note: %w", err)
+		}
+		info, err := root.Stat(relPath)
+		if err != nil {
+			return nil, fmt.Errorf("inspect Inbox note: %w", err)
+		}
+		mtime := a.recordFileVersionLocked(a.vaultAbsolutePath(relPath), info)
+		a.syncKanbanColumnsLocked()
+		return &SaveFileResult{Success: true, Mtime: mtime, Path: relPath}, nil
+	}
+	return &SaveFileResult{Success: false, Error: "Could not find an available Inbox note name"}, nil
 }
 
 // SaveClipboardImage decodes an image pasted into a Markdown editor and
@@ -3045,8 +3120,9 @@ func defaultSettings() map[string]interface{} {
 		"code_font":           "theme-mono",
 		"link_style":          string(links.MarkdownLinkStyle),
 		"vim":                 false,
+		"line_numbers":        false,
 		"auto_save_seconds":   300,
-		"auto_commit_seconds": 0,
+		"auto_commit_seconds": 3600,
 	}
 }
 
@@ -3059,6 +3135,20 @@ func nonNegativeWholeSetting(value interface{}) (int, bool) {
 			return 0, false
 		}
 		return int(number), true
+	default:
+		return 0, false
+	}
+}
+
+func autoCommitSetting(value interface{}) (int, bool) {
+	if number, valid := nonNegativeWholeSetting(value); valid {
+		return number, true
+	}
+	switch number := value.(type) {
+	case int:
+		return number, number == -1
+	case float64:
+		return int(number), number == -1
 	default:
 		return 0, false
 	}
@@ -3119,6 +3209,9 @@ func (a *App) ensureSettingsDefaults() {
 			}
 		case int:
 			_, valid := nonNegativeWholeSetting(settings[key])
+			if key == "auto_commit_seconds" {
+				_, valid = autoCommitSetting(settings[key])
+			}
 			if !valid {
 				settings[key] = fallbackValue
 				changed = true
@@ -3318,6 +3411,38 @@ func (a *App) VimSave(enabled bool) (*SaveFileResult, error) {
 	return &SaveFileResult{Success: true}, nil
 }
 
+// LineNumbersLoad loads the persisted editor gutter preference.
+func (a *App) LineNumbersLoad() (map[string]bool, error) {
+	a.settingsMu.RLock()
+	defer a.settingsMu.RUnlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return map[string]bool{"enabled": false}, nil
+	}
+	enabled, ok := settings["line_numbers"].(bool)
+	if !ok {
+		enabled = false
+	}
+	return map[string]bool{"enabled": enabled}, nil
+}
+
+// LineNumbersSave saves the editor gutter preference.
+func (a *App) LineNumbersSave(enabled bool) (*SaveFileResult, error) {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	settings["line_numbers"] = enabled
+	if err := a.writeSettingsFile(settings); err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
 // ============================================================================
 // 10. Interactive PDF export helpers
 // ============================================================================
@@ -3382,6 +3507,10 @@ func (a *App) WindowMaximize() {
 // WindowClose closes the application window.
 func (a *App) WindowClose() {
 	if a.ctx != nil {
+		// Capture while GTK still owns a realised window. OnShutdown runs after
+		// native teardown has begun on Linux, where querying state would emit
+		// gtk_widget_get_window / gdk_window_get_state critical assertions.
+		a.captureWindowState(a.ctx)
 		safeRuntimeCall(func() { runtime.Quit(a.ctx) })
 	}
 }
@@ -3577,7 +3706,8 @@ func (a *App) AutoSaveSave(seconds int) error {
 	return a.writeSettingsFile(settings)
 }
 
-// AutoCommitLoad returns the auto-commit interval in seconds (0 = disabled).
+// AutoCommitLoad returns the auto-commit interval in seconds. Zero disables
+// commits, while -1 selects committing each file after a successful save.
 func (a *App) AutoCommitLoad() int {
 	a.settingsMu.RLock()
 	defer a.settingsMu.RUnlock()
@@ -3587,7 +3717,7 @@ func (a *App) AutoCommitLoad() int {
 		if !os.IsNotExist(err) {
 			log.Printf("[settings] load auto-commit interval: %v", err)
 		}
-		return 0
+		return 3600
 	}
 	if v, ok := settings["auto_commit_seconds"]; ok {
 		switch n := v.(type) {
@@ -3597,13 +3727,13 @@ func (a *App) AutoCommitLoad() int {
 			return n
 		}
 	}
-	return 0 // default: disabled
+	return 3600 // default: 1 hour
 }
 
 // AutoCommitSave persists the auto-commit interval in seconds.
 func (a *App) AutoCommitSave(seconds int) error {
-	if seconds < 0 {
-		return fmt.Errorf("auto-commit interval cannot be negative")
+	if seconds < -1 {
+		return fmt.Errorf("invalid auto-commit mode")
 	}
 	a.settingsMu.Lock()
 

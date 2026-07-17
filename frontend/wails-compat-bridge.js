@@ -74,6 +74,7 @@
     'get_file_history':            'GetFileHistory',
     'get_file_version':            'GetFileVersion',
     'get_commit_count':            'GetCommitCount',
+    'file_has_uncommitted_changes': 'FileHasUncommittedChanges',
     'auto_save_load':              'AutoSaveLoad',
     'auto_save_save':              'AutoSaveSave',
     'auto_commit_load':            'AutoCommitLoad',
@@ -81,6 +82,7 @@
     'commit_all_files':            'CommitAllFiles',
     'commit_current_file':         'CommitCurrentFile',
     'create_file':                 'CreateFile',
+    'create_inbox_note':           'CreateInboxNote',
     'create_starter_print_stylesheet': 'CreateStarterPrintStylesheet',
     'create_directory':            'CreateDirectory',
     'delete_path':                 'DeletePath',
@@ -118,6 +120,8 @@
     'code_font_save':              'CodeFontSave',
     'vim_load':                    'VimLoad',
     'vim_save':                    'VimSave',
+    'line_numbers_load':           'LineNumbersLoad',
+    'line_numbers_save':           'LineNumbersSave',
     'link_style_load':              'LinkStyleLoad',
     'change_link_style':            'ChangeLinkStyle',
     'pdf_browser_load':            'PDFBrowserLoad',
@@ -248,8 +252,11 @@
       captureTimer = setTimeout(capture, 250);
     }
 
+    // Do not query native window state eagerly. On Linux the DOM-ready event
+    // can precede GTK window realisation, and Wails' state helper then emits
+    // GTK/GDK critical assertions. The loaded state is already authoritative;
+    // the first real resize or explicit window action records any change.
     window.addEventListener('resize', scheduleCapture, { passive: true });
-    scheduleCapture();
   }
 
   // ── Install bridge once Go bindings are ready ───────────────────────────

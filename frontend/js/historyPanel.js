@@ -3,6 +3,8 @@
  */
 import { log } from './log.js';
 import { getState } from './state.js';
+import { confirmDialog, errorDialog } from './dialogs.js';
+import { statusBar } from './statusBar.js';
 
 let liveContent = null;
 let viewingHistory = false;
@@ -11,6 +13,10 @@ let historyListRequestId = 0;
 let historyVersionRequestId = 0;
 let historyModeRequestId = 0;
 let historyModeTabId = null;
+let viewedVersionContent = null;
+let gitStatusPath = null;
+let gitStatusRequestId = 0;
+let gitCommitInProgress = false;
 
 const pdfPreviewMinimumWidth = 340;
 const pdfPreviewMinimumEditorWidth = 320;
@@ -27,6 +33,11 @@ export function initHistoryPanel() {
         });
     }
 
+    const gitStatus = document.getElementById('git-status');
+    if (gitStatus) {
+        gitStatus.addEventListener('click', () => commitCurrentFileChanges());
+    }
+
     // Right sidebar resizer
     initRightSidebarResizer();
 
@@ -34,12 +45,42 @@ export function initHistoryPanel() {
     document.addEventListener('tab-switched', (e) => {
         if (e.detail && e.detail.path) {
             updateHistoryCount(e.detail.path);
+            updateGitStatus(e.detail.path);
         }
     });
+    document.addEventListener('active-tab-changed', (event) => {
+        const path = event.detail?.path || '';
+        updateHistoryCount(path);
+        updateGitStatus(path);
+    });
+    document.addEventListener('active-file-dirty', (event) => {
+        if (event.detail?.path === gitStatusPath) setGitStatusState(true);
+    });
+    document.addEventListener('vault-file-saved', (event) => {
+        if (event.detail?.path === gitStatusPath) updateGitStatus(gitStatusPath);
+    });
+    document.addEventListener('vault-filesystem-changed', () => updateGitStatus(gitStatusPath));
+    document.addEventListener('vault-history-changed', () => {
+        updateGitStatus(gitStatusPath);
+        if (currentFilePath) updateHistoryCount(currentFilePath);
+    });
+
+    const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
+    const initialPath = activeTab?.type === 'file' ? activeTab.path : '';
+    updateHistoryCount(initialPath);
+    updateGitStatus(initialPath);
 }
 
 export function updateHistoryCount(filePath) {
-    if (!filePath || typeof filePath !== 'string') return;
+    if (!filePath || typeof filePath !== 'string') {
+        currentFilePath = null;
+        const countEl = document.getElementById('history-count');
+        if (countEl) {
+            countEl.textContent = '0 changes';
+            countEl.classList.remove('has-history');
+        }
+        return;
+    }
     if (filePath === currentFilePath && viewingHistory) return;
     currentFilePath = filePath;
 
@@ -47,7 +88,7 @@ export function updateHistoryCount(filePath) {
     if (!countEl) return;
 
     try {
-        window.pywebview.api.get_commit_count(filePath).then(count => {
+        return window.pywebview.api.get_commit_count(filePath).then(count => {
             if (filePath !== currentFilePath) return; // stale
             if (count > 0) {
                 countEl.textContent = count + ' change' + (count !== 1 ? 's' : '');
@@ -64,6 +105,127 @@ export function updateHistoryCount(filePath) {
     } catch (_) {
         countEl.textContent = '0 changes';
         countEl.classList.remove('has-history');
+        return Promise.resolve();
+    }
+}
+
+function setGitStatusVisibility(visible) {
+    const button = document.getElementById('git-status');
+    const separator = document.getElementById('git-status-separator');
+    if (button) button.hidden = !visible;
+    if (separator) separator.hidden = !visible;
+}
+
+function setGitStatusState(uncommitted) {
+    const button = document.getElementById('git-status');
+    if (!button) return;
+    setGitStatusVisibility(Boolean(gitStatusPath));
+    button.classList.toggle('is-uncommitted', Boolean(uncommitted));
+    button.classList.remove('has-error');
+    if (!gitCommitInProgress) {
+        button.disabled = !uncommitted;
+        button.textContent = uncommitted ? 'Uncommitted' : 'Git clean';
+        button.title = uncommitted
+            ? 'Commit this file to Git'
+            : 'This file is committed to Git';
+    }
+}
+
+function setGitStatusError() {
+    const button = document.getElementById('git-status');
+    if (!button) return;
+    setGitStatusVisibility(Boolean(gitStatusPath));
+    button.textContent = 'Git status unavailable';
+    button.title = 'Figaro could not read Git status for this file';
+    button.disabled = true;
+    button.classList.remove('is-uncommitted');
+    button.classList.add('has-error');
+}
+
+/** Refresh the active file's Git state without including unrelated files. */
+export async function updateGitStatus(filePath) {
+    const requestId = ++gitStatusRequestId;
+    gitStatusPath = typeof filePath === 'string' && filePath ? filePath : null;
+    if (!gitStatusPath) {
+        setGitStatusVisibility(false);
+        return false;
+    }
+
+    const path = gitStatusPath;
+    const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
+    if (activeTab?.type === 'file' && activeTab.path === path && activeTab.dirty) {
+        setGitStatusState(true);
+        return true;
+    }
+
+    try {
+        const uncommitted = await window.pywebview.api.file_has_uncommitted_changes(path);
+        if (requestId !== gitStatusRequestId || gitStatusPath !== path) return false;
+        setGitStatusState(Boolean(uncommitted));
+        return Boolean(uncommitted);
+    } catch (error) {
+        if (requestId !== gitStatusRequestId || gitStatusPath !== path) return false;
+        log.warn('[history] Git status failed:', error);
+        setGitStatusError();
+        return false;
+    }
+}
+
+/** Save pending editor text, then commit only the active file. */
+export async function commitCurrentFileChanges() {
+    if (gitCommitInProgress || !gitStatusPath) return false;
+    const path = gitStatusPath;
+    const tab = (getState('openTabs') || []).find(candidate => candidate.id === getState('activeTabId'));
+    if (!tab || tab.type !== 'file' || tab.path !== path) return false;
+
+    const button = document.getElementById('git-status');
+    gitCommitInProgress = true;
+    if (button) {
+        button.disabled = true;
+        button.classList.add('is-committing');
+        button.setAttribute('aria-busy', 'true');
+        button.textContent = tab.dirty ? 'Saving…' : 'Committing…';
+    }
+
+    try {
+        if (tab.dirty) {
+            const [{ getEditorContent }, { saveFileSnapshot }] = await Promise.all([
+                import('./editor.js'),
+                import('./tabManager.js'),
+            ]);
+            // A fast tab switch caches the old document on its tab before the
+            // active ID changes. Never read the replacement tab's editor text
+            // into the file whose commit was clicked.
+            const pendingContent = getState('activeTabId') === tab.id
+                ? getEditorContent()
+                : tab._content;
+            if (typeof pendingContent !== 'string') {
+                throw new Error('The pending editor text is not available to save safely.');
+            }
+            const saved = await saveFileSnapshot(tab, pendingContent);
+            if (!saved?.success) throw new Error(saved?.error || 'The file could not be saved before committing.');
+            if (button && gitStatusPath === path) button.textContent = 'Committing…';
+        }
+        await window.pywebview.api.commit_current_file(path);
+        statusBar.set('Committed file to Git');
+        await updateHistoryCount(path);
+        await refreshHistoryIfOpen();
+        return true;
+    } catch (error) {
+        log.error('[history] Commit failed:', error);
+        await errorDialog(
+            'Couldn’t commit this file',
+            error,
+            'The file was not removed or overwritten. Its uncommitted changes are still available.'
+        );
+        return false;
+    } finally {
+        gitCommitInProgress = false;
+        if (button?.isConnected) {
+            button.classList.remove('is-committing');
+            button.removeAttribute('aria-busy');
+        }
+        if (gitStatusPath) await updateGitStatus(gitStatusPath);
     }
 }
 
@@ -217,6 +379,7 @@ async function enterHistoryMode(versionContent) {
 
     // Load historical content
     setEditorContent(versionContent);
+    viewedVersionContent = versionContent;
 
     // Show exit button
     showHistoryBanner();
@@ -231,12 +394,63 @@ function showHistoryBanner() {
     banner.className = 'history-banner';
     banner.innerHTML = `
         <span class="history-banner-icon">&#128218;</span>
-        <span>Read-only — close history view to make changes.</span>
+        <span class="history-banner-copy">Read-only historical version.</span>
+        <button type="button" class="history-restore-button">Revert to this version</button>
     `;
 
     const editorContainer = document.getElementById('editor-container');
     if (editorContainer) {
         editorContainer.insertBefore(banner, editorContainer.firstChild);
+    }
+    banner.querySelector('.history-restore-button')?.addEventListener('click', restoreViewedVersion);
+}
+
+async function restoreViewedVersion() {
+    if (!viewingHistory || viewedVersionContent === null || !currentFilePath) return false;
+    const tab = (getState('openTabs') || []).find(candidate => candidate.id === historyModeTabId);
+    if (!tab || tab.type !== 'file' || tab.path !== currentFilePath) return false;
+
+    const confirmed = await confirmDialog(
+        'Revert to this version?',
+        'Figaro will restore this file to the selected version. Your current version will be saved in Git history first, so you can return to it later.',
+        false,
+        false,
+        {
+            tone: 'warning',
+            icon: 'history',
+            confirmLabel: 'Revert file',
+            cancelLabel: 'Keep current version',
+        }
+    );
+    if (!confirmed) return false;
+
+    const button = document.querySelector('.history-restore-button');
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'Reverting…';
+    }
+    const restoredContent = viewedVersionContent;
+    try {
+        const { saveFileSnapshot } = await import('./tabManager.js');
+        const preserved = await saveFileSnapshot(tab, liveContent ?? '');
+        if (!preserved?.success) throw new Error(preserved?.error || 'The current version could not be preserved.');
+        await window.pywebview.api.commit_current_file(tab.path);
+
+        const restored = await saveFileSnapshot(tab, restoredContent);
+        if (!restored?.success) throw new Error(restored?.error || 'The selected version could not be restored.');
+        liveContent = restoredContent;
+        await exitHistoryMode();
+        statusBar.set('Reverted file; previous version kept in history');
+        await refreshHistoryIfOpen();
+        return true;
+    } catch (error) {
+        log.error('[history] Revert failed:', error);
+        await errorDialog('Couldn’t revert this file', error, 'The selected version was not applied. Your current file remains available.');
+        if (button?.isConnected) {
+            button.disabled = false;
+            button.textContent = 'Revert to this version';
+        }
+        return false;
     }
 }
 
@@ -261,6 +475,7 @@ async function exitHistoryMode() {
     }
     liveContent = null;
     historyModeTabId = null;
+    viewedVersionContent = null;
 
     // Remove banner
     const banner = document.querySelector('.history-banner');

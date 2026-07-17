@@ -6,6 +6,23 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Added
 
+- Theme-aware editor swatches and native color pickers for standalone CSS hex
+  colors (`#RGB`, `#RGBA`, `#RRGGBB`, and `#RRGGBBAA`). Valid hex-shaped
+  tokens take precedence over hashtags, while preview and PDF output preserve
+  the original plain text.
+- A persistent **Show line numbers** editor setting, disabled by default.
+- A compact **Quick note** action above the file tree and in the collapsed
+  sidebar rail that creates and opens collision-safe timestamped Markdown
+  notes in a real `Inbox` folder, shown with a Mail icon by default.
+- An active-file **Git clean / Uncommitted** status beside **Changes**. The
+  highlighted state saves pending editor text and commits only that file when
+  clicked, while preserving unrelated staged changes.
+- An **On Save** auto-commit mode and a one-hour default interval. Manual and
+  automatic saves can now immediately add the saved note to Git history.
+- A non-destructive **Revert to this version** action in file history, with a
+  confirmation that preserves the current contents as another Git revision.
+- A PDF style reference from the preview toolbar showing the exact generated
+  body HTML and its available classes and IDs for custom stylesheet authors.
 - Tag-triggered GitHub releases for stable `vMAJOR.MINOR.PATCH` versions,
   publishing verified Linux amd64, Windows amd64, and universal macOS archives
   with generated release notes and SHA-256 checksums.
@@ -53,6 +70,16 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Auto-save, auto-commit, and table-import dropdowns now use the same themed,
+  keyboard-accessible combobox styling as the rest of Figaro.
+- The editor's 100% text size is now ten percent smaller, while retaining the
+  full Settings adjustment range around the new baseline.
+- The file tree now gives background open notes a subtle marker distinct from
+  the stronger active-note marker.
+- The Markdown cheatsheet places Wikilinks directly after Markdown links and
+  documents the complete `[[wikilink.md|wikilink]]` syntax.
+- Updated the lint and test toolchain so clean npm installs no longer emit
+  deprecated-package warnings, without changing application dependencies.
 - The Links style setting now uses a fully themed, keyboard-accessible
   combobox instead of a platform-native dropdown.
 - Kanban reflects hashtags from unsaved editor buffers without forcing a save,
@@ -120,6 +147,15 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- Linux startup and shutdown no longer query native window state before GTK
+  realises the window or after teardown begins, avoiding GTK/GDK critical
+  assertions in terminal output.
+- Linux desktop launchers now reference a stable icon identity while Figaro
+  continues refreshing content-versioned assets, restoring the Dash icon.
+- Editor context menus now reposition above and to the left near viewport
+  edges instead of being clipped off-screen.
+- File and folder appearance dialogs now show the styled entry's name only
+  once.
 - Packaged desktop startup, including Linux under C/POSIX locales, once again
   connects to the vault and displays the file tree, Welcome workspace, note
   text, and interactive Calendar.

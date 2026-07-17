@@ -4,6 +4,8 @@
 
 import { log } from './log.js';
 import { initLinkStyleSetting } from './linkStyle.js';
+import { setAutoCommitMode } from './automation.js';
+import { enhanceSelectCombobox } from './selectCombobox.js';
 let currentTheme = 'default';
 let currentFont = 'inter';
 let currentCodeFont = 'theme-mono';
@@ -17,6 +19,10 @@ let vimPreferenceLoaded = false;
 let vimPreferenceLoadPromise = null;
 let vimPreferenceRevision = 0;
 let vimSaveQueue = Promise.resolve();
+let currentLineNumbersEnabled = false;
+let lineNumbersPreferenceLoaded = false;
+let lineNumbersPreferenceLoadPromise = null;
+let lineNumbersSaveQueue = Promise.resolve();
 
 function isActivePanel(root) {
     return root === document || (!!root && root.isConnected && !root._settingsPanelDisposed);
@@ -60,6 +66,7 @@ export async function initTheme() {
     applyFont(fontId, true);
     applyCodeFont(codeFontId, true);
     await initVimPreference();
+    await initLineNumbersPreference();
 }
 
 export async function applyTheme(themeId) {
@@ -190,6 +197,63 @@ export async function setVimPreference(enabled) {
     }
 }
 
+function syncLineNumbersToggles(enabled) {
+    document.querySelectorAll('#line-numbers-toggle').forEach(toggle => {
+        toggle.checked = enabled;
+    });
+}
+
+async function applyLineNumbersPreference(enabled) {
+    const { setLineNumbers } = await import('./editor.js');
+    setLineNumbers(enabled);
+}
+
+export async function initLineNumbersPreference() {
+    if (lineNumbersPreferenceLoaded) return currentLineNumbersEnabled;
+    if (lineNumbersPreferenceLoadPromise) return lineNumbersPreferenceLoadPromise;
+    lineNumbersPreferenceLoadPromise = (async () => {
+        try {
+            const result = await window.pywebview.api.line_numbers_load();
+            currentLineNumbersEnabled = result?.enabled === true;
+            lineNumbersPreferenceLoaded = true;
+            syncLineNumbersToggles(currentLineNumbersEnabled);
+            await applyLineNumbersPreference(currentLineNumbersEnabled);
+        } catch (error) {
+            log.warn('Could not load line-number preference:', error);
+        } finally {
+            lineNumbersPreferenceLoadPromise = null;
+        }
+        return currentLineNumbersEnabled;
+    })();
+    return lineNumbersPreferenceLoadPromise;
+}
+
+export async function setLineNumbersPreference(enabled) {
+    if (!lineNumbersPreferenceLoaded) await initLineNumbersPreference();
+    const previous = currentLineNumbersEnabled;
+    const requested = Boolean(enabled);
+    currentLineNumbersEnabled = requested;
+    syncLineNumbersToggles(currentLineNumbersEnabled);
+    await applyLineNumbersPreference(currentLineNumbersEnabled);
+
+    const saveAttempt = lineNumbersSaveQueue.then(async () => {
+        const result = await window.pywebview.api.line_numbers_save(requested);
+        if (!result?.success) throw new Error(result?.error || 'Line-number preference was not saved');
+        return true;
+    });
+    lineNumbersSaveQueue = saveAttempt.catch(() => {});
+    try {
+        await saveAttempt;
+        return true;
+    } catch (error) {
+        currentLineNumbersEnabled = previous;
+        syncLineNumbersToggles(previous);
+        await applyLineNumbersPreference(previous);
+        log.warn('Could not save line-number preference:', error);
+        return false;
+    }
+}
+
 export async function initSettingsPanel(root = document) {
     log.debug('[settings] initSettingsPanel started');
     try {
@@ -243,6 +307,20 @@ export async function initSettingsPanel(root = document) {
                 vimToggle.checked = getVimPreference();
                 vimToggle.disabled = false;
                 vimToggle.title = saved ? '' : 'Could not save Vim preference; the previous setting was restored.';
+            });
+        }
+
+        const lineNumbersToggle = findIn(root, '#line-numbers-toggle');
+        if (lineNumbersToggle) {
+            lineNumbersToggle.checked = await initLineNumbersPreference();
+            if (!isActivePanel(root)) return;
+            lineNumbersToggle.addEventListener('change', async () => {
+                lineNumbersToggle.disabled = true;
+                const saved = await setLineNumbersPreference(lineNumbersToggle.checked);
+                if (!isActivePanel(root)) return;
+                lineNumbersToggle.checked = currentLineNumbersEnabled;
+                lineNumbersToggle.disabled = false;
+                lineNumbersToggle.title = saved ? '' : 'Could not save the line-number preference.';
             });
         }
 
@@ -620,7 +698,7 @@ function initFontSize(root) {
     function applyFontSize(pct) {
         display.textContent = pct + '%';
         const scale = pct / 100;
-        document.documentElement.style.setProperty('--font-size-editor', (18 * scale) + 'px');
+        document.documentElement.style.setProperty('--font-size-editor', (16.2 * scale) + 'px');
         document.documentElement.style.setProperty('--line-height-editor', (1.65 * scale).toFixed(2));
 
         import('./editor.js').then(({ getEditorView }) => {
@@ -670,9 +748,13 @@ function initAutoSave(root) {
     const acSelect = findIn(root, '#auto-commit-interval');
 
     if (asSelect) {
+        const picker = enhanceSelectCombobox(asSelect, { ariaLabel: 'Auto-Save interval' });
         try {
             window.pywebview.api.auto_save_load().then(seconds => {
-                if (isActivePanel(root)) asSelect.value = String(seconds);
+                if (isActivePanel(root)) {
+                    asSelect.value = String(seconds);
+                    picker?.sync();
+                }
             }).catch(() => {});
         } catch (_) { /* noop */ }
         asSelect.addEventListener('change', () => {
@@ -686,13 +768,19 @@ function initAutoSave(root) {
     }
 
     if (acSelect) {
+        const picker = enhanceSelectCombobox(acSelect, { ariaLabel: 'Auto-Commit interval' });
         try {
             window.pywebview.api.auto_commit_load().then(seconds => {
-                if (isActivePanel(root)) acSelect.value = String(seconds);
+                setAutoCommitMode(seconds);
+                if (isActivePanel(root)) {
+                    acSelect.value = String(seconds);
+                    picker?.sync();
+                }
             }).catch(() => {});
         } catch (_) { /* noop */ }
         acSelect.addEventListener('change', () => {
-            const seconds = parseInt(acSelect.value) || 0;
+            const seconds = Number.parseInt(acSelect.value, 10);
+            setAutoCommitMode(seconds);
             try { window.pywebview.api.auto_commit_save(seconds).catch(() => {}); } catch (_) { /* noop */ }
         });
     }

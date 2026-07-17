@@ -299,6 +299,7 @@ cat > "$VENDOR_DIR/importmap.json" << 'EOF'
     "crelt": "./crelt/index.js",
     "w3c-keyname": "./w3c-keyname/index.js",
     "style-mod": "./style-mod/index.js",
+    "@uiw/codemirror-extensions-color": "./@uiw/codemirror-extensions-color/index.js",
     "codemirror-markdown-tables": "./codemirror-markdown-tables/index.js"
   }
 }
@@ -317,6 +318,17 @@ mkdir -p "$VENDOR_DIR/codemirror-markdown-tables"
     --external:@codemirror/* \
     --external:@lezer/* \
     --outfile="$VENDOR_DIR/codemirror-markdown-tables/index.js"
+
+echo "Bundling the CodeMirror color-picker theme with its helper dependencies..."
+mkdir -p "$VENDOR_DIR/@uiw/codemirror-extensions-color"
+./node_modules/.bin/esbuild node_modules/@uiw/codemirror-extensions-color/esm/index.js \
+    --bundle \
+    --format=esm \
+    --target=es2020 \
+    --minify \
+    --external:@codemirror/* \
+    --external:@lezer/* \
+    --outfile="$VENDOR_DIR/@uiw/codemirror-extensions-color/index.js"
 
 echo "Vendoring the searchable Lucide SVG catalog..."
 mkdir -p "$VENDOR_DIR/lucide"

@@ -33,7 +33,7 @@
     --font-ui: var(--font-sans);
     --font-size: 16px;
     --font-size-sm: 14px;
-    --font-size-editor: 18px;
+    --font-size-editor: 16.2px;
     --editor-width: 700px;
     --line-height: 1.6;
     --line-height-ui: 1.3;
@@ -514,6 +514,44 @@ html, body {
     padding: 6px;
 }
 
+.create-inbox-note {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 7px;
+    width: calc(100% - 20px);
+    min-height: 32px;
+    margin: 2px 10px 6px;
+    padding: 6px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--accent-color) 7%, var(--sidebar-bg));
+    color: var(--text-color);
+    font: 600 12px/1.2 var(--font-ui);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.create-inbox-note svg { color: var(--accent-color); }
+.create-inbox-note small {
+    color: var(--text-dim);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.create-inbox-note:hover:not(:disabled),
+.create-inbox-note:focus-visible {
+    border-color: color-mix(in srgb, var(--accent-color) 70%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 13%, var(--sidebar-bg));
+    outline: none;
+}
+.create-inbox-note:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+.create-inbox-note:disabled { cursor: wait; opacity: .6; }
+
 .sidebar-search .search-dropdown.visible {
     display: block;
 }
@@ -801,9 +839,24 @@ html, body {
     margin-left: auto;
 }
 
+.sidebar-quick-note {
+    display: none;
+}
+
 .sidebar.collapsed .sidebar-tools {
     align-items: center;
     padding: 7px 5px 8px;
+}
+
+.sidebar.collapsed .sidebar-quick-note {
+    display: flex;
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 9%, transparent);
+}
+
+.sidebar.collapsed .sidebar-quick-note:hover,
+.sidebar.collapsed .sidebar-quick-note:focus-visible {
+    background: color-mix(in srgb, var(--accent-color) 17%, transparent);
 }
 
 .sidebar.collapsed .sidebar-tool-btn {
@@ -1210,6 +1263,18 @@ html, body {
 .file-tree-item > .file-tree-node.active-file:not(.selected) {
     box-shadow: inset 2px 0 0 var(--accent-color);
     color: var(--text-color);
+}
+
+/* Open background tabs retain a quieter trace than the active file. */
+.file-tree-item > .file-tree-node.open-file:not(.active-file)::after {
+    content: '';
+    width: 4px;
+    height: 4px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent-color) 48%, var(--text-dim));
+    opacity: .72;
+    flex: 0 0 auto;
 }
 
 .file-tree-item > .file-tree-node.multi-selected {
@@ -3385,6 +3450,46 @@ html, body {
 .cm-hashtag { color: var(--hashtag-color); cursor: pointer; }
 .cm-hashtag:hover { text-decoration: underline; }
 
+.cm-editor span.cm-hex-color-widget[data-color] {
+    box-sizing: border-box;
+    position: relative;
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    margin: -2px 0.45ch 0 0;
+    overflow: hidden;
+    vertical-align: middle;
+    border: 1px solid color-mix(in srgb, var(--text-color) 38%, transparent);
+    border-radius: 3px;
+    outline: none;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--panel-bg) 35%, transparent);
+}
+.cm-editor .cm-hex-color-widget .cm-hex-color-picker[type="color"] {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.cm-editor .cm-hex-color-widget:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color) 24%, transparent);
+}
+.cm-editor .cm-hex-color-widget:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 42%, transparent);
+}
+.cm-editor .cm-hex-color-widget:has(.cm-hex-color-picker:disabled) {
+    opacity: 0.58;
+}
+.cm-editor .cm-hex-color-picker:disabled {
+    cursor: not-allowed;
+}
+
 .cm-quote { position: relative; color: var(--quote-color); padding-left: 16px; font-style: italic; }
 .cm-quote::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background-color: var(--quote-border); pointer-events: none; }
 .cm-quote .cm-formatting-quote { display: none !important; }
@@ -4968,6 +5073,53 @@ body.custom-modal-open { overflow: hidden; }
 }
 .status-history.has-history:hover { color: var(--accent-color); }
 
+/* Active-file Git state sits immediately before its revision count. */
+.status-git {
+    min-height: 20px;
+    margin: 0;
+    padding: 1px 5px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    font: inherit;
+    line-height: 1;
+    cursor: default;
+    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.status-git.is-uncommitted {
+    border-color: color-mix(in srgb, var(--warning-color) 52%, var(--border-color));
+    background: color-mix(in srgb, var(--warning-color) 14%, transparent);
+    color: var(--warning-color);
+    cursor: pointer;
+}
+
+.status-git.is-uncommitted:hover:not(:disabled) {
+    border-color: var(--warning-color);
+    background: color-mix(in srgb, var(--warning-color) 22%, transparent);
+    color: var(--text-color);
+}
+
+.status-git:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
+.status-git:disabled {
+    opacity: .72;
+}
+
+.status-git.is-committing {
+    cursor: wait;
+    opacity: .86;
+}
+
+.status-git.has-error {
+    border-color: color-mix(in srgb, var(--danger-color) 45%, var(--border-color));
+    color: var(--danger-color);
+}
+
 /* Right Sidebar */
 .right-sidebar {
     position: relative;
@@ -5147,6 +5299,33 @@ body.right-sidebar-resizing .pdf-preview-frame {
 
 .pdf-preview-stylesheet[data-error="true"] { color: var(--danger-color); }
 
+.pdf-preview-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.pdf-preview-style-reference {
+    display: grid;
+    place-items: center;
+    width: 29px;
+    height: 29px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-color);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.pdf-preview-style-reference svg { width: 15px; height: 15px; }
+.pdf-preview-style-reference:hover,
+.pdf-preview-style-reference:focus-visible {
+    border-color: var(--accent-color);
+    color: var(--text-color);
+    outline: none;
+}
+
 .pdf-preview-generate {
     display: inline-flex;
     flex: 0 0 auto;
@@ -5179,6 +5358,72 @@ body.right-sidebar-resizing .pdf-preview-frame {
 .pdf-preview-generate:disabled {
     cursor: wait;
     opacity: .65;
+}
+
+.pdf-style-reference-modal {
+    width: min(880px, calc(100vw - 36px));
+    max-height: min(760px, calc(100vh - 36px));
+}
+.pdf-style-reference-modal .custom-modal-content {
+    display: grid;
+    min-height: 0;
+    gap: 14px;
+    overflow: hidden;
+}
+.pdf-style-reference-section {
+    display: grid;
+    min-height: 0;
+    gap: 7px;
+}
+.pdf-style-reference-section:last-child { min-height: 180px; }
+.pdf-style-reference-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+.pdf-style-reference-heading h4 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 12px;
+}
+.pdf-style-reference-heading span {
+    color: var(--text-dim);
+    font-size: 10px;
+}
+.pdf-style-selector-list {
+    display: flex;
+    max-height: 116px;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 9px;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--bg-color);
+}
+.pdf-style-selector {
+    padding: 3px 6px;
+    border: 1px solid color-mix(in srgb, var(--accent-color) 25%, var(--border-color));
+    border-radius: 4px;
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+    font: 10px/1.25 var(--font-mono);
+}
+.pdf-style-reference-empty { color: var(--text-dim); font-size: 11px; }
+.pdf-style-reference-html {
+    min-height: 180px;
+    max-height: 340px;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--bg-color);
+    color: var(--text-muted);
+    font: 10px/1.55 var(--font-mono);
+    white-space: pre;
+    tab-size: 2;
 }
 
 .pdf-preview-status {
@@ -5281,6 +5526,24 @@ body.right-sidebar-resizing .pdf-preview-frame {
     color: var(--text-dim);
 }
 .history-banner-icon { font-size: 14px; }
+.history-banner-copy { min-width: 0; }
+.history-restore-button {
+    margin-left: auto;
+    padding: 5px 9px;
+    border: 1px solid color-mix(in srgb, var(--warning-color) 42%, var(--border-color));
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--warning-color) 10%, var(--panel-bg));
+    color: var(--text-color);
+    font: 600 11px/1.2 var(--font-ui);
+    white-space: nowrap;
+    cursor: pointer;
+}
+.history-restore-button:hover:not(:disabled),
+.history-restore-button:focus-visible {
+    border-color: var(--warning-color);
+    outline: none;
+}
+.history-restore-button:disabled { cursor: wait; opacity: .65; }
 /* Auto-save interval select */
 
 /* ── Settings Card Controls ── */
@@ -5478,6 +5741,18 @@ body.right-sidebar-resizing .pdf-preview-frame {
     width: 176px;
 }
 
+.select-combobox-native {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
 .settings-picker-btn {
     width: 100%;
     height: 34px;
@@ -5540,7 +5815,8 @@ body.right-sidebar-resizing .pdf-preview-frame {
     width: 100%;
     box-sizing: border-box;
     padding: 4px;
-    overflow: hidden;
+    max-height: min(310px, calc(100vh - 80px));
+    overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background: var(--panel-bg);
@@ -5593,6 +5869,14 @@ body.right-sidebar-resizing .pdf-preview-frame {
 
 .settings-picker-item.selected svg {
     visibility: visible;
+}
+
+.table-conversion-combobox {
+    width: 100%;
+}
+
+.table-conversion-combobox .settings-picker-menu {
+    z-index: 1500;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-git/go-git/v5"
 )
 
 func writeHistoryFixture(t *testing.T, path string, content string) {
@@ -56,6 +58,90 @@ func TestServiceDoesNotCommitWithoutChanges(t *testing.T) {
 	}
 	if len(after) != len(before) {
 		t.Fatalf("CommitFile without changes created a commit: %d -> %d", len(before), len(after))
+	}
+}
+
+func TestFileUncommittedStatusTracksOnlyTheRequestedPath(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, "active.md"), "first\n")
+	writeHistoryFixture(t, filepath.Join(dir, "other.md"), "other\n")
+
+	dirty, err := service.HasUncommittedChanges("active.md")
+	if err != nil || !dirty {
+		t.Fatalf("new active note status = %v, %v; want dirty", dirty, err)
+	}
+	if err := service.CommitFile("active.md"); err != nil {
+		t.Fatalf("CommitFile: %v", err)
+	}
+	dirty, err = service.HasUncommittedChanges("active.md")
+	if err != nil || dirty {
+		t.Fatalf("committed active note status = %v, %v; want clean", dirty, err)
+	}
+	otherDirty, err := service.HasUncommittedChanges("other.md")
+	if err != nil || !otherDirty {
+		t.Fatalf("untracked other note status = %v, %v; want dirty", otherDirty, err)
+	}
+
+	writeHistoryFixture(t, filepath.Join(dir, "active.md"), "second\n")
+	dirty, err = service.HasUncommittedChanges("active.md")
+	if err != nil || !dirty {
+		t.Fatalf("modified active note status = %v, %v; want dirty", dirty, err)
+	}
+}
+
+func TestCommitFileRefusesUnrelatedStagedChangesWithoutChangingTheIndex(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, "active.md"), "active\n")
+	writeHistoryFixture(t, filepath.Join(dir, "staged.md"), "staged\n")
+	worktree, err := service.repo.Worktree()
+	if err != nil {
+		t.Fatalf("Worktree: %v", err)
+	}
+	if _, err := worktree.Add("staged.md"); err != nil {
+		t.Fatalf("stage unrelated file: %v", err)
+	}
+
+	err = service.CommitFile("active.md")
+	if err == nil || !strings.Contains(err.Error(), "staged.md has staged changes") {
+		t.Fatalf("CommitFile error = %v; want unrelated-stage refusal", err)
+	}
+	status, err := worktree.Status()
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status["staged.md"].Staging == git.Unmodified {
+		t.Fatal("unrelated staged change was removed")
+	}
+	if status["active.md"].Staging != git.Untracked {
+		t.Fatalf("active note was staged despite refusal: %q", status["active.md"].Staging)
+	}
+}
+
+func TestSuccessfulCommitNotifiesTheFrontendStatusPath(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	notified := make(chan struct{}, 1)
+	service.SetCommitCallback(func() { notified <- struct{}{} })
+	writeHistoryFixture(t, filepath.Join(dir, "note.md"), "changed\n")
+
+	if err := service.CommitFile("note.md"); err != nil {
+		t.Fatalf("CommitFile: %v", err)
+	}
+	select {
+	case <-notified:
+	case <-time.After(time.Second):
+		t.Fatal("successful commit did not notify the status listener")
 	}
 }
 

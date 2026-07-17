@@ -98,6 +98,7 @@
         "style-mod": "/vendored/style-mod/index.js",
         "@replit/codemirror-vim": "/vendored/@replit/codemirror-vim/dist/index.js",
         "@replit/codemirror-indentation-markers": "/vendored/@replit/codemirror-indentation-markers/dist/index.js",
+        "@uiw/codemirror-extensions-color": "/vendored/@uiw/codemirror-extensions-color/index.js",
         "katex": "/vendored/katex/dist/katex.min.js",
         "codemirror-live-markdown": "/vendored/codemirror-live-markdown/index.js",
         "codemirror-markdown-tables": "/vendored/codemirror-markdown-tables/index.js"
@@ -185,6 +186,11 @@
                         </div>
                         <div id="global-search-dropdown" class="search-dropdown"></div>
                     </div>
+                    <button type="button" id="create-inbox-note" class="create-inbox-note quick-note-action" data-action="quick-note" title="Create a timestamped quick note in Inbox" aria-label="Quick note in Inbox">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15h6"/></svg>
+                        <span>Quick note</span>
+                        <small>Inbox</small>
+                    </button>
                     <!-- File Tree -->
                     <div id="file-tree" class="file-tree"></div>
                     <!-- Calendar expands inside the left sidebar so it can coexist
@@ -208,6 +214,10 @@
                     </section>
                 </div>
                 <nav class="sidebar-tools" aria-label="Workspace tools">
+                    <button type="button" id="sidebar-quick-note" class="sidebar-tool-btn sidebar-quick-note quick-note-action" data-action="quick-note" title="Quick note in Inbox" aria-label="Quick note in Inbox">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15h6"/></svg>
+                        <span class="sidebar-tool-label">Quick note</span>
+                    </button>
                     <button id="sidebar-calendar" class="sidebar-tool-btn" title="Calendar" aria-controls="sidebar-calendar-panel" aria-expanded="false">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -279,6 +289,7 @@
                             <tr><td><code>**bold**</code> <code>*italic*</code></td><td>Emphasis</td></tr>
                             <tr><td><code>~~strike~~</code> <code>==highlight==</code></td><td>Strikethrough &amp; Highlight</td></tr>
                             <tr><td><code>[text](file.md)</code></td><td>Link to note</td></tr>
+                            <tr><td><code>[[wikilink.md|wikilink]]</code></td><td>Wikilink</td></tr>
                             <tr><td><code>![alt](image.png)</code></td><td>Image</td></tr>
                             <tr><td><code>- item</code> <code>1. item</code></td><td>Unordered / Ordered list</td></tr>
                             <tr><td><code>- [ ] task</code> <code>- [x] done</code></td><td>Task / Checkbox</td></tr>
@@ -290,7 +301,6 @@
                             <tr><td><code>$x^2$</code> <code>$$...$$</code></td><td>Inline / Block math</td></tr>
                             <tr><td><code>---</code> <code>***</code> <code>___</code></td><td>Horizontal rule</td></tr>
                             <tr><td><code>#tag</code></td><td>Hashtag (kanban column)</td></tr>
-                            <tr><td><code>[[wikilink]]</code></td><td>Wikilink</td></tr>
                             <tr><td><code>[^1]</code> <code>[^1]: note</code></td><td>Footnote</td></tr>
                             <tr><td><code>| col | col |</code></td><td>Table</td></tr>
                         </table>
@@ -312,6 +322,8 @@
                 <span class="status-separator">|</span>
                 <a id="backlinks-status" class="status-backlinks" title="View backlinks">0 backlinks</a>
                 <span class="status-separator">|</span>
+                <button type="button" id="git-status" class="status-git" title="This file is committed to Git" disabled>Git clean</button>
+                <span id="git-status-separator" class="status-separator">|</span>
                 <a id="history-count" class="status-history" title="View file history">0 changes</a>
 
                 <span id="resize-grip" title="Drag corner to resize">

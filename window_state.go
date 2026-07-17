@@ -244,8 +244,8 @@ func (a *App) captureWindowState(ctx context.Context) {
 }
 
 // WindowCaptureState records a debounced native resize/maximize observation
-// from the frontend. It is also called during shutdown, so this method never
-// treats minimization as a launch state.
+// from the frontend. Startup and shutdown deliberately do not call this: on
+// Linux those phases can fall outside the lifetime of a realised GTK window.
 func (a *App) WindowCaptureState() {
 	a.captureWindowState(a.ctx)
 }

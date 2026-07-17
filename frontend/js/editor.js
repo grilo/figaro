@@ -18,6 +18,7 @@ import { handleClipboardImagePaste, pasteClipboardImage } from './clipboardImage
 import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } from './clipboardTable.js';
 import { noteLinkCompletion, noteLinkCompletionMatch } from './linkCompletions.js';
 import { getLinkStylePreference } from './linkStyle.js';
+import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
 import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
 import { indentationMarkers as indentationMarkerExtension } from '@replit/codemirror-indentation-markers';
 import {
@@ -66,8 +67,10 @@ let imageBasePathCompartment = null;
 let readOnlyCompartment = null;
 let fileModeCompartment = null;
 let foldingCompartment = null;
+let lineNumbersCompartment = null;
 let vimActive = false;
 let vimRequested = false;
+let lineNumbersRequested = false;
 let vimRequestId = 0;
 let vimModeCM = null;
 let vimModeChangeHandler = null;
@@ -483,8 +486,8 @@ function createEditorView() {
                 const text = view.state.doc.sliceString(from, to);
                 let m;
                 while ((m = re.exec(text)) !== null) {
-                    // Skip hex colors (#RGB, #RRGGBB, #RRGGBBAA)
-                    if (/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$|^[0-9a-fA-F]{8}$/.test(m[1])) continue;
+                    // Valid CSS hex colors own ambiguous tokens such as #bad.
+                    if (isHexColorToken(m[0])) continue;
                     const s = from + m.index;
                     const e = s + m[0].length;
                     const previous = s > 0 ? view.state.doc.sliceString(s - 1, s) : '';
@@ -820,6 +823,7 @@ function createEditorView() {
     readOnlyCompartment = new Compartment();
     fileModeCompartment = new Compartment();
     foldingCompartment = new Compartment();
+    lineNumbersCompartment = new Compartment();
 
     const markdownExtensionsForPath = () => [
         collapseOnSelectionFacet.of(true),
@@ -849,6 +853,7 @@ function createEditorView() {
         ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
         markdownTableExtension,
         mathField,
+        hexColorExtension,
         hashtagPlugin,
         widgetPlugin,
         extrasPlugin,
@@ -886,6 +891,7 @@ function createEditorView() {
             activeThickness: 1,
         }) : []),
         autocompletion(),
+        hexColorExtension,
     ];
     markdownModeExtensions = markdownExtensionsForPath;
     codeModeExtensions = codeExtensionsForSupport;
@@ -897,8 +903,7 @@ function createEditorView() {
             readOnlyCompartment.of([]),
             imageBasePathCompartment.of(imageField({ basePath: '/vault/' })),
             fileModeCompartment.of(markdownExtensionsForPath()),
-            lineNumbers(),
-            highlightActiveLineGutter(),
+            lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
             foldingCompartment.of([]),
             history(), bracketMatching(), drawSelection(),
             searchExtension({ top: false }),
@@ -1160,6 +1165,19 @@ function setReadOnly(on) {
     if (v.contentDOM) {
         v.contentDOM.setAttribute('contenteditable', on ? 'false' : 'true');
     }
+}
+
+/** Toggle the editor's line-number gutter without replacing the document. */
+function setLineNumbers(enabled) {
+    lineNumbersRequested = Boolean(enabled);
+    const view = getEditorView();
+    if (!view || !lineNumbersCompartment) return;
+    view.dispatch({
+        effects: lineNumbersCompartment.reconfigure(
+            lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []
+        ),
+    });
+    view.requestMeasure();
 }
 
 function focusEditor() { const v = getEditorView(); if (v) v.focus(); }
@@ -1571,6 +1589,20 @@ function handleContextMenu(event, view) {
         ${printAction}
     `;
     document.body.appendChild(menu);
+    const menuRect = menu.getBoundingClientRect();
+    const margin = 8;
+    if (event.clientX + menuRect.width > window.innerWidth - margin) {
+        menu.style.left = 'auto';
+        menu.style.right = `${margin}px`;
+    } else {
+        menu.style.left = `${Math.max(margin, event.clientX)}px`;
+    }
+    if (event.clientY + menuRect.height > window.innerHeight - margin) {
+        menu.style.top = 'auto';
+        menu.style.bottom = `${margin}px`;
+    } else {
+        menu.style.top = `${Math.max(margin, event.clientY)}px`;
+    }
 
     menu.addEventListener('click', async (ev) => {
         const item = ev.target.closest('.context-menu-item');
@@ -1832,5 +1864,5 @@ function updateVimStatus(mode) {
 export { initEditor, createEditorView, getEditorView,
     getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
-    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setImageBasePath, setReadOnly,
+    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setImageBasePath, setReadOnly, setLineNumbers,
     configureEditorForFile, normalizeWebKitShiftTab };

@@ -33,6 +33,20 @@ describe('date shortcuts in the Markdown editor', () => {
             const hashtags = view.dom.querySelectorAll('.cm-hashtag');
             expect(hashtags).toHaveLength(1);
             expect(hashtags[0].dataset.tag).toBe('todo');
+
+            view.dispatch({
+                changes: {
+                    from: 0,
+                    to: view.state.doc.length,
+                    insert: '#urgent #bad #abcd #112233 #11223344 #ffffff-topic',
+                },
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(Array.from(view.dom.querySelectorAll('.cm-hashtag')).map(element => element.dataset.tag)).toEqual([
+                'urgent',
+                'ffffff-topic',
+            ]);
+            expect(view.dom.querySelectorAll('.cm-hex-color-picker')).toHaveLength(4);
         } finally {
             view.destroy();
         }

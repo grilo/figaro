@@ -295,6 +295,42 @@ test('previews selection conversion and leaves the source untouched on cancellat
     await expect.poll(() => page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).toBe(source);
 });
 
+test('themes the table delimiter combobox and operates it by keyboard', async ({ page }) => {
+    const source = 'Name,Count\nAlpha,2';
+    await createMarkdownEditor(page, source);
+    await page.evaluate(() => {
+        const view = window.__figaroTableTestView;
+        view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+        view.focus();
+        const coords = view.coordsAtPos(2);
+        view.contentDOM.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: coords.left + 2,
+            clientY: (coords.top + coords.bottom) / 2,
+        }));
+    });
+    await page.locator('.editor-context-menu [data-action="convert-table"]').click();
+
+    const trigger = page.locator('.table-conversion-combobox .select-combobox-trigger');
+    await expect(trigger).toBeVisible();
+    await expect(trigger).toHaveAttribute('role', 'combobox');
+    const styles = await trigger.evaluate(element => {
+        const computed = getComputedStyle(element);
+        return { background: computed.backgroundColor, border: computed.borderStyle, radius: Number.parseFloat(computed.borderRadius) };
+    });
+    expect(styles.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(styles.border).toBe('solid');
+    expect(styles.radius).toBeGreaterThanOrEqual(6);
+
+    await trigger.press('ArrowDown');
+    await trigger.press('End');
+    await trigger.press('Enter');
+    await expect(trigger).toContainText('Pipe');
+    await page.locator('.table-conversion-modal .custom-modal-btn-cancel').click();
+    expect(await page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).toBe(source);
+});
+
 test('renders interactive Markdown tables and keeps cursor movement bounded to adjacent lines and cells', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(async (source) => {

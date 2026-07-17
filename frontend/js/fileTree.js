@@ -175,6 +175,7 @@ export function initFileTree() {
     initFileTreeEvents();
     initContextMenu();
     initNativeFileDrops();
+    initInboxNoteButton();
 
     // Keep the active-file highlight in sync without changing folder state.
     // expandedDirs belongs to the user: restoring or switching tabs must not
@@ -188,6 +189,47 @@ export function initFileTree() {
             renderFileTree();
         }
     });
+    subscribe('openTabs', renderFileTree);
+}
+
+function initInboxNoteButton() {
+    document.querySelectorAll('.quick-note-action').forEach(button => {
+        if (button.dataset.bound === 'true') return;
+        button.dataset.bound = 'true';
+        button.addEventListener('click', () => createInboxNote());
+    });
+}
+
+export async function createInboxNote() {
+    const buttons = [...document.querySelectorAll('.quick-note-action')];
+    if (buttons.some(button => button.disabled)) return null;
+    buttons.forEach(button => {
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+    });
+    try {
+        const result = await window.pywebview.api.create_inbox_note();
+        if (!result?.success) {
+            await errorDialog('Couldn’t create Inbox note', result?.error, 'No existing note was changed.');
+            return result;
+        }
+        await refreshFileTree();
+        await handleFileOpen(result.path);
+        const { focusEditor } = await import('./editor.js');
+        focusEditor();
+        statusBar.set('Created note in Inbox');
+        return result;
+    } catch (error) {
+        log.error('Create Inbox note failed:', error);
+        await errorDialog('Couldn’t create Inbox note', error, 'No existing note was changed.');
+        return null;
+    } finally {
+        buttons.forEach(button => {
+            if (!button.isConnected) return;
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+        });
+    }
 }
 
 /**
@@ -257,6 +299,9 @@ export function renderFileTree() {
     const selectedPath = getState('selectedTreePath');
     const activeFilePath = getState('selectedFilePath');
     const selectedPaths = getState('selectedFilePaths') || [];
+    const openFilePaths = new Set((getState('openTabs') || [])
+        .filter(tab => (tab.type === 'file' || tab.type === 'drawio') && tab.path)
+        .map(tab => tab.path));
     
     if (!container) return;
     
@@ -268,14 +313,14 @@ export function renderFileTree() {
     // Keep a real flexing surface after short file lists. Delegated context
     // events then reach #file-tree even when the user clicks below the last
     // file, making an empty/new vault easy to populate.
-    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath) +
+    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath, fileTreeStyles.entries, openFilePaths) +
         '<div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
 }
 
 /**
  * Build tree HTML recursively
  */
-export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries) {
+export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries, openFilePaths = []) {
     let html = '<ul class="file-tree-list">';
     
     for (const item of items) {
@@ -283,26 +328,31 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
         const isExpanded = expandedDirs.has(item.path);
         const isSelected = item.path === selectedPath;
         const isActiveFile = !isDir && item.path === activeFilePath;
+        const isOpenFile = !isDir && !isActiveFile && (openFilePaths instanceof Set ? openFilePaths.has(item.path) : openFilePaths.includes?.(item.path));
         const isMultiSelected = selectedPaths.includes(item.path);
         const hasChildren = isDir && item.children && item.children.length > 0;
         const isDrawioDiagram = !isDir && isDrawioDiagramPath(item.path);
         const isNonMd = !isDir && !isEditableCodeMirrorFile(item.path) && !isDrawioDiagram;
         const appearance = styles?.[item.path] || {};
         const customIcon = appearance.icon ? renderLucideIcon(appearance.icon, { size: 16 }) : '';
+        const defaultInboxIcon = isDir && item.path === 'Inbox'
+            ? renderLucideIcon('Mail', { size: 16, className: 'default-inbox-icon' })
+            : '';
+        const resolvedIcon = customIcon || defaultInboxIcon;
         const customColor = /^#[0-9a-f]{6}$/i.test(appearance.color || '') ? appearance.color : '';
         const appearanceClasses = `${customIcon ? 'custom-icon' : ''} ${customColor ? 'custom-color' : ''}`.trim();
         const appearanceStyle = customColor ? ` style="--file-tree-entry-color:${customColor}"` : '';
         
         html += `
             <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" data-path="${escapeHtml(item.path)}" data-type="${item.type}">
-                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${appearanceClasses}" draggable="true"${appearanceStyle}>
+                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isOpenFile ? 'open-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${appearanceClasses}" draggable="true"${appearanceStyle}>
                     ${isDir ? `
                         <span class="node-chevron">${hasChildren ? `
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <polyline points="9 18 15 12 9 6"></polyline>
                             </svg>` : ''}</span>
                         <span class="node-icon">
-                            ${customIcon || `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            ${resolvedIcon || `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                             </svg>`}
                         </span>
@@ -319,7 +369,7 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
                 </div>
                 ${isDir && hasChildren ? `
                     <div class="file-tree-children">
-                        ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1, activeFilePath, styles)}
+                        ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1, activeFilePath, styles, openFilePaths)}
                     </div>
                 ` : ''}
             </li>

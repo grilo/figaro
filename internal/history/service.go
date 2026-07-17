@@ -38,6 +38,7 @@ type Service struct {
 	vaultMu    VaultReadLocker
 	mu         sync.Mutex
 	stopTicker chan struct{}
+	onCommit   func()
 }
 
 // New initializes or opens a Git repository in the vault directory.
@@ -68,6 +69,15 @@ func New(vaultPath string) (*Service, error) {
 func (h *Service) SetVaultReadLocker(locker VaultReadLocker) {
 	h.mu.Lock()
 	h.vaultMu = locker
+	h.mu.Unlock()
+}
+
+// SetCommitCallback registers a lightweight notification invoked after a
+// successful revision. The callback runs asynchronously so native UI event
+// delivery can never hold the repository lock.
+func (h *Service) SetCommitCallback(callback func()) {
+	h.mu.Lock()
+	h.onCommit = callback
 	h.mu.Unlock()
 }
 
@@ -127,11 +137,27 @@ func (h *Service) commitFileLocked(relPath string) error {
 	if err != nil {
 		return fmt.Errorf("get worktree: %w", err)
 	}
+	status, err := worktree.Status()
+	if err != nil {
+		return fmt.Errorf("check status: %w", err)
+	}
+	targetStatus, targetChanged := status[filepath.ToSlash(relPath)]
+	if !targetChanged || (targetStatus.Staging == git.Unmodified && targetStatus.Worktree == git.Unmodified) {
+		return nil
+	}
+	// A single-note history action must never absorb changes the user staged
+	// independently. go-git commits the entire index, so refuse safely before
+	// touching it when another path is already staged.
+	for path, statusFile := range status {
+		if path != filepath.ToSlash(relPath) && statusFile.Staging != git.Unmodified && statusFile.Staging != git.Untracked {
+			return fmt.Errorf("cannot commit %s while %s has staged changes", relPath, path)
+		}
+	}
 	if _, err := worktree.Add(relPath); err != nil {
 		return fmt.Errorf("stage file %s: %w", relPath, err)
 	}
 
-	status, err := worktree.Status()
+	status, err = worktree.Status()
 	if err != nil {
 		return fmt.Errorf("check status: %w", err)
 	}
@@ -153,7 +179,39 @@ func (h *Service) commitFileLocked(relPath string) error {
 		return fmt.Errorf("commit: %w", err)
 	}
 	log.Println("[history] Committed:", relPath)
+	h.notifyCommitLocked()
 	return nil
+}
+
+// HasUncommittedChanges reports whether one vault-relative path differs from
+// HEAD in either the worktree or index. Other vault changes are irrelevant.
+func (h *Service) HasUncommittedChanges(relPath string) (bool, error) {
+	h.lockVaultRead()
+	defer h.unlockVaultRead()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.repo == nil {
+		return false, nil
+	}
+	worktree, err := h.repo.Worktree()
+	if err != nil {
+		return false, fmt.Errorf("get worktree: %w", err)
+	}
+	status, err := worktree.Status()
+	if err != nil {
+		return false, fmt.Errorf("check status: %w", err)
+	}
+	fileStatus, exists := status[filepath.ToSlash(relPath)]
+	if !exists {
+		return false, nil
+	}
+	return fileStatus.Staging != git.Unmodified || fileStatus.Worktree != git.Unmodified, nil
+}
+
+func (h *Service) notifyCommitLocked() {
+	if h.onCommit != nil {
+		go h.onCommit()
+	}
 }
 
 // GetFileHistory returns the Git log for a specific file.
@@ -342,6 +400,7 @@ func (h *Service) commitAllModifiedLocked() error {
 		return fmt.Errorf("commit: %w", err)
 	}
 	log.Printf("[history] Auto-committed %d file(s)", count)
+	h.notifyCommitLocked()
 	return nil
 }
 

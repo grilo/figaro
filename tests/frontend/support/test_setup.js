@@ -48,6 +48,7 @@ window.pywebview = {
         save_session: jest.fn().mockResolvedValue({ success: true }),
         load_session: jest.fn().mockResolvedValue({}),
         create_file: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() / 1000 }),
+        create_inbox_note: jest.fn().mockResolvedValue({ success: true, path: 'Inbox/Quick-note.md', mtime: Date.now() / 1000 }),
         create_starter_print_stylesheet: jest.fn().mockResolvedValue({ success: true, path: "pdf.css", created: true }),
         create_directory: jest.fn().mockResolvedValue({ success: true }),
         delete_path: jest.fn().mockResolvedValue({ success: true }),
@@ -60,6 +61,7 @@ window.pywebview = {
         search_files: jest.fn().mockResolvedValue([]),
         search_backlinks: jest.fn().mockResolvedValue([]),
         get_commit_count: jest.fn().mockResolvedValue(0),
+        file_has_uncommitted_changes: jest.fn().mockResolvedValue(false),
         get_file_history: jest.fn().mockResolvedValue([]),
         get_file_version: jest.fn().mockResolvedValue(''),
         get_kanban_columns: jest.fn().mockResolvedValue(["todo", "wip", "done"]),
@@ -81,6 +83,19 @@ window.pywebview = {
         get_today_link: jest.fn().mockReturnValue("2024-01-15"),
         get_os_username: jest.fn().mockResolvedValue('Test User'),
         code_font_save: jest.fn().mockResolvedValue({ success: true }),
+		theme_load: jest.fn().mockResolvedValue({ theme: 'default', font: 'inter', codeFont: 'theme-mono' }),
+		theme_save: jest.fn().mockResolvedValue({ success: true }),
+		get_theme_css: jest.fn().mockResolvedValue({ css: '' }),
+		get_themes: jest.fn().mockResolvedValue({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
+		vim_load: jest.fn().mockResolvedValue({ enabled: false }),
+		vim_save: jest.fn().mockResolvedValue({ success: true }),
+		line_numbers_load: jest.fn().mockResolvedValue({ enabled: false }),
+		line_numbers_save: jest.fn().mockResolvedValue({ success: true }),
+		auto_save_load: jest.fn().mockResolvedValue(300),
+		auto_save_save: jest.fn().mockResolvedValue({ success: true }),
+		auto_commit_load: jest.fn().mockResolvedValue(3600),
+		auto_commit_save: jest.fn().mockResolvedValue({ success: true }),
+		commit_current_file: jest.fn().mockResolvedValue(null),
 		link_style_load: jest.fn().mockResolvedValue({ style: 'markdown' }),
 		change_link_style: jest.fn().mockResolvedValue({ success: true, style: 'markdown', updated_links: [] }),
         get_tomorrow_link: jest.fn().mockReturnValue("2024-01-16"),
@@ -120,6 +135,7 @@ function createMockDOM() {
                             </div>
                             <div id="global-search-dropdown" class="search-dropdown"></div>
                         </div>
+                        <button id="create-inbox-note" class="create-inbox-note quick-note-action" data-action="quick-note"><span>Quick note</span></button>
                         <div id="file-tree"></div>
                         <section id="sidebar-calendar-panel" class="sidebar-calendar-panel" aria-hidden="true">
                             <div class="calendar-toolbar">
@@ -132,6 +148,7 @@ function createMockDOM() {
                         </section>
                     </div>
                     <nav class="sidebar-tools" aria-label="Workspace tools">
+                        <button id="sidebar-quick-note" class="sidebar-tool-btn sidebar-quick-note quick-note-action" data-action="quick-note"><span class="sidebar-tool-label">Quick note</span></button>
                         <button id="sidebar-calendar" class="sidebar-tool-btn" aria-controls="sidebar-calendar-panel" aria-expanded="false">
                             <span class="sidebar-tool-label">Calendar</span>
                         </button>
@@ -165,6 +182,8 @@ function createMockDOM() {
                 <span id="word-count">0 words</span>
                 <span id="char-count">0 chars</span>
                 <a id="backlinks-status" class="status-backlinks">0 backlinks</a>
+                <button id="git-status" class="status-git" disabled>Git clean</button>
+                <span id="git-status-separator" class="status-separator">|</span>
                 <a id="history-count" class="status-history">0 changes</a>
                 <span class="md-cheatsheet-wrapper">
                     <button id="md-cheatsheet-trigger" aria-expanded="false">md cheatsheet</button>

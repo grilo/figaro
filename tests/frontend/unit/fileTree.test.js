@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -57,12 +57,17 @@ jest.mock('../frontend/js/tabManager.js', () => ({
     updateTabsForMovedPath: jest.fn(),
 }));
 
+jest.mock('../frontend/js/editor.js', () => ({
+    focusEditor: jest.fn(),
+}));
+
 import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
 import { openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
+import { focusEditor } from '../frontend/js/editor.js';
 
 function deferred() {
     let resolve;
@@ -147,6 +152,21 @@ describe('File Tree', () => {
             expect(surface.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('active-file')).toBe(true);
         });
 
+        test('marks open background tabs more subtly than the active file', () => {
+            const items = [
+                { name: 'active.md', path: 'active.md', type: 'file', mtime: 1 },
+                { name: 'background.md', path: 'background.md', type: 'file', mtime: 2 },
+                { name: 'closed.md', path: 'closed.md', type: 'file', mtime: 3 },
+            ];
+            const surface = document.createElement('div');
+            surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, 'active.md', {}, new Set(['active.md', 'background.md']));
+
+            expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('active-file')).toBe(true);
+            expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('open-file')).toBe(false);
+            expect(surface.querySelector('[data-path="background.md"] > .file-tree-node').classList.contains('open-file')).toBe(true);
+            expect(surface.querySelector('[data-path="closed.md"] > .file-tree-node').classList.contains('open-file')).toBe(false);
+        });
+
         test('should render items in given order', () => {
             const items = [
                 { name: 'alpha', path: 'alpha', type: 'directory', children: [] },
@@ -174,6 +194,59 @@ describe('File Tree', () => {
             expect(node.style.getPropertyValue('--file-tree-entry-color')).toBe('#f59e0b');
             expect(node.querySelector('.node-icon path').getAttribute('d')).toContain('M12 2');
         });
+
+        test('gives the top-level Inbox a Mail icon by default while allowing a custom override', () => {
+            window.lucide = { icons: {
+                Mail: [['path', { d: 'M4 4h16v16H4z' }]],
+                Star: [['path', { d: 'M12 2 15 9 22 9Z' }]],
+            } };
+            const items = [{ name: 'Inbox', path: 'Inbox', type: 'directory', children: [] }];
+            const surface = document.createElement('div');
+            surface.innerHTML = buildTreeHTML(items, new Set(), null);
+            expect(surface.querySelector('.default-inbox-icon path').getAttribute('d')).toBe('M4 4h16v16H4z');
+
+            surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, null, {
+                Inbox: { icon: 'Star' },
+            });
+            expect(surface.querySelector('.default-inbox-icon')).toBeNull();
+            expect(surface.querySelector('.node-icon path').getAttribute('d')).toBe('M12 2 15 9 22 9Z');
+        });
+    });
+
+    test('Quick note makes and opens a real Inbox note, then focuses the editor', async () => {
+        window.pywebview.api.create_inbox_note.mockResolvedValueOnce({
+            success: true,
+            path: 'Inbox/2026-07-17-143522.md',
+            mtime: 42,
+        });
+        window.pywebview.api.get_file_tree.mockResolvedValueOnce([]);
+
+        await createInboxNote();
+
+        expect(window.pywebview.api.create_inbox_note).toHaveBeenCalledTimes(1);
+        expect(handleFileOpen).toHaveBeenCalledWith('Inbox/2026-07-17-143522.md');
+        expect(focusEditor).toHaveBeenCalled();
+        expect(document.getElementById('create-inbox-note').disabled).toBe(false);
+        expect(document.getElementById('sidebar-quick-note').disabled).toBe(false);
+    });
+
+    test('Quick note reports backend failure without opening a phantom Inbox tab', async () => {
+        window.pywebview.api.create_inbox_note.mockResolvedValueOnce({
+            success: false,
+            error: 'Inbox is read-only',
+        });
+
+        await createInboxNote();
+
+        expect(errorDialog).toHaveBeenCalledWith(
+            'Couldn’t create Inbox note',
+            'Inbox is read-only',
+            'No existing note was changed.',
+        );
+        expect(handleFileOpen).not.toHaveBeenCalled();
+        expect(focusEditor).not.toHaveBeenCalled();
+        expect(document.getElementById('create-inbox-note').disabled).toBe(false);
+        expect(document.getElementById('sidebar-quick-note').disabled).toBe(false);
     });
 
     describe('path appearance', () => {

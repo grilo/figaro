@@ -31,6 +31,13 @@ func TestLinuxDesktopEntryUsesDedicatedIconFile(t *testing.T) {
 	}
 }
 
+func TestLinuxDesktopEntryUsesStableThemeIdentityForDash(t *testing.T) {
+	entry := linuxDesktopEntry("/opt/figaro/figaro", linuxDesktopIconName)
+	if !strings.Contains(entry, "Icon="+linuxDesktopIconName+"\n") {
+		t.Fatalf("desktop entry did not use stable icon identity: %s", entry)
+	}
+}
+
 func TestLinuxDesktopIconAssetNameChangesWithIconContent(t *testing.T) {
 	first := linuxDesktopIconAssetName([]byte("first icon"))
 	second := linuxDesktopIconAssetName([]byte("second icon"))
@@ -51,10 +58,9 @@ func TestRemoveStaleLinuxFigaroIconsPreservesCurrentAndUnrelatedFiles(t *testing
 	current := linuxDesktopIconAssetName([]byte("current icon"))
 	stale := []string{
 		linuxLegacyDesktopIconName + ".png",
-		linuxDesktopIconName + ".png",
 		linuxDesktopIconName + "-oldrevision.png",
 	}
-	kept := []string{current + ".png", "other-application.png"}
+	kept := []string{current + ".png", linuxDesktopIconName + ".png", "other-application.png"}
 	for _, name := range append(append([]string{}, stale...), kept...) {
 		if err := os.WriteFile(filepath.Join(appsDir, name), []byte(name), 0644); err != nil {
 			t.Fatal(err)

@@ -1,7 +1,7 @@
 /** History requests must not update a panel after its file changes. */
 
 import { testUtils } from './test_setup.js';
-import { updateHistoryCount, refreshHistoryIfOpen } from '../frontend/js/historyPanel.js';
+import { updateGitStatus, updateHistoryCount, refreshHistoryIfOpen } from '../frontend/js/historyPanel.js';
 
 function deferred() {
     let resolve;
@@ -31,5 +31,20 @@ describe('history panel async lifecycle', () => {
         await refresh;
 
         expect(document.getElementById('history-content').textContent).not.toContain('abcdef1');
+    });
+
+    test('drops a late Git status result after the active file changes', async () => {
+        const slow = deferred();
+        window.pywebview.api.file_has_uncommitted_changes
+            .mockImplementationOnce(() => slow.promise)
+            .mockResolvedValueOnce(false);
+
+        const oldRequest = updateGitStatus('A.md');
+        await updateGitStatus('B.md');
+        slow.resolve(true);
+        await oldRequest;
+
+        expect(document.getElementById('git-status').textContent).toBe('Git clean');
+        expect(document.getElementById('git-status').classList).not.toContain('is-uncommitted');
     });
 });

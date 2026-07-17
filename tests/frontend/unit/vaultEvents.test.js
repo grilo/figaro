@@ -10,16 +10,20 @@ describe('vault change event bridge', () => {
         };
         const onVaultChanged = jest.fn();
         const onKanbanIndexed = jest.fn();
+        const onHistoryChanged = jest.fn();
 
-        expect(registerVaultChangeEvents(runtime, { onVaultChanged, onKanbanIndexed })).toBe(true);
+        expect(registerVaultChangeEvents(runtime, { onVaultChanged, onKanbanIndexed, onHistoryChanged })).toBe(true);
         expect(runtime.EventsOn).toHaveBeenCalledWith('vault:changed', expect.any(Function));
         expect(runtime.EventsOn).toHaveBeenCalledWith('vault:kanban-indexed', expect.any(Function));
+        expect(runtime.EventsOn).toHaveBeenCalledWith('vault:history-changed', expect.any(Function));
 
         handlers['vault:changed']();
         handlers['vault:kanban-indexed']();
+        handlers['vault:history-changed']();
 
         expect(onVaultChanged).toHaveBeenCalledTimes(1);
         expect(onKanbanIndexed).toHaveBeenCalledTimes(1);
+        expect(onHistoryChanged).toHaveBeenCalledTimes(1);
     });
 
     test('does not require a browser-specific event API when Wails is unavailable', () => {
