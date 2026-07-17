@@ -30,6 +30,12 @@ describe('Editor Module - CodeMirror Initialization', () => {
             // If we got here without error, the test passes
             expect(true).toBe(true);
         });
+
+        test('initializes the lazily loaded indentation markers for native webviews', async () => {
+            const { initEditor } = await import('../frontend/js/editor.js');
+
+            await expect(initEditor()).resolves.toBeUndefined();
+        });
     });
 
     describe('No-Editor Guard Tests', () => {
@@ -51,6 +57,36 @@ describe('Editor Module - CodeMirror Initialization', () => {
         expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 12 } }, 8)).toBe(true);
         expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 12 } }, 13)).toBe(false);
         expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 4 } }, 4)).toBe(false);
+    });
+
+    test('normalizes WebKitGTK Unidentified Shift+Tab for nested table editors', async () => {
+        const { normalizeWebKitShiftTab } = await import('../frontend/js/editor.js');
+        const target = document.createElement('div');
+        const normalizedEvents = [];
+        let handled = false;
+        target.addEventListener('keydown', event => {
+            normalizedEvents.push({
+                key: event.key,
+                code: event.code,
+                shiftKey: event.shiftKey,
+            });
+            if (event.key === 'Unidentified') handled = normalizeWebKitShiftTab(event);
+        });
+        const event = new KeyboardEvent('keydown', {
+            key: 'Unidentified',
+            code: 'Tab',
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+        target.dispatchEvent(event);
+
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(normalizedEvents).toEqual([
+            { key: 'Unidentified', code: 'Tab', shiftKey: true },
+            { key: 'Tab', code: 'Tab', shiftKey: true },
+        ]);
     });
 
     test('copies the selected editor-state text through the Clipboard API', async () => {

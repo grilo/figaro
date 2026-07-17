@@ -1,4 +1,4 @@
-import { confirmDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, promptDialog, renamePathDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, promptDialog, renamePathDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
 
 describe('New note dialog', () => {
     beforeEach(() => {
@@ -211,5 +211,39 @@ describe('New note dialog', () => {
         expect(confirm.disabled).toBe(false);
         confirm.click();
         await expect(result).resolves.toEqual([1]);
+    });
+
+    test('previews and confirms selection-to-table conversion with a header choice', async () => {
+        const result = tableConversionDialog('Alpha\t2\nBeta\t3');
+        const dialog = document.querySelector('.table-conversion-modal');
+        const header = dialog.querySelector('.table-conversion-checkbox input');
+        const preview = dialog.querySelector('.table-conversion-preview');
+
+        expect(dialog.querySelector('.table-conversion-summary').textContent).toContain('Tab detected');
+        expect(preview.textContent).toContain('| Alpha | 2 |');
+        header.checked = false;
+        header.dispatchEvent(new Event('change'));
+        expect(preview.textContent).toContain('| Column 1 | Column 2 |');
+        expect(preview.textContent).toContain('| Beta | 3 |');
+
+        dialog.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        await expect(result).resolves.toBe([
+            '| Column 1 | Column 2 |',
+            '| --- | --- |',
+            '| Alpha | 2 |',
+            '| Beta | 3 |',
+        ].join('\n'));
+    });
+
+    test('cancels conversion without returning replacement text and explains invalid selections', async () => {
+        const result = tableConversionDialog('This is ordinary prose.');
+        const dialog = document.querySelector('.table-conversion-modal');
+
+        expect(dialog.querySelector('.table-conversion-error').textContent).toContain('CSV, TSV, or pipe-delimited');
+        expect(dialog.querySelector('.custom-modal-btn-confirm').disabled).toBe(true);
+        dialog.querySelector('.custom-modal-btn-cancel').click();
+
+        await expect(result).resolves.toBeNull();
+        expect(document.querySelector('.custom-modal-overlay')).toBeNull();
     });
 });

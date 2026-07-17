@@ -179,6 +179,19 @@ table edge. Keep the focused automated checks in
 `tests/frontend/unit/markdownTables.test.js` and
 `tests/e2e/markdownTables.spec.js`.
 
+Table creation and conversion share that contract. Retain focused coverage
+that `|` on an otherwise empty line offers the supported sizes and accepts the
+choice, selection conversion previews delimiter/header changes and cancels
+without editing, and one confirmation produces one undoable transaction.
+Keyboard paste and the editor's existing Paste menu must convert clear
+spreadsheet HTML, TSV, pipe-delimited text, and unambiguous CSV while ordinary
+text passes through unchanged. Existing GFM must retain its separator and
+alignment while gaining safe block boundaries so adjacent prose cannot become
+a table row. Keep pure parsing and clipboard coverage in
+`tests/frontend/unit/markdownTableConversion.test.js` and the real completion,
+paste, context-menu, cursor, mouse, preview, and PDF workflow in
+`tests/e2e/markdownTables.spec.js`.
+
 ## Clipboard image paste regressions
 
 Clipboard image paste crosses binary persistence, the Wails bridge, an

@@ -79,6 +79,27 @@ Saving and versioning are intentionally separate. **Auto-Save** writes the activ
 
 figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
 
+#### Tables
+
+Type `|` on an empty line and choose a 2×2, 3×3, or 4×4 table. Existing GFM
+pipe tables become interactive automatically when opened. To convert existing
+CSV, TSV, or consistently pipe-delimited text, select it, right-click, and
+choose **Convert selection to table…**; Figaro previews the detected delimiter,
+dimensions, header choice, and resulting Markdown before replacing anything.
+
+Normal paste also recognizes clear tabular clipboard data. Content copied from
+a spreadsheet or HTML table, tab-separated rows, pipe-delimited rows, and
+unambiguous CSV is inserted directly as a Markdown table through Ctrl/Cmd+V or
+the existing **Paste** context-menu action. There is no separate paste mode;
+ordinary prose and inconsistent rows remain ordinary text, while existing GFM
+tables keep their separator and alignment with safe surrounding boundaries.
+
+Click a cell to edit it. Arrow keys move within the table, Tab and Shift+Tab
+move between cells, Enter moves down a column and adds a row at the bottom, and
+Shift+Enter creates a line break inside a cell. Click or drag the row, column,
+and table-edge handles to sort, align, add, move, duplicate, clear, delete, or
+resize table content.
+
 Files recognised by CodeMirror's language registry open in the same editor as proper code files, with syntax highlighting, folding, completions, Vim support, and indentation guides. Unsupported or binary files stay safely non-editable in the file tree.
 
 ### Diagrams

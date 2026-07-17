@@ -7,9 +7,10 @@ All notable user-facing changes are recorded here from this point forward.
 ### Added
 
 - Interactive GFM Markdown tables powered by `codemirror-markdown-tables`,
-  with automatic formatting, row and column controls, keyboard cell
-  navigation, cursor-safe movement around the table, and matching table
-  rendering in PDF preview and export.
+  with `|`-triggered size completion, automatic CSV/TSV/spreadsheet paste,
+  previewed selection conversion, formatting, row and column controls,
+  keyboard cell navigation, cursor-safe movement, and matching rendering in
+  PDF preview and export.
 - Clipboard image paste for Markdown notes. Pasting a screenshot or supported
   raster image saves a collision-safe `image1`, `image2`, and so on beside the
   note, inserts portable relative Markdown, refreshes the file tree, and
@@ -105,6 +106,11 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- Shift+Tab now moves backward through interactive Markdown table cells in
+  WebKitGTK instead of moving focus out of the editor.
+- The packaged WebKitGTK editor now initializes its lazily loaded indentation
+  markers without a shorthand-assignment error that could leave the workspace
+  controls visible but prevent notes from opening.
 - Destructive confirmations now identify the exact consequence, use explicit
   labels, and focus Cancel first. Text-entry and merge dialogs no longer lose
   work from an accidental backdrop click, and every modal traps focus and

@@ -4415,6 +4415,90 @@ body.custom-modal-open { overflow: hidden; }
     font-size: 11px;
 }
 
+.table-conversion-modal { width: min(620px, 100%); }
+
+.table-conversion-form {
+    display: grid;
+    gap: 13px;
+}
+
+.table-conversion-options {
+    display: flex;
+    align-items: end;
+    gap: 14px;
+}
+
+.table-conversion-field {
+    display: grid;
+    flex: 1 1 220px;
+    gap: 7px;
+    color: var(--text-color);
+    font-size: 11px;
+    font-weight: 650;
+}
+
+.table-conversion-select {
+    min-height: 38px;
+    padding: 0 32px 0 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    outline: none;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: inherit;
+}
+
+.table-conversion-select:focus-visible {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+
+.table-conversion-checkbox {
+    display: flex;
+    align-items: center;
+    min-height: 38px;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.table-conversion-checkbox input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-color);
+}
+
+.table-conversion-summary {
+    min-height: 17px;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.table-conversion-preview {
+    max-height: 260px;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.55;
+    white-space: pre;
+}
+
+.table-conversion-preview:focus-visible {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+
+.table-conversion-error { margin: 0; }
+
 .custom-modal-buttons,
 .new-note-modal .custom-modal-buttons,
 .pdf-export-error-modal .custom-modal-buttons {
@@ -4519,6 +4603,13 @@ body.custom-modal-open { overflow: hidden; }
 
     .custom-modal-btn { flex: 1 1 auto; }
     .custom-modal-button-spacer { display: none; }
+
+    .table-conversion-options {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .table-conversion-field { flex-basis: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

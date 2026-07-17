@@ -13,9 +13,10 @@ import { getFileLanguage, loadLanguageSupport } from './languageSupport.js';
 import { createFrontmatterField } from './frontmatterPlugin.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
-import { pdfExportErrorDialog } from './dialogs.js';
+import { pdfExportErrorDialog, tableConversionDialog } from './dialogs.js';
 import { handleClipboardImagePaste, pasteClipboardImage } from './clipboardImage.js';
-import { markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
+import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } from './clipboardTable.js';
+import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
 import {
     livePreviewPlugin,
     markdownStylePlugin,
@@ -139,7 +140,11 @@ async function loadCodeMirrorModules() {
             import('@codemirror/language'), import('@codemirror/lang-markdown'),
             import('@codemirror/autocomplete'), import('@lezer/highlight'), import('@codemirror/search')
         ]);
-        ({ indentationMarkers } = await import('@replit/codemirror-indentation-markers'));
+        // WebKitGTK 2.52 can misinterpret the shorthand destructuring target
+        // here as an uninitialized binding. Assign the imported property
+        // explicitly so the packaged editor can initialize in every webview.
+        const indentationMarkerModule = await import('@replit/codemirror-indentation-markers');
+        indentationMarkers = indentationMarkerModule.indentationMarkers;
         ({ EditorView, keymap, drawSelection } = cmView);
         ({ EditorState, StateField, StateEffect, RangeSetBuilder, Prec, Compartment, EditorSelection } = cmState);
         ({ defaultKeymap, cursorLineUp, cursorLineDown, history, historyKeymap, indentMore, indentLess } = cmCommands);
@@ -399,10 +404,53 @@ function linkPreview() {
     });
 }
 
+/**
+ * WebKitGTK reports a physical Shift+Tab as key="Unidentified" even though
+ * code remains "Tab". Normalize that one event so CodeMirror and the nested
+ * Markdown-table editor receive the key binding instead of moving browser
+ * focus out of the editor.
+ */
+function normalizeWebKitShiftTab(event) {
+    if (event?.key !== 'Unidentified' || event.code !== 'Tab' || !event.shiftKey
+        || event.altKey || event.ctrlKey || event.metaKey) return false;
+
+    const target = event.target;
+    const KeyboardEventConstructor = target?.ownerDocument?.defaultView?.KeyboardEvent
+        || globalThis.KeyboardEvent;
+    if (!target?.dispatchEvent || typeof KeyboardEventConstructor !== 'function') return false;
+
+    event.preventDefault();
+    event.stopPropagation();
+    target.dispatchEvent(new KeyboardEventConstructor('keydown', {
+        key: 'Tab',
+        code: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+    }));
+    return true;
+}
+
 function createEditorView() {
     if (editorView) return editorView;
     const container = document.getElementById('editor-container');
     if (!container) return null;
+
+    // The table widget installs its own keydown listener below the outer
+    // CodeMirror handler. Observe the WebKitGTK Shift+Tab quirk in capture
+    // phase so the normalized event reaches that nested listener first.
+    const webKitShiftTabPlugin = ViewPlugin.fromClass(class {
+        constructor(view) {
+            this.dom = view.dom;
+            this.handleKeyDown = event => normalizeWebKitShiftTab(event);
+            this.dom.addEventListener('keydown', this.handleKeyDown, true);
+        }
+
+        destroy() {
+            this.dom.removeEventListener('keydown', this.handleKeyDown, true);
+        }
+    });
 
     const getActiveFilePath = () => {
         const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
@@ -802,8 +850,18 @@ function createEditorView() {
     const markdownExtensionsForPath = () => [
         collapseOnSelectionFacet.of(true),
         mouseSelectingField,
+        webKitShiftTabPlugin,
         EditorView.lineWrapping,
-        autocompletion({ override: [frontmatterCompletions, dateShortcutCompletions, fileLinkCompletions, imageCompletions] }),
+        autocompletion({
+            interactionDelay: 0,
+            override: [
+                frontmatterCompletions,
+                dateShortcutCompletions,
+                fileLinkCompletions,
+                imageCompletions,
+                markdownTableAutocompleter(),
+            ],
+        }),
         markdownLanguage,
         markdownStylePlugin,
         livePreviewPlugin,
@@ -822,7 +880,8 @@ function createEditorView() {
         EditorView.domEventHandlers({
             mousedown: handleMouseDown,
             click: handleClick,
-            paste: handleClipboardImagePaste,
+            paste: (event, view) => handleClipboardImagePaste(event, view)
+                || (activeFileLanguage.kind === 'markdown' && handleClipboardTablePaste(event, view)),
         }),
         Prec.high(keymap.of([
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
@@ -1375,6 +1434,27 @@ async function pasteIntoEditor(view) {
                 if (!imageType) continue;
                 return pasteClipboardImage(view, await item.getType(imageType));
             }
+
+            const htmlItem = items.find(item => Array.from(item?.types || []).includes('text/html'));
+            const csvItem = items.find(item => Array.from(item?.types || []).includes('text/csv'));
+            const tsvItem = items.find(item => Array.from(item?.types || []).includes('text/tab-separated-values'));
+            const plainItem = items.find(item => Array.from(item?.types || []).includes('text/plain'));
+            const textItem = tsvItem || csvItem || plainItem;
+            const mimeType = tsvItem ? 'text/tab-separated-values' : csvItem ? 'text/csv' : 'text/plain';
+            const html = htmlItem ? await (await htmlItem.getType('text/html')).text() : '';
+            const text = textItem ? await (await textItem.getType(mimeType)).text() : '';
+            if (activeFileLanguage.kind === 'markdown'
+                && pasteClipboardTable(view, { html, text, mimeType: html ? 'text/html' : mimeType })) return true;
+            if (text) {
+                const range = view.state.selection.main;
+                view.dispatch({
+                    changes: { from: range.from, to: range.to, insert: text },
+                    selection: { anchor: range.from + text.length },
+                    scrollIntoView: true,
+                    userEvent: 'input.paste',
+                });
+                return true;
+            }
         } catch (_) {
             // Keyboard paste events remain the most compatible image path in
             // embedded webviews; continue to text/legacy fallbacks here.
@@ -1383,10 +1463,14 @@ async function pasteIntoEditor(view) {
     if (typeof clipboard?.readText === 'function') {
         try {
             const text = await clipboard.readText();
+            if (activeFileLanguage.kind === 'markdown'
+                && pasteClipboardTable(view, { text, mimeType: 'text/plain' })) return true;
             const range = view.state.selection.main;
             view.dispatch({
                 changes: { from: range.from, to: range.to, insert: text },
                 selection: { anchor: range.from + text.length },
+                scrollIntoView: true,
+                userEvent: 'input.paste',
             });
             return true;
         } catch (_) {
@@ -1413,6 +1497,12 @@ function handleContextMenu(event, view) {
     const hasSelection = Boolean(selectedEditorText(view));
     const selectionDisabledClass = hasSelection ? '' : ' disabled';
     const selectionDisabledAttribute = hasSelection ? '' : ' aria-disabled="true"';
+    const convertTableAction = activeFileLanguage.kind === 'markdown' ? `
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item${selectionDisabledClass}" data-action="convert-table"${selectionDisabledAttribute}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16M15 4v16"/></svg>
+            Convert selection to table…
+        </div>` : '';
     const printAction = activeTab?.path?.toLowerCase().endsWith('.md') ? `
         <div class="context-menu-separator"></div>
         <div class="context-menu-item" data-action="preview-pdf">
@@ -1438,6 +1528,7 @@ function handleContextMenu(event, view) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
             Paste
         </div>
+        ${convertTableAction}
         <div class="context-menu-separator"></div>
         <div class="context-menu-item" data-action="select-all">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
@@ -1457,6 +1548,20 @@ function handleContextMenu(event, view) {
         } else if (action === 'copy') {
             if (!await copyEditorSelection(view)) statusBar.set('Could not copy selection to clipboard');
         } else if (action === 'paste') await pasteIntoEditor(view);
+        else if (action === 'convert-table') {
+            const originalDocument = view.state.doc.toString();
+            const originalRange = view.state.selection.main;
+            const sourceText = view.state.sliceDoc(originalRange.from, originalRange.to);
+            const markdown = await tableConversionDialog(sourceText);
+            if (!markdown) return;
+            if (view.isDestroyed || view.state.doc.toString() !== originalDocument) {
+                statusBar.set('Selection changed; table conversion cancelled');
+                return;
+            }
+            insertMarkdownTable(view, markdown, { range: originalRange, userEvent: 'input' });
+            statusBar.set('Converted selection to table');
+            setTimeout(() => statusBar.set('Ready'), 1500);
+        }
         else if (action === 'select-all') {
             const doc = view.state.doc;
             view.dispatch({ selection: { anchor: 0, head: doc.length } });
@@ -1694,4 +1799,4 @@ export { initEditor, createEditorView, getEditorView,
     getEditorContent, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
     saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setImageBasePath, setReadOnly,
-    configureEditorForFile };
+    configureEditorForFile, normalizeWebKitShiftTab };

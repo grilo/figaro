@@ -6,6 +6,8 @@
  * recovery) add their own content without bypassing those foundations.
  */
 
+import { analyzeTabularText, markdownTableFromRows } from './markdownTableConversion.js';
+
 let activeModal = null;
 let activeModalDismiss = null;
 let dialogSequence = 0;
@@ -30,6 +32,7 @@ const dialogIcons = {
     folder: '<path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
     trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m7 7 1 13h8l1-13"/><path d="M10 11v5M14 11v5"/>',
     merge: '<path d="M7 4v3a5 5 0 0 0 5 5h5"/><path d="m14 9 3 3-3 3"/><path d="M7 20v-3a5 5 0 0 1 5-5"/>',
+    table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16M15 4v16"/>',
 };
 
 function iconSVG(name) {
@@ -282,6 +285,99 @@ export function promptDialog(title, message, defaultValue = '', options = {}) {
         });
         cancelButton.addEventListener('click', () => settle(null));
         setTimeout(() => input.select(), 0);
+    });
+}
+
+/** Preview and confirm conversion of selected delimited text to Markdown. */
+export function tableConversionDialog(sourceText) {
+    return new Promise(resolve => {
+        const id = `table-conversion-${dialogSequence + 1}`;
+        const { overlay } = createDialogShell({
+            title: 'Convert selection to table',
+            description: 'Review the detected rows before replacing the selected text.',
+            tone: 'neutral',
+            icon: 'table',
+            className: 'table-conversion-modal',
+            content: `
+                <form id="${id}-form" class="table-conversion-form">
+                    <div class="table-conversion-options">
+                        <label class="table-conversion-field" for="${id}-delimiter">
+                            <span>Delimiter</span>
+                            <select id="${id}-delimiter" class="table-conversion-select">
+                                <option value="auto">Detect automatically</option>
+                                <option value="tab">Tab</option>
+                                <option value="comma">Comma</option>
+                                <option value="pipe">Pipe</option>
+                            </select>
+                        </label>
+                        <label class="table-conversion-checkbox">
+                            <input type="checkbox" checked>
+                            <span>First row is header</span>
+                        </label>
+                    </div>
+                    <p class="table-conversion-summary" aria-live="polite"></p>
+                    <pre class="table-conversion-preview" tabindex="0" aria-label="Markdown table preview"></pre>
+                    <p class="custom-modal-error table-conversion-error" role="alert" hidden></p>
+                </form>
+            `,
+            footer: `
+                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                <button type="submit" form="${id}-form" class="custom-modal-btn custom-modal-btn-confirm">Convert</button>
+            `,
+        });
+        const form = overlay.querySelector('form');
+        const delimiter = overlay.querySelector('.table-conversion-select');
+        const firstRowHeader = overlay.querySelector('.table-conversion-checkbox input');
+        const summary = overlay.querySelector('.table-conversion-summary');
+        const preview = overlay.querySelector('.table-conversion-preview');
+        const error = overlay.querySelector('.table-conversion-error');
+        const cancelButton = overlay.querySelector('.custom-modal-btn-cancel');
+        const confirmButton = overlay.querySelector('.custom-modal-btn-confirm');
+        let lifecycle = null;
+        let convertedMarkdown = '';
+
+        const refresh = () => {
+            const analysis = analyzeTabularText(sourceText, { delimiter: delimiter.value });
+            if (!analysis.ok || analysis.alreadyMarkdown) {
+                const message = analysis.alreadyMarkdown
+                    ? 'The selection is already a Markdown table.'
+                    : analysis.error;
+                convertedMarkdown = '';
+                summary.textContent = '';
+                preview.textContent = '';
+                preview.hidden = true;
+                error.textContent = message;
+                error.hidden = false;
+                confirmButton.disabled = true;
+                return;
+            }
+            convertedMarkdown = markdownTableFromRows(analysis.rows, {
+                firstRowIsHeader: firstRowHeader.checked,
+            });
+            summary.textContent = `${analysis.delimiterLabel} detected · ${analysis.rows.length} rows × ${analysis.columns} columns`;
+            preview.textContent = convertedMarkdown;
+            preview.hidden = false;
+            error.hidden = true;
+            confirmButton.disabled = false;
+        };
+        const settle = (value, restoreFocus = true) => {
+            if (!lifecycle.close(restoreFocus)) return;
+            resolve(value);
+        };
+
+        lifecycle = activateModal(overlay, {
+            initialFocus: cancelButton,
+            dismissOnBackdrop: false,
+            onDismiss: () => resolve(null),
+        });
+        delimiter.addEventListener('change', refresh);
+        firstRowHeader.addEventListener('change', refresh);
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            if (convertedMarkdown) settle(convertedMarkdown);
+        });
+        cancelButton.addEventListener('click', () => settle(null));
+        refresh();
     });
 }
 
@@ -604,4 +700,5 @@ export default {
     pdfExportErrorDialog,
     promptDialog,
     renamePathDialog,
+    tableConversionDialog,
 };
