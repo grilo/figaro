@@ -81,6 +81,14 @@ rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
 
+Document observers follow the same rule. A changed editor document is kept as
+CodeMirror's immutable text snapshot until the next animation frame, when the
+latest dirty snapshot is published to Kanban and PDF-preview consumers. Tab
+switches and saves still materialize the live editor document synchronously,
+so coalescing cannot lose a buffer. Word/character statistics are intentionally
+settled after a short typing pause and reuse that latest materialized snapshot
+where possible, avoiding a whole-document tokenization per keypress.
+
 ## Session state is not settings
 
 `settings.json` stores durable preferences such as theme, fonts, and feature

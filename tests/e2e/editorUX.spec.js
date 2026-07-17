@@ -187,6 +187,37 @@ test('keeps math and diagram previews cursor-safe during keyboard and mouse sele
     }
 });
 
+test('coalesces rapid editor observer updates without losing the dirty buffer', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.evaluate(async () => {
+        const state = await import('/js/state.js');
+        const editor = await import('/js/editor.js');
+        const view = editor.getEditorView();
+        while (editor.getEditorDocumentTabId() !== state.getState('activeTabId')) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        const activeTab = state.getState('openTabs').find(tab => tab.id === state.getState('activeTabId'));
+        window.__editorObserverEvents = [];
+        document.addEventListener('file-content-changed', event => {
+            if (event.detail?.path === activeTab.path) window.__editorObserverEvents.push(event.detail.content);
+        });
+
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } });
+        view.dispatch({ changes: { from: 0, insert: 'one ' } });
+        view.dispatch({ changes: { from: view.state.doc.length, insert: 'two ' } });
+        view.dispatch({ changes: { from: view.state.doc.length, insert: 'three' } });
+        window.__editorObserverTab = activeTab;
+    });
+
+    await expect.poll(() => page.evaluate(() => window.__editorObserverEvents)).toEqual(['one two three']);
+    await page.waitForTimeout(220);
+    expect(await page.evaluate(() => ({
+        content: window.__editorObserverTab._content,
+        dirty: window.__editorObserverTab.dirty,
+        words: document.getElementById('word-count').textContent,
+    }))).toEqual({ content: 'one two three', dirty: true, words: '3 words' });
+});
+
 test('keeps Quick note available in the collapsed rail and gives Inbox its default Mail icon', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true && window.lucide?.icons?.Star && window.lucide?.icons?.Mail);

@@ -83,6 +83,13 @@ const footnoteReturnPositions = new Map();
 const linkPreviewCache = new Map();
 const linkPreviewRequests = new Map();
 const linkPreviewCacheTTL = 30_000;
+const editorStatsDebounceMs = 160;
+let pendingContentNotification = null;
+let contentNotificationFrame = null;
+let pendingStatsDocument = null;
+let statsTimer = null;
+let lastMaterializedDocument = null;
+let lastMaterializedContent = '';
 
 // CodeMirror's indentUnit is the single source of truth for both Tab / Shift+Tab
 // and the indentation-marker extension. Keep the visual tab width in CSS in
@@ -1110,6 +1117,11 @@ function setEditorContent(content, tabId = undefined) {
             return;
         }
         try {
+            // Preserve the outgoing dirty document before this shared editor
+            // receives another tab's source. The queued observer update is
+            // otherwise deliberately lazy during ordinary typing.
+            flushPendingContentNotification();
+            cancelPendingStatsUpdate();
             editorDocumentTabId = request.tabId;
             _programmaticChange = true;
             v.dispatch({
@@ -1234,21 +1246,86 @@ function setLineNumbers(enabled) {
 
 function focusEditor() { const v = getEditorView(); if (v) v.focus(); }
 
+function materializedDocumentContent(document) {
+    if (document === lastMaterializedDocument) return lastMaterializedContent;
+    const content = document.toString();
+    lastMaterializedDocument = document;
+    lastMaterializedContent = content;
+    return content;
+}
+
+function flushPendingContentNotification() {
+    const pending = pendingContentNotification;
+    pendingContentNotification = null;
+    contentNotificationFrame = null;
+    if (!pending) return;
+
+    const tab = (getState('openTabs') || []).find(candidate => candidate?.id === pending.tabId);
+    // A switch-away captures the active document synchronously and a
+    // successful save clears its dirty state. In either case this delayed
+    // observer snapshot must not resurrect a stale dirty cache.
+    if (!tab || !tab.dirty || tab._editGeneration !== pending.generation) return;
+
+    const content = materializedDocumentContent(pending.document);
+    tab._content = content;
+    document.dispatchEvent(new CustomEvent('file-content-changed', {
+        detail: { path: pending.path, content },
+    }));
+}
+
+function scheduleContentNotification(tab, editorDocument) {
+    pendingContentNotification = {
+        tabId: tab.id,
+        path: tab.path,
+        generation: tab._editGeneration,
+        document: editorDocument,
+    };
+    if (contentNotificationFrame !== null) return;
+
+    const flush = () => flushPendingContentNotification();
+    contentNotificationFrame = typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame(flush)
+        : setTimeout(flush, 0);
+}
+
+function scheduleStatsUpdate(editorDocument) {
+    pendingStatsDocument = editorDocument;
+    if (statsTimer !== null) clearTimeout(statsTimer);
+    statsTimer = setTimeout(() => {
+        statsTimer = null;
+        const document = pendingStatsDocument;
+        pendingStatsDocument = null;
+        if (document) updateStats(materializedDocumentContent(document));
+    }, editorStatsDebounceMs);
+}
+
+function cancelPendingStatsUpdate() {
+    if (statsTimer !== null) clearTimeout(statsTimer);
+    statsTimer = null;
+    pendingStatsDocument = null;
+}
+
 function handleDocChange(update) {
-    if (_programmaticChange) { _programmaticChange = false; updateStats(update.state.doc.toString()); return; }
+    if (_programmaticChange) {
+        _programmaticChange = false;
+        cancelPendingStatsUpdate();
+        updateStats(materializedDocumentContent(update.state.doc));
+        return;
+    }
     const at = getState('openTabs').find(t => t.id === editorDocumentTabId);
     if (at && at.type === 'file') {
-        const content = update.state.doc.toString();
-        at._content = content;
         at._editGeneration = (at._editGeneration || 0) + 1;
+        // Mark the model dirty synchronously. The tab-bar import only paints
+        // that fact; source snapshots below remain owned by CodeMirror until
+        // a consumer actually needs a string.
+        at.dirty = true;
         import('./tabManager.js').then(({ markTabDirty }) => markTabDirty(at.id));
-        updateStats(content);
-        // Consumers such as the PDF preview receive the in-memory snapshot,
-        // so a live preview never waits for autosave or briefly shows stale
-        // on-disk text.
-        document.dispatchEvent(new CustomEvent('file-content-changed', {
-            detail: { path: at.path, content }
-        }));
+        // Kanban and the PDF preview need the current in-memory text, but
+        // each can consume the newest frame rather than every transaction in
+        // a rapid typing burst. Saves and tab switches read the editor state
+        // directly, so this never weakens the dirty-buffer guarantee.
+        scheduleContentNotification(at, update.state.doc);
+        scheduleStatsUpdate(update.state.doc);
     }
 }
 function updateCursorPosition(update) {
