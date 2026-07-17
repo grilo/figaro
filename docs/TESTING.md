@@ -85,6 +85,55 @@ For a Markdown feature, use the same representative source in the editor,
 printable HTML, preview frame, and browser PDF checks. Assert semantic DOM and
 important layout—not merely that the source text occurs somewhere.
 
+## Frameless window chrome regressions
+
+Window-edge styling must remain a full, pointer-transparent outline: one pixel
+on every side, the same radius as `#app`, and a slightly stronger top color.
+Keep `tests/e2e/windowChrome.spec.js` focused on those computed properties so
+the browser build and packaged webview do not drift back to separate border
+implementations. After changing the outline, title bar, drag region, or window
+controls, also exercise native edge resizing and maximize/restore in the
+packaged application on each affected desktop platform.
+
+## Sidebar navigation regressions
+
+Calendar and Kanban are persistent destinations, not title-bar toggles.
+Retain focused coverage that they remain in the footer below the file tree,
+Settings remains beside the window controls, and the title-bar center stays
+clear. Calendar must expand inside the left sidebar without closing or taking
+ownership of History/PDF preview on the right. Collapsing must leave a 44px
+tool rail, close any expanded Calendar content, and reopen both the normal
+sidebar and Calendar when its rail icon is selected.
+
+Kanban and Settings must open or switch to one de-duplicated workspace tab.
+Clicking an inactive destination focuses its existing tab; clicking the
+already active destination plays `figaro-panel-exit` before closing that tab
+without affecting the other one. The transition must honor the shared
+reduced-motion duration, remain safe under repeated close requests, and retain
+any tab opened while the exit is running. Keep the state/action and animation-lifecycle
+checks in `tests/frontend/unit/topBar.test.js` and real layout, visibility,
+rail-width, tab-reuse, and active-tab toggle checks in
+`tests/e2e/sidebarNavigation.spec.js`:
+
+```bash
+npm run test:unit -- --runTestsByPath tests/frontend/unit/topBar.test.js
+npx playwright test tests/e2e/sidebarNavigation.spec.js
+```
+
+## PDF preview page-geometry regressions
+
+The preview pane may grow, but its document body must remain centered and
+capped to the printable `@page size`. Keep unit coverage for the A4 fallback,
+named sizes, portrait/landscape orientation, explicit one- and two-length
+sizes, stylesheet ordering, and the final geometry guard. The real-browser
+test must use a pane wider than the paper and a conflicting `body` width rule,
+then assert the physical CSS width and centered gutters. This belongs in:
+
+```bash
+npm run test:unit -- --runTestsByPath tests/frontend/unit/pdfPreview.test.js
+npx playwright test tests/e2e/pdfPreviewFrame.spec.js
+```
+
 ## Block widget and cursor regressions
 
 CodeMirror block widgets have a strict measured-height contract documented in

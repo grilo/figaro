@@ -14,6 +14,8 @@
     --hover-bg: #222428;
     --border-color: #2d2d2d;
     --border-light: #3a3a3a;
+    --window-border-color: color-mix(in srgb, var(--text-color) 9%, transparent);
+    --window-border-highlight: color-mix(in srgb, var(--text-color) 16%, transparent);
     --danger-color: #ed4245;
     --danger-hover: #c03537;
     --success-color: #3ba55c;
@@ -89,6 +91,7 @@
     --tbl-style-menu-font-family: var(--font-sans);
     --tbl-style-menu-font-size: 12px;
     --sidebar-width: 300px;
+    --sidebar-rail-width: 44px;
     --top-bar-height: 36px;
     --status-bar-height: 24px;
     --tab-height: 56px;
@@ -117,6 +120,22 @@
 
 .figaro-panel-enter {
     animation: figaro-panel-enter var(--motion-panel-duration) var(--motion-ease-out) both;
+}
+
+@keyframes figaro-panel-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(7px) scale(0.992);
+    }
+}
+
+.figaro-panel-exit {
+    pointer-events: none;
+    animation: figaro-panel-exit var(--motion-panel-duration) var(--motion-ease-out) both;
 }
 
 @keyframes figaro-properties-expand {
@@ -159,6 +178,8 @@ html, body {
 #app {
     display: flex;
     flex-direction: column;
+    position: relative;
+    isolation: isolate;
     height: 100%;
     background: var(--bg-color);
     font-family: var(--font-sans);
@@ -169,6 +190,24 @@ html, body {
     -moz-osx-font-smoothing: grayscale;
     border-radius: 10px;
     overflow: hidden;
+}
+
+/* Frameless windows still need a perceptible physical edge. Octarine's
+   treatment is a full quiet outline with a slightly stronger top edge—not a
+   top-only rule. Keep this overlay inside the clipped application surface so
+   it follows the rounded corners without intercepting resize or UI input. */
+#app::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2147483647;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-color: var(--window-border-color, rgba(255, 255, 255, 0.08));
+    border-top-color: rgba(255, 255, 255, 0.15);
+    border-top-color: var(--window-border-highlight, rgba(255, 255, 255, 0.15));
+    border-radius: inherit;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-color) 4%, transparent);
+    pointer-events: none;
 }
 
 /* ==========================================================================
@@ -290,6 +329,23 @@ html, body {
     gap: 4px;
 }
 
+.top-bar-right {
+    gap: 4px;
+}
+
+.titlebar-settings-btn.active {
+    color: var(--accent-color);
+    background: var(--hover-bg);
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+
+.window-controls-separator {
+    width: 1px;
+    height: 16px;
+    margin: 0 3px;
+    background: var(--border-color);
+}
+
 /* ── Sidebar Search ── */
 .sidebar-search {
     position: relative;
@@ -339,69 +395,50 @@ html, body {
     padding: 1px 5px;
 }
 
-/* ── Top Bar Action Buttons ── */
-.topbar-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 28px;
-    padding: 0 12px;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 500;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-    white-space: nowrap;
-    letter-spacing: 0.2px;
-}
-.topbar-action-btn:hover {
-    color: var(--text-color);
-    background: var(--hover-bg);
-    border-color: var(--border-color);
-}
-.topbar-action-btn:active {
-    background: var(--active-bg);
-}
-.topbar-action-btn.active {
-    color: var(--accent-color);
-    /* Fall back to the theme's regular surfaces on older webviews. */
-    background: var(--hover-bg);
-    border-color: var(--accent-color);
-    /* Let the selected action inherit the character of the active theme. */
-    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
-    border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
-}
-.topbar-action-btn svg {
-    flex-shrink: 0;
-    opacity: 0.7;
-}
-.topbar-action-btn:hover svg,
-.topbar-action-btn.active svg {
-    opacity: 1;
+/* ── Left Sidebar Calendar ── */
+.sidebar-calendar-panel {
+    flex: 0 1 auto;
+    max-height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    opacity: 0;
+    border-top: 1px solid transparent;
+    background: var(--sidebar-bg);
+    transform: translateY(6px);
+    transition:
+        max-height var(--motion-layout-duration) var(--motion-ease-out),
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out),
+        border-color var(--motion-content-duration) ease;
 }
 
-/* ── Right Pane Calendar ── */
-.right-sidebar .calendar-toolbar {
+.sidebar-calendar-panel.open {
+    max-height: min(440px, 58%);
+    overflow-y: auto;
+    visibility: visible;
+    opacity: 1;
+    border-top-color: var(--border-color);
+    transform: translateY(0);
+}
+
+.sidebar-calendar-panel .calendar-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 14px;
+    padding: 10px 12px 6px;
     flex-shrink: 0;
 }
-.right-sidebar .calendar-grid {
+
+.sidebar-calendar-panel .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 2px;
-    padding: 0 14px 8px 14px;
+    padding: 0 12px 8px;
 }
-.right-sidebar .cal-linked-notes {
+
+.sidebar-calendar-panel .cal-linked-notes {
     border-top: 1px solid var(--border-color);
-    padding: 8px 14px;
-    overflow-y: auto;
+    padding: 8px 12px 10px;
 }
 
 /* ── Settings Tab ── */
@@ -649,6 +686,11 @@ html, body {
     /* Resizer projects past right edge — overflow handled by .sidebar-content */
 }
 
+.sidebar.collapsed {
+    width: var(--sidebar-rail-width) !important;
+    min-width: var(--sidebar-rail-width) !important;
+}
+
 .sidebar::after {
     content: '';
     position: absolute;
@@ -661,7 +703,7 @@ html, body {
 }
 
 .sidebar.collapsed::after {
-    opacity: 0;
+    opacity: 1;
 }
 
 /* Internal scroll wrapper — clips sidebar content locally. */
@@ -685,6 +727,112 @@ html, body {
     opacity: 0;
     transform: translateX(-8px);
     pointer-events: none;
+}
+
+/* Calendar and Kanban stay reachable at the bottom of the file tree. When the
+   content pane is collapsed, these controls become a compact navigation rail. */
+.sidebar-tools {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 8px 8px;
+    overflow: hidden;
+    border-top: 1px solid var(--border-color);
+    background: var(--sidebar-bg);
+}
+
+.sidebar-tool-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font: 500 12px/1 var(--font-sans);
+    text-align: left;
+    cursor: pointer;
+    transition:
+        color var(--transition-fast),
+        background var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.sidebar-tool-btn:hover {
+    color: var(--text-color);
+    background: var(--hover-bg);
+    border-color: var(--border-color);
+}
+
+.sidebar-tool-btn.active {
+    color: var(--accent-color);
+    background: var(--hover-bg);
+    border-color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
+}
+
+.sidebar-tool-btn:focus-visible,
+.titlebar-settings-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
+.sidebar-tool-btn > svg {
+    flex: 0 0 auto;
+}
+
+.sidebar-tool-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-tool-btn .kanban-badges {
+    margin-left: auto;
+}
+
+.sidebar.collapsed .sidebar-tools {
+    align-items: center;
+    padding: 7px 5px 8px;
+}
+
+.sidebar.collapsed .sidebar-tool-btn {
+    justify-content: center;
+    width: 32px;
+    padding: 0;
+}
+
+.sidebar.collapsed .sidebar-tool-label {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-tool-btn .kanban-badges {
+    position: absolute;
+    top: 3px;
+    right: 2px;
+    gap: 2px;
+    margin: 0;
+}
+
+.sidebar.collapsed .sidebar-tool-btn .kanban-badges .badge {
+    width: 5px;
+    min-width: 5px;
+    height: 5px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    color: transparent !important;
+    font-size: 0;
 }
 
 /* Sidebar resizer — 6px handle nested inside sidebar, projects past right edge.

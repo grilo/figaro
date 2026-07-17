@@ -9,7 +9,7 @@ import { saveSession } from './session.js';
 import { getEditorView, getEditorContent, setEditorContent, focusEditor, saveCursorState, restoreCursorState, configureEditorForFile } from './editor.js';
 import { statusBar } from './statusBar.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
-import { playEntranceAnimation } from './motion.js';
+import { playEntranceAnimation, playExitAnimation } from './motion.js';
 
 /**
  * View Manager — shows either the editor or tab panels, never both.
@@ -526,10 +526,10 @@ function renderDrawioDiagramTab(panel, tab) {
     });
 }
 
-export async function closeTab(tabId, event) {
+export async function closeTab(tabId, event, { animate = false } = {}) {
     if (event) event.stopPropagation();
-    const tabs = getState('openTabs');
-    const tab = tabs.find(t => t.id === tabId);
+    let tabs = getState('openTabs');
+    let tab = tabs.find(t => t.id === tabId);
     if (!tab) return false;
     if (tab.type === 'home' && tabs.length === 1) return false;
     
@@ -546,6 +546,16 @@ export async function closeTab(tabId, event) {
     
     const panel = document.querySelector(`.tab-panel[data-tab-id="${tabId}"]`);
     if (panel) {
+        if (animate && getState('activeTabId') === tabId && ['kanban', 'settings'].includes(tab.type)) {
+            await playExitAnimation(panel);
+        }
+
+        // The exit transition deliberately leaves the rest of the application
+        // interactive. Re-read tabs afterward so a note opened during the fade
+        // is preserved, and let concurrent close requests share one result.
+        tabs = getState('openTabs');
+        tab = tabs.find(candidate => candidate.id === tabId);
+        if (!tab) return true;
         panel._settingsPanelDisposed = tab.type === 'settings';
         panel._drawioSession?.dispose?.();
         panel.remove();

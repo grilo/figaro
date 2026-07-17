@@ -110,3 +110,53 @@ test('coalesces high-frequency scroll reports without slowing the preview frame'
     expect(scrollMessages.length).toBeLessThanOrEqual(16);
     expect(scrollMessages.at(-1).documentProgress).toBeCloseTo(finalProgress, 3);
 });
+
+test('caps and centers preview content at the configured PDF page width', async ({ page }) => {
+    await page.goto('/');
+    const printable = await page.evaluate(async () => {
+        const { buildPDFPreviewDocument } = await import('/js/pdfPreview.js');
+        return buildPDFPreviewDocument(
+            '<!doctype html><html><head><style>@page { margin: 18mm; }</style></head><body><main class="figaro-print-document"><h1>Wide preview</h1><p>Paper should not stretch with its pane.</p></main></body></html>',
+            {
+                notePath: 'notes/report.md',
+                stylesheetPath: 'notes/letter.css',
+                stylesheetContent: '@page { size: Letter landscape; } body { width: 100% !important; max-width: none !important; margin: 0 !important; }',
+            }
+        );
+    });
+
+    await page.setContent('<iframe id="preview" title="PDF preview" sandbox="allow-scripts" src="/pdf/preview-frame.html" style="width: 1400px; height: 900px; border: 0"></iframe>');
+    const frameLocator = page.frameLocator('#preview');
+    await expect(frameLocator.locator('script[nonce="figaro-pdf-preview-bridge"]')).toHaveCount(1);
+
+    const token = 'page-width-token';
+    await page.evaluate(({ channel, token, printable }) => {
+        document.getElementById('preview').contentWindow.postMessage({
+            channel,
+            type: 'render',
+            token,
+            html: printable,
+            documentProgress: 0,
+        }, '*');
+    }, { channel: bridgeChannel, token, printable });
+
+    await expect(frameLocator.getByRole('heading', { name: 'Wide preview' })).toBeVisible();
+    const geometry = await frameLocator.locator('body').evaluate(body => {
+        const rect = body.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth;
+        return {
+            bodyWidth: rect.width,
+            bodyHeight: rect.height,
+            bodyLeft: rect.left,
+            viewportWidth,
+            geometryCSS: document.getElementById('figaro-preview-page-geometry')?.textContent || '',
+        };
+    });
+
+    expect(geometry.viewportWidth).toBeGreaterThan(geometry.bodyWidth);
+    expect(geometry.bodyWidth).toBeCloseTo(1056, 0); // 11in at 96 CSS px/in
+    expect(geometry.bodyHeight).toBeGreaterThanOrEqual(816); // 8.5in
+    expect(geometry.bodyLeft).toBeCloseTo((geometry.viewportWidth - geometry.bodyWidth) / 2, 0);
+    expect(geometry.geometryCSS).toContain('max-width: 11in !important');
+    expect(geometry.geometryCSS).toContain('min-height: 8.5in !important');
+});

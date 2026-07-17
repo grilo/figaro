@@ -98,25 +98,44 @@ function createMockDOM() {
                     <button id="toggle-sidebar"></button>
                     <button id="topbar-home" class="app-home-btn"><span class="app-title">figaro</span></button>
                 </div>
-                <div class="top-bar-center">
-                    <button id="topbar-calendar" class="topbar-action-btn"><span>Calendar</span></button>
-                    <button id="topbar-kanban" class="topbar-action-btn">
-                        <span>Kanban</span>
-                        <span id="kanban-badges" class="kanban-badges"></span>
-                    </button>
-                    <button id="topbar-settings" class="topbar-action-btn"><span>Settings</span></button>
+                <div class="top-bar-center" aria-hidden="true"></div>
+                <div class="top-bar-right">
+                    <button id="topbar-settings" class="icon-btn titlebar-settings-btn" aria-label="Open Settings"></button>
+                    <button id="win-minimize"></button>
+                    <button id="win-maximize"></button>
+                    <button id="win-close"></button>
                 </div>
             </header>
             <div class="main-container">
                 <aside id="sidebar" class="sidebar">
-                    <div id="sidebar-search" class="sidebar-search">
-                        <div class="search-input-wrapper">
-                            <input id="global-search-input" />
-                            <span id="search-results-count"></span>
+                    <div class="sidebar-content">
+                        <div id="sidebar-search" class="sidebar-search">
+                            <div class="search-input-wrapper">
+                                <input id="global-search-input" />
+                                <span id="search-results-count"></span>
+                            </div>
+                            <div id="global-search-dropdown" class="search-dropdown"></div>
                         </div>
-                        <div id="global-search-dropdown" class="search-dropdown"></div>
+                        <div id="file-tree"></div>
+                        <section id="sidebar-calendar-panel" class="sidebar-calendar-panel" aria-hidden="true">
+                            <div class="calendar-toolbar">
+                                <button id="cal-prev-month"></button>
+                                <span id="cal-month-year"></span>
+                                <button id="cal-next-month"></button>
+                            </div>
+                            <div id="calendar-grid"></div>
+                            <div id="cal-linked-notes"></div>
+                        </section>
                     </div>
-                    <div id="file-tree"></div>
+                    <nav class="sidebar-tools" aria-label="Workspace tools">
+                        <button id="sidebar-calendar" class="sidebar-tool-btn" aria-controls="sidebar-calendar-panel" aria-expanded="false">
+                            <span class="sidebar-tool-label">Calendar</span>
+                        </button>
+                        <button id="sidebar-kanban" class="sidebar-tool-btn">
+                            <span class="sidebar-tool-label">Kanban</span>
+                            <span id="kanban-badges" class="kanban-badges"></span>
+                        </button>
+                    </nav>
                     <div id="sidebar-resizer"></div>
                 </aside>
                 <main id="main-content" class="main-content">
@@ -127,13 +146,10 @@ function createMockDOM() {
                 <aside id="right-sidebar" class="right-sidebar collapsed">
                     <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
                     <div class="right-sidebar-header">
-                        <span id="right-sidebar-title" class="right-sidebar-title">Calendar</span>
+                        <span id="right-sidebar-title" class="right-sidebar-title">Details</span>
                         <button id="right-sidebar-close" class="right-sidebar-close">×</button>
                     </div>
                     <div id="right-sidebar-content" class="right-sidebar-content">
-                        <span id="cal-month-year"></span>
-                        <div id="calendar-grid"></div>
-                        <div id="cal-linked-notes"></div>
                         <div id="history-content" style="display:none"></div>
                     </div>
                 </aside>

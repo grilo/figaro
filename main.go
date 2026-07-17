@@ -154,16 +154,13 @@ func configureWebKitInspector() string {
 }
 
 // domReady is called after the frontend has loaded.
-// We inject the native window drag region hint and resizing bridge.
 func (a *App) domReady(ctx context.Context) {
-	// Inject frameless window border (drag is handled by wails-compat-bridge.js)
+	// Keep the native canvas dark if a webview briefly exposes the document
+	// background. The theme-aware window outline itself lives in styles.css so
+	// browser and packaged-webview rendering share one tested implementation.
 	css := `
 		html, body {
 			background: #151515;
-		}
-		body {
-			border: 1px solid rgba(255,255,255,0.08);
-			box-sizing: border-box;
 		}
 	`
 	inspectorLog := ""

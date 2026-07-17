@@ -115,24 +115,44 @@ function initCalendarNav() {
 }
 
 /**
- * Initialize top bar buttons
+ * Initialize title-bar and persistent sidebar navigation controls.
  */
-function initTopBar() {
+export function initTopBar() {
     // Toggle sidebar
     const toggleBtn = document.getElementById('toggle-sidebar');
     const sidebar = document.getElementById('sidebar');
+    const setSidebarCollapsed = (collapsed) => {
+        if (!sidebar) return;
+
+        setState('sidebarCollapsed', collapsed);
+        sidebar.classList.toggle('collapsed', collapsed);
+        sidebar.style.width = collapsed
+            ? 'var(--sidebar-rail-width, 44px)'
+            : 'var(--sidebar-width, 300px)';
+        sidebar.style.minWidth = collapsed
+            ? 'var(--sidebar-rail-width, 44px)'
+            : '225px';
+        toggleBtn?.setAttribute('aria-expanded', String(!collapsed));
+        document.getElementById('sidebar-resizer')?.classList.toggle('sidebar-resizer-hidden', collapsed);
+
+        // The rail keeps the destination visible, but an expanded calendar has
+        // no useful content at rail width. Closing it makes the next Calendar
+        // click expand the sidebar and reveal the panel in one action.
+        if (collapsed) {
+            const calendarPanel = document.getElementById('sidebar-calendar-panel');
+            const calendarButton = document.getElementById('sidebar-calendar');
+            calendarPanel?.classList.remove('open');
+            calendarPanel?.setAttribute('aria-hidden', 'true');
+            calendarButton?.classList.remove('active');
+            calendarButton?.setAttribute('aria-expanded', 'false');
+            sidebar.classList.remove('calendar-open');
+        }
+    };
+
     if (toggleBtn && sidebar) {
-        toggleBtn.setAttribute('aria-expanded', String(!getState('sidebarCollapsed')));
+        setSidebarCollapsed(Boolean(getState('sidebarCollapsed')));
         toggleBtn.addEventListener('click', () => {
-            const collapsed = getState('sidebarCollapsed');
-            const nextCollapsed = !collapsed;
-            setState('sidebarCollapsed', nextCollapsed);
-            sidebar.classList.toggle('collapsed', nextCollapsed);
-            sidebar.style.width = nextCollapsed ? '0px' : 'var(--sidebar-width, 280px)';
-            sidebar.style.minWidth = nextCollapsed ? '0px' : '225px';
-            toggleBtn.setAttribute('aria-expanded', String(!nextCollapsed));
-            const resizer = document.getElementById('sidebar-resizer');
-            if (resizer) resizer.classList.toggle('sidebar-resizer-hidden', nextCollapsed);
+            setSidebarCollapsed(!getState('sidebarCollapsed'));
         });
     }
 
@@ -144,108 +164,86 @@ function initTopBar() {
         });
     }
 
-    // ── Calendar button → toggle right pane ──
-    const calBtn = document.getElementById('topbar-calendar');
+    // ── Calendar button → toggle an inline panel under the file tree ──
+    const calBtn = document.getElementById('sidebar-calendar');
+    const calendarPanel = document.getElementById('sidebar-calendar-panel');
     const rightSidebar = document.getElementById('right-sidebar');
-    const rightTitle = document.getElementById('right-sidebar-title');
     const closeCalendarPanel = () => {
-        if (!rightSidebar || rightSidebar.dataset.mode !== 'calendar') return;
-        delete rightSidebar.dataset.mode;
-        rightSidebar.classList.remove('open');
-        rightSidebar.style.width = '';
-        rightSidebar.style.minWidth = '';
-        document.getElementById('right-sidebar-resizer')?.classList.remove('visible');
+        if (!calendarPanel) return;
+        calendarPanel.classList.remove('open');
+        calendarPanel.setAttribute('aria-hidden', 'true');
         calBtn?.classList.remove('active');
+        calBtn?.setAttribute('aria-expanded', 'false');
+        sidebar?.classList.remove('calendar-open');
         window.dispatchEvent(new Event('resize'));
     };
     const openCalendarPanel = () => {
-        if (!rightSidebar) return;
-        document.dispatchEvent(new CustomEvent('close-history-panel'));
-        closePDFPreview({ keepSidebarOpen: true });
-
-        const calGrid = document.getElementById('calendar-grid');
-        const calLinks = document.getElementById('cal-linked-notes');
-        const calToolbar = rightSidebar.querySelector('.calendar-toolbar');
-        const histContent = document.getElementById('history-content');
-        if (calGrid) calGrid.style.display = '';
-        if (calLinks) calLinks.style.display = '';
-        if (calToolbar) calToolbar.style.display = '';
-        if (histContent) histContent.style.display = 'none';
-        if (rightTitle) rightTitle.textContent = 'Calendar';
-        rightSidebar.dataset.mode = 'calendar';
-        rightSidebar.classList.remove('pdf-preview-mode');
-        rightSidebar.classList.add('open');
-        document.getElementById('right-sidebar-resizer')?.classList.add('visible');
+        if (!calendarPanel) return;
+        if (getState('sidebarCollapsed')) setSidebarCollapsed(false);
+        calendarPanel.classList.add('open');
+        calendarPanel.setAttribute('aria-hidden', 'false');
         calBtn?.classList.add('active');
+        calBtn?.setAttribute('aria-expanded', 'true');
+        sidebar?.classList.add('calendar-open');
         renderCalendar();
         window.dispatchEvent(new Event('resize'));
     };
-    if (calBtn && rightSidebar) {
+    if (calBtn && calendarPanel) {
         calBtn.addEventListener('click', () => {
-            if (rightSidebar.classList.contains('open') && rightSidebar.dataset.mode === 'calendar') closeCalendarPanel();
+            if (calendarPanel.classList.contains('open')) closeCalendarPanel();
             else openCalendarPanel();
         });
     }
-    // Close button
+
+    // The right pane is now reserved for History and PDF preview.
     const rsClose = document.getElementById('right-sidebar-close');
     if (rsClose && rightSidebar) {
         rsClose.addEventListener('click', () => {
             if (rightSidebar.dataset.mode === 'pdf-preview') closePDFPreview();
             else if (rightSidebar.dataset.mode === 'history') document.dispatchEvent(new CustomEvent('close-history-panel'));
-            else if (rightSidebar.dataset.mode === 'calendar') closeCalendarPanel();
             else {
                 rightSidebar.classList.remove('open');
                 rightSidebar.style.width = '';
                 rightSidebar.style.minWidth = '';
                 document.getElementById('right-sidebar-resizer')?.classList.remove('visible');
-                calBtn?.classList.remove('active');
                 window.dispatchEvent(new Event('resize'));
             }
         });
     }
 
-    // ── Kanban button → toggle tab ──
-    const kanbanBtn = document.getElementById('topbar-kanban');
+    // ── Kanban and Settings buttons → focus, open, or close their workspace tabs ──
+    const toggleWorkspaceTab = (id, title, type) => {
+        if (getState('activeTabId') === id) {
+            closeTab(id, null, { animate: true });
+            return;
+        }
+        openTab(id, title, type, {});
+    };
+
+    const kanbanBtn = document.getElementById('sidebar-kanban');
     if (kanbanBtn) {
         kanbanBtn.addEventListener('click', () => {
-            const tabs = getState('openTabs');
-            const existing = tabs.find(t => t.id === 'kanban');
-            if (existing) {
-                closeTab('kanban');
-                kanbanBtn.classList.remove('active');
-            } else {
-                openTab('kanban', 'Kanban', 'kanban', {});
-                kanbanBtn.classList.add('active');
-            }
+            toggleWorkspaceTab('kanban', 'Kanban', 'kanban');
         });
     }
 
-    // ── Settings button → toggle tab ──
     const settingsBtn = document.getElementById('topbar-settings');
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
-            const tabs = getState('openTabs');
-            const existing = tabs.find(t => t.id === 'settings');
-            if (existing) {
-                closeTab('settings');
-                settingsBtn.classList.remove('active');
-            } else {
-                openTab('settings', 'Settings', 'settings', {});
-                settingsBtn.classList.add('active');
-            }
+            toggleWorkspaceTab('settings', 'Settings', 'settings');
         });
     }
 
     // Keep button active states in sync with tabs
-    subscribe('openTabs', () => {
-        const tabs = getState('openTabs');
-        if (kanbanBtn) kanbanBtn.classList.toggle('active', !!tabs.find(t => t.id === 'kanban'));
-        if (settingsBtn) settingsBtn.classList.toggle('active', !!tabs.find(t => t.id === 'settings'));
-        if (homeBtn) homeBtn.classList.toggle('active', getState('activeTabId') === 'home');
-    });
-    subscribe('activeTabId', () => {
-        if (homeBtn) homeBtn.classList.toggle('active', getState('activeTabId') === 'home');
-    });
+    const syncNavigationState = () => {
+        const activeTabId = getState('activeTabId');
+        kanbanBtn?.classList.toggle('active', activeTabId === 'kanban');
+        settingsBtn?.classList.toggle('active', activeTabId === 'settings');
+        homeBtn?.classList.toggle('active', activeTabId === 'home');
+    };
+    subscribe('openTabs', syncNavigationState);
+    subscribe('activeTabId', syncNavigationState);
+    syncNavigationState();
 
     // ── Sidebar search ──
     const searchInput = document.getElementById('global-search-input');
@@ -505,7 +503,8 @@ export async function initApp() {
     // Initialize history panel
     initHistoryPanel();
 
-    // PDF preview shares the right sidebar with Calendar and History.
+    // PDF preview shares the right sidebar with History; Calendar is isolated
+    // in the left sidebar and can remain open independently.
     initPDFPreview();
 
     await initTheme();

@@ -104,18 +104,10 @@ async function openHistoryPanel() {
     // History owns the right pane while open. Ask the preview to release its
     // isolated frame first so editing a CSS file can switch here cleanly.
     document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
-    document.getElementById('topbar-calendar')?.classList.remove('active');
 
-    // Show history content, hide calendar content
-    const calGrid = document.getElementById('calendar-grid');
-    const calLinks = document.getElementById('cal-linked-notes');
-    const calToolbar = sidebar.querySelector('.calendar-toolbar');
     const histContent = document.getElementById('history-content');
     const rightTitle = document.getElementById('right-sidebar-title');
 
-    if (calGrid) calGrid.style.display = 'none';
-    if (calLinks) calLinks.style.display = 'none';
-    if (calToolbar) calToolbar.style.display = 'none';
     if (histContent) histContent.style.display = '';
     if (rightTitle) rightTitle.textContent = 'History';
 

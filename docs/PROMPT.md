@@ -14,18 +14,18 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 
 ### 1.1 Shell
 - Three horizontal zones: **left sidebar**, **workspace**, and an on-demand **right sidebar**. Both sidebars have independent resize handles.
-- **Top bar**: sidebar toggle and app title/Home control on the left; Calendar, Kanban, and Settings controls in the center; native-style minimize/maximize/close controls on the right.
-- Calendar toggles the right sidebar. Kanban and Settings toggle their corresponding workspace tabs. Clicking the Figaro name opens the Welcome/Home tab.
+- **Top bar**: sidebar toggle and app title/Home control on the left; an uncluttered central drag region; Settings followed by native-style minimize/maximize/close controls on the right.
+- Calendar and Kanban live in a fixed footer below the file tree. Calendar expands inside the left sidebar; Kanban and Settings open or return to their single corresponding workspace tabs when inactive, and play a short reduced-motion-aware exit transition before closing that tab when clicked while already active. Clicking the Figaro name opens the Welcome/Home tab.
 - **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, and backlink count. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0.
 
 ### 1.2 Left Sidebar
 - The top of the sidebar is the **global note search** field; its keyboard-navigable result list opens below the field.
 - The remaining space is the **Vault** file tree. Markdown and files recognised by CodeMirror's language registry are clickable; unsupported/binary assets are greyed out at 55% opacity.
-- The sidebar can be collapsed with the top-bar toggle and resized from **225px to 500px**. Expanded folders, selected file, recent files, and search filters are stored locally for the current webview profile.
+- A fixed tool footer keeps Calendar and Kanban reachable beneath the tree. Calendar expands a monthly panel between the tree and footer without taking ownership of the right pane.
+- The sidebar can be resized from **225px to 500px**. Collapsing it leaves a **44px tool rail** rather than removing navigation; selecting Calendar from the rail expands the sidebar and opens the panel. Expanded folders, selected file, recent files, and search filters are stored locally for the current webview profile.
 
 ### 1.3 Right Sidebar
-- The right sidebar is closed by default and is shared by two views: **Calendar** and **History**. Opening one replaces the other.
-- The Calendar control opens a monthly grid, month navigation, and notes linked to the selected date.
+- The right sidebar is closed by default and is reserved for **History** and **PDF Preview**. Opening one replaces the other; the left-sidebar Calendar can remain open independently.
 - Clicking a committed-history count in the status bar opens the History view for the active file.
 - Its width can be resized from **240px to 480px** for the current session.
 
@@ -177,7 +177,7 @@ Each theme defines these properties (with theme-specific colors):
 - Syntax-highlighted markdown editing powered by CodeMirror 6 with `codemirror-live-markdown`.
 - CodeMirror's official language registry is vendored locally. Recognised code files use their syntax parser, a monospace unwrapped layout, normal CodeMirror completion/folding behavior, theme-aware indentation guides, and no Markdown live-preview widgets. Tab / Shift+Tab and the guides share CodeMirror's same two-space indentation unit. Vim mode, tabs, cursor restoration, autosave, conflict handling, and history work the same way as for notes.
 - **Frontmatter / Properties**: a complete leading YAML frontmatter block is rendered as a compact, collapsed Properties card. Activating it opens a structured Properties panel with PDF-layout controls: cover page, contents depth, and a vault-relative print stylesheet picker. Enabling a cover also exposes title, subtitle, author, and date fields. Other YAML remains visible as chips and **Add property** opens the source editor with completion; **Edit YAML** always exposes the original portable frontmatter. Notes without frontmatter get a subtle **+ Add properties** affordance above the editor; it inserts an editable YAML skeleton with the first H1 as `title`, the OS username as `author`, today's local date, an empty-string `subtitle`, and the PDF defaults `cover-page: false` and `toc-depth: 0`, then keeps that source open. Custom PDF CSS is opt-in: **Create starter** proposes `pdf.css` beside the active note, copies the bundled comprehensive example only after confirmation, selects it, refreshes the tree, and opens it. Existing CSS is never overwritten; startup and export never create stylesheets. The panel makes targeted scalar edits only, preserving unrelated YAML and comments. Completion in YAML suggests `title`, `subtitle`, `author`, `date`, `aliases`, `tags`, `description`, `created`, `updated`, `status`, `cover-page`, `toc-depth`, and `print-stylesheet`; it also offers status values and vault-relative CSS paths for `print-stylesheet`.
-- **PDF preview and export**: **Preview PDF** opens an isolated live preview in the right pane. It uses the same printable document structure as the export, waits briefly after Markdown or selected CSS edits to avoid flicker, and refreshes external saved CSS when the file tree updates. Its splitter has a 340 px preview minimum and otherwise grows dynamically while preserving a 320 px editor floor; below 560 px of remaining editor width, CodeMirror content padding contracts from 24 px to 12 px. Its **Generate PDF** action saves dirty preview buffers, then renders Markdown into an interactive PDF with a detected local browser engine. Figaro tries Chrome/Chromium-family engines before Edge, and uses Safari/WebKit on macOS if needed; Chromium candidates must complete a real isolated CDP startup and `Browser.getVersion` request. It aborts with an installable-browser error if no viable engine is present instead of generating a PDF with dead links. Export writes `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the default PDF viewer. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`; omitting it keeps the built-in style. `cover-page: true` generates a title page using `title`, `subtitle`/`description`, `author`, and `date`/`created`; `toc-depth: 0` disables the table of contents, while 1–6 includes headings through that Markdown level. Generated cover and table-of-contents sections automatically end with a page break. The print DOM has stable cover, table-of-contents, document-body, task, diagram, and footnote classes documented in `docs/PDF_STYLING.md`; body headings are separate from the cover and table-of-contents titles. Repeated running page headers and footers are not supported. Footnote references render as numbered internal links to a final Footnotes section, with return links for repeated references. Frontmatter itself is not printed.
+- **PDF preview and export**: **Preview PDF** opens an isolated live preview in the right pane. It uses the same printable document structure as the export, waits briefly after Markdown or selected CSS edits to avoid flicker, and refreshes external saved CSS when the file tree updates. Its splitter has a 340 px preview minimum and otherwise grows dynamically while preserving a 320 px editor floor; the pane may keep growing, but the centered paper surface is capped to the last supported `@page size` declaration. Preview geometry supports named A3/A4/A5, B5, Letter, Legal, Ledger/Tabloid, and Executive paper, portrait/landscape orientation, and one- or two-length explicit sizes, with A4 as fallback. A final preview-only geometry rule prevents user `body` width overrides from stretching the paper while leaving print colors and typography in the normal cascade. Below 560 px of remaining editor width, CodeMirror content padding contracts from 24 px to 12 px. Its **Generate PDF** action saves dirty preview buffers, then renders Markdown into an interactive PDF with a detected local browser engine. Figaro tries Chrome/Chromium-family engines before Edge, and uses Safari/WebKit on macOS if needed; Chromium candidates must complete a real isolated CDP startup and `Browser.getVersion` request. It aborts with an installable-browser error if no viable engine is present instead of generating a PDF with dead links. Export writes `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the default PDF viewer. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`; omitting it keeps the built-in style. `cover-page: true` generates a title page using `title`, `subtitle`/`description`, `author`, and `date`/`created`; `toc-depth: 0` disables the table of contents, while 1–6 includes headings through that Markdown level. Generated cover and table-of-contents sections automatically end with a page break. The print DOM has stable cover, table-of-contents, document-body, task, diagram, and footnote classes documented in `docs/PDF_STYLING.md`; body headings are separate from the cover and table-of-contents titles. Repeated running page headers and footers are not supported. Footnote references render as numbered internal links to a final Footnotes section, with return links for repeated references. Frontmatter itself is not printed.
 - **PDF preview isolation**: The right-pane preview is a fixed sandboxed frame with a validated message bridge, not a parent-controlled `srcdoc` document. The frame owns anchor interception and reports web, vault, fragment, and scroll actions to the application; the application never reads the sandboxed frame DOM. During splitter resizing the parent sends `set-scroll-sync-paused`, both scroll directions and frame pointer interaction remain quiet, and 80 ms after release one editor-to-preview alignment restores line-level synchronization. This preserves user `html`/`body` print styling while preventing a clicked link from replacing the preview with an external or filesystem document. See `ARCHITECTURE.md` for the protocol and security rationale.
 - **Live preview**: Formatting markers (`#`, `**`, `*`, `~~`, backticks, link brackets/parens) are hidden on non-active lines while preserving layout width. Move the cursor to a line to reveal its raw markdown for editing. Bullet points render as styled bullets. Task checkboxes (`- [ ]` / `- [x]`) render as interactive HTML checkboxes that toggle on click. Links render as clickable widgets.
 - **Printable diagrams**: Mermaid, Vega, and Vega-Lite fences are rendered to inline SVG before the print document reaches the native dialog. If a renderer is unavailable or a diagram is invalid, the source fence stays visible rather than being dropped.
@@ -326,7 +326,8 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Use ↑/↓ to select a result, Enter to open the selected result, or Escape to clear and close search. Opening a result positions the editor at its first matching line.
 
 ### 7.3 Calendar and Daily Notes
-- The top-bar Calendar control opens the right sidebar's monthly grid. A day is marked when a vault note is named `YYYY-MM-DD.md` or another Markdown note links to that daily note.
+- The Calendar control in the fixed left-sidebar footer expands an inline monthly grid with month navigation and linked-note results. A day is marked when a vault note is named `YYYY-MM-DD.md` or another Markdown note links to that daily note.
+- Collapsing the sidebar closes the expanded panel but leaves the Calendar icon in the 44px rail. Selecting it expands the sidebar and reopens Calendar. History and PDF preview remain independent on the right.
 - Selecting a marked day lists notes that link to its daily note; selecting a listed note opens it in a file tab. Today is always selectable.
 - `@today`, `@tomorrow`, and `@yesterday` offer date-link completions. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
 - The selected date is stored locally for the webview; the calendar scans only Markdown content and ignores dot-directories and symlinks like the rest of the vault scanner.
@@ -447,7 +448,7 @@ The application uses two persistence layers deliberately:
 Async file-tree, search, calendar, backlink, history, and diagram requests carry request IDs or connected-DOM checks so an older response cannot overwrite a newer view.
 
 ### 12.2 Initialization Sequence
-1. Restore any webview-local UI state, then initialize the left-sidebar resizer, top-bar controls, calendar navigation, and keyboard shortcuts.
+1. Restore any webview-local UI state, then initialize the left-sidebar resizer, title-bar and sidebar navigation controls, calendar navigation, and keyboard shortcuts.
 2. Wait for the Wails compatibility bridge, then load the portable vault session.
 3. Initialize CodeMirror and the tab manager, load the file tree, attach tree handlers, and begin the three-second tree refresh.
 4. Restore persisted tabs after the tree is available; otherwise open the first Markdown note or the Welcome tab.
@@ -583,15 +584,17 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 - `--sidebar-width` CSS variable is updated live on `documentElement`.
 
 ### 17.3 Collapse Handling
-- The toggle-sidebar button adds `.collapsed` class to sidebar and sets `width: 0`.
-- The resizer is hidden via `display: none` when the sidebar is collapsed.
+- The toggle-sidebar button adds `.collapsed` to the sidebar and sets its width and minimum width to `--sidebar-rail-width` (**44px**).
+- `.sidebar-content` becomes visually hidden and non-interactive, while `.sidebar-tools` remains visible outside that wrapper as a compact icon rail. Kanban count badges reduce to colored status dots at rail width.
+- Collapsing closes an expanded Calendar panel. Selecting Calendar from the rail restores the normal sidebar width and opens the panel in one action.
+- The resizer becomes transparent and non-interactive while collapsed, then returns when the sidebar expands.
 - The sidebar contains a `.sidebar-content` wrapper with `overflow-y: auto` for internal scrolling.
 - `.sidebar` itself uses `overflow: visible` to allow the resizer to project past the edge.
 
 ### 17.4 Sidebar Content Scrolling
 - `.sidebar-content` is an internal scroll wrapper that clips overflow locally.
 - The global search remains at the top while the file tree consumes the remaining vertical space.
-- The file tree scrolls independently enough to keep its lower items reachable without clipping.
+- The file tree scrolls independently enough to keep its lower items reachable without clipping. An open `.sidebar-calendar-panel` shares the available vertical space above the fixed tool footer.
 
 ---
 
@@ -603,12 +606,17 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 - The native window canvas (Wails `BackgroundColour`) is set to `RGB(21,21,21,255)` — matches `--sidebar-bg` (#151515).
 - Corner bleed artifacts are eliminated because the native canvas color matches the webview background, and `#app` clips all content to rounded corners.
 
-### 18.2 Anti-Flash Layers
+### 18.2 Frameless Window Edge
+- `#app::after` draws a pointer-transparent one-pixel outline inside all four rounded edges. The top color uses `--window-border-highlight`; the quieter sides and bottom use `--window-border-color`.
+- The top edge has slightly more contrast plus a restrained inset highlight, matching the way overhead light catches a physical window frame. It is not a top-only border.
+- The outline lives in `styles.css`, rather than Wails-only injected CSS, so debug Chromium and packaged webviews share the same testable rendering.
+
+### 18.3 Anti-Flash Layers
 Multiple layers prevent a white flash before CSS loads:
 1. **Native canvas**: `BackgroundColour: RGB(21,21,21,255)` in `main.go`
 2. **Inline `<style>`**: `html, body { background: #151515 !important }` in `index.html`
 3. **Bridge CSS**: `html, body { background: #151515 }` in `wails-compat-bridge.js`
-4. **Go domReady CSS**: injects `html, body { background: #151515 }` via `runtime.WindowExecJS`
+4. **Go domReady CSS**: injects only `html, body { background: #151515 }` via `runtime.WindowExecJS`; it does not add a second window border
 5. **External styles.css**: overrides with `transparent !important` for the rounded corner effect
 
 ---

@@ -164,24 +164,84 @@ function safeStyleText(css) {
     return String(css || '').replace(/<\/style/gi, '<\\/style');
 }
 
+const previewPageSizes = Object.freeze({
+    a3: ['297mm', '420mm'],
+    a4: ['210mm', '297mm'],
+    a5: ['148mm', '210mm'],
+    b5: ['176mm', '250mm'],
+    letter: ['8.5in', '11in'],
+    legal: ['8.5in', '14in'],
+    ledger: ['11in', '17in'],
+    tabloid: ['11in', '17in'],
+    executive: ['7.25in', '10.5in'],
+});
+
+const previewPageLengthPattern = /^(?:\d+(?:\.\d+)?|\.\d+)(?:mm|cm|in|pt|pc|px|q)$/i;
+
+/** Resolve the last supported @page size declaration, defaulting to A4. */
+export function resolvePDFPreviewPageSize(css = '') {
+    const source = String(css).replace(/\/\*[\s\S]*?\*\//g, ' ');
+    let declaration = '';
+    const pageRule = /@page(?:\s+[\w-]+)?(?:\s*:[\w-]+)?\s*\{([^{}]*)\}/gi;
+    let ruleMatch;
+    while ((ruleMatch = pageRule.exec(source))) {
+        const sizeDeclaration = /(?:^|;)\s*size\s*:\s*([^;}]+)/gi;
+        let sizeMatch;
+        while ((sizeMatch = sizeDeclaration.exec(ruleMatch[1]))) declaration = sizeMatch[1].trim();
+    }
+
+    const tokens = declaration.toLowerCase().split(/\s+/).filter(Boolean);
+    const orientation = tokens.includes('landscape') ? 'landscape' : 'portrait';
+    const namedSize = tokens.find(token => previewPageSizes[token]);
+    const lengths = tokens.filter(token => previewPageLengthPattern.test(token));
+    let [width, height] = previewPageSizes[namedSize || 'a4'];
+    let name = namedSize ? namedSize.toUpperCase() : 'A4';
+
+    if (!namedSize && lengths.length) {
+        width = lengths[0];
+        height = lengths[1] || lengths[0];
+        name = lengths.length > 1 ? `${width} × ${height}` : width;
+    }
+    if (orientation === 'landscape') [width, height] = [height, width];
+
+    return { width, height, orientation, name };
+}
+
 const previewSurfaceCSS = `
   /* Preview-only geometry comes before user CSS. Keep the body transparent so
      an ordinary html { background: ... } rule behaves exactly as it does in
      the exported document. */
   html { min-height: 100%; background: #fff; }
   body {
-    box-sizing: border-box;
-    min-height: calc(297mm - 36mm);
-    max-width: 210mm;
-    margin: 16px auto;
     padding: 18mm;
     background: transparent;
     box-shadow: 0 2px 12px rgba(15, 23, 42, .2);
   }
   @media screen and (max-width: 760px) {
-    body { margin: 0; padding: 11mm; box-shadow: none; }
+    body { padding: 11mm; box-shadow: none; }
   }
 `;
+
+function previewPageGeometryCSS({ width, height }) {
+    return `
+  /* This final preview-only rule represents the physical page box. It follows
+     user CSS so body width overrides cannot make the paper grow with the pane. */
+  body.figaro-pdf-preview-body {
+    box-sizing: border-box !important;
+    width: calc(100% - 32px) !important;
+    max-width: ${width} !important;
+    min-height: ${height} !important;
+    margin: 16px auto !important;
+  }
+  @media screen and (max-width: 760px) {
+    body.figaro-pdf-preview-body {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 auto !important;
+    }
+  }
+`;
+}
 
 /**
  * Add vault-local resources and a screen surface to printable HTML. The
@@ -195,6 +255,8 @@ export function buildPDFPreviewDocument(printableHTML, { notePath, stylesheetPat
     const head = printable.head || printable.documentElement.appendChild(printable.createElement('head'));
     const body = printable.body || printable.documentElement.appendChild(printable.createElement('body'));
     body.classList.add('figaro-pdf-preview-body');
+    const printableStyles = Array.from(head.querySelectorAll('style')).map(style => style.textContent || '').join('\n');
+    const pageSize = resolvePDFPreviewPageSize(`${printableStyles}\n${stylesheetContent}`);
 
     const base = printable.createElement('base');
     base.href = vaultURL(parentDirectory(notePath), true);
@@ -210,15 +272,21 @@ export function buildPDFPreviewDocument(printableHTML, { notePath, stylesheetPat
     surface.textContent = previewSurfaceCSS;
     head.appendChild(surface);
 
-    // Keep the editable stylesheet last, just as the backend links it after
-    // Figaro's built-in print CSS. This lets simple html/body rules override
-    // the preview surface instead of requiring preview-specific selectors.
+    // Apply the editable stylesheet after the visual surface, just as the
+    // backend links it after Figaro's built-in print CSS. A final geometry-only
+    // rule below preserves the physical page box without taking over colors or
+    // typography.
     if (stylesheetContent) {
         const stylesheet = printable.createElement('style');
         stylesheet.id = 'figaro-preview-user-stylesheet';
         stylesheet.textContent = safeStyleText(rebasePDFPreviewStylesheetURLs(stylesheetContent, stylesheetPath));
         head.appendChild(stylesheet);
     }
+
+    const geometry = printable.createElement('style');
+    geometry.id = 'figaro-preview-page-geometry';
+    geometry.textContent = previewPageGeometryCSS(pageSize);
+    head.appendChild(geometry);
 
     return '<!doctype html>\n' + printable.documentElement.outerHTML;
 }
@@ -798,16 +866,6 @@ function ensurePreviewPanel() {
     return panel;
 }
 
-function hideCalendarContent() {
-    const sidebar = document.getElementById('right-sidebar');
-    const calGrid = document.getElementById('calendar-grid');
-    const calLinks = document.getElementById('cal-linked-notes');
-    const toolbar = sidebar?.querySelector('.calendar-toolbar');
-    if (calGrid) calGrid.style.display = 'none';
-    if (calLinks) calLinks.style.display = 'none';
-    if (toolbar) toolbar.style.display = 'none';
-}
-
 function setPreviewStatus(message, kind = '') {
     const { status } = panelElements();
     if (!status) return;
@@ -1128,8 +1186,6 @@ export async function openPDFPreview({ path, title, content } = {}) {
     if (!panel || !sidebar) throw new Error('PDF preview panel is unavailable.');
 
     document.dispatchEvent(new CustomEvent('close-history-panel'));
-    hideCalendarContent();
-    document.getElementById('topbar-calendar')?.classList.remove('active');
 
     previewRequestId++;
     if (previewTimer) clearTimeout(previewTimer);

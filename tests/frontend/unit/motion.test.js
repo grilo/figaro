@@ -1,4 +1,4 @@
-import { playEntranceAnimation } from '../frontend/js/motion.js';
+import { playEntranceAnimation, playExitAnimation } from '../frontend/js/motion.js';
 
 describe('panel entrance motion', () => {
     test('adds the default entrance class and restarts it for a persistent panel', () => {
@@ -17,5 +17,17 @@ describe('panel entrance motion', () => {
         playEntranceAnimation(null, 'custom-enter');
 
         expect(panel.classList.contains('custom-enter')).toBe(true);
+    });
+
+    test('resolves an exit animation after its CSS animation completes', async () => {
+        const panel = document.createElement('section');
+        panel.classList.add('figaro-panel-enter');
+
+        const finished = playExitAnimation(panel);
+
+        expect(panel.classList.contains('figaro-panel-enter')).toBe(false);
+        expect(panel.classList.contains('figaro-panel-exit')).toBe(true);
+        panel.dispatchEvent(new Event('animationend'));
+        await expect(finished).resolves.toBeUndefined();
     });
 });

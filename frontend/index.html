@@ -175,35 +175,15 @@
                     <span class="app-title">figaro</span>
                 </button>
             </div>
-            <div class="top-bar-center">
-                <button id="topbar-calendar" class="topbar-action-btn" title="Calendar">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                        <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                    <span>Calendar</span>
-                </button>
-                <button id="topbar-kanban" class="topbar-action-btn" title="Kanban">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-                        <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-                        <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-                        <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-                    </svg>
-                    <span>Kanban</span>
-                    <span id="kanban-badges" class="kanban-badges"></span>
-                </button>
-                <button id="topbar-settings" class="topbar-action-btn" title="Settings">
+            <div class="top-bar-center" aria-hidden="true"></div>
+            <div class="top-bar-right">
+                <button id="topbar-settings" class="icon-btn titlebar-settings-btn" title="Settings" aria-label="Open Settings">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
-                    <span>Settings</span>
                 </button>
-            </div>
-            <div class="top-bar-right">
+                <span class="window-controls-separator" aria-hidden="true"></span>
                 <button id="win-minimize" class="icon-btn window-ctrl" title="Minimize" onclick="window.__wailsCompat.windowMinimize()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -242,7 +222,47 @@
                     </div>
                     <!-- File Tree -->
                     <div id="file-tree" class="file-tree"></div>
+                    <!-- Calendar expands inside the left sidebar so it can coexist
+                         with History and PDF preview on the right. -->
+                    <section id="sidebar-calendar-panel" class="sidebar-calendar-panel" aria-label="Calendar" aria-hidden="true">
+                        <div class="calendar-toolbar">
+                            <button id="cal-prev-month" class="icon-btn" title="Previous Month" aria-label="Previous month">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span id="cal-month-year" class="cal-month-year"></span>
+                            <button id="cal-next-month" class="icon-btn" title="Next Month" aria-label="Next month">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="calendar-grid" class="calendar-grid"></div>
+                        <div id="cal-linked-notes" class="cal-linked-notes"></div>
+                    </section>
                 </div>
+                <nav class="sidebar-tools" aria-label="Workspace tools">
+                    <button id="sidebar-calendar" class="sidebar-tool-btn" title="Calendar" aria-controls="sidebar-calendar-panel" aria-expanded="false">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span class="sidebar-tool-label">Calendar</span>
+                    </button>
+                    <button id="sidebar-kanban" class="sidebar-tool-btn" title="Kanban">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                            <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                            <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                            <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+                        </svg>
+                        <span class="sidebar-tool-label">Kanban</span>
+                        <span id="kanban-badges" class="kanban-badges" aria-label="Kanban task counts"></span>
+                    </button>
+                </nav>
                 <div id="sidebar-resizer" class="sidebar-resizer"></div>
             </aside>
 
@@ -266,29 +286,14 @@
                 <div id="tab-panels" class="tab-panels"></div>
             </main>
 
-            <!-- Right Sidebar (used for Calendar + History + PDF preview) -->
+            <!-- Right Sidebar (used for History + PDF preview) -->
             <aside id="right-sidebar" class="right-sidebar collapsed">
                 <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
                 <div class="right-sidebar-header">
-                    <span id="right-sidebar-title" class="right-sidebar-title">Calendar</span>
+                    <span id="right-sidebar-title" class="right-sidebar-title">Details</span>
                     <button id="right-sidebar-close" class="right-sidebar-close" title="Close">×</button>
                 </div>
                 <div id="right-sidebar-content" class="right-sidebar-content">
-                    <div class="calendar-toolbar">
-                        <button id="cal-prev-month" class="icon-btn" title="Previous Month">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                            </svg>
-                        </button>
-                        <span id="cal-month-year" class="cal-month-year"></span>
-                        <button id="cal-next-month" class="icon-btn" title="Next Month">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </button>
-                    </div>
-                    <div id="calendar-grid" class="calendar-grid"></div>
-                    <div id="cal-linked-notes" class="cal-linked-notes"></div>
                     <div id="history-content" style="display:none"></div>
                 </div>
             </aside>

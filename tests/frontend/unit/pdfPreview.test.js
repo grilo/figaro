@@ -41,6 +41,7 @@ import {
     isPDFPreviewOpen,
     openPDFPreview,
     rebasePDFPreviewStylesheetURLs,
+    resolvePDFPreviewPageSize,
     resolvePDFPreviewStylesheetPath,
     scrollProgressForContentRegion,
     scrollProgressForMetrics,
@@ -139,6 +140,18 @@ describe('live PDF preview', () => {
         expect(resolvePDFPreviewStylesheetPath('notes/report.md', 'print.txt').error).toContain('.css');
     });
 
+    test('resolves named, oriented, and explicit PDF page sizes for preview geometry', () => {
+        expect(resolvePDFPreviewPageSize()).toEqual({
+            width: '210mm', height: '297mm', orientation: 'portrait', name: 'A4',
+        });
+        expect(resolvePDFPreviewPageSize('@page { size: Letter landscape; }')).toEqual({
+            width: '11in', height: '8.5in', orientation: 'landscape', name: 'LETTER',
+        });
+        expect(resolvePDFPreviewPageSize('@page:first { size: 180mm 240mm; }')).toEqual({
+            width: '180mm', height: '240mm', orientation: 'portrait', name: '180mm × 240mm',
+        });
+    });
+
     test('isolates a printable document and rebases stylesheet assets to the vault', () => {
         expect(rebasePDFPreviewStylesheetURLs('a { background: url("../assets/paper.png"); }', 'notes/styles/print.css'))
             .toContain('/vault/notes/assets/paper.png');
@@ -148,7 +161,7 @@ describe('live PDF preview', () => {
             {
                 notePath: 'notes/report.md',
                 stylesheetPath: 'notes/styles/print.css',
-                stylesheetContent: 'html { color: yellow; background: black; } .figaro-print-document { color: tomato; }',
+                stylesheetContent: '@page { size: Letter landscape; } html { color: yellow; background: black; } body { max-width: none !important; } .figaro-print-document { color: tomato; }',
             }
         );
         const printable = new DOMParser().parseFromString(html, 'text/html');
@@ -159,9 +172,13 @@ describe('live PDF preview', () => {
         expect(printable.querySelector('#figaro-preview-user-stylesheet').textContent).toContain('background: black');
         expect(printable.querySelector('#figaro-preview-surface').textContent).toContain('box-shadow');
         expect(printable.querySelector('#figaro-preview-surface').textContent).toContain('background: transparent');
+        expect(printable.querySelector('#figaro-preview-page-geometry').textContent).toContain('max-width: 11in !important');
+        expect(printable.querySelector('#figaro-preview-page-geometry').textContent).toContain('min-height: 8.5in !important');
         const styles = Array.from(printable.querySelectorAll('style'));
         expect(styles.indexOf(printable.querySelector('#figaro-preview-user-stylesheet')))
             .toBeGreaterThan(styles.indexOf(printable.querySelector('#figaro-preview-surface')));
+        expect(styles.indexOf(printable.querySelector('#figaro-preview-page-geometry')))
+            .toBeGreaterThan(styles.indexOf(printable.querySelector('#figaro-preview-user-stylesheet')));
     });
 
     test('preserves semantic Markdown tables in the isolated PDF preview document', () => {
@@ -324,7 +341,11 @@ describe('live PDF preview', () => {
         }
     });
 
-    test('opens in the right pane and refreshes the iframe after an in-memory CSS change', async () => {
+    test('opens in the right pane without closing Calendar and refreshes after an in-memory CSS change', async () => {
+        const calendarPanel = document.getElementById('sidebar-calendar-panel');
+        calendarPanel.classList.add('open');
+        calendarPanel.setAttribute('aria-hidden', 'false');
+
         const { frame, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
 
         const sidebar = document.getElementById('right-sidebar');
@@ -332,6 +353,8 @@ describe('live PDF preview', () => {
         expect(isPDFPreviewOpen()).toBe(true);
         expect(sidebar.dataset.mode).toBe('pdf-preview');
         expect(panel.hidden).toBe(false);
+        expect(calendarPanel.classList.contains('open')).toBe(true);
+        expect(calendarPanel.getAttribute('aria-hidden')).toBe('false');
         expect(panel.querySelector('.pdf-preview-document-title').textContent).toBe('report');
         expect(render().html).toContain('rebeccapurple');
         expect(renderPrintableMarkdownWithDiagrams).toHaveBeenCalledWith(

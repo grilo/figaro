@@ -42,6 +42,17 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Calendar and Kanban now live in a fixed footer below the file tree. Calendar
+  expands inline, Kanban and the title-bar Settings gear open, focus, or close
+  their single workspace tabs with short entrance and exit transitions, and
+  collapsing the sidebar leaves a 44px navigation rail.
+- Widening PDF Preview now adds space around a centered paper surface instead
+  of stretching its contents. The preview caps itself to the stylesheet's
+  named, oriented, or explicit `@page size`, with A4 as the fallback.
+- The frameless application window now has a theme-aware one-pixel highlight
+  around all four rounded edges, with slightly stronger contrast along the top
+  to make the custom window boundary feel more native without becoming a
+  visible frame.
 - All application dialogs now share a polished responsive shell, consistent
   icon and tone language, clearer action hierarchy, focus containment and
   restoration, reduced-motion support, and cross-theme contrast. Browser-style

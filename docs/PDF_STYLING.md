@@ -15,7 +15,12 @@ outside Figaro are picked up when the file tree refreshes too.
 
 The editable stylesheet is applied after the preview's screen geometry, so
 ordinary `html` and `body` rules affect the page just as they do in the final
-PDF. The preview preserves its position after a refresh and synchronizes
+PDF. A final geometry-only guard then keeps the paper centered and capped to
+the stylesheet's `@page size`, even if a general `body` rule requests an
+unbounded width. Widening the preview pane therefore adds room around the
+paper rather than stretching its contents. Named paper sizes, orientation,
+and explicit CSS lengths are reflected in the preview, with A4 as the
+fallback. The preview preserves its position after a refresh and synchronizes
 relative scrolling with the active source Markdown note. Its own scrolling
 stays native and smooth; the companion editor receives coalesced position
 updates rather than a cross-frame update for every display frame. Table-of-contents,
