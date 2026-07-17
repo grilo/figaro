@@ -11,7 +11,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 
 import { openTab } from '../frontend/js/tabManager.js';
 import { setState } from '../frontend/js/state.js';
-import { renderHome } from '../frontend/js/home.js';
+import { homeTaskLimit, renderHome } from '../frontend/js/home.js';
 
 function deferred() {
     let resolve;
@@ -29,10 +29,9 @@ describe('Home tab', () => {
         setState('recentFiles', [{ path: 'Projects/Plan.md', title: 'Project plan' }]);
         setState('pinnedTabs', ['reference.md']);
         setState('openTabs', [{ id: 'reference.md', type: 'file', title: 'Reference', path: 'Reference.md' }]);
-        window.go.main.App.GetKanbanBoard.mockResolvedValue({
-            todo: [{ file: 'Projects/Plan.md', file_name: 'Plan.md', line: 12, text: 'Clarify the next milestone', tag: 'todo' }],
-            done: [{ file: 'Done.md', file_name: 'Done.md', line: 1, text: 'Already finished', tag: 'done' }]
-        });
+        window.go.main.App.GetHomeTasks.mockResolvedValue([
+            { file: 'Projects/Plan.md', file_name: 'Plan.md', line: 12, text: 'Clarify the next milestone', tag: 'todo' },
+        ]);
     });
 
     test('shows Momentum before recent notes and omits the pinned workspace card', async () => {
@@ -49,7 +48,8 @@ describe('Home tab', () => {
         expect(cards[1].textContent).toContain('Project plan');
         expect(panel.textContent).not.toContain('Pinned tabs');
         expect(panel.querySelector('[data-home-action="today"]')).toBeNull();
-        expect(panel.textContent).not.toContain('Already finished');
+        expect(window.go.main.App.GetHomeTasks).toHaveBeenCalledWith(homeTaskLimit);
+        expect(window.go.main.App.GetKanbanBoard).not.toHaveBeenCalled();
     });
 
     test('opens a task at its source line', async () => {
@@ -71,7 +71,7 @@ describe('Home tab', () => {
     test('does not let an earlier task request overwrite a newer Home render', async () => {
         const slow = deferred();
         const fast = deferred();
-        window.go.main.App.GetKanbanBoard
+        window.go.main.App.GetHomeTasks
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
         const panel = document.getElementById('tab-panels');
@@ -79,15 +79,15 @@ describe('Home tab', () => {
         renderHome(panel);
         renderHome(panel);
 
-        fast.resolve({
-            todo: [{ file: 'Current.md', file_name: 'Current.md', line: 1, text: 'Current task', tag: 'todo' }]
-        });
+        fast.resolve([
+            { file: 'Current.md', file_name: 'Current.md', line: 1, text: 'Current task', tag: 'todo' },
+        ]);
         await Promise.resolve();
         await Promise.resolve();
 
-        slow.resolve({
-            todo: [{ file: 'Stale.md', file_name: 'Stale.md', line: 1, text: 'Stale task', tag: 'todo' }]
-        });
+        slow.resolve([
+            { file: 'Stale.md', file_name: 'Stale.md', line: 1, text: 'Stale task', tag: 'todo' },
+        ]);
         await Promise.resolve();
         await Promise.resolve();
 

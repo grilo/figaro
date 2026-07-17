@@ -219,12 +219,16 @@ func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
 		index.cardsByTag[card.Tag] = append(index.cardsByTag[card.Tag], card)
 	}
 	if file.dailyNote != "" {
+		if index.dailyNoteCounts[file.dailyNote] == 0 {
+			index.calendar.addDailyNote(file.dailyNote)
+		}
 		index.dailyNoteCounts[file.dailyNote]++
-		index.calendar.dailyNotes[file.dailyNote] = struct{}{}
 	}
 	for _, dateStr := range file.linkedDays {
+		if index.linkedDayCounts[dateStr] == 0 {
+			index.calendar.addLinkedDay(dateStr)
+		}
 		index.linkedDayCounts[dateStr]++
-		index.calendar.linkedDays[dateStr] = struct{}{}
 	}
 	for dateStr, note := range file.linked {
 		index.calendar.linkedNotes[dateStr] = append(index.calendar.linkedNotes[dateStr], note)
@@ -276,7 +280,7 @@ func (index *vaultIndex) removeFileContributions(file vaultIndexedFile) {
 	if file.dailyNote != "" {
 		if index.dailyNoteCounts[file.dailyNote] <= 1 {
 			delete(index.dailyNoteCounts, file.dailyNote)
-			delete(index.calendar.dailyNotes, file.dailyNote)
+			index.calendar.removeDailyNote(file.dailyNote)
 		} else {
 			index.dailyNoteCounts[file.dailyNote]--
 		}
@@ -284,7 +288,7 @@ func (index *vaultIndex) removeFileContributions(file vaultIndexedFile) {
 	for _, dateStr := range file.linkedDays {
 		if index.linkedDayCounts[dateStr] <= 1 {
 			delete(index.linkedDayCounts, dateStr)
-			delete(index.calendar.linkedDays, dateStr)
+			index.calendar.removeLinkedDay(dateStr)
 		} else {
 			index.linkedDayCounts[dateStr]--
 		}

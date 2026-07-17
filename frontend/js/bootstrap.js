@@ -37,6 +37,7 @@ function debugAPI() {
         SearchBacklinks: mock([]),
         GetKanbanColumns: mock({ columns: ['todo', 'wip', 'done'], colors: {} }),
         GetKanbanBoard: mock({ todo: [], wip: [], done: [] }),
+        GetHomeTasks: mock([]),
         SetColumnColor: mock({ success: true }),
         RenameKanbanColumn: mock({ success: true }),
         DeleteKanbanColumn: mock({ success: true }),

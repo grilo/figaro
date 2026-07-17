@@ -288,6 +288,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Custom columns discovered from standalone whitespace-delimited `#tag` tokens in vault files, sorted alphabetically. Markdown anchors such as `[guide](#section)` are ignored.
 - Saved note, create, and per-card tag changes update the shared vault index incrementally; vault-wide tag rewrite, move, merge, and delete operations rebuild one coherent snapshot.
 - The Kanban board reads its current columns and cards from that shared index when it is rendered.
+- Home reads a bounded six-card unfinished projection from the same index instead of loading the complete board.
 - A custom column disappears as soon as its final matching hashtag is removed; the three system columns remain.
 
 ### 6.2 Task Discovery
@@ -339,13 +340,14 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 
 ### 7.3 Calendar and Daily Notes
 - The Calendar control in the fixed left-sidebar footer expands an inline monthly grid with month navigation and linked-note results. A day is marked when a vault note is named `YYYY-MM-DD.md` or another Markdown note links to that daily note.
+- The index groups marked days by `YYYY-MM`, so moving between months reads only the selected month's day lists.
 - Collapsing the sidebar closes the expanded panel but leaves the Calendar icon in the 44px rail. Selecting it expands the sidebar and reopens Calendar. History and PDF preview remain independent on the right.
 - Selecting a marked day lists notes that link to its daily note; selecting a listed note opens it in a file tab. Today is always selectable.
 - `@today`, `@tomorrow`, and `@yesterday` offer date-link completions. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
 - The selected date is stored locally for the webview; Calendar reads the shared Markdown index, which ignores dot-directories and symlinks like the rest of the vault scanner.
 
 ### 7.4 Welcome/Home Workspace
-- The Home tab has **Momentum**, the first six Kanban cards outside the `done` column, and **Recent**, the last eight file tabs opened by the user.
+- The Home tab has **Momentum**, the first six Kanban cards outside the `done` column, and **Recent**, the last eight file tabs opened by the user. Momentum is a bounded backend projection, not a complete-board fetch.
 - Clicking a task returns to its source note and line; **Open board** opens the Kanban tab. Recent notes are local UI history, not a separate vault index.
 
 ### 7.5 Quick Note and Inbox

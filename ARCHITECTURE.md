@@ -48,7 +48,8 @@ unscoped notification deliberately invalidate and rebuild one coherent
 snapshot; correctness wins over a speculative partial update.
 
 Each indexed file owns its own tag, Kanban-card, daily-note, date-link,
-case-folded search, trigram, and Markdown-backlink contributions. A known
+month-grouped Calendar-day, case-folded search, trigram, and Markdown-backlink
+contributions. A known
 one-file update removes its old contributions before adding its new ones,
 retaining unrelated card slices, Calendar projections, and reverse-link
 entries. Case-insensitive searches intersect compact three-byte substring
@@ -58,6 +59,12 @@ depends on indexing every term. Case-sensitive searches intentionally use the
 original text. This keeps the common save/watcher path proportional to the
 changed note and its affected derived data; a full derived rebuild remains
 reserved for the first lazy scan and genuinely broad filesystem changes.
+
+The full Kanban board remains available for its workspace, but Home asks the
+backend for its bounded unfinished-card projection directly. Calendar month
+navigation similarly copies only that month's pre-grouped daily-note and
+linked-day lists. These narrow methods avoid transferring or filtering the
+rest of a large vault merely to render a small overview.
 
 The `vault:changed` event includes `tree_changed`. Content-only changes refresh
 dependent data without requesting a new file tree; directory or entry changes

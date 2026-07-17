@@ -70,6 +70,7 @@ window.go = {
         RenameKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         DeleteKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         GetKanbanBoard: jest.fn().mockResolvedValue({ todo: [], wip: [], done: [] }),
+        GetHomeTasks: jest.fn().mockResolvedValue([]),
         UpdateTaskTag: jest.fn().mockResolvedValue({ success: true }),
         RemoveTagFromTask: jest.fn().mockResolvedValue({ success: true }),
         GetLinkedNotesForDate: jest.fn().mockResolvedValue([]),

@@ -26,6 +26,7 @@ test('boots through the native Wails binding with Welcome text, the vault tree, 
             LinkStyleLoad: { style: 'markdown' },
             GetKanbanColumns: { columns: ['todo', 'wip', 'done'], colors: {} },
             GetKanbanBoard: { todo: [], wip: [], done: [] },
+            GetHomeTasks: [],
             GetCalendarMonthData: {
                 year: 2026,
                 month: 7,
@@ -97,6 +98,7 @@ test('boots through the native Wails binding with Welcome text, the vault tree, 
     expect(calledMethods).toEqual(expect.arrayContaining([
         'GetFileTree',
         'ReadFile',
+        'GetHomeTasks',
         'GetCalendarMonthData',
         'LinkStyleLoad',
     ]));

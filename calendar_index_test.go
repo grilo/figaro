@@ -68,6 +68,38 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	}
 }
 
+func TestCalendarMonthDataReadsTheRequestedMonthProjection(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "2025-01-15.md", "# January daily note")
+	writeTestFile(t, vaultPath, "2025-02-16.md", "# February daily note")
+	writeTestFile(t, vaultPath, "notes/links.md", "[January](2025-01-20.md)\n[February](2025-02-21.md)\n")
+
+	month, err := app.GetCalendarMonthData(2025, 1)
+	if err != nil {
+		t.Fatalf("GetCalendarMonthData: %v", err)
+	}
+	if got, want := month.DaysWithNotes, []int{15}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("January note days = %v, want %v", got, want)
+	}
+	if got, want := month.DaysWithLinks, []int{20}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("January link days = %v, want %v", got, want)
+	}
+
+	index := app.vaultIndex.calendar
+	if got, want := index.dailyDaysByMonth["2025-02"], []int{16}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("February daily projection = %v, want %v", got, want)
+	}
+	if got, want := index.linkedDaysByMonth["2025-02"], []int{21}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("February linked projection = %v, want %v", got, want)
+	}
+
+	month.DaysWithNotes[0] = 99
+	reloaded, err := app.GetCalendarMonthData(2025, 1)
+	if err != nil || !reflect.DeepEqual(reloaded.DaysWithNotes, []int{15}) {
+		t.Fatalf("calendar response mutated its cached month projection: %#v, err=%v", reloaded, err)
+	}
+}
+
 func TestNewAppDefersKanbanIndexingUntilStartupWork(t *testing.T) {
 	vaultPath := t.TempDir()
 	writeTestFile(t, vaultPath, "tasks.md", "- background task #later\n")

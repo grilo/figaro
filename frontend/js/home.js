@@ -6,7 +6,7 @@ import { backend } from './backend.js';
 import { getState } from './state.js';
 import { log } from './log.js';
 
-const taskLimit = 6;
+export const homeTaskLimit = 6;
 
 export function renderHome(panel) {
     const renderId = (panel._homeRenderId || 0) + 1;
@@ -76,16 +76,10 @@ async function loadTasks(panel, renderId) {
     if (!target) return;
 
     try {
-        const board = await backend().GetKanbanBoard();
+        const tasks = await backend().GetHomeTasks(homeTaskLimit);
         if (!panel.isConnected || panel._homeRenderId !== renderId) return;
 
-        const tasks = Object.entries(board || {})
-            .filter(([column]) => column.toLocaleLowerCase() !== 'done')
-            .flatMap(([column, cards]) => (cards || []).map(card => ({ ...card, column })))
-            .filter(task => String(task.tag || task.column).toLocaleLowerCase() !== 'done')
-            .slice(0, taskLimit);
-
-        target.innerHTML = tasks.length
+        target.innerHTML = tasks?.length
             ? tasks.map(renderTaskRow).join('')
             : '<p class="home-empty">Nothing is waiting on the board. Nicely done.</p>';
     } catch (error) {

@@ -790,6 +790,39 @@ func TestGetKanbanBoard(t *testing.T) {
 	}
 }
 
+func TestGetHomeTasksReturnsOnlyTheRequestedUnfinishedProjection(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Custom first #alpha\n- [ ] First todo #todo\n- [ ] Second todo #todo\n- [ ] Third todo #todo\n- [ ] Fourth todo #todo\n- [ ] Fifth todo #todo\n- [ ] In progress #wip\n- [x] Finished #done\n")
+	app.syncKanbanColumns()
+
+	tasks, err := app.GetHomeTasks(3)
+	if err != nil {
+		t.Fatalf("GetHomeTasks error: %v", err)
+	}
+	if len(tasks) != 3 {
+		t.Fatalf("home tasks = %#v, want three cards", tasks)
+	}
+	if got, want := []string{tasks[0].Tag, tasks[1].Tag, tasks[2].Tag}, []string{"alpha", "todo", "todo"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("home task tags = %v, want %v", got, want)
+	}
+	for _, task := range tasks {
+		if task.Tag == "done" {
+			t.Fatalf("home tasks included a finished card: %#v", tasks)
+		}
+	}
+	capped, err := app.GetHomeTasks(99)
+	if err != nil || len(capped) != maxHomeTaskCount {
+		t.Fatalf("capped home tasks = %#v, err=%v; want %d cards", capped, err, maxHomeTaskCount)
+	}
+
+	empty, err := app.GetHomeTasks(0)
+	if err != nil || empty == nil || len(empty) != 0 {
+		t.Fatalf("zero-limit home tasks = %#v, err=%v; want non-nil empty list", empty, err)
+	}
+}
+
 func TestGetKanbanBoard_IgnoresMarkdownAnchors(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

@@ -2323,6 +2323,45 @@ func (a *App) GetKanbanBoard() (map[string][]KanbanCard, error) {
 	return board, nil
 }
 
+const maxHomeTaskCount = 6
+
+// GetHomeTasks returns the first unfinished Kanban cards needed by Home
+// without serializing the complete board. Cards retain the normal board order:
+// custom columns first, then todo and wip, with done always omitted.
+func (a *App) GetHomeTasks(limit int) ([]KanbanCard, error) {
+	if limit <= 0 {
+		return []KanbanCard{}, nil
+	}
+	if limit > maxHomeTaskCount {
+		limit = maxHomeTaskCount
+	}
+
+	a.vaultMu.RLock()
+	defer a.vaultMu.RUnlock()
+	index, err := a.ensureVaultIndexLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	a.mu.RLock()
+	columns := append([]string(nil), a.kanbanColumns...)
+	a.mu.RUnlock()
+
+	tasks := make([]KanbanCard, 0, limit)
+	for _, column := range columns {
+		if strings.EqualFold(column, "done") {
+			continue
+		}
+		for _, card := range index.cardsByTag[column] {
+			tasks = append(tasks, card)
+			if len(tasks) == limit {
+				return tasks, nil
+			}
+		}
+	}
+	return tasks, nil
+}
+
 // SetColumnColor sets a color for a kanban column.
 func (a *App) SetColumnColor(name string, color string) (map[string]interface{}, error) {
 	name = strings.TrimSpace(strings.ToLower(name))
@@ -2662,8 +2701,8 @@ func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, err
 	return &CalendarMonthData{
 		Year:          year,
 		Month:         month,
-		DaysWithNotes: calendarMonthDates(index.dailyNotes, year, month),
-		DaysWithLinks: calendarMonthDates(index.linkedDays, year, month),
+		DaysWithNotes: calendarMonthDays(index.dailyDaysByMonth, year, month),
+		DaysWithLinks: calendarMonthDays(index.linkedDaysByMonth, year, month),
 		Calendar:      cal,
 	}, nil
 }
