@@ -30,6 +30,7 @@ import (
 	"figaro/internal/links"
 	"figaro/internal/pdfexport"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -52,10 +53,13 @@ type App struct {
 	windowStateMu       sync.Mutex
 	calendarMu          sync.Mutex
 	watcherMu           sync.Mutex
+	vaultIndexBuildMu   sync.Mutex
 	fileVersions        map[string]float64
 	kanbanColumns       []string
 	kanbanColors        map[string]string
 	calendarIndex       *calendarDateIndex
+	vaultIndex          *vaultIndex
+	internalVaultWrites map[string]time.Time
 	vaultWatcher        *vaultWatcher
 	watcherStopping     bool
 	history             *HistoryService
@@ -181,11 +185,12 @@ func NewApp(vaultPath string) *App {
 	}
 
 	a := &App{
-		vaultPath:     absPath,
-		fileVersions:  make(map[string]float64),
-		kanbanColors:  make(map[string]string),
-		kanbanColumns: append([]string{}, SystemColumns...),
-		windowState:   defaultWindowState(),
+		vaultPath:           absPath,
+		fileVersions:        make(map[string]float64),
+		kanbanColors:        make(map[string]string),
+		kanbanColumns:       append([]string{}, SystemColumns...),
+		internalVaultWrites: make(map[string]time.Time),
+		windowState:         defaultWindowState(),
 	}
 	a.loadColors()
 
@@ -386,7 +391,7 @@ func (a *App) shutdown(ctx context.Context) {
 }
 
 func (a *App) startVaultWatcher() {
-	watcher, err := newVaultWatcher(a.vaultPath, a.handleVaultFilesystemChange)
+	watcher, err := newVaultWatcherWithChanges(a.vaultPath, a.handleVaultFilesystemChanges)
 	if err != nil {
 		// A vault can live on a filesystem which does not expose native watch
 		// support. The application remains fully usable; only external-change
@@ -422,22 +427,90 @@ func (a *App) stopVaultWatcher() {
 }
 
 func (a *App) handleVaultFilesystemChange() {
+	a.handleVaultFilesystemChanges(nil)
+}
+
+// handleVaultFilesystemChanges applies the debounced native event batch to
+// the shared index. A normal external save reads only the changed Markdown
+// file; unscoped notifications remain a safe fallback that rebuilds once.
+func (a *App) handleVaultFilesystemChanges(changes []vaultWatchChange) {
+	treeChanged := len(changes) == 0
 	a.vaultMu.Lock()
 	a.resetFileVersionsLocked()
-	a.invalidateCalendarIndexLocked()
+
+	if len(changes) == 0 {
+		a.invalidateVaultIndexLocked()
+	} else {
+		root, err := a.openVaultRoot()
+		if err != nil {
+			log.Printf("[watcher] open vault after filesystem change: %v", err)
+			a.invalidateVaultIndexLocked()
+			treeChanged = true
+		} else {
+			for _, change := range changes {
+				rel, err := filepath.Rel(a.vaultPath, change.Path)
+				if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+					a.invalidateVaultIndexLocked()
+					treeChanged = true
+					break
+				}
+				cleanRel, err := vaultRelativePath(rel)
+				if err != nil {
+					continue
+				}
+				if a.consumeInternalVaultWriteLocked(cleanRel) {
+					continue
+				}
+
+				if !strings.EqualFold(filepath.Ext(cleanRel), ".md") {
+					if change.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
+						treeChanged = true
+					}
+					continue
+				}
+				if change.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
+					a.removeVaultIndexPathLocked(cleanRel)
+					treeChanged = true
+					continue
+				}
+				if change.Op&(fsnotify.Create|fsnotify.Write) == 0 {
+					continue
+				}
+				info, err := root.Stat(cleanRel)
+				if err != nil || info.IsDir() {
+					a.removeVaultIndexPathLocked(cleanRel)
+					treeChanged = true
+					continue
+				}
+				content, err := root.ReadFile(cleanRel)
+				if err != nil {
+					log.Printf("[watcher] read changed note %q: %v", cleanRel, err)
+					a.invalidateVaultIndexLocked()
+					treeChanged = true
+					continue
+				}
+				a.updateVaultIndexFileLocked(cleanRel, info, string(content))
+				if change.Op&fsnotify.Create != 0 {
+					treeChanged = true
+				}
+			}
+			root.Close()
+		}
+	}
 	a.vaultMu.Unlock()
 
-	// External editors may add/remove tags. Keep that slower scan off the UI
-	// path, then tell the frontend to refresh its affected views once.
-	a.syncKanbanColumns()
-	a.emitRuntimeEvent("vault:changed")
+	a.emitRuntimeEventData("vault:changed", map[string]bool{"tree_changed": treeChanged})
 }
 
 func (a *App) emitRuntimeEvent(name string) {
+	a.emitRuntimeEventData(name)
+}
+
+func (a *App) emitRuntimeEventData(name string, data ...any) {
 	if a.ctx == nil || name == "" {
 		return
 	}
-	runtime.EventsEmit(a.ctx, name)
+	runtime.EventsEmit(a.ctx, name, data...)
 }
 
 // ============================================================================
@@ -709,7 +782,8 @@ func (a *App) SaveFile(relPath string, content string, expectedMtime float64) (*
 	}
 	mtime := a.recordFileVersionLocked(abs, info)
 
-	a.syncKanbanColumnsLocked()
+	a.updateVaultIndexFileLocked(cleanRel, info, content)
+	a.markInternalVaultWriteLocked(cleanRel)
 
 	return &SaveFileResult{
 		Success: true,
@@ -790,7 +864,7 @@ func (a *App) CreateFile(relPath string, content string) (*SaveFileResult, error
 		return nil, fmt.Errorf("inspect created file: %w", err)
 	}
 	mtime := a.recordFileVersionLocked(a.vaultAbsolutePath(cleanRel), info)
-	a.syncKanbanColumnsLocked()
+	a.updateVaultIndexFileLocked(cleanRel, info, content)
 	return &SaveFileResult{Success: true, Mtime: mtime, Path: relPath}, nil
 }
 
@@ -833,7 +907,7 @@ func (a *App) createInboxNoteAt(createdAt time.Time) (*SaveFileResult, error) {
 			return nil, fmt.Errorf("inspect Inbox note: %w", err)
 		}
 		mtime := a.recordFileVersionLocked(a.vaultAbsolutePath(relPath), info)
-		a.syncKanbanColumnsLocked()
+		a.updateVaultIndexFileLocked(relPath, info, "")
 		return &SaveFileResult{Success: true, Mtime: mtime, Path: relPath}, nil
 	}
 	return &SaveFileResult{Success: false, Error: "Could not find an available Inbox note name"}, nil
@@ -2074,21 +2148,25 @@ type SearchResult struct {
 func (a *App) SearchFiles(query string, caseSensitive bool) ([]SearchResult, error) {
 	a.vaultMu.RLock()
 	defer a.vaultMu.RUnlock()
+	index, err := a.ensureVaultIndexLocked()
+	if err != nil {
+		return nil, err
+	}
 
 	var results []SearchResult
-	if err := a.walkVaultMarkdown(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
-		content := string(data)
+	for _, path := range index.paths {
+		file := index.files[path]
+		content := file.content
 		searchQuery := query
 		if !caseSensitive {
 			searchQuery = strings.ToLower(query)
 			content = strings.ToLower(content)
 		}
 		if !strings.Contains(content, searchQuery) {
-			return nil
+			continue
 		}
 
-		// Re-read original content for case-sensitive line matching
-		lines := strings.Split(string(data), "\n")
+		lines := strings.Split(file.content, "\n")
 		var matches []SearchMatch
 		for i, line := range lines {
 			check := line
@@ -2101,15 +2179,12 @@ func (a *App) SearchFiles(query string, caseSensitive bool) ([]SearchResult, err
 		}
 		if len(matches) > 0 {
 			results = append(results, SearchResult{
-				Path:    rel,
-				Name:    info.Name(),
+				Path:    file.path,
+				Name:    file.name,
 				Matches: matches,
-				Mtime:   float64(info.ModTime().UnixNano()) / 1e9,
+				Mtime:   file.mtime,
 			})
 		}
-		return nil
-	}); err != nil {
-		return nil, err
 	}
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Mtime > results[j].Mtime
@@ -2130,6 +2205,10 @@ type BacklinkResult struct {
 func (a *App) SearchBacklinks(targetPath string) ([]BacklinkResult, error) {
 	a.vaultMu.RLock()
 	defer a.vaultMu.RUnlock()
+	index, err := a.ensureVaultIndexLocked()
+	if err != nil {
+		return nil, err
+	}
 
 	targetName := strings.TrimSuffix(filepath.Base(targetPath), ".md")
 	targetRel := strings.ReplaceAll(targetPath, "\\", "/")
@@ -2142,23 +2221,21 @@ func (a *App) SearchBacklinks(targetPath string) ([]BacklinkResult, error) {
 	// Wails serializes a nil Go slice as null. Backlinks are a collection, so
 	// preserve the API contract and return [] when no notes link to the target.
 	results := make([]BacklinkResult, 0)
-	if err := a.walkVaultMarkdown(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
-		lines := strings.Split(string(data), "\n")
+	for _, path := range index.paths {
+		file := index.files[path]
+		lines := strings.Split(file.content, "\n")
 		for i, line := range lines {
 			if pattern.MatchString(line) {
 				results = append(results, BacklinkResult{
-					Path:    rel,
-					Name:    info.Name(),
+					Path:    file.path,
+					Name:    file.name,
 					LineNum: i + 1,
 					Snippet: strings.TrimSpace(line),
-					Mtime:   float64(info.ModTime().UnixNano()) / 1e9,
+					Mtime:   file.mtime,
 				})
 				break // One match per file
 			}
 		}
-		return nil
-	}); err != nil {
-		return nil, err
 	}
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Mtime > results[j].Mtime
@@ -2184,44 +2261,14 @@ func (a *App) syncKanbanColumns() {
 // syncKanbanColumnsLocked requires vaultMu to be held (for reading or
 // writing), so a scan observes a coherent vault snapshot.
 func (a *App) syncKanbanColumnsLocked() {
-	// Every caller reaches this after a Markdown mutation (or initial index
-	// setup). Keep calendar data in the same coherent-vault lifecycle rather
-	// than making calendar clicks rediscover changes through a full scan.
-	a.invalidateCalendarIndexLocked()
-
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	tags := make(map[string]bool)
-	for _, sc := range SystemColumns {
-		tags[sc] = true
+	// Broad filesystem changes (rename/copy/merge and external tools) may
+	// affect an unknown set of notes. Discard the old snapshot once, then build
+	// a coherent replacement. Ordinary saves use updateVaultIndexFileLocked
+	// instead and never enter this path.
+	a.invalidateVaultIndexLocked()
+	if _, err := a.ensureVaultIndexLocked(); err != nil {
+		log.Printf("[vault-index] Could not index vault: %v", err)
 	}
-
-	if err := a.walkVaultMarkdown(func(_ *os.Root, _ string, _ fs.FileInfo, data []byte) error {
-		for _, t := range a.extractHashtags(string(data)) {
-			tags[t] = true
-		}
-		return nil
-	}); err != nil {
-		log.Printf("[kanban] Could not scan vault: %v", err)
-	}
-
-	var custom []string
-	for t := range tags {
-		isSystem := false
-		for _, sc := range SystemColumns {
-			if t == sc {
-				isSystem = true
-				break
-			}
-		}
-		if !isSystem {
-			custom = append(custom, t)
-		}
-
-	}
-	sort.Strings(custom)
-	a.kanbanColumns = append(custom, SystemColumns...)
 }
 
 // GetKanbanColumns returns current columns and colors.
@@ -2252,6 +2299,10 @@ type KanbanCard struct {
 func (a *App) GetKanbanBoard() (map[string][]KanbanCard, error) {
 	a.vaultMu.RLock()
 	defer a.vaultMu.RUnlock()
+	index, err := a.ensureVaultIndexLocked()
+	if err != nil {
+		return nil, err
+	}
 
 	a.mu.RLock()
 	columns := make([]string, len(a.kanbanColumns))
@@ -2264,31 +2315,10 @@ func (a *App) GetKanbanBoard() (map[string][]KanbanCard, error) {
 	}
 
 	board := make(map[string][]KanbanCard)
-	if err := a.walkVaultMarkdown(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
-		lines := strings.Split(string(data), "\n")
-		for lineNum, line := range lines {
-			for _, idx := range hashtagRe.FindAllStringSubmatchIndex(line, -1) {
-				if len(idx) >= 4 && isHashtagBoundaryOK(line, idx[0], idx[1]) {
-					tag := strings.ToLower(line[idx[2]:idx[3]])
-					if columnSet[tag] {
-						// Clean display text
-						display := strings.TrimSpace(line)
-						display = regexp.MustCompile(`^[-*+]\s*\[[ x]\]\s*`).ReplaceAllString(display, "")
-						display = removeHashtag(display, tag)
-						board[tag] = append(board[tag], KanbanCard{
-							File:     rel,
-							FileName: info.Name(),
-							Line:     lineNum + 1,
-							Text:     display,
-							Tag:      tag,
-						})
-					}
-				}
-			}
+	for tag, cards := range index.cardsByTag {
+		if columnSet[tag] {
+			board[tag] = append([]KanbanCard(nil), cards...)
 		}
-		return nil
-	}); err != nil {
-		return nil, err
 	}
 	return board, nil
 }
@@ -2466,7 +2496,8 @@ func (a *App) UpdateTaskTag(filePath string, lineNum int, oldTag string, newTag 
 		return &SaveFileResult{Success: false, Error: "Tag not found on line"}, nil
 	}
 	lines[lineNum-1] = newLine
-	if err := writeRootFileAtomic(root, cleanRel, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+	updatedContent := strings.Join(lines, "\n")
+	if err := writeRootFileAtomic(root, cleanRel, []byte(updatedContent), 0644); err != nil {
 		return nil, err
 	}
 	info, err := root.Stat(cleanRel)
@@ -2474,7 +2505,8 @@ func (a *App) UpdateTaskTag(filePath string, lineNum int, oldTag string, newTag 
 		return nil, fmt.Errorf("inspect updated task: %w", err)
 	}
 	mtime := a.recordFileVersionLocked(a.vaultAbsolutePath(cleanRel), info)
-	a.syncKanbanColumnsLocked()
+	a.updateVaultIndexFileLocked(cleanRel, info, updatedContent)
+	a.markInternalVaultWriteLocked(cleanRel)
 	return &SaveFileResult{Success: true, Mtime: mtime, Path: filePath}, nil
 }
 
@@ -2506,7 +2538,8 @@ func (a *App) RemoveTagFromTask(filePath string, lineNum int, tag string) (*Save
 		return &SaveFileResult{Success: false, Error: "Tag not found on line"}, nil
 	}
 	lines[lineNum-1] = newLine
-	if err := writeRootFileAtomic(root, cleanRel, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+	updatedContent := strings.Join(lines, "\n")
+	if err := writeRootFileAtomic(root, cleanRel, []byte(updatedContent), 0644); err != nil {
 		return nil, err
 	}
 	info, err := root.Stat(cleanRel)
@@ -2514,7 +2547,8 @@ func (a *App) RemoveTagFromTask(filePath string, lineNum int, tag string) (*Save
 		return nil, fmt.Errorf("inspect updated task: %w", err)
 	}
 	mtime := a.recordFileVersionLocked(a.vaultAbsolutePath(cleanRel), info)
-	a.syncKanbanColumnsLocked()
+	a.updateVaultIndexFileLocked(cleanRel, info, updatedContent)
+	a.markInternalVaultWriteLocked(cleanRel)
 	return &SaveFileResult{Success: true, Mtime: mtime, Path: filePath}, nil
 }
 

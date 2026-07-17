@@ -17,11 +17,11 @@ describe('vault change event bridge', () => {
         expect(runtime.EventsOn).toHaveBeenCalledWith('vault:kanban-indexed', expect.any(Function));
         expect(runtime.EventsOn).toHaveBeenCalledWith('vault:history-changed', expect.any(Function));
 
-        handlers['vault:changed']();
+        handlers['vault:changed']({ tree_changed: false });
         handlers['vault:kanban-indexed']();
         handlers['vault:history-changed']();
 
-        expect(onVaultChanged).toHaveBeenCalledTimes(1);
+        expect(onVaultChanged).toHaveBeenCalledWith({ tree_changed: false });
         expect(onKanbanIndexed).toHaveBeenCalledTimes(1);
         expect(onHistoryChanged).toHaveBeenCalledTimes(1);
     });

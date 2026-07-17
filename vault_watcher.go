@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,9 +18,9 @@ import (
 // macOS, and Windows; this wrapper supplies the recursive directory handling
 // those APIs intentionally leave to applications.
 type vaultWatcher struct {
-	root     string
-	watcher  *fsnotify.Watcher
-	onChange func()
+	root      string
+	watcher   *fsnotify.Watcher
+	onChanges func([]vaultWatchChange)
 
 	mu      sync.Mutex
 	watched map[string]struct{}
@@ -32,20 +33,36 @@ type vaultWatcher struct {
 
 const vaultWatchDebounce = 180 * time.Millisecond
 
+// vaultWatchChange records the settled path operations in one debounced
+// filesystem batch. Passing paths through to App lets it update one indexed
+// note instead of treating every save as a reason to rescan the vault.
+type vaultWatchChange struct {
+	Path string
+	Op   fsnotify.Op
+}
+
 func newVaultWatcher(root string, onChange func()) (*vaultWatcher, error) {
+	return newVaultWatcherWithChanges(root, func(_ []vaultWatchChange) {
+		if onChange != nil {
+			onChange()
+		}
+	})
+}
+
+func newVaultWatcherWithChanges(root string, onChanges func([]vaultWatchChange)) (*vaultWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
 
 	w := &vaultWatcher{
-		root:     filepath.Clean(root),
-		watcher:  watcher,
-		onChange: onChange,
-		watched:  make(map[string]struct{}),
-		stop:     make(chan struct{}),
-		started:  make(chan struct{}),
-		done:     make(chan struct{}),
+		root:      filepath.Clean(root),
+		watcher:   watcher,
+		onChanges: onChanges,
+		watched:   make(map[string]struct{}),
+		stop:      make(chan struct{}),
+		started:   make(chan struct{}),
+		done:      make(chan struct{}),
 	}
 	if err := w.syncDirectories(); err != nil {
 		_ = watcher.Close()
@@ -87,10 +104,13 @@ func (w *vaultWatcher) Run() {
 		debounceTimer *time.Timer
 		debounceC     <-chan time.Time
 		pending       bool
+		pendingPaths  = make(map[string]fsnotify.Op)
 		errors        = w.watcher.Errors
 	)
-	resetDebounce := func() {
+	resetDebounce := func(event fsnotify.Event) {
 		pending = true
+		path := filepath.Clean(event.Name)
+		pendingPaths[path] |= event.Op
 		if debounceTimer == nil {
 			debounceTimer = time.NewTimer(vaultWatchDebounce)
 			debounceC = debounceTimer.C
@@ -136,7 +156,7 @@ func (w *vaultWatcher) Run() {
 				}
 			}
 			if event.Op&(fsnotify.Create|fsnotify.Write|fsnotify.Remove|fsnotify.Rename) != 0 {
-				resetDebounce()
+				resetDebounce(event)
 			}
 
 		case <-debounceC:
@@ -145,8 +165,18 @@ func (w *vaultWatcher) Run() {
 				continue
 			}
 			pending = false
-			if w.onChange != nil {
-				w.onChange()
+			if w.onChanges != nil {
+				paths := make([]string, 0, len(pendingPaths))
+				for path := range pendingPaths {
+					paths = append(paths, path)
+				}
+				sort.Strings(paths)
+				changes := make([]vaultWatchChange, 0, len(paths))
+				for _, path := range paths {
+					changes = append(changes, vaultWatchChange{Path: path, Op: pendingPaths[path]})
+				}
+				clear(pendingPaths)
+				w.onChanges(changes)
 			}
 
 		case err, ok := <-errors:

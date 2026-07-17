@@ -58,11 +58,12 @@ function configureAutoSave(seconds) {
 export function initVaultChangeNotifications(runtime = window.runtime) {
     if (vaultEventsInitialized) return false;
     const registered = registerVaultChangeEvents(runtime, {
-        onVaultChanged: () => {
+        onVaultChanged: (payload = {}) => {
             invalidateCalendarCache();
-            scheduleFileTreeRefresh();
+            if (payload.tree_changed !== false) scheduleFileTreeRefresh();
             refreshCalendarIfVisible();
             import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});
+            document.dispatchEvent(new CustomEvent('vault-filesystem-changed'));
         },
         onKanbanIndexed: () => {
             import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});

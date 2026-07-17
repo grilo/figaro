@@ -11,7 +11,7 @@ func cachedCalendarIndex(app *App) *calendarDateIndex {
 	return app.calendarIndex
 }
 
-func TestCalendarIndexCachesDatesAndInvalidatesAfterVaultMutation(t *testing.T) {
+func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "2025-01-15.md", "# Daily note")
 	writeTestFile(t, vaultPath, "notes/source.md", "[Project date](2025-01-20.md)\n")
@@ -45,14 +45,15 @@ func TestCalendarIndexCachesDatesAndInvalidatesAfterVaultMutation(t *testing.T) 
 		t.Fatal("unchanged calendar request rebuilt the vault index")
 	}
 
-	// App-owned mutations clear the index. The next visible calendar request
-	// rebuilds it once against the new vault snapshot.
+	// App-owned mutations update the one known file in the shared index. The
+	// visible calendar must immediately see the new date without discarding and
+	// rescanning every other Markdown note.
 	created, err := app.CreateFile("notes/later.md", "[Later](2025-01-21.md)\n")
 	if err != nil || !created.Success {
 		t.Fatalf("CreateFile: result=%+v err=%v", created, err)
 	}
-	if got := cachedCalendarIndex(app); got != nil {
-		t.Fatal("calendar index was not invalidated after a vault mutation")
+	if got := cachedCalendarIndex(app); got == nil {
+		t.Fatal("calendar index was unexpectedly discarded after an incremental vault mutation")
 	}
 
 	month, err = app.GetCalendarMonthData(2025, 1)
@@ -62,8 +63,8 @@ func TestCalendarIndexCachesDatesAndInvalidatesAfterVaultMutation(t *testing.T) 
 	if got, want := month.DaysWithLinks, []int{20, 21}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithLinks after mutation = %v, want %v", got, want)
 	}
-	if got := cachedCalendarIndex(app); got == nil || got == firstIndex {
-		t.Fatal("calendar request did not rebuild a fresh index after invalidation")
+	if got := cachedCalendarIndex(app); got == firstIndex {
+		t.Fatal("calendar projection was not refreshed after an incremental vault mutation")
 	}
 }
 

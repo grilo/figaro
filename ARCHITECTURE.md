@@ -29,6 +29,30 @@ the native Wails binding at `window.go.main.App` using its generated PascalCase
 method names. Browser debugging installs an explicit same-shaped mock through
 that module, rather than emulating a retired desktop runtime.
 
+## Incremental vault index and native changes
+
+Search, backlinks, Kanban, and Calendar project the same Markdown vault data,
+so they share one Go-owned in-memory index rather than independently walking
+and reopening every note. The index retains a note's source text and derives
+its hashtags/cards, date links, and daily-note state; this makes Kanban and
+calendar lookups direct and keeps search/backlinks disk-free after the initial
+lazy build.
+
+Figaro writes known Markdown files atomically and updates that one index entry
+in the same vault lock. The recursive native watcher sends a debounced set of
+changed paths to the backend: a one-file external edit similarly rereads and
+reprojects only that file, while creates/removes update the tree as needed.
+Recent Figaro-originated write events are recognized so the watcher does not
+repeat the save work. Ambiguous broad changes such as moves, merges, or an
+unscoped notification deliberately invalidate and rebuild one coherent
+snapshot; correctness wins over a speculative partial update.
+
+The `vault:changed` event includes `tree_changed`. Content-only changes refresh
+dependent data without requesting a new file tree; directory or entry changes
+schedule the normal coalesced tree refresh. The initial index is still built
+after the first Wails window is allowed to appear, so indexing does not delay
+startup.
+
 ## Session state is not settings
 
 `settings.json` stores durable preferences such as theme, fonts, and feature

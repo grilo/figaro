@@ -6,6 +6,9 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Search, backlinks, Kanban, and Calendar now share one incremental vault
+  index. Normal saves and external one-file edits refresh only that note, so
+  navigating and typing in larger vaults stays responsive.
 - Replaced the retired Python-era frontend compatibility layer with direct
   native Wails `App` bindings. Desktop controls, browser debugging, and
   frontend tests now use the same Go method names.

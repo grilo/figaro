@@ -8,8 +8,8 @@
 export function registerVaultChangeEvents(runtime, { onVaultChanged, onKanbanIndexed, onHistoryChanged } = {}) {
     if (typeof runtime?.EventsOn !== 'function') return false;
 
-    runtime.EventsOn('vault:changed', () => {
-        onVaultChanged?.();
+    runtime.EventsOn('vault:changed', (payload) => {
+        onVaultChanged?.(payload || {});
     });
     runtime.EventsOn('vault:kanban-indexed', () => {
         onKanbanIndexed?.();

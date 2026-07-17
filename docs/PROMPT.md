@@ -120,10 +120,10 @@ Each theme defines these properties (with theme-specific colors):
 | Operation | Behavior |
 |-----------|----------|
 | **Read file** | Returns file content and last-modified timestamp. |
-| **Save file** | Writes content to disk. Accepts expected last-modified timestamp for conflict detection. Triggers kanban column rescan. |
-| **Create file** | Creates a `.md` file with a `# Title` header. Triggers kanban column rescan. |
+| **Save file** | Writes content to disk. Accepts expected last-modified timestamp for conflict detection and incrementally refreshes that note's discovery data. |
+| **Create file** | Creates a `.md` file with a `# Title` header and incrementally adds it to discovery data. |
 | **Create directory** | Creates a new folder. |
-| **Delete** | Deletes a file or directory (recursive). Triggers kanban column rescan. |
+| **Delete** | Deletes a file or directory (recursive) and refreshes discovery data without leaving stale cards, search results, backlinks, or dates. |
 | **Move** | Moves a file or folder to a target directory. Prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. |
 | **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. Copying a folder into itself or one of its descendants is refused because it would recurse. |
 | **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline, disables an unchanged rename, and then moves the item within the same directory with the same link-rewrite and open-tab protections. |
@@ -285,12 +285,12 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 6.1 Column System
 - Three **system columns** always present and shown last: `todo`, `wip`, `done`.
 - Custom columns discovered from standalone whitespace-delimited `#tag` tokens in vault files, sorted alphabetically. Markdown anchors such as `[guide](#section)` are ignored.
-- Columns are rescanned after every file save, create, delete, tag rename, and tag deletion.
-- The kanban board always fetches fresh columns from the backend every time it is rendered.
-- A custom column disappears on the next rescan once its final matching hashtag is gone; the three system columns remain.
+- Saved note, create, and per-card tag changes update the shared vault index incrementally; vault-wide tag rewrite, move, merge, and delete operations rebuild one coherent snapshot.
+- The Kanban board reads its current columns and cards from that shared index when it is rendered.
+- A custom column disappears as soon as its final matching hashtag is removed; the three system columns remain.
 
 ### 6.2 Task Discovery
-- The board scans every line of every `.md` file in the vault.
+- The initial shared vault index scans each `.md` file once; board reads use its precomputed cards.
 - **Any line** that contains a standalone hashtag matching a known column name has its task placed in that column.
 - Display text: line with checkbox markers, list markers, and matching tag stripped in order.
 - Card text is limited to 120 characters and ends in an ellipsis when more source text exists; hovering exposes the complete text.
@@ -324,7 +324,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ## 7. Discovery Views
 
 ### 7.1 Backlinks Panel
-- Scans every `.md` file for matching Markdown links to a given note (by path or basename), case-insensitive.
+- Searches the shared Markdown index for matching links to a given note (by path or basename), case-insensitive.
 - Returns each match with source file path, line number, snippet, and modification time, sorted newest first.
 - Status bar shows backlink count; clickable link opens backlinks tab when >0.
 - Backlinks tab renders in same view as calendar results.
@@ -340,7 +340,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Collapsing the sidebar closes the expanded panel but leaves the Calendar icon in the 44px rail. Selecting it expands the sidebar and reopens Calendar. History and PDF preview remain independent on the right.
 - Selecting a marked day lists notes that link to its daily note; selecting a listed note opens it in a file tab. Today is always selectable.
 - `@today`, `@tomorrow`, and `@yesterday` offer date-link completions. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
-- The selected date is stored locally for the webview; the calendar scans only Markdown content and ignores dot-directories and symlinks like the rest of the vault scanner.
+- The selected date is stored locally for the webview; Calendar reads the shared Markdown index, which ignores dot-directories and symlinks like the rest of the vault scanner.
 
 ### 7.4 Welcome/Home Workspace
 - The Home tab has **Momentum**, the first six Kanban cards outside the `done` column, and **Recent**, the last eight file tabs opened by the user.
@@ -465,7 +465,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 ### 12.2 Initialization Sequence
 1. Restore any webview-local UI state, then initialize the left-sidebar resizer, title-bar and sidebar navigation controls, calendar navigation, and keyboard shortcuts.
 2. Wait for Wails to publish the native `window.go.main.App` binding, then load the portable vault session.
-3. Initialize CodeMirror and the tab manager, load the file tree, attach tree handlers, and begin the three-second tree refresh.
+3. Initialize CodeMirror and the tab manager, load the file tree, and attach tree handlers. Native debounced vault notifications replace polling; content-only changes do not reload the tree.
 4. Restore persisted tabs after the tree is available; otherwise open the first Markdown note or the Welcome tab.
 5. Initialize Calendar, Kanban, global search, backlinks, and the History panel.
 6. Load the saved theme, prose font, and code-font settings. A Settings tab initializes its own controls when opened.
@@ -575,7 +575,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 - When a column is renamed, every file in the vault that uses the old tag is rewritten.
 - When a column is deleted, every occurrence of that tag is stripped from every file.
 - Moving a card between columns rewrites the tag in the source file.
-- Custom columns disappear after a rescan when no vault note contains their hashtag; `todo`, `wip`, and `done` remain available.
+- Custom columns disappear when no indexed vault note contains their hashtag; `todo`, `wip`, and `done` remain available.
 
 ### 16.3 Tag Rewrite on Drag
 - Dragging a card from column A to column B causes the underlying file to be modified: `#A` on that line is replaced with `#B`.
