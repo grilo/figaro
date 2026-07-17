@@ -53776,70 +53776,107 @@ var defaultOptions3 = {
   showPreview: false
 };
 var SKIP_PARENT_TYPES3 = /* @__PURE__ */ new Set(["FencedCode", "CodeBlock", "InlineCode"]);
+function visibleDocumentRanges(view) {
+  const ranges = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const range of view.visibleRanges) {
+    const from = view.state.doc.lineAt(range.from).from;
+    const to = view.state.doc.lineAt(range.to).to;
+    const key = from + ":" + to;
+    if (!seen.has(key)) {
+      seen.add(key);
+      ranges.push({ from, to });
+    }
+  }
+  return ranges;
+}
+function selectionTouchesLinkDecorations(decorations, selection) {
+  let touched = false;
+  for (const range of selection.ranges) {
+    const from = Math.max(0, range.from - 1);
+    const to = range.to + 1;
+    decorations.between(from, to, (decorationFrom, decorationTo) => {
+      if (range.from <= decorationTo && range.to >= decorationFrom) touched = true;
+    });
+    if (touched) return true;
+  }
+  return false;
+}
 function buildLinkDecorations(view, options) {
   const decorations = [];
   const state = view.state;
   const isDrag = state.field(mouseSelectingField, false);
   const skipRanges = [];
-  syntaxTree(state).iterate({
-    enter: (node) => {
-      if (SKIP_PARENT_TYPES3.has(node.name)) {
-        skipRanges.push({ from: node.from, to: node.to });
+  const visibleRanges = visibleDocumentRanges(view);
+  for (const range of visibleRanges) {
+    syntaxTree(state).iterate({
+      from: range.from,
+      to: range.to,
+      enter: (node) => {
+        if (SKIP_PARENT_TYPES3.has(node.name)) {
+          skipRanges.push({ from: node.from, to: node.to });
+        }
       }
-    }
-  });
+    });
+  }
   const isInSkipRange = (from, to) => {
     return skipRanges.some((r2) => from >= r2.from && to <= r2.to);
   };
-  syntaxTree(state).iterate({
-    enter: (node) => {
-      if (node.name === "Link") {
-        if (isInSkipRange(node.from, node.to)) {
-          return;
-        }
-        const from = node.from;
-        const to = node.to;
-        const text = state.doc.sliceString(from, to);
-        const linkData = parseLinkSyntax(text);
-        if (!linkData) {
-          return;
-        }
-        const isTouched = shouldShowSource(state, from, to);
-        if (!isTouched && !isDrag) {
-          const widget = createLinkWidget(linkData, options);
-          decorations.push(Decoration.replace({ widget }).range(from, to));
-        } else {
-          decorations.push(
-            Decoration.mark({ class: "cm-link-source" }).range(from, to)
-          );
+  for (const range of visibleRanges) {
+    syntaxTree(state).iterate({
+      from: range.from,
+      to: range.to,
+      enter: (node) => {
+        if (node.name === "Link") {
+          if (isInSkipRange(node.from, node.to)) {
+            return;
+          }
+          const from = node.from;
+          const to = node.to;
+          const text = state.doc.sliceString(from, to);
+          const linkData = parseLinkSyntax(text);
+          if (!linkData) {
+            return;
+          }
+          const isTouched = shouldShowSource(state, from, to);
+          if (!isTouched && !isDrag) {
+            const widget = createLinkWidget(linkData, options);
+            decorations.push(Decoration.replace({ widget }).range(from, to));
+          } else {
+            decorations.push(
+              Decoration.mark({ class: "cm-link-source" }).range(from, to)
+            );
+          }
         }
       }
-    }
-  });
-  const docText = state.doc.toString();
-  let match;
-  WIKI_LINK_REGEX.lastIndex = 0;
-  while ((match = WIKI_LINK_REGEX.exec(docText)) !== null) {
-    const from = match.index;
-    const to = from + match[0].length;
-    if (isInSkipRange(from, to)) {
-      continue;
-    }
-    const wikiData = parseWikiLink(match[0]);
-    if (!wikiData) {
-      continue;
-    }
-    const isTouched = shouldShowSource(state, from, to);
-    if (!isTouched && !isDrag) {
-      const widget = createLinkWidget(wikiData, options);
-      decorations.push(Decoration.replace({ widget }).range(from, to));
-    } else {
-      decorations.push(
-        Decoration.mark({ class: "cm-link-source cm-wikilink-source" }).range(
-          from,
-          to
-        )
-      );
+    });
+  }
+  for (const range of visibleRanges) {
+    const text = state.doc.sliceString(range.from, range.to);
+    let match;
+    WIKI_LINK_REGEX.lastIndex = 0;
+    while ((match = WIKI_LINK_REGEX.exec(text)) !== null) {
+      const from = range.from + match.index;
+      const to = from + match[0].length;
+      if (isInSkipRange(from, to)) {
+        continue;
+      }
+      const wikiData = parseWikiLink(match[0]);
+      if (!wikiData) {
+        continue;
+      }
+      const isTouched = shouldShowSource(state, from, to);
+      if (!isTouched && !isDrag) {
+        const widget = createLinkWidget(wikiData, options);
+        decorations.push(Decoration.replace({ widget }).range(from, to));
+      } else {
+        decorations.push(
+          Decoration.mark({ class: "cm-link-source cm-wikilink-source" }).range(
+            from,
+            to
+          )
+        );
+      }
     }
   }
   return Decoration.set(decorations.sort((a, b) => a.from - b.from), true);
@@ -53865,7 +53902,7 @@ function linkPlugin(options) {
         if (isDragging) {
           return;
         }
-        if (update.selectionSet) {
+        if (update.selectionSet && (selectionTouchesLinkDecorations(this.decorations, update.startState.selection) || selectionTouchesLinkDecorations(this.decorations, update.state.selection))) {
           this.decorations = buildLinkDecorations(update.view, mergedOptions);
         }
       }

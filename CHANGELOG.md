@@ -12,6 +12,9 @@ All notable user-facing changes are recorded here from this point forward.
 - Typing a Kanban hashtag now reprojects the open board directly from dirty
   editor buffers without backend calls, while collapsed folders mount their
   descendants only when opened.
+- Large notes now keep live-preview decorations stable during ordinary cursor
+  movement. Math, diagrams, frontmatter, links, and list widgets refresh only
+  when their source or the visible/active editor region actually changes.
 - Replaced the retired Python-era frontend compatibility layer with direct
   native Wails `App` bindings. Desktop controls, browser debugging, and
   frontend tests now use the same Go method names.

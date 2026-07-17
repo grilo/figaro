@@ -747,21 +747,34 @@ export function createFrontmatterField(
         update(value, transaction) {
             let mode = value.mode;
             let explicitMode = false;
+            let needsRebuild = transaction.docChanged || transaction.reconfigured;
             for (const effect of transaction.effects) {
                 if (effect.is(setMode)) {
+                    if (mode !== effect.value) needsRebuild = true;
                     mode = effect.value;
                     explicitMode = true;
                 }
             }
 
-            const frontmatter = parseFrontmatter(transaction.state.doc.toString());
-            if (!frontmatter) mode = 'none';
-            else if (!value.frontmatter && !explicitMode) mode = 'collapsed';
-
-            if (transaction.selection && !transaction.docChanged && !explicitMode && mode === 'source') {
-                if (!selectionTouchesFrontmatter(frontmatter, transaction.state.selection)) mode = 'collapsed';
+            // Parsing uses doc.toString(), so reserve it for actual document
+            // changes. Arrow-key movement through the body keeps the previous
+            // metadata snapshot and its block widget intact.
+            const frontmatter = transaction.docChanged || transaction.reconfigured
+                ? parseFrontmatter(transaction.state.doc.toString())
+                : value.frontmatter;
+            if (transaction.docChanged || transaction.reconfigured) {
+                if (!frontmatter) mode = 'none';
+                else if (!value.frontmatter && !explicitMode) mode = 'collapsed';
             }
 
+            if (transaction.selection && !transaction.docChanged && !explicitMode && mode === 'source') {
+                if (!selectionTouchesFrontmatter(frontmatter, transaction.state.selection)) {
+                    mode = 'collapsed';
+                    needsRebuild = true;
+                }
+            }
+
+            if (!needsRebuild) return value;
             const isOpening = mode === 'panel' && value.mode !== 'panel';
 
             return {

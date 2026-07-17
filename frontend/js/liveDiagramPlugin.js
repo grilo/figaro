@@ -180,11 +180,13 @@ function createDiagramWidget(WidgetType) {
 export function createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField) {
     const DiagramWidget = createDiagramWidget(WidgetType);
 
-    const buildDecorations = (state) => {
+    const buildState = (state) => {
         const decorations = [];
+        const ranges = [];
         const isDragging = state.field(mouseSelectingField, false);
 
         for (const block of scanDiagramFences(state.doc)) {
+            ranges.push({ from: block.from, to: block.to });
             if (!block.code || isDragging || shouldShowSource(state, block.from, block.to)) continue;
             decorations.push(Decoration.replace({
                 widget: new DiagramWidget(block.lang, block.code, block.recoveredFence),
@@ -192,25 +194,60 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
             }).range(block.from, block.to));
         }
 
-        return decorations.length
-            ? Decoration.set(decorations.sort((a, b) => a.from - b.from), true)
-            : Decoration.none;
+        return {
+            decorations: decorations.length
+                ? Decoration.set(decorations.sort((a, b) => a.from - b.from), true)
+                : Decoration.none,
+            ranges,
+        };
     };
 
+    const selectionTouchesRanges = (selection, ranges) => selection?.ranges?.some(selectionRange =>
+        ranges.some(range => selectionRange.from <= range.to && selectionRange.to >= range.from)
+    );
+
+    const changesNeedDiagramRescan = (value, transaction) => {
+        let needsRescan = false;
+        transaction.changes.iterChanges((fromA, toA, fromB, toB) => {
+            if (needsRescan) return;
+            const before = transaction.startState.doc.sliceString(fromA, toA);
+            const after = transaction.state.doc.sliceString(fromB, toB);
+            if (/[`~]/.test(before) || /[`~]/.test(after)
+                || value.ranges.some(range => fromA <= range.to && toA >= range.from)) {
+                needsRescan = true;
+            }
+        });
+        return needsRescan;
+    };
+
+    const mapState = (value, changes) => ({
+        decorations: value.decorations.map(changes),
+        ranges: value.ranges.map(range => ({
+            from: changes.mapPos(range.from, -1),
+            to: changes.mapPos(range.to, 1),
+        })),
+    });
+
     return StateField.define({
-        create: buildDecorations,
-        update(decorations, transaction) {
+        create: buildState,
+        update(value, transaction) {
             if (transaction.docChanged || transaction.reconfigured) {
-                return buildDecorations(transaction.state);
+                if (transaction.reconfigured || changesNeedDiagramRescan(value, transaction)) {
+                    return buildState(transaction.state);
+                }
+                return mapState(value, transaction.changes);
             }
 
             const isDragging = transaction.state.field(mouseSelectingField, false);
             const wasDragging = transaction.startState.field(mouseSelectingField, false);
-            if (wasDragging && !isDragging) return buildDecorations(transaction.state);
-            if (isDragging) return decorations;
-            if (transaction.selection) return buildDecorations(transaction.state);
-            return decorations;
+            if (wasDragging && !isDragging) return buildState(transaction.state);
+            if (isDragging) return value;
+            if (transaction.selection && (
+                selectionTouchesRanges(transaction.startState.selection, value.ranges)
+                || selectionTouchesRanges(transaction.state.selection, value.ranges)
+            )) return buildState(transaction.state);
+            return value;
         },
-        provide: field => EditorView.decorations.from(field),
+        provide: field => EditorView.decorations.from(field, value => value.decorations),
     });
 }

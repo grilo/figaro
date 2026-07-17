@@ -93,6 +93,14 @@ export function isBlockquoteLine(line) {
     return /^ {0,3}>\s?/.test(line);
 }
 
+export function selectionLineSignature(doc, selection) {
+    return (selection?.ranges || []).map(range => {
+        const first = doc.lineAt(range.from).number;
+        const last = doc.lineAt(range.to).number;
+        return first + ':' + last;
+    }).join('|');
+}
+
 // Link hover can fire repeatedly while the pointer crosses a rendered link's
 // child nodes. Keep the preview informative without reopening the same note on
 // every mouse event; a short TTL avoids presenting a long-lived stale preview.
@@ -522,7 +530,7 @@ function createEditorView() {
             return builder.finish();
         }
         update(update) {
-            if (update.docChanged || update.selectionSet || update.viewportChanged)
+            if (update.docChanged || update.viewportChanged)
                 this.decorations = this.buildDecorations(update.view);
         }
     }, { decorations: v => v.decorations });
@@ -550,69 +558,94 @@ function createEditorView() {
     })();
 
     const widgetPlugin = ViewPlugin.fromClass(class {
-        constructor(view) { this.decorations = this.build(view); }
+        constructor(view) {
+            this.activeLineSignature = selectionLineSignature(view.state.doc, view.state.selection);
+            this.decorations = this.build(view);
+        }
         update(update) {
-            if (update.docChanged || update.selectionSet || update.viewportChanged)
+            const nextSignature = selectionLineSignature(update.state.doc, update.state.selection);
+            if (update.docChanged || update.viewportChanged
+                || (update.selectionSet && nextSignature !== this.activeLineSignature)) {
                 this.decorations = this.build(update.view);
+                this.activeLineSignature = nextSignature;
+            }
         }
         build(view) {
             const decos = [];
             const activeLines = new Set();
+            const seenNodes = new Set();
             for (const r of view.state.selection.ranges) {
                 const sl = view.state.doc.lineAt(r.from).number;
                 const el = view.state.doc.lineAt(r.to).number;
                 for (let l = sl; l <= el; l++) activeLines.add(l);
             }
-            syntaxTree(view.state).iterate({
-                enter: (ref) => {
-                    const text = view.state.doc.sliceString(ref.from, ref.to);
-                    const lineNum = view.state.doc.lineAt(ref.from).number;
-                    const isActive = activeLines.has(lineNum);
-                    if (ref.type.name === 'ListMark' && !isActive) {
-                        const m = text.match(/^(\s*)([-*+]|\d+[.)])\s?/);
-                        if (m) {
-                            const start = ref.from + m[1].length;
-                            const end = ref.to;
-                            // Determine depth and list type
-                            let depth = 0, isOrdered = false, p = ref.node.parent;
-                            while (p) {
-                                if (p.type.name === 'BulletList') depth++;
-                                else if (p.type.name === 'OrderedList') isOrdered = true;
-                                p = p.parent;
-                            }
-                            let widgetChar;
-                            if (isOrdered) {
-                                widgetChar = m[2] + ' ';
-                            } else {
-                                widgetChar = bulletMarkerForListDepth(depth) + ' ';
-                            }
-                            decos.push(Decoration.replace({
-                                widget: bulletW(widgetChar)
-                            }).range(start, end));
-                        }
-                    } else if (ref.type.name === 'Task') {
-                        const m = text.match(/\[([ xX])\]/);
-                        if (m) {
-                            const start = ref.from + m.index;
-                            if (!isActive) {
+            // Interactive list decorations only matter while they are in the
+            // viewport. Rebuild them on viewport changes instead of walking
+            // every syntax node in a large note after each keystroke.
+            for (const { from, to } of view.visibleRanges) {
+                syntaxTree(view.state).iterate({
+                    from,
+                    to,
+                    enter: (ref) => {
+                        const nodeKey = ref.type.id + ':' + ref.from + ':' + ref.to;
+                        if (seenNodes.has(nodeKey)) return;
+                        seenNodes.add(nodeKey);
+                        const text = view.state.doc.sliceString(ref.from, ref.to);
+                        const lineNum = view.state.doc.lineAt(ref.from).number;
+                        const isActive = activeLines.has(lineNum);
+                        if (ref.type.name === 'ListMark' && !isActive) {
+                            const m = text.match(/^(\s*)([-*+]|\d+[.)])\s?/);
+                            if (m) {
+                                const start = ref.from + m[1].length;
+                                const end = ref.to;
+                                // Determine depth and list type
+                                let depth = 0, isOrdered = false, p = ref.node.parent;
+                                while (p) {
+                                    if (p.type.name === 'BulletList') depth++;
+                                    else if (p.type.name === 'OrderedList') isOrdered = true;
+                                    p = p.parent;
+                                }
+                                let widgetChar;
+                                if (isOrdered) {
+                                    widgetChar = m[2] + ' ';
+                                } else {
+                                    widgetChar = bulletMarkerForListDepth(depth) + ' ';
+                                }
                                 decos.push(Decoration.replace({
-                                    widget: checkboxW(m[1] !== ' ', view, start)
-                                }).range(start, start + m[0].length));
+                                    widget: bulletW(widgetChar)
+                                }).range(start, end));
+                            }
+                        } else if (ref.type.name === 'Task') {
+                            const m = text.match(/\[([ xX])\]/);
+                            if (m) {
+                                const start = ref.from + m.index;
+                                if (!isActive) {
+                                    decos.push(Decoration.replace({
+                                        widget: checkboxW(m[1] !== ' ', view, start)
+                                    }).range(start, start + m[0].length));
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
+            }
             return Decoration.set(decos.sort((a, b) => a.from - b.from), true);
         }
     }, { decorations: v => v.decorations });
 
     // Extras plugin: highlight, callouts, footnotes, horizontal rules
     const extrasPlugin = ViewPlugin.fromClass(class {
-        constructor(view) { this.decorations = this.build(view); }
+        constructor(view) {
+            this.activeLineSignature = selectionLineSignature(view.state.doc, view.state.selection);
+            this.decorations = this.build(view);
+        }
         update(update) {
-            if (update.docChanged || update.selectionSet)
+            const nextSignature = selectionLineSignature(update.state.doc, update.state.selection);
+            if (update.docChanged || update.viewportChanged
+                || (update.selectionSet && nextSignature !== this.activeLineSignature)) {
                 this.decorations = this.build(update.view);
+                this.activeLineSignature = nextSignature;
+            }
         }
         build(view) {
             const builder = new RangeSetBuilder();

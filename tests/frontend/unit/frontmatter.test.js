@@ -75,6 +75,24 @@ describe('frontmatter Properties card', () => {
         document.body.innerHTML = '';
     });
 
+    test('keeps the collapsed properties state while the cursor moves through the note body', () => {
+        const field = createFrontmatterField(
+            StateField,
+            StateEffect,
+            EditorView,
+            Decoration,
+            WidgetType,
+            null,
+            () => [],
+        );
+        const source = '---\ntitle: Report\n---\n# Body\n\nClosing paragraph';
+        let state = EditorState.create({ doc: source, extensions: [field] });
+        const initial = state.field(field);
+
+        state = state.update({ selection: { anchor: state.doc.line(6).from } }).state;
+        expect(state.field(field)).toBe(initial);
+    });
+
     test('is collapsed initially, exposes friendly PDF controls, and keeps raw YAML available', () => {
         const field = createFrontmatterField(
             StateField,

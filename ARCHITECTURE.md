@@ -61,6 +61,19 @@ but it renders descendants only for explicitly expanded folders. This prevents
 large collapsed trees from imposing a hidden DOM/layout cost on ordinary tab
 switches.
 
+## Editor decoration updates
+
+CodeMirror preview state is intentionally selective. Math and diagram
+`StateField`s retain the source ranges that produced their replacement
+decorations, so a selection move or edit outside those ranges maps or preserves
+the existing state instead of reparsing the whole note. Frontmatter similarly
+parses only after document/configuration changes. The remaining interactive
+decorations—links, list widgets, hashtags, and extras—are built from the
+visible document region and rebuilt on viewport changes. Cursor movement only
+rebuilds source-aware decorations when it crosses an affected line or widget.
+This keeps the source-first editing contract while avoiding whole-document
+syntax walks and string copies on every arrow key or ordinary keystroke.
+
 ## Session state is not settings
 
 `settings.json` stores durable preferences such as theme, fonts, and feature

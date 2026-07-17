@@ -13,7 +13,11 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 function decorationsIn(state, field) {
     const decorations = [];
-    state.field(field).between(0, state.doc.length, (from, to, decoration) => {
+    const value = state.field(field);
+    // Diagram state also keeps source ranges so cursor-only transactions can
+    // avoid reparsing the entire document. The decoration set remains the
+    // observable rendering output of the field.
+    (value.decorations || value).between(0, state.doc.length, (from, to, decoration) => {
         decorations.push({ from, to, decoration });
     });
     return decorations;
@@ -152,5 +156,46 @@ describe('live diagram preview', () => {
         // Mermaid fence, which the standard code preview skips. The diagram
         // scanner owns the recovered, non-overlapping ranges instead.
         expect(decorationsIn(view.state, codeBlockExtensions[0])).toHaveLength(0);
+    });
+
+    test('keeps diagram state stable for ordinary cursor movement and reveals source on entry', () => {
+        const fence = '`'.repeat(3);
+        const source = [
+            'Introduction',
+            '',
+            fence + 'mermaid',
+            'flowchart TD',
+            '  A --> B',
+            fence,
+            '',
+            'Conclusion',
+        ].join('\n');
+        const diagramField = createDiagramField(
+            StateField,
+            EditorView,
+            Decoration,
+            WidgetType,
+            shouldShowSource,
+            mouseSelectingField,
+        );
+        view = new EditorView({
+            state: EditorState.create({
+                doc: source,
+                extensions: [collapseOnSelectionFacet.of(true), mouseSelectingField, diagramField],
+            }),
+            parent: document.body,
+        });
+
+        const initial = view.state.field(diagramField);
+        view.dispatch({ selection: { anchor: view.state.doc.line(8).from } });
+        expect(view.state.field(diagramField)).toBe(initial);
+        expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
+
+        view.dispatch({ selection: { anchor: source.indexOf('flowchart') } });
+        expect(view.state.field(diagramField)).not.toBe(initial);
+        expect(decorationsIn(view.state, diagramField)).toHaveLength(0);
+
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
     });
 });

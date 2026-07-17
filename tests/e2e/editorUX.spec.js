@@ -93,6 +93,100 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
     })).toEqual({ fromLine: 1, toLine: 3 });
 });
 
+test('keeps math and diagram previews cursor-safe during keyboard and mouse selection', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const fence = '`'.repeat(3);
+    const source = [
+        'Before',
+        '',
+        '$E = mc^2$',
+        '',
+        fence + 'mermaid',
+        'flowchart TD',
+        '  A --> B',
+        fence,
+        '',
+        'After',
+    ].join('\n');
+
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown);
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== markdown) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        view.focus();
+        window.__previewGeometryView = view;
+    }, source);
+
+    await expect(page.locator('.cm-math-inline')).toHaveCount(1);
+    await expect(page.locator('.cm-live-diagram')).toHaveCount(1);
+    const content = page.locator('.cm-content');
+
+    for (const { line, key } of [
+        { line: 2, key: 'ArrowDown' },
+        { line: 4, key: 'ArrowUp' },
+    ]) {
+        await page.evaluate(currentLine => {
+            const view = window.__previewGeometryView;
+            view.dispatch({ selection: { anchor: view.state.doc.line(currentLine).from } });
+            view.focus();
+        }, line);
+        await content.press(key);
+        expect(await page.evaluate(() => window.__previewGeometryView.state.doc.lineAt(
+            window.__previewGeometryView.state.selection.main.head,
+        ).number)).toBe(3);
+    }
+
+    for (const { line, key } of [
+        { line: 4, key: 'ArrowDown' },
+        { line: 9, key: 'ArrowUp' },
+    ]) {
+        await page.evaluate(currentLine => {
+            const view = window.__previewGeometryView;
+            view.dispatch({ selection: { anchor: view.state.doc.line(currentLine).from } });
+            view.focus();
+        }, line);
+        await content.press(key);
+        const landingLine = await page.evaluate(() => window.__previewGeometryView.state.doc.lineAt(
+            window.__previewGeometryView.state.selection.main.head,
+        ).number);
+        expect(landingLine).toBeGreaterThanOrEqual(5);
+        expect(landingLine).toBeLessThanOrEqual(8);
+    }
+
+    const points = await page.evaluate(() => {
+        const view = window.__previewGeometryView;
+        const point = position => {
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 2, y: (coords.top + coords.bottom) / 2 };
+        };
+        return {
+            diagram: point(view.state.doc.line(6).from + 1),
+            before: point(view.state.doc.line(1).from + 1),
+            after: point(view.state.doc.line(10).to - 1),
+            mathFrom: view.state.doc.line(3).from,
+            diagramTo: view.state.doc.line(8).to,
+        };
+    });
+    await page.mouse.click(points.diagram.x, points.diagram.y);
+    expect(await page.evaluate(() => window.__previewGeometryView.state.doc.lineAt(
+        window.__previewGeometryView.state.selection.main.head,
+    ).number)).toBeGreaterThanOrEqual(5);
+
+    for (const [start, end] of [[points.before, points.after], [points.after, points.before]]) {
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(end.x, end.y, { steps: 8 });
+        await page.mouse.up();
+        const selection = await page.evaluate(() => window.__previewGeometryView.state.selection.main);
+        expect(selection.from).toBeLessThanOrEqual(points.mathFrom);
+        expect(selection.to).toBeGreaterThanOrEqual(points.diagramTo);
+    }
+});
+
 test('keeps Quick note available in the collapsed rail and gives Inbox its default Mail icon', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true && window.lucide?.icons?.Star && window.lucide?.icons?.Mail);
