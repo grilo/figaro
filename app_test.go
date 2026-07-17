@@ -1965,19 +1965,20 @@ func TestIndexHTML_HasWindowControls(t *testing.T) {
 }
 
 func TestIndexHTML_BridgeLoadedBeforeApp(t *testing.T) {
-	// The bridge script must appear BEFORE the module that calls initApp().
+	// The bridge script must appear BEFORE the external browser bootstrap that
+	// calls initApp(). Native Wails startup is asserted separately from domReady.
 	data, err := os.ReadFile("frontend/index.html")
 	if err != nil {
 		t.Fatalf("cannot read index.html: %v", err)
 	}
 	content := string(data)
 	bridgeIdx := strings.Index(content, "wails-compat-bridge.js")
-	initIdx := strings.Index(content, "initApp()")
-	if bridgeIdx < 0 || initIdx < 0 {
-		t.Fatal("cannot find bridge or initApp in index.html")
+	bootstrapIdx := strings.Index(content, `/js/bootstrap.js`)
+	if bridgeIdx < 0 || bootstrapIdx < 0 {
+		t.Fatal("cannot find bridge or external bootstrap module in index.html")
 	}
-	if bridgeIdx > initIdx {
-		t.Error("wails-compat-bridge.js must load BEFORE initApp() — swap the script order in index.html")
+	if bridgeIdx > bootstrapIdx {
+		t.Error("wails-compat-bridge.js must load BEFORE bootstrap.js — swap the script order in index.html")
 	}
 }
 

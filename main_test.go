@@ -5,8 +5,28 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestNativeDomReadyStartsAppAndNormalizesWebKitLocale(t *testing.T) {
+	data, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatalf("read native entry point: %v", err)
+	}
+	source := string(data)
+	for _, required := range []string{
+		"import('/js/app.js')",
+		"module.initApp()",
+		"Object.defineProperty(Intl, 'Segmenter'",
+		"new Intl.Collator(navigator.language)",
+		"Object.defineProperty(navigator, 'language'",
+	} {
+		if !strings.Contains(source, required) {
+			t.Errorf("native DOM-ready startup is missing %q", required)
+		}
+	}
+}
 
 func TestConfigureWebKitInspectorRequiresExplicitOptIn(t *testing.T) {
 	originalInspector := os.Getenv("WEBKIT_INSPECTOR_SERVER")

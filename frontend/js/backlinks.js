@@ -4,7 +4,7 @@
 
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
-import { openTab } from './app.js';
+import { openTab } from './tabManager.js';
 
 let backlinksRequestId = 0;
 const backlinksResultsRequestIds = new Map();

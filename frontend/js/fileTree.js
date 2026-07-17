@@ -5,8 +5,7 @@
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
 import { saveSession } from './session.js';
-import { openTab, handleFileOpen } from './app.js';
-import { closeTabsForDeletedPath, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
+import { closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
 import { isDrawioDiagramPath } from './drawio.js';
@@ -16,6 +15,11 @@ import { renderLucideIcon } from './lucideIcons.js';
 
 let dragSourceNode = null;
 let contextMenu = null;
+
+async function handleFileOpen(filePath) {
+    const app = await import('./app.js');
+    return app.handleFileOpen(filePath);
+}
 let fileTreeRequestId = 0;
 let scheduledTreeRefresh = null;
 let nativeFileDropInitialized = false;

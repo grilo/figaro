@@ -19,6 +19,33 @@ import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } f
 import { noteLinkCompletion, noteLinkCompletionMatch } from './linkCompletions.js';
 import { getLinkStylePreference } from './linkStyle.js';
 import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
+import { indentationMarkers as indentationMarkerExtension } from '@replit/codemirror-indentation-markers';
+import {
+    Decoration, EditorView, ViewPlugin, WidgetType, drawSelection,
+    highlightActiveLineGutter, keymap, lineNumbers,
+} from '@codemirror/view';
+import {
+    Compartment, EditorSelection, EditorState, Prec, RangeSetBuilder,
+    StateEffect, StateField,
+} from '@codemirror/state';
+import {
+    cursorLineDown, cursorLineUp, defaultKeymap, history, historyKeymap,
+    indentLess, indentMore,
+} from '@codemirror/commands';
+import {
+    HighlightStyle, bracketMatching, foldGutter, foldKeymap, indentUnit,
+    syntaxHighlighting, syntaxTree,
+} from '@codemirror/language';
+import { acceptCompletion, autocompletion, completionKeymap } from '@codemirror/autocomplete';
+import { markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown';
+import { tags } from '@lezer/highlight';
+import {
+    closeSearchPanel as closeNativeSearchPanel,
+    openSearchPanel as openNativeSearchPanel,
+    search as searchExtension,
+    searchKeymap,
+    searchPanelOpen as isNativeSearchPanelOpen,
+} from '@codemirror/search';
 import {
     livePreviewPlugin,
     markdownStylePlugin,
@@ -31,16 +58,6 @@ import {
     setMouseSelecting,
     shouldShowSource
 } from 'codemirror-live-markdown';
-
-// CodeMirror 6 imports (loaded from local vendor directory)
-let EditorView, EditorState, StateField, StateEffect, RangeSetBuilder, Prec, Compartment,
-    lineNumbers, highlightActiveLineGutter, drawSelection,
-    keymap, defaultKeymap, cursorLineUp, cursorLineDown, history, historyKeymap, foldGutter, foldKeymap,
-    bracketMatching, autocompletion, completionKeymap, acceptCompletion, indentUnit,
-    markdownLanguage, markdownKeymap,
-    ViewPlugin, Decoration, WidgetType, EditorSelection,
-    syntaxTree, indentMore, indentLess,
-    syntaxHighlighting, HighlightStyle, tags;
 
 // Editor instance
 let editorView = null;
@@ -58,15 +75,8 @@ let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: nul
 let fileModeRequest = 0;
 let markdownModeExtensions = null;
 let codeModeExtensions = null;
-let codeHighlighting = null;
-let searchExtension = null;
-let searchKeymap = [];
-let openNativeSearchPanel = null;
-let closeNativeSearchPanel = null;
-let isNativeSearchPanelOpen = null;
 const footnoteReturnPositions = new Map();
 
-let indentationMarkers = null;
 // CodeMirror's indentUnit is the single source of truth for both Tab / Shift+Tab
 // and the indentation-marker extension. Keep the visual tab width in CSS in
 // lockstep with this value (see .cm-code-file .cm-content).
@@ -133,56 +143,20 @@ export function bulletMarkerForListDepth(depth) {
     return bulletMarkers[(normalizedDepth - 1) % bulletMarkers.length];
 }
 
-async function loadCodeMirrorModules() {
-    try {
-        const [
-            cmView, cmState, cmCommands, cmLanguage, cmMarkdown, cmAutocomplete, cmHighlight, cmSearch
-        ] = await Promise.all([
-            import('@codemirror/view'), import('@codemirror/state'), import('@codemirror/commands'),
-            import('@codemirror/language'), import('@codemirror/lang-markdown'),
-            import('@codemirror/autocomplete'), import('@lezer/highlight'), import('@codemirror/search')
-        ]);
-        // WebKitGTK 2.52 can misinterpret the shorthand destructuring target
-        // here as an uninitialized binding. Assign the imported property
-        // explicitly so the packaged editor can initialize in every webview.
-        const indentationMarkerModule = await import('@replit/codemirror-indentation-markers');
-        indentationMarkers = indentationMarkerModule.indentationMarkers;
-        ({ EditorView, keymap, drawSelection } = cmView);
-        ({ EditorState, StateField, StateEffect, RangeSetBuilder, Prec, Compartment, EditorSelection } = cmState);
-        ({ defaultKeymap, cursorLineUp, cursorLineDown, history, historyKeymap, indentMore, indentLess } = cmCommands);
-        ({ foldGutter, foldKeymap, bracketMatching, syntaxTree, indentUnit, syntaxHighlighting, HighlightStyle } = cmLanguage);
-        ({ autocompletion, completionKeymap, acceptCompletion } = cmAutocomplete);
-        ({ lineNumbers, highlightActiveLineGutter } = cmView);
-        ({ markdownLanguage, markdownKeymap } = cmMarkdown);
-        ({ ViewPlugin, Decoration, WidgetType } = cmView);
-        ({ tags } = cmHighlight);
-        ({
-            search: searchExtension,
-            searchKeymap,
-            openSearchPanel: openNativeSearchPanel,
-            closeSearchPanel: closeNativeSearchPanel,
-            searchPanelOpen: isNativeSearchPanelOpen,
-        } = cmSearch);
-        codeHighlighting = syntaxHighlighting(HighlightStyle.define([
-            { tag: [tags.keyword, tags.operatorKeyword, tags.controlKeyword, tags.definitionKeyword], color: 'var(--code-keyword-color)' },
-            { tag: [tags.string, tags.special(tags.string)], color: 'var(--code-string-color)' },
-            { tag: [tags.number, tags.bool, tags.null, tags.atom], color: 'var(--code-number-color)' },
-            { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: 'var(--code-function-color)' },
-            { tag: tags.comment, color: 'var(--code-comment-color)', fontStyle: 'italic' },
-            { tag: [tags.typeName, tags.className, tags.namespace], color: 'var(--code-type-color)' },
-            { tag: [tags.variableName, tags.propertyName, tags.definition(tags.variableName)], color: 'var(--code-variable-color)' },
-            { tag: [tags.operator, tags.punctuation, tags.bracket], color: 'var(--code-operator-color)' },
-            { tag: [tags.meta, tags.annotation, tags.link], color: 'var(--code-builtin-color)' },
-        ]));
-        return true;
-    } catch (err) {
-        log.error('Failed to load CodeMirror modules:', err);
-        throw err;
-    }
-}
+const codeHighlighting = syntaxHighlighting(HighlightStyle.define([
+    { tag: [tags.keyword, tags.operatorKeyword, tags.controlKeyword, tags.definitionKeyword], color: 'var(--code-keyword-color)' },
+    { tag: [tags.string, tags.special(tags.string)], color: 'var(--code-string-color)' },
+    { tag: [tags.number, tags.bool, tags.null, tags.atom], color: 'var(--code-number-color)' },
+    { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: 'var(--code-function-color)' },
+    { tag: tags.comment, color: 'var(--code-comment-color)', fontStyle: 'italic' },
+    { tag: [tags.typeName, tags.className, tags.namespace], color: 'var(--code-type-color)' },
+    { tag: [tags.variableName, tags.propertyName, tags.definition(tags.variableName)], color: 'var(--code-variable-color)' },
+    { tag: [tags.operator, tags.punctuation, tags.bracket], color: 'var(--code-operator-color)' },
+    { tag: [tags.meta, tags.annotation, tags.link], color: 'var(--code-builtin-color)' },
+]));
 
 async function initEditor() {
-    await loadCodeMirrorModules();
+    // CodeMirror dependencies are statically initialized with this module.
 }
 
 /**
@@ -896,7 +870,7 @@ function createEditorView() {
         ...(EditorState ? [EditorState.tabSize.of(codeIndentUnit.length)] : []),
         ...(indentUnit ? [indentUnit.of(codeIndentUnit)] : []),
         ...(codeHighlighting ? [codeHighlighting] : []),
-        ...(indentationMarkers ? indentationMarkers({
+        ...(indentationMarkerExtension ? indentationMarkerExtension({
             // Use the same semantic colors as the active theme. The markers
             // are only enabled for conventional monospace source files—the
             // live Markdown renderer has variable-width text and widgets.

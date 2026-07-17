@@ -5,7 +5,7 @@
 import { log } from './log.js';
 import { setState, getState } from './state.js';
 import { fileIcon } from './icons.js';
-import { openTab } from './app.js';
+import { openTab } from './tabManager.js';
 
 let calendarRequestId = 0;
 let linkedNotesRequestId = 0;

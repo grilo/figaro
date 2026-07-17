@@ -4,7 +4,7 @@
 
 import { log } from './log.js';
 import { setState, getState } from './state.js';
-import { openTab } from './app.js';
+import { openTab } from './tabManager.js';
 
 const DEFAULT_FILTERS = {
     titleOnly: false,

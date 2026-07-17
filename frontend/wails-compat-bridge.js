@@ -118,7 +118,7 @@
     'code_font_save':              'CodeFontSave',
     'vim_load':                    'VimLoad',
     'vim_save':                    'VimSave',
-+    'link_style_load':              'LinkStyleLoad',
+    'link_style_load':              'LinkStyleLoad',
     'change_link_style':            'ChangeLinkStyle',
     'pdf_browser_load':            'PDFBrowserLoad',
     'pdf_browser_choose':          'PDFBrowserChoose',

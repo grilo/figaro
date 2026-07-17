@@ -31,7 +31,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(true).toBe(true);
         });
 
-        test('initializes the lazily loaded indentation markers for native webviews', async () => {
+        test('initializes the statically imported indentation markers for native webviews', async () => {
             const { initEditor } = await import('../frontend/js/editor.js');
 
             await expect(initEditor()).resolves.toBeUndefined();

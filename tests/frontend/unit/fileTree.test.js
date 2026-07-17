@@ -25,7 +25,6 @@ jest.mock('../frontend/js/state.js', () => ({
 }));
 
 jest.mock('../frontend/js/app.js', () => ({
-    openTab: jest.fn(),
     handleFileOpen: jest.fn()
 }));
 
@@ -50,6 +49,7 @@ jest.mock('../frontend/js/session.js', () => ({
 }));
 
 jest.mock('../frontend/js/tabManager.js', () => ({
+    openTab: jest.fn(),
     closeTabsForDeletedPath: jest.fn(),
     prepareTabsForPathCopy: jest.fn().mockResolvedValue({ success: true }),
     prepareTabsForPathMove: jest.fn().mockResolvedValue({ success: true }),
@@ -58,10 +58,10 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 }));
 
 import { state, setState, getState, subscribe } from '../frontend/js/state.js';
-import { openTab, handleFileOpen } from '../frontend/js/app.js';
+import { handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
-import { prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
+import { openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 
 function deferred() {
@@ -498,7 +498,7 @@ describe('File Tree', () => {
         );
     });
 
-    test('opens CodeMirror-supported source files from the tree', () => {
+    test('opens CodeMirror-supported source files from the tree', async () => {
         state.fileTreeData = [{
             name: '_print.css',
             path: 'themes/_print.css',
@@ -511,6 +511,7 @@ describe('File Tree', () => {
         const node = document.querySelector('.file-tree-node');
         expect(node.classList.contains('non-md')).toBe(false);
         node.click();
+        await testUtils.waitFor(0);
 
         expect(handleFileOpen).toHaveBeenCalledWith('themes/_print.css');
     });

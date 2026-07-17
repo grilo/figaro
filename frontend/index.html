@@ -23,6 +23,25 @@
             width: 0.65em !important;
         }
     </style>
+    <script>
+        // JavaScriptCore may report C/POSIX as navigator.language and expose a
+        // Segmenter that rejects its own default locale. Normalize that invalid
+        // language and let CodeMirror use its built-in word-boundary fallback.
+        try {
+            if (typeof Intl !== 'undefined' && Intl.Collator) {
+                new Intl.Collator(navigator.language);
+            }
+        } catch (_) {
+            Object.defineProperty(navigator, 'language', { value: 'en-US', configurable: true });
+        }
+        try {
+            if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+                new Intl.Segmenter(undefined, { granularity: 'word' });
+            }
+        } catch (_) {
+            Object.defineProperty(Intl, 'Segmenter', { value: undefined, configurable: true });
+        }
+    </script>
     <script type="importmap">
     {
       "imports": {
@@ -95,72 +114,13 @@
     <!-- Wails C++ bridge auto-initializes window.go — no explicit JS needed -->
     <!-- Wails compatibility: bridge (deferred so DOM is ready) -->
     <script src="/wails-compat-bridge.js" defer></script>
-    <script type="module">
-        import { initApp } from './js/app.js';
-        let bootTries = 0;
-        function bootWhenReady() {
-			if (window.pywebview?.api?.get_file_tree) {
-                initApp();
-            } else if (bootTries++ > 40) {
-                // No Wails backend — boot UI for CSS debugging in browser
-                console.warn('No Wails backend — running in debug mode');
-                const mock = (val) => () => Promise.resolve(val);
-                window.pywebview = { api: {
-                    get_file_tree: mock([{name:'Welcome.md',path:'Welcome.md',type:'file',mtime:1}]),
-                    get_file_tree_styles: mock({version:1,entries:{},recent_icons:[]}),
-                    set_file_tree_style: mock({version:1,entries:{},recent_icons:[]}),
-                    read_file: mock({content:'# Welcome\n\nStart writing.',path:'Welcome.md',mtime:1}),
-                    save_file: mock({success:true}),
-                    save_clipboard_image: mock({success:true,path:'image1.png',markdown:'![Image1](image1.png)'}),
-                    create_file: mock({success:true}),
-                    create_directory: mock({success:true}),
-                    delete_path: mock({success:true}),
-                    rename_path: mock({success:true}),
-                    move_path: mock({success:true}),
-                    merge_directory: mock({success:true}),
-                    merge_external_paths: mock({success:true,paths:[]}),
-                    search_files: mock([]),
-                    search_backlinks: mock([]),
-                    get_kanban_columns: mock({columns:['todo','wip','done'],colors:{}}),
-                    get_kanban_board: mock({todo:[],wip:[],done:[]}),
-                    set_column_color: mock({success:true}),
-                    rename_kanban_column: mock({success:true}),
-                    delete_kanban_column: mock({success:true}),
-                    update_task_tag: mock({success:true}),
-                    remove_tag_from_task: mock({success:true}),
-                    get_calendar_month_data: mock({year:2026,month:7,days_with_notes:[],days_with_links:[],calendar:[]}),
-                    get_linked_notes_for_date: mock([]),
-                    get_today_link: mock('2026-07-09'),
-                    get_os_username: mock('Test User'),
-                    get_tomorrow_link: mock('2026-07-10'),
-                    get_yesterday_link: mock('2026-07-08'),
-                    save_session: mock({success:true}),
-                    load_session: mock({}),
-                    merge_notes: mock({success:true}),
-                    reveal_in_explorer: mock({success:true}),
-                    get_themes: mock({themes:[{id:'default',name:'Figaro Dark'}]}),
-                    get_theme_css: mock({css:''}),
-                    theme_load: mock({theme:'default'}),
-                    theme_save: mock({success:true}),
-                    vim_load: mock({enabled:false}),
-                    vim_save: mock({success:true}),
-					link_style_load: mock({style:'markdown'}),
-					change_link_style: mock({success:true,style:'markdown',updated_links:[]}),
-                    font_save: mock({success:true}),
-                    code_font_save: mock({success:true}),
-                    get_file_history: mock([]),
-                    get_file_version: mock(''),
-                    get_commit_count: mock(0),
-                    auto_save_load: mock(300),
-                    auto_save_save: mock({success:true}),
-                    export_pdf: mock({success:true,path:'/tmp/document.pdf',engine:'chromium'}),
-                }};
-                initApp();
-            } else {
-                setTimeout(bootWhenReady, 50);
-            }
-        }
-        bootWhenReady();
+    <script>
+        window.addEventListener('DOMContentLoaded', function () {
+            if (window.location.protocol === 'wails:' || window.go?.main?.App) return;
+            import('/js/bootstrap.js').catch(function (error) {
+                console.error('Figaro bootstrap import failed:', error);
+            });
+        });
     </script>
 </head>
 <body>

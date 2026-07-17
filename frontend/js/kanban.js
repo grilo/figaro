@@ -4,7 +4,7 @@
 
 import { log } from './log.js';
 import { setState, getState } from './state.js';
-import { openTab } from './app.js';
+import { openTab } from './tabManager.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';

@@ -174,6 +174,29 @@ func (a *App) domReady(ctx context.Context) {
 			s.textContent = `+"`"+css+"`"+`;
 			document.head.appendChild(s);
 			`+inspectorLog+`
+			if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+				Object.defineProperty(Intl, 'Segmenter', { value: undefined, configurable: true });
+			}
+			try {
+				if (typeof Intl !== 'undefined' && Intl.Collator) {
+					new Intl.Collator(navigator.language);
+				}
+			} catch (_) {
+				Object.defineProperty(navigator, 'language', { value: 'en-US', configurable: true });
+			}
+			// Native startup imports the app only after Wails has completed DOM
+			// readiness. Browser development uses bootstrap.js from index.html.
+			function reportStartupError(error) {
+				window._appInitError = String(error && (error.stack || error.message) || error);
+				console.error('Figaro startup failed:', error);
+				var status = document.getElementById('status-text');
+				if (status) status.textContent = 'Startup failed: ' + (error && error.message || error);
+			}
+			import('/js/app.js').then(function(module) {
+				setTimeout(function() {
+					Promise.resolve(module.initApp()).catch(reportStartupError);
+				}, 0);
+			}).catch(reportStartupError);
 		})();
 	`)
 

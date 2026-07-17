@@ -115,6 +115,9 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- Packaged desktop startup, including Linux under C/POSIX locales, once again
+  connects to the vault and displays the file tree, Welcome workspace, note
+  text, and interactive Calendar.
 - Wikilink aliases now open their actual vault targets, and link-preview
   tooltips no longer intercept clicks.
 - Rapid file-tab switching no longer saves the visible document into the wrong

@@ -4,11 +4,11 @@
 
 import { testUtils } from './test_setup.js';
 
-jest.mock('../frontend/js/app.js', () => ({
+jest.mock('../frontend/js/tabManager.js', () => ({
     openTab: jest.fn()
 }));
 
-import { openTab } from '../frontend/js/app.js';
+import { openTab } from '../frontend/js/tabManager.js';
 import { state, setState } from '../frontend/js/state.js';
 import { performGlobalSearch, handleSearchKeydown, setSearchFilter } from '../frontend/js/search.js';
 
