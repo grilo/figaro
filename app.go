@@ -2139,7 +2139,9 @@ func (a *App) SearchBacklinks(targetPath string) ([]BacklinkResult, error) {
 		`(?i)\[` + regexp.QuoteMeta(targetName) + `\]\((` + regexp.QuoteMeta(targetRel) + `|` + regexp.QuoteMeta(targetName) + `\.md)\)`,
 	)
 
-	var results []BacklinkResult
+	// Wails serializes a nil Go slice as null. Backlinks are a collection, so
+	// preserve the API contract and return [] when no notes link to the target.
+	results := make([]BacklinkResult, 0)
 	if err := a.walkVaultMarkdown(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
 		lines := strings.Split(string(data), "\n")
 		for i, line := range lines {

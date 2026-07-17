@@ -615,6 +615,28 @@ func TestSearchBacklinks(t *testing.T) {
 	}
 }
 
+func TestSearchBacklinks_NoMatchesReturnsEmptyList(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "target.md", "# Target Note")
+
+	results, err := app.SearchBacklinks("target.md")
+	if err != nil {
+		t.Fatalf("SearchBacklinks error: %v", err)
+	}
+	if results == nil || len(results) != 0 {
+		t.Fatalf("expected a non-nil empty backlink list, got %#v", results)
+	}
+	encoded, err := json.Marshal(results)
+	if err != nil {
+		t.Fatalf("marshal backlinks: %v", err)
+	}
+	if string(encoded) != "[]" {
+		t.Fatalf("empty backlinks encoded as %s, want []", encoded)
+	}
+}
+
 // ============================================================================
 // 5. Hashtag / Kanban Tests
 // ============================================================================

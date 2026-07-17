@@ -10,6 +10,20 @@ let backlinksRequestId = 0;
 const backlinksResultsRequestIds = new Map();
 
 /**
+ * Keep compatibility with older backends that encoded an empty Go slice as
+ * null, while surfacing genuinely malformed responses as errors.
+ */
+export function normalizeBacklinks(response) {
+    if (response == null) return [];
+    if (!Array.isArray(response)) throw new TypeError('Backlinks response was not a list');
+    return response;
+}
+
+function backlinkErrorMessage(error) {
+    return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * Initialize backlinks module
  */
 export function initBacklinks() {
@@ -20,14 +34,16 @@ export function initBacklinks() {
 /**
  * Update backlinks count in status bar for active file tab
  */
-async function updateBacklinksForActiveTab() {
+export async function updateBacklinksForActiveTab() {
     const activeTab = getState('openTabs').find(t => t.id === getState('activeTabId'));
     const statusEl = document.getElementById('backlinks-status');
     const requestId = ++backlinksRequestId;
     
     if (activeTab && activeTab.type === 'file' && activeTab.path) {
         try {
-            const backlinks = await window.pywebview.api.search_backlinks(activeTab.path);
+            const backlinks = normalizeBacklinks(
+                await window.pywebview.api.search_backlinks(activeTab.path)
+            );
             if (requestId !== backlinksRequestId || getState('activeTabId') !== activeTab.id) return;
             setState('backlinksData', backlinks);
             setState('backlinksTargetPath', activeTab.path);
@@ -47,7 +63,7 @@ async function updateBacklinksForActiveTab() {
             }
         } catch (err) {
             if (requestId !== backlinksRequestId || getState('activeTabId') !== activeTab.id) return;
-            log.error('Failed to load backlinks:', err);
+            log.error(`Failed to load backlinks: ${backlinkErrorMessage(err)}`);
             if (statusEl) statusEl.textContent = '0 backlinks';
         }
     } else {
@@ -75,7 +91,9 @@ export async function loadBacklinksResults(targetPath, containerId) {
     container.innerHTML = '<div class="results-loading">Loading backlinks...</div>';
     
     try {
-        const backlinks = await window.pywebview.api.search_backlinks(targetPath);
+        const backlinks = normalizeBacklinks(
+            await window.pywebview.api.search_backlinks(targetPath)
+        );
         if (backlinksResultsRequestIds.get(containerId) !== requestId || !container.isConnected) return;
         
         if (!backlinks || backlinks.length === 0) {
@@ -151,7 +169,7 @@ export async function loadBacklinksResults(targetPath, containerId) {
         container._backlinksUnsubscribe = subscribe('activeTabId', cleanupOnSwitch);
     } catch (err) {
         if (backlinksResultsRequestIds.get(containerId) !== requestId || !container.isConnected) return;
-        log.error('Backlinks load failed:', err);
+        log.error(`Backlinks load failed: ${backlinkErrorMessage(err)}`);
         container.innerHTML = '<div class="results-error">Failed to load backlinks</div>';
     }
 }

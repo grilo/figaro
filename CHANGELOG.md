@@ -147,6 +147,9 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- Notes with no backlinks now return and display a normal empty result instead
+  of emitting a misleading **Failed to load backlinks** error; genuine lookup
+  and response failures remain visible in the logs.
 - Linux startup and shutdown no longer query native window state before GTK
   realises the window or after teardown begins, avoiding GTK/GDK critical
   assertions in terminal output.
