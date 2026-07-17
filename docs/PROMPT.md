@@ -1080,7 +1080,6 @@ If the vault directory contains no `.md` files on startup, `ensureWelcomeNote()`
 - Repository link: `github.com/grilo/figaro`
 - Feature showcase: headings, formatting, links, wikilinks, code blocks, tables, lists, blockquotes, callouts, horizontal rules, math (KaTeX), footnotes, hashtags
 - "Getting Started" quickstart guide
-- Attribution: "Vibecoded with Reasonix"
 
 ### 33.2 Implementation
 - `ensureWelcomeNote()` called in `startup()` (not `NewApp()` — avoids interfering with tests).

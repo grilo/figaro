@@ -3,8 +3,6 @@ xobsidian.txt
 .aider*
 .DS_Store
 Thumbs.db
-reasonix.toml
-.reasonix/
 
 # Dependency installs and generated browser assets.
 /node_modules/

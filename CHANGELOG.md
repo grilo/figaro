@@ -6,6 +6,8 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Removed the unused legacy automation harness and its obsolete Welcome-note
+  attribution.
 - Search, backlinks, Kanban, and Calendar now share one incremental vault
   index. Normal saves and external one-file edits refresh only that note, so
   navigating and typing in larger vaults stays responsive.

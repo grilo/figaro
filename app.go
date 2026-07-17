@@ -312,7 +312,6 @@ Use #tagname to create tags — they automatically become kanban columns.
 ---
 
 *Built with ❤️ using Go, Wails, and CodeMirror 6.*
-*Vibecoded with Reasonix.*
 `
 
 // ensureWelcomeNote creates Welcome.md if the vault has no markdown files yet.

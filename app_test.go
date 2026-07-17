@@ -2245,3 +2245,9 @@ func TestAssetServer_URLPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestWelcomeContentEndsWithCurrentTechnologyAttribution(t *testing.T) {
+	if !strings.HasSuffix(welcomeContent, "*Built with ❤️ using Go, Wails, and CodeMirror 6.*\n") {
+		t.Fatal("Welcome.md must end with the current technology attribution only")
+	}
+}

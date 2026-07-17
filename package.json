@@ -89,7 +89,6 @@
     "katex": "^0.17.0",
     "lucide": "1.24.0",
     "markdown-it": "^14.3.0",
-    "playwright": "^1.61.1",
-    "reasonix": "^1.17.10"
+    "playwright": "^1.61.1"
   }
 }

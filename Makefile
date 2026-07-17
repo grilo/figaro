@@ -190,7 +190,7 @@ clean:
 		frontend/vendored/lucide \
 		frontend/vendored/markdown-it-plugins frontend/vendored/style-mod \
 		frontend/vendored/w3c-keyname node_modules test-results playwright-report coverage \
-		vault reasonix.toml .reasonix scripts/*.local.sh
+		vault scripts/*.local.sh
 
 icons:
 	./scripts/generate-icons.sh
