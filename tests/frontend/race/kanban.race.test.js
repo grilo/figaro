@@ -21,13 +21,13 @@ describe('kanban async lifecycle', () => {
         testUtils.createMockDOM();
         jest.clearAllMocks();
         document.getElementById('tab-panels').innerHTML = '<div id="kanban-board-main"></div>';
-        window.pywebview.api.get_kanban_columns.mockResolvedValue(['todo', 'wip', 'done']);
+        window.go.main.App.GetKanbanColumns.mockResolvedValue(['todo', 'wip', 'done']);
     });
 
     test('does not render an older board response over a newer one', async () => {
         const slow = deferred();
         const fast = deferred();
-        window.pywebview.api.get_kanban_board
+        window.go.main.App.GetKanbanBoard
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
 

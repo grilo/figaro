@@ -8,11 +8,12 @@ test('pastes a clipboard screenshot beside the note, renders it, and preserves a
         body: Buffer.from(tinyPNGBase64, 'base64'),
     }));
     await page.goto('/');
-    await page.waitForFunction(() => window._appReady === true && typeof window.pywebview?.api?.save_clipboard_image === 'function');
+    await page.waitForFunction(() => window._appReady === true);
 
     await page.evaluate(async ({ png }) => {
         const editor = await import('/js/editor.js');
-		const tabs = await import('/js/tabManager.js');
+        const tabs = await import('/js/tabManager.js');
+        const app = (await import('/js/backend.js')).backend();
         window.__clipboardImageCalls = [];
 
         await editor.initEditor();
@@ -25,7 +26,7 @@ test('pastes a clipboard screenshot beside the note, renders it, and preserves a
 		while (view.state.doc.toString() !== 'Before\n\nAfter') {
 			await new Promise(resolve => setTimeout(resolve, 10));
 		}
-        window.pywebview.api.save_clipboard_image = async (notePath, mimeType, encodedData) => {
+        app.SaveClipboardImage = async (notePath, mimeType, encodedData) => {
             window.__clipboardImageCalls.push({ notePath, mimeType, encodedData });
             return {
                 success: true,
@@ -33,7 +34,7 @@ test('pastes a clipboard screenshot beside the note, renders it, and preserves a
                 markdown: '![Image1](image1.png)',
             };
         };
-        window.pywebview.api.get_file_tree = async () => [];
+        app.GetFileTree = async () => [];
         view.dispatch({ selection: { anchor: view.state.doc.line(2).from } });
         view.focus();
 
@@ -110,6 +111,7 @@ test('uses Async Clipboard bytes when a Linux-style paste event exposes no image
     await page.evaluate(async ({ png }) => {
         const state = await import('/js/state.js');
         const editor = await import('/js/editor.js');
+        const app = (await import('/js/backend.js')).backend();
         await editor.initEditor();
         const view = editor.getEditorView() || editor.createEditorView();
         const tab = { id: 'linux-clipboard', type: 'file', path: 'notes/linux-clipboard.md', title: 'Linux clipboard' };
@@ -127,7 +129,7 @@ test('uses Async Clipboard bytes when a Linux-style paste event exposes no image
             value: { read: async () => [{ types: ['image/png'], getType: async () => image }] },
         });
         window.__linuxClipboardCalls = [];
-        window.pywebview.api.save_clipboard_image = async (notePath, mimeType, encodedData) => {
+        app.SaveClipboardImage = async (notePath, mimeType, encodedData) => {
             window.__linuxClipboardCalls.push({ notePath, mimeType, encodedData });
             return { success: true, path: 'notes/image1.png', markdown: '![Image1](image1.png)' };
         };

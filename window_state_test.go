@@ -159,38 +159,40 @@ func TestRememberWindowSnapshotPersistsOutsideVault(t *testing.T) {
 }
 
 func TestWindowStateFrontendCapturesNativeResize(t *testing.T) {
-	data, err := os.ReadFile("frontend/wails-compat-bridge.js")
+	data, err := os.ReadFile("frontend/js/windowChrome.js")
 	if err != nil {
-		t.Fatalf("read compatibility bridge: %v", err)
+		t.Fatalf("read native window chrome: %v", err)
 	}
 	content := string(data)
 	for _, expected := range []string{
 		"installWindowStateCapture",
 		"window.addEventListener('resize'",
-		"goApp.WindowCaptureState()",
+		"callNative('WindowCaptureState')",
 	} {
 		if !strings.Contains(content, expected) {
-			t.Errorf("compatibility bridge is missing %q", expected)
+			t.Errorf("native window chrome is missing %q", expected)
 		}
 	}
 }
 
 func TestWindowStateFrontendDoesNotCaptureBeforeFirstNativeResize(t *testing.T) {
-	data, err := os.ReadFile("frontend/wails-compat-bridge.js")
+	data, err := os.ReadFile("frontend/js/windowChrome.js")
 	if err != nil {
-		t.Fatalf("read compatibility bridge: %v", err)
+		t.Fatalf("read native window chrome: %v", err)
 	}
 	content := string(data)
 	start := strings.Index(content, "function installWindowStateCapture")
 	if start < 0 {
 		t.Fatal("could not locate window-state capture installation")
 	}
-	end := strings.Index(content[start:], "// ── Install bridge")
+	end := strings.Index(content[start:], "export function initWindowChrome")
 	if end < 0 {
 		t.Fatal("could not locate the end of window-state capture installation")
 	}
 	section := content[start : start+end]
-	if strings.Contains(section, "scheduleCapture();") {
+	listener := strings.Index(section, "window.addEventListener('resize'")
+	capture := strings.Index(section, "callNative('WindowCaptureState')")
+	if listener < 0 || capture < listener {
 		t.Fatal("window-state capture still queries GTK eagerly during startup")
 	}
 }

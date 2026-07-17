@@ -148,10 +148,11 @@ test('highlights and commits the active file Git status next to Changes', async 
     await openWelcomeEditor(page);
     await page.evaluate(async () => {
         const history = await import('/js/historyPanel.js');
+        const app = (await import('/js/backend.js')).backend();
         window.__gitDirty = true;
         window.__gitCommits = [];
-        window.pywebview.api.file_has_uncommitted_changes = async () => window.__gitDirty;
-        window.pywebview.api.commit_current_file = async path => {
+        app.FileHasUncommittedChanges = async () => window.__gitDirty;
+        app.CommitCurrentFile = async path => {
             window.__gitCommits.push(path);
             window.__gitDirty = false;
         };
@@ -232,21 +233,22 @@ test('restores an old file version only after confirmation and preserves the cur
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         const history = await import('/js/historyPanel.js');
+        const app = (await import('/js/backend.js')).backend();
         editor.setEditorContent('Current unsaved version');
         window.__historySaves = [];
         window.__historyCommits = [];
         let mtime = 2;
-        window.pywebview.api.get_commit_count = async () => 2;
-        window.pywebview.api.get_file_history = async () => [
+        app.GetCommitCount = async () => 2;
+        app.GetFileHistory = async () => [
             { hash: 'latest123456', timestamp: 200, message: 'latest' },
             { hash: 'older1234567', timestamp: 100, message: 'older' },
         ];
-        window.pywebview.api.get_file_version = async () => 'Historical version';
-        window.pywebview.api.save_file = async (_path, content) => {
+        app.GetFileVersion = async () => 'Historical version';
+        app.SaveFile = async (_path, content) => {
             window.__historySaves.push(content);
             return { success: true, mtime: ++mtime };
         };
-        window.pywebview.api.commit_current_file = async path => window.__historyCommits.push(path);
+        app.CommitCurrentFile = async path => window.__historyCommits.push(path);
         history.updateHistoryCount('Welcome.md');
     });
     await expect(page.locator('#history-count')).toHaveClass(/has-history/);

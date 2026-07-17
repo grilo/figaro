@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Theme Engine - loads/applies CSS themes and fonts
  */
@@ -58,7 +59,7 @@ function ensureStyleEl() {
 export async function initTheme() {
     ensureStyleEl();
     initCheatsheet();
-    const result = await window.pywebview.api.theme_load();
+    const result = await backend().ThemeLoad();
     const themeId = (result && result.theme) || 'default';
     const fontId = (result && result.font) || 'inter';
     const codeFontId = (result && result.codeFont) || 'theme-mono';
@@ -75,7 +76,7 @@ export async function applyTheme(themeId) {
     currentTheme = themeId;
 
     try {
-        const result = await window.pywebview.api.get_theme_css(themeId);
+        const result = await backend().GetThemeCSS(themeId);
         // A slower request for an earlier selection must not replace a newer theme.
         if (requestId !== themeRequestId) return false;
         if (result && result.css) {
@@ -95,7 +96,7 @@ export function getCurrentCodeFont() { return currentCodeFont; }
 export async function getThemes() {
     try {
         const result = await withTimeout(
-            window.pywebview.api.get_themes(),
+            backend().GetThemes(),
             3000,
             'get_themes timed out'
         );
@@ -133,7 +134,7 @@ export async function initVimPreference() {
 
     vimPreferenceLoadPromise = (async () => {
         try {
-            const result = await window.pywebview.api.vim_load();
+            const result = await backend().VimLoad();
             currentVimEnabled = !!(result && result.enabled);
             persistedVimEnabled = currentVimEnabled;
             vimPreferenceLoaded = true;
@@ -174,7 +175,7 @@ export async function setVimPreference(enabled) {
     }
 
     const saveAttempt = vimSaveQueue.then(async () => {
-        const result = await window.pywebview.api.vim_save(requested);
+        const result = await backend().VimSave(requested);
         if (!result?.success) throw new Error(result?.error || 'Vim preference was not saved');
         persistedVimEnabled = requested;
         return true;
@@ -213,7 +214,7 @@ export async function initLineNumbersPreference() {
     if (lineNumbersPreferenceLoadPromise) return lineNumbersPreferenceLoadPromise;
     lineNumbersPreferenceLoadPromise = (async () => {
         try {
-            const result = await window.pywebview.api.line_numbers_load();
+            const result = await backend().LineNumbersLoad();
             currentLineNumbersEnabled = result?.enabled === true;
             lineNumbersPreferenceLoaded = true;
             syncLineNumbersToggles(currentLineNumbersEnabled);
@@ -237,7 +238,7 @@ export async function setLineNumbersPreference(enabled) {
     await applyLineNumbersPreference(currentLineNumbersEnabled);
 
     const saveAttempt = lineNumbersSaveQueue.then(async () => {
-        const result = await window.pywebview.api.line_numbers_save(requested);
+        const result = await backend().LineNumbersSave(requested);
         if (!result?.success) throw new Error(result?.error || 'Line-number preference was not saved');
         return true;
     });
@@ -288,7 +289,7 @@ export async function initSettingsPanel(root = document) {
             menu.classList.remove('open');
             applyTheme(id).then(applied => {
                 if (!applied || getCurrentTheme() !== id) return;
-                try { window.pywebview.api.theme_save(id).catch(() => {}); } catch (_) { /* noop */ }
+                try { backend().ThemeSave(id).catch(() => {}); } catch (_) { /* noop */ }
             });
         });
         closeMenuOnOutsideClick(root, menu);
@@ -360,7 +361,7 @@ export async function initPDFBrowserSetting(root = document) {
     };
 
     try {
-        const result = await window.pywebview.api.pdf_browser_load();
+        const result = await backend().PDFBrowserLoad();
         if (!isActivePanel(root)) return;
         render(result?.path || '', result?.success === false ? result.error : '');
     } catch (error) {
@@ -373,13 +374,13 @@ export async function initPDFBrowserSetting(root = document) {
         status.dataset.kind = 'checking';
         status.textContent = 'Checking the selected browser…';
         try {
-            const result = await window.pywebview.api.pdf_browser_choose();
+            const result = await backend().PDFBrowserChoose();
             if (!isActivePanel(root)) return;
             if (result?.cancelled) {
-                const current = await window.pywebview.api.pdf_browser_load();
+                const current = await backend().PDFBrowserLoad();
                 if (isActivePanel(root)) render(current?.path || '');
             } else if (result?.success === false) {
-                const current = await window.pywebview.api.pdf_browser_load();
+                const current = await backend().PDFBrowserLoad();
                 if (isActivePanel(root)) render(current?.path || '', result.error || 'The selected browser is not usable.');
             } else {
                 render(result?.path || '');
@@ -394,7 +395,7 @@ export async function initPDFBrowserSetting(root = document) {
     clear.addEventListener('click', async () => {
         clear.disabled = true;
         try {
-            const result = await window.pywebview.api.pdf_browser_clear();
+            const result = await backend().PDFBrowserClear();
             if (!isActivePanel(root)) return;
             render('', result?.success === false ? (result.error || 'Could not restore automatic detection.') : '');
         } catch (error) {
@@ -623,7 +624,7 @@ function applyFont(fontId, initial, root = document) {
             log.debug('[font] Saving to backend...');
             fontSaveQueue = fontSaveQueue
                 .catch(() => {})
-                .then(() => window.pywebview.api.font_save(selectedFont))
+                .then(() => backend().FontSave(selectedFont))
                 .catch(e => log.warn('[font] Save failed: ' + e));
         }
     } catch(e) {
@@ -665,7 +666,7 @@ function applyCodeFont(fontId, initial, root = document) {
         if (!initial) {
             codeFontSaveQueue = codeFontSaveQueue
                 .catch(() => {})
-                .then(() => window.pywebview.api.code_font_save(selected.id))
+                .then(() => backend().CodeFontSave(selected.id))
                 .catch(error => log.warn('[code-font] Save failed: ' + error));
         }
     } catch (error) {
@@ -750,7 +751,7 @@ function initAutoSave(root) {
     if (asSelect) {
         const picker = enhanceSelectCombobox(asSelect, { ariaLabel: 'Auto-Save interval' });
         try {
-            window.pywebview.api.auto_save_load().then(seconds => {
+            backend().AutoSaveLoad().then(seconds => {
                 if (isActivePanel(root)) {
                     asSelect.value = String(seconds);
                     picker?.sync();
@@ -760,7 +761,7 @@ function initAutoSave(root) {
         asSelect.addEventListener('change', () => {
             const seconds = parseInt(asSelect.value) || 0;
             try {
-                window.pywebview.api.auto_save_save(seconds)
+                backend().AutoSaveSave(seconds)
                     .then(() => window.dispatchEvent(new CustomEvent('figaro:auto-save-interval', { detail: { seconds } })))
                     .catch(() => {});
             } catch (_) { /* noop */ }
@@ -770,7 +771,7 @@ function initAutoSave(root) {
     if (acSelect) {
         const picker = enhanceSelectCombobox(acSelect, { ariaLabel: 'Auto-Commit interval' });
         try {
-            window.pywebview.api.auto_commit_load().then(seconds => {
+            backend().AutoCommitLoad().then(seconds => {
                 setAutoCommitMode(seconds);
                 if (isActivePanel(root)) {
                     acSelect.value = String(seconds);
@@ -781,7 +782,7 @@ function initAutoSave(root) {
         acSelect.addEventListener('change', () => {
             const seconds = Number.parseInt(acSelect.value, 10);
             setAutoCommitMode(seconds);
-            try { window.pywebview.api.auto_commit_save(seconds).catch(() => {}); } catch (_) { /* noop */ }
+            try { backend().AutoCommitSave(seconds).catch(() => {}); } catch (_) { /* noop */ }
         });
     }
 }

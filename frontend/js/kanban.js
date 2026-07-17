@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Kanban Module - Task board with drag-drop, column management
  */
@@ -159,7 +160,7 @@ export async function refreshKanbanData() {
 async function updateKanbanBadges() {
     const requestId = ++kanbanBadgeRequestId;
     try {
-        const boardData = overlayDirtyKanbanBuffers(await window.pywebview.api.get_kanban_board());
+        const boardData = overlayDirtyKanbanBuffers(await backend().GetKanbanBoard());
         if (requestId !== kanbanBadgeRequestId) return;
         setState('kanbanBoardData', boardData);
         
@@ -187,7 +188,7 @@ async function updateKanbanBadges() {
 async function loadKanbanColumns() {
     const requestId = ++kanbanColumnsRequestId;
     try {
-        const result = await window.pywebview.api.get_kanban_columns();
+        const result = await backend().GetKanbanColumns();
         if (requestId !== kanbanColumnsRequestId) return false;
         if (result && result.columns) {
             kanbanColumns = appendDirtyColumns(result.columns);
@@ -222,7 +223,7 @@ export async function renderKanbanBoard(containerId, focusCol = null) {
     
     try {
         // Load board data
-        const boardData = overlayDirtyKanbanBuffers(await window.pywebview.api.get_kanban_board());
+        const boardData = overlayDirtyKanbanBuffers(await backend().GetKanbanBoard());
         if (requestId !== kanbanBoardRequestId || !container.isConnected) return;
         setState('kanbanBoardData', boardData);
         
@@ -403,7 +404,7 @@ function showColorPicker(anchorBtn, columnName) {
 async function setColumnColor(columnName, color) {
     const mutationId = beginKanbanMutation();
     try {
-        const result = await window.pywebview.api.set_column_color(columnName, color);
+        const result = await backend().SetColumnColor(columnName, color);
         if (mutationId !== kanbanMutationId) return;
         if (result.success) {
             kanbanColors = result.colors;
@@ -512,7 +513,7 @@ async function moveCard(card, targetColumn) {
     
     try {
         statusBar.set('Moving task...');
-        const result = await window.pywebview.api.update_task_tag(filePath, lineNum, oldTag, targetColumn);
+        const result = await backend().UpdateTaskTag(filePath, lineNum, oldTag, targetColumn);
         if (mutationId !== kanbanMutationId) return;
         
         if (result.success) {
@@ -580,7 +581,7 @@ async function renameColumn(oldName) {
     const mutationId = beginKanbanMutation();
     
     try {
-        const result = await window.pywebview.api.rename_kanban_column(oldName, sanitized);
+        const result = await backend().RenameKanbanColumn(oldName, sanitized);
         if (mutationId !== kanbanMutationId) return;
         if (result.success) {
             kanbanColumns = result.columns;
@@ -616,7 +617,7 @@ async function deleteColumn(name) {
     const mutationId = beginKanbanMutation();
     
     try {
-        const result = await window.pywebview.api.delete_kanban_column(name);
+        const result = await backend().DeleteKanbanColumn(name);
         if (mutationId !== kanbanMutationId) return;
         if (result.success) {
             kanbanColumns = result.columns;
@@ -642,7 +643,7 @@ async function deleteColumn(name) {
 async function removeTagFromTask(filePath, lineNum, tag) {
     const mutationId = beginKanbanMutation();
     try {
-        const result = await window.pywebview.api.remove_tag_from_task(filePath, lineNum, tag);
+        const result = await backend().RemoveTagFromTask(filePath, lineNum, tag);
         if (mutationId !== kanbanMutationId) return;
         if (result.success) {
             statusBar.set('Tag removed');

@@ -20,8 +20,8 @@ describe('history panel async lifecycle', () => {
 
     test('drops a late history list after the active file changes', async () => {
         const slow = deferred();
-        window.pywebview.api.get_file_history.mockImplementationOnce(() => slow.promise);
-        window.pywebview.api.get_commit_count.mockResolvedValue(0);
+        window.go.main.App.GetFileHistory.mockImplementationOnce(() => slow.promise);
+        window.go.main.App.GetCommitCount.mockResolvedValue(0);
 
         updateHistoryCount('A.md');
         const refresh = refreshHistoryIfOpen();
@@ -35,7 +35,7 @@ describe('history panel async lifecycle', () => {
 
     test('drops a late Git status result after the active file changes', async () => {
         const slow = deferred();
-        window.pywebview.api.file_has_uncommitted_changes
+        window.go.main.App.FileHasUncommittedChanges
             .mockImplementationOnce(() => slow.promise)
             .mockResolvedValueOnce(false);
 

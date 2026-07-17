@@ -15,9 +15,9 @@
   "info": {
     "companyName": "figaro",
     "productName": "figaro",
-    "productVersion": "2.0.0",
-    "copyright": "MIT",
-    "comments": "Local Markdown Knowledge Base — Go/Wails Edition"
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026 figaro contributors",
+    "comments": "Local Markdown Knowledge Base — GPL-3.0-or-later"
   },
   "app": {
     "window": {

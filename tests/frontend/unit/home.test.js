@@ -29,7 +29,7 @@ describe('Home tab', () => {
         setState('recentFiles', [{ path: 'Projects/Plan.md', title: 'Project plan' }]);
         setState('pinnedTabs', ['reference.md']);
         setState('openTabs', [{ id: 'reference.md', type: 'file', title: 'Reference', path: 'Reference.md' }]);
-        window.pywebview.api.get_kanban_board.mockResolvedValue({
+        window.go.main.App.GetKanbanBoard.mockResolvedValue({
             todo: [{ file: 'Projects/Plan.md', file_name: 'Plan.md', line: 12, text: 'Clarify the next milestone', tag: 'todo' }],
             done: [{ file: 'Done.md', file_name: 'Done.md', line: 1, text: 'Already finished', tag: 'done' }]
         });
@@ -71,7 +71,7 @@ describe('Home tab', () => {
     test('does not let an earlier task request overwrite a newer Home render', async () => {
         const slow = deferred();
         const fast = deferred();
-        window.pywebview.api.get_kanban_board
+        window.go.main.App.GetKanbanBoard
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
         const panel = document.getElementById('tab-panels');

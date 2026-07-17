@@ -8,6 +8,7 @@ test('renders unsaved hashtags immediately and keeps long Kanban cards compact',
     await page.evaluate(async ({ text }) => {
         const state = await import('/js/state.js');
         const kanban = await import('/js/kanban.js');
+        const app = (await import('/js/backend.js')).backend();
         const tab = {
             id: 'live-note',
             title: 'Live note',
@@ -19,12 +20,12 @@ test('renders unsaved hashtags immediately and keeps long Kanban cards compact',
         state.setState('openTabs', [tab]);
         state.setState('activeTabId', tab.id);
         window.__kanbanLiveSaveCalls = [];
-        window.pywebview.api.save_file = async (...args) => {
+        app.SaveFile = async (...args) => {
             window.__kanbanLiveSaveCalls.push(args);
             return { success: true, mtime: 2 };
         };
-        window.pywebview.api.get_kanban_columns = async () => ({ columns: ['todo', 'wip', 'done'], colors: {} });
-        window.pywebview.api.get_kanban_board = async () => ({ todo: [], wip: [], done: [] });
+        app.GetKanbanColumns = async () => ({ columns: ['todo', 'wip', 'done'], colors: {} });
+        app.GetKanbanBoard = async () => ({ todo: [], wip: [], done: [] });
 
         const panels = document.getElementById('tab-panels');
         panels.classList.add('active');

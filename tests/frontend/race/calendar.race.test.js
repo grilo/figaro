@@ -34,7 +34,7 @@ describe('calendar async lifecycle', () => {
     test('does not render a stale month after rapid month navigation', async () => {
         const slow = deferred();
         const fast = deferred();
-        window.pywebview.api.get_calendar_month_data
+        window.go.main.App.GetCalendarMonthData
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
 

@@ -8,6 +8,7 @@ test('rapid tab switching saves the owned dirty buffer and rejects a stale defer
         const state = await import('/js/state.js');
         const editor = await import('/js/editor.js');
         const tabs = await import('/js/tabManager.js');
+        const app = (await import('/js/backend.js')).backend();
         await editor.initEditor();
         editor.getEditorView() || editor.createEditorView();
 
@@ -23,7 +24,7 @@ test('rapid tab switching saves the owned dirty buffer and rejects a stale defer
         }
 
         window.__tabOwnershipSaveCalls = [];
-        window.pywebview.api.save_file = async (path, content, mtime) => {
+        app.SaveFile = async (path, content, mtime) => {
             window.__tabOwnershipSaveCalls.push({ path, content, mtime });
             return { success: true, path, mtime: 2 };
         };

@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Home tab - a lightweight workspace overview built from existing Figaro data.
  */
@@ -75,7 +76,7 @@ async function loadTasks(panel, renderId) {
     if (!target) return;
 
     try {
-        const board = await window.pywebview.api.get_kanban_board();
+        const board = await backend().GetKanbanBoard();
         if (!panel.isConnected || panel._homeRenderId !== renderId) return;
 
         const tasks = Object.entries(board || {})

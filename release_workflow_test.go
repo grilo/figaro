@@ -25,10 +25,16 @@ func TestTagTriggeredReleaseWorkflowBuildsAndPublishesAllSupportedPlatforms(t *t
 		"Linux Wails target":                  "-platform linux/amd64",
 		"Windows Wails target":                "-platform windows/amd64",
 		"universal macOS Wails target":        "-platform darwin/universal",
-		"tag-derived package version":         "config.info.productVersion = process.env.GITHUB_REF_NAME.slice(1)",
+		"tag-derived expected version":        "const expected = process.env.GITHUB_REF_NAME.slice(1)",
+		"package version validation":          `"package.json": pkg.version`,
+		"lockfile version validation":         `"package-lock root package": lock.packages?.[""]?.version`,
+		"Wails version validation":            `"wails.json": wails.info?.productVersion`,
+		"GPL metadata validation":             `license !== "GPL-3.0-or-later"`,
 		"Linux release archive":               `archive="figaro-${GITHUB_REF_NAME}-linux-amd64"`,
 		"Windows release archive":             `$archive = "figaro-$($env:GITHUB_REF_NAME)-windows-amd64"`,
 		"macOS release archive":               `archive="figaro-${GITHUB_REF_NAME}-macos-universal"`,
+		"Linux and macOS release documents":   "cp README.md CHANGELOG.md LICENSE",
+		"Windows release documents":           "Copy-Item README.md, CHANGELOG.md, LICENSE",
 		"release checksum manifest":           "sha256sum figaro-*.tar.gz figaro-*.zip > SHA256SUMS",
 		"narrow release permission":           "contents: write",
 		"explicit release repository":         "GH_REPO: ${{ github.repository }}",
@@ -46,6 +52,9 @@ func TestTagTriggeredReleaseWorkflowBuildsAndPublishesAllSupportedPlatforms(t *t
 
 	if strings.Contains(workflow, "workflow_dispatch:") || strings.Contains(workflow, "branches:") {
 		t.Fatal("release workflow must be triggered only by a stable version tag push")
+	}
+	if strings.Contains(workflow, "fs.writeFileSync") {
+		t.Fatal("release workflow must validate checked-in metadata rather than mutating it during the build")
 	}
 }
 

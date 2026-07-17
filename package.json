@@ -1,7 +1,8 @@
 {
   "name": "figaro",
   "version": "1.0.0",
-  "description": "Obsidian-like markdown editor with CodeMirror 6",
+  "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "test": "jest",

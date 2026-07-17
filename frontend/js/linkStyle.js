@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 import { confirmDialog, errorDialog } from './dialogs.js';
 import { log } from './log.js';
 
@@ -39,7 +40,7 @@ export async function initLinkStylePreference() {
     if (preferenceLoadPromise) return preferenceLoadPromise;
     preferenceLoadPromise = (async () => {
         try {
-            const result = await window.pywebview.api.link_style_load();
+            const result = await backend().LinkStyleLoad();
             currentStyle = canonicalStyle(result?.style);
             preferenceLoaded = true;
             syncLinkStyleSelectors();
@@ -83,7 +84,7 @@ export async function requestLinkStyleChange(requestedStyle) {
     }
 
     try {
-        const result = await window.pywebview.api.change_link_style(requested, rewrite);
+        const result = await backend().ChangeLinkStyle(requested, rewrite);
         if (!result?.success) {
             throw new Error(result?.error || 'The link preference could not be saved.');
         }

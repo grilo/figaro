@@ -27,21 +27,21 @@ describe('Calendar cache', () => {
         invalidateCalendarCache();
         setState('currentCalDate', new Date(2025, 0, 15));
         setState('selectedCalDateStr', null);
-        window.pywebview.api.get_calendar_month_data.mockResolvedValue(monthData);
-        window.pywebview.api.get_linked_notes_for_date.mockResolvedValue([]);
+        window.go.main.App.GetCalendarMonthData.mockResolvedValue(monthData);
+        window.go.main.App.GetLinkedNotesForDate.mockResolvedValue([]);
     });
 
     test('reuses a month response when selecting a day instead of rescanning the vault', async () => {
         renderCalendar();
         await flushCalendar();
 
-        expect(window.pywebview.api.get_calendar_month_data).toHaveBeenCalledTimes(1);
+        expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(1);
         expect(typeof window.calendarDayClick).toBe('function');
 
         window.calendarDayClick('2025-01-15');
         await flushCalendar();
 
-        expect(window.pywebview.api.get_calendar_month_data).toHaveBeenCalledTimes(1);
+        expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(1);
     });
 
     test('drops the cached month after a vault change', async () => {
@@ -52,6 +52,6 @@ describe('Calendar cache', () => {
         renderCalendar();
         await flushCalendar();
 
-        expect(window.pywebview.api.get_calendar_month_data).toHaveBeenCalledTimes(2);
+        expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(2);
     });
 });

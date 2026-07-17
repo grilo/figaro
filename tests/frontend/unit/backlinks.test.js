@@ -20,7 +20,7 @@ describe('empty and failed backlink lookups', () => {
     test('treats legacy null and current empty-list responses as normal zero backlinks', async () => {
         expect(normalizeBacklinks(null)).toEqual([]);
         expect(normalizeBacklinks([])).toEqual([]);
-        window.pywebview.api.search_backlinks.mockResolvedValueOnce(null);
+        window.go.main.App.SearchBacklinks.mockResolvedValueOnce(null);
 
         await updateBacklinksForActiveTab();
 
@@ -35,7 +35,7 @@ describe('empty and failed backlink lookups', () => {
         const container = document.createElement('div');
         container.id = 'backlinks-results';
         document.body.appendChild(container);
-        window.pywebview.api.search_backlinks.mockResolvedValueOnce([]);
+        window.go.main.App.SearchBacklinks.mockResolvedValueOnce([]);
 
         await loadBacklinksResults('target.md', container.id);
 
@@ -44,7 +44,7 @@ describe('empty and failed backlink lookups', () => {
     });
 
     test('still logs genuine backend failures with their useful message', async () => {
-        window.pywebview.api.search_backlinks.mockRejectedValueOnce(new Error('vault is unavailable'));
+        window.go.main.App.SearchBacklinks.mockRejectedValueOnce(new Error('vault is unavailable'));
 
         await updateBacklinksForActiveTab();
 
@@ -56,7 +56,7 @@ describe('empty and failed backlink lookups', () => {
     });
 
     test('rejects malformed successful responses instead of silently calling them empty', async () => {
-        window.pywebview.api.search_backlinks.mockResolvedValueOnce({ results: [] });
+        window.go.main.App.SearchBacklinks.mockResolvedValueOnce({ results: [] });
 
         await updateBacklinksForActiveTab();
 

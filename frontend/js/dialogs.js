@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Application dialogs.
  *
@@ -657,7 +658,7 @@ export function pdfExportErrorDialog(error, options = {}) {
             chooseButton.disabled = true;
             chooseButton.textContent = 'Checking…';
             try {
-                const result = await window.pywebview.api.pdf_browser_choose();
+                const result = await backend().PDFBrowserChoose();
                 if (result?.success) return settle();
                 if (!result?.cancelled && recovery) {
                     recovery.textContent = result?.error || 'The selected executable cannot create PDFs.';

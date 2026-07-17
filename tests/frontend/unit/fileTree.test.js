@@ -214,16 +214,16 @@ describe('File Tree', () => {
     });
 
     test('Quick note makes and opens a real Inbox note, then focuses the editor', async () => {
-        window.pywebview.api.create_inbox_note.mockResolvedValueOnce({
+        window.go.main.App.CreateInboxNote.mockResolvedValueOnce({
             success: true,
             path: 'Inbox/2026-07-17-143522.md',
             mtime: 42,
         });
-        window.pywebview.api.get_file_tree.mockResolvedValueOnce([]);
+        window.go.main.App.GetFileTree.mockResolvedValueOnce([]);
 
         await createInboxNote();
 
-        expect(window.pywebview.api.create_inbox_note).toHaveBeenCalledTimes(1);
+        expect(window.go.main.App.CreateInboxNote).toHaveBeenCalledTimes(1);
         expect(handleFileOpen).toHaveBeenCalledWith('Inbox/2026-07-17-143522.md');
         expect(focusEditor).toHaveBeenCalled();
         expect(document.getElementById('create-inbox-note').disabled).toBe(false);
@@ -231,7 +231,7 @@ describe('File Tree', () => {
     });
 
     test('Quick note reports backend failure without opening a phantom Inbox tab', async () => {
-        window.pywebview.api.create_inbox_note.mockResolvedValueOnce({
+        window.go.main.App.CreateInboxNote.mockResolvedValueOnce({
             success: false,
             error: 'Inbox is read-only',
         });
@@ -253,7 +253,7 @@ describe('File Tree', () => {
         beforeEach(() => {
             state.fileTreeData = [{ name: 'note.md', path: 'note.md', type: 'file', mtime: 1000 }];
             fileTreeStyleDialog.mockReset().mockResolvedValue({ icon: 'Star', color: '#3b82f6' });
-            window.pywebview.api.set_file_tree_style.mockResolvedValue({
+            window.go.main.App.SetFileTreeStyle.mockResolvedValue({
                 version: 1,
                 entries: { 'note.md': { icon: 'Star', color: '#3b82f6' } },
                 recent_icons: ['Star'],
@@ -268,31 +268,31 @@ describe('File Tree', () => {
                 name: 'note.md',
                 type: 'file',
             }));
-            expect(window.pywebview.api.set_file_tree_style).toHaveBeenCalledWith('note.md', 'Star', '#3b82f6');
+            expect(window.go.main.App.SetFileTreeStyle).toHaveBeenCalledWith('note.md', 'Star', '#3b82f6');
         });
 
         test('does not write when the appearance dialog is cancelled', async () => {
             fileTreeStyleDialog.mockResolvedValueOnce(null);
 
             await expect(customizeTreePath('note.md', 'file')).resolves.toBe(false);
-            expect(window.pywebview.api.set_file_tree_style).not.toHaveBeenCalled();
+            expect(window.go.main.App.SetFileTreeStyle).not.toHaveBeenCalled();
         });
 
         test('reset removes both overrides', async () => {
             fileTreeStyleDialog.mockResolvedValueOnce({ icon: '', color: '' });
 
             await expect(customizeTreePath('note.md', 'file')).resolves.toBe(true);
-            expect(window.pywebview.api.set_file_tree_style).toHaveBeenCalledWith('note.md', '', '');
+            expect(window.go.main.App.SetFileTreeStyle).toHaveBeenCalledWith('note.md', '', '');
         });
 
         test('reports a persistence error without replacing the current appearance', async () => {
-            window.pywebview.api.get_file_tree_styles.mockResolvedValueOnce({
+            window.go.main.App.GetFileTreeStyles.mockResolvedValueOnce({
                 version: 1,
                 entries: { 'note.md': { color: '#ef4444' } },
                 recent_icons: [],
             });
             await loadFileTreeStyles();
-            window.pywebview.api.set_file_tree_style.mockRejectedValueOnce(new Error('Disk is full'));
+            window.go.main.App.SetFileTreeStyle.mockRejectedValueOnce(new Error('Disk is full'));
 
             await expect(customizeTreePath('note.md', 'file')).resolves.toBe(false);
             expect(errorDialog).toHaveBeenCalledWith(
@@ -420,11 +420,11 @@ describe('File Tree', () => {
             scheduleFileTreeRefresh(180);
             scheduleFileTreeRefresh(180);
             jest.advanceTimersByTime(179);
-            expect(window.pywebview.api.get_file_tree).not.toHaveBeenCalled();
+            expect(window.go.main.App.GetFileTree).not.toHaveBeenCalled();
 
             jest.advanceTimersByTime(1);
             await Promise.resolve();
-            expect(window.pywebview.api.get_file_tree).toHaveBeenCalledTimes(1);
+            expect(window.go.main.App.GetFileTree).toHaveBeenCalledTimes(1);
         } finally {
             jest.useRealTimers();
         }
@@ -452,22 +452,22 @@ describe('File Tree', () => {
     test('copies native paths instead of moving them and expands the destination', async () => {
         state.fileTreeData = [{ name: 'Imported', path: 'Imported', type: 'directory', children: [] }];
         state.expandedDirs = new Set();
-        window.pywebview.api.copy_external_paths.mockResolvedValueOnce({
+        window.go.main.App.CopyExternalPaths.mockResolvedValueOnce({
             success: true,
             paths: ['Imported/report.md', 'Imported/Assets'],
         });
-        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+        window.go.main.App.GetFileTree.mockResolvedValueOnce(state.fileTreeData);
 
         await expect(copyExternalDrop([
             'C:\\Users\\Writer\\report.md',
             'C:\\Users\\Writer\\Assets',
         ], 'Imported')).resolves.toBe(true);
 
-        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledWith([
+        expect(window.go.main.App.CopyExternalPaths).toHaveBeenCalledWith([
             'C:\\Users\\Writer\\report.md',
             'C:\\Users\\Writer\\Assets',
         ], 'Imported', false);
-        expect(window.pywebview.api.move_path).not.toHaveBeenCalled();
+        expect(window.go.main.App.MovePath).not.toHaveBeenCalled();
         expect(state.expandedDirs).toContain('Imported');
         expect(saveSession).toHaveBeenCalled();
     });
@@ -483,28 +483,28 @@ describe('File Tree', () => {
         const folder = document.querySelector('.file-tree-item[data-path="Inbox"] > .file-tree-node');
         const originalElementFromPoint = document.elementFromPoint;
         document.elementFromPoint = jest.fn().mockReturnValue(folder);
-        window.pywebview.api.copy_external_paths.mockResolvedValueOnce({ success: true, paths: ['Inbox/note.md'] });
-        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+        window.go.main.App.CopyExternalPaths.mockResolvedValueOnce({ success: true, paths: ['Inbox/note.md'] });
+        window.go.main.App.GetFileTree.mockResolvedValueOnce(state.fileTreeData);
 
         expect(initNativeFileDrops(runtime)).toBe(true);
         expect(runtime.OnFileDrop).toHaveBeenCalledWith(expect.any(Function), true);
         callback(42, 84, ['/home/writer/note.md']);
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledWith(['/home/writer/note.md'], 'Inbox', false);
+        expect(window.go.main.App.CopyExternalPaths).toHaveBeenCalledWith(['/home/writer/note.md'], 'Inbox', false);
         document.elementFromPoint = originalElementFromPoint;
     });
 
     test('asks before replacing a conflicting external drop', async () => {
         state.fileTreeData = [{ name: 'Imported', path: 'Imported', type: 'directory', children: [] }];
-        window.pywebview.api.copy_external_paths
+        window.go.main.App.CopyExternalPaths
             .mockResolvedValueOnce({
                 success: false,
                 conflicts: ['Imported/report.md'],
                 error: 'One or more items already exist in the destination',
             })
             .mockResolvedValueOnce({ success: true, paths: ['Imported/report.md'] });
-        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+        window.go.main.App.GetFileTree.mockResolvedValueOnce(state.fileTreeData);
         confirmDialog.mockResolvedValueOnce('confirm');
 
         await expect(copyExternalDrop(['/home/writer/report.md'], 'Imported')).resolves.toBe(true);
@@ -516,27 +516,27 @@ describe('File Tree', () => {
             false,
             { confirmLabel: 'Replace' }
         );
-        expect(window.pywebview.api.copy_external_paths).toHaveBeenNthCalledWith(
+        expect(window.go.main.App.CopyExternalPaths).toHaveBeenNthCalledWith(
             1, ['/home/writer/report.md'], 'Imported', false
         );
-        expect(window.pywebview.api.copy_external_paths).toHaveBeenNthCalledWith(
+        expect(window.go.main.App.CopyExternalPaths).toHaveBeenNthCalledWith(
             2, ['/home/writer/report.md'], 'Imported', true
         );
     });
 
     test('warns and merges a dropped directory without replacing filename collisions', async () => {
         state.fileTreeData = [{ name: 'Imported', path: 'Imported', type: 'directory', children: [] }];
-        window.pywebview.api.copy_external_paths.mockResolvedValueOnce({
+        window.go.main.App.CopyExternalPaths.mockResolvedValueOnce({
             success: false,
             conflicts: ['Imported/Assets'],
             directory_conflicts: ['Imported/Assets'],
             error: 'One or more items already exist in the destination',
         });
-        window.pywebview.api.merge_external_paths.mockResolvedValueOnce({
+        window.go.main.App.MergeExternalPaths.mockResolvedValueOnce({
             success: true,
             paths: ['Imported/Assets'],
         });
-        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+        window.go.main.App.GetFileTree.mockResolvedValueOnce(state.fileTreeData);
 
         await expect(copyExternalDrop(['/home/writer/Assets'], 'Imported')).resolves.toBe(true);
 
@@ -547,15 +547,15 @@ describe('File Tree', () => {
             false,
             expect.objectContaining({ confirmLabel: 'Merge contents', tone: 'warning' })
         );
-        expect(window.pywebview.api.merge_external_paths).toHaveBeenCalledWith(
+        expect(window.go.main.App.MergeExternalPaths).toHaveBeenCalledWith(
             ['/home/writer/Assets'],
             'Imported'
         );
-        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledTimes(1);
+        expect(window.go.main.App.CopyExternalPaths).toHaveBeenCalledTimes(1);
     });
 
     test('leaves the destination unchanged when replacement is cancelled', async () => {
-        window.pywebview.api.copy_external_paths.mockResolvedValueOnce({
+        window.go.main.App.CopyExternalPaths.mockResolvedValueOnce({
             success: false,
             conflicts: ['report.md'],
             error: 'One or more items already exist in the destination',
@@ -565,8 +565,8 @@ describe('File Tree', () => {
         await expect(copyExternalDrop(['/home/writer/report.md'], '')).resolves.toBe(false);
 
         expect(confirmDialog).toHaveBeenCalled();
-        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledTimes(1);
-        expect(window.pywebview.api.copy_external_paths).toHaveBeenCalledWith(
+        expect(window.go.main.App.CopyExternalPaths).toHaveBeenCalledTimes(1);
+        expect(window.go.main.App.CopyExternalPaths).toHaveBeenCalledWith(
             ['/home/writer/report.md'], '', false
         );
     });
@@ -639,8 +639,8 @@ describe('File Tree', () => {
                 { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1 },
             ],
         }];
-        window.pywebview.api.copy_path.mockResolvedValueOnce({ success: true, path: 'Projects copy' });
-        window.pywebview.api.get_file_tree.mockResolvedValueOnce([
+        window.go.main.App.CopyPath.mockResolvedValueOnce({ success: true, path: 'Projects copy' });
+        window.go.main.App.GetFileTree.mockResolvedValueOnce([
             ...state.fileTreeData,
             { name: 'Projects copy', path: 'Projects copy', type: 'directory', children: [] },
         ]);
@@ -649,9 +649,9 @@ describe('File Tree', () => {
         await expect(pasteInternalClipboard('', 'root')).resolves.toBe(true);
 
         expect(prepareTabsForPathCopy).toHaveBeenCalledWith('Projects');
-        expect(window.pywebview.api.copy_path).toHaveBeenCalledWith('Projects', '');
+        expect(window.go.main.App.CopyPath).toHaveBeenCalledWith('Projects', '');
         expect(prepareTabsForPathCopy.mock.invocationCallOrder[0]).toBeLessThan(
-            window.pywebview.api.copy_path.mock.invocationCallOrder[0]
+            window.go.main.App.CopyPath.mock.invocationCallOrder[0]
         );
         expect(state.selectedTreePath).toBe('Projects copy');
         expect(messageDialog).not.toHaveBeenCalled();
@@ -662,7 +662,7 @@ describe('File Tree', () => {
 
         await expect(pasteInternalClipboard('Projects/Archive', 'directory')).resolves.toBe(false);
 
-        expect(window.pywebview.api.copy_path).not.toHaveBeenCalled();
+        expect(window.go.main.App.CopyPath).not.toHaveBeenCalled();
         expect(messageDialog).toHaveBeenCalledWith(
             'Operation refused',
             'A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead.',
@@ -682,7 +682,7 @@ describe('File Tree', () => {
 
         await expect(pasteInternalClipboard('', 'root')).resolves.toBe(false);
 
-        expect(window.pywebview.api.copy_path).not.toHaveBeenCalled();
+        expect(window.go.main.App.CopyPath).not.toHaveBeenCalled();
         expect(errorDialog).toHaveBeenCalledWith(
             'Couldn’t copy item',
             'Could not save "plan.md" before copying it',
@@ -703,8 +703,8 @@ describe('File Tree', () => {
             { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
         ];
         state.selectedTreePath = 'note.md';
-        window.pywebview.api.copy_path.mockResolvedValueOnce({ success: true, path: 'Archive/note.md' });
-        window.pywebview.api.get_file_tree.mockResolvedValueOnce(state.fileTreeData);
+        window.go.main.App.CopyPath.mockResolvedValueOnce({ success: true, path: 'Archive/note.md' });
+        window.go.main.App.GetFileTree.mockResolvedValueOnce(state.fileTreeData);
         initFileTree();
 
         const tree = document.getElementById('file-tree');
@@ -713,7 +713,7 @@ describe('File Tree', () => {
         tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(window.pywebview.api.copy_path).toHaveBeenCalledWith('note.md', 'Archive');
+        expect(window.go.main.App.CopyPath).toHaveBeenCalledWith('note.md', 'Archive');
     });
 
     test('keeps a root action surface below a short file list', () => {
@@ -765,7 +765,7 @@ describe('File Tree', () => {
     test('creates a non-Markdown file without appending .md or Markdown starter content', async () => {
         state.fileTreeData = [];
         newNoteDialog.mockResolvedValueOnce('print.css');
-        window.pywebview.api.create_file.mockResolvedValueOnce({ success: true, path: 'print.css' });
+        window.go.main.App.CreateFile.mockResolvedValueOnce({ success: true, path: 'print.css' });
         initFileTree();
 
         const tree = document.getElementById('file-tree');
@@ -773,7 +773,7 @@ describe('File Tree', () => {
         document.querySelector('.context-menu [data-action="new-file"]').click();
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(window.pywebview.api.create_file).toHaveBeenCalledWith('print.css', '');
+        expect(window.go.main.App.CreateFile).toHaveBeenCalledWith('print.css', '');
         expect(handleFileOpen).toHaveBeenCalledWith('print.css');
     });
 
@@ -782,7 +782,7 @@ describe('File Tree', () => {
         state.selectedFilePath = 'notes/draft.md';
         state.selectedFilePaths = ['notes/draft.md'];
         renamePathDialog.mockResolvedValueOnce('final.md');
-        window.pywebview.api.rename_path.mockResolvedValueOnce({
+        window.go.main.App.RenamePath.mockResolvedValueOnce({
             success: true,
             old_path: 'notes/draft.md',
             path: 'notes/final.md',
@@ -800,7 +800,7 @@ describe('File Tree', () => {
 
         expect(renamePathDialog).toHaveBeenCalledWith('notes/draft.md', 'file');
         expect(prepareTabsForPathMove).toHaveBeenCalledWith('notes/draft.md');
-        expect(window.pywebview.api.rename_path).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
+        expect(window.go.main.App.RenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
         expect(updateTabsForMovedPath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
         expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith(['notes/references.md']);
         expect(state.selectedFilePath).toBe('notes/final.md');
@@ -852,14 +852,14 @@ describe('File Tree', () => {
         });
 
         test('warns before merging an existing destination directory and remaps collision copies', async () => {
-            window.pywebview.api.move_path.mockResolvedValueOnce({
+            window.go.main.App.MovePath.mockResolvedValueOnce({
                 success: false,
                 error: 'Destination directory already exists',
                 merge_available: true,
                 old_path: 'Drafts',
                 path: 'Archive/Drafts',
             });
-            window.pywebview.api.merge_directory.mockResolvedValueOnce({
+            window.go.main.App.MergeDirectory.mockResolvedValueOnce({
                 success: true,
                 old_path: 'Drafts',
                 path: 'Archive/Drafts',
@@ -878,7 +878,7 @@ describe('File Tree', () => {
                 false,
                 expect.objectContaining({ confirmLabel: 'Merge contents', tone: 'warning' })
             );
-            expect(window.pywebview.api.merge_directory).toHaveBeenCalledWith('Drafts', 'Archive');
+            expect(window.go.main.App.MergeDirectory).toHaveBeenCalledWith('Drafts', 'Archive');
             expect(updateTabsForMovedPath).toHaveBeenNthCalledWith(
                 1,
                 'Drafts/report.md',
@@ -889,7 +889,7 @@ describe('File Tree', () => {
         });
 
         test('leaves both directories untouched when the merge warning is cancelled', async () => {
-            window.pywebview.api.move_path.mockResolvedValueOnce({
+            window.go.main.App.MovePath.mockResolvedValueOnce({
                 success: false,
                 merge_available: true,
             });
@@ -897,7 +897,7 @@ describe('File Tree', () => {
 
             await expect(moveInternalPath('Drafts', 'Archive')).resolves.toBe(false);
 
-            expect(window.pywebview.api.merge_directory).not.toHaveBeenCalled();
+            expect(window.go.main.App.MergeDirectory).not.toHaveBeenCalled();
             expect(updateTabsForMovedPath).not.toHaveBeenCalled();
         });
     });
@@ -993,7 +993,7 @@ describe('File Tree', () => {
         test('keeps the newest tree when an earlier refresh resolves late', async () => {
             const slow = deferred();
             const fast = deferred();
-            window.pywebview.api.get_file_tree
+            window.go.main.App.GetFileTree
                 .mockImplementationOnce(() => slow.promise)
                 .mockImplementationOnce(() => fast.promise);
 

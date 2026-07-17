@@ -98,13 +98,13 @@ function deferred() {
     return { promise, resolve };
 }
 
-// Mock window.pywebview API
-window.pywebview = { api: {
-    save_file: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() }),
-    save_session: jest.fn().mockResolvedValue({ success: true }),
-    read_file: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
-    commit_current_file: jest.fn().mockResolvedValue(null),
-} };
+// Mock native Wails App binding.
+window.go = { main: { App: {
+    SaveFile: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() }),
+    SaveSession: jest.fn().mockResolvedValue({ success: true }),
+    ReadFile: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
+    CommitCurrentFile: jest.fn().mockResolvedValue(null),
+} } };
 
 describe('Tab Manager', () => {
     beforeEach(() => {
@@ -139,7 +139,7 @@ describe('Tab Manager', () => {
             await testUtils.waitFor(0);
 
             expect(setEditorContent).toHaveBeenCalledWith('', 'fresh.md');
-            expect(window.pywebview.api.read_file).not.toHaveBeenCalled();
+            expect(window.go.main.App.ReadFile).not.toHaveBeenCalled();
         });
 
         test('should create new calendar tab', () => {
@@ -250,7 +250,7 @@ describe('Tab Manager', () => {
         test('does not let an older read overwrite a newer load of the same tab', async () => {
             const firstA = deferred();
             const latestA = deferred();
-            window.pywebview.api.read_file
+            window.go.main.App.ReadFile
                 .mockImplementationOnce(() => firstA.promise)
                 .mockResolvedValueOnce({ content: 'B content', mtime: 2, path: 'b.md' })
                 .mockImplementationOnce(() => latestA.promise);
@@ -302,7 +302,7 @@ describe('Tab Manager', () => {
 
         test('rapid switching saves each dirty tab from its owned buffer instead of the stale visible document', async () => {
             const saveB = deferred();
-            window.pywebview.api.save_file.mockImplementationOnce(() => saveB.promise);
+            window.go.main.App.SaveFile.mockImplementationOnce(() => saveB.promise);
             mockState.openTabs = [
                 { id: 'a', title: 'A', type: 'file', path: 'a.md', dirty: true, _content: 'A draft', _editGeneration: 1 },
                 { id: 'b', title: 'B', type: 'file', path: 'b.md', dirty: true, _content: 'B draft', _editGeneration: 1 },
@@ -314,7 +314,7 @@ describe('Tab Manager', () => {
             switchTab('a');
             await testUtils.waitFor(0);
 
-            expect(window.pywebview.api.save_file).toHaveBeenCalledWith('b.md', 'B draft', 0);
+            expect(window.go.main.App.SaveFile).toHaveBeenCalledWith('b.md', 'B draft', 0);
             expect(mockState.openTabs[1]._content).toBe('B draft');
             saveB.resolve({ success: true, mtime: 3 });
             await testUtils.waitFor(0);
@@ -424,11 +424,11 @@ describe('Tab Manager', () => {
         test('saves a dirty source tab before reusing it for a link destination', async () => {
             openTab('source.md', 'Source', 'file', { path: 'source.md', mtime: 1 });
             markTabDirty('source.md');
-            window.pywebview.api.save_file.mockResolvedValueOnce({ success: true, mtime: 2 });
+            window.go.main.App.SaveFile.mockResolvedValueOnce({ success: true, mtime: 2 });
 
             await replaceActiveFileTab('target.md', 'Target', 'file', { path: 'target.md', mtime: 3 });
 
-            expect(window.pywebview.api.save_file).toHaveBeenCalledWith('source.md', '', 1);
+            expect(window.go.main.App.SaveFile).toHaveBeenCalledWith('source.md', '', 1);
             expect(getState('openTabs')).toEqual([
                 expect.objectContaining({ id: 'target.md', path: 'target.md', type: 'file' }),
             ]);
@@ -438,7 +438,7 @@ describe('Tab Manager', () => {
         test('preserves a dirty source tab when saving before navigation fails', async () => {
             openTab('source.md', 'Source', 'file', { path: 'source.md', mtime: 1 });
             markTabDirty('source.md');
-            window.pywebview.api.save_file.mockRejectedValueOnce(new Error('disk full'));
+            window.go.main.App.SaveFile.mockRejectedValueOnce(new Error('disk full'));
 
             await replaceActiveFileTab('target.md', 'Target', 'file', { path: 'target.md', mtime: 3 });
 
@@ -493,7 +493,7 @@ describe('Tab Manager', () => {
                 success: false,
                 error: 'Save "Diagram" before moving it',
             });
-            expect(window.pywebview.api.save_file).not.toHaveBeenCalled();
+            expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
         });
 
         test('requires an explicitly saved Draw.io editor before copying it', async () => {
@@ -504,7 +504,7 @@ describe('Tab Manager', () => {
                 success: false,
                 error: 'Save "Design" before copying it',
             });
-            expect(window.pywebview.api.save_file).not.toHaveBeenCalled();
+            expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
         });
 
         test('saves dirty source content before copying without saving unrelated dirty notes', async () => {
@@ -517,8 +517,8 @@ describe('Tab Manager', () => {
 
             await expect(prepareTabsForPathCopy('Projects')).resolves.toEqual({ success: true });
 
-            expect(window.pywebview.api.save_file).toHaveBeenCalledTimes(1);
-            expect(window.pywebview.api.save_file).toHaveBeenCalledWith(
+            expect(window.go.main.App.SaveFile).toHaveBeenCalledTimes(1);
+            expect(window.go.main.App.SaveFile).toHaveBeenCalledWith(
                 'Projects/plan.md', 'latest visible plan', 10
             );
             expect(mockState.openTabs[0].dirty).toBe(false);
@@ -548,7 +548,7 @@ describe('Tab Manager', () => {
             mockState.activeTabId = 'moved.txt';
 
             await expect(prepareTabsForPathMove('moved.txt')).resolves.toEqual({ success: true });
-            expect(window.pywebview.api.save_file).toHaveBeenCalledWith(
+            expect(window.go.main.App.SaveFile).toHaveBeenCalledWith(
                 'notes/backlink.md', '[Moved](moved.txt)', expect.anything()
             );
         });
@@ -563,9 +563,9 @@ describe('Tab Manager', () => {
 			getEditorContent.mockReturnValueOnce('active latest');
 
 			await expect(prepareTabsForVaultLinkRewrite()).resolves.toEqual({ success: true });
-			expect(window.pywebview.api.save_file).toHaveBeenCalledTimes(2);
-			expect(window.pywebview.api.save_file).toHaveBeenCalledWith('active.md', 'active latest', 10);
-			expect(window.pywebview.api.save_file).toHaveBeenCalledWith('notes/other.md', 'other latest', 20);
+			expect(window.go.main.App.SaveFile).toHaveBeenCalledTimes(2);
+			expect(window.go.main.App.SaveFile).toHaveBeenCalledWith('active.md', 'active latest', 10);
+			expect(window.go.main.App.SaveFile).toHaveBeenCalledWith('notes/other.md', 'other latest', 20);
 		});
 
 		test('cancels a vault-wide rewrite if a note changes while its save is in flight', async () => {
@@ -574,7 +574,7 @@ describe('Tab Manager', () => {
 			mockState.openTabs = [tab];
 			mockState.activeTabId = tab.id;
 			getEditorContent.mockReturnValueOnce('snapshot');
-			window.pywebview.api.save_file.mockReturnValueOnce(save.promise);
+			window.go.main.App.SaveFile.mockReturnValueOnce(save.promise);
 
 			const preparing = prepareTabsForVaultLinkRewrite();
 			await testUtils.waitFor(0);
@@ -591,7 +591,7 @@ describe('Tab Manager', () => {
         test('refreshes clean open tabs whose links were rewritten on disk', async () => {
             mockState.openTabs = [{ id: 'notes/backlink.md', title: 'Backlink', type: 'file', path: 'notes/backlink.md', dirty: false }];
             mockState.activeTabId = 'notes/backlink.md';
-            window.pywebview.api.read_file.mockResolvedValueOnce({
+            window.go.main.App.ReadFile.mockResolvedValueOnce({
                 path: 'notes/backlink.md', content: '[Moved](archive/moved.txt)', mtime: 42,
             });
 
@@ -619,25 +619,25 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.pywebview.api.save_file.mockResolvedValue({ success: true, mtime: 11 });
+            window.go.main.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
 
             setAutoCommitMode(-1);
             await saveFileSnapshot(tab, 'saved and committed');
-            expect(window.pywebview.api.commit_current_file).toHaveBeenCalledWith('note.md');
+            expect(window.go.main.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
 
-            window.pywebview.api.commit_current_file.mockClear();
+            window.go.main.App.CommitCurrentFile.mockClear();
             tab.dirty = true;
             setAutoCommitMode(3600);
             await saveFileSnapshot(tab, 'saved only');
-            expect(window.pywebview.api.commit_current_file).not.toHaveBeenCalled();
+            expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
         });
 
         test('On Save keeps a successful save and reports a failed history commit', async () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.pywebview.api.save_file.mockResolvedValue({ success: true, mtime: 11 });
-            window.pywebview.api.commit_current_file.mockRejectedValueOnce(new Error('git unavailable'));
+            window.go.main.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
+            window.go.main.App.CommitCurrentFile.mockRejectedValueOnce(new Error('git unavailable'));
             setAutoCommitMode(-1);
 
             await expect(saveFileSnapshot(tab, 'saved despite Git failure')).resolves.toEqual(
@@ -655,7 +655,7 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.pywebview.api.save_file
+            window.go.main.App.SaveFile
                 .mockImplementationOnce(() => first)
                 .mockImplementationOnce(() => second);
 
@@ -663,15 +663,15 @@ describe('Tab Manager', () => {
             const secondSave = saveFileSnapshot(tab, 'second version');
             await testUtils.waitFor(0);
 
-            expect(window.pywebview.api.save_file).toHaveBeenCalledTimes(1);
-            expect(window.pywebview.api.save_file).toHaveBeenLastCalledWith('note.md', 'first version', 10);
+            expect(window.go.main.App.SaveFile).toHaveBeenCalledTimes(1);
+            expect(window.go.main.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'first version', 10);
 
             resolveFirst({ success: true, mtime: 11 });
             await firstSave;
             await testUtils.waitFor(0);
 
-            expect(window.pywebview.api.save_file).toHaveBeenCalledTimes(2);
-            expect(window.pywebview.api.save_file).toHaveBeenLastCalledWith('note.md', 'second version', 11);
+            expect(window.go.main.App.SaveFile).toHaveBeenCalledTimes(2);
+            expect(window.go.main.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'second version', 11);
 
             resolveSecond({ success: true, mtime: 12 });
             await secondSave;

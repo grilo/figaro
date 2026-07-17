@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Calendar Module - Monthly calendar widget and date search results
  */
@@ -84,7 +85,7 @@ async function loadCalendarData(year, month) {
 
     const request = (async () => {
         try {
-            const result = await window.pywebview.api.get_calendar_month_data(year, month);
+            const result = await backend().GetCalendarMonthData(year, month);
             return result;
         } catch (err) {
             // A failed request must not poison a later retry after the bridge
@@ -207,7 +208,7 @@ async function loadLinkedNotes(dateStr) {
 
     const request = (async () => {
         try {
-            const result = await window.pywebview.api.get_linked_notes_for_date(dateStr);
+            const result = await backend().GetLinkedNotesForDate(dateStr);
             return result || [];
         } catch (err) {
             linkedNotesCache.delete(dateStr);
@@ -231,7 +232,7 @@ export async function loadCalendarResults(dateStr, containerId) {
     container.innerHTML = '<div class="results-loading">Loading...</div>';
     
     try {
-        const results = await window.pywebview.api.search_files(dateStr, false);
+        const results = await backend().SearchFiles(dateStr, false);
         if (calendarResultsRequestIds.get(containerId) !== requestId || !container.isConnected) return;
         
         if (!results || results.length === 0) {

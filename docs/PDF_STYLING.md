@@ -32,6 +32,13 @@ message bridge, so note CSS remains isolated while link actions cannot
 navigate the preview away from Figaro; see [Architecture notes](../ARCHITECTURE.md)
 for the implementation rationale.
 
+The code icon in the preview toolbar opens **Figaro PDF style reference** for
+the document currently on screen. It lists every generated class and ID,
+shows the exact printable `body` HTML, and offers **Copy HTML**. Use it when a
+selector below needs more context or when frontmatter changes the generated
+cover and table-of-contents structure; the reference is derived from the
+current preview rather than a generic sample.
+
 Use **Generate PDF** in the preview toolbar to persist the exact Markdown and
 selected stylesheet snapshots currently shown in the preview, then run the
 native PDF export. This also covers an edit followed immediately by

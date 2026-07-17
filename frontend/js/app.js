@@ -1,3 +1,4 @@
+import { backend, waitForBackend } from './backend.js';
 /**
  * figaro - Main Application Entry Point
  * Initializes all modules and orchestrates the application
@@ -23,6 +24,7 @@ import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
 import { initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitMode } from './automation.js';
+import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -71,26 +73,6 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
     });
     if (registered) vaultEventsInitialized = true;
     return registered;
-}
-
-/**
- * Wait for pywebview API to be available
- */
-function waitForBackendBridge() {
-    return new Promise((resolve) => {
-        const check = () => {
-            if (window.pywebview?.api?.get_file_tree) {
-                resolve();
-            } else {
-                setTimeout(check, 15);
-            }
-        };
-        // Also listen for pywebviewready event
-        if (window.pywebviewready) {
-            window.addEventListener('pywebviewready', check);
-        }
-        check();
-    });
 }
 
 /**
@@ -353,7 +335,7 @@ function initKeyboardShortcuts() {
  */
 export async function handleFileOpen(filePath) {
     try {
-        const result = await window.pywebview.api.read_file(filePath);
+        const result = await backend().ReadFile(filePath);
         if (result) {
             if (result.binary) {
                 statusBar.set('Cannot edit binary file');
@@ -466,13 +448,14 @@ export async function initApp() {
     initCalendarNav();
     initTopBar();
     initKeyboardShortcuts();
+    initWindowChrome();
     
-    // Wait for backend bridge
+    // Wait until Wails has published the bound Go App object.
     statusBar.set('Connecting to backend...');
-    await waitForBackendBridge();
+    await waitForBackend();
     await initLinkStylePreference();
     try {
-        setAutoCommitMode(await window.pywebview.api.auto_commit_load());
+        setAutoCommitMode(await backend().AutoCommitLoad());
     } catch (_) { /* keep the one-hour default */ }
 
     // Load saved session from vault/.config/session.json
@@ -538,52 +521,46 @@ export async function initApp() {
     // ── Auto-save timer (frequent, content-only, no git commit) ──
     (async () => {
         try {
-            const interval = await window.pywebview.api.auto_save_load();
+            const interval = await backend().AutoSaveLoad();
             configureAutoSave(interval);
         } catch (_) { /* noop */ }
     })();
 
     // ── Exit prompt: warn about unsaved changes ──
-    const originalWindowClose = window.__wailsCompat?.windowClose;
-    if (originalWindowClose) {
-        window.__wailsCompat.windowClose = async () => {
-            const tabs = getState('openTabs');
-            const dirty = tabs.filter(t => t.dirty && t.type === 'file');
-            if (dirty.length > 0) {
-                const names = dirty.map(t => t.title).join(', ');
-                const choice = await window.confirmDialog?.(
-                    'Unsaved changes',
-                    `These files have unsaved changes: ${names}\n\nSave them before exiting?`,
-                    false,
-                    false,
-                    {
-                        tone: 'warning',
-                        icon: 'warning',
-                        confirmLabel: 'Save and exit',
-                        cancelLabel: 'Keep editing',
-                        extraLabel: 'Exit without saving',
-                        extraDanger: true,
-                    }
-                );
-                if (choice === 'confirm') {
-                    // Save all dirty, then quit
-                    const activeId = getState('activeTabId');
-                    for (const tab of dirty) {
-                        const content = tab.id === activeId ? getEditorContent() : tab._content;
-                        if (typeof content !== 'string') continue;
-                        try { await saveFileSnapshot(tab, content); } catch (_) { /* noop */ }
-                    }
-                    originalWindowClose();
-                } else if (choice === 'extra') {
-                    // Exit without saving
-                    originalWindowClose();
-                }
-                // 'cancel' or dialog closed → do nothing
-            } else {
-                originalWindowClose();
+    setWindowCloseRequestHandler(async () => {
+        const tabs = getState('openTabs');
+        const dirty = tabs.filter(t => t.dirty && t.type === 'file');
+        if (dirty.length === 0) {
+            closeNativeWindow();
+            return;
+        }
+        const names = dirty.map(t => t.title).join(', ');
+        const choice = await window.confirmDialog?.(
+            'Unsaved changes',
+            `These files have unsaved changes: ${names}\n\nSave them before exiting?`,
+            false,
+            false,
+            {
+                tone: 'warning',
+                icon: 'warning',
+                confirmLabel: 'Save and exit',
+                cancelLabel: 'Keep editing',
+                extraLabel: 'Exit without saving',
+                extraDanger: true,
             }
-        };
-    }
+        );
+        if (choice === 'confirm') {
+            const activeId = getState('activeTabId');
+            for (const tab of dirty) {
+                const content = tab.id === activeId ? getEditorContent() : tab._content;
+                if (typeof content !== 'string') continue;
+                try { await saveFileSnapshot(tab, content); } catch (_) { /* noop */ }
+            }
+            closeNativeWindow();
+        } else if (choice === 'extra') {
+            closeNativeWindow();
+        }
+    });
 
     // Handle window close - save dirty tabs and persist session
     window.addEventListener('beforeunload', async (_e) => {
@@ -611,5 +588,5 @@ export async function initApp() {
     };
 }
 
-// initApp() is called from index.html's bootWhenReady() — the Wails bridge
-// must be live before initialization starts.
+// Native Wails startup calls initApp after DOM readiness; browser debugging
+// starts it through bootstrap.js after installing its explicit debug backend.

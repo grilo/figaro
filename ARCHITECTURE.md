@@ -24,6 +24,11 @@ The Wails asset server embeds `frontend/` at package-build time. Backend code
 may use an on-disk fallback during development, but a released application must
 not depend on a package manager, CDN, or source checkout at runtime.
 
+`frontend/js/backend.js` is the frontend's sole backend entry point. It calls
+the native Wails binding at `window.go.main.App` using its generated PascalCase
+method names. Browser debugging installs an explicit same-shaped mock through
+that module, rather than emulating a retired desktop runtime.
+
 ## Session state is not settings
 
 `settings.json` stores durable preferences such as theme, fonts, and feature
@@ -72,8 +77,9 @@ The state machine preserves the last useful desktop presentation:
   dimensions, giving the native backend usable restore bounds.
 - A minimized, fullscreen, or transitional observation is ignored. Figaro's
   own minimize action captures the preceding normal/maximized state first.
-- The frontend schedules an initial capture after the Wails bridge connects.
-  Native browser resize events are then debounced by 250 ms before capture so
+- The frontend never captures native window state eagerly: GTK can still be
+  unrealised at DOM readiness. Native browser resize events are debounced by
+  250 ms before capture so
   edge resizing, snapping, and window-manager shortcuts are covered even when
   they bypass the custom controls. Shutdown performs a final capture, and the
   custom maximize action captures normal bounds before toggling.

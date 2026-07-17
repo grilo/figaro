@@ -28,7 +28,7 @@ figaro combines the durability of plain Markdown with a desktop workspace that h
 | Write | Organize | Visualize and share |
 | --- | --- | --- |
 | Live Markdown preview with tables, task lists, callouts, footnotes, math, images, and internal links | Vault file tree, tabs, global search, backlinks, date-aware calendar, and persistent sessions | Mermaid, Vega, Vega-Lite, editable Draw.io SVGs, and interactive PDF export |
-| CodeMirror-powered editing for Markdown and supported source files such as CSS, JavaScript, JSON, Go, Python, Rust, SQL, YAML, and more | Hashtag-driven Kanban with custom columns, drag-and-drop task moves, and optional local Git auto-commit history | Cover pages, depth-limited tables of contents, and vault-local print stylesheets |
+| CodeMirror-powered editing for Markdown and supported source files such as CSS, JavaScript, JSON, Go, Python, Rust, SQL, YAML, and more | Quick notes in a real Inbox, hashtag-driven Kanban, and local Git history with automatic or explicit commits | Cover pages, depth-limited tables of contents, and vault-local print stylesheets |
 | Optional Vim mode, language-aware syntax highlighting, folding, completion, and theme-aware indent guides | Drag-reorderable and pinnable tabs, recent notes, and a Welcome workspace when no editor tab remains | Seventeen built-in themes, including Figaro Light and Figaro Dark, plus separate prose/code font pickers, font size and reading-width controls |
 
 ## A workspace built around plain files
@@ -38,6 +38,8 @@ Every vault is an ordinary directory. Markdown remains Markdown, images remain i
 Paste a screenshot or other raster image from the clipboard directly into an open Markdown note. Figaro saves it beside the note as `image1.png`, `image2.png`, and so on, inserts portable Markdown such as `![Image1](image1.png)`, and renders it immediately. Existing files are never overwritten, and the same action is available through Ctrl/Cmd+V or the editor context menu.
 
 The file tree supports internal Copy/Paste for files and complete folders through its context menu or Ctrl/Cmd+C and Ctrl/Cmd+V while the tree is focused. Paste saves dirty source tabs first, and repeated or same-folder pastes never overwrite content: Figaro creates `Folder copy`, `Folder copy 2`, or `note copy.md`. Links inside copied Markdown are adjusted so internal links follow copied counterparts and links leaving the copied tree still reach their original vault targets; incoming links elsewhere continue to point at the source. A folder cannot be pasted into itself or one of its descendants, and the refusal dialog directs you to select its parent for a sibling copy. When an internal move or native filesystem drop meets an existing same-named directory, Figaro asks whether to merge the contents instead of replacing anything. A confirmed merge keeps both trees and names file collisions `note (copy).md`, `note (copy 2).md`, and so on; cancelling leaves both directories untouched. Renaming uses a contextual dialog that shows the current folder, selects only a file's editable stem, validates the name in place, and explains that affected links are updated automatically.
+
+Right-click an editable file or folder and choose **Customize appearance…** to assign a searchable Lucide icon and one of the Kanban accent colors. The picker keeps the ten most recently used icons close at hand and includes **Reset** to restore Figaro's defaults. Appearance is stored with the vault and follows rename, move, copy, merge, and delete operations. The active file has the strongest tree marker; other open files retain a quieter marker. The top-level `Inbox` uses a Mail icon until you customize it.
 
 The default vault is `./vault`. Point figaro at another location with the `VAULT_PATH` environment variable:
 
@@ -69,15 +71,19 @@ The selected executable is device-specific and is stored outside the vault in `m
 
 ### Search, planning, and history
 
-The sidebar search finds both note names and Markdown body text. It supports title-only, recent-notes, and case-sensitive filters, plus keyboard navigation. Use Ctrl/Cmd+F for fast in-document find, including case-sensitive, whole-word, and regular-expression matching. Calendar and Kanban stay in a fixed footer below the file tree: Calendar expands inside the sidebar, while Kanban opens or returns to its single workspace tab. Clicking an already active Kanban button closes that view with a short exit transition. When the sidebar is collapsed those controls remain available in a narrow tool rail. Settings is the gear beside the window controls and follows the same animated open, focus, and close behavior. The Calendar highlights daily notes named `YYYY-MM-DD.md` and notes that link to them; date links open a workspace results tab. The Home tab keeps the last eight opened notes and up to six unfinished Kanban cards close at hand.
+**Quick note** creates an empty, collision-safe timestamped Markdown file in a real `Inbox` folder, opens it, and places focus in the editor. The action sits above the file tree and remains available as an icon in the collapsed sidebar rail, making it suitable for an ad-hoc thought without first choosing a title or location.
 
-Saving and versioning are intentionally separate. **Auto-Save** writes the active dirty file on the interval you choose, while **Auto-Commit** is an optional, off-by-default local Git scheduler. This keeps normal file saving fast and predictable while letting you opt into version history.
+The sidebar search finds both note names and Markdown body text. It supports title-only, recent-notes, and case-sensitive filters, plus keyboard navigation. Use Ctrl/Cmd+F for fast in-document find, including case-sensitive, whole-word, and regular-expression matching. Calendar and Kanban stay in a fixed footer below the file tree: Calendar expands inside the sidebar, while Kanban opens or returns to its single workspace tab. Clicking an already active Kanban button closes that view with a short exit transition. When the sidebar is collapsed those controls and Quick note remain available in a narrow tool rail. Settings is the gear beside the window controls and follows the same animated open, focus, and close behavior. The Calendar highlights daily notes named `YYYY-MM-DD.md` and notes that link to them; date links open a workspace results tab. The Home tab keeps the last eight opened notes and up to six unfinished Kanban cards close at hand.
+
+**Auto-Save** writes the active dirty file on the interval you choose. **Auto-Commit** defaults to one hour and can instead run **On Save** or be turned off. The status bar shows **Git clean** or a highlighted **Uncommitted** state for the active file; clicking **Uncommitted** safely saves pending editor text and commits only that file without disturbing unrelated staged changes. The adjacent **Changes** count opens file history. Selecting an older revision shows it read-only, and **Revert to this version** first preserves the current content in Git history before restoring the selected revision.
 
 ## Markdown, diagrams, and PDFs
 
 ### Markdown and code
 
-figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. Standalone CSS hex colors display a theme-aware swatch and native picker; valid hex-shaped tokens take precedence over hashtags while the source and PDF text remain unchanged. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
+figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. The optional editor gutter is controlled by **Settings → Show line numbers** and is off by default. Standalone CSS hex colors display a theme-aware swatch and native picker; valid hex-shaped tokens take precedence over hashtags while the source and PDF text remain unchanged. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
+
+Under **Settings → Links style**, choose Markdown links such as `[Welcome](Welcome.md)` (the default) or conventional target-first Wikilinks such as `[[Welcome.md|Welcome]]`. Note autocomplete follows that preference. Changing it always asks whether to rewrite links, keep existing syntax, or cancel; a rewrite touches only links that resolve to existing Markdown files in the vault, reloads affected open notes, and leaves external URLs, email addresses, images, code, and unresolved links unchanged.
 
 #### Tables
 
@@ -151,7 +157,7 @@ print-stylesheet: "pdf.css"
 
 PDF exports use a polished built-in style by default. To customize one, choose **Create starter** in the Properties panel's **PDF layout** section. Figaro proposes a note-local `pdf.css`, copies its comprehensive editable example only after you confirm, selects it for the note, and opens it. It never creates stylesheets during startup or export, and it never overwrites an existing CSS file. See [PDF styling](docs/PDF_STYLING.md) for the stable selectors, page-layout guidance, and the distinction between document headings and unsupported repeated page headers/footers.
 
-Choose **Preview PDF** from a Markdown file's context menu, editor context menu, or the Properties panel. Figaro opens a live, isolated preview in the right pane and refreshes it shortly after Markdown or the selected CSS stylesheet changes. Drag its splitter to make the preview pane wider: it can grow until the editor reaches a 320 px working width, while the paper remains centered and capped to its `@page size` instead of stretching with the pane. Named A3/A4/A5, B5, Letter, Legal, Ledger/Tabloid, and Executive sizes, portrait/landscape orientation, and explicit CSS lengths are reflected in the preview; A4 is the fallback. The editor's decorative side padding contracts when space is tight. Editor/preview line synchronization is paused during the drag and aligned once after release, preventing resize jitter while preserving synchronized reading position.
+Choose **Preview PDF** from a Markdown file's context menu, editor context menu, or the Properties panel. Figaro opens a live, isolated preview in the right pane and refreshes it shortly after Markdown or the selected CSS stylesheet changes. The code icon in its toolbar opens **Figaro PDF style reference**, listing every class and ID in the current printable document alongside the generated body HTML, with a one-click copy action. Drag the splitter to make the preview pane wider: it can grow until the editor reaches a 320 px working width, while the paper remains centered and capped to its `@page size` instead of stretching with the pane. Named A3/A4/A5, B5, Letter, Legal, Ledger/Tabloid, and Executive sizes, portrait/landscape orientation, and explicit CSS lengths are reflected in the preview; A4 is the fallback. The editor's decorative side padding contracts when space is tight. Editor/preview line synchronization is paused during the drag and aligned once after release, preventing resize jitter while preserving synchronized reading position.
 
 Choose **Generate PDF** in that pane when the result is ready. figaro then looks for an installed Chrome/Chromium-family browser, including Ungoogled Chromium and its Flatpak launcher, then Edge; on macOS it can use the system Safari/WebKit engine. Chromium candidates are accepted only after the same isolated headless DevTools startup used by a real export succeeds. It writes `<note>.pdf` beside the Markdown file (safely replacing the previous export) and opens it with your default viewer. The export deliberately aborts if no viable browser engine is found rather than creating a PDF with dead links, TOC entries, or footnote references.
 
@@ -217,14 +223,18 @@ make icons          # regenerate all icon variants from figaro.appicon.png
 After the release commit is on `main`, push a stable semantic-version tag:
 
 ~~~bash
-git tag -a v2.0.1 -m "Figaro v2.0.1"
-git push origin v2.0.1
+git tag -a v1.0.0 -m "Figaro v1.0.0"
+git push origin v1.0.0
 ~~~
 
-The tag-triggered release workflow verifies the complete test suite, builds a
+The `v1.0.0` release tag must match the versions in `package.json`,
+`package-lock.json`, and `wails.json`; the workflow refuses inconsistent
+metadata or a tag that is not on `main`. The tag-triggered release workflow
+verifies the complete test suite, builds a
 Linux amd64 archive, a Windows amd64 archive, and one universal Intel/Apple
 Silicon macOS archive, then publishes them with `SHA256SUMS` and generated
-release notes. Release builds are currently unsigned, so Windows SmartScreen
+release notes. Each archive includes the README, changelog, and GPL license.
+Release builds are currently unsigned, so Windows SmartScreen
 or macOS Gatekeeper may ask the user to confirm the first launch.
 
 The Makefile prepares a clean checkout itself: it downloads Go modules, runs
@@ -269,7 +279,7 @@ The PDF tests verify the full application-controlled contract: frontmatter, cove
 
 `figaro` is deliberately small and direct:
 
-- **Go + Wails v2** provides the desktop shell, vault-safe filesystem operations, optional local Git auto-commit history, settings, and browser-backed interactive PDF export. Reusable backend modules live under `internal/`; the Wails bootstrap remains at the repository root by convention.
+- **Go + Wails v2** provides the desktop shell, vault-safe filesystem operations, configurable local Git auto-commit history, settings, and browser-backed interactive PDF export. Reusable backend modules live under `internal/`; the Wails bootstrap remains at the repository root by convention.
 - **Vanilla JavaScript + CodeMirror 6** provides the editor, live Markdown experience, workspace UI, and on-demand language support.
 - **Browser dependencies** keep the editor, Markdown renderer, KaTeX, Mermaid, Vega, Vega-Lite, Vim mode, and language grammars available without a runtime package install. The Makefile recreates generated modules before desktop builds (or on demand with `make vendor`); KaTeX ships only its production JavaScript, CSS, and font assets. Python and Rust grammar support does not add a Python or Rust runtime to Figaro.
 - **The vault** is the source of truth. Configuration lives under `.config/`; content remains portable files.
@@ -309,4 +319,7 @@ Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING
 
 ## License
 
-No license file has been selected for this repository yet. Choose and add one before redistributing figaro.
+Figaro is free software distributed under the [GNU General Public License
+version 3 or later](LICENSE). You may use, study, share, and modify it under
+those terms. Distributed builds include the license and changelog; dependency
+licenses remain with their corresponding vendored assets.

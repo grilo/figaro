@@ -94,7 +94,7 @@ describe('Vim command behavior', () => {
         expect(view.state.selection.main.head).toBe(6);
 
         const save = deferred();
-        window.pywebview.api.save_file.mockImplementationOnce(() => save.promise);
+        window.go.main.App.SaveFile.mockImplementationOnce(() => save.promise);
         const confirmDialog = jest.fn().mockResolvedValue(true);
         window.confirmDialog = confirmDialog;
         Vim.handleKey(cm, ':', 'user');
@@ -104,7 +104,7 @@ describe('Vim command behavior', () => {
         commandKey(exInput, 'Enter', 13);
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(window.pywebview.api.save_file).toHaveBeenCalledWith(
+        expect(window.go.main.App.SaveFile).toHaveBeenCalledWith(
             'notes/vim.md', 'alpha beta\nmiddle\nbeta end', 10
         );
         expect(getState('openTabs')).toContain(fileTab);
@@ -123,7 +123,7 @@ describe('Vim command behavior', () => {
         expect(fileTab.dirty).toBe(true);
         expect(confirmDialog).not.toHaveBeenCalled();
 
-        window.pywebview.api.save_file.mockResolvedValueOnce({
+        window.go.main.App.SaveFile.mockResolvedValueOnce({
             success: true,
             mtime: 30,
             path: 'notes/vim.md',
@@ -136,7 +136,7 @@ describe('Vim command behavior', () => {
         await new Promise(resolve => setTimeout(resolve, 0));
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(window.pywebview.api.save_file).toHaveBeenNthCalledWith(
+        expect(window.go.main.App.SaveFile).toHaveBeenNthCalledWith(
             2, 'notes/vim.md', 'alpha beta\nmiddle\nbeta end\nnewer text', 20
         );
         expect(getState('openTabs')).not.toContain(fileTab);

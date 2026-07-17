@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Backlinks Module - Backlinks status bar link for current file
  */
@@ -42,7 +43,7 @@ export async function updateBacklinksForActiveTab() {
     if (activeTab && activeTab.type === 'file' && activeTab.path) {
         try {
             const backlinks = normalizeBacklinks(
-                await window.pywebview.api.search_backlinks(activeTab.path)
+                await backend().SearchBacklinks(activeTab.path)
             );
             if (requestId !== backlinksRequestId || getState('activeTabId') !== activeTab.id) return;
             setState('backlinksData', backlinks);
@@ -92,7 +93,7 @@ export async function loadBacklinksResults(targetPath, containerId) {
     
     try {
         const backlinks = normalizeBacklinks(
-            await window.pywebview.api.search_backlinks(targetPath)
+            await backend().SearchBacklinks(targetPath)
         );
         if (backlinksResultsRequestIds.get(containerId) !== requestId || !container.isConnected) return;
         

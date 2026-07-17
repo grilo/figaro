@@ -47,13 +47,13 @@ describe('history restore workflow', () => {
         jest.clearAllMocks();
         mockState.openTabs = [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true }];
         mockState.activeTabId = 'note.md';
-        window.pywebview.api.get_commit_count.mockResolvedValue(2);
-        window.pywebview.api.get_file_history.mockResolvedValue([
+        window.go.main.App.GetCommitCount.mockResolvedValue(2);
+        window.go.main.App.GetFileHistory.mockResolvedValue([
             { hash: 'latest123456', timestamp: 200, message: 'latest' },
             { hash: 'older1234567', timestamp: 100, message: 'older' },
         ]);
-        window.pywebview.api.get_file_version.mockResolvedValue('historical version');
-        window.pywebview.api.commit_current_file.mockResolvedValue(null);
+        window.go.main.App.GetFileVersion.mockResolvedValue('historical version');
+        window.go.main.App.CommitCurrentFile.mockResolvedValue(null);
         mockSaveFileSnapshot.mockResolvedValue({ success: true, mtime: 11 });
         initHistoryPanel();
     });
@@ -77,7 +77,7 @@ describe('history restore workflow', () => {
         restore.click();
         await settle();
         expect(mockSaveFileSnapshot).not.toHaveBeenCalled();
-        expect(window.pywebview.api.commit_current_file).not.toHaveBeenCalled();
+        expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
 
         mockConfirmDialog.mockResolvedValueOnce('confirm');
         restore.click();
@@ -94,7 +94,7 @@ describe('history restore workflow', () => {
             'unsaved current version',
             'historical version',
         ]);
-        expect(window.pywebview.api.commit_current_file).toHaveBeenCalledWith('note.md');
+        expect(window.go.main.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
         expect(mockSetReadOnly).toHaveBeenLastCalledWith(false);
         expect(mockSetEditorContent).toHaveBeenLastCalledWith('historical version');
         expect(mockErrorDialog).not.toHaveBeenCalled();
@@ -118,7 +118,7 @@ describe('history restore workflow', () => {
             expect.any(Error),
             'The selected version was not applied. Your current file remains available.',
         );
-        expect(window.pywebview.api.commit_current_file).not.toHaveBeenCalled();
+        expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
         expect(mockSetReadOnly).not.toHaveBeenCalledWith(false);
         expect(document.querySelector('.history-restore-button').disabled).toBe(false);
     });

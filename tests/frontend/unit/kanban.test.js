@@ -21,8 +21,8 @@ describe('live Kanban buffers and compact cards', () => {
         setState('openTabs', []);
         setState('activeTabId', null);
         document.getElementById('tab-panels').innerHTML = '<div id="kanban-board-main"></div>';
-        window.pywebview.api.get_kanban_columns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
-        window.pywebview.api.get_kanban_board.mockResolvedValue({ todo: [], wip: [], done: [] });
+        window.go.main.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
+        window.go.main.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
     });
 
     test('caps visible card text at 120 characters including a Unicode ellipsis', () => {
@@ -73,12 +73,12 @@ describe('live Kanban buffers and compact cards', () => {
         const board = document.getElementById('kanban-board-main');
         expect(board.textContent).toContain('#urgent');
         expect(board.textContent).toContain('A newly typed item');
-        expect(window.pywebview.api.save_file).not.toHaveBeenCalled();
+        expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
     });
 
     test('renders the compact text while retaining the full card text in its title', async () => {
         const longText = 'x'.repeat(140);
-        window.pywebview.api.get_kanban_board.mockResolvedValue({
+        window.go.main.App.GetKanbanBoard.mockResolvedValue({
             todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: longText, tag: 'todo' }],
             wip: [], done: [],
         });

@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 import { errorDialog } from './dialogs.js';
 import { log } from './log.js';
 import { getState } from './state.js';
@@ -59,7 +60,7 @@ export function shouldReadClipboardImageAsync(clipboardData, userAgent = navigat
     return /linux/i.test(String(userAgent || '')) && /applewebkit/i.test(String(userAgent || ''));
 }
 
-/** Encode a browser Blob for the JSON-safe Wails bridge. */
+/** Encode a browser Blob for the JSON-safe native backend boundary. */
 export function clipboardImageBase64(blob) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -116,7 +117,7 @@ export async function pasteClipboardImage(view, imageFile) {
     statusBar.set('Saving pasted image…');
     try {
         const encodedData = await clipboardImageBase64(imageFile);
-        const result = await window.pywebview.api.save_clipboard_image(tab.path, imageFile.type || '', encodedData);
+        const result = await backend().SaveClipboardImage(tab.path, imageFile.type || '', encodedData);
         if (!result?.success || !result?.markdown) {
             throw new Error(result?.error || 'The clipboard image could not be saved.');
         }

@@ -41,8 +41,8 @@ describe('active-file Git status control', () => {
         jest.clearAllMocks();
         mockState.openTabs = [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', dirty: false }];
         mockState.activeTabId = 'note.md';
-        window.pywebview.api.file_has_uncommitted_changes.mockResolvedValue(true);
-        window.pywebview.api.commit_current_file.mockResolvedValue(null);
+        window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(true);
+        window.go.main.App.CommitCurrentFile.mockResolvedValue(null);
         mockSaveFileSnapshot.mockImplementation(async tab => {
             tab.dirty = false;
             return { success: true, mtime: 12 };
@@ -53,7 +53,7 @@ describe('active-file Git status control', () => {
         await expect(updateGitStatus('note.md')).resolves.toBe(true);
 
         const control = document.getElementById('git-status');
-        expect(window.pywebview.api.file_has_uncommitted_changes).toHaveBeenCalledWith('note.md');
+        expect(window.go.main.App.FileHasUncommittedChanges).toHaveBeenCalledWith('note.md');
         expect(control.textContent).toBe('Uncommitted');
         expect(control.classList).toContain('is-uncommitted');
         expect(control.disabled).toBe(false);
@@ -66,12 +66,12 @@ describe('active-file Git status control', () => {
     test('saves a dirty buffer before committing, then becomes clean', async () => {
         mockState.openTabs[0].dirty = true;
         await updateGitStatus('note.md');
-        window.pywebview.api.file_has_uncommitted_changes.mockResolvedValue(false);
+        window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);
 
         await expect(commitCurrentFileChanges()).resolves.toBe(true);
 
         expect(mockSaveFileSnapshot).toHaveBeenCalledWith(mockState.openTabs[0], 'pending text');
-        expect(window.pywebview.api.commit_current_file).toHaveBeenCalledWith('note.md');
+        expect(window.go.main.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
         expect(statusBar.set).toHaveBeenCalledWith('Committed file to Git');
         expect(document.getElementById('git-status').textContent).toBe('Git clean');
         expect(document.getElementById('git-status').disabled).toBe(true);
@@ -79,7 +79,7 @@ describe('active-file Git status control', () => {
 
     test('keeps the warning and reports a non-destructive commit failure', async () => {
         await updateGitStatus('note.md');
-        window.pywebview.api.commit_current_file.mockRejectedValueOnce(new Error('another file is staged'));
+        window.go.main.App.CommitCurrentFile.mockRejectedValueOnce(new Error('another file is staged'));
 
         await expect(commitCurrentFileChanges()).resolves.toBe(false);
 

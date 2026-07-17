@@ -123,6 +123,11 @@ the assembled webview rather than one JavaScript package in isolation.
   vendored dependencies.
 - Update `CHANGELOG.md` under `Unreleased` for every user-facing feature,
   behavior change, and bug fix; changelog work is part of feature completion.
+- Audit every affected document in the same change. Keep user workflows in
+  `README.md`, the detailed contract in `docs/PROMPT.md`, and update the
+  architecture, testing, live-preview, PDF-styling, or contributor guides
+  whenever their subject changes. Search for stale defaults, counts, names,
+  commands, versions, and limitations before considering the work complete.
 - Prefer root-scoped vault filesystem operations over absolute-path checks.
 - Preserve unsaved editor content during asynchronous or filesystem-driven
   changes.
@@ -138,3 +143,10 @@ the assembled webview rather than one JavaScript package in isolation.
   `docs/TESTING.md`.
 - Keep user-facing workflow changes in `README.md` and the detailed behavior
   contract in `docs/PROMPT.md` in the same change.
+
+## Licensing contributions
+
+Figaro is distributed under the [GNU General Public License version 3 or
+later](LICENSE). By contributing material to this repository, you agree that
+it may be distributed under those terms. Keep third-party notices and vendored
+dependency licenses intact.

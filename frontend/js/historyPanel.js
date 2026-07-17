@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * History Panel — right sidebar showing git file history
  */
@@ -88,7 +89,7 @@ export function updateHistoryCount(filePath) {
     if (!countEl) return;
 
     try {
-        return window.pywebview.api.get_commit_count(filePath).then(count => {
+        return backend().GetCommitCount(filePath).then(count => {
             if (filePath !== currentFilePath) return; // stale
             if (count > 0) {
                 countEl.textContent = count + ' change' + (count !== 1 ? 's' : '');
@@ -159,7 +160,7 @@ export async function updateGitStatus(filePath) {
     }
 
     try {
-        const uncommitted = await window.pywebview.api.file_has_uncommitted_changes(path);
+        const uncommitted = await backend().FileHasUncommittedChanges(path);
         if (requestId !== gitStatusRequestId || gitStatusPath !== path) return false;
         setGitStatusState(Boolean(uncommitted));
         return Boolean(uncommitted);
@@ -206,7 +207,7 @@ export async function commitCurrentFileChanges() {
             if (!saved?.success) throw new Error(saved?.error || 'The file could not be saved before committing.');
             if (button && gitStatusPath === path) button.textContent = 'Committing…';
         }
-        await window.pywebview.api.commit_current_file(path);
+        await backend().CommitCurrentFile(path);
         statusBar.set('Committed file to Git');
         await updateHistoryCount(path);
         await refreshHistoryIfOpen();
@@ -241,7 +242,7 @@ export async function refreshHistoryIfOpen() {
     const requestId = ++historyListRequestId;
 
     try {
-        const entries = await window.pywebview.api.get_file_history(filePath);
+        const entries = await backend().GetFileHistory(filePath);
         if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content.isConnected) return;
         renderHistoryList(content, entries);
         updateHistoryCount(filePath);
@@ -287,7 +288,7 @@ async function openHistoryPanel() {
     content.innerHTML = '<div class="history-empty">Loading history...</div>';
 
     try {
-        const entries = await window.pywebview.api.get_file_history(filePath);
+        const entries = await backend().GetFileHistory(filePath);
         if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content.isConnected) return;
         renderHistoryList(content, entries);
     } catch (e) {
@@ -347,7 +348,7 @@ async function viewHistoryVersion(hash) {
     }
 
     try {
-        const versionContent = await window.pywebview.api.get_file_version(filePath, hash);
+        const versionContent = await backend().GetFileVersion(filePath, hash);
         const sidebar = document.getElementById('right-sidebar');
         if (requestId !== historyVersionRequestId || currentFilePath !== filePath || !sidebar?.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content?.isConnected) return;
         await enterHistoryMode(versionContent);
@@ -434,7 +435,7 @@ async function restoreViewedVersion() {
         const { saveFileSnapshot } = await import('./tabManager.js');
         const preserved = await saveFileSnapshot(tab, liveContent ?? '');
         if (!preserved?.success) throw new Error(preserved?.error || 'The current version could not be preserved.');
-        await window.pywebview.api.commit_current_file(tab.path);
+        await backend().CommitCurrentFile(tab.path);
 
         const restored = await saveFileSnapshot(tab, restoredContent);
         if (!restored?.success) throw new Error(restored?.error || 'The selected version could not be restored.');

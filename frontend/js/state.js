@@ -169,7 +169,7 @@ export function toggleState(key) {
  * Initialize state with persisted values (if any)
  */
 export function initState() {
-    // Check if localStorage is available (not available in pywebview)
+    // Check if localStorage is available (some embedded webviews disable it).
     const hasLocalStorage = (() => {
         try {
             const test = '__localStorage_test__';

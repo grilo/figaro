@@ -112,9 +112,7 @@
     <script src="/vendored/vega/vega-lite.min.js"></script>
     <script src="/vendored/vega/vega-embed.min.js"></script>
     <script src="/vendored/lucide/lucide.min.js"></script>
-    <!-- Wails C++ bridge auto-initializes window.go — no explicit JS needed -->
-    <!-- Wails compatibility: bridge (deferred so DOM is ready) -->
-    <script src="/wails-compat-bridge.js" defer></script>
+    <!-- Wails publishes its bound Go App object natively. -->
     <script>
         window.addEventListener('DOMContentLoaded', function () {
             if (window.location.protocol === 'wails:' || window.go?.main?.App) return;
@@ -150,17 +148,17 @@
                     </svg>
                 </button>
                 <span class="window-controls-separator" aria-hidden="true"></span>
-                <button id="win-minimize" class="icon-btn window-ctrl" title="Minimize" onclick="window.__wailsCompat.windowMinimize()">
+                <button id="win-minimize" class="icon-btn window-ctrl" title="Minimize">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                 </button>
-                <button id="win-maximize" class="icon-btn window-ctrl" title="Maximize" onclick="window.__wailsCompat.windowMaximize()">
+                <button id="win-maximize" class="icon-btn window-ctrl" title="Maximize">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="4" y="4" width="16" height="16" rx="2"></rect>
                     </svg>
                 </button>
-                <button id="win-close" class="icon-btn window-ctrl window-ctrl-close" title="Close" onclick="window.__wailsCompat.windowClose()">
+                <button id="win-close" class="icon-btn window-ctrl window-ctrl-close" title="Close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>

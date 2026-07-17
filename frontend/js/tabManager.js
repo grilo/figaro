@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Tab Manager - Handles tab creation, switching, closing, and state
  */
@@ -466,7 +467,7 @@ async function loadFileContent(tab) {
             return;
         }
         
-        const result = await window.pywebview.api.read_file(tab.path);
+        const result = await backend().ReadFile(tab.path);
         if (result) {
             if (result.binary) {
                 statusBar.set('Cannot edit binary file');
@@ -799,7 +800,7 @@ export async function refreshTabsForUpdatedLinks(paths) {
     for (const tab of tabs) {
         if (tab?.type !== 'file' || !updatedPaths.has(normalizeTabPath(tab.path)) || tab.dirty) continue;
         try {
-            const file = await window.pywebview.api.read_file(tab.path);
+            const file = await backend().ReadFile(tab.path);
             // A user edit or tab move while the read was in flight always wins
             // over a delayed reload.
             if (!file || file.binary || tab.dirty || !updatedPaths.has(normalizeTabPath(tab.path))) continue;
@@ -1041,7 +1042,7 @@ export function saveFileSnapshot(tab, content) {
 
 async function persistFileSnapshot(tab, content, generation, editGeneration) {
     const path = tab.path;
-    const save = async (expectedMtime) => window.pywebview.api.save_file(path, content, expectedMtime || 0);
+    const save = async (expectedMtime) => backend().SaveFile(path, content, expectedMtime || 0);
 
     try {
         const result = await save(tab.mtime);
@@ -1082,7 +1083,7 @@ async function applySaveSuccess(tab, result, generation, editGeneration, message
     let historyCommitFailed = false;
     if (shouldCommitOnSave()) {
         try {
-            await window.pywebview.api.commit_current_file(tab.path);
+            await backend().CommitCurrentFile(tab.path);
         } catch (error) {
             historyCommitFailed = true;
             log.warn('File saved, but its history commit failed:', error);

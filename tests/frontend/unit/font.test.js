@@ -19,19 +19,19 @@ jest.mock('../frontend/js/editor.js', () => ({
 }));
 
 const mockApi = {
-    theme_load: jest.fn(() => Promise.resolve({ theme: 'default', font: 'inter' })),
-    font_save: jest.fn(() => Promise.resolve({ success: true })),
-    code_font_save: jest.fn(() => Promise.resolve({ success: true })),
-    get_theme_css: jest.fn(() => Promise.resolve({ css: ':root { --bg-color: #111; }' })),
-    theme_save: jest.fn(() => Promise.resolve({ success: true })),
-    get_themes: jest.fn(() => Promise.resolve({ themes: [{ id: 'default', name: 'Figaro Dark' }] })),
-    vim_load: jest.fn(() => Promise.resolve({ enabled: false })),
+    ThemeLoad: jest.fn(() => Promise.resolve({ theme: 'default', font: 'inter' })),
+    FontSave: jest.fn(() => Promise.resolve({ success: true })),
+    CodeFontSave: jest.fn(() => Promise.resolve({ success: true })),
+    GetThemeCSS: jest.fn(() => Promise.resolve({ css: ':root { --bg-color: #111; }' })),
+    ThemeSave: jest.fn(() => Promise.resolve({ success: true })),
+    GetThemes: jest.fn(() => Promise.resolve({ themes: [{ id: 'default', name: 'Figaro Dark' }] })),
+    VimLoad: jest.fn(() => Promise.resolve({ enabled: false })),
 };
 
 beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.pywebview = { api: mockApi };
+    window.go = { main: { App: mockApi } };
     mockEditorView.dom.style.fontFamily = '';
     document.documentElement.style.removeProperty('--font-editor');
     document.body.innerHTML = `
@@ -91,7 +91,7 @@ describe('Font Application', () => {
         fira.click();
 
         await new Promise(r => setTimeout(r, 300));
-        expect(mockApi.font_save).toHaveBeenCalledWith('fira-sans');
+        expect(mockApi.FontSave).toHaveBeenCalledWith('fira-sans');
     });
 
     test('font-current-name updates on selection', async () => {
@@ -127,7 +127,7 @@ describe('Font Application', () => {
         expect(document.getElementById('font-current-name').textContent).toBe('Fira Sans');
         // Theme preferences are loaded once at startup; reopening settings must
         // not read a potentially stale value and overwrite the local choice.
-        expect(mockApi.theme_load).toHaveBeenCalledTimes(1);
+        expect(mockApi.ThemeLoad).toHaveBeenCalledTimes(1);
     });
 
     test('all 10 fonts are in the dropdown', async () => {
@@ -158,6 +158,6 @@ describe('Font Application', () => {
         expect(document.documentElement.style.getPropertyValue('--font-code')).toContain('Cascadia Code');
         expect(document.getElementById('dynamic-code-font-style').textContent).toContain('.cm-code-file');
         expect(codeContent.style.fontFamily).toContain('Cascadia Code');
-        expect(mockApi.code_font_save).toHaveBeenCalledWith('cascadia-code');
+        expect(mockApi.CodeFontSave).toHaveBeenCalledWith('cascadia-code');
     });
 });

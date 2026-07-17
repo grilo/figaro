@@ -21,19 +21,19 @@ async function settlePreferenceChange() {
 describe('Vim preference lifecycle', () => {
     test('startup, Settings, persistence, and reopened Settings share one state', async () => {
         const api = {
-            theme_load: jest.fn().mockResolvedValue({
+            ThemeLoad: jest.fn().mockResolvedValue({
                 theme: 'default',
                 font: 'inter',
                 codeFont: 'theme-mono',
             }),
-            get_theme_css: jest.fn().mockResolvedValue({ css: ':root {}' }),
-            get_themes: jest.fn().mockResolvedValue({
+            GetThemeCSS: jest.fn().mockResolvedValue({ css: ':root {}' }),
+            GetThemes: jest.fn().mockResolvedValue({
                 themes: [{ id: 'default', name: 'Figaro Dark' }],
             }),
-            vim_load: jest.fn().mockResolvedValue({ enabled: true }),
-            vim_save: jest.fn().mockResolvedValue({ success: true }),
+            VimLoad: jest.fn().mockResolvedValue({ enabled: true }),
+            VimSave: jest.fn().mockResolvedValue({ success: true }),
         };
-        window.pywebview = { api };
+        window.go = { main: { App: api } };
         settingsDOM();
 
         const {
@@ -43,7 +43,7 @@ describe('Vim preference lifecycle', () => {
         } = await import('../frontend/js/theme.js');
 
         await initTheme();
-        expect(api.vim_load).toHaveBeenCalledTimes(1);
+        expect(api.VimLoad).toHaveBeenCalledTimes(1);
         expect(mockToggleVim).toHaveBeenLastCalledWith(true);
         expect(getVimPreference()).toBe(true);
 
@@ -56,7 +56,7 @@ describe('Vim preference lifecycle', () => {
         await settlePreferenceChange();
 
         expect(mockToggleVim).toHaveBeenLastCalledWith(false);
-        expect(api.vim_save).toHaveBeenCalledWith(false);
+        expect(api.VimSave).toHaveBeenCalledWith(false);
         expect(getVimPreference()).toBe(false);
         expect(firstToggle.checked).toBe(false);
         expect(firstToggle.disabled).toBe(false);
@@ -66,11 +66,11 @@ describe('Vim preference lifecycle', () => {
         settingsDOM();
         await initSettingsPanel();
         expect(document.getElementById('vim-toggle').checked).toBe(false);
-        expect(api.vim_load).toHaveBeenCalledTimes(1);
+        expect(api.VimLoad).toHaveBeenCalledTimes(1);
 
         // A failed persistence attempt restores both the control and editor to
         // the last value that is known to be on disk.
-        api.vim_save.mockResolvedValueOnce({ success: false, error: 'disk unavailable' });
+        api.VimSave.mockResolvedValueOnce({ success: false, error: 'disk unavailable' });
         const reopenedToggle = document.getElementById('vim-toggle');
         reopenedToggle.checked = true;
         reopenedToggle.dispatchEvent(new Event('change', { bubbles: true }));

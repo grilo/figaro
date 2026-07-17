@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Search Module - workspace search in the sidebar
  */
@@ -142,7 +143,7 @@ export async function performSearch(query, caseSensitive, requestId = null) {
     try {
         const contentResults = filters.titleOnly
             ? []
-            : await window.pywebview.api.search_files(trimmedQuery, isCaseSensitive);
+            : await backend().SearchFiles(trimmedQuery, isCaseSensitive);
         const titleResults = findTitleMatches(trimmedQuery, isCaseSensitive);
         const results = mergeResults(contentResults, titleResults, filters.recentOnly);
 

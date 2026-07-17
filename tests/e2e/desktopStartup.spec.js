@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('boots through the desktop bridge with Welcome text, the vault tree, and Calendar available', async ({ page }) => {
+test('boots through the native Wails binding with Welcome text, the vault tree, and Calendar available', async ({ page }) => {
     const browserMessages = [];
     page.on('console', message => browserMessages.push(`${message.type()}: ${message.text()}`));
     page.on('pageerror', error => browserMessages.push(`pageerror: ${error.message}`));
@@ -18,7 +18,7 @@ test('boots through the desktop bridge with Welcome text, the vault tree, and Ca
             GetFileTree: [{ name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 }],
             GetFileTreeStyles: { version: 1, entries: {}, recent_icons: [] },
             ReadFile: {
-                content: '# Welcome to Figaro\n\nThis text came through the packaged desktop bridge.',
+                content: '# Welcome to Figaro\n\nThis text came through the native Wails binding.',
                 path: 'Welcome.md',
                 mtime: 1,
             },
@@ -68,13 +68,13 @@ test('boots through the desktop bridge with Welcome text, the vault tree, and Ca
     });
     await page.waitForFunction(() => window._appReady === true);
 
-    const bridgeState = await page.evaluate(async () => ({
-        installed: Boolean(window.__wailsCompat),
+    const nativeState = await page.evaluate(async () => ({
+        installed: Boolean(window.go?.main?.App),
         calls: window.__desktopBridgeCalls,
-        welcome: await window.pywebview.api.read_file('Welcome.md'),
+        welcome: await window.go.main.App.ReadFile('Welcome.md'),
     }));
-    expect(bridgeState.installed, browserMessages.join('\n')).toBe(true);
-    expect(bridgeState.welcome.content).toContain('This text came through the packaged desktop bridge.');
+    expect(nativeState.installed, browserMessages.join('\n')).toBe(true);
+    expect(nativeState.welcome.content).toContain('This text came through the native Wails binding.');
 
     await expect(page.locator('#status-text')).toHaveText('Ready');
     await expect(page.locator('.file-tree-item[data-path="Welcome.md"] .node-name')).toHaveText('Welcome.md');
@@ -85,7 +85,7 @@ test('boots through the desktop bridge with Welcome text, the vault tree, and Ca
 
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
     await expect(page.locator('.cm-content')).toContainText('Welcome to Figaro');
-    await expect(page.locator('.cm-content')).toContainText('This text came through the packaged desktop bridge.');
+    await expect(page.locator('.cm-content')).toContainText('This text came through the native Wails binding.');
 
     await page.locator('#sidebar-calendar').click();
     await expect(page.locator('#sidebar-calendar-panel')).toHaveClass(/open/);
@@ -99,5 +99,24 @@ test('boots through the desktop bridge with Welcome text, the vault tree, and Ca
         'ReadFile',
         'GetCalendarMonthData',
         'LinkStyleLoad',
+    ]));
+
+    const chrome = await page.evaluate(() => ({
+        drag: getComputedStyle(document.querySelector('.top-bar')).getPropertyValue('--wails-draggable').trim(),
+        noDrag: getComputedStyle(document.querySelector('#win-minimize')).getPropertyValue('--wails-draggable').trim(),
+    }));
+    expect(chrome).toEqual({ drag: 'drag', noDrag: 'no-drag' });
+
+    await page.locator('#win-minimize').click();
+    await page.evaluate(() => {
+        document.querySelector('.top-bar').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        window.dispatchEvent(new Event('resize'));
+    });
+    await page.waitForTimeout(280);
+    const chromeMethods = await page.evaluate(() => window.__desktopBridgeCalls.map(call => call.method));
+    expect(chromeMethods).toEqual(expect.arrayContaining([
+        'WindowMinimize',
+        'WindowMaximize',
+        'WindowCaptureState',
     ]));
 });

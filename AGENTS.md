@@ -12,6 +12,23 @@ These requirements apply to every change in this repository.
   appropriate. Before finishing any implementation, explicitly check that the
   current feature has a matching changelog entry.
 
+## Keep all documentation synchronized
+
+- Every change must audit and update every affected documentation surface in
+  the same change. User-facing workflows belong in `README.md`, and their
+  detailed behavior contract belongs in `docs/PROMPT.md`; update
+  `ARCHITECTURE.md`, `CONTRIBUTING.md`, `docs/TESTING.md`,
+  `docs/LIVEPREVIEW.md`, and `docs/PDF_STYLING.md` whenever their subject is
+  affected. A changelog entry alone is not sufficient documentation.
+- Before finishing, search all Markdown documentation for stale names,
+  defaults, counts, commands, limitations, version numbers, and behavior
+  descriptions related to the change. Explicitly confirm that every match is
+  either updated or still correct.
+- Release preparation must keep the version, license identifier, tag examples,
+  changelog heading, package metadata, Wails metadata, and release workflow in
+  agreement. Cut the accumulated `Unreleased` entries into the dated release
+  section and leave a fresh `Unreleased` section for future work.
+
 ## Feature-specific tests are part of the feature
 
 - Every new behavior and every bug fix must add or update a regression test

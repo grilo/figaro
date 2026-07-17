@@ -15,6 +15,7 @@ import {
 } from './frontmatter.js';
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { wrapBlockWidget } from './blockWidget.js';
+import { backend } from './backend.js';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'print-stylesheet']);
 const COVER_PROPERTY_KEYS = new Set(['title', 'subtitle', 'description', 'author', 'date', 'created']);
@@ -338,11 +339,11 @@ export function createFrontmatterField(
             { confirmLabel: 'Use stylesheet' }
         ),
         createStarterStylesheet = async (notePath, stylesheetPath) => {
-            const create = globalThis.pywebview?.api?.create_starter_print_stylesheet;
-            if (typeof create !== 'function') {
+            const app = backend();
+            if (typeof app.CreateStarterPrintStylesheet !== 'function') {
                 return { success: false, error: 'Creating a starter PDF stylesheet is unavailable because the backend is not connected.' };
             }
-            return create(notePath, stylesheetPath);
+            return app.CreateStarterPrintStylesheet(notePath, stylesheetPath);
         },
         onStylesheetReady = async () => {},
         onPreviewPDF = async ({ path, title, content }) => {

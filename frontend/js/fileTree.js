@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * File Tree Explorer - Handles file tree rendering, interactions, drag-drop, context menu
  */
@@ -208,7 +209,7 @@ export async function createInboxNote() {
         button.setAttribute('aria-busy', 'true');
     });
     try {
-        const result = await window.pywebview.api.create_inbox_note();
+        const result = await backend().CreateInboxNote();
         if (!result?.success) {
             await errorDialog('Couldn’t create Inbox note', result?.error, 'No existing note was changed.');
             return result;
@@ -240,8 +241,8 @@ export async function refreshFileTree() {
     try {
         statusBar.set('Loading file tree...');
         const [treeData, styles] = await Promise.all([
-            window.pywebview.api.get_file_tree(),
-            window.pywebview.api.get_file_tree_styles().catch(error => {
+            backend().GetFileTree(),
+            backend().GetFileTreeStyles().catch(error => {
                 log.warn('Could not refresh file-tree appearance:', error);
                 return fileTreeStyles;
             }),
@@ -269,7 +270,7 @@ function normalizeFileTreeStyles(styles) {
 
 export async function loadFileTreeStyles() {
     try {
-        fileTreeStyles = normalizeFileTreeStyles(await window.pywebview.api.get_file_tree_styles());
+        fileTreeStyles = normalizeFileTreeStyles(await backend().GetFileTreeStyles());
         renderFileTree();
         return fileTreeStyles;
     } catch (error) {
@@ -580,7 +581,7 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
             return false;
         }
         statusBar.set(`Copying “${source.path.split('/').pop()}”…`);
-        const result = await window.pywebview.api.copy_path(source.path, targetDirectory);
+        const result = await backend().CopyPath(source.path, targetDirectory);
         if (!result?.success) {
             if (String(result?.error || '').toLowerCase().includes('recursive copy')) {
                 await showRecursiveCopyRefusal();
@@ -734,7 +735,7 @@ export async function moveInternalPath(sourcePath, targetDir) {
             await errorDialog('Couldn’t move item', saveState.error, 'Save open files before moving them.');
             return false;
         }
-        let result = await window.pywebview.api.move_path(sourcePath, targetDir);
+        let result = await backend().MovePath(sourcePath, targetDir);
         let merged = false;
         if (!result?.success && result?.merge_available) {
             const directoryName = String(sourcePath || '').replaceAll('\\', '/').split('/').pop();
@@ -751,7 +752,7 @@ export async function moveInternalPath(sourcePath, targetDir) {
                 return false;
             }
             statusBar.set(`Merging “${directoryName}”…`);
-            result = await window.pywebview.api.merge_directory(sourcePath, targetDir);
+            result = await backend().MergeDirectory(sourcePath, targetDir);
             merged = true;
         }
         if (!result?.success) {
@@ -806,7 +807,7 @@ export async function copyExternalDrop(paths, targetDirectory) {
     externalCopyInProgress = true;
     statusBar.set(`Copying ${paths.length} dropped ${paths.length === 1 ? 'item' : 'items'}…`);
     try {
-        let result = await window.pywebview.api.copy_external_paths(paths, targetDirectory, false);
+        let result = await backend().CopyExternalPaths(paths, targetDirectory, false);
         const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
         if (!result?.success && conflicts.length > 0) {
             const directoryConflicts = Array.isArray(result?.directory_conflicts) ? result.directory_conflicts : [];
@@ -827,7 +828,7 @@ export async function copyExternalDrop(paths, targetDirectory) {
                     return false;
                 }
                 statusBar.set(`Merging ${directoryConflicts.length} dropped ${directoryConflicts.length === 1 ? 'directory' : 'directories'}…`);
-                result = await window.pywebview.api.merge_external_paths(paths, targetDirectory);
+                result = await backend().MergeExternalPaths(paths, targetDirectory);
             } else {
                 const noun = conflicts.length === 1 ? 'item already exists' : 'items already exist';
                 const confirmed = await confirmDialog(
@@ -843,7 +844,7 @@ export async function copyExternalDrop(paths, targetDirectory) {
                     return false;
                 }
                 statusBar.set(`Replacing ${conflicts.length} existing ${conflicts.length === 1 ? 'item' : 'items'}…`);
-                result = await window.pywebview.api.copy_external_paths(paths, targetDirectory, true);
+                result = await backend().CopyExternalPaths(paths, targetDirectory, true);
             }
         }
         if (!result?.success) {
@@ -991,7 +992,7 @@ function handleContextMenu(e) {
             break;
 
         case 'reveal':
-            window.pywebview.api.reveal_in_explorer(getState('contextTargetPath'));
+            backend().RevealInExplorer(getState('contextTargetPath'));
             break;
 
         case 'merge-notes':
@@ -1029,7 +1030,7 @@ export async function customizeTreePath(path, type) {
     });
     if (!choice) return false;
     try {
-        const styles = await window.pywebview.api.set_file_tree_style(path, choice.icon || '', choice.color || '');
+        const styles = await backend().SetFileTreeStyle(path, choice.icon || '', choice.color || '');
         fileTreeStyles = normalizeFileTreeStyles(styles);
         renderFileTree();
         statusBar.set(choice.icon || choice.color ? `Styled “${item.name}”` : `Reset appearance for “${item.name}”`);
@@ -1067,7 +1068,7 @@ async function mergeSelectedNotes() {
     }
 
     try {
-        const result = await window.pywebview.api.merge_notes(mergePaths);
+        const result = await backend().MergeNotes(mergePaths);
         if (result.success) {
             setState('selectedFilePaths', []);
             for (const p of mergePaths.slice(1)) {
@@ -1101,7 +1102,7 @@ async function createNewFileIn(targetPath, targetType) {
     if (!fileName) return;
     
     try {
-        const result = await window.pywebview.api.create_file(
+        const result = await backend().CreateFile(
             parentDir ? `${parentDir}/${fileName}` : fileName,
             /\.md$/i.test(fileName) ? `# ${fileName.slice(0, -3)}\n\n` : ''
         );
@@ -1142,7 +1143,7 @@ async function createNewDrawioDiagramIn(targetPath, targetType) {
     }
 
     try {
-        const result = await window.pywebview.api.create_file(
+        const result = await backend().CreateFile(
             parentDir ? `${parentDir}/${fileName}` : fileName,
             ''
         );
@@ -1178,7 +1179,7 @@ async function createNewFolderIn(targetPath, targetType) {
     if (!name) return;
     
     try {
-        const result = await window.pywebview.api.create_directory(
+        const result = await backend().CreateDirectory(
             parentDir ? `${parentDir}/${name}` : name
         );
         
@@ -1234,7 +1235,7 @@ async function renameTreePath(path, type) {
             await errorDialog(`Couldn’t rename ${kind}`, saveState.error, `Save open files before renaming this ${kind}.`);
             return;
         }
-        const result = await window.pywebview.api.rename_path(path, newPath);
+        const result = await backend().RenamePath(path, newPath);
         if (!result.success) {
             await errorDialog(`Couldn’t rename ${kind}`, result.error, `The ${kind} could not be renamed.`);
             return;
@@ -1270,7 +1271,7 @@ async function deletePath(path) {
     if (!confirmed) return;
     
     try {
-        const result = await window.pywebview.api.delete_path(path);
+        const result = await backend().DeletePath(path);
         if (result.success) {
             await refreshFileTree();
             

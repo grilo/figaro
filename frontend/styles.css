@@ -254,6 +254,16 @@ html, body {
     background: var(--sidebar-bg);
     flex-shrink: 0;
     z-index: 100;
+    --wails-draggable: drag;
+    user-select: none;
+    -webkit-user-select: none;
+    border-radius: 8px 8px 0 0;
+}
+
+.top-bar button,
+.top-bar input,
+.top-bar .search-container {
+    --wails-draggable: no-drag;
 }
 
 
@@ -3588,12 +3598,31 @@ html, body {
     font-size: 11px;
     color: var(--text-muted);
     flex-shrink: 0;
+    border-radius: 0 0 8px 8px;
+    padding-right: 2px;
 }
 
 .status-left, .status-center, .status-right {
     display: flex;
     align-items: center;
     gap: 12px;
+}
+
+.status-left {
+    padding-left: 12px;
+}
+
+#resize-grip {
+    cursor: nwse-resize;
+    padding: 0 2px 0 6px;
+    margin-right: -2px;
+    opacity: 0.35;
+    display: flex;
+    align-items: center;
+}
+
+#resize-grip:hover {
+    opacity: 0.8;
 }
 
 .status-separator {

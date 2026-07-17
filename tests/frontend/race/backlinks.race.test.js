@@ -26,7 +26,7 @@ describe('backlinks async lifecycle', () => {
     test('does not let a late prior-tab result overwrite the active file', async () => {
         const slow = deferred();
         const fast = deferred();
-        window.pywebview.api.search_backlinks
+        window.go.main.App.SearchBacklinks
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
         initBacklinks();

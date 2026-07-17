@@ -48,12 +48,13 @@ test('keeps conventional alias widgets navigable, selectable, and cursor-safe', 
 
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
-		const tabs = await import('/js/tabManager.js');
+        const tabs = await import('/js/tabManager.js');
+        const app = (await import('/js/backend.js')).backend();
         await editor.initEditor();
         const view = editor.getEditorView() || editor.createEditorView();
         await editor.configureEditorForFile('notes/current.md');
 		const source = 'Above\n\nSee [[notes/Welcome.md|Welcome]] now\n\nBelow';
-		window.pywebview.api.read_file = async path => ({ content: source, path, mtime: 1 });
+        app.ReadFile = async path => ({ content: source, path, mtime: 1 });
 		tabs.openTab('current', 'Current', 'file', { path: 'notes/current.md', mtime: 1 });
 		while (editor.getEditorDocumentTabId() !== 'current' || view.state.doc.toString() !== source) {
 			await new Promise(resolve => setTimeout(resolve, 10));
@@ -115,11 +116,12 @@ test('keeps conventional alias widgets navigable, selectable, and cursor-safe', 
         expect(selection.to).toBeGreaterThanOrEqual(points.linkTo);
     }
 
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
         const view = window.__wikilinkView;
+        const app = (await import('/js/backend.js')).backend();
         view.dispatch({ selection: { anchor: 0 } });
         window.__wikilinkReadTargets = [];
-        window.pywebview.api.read_file = async path => {
+        app.ReadFile = async path => {
             window.__wikilinkReadTargets.push(path);
             return { content: '# Welcome', path, mtime: 1 };
         };

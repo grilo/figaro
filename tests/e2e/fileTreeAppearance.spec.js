@@ -5,6 +5,7 @@ test('applies and cancels a searchable file-tree icon and color workflow', async
 	await page.waitForFunction(() => window._appReady === true && window.lucide?.icons?.Star);
 
     await page.evaluate(async () => {
+        const app = (await import('/js/backend.js')).backend();
         const tree = [{
             name: 'Projects',
             path: 'Projects',
@@ -13,9 +14,9 @@ test('applies and cancels a searchable file-tree icon and color workflow', async
             children: [{ name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1 }],
         }];
         window.__fileTreeStyleCalls = [];
-        window.pywebview.api.get_file_tree = async () => tree;
-        window.pywebview.api.get_file_tree_styles = async () => ({ version: 1, entries: {}, recent_icons: [] });
-        window.pywebview.api.set_file_tree_style = async (path, icon, color) => {
+        app.GetFileTree = async () => tree;
+        app.GetFileTreeStyles = async () => ({ version: 1, entries: {}, recent_icons: [] });
+        app.SetFileTreeStyle = async (path, icon, color) => {
             window.__fileTreeStyleCalls.push({ path, icon, color });
             return {
                 version: 1,

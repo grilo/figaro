@@ -1898,12 +1898,13 @@ func TestEmbedFS_HasIndexHTML(t *testing.T) {
 	}
 }
 
-func TestEmbedFS_HasBridgeScript(t *testing.T) {
-	// The wails-compat-bridge.js must be embedded so the frontend can
-	// translate pywebview.api calls to Wails Go bindings.
-	_, err := assets.ReadFile("frontend/wails-compat-bridge.js")
+func TestEmbedFS_HasNativeBackendModule(t *testing.T) {
+	data, err := assets.ReadFile("frontend/js/backend.js")
 	if err != nil {
-		t.Fatalf("embedded assets missing wails-compat-bridge.js: %v", err)
+		t.Fatalf("embedded assets missing native backend module: %v", err)
+	}
+	if !strings.Contains(string(data), "window.go?.main?.App") {
+		t.Fatal("native backend module must use the Wails App binding")
 	}
 }
 
@@ -2053,20 +2054,18 @@ func TestWailsJSON_HasCorrectDimensions(t *testing.T) {
 }
 
 // ============================================================================
-// 15. Bridge / Window Control Presence in index.html
+// 15. Native Wails / Window Control Presence in index.html
 // ============================================================================
 
-func TestIndexHTML_LoadsBridgeScript(t *testing.T) {
+func TestIndexHTML_UsesNativeWailsBinding(t *testing.T) {
 	data, err := os.ReadFile("frontend/index.html")
 	if err != nil {
 		t.Fatalf("cannot read index.html: %v", err)
 	}
 	content := string(data)
-	if !strings.Contains(content, "wails-compat-bridge.js") {
-		t.Error("index.html must load wails-compat-bridge.js for backend connectivity")
+	if !strings.Contains(content, "Wails publishes its bound Go App object natively") {
+		t.Error("index.html must document the native Wails binding startup contract")
 	}
-	// The Wails runtime injects window.go directly; no generated frontend binding
-	// files need to be served by this application.
 }
 
 func TestIndexHTML_HasWindowControls(t *testing.T) {
@@ -2083,21 +2082,14 @@ func TestIndexHTML_HasWindowControls(t *testing.T) {
 	}
 }
 
-func TestIndexHTML_BridgeLoadedBeforeApp(t *testing.T) {
-	// The bridge script must appear BEFORE the external browser bootstrap that
-	// calls initApp(). Native Wails startup is asserted separately from domReady.
-	data, err := os.ReadFile("frontend/index.html")
+func TestNativeBackend_UsesWailsWithoutLegacyNamespace(t *testing.T) {
+	data, err := os.ReadFile("frontend/js/backend.js")
 	if err != nil {
-		t.Fatalf("cannot read index.html: %v", err)
+		t.Fatalf("cannot read native backend module: %v", err)
 	}
 	content := string(data)
-	bridgeIdx := strings.Index(content, "wails-compat-bridge.js")
-	bootstrapIdx := strings.Index(content, `/js/bootstrap.js`)
-	if bridgeIdx < 0 || bootstrapIdx < 0 {
-		t.Fatal("cannot find bridge or external bootstrap module in index.html")
-	}
-	if bridgeIdx > bootstrapIdx {
-		t.Error("wails-compat-bridge.js must load BEFORE bootstrap.js — swap the script order in index.html")
+	if !strings.Contains(content, "window.go?.main?.App") {
+		t.Error("native backend module must call Wails' bound App object")
 	}
 }
 
@@ -2106,25 +2098,24 @@ func TestIndexHTML_BridgeLoadedBeforeApp(t *testing.T) {
 // ============================================================================
 
 func TestDrag_UsesWailsDraggable(t *testing.T) {
-	// The bridge must inject --wails-draggable: drag CSS for native OS-level
-	// window drag. No JS event handlers needed — the Wails C++ bridge reads it.
-	data, err := os.ReadFile("frontend/wails-compat-bridge.js")
+	data, err := os.ReadFile("frontend/styles.css")
 	if err != nil {
-		t.Fatalf("cannot read wails-compat-bridge.js: %v", err)
+		t.Fatalf("cannot read frontend styles: %v", err)
 	}
 	content := string(data)
 	if !strings.Contains(content, "--wails-draggable: drag") {
-		t.Error("wails-compat-bridge.js must set --wails-draggable: drag on .top-bar for native window drag")
+		t.Error("styles.css must set --wails-draggable: drag on .top-bar for native window drag")
 	}
 	if !strings.Contains(content, "--wails-draggable: no-drag") {
-		t.Error("wails-compat-bridge.js must set --wails-draggable: no-drag on buttons/inputs to allow clicks")
+		t.Error("styles.css must set --wails-draggable: no-drag on buttons/inputs to allow clicks")
 	}
 }
 
 func TestDrag_NoWebkitAppRegion(t *testing.T) {
-	// -webkit-app-region CSS must NOT be used — it blocks mousedown events
-	// on Linux GTK and conflicts with --wails-draggable.
-	for _, file := range []string{"main.go", "wails-compat-bridge.js"} {
+	// The native integration must not add an Electron-only drag-region API.
+	// Existing stylesheet declarations outside this integration are not part of
+	// this contract.
+	for _, file := range []string{"main.go", "frontend/js/windowChrome.js"} {
 		data, err := os.ReadFile(file)
 		if err != nil {
 			continue
@@ -2142,33 +2133,16 @@ func TestDrag_NoWebkitAppRegion(t *testing.T) {
 }
 
 func TestDrag_TitleBarDoubleClickTogglesMaximize(t *testing.T) {
-	data, err := os.ReadFile("frontend/wails-compat-bridge.js")
+	data, err := os.ReadFile("frontend/js/windowChrome.js")
 	if err != nil {
-		t.Fatalf("cannot read wails-compat-bridge.js: %v", err)
+		t.Fatalf("cannot read native window chrome module: %v", err)
 	}
 	content := string(data)
 	if !strings.Contains(content, "installTitleBarDoubleClick") || !strings.Contains(content, "dblclick") {
 		t.Error("the custom title bar must handle double-click maximize/restore")
 	}
-	if !strings.Contains(content, "goApp.WindowMaximize()") {
+	if !strings.Contains(content, "callNative('WindowMaximize')") {
 		t.Error("title-bar double click must use the existing native maximize toggle")
-	}
-}
-
-func TestBridge_CreatesPywebview(t *testing.T) {
-	// The bridge MUST create window.pywebview (it does not pre-exist in Wails).
-	data, err := os.ReadFile("frontend/wails-compat-bridge.js")
-	if err != nil {
-		t.Fatalf("cannot read wails-compat-bridge.js: %v", err)
-	}
-	content := string(data)
-	if !strings.Contains(content, "window.pywebview = {}") {
-		t.Error("wails-compat-bridge.js must CREATE window.pywebview — it does not pre-exist in Wails")
-	}
-	// Must NOT have the early-return guard that skips creation
-	if strings.Contains(content, "if (!window.pywebview || !window.pywebview.api) {") &&
-		strings.Contains(content, "bridge skipped") {
-		t.Error("wails-compat-bridge.js must NOT have the early-exit guard — window.pywebview does not pre-exist")
 	}
 }
 

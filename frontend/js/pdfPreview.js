@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Live PDF preview
  *
@@ -920,7 +921,7 @@ async function getDirtyTabContent(path) {
 }
 
 async function readVaultText(path) {
-    const result = await window.pywebview?.api?.read_file?.(path);
+    const result = await backend().ReadFile(path);
     if (!result || result.binary) return null;
     return result;
 }

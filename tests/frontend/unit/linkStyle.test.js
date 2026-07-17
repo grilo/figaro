@@ -35,14 +35,14 @@ describe('vault link style workflow', () => {
         jest.clearAllMocks();
         resetLinkStyleForTests();
         renderLinkStyleSetting();
-        window.pywebview.api.link_style_load = jest.fn().mockResolvedValue({ style: 'markdown' });
-        window.pywebview.api.change_link_style = jest.fn().mockImplementation((style) =>
+        window.go.main.App.LinkStyleLoad = jest.fn().mockResolvedValue({ style: 'markdown' });
+        window.go.main.App.ChangeLinkStyle = jest.fn().mockImplementation((style) =>
             Promise.resolve({ success: true, style, rewritten: 2, updated_links: ['index.md'] }));
         prepareTabsForVaultLinkRewrite.mockResolvedValue({ success: true });
     });
 
     test('loads the persisted preference into the themed Settings combobox', async () => {
-        window.pywebview.api.link_style_load.mockResolvedValueOnce({ style: 'wikilink' });
+        window.go.main.App.LinkStyleLoad.mockResolvedValueOnce({ style: 'wikilink' });
         await initLinkStyleSetting(document);
         expect(getLinkStylePreference()).toBe('wikilink');
         expect(document.getElementById('link-style-select').value).toBe('wikilink');
@@ -79,7 +79,7 @@ describe('vault link style workflow', () => {
         trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(window.pywebview.api.change_link_style).toHaveBeenCalledWith('wikilink', false);
+        expect(window.go.main.App.ChangeLinkStyle).toHaveBeenCalledWith('wikilink', false);
         expect(trigger.value).toBe('wikilink');
         expect(document.getElementById('link-style-current-name').textContent).toBe('Wikilinks');
         expect(trigger.disabled).toBe(false);
@@ -95,7 +95,7 @@ describe('vault link style workflow', () => {
         document.getElementById('link-style-option-wikilink').click();
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(window.pywebview.api.change_link_style).not.toHaveBeenCalled();
+        expect(window.go.main.App.ChangeLinkStyle).not.toHaveBeenCalled();
         expect(trigger.value).toBe('markdown');
         expect(trigger.getAttribute('aria-expanded')).toBe('false');
         expect(trigger.disabled).toBe(false);
@@ -107,7 +107,7 @@ describe('vault link style workflow', () => {
         confirmDialog.mockResolvedValueOnce(false);
 
         await expect(requestLinkStyleChange('wikilink')).resolves.toEqual(expect.objectContaining({ cancelled: true }));
-        expect(window.pywebview.api.change_link_style).not.toHaveBeenCalled();
+        expect(window.go.main.App.ChangeLinkStyle).not.toHaveBeenCalled();
         expect(getLinkStylePreference()).toBe('markdown');
     });
 
@@ -117,7 +117,7 @@ describe('vault link style workflow', () => {
 
         await expect(requestLinkStyleChange('wikilink')).resolves.toEqual(expect.objectContaining({ success: true }));
         expect(prepareTabsForVaultLinkRewrite).not.toHaveBeenCalled();
-        expect(window.pywebview.api.change_link_style).toHaveBeenCalledWith('wikilink', false);
+        expect(window.go.main.App.ChangeLinkStyle).toHaveBeenCalledWith('wikilink', false);
         expect(getLinkStylePreference()).toBe('wikilink');
     });
 
@@ -127,7 +127,7 @@ describe('vault link style workflow', () => {
 
         await requestLinkStyleChange('wikilink');
         expect(prepareTabsForVaultLinkRewrite).toHaveBeenCalledTimes(1);
-        expect(window.pywebview.api.change_link_style).toHaveBeenCalledWith('wikilink', true);
+        expect(window.go.main.App.ChangeLinkStyle).toHaveBeenCalledWith('wikilink', true);
         expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith(['index.md']);
     });
 
@@ -137,7 +137,7 @@ describe('vault link style workflow', () => {
         prepareTabsForVaultLinkRewrite.mockResolvedValueOnce({ success: false, error: 'Save conflict' });
 
         await expect(requestLinkStyleChange('wikilink')).resolves.toEqual(expect.objectContaining({ success: false }));
-        expect(window.pywebview.api.change_link_style).not.toHaveBeenCalled();
+        expect(window.go.main.App.ChangeLinkStyle).not.toHaveBeenCalled();
         expect(errorDialog).toHaveBeenCalledWith('Links were not changed', 'Save conflict', expect.any(String));
         expect(getLinkStylePreference()).toBe('markdown');
     });

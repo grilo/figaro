@@ -79,10 +79,12 @@ describe('Interactive PDF export', () => {
         jest.clearAllMocks();
         mockState.openTabs = [{ id: 'test.md', title: 'test.md', type: 'file', path: 'test.md', dirty: false }];
         mockState.activeTabId = 'test.md';
-        window.pywebview = {
-            api: {
-                export_pdf: jest.fn().mockResolvedValue({ success: true, path: '/tmp/report.pdf', engine: 'chromium' }),
-                read_file: jest.fn().mockResolvedValue({ content: '# Hello', path: 'test.md', mtime: 1 }),
+        window.go = {
+            main: {
+                App: {
+                ExportPDF: jest.fn().mockResolvedValue({ success: true, path: '/tmp/report.pdf', engine: 'chromium' }),
+                ReadFile: jest.fn().mockResolvedValue({ content: '# Hello', path: 'test.md', mtime: 1 }),
+                }
             }
         };
         delete window.mermaid;
@@ -565,7 +567,7 @@ describe('Interactive PDF export', () => {
         ].join('\n');
 
         const result = await exportMarkdownToPDF({ path: 'notes/report.md', title: 'report.md', content });
-        const call = window.pywebview.api.export_pdf.mock.calls[0];
+        const call = window.go.main.App.ExportPDF.mock.calls[0];
         const printable = parseHTML(call[1]);
 
         expect(call[0]).toBe('report');
@@ -581,8 +583,8 @@ describe('Interactive PDF export', () => {
     test('reads a non-active Markdown file before exporting it', async () => {
         await exportFileToPDF('notes/report.md', 'report.md');
 
-        expect(window.pywebview.api.read_file).toHaveBeenCalledWith('notes/report.md');
-        expect(window.pywebview.api.export_pdf).toHaveBeenCalledWith(
+        expect(window.go.main.App.ReadFile).toHaveBeenCalledWith('notes/report.md');
+        expect(window.go.main.App.ExportPDF).toHaveBeenCalledWith(
             'report',
             expect.stringContaining('<h1 id="hello">Hello</h1>'),
             'notes/report.md',
@@ -591,7 +593,7 @@ describe('Interactive PDF export', () => {
     });
 
     test('reports a saved PDF when the default viewer cannot be started', async () => {
-        window.pywebview.api.export_pdf.mockResolvedValueOnce({
+        window.go.main.App.ExportPDF.mockResolvedValueOnce({
             success: true,
             path: 'notes/report.pdf',
             engine: 'chromium',
@@ -612,9 +614,9 @@ describe('Interactive PDF export', () => {
     test('rejects non-Markdown exports and surfaces interactive-export failures', async () => {
         await expect(exportMarkdownToPDF({ path: 'note.txt', title: 'note.txt', content: 'Nope' }))
             .rejects.toThrow('PDF export is only available for Markdown files');
-        expect(window.pywebview.api.export_pdf).not.toHaveBeenCalled();
+        expect(window.go.main.App.ExportPDF).not.toHaveBeenCalled();
 
-        window.pywebview.api.export_pdf.mockResolvedValueOnce({
+        window.go.main.App.ExportPDF.mockResolvedValueOnce({
             success: false,
             error: 'No browser engine was found',
         });

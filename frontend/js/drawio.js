@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Lightweight diagrams.net integration for editable SVG diagrams.
  *
@@ -44,7 +45,7 @@ export async function renderDrawioTab(panel, tab) {
     panel.innerHTML = `<div class="drawio-view"><div class="drawio-loading">Loading ${escapeHtml(tab.title || 'diagram')}…</div></div>`;
 
     try {
-        const result = await window.pywebview.api.read_diagram(tab.path);
+        const result = await backend().ReadDiagram(tab.path);
         if (!panel.isConnected || panel._drawioRequestId !== requestId || panel._drawioPath !== tab.path) return;
         if (!result) throw new Error('Diagram file was not found');
 

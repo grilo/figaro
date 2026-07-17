@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Session Persistence - saves/loads UI state through the Wails backend API
  * Stores to vault/.config/session.json
@@ -31,7 +32,7 @@ function resetPortableWorkspaceState() {
  */
 export async function loadSession() {
     try {
-        const session = await window.pywebview.api.load_session();
+        const session = await backend().LoadSession();
         resetPortableWorkspaceState();
         if (!session || Array.isArray(session) || !Object.keys(session).length) return false;
 
@@ -108,7 +109,7 @@ export function saveSession() {
     // Tab changes deliberately fire this without awaiting it. Queue snapshots
     // so the backend never receives an older write after a newer one.
     sessionSaveQueue = sessionSaveQueue
-        .then(() => window.pywebview.api.save_session(data))
+        .then(() => backend().SaveSession(data))
         .catch((e) => {
             log.warn('Failed to save session:', e);
         });

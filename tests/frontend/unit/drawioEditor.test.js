@@ -28,13 +28,15 @@ describe('draw.io editor protocol', () => {
         document.body.innerHTML = '';
         panel = document.createElement('div');
         document.body.appendChild(panel);
-        window.pywebview = {
-            api: {
-                read_diagram: jest.fn().mockResolvedValue({
+        window.go = {
+            main: {
+                App: {
+                ReadDiagram: jest.fn().mockResolvedValue({
                     path: 'Diagrams/flow.drawio.svg',
                     mtime: 10,
                     content: '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
                 }),
+                },
             },
         };
         saveFileSnapshot.mockResolvedValue({ success: true, mtime: 11 });

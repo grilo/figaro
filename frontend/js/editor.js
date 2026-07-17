@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * CodeMirror 6 Editor Implementation
  * Uses locally vendored CodeMirror 6 modules + codemirror-live-markdown
@@ -335,34 +336,31 @@ function linkPreview() {
                 const displayUrl = (() => { try { return decodeURI(url); } catch (_) { return url; } })();
                 dom.innerHTML = '<span class="lh-type">File link</span><span class="lh-path">' + displayUrl + '</span><span class="lh-status lh-checking">...</span>';
                 const statusEl = dom.querySelector('.lh-status');
-                const fetchContent = (window.go?.main?.App?.GetFileContent) || (window.pywebview?.api?.read_file);
-                if (fetchContent) {
-                    const resolvedUrl = resolveRelativeUrl(displayUrl);
-                    fetchContent(resolvedUrl).then(r => {
-                        const content = typeof r === 'string' ? r : (r && r.content) || '';
-                        if (content) {
-                            statusEl.className = 'lh-status lh-exists';
-                            statusEl.textContent = '✓ Exists';
-                            const previewText = extractPreview(content);
-                            if (previewText) {
-                                const previewEl = document.createElement('div');
-                                previewEl.className = 'lh-preview';
-                                previewEl.textContent = previewText;
-                                dom.appendChild(previewEl);
-                            }
-                        } else if (r && r.path) {
-                            statusEl.className = 'lh-status lh-exists';
-                            statusEl.textContent = '✓ Exists';
-                        } else {
-                            statusEl.className = 'lh-status lh-missing';
-                            statusEl.textContent = '✗ Not found';
+                const resolvedUrl = resolveRelativeUrl(displayUrl);
+                backend().ReadFile(resolvedUrl).then(r => {
+                    const content = typeof r === 'string' ? r : (r && r.content) || '';
+                    if (content) {
+                        statusEl.className = 'lh-status lh-exists';
+                        statusEl.textContent = '✓ Exists';
+                        const previewText = extractPreview(content);
+                        if (previewText) {
+                            const previewEl = document.createElement('div');
+                            previewEl.className = 'lh-preview';
+                            previewEl.textContent = previewText;
+                            dom.appendChild(previewEl);
                         }
-                    }).catch(err => {
-                        console.error('[linkPreview] fetchContent failed:', err);
+                    } else if (r && r.path) {
+                        statusEl.className = 'lh-status lh-exists';
+                        statusEl.textContent = '✓ Exists';
+                    } else {
                         statusEl.className = 'lh-status lh-missing';
                         statusEl.textContent = '✗ Not found';
-                    });
-                }
+                    }
+                }).catch(err => {
+                    console.error('[linkPreview] fetchContent failed:', err);
+                    statusEl.className = 'lh-status lh-missing';
+                    statusEl.textContent = '✗ Not found';
+                });
             }
 
             document.body.appendChild(dom);
@@ -436,8 +434,8 @@ function createEditorView() {
         return activeTab?.type === 'file' ? activeTab.path : '';
     };
     const getDefaultAuthor = () => {
-        const getUsername = globalThis.pywebview?.api?.get_os_username;
-        return typeof getUsername === 'function' ? getUsername() : '';
+        const app = backend();
+        return typeof app.GetOSUsername === 'function' ? app.GetOSUsername() : '';
     };
 
     // Live Diagram Field — block widgets need a StateField so CodeMirror can lay them out.
@@ -1689,7 +1687,7 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
     }
     try {
         log.debug('handleLinkClick: reading', linkPath);
-        const r = await window.pywebview.api.read_file(linkPath);
+        const r = await backend().ReadFile(linkPath);
         log.debug('handleLinkClick: read_file result for', linkPath, ':', r ? 'found' : 'not found');
         if (r) {
             const tabs = getState('openTabs');
@@ -1710,7 +1708,7 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
                 const fpath = linkPath.endsWith('.md') ? linkPath : linkPath + '.md';
                 const fname = fpath.split('/').pop();
                 const displayName = linkPath.endsWith('.md') ? fileName.replace('.md', '') : fileName;
-                await window.pywebview.api.create_file(fpath, `# ${displayName}\n\n`);
+                await backend().CreateFile(fpath, `# ${displayName}\n\n`);
                 openTab(fpath, fname, 'file', { path: fpath, mtime: Date.now() / 1000 }, true);
                 import('./fileTree.js').then(m => m.refreshFileTree());
             }

@@ -1,3 +1,4 @@
+import { backend } from './backend.js';
 /**
  * Interactive PDF export shared by the editor and file-tree menus.
  */
@@ -260,7 +261,7 @@ export async function exportMarkdownToPDF({ path, title, content }) {
     if (!path?.toLowerCase().endsWith('.md')) {
         throw new Error('PDF export is only available for Markdown files');
     }
-    if (!window.pywebview?.api?.export_pdf) {
+    if (typeof backend().ExportPDF !== 'function') {
         throw new Error('Interactive PDF export is unavailable because the backend is not connected');
     }
 
@@ -268,7 +269,7 @@ export async function exportMarkdownToPDF({ path, title, content }) {
     const html = await renderPrintableMarkdownWithDiagrams(content, documentTitle);
     const printStylesheet = getPrintStylesheet(content);
     statusBar.set('Preparing interactive PDF…');
-    const result = await window.pywebview.api.export_pdf(documentTitle, html, path, printStylesheet);
+    const result = await backend().ExportPDF(documentTitle, html, path, printStylesheet);
     if (!result?.success) {
         const error = new Error(result?.error || 'Could not export the interactive PDF');
         statusBar.set('PDF export failed');
@@ -293,7 +294,7 @@ export async function exportFileToPDF(path, title) {
         return exportMarkdownToPDF({ path, title: title || activeTab.title, content: getEditorContent() });
     }
 
-    const file = await window.pywebview.api.read_file(path);
+    const file = await backend().ReadFile(path);
     if (!file || file.binary) {
         throw new Error('Markdown file could not be read');
     }

@@ -32,7 +32,7 @@ describe('workspace search', () => {
         setState('recentFiles', [{ path: 'Projects/Project Alpha.md', title: 'Project Alpha.md' }]);
         setState('searchFilters', { titleOnly: false, recentOnly: false, caseSensitive: false });
         setState('searchResults', []);
-        window.pywebview.api.search_files.mockResolvedValue([
+        window.go.main.App.SearchFiles.mockResolvedValue([
             {
                 name: 'Journal.md',
                 path: 'Journal.md',
@@ -46,7 +46,7 @@ describe('workspace search', () => {
         await performGlobalSearch('project');
 
         const rows = document.querySelectorAll('.search-result-row');
-        expect(window.pywebview.api.search_files).toHaveBeenCalledWith('project', false);
+        expect(window.go.main.App.SearchFiles).toHaveBeenCalledWith('project', false);
         expect(rows).toHaveLength(2);
         expect(rows[0].textContent).toContain('Project Alpha.md');
         expect(rows[0].textContent).toContain('Title match');
@@ -59,7 +59,7 @@ describe('workspace search', () => {
 
         await performGlobalSearch('project');
 
-        expect(window.pywebview.api.search_files).not.toHaveBeenCalled();
+        expect(window.go.main.App.SearchFiles).not.toHaveBeenCalled();
         expect(document.querySelectorAll('.search-result-row')).toHaveLength(1);
         expect(state.searchResults[0].path).toBe('Projects/Project Alpha.md');
     });
@@ -86,7 +86,7 @@ describe('workspace search', () => {
         const fast = deferred();
         setState('fileTreeData', []);
         setState('recentFiles', []);
-        window.pywebview.api.search_files
+        window.go.main.App.SearchFiles
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
 

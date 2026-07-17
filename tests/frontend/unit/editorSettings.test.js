@@ -35,18 +35,18 @@ async function settle() {
 describe('editor settings', () => {
     test('persists line numbers, uses the reduced 100% type scale, and themes every settings select', async () => {
         const api = {
-            theme_load: jest.fn().mockResolvedValue({ theme: 'default', font: 'inter', codeFont: 'theme-mono' }),
-            get_theme_css: jest.fn().mockResolvedValue({ css: ':root {}' }),
-            get_themes: jest.fn().mockResolvedValue({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
-            vim_load: jest.fn().mockResolvedValue({ enabled: false }),
-            line_numbers_load: jest.fn().mockResolvedValue({ enabled: false }),
-            line_numbers_save: jest.fn().mockResolvedValue({ success: true }),
-            auto_save_load: jest.fn().mockResolvedValue(300),
-            auto_save_save: jest.fn().mockResolvedValue({ success: true }),
-            auto_commit_load: jest.fn().mockResolvedValue(3600),
-            auto_commit_save: jest.fn().mockResolvedValue({ success: true }),
+            ThemeLoad: jest.fn().mockResolvedValue({ theme: 'default', font: 'inter', codeFont: 'theme-mono' }),
+            GetThemeCSS: jest.fn().mockResolvedValue({ css: ':root {}' }),
+            GetThemes: jest.fn().mockResolvedValue({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
+            VimLoad: jest.fn().mockResolvedValue({ enabled: false }),
+            LineNumbersLoad: jest.fn().mockResolvedValue({ enabled: false }),
+            LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
+            AutoSaveLoad: jest.fn().mockResolvedValue(300),
+            AutoSaveSave: jest.fn().mockResolvedValue({ success: true }),
+            AutoCommitLoad: jest.fn().mockResolvedValue(3600),
+            AutoCommitSave: jest.fn().mockResolvedValue({ success: true }),
         };
-        window.pywebview = { api };
+        window.go = { main: { App: api } };
         localStorage.clear();
         settingsDOM();
 
@@ -70,10 +70,10 @@ describe('editor settings', () => {
         lineToggle.checked = true;
         lineToggle.dispatchEvent(new Event('change', { bubbles: true }));
         await settle();
-        expect(api.line_numbers_save).toHaveBeenCalledWith(true);
+        expect(api.LineNumbersSave).toHaveBeenCalledWith(true);
         expect(mockSetLineNumbers).toHaveBeenLastCalledWith(true);
 
-        api.line_numbers_save.mockResolvedValueOnce({ success: false, error: 'read-only settings' });
+        api.LineNumbersSave.mockResolvedValueOnce({ success: false, error: 'read-only settings' });
         lineToggle.checked = false;
         lineToggle.dispatchEvent(new Event('change', { bubbles: true }));
         await settle();
@@ -84,7 +84,7 @@ describe('editor settings', () => {
         autoCommit._figaroCombobox.trigger.click();
         autoCommit._figaroCombobox.menu.querySelector('[data-value="-1"]').click();
         await settle();
-        expect(api.auto_commit_save).toHaveBeenCalledWith(-1);
+        expect(api.AutoCommitSave).toHaveBeenCalledWith(-1);
         expect(getAutoCommitMode()).toBe(-1);
 
         const autoSave = document.getElementById('auto-save-interval');
@@ -92,6 +92,6 @@ describe('editor settings', () => {
         autoSaveTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
         autoSaveTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
         autoSaveTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        expect(api.auto_save_save).toHaveBeenCalledWith(0);
+        expect(api.AutoSaveSave).toHaveBeenCalledWith(0);
     });
 });

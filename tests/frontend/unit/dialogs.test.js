@@ -87,7 +87,7 @@ describe('New note dialog', () => {
     });
 
     test('offers the native browser chooser directly after automatic discovery fails', async () => {
-        window.pywebview.api.pdf_browser_choose.mockResolvedValueOnce({
+        window.go.main.App.PDFBrowserChoose.mockResolvedValueOnce({
             success: true,
             path: 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
             engine: 'edge',
@@ -97,7 +97,7 @@ describe('New note dialog', () => {
 
         dialog.querySelector('.pdf-browser-choose-btn').click();
         await expect(result).resolves.toBeUndefined();
-        expect(window.pywebview.api.pdf_browser_choose).toHaveBeenCalledTimes(1);
+        expect(window.go.main.App.PDFBrowserChoose).toHaveBeenCalledTimes(1);
         expect(document.querySelector('.custom-modal-overlay')).toBeNull();
     });
 

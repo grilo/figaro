@@ -28,18 +28,18 @@ jest.mock('../frontend/js/editor.js', () => ({
 
 // Mock API
 const mockApi = {
-    theme_load: jest.fn(() => Promise.resolve({ theme: 'default', font: 'inter' })),
-    font_save: jest.fn(() => Promise.resolve({ success: true })),
-    get_theme_css: jest.fn(() => Promise.resolve({ css: ':root { --bg-color: #111; }' })),
-    theme_save: jest.fn(() => Promise.resolve({ success: true })),
-    get_themes: jest.fn(() => Promise.resolve({ themes: [{ id: 'default', name: 'Figaro Dark' }] })),
-    vim_load: jest.fn(() => Promise.resolve({ enabled: false })),
+    ThemeLoad: jest.fn(() => Promise.resolve({ theme: 'default', font: 'inter' })),
+    FontSave: jest.fn(() => Promise.resolve({ success: true })),
+    GetThemeCSS: jest.fn(() => Promise.resolve({ css: ':root { --bg-color: #111; }' })),
+    ThemeSave: jest.fn(() => Promise.resolve({ success: true })),
+    GetThemes: jest.fn(() => Promise.resolve({ themes: [{ id: 'default', name: 'Figaro Dark' }] })),
+    VimLoad: jest.fn(() => Promise.resolve({ enabled: false })),
 };
 
 beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.pywebview = { api: mockApi };
+    window.go = { main: { App: mockApi } };
     document.head.innerHTML = '';
     document.body.innerHTML = `
         <button id="font-picker-btn"><span id="font-current-name">Inter</span></button>

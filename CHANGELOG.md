@@ -4,6 +4,14 @@ All notable user-facing changes are recorded here from this point forward.
 
 ## Unreleased
 
+### Changed
+
+- Replaced the retired Python-era frontend compatibility layer with direct
+  native Wails `App` bindings. Desktop controls, browser debugging, and
+  frontend tests now use the same Go method names.
+
+## 1.0.0 - 2026-07-17
+
 ### Added
 
 - Theme-aware editor swatches and native color pickers for standalone CSS hex
@@ -70,6 +78,8 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Figaro is now distributed under the GNU General Public License version 3 or
+  later. Release archives include the license and changelog beside the app.
 - Auto-save, auto-commit, and table-import dropdowns now use the same themed,
   keyboard-accessible combobox styling as the rest of Figaro.
 - The editor's 100% text size is now ten percent smaller, while retaining the

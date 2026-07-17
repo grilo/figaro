@@ -36,6 +36,38 @@ jobs:
             echo "Release tags must point to a commit on main." >&2
             exit 1
           fi
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Validate release metadata
+        shell: bash
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const expected = process.env.GITHUB_REF_NAME.slice(1);
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+            const wails = JSON.parse(fs.readFileSync("wails.json", "utf8"));
+            const versions = {
+              "package.json": pkg.version,
+              "package-lock.json": lock.version,
+              "package-lock root package": lock.packages?.[""]?.version,
+              "wails.json": wails.info?.productVersion,
+            };
+            for (const [source, version] of Object.entries(versions)) {
+              if (version !== expected) throw new Error(`${source} is ${version}; tag is ${expected}`);
+            }
+            for (const [source, license] of Object.entries({
+              "package.json": pkg.license,
+              "package-lock root package": lock.packages?.[""]?.license,
+            })) {
+              if (license !== "GPL-3.0-or-later") throw new Error(`${source} license is ${license}`);
+            }
+            if (!fs.readFileSync("LICENSE", "utf8").includes("GNU GENERAL PUBLIC LICENSE")) {
+              throw new Error("LICENSE does not contain the GNU GPL text");
+            }
+          '
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -85,17 +117,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run vendor
-      - name: Apply tag version to package metadata
-        shell: bash
-        run: |
-          node --input-type=module -e '
-            import fs from "node:fs";
-            const path = "wails.json";
-            const config = JSON.parse(fs.readFileSync(path, "utf8"));
-            config.info.productVersion = process.env.GITHUB_REF_NAME.slice(1);
-            fs.writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
-          '
-
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -143,7 +164,7 @@ jobs:
           archive="figaro-${GITHUB_REF_NAME}-linux-amd64"
           mkdir -p "dist/$archive"
           install -m 0755 build/bin/figaro "dist/$archive/figaro"
-          cp README.md "dist/$archive/README.md"
+          cp README.md CHANGELOG.md LICENSE "dist/$archive/"
           tar -C dist -czf "dist/$archive.tar.gz" "$archive"
       - name: Package Windows binary
         if: runner.os == 'Windows'
@@ -152,7 +173,7 @@ jobs:
           $archive = "figaro-$($env:GITHUB_REF_NAME)-windows-amd64"
           New-Item -ItemType Directory -Path "dist/$archive" -Force | Out-Null
           Copy-Item build/bin/figaro.exe "dist/$archive/figaro.exe"
-          Copy-Item README.md "dist/$archive/README.md"
+          Copy-Item README.md, CHANGELOG.md, LICENSE "dist/$archive/"
           Compress-Archive -Path "dist/$archive" -DestinationPath "dist/$archive.zip"
       - name: Package universal macOS application
         if: runner.os == 'macOS'
@@ -161,7 +182,7 @@ jobs:
           archive="figaro-${GITHUB_REF_NAME}-macos-universal"
           mkdir -p "dist/$archive"
           cp -R build/bin/figaro.app "dist/$archive/figaro.app"
-          cp README.md "dist/$archive/README.md"
+          cp README.md CHANGELOG.md LICENSE "dist/$archive/"
           ditto -c -k --sequesterRsrc --keepParent "dist/$archive" "dist/$archive.zip"
       - name: Upload packaged binary
         uses: actions/upload-artifact@v7

@@ -60,6 +60,14 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   frame, external links cannot navigate it away, and fragment/footnote-return
   links remain in the rendered document. High-frequency scroll reports are
   coalesced before they can cause a matching burst of editor updates.
+- Release metadata consistency across npm, Wails, the GPL license, changelog,
+  documented tag command, and all three binary archive definitions.
+
+The focused release check is
+`tests/frontend/unit/releaseMetadata.test.js`. Update it whenever a release
+version, license, changelog convention, packaged documentation file, or tag
+workflow changes; it prevents a tag from publishing binaries whose visible
+metadata disagrees with the source release.
 
 The browser suite is intentionally not a substitute for the desktop webview:
 when changing the PDF preview bridge, also run the packaged Linux build and
@@ -194,7 +202,7 @@ paste, context-menu, cursor, mouse, preview, and PDF workflow in
 
 ## Clipboard image paste regressions
 
-Clipboard image paste crosses binary persistence, the Wails bridge, an
+Clipboard image paste crosses binary persistence, the native Wails binding, an
 asynchronous CodeMirror transaction, the existing image widget, preview, and
 PDF export. Retain focused coverage for the exact generated Markdown and
 bytes, note-relative placement, sequential collision names, invalid/oversized

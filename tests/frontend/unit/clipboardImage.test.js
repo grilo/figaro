@@ -55,12 +55,12 @@ beforeEach(() => {
         activeTabId: 'capture-tab',
         openTabs: [{ id: 'capture-tab', type: 'file', path: 'notes/capture.md' }],
     };
-    window.pywebview.api.save_clipboard_image = jest.fn().mockResolvedValue({
+    window.go.main.App.SaveClipboardImage = jest.fn().mockResolvedValue({
         success: true,
         path: 'notes/image1.png',
         markdown: '![Image1](image1.png)',
     });
-    window.pywebview.api.get_file_tree.mockResolvedValue([]);
+    window.go.main.App.GetFileTree.mockResolvedValue([]);
 });
 
 describe('clipboard image paste', () => {
@@ -107,7 +107,7 @@ describe('clipboard image paste', () => {
 
             expect(preventDefault).toHaveBeenCalledTimes(1);
             expect(read).toHaveBeenCalledTimes(1);
-            expect(window.pywebview.api.save_clipboard_image).toHaveBeenCalledWith(
+            expect(window.go.main.App.SaveClipboardImage).toHaveBeenCalledWith(
                 'notes/capture.md',
                 'image/png',
                 'AQIDBA=='
@@ -145,7 +145,7 @@ describe('clipboard image paste', () => {
 
         await expect(pasteClipboardImage(view, image)).resolves.toBe(true);
 
-        expect(window.pywebview.api.save_clipboard_image).toHaveBeenCalledWith(
+        expect(window.go.main.App.SaveClipboardImage).toHaveBeenCalledWith(
             'notes/capture.md',
             'image/png',
             'AQIDBA=='
@@ -172,7 +172,7 @@ describe('clipboard image paste', () => {
     });
 
     test('does not insert Markdown when persistence fails', async () => {
-        window.pywebview.api.save_clipboard_image.mockResolvedValueOnce({ success: false, error: 'Disk is full' });
+        window.go.main.App.SaveClipboardImage.mockResolvedValueOnce({ success: false, error: 'Disk is full' });
         const image = new File([new Uint8Array([1, 2])], 'screenshot.png', { type: 'image/png' });
         const view = testView();
 
@@ -192,7 +192,7 @@ describe('clipboard image paste', () => {
 
         await expect(pasteClipboardImage(view, image)).resolves.toBe(false);
 
-        expect(window.pywebview.api.save_clipboard_image).not.toHaveBeenCalled();
+        expect(window.go.main.App.SaveClipboardImage).not.toHaveBeenCalled();
         expect(view.dispatch).not.toHaveBeenCalled();
         expect(errorDialog).toHaveBeenCalledWith(
             'Couldn’t paste image',

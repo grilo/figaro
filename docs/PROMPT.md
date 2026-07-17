@@ -4,7 +4,7 @@
 
 This document is the product and behaviour contract for figaro. It describes the user-facing experience and the rules that preserve the local-first, file-portable model.
 
-figaro is a desktop Markdown workspace with vault-based file management, a hashtag-driven Kanban board, a date-aware calendar, backlinks, session-persistent tabs, local Git history, sixteen themes, sixteen bundled fonts, optional Vim mode, KaTeX math, live diagrams, editable Draw.io SVGs, and interactive browser-backed PDF export. All content lives in a folder chosen by the user: no accounts, cloud service, sync engine, or proprietary note database.
+figaro is a desktop Markdown workspace with vault-based file management, quick-note capture, a hashtag-driven Kanban board, a date-aware calendar, backlinks, session-persistent tabs, local Git history, seventeen themes, sixteen bundled fonts, optional Vim mode, KaTeX math, live diagrams, editable Draw.io SVGs, and interactive browser-backed PDF export. All content lives in a folder chosen by the user: no accounts, cloud service, sync engine, or proprietary note database.
 
 Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript frontend (CodeMirror 6, codemirror-live-markdown, KaTeX, markdown-it, Mermaid, Vega, and Vega-Lite), with browser dependencies vendored in the frontend bundle.
 
@@ -16,13 +16,14 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - Three horizontal zones: **left sidebar**, **workspace**, and an on-demand **right sidebar**. Both sidebars have independent resize handles.
 - **Top bar**: sidebar toggle and app title/Home control on the left; an uncluttered central drag region; Settings followed by native-style minimize/maximize/close controls on the right.
 - Calendar and Kanban live in a fixed footer below the file tree. Calendar expands inside the left sidebar; Kanban and Settings open or return to their single corresponding workspace tabs when inactive, and play a short reduced-motion-aware exit transition before closing that tab when clicked while already active. Clicking the Figaro name opens the Welcome/Home tab.
-- **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, and backlink count. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0.
+- **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, backlink count, committed **Changes** count, and the active file's **Git clean / Uncommitted** state. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0. **Uncommitted** is highlighted and clickable; it safely saves pending text and commits only the active file.
 
 ### 1.2 Left Sidebar
 - The top of the sidebar is the **global note search** field; its keyboard-navigable result list opens below the field.
+- A compact **Quick note** action directly below search creates and opens a collision-safe timestamped Markdown file in the real `Inbox` folder. Its icon remains available in the collapsed rail.
 - The remaining space is the **Vault** file tree. Markdown and files recognised by CodeMirror's language registry are clickable; unsupported/binary assets are greyed out at 55% opacity.
 - A fixed tool footer keeps Calendar and Kanban reachable beneath the tree. Calendar expands a monthly panel between the tree and footer without taking ownership of the right pane.
-- The sidebar can be resized from **225px to 500px**. Collapsing it leaves a **44px tool rail** rather than removing navigation; selecting Calendar from the rail expands the sidebar and opens the panel. Expanded folders, selected file, recent files, and search filters are stored locally for the current webview profile.
+- The sidebar can be resized from **225px to 500px**. Collapsing it leaves a **44px tool rail** rather than removing navigation; Quick note remains directly usable there, while selecting Calendar expands the sidebar and opens the panel. Expanded folders, selected file, recent files, and search filters are stored locally for the current webview profile.
 
 ### 1.3 Right Sidebar
 - The right sidebar is closed by default and is reserved for **History** and **PDF Preview**. Opening one replaces the other; the left-sidebar Calendar can remain open independently.
@@ -30,7 +31,7 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - Its width can be resized from **240px to 480px** for the current session.
 
 ### 1.4 Workspace
-- A horizontal **tab bar** across the top. Compact tabs use a responsive 104–200px width, truncate long titles, and keep their close controls accessible. The visual scrollbar is hidden; an all-tabs dropdown provides a reliable route to every open tab.
+- A horizontal **tab bar** across the top. Compact tabs use a responsive 104–200px width, truncate long titles, and keep their close controls accessible. The visual scrollbar is hidden; an all-tabs dropdown provides a reliable route to every open tab. The file tree mirrors this state with a strong marker for the active file and a subtler marker for other open files.
 - Below it, **view containers** — only one is visible at a time:
   - **Editor view** — for Markdown and CodeMirror-supported code files. Shows file content immediately once loaded.
   - **Calendar results view** — for date searches and backlink listings.
@@ -139,6 +140,7 @@ Each theme defines these properties (with theme-specific colors):
 - Links are rewritten only within copied Markdown. A link to another copied item follows that new counterpart; a relative link leaving the copied tree is recalculated so it still reaches the original external vault item. Root-relative Markdown links and wiki links receive the copied path when their target is inside the copied tree. External URLs, fragments, fenced code, source files, and incoming links elsewhere in the vault remain unchanged.
 - Pasting a copied folder onto itself or any descendant shows an **Operation refused** dialog explaining that the user should select its parent folder to create a sibling copy. No filesystem write occurs.
 - Folder expansion is explicit user-owned state. The exact expanded-directory set is stored in the vault session and restored on startup; restoring or switching tabs never opens additional ancestors. The active-file highlight follows tab changes when that file is visible, without rewriting the folder configuration.
+- Any non-greyed-out file or directory can be right-clicked and assigned a searchable Lucide icon plus a shared Kanban-palette color. The picker shows up to ten recently used icons and a **Reset** action. The top-level `Inbox` has a default Mail icon, which an explicit custom icon can replace. Appearance is persisted in the vault and follows rename, move, copy, merge, and delete operations.
 
 ### 3.4 Multi-Select and Merge
 - Multiple files can be selected with Ctrl/Cmd+Click.
@@ -165,6 +167,7 @@ Each theme defines these properties (with theme-specific colors):
 | Reveal in File Explorer | File or Directory | Opens the containing folder with the native Linux, macOS, or Windows file manager |
 | New Note | File or Directory | Prompts for name, creates `.md` file in that directory, opens it |
 | New Folder | File or Directory | Prompts for name, creates folder |
+| Customize appearance… | Non-greyed-out File or Directory | Opens the Lucide icon and color picker; Reset restores the default icon and text color. |
 | Delete | File or Directory (not root) | Confirms, then deletes. Closes any tabs that pointed to deleted paths |
 
 - Context menus are clamped to the visible viewport so all actions remain reachable near the bottom or edge of the file tree.
@@ -177,12 +180,12 @@ Each theme defines these properties (with theme-specific colors):
 - Syntax-highlighted markdown editing powered by CodeMirror 6 with `codemirror-live-markdown`.
 - CodeMirror's official language registry is vendored locally. Recognised code files use their syntax parser, a monospace unwrapped layout, normal CodeMirror completion/folding behavior, theme-aware indentation guides, and no Markdown live-preview widgets. Tab / Shift+Tab and the guides share CodeMirror's same two-space indentation unit. Vim mode, tabs, cursor restoration, autosave, conflict handling, and history work the same way as for notes.
 - **Frontmatter / Properties**: a complete leading YAML frontmatter block is rendered as a compact, collapsed Properties card. Activating it opens a structured Properties panel with PDF-layout controls: cover page, contents depth, and a vault-relative print stylesheet picker. Enabling a cover also exposes title, subtitle, author, and date fields. Other YAML remains visible as chips and **Add property** opens the source editor with completion; **Edit YAML** always exposes the original portable frontmatter. Notes without frontmatter get a subtle **+ Add properties** affordance above the editor; it inserts an editable YAML skeleton with the first H1 as `title`, the OS username as `author`, today's local date, an empty-string `subtitle`, and the PDF defaults `cover-page: false` and `toc-depth: 0`, then keeps that source open. Custom PDF CSS is opt-in: **Create starter** proposes `pdf.css` beside the active note, copies the bundled comprehensive example only after confirmation, selects it, refreshes the tree, and opens it. Existing CSS is never overwritten; startup and export never create stylesheets. The panel makes targeted scalar edits only, preserving unrelated YAML and comments. Completion in YAML suggests `title`, `subtitle`, `author`, `date`, `aliases`, `tags`, `description`, `created`, `updated`, `status`, `cover-page`, `toc-depth`, and `print-stylesheet`; it also offers status values and vault-relative CSS paths for `print-stylesheet`.
-- **PDF preview and export**: **Preview PDF** opens an isolated live preview in the right pane. It uses the same printable document structure as the export, waits briefly after Markdown or selected CSS edits to avoid flicker, and refreshes external saved CSS when the file tree updates. Its splitter has a 340 px preview minimum and otherwise grows dynamically while preserving a 320 px editor floor; the pane may keep growing, but the centered paper surface is capped to the last supported `@page size` declaration. Preview geometry supports named A3/A4/A5, B5, Letter, Legal, Ledger/Tabloid, and Executive paper, portrait/landscape orientation, and one- or two-length explicit sizes, with A4 as fallback. A final preview-only geometry rule prevents user `body` width overrides from stretching the paper while leaving print colors and typography in the normal cascade. Below 560 px of remaining editor width, CodeMirror content padding contracts from 24 px to 12 px. Its **Generate PDF** action saves dirty preview buffers, then renders Markdown into an interactive PDF with a detected local browser engine. Figaro tries Chrome/Chromium-family engines before Edge, and uses Safari/WebKit on macOS if needed; Chromium candidates must complete a real isolated CDP startup and `Browser.getVersion` request. It aborts with an installable-browser error if no viable engine is present instead of generating a PDF with dead links. Export writes `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the default PDF viewer. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`; omitting it keeps the built-in style. `cover-page: true` generates a title page using `title`, `subtitle`/`description`, `author`, and `date`/`created`; `toc-depth: 0` disables the table of contents, while 1–6 includes headings through that Markdown level. Generated cover and table-of-contents sections automatically end with a page break. The print DOM has stable cover, table-of-contents, document-body, task, diagram, and footnote classes documented in `docs/PDF_STYLING.md`; body headings are separate from the cover and table-of-contents titles. Repeated running page headers and footers are not supported. Footnote references render as numbered internal links to a final Footnotes section, with return links for repeated references. Frontmatter itself is not printed.
+- **PDF preview and export**: **Preview PDF** opens an isolated live preview in the right pane. It uses the same printable document structure as the export, waits briefly after Markdown or selected CSS edits to avoid flicker, and refreshes external saved CSS when the file tree updates. A code-icon helper opens **Figaro PDF style reference**, which derives the exact classes and IDs from the current preview, displays its generated body HTML, and can copy that HTML. Its splitter has a 340 px preview minimum and otherwise grows dynamically while preserving a 320 px editor floor; the pane may keep growing, but the centered paper surface is capped to the last supported `@page size` declaration. Preview geometry supports named A3/A4/A5, B5, Letter, Legal, Ledger/Tabloid, and Executive paper, portrait/landscape orientation, and one- or two-length explicit sizes, with A4 as fallback. A final preview-only geometry rule prevents user `body` width overrides from stretching the paper while leaving print colors and typography in the normal cascade. Below 560 px of remaining editor width, CodeMirror content padding contracts from 24 px to 12 px. Its **Generate PDF** action saves dirty preview buffers, then renders Markdown into an interactive PDF with a detected local browser engine. Figaro tries Chrome/Chromium-family engines before Edge, and uses Safari/WebKit on macOS if needed; Chromium candidates must complete a real isolated CDP startup and `Browser.getVersion` request. It aborts with an installable-browser error if no viable engine is present instead of generating a PDF with dead links. Export writes `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the default PDF viewer. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`; omitting it keeps the built-in style. `cover-page: true` generates a title page using `title`, `subtitle`/`description`, `author`, and `date`/`created`; `toc-depth: 0` disables the table of contents, while 1–6 includes headings through that Markdown level. Generated cover and table-of-contents sections automatically end with a page break. The print DOM has stable cover, table-of-contents, document-body, task, diagram, and footnote classes documented in `docs/PDF_STYLING.md`; body headings are separate from the cover and table-of-contents titles. Repeated running page headers and footers are not supported. Footnote references render as numbered internal links to a final Footnotes section, with return links for repeated references. Frontmatter itself is not printed.
 - **PDF preview isolation**: The right-pane preview is a fixed sandboxed frame with a validated message bridge, not a parent-controlled `srcdoc` document. The frame owns anchor interception and reports web, vault, fragment, and scroll actions to the application; the application never reads the sandboxed frame DOM. During splitter resizing the parent sends `set-scroll-sync-paused`, both scroll directions and frame pointer interaction remain quiet, and 80 ms after release one editor-to-preview alignment restores line-level synchronization. This preserves user `html`/`body` print styling while preventing a clicked link from replacing the preview with an external or filesystem document. See `ARCHITECTURE.md` for the protocol and security rationale.
 - **Live preview**: Formatting markers (`#`, `**`, `*`, `~~`, backticks, link brackets/parens) are hidden on non-active lines while preserving layout width. Move the cursor to a line to reveal its raw markdown for editing. Bullet points render as styled bullets. Task checkboxes (`- [ ]` / `- [x]`) render as interactive HTML checkboxes that toggle on click. Links render as clickable widgets.
 - **Hex colors**: standalone CSS hex tokens in the 3-, 4-, 6-, or 8-digit forms render with a theme-aware inline swatch and native color picker in Markdown and supported source files. Picker changes replace only the token, preserving an existing alpha channel. The raw token remains plain text in Markdown, PDF preview, and export.
 - **Printable diagrams**: Mermaid, Vega, and Vega-Lite fences are rendered to inline SVG before the print document reaches the native dialog. If a renderer is unavailable or a diagram is invalid, the source fence stays visible rather than being dropped.
-- Line numbers, bracket matching, code folding, undo/redo history, autocompletion.
+- **Line-number gutter**: a persistent Settings toggle adds CodeMirror line numbers and active-line gutter highlighting to Markdown and source files. It is disabled by default. Bracket matching, undo/redo history, and autocompletion remain always available; code folding is enabled for source-code files.
 - Inline rendering of hashtags and markdown links with distinct styling.
 - **Fenced code blocks**: triple-backtick blocks with optional language tag, rendered with monospace font, subtle background, syntax highlighting (via highlight.js classes themed with `--code-*-color` variables), copy button, and line numbers.
 - **Blockquotes**: `>` lines rendered with a left `::before` pseudo-element border (4px `var(--quote-border)`) and italic styling.
@@ -195,7 +198,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
 - **Math**: `$inline$` and `$$block$$` LaTeX math renders via KaTeX (StateField-based plugin).
 - In-note search with match highlighting and navigation.
-- **Auto-save**: the active dirty file tab is saved on the configured interval (5 seconds, 10 seconds, 30 seconds, 1 minute, 5 minutes, or Off), when switching away, and when choosing **Save & Exit**. It writes content only; Git commits are controlled separately by Auto-Commit.
+- **Auto-save**: the active dirty file tab is saved on the configured interval (5 seconds, 10 seconds, 30 seconds, 1 minute, 5 minutes, or Off), when switching away, and when choosing **Save & Exit**. Content is always written first; when Auto-Commit is set to **On Save**, that successful save then commits only the saved file.
 - **PDF source**: exporting the active dirty Markdown tab uses its current editor content without requiring a save first. A file-tree export otherwise reads the version on disk.
 - All CodeMirror 6 modules and `codemirror-live-markdown` are vendored locally.
 
@@ -219,7 +222,9 @@ In **edit mode** (cursor on the link line or intersecting the link's range), raw
 - Broken links prompt to create the missing note
 - `http(s)://` links open in external browser
 
-**Link autocomplete**: Typing `[` followed by text triggers a dropdown of matching `.md` files. Pressing Enter inserts `[filename](path)` and places the cursor after the closing `)`.
+**Vault-wide link style**: Settings offers a themed **Links style** combobox with Markdown (the default) and Wikilinks. Conventional Wikilinks are target-first: `[[path/to/note.md|Readable label]]`. Changing the preference always opens a confirmation with **Rewrite vault links**, **Keep existing links**, and **Cancel**. Rewriting first saves dirty Markdown tabs, converts only destinations that resolve to existing vault Markdown files, and reloads affected open buffers. External URLs, `mailto:` links, images, code, malformed links, and unresolved targets remain byte-for-byte unchanged. Alias-free Wikilinks gain the filename without its extension as their alias.
+
+**Link autocomplete**: Typing `[` or `[[` followed by text triggers a dropdown of matching `.md` files. Accepting a suggestion inserts either `[filename](encoded/path.md)` or `[[path.md|filename]]` according to the saved preference. A path or alias that conventional Wikilinks cannot represent safely falls back to Markdown syntax rather than creating a broken link.
 
 ### 4.4 Empty-Link Autofill
 - Typing `[link text]()` and pressing `)` automatically fills the URL with `(link text.md)`, using the current file's directory as the parent path.
@@ -241,7 +246,7 @@ Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For e
 ## 5. CodeMirror 6 Extensions
 
 ### 5.1 Core Extensions
-`lineNumbers()`, `highlightActiveLineGutter()`, `history()`, `bracketMatching()`, `autocompletion()`. `lineWrapping` and live-preview extensions are installed only for Markdown; `foldGutter()` and its keymap are installed only for source-code files through CodeMirror `Compartment`s.
+`history()`, `bracketMatching()`, and `autocompletion()` are always installed. `lineNumbers()` plus `highlightActiveLineGutter()` live in a compartment controlled by the persistent, off-by-default **Show line numbers** setting. `lineWrapping` and live-preview extensions are installed only for Markdown; `foldGutter()` and its keymap are installed only for source-code files through CodeMirror `Compartment`s.
 
 ### 5.2 codemirror-live-markdown Extensions
 | Extension | Purpose |
@@ -288,7 +293,9 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - The board scans every line of every `.md` file in the vault.
 - **Any line** that contains a standalone hashtag matching a known column name has its task placed in that column.
 - Display text: line with checkbox markers, list markers, and matching tag stripped in order.
+- Card text is limited to 120 characters and ends in an ellipsis when more source text exists; hovering exposes the complete text.
 - The same line can appear in multiple columns if it contains multiple known hashtags.
+- The active Markdown editor contributes its in-memory buffer immediately, so typing or removing a hashtag updates an open Kanban board before the file is saved.
 
 ### 6.3 Board Layout
 - **Header**: Title ("Kanban Task Board") plus instruction text.
@@ -338,6 +345,11 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 7.4 Welcome/Home Workspace
 - The Home tab has **Momentum**, the first six Kanban cards outside the `done` column, and **Recent**, the last eight file tabs opened by the user.
 - Clicking a task returns to its source note and line; **Open board** opens the Kanban tab. Recent notes are local UI history, not a separate vault index.
+
+### 7.5 Quick Note and Inbox
+- **Quick note** creates an empty `Inbox/YYYY-MM-DD-HHMMSS.md` and opens it with editor focus. If that timestamp already exists, `-2`, `-3`, and later suffixes are tried without overwriting anything.
+- `Inbox` is an ordinary vault folder: its notes participate in links, search, Kanban, Git history, file-tree styling, and external editing. Its built-in Mail icon is only a default appearance.
+- Both the full-width action above the tree and the collapsed-rail icon share one guarded workflow. While creation is running they are disabled and busy; an error opens a styled dialog and never creates a phantom tab.
 
 ---
 
@@ -399,7 +411,7 @@ open so newer or unsaved text cannot be discarded.
 ## 10. Markdown Cheatsheet
 
 - Click "md cheatsheet" in status bar to open popup.
-- Reference table: headings, emphasis, strikethrough/highlight, links, images, lists, tasks, blockquotes/callouts, code blocks, Mermaid, Vega, Vega-Lite, Draw.io SVGs, math, HRs, hashtags, wikilinks, footnotes, and tables.
+- Reference table: headings, emphasis, strikethrough/highlight, Markdown links, conventional `[[wikilink.md|wikilink]]` syntax immediately afterward, images, lists, tasks, blockquotes/callouts, code blocks, Mermaid, Vega, Vega-Lite, Draw.io SVGs, math, HRs, hashtags, footnotes, and tables.
 - PDF-specific controls remain discoverable in the frontmatter Properties panel rather than crowding the cheatsheet.
 - Close button (✕) at top-right; closes on outside click.
 
@@ -452,13 +464,17 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 
 ### 12.2 Initialization Sequence
 1. Restore any webview-local UI state, then initialize the left-sidebar resizer, title-bar and sidebar navigation controls, calendar navigation, and keyboard shortcuts.
-2. Wait for the Wails compatibility bridge, then load the portable vault session.
+2. Wait for Wails to publish the native `window.go.main.App` binding, then load the portable vault session.
 3. Initialize CodeMirror and the tab manager, load the file tree, attach tree handlers, and begin the three-second tree refresh.
 4. Restore persisted tabs after the tree is available; otherwise open the first Markdown note or the Welcome tab.
 5. Initialize Calendar, Kanban, global search, backlinks, and the History panel.
 6. Load the saved theme, prose font, and code-font settings. A Settings tab initializes its own controls when opened.
-7. Load the Auto-Save interval and start its active-tab timer. The Go backend starts Auto-Commit only if its separate interval is enabled.
+7. Load the persisted line-number and Links style preferences, then load the Auto-Save interval and start its active-tab timer. The Go backend starts Auto-Commit when a positive interval is configured; **On Save** remains event-driven.
 8. Install the native-window close guard and `beforeunload` handler, which preserve dirty content and save the session.
+
+Frontend code accesses Go only through `frontend/js/backend.js`. It calls the
+native `window.go.main.App` methods with their generated PascalCase names; the
+browser debugging fallback is installed explicitly with the same method shape.
 
 ---
 
@@ -466,8 +482,10 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 
 ### 13.1 Markdown Links
 - Standard: `[Display Text](relative/path/to/file.md)`
+- Conventional Wikilink: `[[relative/path/to/file.md|Display Text]]` (target first, alias second).
 - Date links: `[YYYY-MM-DD](YYYY-MM-DD.md)` — treated specially by the calendar system.
 - Links are relative to the vault root.
+- The selected Links style governs new autocomplete insertions, not which syntax can be opened or rendered; both remain supported throughout the vault.
 
 ### 13.2 Hashtags
 - Format: `#tagname` (letters + optional digits/underscores/hyphens).
@@ -506,6 +524,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 | Ctrl/Cmd+C | Focused file tree | Copy selected file/folder to the internal clipboard |
 | Ctrl/Cmd+V | Focused file tree | Paste into selected folder, beside selected file, or at vault root |
 | Ctrl/Cmd+V | Markdown editor | Paste clipboard text normally, or save a clipboard image beside the note and insert its relative Markdown |
+| Click Quick note | Sidebar or collapsed rail | Create and focus a collision-safe timestamped note in `Inbox` |
 | Middle-click tab | Tab bar | Close tab |
 | Right-click tab | Tab bar | Pin/Unpin tab |
 | Right-click editor | Editor | Context menu (Cut, Copy, Paste, Select All, Preview PDF) |
@@ -528,7 +547,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 2. No graph view for note connections.
 3. No plugin system.
 4. Desktop-only (no mobile/responsive layout).
-5. Settings UI includes theme, separate prose and code-font pickers, font size, text width, Auto-Save and Auto-Commit intervals, and vim toggle.
+5. No real-time multi-user collaboration.
 6. No encryption or password protection.
 7. No sync or cloud backup.
 8. Single vault only.
@@ -563,7 +582,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 - The editor showing that file reloads to reflect the change.
 
 ### 16.4 Editor-Kanban Bidirectional Sync
-- Editor → Kanban: typing a new `#tag` and saving makes it a column. Clicking a `#tag` opens kanban focused on that column.
+- Editor → Kanban: typing a new `#tag` updates the open board immediately from the unsaved active buffer; saving persists it for later scans. Clicking a `#tag` opens kanban focused on that column.
 - Kanban → Editor: moving a card rewrites the tag in the file; the editor reloads from disk.
 - **Important tradeoff**: Editor reloads after kanban mutations discard the editor's undo history and any unsaved local edits.
 
@@ -588,7 +607,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 
 ### 17.3 Collapse Handling
 - The toggle-sidebar button adds `.collapsed` to the sidebar and sets its width and minimum width to `--sidebar-rail-width` (**44px**).
-- `.sidebar-content` becomes visually hidden and non-interactive, while `.sidebar-tools` remains visible outside that wrapper as a compact icon rail. Kanban count badges reduce to colored status dots at rail width.
+- `.sidebar-content` becomes visually hidden and non-interactive, while `.sidebar-tools` remains visible outside that wrapper as a compact icon rail. Quick note remains actionable in the rail, and Kanban count badges reduce to colored status dots at rail width.
 - Collapsing closes an expanded Calendar panel. Selecting Calendar from the rail restores the normal sidebar width and opens the panel in one action.
 - The resizer becomes transparent and non-interactive while collapsed, then returns when the sidebar expands.
 - The sidebar contains a `.sidebar-content` wrapper with `overflow-y: auto` for internal scrolling.
@@ -618,9 +637,8 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 Multiple layers prevent a white flash before CSS loads:
 1. **Native canvas**: `BackgroundColour: RGB(21,21,21,255)` in `main.go`
 2. **Inline `<style>`**: `html, body { background: #151515 !important }` in `index.html`
-3. **Bridge CSS**: `html, body { background: #151515 }` in `wails-compat-bridge.js`
-4. **Go domReady CSS**: injects only `html, body { background: #151515 }` via `runtime.WindowExecJS`; it does not add a second window border
-5. **External styles.css**: overrides with `transparent !important` for the rounded corner effect
+3. **Go domReady CSS**: injects only `html, body { background: #151515 }` via `runtime.WindowExecJS`; it does not add a second window border
+4. **External styles.css**: overrides with `transparent !important` for the rounded corner effect
 
 ---
 
@@ -628,7 +646,7 @@ Multiple layers prevent a white flash before CSS loads:
 
 ### 19.1 Font Variables
 - `--font-size: 16px` — sidebar and UI element base (120% scaled from original 13px).
-- `--font-size-editor: 18px` — premium long-form reading base (120% scaled from original 15px).
+- `--font-size-editor: 16.2px` — the editor's displayed 100% baseline after the ten-percent reduction from the former 18px value.
 - `--line-height-editor: 1.65` — comfortable reading line height.
 - `--line-height-ui: 1.3` — compact UI line height.
 
@@ -688,18 +706,20 @@ Multiple layers prevent a white flash before CSS loads:
 
 ### 21.1 Layout
 - Section headers with **icons** and descriptive text.
-- **Theme picker**: a dropdown combo box showing the current theme, with a scrollable menu of all 16 themes.
+- **Theme picker**: a dropdown combo box showing the current theme, with a scrollable menu of all 17 themes.
 - **Font picker**: dropdown with 16 available fonts (Inter, Figtree, Atkinson Hyperlegible, IBM Plex Sans, Fira Sans, EB Garamond, Crimson Pro, Exo 2, Dancing Script, Overpass, Alegreya, Alegreya Sans, JetBrains Mono, Work Sans, ETbb, Reforma 1918). Font files are vendored locally as woff2. The prose font is persisted to `settings.json` and applied in real time.
 - **Code Font**: a separate font-family preference for supported source-code files. It is stored as `code_font`; Markdown prose and rendered Markdown code blocks retain their normal typography.
-- **Font Size**: −/+ buttons adjusting editor font size from 70% to 150% in 10% steps. Base is 18px (120% of original 15px default).
+- **Font Size**: −/+ buttons adjusting editor font size from 70% to 150% in 10% steps. The displayed 100% baseline is 16.2px.
 - **Text Width**: −/+ buttons adjusting editor max-width from 50% (350px) to 200% (1400px) in 10% steps. Base is 700px. Persisted to localStorage.
-- **Auto-Save**: content-only save interval for the active dirty file (Off / 5s / 10s / 30s / 1min / 5min). Persisted as `auto_save_seconds`.
-- **Auto-Commit**: independent Git-history interval (Off / 1h / 2h / 4h / 8h). Persisted as `auto_commit_seconds`; it is off by default.
+- **Auto-Save**: content-only save interval for the active dirty file (Off / 5s / 10s / 30s / 1min / 5min). Persisted as `auto_save_seconds`. Auto-Save and Auto-Commit both use the shared themed, keyboard-accessible combobox instead of a native platform dropdown.
+- **Show line numbers**: persistent iOS-style toggle for the CodeMirror gutter, disabled by default and applied live to the current editor.
+- **Links style**: themed, keyboard-accessible combobox for Markdown or conventional target-first Wikilinks. A change always requires a rewrite/keep/cancel decision.
+- **Auto-Commit**: Git-history mode (On Save / 1h / 2h / 4h / 8h / Off). Persisted as `auto_commit_seconds`; one hour is the default, while `-1` represents On Save.
 - **Vim toggle**: an iOS-style toggle switch with smooth sliding animation.
 - Sections separated by a subtle `1px divider`.
 
 ### 21.2 Theme Engine
-- 16 built-in themes bundled in `frontend/themes/` as CSS files.
+- 17 built-in themes bundled in `frontend/themes/` as CSS files.
 - Selected theme persisted to `vault/.config/settings.json` and restored on startup.
 - Themes apply instantly via injected `<style id="theme-style">` without page reload.
 - Theme list fetched via backend API, dropdown populated dynamically.
@@ -718,6 +738,8 @@ Multiple layers prevent a white flash before CSS loads:
 - Node name: `font-size: 13px; line-height: 1.25` — text stays centered with its 16px icon, without clipping.
 - Folders before files, both sorted alphabetically.
 - Dot-files hidden; unsupported/binary files are greyed at 55% opacity, while CodeMirror-supported source files remain editable.
+- The active file uses the strongest accent marker. Other open file tabs use a subtler marker that remains distinct from hover and multi-selection.
+- Custom entry colors apply to both the icon and name through `--file-tree-entry-color`; a custom Lucide icon replaces the default glyph without changing row geometry.
 
 ---
 
@@ -741,7 +763,7 @@ Multiple layers prevent a white flash before CSS loads:
 
 ## 24. Window and Machine-Local State Management
 - Frameless window with native `--wails-draggable` CSS on the top bar for OS-level drag.
-- Window controls (minimize, maximize, close) in the top bar, routed through the Wails compat bridge.
+- Window controls (minimize, maximize, close) in the top bar, routed through the native Wails `App` binding.
 - Resize grip in the status bar corner: drag to resize, calls `WindowSetSize` via the Go backend.
 - `WindowStartResize(direction)` for programmatic edge resizing (N/S/E/W/NE/NW/SE/SW).
 
@@ -751,7 +773,7 @@ Multiple layers prevent a white flash before CSS loads:
 - Never persist or restore minimized state. A minimize action first captures the preceding normal or maximized presentation; shutdown while minimized therefore reuses that last meaningful state.
 - Ignore fullscreen and incomplete/transitional observations rather than treating their dimensions as normal restore geometry.
 - A normal observation updates width/height and clears the maximized flag. A maximized observation changes only the flag, preserving the normal dimensions as native restore bounds.
-- Schedule an initial capture after the Wails compatibility bridge connects. Capture again before Figaro's minimize/maximize controls act, during shutdown, and 250 ms after native browser resize events settle. The debounced resize path covers native edge resizing, snapping, and window-manager shortcuts that bypass custom controls.
+- Do not query native window state eagerly during startup: Linux GTK may not have realised the window yet. Capture before Figaro's minimize/maximize controls act, during shutdown, and 250 ms after native browser resize events settle. The debounced resize path covers native edge resizing, snapping, and window-manager shortcuts that bypass custom controls.
 
 ### 24.2 Startup and Recovery
 - Default normal dimensions are `1280 × 800`; minimum dimensions are `800 × 500`.
@@ -778,21 +800,23 @@ Multiple layers prevent a white flash before CSS loads:
 ## 25. Git-Based File History
 
 ### 25.1 Overview
-Figaro initializes a local Git repository in the vault, but saving and committing are intentionally separate. **Auto-Save** writes the active dirty file; **Auto-Commit** is an opt-in background scheduler that records changed vault files in Git. This preserves ordinary-file workflows while allowing local version history with no network service.
+Figaro initializes a local Git repository in the vault. **Auto-Save** writes the active dirty file; **Auto-Commit** records versions either after each successful save, on a background interval, or not at all. The default is a one-hour scheduler, preserving ordinary-file workflows while providing local history with no network service.
 
 ### 25.2 Repository
 - Initialized automatically on first launch in the vault root directory.
 - A `.gitignore` is created excluding `.config/` from versioning.
 - All commits use author "figaro <figaro@local>".
-- Auto-Commit is disabled by default and starts only when `auto_commit_seconds` is set to a positive interval.
+- `auto_commit_seconds` defaults to `3600` (one hour). Positive values start the scheduler, `-1` selects **On Save**, and `0` disables automatic commits.
 
 ### 25.3 Commit Sources
 | Source | Trigger | Behavior |
 |--------|---------|----------|
-| **Explicit save** | Ctrl+S / Cmd+S | Writes the active file to disk after its optimistic timestamp check. It does not create a Git commit. |
-| **Auto-Save timer** | Configurable interval (default 5 min, 5s–5min, or Off) | Writes the active dirty file to disk. It does not create a Git commit. |
-| **Auto-Commit scheduler** | Separate Settings interval (1h, 2h, 4h, or 8h) | Stages modified, added, and deleted vault files and creates one commit with message `auto-save: <count> file(s) — <timestamp>`. |
-| **Backend commit APIs** | `CommitCurrentFile` / `CommitAllFiles` | Available through the Wails bridge for integration use; the standard UI relies on the Auto-Commit scheduler. |
+| **Explicit save** | Ctrl+S / Cmd+S | Writes the active file after its optimistic timestamp check; in **On Save** mode, a successful write then commits only that file. |
+| **Auto-Save timer** | Configurable interval (default 5 min, 5s–5min, or Off) | Writes the active dirty file; in **On Save** mode, a successful write then commits only that file. |
+| **Auto-Commit scheduler** | Separate Settings interval (default 1h; 1h, 2h, 4h, or 8h) | Stages modified, added, and deleted vault files and creates one commit with message `auto-save: <count> file(s) — <timestamp>`. |
+| **Uncommitted status** | Click highlighted status-bar action | Saves pending active-editor text and commits only that file, preserving unrelated staged changes. |
+| **History restore** | Click **Revert to this version**, then confirm | Saves and commits the current file version first, restores the selected contents, and retains both states in Git history. |
+| **Backend commit APIs** | `CommitCurrentFile` / `CommitAllFiles` | Power On Save, the status action, history restore, and interval scheduling through the native Wails `App` binding. |
 
 ### 25.4 API Methods (Go Backend → Frontend)
 | Method | Returns | Purpose |
@@ -804,10 +828,13 @@ Figaro initializes a local Git repository in the vault, but saving and committin
 | `AutoSaveSave(seconds)` | — | Persist auto-save interval to `settings.json` |
 | `AutoCommitLoad()` | `int` (seconds) | Read auto-commit interval from `settings.json` |
 | `AutoCommitSave(seconds)` | — | Persist and reconfigure the auto-commit scheduler |
+| `FileHasUncommittedChanges(path)` | `bool` | Report the active file's working-tree state without including unrelated paths |
+| `CommitCurrentFile(path)` | — | Commit one file while preserving unrelated staged changes |
 
 ### 25.5 Status Bar
 - Shows the committed-history count for the active file: "0 changes" (dimmed, not clickable) or "12 changes" (bright, clickable). Unsaved and uncommitted disk changes are not counted.
 - Clicking opens the right sidebar history panel.
+- Beside the count, **Git clean** is dimmed and disabled. **Uncommitted** is highlighted and clickable; activation saves pending editor content, commits only the active file, and exposes saving/committing/error states without losing the buffer.
 
 ### 25.6 Right Sidebar — History Panel
 - Toggleable panel on the right side of the workspace (resizable via drag handle, 240–480px).
@@ -816,8 +843,9 @@ Figaro initializes a local Git repository in the vault, but saving and committin
 - Sorted by modification time, most recent first.
 - **Click a version** → loads historical content into the editor in **read-only mode**:
   - Editor gets amber tint (`.history-mode` CSS class).
-  - Banner at top: "Read-only — close history view to make changes."
+  - Banner at top identifies the read-only historical version and offers **Revert to this version**.
   - Clipboard works (text can be selected and copied).
+- **Revert to this version** opens a styled warning dialog focused on preserving the current file. Confirming saves and commits the live version before applying the historical contents; cancellation changes nothing, and a preservation failure leaves the historical view open with the current version intact.
 - **Click the latest version** (top entry) → exits history mode (no need for read-only on current version).
 - Closing the panel (× button, status bar click, or tab switch) restores the live editor content instantly.
 - Panel auto-closes when switching to a different file tab.
@@ -855,7 +883,7 @@ Figaro initializes a local Git repository in the vault, but saving and committin
 
 ### 26.4 Clipboard Image Paste
 - A native image paste is intercepted before the webview can insert an object-replacement character or local filesystem URL.
-- The image is base64-encoded for the Wails bridge and passed to `SaveClipboardImage`; the backend validates the detected raster format and writes it through the root-scoped vault filesystem.
+- The image is base64-encoded and passed through the native Wails binding to `SaveClipboardImage`; the backend validates the detected raster format and writes it through the root-scoped vault filesystem.
 - Names are allocated across supported raster extensions as `image1`, `image2`, and so on, so an existing image is never replaced. The returned Markdown uses the matching capitalized alt text (`Image1`, `Image2`) and a same-directory filename.
 - The link replaces the current selection only after persistence succeeds. If the user changes notes while the asynchronous write is running, the asset remains safely saved but is not inserted into the wrong document.
 - Keyboard paste events and the editor context-menu Paste action share this behavior. Plain-text clipboard content continues through the normal CodeMirror paste path.
@@ -871,11 +899,11 @@ Figaro initializes a local Git repository in the vault, but saving and committin
 - CodeMirror `requestMeasure()` called on change for live reflow.
 
 ### 27.2 Font Size
-- CSS variable `--font-size-editor` (default 18px, 120% of original 15px design).
+- CSS variable `--font-size-editor` (default 16.2px at the displayed 100% setting).
 - Settings tab buttons adjust from 70% to 150% in 10% steps.
 - `--line-height-editor` scales proportionally for visual balance.
 - Persisted to `localStorage` key `editor-font-size`.
-- All 16 theme CSS files also use scaled base sizes (`--font-size: 16px`, `--font-size-sm: 14px`).
+- All 17 theme CSS files share the UI base sizes (`--font-size: 16px`, `--font-size-sm: 14px`).
 
 ---
 
@@ -889,7 +917,7 @@ Hovering over a markdown link shows a tooltip with link information: external li
 - Uses `view.posAtCoords` → `syntaxTree.resolveInner` → parent walk to find the link node.
 - Supports standard `[text](url)`, `URL` autolinks, `Image` links, `Autolink` nodes, and `[[WikiLink]]` patterns.
 - Tooltip DOM appended to `document.body` with fixed positioning near the mouse cursor.
-- File links call the Wails compatibility bridge's `read_file` API to check existence.
+- File links call the native Wails `ReadFile` binding to check existence.
 - Relative paths (`../../Projects/x.md`) are resolved against the current file's directory before backend lookup.
 - Percent-encoded URLs (`%20`) are decoded before display and backend calls.
 
@@ -1108,3 +1136,10 @@ npm run test:unit                    # JS tests (editor, tabs, state, rendering,
 npx playwright install chromium # First browser-test setup only
 npm run test:pdf  # Playwright browser test using vendored Mermaid, Vega, and Vega-Lite
 ```
+
+### 35.4 Versioned Releases
+- Figaro's first public release is `v1.0.0`. A stable release tag must use `vMAJOR.MINOR.PATCH`, point to a commit already on `main`, and match `package.json`, both root version records in `package-lock.json`, and `wails.json`.
+- Release preparation moves the accumulated changelog entries into a dated version section and leaves a fresh `Unreleased` section above it.
+- Pushing the tag runs the full lint, unit, Go race, and Playwright suites before building Linux amd64, Windows amd64, and universal macOS packages. A failed verification or platform build prevents publication.
+- Each binary archive contains the application, `README.md`, `CHANGELOG.md`, and `LICENSE`; the release also publishes SHA-256 checksums and generated notes. Builds are currently unsigned.
+- Figaro is distributed under `GPL-3.0-or-later`. The repository and GitHub tag source archives provide the corresponding source alongside the downloadable binaries.
