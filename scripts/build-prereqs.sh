@@ -60,7 +60,7 @@ print_frontend_hint() {
 }
 
 print_icons_hint() {
-    printf '%s\n' "ImageMagick 7 (the 'magick' command) is required to generate Figaro's icons. Suggested install command:"
+    printf '%s\n' "ImageMagick 6 or 7 is required to generate Figaro's icons. Suggested install command:"
     case "$(package_manager)" in
         dnf) printf '%s\n' "  sudo dnf install ImageMagick" ;;
         apt-get) printf '%s\n' "  sudo apt-get install imagemagick" ;;

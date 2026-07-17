@@ -120,7 +120,7 @@ check-darwin-deps:
 	fi
 
 check-icon-tool:
-	@if ! command -v magick >/dev/null 2>&1; then \
+	@if ! command -v magick >/dev/null 2>&1 && ! { command -v convert >/dev/null 2>&1 && convert -version 2>&1 | grep -q ImageMagick; }; then \
 		./scripts/build-prereqs.sh hint-icons; \
 		exit 1; \
 	fi
@@ -141,7 +141,7 @@ ensure-icons:
 	@if [ ! -f appicon.png ] || [ ! -f build/appicon.png ] || [ ! -f frontend/icon-32.png ] || [ ! -f frontend/icon-256.png ] || [ ! -f frontend/favicon.ico ] || \
 		[ figaro.appicon.png -nt appicon.png ] || [ figaro.appicon.png -nt build/appicon.png ] || [ figaro.appicon.png -nt frontend/icon-32.png ] || [ figaro.appicon.png -nt frontend/icon-256.png ] || [ figaro.appicon.png -nt frontend/favicon.ico ] || \
 		[ scripts/generate-icons.sh -nt appicon.png ]; then \
-		if ! command -v magick >/dev/null 2>&1; then ./scripts/build-prereqs.sh hint-icons; exit 1; fi; \
+		if ! command -v magick >/dev/null 2>&1 && ! { command -v convert >/dev/null 2>&1 && convert -version 2>&1 | grep -q ImageMagick; }; then ./scripts/build-prereqs.sh hint-icons; exit 1; fi; \
 		$(MAKE) icons; \
 	fi
 

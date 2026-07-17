@@ -1,0 +1,207 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  WAILS_VERSION: v2.12.0
+
+jobs:
+  verify:
+    name: Verify release commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Validate stable version tag
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must use vMAJOR.MINOR.PATCH (received: $GITHUB_REF_NAME)." >&2
+            exit 1
+          fi
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Release tags must point to a commit on main." >&2
+            exit 1
+          fi
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run vendor
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: go vet . ./internal/... ./cmd/...
+      - run: go test -race . ./internal/... ./cmd/...
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:pdf
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux amd64
+            id: linux-amd64
+            os: ubuntu-24.04
+          - name: Windows amd64
+            id: windows-amd64
+            os: windows-latest
+          - name: macOS universal
+            id: macos-universal
+            os: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run vendor
+      - name: Apply tag version to package metadata
+        shell: bash
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const path = "wails.json";
+            const config = JSON.parse(fs.readFileSync(path, "utf8"));
+            config.info.productVersion = process.env.GITHUB_REF_NAME.slice(1);
+            fs.writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
+          '
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev imagemagick
+      - name: Install Windows icon tooling
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install imagemagick.app --yes --no-progress
+          $imageMagick = Get-ChildItem 'C:\Program Files\ImageMagick-*' -Directory |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+          if (-not $imageMagick) { throw 'ImageMagick installation was not found.' }
+          $imageMagick.FullName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Install macOS icon tooling
+        if: runner.os == 'macOS'
+        run: brew list imagemagick >/dev/null 2>&1 || brew install imagemagick
+      - name: Generate application icons
+        shell: bash
+        run: ./scripts/generate-icons.sh
+
+      - name: Build Linux binary
+        if: runner.os == 'Linux'
+        run: >-
+          go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build
+          -clean -trimpath -platform linux/amd64 -tags webkit2_41 -o figaro
+      - name: Build Windows binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build
+          -clean -trimpath -platform windows/amd64 -o figaro.exe
+      - name: Build universal macOS application
+        if: runner.os == 'macOS'
+        run: >-
+          go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build
+          -clean -trimpath -platform darwin/universal -o figaro
+
+      - name: Package Linux binary
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          archive="figaro-${GITHUB_REF_NAME}-linux-amd64"
+          mkdir -p "dist/$archive"
+          install -m 0755 build/bin/figaro "dist/$archive/figaro"
+          cp README.md "dist/$archive/README.md"
+          tar -C dist -czf "dist/$archive.tar.gz" "$archive"
+      - name: Package Windows binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $archive = "figaro-$($env:GITHUB_REF_NAME)-windows-amd64"
+          New-Item -ItemType Directory -Path "dist/$archive" -Force | Out-Null
+          Copy-Item build/bin/figaro.exe "dist/$archive/figaro.exe"
+          Copy-Item README.md "dist/$archive/README.md"
+          Compress-Archive -Path "dist/$archive" -DestinationPath "dist/$archive.zip"
+      - name: Package universal macOS application
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          archive="figaro-${GITHUB_REF_NAME}-macos-universal"
+          mkdir -p "dist/$archive"
+          cp -R build/bin/figaro.app "dist/$archive/figaro.app"
+          cp README.md "dist/$archive/README.md"
+          ditto -c -k --sequesterRsrc --keepParent "dist/$archive" "dist/$archive.zip"
+      - name: Upload packaged binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: figaro-release-${{ matrix.id }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: figaro-release-*
+          path: dist
+          merge-multiple: true
+      - name: Create release checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum figaro-*.tar.gz figaro-*.zip > SHA256SUMS
+      - name: Create or repair GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --verify-tag \
+              --generate-notes \
+              --title "Figaro $GITHUB_REF_NAME"
+          fi

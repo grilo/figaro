@@ -6,6 +6,9 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Added
 
+- Tag-triggered GitHub releases for stable `vMAJOR.MINOR.PATCH` versions,
+  publishing verified Linux amd64, Windows amd64, and universal macOS archives
+  with generated release notes and SHA-256 checksums.
 - Vault-wide **Links style** settings for conventional target-first Wikilinks
   or Markdown links, including preference-aware note autocomplete, safe
   existing-note conversion, open-buffer reloads, and matching editor, PDF

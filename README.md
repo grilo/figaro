@@ -166,7 +166,7 @@ An export of the active dirty note uses the current editor content without forci
 - Wails v2 CLI
 - The platform dependencies required by Wails. On Linux, Figaro uses GTK3 with WebKitGTK 4.1 when available (WebKitGTK 4.0 is also supported).
 - A locally installed Chrome, Chromium (including Ungoogled Chromium and Flatpak installs), Brave, or Edge browser for interactive PDF export. macOS can fall back to its built-in Safari/WebKit engine.
-- ImageMagick 7 for the generated application icons; `make dev` and package builds create them automatically when absent.
+- ImageMagick 6 or 7 for the generated application icons; `make dev` and package builds create them automatically when absent.
 
 Install the Wails CLI version that matches this project's Go dependency:
 
@@ -211,6 +211,21 @@ make windows
 make darwin
 make icons          # regenerate all icon variants from figaro.appicon.png
 ~~~
+
+### Publish a GitHub release
+
+After the release commit is on `main`, push a stable semantic-version tag:
+
+~~~bash
+git tag -a v2.0.1 -m "Figaro v2.0.1"
+git push origin v2.0.1
+~~~
+
+The tag-triggered release workflow verifies the complete test suite, builds a
+Linux amd64 archive, a Windows amd64 archive, and one universal Intel/Apple
+Silicon macOS archive, then publishes them with `SHA256SUMS` and generated
+release notes. Release builds are currently unsigned, so Windows SmartScreen
+or macOS Gatekeeper may ask the user to confirm the first launch.
 
 The Makefile prepares a clean checkout itself: it downloads Go modules, runs
 `npm ci` when the locked frontend dependencies are absent or changed, and
