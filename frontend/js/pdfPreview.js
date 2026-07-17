@@ -28,6 +28,9 @@ const previewResizeSettleMs = 80;
 
 let previewTimer = null;
 let previewRequestId = 0;
+let previewRenderInFlight = false;
+let previewRenderQueued = false;
+let previewRenderPromise = null;
 let previewInitialized = false;
 let previewGenerating = false;
 
@@ -988,53 +991,79 @@ function setPreviewLoading(isLoading) {
     if (loadingElement) loadingElement.hidden = !isLoading;
 }
 
-async function renderPreview() {
-    const requestId = ++previewRequestId;
-    let awaitingBridgeRender = false;
-    // An empty Markdown note is still a valid printable document. Opening the
-    // pane only schedules rendering after its source has been loaded, so the
-    // path/mode check is sufficient here.
-    if (!isPreviewOpen()) return;
-
-    setPreviewLoading(true);
-    setPreviewStatus('Updating live preview…');
-    try {
-        await ensurePreviewStylesheet(requestId);
-        if (requestId !== previewRequestId || !isPreviewOpen()) return;
-
-        const printable = await renderPrintableMarkdownWithDiagrams(preview.content, preview.title);
-        if (requestId !== previewRequestId || !isPreviewOpen()) return;
-
-        const { frame } = panelElements();
-        if (!frame) return;
-        // The fixed sandboxed frame receives a document snapshot through its
-        // message bridge. It keeps arbitrary print CSS out of the app chrome
-        // without requiring the parent to access a frame DOM.
-        scrollSync.pendingDocumentProgress = capturePreviewScrollProgress();
-        preview.documentHTML = buildPDFPreviewDocument(printable, {
-            notePath: preview.path,
-            stylesheetPath: preview.stylesheetPath,
-            stylesheetContent: preview.stylesheetContent,
-        });
-        queuePreviewBridgeRender(frame, preview.documentHTML, scrollSync.pendingDocumentProgress);
-        awaitingBridgeRender = true;
-        updatePreviewMeta();
-        setPreviewStatus(preview.stylesheetError ? 'Live preview updated — using the built-in style.' : 'Live preview up to date.');
-    } catch (error) {
-        if (requestId !== previewRequestId || !isPreviewOpen()) return;
-        log.error('PDF preview failed:', error);
-        setPreviewStatus(error?.message || 'Could not render the PDF preview.', 'error');
-    } finally {
-        if (requestId === previewRequestId && !awaitingBridgeRender) setPreviewLoading(false);
+function renderPreview() {
+    if (previewRenderInFlight) {
+        // Diagram rendering can be asynchronous and expensive. Let the
+        // current work settle, discard it if its input changed, then render
+        // only the latest queued snapshot instead of starting parallel work.
+        previewRenderQueued = true;
+        return previewRenderPromise || Promise.resolve();
     }
+    if (previewTimer) {
+        clearTimeout(previewTimer);
+        previewTimer = null;
+    }
+    if (!isPreviewOpen()) return Promise.resolve();
+
+    previewRenderInFlight = true;
+    const requestId = ++previewRequestId;
+    previewRenderPromise = (async () => {
+        let awaitingBridgeRender = false;
+        setPreviewLoading(true);
+        setPreviewStatus('Updating live preview…');
+        try {
+            await ensurePreviewStylesheet(requestId);
+            if (requestId !== previewRequestId || !isPreviewOpen()) return;
+
+            const printable = await renderPrintableMarkdownWithDiagrams(preview.content, preview.title);
+            if (requestId !== previewRequestId || !isPreviewOpen()) return;
+
+            const { frame } = panelElements();
+            if (!frame) return;
+            // The fixed sandboxed frame receives a document snapshot through
+            // its message bridge. It keeps arbitrary print CSS out of the app
+            // chrome without requiring the parent to access a frame DOM.
+            scrollSync.pendingDocumentProgress = capturePreviewScrollProgress();
+            preview.documentHTML = buildPDFPreviewDocument(printable, {
+                notePath: preview.path,
+                stylesheetPath: preview.stylesheetPath,
+                stylesheetContent: preview.stylesheetContent,
+            });
+            queuePreviewBridgeRender(frame, preview.documentHTML, scrollSync.pendingDocumentProgress);
+            awaitingBridgeRender = true;
+            updatePreviewMeta();
+            setPreviewStatus(preview.stylesheetError ? 'Live preview updated — using the built-in style.' : 'Live preview up to date.');
+        } catch (error) {
+            if (requestId !== previewRequestId || !isPreviewOpen()) return;
+            log.error('PDF preview failed:', error);
+            setPreviewStatus(error?.message || 'Could not render the PDF preview.', 'error');
+        } finally {
+            if (requestId === previewRequestId && !awaitingBridgeRender) setPreviewLoading(false);
+            previewRenderInFlight = false;
+            previewRenderPromise = null;
+            if (previewRenderQueued && isPreviewOpen()) {
+                previewRenderQueued = false;
+                // A newer edit may still be inside its debounce window. Let
+                // that timer retain the normal typing cadence; otherwise the
+                // queued render is ready to start immediately.
+                if (!previewTimer) void renderPreview();
+            } else {
+                previewRenderQueued = false;
+            }
+        }
+    })();
+    return previewRenderPromise;
 }
 
 export function schedulePDFPreviewRefresh(delay = previewDebounceMs) {
     if (!isPreviewOpen()) return;
+    // Invalidate active diagram/print work as soon as the editor has a newer
+    // snapshot, rather than waiting for this trailing debounce to expire.
+    previewRequestId++;
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = setTimeout(() => {
         previewTimer = null;
-        renderPreview();
+        void renderPreview();
     }, Math.max(0, delay));
 }
 
@@ -1247,6 +1276,7 @@ export function closePDFPreview({ keepSidebarOpen = false } = {}) {
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = null;
     previewRequestId++;
+    previewRenderQueued = false;
     clearPreviewBridgeRecovery();
     previewBridge.render = null;
     previewBridge.token = '';

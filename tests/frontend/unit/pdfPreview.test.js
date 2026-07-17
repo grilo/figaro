@@ -103,6 +103,9 @@ describe('live PDF preview', () => {
     beforeEach(() => {
         testUtils.createMockDOM();
         jest.clearAllMocks();
+        renderPrintableMarkdownWithDiagrams.mockResolvedValue(
+            '<!doctype html><html><head><title>Report</title></head><body><main class="figaro-print-document"><h1>Report</h1></main></body></html>'
+        );
         mockState.openTabs = [];
         mockState.activeTabId = null;
         window.go.main.App.ReadFile = jest.fn(path => {
@@ -371,6 +374,42 @@ describe('live PDF preview', () => {
 
         expect(render().html).toContain('color: teal');
         expect(renderPrintableMarkdownWithDiagrams).toHaveBeenCalledTimes(2);
+    });
+
+    test('cancels stale asynchronous preview work and renders only the latest editor snapshot', async () => {
+        const { postMessage } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        postMessage.mockClear();
+        const pendingRenders = [];
+        renderPrintableMarkdownWithDiagrams.mockImplementation(content => new Promise(resolve => {
+            pendingRenders.push({ content, resolve });
+        }));
+
+        document.dispatchEvent(new CustomEvent('file-content-changed', {
+            detail: { path: 'notes/report.md', content: '# First pending preview' },
+        }));
+        await waitForPreview(340);
+        expect(pendingRenders.map(render => render.content)).toEqual(['# First pending preview']);
+
+        document.dispatchEvent(new CustomEvent('file-content-changed', {
+            detail: { path: 'notes/report.md', content: '# Final preview' },
+        }));
+        await waitForPreview(340);
+        expect(pendingRenders).toHaveLength(1);
+
+        pendingRenders[0].resolve('<!doctype html><html><head></head><body>stale-first</body></html>');
+        await waitForPreview();
+        expect(pendingRenders.map(render => render.content)).toEqual([
+            '# First pending preview',
+            '# Final preview',
+        ]);
+
+        pendingRenders[1].resolve('<!doctype html><html><head></head><body>final-preview</body></html>');
+        await waitForPreview();
+
+        const bridgeRenders = postedBridgeMessages(postMessage).filter(message => message.type === 'render');
+        expect(bridgeRenders).toHaveLength(1);
+        expect(bridgeRenders[0].html).toContain('final-preview');
+        expect(bridgeRenders[0].html).not.toContain('stale-first');
     });
 
     test('opens a styled CSS helper with the current generated HTML contract', async () => {

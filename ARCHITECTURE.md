@@ -225,6 +225,12 @@ that messages came from its parent. The bootstrap token matters after a bad
 navigation: a foreign page retains the iframe's `WindowProxy`, but cannot
 forge `ready` and receive the printable document snapshot.
 
+Markdown-to-print rendering can include asynchronous diagram work. The parent
+therefore allows only one preview render at a time: each input event invalidates
+the active request immediately, preserves the ordinary trailing debounce, and
+queues one latest snapshot. Completed stale work is never sent through the
+bridge, so expensive bursts cannot race a later edit or paint an older preview.
+
 | Direction | Messages | Purpose |
 | --- | --- | --- |
 | Parent → frame | `render`, `set-content-progress`, `set-document-progress`, `set-scroll-sync-paused`, `scroll-fragment`, `ping` | Supply the printable snapshot, synchronize position, and suspend synchronization during splitter resizing. |

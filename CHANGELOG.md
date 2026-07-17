@@ -6,6 +6,8 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- Live PDF Preview now invalidates stale diagram and print-document work as
+  soon as newer text arrives, then renders only the latest queued snapshot.
 - Case-insensitive search and backlink lookups now use incrementally updated
   text and reverse-link projections, so repeated queries avoid rescanning
   unrelated notes while retaining substring, path, basename, and
