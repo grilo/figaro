@@ -47,6 +47,13 @@ repeat the save work. Ambiguous broad changes such as moves, merges, or an
 unscoped notification deliberately invalidate and rebuild one coherent
 snapshot; correctness wins over a speculative partial update.
 
+Each indexed file owns its own tag, Kanban-card, daily-note, and date-link
+contributions. A known one-file update removes its old contributions before
+adding its new ones, retaining unrelated card slices and Calendar projections.
+This keeps the common save/watcher path proportional to the changed note and
+its affected tags/dates; a full derived rebuild remains reserved for the first
+lazy scan and genuinely broad filesystem changes.
+
 The `vault:changed` event includes `tree_changed`. Content-only changes refresh
 dependent data without requesting a new file tree; directory or entry changes
 schedule the normal coalesced tree refresh. The initial index is still built

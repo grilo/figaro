@@ -107,3 +107,46 @@ func TestVaultWatcherChangesUpdateOnlyAffectedIndexedNote(t *testing.T) {
 		t.Fatalf("board after external remove = %#v, err=%v", board, err)
 	}
 }
+
+func TestVaultIndexKeepsUnchangedDerivedContributionsOnKnownSave(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Replace me #todo\n[Today](2025-02-14.md)\n")
+	writeTestFile(t, vaultPath, "stable.md", "- [ ] Keep me #later\n[Stable date](2025-02-15.md)\n")
+
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+	initialCalendar := app.vaultIndex.calendar
+	stableCards := app.vaultIndex.cardsByTag["later"]
+	if len(stableCards) != 1 {
+		t.Fatalf("stable cards = %#v, want one later card", stableCards)
+	}
+	stableCard := &stableCards[0]
+
+	saved, err := app.SaveFile("tasks.md", "- [ ] Replacement #review\n[Tomorrow](2025-02-16.md)\n", 0)
+	if err != nil || !saved.Success {
+		t.Fatalf("SaveFile: result=%+v err=%v", saved, err)
+	}
+	if app.vaultIndex.calendar != initialCalendar {
+		t.Fatal("known save rebuilt the full calendar projection")
+	}
+	updatedStableCards := app.vaultIndex.cardsByTag["later"]
+	if len(updatedStableCards) != 1 || &updatedStableCards[0] != stableCard {
+		t.Fatalf("known save rebuilt unchanged Kanban contributions: %#v", updatedStableCards)
+	}
+
+	month, err := app.GetCalendarMonthData(2025, 2)
+	if err != nil {
+		t.Fatalf("GetCalendarMonthData: %v", err)
+	}
+	if got, want := month.DaysWithLinks, []int{15, 16}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("DaysWithLinks after replacement = %v, want %v", got, want)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil {
+		t.Fatalf("GetKanbanBoard after save: %v", err)
+	}
+	if len(board["todo"]) != 0 || len(board["later"]) != 1 || len(board["review"]) != 1 {
+		t.Fatalf("board after replacement = %#v", board)
+	}
+}

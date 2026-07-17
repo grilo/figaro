@@ -120,7 +120,7 @@ Each theme defines these properties (with theme-specific colors):
 | Operation | Behavior |
 |-----------|----------|
 | **Read file** | Returns file content and last-modified timestamp. |
-| **Save file** | Writes content to disk. Accepts expected last-modified timestamp for conflict detection and incrementally refreshes that note's discovery data. |
+| **Save file** | Writes content to disk. Accepts expected last-modified timestamp for conflict detection and incrementally replaces only that note's search, Kanban, tag, and Calendar contributions. |
 | **Create file** | Creates a `.md` file with a `# Title` header and incrementally adds it to discovery data. |
 | **Create directory** | Creates a new folder. |
 | **Delete** | Deletes a file or directory (recursive) and refreshes discovery data without leaving stale cards, search results, backlinks, or dates. |

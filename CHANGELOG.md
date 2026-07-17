@@ -8,6 +8,9 @@ All notable user-facing changes are recorded here from this point forward.
 
 - Removed the unused legacy automation harness and its obsolete Welcome-note
   attribution.
+- Saving or externally updating one Markdown note now changes only that note's
+  Kanban, tag, and Calendar index contributions, keeping unrelated planning
+  data in place in large vaults.
 - Search, backlinks, Kanban, and Calendar now share one incremental vault
   index. Normal saves and external one-file edits refresh only that note, so
   navigating and typing in larger vaults stays responsive.

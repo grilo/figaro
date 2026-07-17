@@ -19,11 +19,14 @@ import (
 // Kanban and calendar structures make their common queries independent of the
 // number of notes altogether.
 type vaultIndex struct {
-	files      map[string]vaultIndexedFile
-	paths      []string
-	tags       map[string]struct{}
-	cardsByTag map[string][]KanbanCard
-	calendar   *calendarDateIndex
+	files           map[string]vaultIndexedFile
+	paths           []string
+	tags            map[string]struct{}
+	tagCounts       map[string]int
+	cardsByTag      map[string][]KanbanCard
+	calendar        *calendarDateIndex
+	dailyNoteCounts map[string]int
+	linkedDayCounts map[string]int
 }
 
 type vaultIndexedFile struct {
@@ -131,29 +134,170 @@ func (index *vaultIndex) rebuildDerived() {
 	index.tags = make(map[string]struct{})
 	index.cardsByTag = make(map[string][]KanbanCard)
 	index.calendar = newCalendarDateIndex()
+	index.tagCounts = make(map[string]int)
+	index.dailyNoteCounts = make(map[string]int)
+	index.linkedDayCounts = make(map[string]int)
 	for _, path := range index.paths {
-		file := index.files[path]
-		for _, tag := range file.tags {
-			index.tags[tag] = struct{}{}
-		}
-		for _, card := range file.cards {
-			index.cardsByTag[card.Tag] = append(index.cardsByTag[card.Tag], card)
-		}
-		if file.dailyNote != "" {
-			index.calendar.dailyNotes[file.dailyNote] = struct{}{}
-		}
-		for _, dateStr := range file.linkedDays {
-			index.calendar.linkedDays[dateStr] = struct{}{}
-		}
-		for dateStr, note := range file.linked {
-			index.calendar.linkedNotes[dateStr] = append(index.calendar.linkedNotes[dateStr], note)
+		index.addFileContributions(index.files[path])
+	}
+	index.sortAllCards()
+	index.sortAllLinkedNotes()
+}
+
+func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
+	for _, tag := range file.tags {
+		index.tagCounts[tag]++
+		index.tags[tag] = struct{}{}
+	}
+	for _, card := range file.cards {
+		index.cardsByTag[card.Tag] = append(index.cardsByTag[card.Tag], card)
+	}
+	if file.dailyNote != "" {
+		index.dailyNoteCounts[file.dailyNote]++
+		index.calendar.dailyNotes[file.dailyNote] = struct{}{}
+	}
+	for _, dateStr := range file.linkedDays {
+		index.linkedDayCounts[dateStr]++
+		index.calendar.linkedDays[dateStr] = struct{}{}
+	}
+	for dateStr, note := range file.linked {
+		index.calendar.linkedNotes[dateStr] = append(index.calendar.linkedNotes[dateStr], note)
+	}
+}
+
+func (index *vaultIndex) removeFileContributions(file vaultIndexedFile) {
+	for _, tag := range file.tags {
+		if index.tagCounts[tag] <= 1 {
+			delete(index.tagCounts, tag)
+			delete(index.tags, tag)
+		} else {
+			index.tagCounts[tag]--
 		}
 	}
+	cardTags := make(map[string]struct{})
+	for _, card := range file.cards {
+		cardTags[card.Tag] = struct{}{}
+	}
+	for tag := range cardTags {
+		cards := index.cardsByTag[tag]
+		filtered := cards[:0]
+		for _, existing := range cards {
+			if existing.File != file.path {
+				filtered = append(filtered, existing)
+			}
+		}
+		if len(filtered) == 0 {
+			delete(index.cardsByTag, tag)
+		} else {
+			index.cardsByTag[tag] = filtered
+		}
+	}
+	if file.dailyNote != "" {
+		if index.dailyNoteCounts[file.dailyNote] <= 1 {
+			delete(index.dailyNoteCounts, file.dailyNote)
+			delete(index.calendar.dailyNotes, file.dailyNote)
+		} else {
+			index.dailyNoteCounts[file.dailyNote]--
+		}
+	}
+	for _, dateStr := range file.linkedDays {
+		if index.linkedDayCounts[dateStr] <= 1 {
+			delete(index.linkedDayCounts, dateStr)
+			delete(index.calendar.linkedDays, dateStr)
+		} else {
+			index.linkedDayCounts[dateStr]--
+		}
+	}
+	for dateStr := range file.linked {
+		notes := index.calendar.linkedNotes[dateStr]
+		filtered := notes[:0]
+		for _, note := range notes {
+			if note.Path != file.path {
+				filtered = append(filtered, note)
+			}
+		}
+		if len(filtered) == 0 {
+			delete(index.calendar.linkedNotes, dateStr)
+		} else {
+			index.calendar.linkedNotes[dateStr] = filtered
+		}
+	}
+}
+
+func sortKanbanCards(cards []KanbanCard) {
+	sort.Slice(cards, func(i, j int) bool {
+		if cards[i].File != cards[j].File {
+			return cards[i].File < cards[j].File
+		}
+		if cards[i].Line != cards[j].Line {
+			return cards[i].Line < cards[j].Line
+		}
+		return cards[i].Text < cards[j].Text
+	})
+}
+
+func sortLinkedNotes(notes []LinkedNote) {
+	sort.Slice(notes, func(i, j int) bool {
+		return notes[i].Mtime > notes[j].Mtime
+	})
+}
+
+func (index *vaultIndex) sortAllCards() {
+	for _, cards := range index.cardsByTag {
+		sortKanbanCards(cards)
+	}
+}
+
+func (index *vaultIndex) sortAllLinkedNotes() {
 	for dateStr := range index.calendar.linkedNotes {
-		sort.Slice(index.calendar.linkedNotes[dateStr], func(i, j int) bool {
-			return index.calendar.linkedNotes[dateStr][i].Mtime > index.calendar.linkedNotes[dateStr][j].Mtime
-		})
+		sortLinkedNotes(index.calendar.linkedNotes[dateStr])
 	}
+}
+
+func (index *vaultIndex) replaceFile(file vaultIndexedFile) {
+	if existing, found := index.files[file.path]; found {
+		index.removeFileContributions(existing)
+		index.removePath(file.path)
+	}
+	index.files[file.path] = file
+	index.insertPath(file.path)
+	index.addFileContributions(file)
+	for _, tag := range file.tags {
+		sortKanbanCards(index.cardsByTag[tag])
+	}
+	for dateStr := range file.linked {
+		sortLinkedNotes(index.calendar.linkedNotes[dateStr])
+	}
+}
+
+func (index *vaultIndex) removeFile(path string) {
+	file, found := index.files[path]
+	if !found {
+		return
+	}
+	index.removeFileContributions(file)
+	delete(index.files, path)
+	index.removePath(path)
+}
+
+func (index *vaultIndex) insertPath(path string) {
+	position := sort.SearchStrings(index.paths, path)
+	if position < len(index.paths) && index.paths[position] == path {
+		return
+	}
+	index.paths = append(index.paths, "")
+	copy(index.paths[position+1:], index.paths[position:])
+	index.paths[position] = path
+}
+
+func (index *vaultIndex) removePath(path string) {
+	position := sort.SearchStrings(index.paths, path)
+	if position >= len(index.paths) || index.paths[position] != path {
+		return
+	}
+	copy(index.paths[position:], index.paths[position+1:])
+	index.paths[len(index.paths)-1] = ""
+	index.paths = index.paths[:len(index.paths)-1]
 }
 
 func (index *vaultIndex) columns() []string {
@@ -222,8 +366,7 @@ func (a *App) updateVaultIndexFileLocked(rel string, info fs.FileInfo, content s
 		return
 	}
 	file := indexMarkdownFile(rel, info, []byte(content))
-	a.vaultIndex.files[file.path] = file
-	a.vaultIndex.rebuildDerived()
+	a.vaultIndex.replaceFile(file)
 	a.publishVaultIndexLocked(a.vaultIndex)
 }
 
@@ -235,10 +378,9 @@ func (a *App) removeVaultIndexPathLocked(rel string) {
 	path := filepath.ToSlash(rel)
 	for indexedPath := range a.vaultIndex.files {
 		if indexedPath == path || strings.HasPrefix(indexedPath, path+"/") {
-			delete(a.vaultIndex.files, indexedPath)
+			a.vaultIndex.removeFile(indexedPath)
 		}
 	}
-	a.vaultIndex.rebuildDerived()
 	a.publishVaultIndexLocked(a.vaultIndex)
 }
 

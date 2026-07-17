@@ -63,8 +63,8 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	if got, want := month.DaysWithLinks, []int{20, 21}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithLinks after mutation = %v, want %v", got, want)
 	}
-	if got := cachedCalendarIndex(app); got == firstIndex {
-		t.Fatal("calendar projection was not refreshed after an incremental vault mutation")
+	if got := cachedCalendarIndex(app); got != firstIndex {
+		t.Fatal("incremental mutation replaced the unaffected calendar projection instead of updating it in place")
 	}
 }
 
