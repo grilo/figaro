@@ -6,6 +6,11 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Changed
 
+- The active file's **Uncommitted** Git action is now a subtle underlined
+  status cue instead of a prominent warning pill.
+- Historical reverts now live beside the selected revision in the right-pane
+  History list, commit the restored snapshot, and immediately show it as the
+  latest committed version.
 - Home now requests only its six unfinished Momentum cards, and Calendar reads
   pre-grouped month markers, avoiding full board payloads and all-date filters
   during ordinary navigation.
@@ -183,6 +188,9 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Fixed
 
+- The active file's **Uncommitted** action now returns immediately after a new
+  edit following an explicit commit, while keeping the tab's dirty marker in
+  sync.
 - Notes with no backlinks now return and display a normal empty result instead
   of emitting a misleading **Failed to load backlinks** error; genuine lookup
   and response failures remain visible in the logs.

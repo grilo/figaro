@@ -1314,12 +1314,15 @@ function handleDocChange(update) {
     }
     const at = getState('openTabs').find(t => t.id === editorDocumentTabId);
     if (at && at.type === 'file') {
+        const becameDirty = !at.dirty;
         at._editGeneration = (at._editGeneration || 0) + 1;
         // Mark the model dirty synchronously. The tab-bar import only paints
         // that fact; source snapshots below remain owned by CodeMirror until
         // a consumer actually needs a string.
         at.dirty = true;
-        import('./tabManager.js').then(({ markTabDirty }) => markTabDirty(at.id));
+        if (becameDirty) {
+            import('./tabManager.js').then(({ markTabDirty }) => markTabDirty(at.id, { alreadyDirty: true }));
+        }
         // Kanban and the PDF preview need the current in-memory text, but
         // each can consume the newest frame rather than every transaction in
         // a rapid typing burst. Saves and tab switches read the editor state

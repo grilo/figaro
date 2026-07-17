@@ -269,7 +269,7 @@ test('keeps Quick note available in the collapsed rail and gives Inbox its defau
     await page.locator('.file-tree-style-modal .custom-modal-btn-cancel').click();
 });
 
-test('highlights and commits the active file Git status next to Changes', async ({ page }) => {
+test('reappears as uncommitted after the active file is edited again following a Git commit', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.evaluate(async () => {
         const history = await import('/js/historyPanel.js');
@@ -291,13 +291,13 @@ test('highlights and commits the active file Git status next to Changes', async 
         const style = getComputedStyle(element);
         return {
             background: style.backgroundColor,
-            border: style.borderStyle,
+            bottomBorder: style.borderBottomColor,
             cursor: style.cursor,
             beforeChanges: Boolean(element.compareDocumentPosition(document.getElementById('history-count')) & Node.DOCUMENT_POSITION_FOLLOWING),
         };
     });
-    expect(highlighted.background).not.toBe('rgba(0, 0, 0, 0)');
-    expect(highlighted.border).toBe('solid');
+    expect(highlighted.background).toBe('rgba(0, 0, 0, 0)');
+    expect(highlighted.bottomBorder).not.toBe('rgba(0, 0, 0, 0)');
     expect(highlighted.cursor).toBe('pointer');
     expect(highlighted.beforeChanges).toBe(true);
     // Focusing the cheatsheet opens its popup; keyboard users tab through its
@@ -313,6 +313,11 @@ test('highlights and commits the active file Git status next to Changes', async 
     await expect(gitStatus).toHaveText('Git clean');
     await expect(gitStatus).toBeDisabled();
     expect(await page.evaluate(() => window.__gitCommits)).toEqual(['Welcome.md']);
+
+    await page.locator('.cm-content').press('End');
+    await page.locator('.cm-content').press('!');
+    await expect(gitStatus).toHaveText('Uncommitted');
+    await expect(gitStatus).toBeEnabled();
 });
 
 test('keeps the editor context menu inside the viewport near its bottom edge', async ({ page }) => {
@@ -353,7 +358,7 @@ test('shows PDF authors the generated HTML plus Figaro classes and IDs', async (
     await expect(dialog.locator('.pdf-style-reference-html')).toContainText('figaro-print-document');
 });
 
-test('restores an old file version only after confirmation and preserves the current one in history', async ({ page }) => {
+test('restores an old file version as a fresh latest History commit after confirmation', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
@@ -364,10 +369,11 @@ test('restores an old file version only after confirmation and preserves the cur
         window.__historyCommits = [];
         let mtime = 2;
         app.GetCommitCount = async () => 2;
-        app.GetFileHistory = async () => [
+        window.__historyEntries = [
             { hash: 'latest123456', timestamp: 200, message: 'latest' },
             { hash: 'older1234567', timestamp: 100, message: 'older' },
         ];
+        app.GetFileHistory = async () => window.__historyEntries;
         app.GetFileVersion = async () => 'Historical version';
         app.SaveFile = async (_path, content) => {
             window.__historySaves.push(content);
@@ -380,20 +386,30 @@ test('restores an old file version only after confirmation and preserves the cur
     await page.locator('#history-count').click();
     await expect(page.locator('.history-item')).toHaveCount(2);
     await page.locator('.history-item').nth(1).click();
-    await expect(page.locator('.history-restore-button')).toBeVisible();
+    await expect(page.locator('.history-revert-button')).toBeVisible();
+    await expect(page.locator('.history-banner .history-restore-button')).toHaveCount(0);
 
-    await page.locator('.history-restore-button').click();
+    await page.locator('.history-revert-button').click();
     const confirmation = page.locator('.custom-modal');
     await expect(confirmation).toContainText('current version will be saved in Git history');
     await confirmation.locator('.custom-modal-btn-cancel').click();
     expect(await page.evaluate(() => window.__historySaves)).toEqual([]);
 
-    await page.locator('.history-restore-button').click();
+    await page.evaluate(() => {
+        window.__historyEntries = [
+            { hash: 'restored123456', timestamp: 300, message: 'restored' },
+            ...window.__historyEntries,
+        ];
+    });
+    await page.locator('.history-revert-button').click();
     await page.locator('.custom-modal .custom-modal-btn-confirm').click();
     await expect(page.locator('.history-banner')).toHaveCount(0);
+    await expect(page.locator('.history-current-notice')).toContainText('Restored older12 as the latest committed version');
+    await expect(page.locator('.history-item')).toHaveCount(3);
+    await expect(page.locator('.history-item-latest')).toContainText('Latest committed');
     expect(await page.evaluate(() => ({ saves: window.__historySaves, commits: window.__historyCommits }))).toEqual({
         saves: ['Current unsaved version', 'Historical version'],
-        commits: ['Welcome.md'],
+        commits: ['Welcome.md', 'Welcome.md'],
     });
     await expect(page.locator('.cm-content')).toContainText('Historical version');
 });

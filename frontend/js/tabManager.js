@@ -874,16 +874,28 @@ export function getActiveTab() {
     return tabs.find(t => t.id === activeId) || null;
 }
 
-export function markTabDirty(tabId) {
+export function markTabDirty(tabId, { alreadyDirty = false } = {}) {
     const tabs = getState('openTabs');
     const tab = tabs.find(t => t.id === tabId);
-    if (tab && !tab.dirty) {
+    if (!tab) return;
+
+    // The editor marks its model dirty synchronously so a save or fast tab
+    // switch can never miss a keystroke. It then asks us to publish that
+    // transition after this module has loaded. Do not revive a tab which was
+    // saved in that small interval, but do repaint and notify listeners when
+    // the dirty transition remains current.
+    if (alreadyDirty) {
+        if (!tab.dirty) return;
+    } else if (!tab.dirty) {
         tab.dirty = true;
-        setState('openTabs', [...tabs]);
-        renderTabBar();
-        if (tab.id === getState('activeTabId') && tab.path) {
-            document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: tab.path } }));
-        }
+    } else {
+        return;
+    }
+
+    setState('openTabs', [...tabs]);
+    renderTabBar();
+    if (tab.id === getState('activeTabId') && tab.path) {
+        document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: tab.path } }));
     }
 }
 

@@ -31,7 +31,7 @@ jest.mock('../frontend/js/statusBar.js', () => ({
     statusBar: { set: jest.fn() },
 }));
 
-import { commitCurrentFileChanges, updateGitStatus } from '../frontend/js/historyPanel.js';
+import { commitCurrentFileChanges, initHistoryPanel, updateGitStatus } from '../frontend/js/historyPanel.js';
 import { errorDialog } from '../frontend/js/dialogs.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 
@@ -75,6 +75,19 @@ describe('active-file Git status control', () => {
         expect(statusBar.set).toHaveBeenCalledWith('Committed file to Git');
         expect(document.getElementById('git-status').textContent).toBe('Git clean');
         expect(document.getElementById('git-status').disabled).toBe(true);
+    });
+
+    test('reappears as uncommitted when the active file becomes dirty after a commit', async () => {
+        initHistoryPanel();
+        window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);
+        await updateGitStatus('note.md');
+
+        document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: 'note.md' } }));
+
+        const control = document.getElementById('git-status');
+        expect(control.textContent).toBe('Uncommitted');
+        expect(control.disabled).toBe(false);
+        expect(control.classList).toContain('is-uncommitted');
     });
 
     test('keeps the warning and reports a non-destructive commit failure', async () => {

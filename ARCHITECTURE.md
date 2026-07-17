@@ -80,6 +80,19 @@ but it renders descendants only for explicitly expanded folders. This prevents
 large collapsed trees from imposing a hidden DOM/layout cost on ordinary tab
 switches.
 
+## Git status and history restoration
+
+Editor changes mark their tab model dirty synchronously, then publish the
+one-time dirty transition to the tab bar and status controls. This ordering
+keeps saves and rapid tab switches safe while ensuring the active-file Git
+status immediately becomes actionable again after a later edit.
+
+History is non-destructive: a revert saves and commits the pre-revert content,
+saves and commits the selected historical content, then reloads the right-pane
+list. The selected-version action lives with its History entry, while the
+editor banner remains informational; this makes the resulting latest commit
+and the current editable version unambiguous.
+
 ## Editor decoration updates
 
 CodeMirror preview state is intentionally selective. Math and diagram

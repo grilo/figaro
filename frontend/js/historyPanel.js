@@ -15,6 +15,8 @@ let historyVersionRequestId = 0;
 let historyModeRequestId = 0;
 let historyModeTabId = null;
 let viewedVersionContent = null;
+let viewedVersionHash = null;
+let historyNotice = '';
 let gitStatusPath = null;
 let gitStatusRequestId = 0;
 let gitCommitInProgress = false;
@@ -75,6 +77,7 @@ export function initHistoryPanel() {
 export function updateHistoryCount(filePath) {
     if (!filePath || typeof filePath !== 'string') {
         currentFilePath = null;
+        historyNotice = '';
         const countEl = document.getElementById('history-count');
         if (countEl) {
             countEl.textContent = '0 changes';
@@ -83,6 +86,7 @@ export function updateHistoryCount(filePath) {
         return;
     }
     if (filePath === currentFilePath && viewingHistory) return;
+    if (filePath !== currentFilePath) historyNotice = '';
     currentFilePath = filePath;
 
     const countEl = document.getElementById('history-count');
@@ -283,6 +287,7 @@ async function openHistoryPanel() {
     const content = document.getElementById('history-content');
     if (!content) return;
     const filePath = currentFilePath;
+    historyNotice = '';
     const requestId = ++historyListRequestId;
 
     content.innerHTML = '<div class="history-empty">Loading history...</div>';
@@ -307,16 +312,19 @@ function renderHistoryList(container, entries) {
         return;
     }
 
-    container.innerHTML = entries.map((entry, i) => {
+    const notice = historyNotice
+        ? `<p class="history-current-notice" role="status">${historyNotice}</p>`
+        : '';
+    container.innerHTML = notice + `<div class="history-list">${entries.map((entry, i) => {
         const date = new Date(entry.timestamp * 1000);
         const timeStr = date.toLocaleString();
         const shortHash = entry.hash.substring(0, 7);
 
         return `<div class="history-item" data-index="${i}" data-hash="${entry.hash}">
             <div class="history-item-time">${timeStr}</div>
-            <div class="history-item-hash">${shortHash}</div>
+            <div class="history-item-hash">${shortHash}${i === 0 ? '<span class="history-item-latest">Latest committed</span>' : ''}</div>
         </div>`;
-    }).join('');
+    }).join('')}</div>`;
 
     // Click handlers
     container.querySelectorAll('.history-item').forEach(item => {
@@ -327,6 +335,30 @@ function renderHistoryList(container, entries) {
     });
 }
 
+function clearHistoryRevertAction() {
+    document.querySelector('.history-revert-action')?.remove();
+}
+
+function showHistoryRevertAction(hash) {
+    const content = document.getElementById('history-content') || document.getElementById('right-sidebar-content');
+    const selected = content?.querySelector(`[data-hash="${hash}"]`);
+    if (!content || !selected) return;
+
+    clearHistoryRevertAction();
+    const action = document.createElement('div');
+    action.className = 'history-revert-action';
+    const copy = document.createElement('span');
+    copy.className = 'history-revert-copy';
+    copy.textContent = `Viewing ${String(hash).slice(0, 7)}`;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'history-revert-button';
+    button.textContent = 'Revert to this version';
+    button.addEventListener('click', restoreViewedVersion);
+    action.append(copy, button);
+    selected.insertAdjacentElement('afterend', action);
+}
+
 async function viewHistoryVersion(hash) {
     if (!currentFilePath) return;
 
@@ -335,10 +367,11 @@ async function viewHistoryVersion(hash) {
 
     const content = document.getElementById('history-content') || document.getElementById('right-sidebar-content');
     
-    // Highlight selected
-    content.querySelectorAll('.history-item').forEach(el => el.style.background = '');
+    // Highlight selected and keep version actions in the History pane.
+    content.querySelectorAll('.history-item').forEach(el => el.classList.remove('is-selected'));
     const selected = content.querySelector(`[data-hash="${hash}"]`);
-    if (selected) selected.style.background = 'var(--active-bg)';
+    selected?.classList.add('is-selected');
+    clearHistoryRevertAction();
 
     // If clicking the latest version, exit history mode (no need for read-only)
     const firstItem = content.querySelector('.history-item');
@@ -351,13 +384,13 @@ async function viewHistoryVersion(hash) {
         const versionContent = await backend().GetFileVersion(filePath, hash);
         const sidebar = document.getElementById('right-sidebar');
         if (requestId !== historyVersionRequestId || currentFilePath !== filePath || !sidebar?.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content?.isConnected) return;
-        await enterHistoryMode(versionContent);
+        await enterHistoryMode(versionContent, hash);
     } catch (e) {
         log.error('[history] Failed to load version: ' + (typeof e === 'string' ? e : (e.message || String(e))));
     }
 }
 
-async function enterHistoryMode(versionContent) {
+async function enterHistoryMode(versionContent, hash) {
     const requestId = ++historyModeRequestId;
     const { getEditorView, getEditorContent, setEditorContent, setReadOnly } = await import('./editor.js');
     if (requestId !== historyModeRequestId) return;
@@ -381,9 +414,12 @@ async function enterHistoryMode(versionContent) {
     // Load historical content
     setEditorContent(versionContent);
     viewedVersionContent = versionContent;
+    viewedVersionHash = hash;
 
-    // Show exit button
+    // Keep the editor's banner informational; the destructive action belongs
+    // beside the selected revision in the right-pane History list.
     showHistoryBanner();
+    showHistoryRevertAction(hash);
 }
 
 function showHistoryBanner() {
@@ -395,15 +431,13 @@ function showHistoryBanner() {
     banner.className = 'history-banner';
     banner.innerHTML = `
         <span class="history-banner-icon">&#128218;</span>
-        <span class="history-banner-copy">Read-only historical version.</span>
-        <button type="button" class="history-restore-button">Revert to this version</button>
+        <span class="history-banner-copy">Read-only historical version. Use History to revert it.</span>
     `;
 
     const editorContainer = document.getElementById('editor-container');
     if (editorContainer) {
         editorContainer.insertBefore(banner, editorContainer.firstChild);
     }
-    banner.querySelector('.history-restore-button')?.addEventListener('click', restoreViewedVersion);
 }
 
 async function restoreViewedVersion() {
@@ -425,7 +459,7 @@ async function restoreViewedVersion() {
     );
     if (!confirmed) return false;
 
-    const button = document.querySelector('.history-restore-button');
+    const button = document.querySelector('.history-revert-button');
     if (button) {
         button.disabled = true;
         button.textContent = 'Reverting…';
@@ -439,10 +473,20 @@ async function restoreViewedVersion() {
 
         const restored = await saveFileSnapshot(tab, restoredContent);
         if (!restored?.success) throw new Error(restored?.error || 'The selected version could not be restored.');
+        // The restored snapshot must become its own commit. Without this,
+        // History still ends at the preserved pre-revert version and leaves
+        // the restored contents as an ambiguous uncommitted worktree change.
+        await backend().CommitCurrentFile(tab.path);
         liveContent = restoredContent;
+        const restoredFrom = String(viewedVersionHash || '').slice(0, 7);
+        historyNotice = restoredFrom
+            ? `Restored ${restoredFrom} as the latest committed version.`
+            : 'Restored the selected version as the latest committed version.';
         await exitHistoryMode();
         statusBar.set('Reverted file; previous version kept in history');
+        await updateHistoryCount(tab.path);
         await refreshHistoryIfOpen();
+        await updateGitStatus(tab.path);
         return true;
     } catch (error) {
         log.error('[history] Revert failed:', error);
@@ -477,15 +521,17 @@ async function exitHistoryMode() {
     liveContent = null;
     historyModeTabId = null;
     viewedVersionContent = null;
+    viewedVersionHash = null;
 
     // Remove banner
     const banner = document.querySelector('.history-banner');
     if (banner) banner.remove();
+    clearHistoryRevertAction();
 
     // Remove selection highlight
     const content = document.getElementById('history-content') || document.getElementById('right-sidebar-content');
     if (content) {
-        content.querySelectorAll('.history-item').forEach(el => el.style.background = '');
+        content.querySelectorAll('.history-item').forEach(el => el.classList.remove('is-selected'));
     }
 }
 

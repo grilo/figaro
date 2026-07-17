@@ -16,7 +16,7 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - Three horizontal zones: **left sidebar**, **workspace**, and an on-demand **right sidebar**. Both sidebars have independent resize handles.
 - **Top bar**: sidebar toggle and app title/Home control on the left; an uncluttered central drag region; Settings followed by native-style minimize/maximize/close controls on the right.
 - Calendar and Kanban live in a fixed footer below the file tree. Calendar expands inside the left sidebar; Kanban and Settings open or return to their single corresponding workspace tabs when inactive, and play a short reduced-motion-aware exit transition before closing that tab when clicked while already active. Clicking the Figaro name opens the Welcome/Home tab.
-- **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, backlink count, committed **Changes** count, and the active file's **Git clean / Uncommitted** state. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0. **Uncommitted** is highlighted and clickable; it safely saves pending text and commits only the active file.
+- **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, backlink count, committed **Changes** count, and the active file's **Git clean / Uncommitted** state. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0. **Uncommitted** is a subtle warning underline and clickable; it safely saves pending text and commits only the active file, then returns immediately after the next edit.
 
 ### 1.2 Left Sidebar
 - The top of the sidebar is the **global note search** field; its keyboard-navigable result list opens below the field.
@@ -820,8 +820,8 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 | **Explicit save** | Ctrl+S / Cmd+S | Writes the active file after its optimistic timestamp check; in **On Save** mode, a successful write then commits only that file. |
 | **Auto-Save timer** | Configurable interval (default 5 min, 5s–5min, or Off) | Writes the active dirty file; in **On Save** mode, a successful write then commits only that file. |
 | **Auto-Commit scheduler** | Separate Settings interval (default 1h; 1h, 2h, 4h, or 8h) | Stages modified, added, and deleted vault files and creates one commit with message `auto-save: <count> file(s) — <timestamp>`. |
-| **Uncommitted status** | Click highlighted status-bar action | Saves pending active-editor text and commits only that file, preserving unrelated staged changes. |
-| **History restore** | Click **Revert to this version**, then confirm | Saves and commits the current file version first, restores the selected contents, and retains both states in Git history. |
+| **Uncommitted status** | Click subtly underlined status-bar action | Saves pending active-editor text and commits only that file, preserving unrelated staged changes; the action returns with the next edit. |
+| **History restore** | Click **Revert to this version** beside a selected history entry, then confirm | Saves and commits the current file version first, restores and commits the selected contents, then reloads History with the restored snapshot as latest. |
 | **Backend commit APIs** | `CommitCurrentFile` / `CommitAllFiles` | Power On Save, the status action, history restore, and interval scheduling through the native Wails `App` binding. |
 
 ### 25.4 API Methods (Go Backend → Frontend)
@@ -840,7 +840,7 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 ### 25.5 Status Bar
 - Shows the committed-history count for the active file: "0 changes" (dimmed, not clickable) or "12 changes" (bright, clickable). Unsaved and uncommitted disk changes are not counted.
 - Clicking opens the right sidebar history panel.
-- Beside the count, **Git clean** is dimmed and disabled. **Uncommitted** is highlighted and clickable; activation saves pending editor content, commits only the active file, and exposes saving/committing/error states without losing the buffer.
+- Beside the count, **Git clean** is dimmed and disabled. **Uncommitted** uses a subtle warning underline and is clickable; activation saves pending editor content, commits only the active file, and exposes saving/committing/error states without losing the buffer. The indicator reappears on the next dirty transition.
 
 ### 25.6 Right Sidebar — History Panel
 - Toggleable panel on the right side of the workspace (resizable via drag handle, 240–480px).
@@ -849,9 +849,9 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 - Sorted by modification time, most recent first.
 - **Click a version** → loads historical content into the editor in **read-only mode**:
   - Editor gets amber tint (`.history-mode` CSS class).
-  - Banner at top identifies the read-only historical version and offers **Revert to this version**.
+  - Banner at top identifies the read-only historical version; the selected entry in the right pane exposes **Revert to this version**.
   - Clipboard works (text can be selected and copied).
-- **Revert to this version** opens a styled warning dialog focused on preserving the current file. Confirming saves and commits the live version before applying the historical contents; cancellation changes nothing, and a preservation failure leaves the historical view open with the current version intact.
+- **Revert to this version** opens a styled warning dialog focused on preserving the current file. Confirming saves and commits the live version, restores and commits the selected contents, then refreshes the panel with a notice and a **Latest committed** marker. Cancellation changes nothing, and a preservation failure leaves the historical view open with the current version intact.
 - **Click the latest version** (top entry) → exits history mode (no need for read-only on current version).
 - Closing the panel (× button, status bar click, or tab switch) restores the live editor content instantly.
 - Panel auto-closes when switching to a different file tab.
