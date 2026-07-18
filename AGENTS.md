@@ -91,5 +91,14 @@ These requirements apply to every change in this repository.
   remove or revise stale details from an earlier proposal, so the message is
   accurate even when several changes are prepared without an intervening
   commit.
-- Never run `git commit` on the user's behalf. Preparing the message and local
-  template is the final handoff; the user owns the review and commit action.
+- Never run `git commit` on the user's behalf except during an explicit
+  `$prepare-figaro-release` invocation. That skill commits only the verified,
+  generated release metadata and creates its local annotated tag before the
+  user reviews and pushes both refs.
+
+## Release-preparation skill
+
+- When asked to prepare or publish a Figaro release, read and follow
+  `skills/prepare-figaro-release/SKILL.md` in full. It owns the release
+  preconditions, metadata generation, verification, local commit and tag, and
+  the mandatory no-push handoff.

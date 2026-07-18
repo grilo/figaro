@@ -1169,7 +1169,7 @@ npm run test:pdf  # Playwright browser test using vendored Mermaid, Vega, and Ve
 
 ### 35.4 Versioned Releases
 - Figaro's first public release is `v1.0.0`. A stable release tag must use `vMAJOR.MINOR.PATCH`, point to a commit already on `main`, and match `package.json`, both root version records in `package-lock.json`, and `wails.json`.
-- Release preparation moves the accumulated changelog entries into a dated version section and leaves a fresh `Unreleased` section above it.
+- `$prepare-figaro-release` prepares one approved stable version from a clean `main` checkout. It moves the accumulated changelog entries into a dated version section, leaves a fresh `Unreleased` section above it, runs the complete release suite, then creates the release commit and annotated local tag. It never pushes, moves an existing tag, or publishes a release; the user pushes `main` first and the tag second.
 - Pushing the tag runs the full lint, unit, Go race, and Playwright suites before building Linux amd64, Windows amd64, and universal macOS packages. A failed verification or platform build prevents publication.
 - Each binary archive contains the application, `README.md`, `CHANGELOG.md`, and `LICENSE`; the release also publishes SHA-256 checksums and generated notes. Builds are currently unsigned.
 - Figaro is distributed under `GPL-3.0-or-later`. The repository and GitHub tag source archives provide the corresponding source alongside the downloadable binaries.

@@ -2,17 +2,17 @@ import fs from 'node:fs';
 
 const read = path => fs.readFileSync(path, 'utf8');
 
-describe('v1.0.0 release metadata and documentation', () => {
+describe('release metadata and documentation', () => {
     test('keeps the release version and GPL license consistent across package metadata', () => {
         const pkg = JSON.parse(read('package.json'));
         const lock = JSON.parse(read('package-lock.json'));
         const wails = JSON.parse(read('wails.json'));
         const license = read('LICENSE');
 
-        expect(pkg.version).toBe('1.0.0');
-        expect(lock.version).toBe('1.0.0');
-        expect(lock.packages[''].version).toBe('1.0.0');
-        expect(wails.info.productVersion).toBe('1.0.0');
+        expect(pkg.version).toMatch(/^\d+\.\d+\.\d+$/);
+        expect(lock.version).toBe(pkg.version);
+        expect(lock.packages[''].version).toBe(pkg.version);
+        expect(wails.info.productVersion).toBe(pkg.version);
         expect(pkg.license).toBe('GPL-3.0-or-later');
         expect(lock.packages[''].license).toBe('GPL-3.0-or-later');
         expect(wails.info.comments).toContain('GPL-3.0-or-later');
@@ -22,14 +22,16 @@ describe('v1.0.0 release metadata and documentation', () => {
         expect(license).toContain('15. Disclaimer of Warranty.');
     });
 
-    test('cuts the v1.0.0 changelog while retaining a valid Unreleased section', () => {
+    test('retains a valid Unreleased section above the current release', () => {
         const changelog = read('CHANGELOG.md');
+        const version = JSON.parse(read('package.json')).version;
         const unreleased = changelog.indexOf('## Unreleased');
-        const release = changelog.indexOf('## 1.0.0 - 2026-07-17');
+        const release = changelog.search(/^## \d+\.\d+\.\d+ - \d{4}-\d{2}-\d{2}$/m);
 
         expect(unreleased).toBeGreaterThan(-1);
         expect(release).toBeGreaterThan(unreleased);
         expect(changelog.slice(unreleased, release)).toMatch(/### (Added|Changed|Fixed)|_No changes yet\._/);
+        expect(changelog).toContain(`## ${version} - `);
         expect(changelog.slice(release)).toContain('GNU General Public License version 3');
     });
 
@@ -42,8 +44,9 @@ describe('v1.0.0 release metadata and documentation', () => {
         expect(workflow).toContain('GPL-3.0-or-later');
         expect(workflow.match(/cp README\.md CHANGELOG\.md LICENSE/g)).toHaveLength(2);
         expect(workflow).toContain('Copy-Item README.md, CHANGELOG.md, LICENSE');
-        expect(readme).toContain('git tag -a v1.0.0 -m "Figaro v1.0.0"');
-        expect(readme).toContain('git push origin v1.0.0');
+        expect(readme).toContain('git tag -a vMAJOR.MINOR.PATCH -m "Figaro vMAJOR.MINOR.PATCH"');
+        expect(readme).toContain('git push origin vMAJOR.MINOR.PATCH');
+        expect(readme).toContain('$prepare-figaro-release');
     });
 
     test('requires every affected documentation surface to stay synchronized', () => {
@@ -54,6 +57,7 @@ describe('v1.0.0 release metadata and documentation', () => {
         for (const path of ['README.md', 'docs/PROMPT.md', 'ARCHITECTURE.md', 'CONTRIBUTING.md', 'docs/TESTING.md', 'docs/LIVEPREVIEW.md', 'docs/PDF_STYLING.md']) {
             expect(instructions).toContain(`\`${path}\``);
         }
+        expect(instructions).toContain('`skills/prepare-figaro-release/SKILL.md`');
         expect(contributing).toContain('Audit every affected document in the same change.');
     });
 });

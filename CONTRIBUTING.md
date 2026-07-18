@@ -56,6 +56,21 @@ supported by the current host. See the `help` target in the [Makefile](Makefile)
 On Fedora, `./scripts/build-fedora.sh` delegates to the same `make linux`
 workflow.
 
+## Prepare a GitHub release
+
+Use the repository skill from a clean `main` checkout when a stable release
+version is approved:
+
+```text
+Use $prepare-figaro-release to prepare Figaro vMAJOR.MINOR.PATCH for release without pushing.
+```
+
+The skill validates the version and Git identity, synchronizes the root npm
+and Wails metadata plus the changelog, runs the complete release verification
+suite, creates one release commit, and creates its annotated tag locally. It
+does not push or alter an existing tag. Review the result, then push `main`
+and the tag in that order; pushing the tag starts the GitHub release workflow.
+
 ## Verify a change
 
 Run the checks relevant to the files you touched before opening a pull

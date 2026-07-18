@@ -231,11 +231,17 @@ make icons          # regenerate all icon variants from figaro.appicon.png
 After the release commit is on `main`, push a stable semantic-version tag:
 
 ~~~bash
-git tag -a v1.0.0 -m "Figaro v1.0.0"
-git push origin v1.0.0
+git tag -a vMAJOR.MINOR.PATCH -m "Figaro vMAJOR.MINOR.PATCH"
+git push origin vMAJOR.MINOR.PATCH
 ~~~
 
-The `v1.0.0` release tag must match the versions in `package.json`,
+For a Codex-led release, invoke `$prepare-figaro-release` with the requested
+stable version. It requires a clean `main` checkout, synchronizes the version
+metadata and changelog, runs the full local release suite, then creates the
+release commit and annotated tag locally. It never pushes: after it succeeds,
+push `main` first and then the displayed release tag.
+
+The `vMAJOR.MINOR.PATCH` release tag must match the versions in `package.json`,
 `package-lock.json`, and `wails.json`; the workflow refuses inconsistent
 metadata or a tag that is not on `main`. The tag-triggered release workflow
 verifies the complete test suite, builds a

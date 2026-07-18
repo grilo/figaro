@@ -75,11 +75,13 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Release metadata consistency across npm, Wails, the GPL license, changelog,
   documented tag command, and all three binary archive definitions.
 
-The focused release check is
-`tests/frontend/unit/releaseMetadata.test.js`. Update it whenever a release
-version, license, changelog convention, packaged documentation file, or tag
-workflow changes; it prevents a tag from publishing binaries whose visible
-metadata disagrees with the source release.
+The focused release checks are `tests/frontend/unit/releaseMetadata.test.js`
+and `tests/frontend/unit/releasePreparation.test.js`. The latter exercises the
+release-metadata generator's successful version/changelog cut and its
+non-destructive invalid-version rejection. Update them whenever a release
+version, license, changelog convention, packaged documentation file, tag
+workflow, or release-preparation skill changes; they prevent a tag from
+publishing binaries whose visible metadata disagrees with the source release.
 
 The browser suite is intentionally not a substitute for the desktop webview:
 when changing the PDF preview bridge, also run the packaged Linux build and
