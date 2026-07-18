@@ -58,18 +58,20 @@ workflow.
 
 ## Prepare a GitHub release
 
-Use the repository skill from a clean `main` checkout when a stable release
+Use the release target from a clean `main` checkout when a stable release
 version is approved:
 
-```text
-Use $prepare-figaro-release to prepare Figaro vMAJOR.MINOR.PATCH for release without pushing.
+```bash
+make release VERSION=vMAJOR.MINOR.PATCH
 ```
 
-The skill validates the version and Git identity, synchronizes the root npm
+The target validates the version and Git identity, synchronizes the root npm
 and Wails metadata plus the changelog, runs the complete release verification
-suite, creates one release commit, and creates its annotated tag locally. It
-does not push or alter an existing tag. Review the result, then push `main`
-and the tag in that order; pushing the tag starts the GitHub release workflow.
+suite, creates one release commit and annotated tag, then pushes `main` and
+that exact tag in order. It does not alter an existing tag or push other refs.
+Use `make release-local VERSION=vMAJOR.MINOR.PATCH` to stop before the push.
+`$prepare-figaro-release` invokes the publishing target only when explicitly
+asked to publish; pushing the tag starts the GitHub release workflow.
 
 ## Verify a change
 

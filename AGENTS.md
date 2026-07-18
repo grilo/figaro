@@ -93,12 +93,12 @@ These requirements apply to every change in this repository.
   commit.
 - Never run `git commit` on the user's behalf except during an explicit
   `$prepare-figaro-release` invocation. That skill commits only the verified,
-  generated release metadata and creates its local annotated tag before the
-  user reviews and pushes both refs.
+  generated release metadata and creates its local annotated tag. It publishes
+  only those release refs when the user explicitly requests publication.
 
 ## Release-preparation skill
 
 - When asked to prepare or publish a Figaro release, read and follow
   `skills/prepare-figaro-release/SKILL.md` in full. It owns the release
-  preconditions, metadata generation, verification, local commit and tag, and
-  the mandatory no-push handoff.
+  target, metadata generation, verification, local commit and tag, and the
+  explicit-publish boundary.

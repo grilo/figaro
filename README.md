@@ -228,18 +228,31 @@ make icons          # regenerate all icon variants from figaro.appicon.png
 
 ### Publish a GitHub release
 
-After the release commit is on `main`, push a stable semantic-version tag:
+Publish a stable semantic-version release in one command:
 
 ~~~bash
-git tag -a vMAJOR.MINOR.PATCH -m "Figaro vMAJOR.MINOR.PATCH"
-git push origin vMAJOR.MINOR.PATCH
+make release VERSION=vMAJOR.MINOR.PATCH
 ~~~
 
-For a Codex-led release, invoke `$prepare-figaro-release` with the requested
-stable version. It requires a clean `main` checkout, synchronizes the version
-metadata and changelog, runs the full local release suite, then creates the
-release commit and annotated tag locally. It never pushes: after it succeeds,
-push `main` first and then the displayed release tag.
+It requires a clean `main` checkout, synchronizes the version metadata and
+changelog, runs the full local release suite, creates the release commit and
+annotated tag, then pushes `main` and that exact tag. To run every local action
+without publishing, use:
+
+~~~bash
+make release-local VERSION=vMAJOR.MINOR.PATCH
+~~~
+
+`$prepare-figaro-release` selects the publishing target only when the request
+explicitly says to publish the release.
+
+After `make release-local`, publish its already-created release commit and tag
+with:
+
+~~~bash
+git push origin main
+git push origin vMAJOR.MINOR.PATCH
+~~~
 
 The `vMAJOR.MINOR.PATCH` release tag must match the versions in `package.json`,
 `package-lock.json`, and `wails.json`; the workflow refuses inconsistent

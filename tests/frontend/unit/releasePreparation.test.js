@@ -5,6 +5,7 @@ import releaseMetadata from '../../../skills/prepare-figaro-release/scripts/rele
 
 const repositoryRoot = path.resolve('.');
 const metadataFiles = ['package.json', 'package-lock.json', 'wails.json', 'CHANGELOG.md'];
+const read = filename => fs.readFileSync(path.join(repositoryRoot, filename), 'utf8');
 
 function makeReleaseFixture() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'figaro-release-'));
@@ -58,5 +59,38 @@ describe('prepare Figaro release metadata', () => {
         } finally {
             fs.rmSync(root, { recursive: true, force: true });
         }
+    });
+
+    test('publishes only the release refs and keeps a local-only alternative', () => {
+        const makefile = read('Makefile');
+        const script = read('scripts/prepare-release.sh');
+        const skill = read('skills/prepare-figaro-release/SKILL.md');
+
+        expect(makefile).toMatch(/^release: check-go check-node$/m);
+        expect(makefile).toContain('./scripts/prepare-release.sh --push "$(VERSION)"');
+        expect(makefile).toMatch(/^release-local: check-go check-node$/m);
+        expect(makefile).toContain('./scripts/prepare-release.sh "$(VERSION)"');
+        for (const command of [
+            'npm ci',
+            'npm run vendor',
+            'npm run lint',
+            'npm run test:unit',
+            'go vet . ./internal/... ./cmd/...',
+            'go test . ./internal/... ./cmd/...',
+            'go test -race . ./internal/... ./cmd/...',
+            'npx playwright install --with-deps chromium',
+            'npm run test:pdf',
+        ]) {
+            expect(script).toContain(command);
+        }
+        expect(script).toContain('git commit -m "chore(release): prepare ${tag}"');
+        expect(script).toContain('git tag -a "$tag" -m "Figaro ${tag}"');
+        expect(script).toContain('git push origin main');
+        expect(script).toContain('git push origin "$tag"');
+        expect(skill).toContain('make release VERSION=vMAJOR.MINOR.PATCH');
+        expect(skill).toContain('make release-local VERSION=vMAJOR.MINOR.PATCH');
+        expect(skill).toContain('It publishes only that release commit and tag');
+        expect(skill).toContain('Never infer permission\n' +
+            'to publish from “prepare”, “tag”, or “commit”.');
     });
 });

@@ -44,7 +44,7 @@ function cutChangelog(changelog, version, releaseDate) {
         fail('Unreleased changelog entries must be grouped under Added, Changed, or Fixed.');
     }
 
-    const remainder = following.slice(nextHeadingOffset).trimStart();
+    const remainder = following.slice(nextHeadingOffset).trim();
     const before = changelog.slice(0, afterHeading).trimEnd();
     return `${before}\n\n_No changes yet._\n\n## ${version} - ${releaseDate}\n\n${unreleased}\n\n${remainder}\n`;
 }

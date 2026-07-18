@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "jest",
-    "test:unit": "jest --runInBand",
+    "test:unit": "bash tests/release/prepare-release.test.sh && jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:pdf": "playwright test",

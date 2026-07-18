@@ -6,10 +6,12 @@ All notable user-facing changes are recorded here from this point forward.
 
 ### Added
 
-- A `$prepare-figaro-release` Codex skill that verifies the complete release
-  suite, synchronizes version metadata and the changelog, then creates a local
-  release commit and annotated tag while leaving publication to an explicit
-  push.
+- A `make release VERSION=vMAJOR.MINOR.PATCH` command and matching
+  `$prepare-figaro-release` Codex skill that verify the complete release suite,
+  synchronize version metadata and the changelog, and create a local release
+  commit and annotated tag before pushing `main` and that tag in order. A
+  `make release-local` variant stops before publication, and the skill chooses
+  publication only when explicitly asked.
 - Persistent Kanban **Compact** and **Comfortable** card densities, a
   **Side by side / Stacked** column-flow choice in Settings, and a themed
   skeleton while a board is loading.

@@ -7,7 +7,7 @@
 .DEFAULT_GOAL := help
 .NOTPARALLEL:
 
-.PHONY: all help bootstrap doctor vendor dev linux windows darwin clean icons install-desktop \
+.PHONY: all help bootstrap doctor vendor release release-local dev linux windows darwin clean icons install-desktop \
 	check-go check-node check-wails check-linux-host check-linux-deps check-darwin-host check-darwin-deps check-icon-tool \
 	ensure-go-modules ensure-frontend-assets ensure-icons
 
@@ -52,6 +52,8 @@ help:
 	@echo "  make bootstrap   Prepare Go modules, locked npm dependencies, browser assets, and icons"
 	@echo "  make doctor      Check build prerequisites and print install hints when needed"
 	@echo "  make vendor      Force regeneration of vendored browser assets"
+	@echo "  make release VERSION=vX.Y.Z  Verify, version, commit, tag, and publish a release"
+	@echo "  make release-local VERSION=vX.Y.Z  Verify, version, commit, and tag without pushing"
 	@echo "  make dev         Run the Wails development server"
 	@echo "  make icons       Rebuild application icons from figaro.appicon.png"
 	@echo "  make clean       Remove generated assets, installs, builds, and local vault data"
@@ -161,6 +163,12 @@ endif
 
 vendor: check-node
 	@FIGARO_FORCE_VENDOR=1 ./scripts/prepare-frontend.sh
+
+release: check-go check-node
+	@./scripts/prepare-release.sh --push "$(VERSION)"
+
+release-local: check-go check-node
+	@./scripts/prepare-release.sh "$(VERSION)"
 
 dev: check-go check-wails ensure-go-modules ensure-frontend-assets ensure-icons
 	$(WAILS) dev $(LINUX_WAILS_TAGS)

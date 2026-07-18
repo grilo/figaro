@@ -76,12 +76,17 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   documented tag command, and all three binary archive definitions.
 
 The focused release checks are `tests/frontend/unit/releaseMetadata.test.js`
-and `tests/frontend/unit/releasePreparation.test.js`. The latter exercises the
-release-metadata generator's successful version/changelog cut and its
-non-destructive invalid-version rejection. Update them whenever a release
-version, license, changelog convention, packaged documentation file, tag
-workflow, or release-preparation skill changes; they prevent a tag from
-publishing binaries whose visible metadata disagrees with the source release.
+and `tests/frontend/unit/releasePreparation.test.js`. They cover the
+release-metadata generator's successful version/changelog cut, its
+non-destructive invalid-version rejection, and the `make release` command's
+required local verification, commit, tag, and ordered publishing boundaries.
+`tests/release/prepare-release.test.sh` runs both the publishing and
+local-only release paths against disposable Git repositories and a local bare
+remote.
+Update them whenever a release version, license, changelog convention,
+packaged documentation file, tag workflow, Make target, or
+release-preparation skill changes; they prevent a tag from publishing binaries
+whose visible metadata disagrees with the source release.
 
 The browser suite is intentionally not a substitute for the desktop webview:
 when changing the PDF preview bridge, also run the packaged Linux build and
