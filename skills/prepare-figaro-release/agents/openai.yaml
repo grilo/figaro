@@ -1,4 +1,4 @@
 interface:
   display_name: "Prepare Figaro Release"
-  short_description: "Test, version, tag, and publish a release"
-  default_prompt: "Use $prepare-figaro-release to publish Figaro vMAJOR.MINOR.PATCH."
+  short_description: "Resolve, test, tag, and publish a release"
+  default_prompt: "Use $prepare-figaro-release to publish Figaro with a patch bump."

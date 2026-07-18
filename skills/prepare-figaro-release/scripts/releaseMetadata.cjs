@@ -27,21 +27,62 @@ function formatJson(value) {
     return `${JSON.stringify(value, null, 2)}\n`;
 }
 
+function existingReleaseDate(changelog, version) {
+    const heading = /^## Unreleased\s*$/m.exec(changelog);
+    if (!heading) return null;
+
+    const following = changelog.slice(heading.index + heading[0].length);
+    const nextHeadingOffset = following.search(/^## /m);
+    if (nextHeadingOffset === -1) return null;
+
+    const unreleased = following.slice(0, nextHeadingOffset).trim();
+    const releaseHeading = new RegExp(`^## ${version.replaceAll('.', '\\.') } - (\\d{4}-\\d{2}-\\d{2})\\s*$`, 'm').exec(
+        following.slice(nextHeadingOffset),
+    );
+    return unreleased === '_No changes yet._' && releaseHeading ? releaseHeading[1] : null;
+}
+
 function cutChangelog(changelog, version, releaseDate) {
     const heading = /^## Unreleased\s*$/m.exec(changelog);
-    if (!heading) fail('CHANGELOG.md has no "## Unreleased" heading.');
+    if (!heading) fail([
+        'CHANGELOG.md has no "## Unreleased" heading.',
+        'Restore an Unreleased section above the dated releases, add the changes for this release there, then retry.',
+    ].join('\n'));
 
     const afterHeading = heading.index + heading[0].length;
     const following = changelog.slice(afterHeading);
     const nextHeadingOffset = following.search(/^## /m);
-    if (nextHeadingOffset === -1) fail('CHANGELOG.md has no dated release after "Unreleased".');
+    if (nextHeadingOffset === -1) fail([
+        'CHANGELOG.md has no dated release after "Unreleased".',
+        'Restore the next dated release heading, add the changes for this release under Unreleased, then retry.',
+    ].join('\n'));
 
     const unreleased = following.slice(0, nextHeadingOffset).trim();
+    if (new RegExp(`^## ${version.replaceAll('.', '\\.') } - `).test(following.slice(nextHeadingOffset))) {
+        fail([
+            `CHANGELOG.md already contains ${version}; resolve its Unreleased entries before retrying.`,
+            `If ${version} is the interrupted release, rerun that exact version from its release commit to resume it.`,
+            'Otherwise move the pending entries into the intended Unreleased section before retrying.',
+        ].join('\n'));
+    }
     if (!unreleased || unreleased === '_No changes yet._') {
-        fail('CHANGELOG.md has no accumulated Unreleased entries to release.');
+        fail([
+            'CHANGELOG.md has no accumulated Unreleased entries to release.',
+            `Nothing new is ready to release as v${version}.`,
+            'To prepare a release:',
+            '  1. Add a concise user-facing entry under "## Unreleased", grouped beneath "### Added", "### Changed", or "### Fixed".',
+            '  2. Run the same release command again.',
+            'If there is no user-facing change to add, do not create a release.',
+        ].join('\n'));
     }
     if (!/^### (Added|Changed|Fixed)\s*$/m.test(unreleased)) {
-        fail('Unreleased changelog entries must be grouped under Added, Changed, or Fixed.');
+        fail([
+            'Unreleased changelog entries must be grouped under Added, Changed, or Fixed.',
+            'Move the pending entries beneath one of these headings, then run the same release command again:',
+            '  ### Added',
+            '  ### Changed',
+            '  ### Fixed',
+        ].join('\n'));
     }
 
     const remainder = following.slice(nextHeadingOffset).trim();
@@ -101,20 +142,25 @@ function syncReleaseMetadata({ requestedVersion, releaseDate, root, dryRun = fal
     lock.packages[''].version = version;
     wails.info.productVersion = version;
 
+    const previousReleaseDate = existingReleaseDate(changelog, version);
+    const resolvedReleaseDate = previousReleaseDate || releaseDate;
     const updates = new Map([
         ['package.json', formatJson(pkg)],
         ['package-lock.json', formatJson(lock)],
         ['wails.json', formatJson(wails)],
-        ['CHANGELOG.md', cutChangelog(changelog, version, releaseDate)],
+        ['CHANGELOG.md', previousReleaseDate ? changelog : cutChangelog(changelog, version, releaseDate)],
     ]);
+    const changedUpdates = new Map([...updates].filter(([filename, content]) => (
+        fs.readFileSync(path.join(resolvedRoot, filename), 'utf8') !== content
+    )));
 
     if (!dryRun) {
-        for (const [filename, content] of updates) {
+        for (const [filename, content] of changedUpdates) {
             fs.writeFileSync(path.join(resolvedRoot, filename), content);
         }
     }
 
-    return { version, releaseDate, files: [...updates.keys()], dryRun };
+    return { version, releaseDate: resolvedReleaseDate, files: [...changedUpdates.keys()], dryRun };
 }
 
 function main(args) {

@@ -77,12 +77,16 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 
 The focused release checks are `tests/frontend/unit/releaseMetadata.test.js`
 and `tests/frontend/unit/releasePreparation.test.js`. They cover the
-release-metadata generator's successful version/changelog cut, its
-non-destructive invalid-version rejection, and the `make release` command's
-required local verification, commit, tag, and ordered publishing boundaries.
-`tests/release/prepare-release.test.sh` runs both the publishing and
-local-only release paths against disposable Git repositories and a local bare
-remote.
+release-metadata generator's successful version/changelog cut, non-destructive
+invalid-version rejection, and idempotent retry. The release shell test runs
+the publishing and local-only paths against disposable Git repositories and a
+local bare remote, proving that pending non-ignored files join the release
+commit, each automatic version bump resolves from the latest tag, and an
+interrupted release can resume its matching tag and push. They also prove an
+empty `Unreleased` section leaves the worktree untouched and gives the user the
+next steps instead of only reporting the failure. The release script downloads
+Playwright's pinned browser without using its `--with-deps` system-package
+installer, so it never triggers a password prompt.
 Update them whenever a release version, license, changelog convention,
 packaged documentation file, tag workflow, Make target, or
 release-preparation skill changes; they prevent a tag from publishing binaries

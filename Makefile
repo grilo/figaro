@@ -7,9 +7,25 @@
 .DEFAULT_GOAL := help
 .NOTPARALLEL:
 
-.PHONY: all help bootstrap doctor vendor release release-local dev linux windows darwin clean icons install-desktop \
+.PHONY: all help bootstrap doctor vendor release release-local major minor patch dev linux windows darwin clean icons install-desktop \
 	check-go check-node check-wails check-linux-host check-linux-deps check-darwin-host check-darwin-deps check-icon-tool \
 	ensure-go-modules ensure-frontend-assets ensure-icons
+
+RELEASE_BUMP_GOALS := $(filter major minor patch,$(MAKECMDGOALS))
+RELEASE_REQUEST := $(if $(strip $(VERSION)),$(VERSION),$(RELEASE_BUMP_GOALS))
+
+ifneq ($(filter release release-local,$(MAKECMDGOALS)),)
+ifneq ($(words $(RELEASE_BUMP_GOALS)),0)
+ifneq ($(words $(RELEASE_BUMP_GOALS)),1)
+$(error choose exactly one release bump: major, minor, or patch)
+endif
+endif
+ifneq ($(strip $(VERSION)),)
+ifneq ($(strip $(RELEASE_BUMP_GOALS)),)
+$(error use either VERSION=vMAJOR.MINOR.PATCH or one bump goal, not both)
+endif
+endif
+endif
 
 GO_BIN := $(shell go env GOBIN 2>/dev/null)
 ifeq ($(strip $(GO_BIN)),)
@@ -52,8 +68,10 @@ help:
 	@echo "  make bootstrap   Prepare Go modules, locked npm dependencies, browser assets, and icons"
 	@echo "  make doctor      Check build prerequisites and print install hints when needed"
 	@echo "  make vendor      Force regeneration of vendored browser assets"
-	@echo "  make release VERSION=vX.Y.Z  Verify, version, commit, tag, and publish a release"
-	@echo "  make release-local VERSION=vX.Y.Z  Verify, version, commit, and tag without pushing"
+	@echo "  make release patch             Bump from the latest release tag, then publish"
+	@echo "  make release <major|minor|patch> Bump and publish a release"
+	@echo "  make release VERSION=vX.Y.Z    Publish an explicit stable version"
+	@echo "  make release-local patch       Bump, verify, commit, and tag without pushing"
 	@echo "  make dev         Run the Wails development server"
 	@echo "  make icons       Rebuild application icons from figaro.appicon.png"
 	@echo "  make clean       Remove generated assets, installs, builds, and local vault data"
@@ -165,10 +183,13 @@ vendor: check-node
 	@FIGARO_FORCE_VENDOR=1 ./scripts/prepare-frontend.sh
 
 release: check-go check-node
-	@./scripts/prepare-release.sh --push "$(VERSION)"
+	@./scripts/prepare-release.sh --push "$(RELEASE_REQUEST)"
 
 release-local: check-go check-node
-	@./scripts/prepare-release.sh "$(VERSION)"
+	@./scripts/prepare-release.sh "$(RELEASE_REQUEST)"
+
+major minor patch:
+	@:
 
 dev: check-go check-wails ensure-go-modules ensure-frontend-assets ensure-icons
 	$(WAILS) dev $(LINUX_WAILS_TAGS)

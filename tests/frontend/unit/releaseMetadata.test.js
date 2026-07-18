@@ -44,6 +44,7 @@ describe('release metadata and documentation', () => {
         expect(workflow).toContain('GPL-3.0-or-later');
         expect(workflow.match(/cp README\.md CHANGELOG\.md LICENSE/g)).toHaveLength(2);
         expect(workflow).toContain('Copy-Item README.md, CHANGELOG.md, LICENSE');
+        expect(readme).toContain('make release patch');
         expect(readme).toContain('make release VERSION=vMAJOR.MINOR.PATCH');
         expect(readme).toContain('git push origin main');
         expect(readme).toContain('git push origin vMAJOR.MINOR.PATCH');

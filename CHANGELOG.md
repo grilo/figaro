@@ -4,6 +4,28 @@ All notable user-facing changes are recorded here from this point forward.
 
 ## Unreleased
 
+_No changes yet._
+
+## 1.3.0 - 2026-07-18
+
+### Changed
+
+- Bump version number and generate binaries.
+- `make release VERSION=vMAJOR.MINOR.PATCH` now includes current non-ignored
+  worktree changes in its release commit instead of requiring manual cleanup,
+  and rerunning the same version safely resumes a matching tagged release and
+  its pushes without discarding work.
+- `make release major`, `minor`, and `patch` now derive and publish the next
+  stable version from the latest reachable release tag, with matching local-only
+  commands and an explicit-version alternative.
+- Release bumps now announce their selected tag and target version. Empty or
+  malformed `Unreleased` changelog entries give clear repair steps instead of
+  only a metadata error.
+- Release verification now downloads Playwright's pinned Chromium without
+  attempting to install operating-system dependencies or requesting a password.
+
+## 1.4.0 - 2026-07-18
+
 ### Added
 
 - A `make release VERSION=vMAJOR.MINOR.PATCH` command and matching

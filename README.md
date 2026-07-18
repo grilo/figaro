@@ -231,15 +231,34 @@ make icons          # regenerate all icon variants from figaro.appicon.png
 Publish a stable semantic-version release in one command:
 
 ~~~bash
+make release patch  # latest reachable vMAJOR.MINOR.PATCH tag → next patch
+make release minor
+make release major
+~~~
+
+To publish a specific approved version instead, use:
+
+~~~bash
 make release VERSION=vMAJOR.MINOR.PATCH
 ~~~
 
-It requires a clean `main` checkout, synchronizes the version metadata and
-changelog, runs the full local release suite, creates the release commit and
-annotated tag, then pushes `main` and that exact tag. To run every local action
+The bump commands read the highest stable release tag reachable from `main` and
+increment only the requested number. Before changing files, Figaro prints the
+resolved base and target, such as `Resolved minor release from v1.3.0 to
+v1.4.0.` An untagged package version is not a prior release. Every form
+synchronizes the version metadata and changelog, runs the full local release
+suite, commits all current non-ignored repository changes into the release
+commit, creates the annotated tag, then pushes `main` and that exact tag. It
+never discards work with a clean or reset operation. If `Unreleased` has no
+entries, it leaves files unchanged and explains how to add a grouped changelog
+entry—or that there is no release to create. Rerunning the same version after an
+interrupted attempt verifies the tagged release again and resumes its pushes.
+It downloads Playwright's pinned Chromium when needed but never installs
+operating-system packages or requests a password. To run every local action
 without publishing, use:
 
 ~~~bash
+make release-local patch
 make release-local VERSION=vMAJOR.MINOR.PATCH
 ~~~
 

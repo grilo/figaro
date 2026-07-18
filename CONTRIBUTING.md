@@ -58,18 +58,31 @@ workflow.
 
 ## Prepare a GitHub release
 
-Use the release target from a clean `main` checkout when a stable release
-version is approved:
+Use the release target from `main` when a stable release version is approved:
 
 ```bash
+make release patch
+# or: make release major / make release minor
 make release VERSION=vMAJOR.MINOR.PATCH
 ```
 
-The target validates the version and Git identity, synchronizes the root npm
-and Wails metadata plus the changelog, runs the complete release verification
-suite, creates one release commit and annotated tag, then pushes `main` and
-that exact tag in order. It does not alter an existing tag or push other refs.
-Use `make release-local VERSION=vMAJOR.MINOR.PATCH` to stop before the push.
+`major`, `minor`, and `patch` derive the next version from the highest stable
+release tag reachable from `main`; an explicit `VERSION` remains available for
+an approved version. It prints the exact base tag and resolved target before
+changing metadata, so an untagged package version is never mistaken for a
+release. The target validates the version and Git identity,
+synchronizes the root npm and Wails metadata plus the changelog, runs the
+complete release verification suite, stages all current non-ignored changes
+into one release commit and annotated tag, then pushes `main` and that exact
+tag in order. It never deletes pending work, alters an existing tag, or pushes
+other refs. Repeating the same version resumes a matching tagged release after
+a failed push. Use `make release-local patch` or
+`make release-local VERSION=vMAJOR.MINOR.PATCH` to stop before the push.
+The browser check downloads Playwright's pinned Chromium if necessary, but does
+not install system packages or request elevated privileges.
+When `CHANGELOG.md` has no entries under `Unreleased`, the target leaves files
+unchanged and tells you to add a concise entry under **Added**, **Changed**, or
+**Fixed** and rerun; if there is nothing to add, no release is needed.
 `$prepare-figaro-release` invokes the publishing target only when explicitly
 asked to publish; pushing the tag starts the GitHub release workflow.
 

@@ -92,9 +92,10 @@ These requirements apply to every change in this repository.
   accurate even when several changes are prepared without an intervening
   commit.
 - Never run `git commit` on the user's behalf except during an explicit
-  `$prepare-figaro-release` invocation. That skill commits only the verified,
-  generated release metadata and creates its local annotated tag. It publishes
-  only those release refs when the user explicitly requests publication.
+  `$prepare-figaro-release` invocation. That skill verifies the complete
+  release and commits all current non-ignored repository changes with the
+  generated metadata, then creates its local annotated tag. It publishes only
+  those release refs when the user explicitly requests publication.
 
 ## Release-preparation skill
 
