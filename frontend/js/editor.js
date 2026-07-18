@@ -969,6 +969,18 @@ function createEditorView() {
             EditorView.updateListener.of(update => {
                 if (update.docChanged) handleDocChange(update);
                 if (update.selectionSet) updateCursorPosition(update);
+                // Lightweight consumers such as the document Outline can
+                // follow editor state without installing decorations or
+                // competing with CodeMirror's cursor/layout machinery.
+                if (update.docChanged || update.selectionSet || update.viewportChanged) {
+                    document.dispatchEvent(new CustomEvent('editor-view-updated', {
+                        detail: {
+                            docChanged: update.docChanged,
+                            selectionSet: update.selectionSet,
+                            viewportChanged: update.viewportChanged,
+                        },
+                    }));
+                }
             }),
             EditorView.theme({
                 '&': { caretColor: 'var(--cursor-color) !important' },

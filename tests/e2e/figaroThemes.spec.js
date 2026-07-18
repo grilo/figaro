@@ -32,7 +32,8 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
     await expect(page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node')).toHaveClass(/selected/);
     await page.locator('#topbar-settings').click();
-    await expect(page.locator('.settings-card')).toHaveCount(5);
+    await expect(page.locator('.settings-card')).toHaveCount(6);
+    await expect(page.locator('.settings-card').filter({ hasText: 'Vault care' })).toContainText('Vault health');
 
     for (const theme of nativeThemes) {
         const details = await page.evaluate(async ({ path }) => {

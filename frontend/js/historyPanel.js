@@ -213,6 +213,12 @@ export async function commitCurrentFileChanges() {
             const saved = await saveFileSnapshot(tab, pendingContent);
             if (!saved?.success) throw new Error(saved?.error || 'The file could not be saved before committing.');
             if (button && gitStatusPath === path) button.textContent = 'Saving to history…';
+            if (saved.historyCommitSucceeded) {
+                statusBar.set('Saved file to local history');
+                await updateHistoryCount(path);
+                await refreshHistoryIfOpen();
+                return true;
+            }
         }
         await backend().CommitCurrentFile(path);
         statusBar.set('Saved file to local history');
@@ -271,8 +277,9 @@ async function openHistoryPanel() {
     const sidebar = document.getElementById('right-sidebar');
     if (!sidebar || !currentFilePath) return;
 
-    // History owns the right pane while open. Ask the preview to release its
-    // isolated frame first so editing a CSS file can switch here cleanly.
+    // History owns the right pane while open. Ask the other pane modes to
+    // release their content first so switching stays predictable.
+    document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
     document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
 
     const histContent = document.getElementById('history-content');
@@ -321,11 +328,9 @@ function renderHistoryList(container, entries) {
     container.innerHTML = notice + `<div class="history-list">${entries.map((entry, i) => {
         const date = new Date(entry.timestamp * 1000);
         const timeStr = date.toLocaleString();
-        const shortHash = entry.hash.substring(0, 7);
 
         return `<div class="history-item" data-index="${i}" data-hash="${entry.hash}">
-            <div class="history-item-time">${timeStr}</div>
-            <div class="history-item-hash">${shortHash}${i === 0 ? '<span class="history-item-latest">Latest committed</span>' : ''}</div>
+            <div class="history-item-time">${timeStr}${i === 0 ? '<span class="history-item-latest">Latest committed</span>' : ''}</div>
         </div>`;
     }).join('')}</div>`;
 
@@ -350,16 +355,44 @@ function showHistoryRevertAction(hash) {
     clearHistoryRevertAction();
     const action = document.createElement('div');
     action.className = 'history-revert-action';
-    const copy = document.createElement('span');
-    copy.className = 'history-revert-copy';
-    copy.textContent = `Viewing ${String(hash).slice(0, 7)}`;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'history-revert-button';
     button.textContent = 'Revert to this version';
     button.addEventListener('click', restoreViewedVersion);
-    action.append(copy, button);
+    const compare = document.createElement('button');
+    compare.type = 'button';
+    compare.className = 'history-diff-toggle';
+    compare.textContent = 'Compare to current';
+    compare.setAttribute('aria-expanded', 'false');
+    compare.addEventListener('click', () => toggleHistoryDiff(hash, compare));
+    const actions = document.createElement('div');
+    actions.className = 'history-revert-controls';
+    actions.append(compare, button);
+    action.append(actions);
     selected.insertAdjacentElement('afterend', action);
+}
+
+async function toggleHistoryDiff(hash, trigger) {
+    const action = trigger.closest('.history-revert-action');
+    if (!action || !viewingHistory || viewedVersionHash !== hash || viewedVersionContent === null) return;
+    const existing = action.querySelector('.history-diff');
+    if (existing) {
+        existing.remove();
+        trigger.textContent = 'Compare to current';
+        trigger.setAttribute('aria-expanded', 'false');
+        return;
+    }
+
+    const { renderMarkdownDiff } = await import('./historyDiff.js');
+    if (!action.isConnected || !viewingHistory || viewedVersionHash !== hash || viewedVersionContent === null) return;
+    const diff = document.createElement('section');
+    diff.className = 'history-diff';
+    diff.setAttribute('aria-label', 'Changes between the selected version and current content');
+    diff.innerHTML = renderMarkdownDiff(liveContent ?? '', viewedVersionContent).html;
+    action.append(diff);
+    trigger.textContent = 'Hide comparison';
+    trigger.setAttribute('aria-expanded', 'true');
 }
 
 async function viewHistoryVersion(hash) {
@@ -472,19 +505,16 @@ async function restoreViewedVersion() {
         const { saveFileSnapshot } = await import('./tabManager.js');
         const preserved = await saveFileSnapshot(tab, liveContent ?? '');
         if (!preserved?.success) throw new Error(preserved?.error || 'The current version could not be preserved.');
-        await backend().CommitCurrentFile(tab.path);
+        if (!preserved.historyCommitSucceeded) await backend().CommitCurrentFile(tab.path);
 
         const restored = await saveFileSnapshot(tab, restoredContent);
         if (!restored?.success) throw new Error(restored?.error || 'The selected version could not be restored.');
         // The restored snapshot must become its own commit. Without this,
         // History still ends at the preserved pre-revert version and leaves
         // the restored contents as an ambiguous uncommitted worktree change.
-        await backend().CommitCurrentFile(tab.path);
+        if (!restored.historyCommitSucceeded) await backend().CommitCurrentFile(tab.path);
         liveContent = restoredContent;
-        const restoredFrom = String(viewedVersionHash || '').slice(0, 7);
-        historyNotice = restoredFrom
-            ? `Restored ${restoredFrom} as the latest committed version.`
-            : 'Restored the selected version as the latest committed version.';
+        historyNotice = 'Restored the selected version as the latest committed version.';
         await exitHistoryMode();
         statusBar.set('Reverted file; previous version kept in history');
         await updateHistoryCount(tab.path);

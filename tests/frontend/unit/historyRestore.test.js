@@ -75,9 +75,18 @@ describe('history restore workflow', () => {
 
         const restore = document.querySelector('.history-revert-button');
         expect(restore.textContent).toContain('Revert to this version');
+        expect(document.querySelector('.history-revert-copy')).toBeNull();
+        expect(document.querySelector('.history-list').textContent).not.toMatch(/latest123|older123/);
         expect(document.querySelector('.history-banner .history-restore-button')).toBeNull();
         expect(mockSetReadOnly).toHaveBeenCalledWith(true);
         expect(mockSetEditorContent).toHaveBeenCalledWith('historical version');
+
+        const compare = document.querySelector('.history-diff-toggle');
+        compare.click();
+        await settle();
+        expect(document.querySelector('.history-diff')).not.toBeNull();
+        expect(document.querySelector('.history-diff-summary').textContent).toMatch(/added.*removed/i);
+        expect(compare.getAttribute('aria-expanded')).toBe('true');
 
         mockConfirmDialog.mockResolvedValueOnce(false);
         restore.click();
@@ -108,7 +117,7 @@ describe('history restore workflow', () => {
         expect(mockSetReadOnly).toHaveBeenLastCalledWith(false);
         expect(mockSetEditorContent).toHaveBeenLastCalledWith('historical version');
         expect(document.querySelectorAll('.history-item')).toHaveLength(3);
-        expect(document.querySelector('.history-current-notice').textContent).toMatch(/restored .*latest committed/i);
+        expect(document.querySelector('.history-current-notice').textContent).toBe('Restored the selected version as the latest committed version.');
         expect(document.querySelector('.history-item-latest').textContent).toContain('Latest committed');
         expect(mockErrorDialog).not.toHaveBeenCalled();
     });

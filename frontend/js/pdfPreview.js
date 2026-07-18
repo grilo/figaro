@@ -1308,6 +1308,7 @@ export async function openPDFPreview({ path, title, content } = {}) {
     if (!panel || !sidebar) throw new Error('PDF preview panel is unavailable.');
 
     document.dispatchEvent(new CustomEvent('close-history-panel'));
+    document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
 
     previewRequestId++;
     if (previewTimer) clearTimeout(previewTimer);

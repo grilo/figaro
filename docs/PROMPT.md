@@ -4,7 +4,7 @@
 
 This document is the product and behaviour contract for figaro. It describes the user-facing experience and the rules that preserve the local-first, file-portable model.
 
-figaro is a desktop Markdown workspace with vault-based file management, quick-note capture, a hashtag-driven Kanban board, a date-aware calendar, backlinks, session-persistent tabs, local Git history, seventeen themes, sixteen bundled fonts, optional Vim mode, KaTeX math, live diagrams, editable Draw.io SVGs, and interactive browser-backed PDF export. All content lives in a folder chosen by the user: no accounts, cloud service, sync engine, or proprietary note database.
+figaro is a desktop Markdown workspace with vault-based file management, quick-note capture, a hashtag-driven Kanban board, a date-aware calendar, backlinks, a contextual heading Outline, session-persistent tabs, local Git history, seventeen themes, sixteen bundled fonts, optional Vim mode, KaTeX math, live diagrams, editable Draw.io SVGs, and interactive browser-backed PDF export. All content lives in a folder chosen by the user: no accounts, cloud service, sync engine, or proprietary note database.
 
 Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript frontend (CodeMirror 6, codemirror-live-markdown, KaTeX, markdown-it, Mermaid, Vega, and Vega-Lite), with browser dependencies vendored in the frontend bundle.
 
@@ -16,7 +16,7 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - Three horizontal zones: **left sidebar**, **workspace**, and an on-demand **right sidebar**. Both sidebars have independent resize handles.
 - **Top bar**: sidebar toggle and app title/Home control on the left; a clear draggable center region; Settings followed by native-style minimize/maximize/close controls on the right.
 - Calendar and Kanban live in a fixed footer below the file tree. Calendar expands inside the left sidebar; Kanban and Settings open or return to their single corresponding workspace tabs when inactive, and play a short reduced-motion-aware exit transition before closing that tab when clicked while already active. Clicking the Figaro name opens the un-tabbed workspace overview.
-- **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, backlink count, and committed **Changes** count. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0. A plain-language **Save to history** action appears only while the active file has a version waiting to be recorded; it safely saves pending text and records only that file, then hides again.
+- **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, an **Outline** control when the current Markdown file has headings, backlink count, and committed **Changes** count. Outline is keyboard reachable and opens the heading navigator. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0. A plain-language **Save to history** action appears only while the active file has a version waiting to be recorded; it safely saves pending text and records only that file, then hides again.
 
 ### 1.2 Left Sidebar
 - The top of the sidebar is the **global note search** field; its keyboard-navigable result list opens below the field.
@@ -26,15 +26,16 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - The sidebar can be resized from **225px to 500px**. Collapsing it leaves a **44px tool rail** rather than removing navigation; Quick note remains directly usable there, while selecting Calendar expands the sidebar and opens the panel. Expanded folders, selected file, recent files, and search filters are stored locally for the current webview profile.
 
 ### 1.3 Right Sidebar
-- The right sidebar is closed by default and is reserved for **History** and **PDF Preview**. Opening one replaces the other; the left-sidebar Calendar can remain open independently.
+- The right sidebar is closed by default and is reserved for **History**, **Outline**, and **PDF Preview**. Opening one replaces the others; the left-sidebar Calendar can remain open independently.
 - Clicking a committed-history count in the status bar opens the History view for the active file.
+- **Outline** appears only for Markdown notes with headings. It lists nested H1–H6 headings, ignores frontmatter and fenced-code examples, highlights the current cursor/reading section, and focuses the editor at the selected heading.
 - Its width can be resized from **240px to 480px** for the current session.
 
 ### 1.4 Workspace
 - A horizontal **tab bar** across the top. Compact tabs use a responsive 104–200px width, truncate long titles, and keep their close controls accessible. The visual scrollbar is hidden; an all-tabs dropdown provides a reliable route to every open tab. A dirty tab uses a compact accent dot, while the file tree mirrors active and background-open files with strong and subtle markers respectively; tab switches and dirty transitions patch those mounted markers without rebuilding the tree.
 - Below it, **view containers** — only one is visible at a time:
   - **Editor view** — for Markdown and CodeMirror-supported code files. Shows file content immediately once loaded.
-  - **Calendar results view** — for date searches and backlink listings.
+  - **Calendar/Relationships results views** — for date searches and note relationships.
   - **Kanban board view** — the full kanban board.
   - **Workspace overview** — a centered, un-tabbed dashboard with Momentum (unfinished tasks) on the left and recent notes on the right.
   - **Settings view** — typography, editor, and automation preferences.
@@ -79,10 +80,11 @@ Each theme defines these properties (with theme-specific colors):
 | **File** | `path/to/note.md` | Opens a Markdown or CodeMirror-supported source file for editing |
 | **Draw.io** | `path/to/diagram.drawio.svg` | Opens an editable Draw.io SVG diagram |
 | **Calendar** | `calendar-YYYY-MM-DD` | Shows Markdown notes that mention a specific date |
-| **Backlinks** | `backlinks-path/to/note.md` | Shows notes that link to a given note |
+| **Relationships** | `backlinks-path/to/note.md` | Shows contextual backlinks and unlinked plain-text mentions for a note |
 | **Kanban** | `kanban` / `kanban-board` | The top-bar board and a hashtag-focused board respectively; each ID is deduplicated while open |
 | **Workspace overview** | No tab ID | Centered dashboard with Momentum and recent notes |
 | **Settings** | `settings` | Application settings for theme, fonts, editor layout, and automation |
+| **Vault health** | `vault-health` | Read-only vault-maintenance findings opened from Settings |
 
 ### 2.2 Tab Behavior
 - **Deduplication**: Opening a resource that already has a tab simply switches to it.
@@ -188,6 +190,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Hex colors**: standalone CSS hex tokens in the 3-, 4-, 6-, or 8-digit forms render with a theme-aware inline swatch and native color picker in Markdown and supported source files. Picker changes replace only the token, preserving an existing alpha channel. The raw token remains plain text in Markdown, PDF preview, and export.
 - **Printable diagrams**: Mermaid, Vega, and Vega-Lite fences are rendered to inline SVG before the print document reaches the native dialog. If a renderer is unavailable or a diagram is invalid, the source fence stays visible rather than being dropped.
 - **Line-number gutter**: a persistent Settings toggle adds CodeMirror line numbers and active-line gutter highlighting to Markdown and source files. It is disabled by default. Bracket matching, undo/redo history, and autocompletion remain always available; code folding is enabled for source-code files.
+- **Document Outline**: a status-bar control appears only for Markdown files with headings. Its right-pane navigator is source-position based, supports nested H1–H6 heading levels, ignores frontmatter and fenced-code lookalikes, follows selection/viewport changes, and dispatches a normal CodeMirror selection when a heading is activated. It adds no editor decorations or widgets.
 - Inline rendering of hashtags and markdown links with distinct styling.
 - **Fenced code blocks**: triple-backtick blocks with optional language tag, rendered with monospace font, subtle background, syntax highlighting (via highlight.js classes themed with `--code-*-color` variables), copy button, and line numbers.
 - **Blockquotes**: `>` lines rendered with a left `::before` pseudo-element border (4px `var(--quote-border)`) and italic styling.
@@ -200,7 +203,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
 - **Math**: `$inline$` and `$$block$$` LaTeX math renders via KaTeX (StateField-based plugin).
 - In-note search with match highlighting and navigation.
-- **Auto-save**: the active dirty file tab is saved on the configured interval (5 seconds, 10 seconds, 30 seconds, 1 minute, 5 minutes, or Off), when switching away, and when choosing **Save & Exit**. Content is always written first; when Auto-Commit is set to **On Save**, that successful save then commits only the saved file.
+- **Auto-save**: the active dirty file tab is saved on the configured interval (5 seconds, 10 seconds, 30 seconds, 1 minute, 5 minutes, or Off), when switching away, and when choosing **Save & Exit**. Content is always written first; when the Auto-Commit toggle is on, that successful save then commits only the saved file.
 - **PDF source**: exporting the active dirty Markdown tab uses its current editor content without requiring a save first. A file-tree export otherwise reads the version on disk.
 - All CodeMirror 6 modules and `codemirror-live-markdown` are vendored locally.
 
@@ -327,35 +330,47 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 
 ## 7. Discovery Views
 
-### 7.1 Backlinks Panel
+### 7.1 Relationships Panel
 - Reads incrementally maintained reverse Markdown links for a given note (by path or basename), case-insensitive, without rescanning unrelated note text.
-- Returns each match with source file path, line number, snippet, and modification time, sorted newest first.
-- Status bar shows backlink count; clickable link opens backlinks tab when >0.
-- Backlinks tab renders in same view as calendar results.
+- Returns each backlink with source file path, line number, nearby context, and modification time, sorted newest first.
+- The same tab separately finds plain-text uses of the target note's filename title from cached Markdown source. It ignores fenced code and already-linked text.
+- Each unlinked result has **Link this mention**. The frontend saves dirty Markdown tabs first; the backend revalidates the exact source line and writes only one unambiguous mention as the active Markdown or conventional Wikilink preference. A stale, fenced, or already-linked occurrence is refused without changing the source note.
+- Status bar shows backlink count; clickable link opens the Relationships tab when >0.
 
-### 7.2 Global Search
+### 7.2 Vault Health
+- **Settings → Vault care → Review…** opens a user-triggered, read-only health tab.
+- The scan reports missing vault-local Markdown/attachment links, unreferenced common image/media/PDF attachments, duplicate filenames, and Markdown frontmatter that opens with `---` without a closing `---` or `...` delimiter.
+- External URLs, `mailto:` links, fenced code, dot-directories, and symlinks are excluded. The scan never edits, moves, or deletes files.
+- Each finding carries a vault-relative source path and, where applicable, line number. Selecting it opens that source note at the finding; duplicate-name findings open the first path while showing all colliding paths.
+
+### 7.3 Global Search
 - The left-sidebar search field searches Markdown note bodies and note filenames. It waits briefly while the user types and ignores stale responses from earlier queries.
 - Case-insensitive body searches use the index's folded-text substring terms, then verify candidate notes before displaying matches; case-sensitive searches compare the original source text.
 - Results show a filename, vault-relative path, first matching line, line number, and additional-match count. The backend transfers that compact preview and exact count rather than every matching source line. Filename matches rank ahead of body-only matches; otherwise newer files rank first.
 - **Titles** limits results to filenames, **Recent** limits them to the eight recently opened notes, and **Aa** enables case-sensitive matching. Filters persist locally in the webview.
 - Use ↑/↓ to select a result, Enter to open the selected result, or Escape to clear and close search. Opening a result positions the editor at its first matching line.
 
-### 7.3 Calendar and Daily Notes
+### 7.4 Calendar and Daily Notes
 - The Calendar control in the fixed left-sidebar footer expands an inline monthly grid with month navigation and linked-note results. A day is marked when a vault note is named `YYYY-MM-DD.md` or another Markdown note links to that daily note.
 - The index groups marked days by `YYYY-MM`, so moving between months reads only the selected month's day lists.
-- Collapsing the sidebar closes the expanded panel but leaves the Calendar icon in the 44px rail. Selecting it expands the sidebar and reopens Calendar. History and PDF preview remain independent on the right.
+- Collapsing the sidebar closes the expanded panel but leaves the Calendar icon in the 44px rail. Selecting it expands the sidebar and reopens Calendar. History, Outline, and PDF Preview remain independent on the right.
 - Selecting a marked day lists notes that link to its daily note; selecting a listed note opens it in a file tab. Today is always selectable.
 - `@today`, `@tomorrow`, and `@yesterday` offer date-link completions. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
 - The selected date is stored locally for the webview; Calendar reads the shared Markdown index, which ignores dot-directories and symlinks like the rest of the vault scanner.
 
-### 7.4 Workspace Overview
+### 7.5 Workspace Overview
 - The un-tabbed workspace overview has **Momentum**, the first six Kanban cards outside the `done` column, and **Recent**, the last eight file tabs opened by the user. Momentum is a bounded backend projection, not a complete-board fetch.
 - Clicking a task returns to its source note and line; **Open board** opens the Kanban tab. Recent notes are local UI history, not a separate vault index.
 
-### 7.5 Quick Note and Inbox
+### 7.6 Quick Note and Inbox
 - **Quick note** creates an empty `Inbox/YYYY-MM-DD-HHMMSS.md` and opens it with editor focus. If that timestamp already exists, `-2`, `-3`, and later suffixes are tried without overwriting anything.
 - `Inbox` is an ordinary vault folder: its notes participate in links, search, Kanban, Git history, file-tree styling, and external editing. Its built-in Mail icon is only a default appearance.
 - Both the full-width action above the tree and the collapsed-rail icon share one guarded workflow. While creation is running they are disabled and busy; an error opens a styled dialog and never creates a phantom tab.
+
+### 7.7 Document Outline
+- The **Outline** status control is hidden for non-Markdown files and Markdown notes without headings, so it does not add empty navigation chrome.
+- Opening it takes ownership of the existing right pane and renders heading buttons indented relative to the shallowest heading. The active button has `aria-current="location"`.
+- Clicking or pressing Enter on a heading moves focus and the normal CodeMirror cursor to that source heading. A later tab switch, History opening, PDF Preview opening, or × close releases the pane without changing note content.
 
 ---
 
@@ -475,9 +490,9 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 2. Wait for Wails to publish the native `window.go.main.App` binding, then load the portable vault session.
 3. Initialize CodeMirror and the tab manager, load the file tree, and attach tree handlers. Native debounced vault notifications replace polling; content-only changes do not reload the tree, and Figaro's own saved snapshots do not request an already-known Kanban board again.
 4. Restore persisted tabs after the tree is available; otherwise show the un-tabbed workspace overview.
-5. Initialize Calendar, Kanban, global search, backlinks, and the History panel.
+5. Initialize Calendar, Kanban, global search, backlinks, the History panel, and the Outline navigator.
 6. Load the saved theme, prose font, and code-font settings. A Settings tab initializes its own controls when opened.
-7. Load the persisted line-number and Links style preferences, then load the Auto-Save interval and start its active-tab timer. The Go backend starts Auto-Commit when a positive interval is configured; **On Save** remains event-driven.
+7. Load the persisted line-number and Links style preferences, then load the Auto-Save interval and start its active-tab timer. The Auto-Commit toggle is event-driven: when enabled it records only the file that successfully saved.
 8. Install the native-window close guard and `beforeunload` handler, which preserve dirty content and save the session.
 
 Frontend code accesses Go only through `frontend/js/backend.js`. It calls the
@@ -711,6 +726,10 @@ Multiple layers prevent a white flash before CSS loads:
 
 ## 21. Settings Tab
 
+- **Vault care**: a themed **Review…** action opens the read-only Vault-health
+  report. It is a deliberate maintenance surface rather than an automatic
+  startup check, so large vault walks occur only when the user asks for them.
+
 ### 21.1 Layout
 - Section headers with **icons** and descriptive text.
 - **Theme picker**: a dropdown combo box showing the current theme, with a scrollable menu of all 17 themes.
@@ -718,10 +737,10 @@ Multiple layers prevent a white flash before CSS loads:
 - **Code Font**: a separate font-family preference for supported source-code files. It is stored as `code_font`; Markdown prose and rendered Markdown code blocks retain their normal typography.
 - **Font Size**: −/+ buttons adjusting editor font size from 70% to 150% in 10% steps. The displayed 100% baseline is 16.2px.
 - **Text Width**: −/+ buttons adjusting editor max-width from 50% (350px) to 200% (1400px) in 10% steps. Base is 700px. Persisted to localStorage.
-- **Auto-Save**: content-only save interval for the active dirty file (Off / 5s / 10s / 30s / 1min / 5min). Persisted as `auto_save_seconds`. Auto-Save and Auto-Commit both use the shared themed, keyboard-accessible combobox instead of a native platform dropdown.
+- **Auto-Save**: content-only save interval for the active dirty file (Off / 5s / 10s / 30s / 1min / 5min). Persisted as `auto_save_seconds` and styled as a themed keyboard-accessible combobox.
 - **Show line numbers**: persistent iOS-style toggle for the CodeMirror gutter, disabled by default and applied live to the current editor.
 - **Links style**: themed, keyboard-accessible combobox for Markdown or conventional target-first Wikilinks. A change always requires a rewrite/keep/cancel decision.
-- **Auto-Commit**: Git-history mode (On Save / 1h / 2h / 4h / 8h / Off). Persisted as `auto_commit_seconds`; one hour is the default, while `-1` represents On Save.
+- **Auto-Commit**: themed on/off toggle, persisted as `auto_commit_enabled` and enabled by default. When on, each successful save records only that file; it has no interval or whole-vault commit mode. Legacy `auto_commit_seconds` values migrate once: zero becomes off and every enabled legacy value becomes on.
 - **Vim toggle**: an iOS-style toggle switch with smooth sliding animation.
 - Sections separated by a subtle `1px divider`.
 
@@ -808,23 +827,22 @@ Multiple layers prevent a white flash before CSS loads:
 ## 25. Git-Based File History
 
 ### 25.1 Overview
-Figaro initializes a local Git repository in the vault. **Auto-Save** writes the active dirty file; **Auto-Commit** records versions either after each successful save, on a background interval, or not at all. The default is a one-hour scheduler, preserving ordinary-file workflows while providing local history with no network service.
+Figaro initializes a local Git repository in the vault. **Auto-Save** writes the active dirty file; the enabled **Auto-Commit** toggle then records that same file after each successful save. There is no background interval or whole-vault auto-commit path, preserving note-local history with no network service.
 
 ### 25.2 Repository
 - Initialized automatically on first launch in the vault root directory.
 - A `.gitignore` is created excluding `.config/` from versioning.
 - All commits use author "figaro <figaro@local>".
-- `auto_commit_seconds` defaults to `3600` (one hour). Positive values start the scheduler, `-1` selects **On Save**, and `0` disables automatic commits.
+- `auto_commit_enabled` defaults to `true`. Legacy `auto_commit_seconds` settings migrate once: `0` becomes off, while every previously enabled interval or **On Save** setting becomes the safe per-save mode.
 
 ### 25.3 Commit Sources
 | Source | Trigger | Behavior |
 |--------|---------|----------|
-| **Explicit save** | Ctrl+S / Cmd+S | Writes the active file after its optimistic timestamp check; in **On Save** mode, a successful write then commits only that file. |
-| **Auto-Save timer** | Configurable interval (default 5 min, 5s–5min, or Off) | Writes the active dirty file; in **On Save** mode, a successful write then commits only that file. |
-| **Auto-Commit scheduler** | Separate Settings interval (default 1h; 1h, 2h, 4h, or 8h) | Stages modified, added, and deleted vault files and creates one commit with message `auto-save: <count> file(s) — <timestamp>`. |
+| **Explicit save** | Ctrl+S / Cmd+S | Writes the active file after its optimistic timestamp check; when Auto-Commit is enabled, that successful write then commits only that file. |
+| **Auto-Save timer** | Configurable interval (default 5 min, 5s–5min, or Off) | Writes the active dirty file; when Auto-Commit is enabled, that successful write then commits only that file. |
 | **Save to history** | Click the status-bar action shown only for a file with unrecorded changes | Saves pending active-editor text and commits only that file, preserving unrelated staged changes; the action hides again after success and returns with the next edit. |
 | **History restore** | Click **Revert to this version** beside a selected history entry, then confirm | Saves and commits the current file version first, restores and commits the selected contents, then reloads History with the restored snapshot as latest. |
-| **Backend commit APIs** | `CommitCurrentFile` / `CommitAllFiles` | Power On Save, the status action, history restore, and interval scheduling through the native Wails `App` binding. |
+| **Backend commit API** | `CommitCurrentFile` | Powers enabled per-save history, the status action, and history restore through the native Wails `App` binding. |
 
 ### 25.4 API Methods (Go Backend → Frontend)
 | Method | Returns | Purpose |
@@ -832,10 +850,11 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 | `GetFileHistory(path)` | `[{hash, timestamp, message}]` | List all commits touching a file |
 | `GetFileVersion(path, hash)` | file content as string | Retrieve file content at a specific commit |
 | `GetCommitCount(path)` | `int` | Number of commits for a file |
+| `GetVaultHealth()` | grouped issue arrays | Read-only local-link, attachment, filename, and frontmatter findings |
 | `AutoSaveLoad()` | `int` (seconds) | Read auto-save interval from `settings.json` |
 | `AutoSaveSave(seconds)` | — | Persist auto-save interval to `settings.json` |
-| `AutoCommitLoad()` | `int` (seconds) | Read auto-commit interval from `settings.json` |
-| `AutoCommitSave(seconds)` | — | Persist and reconfigure the auto-commit scheduler |
+| `AutoCommitLoad()` | `bool` | Read the enabled per-save, single-file history toggle from `settings.json` |
+| `AutoCommitSave(enabled)` | — | Persist the per-save, single-file history toggle |
 | `FileHasUncommittedChanges(path)` | `bool` | Report the active file's working-tree state without including unrelated paths |
 | `CommitCurrentFile(path)` | — | Commit one file while preserving unrelated staged changes |
 
@@ -847,11 +866,12 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 ### 25.6 Right Sidebar — History Panel
 - Toggleable panel on the right side of the workspace (resizable via drag handle, 240–480px).
 - Header: "History" title + × close button.
-- Lists commits for the active file: date/time (primary color) and short hash (muted mono).
+- Lists commits for the active file by date/time, with a **Latest committed** marker for the current version. Commit hashes remain an internal lookup detail and are not displayed.
 - Sorted by modification time, most recent first.
 - **Click a version** → loads historical content into the editor in **read-only mode**:
   - Editor gets amber tint (`.history-mode` CSS class).
-  - Banner at top identifies the read-only historical version; the selected entry in the right pane exposes **Revert to this version**.
+  - Banner at top identifies the read-only historical version; the selected entry in the right pane exposes **Compare to current** and **Revert to this version**.
+  - **Compare to current** opens a full-width, in-place source diff below the controls. It shows only added/removed heading/list/code/frontmatter lines plus two surrounding context lines; long unchanged stretches collapse to one separator so History remains responsive.
   - Clipboard works (text can be selected and copied).
 - **Revert to this version** opens a styled warning dialog focused on preserving the current file. Confirming saves and commits the live version, restores and commits the selected contents, then refreshes the panel with a notice and a **Latest committed** marker. Cancellation changes nothing, and a preservation failure leaves the historical view open with the current version intact.
 - **Click the latest version** (top entry) → exits history mode (no need for read-only on current version).

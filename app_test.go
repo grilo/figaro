@@ -668,11 +668,12 @@ func TestSearchBacklinks_IndexedPathAndBasenameMatchesKeepEarliestSourceLine(t *
 	if len(results) != 1 {
 		t.Fatalf("indexed backlinks = %#v, want one source result", results)
 	}
-	if got, want := results, []BacklinkResult{{
-		Path: "source.md", Name: "source.md", LineNum: 1,
-		Snippet: "[Target](target.md)", Mtime: results[0].Mtime,
-	}}; !reflect.DeepEqual(got, want) {
-		t.Fatalf("indexed backlinks = %#v, want first source link only", got)
+	got := results[0]
+	if got.Path != "source.md" || got.Name != "source.md" || got.LineNum != 1 || got.Snippet != "[Target](target.md)" {
+		t.Fatalf("indexed backlink = %#v, want the first source link", got)
+	}
+	if got.MatchText != "target" || !strings.Contains(got.Context, "[Target](folder/target.md)") {
+		t.Fatalf("indexed backlink relationship metadata = %#v, want match text and nearby context", got)
 	}
 }
 
@@ -1278,7 +1279,7 @@ func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
 	if err := json.Unmarshal(data, &settings); err != nil {
 		t.Fatal(err)
 	}
-	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["line_numbers"] != false || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(3600) {
+	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["line_numbers"] != false || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
 		t.Fatalf("unexpected normalized settings: %#v", settings)
 	}
 	if _, exists := settings["openTabs"]; exists {
@@ -1286,6 +1287,9 @@ func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
 	}
 	if _, exists := settings["auto_save_minutes"]; exists {
 		t.Fatalf("legacy autosave key should not remain in settings: %#v", settings)
+	}
+	if _, exists := settings["auto_commit_seconds"]; exists {
+		t.Fatalf("legacy auto-commit interval should not remain in settings: %#v", settings)
 	}
 }
 
@@ -1310,7 +1314,7 @@ func TestEnsureSettingsDefaultsCreatesDefaultsForMissingAndEmptyFiles(t *testing
 			if err := json.Unmarshal(data, &settings); err != nil {
 				t.Fatal(err)
 			}
-			if settings["theme"] != "default" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_seconds"] != float64(3600) {
+			if settings["theme"] != "default" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
 				t.Fatalf("unexpected defaults: %#v", settings)
 			}
 		})
@@ -1435,61 +1439,69 @@ func TestChangeLinkStyleRollsBackNotesWhenSettingsCannotBeRead(t *testing.T) {
 	}
 }
 
-func TestAutoCommitSaveReconfiguresScheduler(t *testing.T) {
+func TestAutoCommitTogglePersistsSingleFileOnSaveMode(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
-	if app.history == nil {
-		t.Skip("history service unavailable")
-	}
 
-	if err := app.AutoCommitSave(60); err != nil {
-		t.Fatalf("enable auto-commit: %v", err)
-	}
-	if !app.history.SchedulerActive() {
-		t.Fatal("expected AutoCommitSave to start the scheduler")
-	}
-
-	if err := app.AutoCommitSave(0); err != nil {
+	if err := app.AutoCommitSave(false); err != nil {
 		t.Fatalf("disable auto-commit: %v", err)
 	}
-	if app.history.SchedulerActive() {
-		t.Fatal("expected AutoCommitSave to stop the scheduler")
+	if app.AutoCommitLoad() {
+		t.Fatal("AutoCommitLoad() = true after disabling the toggle")
 	}
 
-	if err := app.AutoCommitSave(-1); err != nil {
-		t.Fatalf("enable on-save auto-commit: %v", err)
+	if err := app.AutoCommitSave(true); err != nil {
+		t.Fatalf("enable auto-commit: %v", err)
 	}
-	if app.history.SchedulerActive() {
-		t.Fatal("On Save must not leave an interval scheduler running")
+	if !app.AutoCommitLoad() {
+		t.Fatal("AutoCommitLoad() = false after enabling the toggle")
 	}
-	if got := app.AutoCommitLoad(); got != -1 {
-		t.Fatalf("AutoCommitLoad() = %d, want On Save sentinel -1", got)
-	}
-	if err := app.AutoCommitSave(-2); err == nil {
-		t.Fatal("invalid negative auto-commit mode was accepted")
-	}
+
 }
 
-func TestConfiguredAutoCommitStartsAfterRestartExceptOnSaveMode(t *testing.T) {
-	app, vaultPath := newTestApp(t)
-	defer os.RemoveAll(vaultPath)
-	defer app.history.StartAutoCommit(0)
+func TestEnsureSettingsDefaultsMigratesLegacyAutoCommitIntervalsToSingleFileToggle(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		legacy         string
+		enabled        bool
+		invalidCurrent bool
+	}{
+		{name: "enabled interval", legacy: "3600", enabled: true},
+		{name: "on save", legacy: "-1", enabled: true},
+		{name: "disabled", legacy: "0", enabled: false},
+		{name: "invalid replacement retains legacy off", legacy: "0", enabled: false, invalidCurrent: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app, vaultPath := newTestApp(t)
+			defer os.RemoveAll(vaultPath)
+			settingsPath := filepath.Join(vaultPath, ".config", "settings.json")
+			settingsJSON := `{"auto_commit_seconds":` + test.legacy + `}`
+			if test.invalidCurrent {
+				settingsJSON = `{"auto_commit_enabled":"invalid","auto_commit_seconds":` + test.legacy + `}`
+			}
+			if err := os.WriteFile(settingsPath, []byte(settingsJSON), 0600); err != nil {
+				t.Fatal(err)
+			}
 
-	if err := app.AutoCommitSave(3600); err != nil {
-		t.Fatal(err)
-	}
-	app.history.StartAutoCommit(0)
-	app.startConfiguredAutoCommit()
-	if !app.history.SchedulerActive() {
-		t.Fatal("persisted one-hour auto-commit did not restart its scheduler")
-	}
-
-	if err := app.AutoCommitSave(-1); err != nil {
-		t.Fatal(err)
-	}
-	app.startConfiguredAutoCommit()
-	if app.history.SchedulerActive() {
-		t.Fatal("On Save mode must not start an interval scheduler")
+			app.ensureSettingsDefaults()
+			if got := app.AutoCommitLoad(); got != test.enabled {
+				t.Fatalf("AutoCommitLoad() = %v, want %v", got, test.enabled)
+			}
+			data, err := os.ReadFile(settingsPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var settings map[string]interface{}
+			if err := json.Unmarshal(data, &settings); err != nil {
+				t.Fatal(err)
+			}
+			if settings["auto_commit_enabled"] != test.enabled {
+				t.Fatalf("auto_commit_enabled = %#v, want %v", settings["auto_commit_enabled"], test.enabled)
+			}
+			if _, exists := settings["auto_commit_seconds"]; exists {
+				t.Fatalf("legacy interval remained in settings: %#v", settings)
+			}
+		})
 	}
 }
 

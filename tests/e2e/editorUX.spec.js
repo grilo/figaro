@@ -14,10 +14,9 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
     const lineNumbers = page.locator('#line-numbers-toggle');
     await expect(lineNumbers).not.toBeChecked();
     await expect(page.locator('.cm-lineNumbers')).toHaveCount(0);
-    await expect(page.locator('.select-combobox-trigger')).toHaveCount(2);
-    expect(await page.locator('#auto-commit-interval').evaluate(
-        element => element._figaroCombobox.trigger.textContent,
-    )).toContain('1 hour');
+    await expect(page.locator('.select-combobox-trigger')).toHaveCount(1);
+    const autoCommit = page.locator('#auto-commit-toggle');
+    await expect(autoCommit).toBeChecked();
 
     for (const trigger of await page.locator('.select-combobox-trigger').all()) {
         const styles = await trigger.evaluate(element => {
@@ -35,9 +34,23 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
     await lineNumberSwitch.click();
     await expect(page.locator('.cm-lineNumbers')).toHaveCount(0);
 
-    await page.locator('#auto-commit-interval').evaluate(element => element._figaroCombobox.trigger.click());
-    await page.locator('#auto-commit-interval').evaluate(element => element._figaroCombobox.menu.querySelector('[data-value="-1"]').click());
-    await expect.poll(() => page.locator('#auto-commit-interval').evaluate(element => element._figaroCombobox.trigger.textContent.trim())).toBe('On Save');
+    await page.evaluate(async () => {
+        const app = (await import('/js/backend.js')).backend();
+        window.__autoCommitToggleWrites = [];
+        app.AutoCommitSave = async enabled => window.__autoCommitToggleWrites.push(enabled);
+    });
+    await autoCommit.focus();
+    await page.keyboard.press('Space');
+    await expect(autoCommit).not.toBeChecked();
+    await expect.poll(() => page.evaluate(() => window.__autoCommitToggleWrites)).toEqual([false]);
+    const autoCommitSlider = page.locator('.settings-section:has(#auto-commit-toggle) .toggle-slider');
+    const autoCommitStyles = await autoCommitSlider.evaluate(element => {
+        const computed = getComputedStyle(element);
+        return { cursor: computed.cursor, radius: Number.parseFloat(computed.borderRadius), background: computed.backgroundColor };
+    });
+    expect(autoCommitStyles.cursor).toBe('pointer');
+    expect(autoCommitStyles.radius).toBeGreaterThanOrEqual(20);
+    expect(autoCommitStyles.background).not.toBe('rgba(0, 0, 0, 0)');
 
     const fontScale = await page.evaluate(() => ({
         displayed: document.getElementById('font-size-value').textContent,
@@ -363,6 +376,8 @@ test('keeps local history quiet until the active file needs recording again', as
     await page.keyboard.press('Tab');
     await expect(page.locator('#md-cheatsheet-close')).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(page.locator('#outline-toggle')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(gitStatus).toBeFocused();
     expect(await gitStatus.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('solid');
 
@@ -471,6 +486,32 @@ test('restores an old file version as a fresh latest History commit after confir
     await page.locator('.history-item').nth(1).click();
     await expect(page.locator('.history-revert-button')).toBeVisible();
     await expect(page.locator('.history-banner .history-restore-button')).toHaveCount(0);
+    await expect(page.locator('.history-revert-copy')).toHaveCount(0);
+    await expect(page.locator('.history-list')).not.toContainText('older123');
+    await expect(page.locator('.history-list')).not.toContainText('latest1');
+
+    const compare = page.locator('.history-diff-toggle');
+    await expect(compare).toBeVisible();
+    await compare.click();
+    await expect(page.locator('.history-diff-summary')).toContainText('added');
+    await expect(page.locator('.history-diff-line.is-added')).toContainText('Current unsaved version');
+    await expect(page.locator('.history-diff-line.is-removed')).toContainText('Historical version');
+    const diffStyles = await page.locator('.history-diff').evaluate(element => {
+        const style = getComputedStyle(element);
+        const action = element.closest('.history-revert-action').getBoundingClientRect();
+        const controls = element.closest('.history-revert-action').querySelector('.history-revert-controls').getBoundingClientRect();
+        const diff = element.getBoundingClientRect();
+        return {
+            radius: Number.parseFloat(style.borderRadius),
+            background: style.backgroundColor,
+            spansActionWidth: diff.width >= action.width - 16,
+            clearsControls: diff.top >= controls.bottom + 2,
+        };
+    });
+    expect(diffStyles.radius).toBeGreaterThanOrEqual(4);
+    expect(diffStyles.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(diffStyles.spansActionWidth).toBe(true);
+    expect(diffStyles.clearsControls).toBe(true);
 
     await page.locator('.history-revert-button').click();
     const confirmation = page.locator('.custom-modal');
@@ -487,7 +528,7 @@ test('restores an old file version as a fresh latest History commit after confir
     await page.locator('.history-revert-button').click();
     await page.locator('.custom-modal .custom-modal-btn-confirm').click();
     await expect(page.locator('.history-banner')).toHaveCount(0);
-    await expect(page.locator('.history-current-notice')).toContainText('Restored older12 as the latest committed version');
+    await expect(page.locator('.history-current-notice')).toContainText('Restored the selected version as the latest committed version');
     await expect(page.locator('.history-item')).toHaveCount(3);
     await expect(page.locator('.history-item-latest')).toContainText('Latest committed');
     expect(await page.evaluate(() => ({ saves: window.__historySaves, commits: window.__historyCommits }))).toEqual({

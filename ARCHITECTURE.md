@@ -63,6 +63,24 @@ common save/watcher path proportional to the changed note and its affected
 derived data; a full derived rebuild remains reserved for the first lazy scan
 and genuinely broad filesystem changes.
 
+Relationships reuse that same index for both reverse backlinks and unlinked
+mentions. A mention scan walks cached source only, excludes fenced code and
+existing link syntax, and returns a small context window around each
+plain-text title match. Linking one mention is a root-scoped, line-specific
+atomic write: it rechecks the current source under the vault lock, refuses
+ambiguous/stale targets, updates the affected index entry, and renders the
+user's selected Markdown or conventional Wikilink syntax. The frontend saves
+open Markdown buffers before that operation so an in-memory edit cannot be
+silently overwritten.
+
+Vault health is deliberately separate from the hot index projections. It is a
+user-triggered, read-only root-scoped walk: cached Markdown source checks
+vault-local Markdown/Wikilinks and structural frontmatter delimiters, while
+the visible regular-file walk identifies common unreferenced attachments and
+duplicate basenames. Dot-directories and symlinks are excluded; external URLs,
+mail links, and code fences are not findings. The report contains only
+vault-relative paths and lines, so UI navigation needs no filesystem access.
+
 The full Kanban board remains available for its workspace, but the workspace overview asks the
 backend for its bounded unfinished-card projection directly. Calendar month
 navigation similarly copies only that month's pre-grouped daily-note and
@@ -97,11 +115,44 @@ local-history action immediately becomes actionable again after a later edit.
 A clean state is deliberately silent: the frontend shows **Save to history**
 only when recording that file is an available action.
 
+Auto-Commit deliberately has no timer or repository-wide operation. Its
+single persisted boolean causes a successful active-file save to invoke the
+same root-scoped `CommitFile(path)` path as the explicit history action. That
+path stages only the requested file and refuses when another path is already
+staged, because go-git commits the index as a whole. Unstaged changes in other
+notes therefore remain outside both the new commit and the target note's
+restore history.
+
 History is non-destructive: a revert saves and commits the pre-revert content,
 saves and commits the selected historical content, then reloads the right-pane
 list. The selected-version action lives with its History entry, while the
 editor banner remains informational; this makes the resulting latest commit
-and the current editable version unambiguous.
+and the current editable version unambiguous. Commit hashes remain panel-local
+lookup keys only: the user interface identifies revisions by their timestamp
+and latest-state marker rather than exposing Git plumbing.
+
+The optional History comparison is intentionally a bounded Markdown-source
+diff rather than rendered HTML. It classifies headings, lists, fences, and
+frontmatter while retaining the original text. The UI renders only additions,
+removals, and two surrounding context lines per hunk in a full-width action
+row; long unchanged stretches collapse to one separator. Small revisions use
+a line LCS; large revision pairs preserve their shared prefix/suffix and cap
+changed-line output so inspecting history cannot create an unbounded UI
+allocation.
+
+## Outline navigation
+
+Outline is intentionally a source-navigation surface rather than another
+CodeMirror live-preview feature. It parses only the active Markdown document's
+headings, keeps their document offsets, and ignores frontmatter plus
+heading-shaped text in fenced code. The parser runs after document changes or a
+tab source swap;
+selection and viewport updates use the cached heading offsets to identify the
+current section without another document scan. Activating an item dispatches a
+normal selection and scroll transaction, so it cannot introduce an alternate
+cursor model or decoration geometry. The navigator is mounted only while its
+right-pane mode owns the sidebar, and History/PDF Preview explicitly release
+it before taking that shared pane.
 
 ## UI continuity surfaces
 

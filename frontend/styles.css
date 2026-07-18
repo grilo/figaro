@@ -1229,6 +1229,16 @@ html, body {
     transform: translateX(16px);
 }
 
+.toggle-switch input:focus-visible + .toggle-slider {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.toggle-switch input:disabled + .toggle-slider {
+    cursor: wait;
+    opacity: .62;
+}
+
 /* File Tree */
 .file-tree {
     padding: 2px 0 6px;
@@ -5158,9 +5168,14 @@ body.custom-modal-open { overflow: hidden; }
 .result-card {
     display: flex;
     flex-direction: column;
+    width: 100%;
     padding: 12px 16px;
+    background: transparent;
     border-radius: 8px;
     cursor: pointer;
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
     transition: background 0.12s ease;
     border: 1px solid transparent;
 }
@@ -5168,6 +5183,11 @@ body.custom-modal-open { overflow: hidden; }
 .result-card:hover {
     background: var(--hover-bg);
     border-color: var(--border-color);
+}
+
+.result-card:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent-color));
+    outline-offset: 2px;
 }
 
 .result-card-title {
@@ -5222,6 +5242,100 @@ body.custom-modal-open { overflow: hidden; }
     border-radius: 2px;
 }
 
+.relationship-section + .relationship-section {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-color);
+}
+
+.relationship-section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 4px 10px;
+}
+
+.relationship-section-heading h3 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: var(--font-size);
+    font-weight: 650;
+}
+
+.relationship-section-heading p {
+    margin: 3px 0 0;
+    color: var(--text-dim);
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+}
+
+.relationship-count {
+    min-width: 22px;
+    padding: 2px 7px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.relationship-context {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+}
+
+.relationship-open {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.relationship-open:focus-visible,
+.relationship-link-action:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent-color));
+    outline-offset: 2px;
+}
+
+.relationship-link-action {
+    align-self: flex-start;
+    margin: 10px 0 0 10px;
+    padding: 4px 8px;
+    border: 1px solid color-mix(in srgb, var(--accent-color) 45%, var(--border-color));
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    color: var(--accent-color);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.relationship-link-action:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+}
+
+.relationship-link-action:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.relationship-empty {
+    padding: 18px 12px;
+    text-align: left;
+}
+
 /* ==========================================================================
    Utility Classes
    ========================================================================== */
@@ -5261,6 +5375,36 @@ body.custom-modal-open { overflow: hidden; }
     cursor: pointer;
 }
 .status-history.has-history:hover { color: var(--accent-color); }
+
+/* The document Outline stays available without turning the status bar into a
+   toolbar. It appears only when the active Markdown note has headings. */
+.status-outline {
+    min-height: 20px;
+    margin: 0;
+    padding: 1px 5px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+.status-outline:hover {
+    border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 7%, transparent);
+    color: var(--text-color);
+}
+.status-outline.is-open {
+    border-color: color-mix(in srgb, var(--accent-color) 42%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 11%, transparent);
+    color: var(--accent-color);
+}
+.status-outline:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
 
 /* Local-history action only appears when there is work to record. */
 .status-git {
@@ -5335,7 +5479,7 @@ body.custom-modal-open { overflow: hidden; }
     pointer-events: auto;
 }
 
-/* PDF preview is deliberately roomier than calendar/history. Its controls
+/* PDF preview is deliberately roomier than Calendar, History, and Outline. Its controls
    stay fixed while the isolated paper surface scrolls independently. */
 .right-sidebar.pdf-preview-mode {
     max-width: none;
@@ -5683,12 +5827,6 @@ body.right-sidebar-resizing .pdf-preview-frame {
     font-size: var(--font-size);
     color: var(--text-color);
 }
-.history-item-hash {
-    font-size: 11px;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-    margin-top: 2px;
-}
 .history-empty {
     padding: 20px 14px;
     text-align: center;
@@ -5727,6 +5865,95 @@ body.right-sidebar-resizing .pdf-preview-frame {
     font-size: 10px;
     font-weight: 500;
 }
+
+.history-revert-controls {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 1 / -1;
+    justify-self: end;
+    gap: 6px;
+}
+
+.history-diff-toggle {
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 5px 8px;
+}
+
+.history-diff-toggle:hover {
+    border-color: var(--accent-color);
+    color: var(--text-color);
+}
+
+.history-diff-toggle:focus-visible {
+    outline: 2px solid var(--focus-ring, var(--accent-color));
+    outline-offset: 2px;
+}
+
+.history-diff {
+    box-sizing: border-box;
+    grid-column: 1 / -1;
+    width: calc(100% + 16px);
+    min-width: 0;
+    margin: 2px -8px -7px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bg-color);
+}
+
+.history-diff-summary {
+    padding: 7px 9px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.history-diff-lines {
+    max-height: 340px;
+    overflow: auto;
+}
+
+.history-diff-line {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 4px;
+    padding: 2px 8px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.history-diff-line code {
+    min-width: 0;
+    color: inherit;
+    font: inherit;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.history-diff-line.is-added {
+    background: color-mix(in srgb, var(--success-color) 13%, transparent);
+    color: color-mix(in srgb, var(--success-color) 72%, var(--text-color));
+}
+
+.history-diff-line.is-removed {
+    background: color-mix(in srgb, var(--danger-color) 11%, transparent);
+    color: color-mix(in srgb, var(--danger-color) 76%, var(--text-color));
+}
+
+.history-diff-line.is-heading { font-weight: 700; }
+.history-diff-line.is-code { opacity: 0.88; }
+.history-diff-line.is-omitted,
+.history-diff-line.is-gap { color: var(--text-dim); font-style: italic; }
 .history-current-notice {
     margin: 0 0 8px;
     padding: 7px 9px;
@@ -5737,20 +5964,15 @@ body.right-sidebar-resizing .pdf-preview-frame {
     font-size: 11px;
 }
 .history-revert-action {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     margin: 4px 0 8px;
     padding: 7px 8px;
     border: 1px solid color-mix(in srgb, var(--warning-color) 24%, var(--border-color));
     border-radius: 6px;
     background: color-mix(in srgb, var(--warning-color) 5%, var(--panel-bg));
-}
-.history-revert-copy {
-    min-width: 0;
-    color: var(--text-dim);
-    font-size: 11px;
 }
 .history-revert-button {
     flex: none;
@@ -5769,6 +5991,61 @@ body.right-sidebar-resizing .pdf-preview-frame {
     outline: none;
 }
 .history-revert-button:disabled { cursor: wait; opacity: .65; }
+
+/* Heading outline */
+.outline-panel {
+    display: grid;
+    min-height: 100%;
+    align-content: start;
+    gap: 8px;
+    padding: 4px 8px 12px;
+}
+.outline-intro {
+    margin: 0;
+    padding: 5px 6px 2px;
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.45;
+}
+.outline-list {
+    display: grid;
+    gap: 2px;
+}
+.outline-item {
+    display: block;
+    width: 100%;
+    min-height: 28px;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+.outline-item:hover {
+    border-color: color-mix(in srgb, var(--accent-color) 23%, var(--border-color));
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+.outline-item.is-active,
+.outline-item[aria-current="location"] {
+    border-color: color-mix(in srgb, var(--accent-color) 36%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 11%, transparent);
+    color: var(--text-color);
+    font-weight: 600;
+}
+.outline-item:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
 /* Auto-save interval select */
 
 /* ── Settings Card Controls ── */
@@ -5937,6 +6214,233 @@ body.right-sidebar-resizing .pdf-preview-frame {
 .settings-action-btn:disabled {
     cursor: wait;
     opacity: .65;
+}
+
+.vault-health-setting {
+    align-items: start;
+}
+
+/* ── Vault health ── */
+.vault-health-view {
+    box-sizing: border-box;
+    width: min(960px, 100%);
+    min-height: 100%;
+    margin: 0 auto;
+    padding: 30px clamp(20px, 4vw, 46px) 48px;
+    color: var(--text-color);
+}
+
+.vault-health-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 4px 0 22px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.vault-health-kicker {
+    margin: 0 0 5px;
+    color: var(--accent-color);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+}
+
+.vault-health-header h2 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 23px;
+    font-weight: 650;
+    letter-spacing: -.025em;
+}
+
+.vault-health-header p:not(.vault-health-kicker) {
+    max-width: 530px;
+    margin: 7px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.vault-health-scan {
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 6px 12px;
+    border: 1px solid var(--accent-color);
+    border-radius: 7px;
+    background: var(--accent-color);
+    color: var(--button-text, #fff);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 650;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.vault-health-scan:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.vault-health-scan:focus-visible,
+.vault-health-open:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+.vault-health-scan:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.vault-health-scan:disabled {
+    cursor: wait;
+    opacity: .72;
+}
+
+.vault-health-summary {
+    min-height: 18px;
+    margin: 16px 0 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.vault-health-summary[data-kind="clear"] {
+    color: var(--success-color);
+}
+
+.vault-health-summary[data-kind="findings"] {
+    color: var(--warning-color, var(--accent-color));
+}
+
+.vault-health-summary[data-kind="error"],
+.vault-health-error {
+    color: var(--danger-color);
+}
+
+.vault-health-results {
+    display: grid;
+    gap: 12px;
+}
+
+.vault-health-section {
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--hover-bg);
+}
+
+.vault-health-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    padding: 0 13px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.vault-health-section h3 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.vault-health-section-heading > span {
+    display: inline-grid;
+    min-width: 20px;
+    height: 20px;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--bg-color);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.vault-health-section.has-findings .vault-health-section-heading > span {
+    background: color-mix(in srgb, var(--warning-color, var(--accent-color)) 18%, var(--bg-color));
+    color: var(--warning-color, var(--accent-color));
+}
+
+.vault-health-empty,
+.vault-health-loading,
+.vault-health-error {
+    margin: 0;
+    padding: 13px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.vault-health-empty,
+.vault-health-loading {
+    color: var(--text-muted);
+}
+
+.vault-health-issues {
+    display: grid;
+}
+
+.vault-health-issue + .vault-health-issue {
+    border-top: 1px solid var(--border-light);
+}
+
+.vault-health-open {
+    display: grid;
+    width: 100%;
+    padding: 11px 13px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.vault-health-open:hover {
+    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+}
+
+.vault-health-issue-path {
+    color: var(--text-color);
+    font-size: 11px;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+.vault-health-issue-detail,
+.vault-health-target,
+.vault-health-paths {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.vault-health-target {
+    color: var(--text-dim);
+}
+
+.vault-health-paths {
+    margin-top: 6px;
+    color: var(--text-color);
+}
+
+@media (max-width: 580px) {
+    .vault-health-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .vault-health-scan {
+        align-self: flex-start;
+    }
 }
 
 .settings-card .theme-picker-menu,

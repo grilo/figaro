@@ -78,6 +78,22 @@ describe('quiet local-history action', () => {
         expect(document.getElementById('git-status').hidden).toBe(true);
     });
 
+    test('reuses the successful single-file Auto-Commit after saving instead of committing twice', async () => {
+        mockState.openTabs[0].dirty = true;
+        mockSaveFileSnapshot.mockImplementation(async tab => {
+            tab.dirty = false;
+            return { success: true, mtime: 12, historyCommitSucceeded: true };
+        });
+        await updateGitStatus('note.md');
+        window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);
+
+        await expect(commitCurrentFileChanges()).resolves.toBe(true);
+
+        expect(mockSaveFileSnapshot).toHaveBeenCalledWith(mockState.openTabs[0], 'pending text');
+        expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
+        expect(statusBar.set).toHaveBeenCalledWith('Saved file to local history');
+    });
+
     test('reappears as a history action when the active file becomes dirty after recording', async () => {
         initHistoryPanel();
         window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);

@@ -348,7 +348,6 @@ func (a *App) startup(ctx context.Context) {
 	log.Println("[go] App.startup() — Wails context captured")
 	a.migrateLegacyPDFBrowserPreference()
 	a.ensureSettingsDefaults()
-	a.startConfiguredAutoCommit()
 
 	// Desktop integration uses Linux's XDG/GNOME conventions. Other Wails
 	// platforms provide their own app registration model.
@@ -374,19 +373,10 @@ func (a *App) startup(ctx context.Context) {
 	}()
 }
 
-func (a *App) startConfiguredAutoCommit() {
-	if a.history != nil {
-		a.history.StartAutoCommit(a.AutoCommitLoad())
-	}
-}
-
 // domReady is called from OnDomReady; defined in main.go.
 // shutdown is called from OnShutdown.
 func (a *App) shutdown(ctx context.Context) {
 	a.stopVaultWatcher()
-	if a.history != nil {
-		a.history.StartAutoCommit(0)
-	}
 }
 
 func (a *App) startVaultWatcher() {
@@ -816,7 +806,7 @@ func (a *App) SaveFile(relPath string, content string, expectedMtime float64) (*
 	}, nil
 }
 
-// CommitCurrentFile commits the given file to git history (used by auto-commit scheduler).
+// CommitCurrentFile records exactly one vault file in local Git history.
 func (a *App) CommitCurrentFile(relPath string) error {
 	cleanRel, err := vaultRelativePath(relPath)
 	if err != nil {
@@ -845,14 +835,6 @@ func (a *App) FileHasUncommittedChanges(relPath string) (bool, error) {
 		return false, nil
 	}
 	return a.history.HasUncommittedChanges(cleanRel)
-}
-
-// CommitAllFiles commits all modified tracked files (used by auto-commit scheduler).
-func (a *App) CommitAllFiles() error {
-	if a.history != nil {
-		return a.history.CommitAllModified()
-	}
-	return nil
 }
 
 // CreateFile creates a new markdown file.
@@ -2254,11 +2236,13 @@ func (a *App) SearchFiles(query string, caseSensitive bool) ([]SearchResult, err
 
 // BacklinkResult holds one backlink match.
 type BacklinkResult struct {
-	Path    string  `json:"path"`
-	Name    string  `json:"name"`
-	LineNum int     `json:"line_num"`
-	Snippet string  `json:"snippet"`
-	Mtime   float64 `json:"mtime"`
+	Path      string  `json:"path"`
+	Name      string  `json:"name"`
+	LineNum   int     `json:"line_num"`
+	Snippet   string  `json:"snippet"`
+	Context   string  `json:"context"`
+	MatchText string  `json:"match_text"`
+	Mtime     float64 `json:"mtime"`
 }
 
 // SearchBacklinks finds all notes that link to the given target note.
@@ -2286,6 +2270,8 @@ func (a *App) SearchBacklinks(targetPath string) ([]BacklinkResult, error) {
 		}
 	}
 	for _, backlink := range bySource {
+		backlink.Context = relationshipContext(index.files[backlink.Path].content, backlink.LineNum)
+		backlink.MatchText = targetName
 		results = append(results, backlink)
 	}
 	sort.Slice(results, func(i, j int) bool {
@@ -3241,7 +3227,7 @@ func defaultSettings() map[string]interface{} {
 		"vim":                 false,
 		"line_numbers":        false,
 		"auto_save_seconds":   300,
-		"auto_commit_seconds": 3600,
+		"auto_commit_enabled": true,
 	}
 }
 
@@ -3259,17 +3245,20 @@ func nonNegativeWholeSetting(value interface{}) (int, bool) {
 	}
 }
 
-func autoCommitSetting(value interface{}) (int, bool) {
-	if number, valid := nonNegativeWholeSetting(value); valid {
-		return number, true
-	}
+// legacyAutoCommitEnabled maps the retired interval preference to its safe
+// replacement. Any old enabled mode becomes per-save, single-file history;
+// zero remains explicitly off.
+func legacyAutoCommitEnabled(value interface{}) (bool, bool) {
 	switch number := value.(type) {
 	case int:
-		return number, number == -1
+		return number != 0, number >= -1
 	case float64:
-		return int(number), number == -1
+		if math.Trunc(number) != number || number < -1 || number > float64(math.MaxInt) {
+			return false, false
+		}
+		return number != 0, true
 	default:
-		return 0, false
+		return false, false
 	}
 }
 
@@ -3298,6 +3287,19 @@ func (a *App) ensureSettingsDefaults() {
 			settings["auto_save_seconds"] = minutes * 60
 			changed = true
 		}
+	}
+	// Auto-Commit used to persist an interval and could stage every modified
+	// vault file. Preserve whether it was enabled, but migrate every enabled
+	// legacy mode to the safe per-save, per-file behavior.
+	if _, hasEnabled := settings["auto_commit_enabled"].(bool); !hasEnabled {
+		enabled := true
+		if legacyValue, exists := settings["auto_commit_seconds"]; exists {
+			if migrated, valid := legacyAutoCommitEnabled(legacyValue); valid {
+				enabled = migrated
+			}
+		}
+		settings["auto_commit_enabled"] = enabled
+		changed = true
 	}
 
 	for key, fallback := range defaultSettings() {
@@ -3328,9 +3330,6 @@ func (a *App) ensureSettingsDefaults() {
 			}
 		case int:
 			_, valid := nonNegativeWholeSetting(settings[key])
-			if key == "auto_commit_seconds" {
-				_, valid = autoCommitSetting(settings[key])
-			}
 			if !valid {
 				settings[key] = fallbackValue
 				changed = true
@@ -3339,6 +3338,10 @@ func (a *App) ensureSettingsDefaults() {
 	}
 	if _, exists := settings["auto_save_minutes"]; exists {
 		delete(settings, "auto_save_minutes")
+		changed = true
+	}
+	if _, exists := settings["auto_commit_seconds"]; exists {
+		delete(settings, "auto_commit_seconds")
 		changed = true
 	}
 
@@ -3825,35 +3828,32 @@ func (a *App) AutoSaveSave(seconds int) error {
 	return a.writeSettingsFile(settings)
 }
 
-// AutoCommitLoad returns the auto-commit interval in seconds. Zero disables
-// commits, while -1 selects committing each file after a successful save.
-func (a *App) AutoCommitLoad() int {
+// AutoCommitLoad reports whether successful saves should record that exact
+// file in local history. It intentionally has no interval or vault-wide mode.
+func (a *App) AutoCommitLoad() bool {
 	a.settingsMu.RLock()
 	defer a.settingsMu.RUnlock()
 
 	settings, err := a.readSettingsFile()
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Printf("[settings] load auto-commit interval: %v", err)
+			log.Printf("[settings] load auto-commit setting: %v", err)
 		}
-		return 3600
+		return true
 	}
-	if v, ok := settings["auto_commit_seconds"]; ok {
-		switch n := v.(type) {
-		case float64:
-			return int(n)
-		case int:
-			return n
+	if enabled, ok := settings["auto_commit_enabled"].(bool); ok {
+		return enabled
+	}
+	if legacy, ok := settings["auto_commit_seconds"]; ok {
+		if enabled, valid := legacyAutoCommitEnabled(legacy); valid {
+			return enabled
 		}
 	}
-	return 3600 // default: 1 hour
+	return true
 }
 
-// AutoCommitSave persists the auto-commit interval in seconds.
-func (a *App) AutoCommitSave(seconds int) error {
-	if seconds < -1 {
-		return fmt.Errorf("invalid auto-commit mode")
-	}
+// AutoCommitSave persists the per-save, single-file history toggle.
+func (a *App) AutoCommitSave(enabled bool) error {
 	a.settingsMu.Lock()
 
 	settings, err := a.readSettingsFile()
@@ -3861,16 +3861,11 @@ func (a *App) AutoCommitSave(seconds int) error {
 		a.settingsMu.Unlock()
 		return err
 	}
-	settings["auto_commit_seconds"] = seconds
+	settings["auto_commit_enabled"] = enabled
+	delete(settings, "auto_commit_seconds")
 	err = a.writeSettingsFile(settings)
 	a.settingsMu.Unlock()
-	if err != nil {
-		return err
-	}
-	if a.history != nil {
-		a.history.StartAutoCommit(seconds)
-	}
-	return nil
+	return err
 }
 
 // ============================================================================

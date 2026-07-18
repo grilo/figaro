@@ -4,7 +4,7 @@ import { backend } from './backend.js';
  */
 
 import { log } from './log.js';
-import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, settingsIcon } from './icons.js';
+import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, settingsIcon, warningIcon } from './icons.js';
 import { setState, getState, subscribe, recordRecentFile } from './state.js';
 import { saveSession } from './session.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, restoreCursorState, configureEditorForFile } from './editor.js';
@@ -371,6 +371,7 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
         tab.focusCol = data.focusCol;
         break;
     case 'settings':
+    case 'health':
         break;
     }
     
@@ -460,7 +461,7 @@ async function renderTabContent(tab) {
         }
         panel.classList.add('active');
 
-        if (['calendar', 'kanban', 'settings'].includes(tab.type)) {
+        if (['calendar', 'kanban', 'settings', 'health'].includes(tab.type)) {
             playEntranceAnimation(panel);
         }
         
@@ -469,6 +470,7 @@ async function renderTabContent(tab) {
         case 'backlinks': renderBacklinksTab(panel, tab); break;
         case 'kanban': renderKanbanTab(panel, tab); break;
         case 'settings': renderSettingsTab(panel, tab); break;
+        case 'health': renderVaultHealthTab(panel); break;
         case 'drawio': renderDrawioDiagramTab(panel, tab); break;
         }
     }
@@ -559,7 +561,7 @@ function renderCalendarTab(panel, tab) {
 
 function renderBacklinksTab(panel, tab) {
     const fileName = tab.targetPath.split('/').pop().replace('.md', '');
-    panel.innerHTML = `<div class="backlinks-view-wrapper"><div class="backlinks-view-header"><h2>Backlinks for [[${fileName}]]</h2><p class="backlinks-subtitle">Files that link to this note</p></div><div class="results-list" id="backlinks-results-${tab.id}"></div></div>`;
+    panel.innerHTML = `<div class="backlinks-view-wrapper"><div class="backlinks-view-header"><h2>Relationships for [[${fileName}]]</h2><p class="backlinks-subtitle">Linked notes and plain-text mentions across your vault.</p></div><div class="results-list" id="backlinks-results-${tab.id}"></div></div>`;
     import('./backlinks.js').then(({ loadBacklinksResults }) => {
         loadBacklinksResults(tab.targetPath, `backlinks-results-${tab.id}`);
     });
@@ -574,6 +576,16 @@ function renderKanbanTab(panel, tab) {
         // are available (and keeps compatibility with lean embedded builds).
         if (typeof applyKanbanPresentationToViews === 'function') applyKanbanPresentationToViews(density, layout);
         renderKanbanBoard('kanban-board-main', tab.focusCol);
+    });
+}
+
+function renderVaultHealthTab(panel) {
+    import('./vaultHealth.js').then(({ renderVaultHealth }) => {
+        if (panel.classList.contains('active') && panel.isConnected) return renderVaultHealth(panel);
+        return undefined;
+    }).catch(error => {
+        log.error('Failed to render vault health:', error);
+        panel.innerHTML = '<div class="vault-health-view"><p class="vault-health-error">Vault health is unavailable right now.</p></div>';
     });
 }
 
@@ -1000,6 +1012,7 @@ function getTabIcon(type) {
     case 'backlinks': return backlinksIcon(14, 2);
     case 'kanban': return kanbanIcon(14, 2);
     case 'settings': return settingsIcon(14, 2);
+    case 'health': return warningIcon(14, 2);
     default: return '';
     }
 }
@@ -1129,8 +1142,9 @@ async function applySaveSuccess(tab, result, generation, editGeneration, message
     tabsForPath.forEach(candidate => {
         candidate.mtime = result.mtime;
     });
+    const autoCommitEnabled = shouldCommitOnSave();
     let historyCommitFailed = false;
-    if (shouldCommitOnSave()) {
+    if (autoCommitEnabled) {
         try {
             await backend().CommitCurrentFile(tab.path);
         } catch (error) {
@@ -1138,6 +1152,11 @@ async function applySaveSuccess(tab, result, generation, editGeneration, message
             log.warn('File saved, but its history commit failed:', error);
         }
     }
+    // Consumers such as History already need to create a revision after a
+    // save. Let them reuse this successful, single-file Auto-Commit instead
+    // of issuing a duplicate Git operation; a failed Auto-Commit remains
+    // observable so they can safely retry it themselves.
+    result.historyCommitSucceeded = autoCommitEnabled && !historyCommitFailed;
     if (tab._saveGeneration !== generation) return;
 
     const savedLatestEdit = (tab._editGeneration || 0) === editGeneration;
@@ -1415,17 +1434,17 @@ function renderSettingsTab(panel, _tab) {
                 </div>
                 <div class="settings-section">
                     <div class="settings-section-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M7 7h7.5a2.5 2.5 0 0 1 0 5H9.5a2.5 2.5 0 0 0 0 5H17"/></svg>
                         <span>Auto-Commit</span>
                     </div>
-                    <select id="auto-commit-interval" class="auto-save-select">
-                        <option value="-1">On Save</option>
-                        <option value="3600" selected>1 hour</option>
-                        <option value="7200">2 hours</option>
-                        <option value="14400">4 hours</option>
-                        <option value="28800">8 hours</option>
-                        <option value="0">Off</option>
-                    </select>
+                    <div class="settings-row">
+                        <span class="settings-row-label">Commit each saved note</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auto-commit-toggle" aria-label="Auto-Commit" aria-describedby="auto-commit-description" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <p id="auto-commit-description" class="settings-section-desc">When enabled, Figaro records only the file that just saved. It never auto-commits the whole vault.</p>
                 </div>
             </div>
             <!-- PDF Export -->
@@ -1445,8 +1464,27 @@ function renderSettingsTab(panel, _tab) {
                     </div>
                 </div>
             </div>
+            <div class="settings-card">
+                <div class="settings-card-title">Vault care</div>
+                <div class="settings-section vault-health-setting">
+                    <div class="pdf-browser-setting-copy">
+                        <div class="settings-section-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            <span>Vault health</span>
+                        </div>
+                        <p class="settings-section-desc pdf-browser-status">Review missing local links, orphan attachments, duplicate names, and unclosed frontmatter.</p>
+                    </div>
+                    <div class="pdf-browser-actions">
+                        <button type="button" id="open-vault-health" class="settings-action-btn">Review…</button>
+                    </div>
+                </div>
+            </div>
         </div>`;
     panel.appendChild(container);
+
+    container.querySelector('#open-vault-health')?.addEventListener('click', () => {
+        openTab('vault-health', 'Vault health', 'health');
+    });
 
     // The panel is removed when Settings closes, so initialize each new panel
     // rather than retaining a module-wide "already initialized" flag.

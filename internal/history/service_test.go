@@ -85,6 +85,13 @@ func TestFileUncommittedStatusTracksOnlyTheRequestedPath(t *testing.T) {
 	if err != nil || !otherDirty {
 		t.Fatalf("untracked other note status = %v, %v; want dirty", otherDirty, err)
 	}
+	otherHistory, err := service.GetFileHistory("other.md")
+	if err != nil {
+		t.Fatalf("GetFileHistory(other.md): %v", err)
+	}
+	if len(otherHistory) != 0 {
+		t.Fatalf("committing active.md also recorded other.md: %#v", otherHistory)
+	}
 
 	writeHistoryFixture(t, filepath.Join(dir, "active.md"), "second\n")
 	dirty, err = service.HasUncommittedChanges("active.md")
@@ -166,44 +173,5 @@ func TestSuccessfulCommitNotifiesTheFrontendStatusPath(t *testing.T) {
 	case <-notified:
 	case <-time.After(time.Second):
 		t.Fatal("successful commit did not notify the status listener")
-	}
-}
-
-func TestAutoCommitInterval(t *testing.T) {
-	dir := t.TempDir()
-	service, err := New(dir)
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-	path := filepath.Join(dir, "test.md")
-	writeHistoryFixture(t, path, "# initial\n")
-	if err := service.CommitFile("test.md"); err != nil {
-		t.Fatalf("initial CommitFile: %v", err)
-	}
-	before, err := service.GetFileHistory("test.md")
-	if err != nil {
-		t.Fatalf("history before timer: %v", err)
-	}
-
-	service.StartAutoCommit(1)
-	t.Cleanup(func() { service.StartAutoCommit(0) })
-	writeHistoryFixture(t, path, "# modified\n")
-
-	time.Sleep(250 * time.Millisecond)
-	early, err := service.GetFileHistory("test.md")
-	if err != nil {
-		t.Fatalf("early history: %v", err)
-	}
-	if len(early) != len(before) {
-		t.Fatalf("auto-commit ran before its one-second interval: %d -> %d", len(before), len(early))
-	}
-
-	time.Sleep(1000 * time.Millisecond)
-	after, err := service.GetFileHistory("test.md")
-	if err != nil {
-		t.Fatalf("history after timer: %v", err)
-	}
-	if len(after) < len(before)+1 {
-		t.Fatalf("timer did not commit a modified file: %d -> %d", len(before), len(after))
 	}
 }

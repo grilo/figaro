@@ -39,8 +39,55 @@ describe('empty and failed backlink lookups', () => {
 
         await loadBacklinksResults('target.md', container.id);
 
-        expect(container.textContent).toBe('No backlinks found');
+        expect(container.textContent).toContain('No backlinks found');
+        expect(container.textContent).toContain('No unlinked mentions found');
         expect(consoleError).not.toHaveBeenCalled();
+    });
+
+    test('renders contextual backlinks and separately labelled unlinked mentions', async () => {
+        const container = document.createElement('div');
+        container.id = 'relationships-results';
+        document.body.appendChild(container);
+        window.go.main.App.SearchBacklinks.mockResolvedValueOnce([{
+            path: 'linked.md', name: 'linked.md', line_num: 4,
+            context: 'Discuss [Target](target.md) before the decision.', match_text: 'Target',
+        }]);
+        window.go.main.App.SearchUnlinkedMentions.mockResolvedValueOnce([{
+            path: 'mention.md', name: 'mention.md', line_num: 8,
+            context: 'Target needs an owner before Friday.', match_text: 'Target',
+        }]);
+
+        await loadBacklinksResults('target.md', container.id);
+
+        expect(container.querySelectorAll('.relationship-section')).toHaveLength(2);
+        expect(container.textContent).toContain('Backlinks');
+        expect(container.textContent).toContain('Unlinked mentions');
+        expect(container.querySelectorAll('.relationship-card')).toHaveLength(2);
+        expect(container.querySelectorAll('.relationship-context mark')).toHaveLength(3);
+        expect(container.querySelector('.relationship-open').getAttribute('type')).toBe('button');
+    });
+
+    test('links one unlinked mention in the preferred syntax after safeguarding open buffers', async () => {
+        const container = document.createElement('div');
+        container.id = 'link-mention-results';
+        document.body.appendChild(container);
+        window.go.main.App.SearchBacklinks.mockResolvedValue([]);
+        window.go.main.App.SearchUnlinkedMentions
+            .mockResolvedValueOnce([{
+                path: 'mention.md', name: 'mention.md', line_num: 3,
+                context: 'Target needs an owner.', match_text: 'Target',
+            }])
+            .mockResolvedValue([]);
+
+        await loadBacklinksResults('target.md', container.id);
+        container.querySelector('.relationship-link-action').click();
+        await testUtils.waitFor(0);
+        await testUtils.waitFor(0);
+
+        expect(window.go.main.App.LinkUnlinkedMention).toHaveBeenCalledWith(
+            'mention.md', 3, 'target.md', 'markdown'
+        );
+        expect(container.textContent).toContain('No unlinked mentions found');
     });
 
     test('still logs genuine backend failures with their useful message', async () => {

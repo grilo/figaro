@@ -65,7 +65,7 @@ jest.mock('../frontend/js/theme.js', () => ({
 import { state, setState, getState } from '../frontend/js/state.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, restoreCursorState } from '../frontend/js/editor.js';
 import { initSettingsPanel } from '../frontend/js/theme.js';
-import { setAutoCommitMode } from '../frontend/js/automation.js';
+import { setAutoCommitEnabled } from '../frontend/js/automation.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 // confirmDialog accessed via window.confirmDialog
 
@@ -118,7 +118,7 @@ describe('Tab Manager', () => {
         mockState.recentFiles = [];
         getEditorDocumentTabId.mockReturnValue(null);
         getEditorContent.mockReturnValue('');
-        setAutoCommitMode(3600);
+        setAutoCommitEnabled(true);
     });
 
     describe('openTab', () => {
@@ -243,8 +243,9 @@ describe('Tab Manager', () => {
             expect(menu.getAttribute('role')).toBe('listbox');
             expect(menu.querySelectorAll('[role="option"]')).toHaveLength(2);
             expect(panel.querySelector('#line-numbers-toggle')).not.toBeNull();
-            expect(panel.querySelector('#auto-commit-interval option[value="-1"]').textContent).toBe('On Save');
-            expect(panel.querySelector('#auto-commit-interval').value).toBe('3600');
+            expect(panel.querySelector('#auto-commit-toggle')).not.toBeNull();
+            expect(panel.querySelector('#auto-commit-toggle').checked).toBe(true);
+            expect(panel.querySelector('#auto-commit-description').textContent).toMatch(/only the file that just saved/i);
         });
 
         test('does not let an older read overwrite a newer load of the same tab', async () => {
@@ -597,33 +598,35 @@ describe('Tab Manager', () => {
     });
 
     describe('save queue', () => {
-        test('On Save commits the saved file while interval modes do not', async () => {
+        test('Auto-Commit records only the saved file and leaves unrelated files untouched', async () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
             window.go.main.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
 
-            setAutoCommitMode(-1);
-            await saveFileSnapshot(tab, 'saved and committed');
+            setAutoCommitEnabled(true);
+            await expect(saveFileSnapshot(tab, 'saved and committed')).resolves.toEqual(
+                expect.objectContaining({ success: true, historyCommitSucceeded: true }),
+            );
             expect(window.go.main.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
 
             window.go.main.App.CommitCurrentFile.mockClear();
             tab.dirty = true;
-            setAutoCommitMode(3600);
+            setAutoCommitEnabled(false);
             await saveFileSnapshot(tab, 'saved only');
             expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
         });
 
-        test('On Save keeps a successful save and reports a failed history commit', async () => {
+        test('Auto-Commit keeps a successful save and reports a failed history commit', async () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
             window.go.main.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
             window.go.main.App.CommitCurrentFile.mockRejectedValueOnce(new Error('git unavailable'));
-            setAutoCommitMode(-1);
+            setAutoCommitEnabled(true);
 
             await expect(saveFileSnapshot(tab, 'saved despite Git failure')).resolves.toEqual(
-                expect.objectContaining({ success: true }),
+                expect.objectContaining({ success: true, historyCommitSucceeded: false }),
             );
             expect(tab.dirty).toBe(false);
             expect(statusBar.set).toHaveBeenLastCalledWith('Saved; history commit failed');

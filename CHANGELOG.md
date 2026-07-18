@@ -9,6 +9,17 @@ All notable user-facing changes are recorded here from this point forward.
 - Persistent Kanban **Compact** and **Comfortable** card densities, a
   **Side by side / Stacked** column-flow choice in Settings, and a themed
   skeleton while a board is loading.
+- A **Relationships** view that groups contextual backlinks with plain-text
+  unlinked mentions; each mention can be linked safely in the selected
+  Markdown or Wikilink style.
+- A source-preserving **Compare to current** view beside each historical
+  revision, with readable Markdown additions and removals before a restore.
+- A read-only **Vault health** scan under Settings for missing vault-local
+  links, orphaned common attachments, duplicate filenames, and unclosed YAML
+  frontmatter, with findings that open their source notes.
+- A heading-aware **Outline** control for Markdown notes. It opens a nested
+  navigator in the right pane, follows the active section, and jumps directly
+  to a selected heading.
 
 ### Changed
 
@@ -39,9 +50,17 @@ All notable user-facing changes are recorded here from this point forward.
   text and reverse-link projections, so repeated queries avoid rescanning
   unrelated notes while retaining substring, path, basename, and
   case-sensitive matching behavior.
+- History now identifies versions by their date and **Latest committed** state
+  instead of exposing internal Git commit hashes.
+- **Auto-Commit** is now a simple on/off setting. When enabled, every
+  successful save records only that file; interval and whole-vault commits are
+  removed so one note's history cannot absorb another note's changes.
 
 ### Fixed
 
+- History comparisons now span the available right-pane width without
+  overlapping their controls, and collapse unchanged source into small context
+  hunks around added and removed lines.
 - Calendar refreshes now target the visible left-sidebar panel after a vault
   change, so an open Calendar reloads its current month correctly.
 - Removed the unused legacy automation harness and its obsolete Welcome-note

@@ -36,6 +36,8 @@ test('boots through the native Wails binding with the workspace overview, vault 
             },
             GetLinkedNotesForDate: [],
             SearchBacklinks: [],
+            SearchUnlinkedMentions: [],
+            LinkUnlinkedMention: { success: true },
             GetFileHistory: [],
             GetFileVersion: '',
             GetCommitCount: 0,

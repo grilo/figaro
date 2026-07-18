@@ -192,7 +192,7 @@
                     <!-- File Tree -->
                     <div id="file-tree" class="file-tree"></div>
                     <!-- Calendar expands inside the left sidebar so it can coexist
-                         with History and PDF preview on the right. -->
+                         with the right-pane History, Outline, or PDF preview. -->
                     <section id="sidebar-calendar-panel" class="sidebar-calendar-panel" aria-label="Calendar" aria-hidden="true">
                         <div class="calendar-toolbar">
                             <button id="cal-prev-month" class="icon-btn" title="Previous Month" aria-label="Previous month">
@@ -259,7 +259,7 @@
                 <div id="tab-panels" class="tab-panels"></div>
             </main>
 
-            <!-- Right Sidebar (used for History + PDF preview) -->
+            <!-- Right Sidebar (used for History, Outline, and PDF preview) -->
             <aside id="right-sidebar" class="right-sidebar collapsed">
                 <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
                 <div class="right-sidebar-header">
@@ -318,6 +318,8 @@
                 <span class="status-separator">|</span>
                 <span id="file-type">Standard</span>
                 <span class="status-separator">|</span>
+                <button type="button" id="outline-toggle" class="status-outline" title="Show document outline" aria-controls="right-sidebar" aria-expanded="false" hidden>Outline</button>
+                <span id="outline-separator" class="status-separator" hidden>|</span>
                 <a id="backlinks-status" class="status-backlinks" title="View backlinks">0 backlinks</a>
                 <span class="status-separator">|</span>
                 <button type="button" id="git-status" class="status-git" title="Save this file to local history" hidden disabled>Save to history</button>

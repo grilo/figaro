@@ -33,12 +33,11 @@ type VaultReadLocker interface {
 
 // Service manages Git operations for file versioning.
 type Service struct {
-	repo       *git.Repository
-	repoPath   string
-	vaultMu    VaultReadLocker
-	mu         sync.Mutex
-	stopTicker chan struct{}
-	onCommit   func()
+	repo     *git.Repository
+	repoPath string
+	vaultMu  VaultReadLocker
+	mu       sync.Mutex
+	onCommit func()
 }
 
 // New initializes or opens a Git repository in the vault directory.
@@ -79,15 +78,6 @@ func (h *Service) SetCommitCallback(callback func()) {
 	h.mu.Lock()
 	h.onCommit = callback
 	h.mu.Unlock()
-}
-
-// SchedulerActive reports whether the auto-commit scheduler is running.
-// It is useful to the Wails facade and its lifecycle tests without exposing
-// the service's synchronization internals.
-func (h *Service) SchedulerActive() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.stopTicker != nil
 }
 
 // ensureConfigIgnored keeps Figaro's own session/settings files out of the
@@ -310,100 +300,6 @@ func (h *Service) CommitCount(relPath string) (int, error) {
 		return 0, err
 	}
 	return len(entries), nil
-}
-
-// StartAutoCommit starts a background scheduler, or stops it when passed 0.
-func (h *Service) StartAutoCommit(intervalSeconds int) {
-	h.mu.Lock()
-	previousStop := h.stopTicker
-	h.stopTicker = nil
-	if intervalSeconds > 0 {
-		h.stopTicker = make(chan struct{})
-	}
-	stop := h.stopTicker
-	h.mu.Unlock()
-
-	if previousStop != nil {
-		close(previousStop)
-	}
-	if stop == nil {
-		log.Println("[history] Auto-commit disabled")
-		return
-	}
-
-	interval := time.Duration(intervalSeconds) * time.Second
-	log.Println("[history] Auto-commit scheduler enabled")
-	go func(stop <-chan struct{}) {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				h.commitAllModified()
-			case <-stop:
-				return
-			}
-		}
-	}(stop)
-}
-
-// CommitAllModified stages and commits all modified tracked files.
-func (h *Service) CommitAllModified() error {
-	h.lockVaultRead()
-	defer h.unlockVaultRead()
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.repo == nil {
-		return nil
-	}
-	return h.commitAllModifiedLocked()
-}
-
-func (h *Service) commitAllModified() {
-	h.lockVaultRead()
-	defer h.unlockVaultRead()
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if err := h.commitAllModifiedLocked(); err != nil {
-		log.Println("[history] Auto-commit failed:", err)
-	}
-}
-
-func (h *Service) commitAllModifiedLocked() error {
-	if h.repo == nil {
-		return nil
-	}
-	worktree, err := h.repo.Worktree()
-	if err != nil {
-		return fmt.Errorf("get worktree: %w", err)
-	}
-	status, err := worktree.Status()
-	if err != nil {
-		return fmt.Errorf("get status: %w", err)
-	}
-
-	count := 0
-	for path, statusFile := range status {
-		if statusFile.Worktree == git.Modified || statusFile.Worktree == git.Added || statusFile.Worktree == git.Deleted {
-			if _, err := worktree.Add(path); err != nil {
-				return fmt.Errorf("stage %s: %w", path, err)
-			}
-			count++
-		}
-	}
-	if count == 0 {
-		return nil
-	}
-
-	message := fmt.Sprintf("auto-save: %d file(s) — %s", count, time.Now().Format("2006-01-02 15:04:05"))
-	if _, err := worktree.Commit(message, &git.CommitOptions{
-		Author: &object.Signature{Name: "figaro", Email: "figaro@local", When: time.Now()},
-	}); err != nil {
-		return fmt.Errorf("commit: %w", err)
-	}
-	log.Printf("[history] Auto-committed %d file(s)", count)
-	h.notifyCommitLocked()
-	return nil
 }
 
 func (h *Service) lockVaultRead() {

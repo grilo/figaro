@@ -49,8 +49,10 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 
 ## What is covered
 
-- Vault path safety, atomic file operations, history, Draw.io file handling,
-  print stylesheet resolution, and printable-document preparation.
+- Vault path safety, atomic file operations, local-link/unlinked-mention and
+  Vault-health scanning, single-file-only Auto-Commit migration and isolation,
+  history comparison/restoration, Draw.io file handling, print stylesheet
+  resolution, and printable-document preparation.
 - Editor behavior, CodeMirror language modes, frontmatter, footnotes,
   diagrams, tabs, session persistence, Kanban presentation/loading states,
   file-tree actions, and stale-response guards.
@@ -59,6 +61,11 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - The native Figaro Dark and Light theme assets, including their warm reading
   surfaces, framed navigation, raised active tab, selected tree state, tactile
   Settings card, collar stitch, focus token, and text/link contrast.
+- Browser workflows for contextual Relationships, keyboard-triggered mention
+  linking, the themed Vault-health Settings entry and finding navigation, and
+  the full-width, non-overlapping History source comparison before restoration,
+  plus the nested Outline's visual hierarchy, active-section tracking,
+  keyboard jump, and editor-focus handoff.
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
   links remain in the rendered document. High-frequency scroll reports are
@@ -114,7 +121,7 @@ Calendar and Kanban are persistent destinations, not title-bar toggles.
 Retain focused coverage that they remain in the footer below the file tree,
 Settings remains beside the window controls, and the title-bar center remains
 clear for native window dragging. Calendar must expand inside the left sidebar without closing or taking
-ownership of History/PDF preview on the right. Collapsing must leave a 44px
+ownership of History/Outline/PDF preview on the right. Collapsing must leave a 44px
 tool rail, close any expanded Calendar content, and reopen both the normal
 sidebar and Calendar when its rail icon is selected.
 

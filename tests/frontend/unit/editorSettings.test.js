@@ -6,7 +6,7 @@ jest.mock('../frontend/js/editor.js', () => ({
     setLineNumbers: mockSetLineNumbers,
 }));
 
-import { getAutoCommitMode } from '../frontend/js/automation.js';
+import { getAutoCommitEnabled } from '../frontend/js/automation.js';
 
 function settingsDOM() {
     document.body.innerHTML = `
@@ -21,9 +21,7 @@ function settingsDOM() {
         <select id="auto-save-interval">
             <option value="5">5 seconds</option><option value="300">5 minutes</option><option value="0">Off</option>
         </select>
-        <select id="auto-commit-interval">
-            <option value="-1">On Save</option><option value="3600">1 hour</option><option value="0">Off</option>
-        </select>
+        <input type="checkbox" id="auto-commit-toggle" checked>
     `;
 }
 
@@ -33,7 +31,7 @@ async function settle() {
 }
 
 describe('editor settings', () => {
-    test('persists line numbers, uses the reduced 100% type scale, and themes every settings select', async () => {
+    test('persists line numbers, uses the reduced 100% type scale, and saves the single-file auto-commit toggle', async () => {
         const api = {
             ThemeLoad: jest.fn().mockResolvedValue({ theme: 'default', font: 'inter', codeFont: 'theme-mono' }),
             GetThemeCSS: jest.fn().mockResolvedValue({ css: ':root {}' }),
@@ -43,7 +41,7 @@ describe('editor settings', () => {
             LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
             AutoSaveLoad: jest.fn().mockResolvedValue(300),
             AutoSaveSave: jest.fn().mockResolvedValue({ success: true }),
-            AutoCommitLoad: jest.fn().mockResolvedValue(3600),
+            AutoCommitLoad: jest.fn().mockResolvedValue(true),
             AutoCommitSave: jest.fn().mockResolvedValue({ success: true }),
         };
         window.go = { main: { App: api } };
@@ -61,10 +59,10 @@ describe('editor settings', () => {
         expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('16.2px');
 
         const selects = Array.from(document.querySelectorAll('select'));
-        expect(selects).toHaveLength(2);
+        expect(selects).toHaveLength(1);
         expect(selects.every(select => select.classList.contains('select-combobox-native'))).toBe(true);
-        expect(document.querySelectorAll('.select-combobox-trigger')).toHaveLength(2);
-        expect(document.querySelector('#auto-commit-interval')._figaroCombobox.trigger.textContent).toContain('1 hour');
+        expect(document.querySelectorAll('.select-combobox-trigger')).toHaveLength(1);
+        expect(document.querySelector('#auto-commit-toggle').checked).toBe(true);
 
         const lineToggle = document.getElementById('line-numbers-toggle');
         lineToggle.checked = true;
@@ -80,12 +78,20 @@ describe('editor settings', () => {
         expect(lineToggle.checked).toBe(true);
         expect(mockSetLineNumbers).toHaveBeenLastCalledWith(true);
 
-        const autoCommit = document.getElementById('auto-commit-interval');
-        autoCommit._figaroCombobox.trigger.click();
-        autoCommit._figaroCombobox.menu.querySelector('[data-value="-1"]').click();
+        const autoCommit = document.getElementById('auto-commit-toggle');
+        autoCommit.checked = false;
+        autoCommit.dispatchEvent(new Event('change', { bubbles: true }));
         await settle();
-        expect(api.AutoCommitSave).toHaveBeenCalledWith(-1);
-        expect(getAutoCommitMode()).toBe(-1);
+        expect(api.AutoCommitSave).toHaveBeenCalledWith(false);
+        expect(getAutoCommitEnabled()).toBe(false);
+
+        api.AutoCommitSave.mockRejectedValueOnce(new Error('read-only settings'));
+        autoCommit.checked = true;
+        autoCommit.dispatchEvent(new Event('change', { bubbles: true }));
+        await settle();
+        expect(autoCommit.checked).toBe(false);
+        expect(getAutoCommitEnabled()).toBe(false);
+        expect(autoCommit.title).toMatch(/could not save auto-commit preference/i);
 
         const autoSave = document.getElementById('auto-save-interval');
         const autoSaveTrigger = autoSave._figaroCombobox.trigger;

@@ -61,6 +61,9 @@ window.go = {
         MergeExternalPaths: jest.fn().mockResolvedValue({ success: true, paths: [] }),
         SearchFiles: jest.fn().mockResolvedValue([]),
         SearchBacklinks: jest.fn().mockResolvedValue([]),
+        SearchUnlinkedMentions: jest.fn().mockResolvedValue([]),
+        LinkUnlinkedMention: jest.fn().mockResolvedValue({ success: true }),
+        GetVaultHealth: jest.fn().mockResolvedValue({ broken_links: [], orphan_attachments: [], duplicate_names: [], invalid_frontmatter: [] }),
         GetCommitCount: jest.fn().mockResolvedValue(0),
         FileHasUncommittedChanges: jest.fn().mockResolvedValue(false),
         GetFileHistory: jest.fn().mockResolvedValue([]),
@@ -95,7 +98,7 @@ window.go = {
 		LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
 		AutoSaveLoad: jest.fn().mockResolvedValue(300),
 		AutoSaveSave: jest.fn().mockResolvedValue({ success: true }),
-		AutoCommitLoad: jest.fn().mockResolvedValue(3600),
+		AutoCommitLoad: jest.fn().mockResolvedValue(true),
 		AutoCommitSave: jest.fn().mockResolvedValue({ success: true }),
 		CommitCurrentFile: jest.fn().mockResolvedValue(null),
 		LinkStyleLoad: jest.fn().mockResolvedValue({ style: 'markdown' }),
@@ -190,6 +193,8 @@ function createMockDOM() {
                 <span id="reading-time">0 min read</span>
                 <span id="word-count">0 words</span>
                 <span id="char-count">0 chars</span>
+                <button id="outline-toggle" class="status-outline" aria-controls="right-sidebar" aria-expanded="false" hidden>Outline</button>
+                <span id="outline-separator" class="status-separator" hidden>|</span>
                 <a id="backlinks-status" class="status-backlinks">0 backlinks</a>
                 <button id="git-status" class="status-git" hidden disabled>Save to history</button>
                 <span id="git-status-separator" class="status-separator" hidden>|</span>

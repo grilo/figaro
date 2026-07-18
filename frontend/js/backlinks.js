@@ -6,6 +6,8 @@ import { backend } from './backend.js';
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
 import { openTab } from './tabManager.js';
+import { errorDialog } from './dialogs.js';
+import { statusBar } from './statusBar.js';
 
 let backlinksRequestId = 0;
 const backlinksResultsRequestIds = new Map();
@@ -89,39 +91,26 @@ export async function loadBacklinksResults(targetPath, containerId) {
     const requestId = (backlinksResultsRequestIds.get(containerId) || 0) + 1;
     backlinksResultsRequestIds.set(containerId, requestId);
     
-    container.innerHTML = '<div class="results-loading">Loading backlinks...</div>';
+    container.innerHTML = '<div class="results-loading">Loading relationships...</div>';
     
     try {
-        const backlinks = normalizeBacklinks(
-            await backend().SearchBacklinks(targetPath)
-        );
+        const [backlinks, unlinked] = await Promise.all([
+            backend().SearchBacklinks(targetPath).then(normalizeBacklinks),
+            backend().SearchUnlinkedMentions(targetPath).then(normalizeBacklinks),
+        ]);
         if (backlinksResultsRequestIds.get(containerId) !== requestId || !container.isConnected) return;
-        
-        if (!backlinks || backlinks.length === 0) {
-            container.innerHTML = '<div class="results-empty">No backlinks found</div>';
-            return;
-        }
-        
-        let html = '';
-        for (const link of backlinks) {
-            const snippet = highlightMatch(link.snippet, link.name.replace('.md', ''));
-            html += `
-                <div class="result-card" data-path="${escapeAttr(link.path)}">
-                    <div class="result-card-title">${escapeHtml(link.name.replace('.md', ''))}</div>
-                    <div class="result-card-meta">
-                        <span class="result-card-path">${escapeHtml(link.path)}</span>
-                        <span class="result-card-line">Line ${link.line_num}</span>
-                    </div>
-                    <div class="result-card-snippet">${snippet}</div>
-                </div>
-            `;
-        }
-        container.innerHTML = html;
+        container.innerHTML = renderRelationshipSections(backlinks, unlinked, targetPath);
         
         // Click delegation on container for left/middle-click behavior
-        container.addEventListener('click', (e) => {
+        container.onclick = (e) => {
+            const linkAction = e.target.closest('.relationship-link-action');
+            if (linkAction) {
+                e.preventDefault();
+                void linkUnlinkedMention(linkAction, targetPath, containerId);
+                return;
+            }
             const card = e.target.closest('.result-card');
-            if (!card) return;
+            if (!card || !e.target.closest('.relationship-open')) return;
             e.preventDefault();
 
             const path = card.dataset.path;
@@ -142,17 +131,17 @@ export async function loadBacklinksResults(targetPath, containerId) {
                 }
                 openTab(path, path.split('/').pop(), 'file', { path });
             }
-        });
+        };
 
-        container.addEventListener('auxclick', (e) => {
+        container.onauxclick = (e) => {
             if (e.button !== 1) return;
             const card = e.target.closest('.result-card');
-            if (!card) return;
+            if (!card || !e.target.closest('.relationship-open')) return;
             e.preventDefault();
 
             const path = card.dataset.path;
             openTab(path, path.split('/').pop(), 'file', { path });
-        });
+        };
 
         // Clean up backlinks content when switching away
         if (container._backlinksUnsubscribe) container._backlinksUnsubscribe();
@@ -175,11 +164,86 @@ export async function loadBacklinksResults(targetPath, containerId) {
     }
 }
 
+function renderRelationshipSections(backlinks, unlinked, targetPath) {
+    return `
+        ${renderRelationshipSection('Backlinks', 'Notes that already link here.', backlinks, 'No backlinks found', false, targetPath)}
+        ${renderRelationshipSection('Unlinked mentions', 'Plain-text mentions that you may want to link.', unlinked, 'No unlinked mentions found', true, targetPath)}
+    `;
+}
+
+function renderRelationshipSection(title, description, results, emptyMessage, unlinked, targetPath) {
+    const cards = results.map(link => renderRelationshipCard(link, unlinked, targetPath)).join('');
+    return `
+        <section class="relationship-section">
+            <div class="relationship-section-heading">
+                <div>
+                    <h3>${title}</h3>
+                    <p>${description}</p>
+                </div>
+                <span class="relationship-count">${results.length}</span>
+            </div>
+            <div class="results-list relationship-results">
+                ${cards || `<div class="results-empty relationship-empty">${emptyMessage}</div>`}
+            </div>
+        </section>
+    `;
+}
+
+function renderRelationshipCard(link, unlinked, targetPath) {
+    const context = String(link.context || link.snippet || '');
+    const match = String(link.match_text || '');
+    return `
+        <article class="result-card relationship-card" data-path="${escapeAttr(link.path)}">
+            <button type="button" class="relationship-open" aria-label="Open ${escapeAttr(link.path)} at line ${Number(link.line_num) || 1}">
+                <div class="result-card-title">${escapeHtml(link.name.replace(/\.md$/i, ''))}</div>
+                <div class="result-card-meta">
+                    <span class="result-card-path">${escapeHtml(link.path)}</span>
+                    <span class="result-card-line">Line ${Number(link.line_num) || 1}</span>
+                </div>
+                <div class="result-card-snippet relationship-context">${highlightMatch(context, match)}</div>
+            </button>
+            ${unlinked ? `<button type="button" class="relationship-link-action" data-path="${escapeAttr(link.path)}" data-line="${Number(link.line_num) || 1}" data-target="${escapeAttr(targetPath)}">Link this mention</button>` : ''}
+        </article>
+    `;
+}
+
+async function linkUnlinkedMention(button, targetPath, containerId) {
+    if (button.disabled) return;
+    const sourcePath = button.dataset.path;
+    const lineNumber = Number(button.dataset.line);
+    if (!sourcePath || !Number.isInteger(lineNumber) || lineNumber < 1) return;
+
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = 'Linking…';
+    try {
+        const { prepareTabsForVaultLinkRewrite, refreshTabsForUpdatedLinks } = await import('./tabManager.js');
+        const prepared = await prepareTabsForVaultLinkRewrite();
+        if (!prepared?.success) throw new Error(prepared?.error || 'Open notes could not be saved safely.');
+        const { getLinkStylePreference } = await import('./linkStyle.js');
+        const result = await backend().LinkUnlinkedMention(sourcePath, lineNumber, targetPath, getLinkStylePreference());
+        if (!result?.success) throw new Error(result?.error || 'The mention could not be linked.');
+        await refreshTabsForUpdatedLinks([sourcePath]);
+        await updateBacklinksForActiveTab();
+        await loadBacklinksResults(targetPath, containerId);
+        statusBar.set('Linked mention to note');
+    } catch (error) {
+        log.warn('Could not link unlinked mention:', error);
+        await errorDialog('Couldn’t link this mention', error, 'The source note was left unchanged.');
+        if (button.isConnected) {
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+            button.textContent = 'Link this mention';
+        }
+    }
+}
+
 /**
  * Highlight match in snippet
  */
 function highlightMatch(text, query) {
     const escaped = escapeHtml(text);
+    if (!query) return escaped;
     const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
     return escaped.replace(regex, '<mark>$1</mark>');
 }

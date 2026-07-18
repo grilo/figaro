@@ -1,15 +1,13 @@
-let autoCommitMode = 3600;
+let autoCommitEnabled = true;
 
-export function setAutoCommitMode(seconds) {
-    const parsed = Number(seconds);
-    autoCommitMode = Number.isFinite(parsed) ? parsed : 3600;
+export function setAutoCommitEnabled(enabled) {
+    autoCommitEnabled = Boolean(enabled);
 }
 
-export function getAutoCommitMode() {
-    return autoCommitMode;
+export function getAutoCommitEnabled() {
+    return autoCommitEnabled;
 }
 
 export function shouldCommitOnSave() {
-    return autoCommitMode === -1;
+    return autoCommitEnabled;
 }
-

@@ -5,7 +5,7 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { initLinkStyleSetting } from './linkStyle.js';
-import { setAutoCommitMode } from './automation.js';
+import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 let currentTheme = 'default';
 let currentFont = 'inter';
@@ -746,7 +746,7 @@ function initTextWidth(root) {
 
 function initAutoSave(root) {
     const asSelect = findIn(root, '#auto-save-interval');
-    const acSelect = findIn(root, '#auto-commit-interval');
+    const acToggle = findIn(root, '#auto-commit-toggle');
 
     if (asSelect) {
         const picker = enhanceSelectCombobox(asSelect, { ariaLabel: 'Auto-Save interval' });
@@ -768,21 +768,34 @@ function initAutoSave(root) {
         });
     }
 
-    if (acSelect) {
-        const picker = enhanceSelectCombobox(acSelect, { ariaLabel: 'Auto-Commit interval' });
+    if (acToggle) {
         try {
-            backend().AutoCommitLoad().then(seconds => {
-                setAutoCommitMode(seconds);
+            backend().AutoCommitLoad().then(enabled => {
+                // Boolean() keeps an in-flight frontend compatible with a
+                // pre-migration backend that still returns its old interval.
+                const resolved = Boolean(enabled);
+                setAutoCommitEnabled(resolved);
                 if (isActivePanel(root)) {
-                    acSelect.value = String(seconds);
-                    picker?.sync();
+                    acToggle.checked = resolved;
                 }
             }).catch(() => {});
         } catch (_) { /* noop */ }
-        acSelect.addEventListener('change', () => {
-            const seconds = Number.parseInt(acSelect.value, 10);
-            setAutoCommitMode(seconds);
-            try { backend().AutoCommitSave(seconds).catch(() => {}); } catch (_) { /* noop */ }
+        acToggle.addEventListener('change', async () => {
+            const previous = getAutoCommitEnabled();
+            const requested = acToggle.checked;
+            acToggle.disabled = true;
+            try {
+                await backend().AutoCommitSave(requested);
+                setAutoCommitEnabled(requested);
+                acToggle.title = '';
+            } catch (_) {
+                // Do not leave a toggle claiming isolation is enabled when the
+                // vault preference could not be persisted.
+                acToggle.checked = previous;
+                acToggle.title = 'Could not save Auto-Commit preference; the previous setting was restored.';
+            } finally {
+                if (isActivePanel(root)) acToggle.disabled = false;
+            }
         });
     }
 }

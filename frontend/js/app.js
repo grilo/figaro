@@ -21,9 +21,10 @@ import { initTheme } from './theme.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
+import { initOutlinePanel } from './outline.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
 import { initLinkStylePreference } from './linkStyle.js';
-import { setAutoCommitMode } from './automation.js';
+import { setAutoCommitEnabled } from './automation.js';
 import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
 
 // Re-export tab manager functions for other modules to import from app.js
@@ -189,12 +190,13 @@ export function initTopBar() {
         });
     }
 
-    // The right pane is now reserved for History and PDF preview.
+    // The right pane is reserved for History, Outline, and PDF preview.
     const rsClose = document.getElementById('right-sidebar-close');
     if (rsClose && rightSidebar) {
         rsClose.addEventListener('click', () => {
             if (rightSidebar.dataset.mode === 'pdf-preview') closePDFPreview();
             else if (rightSidebar.dataset.mode === 'history') document.dispatchEvent(new CustomEvent('close-history-panel'));
+            else if (rightSidebar.dataset.mode === 'outline') document.dispatchEvent(new CustomEvent('close-outline-panel'));
             else {
                 rightSidebar.classList.remove('open');
                 rightSidebar.style.width = '';
@@ -269,7 +271,7 @@ export function initTopBar() {
         backlinksEl.addEventListener('click', () => {
             const activeTab = getActiveTab();
             if (activeTab && activeTab.type === 'file' && activeTab.path) {
-                openTab('backlinks-' + activeTab.path, 'Backlinks', 'backlinks', { targetPath: activeTab.path });
+                openTab('backlinks-' + activeTab.path, 'Relationships', 'backlinks', { targetPath: activeTab.path });
             }
         });
     }
@@ -462,8 +464,8 @@ export async function initApp() {
     await waitForBackend();
     await initLinkStylePreference();
     try {
-        setAutoCommitMode(await backend().AutoCommitLoad());
-    } catch (_) { /* keep the one-hour default */ }
+        setAutoCommitEnabled(await backend().AutoCommitLoad());
+    } catch (_) { /* keep the enabled-on-save default */ }
 
     // Load saved session from vault/.config/session.json
     await loadSession();
@@ -503,8 +505,11 @@ export async function initApp() {
     // Initialize history panel
     initHistoryPanel();
 
-    // PDF preview shares the right sidebar with History; Calendar is isolated
-    // in the left sidebar and can remain open independently.
+    // Outline shares the right sidebar with History and PDF Preview.
+    initOutlinePanel();
+
+    // PDF preview shares the right sidebar with History and Outline; Calendar
+    // is isolated in the left sidebar and can remain open independently.
     initPDFPreview();
 
     await initTheme();
