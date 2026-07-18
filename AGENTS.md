@@ -86,5 +86,10 @@ These requirements apply to every change in this repository.
   otherwise valid commit when that template is saved without edits. The user
   must be able to review the proposed message and finish with an unchanged
   `:wq`.
+- Before preparing every new change, review the existing proposal and rewrite
+  it to match the complete pending work. Add newly completed features and
+  remove or revise stale details from an earlier proposal, so the message is
+  accurate even when several changes are prepared without an intervening
+  commit.
 - Never run `git commit` on the user's behalf. Preparing the message and local
   template is the final handoff; the user owns the review and commit action.
