@@ -76,7 +76,6 @@ func indexMarkdownFile(rel string, info fs.FileInfo, data []byte) vaultIndexedFi
 		mtime:       indexMtime(info),
 		content:     content,
 		searchLower: strings.ToLower(content),
-		tags:        findHashtags(content),
 		linked:      make(map[string]LinkedNote),
 		backlinks:   make(map[string]BacklinkResult),
 	}
@@ -87,7 +86,18 @@ func indexMarkdownFile(rel string, info fs.FileInfo, data []byte) vaultIndexedFi
 	}
 
 	seenLinkedDays := make(map[string]struct{})
-	for lineNumber, line := range strings.Split(content, "\n") {
+	seenTags := make(map[string]struct{})
+	// One line walk feeds every document-derived projection. Indexing runs on
+	// initial vault discovery and on each Markdown save, so avoiding separate
+	// string splits for dates, backlinks, and cards substantially reduces
+	// allocation without changing their parsing rules.
+	for lineNumber, lineStart := 1, 0; ; lineNumber++ {
+		lineEnd := strings.IndexByte(content[lineStart:], '\n')
+		line := content[lineStart:]
+		if lineEnd >= 0 {
+			line = content[lineStart : lineStart+lineEnd]
+		}
+
 		for _, match := range dateMarkdownLinkRE.FindAllStringSubmatch(line, -1) {
 			dateStr := match[1]
 			if !isCalendarDate(dateStr) {
@@ -98,15 +108,17 @@ func indexMarkdownFile(rel string, info fs.FileInfo, data []byte) vaultIndexedFi
 				file.linked[dateStr] = LinkedNote{
 					Path:    file.path,
 					Name:    file.name,
-					LineNum: lineNumber + 1,
+					LineNum: lineNumber,
 					Snippet: strings.TrimSpace(line),
 					Mtime:   file.mtime,
 				}
 			}
 		}
-	}
-
-	for lineNumber, line := range strings.Split(content, "\n") {
+		for _, match := range emptyDateLinkRE.FindAllStringSubmatch(line, -1) {
+			if isCalendarDate(match[1]) {
+				seenLinkedDays[match[1]] = struct{}{}
+			}
+		}
 		for _, match := range markdownBacklinkRE.FindAllStringSubmatch(line, -1) {
 			label, target := match[1], match[2]
 			targetName := strings.TrimSuffix(filepath.Base(target), ".md")
@@ -118,25 +130,12 @@ func indexMarkdownFile(rel string, info fs.FileInfo, data []byte) vaultIndexedFi
 				file.backlinks[key] = BacklinkResult{
 					Path:    file.path,
 					Name:    file.name,
-					LineNum: lineNumber + 1,
+					LineNum: lineNumber,
 					Snippet: strings.TrimSpace(line),
 					Mtime:   file.mtime,
 				}
 			}
 		}
-	}
-	for _, match := range emptyDateLinkRE.FindAllStringSubmatch(content, -1) {
-		if isCalendarDate(match[1]) {
-			seenLinkedDays[match[1]] = struct{}{}
-		}
-	}
-	file.linkedDays = make([]string, 0, len(seenLinkedDays))
-	for dateStr := range seenLinkedDays {
-		file.linkedDays = append(file.linkedDays, dateStr)
-	}
-	sort.Strings(file.linkedDays)
-
-	for lineNumber, line := range strings.Split(content, "\n") {
 		for _, match := range hashtagRe.FindAllStringSubmatchIndex(line, -1) {
 			if len(match) < 4 || !isHashtagBoundaryOK(line, match[0], match[1]) {
 				continue
@@ -145,18 +144,33 @@ func indexMarkdownFile(rel string, info fs.FileInfo, data []byte) vaultIndexedFi
 			if hexColorRe.MatchString(tag) {
 				continue
 			}
+			if _, seen := seenTags[tag]; !seen {
+				seenTags[tag] = struct{}{}
+				file.tags = append(file.tags, tag)
+			}
 			display := strings.TrimSpace(line)
 			display = regexpListTaskPrefix.ReplaceAllString(display, "")
 			display = removeHashtag(display, tag)
 			file.cards = append(file.cards, KanbanCard{
 				File:     file.path,
 				FileName: file.name,
-				Line:     lineNumber + 1,
+				Line:     lineNumber,
 				Text:     display,
 				Tag:      tag,
 			})
 		}
+
+		if lineEnd < 0 {
+			break
+		}
+		lineStart += lineEnd + 1
 	}
+
+	file.linkedDays = make([]string, 0, len(seenLinkedDays))
+	for dateStr := range seenLinkedDays {
+		file.linkedDays = append(file.linkedDays, dateStr)
+	}
+	sort.Strings(file.linkedDays)
 
 	return file
 }

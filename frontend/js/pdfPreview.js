@@ -11,7 +11,12 @@ import { backend } from './backend.js';
 import { log } from './log.js';
 import { getState } from './state.js';
 import { getPrintStylesheet } from './frontmatter.js';
-import { exportMarkdownToPDF, renderPrintableMarkdownWithDiagrams } from './pdfExport.js';
+import {
+    exportMarkdownToPDF,
+    renderPrintableDiagrams,
+    renderPrintableMarkdownFromRendered,
+    renderPrintableMarkdownWithDiagrams,
+} from './pdfExport.js';
 import { pdfExportErrorDialog, pdfStyleReferenceDialog } from './dialogs.js';
 import { updateRightSidebarEditorLayout } from './historyPanel.js';
 
@@ -33,6 +38,13 @@ let previewRenderQueued = false;
 let previewRenderPromise = null;
 let previewInitialized = false;
 let previewGenerating = false;
+
+const previewMarkdownWorker = {
+    worker: null,
+    disabled: false,
+    nextRequestID: 0,
+    pending: new Map(),
+};
 
 const preview = {
     path: '',
@@ -448,6 +460,72 @@ function cancelScheduledAnimationFrame(handle) {
         globalThis.cancelAnimationFrame(handle);
     } else {
         clearTimeout(handle);
+    }
+}
+
+function disablePreviewMarkdownWorker(error) {
+    previewMarkdownWorker.disabled = true;
+    previewMarkdownWorker.worker?.terminate?.();
+    previewMarkdownWorker.worker = null;
+    for (const { reject } of previewMarkdownWorker.pending.values()) reject(error);
+    previewMarkdownWorker.pending.clear();
+}
+
+function ensurePreviewMarkdownWorker() {
+    if (previewMarkdownWorker.disabled || typeof Worker !== 'function') return null;
+    if (previewMarkdownWorker.worker) return previewMarkdownWorker.worker;
+
+    try {
+        const worker = new Worker('/js/pdfRenderWorker.js', { type: 'module' });
+        worker.onmessage = event => {
+            const { id, body, error } = event.data || {};
+            const pending = previewMarkdownWorker.pending.get(id);
+            if (!pending) return;
+            previewMarkdownWorker.pending.delete(id);
+            if (error) pending.reject(new Error(String(error)));
+            else pending.resolve(String(body || ''));
+        };
+        worker.onerror = event => {
+            const error = event?.error instanceof Error
+                ? event.error
+                : new Error(event?.message || 'Printable Markdown worker failed');
+            disablePreviewMarkdownWorker(error);
+        };
+        previewMarkdownWorker.worker = worker;
+        return worker;
+    } catch (error) {
+        disablePreviewMarkdownWorker(error instanceof Error ? error : new Error(String(error)));
+        return null;
+    }
+}
+
+function renderPrintableMarkdownBodyOffMainThread(markdown) {
+    const worker = ensurePreviewMarkdownWorker();
+    if (!worker) return Promise.resolve(null);
+
+    const id = ++previewMarkdownWorker.nextRequestID;
+    return new Promise((resolve, reject) => {
+        previewMarkdownWorker.pending.set(id, { resolve, reject });
+        try {
+            worker.postMessage({ id, markdown: String(markdown || '') });
+        } catch (error) {
+            previewMarkdownWorker.pending.delete(id);
+            reject(error);
+        }
+    });
+}
+
+async function renderPreviewPrintableMarkdown(markdown, title) {
+    try {
+        const rendered = await renderPrintableMarkdownBodyOffMainThread(markdown);
+        if (rendered === null) return renderPrintableMarkdownWithDiagrams(markdown, title);
+        return renderPrintableDiagrams(renderPrintableMarkdownFromRendered(markdown, title, rendered));
+    } catch (error) {
+        // A Web Worker is an optimisation, not a preview dependency. WebKit
+        // builds without module-worker support retain the proven main-thread
+        // path rather than losing a printable preview.
+        log.warn('Printable Markdown worker unavailable; using fallback:', error);
+        return renderPrintableMarkdownWithDiagrams(markdown, title);
     }
 }
 
@@ -1015,7 +1093,7 @@ function renderPreview() {
             await ensurePreviewStylesheet(requestId);
             if (requestId !== previewRequestId || !isPreviewOpen()) return;
 
-            const printable = await renderPrintableMarkdownWithDiagrams(preview.content, preview.title);
+            const printable = await renderPreviewPrintableMarkdown(preview.content, preview.title);
             if (requestId !== previewRequestId || !isPreviewOpen()) return;
 
             const { frame } = panelElements();

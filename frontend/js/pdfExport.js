@@ -125,8 +125,7 @@ function decoratePrintCallouts(container) {
     }
 }
 
-function renderMarkdownBody(renderer, markdown) {
-    const rendered = renderer.render(markdown);
+function renderMarkdownBodyFromRendered(rendered) {
     if (typeof document === 'undefined') return { body: rendered, headings: [] };
 
     const template = document.createElement('template');
@@ -175,16 +174,8 @@ function renderTableOfContents(headings, depth) {
     return `<nav class="figaro-print-toc figaro-print-page-break" aria-label="Table of contents"><h2 class="figaro-print-toc-title">Contents</h2><ol class="figaro-print-toc-list">${items}</ol></nav>`;
 }
 
-export function renderPrintableMarkdown(markdown, title = 'Document') {
-    if (typeof window.markdownit !== 'function') {
-        throw new Error('Markdown renderer is unavailable');
-    }
-
-    const renderer = createPrintMarkdownRenderer();
-    // Properties are editor metadata rather than document body content. Keep
-    // them out of the PDF while still using them to configure the stylesheet.
-    const markdownBody = stripLeadingFrontmatter(markdown);
-    const { body, headings } = renderMarkdownBody(renderer, markdownBody);
+export function renderPrintableMarkdownFromRendered(markdown, title = 'Document', rendered = '') {
+    const { body, headings } = renderMarkdownBodyFromRendered(rendered);
     const cover = renderCoverPage(markdown, title);
     const toc = renderTableOfContents(headings, frontmatterTOCDepth(getFrontmatterValue(markdown, 'toc-depth')));
     return `<!doctype html>
@@ -197,6 +188,18 @@ export function renderPrintableMarkdown(markdown, title = 'Document') {
 </head>
 <body>${cover}${toc}<main class="figaro-print-document">${body}</main></body>
 </html>`;
+}
+
+export function renderPrintableMarkdown(markdown, title = 'Document') {
+    if (typeof window.markdownit !== 'function') {
+        throw new Error('Markdown renderer is unavailable');
+    }
+
+    const renderer = createPrintMarkdownRenderer();
+    // Properties are editor metadata rather than document body content. Keep
+    // them out of the PDF while still using them to configure the stylesheet.
+    const markdownBody = stripLeadingFrontmatter(markdown);
+    return renderPrintableMarkdownFromRendered(markdown, title, renderer.render(markdownBody));
 }
 
 function diagramLanguageFromCodeElement(codeElement) {

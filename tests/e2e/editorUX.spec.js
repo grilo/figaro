@@ -269,6 +269,63 @@ test('keeps Quick note available in the collapsed rail and gives Inbox its defau
     await page.locator('.file-tree-style-modal .custom-modal-btn-cancel').click();
 });
 
+test('patches mounted file-tree tab markers without rebuilding folders during dirty and fast tab transitions', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    const result = await page.evaluate(async () => {
+        const state = await import('/js/state.js');
+        const tree = await import('/js/fileTree.js');
+        const tabs = await import('/js/tabManager.js');
+        state.setState('fileTreeData', [
+            {
+                name: 'Projects', path: 'Projects', type: 'directory', children: [
+                    { name: 'active.md', path: 'Projects/active.md', type: 'file', mtime: 1 },
+                    { name: 'background.md', path: 'Projects/background.md', type: 'file', mtime: 2 },
+                ],
+            },
+            {
+                name: 'Archive', path: 'Archive', type: 'directory', children: [
+                    { name: 'hidden.md', path: 'Archive/hidden.md', type: 'file', mtime: 3 },
+                ],
+            },
+        ]);
+        state.setState('expandedDirs', new Set(['Projects']));
+        state.setState('openTabs', [
+            { id: 'Projects/active.md', title: 'active.md', type: 'file', path: 'Projects/active.md', dirty: false },
+            { id: 'Projects/background.md', title: 'background.md', type: 'file', path: 'Projects/background.md', dirty: false },
+        ]);
+        state.setState('activeTabId', 'Projects/active.md');
+        tree.renderFileTree();
+
+        const active = document.querySelector('[data-path="Projects/active.md"] > .file-tree-node');
+        const background = document.querySelector('[data-path="Projects/background.md"] > .file-tree-node');
+        tabs.markTabDirty('Projects/active.md');
+        const preservedAfterDirty = active === document.querySelector('[data-path="Projects/active.md"] > .file-tree-node') &&
+            background === document.querySelector('[data-path="Projects/background.md"] > .file-tree-node');
+
+        state.setState('activeTabId', 'Projects/background.md');
+        return {
+            preservedAfterDirty,
+            preservedAfterSwitch: active === document.querySelector('[data-path="Projects/active.md"] > .file-tree-node') &&
+                background === document.querySelector('[data-path="Projects/background.md"] > .file-tree-node'),
+            activeClasses: [...active.classList],
+            backgroundClasses: [...background.classList],
+            hiddenMounted: Boolean(document.querySelector('[data-path="Archive/hidden.md"]')),
+        };
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+        preservedAfterDirty: true,
+        preservedAfterSwitch: true,
+        hiddenMounted: false,
+    }));
+    expect(result.activeClasses).toContain('open-file');
+    expect(result.activeClasses).not.toContain('active-file');
+    expect(result.backgroundClasses).toContain('active-file');
+    expect(result.backgroundClasses).not.toContain('open-file');
+});
+
 test('reappears as uncommitted after the active file is edited again following a Git commit', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.evaluate(async () => {
@@ -356,6 +413,32 @@ test('shows PDF authors the generated HTML plus Figaro classes and IDs', async (
     await expect(dialog.locator('.pdf-style-selector-list')).toContainText('.figaro-print-callout');
     await expect(dialog.locator('.pdf-style-reference-html')).toContainText('<body');
     await expect(dialog.locator('.pdf-style-reference-html')).toContainText('figaro-print-document');
+});
+
+test('prepares live PDF Markdown in a worker before applying the preview document', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.evaluate(async () => {
+        const NativeWorker = window.Worker;
+        window.__pdfWorkerRequests = [];
+        window.__pdfWorkerErrors = [];
+        window.Worker = class FigaroPDFWorkerProbe extends NativeWorker {
+            constructor(url, options) {
+                super(url, options);
+                this.addEventListener('error', event => window.__pdfWorkerErrors.push(event.message || 'worker error'));
+            }
+
+            postMessage(message, transfer) {
+                window.__pdfWorkerRequests.push({ url: this.url, message });
+                return super.postMessage(message, transfer);
+            }
+        };
+        const { openPDFPreview } = await import('/js/pdfPreview.js');
+        await openPDFPreview({ path: 'Welcome.md', title: 'Welcome', content: '# Worker preview\n\nA responsive editor stays responsive.' });
+    });
+
+    await expect.poll(() => page.evaluate(() => window.__pdfWorkerRequests.length)).toBe(1);
+    await expect.poll(() => page.locator('.pdf-preview-status').textContent()).toContain('Live preview up to date');
+    expect(await page.evaluate(() => window.__pdfWorkerErrors)).toEqual([]);
 });
 
 test('restores an old file version as a fresh latest History commit after confirmation', async ({ page }) => {

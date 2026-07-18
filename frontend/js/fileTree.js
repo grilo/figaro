@@ -178,7 +178,11 @@ export function initFileTree() {
     initNativeFileDrops();
     initInboxNoteButton();
 
-    // Keep the active-file highlight in sync without changing folder state.
+    // Keep file-tab markers in sync without changing folder state. Rebuilding
+    // a large tree for a tab switch (or its first dirty transition) is both
+    // expensive and needlessly disrupts mounted nodes. Structural changes
+    // still go through renderFileTree(); this path only updates the markers
+    // that can exist on already-mounted file nodes.
     // expandedDirs belongs to the user: restoring or switching tabs must not
     // reopen ancestors that the user explicitly collapsed.
     subscribe('activeTabId', () => {
@@ -187,10 +191,37 @@ export function initFileTree() {
         const activeTab = tabs.find(t => t.id === activeId);
         if (activeTab && (activeTab.type === 'file' || activeTab.type === 'drawio') && activeTab.path) {
             setState('selectedFilePath', activeTab.path);
-            renderFileTree();
         }
+        syncFileTreeTabMarkers();
     });
-    subscribe('openTabs', renderFileTree);
+    subscribe('openTabs', syncFileTreeTabMarkers);
+}
+
+/**
+ * Update the active/open file markers on the part of the tree currently
+ * mounted in the DOM. Collapsed descendants intentionally have no node to
+ * patch; when they are expanded, renderFileTree() derives their correct state
+ * from the same store values.
+ *
+ * This must not mutate tab state or emit events: callers such as markTabDirty
+ * rely on the one-time tab transition to notify Git status listeners.
+ */
+export function syncFileTreeTabMarkers() {
+    const container = document.getElementById('file-tree');
+    if (!container) return;
+
+    const openFilePaths = new Set((getState('openTabs') || [])
+        .filter(tab => (tab.type === 'file' || tab.type === 'drawio') && tab.path)
+        .map(tab => tab.path));
+    const activeFilePath = getState('selectedFilePath');
+
+    container.querySelectorAll('.file-tree-item[data-type="file"] > .file-tree-node').forEach(node => {
+        const path = node.parentElement?.dataset.path;
+        if (!path) return;
+        const active = path === activeFilePath;
+        node.classList.toggle('active-file', active);
+        node.classList.toggle('open-file', !active && openFilePaths.has(path));
+    });
 }
 
 function initInboxNoteButton() {

@@ -54,6 +54,25 @@ describe('workspace search', () => {
         expect(document.getElementById('search-results-count').textContent).toBe('2 notes');
     });
 
+    test('shows an exact compact backend match count without requiring every matching line', async () => {
+        setState('fileTreeData', []);
+        window.go.main.App.SearchFiles.mockResolvedValue([{
+            name: 'Large.md',
+            path: 'Large.md',
+            mtime: 10,
+            match_count: 73,
+            matches: [{ line: 4, text: 'Project plans are ready.' }],
+        }]);
+
+        await performGlobalSearch('project');
+
+        const row = document.querySelector('.search-result-row');
+        expect(row.textContent).toContain('Line 4');
+        expect(row.textContent).toContain('73 matches');
+        expect(state.searchResults[0].matches).toHaveLength(1);
+        expect(state.searchResults[0].matchCount).toBe(73);
+    });
+
     test('uses the title-only filter without asking the backend to scan note bodies', async () => {
         setSearchFilter('titleOnly', true);
 

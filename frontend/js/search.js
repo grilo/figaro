@@ -75,10 +75,13 @@ function findTitleMatches(query, caseSensitive) {
 }
 
 function normalizeResult(file) {
+    const matches = Array.isArray(file.matches) ? file.matches : [];
+    const suppliedMatchCount = Number(file.match_count ?? file.matchCount);
     return {
         path: file.path,
         name: file.name || file.path?.split('/').pop() || file.path,
-        matches: Array.isArray(file.matches) ? file.matches : [],
+        matches,
+        matchCount: Number.isFinite(suppliedMatchCount) ? suppliedMatchCount : matches.length,
         mtime: file.mtime || 0,
         titleMatch: Boolean(file.titleMatch)
     };
@@ -233,7 +236,8 @@ function renderDropdownResults(dropdown, results, query) {
         const firstMatch = file.matches[0];
         const excerpt = firstMatch?.text || (file.titleMatch ? 'Title match' : 'Matching note');
         const meta = firstMatch?.line ? `Line ${firstMatch.line}` : (file.titleMatch ? 'Title match' : 'Note');
-        const matchLabel = file.matches.length > 1 ? `${file.matches.length} matches` : '';
+        const matchCount = Number.isFinite(Number(file.matchCount)) ? Number(file.matchCount) : file.matches.length;
+        const matchLabel = matchCount > 1 ? `${matchCount} matches` : '';
         const isSelected = index === selectedIndex;
 
         return `

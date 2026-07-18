@@ -40,6 +40,18 @@ All notable user-facing changes are recorded here from this point forward.
 - Replaced the retired Python-era frontend compatibility layer with direct
   native Wails `App` bindings. Desktop controls, browser debugging, and
   frontend tests now use the same Go method names.
+- Active and background file markers now update in place on mounted tree nodes
+  during tab switches and dirty transitions, keeping large expanded trees
+  responsive without changing collapsed-folder state.
+- Figaro now projects its own saved note directly into Kanban and ignores the
+  matching native watcher acknowledgement, avoiding a redundant complete-board
+  reload while external Markdown edits still refresh normally.
+- Vault indexing now derives tags, cards, dates, and backlinks in one document
+  walk; broad search results send only a first-line preview plus the exact
+  match count instead of every matching source line.
+- Live PDF Preview now parses printable Markdown in a module worker before
+  applying the latest document, with a safe in-thread fallback for desktop
+  webviews that do not support module workers.
 
 ## 1.0.0 - 2026-07-17
 

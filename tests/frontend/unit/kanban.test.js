@@ -8,6 +8,7 @@ jest.mock('../frontend/js/app.js', () => ({
 import {
     KANBAN_CARD_TEXT_LIMIT,
     initKanban,
+    applySavedKanbanSnapshot,
     kanbanCardsForBuffer,
     overlayDirtyKanbanBuffers,
     renderKanbanBoard,
@@ -77,6 +78,26 @@ describe('live Kanban buffers and compact cards', () => {
         expect(board.textContent).toContain('#urgent');
         expect(board.textContent).toContain('A newly typed item');
         expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
+        expect(window.go.main.App.GetKanbanBoard).not.toHaveBeenCalled();
+        expect(window.go.main.App.GetKanbanColumns).not.toHaveBeenCalled();
+    });
+
+    test('projects a Figaro-saved note into Kanban without refetching the complete board', async () => {
+        window.go.main.App.GetKanbanBoard.mockResolvedValue({
+            todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Old task', tag: 'todo' }],
+            wip: [], done: [],
+        });
+        initKanban();
+        await testUtils.waitFor(20);
+        window.go.main.App.GetKanbanBoard.mockClear();
+        window.go.main.App.GetKanbanColumns.mockClear();
+
+        expect(applySavedKanbanSnapshot('note.md', '- [ ] Saved urgent task #urgent')).toBe(true);
+
+        const board = document.getElementById('kanban-board-main');
+        expect(board.textContent).toContain('#urgent');
+        expect(board.textContent).toContain('Saved urgent task');
+        expect(board.textContent).not.toContain('Old task');
         expect(window.go.main.App.GetKanbanBoard).not.toHaveBeenCalled();
         expect(window.go.main.App.GetKanbanColumns).not.toHaveBeenCalled();
     });

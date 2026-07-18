@@ -59,6 +59,43 @@ func TestVaultIndexUpdatesKnownSaveWithoutRewalkingVault(t *testing.T) {
 	}
 }
 
+func TestIndexMarkdownFileBuildsTagsCardsDatesAndBacklinksInOneDocumentWalk(t *testing.T) {
+	_, vaultPath := newTestApp(t)
+	content := strings.Join([]string{
+		"- [ ] First task #todo",
+		"[Launch](2025-02-14.md)",
+		"[2025-02-15]()",
+		"[target](target.md)",
+		"- [ ] Review task #review #todo",
+		"[Anchor](#todo) #fff",
+	}, "\n")
+	writeTestFile(t, vaultPath, "notes/source.md", content)
+	info, err := os.Stat(filepath.Join(vaultPath, "notes", "source.md"))
+	if err != nil {
+		t.Fatalf("stat source: %v", err)
+	}
+
+	indexed := indexMarkdownFile("notes/source.md", info, []byte(content))
+	if got, want := indexed.tags, []string{"todo", "review"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("tags = %#v, want %#v", got, want)
+	}
+	if got, want := indexed.linkedDays, []string{"2025-02-14", "2025-02-15"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("linked days = %#v, want %#v", got, want)
+	}
+	if got := indexed.linked["2025-02-14"]; got.LineNum != 2 || got.Path != "notes/source.md" {
+		t.Fatalf("dated linked note = %#v, want source line 2", got)
+	}
+	if got := indexed.backlinks["target.md"]; got.LineNum != 4 || got.Path != "notes/source.md" {
+		t.Fatalf("backlink = %#v, want source line 4", got)
+	}
+	if got, want := []string{indexed.cards[0].Tag, indexed.cards[1].Tag, indexed.cards[2].Tag}, []string{"todo", "review", "todo"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("card tags = %#v, want %#v", got, want)
+	}
+	if len(indexed.cards) != 3 {
+		t.Fatalf("cards = %#v, want three standalone hashtag cards", indexed.cards)
+	}
+}
+
 func TestVaultWatcherChangesUpdateOnlyAffectedIndexedNote(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Existing #todo\n")
@@ -105,6 +142,36 @@ func TestVaultWatcherChangesUpdateOnlyAffectedIndexedNote(t *testing.T) {
 	board, err = app.GetKanbanBoard()
 	if err != nil || len(board["done"]) != 0 {
 		t.Fatalf("board after external remove = %#v, err=%v", board, err)
+	}
+}
+
+func TestInternalVaultWatcherAcknowledgementSkipsRedundantKanbanRefresh(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Existing #todo\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("initial GetKanbanBoard: %v", err)
+	}
+
+	if result, err := app.SaveFile("tasks.md", "- [ ] Saved in Figaro #review\n", 0); err != nil || !result.Success {
+		t.Fatalf("SaveFile: result=%+v err=%v", result, err)
+	}
+	internal := app.applyVaultFilesystemChanges([]vaultWatchChange{{
+		Path: filepath.Join(vaultPath, "tasks.md"),
+		Op:   fsnotify.Write,
+	}})
+	if internal.treeChanged || internal.kanbanChanged {
+		t.Fatalf("internal watcher acknowledgement = %#v, want no frontend tree or Kanban refresh", internal)
+	}
+
+	if err := os.WriteFile(filepath.Join(vaultPath, "tasks.md"), []byte("- [ ] External #urgent\n"), 0644); err != nil {
+		t.Fatalf("external write: %v", err)
+	}
+	external := app.applyVaultFilesystemChanges([]vaultWatchChange{{
+		Path: filepath.Join(vaultPath, "tasks.md"),
+		Op:   fsnotify.Write,
+	}})
+	if !external.kanbanChanged || external.treeChanged {
+		t.Fatalf("external Markdown write = %#v, want Kanban refresh without tree refresh", external)
 	}
 }
 

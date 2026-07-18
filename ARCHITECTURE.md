@@ -49,16 +49,19 @@ snapshot; correctness wins over a speculative partial update.
 
 Each indexed file owns its own tag, Kanban-card, daily-note, date-link,
 month-grouped Calendar-day, case-folded search, trigram, and Markdown-backlink
-contributions. A known
+contributions. Those projections are derived in one line-oriented document
+walk. A known
 one-file update removes its old contributions before adding its new ones,
 retaining unrelated card slices, Calendar projections, and reverse-link
 entries. Case-insensitive searches intersect compact three-byte substring
 postings before verifying the original note text; exceptionally large or
 high-entropy notes remain in a bounded fallback set so correctness never
 depends on indexing every term. Case-sensitive searches intentionally use the
-original text. This keeps the common save/watcher path proportional to the
-changed note and its affected derived data; a full derived rebuild remains
-reserved for the first lazy scan and genuinely broad filesystem changes.
+original text. Search results retain and transfer only the first matching line
+plus an exact total, because that is all the search UI displays. This keeps the
+common save/watcher path proportional to the changed note and its affected
+derived data; a full derived rebuild remains reserved for the first lazy scan
+and genuinely broad filesystem changes.
 
 The full Kanban board remains available for its workspace, but Home asks the
 backend for its bounded unfinished-card projection directly. Calendar month
@@ -66,19 +69,24 @@ navigation similarly copies only that month's pre-grouped daily-note and
 linked-day lists. These narrow methods avoid transferring or filtering the
 rest of a large vault merely to render a small overview.
 
-The `vault:changed` event includes `tree_changed`. Content-only changes refresh
-dependent data without requesting a new file tree; directory or entry changes
-schedule the normal coalesced tree refresh. The initial index is still built
-after the first Wails window is allowed to appear, so indexing does not delay
-startup.
+The `vault:changed` event includes `tree_changed` and `kanban_changed`.
+Content-only external Markdown changes refresh dependent data without
+requesting a new file tree; directory or entry changes schedule the normal
+coalesced tree refresh. An acknowledgement of a Figaro-originated save has
+both flags false: the frontend already replaces that file's Kanban cards from
+the saved snapshot, so it does not request the complete board again. The
+initial index is still built after the first Wails window is allowed to appear,
+so indexing does not delay startup.
 
 The frontend has two complementary hot paths. An unsaved Kanban change is
 projected from the dirty tab buffers on the next animation frame, without an
-RPC; backend refreshes remain for saved or native changes. The file tree still
-receives the complete structural model for correct sorting and session restore,
-but it renders descendants only for explicitly expanded folders. This prevents
-large collapsed trees from imposing a hidden DOM/layout cost on ordinary tab
-switches.
+RPC; a Figaro save folds its final buffer into the same board snapshot, while
+external changes still request backend data. The file tree still receives the
+complete structural model for correct sorting and session restore, but it
+renders descendants only for explicitly expanded folders. Active/open file
+markers are patched on mounted nodes during tab and dirty-state changes rather
+than rebuilding that structural DOM. This prevents large collapsed or expanded
+trees from imposing a hidden DOM/layout cost on ordinary tab switches.
 
 ## Git status and history restoration
 
@@ -250,6 +258,10 @@ therefore allows only one preview render at a time: each input event invalidates
 the active request immediately, preserves the ordinary trailing debounce, and
 queues one latest snapshot. Completed stale work is never sent through the
 bridge, so expensive bursts cannot race a later edit or paint an older preview.
+The pure Markdown-It parsing phase runs in a module worker when the webview
+supports it; callout/TOC decoration and DOM-dependent Mermaid/Vega conversion
+remain on the document side. A worker failure or unsupported WebKit build falls
+back to the established in-thread renderer, preserving preview correctness.
 
 | Direction | Messages | Purpose |
 | --- | --- | --- |

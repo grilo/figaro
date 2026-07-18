@@ -62,7 +62,13 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
             invalidateCalendarCache();
             if (payload.tree_changed !== false) scheduleFileTreeRefresh();
             refreshCalendarIfVisible();
-            import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});
+            // Figaro already projected its own saved Markdown snapshot into
+            // Kanban. A watcher acknowledgement for that write must not send
+            // the complete board across the native bridge again. Older
+            // backends omit this field, so retain their conservative refresh.
+            if (payload.kanban_changed !== false) {
+                import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});
+            }
             document.dispatchEvent(new CustomEvent('vault-filesystem-changed'));
         },
         onKanbanIndexed: () => {

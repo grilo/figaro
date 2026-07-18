@@ -429,11 +429,31 @@ func (a *App) handleVaultFilesystemChange() {
 	a.handleVaultFilesystemChanges(nil)
 }
 
+type vaultFilesystemChangeResult struct {
+	treeChanged   bool
+	kanbanChanged bool
+}
+
 // handleVaultFilesystemChanges applies the debounced native event batch to
-// the shared index. A normal external save reads only the changed Markdown
-// file; unscoped notifications remain a safe fallback that rebuilds once.
+// the shared index and publishes only the UI work which is actually needed.
+// A normal external save reads only the changed Markdown file; unscoped
+// notifications remain a safe fallback that rebuilds once.
 func (a *App) handleVaultFilesystemChanges(changes []vaultWatchChange) {
-	treeChanged := len(changes) == 0
+	result := a.applyVaultFilesystemChanges(changes)
+	a.emitRuntimeEventData("vault:changed", map[string]bool{
+		"tree_changed":   result.treeChanged,
+		"kanban_changed": result.kanbanChanged,
+	})
+}
+
+// applyVaultFilesystemChanges updates the shared index and returns the
+// affected frontend projections. Keeping the result separate from Wails event
+// emission makes the internal-write fast path observable in tests.
+func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFilesystemChangeResult {
+	result := vaultFilesystemChangeResult{
+		treeChanged:   len(changes) == 0,
+		kanbanChanged: len(changes) == 0,
+	}
 	a.vaultMu.Lock()
 	a.resetFileVersionsLocked()
 
@@ -444,13 +464,15 @@ func (a *App) handleVaultFilesystemChanges(changes []vaultWatchChange) {
 		if err != nil {
 			log.Printf("[watcher] open vault after filesystem change: %v", err)
 			a.invalidateVaultIndexLocked()
-			treeChanged = true
+			result.treeChanged = true
+			result.kanbanChanged = true
 		} else {
 			for _, change := range changes {
 				rel, err := filepath.Rel(a.vaultPath, change.Path)
 				if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
 					a.invalidateVaultIndexLocked()
-					treeChanged = true
+					result.treeChanged = true
+					result.kanbanChanged = true
 					break
 				}
 				cleanRel, err := vaultRelativePath(rel)
@@ -463,13 +485,14 @@ func (a *App) handleVaultFilesystemChanges(changes []vaultWatchChange) {
 
 				if !strings.EqualFold(filepath.Ext(cleanRel), ".md") {
 					if change.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
-						treeChanged = true
+						result.treeChanged = true
 					}
 					continue
 				}
 				if change.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
 					a.removeVaultIndexPathLocked(cleanRel)
-					treeChanged = true
+					result.treeChanged = true
+					result.kanbanChanged = true
 					continue
 				}
 				if change.Op&(fsnotify.Create|fsnotify.Write) == 0 {
@@ -478,27 +501,29 @@ func (a *App) handleVaultFilesystemChanges(changes []vaultWatchChange) {
 				info, err := root.Stat(cleanRel)
 				if err != nil || info.IsDir() {
 					a.removeVaultIndexPathLocked(cleanRel)
-					treeChanged = true
+					result.treeChanged = true
+					result.kanbanChanged = true
 					continue
 				}
 				content, err := root.ReadFile(cleanRel)
 				if err != nil {
 					log.Printf("[watcher] read changed note %q: %v", cleanRel, err)
 					a.invalidateVaultIndexLocked()
-					treeChanged = true
+					result.treeChanged = true
+					result.kanbanChanged = true
 					continue
 				}
 				a.updateVaultIndexFileLocked(cleanRel, info, string(content))
+				result.kanbanChanged = true
 				if change.Op&fsnotify.Create != 0 {
-					treeChanged = true
+					result.treeChanged = true
 				}
 			}
 			root.Close()
 		}
 	}
 	a.vaultMu.Unlock()
-
-	a.emitRuntimeEventData("vault:changed", map[string]bool{"tree_changed": treeChanged})
+	return result
 }
 
 func (a *App) emitRuntimeEvent(name string) {
@@ -2137,10 +2162,45 @@ type SearchMatch struct {
 
 // SearchResult holds per-file search results.
 type SearchResult struct {
-	Path    string        `json:"path"`
-	Name    string        `json:"name"`
-	Matches []SearchMatch `json:"matches"`
-	Mtime   float64       `json:"mtime"`
+	Path       string        `json:"path"`
+	Name       string        `json:"name"`
+	Matches    []SearchMatch `json:"matches"`
+	MatchCount int           `json:"match_count"`
+	Mtime      float64       `json:"mtime"`
+}
+
+// searchPreview returns the first matching line and the exact match count.
+// The search dropdown only displays these two facts, so retaining every
+// matching line would needlessly allocate and serialize large result payloads
+// for broad searches.
+func searchPreview(content, query string, caseSensitive bool) ([]SearchMatch, int) {
+	var first SearchMatch
+	matchCount := 0
+	for lineNumber, lineStart := 1, 0; ; lineNumber++ {
+		lineEnd := strings.IndexByte(content[lineStart:], '\n')
+		line := content[lineStart:]
+		if lineEnd >= 0 {
+			line = content[lineStart : lineStart+lineEnd]
+		}
+		check := line
+		if !caseSensitive {
+			check = strings.ToLower(line)
+		}
+		if strings.Contains(check, query) {
+			matchCount++
+			if matchCount == 1 {
+				first = SearchMatch{Line: lineNumber, Text: strings.TrimSpace(line)}
+			}
+		}
+		if lineEnd < 0 {
+			break
+		}
+		lineStart += lineEnd + 1
+	}
+	if matchCount == 0 {
+		return nil, 0
+	}
+	return []SearchMatch{first}, matchCount
 }
 
 // SearchFiles searches all .md files in the vault for a query string.
@@ -2175,23 +2235,14 @@ func (a *App) SearchFiles(query string, caseSensitive bool) ([]SearchResult, err
 			continue
 		}
 
-		lines := strings.Split(file.content, "\n")
-		var matches []SearchMatch
-		for i, line := range lines {
-			check := line
-			if !caseSensitive {
-				check = strings.ToLower(line)
-			}
-			if strings.Contains(check, searchQuery) {
-				matches = append(matches, SearchMatch{Line: i + 1, Text: strings.TrimSpace(line)})
-			}
-		}
-		if len(matches) > 0 {
+		matches, matchCount := searchPreview(file.content, searchQuery, caseSensitive)
+		if matchCount > 0 {
 			results = append(results, SearchResult{
-				Path:    file.path,
-				Name:    file.name,
-				Matches: matches,
-				Mtime:   file.mtime,
+				Path:       file.path,
+				Name:       file.name,
+				Matches:    matches,
+				MatchCount: matchCount,
+				Mtime:      file.mtime,
 			})
 		}
 	}

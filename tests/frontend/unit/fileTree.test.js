@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -1003,6 +1003,58 @@ describe('File Tree', () => {
             
             const container = document.getElementById('file-tree');
             expect(container.innerHTML).toContain('note.md');
+        });
+
+        test('patches mounted active and open markers without rebuilding the tree after a dirty tab transition', () => {
+            state.fileTreeData = [
+                {
+                    name: 'Projects', path: 'Projects', type: 'directory', children: [
+                        { name: 'active.md', path: 'Projects/active.md', type: 'file', mtime: 1 },
+                        { name: 'background.md', path: 'Projects/background.md', type: 'file', mtime: 2 },
+                    ],
+                },
+                {
+                    name: 'Archive', path: 'Archive', type: 'directory', children: [
+                        { name: 'hidden.md', path: 'Archive/hidden.md', type: 'file', mtime: 3 },
+                    ],
+                },
+            ];
+            state.expandedDirs = new Set(['Projects']);
+            state.selectedFilePath = 'Projects/active.md';
+            state.openTabs = [
+                { id: 'Projects/active.md', type: 'file', path: 'Projects/active.md', dirty: false },
+                { id: 'Projects/background.md', type: 'file', path: 'Projects/background.md', dirty: false },
+            ];
+            state.activeTabId = 'Projects/active.md';
+            renderFileTree();
+
+            const tree = document.getElementById('file-tree');
+            const active = tree.querySelector('[data-path="Projects/active.md"] > .file-tree-node');
+            const background = tree.querySelector('[data-path="Projects/background.md"] > .file-tree-node');
+            expect(tree.querySelector('[data-path="Archive/hidden.md"]')).toBeNull();
+            expect(active.classList.contains('active-file')).toBe(true);
+            expect(background.classList.contains('open-file')).toBe(true);
+
+            // markTabDirty publishes a new openTabs array. The tree must keep
+            // the existing DOM and folder mounting intact while refreshing its
+            // markers, so it cannot interfere with the dirty/Git event path.
+            state.openTabs = state.openTabs.map(tab => tab.id === 'Projects/active.md'
+                ? { ...tab, dirty: true }
+                : tab);
+            syncFileTreeTabMarkers();
+
+            expect(tree.querySelector('[data-path="Projects/active.md"] > .file-tree-node')).toBe(active);
+            expect(tree.querySelector('[data-path="Projects/background.md"] > .file-tree-node')).toBe(background);
+            expect(active.classList.contains('active-file')).toBe(true);
+            expect(background.classList.contains('open-file')).toBe(true);
+            expect(tree.querySelector('[data-path="Archive/hidden.md"]')).toBeNull();
+
+            state.selectedFilePath = 'Projects/background.md';
+            syncFileTreeTabMarkers();
+            expect(active.classList.contains('open-file')).toBe(true);
+            expect(active.classList.contains('active-file')).toBe(false);
+            expect(background.classList.contains('active-file')).toBe(true);
+            expect(background.classList.contains('open-file')).toBe(false);
         });
 
         test('keeps the newest tree when an earlier refresh resolves late', async () => {

@@ -29,6 +29,10 @@ export function initKanban() {
     if (!liveRefreshInitialized) {
         liveRefreshInitialized = true;
         document.addEventListener('file-content-changed', scheduleLiveKanbanRefresh);
+        document.addEventListener('vault-file-saved', event => {
+            const { path, content } = event.detail || {};
+            applySavedKanbanSnapshot(path, content);
+        });
     }
     refreshKanbanData().catch(() => {});
 }
@@ -125,6 +129,55 @@ export function overlayDirtyKanbanBuffers(boardData, snapshots = dirtyKanbanBuff
         }
     }
     return board;
+}
+
+function replaceKanbanCardsForFile(boardData, filePath, cards) {
+    const board = {};
+    for (const [column, tasks] of Object.entries(boardData || {})) {
+        board[column] = (tasks || []).filter(task => task.file !== filePath);
+    }
+    for (const card of cards) {
+        if (!board[card.tag]) board[card.tag] = [];
+        board[card.tag].push(card);
+    }
+    return board;
+}
+
+function savedColumnsForBoard(boardData) {
+    const systemColumns = ['todo', 'wip', 'done'];
+    const customColumns = new Set();
+    for (const [column, tasks] of Object.entries(boardData || {})) {
+        if (!systemColumns.includes(column) && (tasks || []).length) customColumns.add(column);
+    }
+    return [...customColumns].sort().concat(systemColumns);
+}
+
+/**
+ * Commit a Figaro-saved buffer into the frontend Kanban snapshot without
+ * requesting the complete board again. Native watcher events acknowledge the
+ * same write shortly afterwards; app.js skips that redundant reload while
+ * external writes continue to use refreshKanbanData().
+ */
+export function applySavedKanbanSnapshot(filePath, content) {
+    const path = String(filePath || '');
+    if (!path || typeof content !== 'string') return false;
+
+    // Invalidate an earlier initial/external request before it can replace the
+    // just-saved snapshot with stale cards.
+    kanbanBoardRequestId++;
+    const boardData = replaceKanbanCardsForFile(
+        getState('kanbanBoardData') || {},
+        path,
+        kanbanCardsForBuffer(path, content),
+    );
+    savedKanbanColumns = savedColumnsForBoard(boardData);
+    kanbanColumns = appendDirtyColumns(savedKanbanColumns);
+    persistedColumns.clear();
+    for (const column of savedKanbanColumns) persistedColumns.add(column);
+    setState('kanbanColumns', kanbanColumns);
+    setState('kanbanBoardData', boardData);
+    renderKanbanSnapshot(boardData);
+    return true;
 }
 
 function appendDirtyColumns(columns) {

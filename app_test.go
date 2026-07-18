@@ -617,6 +617,26 @@ func TestSearchFiles_IndexedSubstringSearch(t *testing.T) {
 	}
 }
 
+func TestSearchFilesReturnsCompactPreviewWithExactMatchCount(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "repeated.md", "needle one\nneedle two\nneedle three\nneedle four\n")
+	results, err := app.SearchFiles("needle", false)
+	if err != nil {
+		t.Fatalf("SearchFiles error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("results = %#v, want one matching note", results)
+	}
+	if got, want := results[0].MatchCount, 4; got != want {
+		t.Fatalf("MatchCount = %d, want %d", got, want)
+	}
+	if got, want := results[0].Matches, []SearchMatch{{Line: 1, Text: "needle one"}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("compact preview = %#v, want %#v", got, want)
+	}
+}
+
 func TestSearchBacklinks(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

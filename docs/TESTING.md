@@ -59,7 +59,9 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
   links remain in the rendered document. High-frequency scroll reports are
-  coalesced before they can cause a matching burst of editor updates.
+  coalesced before they can cause a matching burst of editor updates. The
+  real-browser suite also verifies that printable Markdown preparation enters
+  the module-worker path before the preview document is applied.
 - Release metadata consistency across npm, Wails, the GPL license, changelog,
   documented tag command, and all three binary archive definitions.
 
