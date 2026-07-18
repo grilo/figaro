@@ -7,7 +7,7 @@ import { backend, waitForBackend } from './backend.js';
 import { log } from './log.js';
 import { state, initState, subscribe, setState, getState } from './state.js';
 import { initEditor, getEditorContent, openEditorSearch } from './editor.js';
-import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot } from './tabManager.js';
+import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot, showWorkspaceHome } from './tabManager.js';
 import { initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
 import { initCalendar, renderCalendar, invalidateCalendarCache, refreshCalendarIfVisible } from './calendar.js';
 import { initKanban } from './kanban.js';
@@ -150,11 +150,11 @@ export function initTopBar() {
         });
     }
 
-    // ── App name → Home tab ──
+    // ── App name → workspace overview ──
     const homeBtn = document.getElementById('topbar-home');
     if (homeBtn) {
         homeBtn.addEventListener('click', () => {
-            openTab('home', 'Welcome', 'home');
+            showWorkspaceHome();
         });
     }
 
@@ -233,7 +233,7 @@ export function initTopBar() {
         const activeTabId = getState('activeTabId');
         kanbanBtn?.classList.toggle('active', activeTabId === 'kanban');
         settingsBtn?.classList.toggle('active', activeTabId === 'settings');
-        homeBtn?.classList.toggle('active', activeTabId === 'home');
+        homeBtn?.classList.toggle('active', activeTabId === null);
     };
     subscribe('openTabs', syncNavigationState);
     subscribe('activeTabId', syncNavigationState);
@@ -510,12 +510,12 @@ export async function initApp() {
     await initTheme();
     
     if (!didRestore) {
-        // A missing, empty, or pruned workspace starts from the real Welcome
-        // surface instead of opening an arbitrary note or a phantom file tab.
-        openTab('home', 'Welcome', 'home');
+        // A missing, empty, or pruned workspace begins at the overview rather
+        // than opening an arbitrary note or manufacturing a fake tab.
+        showWorkspaceHome();
     }
-    // Persist the repaired workspace, including the Welcome fallback, so the
-    // next launch cannot try to resurrect removed paths.
+    // Persist the repaired workspace so the next launch cannot resurrect
+    // removed paths or a legacy synthetic Welcome tab.
     saveSession();
     
     statusBar.set('Ready');

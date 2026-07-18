@@ -4,14 +4,33 @@ All notable user-facing changes are recorded here from this point forward.
 
 ## Unreleased
 
+### Added
+
+- Persistent Kanban **Compact** and **Comfortable** card densities, a
+  **Side by side / Stacked** column-flow choice in Settings, and a themed
+  skeleton while a board is loading.
+
 ### Changed
 
-- The active file's **Uncommitted** Git action is now a subtle underlined
-  status cue instead of a prominent warning pill.
+- Closing the final tab now leaves the centered workspace overview visible
+  without creating or persisting a fake **Welcome** tab; legacy sessions are
+  repaired automatically.
+- Refreshed **Figaro Dark** and **Figaro Light** with a calmer fur-and-paper
+  palette, framed navigation, raised reading surfaces, a deliberate collar-red
+  accent, brass metadata, and matched semantic colors across both themes.
+- The title bar no longer contains a workspace launcher, keeping its center
+  clear for native window dragging.
+- Active, open, and dirty file states now use a stronger marker, a quiet dot,
+  and a low-noise local-history action. Clean files no longer expose Git
+  status in the status bar; **Save to history** appears only when useful.
+- File-tree and Kanban refreshes now preserve their current scroll position
+  and the file tree retains keyboard focus during a structural refresh.
+- Shared panel, layout, and control transitions now use a consistent 140–180
+  ms timing range while retaining the reduced-motion path.
 - Historical reverts now live beside the selected revision in the right-pane
   History list, commit the restored snapshot, and immediately show it as the
   latest committed version.
-- Home now requests only its six unfinished Momentum cards, and Calendar reads
+- The workspace overview now requests only its six unfinished Momentum cards, and Calendar reads
   pre-grouped month markers, avoiding full board payloads and all-date filters
   during ordinary navigation.
 - Live PDF Preview now invalidates stale diagram and print-document work as
@@ -20,6 +39,11 @@ All notable user-facing changes are recorded here from this point forward.
   text and reverse-link projections, so repeated queries avoid rescanning
   unrelated notes while retaining substring, path, basename, and
   case-sensitive matching behavior.
+
+### Fixed
+
+- Calendar refreshes now target the visible left-sidebar panel after a vault
+  change, so an open Calendar reloads its current month correctly.
 - Removed the unused legacy automation harness and its obsolete Welcome-note
   attribution.
 - Saving or externally updating one Markdown note now changes only that note's

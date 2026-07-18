@@ -1005,6 +1005,29 @@ describe('File Tree', () => {
             expect(container.innerHTML).toContain('note.md');
         });
 
+        test('preserves tree scroll and keyboard ownership across a structural refresh', () => {
+            state.fileTreeData = [
+                { name: 'first.md', path: 'first.md', type: 'file', mtime: 1 },
+                { name: 'second.md', path: 'second.md', type: 'file', mtime: 2 },
+            ];
+            state.selectedTreePath = 'second.md';
+            const container = document.getElementById('file-tree');
+            container.tabIndex = 0;
+            renderFileTree();
+            container.scrollTop = 48;
+            container.focus();
+
+            state.fileTreeData = [
+                ...state.fileTreeData,
+                { name: 'third.md', path: 'third.md', type: 'file', mtime: 3 },
+            ];
+            renderFileTree();
+
+            expect(container.scrollTop).toBe(48);
+            expect(document.activeElement).toBe(container);
+            expect(container.querySelector('[data-path="second.md"] > .file-tree-node').classList.contains('selected')).toBe(true);
+        });
+
         test('patches mounted active and open markers without rebuilding the tree after a dirty tab transition', () => {
             state.fileTreeData = [
                 {

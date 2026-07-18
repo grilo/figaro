@@ -101,7 +101,9 @@ describe('Workspace navigation', () => {
 
         expect(getState('openTabs').filter(tab => tab.id === 'kanban')).toHaveLength(0);
         expect(getState('openTabs').filter(tab => tab.id === 'settings')).toHaveLength(1);
-        expect(getState('openTabs').filter(tab => tab.id === 'home')).toHaveLength(1);
+        expect(getState('openTabs').filter(tab => tab.id === 'home')).toHaveLength(0);
+        expect(getState('activeTabId')).toBeNull();
+        expect(document.querySelector('.workspace-home-panel.active')).not.toBeNull();
         expect(kanbanButton.classList.contains('active')).toBe(false);
     });
 

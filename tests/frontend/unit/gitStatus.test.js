@@ -35,7 +35,7 @@ import { commitCurrentFileChanges, initHistoryPanel, updateGitStatus } from '../
 import { errorDialog } from '../frontend/js/dialogs.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 
-describe('active-file Git status control', () => {
+describe('quiet local-history action', () => {
     beforeEach(() => {
         testUtils.createMockDOM();
         jest.clearAllMocks();
@@ -49,12 +49,12 @@ describe('active-file Git status control', () => {
         });
     });
 
-    test('highlights only an active file reported as uncommitted', async () => {
+    test('only exposes a plain-language action for an active file with unrecorded changes', async () => {
         await expect(updateGitStatus('note.md')).resolves.toBe(true);
 
         const control = document.getElementById('git-status');
         expect(window.go.main.App.FileHasUncommittedChanges).toHaveBeenCalledWith('note.md');
-        expect(control.textContent).toBe('Uncommitted');
+        expect(control.textContent).toBe('Save to history');
         expect(control.classList).toContain('is-uncommitted');
         expect(control.disabled).toBe(false);
 
@@ -63,7 +63,7 @@ describe('active-file Git status control', () => {
         expect(document.getElementById('git-status-separator').hidden).toBe(true);
     });
 
-    test('saves a dirty buffer before committing, then becomes clean', async () => {
+    test('saves a dirty buffer before recording it, then hides the clean state', async () => {
         mockState.openTabs[0].dirty = true;
         await updateGitStatus('note.md');
         window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);
@@ -72,12 +72,13 @@ describe('active-file Git status control', () => {
 
         expect(mockSaveFileSnapshot).toHaveBeenCalledWith(mockState.openTabs[0], 'pending text');
         expect(window.go.main.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
-        expect(statusBar.set).toHaveBeenCalledWith('Committed file to Git');
-        expect(document.getElementById('git-status').textContent).toBe('Git clean');
+        expect(statusBar.set).toHaveBeenCalledWith('Saved file to local history');
+        expect(document.getElementById('git-status').textContent).toBe('Save to history');
         expect(document.getElementById('git-status').disabled).toBe(true);
+        expect(document.getElementById('git-status').hidden).toBe(true);
     });
 
-    test('reappears as uncommitted when the active file becomes dirty after a commit', async () => {
+    test('reappears as a history action when the active file becomes dirty after recording', async () => {
         initHistoryPanel();
         window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);
         await updateGitStatus('note.md');
@@ -85,7 +86,7 @@ describe('active-file Git status control', () => {
         document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: 'note.md' } }));
 
         const control = document.getElementById('git-status');
-        expect(control.textContent).toBe('Uncommitted');
+        expect(control.textContent).toBe('Save to history');
         expect(control.disabled).toBe(false);
         expect(control.classList).toContain('is-uncommitted');
     });
@@ -101,7 +102,7 @@ describe('active-file Git status control', () => {
             expect.objectContaining({ message: 'another file is staged' }),
             expect.stringMatching(/not removed or overwritten/i),
         );
-        expect(document.getElementById('git-status').textContent).toBe('Uncommitted');
+        expect(document.getElementById('git-status').textContent).toBe('Save to history');
         expect(document.getElementById('git-status').disabled).toBe(false);
     });
 });

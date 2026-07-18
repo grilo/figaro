@@ -52,10 +52,13 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Vault path safety, atomic file operations, history, Draw.io file handling,
   print stylesheet resolution, and printable-document preparation.
 - Editor behavior, CodeMirror language modes, frontmatter, footnotes,
-  diagrams, tabs, session persistence, file-tree actions, and stale-response
-  guards.
+  diagrams, tabs, session persistence, Kanban presentation/loading states,
+  file-tree actions, and stale-response guards.
 - Browser rendering of cover pages, table of contents, Mermaid, Vega, and
   Vega-Lite in the PDF export pipeline.
+- The native Figaro Dark and Light theme assets, including their warm reading
+  surfaces, framed navigation, raised active tab, selected tree state, tactile
+  Settings card, collar stitch, focus token, and text/link contrast.
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
   links remain in the rendered document. High-frequency scroll reports are
@@ -109,8 +112,8 @@ packaged application on each affected desktop platform.
 
 Calendar and Kanban are persistent destinations, not title-bar toggles.
 Retain focused coverage that they remain in the footer below the file tree,
-Settings remains beside the window controls, and the title-bar center stays
-clear. Calendar must expand inside the left sidebar without closing or taking
+Settings remains beside the window controls, and the title-bar center remains
+clear for native window dragging. Calendar must expand inside the left sidebar without closing or taking
 ownership of History/PDF preview on the right. Collapsing must leave a 44px
 tool rail, close any expanded Calendar content, and reopen both the normal
 sidebar and Calendar when its rail icon is selected.
@@ -128,6 +131,25 @@ rail-width, tab-reuse, and active-tab toggle checks in
 ```bash
 npm run test:unit -- --runTestsByPath tests/frontend/unit/topBar.test.js
 npx playwright test tests/e2e/sidebarNavigation.spec.js
+```
+
+## Workspace overview regressions
+
+The workspace overview is an un-tabbed empty state, not a synthetic
+**Welcome** tab. Closing the final tab, deleting the final open file, and
+clicking the Figaro name must leave the overview centered in the workspace
+with an empty tab strip. Old sessions that contain the former `home` tab must
+be repaired rather than restored. Keep the state/session checks in
+`tests/frontend/unit/tabManager.test.js`, `tests/frontend/unit/session.test.js`,
+and `app_test.go`, plus the real-browser close workflow in
+`tests/e2e/workspaceOverview.spec.js`:
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/tabManager.test.js \
+  tests/frontend/unit/session.test.js
+npx playwright test tests/e2e/workspaceOverview.spec.js
+go test . -run TestLoadSessionPrunesMissingTabsAndWorkspaceReferences
 ```
 
 ## PDF preview page-geometry regressions
@@ -260,7 +282,7 @@ not by calling their implementation helpers directly. `:wq` and `:x` must
 keep the tab open until the exact current buffer has saved successfully, while
 `/`, `n`, and `N` must open the query prompt and navigate forward and backward
 between matches. The preference contract also covers startup application,
-Home-first delayed editor creation, live Settings changes, failed-save
+Workspace-overview-first delayed editor creation, live Settings changes, failed-save
 rollback, reopened Settings, and backend persistence across fresh application
 instances. Changes to editor keymaps, save queuing, tab closing, Settings, or
 the Vim dependency must retain this coverage.

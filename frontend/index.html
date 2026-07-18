@@ -14,8 +14,8 @@
     <link rel="stylesheet" href="/vendored/codemirror/theme-one-dark/style.min.css">
     <link rel="stylesheet" href="/vendored/katex/dist/katex.min.css">
     <style>
-        /* Anti-flash: match native window canvas (#151515 = sidebar-bg) */
-        html, body { background: #151515 !important; }
+        /* Anti-flash: match the Figaro Dark native window canvas. */
+        html, body { background: #12110f !important; }
         .cm-cursor {
             border-left: none !important;
             background: white !important;
@@ -320,8 +320,8 @@
                 <span class="status-separator">|</span>
                 <a id="backlinks-status" class="status-backlinks" title="View backlinks">0 backlinks</a>
                 <span class="status-separator">|</span>
-                <button type="button" id="git-status" class="status-git" title="This file is committed to Git" disabled>Git clean</button>
-                <span id="git-status-separator" class="status-separator">|</span>
+                <button type="button" id="git-status" class="status-git" title="Save this file to local history" hidden disabled>Save to history</button>
+                <span id="git-status-separator" class="status-separator" hidden>|</span>
                 <a id="history-count" class="status-history" title="View file history">0 changes</a>
 
                 <span id="resize-grip" title="Drag corner to resize">

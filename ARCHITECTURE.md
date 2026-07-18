@@ -63,7 +63,7 @@ common save/watcher path proportional to the changed note and its affected
 derived data; a full derived rebuild remains reserved for the first lazy scan
 and genuinely broad filesystem changes.
 
-The full Kanban board remains available for its workspace, but Home asks the
+The full Kanban board remains available for its workspace, but the workspace overview asks the
 backend for its bounded unfinished-card projection directly. Calendar month
 navigation similarly copies only that month's pre-grouped daily-note and
 linked-day lists. These narrow methods avoid transferring or filtering the
@@ -92,14 +92,27 @@ trees from imposing a hidden DOM/layout cost on ordinary tab switches.
 
 Editor changes mark their tab model dirty synchronously, then publish the
 one-time dirty transition to the tab bar and status controls. This ordering
-keeps saves and rapid tab switches safe while ensuring the active-file Git
-status immediately becomes actionable again after a later edit.
+keeps saves and rapid tab switches safe while ensuring the active-file
+local-history action immediately becomes actionable again after a later edit.
+A clean state is deliberately silent: the frontend shows **Save to history**
+only when recording that file is an available action.
 
 History is non-destructive: a revert saves and commits the pre-revert content,
 saves and commits the selected historical content, then reloads the right-pane
 list. The selected-version action lives with its History entry, while the
 editor banner remains informational; this makes the resulting latest commit
 and the current editable version unambiguous.
+
+## UI continuity surfaces
+
+Kanban density and column flow are webview-local presentation preferences, not
+vault settings. A stacked board uses one vertical board scroll surface; the
+default arrangement retains the horizontal column row.
+Refreshing a board snapshots its horizontal position and each mounted column's
+scroll position before replacing cards, then restores them after render. The
+file tree applies the same continuity principle to structural refreshes by
+retaining its scroll position and focused container; selected entries remain
+the state-owned source of truth.
 
 ## Editor decoration updates
 
@@ -215,6 +228,11 @@ the legacy value is left in place for a later attempt.
 The built-in default theme ID remains `default` even though its user-facing
 name is **Figaro Dark**. Saved preferences therefore continue to work after the
 name change; the temporary `figaro-dark` ID is canonicalized back to `default`.
+The Figaro Dark/Light pair deliberately shares semantic token roles: restrained
+collar red is the interactive accent, brass is metadata/highlight color, and
+fur/paper neutrals establish the reading surfaces. Their source CSS remains
+the single place that defines those visual identities, including the native
+navigation frame, raised editor, tactile Settings cards, and collar stitch.
 
 Browser modules, KaTeX assets, icon derivatives, and Wails bindings are
 generated assets. The source material and generator scripts are tracked, while

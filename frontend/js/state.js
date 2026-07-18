@@ -49,6 +49,8 @@ export const state = {
     kanbanColumns: [],          // Available kanban columns (hashtags)
     kanbanBoardData: {},        // Kanban board data by column
     kanbanFocusColumn: null,    // Column to highlight on render
+    kanbanDensity: 'comfortable', // Comfortable | compact card density
+    kanbanLayout: 'side-by-side', // Side-by-side | stacked board columns
     
     // Backlinks
     backlinksData: [],          // Backlinks for current file
@@ -60,7 +62,7 @@ export const state = {
 
     // Pinned Tabs
     pinnedTabs: [],             // Array of pinned tab IDs (persisted)
-    recentFiles: [],            // Recently visited notes for the Home tab
+    recentFiles: [],            // Recently visited notes for the workspace overview
     _restoredTabs: null,
     _restoredActiveTabId: null,
     _restoredCursorStates: null,
@@ -209,10 +211,14 @@ export function initState() {
         state.selectedCalDateStr = savedDate;
     }
 
-    // Restore pinned tabs
+    // Restore pinned tabs. Stale pins are pruned after the tab snapshot is
+    // normalized below.
     const savedPinned = localStorage.getItem('pinnedTabs');
     if (savedPinned) {
-        try { state.pinnedTabs = JSON.parse(savedPinned); } catch (e) { /* noop */ }
+        try {
+            const pinnedTabs = JSON.parse(savedPinned);
+            if (Array.isArray(pinnedTabs)) state.pinnedTabs = pinnedTabs;
+        } catch (e) { /* noop */ }
     }
 
     const savedRecentFiles = localStorage.getItem('recentFiles');
@@ -228,6 +234,15 @@ export function initState() {
         try {
             state.searchFilters = { ...state.searchFilters, ...JSON.parse(savedSearchFilters) };
         } catch (e) { /* noop */ }
+    }
+
+    const savedKanbanDensity = localStorage.getItem('kanbanDensity');
+    if (savedKanbanDensity === 'compact' || savedKanbanDensity === 'comfortable') {
+        state.kanbanDensity = savedKanbanDensity;
+    }
+    const savedKanbanLayout = localStorage.getItem('kanbanLayout');
+    if (savedKanbanLayout === 'side-by-side' || savedKanbanLayout === 'stacked') {
+        state.kanbanLayout = savedKanbanLayout;
     }
 
     // Restore last selected file
@@ -248,8 +263,10 @@ export function initState() {
         const restoredTabs = restoreSessionTabs([], state.pinnedTabs);
         if (restoredTabs.length) state._restoredTabs = restoredTabs;
     }
+    const restoredTabIds = new Set((state._restoredTabs || []).map(tab => tab.id));
+    state.pinnedTabs = state.pinnedTabs.filter(tabId => restoredTabIds.has(tabId));
     const savedActiveTabId = localStorage.getItem('activeTabId');
-    if (savedActiveTabId) {
+    if (savedActiveTabId && restoredTabIds.has(savedActiveTabId)) {
         state._restoredActiveTabId = savedActiveTabId;
     }
 }
@@ -271,12 +288,14 @@ export function persistState() {
     localStorage.setItem('sidebarWidth', state.sidebarWidth.toString());
     localStorage.setItem('rightSidebarWidth', state.rightSidebarWidth.toString());
     localStorage.setItem('expandedDirs', JSON.stringify([...state.expandedDirs]));
-    localStorage.setItem('pinnedTabs', JSON.stringify(state.pinnedTabs));
+    const serializable = serializeSessionTabs(state.openTabs);
+    localStorage.setItem('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
     localStorage.setItem('recentFiles', JSON.stringify(state.recentFiles));
     localStorage.setItem('searchFilters', JSON.stringify(state.searchFilters));
-    const serializable = serializeSessionTabs(state.openTabs);
+    localStorage.setItem('kanbanDensity', state.kanbanDensity);
+    localStorage.setItem('kanbanLayout', state.kanbanLayout);
     localStorage.setItem('openTabs', JSON.stringify(serializable));
-    if (state.activeTabId) {
+    if (state.activeTabId && serializable.some(tab => tab.id === state.activeTabId)) {
         localStorage.setItem('activeTabId', state.activeTabId);
     } else {
         localStorage.removeItem('activeTabId');
@@ -305,13 +324,22 @@ subscribe('selectedCalDateStr', () => {
     } catch (e) { /* noop */ }
 });
 subscribe('pinnedTabs', () => {
-    try { localStorage.setItem('pinnedTabs', JSON.stringify(state.pinnedTabs)); } catch (e) { /* noop */ }
+    try {
+        const serializable = serializeSessionTabs(state.openTabs);
+        localStorage.setItem('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
+    } catch (e) { /* noop */ }
 });
 subscribe('recentFiles', () => {
     try { localStorage.setItem('recentFiles', JSON.stringify(state.recentFiles)); } catch (e) { /* noop */ }
 });
 subscribe('searchFilters', () => {
     try { localStorage.setItem('searchFilters', JSON.stringify(state.searchFilters)); } catch (e) { /* noop */ }
+});
+subscribe('kanbanDensity', () => {
+    try { localStorage.setItem('kanbanDensity', state.kanbanDensity); } catch (e) { /* noop */ }
+});
+subscribe('kanbanLayout', () => {
+    try { localStorage.setItem('kanbanLayout', state.kanbanLayout); } catch (e) { /* noop */ }
 });
 subscribe('selectedFilePath', () => {
     try {

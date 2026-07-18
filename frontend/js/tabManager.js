@@ -4,7 +4,7 @@ import { backend } from './backend.js';
  */
 
 import { log } from './log.js';
-import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, settingsIcon, homeIcon } from './icons.js';
+import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, settingsIcon } from './icons.js';
 import { setState, getState, subscribe, recordRecentFile } from './state.js';
 import { saveSession } from './session.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, restoreCursorState, configureEditorForFile } from './editor.js';
@@ -28,16 +28,50 @@ export function setView(type) {
     }
 }
 
+/**
+ * Show the workspace overview without manufacturing a permanent tab for it.
+ * Existing tabs remain open and can be selected again from the tab strip.
+ */
+export function showWorkspaceHome() {
+    const currentTab = getActiveTab();
+    if (currentTab?.type === 'file') {
+        const editor = getEditorView();
+        if (editor?.state && getEditorDocumentTabId() === currentTab.id) {
+            currentTab._content = editor.state.doc.toString();
+        }
+        currentTab.cursorState = saveCursorState(currentTab.id);
+        if (currentTab.dirty) saveFileSnapshot(currentTab, contentSnapshotForTab(currentTab));
+    }
+
+    setState('activeTabId', null);
+    document.dispatchEvent(new CustomEvent('active-tab-changed', {
+        detail: { path: null, type: 'workspace-home' },
+    }));
+
+    setView('panels');
+    const panelsContainer = document.getElementById('tab-panels');
+    if (!panelsContainer) return;
+
+    document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+    let panel = panelsContainer.querySelector('.workspace-home-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.className = 'tab-panel workspace-home-panel';
+        panelsContainer.appendChild(panel);
+    }
+    panel.classList.add('active');
+    renderWorkspaceHome(panel);
+    renderTabBar();
+    closeHistoryPanel();
+    saveTabsToStorage();
+}
+
 let tabCounter = 1;
 let tabContextMenu = null;
 const saveQueues = new Map();
 let draggedTabId = null;
 let tabDropIndicator = null;
 let suppressTabClick = false;
-
-function openWelcomeTab() {
-    return openTab('home', 'Welcome', 'home');
-}
 
 function isFileBackedTab(tab) {
     return Boolean(tab?.path) && (tab.type === 'file' || tab.type === 'drawio');
@@ -290,6 +324,13 @@ export function initTabManager() {
  * Open a new tab or switch to existing
  */
 export function openTab(id, title, type, data = {}, forceNew = false) {
+    // Home used to be a synthetic, permanent tab. Route legacy callers to the
+    // un-tabbed workspace overview so it can never return to persisted state.
+    if (type === 'home') {
+        showWorkspaceHome();
+        return null;
+    }
+
     const tabs = getState('openTabs');
     
     if (!forceNew) {
@@ -330,8 +371,6 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
         tab.focusCol = data.focusCol;
         break;
     case 'settings':
-        break;
-    case 'home':
         break;
     }
     
@@ -426,7 +465,6 @@ async function renderTabContent(tab) {
         }
         
         switch (tab.type) {
-        case 'home': renderHomeTab(panel, tab); break;
         case 'calendar': renderCalendarTab(panel, tab); break;
         case 'backlinks': renderBacklinksTab(panel, tab); break;
         case 'kanban': renderKanbanTab(panel, tab); break;
@@ -503,11 +541,11 @@ function focusSearchLine(tab) {
     }, 0);
 }
 
-function renderHomeTab(panel, tab) {
+function renderWorkspaceHome(panel) {
     import('./home.js').then(({ renderHome }) => {
-        if (tab.id === getState('activeTabId') && panel.isConnected) renderHome(panel);
+        if (panel.classList.contains('active') && panel.isConnected) renderHome(panel);
     }).catch(error => {
-        log.error('Failed to render Home tab:', error);
+        log.error('Failed to render workspace home:', error);
         panel.innerHTML = '<div class="home-view"><p class="home-empty">Home is unavailable right now.</p></div>';
     });
 }
@@ -528,8 +566,13 @@ function renderBacklinksTab(panel, tab) {
 }
 
 function renderKanbanTab(panel, tab) {
-    panel.innerHTML = '<div class="kanban-view-wrapper"><div class="kanban-view-header"><h2>Kanban Task Board</h2><p class="kanban-instruction">Drag cards between columns. Click a card to open its source note. Columns are created from #tags in your notes.</p></div><div class="kanban-board" id="kanban-board-main"></div></div>';
-    import('./kanban.js').then(({ renderKanbanBoard }) => {
+    const density = getState('kanbanDensity') === 'compact' ? 'compact' : 'comfortable';
+    const layout = getState('kanbanLayout') === 'stacked' ? 'stacked' : 'side-by-side';
+    panel.innerHTML = `<div class="kanban-view-wrapper" data-density="${density}" data-layout="${layout}"><div class="kanban-view-header"><div><h2>Kanban Task Board</h2><p class="kanban-instruction">Drag cards between columns. Click a card to open its source note. Columns are created from #tags in your notes.</p></div></div><div class="kanban-board" id="kanban-board-main"></div></div>`;
+    import('./kanban.js').then(({ renderKanbanBoard, applyKanbanPresentationToViews }) => {
+        // The board renderer can operate before optional presentation helpers
+        // are available (and keeps compatibility with lean embedded builds).
+        if (typeof applyKanbanPresentationToViews === 'function') applyKanbanPresentationToViews(density, layout);
         renderKanbanBoard('kanban-board-main', tab.focusCol);
     });
 }
@@ -548,7 +591,6 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
     let tabs = getState('openTabs');
     let tab = tabs.find(t => t.id === tabId);
     if (!tab) return false;
-    if (tab.type === 'home' && tabs.length === 1) return false;
     
     if (tab.dirty && (tab.type === 'file' || tab.type === 'drawio')) {
         const shouldClose = await window.confirmDialog(
@@ -591,7 +633,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
     const activeId = getState('activeTabId');
     if (newTabs.length === 0) {
         setState('activeTabId', null);
-        openWelcomeTab();
+        showWorkspaceHome();
     } else if (activeId === tabId) {
         const fileTab = newTabs.find(t => t.type === 'file');
         switchTab(fileTab ? fileTab.id : newTabs[0].id);
@@ -852,14 +894,12 @@ export function closeTabsForDeletedPath(deletedPath) {
     }
 
     const activeId = getState('activeTabId');
-    if (closingIds.has(activeId)) {
-        if (newTabs.length) {
-            const preferred = newTabs.find(tab => tab.type === 'file') || newTabs[0];
-            switchTab(preferred.id);
-        } else {
-            setState('activeTabId', null);
-            openWelcomeTab();
-        }
+    if (!newTabs.length) {
+        setState('activeTabId', null);
+        showWorkspaceHome();
+    } else if (closingIds.has(activeId)) {
+        const preferred = newTabs.find(tab => tab.type === 'file') || newTabs[0];
+        switchTab(preferred.id);
     } else {
         saveTabsToStorage();
         renderTabBar();
@@ -937,7 +977,6 @@ export function renderTabBar() {
     
     tabStrip.innerHTML = sorted.map(tab => {
         const isPinned = pinned.includes(tab.id);
-        const canClose = tab.type !== 'home' || tabs.length > 1;
         return `
         <div class="tab ${tab.id === activeId ? 'active' : ''} ${tab.dirty ? 'dirty' : ''} ${isPinned ? 'pinned' : ''}" 
                 data-tab-id="${tab.id}"
@@ -948,7 +987,7 @@ export function renderTabBar() {
                 title="${tab.title}${tab.dirty ? ' (unsaved)' : ''}${isPinned ? ' (pinned)' : ''}">
             <span class="tab-icon">${getTabIcon(tab.type)}</span>
             <span class="tab-title">${escapeHtml(tab.title)}</span>
-            <button class="tab-close" aria-label="Close tab" title="${canClose ? 'Close tab' : 'Welcome stays open while it is the only tab'}"${canClose ? '' : ' disabled aria-disabled="true"'}>✕</button>
+            <button class="tab-close" aria-label="Close tab" title="Close tab">✕</button>
         </div>
     `;}).join('');
 }
@@ -961,7 +1000,6 @@ function getTabIcon(type) {
     case 'backlinks': return backlinksIcon(14, 2);
     case 'kanban': return kanbanIcon(14, 2);
     case 'settings': return settingsIcon(14, 2);
-    case 'home': return homeIcon(14, 2);
     default: return '';
     }
 }
@@ -980,7 +1018,6 @@ function handleTabContextMenu(e) {
 
     const pinned = getState('pinnedTabs');
     const isPinned = pinned.includes(tabId);
-    const canClose = tab.type !== 'home' || tabs.length > 1;
 
     tabContextMenu = document.createElement('div');
     tabContextMenu.className = 'context-menu tab-context-menu';
@@ -993,7 +1030,7 @@ function handleTabContextMenu(e) {
             ${isPinned ? 'Unpin Tab' : 'Pin Tab'}
         </div>
         <div class="context-menu-separator"></div>
-        <div class="context-menu-item ${canClose ? '' : 'disabled'}" data-action="close-tab">
+        <div class="context-menu-item" data-action="close-tab">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             Close Tab
         </div>
@@ -1336,6 +1373,31 @@ function renderSettingsTab(panel, _tab) {
             </div>
             <!-- Automation -->
             <div class="settings-card">
+                <div class="settings-card-title">Kanban</div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="16" rx="1"/><rect x="14" y="4" width="6" height="16" rx="1"/></svg>
+                        <span>Card density</span>
+                    </div>
+                    <div class="settings-segmented-control" role="group" aria-label="Kanban card density">
+                        <button type="button" data-kanban-density="comfortable" aria-pressed="false">Comfortable</button>
+                        <button type="button" data-kanban-density="compact" aria-pressed="false">Compact</button>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/><path d="M7 5v14"/></svg>
+                        <span>Column flow</span>
+                    </div>
+                    <div class="settings-segmented-control" role="group" aria-label="Kanban column flow">
+                        <button type="button" data-kanban-layout="side-by-side" aria-pressed="false">Side by side</button>
+                        <button type="button" data-kanban-layout="stacked" aria-pressed="false">Stacked</button>
+                    </div>
+                </div>
+                <p class="settings-section-desc">Stacked boards flow vertically and scroll as one page.</p>
+            </div>
+            <!-- Automation -->
+            <div class="settings-card">
                 <div class="settings-card-title">Automation</div>
                 <div class="settings-section">
                     <div class="settings-section-icon">
@@ -1395,5 +1457,13 @@ function renderSettingsTab(panel, _tab) {
         if (initFn) return initFn(panel);
     }).catch(err => {
         log.warn('Settings tab init failed:', err);
+    });
+    import('./kanban.js').then(({ initKanbanPresentationSettings }) => {
+        if (!panel.isConnected || panel._settingsPanelDisposed) return;
+        if (typeof initKanbanPresentationSettings === 'function') {
+            initKanbanPresentationSettings(container);
+        }
+    }).catch(err => {
+        log.warn('Kanban Settings init failed:', err);
     });
 }

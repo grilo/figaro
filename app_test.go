@@ -1237,8 +1237,8 @@ func TestLoadSessionPrunesMissingTabsAndWorkspaceReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	tabs, ok := loaded["openTabs"].([]interface{})
-	if !ok || len(tabs) != 2 {
-		t.Fatalf("expected only real and Welcome tabs, got %#v", loaded["openTabs"])
+	if !ok || len(tabs) != 1 {
+		t.Fatalf("expected only the real tab after pruning stale and legacy tabs, got %#v", loaded["openTabs"])
 	}
 	if _, exists := loaded["activeTabId"]; exists {
 		t.Fatalf("missing active tab should have been removed: %#v", loaded)
@@ -1249,7 +1249,7 @@ func TestLoadSessionPrunesMissingTabsAndWorkspaceReferences(t *testing.T) {
 	if got := loaded["selectedTreePath"]; got != "notes/open" {
 		t.Fatalf("selected directory should persist as tree focus, got %#v", got)
 	}
-	if got := loaded["pinnedTabs"]; !reflect.DeepEqual(got, []interface{}{"real.md", "home"}) {
+	if got := loaded["pinnedTabs"]; !reflect.DeepEqual(got, []interface{}{"real.md"}) {
 		t.Fatalf("unexpected cleaned pins: %#v", got)
 	}
 	if got := loaded["expandedDirs"]; !reflect.DeepEqual(got, []interface{}{"notes/open"}) {
@@ -1847,8 +1847,8 @@ func TestGetThemeCSS_FigaroThemes(t *testing.T) {
 	defer os.RemoveAll(vaultPath)
 
 	for themeID, expected := range map[string]string{
-		"figaro-light": "--accent-color: #c12b20",
-		"default":      "--accent-color: #e84d3d",
+		"figaro-light": "--accent-color: #b94a3e",
+		"default":      "--accent-color: #d8574a",
 	} {
 		result, err := app.GetThemeCSS(themeID)
 		if err != nil {
@@ -1863,7 +1863,7 @@ func TestGetThemeCSS_FigaroThemes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetThemeCSS(figaro-dark) error: %v", err)
 	}
-	if !strings.Contains(legacyResult["css"], "--accent-color: #e84d3d") {
+	if !strings.Contains(legacyResult["css"], "--accent-color: #d8574a") {
 		t.Error("expected legacy figaro-dark ID to resolve to Figaro Dark")
 	}
 }

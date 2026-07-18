@@ -62,7 +62,7 @@ describe('session persistence', () => {
         await secondSave;
     });
 
-    test('persists the Welcome tab alongside ordinary workspace tabs', async () => {
+    test('drops legacy Welcome tabs and pins while persisting the workspace', async () => {
         setState('openTabs', [
             { id: 'home', type: 'home', title: 'Welcome' },
             { id: 'note.md', type: 'file', title: 'Note', path: 'note.md' },
@@ -74,10 +74,9 @@ describe('session persistence', () => {
 
         const payload = window.go.main.App.SaveSession.mock.calls.at(-1)[0];
         expect(payload.openTabs).toEqual([
-            { id: 'home', type: 'home', title: 'Welcome' },
             { id: 'note.md', type: 'file', title: 'Note', path: 'note.md' },
         ]);
-        expect(payload.pinnedTabs).toEqual(['home']);
+        expect(payload.pinnedTabs).toEqual([]);
     });
 
     test('persists an editable Draw.io diagram with its vault path', async () => {
@@ -123,7 +122,7 @@ describe('session persistence', () => {
         });
     });
 
-    test('repairs a legacy session where a pinned Welcome tab was omitted from open tabs', async () => {
+    test('drops a legacy Welcome pin instead of recreating a synthetic tab', async () => {
         window.go.main.App.LoadSession.mockResolvedValueOnce({
             openTabs: [{ id: 'note.md', type: 'file', title: 'Note', path: 'note.md' }],
             activeTabId: 'note.md',
@@ -133,9 +132,9 @@ describe('session persistence', () => {
         await expect(loadSession()).resolves.toBe(true);
 
         expect(state._restoredTabs).toEqual([
-            { id: 'home', type: 'home', title: 'Welcome' },
             { id: 'note.md', type: 'file', title: 'Note', path: 'note.md' },
         ]);
+        expect(state.pinnedTabs).toEqual([]);
         expect(state._restoredActiveTabId).toBe('note.md');
     });
 

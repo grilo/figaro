@@ -25,19 +25,20 @@ export function invalidateCalendarCache() {
 
 /** Re-render only when the calendar panel is actually visible. */
 export function refreshCalendarIfVisible() {
-    const sidebar = document.getElementById('right-sidebar');
-    if (sidebar?.classList.contains('open') && sidebar.dataset.mode === 'calendar') {
+    const panel = document.getElementById('sidebar-calendar-panel');
+    if (panel?.classList.contains('open') && panel.getAttribute('aria-hidden') !== 'true') {
         renderCalendar();
+        return true;
     }
+    return false;
 }
 
 /**
  * Initialize calendar module
  */
 export function initCalendar() {
-    // Calendar renders in the right pane via renderCalendar().
-    // When a day is clicked, linked notes appear below the calendar grid.
-    // No tab is created — everything stays in the right pane.
+    // Calendar renders in the expandable left-sidebar panel. When a day is
+    // clicked, linked notes appear below the grid without creating a tab.
 }
 
 /**
@@ -62,15 +63,18 @@ export function renderCalendar() {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
     monthYearEl.textContent = `${monthNames[month]} ${year}`;
+    container.setAttribute('aria-busy', 'true');
     
     // Get calendar data from backend (backend expects month 1-12, JS getMonth returns 0-11)
     loadCalendarData(year, month + 1).then(data => {
         if (requestId !== calendarRequestId || !container.isConnected) return;
+        container.setAttribute('aria-busy', 'false');
         renderCalendarGrid(container, year, month, data, selectedDateStr);
         renderLinkedNotes(linkedNotesContainer, data, selectedDateStr, requestId);
     }).catch(err => {
         if (requestId !== calendarRequestId || !container.isConnected) return;
         log.error('Failed to load calendar data:', err);
+        container.setAttribute('aria-busy', 'false');
         container.innerHTML = '<div class="cal-error">Failed to load calendar</div>';
     });
 }
@@ -109,7 +113,9 @@ async function loadCalendarData(year, month) {
  * Render calendar grid
  */
 function renderCalendarGrid(container, year, month, data, selectedDateStr) {
-    const { calendar, days_with_notes, days_with_links } = data;
+    const calendar = Array.isArray(data?.calendar) ? data.calendar : [];
+    const days_with_notes = Array.isArray(data?.days_with_notes) ? data.days_with_notes : [];
+    const days_with_links = Array.isArray(data?.days_with_links) ? data.days_with_links : [];
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     

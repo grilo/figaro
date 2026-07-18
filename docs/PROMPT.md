@@ -14,9 +14,9 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 
 ### 1.1 Shell
 - Three horizontal zones: **left sidebar**, **workspace**, and an on-demand **right sidebar**. Both sidebars have independent resize handles.
-- **Top bar**: sidebar toggle and app title/Home control on the left; an uncluttered central drag region; Settings followed by native-style minimize/maximize/close controls on the right.
-- Calendar and Kanban live in a fixed footer below the file tree. Calendar expands inside the left sidebar; Kanban and Settings open or return to their single corresponding workspace tabs when inactive, and play a short reduced-motion-aware exit transition before closing that tab when clicked while already active. Clicking the Figaro name opens the Welcome/Home tab.
-- **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, backlink count, committed **Changes** count, and the active file's **Git clean / Uncommitted** state. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0. **Uncommitted** is a subtle warning underline and clickable; it safely saves pending text and commits only the active file, then returns immediately after the next edit.
+- **Top bar**: sidebar toggle and app title/Home control on the left; a clear draggable center region; Settings followed by native-style minimize/maximize/close controls on the right.
+- Calendar and Kanban live in a fixed footer below the file tree. Calendar expands inside the left sidebar; Kanban and Settings open or return to their single corresponding workspace tabs when inactive, and play a short reduced-motion-aware exit transition before closing that tab when clicked while already active. Clicking the Figaro name opens the un-tabbed workspace overview.
+- **Status bar** fixed at the bottom: left shows status text ("Ready") and "md cheatsheet" trigger; right shows cursor position, reading time estimate (words ÷ 200 wpm, minimum 1 min), word/line/char count, file encoding, markdown file type, backlink count, and committed **Changes** count. Backlinks show as dimmed when 0 and accent-colored/underlined/clickable when >0. A plain-language **Save to history** action appears only while the active file has a version waiting to be recorded; it safely saves pending text and records only that file, then hides again.
 
 ### 1.2 Left Sidebar
 - The top of the sidebar is the **global note search** field; its keyboard-navigable result list opens below the field.
@@ -31,17 +31,18 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - Its width can be resized from **240px to 480px** for the current session.
 
 ### 1.4 Workspace
-- A horizontal **tab bar** across the top. Compact tabs use a responsive 104–200px width, truncate long titles, and keep their close controls accessible. The visual scrollbar is hidden; an all-tabs dropdown provides a reliable route to every open tab. The file tree mirrors this state with a strong marker for the active file and a subtler marker for other open files; tab switches and dirty transitions patch those mounted markers without rebuilding the tree.
+- A horizontal **tab bar** across the top. Compact tabs use a responsive 104–200px width, truncate long titles, and keep their close controls accessible. The visual scrollbar is hidden; an all-tabs dropdown provides a reliable route to every open tab. A dirty tab uses a compact accent dot, while the file tree mirrors active and background-open files with strong and subtle markers respectively; tab switches and dirty transitions patch those mounted markers without rebuilding the tree.
 - Below it, **view containers** — only one is visible at a time:
   - **Editor view** — for Markdown and CodeMirror-supported code files. Shows file content immediately once loaded.
   - **Calendar results view** — for date searches and backlink listings.
   - **Kanban board view** — the full kanban board.
-  - **Welcome view** — a lightweight home tab with Momentum (unfinished tasks) on the left and recent notes on the right.
+  - **Workspace overview** — a centered, un-tabbed dashboard with Momentum (unfinished tasks) on the left and recent notes on the right.
   - **Settings view** — typography, editor, and automation preferences.
   - **Draw.io view** — the embedded diagrams.net editor for `.drawio.svg` files.
 
 ### 1.5 Theming
 - **Theme engine**: 17 built-in themes selectable from the Settings tab (Figaro Dark, Figaro Light, GitHub Light/Dark, Catppuccin Mocha/Macchiato, Zenburn, Gruvbox Dark/Light, Nord, One Dark/Vivid, Night Owl, Cobalt2, Ayu Dark/Mirage/Light). All colors are defined as CSS custom properties on `:root`.
+- **Figaro theme philosophy**: Figaro Dark and Figaro Light are a matched, dog-inspired pair. They use quiet midnight-fur and ivory-paper surfaces, frame navigation separately from the raised reading surface, reserve collar red for intentional actions and focus, use brass for tags and highlights, and share semantic success, information, warning, and error roles. A fine brass-and-red collar stitch runs through the title and status bars.
 - Built-in theme CSS is bundled under `frontend/themes/`. The selected theme is persisted in `vault/.config/settings.json` and restored on startup.
 - Switching themes applies instantly without page reload — the theme CSS is injected into `<style id="theme-style">` via the Go backend API.
 - **Fonts**: 16 locally bundled choices, including Inter, Figtree, Atkinson Hyperlegible, IBM Plex Sans, Fira Sans, EB Garamond, Crimson Pro, JetBrains Mono, and Work Sans. Font selection is persisted and never requires a runtime network request.
@@ -65,7 +66,7 @@ Each theme defines these properties (with theme-specific colors):
 | **Callouts** | `--callout-note-color`, `--callout-warning-color`, `--callout-info-color`, `--callout-tip-color`, `--callout-danger-color`, `--callout-example-color` |
 | **Code highlighting** | `--code-keyword-color`, `--code-string-color`, `--code-number-color`, `--code-function-color`, `--code-comment-color`, `--code-type-color`, `--code-variable-color`, `--code-operator-color`, `--code-builtin-color` |
 | **Layout** | `--sidebar-width`, `--top-bar-height`, `--status-bar-height`, `--tab-height` |
-| **Transitions** | `--transition-fast`, `--transition-normal`, `--transition-slow` |
+| **Transitions** | `--transition-fast`, `--transition-normal`, `--transition-slow` (shared 140–180 ms timings) |
 
 ---
 
@@ -80,12 +81,12 @@ Each theme defines these properties (with theme-specific colors):
 | **Calendar** | `calendar-YYYY-MM-DD` | Shows Markdown notes that mention a specific date |
 | **Backlinks** | `backlinks-path/to/note.md` | Shows notes that link to a given note |
 | **Kanban** | `kanban` / `kanban-board` | The top-bar board and a hashtag-focused board respectively; each ID is deduplicated while open |
-| **Welcome** | `home` | Workspace overview with Momentum and recent notes |
+| **Workspace overview** | No tab ID | Centered dashboard with Momentum and recent notes |
 | **Settings** | `settings` | Application settings for theme, fonts, editor layout, and automation |
 
 ### 2.2 Tab Behavior
 - **Deduplication**: Opening a resource that already has a tab simply switches to it.
-- **Dirty indicator**: A pulsing dot appears on unsaved file tabs as soon as any edit is made.
+- **Dirty indicator**: A compact accent dot appears on unsaved file tabs as soon as any edit is made.
 - **Auto-save on switch**: When the user switches away from a dirty file tab, Figaro caches its current content and queues a save. The destination can open immediately; a failed save leaves the source tab recoverable from its cache.
 - **Save conflict**: If a file's modification timestamp changed externally, Figaro asks whether to overwrite it with the local version. Cancelling preserves the dirty tab and its in-memory snapshot; Figaro never silently discards the local edit.
 - **Cursor memory**: Each file tab remembers the last cursor/scroll position; restored when switching back.
@@ -93,9 +94,8 @@ Each theme defines these properties (with theme-specific colors):
 - **Middle-click**: Middle-clicking any tab closes it immediately.
 - **Pin tab**: Right-click a tab and choose "Pin Tab" to pin it. Pinned tabs stay at the leftmost position and have a visual accent border on top. Pinning persists across restarts.
 - **Drag reorder**: Tabs can be dragged to reorder them. Pinned and unpinned tabs remain separate groups so a drag cannot accidentally unpin or pin a tab. The resulting order persists with the session.
-- **Safe empty state**: Closing the final editor tab opens the Welcome tab automatically instead of leaving the workspace blank.
-- **Welcome close rule**: The Welcome tab's close control is disabled when it is the only tab. It becomes closable as soon as another tab is open.
-- **Session persistence**: Open tabs, active tab, cursor positions, expanded directories, pinned tabs, and selected file are persisted to `vault/.config/session.json`. The webview also keeps UI-only preferences such as recent files, search filters, and a local tab snapshot in `localStorage`; the vault session is the portable workspace record.
+- **Safe empty state**: Closing the final tab keeps the centered workspace overview visible instead of leaving the workspace blank or creating a synthetic tab.
+- **Session persistence**: Open tabs, active tab, cursor positions, expanded directories, pinned tabs, and selected file are persisted to `vault/.config/session.json`. The webview also keeps UI-only preferences such as recent files, search filters, Kanban density and flow, and a local tab snapshot in `localStorage`; the vault session is the portable workspace record.
 - **Exit protection**: Closing the native window with dirty file tabs offers **Save & Exit**, **Exit without saving**, or cancellation.
 - **Overflow**: Tabs keep their compact responsive width, with the visual scrollbar hidden and the all-tabs dropdown available whenever the strip is crowded.
 
@@ -289,7 +289,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Custom columns discovered from standalone whitespace-delimited `#tag` tokens in vault files, sorted alphabetically. Markdown anchors such as `[guide](#section)` are ignored.
 - Saved note, create, and per-card tag changes update the shared vault index incrementally; vault-wide tag rewrite, move, merge, and delete operations rebuild one coherent snapshot.
 - The Kanban board reads its current columns and cards from that shared index when it is rendered.
-- Home reads a bounded six-card unfinished projection from the same index instead of loading the complete board.
+- The workspace overview reads a bounded six-card unfinished projection from the same index instead of loading the complete board.
 - A custom column disappears as soon as its final matching hashtag is removed; the three system columns remain.
 
 ### 6.2 Task Discovery
@@ -301,10 +301,11 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - The active Markdown editor contributes its in-memory buffer on the next animation frame, so typing or removing a hashtag updates an open Kanban board before the file is saved without a backend request. A Figaro save folds that same final buffer into the local board snapshot; only external Markdown changes request a complete board refresh.
 
 ### 6.3 Board Layout
-- **Header**: Title ("Kanban Task Board") plus instruction text.
-- **Board area**: horizontally scrollable row of columns.
+- **Header**: Title ("Kanban Task Board") and instruction text. Presentation choices stay in Settings rather than in the workspace header.
+- **Board area**: a horizontally scrollable row of columns by default; Settings can switch it to a vertically scrolling stacked flow.
 - Each column has a header showing `#column-name`, color picker, and (for non-system) rename/delete buttons.
 - Each card shows cleaned task text, source file name with icon, and remove-tag button.
+- The first board request uses a theme-aware three-column skeleton. Reprojection keeps the board's horizontal position and each mounted column's vertical reading position.
 - **Focus highlight**: when board is opened by clicking a hashtag in the editor, the matching column gets a brief highlight animation (~2.5s) and is scrolled into view.
 
 ### 6.4 Drag & Drop (Kanban)
@@ -347,8 +348,8 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - `@today`, `@tomorrow`, and `@yesterday` offer date-link completions. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
 - The selected date is stored locally for the webview; Calendar reads the shared Markdown index, which ignores dot-directories and symlinks like the rest of the vault scanner.
 
-### 7.4 Welcome/Home Workspace
-- The Home tab has **Momentum**, the first six Kanban cards outside the `done` column, and **Recent**, the last eight file tabs opened by the user. Momentum is a bounded backend projection, not a complete-board fetch.
+### 7.4 Workspace Overview
+- The un-tabbed workspace overview has **Momentum**, the first six Kanban cards outside the `done` column, and **Recent**, the last eight file tabs opened by the user. Momentum is a bounded backend projection, not a complete-board fetch.
 - Clicking a task returns to its source note and line; **Open board** opens the Kanban tab. Recent notes are local UI history, not a separate vault index.
 
 ### 7.5 Quick Note and Inbox
@@ -367,7 +368,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Preference persisted to `vault/.config/settings.json` (`"vim": true/false`).
 - The persisted preference is loaded once during application startup and is
   the single source of truth for both the Settings switch and live editor. If
-  startup opens on Home before an editor exists, the requested mode is applied
+  startup opens on the workspace overview before an editor exists, the requested mode is applied
   when the first file creates the editor. Reopening Settings never re-applies
   a stale value. A persistence failure restores the last confirmed setting in
   both the switch and editor.
@@ -473,7 +474,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 1. Restore any webview-local UI state, then initialize the left-sidebar resizer, title-bar and sidebar navigation controls, calendar navigation, and keyboard shortcuts.
 2. Wait for Wails to publish the native `window.go.main.App` binding, then load the portable vault session.
 3. Initialize CodeMirror and the tab manager, load the file tree, and attach tree handlers. Native debounced vault notifications replace polling; content-only changes do not reload the tree, and Figaro's own saved snapshots do not request an already-known Kanban board again.
-4. Restore persisted tabs after the tree is available; otherwise open the first Markdown note or the Welcome tab.
+4. Restore persisted tabs after the tree is available; otherwise show the un-tabbed workspace overview.
 5. Initialize Calendar, Kanban, global search, backlinks, and the History panel.
 6. Load the saved theme, prose font, and code-font settings. A Settings tab initializes its own controls when opened.
 7. Load the persisted line-number and Links style preferences, then load the Auto-Save interval and start its active-tab timer. The Go backend starts Auto-Commit when a positive interval is configured; **On Save** remains event-driven.
@@ -550,23 +551,22 @@ browser debugging fallback is installed explicitly with the same method shape.
 
 ## 15. Known Limitations
 
-1. No command palette / quick switcher.
-2. No graph view for note connections.
-3. No plugin system.
-4. Desktop-only (no mobile/responsive layout).
-5. No real-time multi-user collaboration.
-6. No encryption or password protection.
-7. No sync or cloud backup.
-8. Single vault only.
-9. PDF export requires a supported browser engine already installed on the machine. Chrome/Chromium discovery includes Ungoogled Chromium and Flatpak launchers; a specific executable can be selected in Settings and is stored machine-locally. Chromium candidates must successfully start an isolated headless DevTools session rather than merely answer a version probe. This is intentional: annotated links and footnote destinations are more valuable than a degraded native-print fallback.
-10. Clipboard image paste supports raster images up to 25 MB; there is no separate image-upload UI.
-11. No formatting toolbar (keyboard-only).
-12. No split editor / multiple panes.
-13. No vim/emacs keybindings (except optional vim mode).
-14. Session persistence uses `vault/.config/session.json`.
-15. Frameless/custom window decorations use Wails native `--wails-draggable` CSS regions and custom titlebar controls (minimize/maximize/close).
-16. Block math (`$$...$$`) may cause cursor navigation issues within the containing document.
-17. Draw.io editing uses the hosted diagrams.net editor, so opening an editable diagram requires network access; saved .drawio.svg files still render offline.
+1. No graph view for note connections.
+2. No plugin system.
+3. Desktop-only (no mobile/responsive layout).
+4. No real-time multi-user collaboration.
+5. No encryption or password protection.
+6. No sync or cloud backup.
+7. Single vault only.
+8. PDF export requires a supported browser engine already installed on the machine. Chrome/Chromium discovery includes Ungoogled Chromium and Flatpak launchers; a specific executable can be selected in Settings and is stored machine-locally. Chromium candidates must successfully start an isolated headless DevTools session rather than merely answer a version probe. This is intentional: annotated links and footnote destinations are more valuable than a degraded native-print fallback.
+9. Clipboard image paste supports raster images up to 25 MB; there is no separate image-upload UI.
+10. No formatting toolbar (keyboard-only).
+11. No split editor / multiple panes.
+12. No vim/emacs keybindings (except optional vim mode).
+13. Session persistence uses `vault/.config/session.json`.
+14. Frameless/custom window decorations use Wails native `--wails-draggable` CSS regions and custom titlebar controls (minimize/maximize/close).
+15. Block math (`$$...$$`) may cause cursor navigation issues within the containing document.
+16. Draw.io editing uses the hosted diagrams.net editor, so opening an editable diagram requires network access; saved .drawio.svg files still render offline.
 
 ---
 
@@ -696,7 +696,7 @@ Multiple layers prevent a white flash before CSS loads:
 - Auto-save on switch, cursor memory, middle-click close, right-click context menu, and drag reorder.
 - Pin tab: right-click → "Pin Tab". Pinned tabs stay leftmost with a visual accent.
 - Reordering persists with the session and is restricted to the current pin group.
-- Closing the last active editor tab returns the user to Welcome.
+- Closing the final tab returns the user to the un-tabbed workspace overview.
 - Session persistence: tabs, cursor positions, expanded dirs saved to `vault/.config/session.json`.
 
 ### 20.4 All-Tabs Dropdown
@@ -727,6 +727,7 @@ Multiple layers prevent a white flash before CSS loads:
 
 ### 21.2 Theme Engine
 - 17 built-in themes bundled in `frontend/themes/` as CSS files.
+- The native Figaro pair keeps the same semantic roles and accessible text/link contrast in both light and dark modes. Their component treatment deliberately makes navigation, active tabs, selected tree entries, Settings cards, and the editor reading surface visually distinct; gradients remain subtle background atmosphere rather than a competing visual element.
 - Selected theme persisted to `vault/.config/settings.json` and restored on startup.
 - Themes apply instantly via injected `<style id="theme-style">` without page reload.
 - Theme list fetched via backend API, dropdown populated dynamically.
@@ -821,7 +822,7 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 | **Explicit save** | Ctrl+S / Cmd+S | Writes the active file after its optimistic timestamp check; in **On Save** mode, a successful write then commits only that file. |
 | **Auto-Save timer** | Configurable interval (default 5 min, 5s–5min, or Off) | Writes the active dirty file; in **On Save** mode, a successful write then commits only that file. |
 | **Auto-Commit scheduler** | Separate Settings interval (default 1h; 1h, 2h, 4h, or 8h) | Stages modified, added, and deleted vault files and creates one commit with message `auto-save: <count> file(s) — <timestamp>`. |
-| **Uncommitted status** | Click subtly underlined status-bar action | Saves pending active-editor text and commits only that file, preserving unrelated staged changes; the action returns with the next edit. |
+| **Save to history** | Click the status-bar action shown only for a file with unrecorded changes | Saves pending active-editor text and commits only that file, preserving unrelated staged changes; the action hides again after success and returns with the next edit. |
 | **History restore** | Click **Revert to this version** beside a selected history entry, then confirm | Saves and commits the current file version first, restores and commits the selected contents, then reloads History with the restored snapshot as latest. |
 | **Backend commit APIs** | `CommitCurrentFile` / `CommitAllFiles` | Power On Save, the status action, history restore, and interval scheduling through the native Wails `App` binding. |
 
@@ -841,7 +842,7 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 ### 25.5 Status Bar
 - Shows the committed-history count for the active file: "0 changes" (dimmed, not clickable) or "12 changes" (bright, clickable). Unsaved and uncommitted disk changes are not counted.
 - Clicking opens the right sidebar history panel.
-- Beside the count, **Git clean** is dimmed and disabled. **Uncommitted** uses a subtle warning underline and is clickable; activation saves pending editor content, commits only the active file, and exposes saving/committing/error states without losing the buffer. The indicator reappears on the next dirty transition.
+- The status bar does not show a clean Git state. **Save to history** appears only for an active file with unrecorded changes; activation saves pending editor content, commits only that file, and exposes saving/error states without losing the buffer. The action reappears on the next dirty transition.
 
 ### 25.6 Right Sidebar — History Panel
 - Toggleable panel on the right side of the workspace (resizable via drag handle, 240–480px).

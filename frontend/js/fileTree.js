@@ -336,9 +336,15 @@ export function renderFileTree() {
         .map(tab => tab.path));
     
     if (!container) return;
+    // Structural tree refreshes are intentionally rare, but they should not
+    // pull a reader away from the selected entry or steal keyboard ownership.
+    const restoreScrollTop = container.scrollTop;
+    const restoreFocus = document.activeElement === container;
     
     if (!treeData || treeData.length === 0) {
         container.innerHTML = '<div class="file-tree-empty">No files in vault</div><div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
+        container.scrollTop = restoreScrollTop;
+        if (restoreFocus) container.focus({ preventScroll: true });
         return;
     }
     
@@ -347,6 +353,8 @@ export function renderFileTree() {
     // file, making an empty/new vault easy to populate.
     container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath, fileTreeStyles.entries, openFilePaths) +
         '<div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
+    container.scrollTop = restoreScrollTop;
+    if (restoreFocus) container.focus({ preventScroll: true });
 }
 
 /**

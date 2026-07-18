@@ -1,6 +1,6 @@
 import { backend } from './backend.js';
 /**
- * Home tab - a lightweight workspace overview built from existing Figaro data.
+ * Workspace overview - a lightweight dashboard built from existing Figaro data.
  */
 
 import { getState } from './state.js';

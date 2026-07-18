@@ -1,5 +1,5 @@
 /**
- * Home tab behaviour: it keeps Momentum on the left and recent notes on the right.
+ * Workspace overview behaviour: it keeps Momentum on the left and recent notes on the right.
  */
 
 import { testUtils } from './test_setup.js';
@@ -21,7 +21,7 @@ function deferred() {
     return { promise, resolve };
 }
 
-describe('Home tab', () => {
+describe('Workspace overview', () => {
     beforeEach(() => {
         testUtils.createMockDOM();
         jest.clearAllMocks();

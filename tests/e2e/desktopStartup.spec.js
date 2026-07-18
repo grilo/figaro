@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('boots through the native Wails binding with Welcome text, the vault tree, and Calendar available', async ({ page }) => {
+test('boots through the native Wails binding with the workspace overview, vault tree, and Calendar available', async ({ page }) => {
     const browserMessages = [];
     page.on('console', message => browserMessages.push(`${message.type()}: ${message.text()}`));
     page.on('pageerror', error => browserMessages.push(`pageerror: ${error.message}`));
@@ -79,10 +79,10 @@ test('boots through the native Wails binding with Welcome text, the vault tree, 
 
     await expect(page.locator('#status-text')).toHaveText('Ready');
     await expect(page.locator('.file-tree-item[data-path="Welcome.md"] .node-name')).toHaveText('Welcome.md');
-    await expect(page.locator('.tab[data-tab-id="home"]')).toContainText('Welcome');
-    await expect(page.locator('.home-view h1')).toHaveText('Your workspace');
-    await expect(page.locator('.home-view')).toContainText('Unfinished tasks');
-    await expect(page.locator('.home-view')).toContainText('Recent');
+    await expect(page.locator('.tab[data-tab-id="home"]')).toHaveCount(0);
+    await expect(page.locator('.workspace-home-panel.active .home-view h1')).toHaveText('Your workspace');
+    await expect(page.locator('.workspace-home-panel.active .home-view')).toContainText('Unfinished tasks');
+    await expect(page.locator('.workspace-home-panel.active .home-view')).toContainText('Recent');
 
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
     await expect(page.locator('.cm-content')).toContainText('Welcome to Figaro');
@@ -93,6 +93,15 @@ test('boots through the native Wails binding with Welcome text, the vault tree, 
     await expect(page.locator('#cal-month-year')).not.toHaveText('');
     await expect(page.locator('#calendar-grid .cal-day-header')).toHaveCount(7);
     await expect(page.locator('#calendar-grid .cal-day:not(.cal-empty)')).toHaveCount(31);
+
+    const refreshedOpenCalendar = await page.evaluate(async () => {
+        const calendar = await import('/js/calendar.js');
+        calendar.invalidateCalendarCache();
+        return calendar.refreshCalendarIfVisible();
+    });
+    expect(refreshedOpenCalendar).toBe(true);
+    await expect.poll(() => page.evaluate(() => window.__desktopBridgeCalls
+        .filter(call => call.method === 'GetCalendarMonthData').length)).toBeGreaterThanOrEqual(2);
 
     const calledMethods = await page.evaluate(() => window.__desktopBridgeCalls.map(call => call.method));
     expect(calledMethods).toEqual(expect.arrayContaining([

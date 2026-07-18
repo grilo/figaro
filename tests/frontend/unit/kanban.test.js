@@ -1,5 +1,5 @@
 import { testUtils } from './test_setup.js';
-import { setState } from '../frontend/js/state.js';
+import { getState, setState } from '../frontend/js/state.js';
 
 jest.mock('../frontend/js/app.js', () => ({
     openTab: jest.fn(),
@@ -12,6 +12,7 @@ import {
     kanbanCardsForBuffer,
     overlayDirtyKanbanBuffers,
     renderKanbanBoard,
+    initKanbanPresentationSettings,
     truncateKanbanCardText,
 } from '../frontend/js/kanban.js';
 
@@ -21,6 +22,8 @@ describe('live Kanban buffers and compact cards', () => {
         jest.clearAllMocks();
         setState('openTabs', []);
         setState('activeTabId', null);
+        setState('kanbanDensity', 'comfortable');
+        setState('kanbanLayout', 'side-by-side');
         document.getElementById('tab-panels').innerHTML = '<div id="kanban-board-main"></div>';
         window.go.main.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
         window.go.main.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
@@ -114,5 +117,42 @@ describe('live Kanban buffers and compact cards', () => {
         expect(Array.from(text.textContent)).toHaveLength(120);
         expect(text.textContent.endsWith('…')).toBe(true);
         expect(text.title).toBe(longText);
+    });
+
+    test('changes density and stacked flow from Settings while preserving board and column scroll', async () => {
+        window.go.main.App.GetKanbanBoard.mockResolvedValue({
+            todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Existing task', tag: 'todo' }],
+            wip: [], done: [],
+        });
+        document.getElementById('tab-panels').innerHTML = `<div class="kanban-view-wrapper"><div id="kanban-board-main"></div></div>
+            <section id="kanban-settings">
+                <button data-kanban-density="comfortable"></button><button data-kanban-density="compact"></button>
+                <button data-kanban-layout="side-by-side"></button><button data-kanban-layout="stacked"></button>
+            </section>`;
+        await renderKanbanBoard('kanban-board-main');
+        const board = document.getElementById('kanban-board-main');
+        const cards = board.querySelector('.kanban-column-cards[data-column="todo"]');
+        board.scrollLeft = 73;
+        board.scrollTop = 19;
+        cards.scrollTop = 31;
+
+        const settings = document.getElementById('kanban-settings');
+        initKanbanPresentationSettings(settings);
+        settings.querySelector('[data-kanban-density="compact"]').click();
+        settings.querySelector('[data-kanban-layout="stacked"]').click();
+
+        expect(getState('kanbanLayout')).toBe('stacked');
+        expect(getState('kanbanDensity')).toBe('compact');
+        expect(localStorage.getItem('kanbanDensity')).toBe('compact');
+        expect(localStorage.getItem('kanbanLayout')).toBe('stacked');
+        expect(document.querySelector('.kanban-view-wrapper').dataset.density).toBe('compact');
+        expect(document.querySelector('.kanban-view-wrapper').dataset.layout).toBe('stacked');
+        expect(settings.querySelector('[data-kanban-density="compact"]').getAttribute('aria-pressed')).toBe('true');
+        expect(settings.querySelector('[data-kanban-layout="stacked"]').getAttribute('aria-pressed')).toBe('true');
+
+        applySavedKanbanSnapshot('note.md', 'Updated task #todo');
+        expect(board.scrollLeft).toBe(73);
+        expect(board.scrollTop).toBe(19);
+        expect(board.querySelector('.kanban-column-cards[data-column="todo"]').scrollTop).toBe(31);
     });
 });

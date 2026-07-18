@@ -191,8 +191,8 @@ function createMockDOM() {
                 <span id="word-count">0 words</span>
                 <span id="char-count">0 chars</span>
                 <a id="backlinks-status" class="status-backlinks">0 backlinks</a>
-                <button id="git-status" class="status-git" disabled>Git clean</button>
-                <span id="git-status-separator" class="status-separator">|</span>
+                <button id="git-status" class="status-git" hidden disabled>Save to history</button>
+                <span id="git-status-separator" class="status-separator" hidden>|</span>
                 <a id="history-count" class="status-history">0 changes</a>
                 <span class="md-cheatsheet-wrapper">
                     <button id="md-cheatsheet-trigger" aria-expanded="false">md cheatsheet</button>

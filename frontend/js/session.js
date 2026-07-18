@@ -52,16 +52,15 @@ export async function loadSession() {
         }
 
         // Restore pinned tabs
+        // Store tabs for restore after file tree loads. The normalizer drops
+        // legacy synthetic Welcome tabs because the overview is un-tabbed.
+        const restoredTabs = restoreSessionTabs(session.openTabs, session.pinnedTabs);
+        const restoredTabIds = new Set(restoredTabs.map(tab => tab.id));
         if (session.pinnedTabs && Array.isArray(session.pinnedTabs)) {
-            setState('pinnedTabs', session.pinnedTabs);
+            setState('pinnedTabs', session.pinnedTabs.filter(tabId => restoredTabIds.has(tabId)));
         }
-
-        // Store tabs for restore after file tree loads. The normalizer also
-        // repairs legacy sessions that pinned Welcome before home tabs were
-        // included in the serialized tab list.
-        const restoredTabs = restoreSessionTabs(session.openTabs, state.pinnedTabs);
         if (restoredTabs.length) state._restoredTabs = restoredTabs;
-        if (session.activeTabId) {
+        if (session.activeTabId && restoredTabIds.has(session.activeTabId)) {
             state._restoredActiveTabId = session.activeTabId;
         }
 
@@ -97,11 +96,11 @@ export function saveSession() {
 
     const data = {
         openTabs,
-        activeTabId: state.activeTabId || null,
+        activeTabId: state.activeTabId === 'home' ? null : (state.activeTabId || null),
         selectedFilePath: state.selectedFilePath || null,
         selectedTreePath: state.selectedTreePath || null,
         expandedDirs,
-        pinnedTabs: state.pinnedTabs || [],
+        pinnedTabs: (state.pinnedTabs || []).filter(tabId => openTabs.some(tab => tab.id === tabId)),
         cursorStates,
         theme: state._currentTheme || 'default',
     };

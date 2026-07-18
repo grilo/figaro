@@ -326,7 +326,7 @@ test('patches mounted file-tree tab markers without rebuilding folders during di
     expect(result.backgroundClasses).not.toContain('open-file');
 });
 
-test('reappears as uncommitted after the active file is edited again following a Git commit', async ({ page }) => {
+test('keeps local history quiet until the active file needs recording again', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.evaluate(async () => {
         const history = await import('/js/historyPanel.js');
@@ -342,7 +342,7 @@ test('reappears as uncommitted after the active file is edited again following a
     });
 
     const gitStatus = page.locator('#git-status');
-    await expect(gitStatus).toHaveText('Uncommitted');
+    await expect(gitStatus).toHaveText('Save to history');
     await expect(gitStatus).toBeEnabled();
     const highlighted = await gitStatus.evaluate(element => {
         const style = getComputedStyle(element);
@@ -367,13 +367,13 @@ test('reappears as uncommitted after the active file is edited again following a
     expect(await gitStatus.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('solid');
 
     await page.keyboard.press('Enter');
-    await expect(gitStatus).toHaveText('Git clean');
+    await expect(gitStatus).toBeHidden();
     await expect(gitStatus).toBeDisabled();
     expect(await page.evaluate(() => window.__gitCommits)).toEqual(['Welcome.md']);
 
     await page.locator('.cm-content').press('End');
     await page.locator('.cm-content').press('!');
-    await expect(gitStatus).toHaveText('Uncommitted');
+    await expect(gitStatus).toHaveText('Save to history');
     await expect(gitStatus).toBeEnabled();
 });
 

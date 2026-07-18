@@ -95,12 +95,12 @@
     --top-bar-height: 36px;
     --status-bar-height: 24px;
     --tab-height: 56px;
-    --transition-fast: 0.1s ease;
-    --transition-normal: 0.2s ease;
-    --transition-slow: 0.3s ease;
+    --transition-fast: 0.14s ease;
+    --transition-normal: 0.18s ease;
+    --transition-slow: 0.18s ease;
     --motion-panel-duration: 180ms;
-    --motion-layout-duration: 220ms;
-    --motion-content-duration: 150ms;
+    --motion-layout-duration: 180ms;
+    --motion-content-duration: 140ms;
     --motion-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
     --font-editor: 'Inter', var(--font-sans);
 }
@@ -1755,6 +1755,10 @@ html, body {
 }
 
 .kanban-view-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
     padding: 20px 24px 16px;
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
@@ -1774,6 +1778,48 @@ html, body {
     line-height: 1.5;
 }
 
+.settings-segmented-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+    padding: 3px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-dim);
+    font-size: 10px;
+}
+
+.settings-segmented-control button {
+    min-height: 24px;
+    padding: 0 7px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    font: 600 10px/1 var(--font-sans);
+    cursor: pointer;
+    transition: background var(--motion-content-duration) ease, color var(--motion-content-duration) ease, border-color var(--motion-content-duration) ease;
+}
+
+.settings-segmented-control button:hover,
+.settings-segmented-control button:focus-visible {
+    color: var(--text-color);
+    background: var(--hover-bg);
+}
+
+.settings-segmented-control button.active {
+    border-color: color-mix(in srgb, var(--accent-color) 35%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 12%, var(--hover-bg));
+    color: var(--accent-color);
+}
+
+.settings-segmented-control button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
 .kanban-board {
     display: flex;
     gap: 16px;
@@ -1784,6 +1830,28 @@ html, body {
     align-items: flex-start;
 }
 
+.kanban-view-wrapper[data-layout="stacked"] .kanban-board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-bottom: 32px;
+}
+
+.kanban-view-wrapper[data-layout="stacked"] .kanban-column,
+.kanban-view-wrapper[data-layout="stacked"] .kanban-skeleton-column {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: auto;
+    max-height: none;
+}
+
+.kanban-view-wrapper[data-layout="stacked"] .kanban-column-cards {
+    overflow-y: visible;
+}
+
 .kanban-loading,
 .kanban-error {
     display: flex;
@@ -1792,6 +1860,46 @@ html, body {
     height: 200px;
     color: var(--text-muted);
     font-size: var(--font-size);
+}
+
+.kanban-loading {
+    width: 100%;
+    height: 100%;
+    min-height: 220px;
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 16px;
+    padding: 0;
+}
+
+.kanban-skeleton-column {
+    width: 260px;
+    min-width: 240px;
+    display: grid;
+    align-content: start;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--panel-bg);
+}
+
+.kanban-skeleton-column span,
+.kanban-skeleton-column i {
+    display: block;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--hover-bg), color-mix(in srgb, var(--hover-bg) 55%, var(--border-light)), var(--hover-bg));
+    background-size: 220% 100%;
+    animation: kanban-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.kanban-skeleton-column span { width: 42%; height: 12px; margin-bottom: 8px; }
+.kanban-skeleton-column i { height: 64px; }
+
+@keyframes kanban-skeleton-shimmer {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
 }
 
 .kanban-column {
@@ -1957,6 +2065,53 @@ html, body {
 .kanban-card-delete:hover {
     background: var(--danger-color);
     color: white;
+}
+
+.kanban-view-wrapper[data-density="compact"] .kanban-view-header {
+    padding-bottom: 12px;
+}
+
+.kanban-view-wrapper[data-density="compact"] .kanban-board {
+    gap: 10px;
+    padding: 12px 16px;
+}
+
+.kanban-view-wrapper[data-density="compact"] .kanban-column {
+    width: 230px;
+    min-width: 215px;
+    max-width: 250px;
+}
+
+.kanban-view-wrapper[data-density="compact"] .kanban-column-header {
+    padding: 6px 9px;
+}
+
+.kanban-view-wrapper[data-density="compact"] .kanban-column-cards {
+    padding: 6px;
+}
+
+.kanban-view-wrapper[data-density="compact"] .kanban-card {
+    margin-bottom: 5px;
+    padding: 7px 9px;
+}
+
+.kanban-view-wrapper[data-density="compact"] .kanban-card-text {
+    margin-bottom: 5px;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.kanban-view-wrapper[data-density="compact"] .kanban-card-meta {
+    font-size: 10px;
+}
+
+@media (max-width: 640px) {
+    .kanban-view-header { align-items: stretch; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kanban-skeleton-column span,
+    .kanban-skeleton-column i { animation: none; }
 }
 
 /* Backlinks */
@@ -2126,9 +2281,14 @@ html, body {
 }
 
 .tab.dirty .tab-title::before {
-    content: '● ';
-    color: var(--warning-color);
-    font-size: 10px;
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin: 0 5px 1px 0;
+    border-radius: 50%;
+    background: var(--accent-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 15%, transparent);
     vertical-align: middle;
 }
 
@@ -2297,7 +2457,7 @@ html, body {
     margin-left: 4px;
 }
 
-/* Home tab */
+/* Workspace overview */
 .home-view {
     flex: 1;
     min-height: 0;
@@ -5102,7 +5262,7 @@ body.custom-modal-open { overflow: hidden; }
 }
 .status-history.has-history:hover { color: var(--accent-color); }
 
-/* Active-file Git state sits immediately before its revision count. */
+/* Local-history action only appears when there is work to record. */
 .status-git {
     min-height: 20px;
     margin: 0;
@@ -5119,15 +5279,15 @@ body.custom-modal-open { overflow: hidden; }
 
 .status-git.is-uncommitted {
     border-color: transparent;
-    border-bottom-color: color-mix(in srgb, var(--warning-color) 46%, transparent);
+    border-bottom-color: color-mix(in srgb, var(--accent-color) 48%, transparent);
     background: transparent;
-    color: color-mix(in srgb, var(--warning-color) 72%, var(--text-dim));
+    color: color-mix(in srgb, var(--accent-color) 74%, var(--text-dim));
     cursor: pointer;
 }
 
 .status-git.is-uncommitted:hover:not(:disabled) {
-    border-color: color-mix(in srgb, var(--warning-color) 38%, var(--border-color));
-    background: color-mix(in srgb, var(--warning-color) 7%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 7%, transparent);
     color: var(--text-color);
 }
 
@@ -5712,6 +5872,10 @@ body.right-sidebar-resizing .pdf-preview-frame {
     color: var(--text-muted);
 }
 
+.settings-card .settings-segmented-control {
+    justify-self: end;
+}
+
 .settings-card .auto-save-select {
     box-sizing: border-box;
     min-width: 0;
@@ -6010,6 +6174,13 @@ body.right-sidebar-resizing .pdf-preview-frame {
     .settings-card .theme-picker-btn,
     .settings-card .font-picker-btn {
         width: 100%;
+    }
+    .settings-card .settings-segmented-control {
+        justify-self: stretch;
+        width: 100%;
+    }
+    .settings-card .settings-segmented-control button {
+        flex: 1 1 0;
     }
     .pdf-browser-actions {
         width: 100%;

@@ -28,6 +28,8 @@ const DEFAULTS = {
     selectedFilePath: null,
     selectedTreePath: null,
     selectedCalDateStr: null,
+    kanbanDensity: 'comfortable',
+    kanbanLayout: 'side-by-side',
     expandedDirs: new Set(),
     _restoredTabs: null,
     _restoredActiveTabId: null,
@@ -121,8 +123,21 @@ describe('State Management', () => {
 
         test('should restore pinnedTabs from localStorage', () => {
             localStorage.setItem('pinnedTabs', JSON.stringify(['tab1', 'tab2']));
+            localStorage.setItem('openTabs', JSON.stringify([
+                { id: 'tab1', type: 'file', title: 'Tab 1', path: 'tab1.md' },
+                { id: 'tab2', type: 'file', title: 'Tab 2', path: 'tab2.md' },
+            ]));
             initState();
             expect(getState('pinnedTabs')).toEqual(['tab1', 'tab2']);
+        });
+
+        test('drops a legacy Welcome pin from localStorage', () => {
+            localStorage.setItem('pinnedTabs', JSON.stringify(['home', 'tab1']));
+            localStorage.setItem('openTabs', JSON.stringify([
+                { id: 'tab1', type: 'file', title: 'Tab 1', path: 'tab1.md' },
+            ]));
+            initState();
+            expect(getState('pinnedTabs')).toEqual(['tab1']);
         });
 
         test('should restore selectedFilePath from localStorage', () => {
@@ -137,6 +152,16 @@ describe('State Management', () => {
             expect(getState('selectedTreePath')).toBe('notes/projects');
         });
 
+        test('should restore Kanban presentation preferences from localStorage', () => {
+            localStorage.setItem('kanbanDensity', 'compact');
+            localStorage.setItem('kanbanLayout', 'stacked');
+
+            initState();
+
+            expect(getState('kanbanDensity')).toBe('compact');
+            expect(getState('kanbanLayout')).toBe('stacked');
+        });
+
         test('should restore openTabs to _restoredTabs', () => {
             const tabs = [{ id: 'hello.md', type: 'file', title: 'hello', path: 'hello.md' }];
             localStorage.setItem('openTabs', JSON.stringify(tabs));
@@ -144,6 +169,21 @@ describe('State Management', () => {
             initState();
             expect(state._restoredTabs).toEqual(tabs);
             expect(state._restoredActiveTabId).toBe('hello.md');
+        });
+
+        test('drops a legacy Welcome tab from local restoration', () => {
+            localStorage.setItem('openTabs', JSON.stringify([
+                { id: 'home', type: 'home', title: 'Welcome' },
+                { id: 'hello.md', type: 'file', title: 'hello', path: 'hello.md' },
+            ]));
+            localStorage.setItem('activeTabId', 'home');
+
+            initState();
+
+            expect(state._restoredTabs).toEqual([
+                { id: 'hello.md', type: 'file', title: 'hello', path: 'hello.md' },
+            ]);
+            expect(state._restoredActiveTabId).toBeNull();
         });
 
         test('should handle corrupted localStorage gracefully', () => {
@@ -167,6 +207,10 @@ describe('State Management', () => {
         });
 
         test('should save pinnedTabs to localStorage', () => {
+            setState('openTabs', [
+                { id: 'tab1', type: 'file', title: 'Tab 1', path: 'tab1.md' },
+                { id: 'tab2', type: 'file', title: 'Tab 2', path: 'tab2.md' },
+            ]);
             setState('pinnedTabs', ['tab1', 'tab2']);
             persistState();
             const saved = JSON.parse(localStorage.getItem('pinnedTabs'));
@@ -184,6 +228,15 @@ describe('State Management', () => {
             persistState();
             expect(localStorage.getItem('selectedTreePath')).toBe('notes/projects');
         });
+
+        test('should save Kanban presentation preferences to localStorage', () => {
+            setState('kanbanDensity', 'compact');
+            setState('kanbanLayout', 'stacked');
+            persistState();
+
+            expect(localStorage.getItem('kanbanDensity')).toBe('compact');
+            expect(localStorage.getItem('kanbanLayout')).toBe('stacked');
+        });
     });
 
     describe('auto-persist subscriptions', () => {
@@ -199,6 +252,7 @@ describe('State Management', () => {
         });
 
         test('should auto-persist pinnedTabs on change', () => {
+            setState('openTabs', [{ id: 'pinned1', type: 'file', title: 'Pinned', path: 'pinned1.md' }]);
             setState('pinnedTabs', ['pinned1']);
             const saved = JSON.parse(localStorage.getItem('pinnedTabs'));
             expect(saved).toEqual(['pinned1']);

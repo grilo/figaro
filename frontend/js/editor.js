@@ -1043,7 +1043,7 @@ function createEditorView() {
 
     editorView = new EditorView({ state: editorState, parent: container });
 
-    // The persisted preference may load while the Home tab is active, before
+    // The persisted preference may load while the workspace overview is active, before
     // an EditorView exists. Apply that requested state as soon as a file first
     // creates the shared editor.
     if (vimRequested) {

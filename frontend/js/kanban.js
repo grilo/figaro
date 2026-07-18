@@ -21,6 +21,77 @@ let liveRefreshFrame = null;
 let liveRefreshInitialized = false;
 
 export const KANBAN_CARD_TEXT_LIMIT = 120;
+export const KANBAN_DENSITIES = ['comfortable', 'compact'];
+export const KANBAN_LAYOUTS = ['side-by-side', 'stacked'];
+
+function normalizeKanbanDensity(value) {
+    return KANBAN_DENSITIES.includes(value) ? value : 'comfortable';
+}
+
+function normalizeKanbanLayout(value) {
+    return KANBAN_LAYOUTS.includes(value) ? value : 'side-by-side';
+}
+
+/** Apply stored presentation preferences to mounted boards and Settings controls. */
+export function applyKanbanPresentationToViews(
+    density = getState('kanbanDensity'),
+    layout = getState('kanbanLayout'),
+) {
+    const resolvedDensity = normalizeKanbanDensity(density);
+    const resolvedLayout = normalizeKanbanLayout(layout);
+    document.querySelectorAll('.kanban-view-wrapper').forEach(view => {
+        view.dataset.density = resolvedDensity;
+        view.dataset.layout = resolvedLayout;
+    });
+    document.querySelectorAll('[data-kanban-density]').forEach(button => {
+        const selected = button.dataset.kanbanDensity === resolvedDensity;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-pressed', String(selected));
+    });
+    document.querySelectorAll('[data-kanban-layout]').forEach(button => {
+        const selected = button.dataset.kanbanLayout === resolvedLayout;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-pressed', String(selected));
+    });
+}
+
+/** Persist a board density preference without touching task data or layout state. */
+export function setKanbanDensity(density) {
+    const resolved = normalizeKanbanDensity(density);
+    setState('kanbanDensity', resolved);
+    applyKanbanPresentationToViews(resolved);
+    return resolved;
+}
+
+/** Persist the board flow without changing any task data. */
+export function setKanbanLayout(layout) {
+    const resolved = normalizeKanbanLayout(layout);
+    setState('kanbanLayout', resolved);
+    applyKanbanPresentationToViews(undefined, resolved);
+    return resolved;
+}
+
+/** Bind the Kanban controls that live in Settings instead of the board itself. */
+export function initKanbanPresentationSettings(root = document) {
+    if (!root?.querySelector?.('[data-kanban-density], [data-kanban-layout]')) return;
+    if (root.dataset.kanbanPresentationInitialized === 'true') {
+        applyKanbanPresentationToViews();
+        return;
+    }
+    root.dataset.kanbanPresentationInitialized = 'true';
+    root.addEventListener('click', event => {
+        const densityButton = event.target.closest?.('[data-kanban-density]');
+        if (densityButton && root.contains(densityButton)) {
+            setKanbanDensity(densityButton.dataset.kanbanDensity);
+            return;
+        }
+        const layoutButton = event.target.closest?.('[data-kanban-layout]');
+        if (layoutButton && root.contains(layoutButton)) {
+            setKanbanLayout(layoutButton.dataset.kanbanLayout);
+        }
+    });
+    applyKanbanPresentationToViews();
+}
 
 /**
  * Initialize kanban module
@@ -34,6 +105,7 @@ export function initKanban() {
             applySavedKanbanSnapshot(path, content);
         });
     }
+    applyKanbanPresentationToViews();
     refreshKanbanData().catch(() => {});
 }
 
@@ -274,7 +346,21 @@ function renderKanbanBadges(boardData) {
 function renderKanbanSnapshot(boardData, focusCol = null, container = getBoardContainer()) {
     renderKanbanBadges(boardData);
     if (!container || !container.isConnected) return;
+    const boardScroll = {
+        left: container.scrollLeft,
+        top: container.scrollTop,
+        columns: [...container.querySelectorAll('.kanban-column-cards')].map(cards => ({
+            column: cards.dataset.column,
+            top: cards.scrollTop,
+        })),
+    };
     renderColumns(container, boardData, focusCol);
+    container.scrollLeft = boardScroll.left;
+    container.scrollTop = boardScroll.top;
+    for (const { column, top } of boardScroll.columns) {
+        const cards = container.querySelector(`.kanban-column-cards[data-column="${escapeAttribute(column)}"]`);
+        if (cards) cards.scrollTop = top;
+    }
     initKanbanDragDrop(container);
 }
 
@@ -286,7 +372,11 @@ function renderKanbanSnapshot(boardData, focusCol = null, container = getBoardCo
 export async function renderKanbanBoard(containerId, focusCol = null) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    container.innerHTML = '<div class="kanban-loading">Loading board...</div>';
+    container.innerHTML = `<div class="kanban-loading" role="status" aria-live="polite" aria-label="Loading Kanban board">
+        <div class="kanban-skeleton-column"><span></span><i></i><i></i><i></i></div>
+        <div class="kanban-skeleton-column"><span></span><i></i><i></i></div>
+        <div class="kanban-skeleton-column"><span></span><i></i><i></i><i></i></div>
+    </div>`;
     const refreshed = await refreshKanbanData({ focusCol, container });
     if (!container.isConnected) return;
     // A newer request may already have painted this shared board container.

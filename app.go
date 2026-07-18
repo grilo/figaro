@@ -2923,13 +2923,6 @@ func normalizeSessionData(root *os.Root, source map[string]interface{}) map[stri
 			var cleaned map[string]interface{}
 			var tabID string
 			switch typeName {
-			case "home":
-				tabID = "home"
-				title := sessionString(tab["title"])
-				if title == "" {
-					title = "Welcome"
-				}
-				cleaned = map[string]interface{}{"id": tabID, "type": "home", "title": title}
 			case "calendar":
 				date := sessionString(tab["dateStr"])
 				if date == "" {

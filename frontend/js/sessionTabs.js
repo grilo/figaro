@@ -4,7 +4,7 @@
  * layers from restoring different workspaces.
  */
 
-const PERSISTED_TAB_TYPES = new Set(['file', 'drawio', 'calendar', 'home']);
+const PERSISTED_TAB_TYPES = new Set(['file', 'drawio', 'calendar']);
 
 export function serializeSessionTabs(tabs) {
     return (Array.isArray(tabs) ? tabs : [])
@@ -18,20 +18,15 @@ export function serializeSessionTabs(tabs) {
 }
 
 /**
- * Older sessions omitted non-file tabs. If Welcome was pinned, restore it
- * even from one of those legacy sessions instead of leaving a dangling pin.
+ * Legacy sessions may still contain the old synthetic Welcome tab. Ignore it:
+ * the workspace overview is a view, not a serializable tab.
  */
 export function restoreSessionTabs(tabs, pinnedTabs) {
-    const restored = (Array.isArray(tabs) ? tabs : [])
+    void pinnedTabs;
+    return (Array.isArray(tabs) ? tabs : [])
         .filter(Boolean)
+        .filter(tab => tab.id !== 'home' && tab.type !== 'home')
         .map(tab => ({ ...tab }));
-    const hasWelcome = restored.some(tab => tab.id === 'home' || tab.type === 'home');
-
-    if (Array.isArray(pinnedTabs) && pinnedTabs.includes('home') && !hasWelcome) {
-        restored.unshift({ id: 'home', type: 'home', title: 'Welcome' });
-    }
-
-    return restored;
 }
 
 /**
@@ -43,9 +38,6 @@ export function restoreSessionTabs(tabs, pinnedTabs) {
 export function restoredTabOpenArgs(tab) {
     if (!tab || typeof tab !== 'object') return null;
 
-    if (tab.type === 'home') {
-        return { id: 'home', title: tab.title || 'Welcome', type: 'home', data: {} };
-    }
     if ((tab.type === 'file' || tab.type === 'drawio') && tab.path) {
         return {
             id: tab.id || tab.path,

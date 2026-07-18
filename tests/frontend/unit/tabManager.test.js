@@ -384,39 +384,22 @@ describe('Tab Manager', () => {
             expect(getState('pinnedTabs')).not.toContain('tab1');
         });
 
-        test('opens the Welcome tab after closing the last tab', async () => {
+        test('keeps the workspace overview without a synthetic tab after closing the last tab', async () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
 
             await closeTab('tab1');
 
-            expect(getState('openTabs')).toEqual(expect.arrayContaining([
-                expect.objectContaining({ id: 'home', title: 'Welcome', type: 'home' })
-            ]));
-            expect(getState('openTabs')).toHaveLength(1);
-            expect(getState('activeTabId')).toBe('home');
+            expect(getState('openTabs')).toEqual([]);
+            expect(getState('activeTabId')).toBeNull();
+            expect(document.querySelectorAll('#tab-strip .tab')).toHaveLength(0);
+            expect(document.querySelector('.workspace-home-panel.active')).not.toBeNull();
         });
 
-        test('keeps the only Welcome tab open and disables its close control', async () => {
-            openTab('home', 'Welcome', 'home');
-            renderTabBar();
-
-            const closeButton = document.querySelector('[data-tab-id="home"] .tab-close');
-            expect(closeButton.disabled).toBe(true);
-            expect(closeButton.getAttribute('aria-disabled')).toBe('true');
-            await expect(closeTab('home')).resolves.toBe(false);
-            expect(getState('openTabs')).toEqual([
-                expect.objectContaining({ id: 'home', type: 'home' }),
-            ]);
-        });
-
-        test('enables the Welcome close control when another tab is open', () => {
-            openTab('home', 'Welcome', 'home');
-            openTab('note.md', 'Note', 'file', { path: 'note.md' });
-            renderTabBar();
-
-            const closeButton = document.querySelector('[data-tab-id="home"] .tab-close');
-            expect(closeButton.disabled).toBe(false);
-            expect(closeButton.getAttribute('aria-disabled')).toBeNull();
+        test('routes legacy Home tab requests to the workspace overview', () => {
+            expect(openTab('home', 'Welcome', 'home')).toBeNull();
+            expect(getState('openTabs')).toEqual([]);
+            expect(getState('activeTabId')).toBeNull();
+            expect(document.querySelector('.workspace-home-panel.active')).not.toBeNull();
         });
     });
 
@@ -474,15 +457,14 @@ describe('Tab Manager', () => {
             expect(getState('pinnedTabs')).toEqual(['archive/notes/diagram.drawio.svg']);
         });
 
-        test('closes deleted Draw.io tabs and restores Welcome after the final editor tab disappears', () => {
+        test('closes deleted Draw.io tabs and restores the workspace overview after the final editor tab disappears', () => {
             mockState.openTabs = [{ id: 'diagram.drawio.svg', title: 'Diagram', type: 'drawio', path: 'diagram.drawio.svg' }];
             mockState.activeTabId = 'diagram.drawio.svg';
 
             expect(closeTabsForDeletedPath('diagram.drawio.svg')).toBe(true);
-            expect(getState('openTabs')).toEqual([
-                expect.objectContaining({ id: 'home', type: 'home', title: 'Welcome' }),
-            ]);
-            expect(getState('activeTabId')).toBe('home');
+            expect(getState('openTabs')).toEqual([]);
+            expect(getState('activeTabId')).toBeNull();
+            expect(document.querySelector('.workspace-home-panel.active')).not.toBeNull();
         });
 
         test('requires an explicitly saved Draw.io editor before moving it', async () => {

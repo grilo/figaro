@@ -124,15 +124,18 @@ function setGitStatusVisibility(visible) {
 function setGitStatusState(uncommitted) {
     const button = document.getElementById('git-status');
     if (!button) return;
-    setGitStatusVisibility(Boolean(gitStatusPath));
+    // Git is an implementation detail of Figaro's local History. Keep the
+    // status bar quiet while a file is already recorded, then surface a
+    // single, plain-language action only when there is useful work to do.
+    setGitStatusVisibility(Boolean(gitStatusPath && uncommitted));
     button.classList.toggle('is-uncommitted', Boolean(uncommitted));
     button.classList.remove('has-error');
     if (!gitCommitInProgress) {
         button.disabled = !uncommitted;
-        button.textContent = uncommitted ? 'Uncommitted' : 'Git clean';
+        button.textContent = 'Save to history';
         button.title = uncommitted
-            ? 'Commit this file to Git'
-            : 'This file is committed to Git';
+            ? 'Save this file to its local history'
+            : 'This file is already saved to its local history';
     }
 }
 
@@ -140,8 +143,8 @@ function setGitStatusError() {
     const button = document.getElementById('git-status');
     if (!button) return;
     setGitStatusVisibility(Boolean(gitStatusPath));
-    button.textContent = 'Git status unavailable';
-    button.title = 'Figaro could not read Git status for this file';
+    button.textContent = 'History unavailable';
+    button.title = 'Figaro could not read this file’s local-history status';
     button.disabled = true;
     button.classList.remove('is-uncommitted');
     button.classList.add('has-error');
@@ -189,7 +192,7 @@ export async function commitCurrentFileChanges() {
         button.disabled = true;
         button.classList.add('is-committing');
         button.setAttribute('aria-busy', 'true');
-        button.textContent = tab.dirty ? 'Saving…' : 'Committing…';
+        button.textContent = tab.dirty ? 'Saving…' : 'Saving to history…';
     }
 
     try {
@@ -209,10 +212,10 @@ export async function commitCurrentFileChanges() {
             }
             const saved = await saveFileSnapshot(tab, pendingContent);
             if (!saved?.success) throw new Error(saved?.error || 'The file could not be saved before committing.');
-            if (button && gitStatusPath === path) button.textContent = 'Committing…';
+            if (button && gitStatusPath === path) button.textContent = 'Saving to history…';
         }
         await backend().CommitCurrentFile(path);
-        statusBar.set('Committed file to Git');
+        statusBar.set('Saved file to local history');
         await updateHistoryCount(path);
         await refreshHistoryIfOpen();
         return true;

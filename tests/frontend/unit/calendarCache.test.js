@@ -5,7 +5,7 @@ jest.mock('../frontend/js/app.js', () => ({
 }));
 
 import { setState } from '../frontend/js/state.js';
-import { invalidateCalendarCache, renderCalendar } from '../frontend/js/calendar.js';
+import { invalidateCalendarCache, refreshCalendarIfVisible, renderCalendar } from '../frontend/js/calendar.js';
 
 const monthData = {
     year: 2025,
@@ -53,5 +53,31 @@ describe('Calendar cache', () => {
         await flushCalendar();
 
         expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(2);
+    });
+
+    test('refreshes the open left-sidebar Calendar after a vault change', async () => {
+        const panel = document.getElementById('sidebar-calendar-panel');
+        panel.classList.add('open');
+        panel.setAttribute('aria-hidden', 'false');
+
+        renderCalendar();
+        await flushCalendar();
+        invalidateCalendarCache();
+
+        expect(refreshCalendarIfVisible()).toBe(true);
+        await flushCalendar();
+
+        expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(2);
+        expect(document.querySelectorAll('#calendar-grid .cal-day-header')).toHaveLength(7);
+        expect(document.getElementById('calendar-grid').getAttribute('aria-busy')).toBe('false');
+    });
+
+    test('does not reload a hidden Calendar panel', () => {
+        const panel = document.getElementById('sidebar-calendar-panel');
+        panel.classList.remove('open');
+        panel.setAttribute('aria-hidden', 'true');
+
+        expect(refreshCalendarIfVisible()).toBe(false);
+        expect(window.go.main.App.GetCalendarMonthData).not.toHaveBeenCalled();
     });
 });

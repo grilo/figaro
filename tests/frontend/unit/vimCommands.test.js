@@ -61,10 +61,7 @@ describe('Vim command behavior', () => {
             dirty: true,
             mtime: 10,
         };
-        setState('openTabs', [
-            { id: 'home', title: 'Welcome', type: 'home', dirty: false },
-            fileTab,
-        ]);
+        setState('openTabs', [fileTab]);
         setState('activeTabId', fileTab.id);
         setState('pinnedTabs', []);
         view.dispatch({
@@ -140,7 +137,9 @@ describe('Vim command behavior', () => {
             2, 'notes/vim.md', 'alpha beta\nmiddle\nbeta end\nnewer text', 20
         );
         expect(getState('openTabs')).not.toContain(fileTab);
-        expect(getState('activeTabId')).toBe('home');
+        expect(getState('activeTabId')).toBeNull();
+        expect(getState('openTabs')).toEqual([]);
+        expect(document.querySelector('.workspace-home-panel.active')).not.toBeNull();
         expect(confirmDialog).not.toHaveBeenCalled();
         await toggleVim(false);
     });
