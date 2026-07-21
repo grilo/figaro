@@ -106,7 +106,7 @@ function isDigit4Key(event) {
     return event.code === 'Digit4' || event.keyCode === 52 || event.which === 52;
 }
 
-function insertTextAtCursor(view, text) {
+export function insertTextAtCursor(view, text) {
     if (!view?.state?.selection) return false;
     const selection = view.state.selection.main;
     if (!selection || !text) return false;
@@ -127,6 +127,19 @@ function handleWindowsAltGrTilde(event, view) {
         return true;
     }
     return false;
+}
+
+// Native desktop drops are imported through the Wails file-drop callback. Do
+// not let CodeMirror's browser fallback insert an opaque filesystem path into
+// the note while that native import confirmation is being shown.
+export function handleExternalFileDrop(event) {
+    const types = Array.from(event?.dataTransfer?.types || []);
+    const hasFiles = types.includes('Files')
+        || types.includes('text/uri-list')
+        || Number(event?.dataTransfer?.files?.length) > 0;
+    if (!hasFiles) return false;
+    event.preventDefault();
+    return true;
 }
 
 export function isBlockquoteLine(line) {
@@ -969,6 +982,7 @@ function createEditorView() {
             paste: (event, view) => handleClipboardImagePaste(event, view)
                 || (activeFileLanguage.kind === 'markdown' && handleClipboardTablePaste(event, view)),
             keydown: handleWindowsAltGrTilde,
+            drop: handleExternalFileDrop,
         }),
         Prec.high(keymap.of([
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },

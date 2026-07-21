@@ -6,6 +6,18 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.3.3 - 2026-07-21
+
+### Added
+
+- Opening a Markdown file through the desktop file association now shows an
+  editable external tab that saves back to the original file and can be copied
+  into the vault without overwriting an existing note.
+- Dragging files or folders into an editor now lets you choose between inserting
+  their paths or importing them into the vault; imported files open in a new
+  active tab, while folder imports preserve their structure and keep the
+  current buffer active without overwriting existing files.
+
 ## 1.3.2 - 2026-07-21
 
 ### Fixed

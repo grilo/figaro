@@ -117,6 +117,13 @@ Each theme defines these properties (with theme-specific colors):
 - **Vault configuration**: Portable, vault-specific state that requires persistence (e.g., kanban column colors, theme selection, vim mode, and workspace session) is stored in `vault/.config/` as JSON files. Host-specific window state and the selected PDF-browser executable are exceptions and follow the machine-local contract in section 24.
 - A new empty vault receives a welcome note; existing vault contents are never replaced.
 
+### 3.1a External Markdown Launches
+
+- A `.md` document passed by the operating system at application launch opens in an editable external tab even when it is outside the selected vault.
+- Saving writes to the exact original document with optimistic modification-time conflict detection. External tabs never enter the vault tree, workspace session, index, Kanban, Calendar, or Git history.
+- After a user-triggered save, Figaro offers **Import note**. Import copies the saved source into the vault through the normal non-overwriting copy path; cancelling keeps both the source and the vault unchanged.
+- Dropping external files or folders on an editor buffer asks once whether to insert their filesystem paths into the document or import the full batch. A successful file import opens its new active editor tab; folder imports are recursive, preserve their structure, and retain the current buffer. Collisions receive the normal non-overwriting copy names, while cancelling changes nothing.
+
 ### 3.2 Supported Operations
 
 | Operation | Behavior |

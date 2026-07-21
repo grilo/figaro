@@ -29,6 +29,8 @@ the native Wails binding at `window.go.main.App` using its generated PascalCase
 method names. Browser debugging installs an explicit same-shaped mock through
 that module, rather than emulating a retired desktop runtime.
 
+Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. Go records only the explicit launch documents under process-local opaque IDs; the frontend can read or save an ID but cannot turn it into arbitrary filesystem access. An external tab writes atomically to its original document, does not join the vault index, watcher, session, or Git history, and may be explicitly copied into the vault through the existing collision-safe native-drop copy path. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
+
 ## Incremental vault index and native changes
 
 Search, backlinks, Kanban, and Calendar project the same Markdown vault data,

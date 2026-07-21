@@ -8,7 +8,7 @@ const PERSISTED_TAB_TYPES = new Set(['file', 'drawio', 'calendar']);
 
 export function serializeSessionTabs(tabs) {
     return (Array.isArray(tabs) ? tabs : [])
-        .filter(tab => tab && PERSISTED_TAB_TYPES.has(tab.type))
+        .filter(tab => tab && PERSISTED_TAB_TYPES.has(tab.type) && !tab.externalFileId)
         .map(tab => {
             const base = { id: tab.id, type: tab.type, title: tab.title };
             if (tab.type === 'file' || tab.type === 'drawio') base.path = tab.path;

@@ -17,6 +17,7 @@ import { initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown
 import { initBacklinks } from './backlinks.js';
 import { loadSession, saveSession } from './session.js';
 import { restoredTabOpenArgs } from './sessionTabs.js';
+import { openLaunchExternalFiles } from './externalFiles.js';
 import { initTheme } from './theme.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
@@ -319,7 +320,7 @@ function initKeyboardShortcuts() {
         // Ctrl/Cmd + S: Save current file
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            saveActiveTabFile();
+            saveActiveTabFile({ offerExternalImport: true });
         }
         
         // Ctrl/Cmd + W: Close current tab
@@ -489,6 +490,7 @@ export async function initApp() {
 
     // Restore previously open tabs (after file tree is available)
     const didRestore = restoreOpenTabs();
+    await openLaunchExternalFiles(openTab);
     
     // Initialize calendar
     initCalendar();

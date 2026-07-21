@@ -620,6 +620,30 @@ describe('Tab Manager', () => {
     });
 
     describe('save queue', () => {
+        test('writes a MIME-launched file to its original path without creating vault history', async () => {
+            const tab = {
+                id: 'external:1',
+                type: 'file',
+                path: 'C:\\Notes\\outside.md',
+                externalFileId: '1',
+                title: 'outside.md',
+                mtime: 10,
+                dirty: true,
+            };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            window.go.main.App.SaveLaunchExternalFile = jest.fn().mockResolvedValue({ success: true, mtime: 11 });
+
+            setAutoCommitEnabled(true);
+            await expect(saveFileSnapshot(tab, 'saved outside the vault')).resolves.toEqual(
+                expect.objectContaining({ success: true, historyCommitSucceeded: false }),
+            );
+
+            expect(window.go.main.App.SaveLaunchExternalFile).toHaveBeenCalledWith('1', 'saved outside the vault', 10);
+            expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
+            expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
+        });
+
         test('Auto-Commit records only the saved file and leaves unrelated files untouched', async () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];

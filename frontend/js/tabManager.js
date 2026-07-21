@@ -12,6 +12,7 @@ import { statusBar } from './statusBar.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
 import { playEntranceAnimation, playExitAnimation } from './motion.js';
 import { shouldCommitOnSave } from './automation.js';
+import { offerExternalFileImport } from './externalFiles.js';
 
 /**
  * View Manager — shows either the editor or tab panels, never both.
@@ -546,7 +547,9 @@ async function loadFileContent(tab) {
             return;
         }
         
-        const result = await backend().ReadFile(tab.path);
+        const result = tab.externalFileId
+            ? await backend().ReadLaunchExternalFile(tab.externalFileId)
+            : await backend().ReadFile(tab.path);
         if (result) {
             if (result.binary) {
                 statusBar.set('Cannot edit binary file');
@@ -1106,10 +1109,10 @@ function handleTabContextMenu(e) {
     });
 }
 
-export function saveActiveFile() {
+export function saveActiveFile({ offerExternalImport = false } = {}) {
     const activeTab = getActiveTab();
     if (!activeTab || activeTab.type !== 'file' || !getEditorView()) return Promise.resolve(null);
-    return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab));
+    return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab), { offerExternalImport });
 }
 
 function contentSnapshotForTab(tab) {
@@ -1124,7 +1127,7 @@ function contentSnapshotForTab(tab) {
 // Queue saves by path. Every subsequent save reads the tab's latest mtime only
 // after its predecessor finishes, turning the backend's optimistic check into
 // a real per-file compare-and-swap sequence.
-export function saveFileSnapshot(tab, content) {
+export function saveFileSnapshot(tab, content, { offerExternalImport = false } = {}) {
     if (!tab?.path || typeof content !== 'string') return Promise.resolve(null);
 
     const path = tab.path;
@@ -1134,7 +1137,7 @@ export function saveFileSnapshot(tab, content) {
     const previous = saveQueues.get(path) || Promise.resolve();
     const queued = previous
         .catch(() => {})
-        .then(() => persistFileSnapshot(tab, content, generation, editGeneration));
+        .then(() => persistFileSnapshot(tab, content, generation, editGeneration, offerExternalImport));
 
     saveQueues.set(path, queued);
     queued.finally(() => {
@@ -1143,14 +1146,16 @@ export function saveFileSnapshot(tab, content) {
     return queued;
 }
 
-async function persistFileSnapshot(tab, content, generation, editGeneration) {
+async function persistFileSnapshot(tab, content, generation, editGeneration, offerExternalImport) {
     const path = tab.path;
-    const save = async (expectedMtime) => backend().SaveFile(path, content, expectedMtime || 0);
+    const save = async (expectedMtime) => tab.externalFileId
+        ? backend().SaveLaunchExternalFile(tab.externalFileId, content, expectedMtime || 0)
+        : backend().SaveFile(path, content, expectedMtime || 0);
 
     try {
         const result = await save(tab.mtime);
         if (result.success) {
-            await applySaveSuccess(tab, result, generation, editGeneration, 'Saved', content);
+            await applySaveSuccess(tab, result, generation, editGeneration, 'Saved', content, offerExternalImport);
             return result;
         }
 
@@ -1164,7 +1169,7 @@ async function persistFileSnapshot(tab, content, generation, editGeneration) {
         if (shouldOverwrite) {
             const forceResult = await save(0);
             if (forceResult.success) {
-                await applySaveSuccess(tab, forceResult, generation, editGeneration, 'Saved (forced)', content);
+                await applySaveSuccess(tab, forceResult, generation, editGeneration, 'Saved (forced)', content, offerExternalImport);
                 return forceResult;
             }
             return forceResult;
@@ -1177,13 +1182,13 @@ async function persistFileSnapshot(tab, content, generation, editGeneration) {
     }
 }
 
-async function applySaveSuccess(tab, result, generation, editGeneration, message, content) {
+async function applySaveSuccess(tab, result, generation, editGeneration, message, content, offerExternalImport) {
     tab.mtime = result.mtime;
     const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
     tabsForPath.forEach(candidate => {
         candidate.mtime = result.mtime;
     });
-    const autoCommitEnabled = shouldCommitOnSave();
+    const autoCommitEnabled = !tab.externalFileId && shouldCommitOnSave();
     let historyCommitFailed = false;
     if (autoCommitEnabled) {
         try {
@@ -1206,17 +1211,30 @@ async function applySaveSuccess(tab, result, generation, editGeneration, message
         tab._content = null;
     }
     updateTabTitle(tab.id, tab.title);
-    document.dispatchEvent(new CustomEvent('vault-file-saved', {
-        detail: { path: tab.path, content, mtime: result.mtime }
-    }));
+    if (!tab.externalFileId) {
+        document.dispatchEvent(new CustomEvent('vault-file-saved', {
+            detail: { path: tab.path, content, mtime: result.mtime }
+        }));
+    }
     statusBar.set(historyCommitFailed
         ? 'Saved; history commit failed'
         : (savedLatestEdit ? message : 'Saved older snapshot; newer changes remain'));
-    import('./calendar.js').then(({ invalidateCalendarCache, refreshCalendarIfVisible }) => {
-        invalidateCalendarCache();
-        refreshCalendarIfVisible();
-    }).catch(() => {});
-    refreshHistoryIfOpen();
+    if (!tab.externalFileId) {
+        import('./calendar.js').then(({ invalidateCalendarCache, refreshCalendarIfVisible }) => {
+            invalidateCalendarCache();
+            refreshCalendarIfVisible();
+        }).catch(() => {});
+        refreshHistoryIfOpen();
+    }
+    if (tab.externalFileId && offerExternalImport && savedLatestEdit && !tab._externalImportOfferShown) {
+        tab._externalImportOfferShown = true;
+        try {
+            await offerExternalFileImport(tab, { openTab, closeTab });
+        } catch (error) {
+            log.warn('Could not import external file into vault:', error);
+            statusBar.set('Saved outside vault; import failed');
+        }
+    }
     setTimeout(() => statusBar.set('Ready'), 1000);
 }
 

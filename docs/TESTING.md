@@ -293,6 +293,21 @@ files, gives colliding moved/imported entries parenthesized names such as
 on the resulting paths. Retain Go coverage for internal and native-drop merges
 and frontend coverage for both confirmation flows.
 
+## External Markdown launch regressions
+
+Native file-association launches are an explicit boundary: retain Go coverage that startup accepts only existing `.md` arguments, the opaque launch ID reads and saves exactly its original file, and unknown IDs are refused. Frontend coverage must assert external tabs use the external save binding, do not Auto-Commit or persist in the vault session, and that cancelling import performs no copy while a backend collision result opens the returned non-overwriting destination. Buffer drops must prevent CodeMirror's uncontrolled path insertion, ask once for an entire native drop batch, insert the selected path at the drop position, and call the recursive collision-safe import once for a dropped directory. A successful dropped-file import must open that imported file in a new active tab, while a dropped directory keeps the current buffer active. The Wails callback must register without the CSS-drop-target filter so it reaches CodeMirror on Linux/WebKit. Exercise a packaged Windows/WebView2 build manually by opening an associated `.md` file, saving it, declining import, then repeating the save and importing into a vault that already contains the same filename; also drag a standalone note and a folder into an editor buffer, choose path insertion once, then import once and verify the folder hierarchy.
+
+Run the focused contract with:
+
+```bash
+go test . -run 'Test(LaunchExternalFile|MarkdownLaunchPaths)'
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/externalFiles.test.js \
+  tests/frontend/unit/externalDrop.test.js \
+  tests/frontend/unit/importedExternalTabs.test.js \
+  tests/frontend/unit/tabManager.test.js
+```
+
 ## Vim command regressions
 
 Vim commands are exercised through the real vendored CodeMirror Vim adapter,

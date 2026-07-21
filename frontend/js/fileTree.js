@@ -12,6 +12,8 @@ import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, mess
 import { isDrawioDiagramPath } from './drawio.js';
 import { isEditableCodeMirrorFile } from './languageSupport.js';
 import { renderLucideIcon } from './lucideIcons.js';
+import { importDroppedExternalPaths } from './externalFiles.js';
+import { getEditorView, insertTextAtCursor } from './editor.js';
 
 
 let dragSourceNode = null;
@@ -840,13 +842,56 @@ export function externalDropTargetDirectory(element) {
     return separator >= 0 ? path.slice(0, separator) : '';
 }
 
+/** Open each imported top-level file after the refreshed tree can identify it. */
+export function openImportedExternalFileTabs(paths, fileTreeData, open = openTab) {
+    if (!Array.isArray(paths) || typeof open !== 'function') return false;
+    let opened = false;
+    for (const path of paths) {
+        const item = findTreeItem(fileTreeData || [], path);
+        if (!item || item.type !== 'file') continue;
+        open(item.path, item.name || String(item.path).split('/').pop(), 'file', {
+            path: item.path,
+            mtime: item.mtime,
+        });
+        opened = true;
+    }
+    return opened;
+}
+
 /** Copy absolute native paths into the folder under the drop coordinates. */
-export async function copyExternalDrop(paths, targetDirectory) {
+function insertDroppedPathsIntoEditor(paths, coordinates) {
+    const view = getEditorView();
+    if (!view || view.isDestroyed) return false;
+    const position = coordinates ? view.posAtCoords?.(coordinates) : null;
+    if (Number.isInteger(position)) view.dispatch({ selection: { anchor: position } });
+    return insertTextAtCursor(view, paths.map(path => String(path)).join('\n'));
+}
+
+export async function copyExternalDrop(paths, targetDirectory, { confirmImport = false, coordinates = null } = {}) {
     if (externalCopyInProgress || !Array.isArray(paths) || paths.length === 0 || targetDirectory === null) return false;
     externalCopyInProgress = true;
-    statusBar.set(`Copying ${paths.length} dropped ${paths.length === 1 ? 'item' : 'items'}…`);
     try {
-        let result = await backend().CopyExternalPaths(paths, targetDirectory, false);
+        let result;
+        let openImportedFiles = false;
+        if (confirmImport) {
+            const dropped = await importDroppedExternalPaths(paths, targetDirectory);
+            if (dropped.action === 'cancel') {
+                statusBar.set('Drop cancelled');
+                setTimeout(() => statusBar.set('Ready'), 1800);
+                return false;
+            }
+            if (dropped.action === 'path') {
+                const inserted = insertDroppedPathsIntoEditor(dropped.paths, coordinates);
+                statusBar.set(inserted ? 'Inserted dropped path' : 'Could not insert dropped path');
+                setTimeout(() => statusBar.set('Ready'), 1800);
+                return inserted;
+            }
+            result = dropped.result;
+            openImportedFiles = dropped.action === 'import';
+        } else {
+            statusBar.set(`Copying ${paths.length} dropped ${paths.length === 1 ? 'item' : 'items'}…`);
+            result = await backend().CopyExternalPaths(paths, targetDirectory, false);
+        }
         const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
         if (!result?.success && conflicts.length > 0) {
             const directoryConflicts = Array.isArray(result?.directory_conflicts) ? result.directory_conflicts : [];
@@ -898,6 +943,9 @@ export async function copyExternalDrop(paths, targetDirectory) {
             saveSession();
         }
         await refreshFileTree();
+        if (openImportedFiles) {
+            openImportedExternalFileTabs(result.paths, getState('fileTreeData'));
+        }
         const copied = Array.isArray(result.paths) ? result.paths.length : paths.length;
         statusBar.set(`Copied ${copied} ${copied === 1 ? 'item' : 'items'} into the vault`);
         setTimeout(() => statusBar.set('Ready'), 2500);
@@ -918,9 +966,17 @@ export function initNativeFileDrops(runtime = window.runtime) {
     runtime.OnFileDrop((x, y, paths) => {
         const element = document.elementFromPoint(x, y);
         const targetDirectory = externalDropTargetDirectory(element);
-        if (targetDirectory === null) return;
-        copyExternalDrop(paths, targetDirectory).catch(() => {});
-    }, true);
+        if (targetDirectory !== null) {
+            copyExternalDrop(paths, targetDirectory).catch(() => {});
+            return;
+        }
+        if (element?.closest?.('#editor-container')) {
+            copyExternalDrop(paths, '', { confirmImport: true, coordinates: { x, y } }).catch(() => {});
+        }
+    // Handle every native file drop ourselves. Passing true would make Wails
+    // invoke the callback only for CSS --wails-drop-target elements, which
+    // excludes CodeMirror and leaves Linux/WebKit to insert the file path.
+    }, false);
     nativeFileDropInitialized = true;
     return true;
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/wailsapp/wails/v2"
@@ -38,6 +39,7 @@ func main() {
 	log.Println("Vault selected")
 
 	app := NewApp(vaultPath)
+	app.setLaunchExternalFiles(markdownLaunchPaths(os.Args[1:]))
 	app.devInspectorAddress = inspectorAddress
 	windowState, windowStatePath, windowStateErr := loadMachineWindowState()
 	if windowStateErr != nil {
@@ -130,6 +132,33 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// markdownLaunchPaths accepts only existing Markdown files provided as native
+// launch arguments. Desktop launchers can add their own flags, which are not
+// documents and must not become editor tabs.
+func markdownLaunchPaths(args []string) []string {
+	paths := make([]string, 0, len(args))
+	seen := make(map[string]struct{})
+	for _, arg := range args {
+		if arg == "" || strings.HasPrefix(arg, "-") || !strings.EqualFold(filepath.Ext(arg), ".md") {
+			continue
+		}
+		path, err := filepath.Abs(arg)
+		if err != nil {
+			continue
+		}
+		info, err := os.Stat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		if _, exists := seen[path]; exists {
+			continue
+		}
+		seen[path] = struct{}{}
+		paths = append(paths, path)
+	}
+	return paths
 }
 
 func configureWebKitInspector() string {

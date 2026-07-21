@@ -48,6 +48,9 @@ type App struct {
 	vaultMu             sync.RWMutex
 	sessionMu           sync.RWMutex
 	mu                  sync.RWMutex
+	externalFilesMu     sync.RWMutex
+	launchExternalFiles map[string]string
+	launchExternalIDs   []string
 	settingsMu          sync.RWMutex
 	machineSettingsMu   sync.RWMutex
 	windowStateMu       sync.Mutex
@@ -373,6 +376,42 @@ func (a *App) startup(ctx context.Context) {
 	}()
 }
 
+// setLaunchExternalFiles retains the Markdown files supplied by the operating
+// system at process launch. The frontend receives opaque IDs rather than
+// arbitrary filesystem paths it could use to request unrelated files.
+func (a *App) setLaunchExternalFiles(paths []string) {
+	files := make(map[string]string)
+	ids := make([]string, 0, len(paths))
+	knownPaths := make(map[string]struct{})
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		if _, exists := knownPaths[path]; exists {
+			continue
+		}
+		knownPaths[path] = struct{}{}
+		id := fmt.Sprintf("external-%d", len(ids)+1)
+		files[id] = path
+		ids = append(ids, id)
+	}
+
+	a.externalFilesMu.Lock()
+	a.launchExternalFiles = files
+	a.launchExternalIDs = ids
+	a.externalFilesMu.Unlock()
+}
+
+func (a *App) launchExternalFilePath(id string) (string, error) {
+	a.externalFilesMu.RLock()
+	path, ok := a.launchExternalFiles[id]
+	a.externalFilesMu.RUnlock()
+	if !ok || path == "" {
+		return "", fmt.Errorf("external launch file is not available")
+	}
+	return path, nil
+}
+
 // domReady is called from OnDomReady; defined in main.go.
 // shutdown is called from OnShutdown.
 func (a *App) shutdown(ctx context.Context) {
@@ -663,6 +702,142 @@ type ReadFileResult struct {
 	Mtime   float64 `json:"mtime"`
 	Path    string  `json:"path"`
 	Binary  bool    `json:"binary,omitempty"`
+}
+
+// ExternalLaunchFile describes one Markdown document passed to Figaro by the
+// operating system. IDs are process-local capabilities, while Path is shown
+// only so the editor can retain normal language detection and file labeling.
+type ExternalLaunchFile struct {
+	ID    string  `json:"id"`
+	Name  string  `json:"name"`
+	Path  string  `json:"path"`
+	Mtime float64 `json:"mtime"`
+}
+
+func externalFileMtime(info os.FileInfo) float64 {
+	return float64(info.ModTime().UnixNano()) / 1e9
+}
+
+func readExternalMarkdownFile(path string) (*ReadFileResult, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("cannot read non-regular external file")
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return &ReadFileResult{
+		Content: string(content),
+		Mtime:   externalFileMtime(info),
+		Path:    path,
+		Binary:  isBinaryFileContent(content),
+	}, nil
+}
+
+// GetLaunchExternalFiles returns the current launch documents without reading
+// them. A document can disappear before the frontend is ready, in which case
+// it is simply omitted and never becomes an editable tab.
+func (a *App) GetLaunchExternalFiles() ([]*ExternalLaunchFile, error) {
+	a.externalFilesMu.RLock()
+	ids := append([]string(nil), a.launchExternalIDs...)
+	paths := make(map[string]string, len(a.launchExternalFiles))
+	for id, path := range a.launchExternalFiles {
+		paths[id] = path
+	}
+	a.externalFilesMu.RUnlock()
+
+	files := make([]*ExternalLaunchFile, 0, len(ids))
+	for _, id := range ids {
+		path := paths[id]
+		info, err := os.Stat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		files = append(files, &ExternalLaunchFile{
+			ID:    id,
+			Name:  filepath.Base(path),
+			Path:  path,
+			Mtime: externalFileMtime(info),
+		})
+	}
+	return files, nil
+}
+
+// ReadLaunchExternalFile reads only a Markdown file registered at application
+// launch. It deliberately does not share ReadFile's vault-relative API.
+func (a *App) ReadLaunchExternalFile(id string) (*ReadFileResult, error) {
+	path, err := a.launchExternalFilePath(id)
+	if err != nil {
+		return nil, err
+	}
+	return readExternalMarkdownFile(path)
+}
+
+func writeExternalFileAtomic(path string, content []byte, mode os.FileMode) (err error) {
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".figaro-save-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer func() {
+		_ = temporary.Close()
+		_ = os.Remove(temporaryPath)
+	}()
+	if err := temporary.Chmod(mode.Perm()); err != nil {
+		return err
+	}
+	if _, err := temporary.Write(content); err != nil {
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temporaryPath, path)
+}
+
+// SaveLaunchExternalFile writes back to the exact source document associated
+// with its process-local launch ID. It keeps the normal optimistic mtime
+// conflict contract but never updates the vault index or Git history.
+func (a *App) SaveLaunchExternalFile(id string, content string, expectedMtime float64) (*SaveFileResult, error) {
+	path, err := a.launchExternalFilePath(id)
+	if err != nil {
+		return nil, err
+	}
+	linkInfo, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if linkInfo.Mode()&os.ModeSymlink != 0 {
+		return &SaveFileResult{Success: false, Error: "Cannot save a symbolic-link launch file"}, nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return &SaveFileResult{Success: false, Error: "Cannot save a non-regular external file"}, nil
+	}
+	if info.Mode().Perm()&0222 == 0 {
+		return &SaveFileResult{Success: false, Error: "External file is read-only"}, nil
+	}
+	if expectedMtime != 0 && externalFileMtime(info) != expectedMtime {
+		return &SaveFileResult{Success: false, Error: "File modified externally"}, nil
+	}
+	if err := writeExternalFileAtomic(path, []byte(content), info.Mode()); err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	updated, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	return &SaveFileResult{Success: true, Mtime: externalFileMtime(updated), Path: path}, nil
 }
 
 // ReadFile reads a file from the vault.

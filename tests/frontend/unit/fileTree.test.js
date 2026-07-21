@@ -502,7 +502,7 @@ describe('File Tree', () => {
         window.go.main.App.GetFileTree.mockResolvedValueOnce(state.fileTreeData);
 
         expect(initNativeFileDrops(runtime)).toBe(true);
-        expect(runtime.OnFileDrop).toHaveBeenCalledWith(expect.any(Function), true);
+        expect(runtime.OnFileDrop).toHaveBeenCalledWith(expect.any(Function), false);
         callback(42, 84, ['/home/writer/note.md']);
         await new Promise(resolve => setTimeout(resolve, 0));
 
