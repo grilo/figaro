@@ -98,6 +98,14 @@ const codeIndentUnit = '  ';
 
 const isWindowsPlatform = () => typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '');
 
+function hasAltGraphModifier(event) {
+    return event.getModifierState?.('AltGraph') === true || (event.ctrlKey && event.altKey);
+}
+
+function isDigit4Key(event) {
+    return event.code === 'Digit4' || event.keyCode === 52 || event.which === 52;
+}
+
 function insertTextAtCursor(view, text) {
     if (!view?.state?.selection) return false;
     const selection = view.state.selection.main;
@@ -112,8 +120,7 @@ function insertTextAtCursor(view, text) {
 
 function handleWindowsAltGrTilde(event, view) {
     if (!isWindowsPlatform() || !event || !view) return false;
-    if (!event.ctrlKey || !event.altKey) return false;
-    if (event.code !== 'Digit4' && event.keyCode !== 52 && event.key !== 'Dead') return false;
+    if (!hasAltGraphModifier(event) || !isDigit4Key(event)) return false;
 
     if (insertTextAtCursor(view, '~')) {
         event.preventDefault();

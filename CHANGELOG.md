@@ -6,6 +6,13 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.3.2 - 2026-07-21
+
+### Fixed
+
+- Windows AltGr+4 now recognizes WebView2's `AltGraph` modifier and inserts
+  `~` instead of the blank/dead character.
+
 ## 1.3.1 - 2026-07-21
 
 ### Fixed

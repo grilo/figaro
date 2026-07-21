@@ -51,7 +51,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
         });
     });
 
-    test('inserts "~" when typing Windows AltGr+4', async () => {
+    test('inserts "~" when typing Windows AltGraph+4', async () => {
         const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
         const platformDescriptor = Object.getOwnPropertyDescriptor(navigator, 'platform');
         Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' });
@@ -83,17 +83,33 @@ describe('Editor Module - CodeMirror Initialization', () => {
             const event = new KeyboardEvent('keydown', {
                 key: 'Dead',
                 code: 'Digit4',
-                keyCode: 52,
-                which: 52,
-                altKey: true,
-                ctrlKey: true,
                 bubbles: true,
                 cancelable: true,
+            });
+            Object.defineProperty(event, 'getModifierState', {
+                configurable: true,
+                value: modifier => modifier === 'AltGraph',
             });
 
             view.contentDOM.dispatchEvent(event);
 
             expect(event.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('~');
+
+            const otherDeadKey = new KeyboardEvent('keydown', {
+                key: 'Dead',
+                code: 'Digit5',
+                bubbles: true,
+                cancelable: true,
+            });
+            Object.defineProperty(otherDeadKey, 'getModifierState', {
+                configurable: true,
+                value: modifier => modifier === 'AltGraph',
+            });
+
+            view.contentDOM.dispatchEvent(otherDeadKey);
+
+            expect(otherDeadKey.defaultPrevented).toBe(false);
             expect(view.state.doc.toString()).toBe('~');
         } finally {
             restorePlatform();
