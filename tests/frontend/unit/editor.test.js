@@ -51,6 +51,56 @@ describe('Editor Module - CodeMirror Initialization', () => {
         });
     });
 
+    test('inserts "~" when typing Windows AltGr+4', async () => {
+        const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+        const platformDescriptor = Object.getOwnPropertyDescriptor(navigator, 'platform');
+        Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' });
+        const restorePlatform = () => {
+            if (platformDescriptor) {
+                Object.defineProperty(navigator, 'platform', platformDescriptor);
+            }
+        };
+
+        document.body.innerHTML = `
+            <div id="editor-container"></div>
+            <div id="editor-search-bar" style="display:none">
+                <input id="editor-search-input" />
+                <span id="editor-search-counter"></span>
+                <button id="editor-search-prev"></button>
+                <button id="editor-search-next"></button>
+                <button id="editor-search-close"></button>
+            </div>
+            <span id="status-text"></span>
+            <span id="stats-count"></span>
+            <span id="backlink-count"></span>
+        `;
+
+        try {
+            await initEditor();
+            const view = createEditorView();
+            expect(view).not.toBeNull();
+
+            const event = new KeyboardEvent('keydown', {
+                key: 'Dead',
+                code: 'Digit4',
+                keyCode: 52,
+                which: 52,
+                altKey: true,
+                ctrlKey: true,
+                bubbles: true,
+                cancelable: true,
+            });
+
+            view.contentDOM.dispatchEvent(event);
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('~');
+        } finally {
+            restorePlatform();
+            document.body.innerHTML = '';
+        }
+    });
+
     test('keeps a selection when its own context menu is opened', async () => {
         const { shouldPreserveSelectionForContextMenu } = await import('../frontend/js/editor.js');
 

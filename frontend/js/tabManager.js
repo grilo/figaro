@@ -72,6 +72,7 @@ const saveQueues = new Map();
 let draggedTabId = null;
 let tabDropIndicator = null;
 let suppressTabClick = false;
+let previousTabActivationStack = [];
 
 function isFileBackedTab(tab) {
     return Boolean(tab?.path) && (tab.type === 'file' || tab.type === 'drawio');
@@ -79,6 +80,35 @@ function isFileBackedTab(tab) {
 
 function normalizeTabPath(path) {
     return String(path || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+}
+
+function rememberPreviousActiveTab(tabId) {
+    if (!tabId) return;
+    previousTabActivationStack = previousTabActivationStack.filter(storedId => storedId !== tabId);
+    previousTabActivationStack.push(tabId);
+    if (previousTabActivationStack.length > 64) {
+        previousTabActivationStack = previousTabActivationStack.slice(-64);
+    }
+}
+
+function removeTabFromActivationHistory(tabId) {
+    previousTabActivationStack = previousTabActivationStack.filter(storedId => storedId !== tabId);
+}
+
+function nextTabAfterClose(closingTabId, remainingTabs) {
+    if (!remainingTabs.length) return null;
+    const openTabIds = new Set(remainingTabs.map(tab => tab.id));
+    while (previousTabActivationStack.length) {
+        const candidateId = previousTabActivationStack.pop();
+        if (candidateId !== closingTabId && openTabIds.has(candidateId)) {
+            return candidateId;
+        }
+    }
+    return null;
+}
+
+function fallbackTabIdAfterClose(remainingTabs) {
+    return remainingTabs.find(tab => tab.type === 'file')?.id || remainingTabs[0]?.id || null;
 }
 
 /**
@@ -375,6 +405,11 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
         break;
     }
     
+    const currentActiveId = getState('activeTabId');
+    if (currentActiveId && currentActiveId !== tab.id && getState('openTabs').some(tabRef => tabRef.id === currentActiveId)) {
+        rememberPreviousActiveTab(currentActiveId);
+    }
+
     const newTabs = [...tabs, tab];
     setState('openTabs', newTabs);
     setState('activeTabId', tab.id);
@@ -392,6 +427,10 @@ export function switchTab(tabId) {
     if (!tab) return;
     
     const currentActiveId = getState('activeTabId');
+    const stillOpen = tabs.some(tab => tab.id === currentActiveId);
+    if (currentActiveId && currentActiveId !== tabId && stillOpen) {
+        rememberPreviousActiveTab(currentActiveId);
+    }
     if (currentActiveId && currentActiveId !== tabId) {
         const currentTab = tabs.find(t => t.id === currentActiveId);
         if (currentTab && currentTab.type === 'file') {
@@ -631,6 +670,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         panel._drawioSession?.dispose?.();
         panel.remove();
     }
+    removeTabFromActivationHistory(tabId);
     
     // Unpin if pinned
     const pinned = getState('pinnedTabs');
@@ -647,8 +687,8 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         setState('activeTabId', null);
         showWorkspaceHome();
     } else if (activeId === tabId) {
-        const fileTab = newTabs.find(t => t.type === 'file');
-        switchTab(fileTab ? fileTab.id : newTabs[0].id);
+        const preferredTabId = nextTabAfterClose(tabId, newTabs) || fallbackTabIdAfterClose(newTabs);
+        switchTab(preferredTabId);
     }
     return true;
 }
@@ -900,6 +940,7 @@ export function closeTabsForDeletedPath(deletedPath) {
 
     const newTabs = tabs.filter(tab => !closingIds.has(tab.id));
     setState('openTabs', newTabs);
+    for (const closingId of closingIds) removeTabFromActivationHistory(closingId);
     const pinned = getState('pinnedTabs');
     if (pinned.some(tabId => closingIds.has(tabId))) {
         setState('pinnedTabs', pinned.filter(tabId => !closingIds.has(tabId)));
@@ -910,7 +951,7 @@ export function closeTabsForDeletedPath(deletedPath) {
         setState('activeTabId', null);
         showWorkspaceHome();
     } else if (closingIds.has(activeId)) {
-        const preferred = newTabs.find(tab => tab.type === 'file') || newTabs[0];
+        const preferred = nextTabAfterClose(activeId, newTabs) || { id: fallbackTabIdAfterClose(newTabs) };
         switchTab(preferred.id);
     } else {
         saveTabsToStorage();

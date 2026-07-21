@@ -6,6 +6,15 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.3.1 - 2026-07-21
+
+### Fixed
+
+- Closing Settings or Kanban tabs now returns you to the previously edited file tab
+  instead of always jumping back to the first opened file.
+- Windows AltGr+4 now inserts `~` in the editor instead of the blank/dead
+  character seen on some Windows desktop webviews.
+
 ## 1.3.0 - 2026-07-18
 
 ### Changed

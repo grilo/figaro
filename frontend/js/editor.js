@@ -96,6 +96,32 @@ let lastMaterializedContent = '';
 // lockstep with this value (see .cm-code-file .cm-content).
 const codeIndentUnit = '  ';
 
+const isWindowsPlatform = () => typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '');
+
+function insertTextAtCursor(view, text) {
+    if (!view?.state?.selection) return false;
+    const selection = view.state.selection.main;
+    if (!selection || !text) return false;
+    view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: text },
+        selection: { anchor: selection.from + text.length },
+        userEvent: 'input.type',
+    });
+    return true;
+}
+
+function handleWindowsAltGrTilde(event, view) {
+    if (!isWindowsPlatform() || !event || !view) return false;
+    if (!event.ctrlKey || !event.altKey) return false;
+    if (event.code !== 'Digit4' && event.keyCode !== 52 && event.key !== 'Dead') return false;
+
+    if (insertTextAtCursor(view, '~')) {
+        event.preventDefault();
+        return true;
+    }
+    return false;
+}
+
 export function isBlockquoteLine(line) {
     return /^ {0,3}>\s?/.test(line);
 }
@@ -445,9 +471,22 @@ function normalizeWebKitShiftTab(event) {
     return true;
 }
 
+function destroyEditorView() {
+    if (!editorView) return;
+    try {
+        editorView.destroy();
+    } catch (_) { /* best effort */ }
+    editorView = null;
+}
+
 function createEditorView() {
-    if (editorView) return editorView;
     const container = document.getElementById('editor-container');
+    if (editorView) {
+        if (!editorView.isDestroyed && container && container.contains(editorView.dom)) {
+            return editorView;
+        }
+        destroyEditorView();
+    }
     if (!container) return null;
 
     // The table widget installs its own keydown listener below the outer
@@ -922,6 +961,7 @@ function createEditorView() {
             click: handleClick,
             paste: (event, view) => handleClipboardImagePaste(event, view)
                 || (activeFileLanguage.kind === 'markdown' && handleClipboardTablePaste(event, view)),
+            keydown: handleWindowsAltGrTilde,
         }),
         Prec.high(keymap.of([
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
@@ -1077,7 +1117,10 @@ function createEditorView() {
 
     // Block cursor
     function applyBlockCursor() {
-        const c = editorView.dom.querySelector('.cm-cursor');
+        const viewDom = editorView?.dom;
+        if (!viewDom) return true;
+
+        const c = viewDom.querySelector('.cm-cursor');
         if (c) {
             const styles = getComputedStyle(document.documentElement);
             const cursorBg = styles.getPropertyValue('--cursor-bg').trim() || 'white';

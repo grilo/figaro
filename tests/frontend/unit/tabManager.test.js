@@ -342,6 +342,28 @@ describe('Tab Manager', () => {
             expect(getState('activeTabId')).toBe('tab2');
         });
 
+        test('returns to previously edited file after closing settings', async () => {
+            openTab('note-1', 'Note 1', 'file', { path: 'note-1.md' });
+            openTab('note-2', 'Note 2', 'file', { path: 'note-2.md' });
+            await switchTab('note-1');
+            openTab('settings', 'Settings', 'settings');
+
+            await closeTab('settings');
+
+            expect(getState('activeTabId')).toBe('note-1');
+        });
+
+        test('returns to previously edited file after closing kanban', async () => {
+            openTab('note-1', 'Note 1', 'file', { path: 'note-1.md' });
+            openTab('note-2', 'Note 2', 'file', { path: 'note-2.md' });
+            await switchTab('note-1');
+            openTab('kanban', 'Kanban', 'kanban', {});
+
+            await closeTab('kanban');
+
+            expect(getState('activeTabId')).toBe('note-1');
+        });
+
         test('should prefer file tab when switching after close', () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
             openTab('cal', 'Calendar', 'calendar', { dateStr: '2024-01-15' });
