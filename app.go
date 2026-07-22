@@ -3400,6 +3400,7 @@ func defaultSettings() map[string]interface{} {
 		"code_font":           "theme-mono",
 		"link_style":          string(links.MarkdownLinkStyle),
 		"vim":                 false,
+		"vim_visual_rows":     false,
 		"line_numbers":        false,
 		"auto_save_seconds":   300,
 		"auto_commit_enabled": true,
@@ -3702,6 +3703,37 @@ func (a *App) VimSave(enabled bool) (*SaveFileResult, error) {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}
 	settings["vim"] = enabled
+	if err := a.writeSettingsFile(settings); err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
+// VimVisualRowsLoad loads the preferred Vim Normal/Visual vertical motion.
+// It has no effect until Vim itself is enabled in the editor.
+func (a *App) VimVisualRowsLoad() (map[string]bool, error) {
+	a.settingsMu.RLock()
+	defer a.settingsMu.RUnlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return map[string]bool{"enabled": false}, nil
+	}
+	enabled, _ := settings["vim_visual_rows"].(bool)
+	return map[string]bool{"enabled": enabled}, nil
+}
+
+// VimVisualRowsSave persists whether Vim j/k and arrow motions move across
+// wrapped display rows rather than source lines.
+func (a *App) VimVisualRowsSave(enabled bool) (*SaveFileResult, error) {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	settings["vim_visual_rows"] = enabled
 	if err := a.writeSettingsFile(settings); err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}

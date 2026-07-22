@@ -20,6 +20,12 @@ let vimPreferenceLoaded = false;
 let vimPreferenceLoadPromise = null;
 let vimPreferenceRevision = 0;
 let vimSaveQueue = Promise.resolve();
+let currentVimVisualRowsEnabled = false;
+let persistedVimVisualRowsEnabled = false;
+let vimVisualRowsPreferenceLoaded = false;
+let vimVisualRowsPreferenceLoadPromise = null;
+let vimVisualRowsPreferenceRevision = 0;
+let vimVisualRowsSaveQueue = Promise.resolve();
 let currentLineNumbersEnabled = false;
 let lineNumbersPreferenceLoaded = false;
 let lineNumbersPreferenceLoadPromise = null;
@@ -67,6 +73,7 @@ export async function initTheme() {
     applyFont(fontId, true);
     applyCodeFont(codeFontId, true);
     await initVimPreference();
+    await initVimVisualRowsPreference();
     await initLineNumbersPreference();
 }
 
@@ -118,14 +125,36 @@ function syncVimToggles(enabled) {
     document.querySelectorAll('#vim-toggle').forEach(toggle => {
         toggle.checked = enabled;
     });
+    syncVimVisualRowsAvailability();
+}
+
+function syncVimVisualRowsToggles(enabled) {
+    document.querySelectorAll('#vim-visual-rows-toggle').forEach(toggle => {
+        toggle.checked = enabled;
+    });
+}
+
+function syncVimVisualRowsAvailability() {
+    document.querySelectorAll('#vim-visual-rows-toggle').forEach(toggle => {
+        toggle.disabled = !currentVimEnabled;
+        toggle.title = currentVimEnabled ? '' : 'Enable Vim Mode to move by visual rows.';
+    });
 }
 
 async function applyVimPreference(enabled) {
-    const { toggleVim } = await import('./editor.js');
+    const { setVimVisualRows, toggleVim } = await import('./editor.js');
     await toggleVim(enabled);
+    setVimVisualRows(currentVimVisualRowsEnabled);
 }
 
 export function getVimPreference() { return currentVimEnabled; }
+
+async function applyVimVisualRowsPreference(enabled) {
+    const { setVimVisualRows } = await import('./editor.js');
+    setVimVisualRows(enabled);
+}
+
+export function getVimVisualRowsPreference() { return currentVimVisualRowsEnabled; }
 
 /** Load and apply the persisted Vim preference exactly once per application run. */
 export async function initVimPreference() {
@@ -193,6 +222,74 @@ export async function setVimPreference(enabled) {
             currentVimEnabled = persistedVimEnabled;
             syncVimToggles(currentVimEnabled);
             try { await applyVimPreference(currentVimEnabled); } catch (_) { /* already logged above */ }
+        }
+        return false;
+    }
+}
+
+/** Load the portable Vim visual-row preference once per application run. */
+export async function initVimVisualRowsPreference() {
+    if (vimVisualRowsPreferenceLoaded) return currentVimVisualRowsEnabled;
+    if (vimVisualRowsPreferenceLoadPromise) return vimVisualRowsPreferenceLoadPromise;
+
+    vimVisualRowsPreferenceLoadPromise = (async () => {
+        try {
+            const result = await backend().VimVisualRowsLoad();
+            currentVimVisualRowsEnabled = result?.enabled === true;
+            persistedVimVisualRowsEnabled = currentVimVisualRowsEnabled;
+            vimVisualRowsPreferenceLoaded = true;
+            syncVimVisualRowsToggles(currentVimVisualRowsEnabled);
+            syncVimVisualRowsAvailability();
+            await applyVimVisualRowsPreference(currentVimVisualRowsEnabled);
+        } catch (error) {
+            log.warn('Could not load Vim visual-row preference:', error);
+        } finally {
+            vimVisualRowsPreferenceLoadPromise = null;
+        }
+        return currentVimVisualRowsEnabled;
+    })();
+    return vimVisualRowsPreferenceLoadPromise;
+}
+
+/** Apply and persist the visual-row preference without changing Vim itself. */
+export async function setVimVisualRowsPreference(enabled) {
+    if (!vimVisualRowsPreferenceLoaded) await initVimVisualRowsPreference();
+
+    const previous = currentVimVisualRowsEnabled;
+    const requested = Boolean(enabled);
+    const revision = ++vimVisualRowsPreferenceRevision;
+    currentVimVisualRowsEnabled = requested;
+    syncVimVisualRowsToggles(requested);
+
+    try {
+        await applyVimVisualRowsPreference(requested);
+    } catch (error) {
+        log.warn('Could not apply Vim visual-row preference:', error);
+        if (revision === vimVisualRowsPreferenceRevision) {
+            currentVimVisualRowsEnabled = previous;
+            syncVimVisualRowsToggles(previous);
+            try { await applyVimVisualRowsPreference(previous); } catch (_) { /* original failure is logged above */ }
+        }
+        return false;
+    }
+
+    const saveAttempt = vimVisualRowsSaveQueue.then(async () => {
+        const result = await backend().VimVisualRowsSave(requested);
+        if (!result?.success) throw new Error(result?.error || 'Vim visual-row preference was not saved');
+        persistedVimVisualRowsEnabled = requested;
+        return true;
+    });
+    vimVisualRowsSaveQueue = saveAttempt.catch(() => {});
+
+    try {
+        await saveAttempt;
+        return true;
+    } catch (error) {
+        log.warn('Could not save Vim visual-row preference:', error);
+        if (revision === vimVisualRowsPreferenceRevision) {
+            currentVimVisualRowsEnabled = persistedVimVisualRowsEnabled;
+            syncVimVisualRowsToggles(currentVimVisualRowsEnabled);
+            try { await applyVimVisualRowsPreference(currentVimVisualRowsEnabled); } catch (_) { /* already logged above */ }
         }
         return false;
     }
@@ -308,6 +405,21 @@ export async function initSettingsPanel(root = document) {
                 vimToggle.checked = getVimPreference();
                 vimToggle.disabled = false;
                 vimToggle.title = saved ? '' : 'Could not save Vim preference; the previous setting was restored.';
+            });
+        }
+
+        const vimVisualRowsToggle = findIn(root, '#vim-visual-rows-toggle');
+        if (vimVisualRowsToggle) {
+            vimVisualRowsToggle.checked = await initVimVisualRowsPreference();
+            if (!isActivePanel(root)) return;
+            syncVimVisualRowsAvailability();
+            vimVisualRowsToggle.addEventListener('change', async () => {
+                vimVisualRowsToggle.disabled = true;
+                const saved = await setVimVisualRowsPreference(vimVisualRowsToggle.checked);
+                if (!isActivePanel(root)) return;
+                vimVisualRowsToggle.checked = getVimVisualRowsPreference();
+                syncVimVisualRowsAvailability();
+                vimVisualRowsToggle.title = saved ? (currentVimEnabled ? '' : 'Enable Vim Mode to move by visual rows.') : 'Could not save the visual-row preference.';
             });
         }
 
@@ -802,5 +914,7 @@ function initAutoSave(root) {
 
 export default {
     initTheme, applyTheme, getCurrentTheme, getCurrentFont, getThemes,
-    initVimPreference, getVimPreference, setVimPreference, initSettingsPanel
+    initVimPreference, getVimPreference, setVimPreference,
+    initVimVisualRowsPreference, getVimVisualRowsPreference, setVimVisualRowsPreference,
+    initSettingsPanel
 };

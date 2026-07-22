@@ -180,6 +180,13 @@ rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
 
+Markdown diagnostics are an intentionally separate idle-time extension rather
+than a live-preview widget. They scan only the active Markdown document after
+a short pause and add inline marks plus CodeMirror's native hover/F8 surface;
+they do not replace source, alter block height, or ask the vault backend to
+validate cross-file links. That keeps editing feedback immediate while the
+read-only Vault Health workflow remains responsible for vault-wide checks.
+
 Document observers follow the same rule. A changed editor document is kept as
 CodeMirror's immutable text snapshot until the next animation frame, when the
 latest dirty snapshot is published to Kanban and PDF-preview consumers. Tab
@@ -190,8 +197,8 @@ where possible, avoiding a whole-document tokenization per keypress.
 
 ## Session state is not settings
 
-`settings.json` stores durable preferences such as theme, fonts, and feature
-choices. Open tabs, their ordering, and the active workspace state live in the
+`settings.json` stores durable preferences such as theme, fonts, Vim visual-row
+motions, and feature choices. Open tabs, their ordering, and the active workspace state live in the
 dedicated session record. Keeping them separate makes startup recovery
 predictable: malformed, missing, or old session data can be discarded without
 damaging user preferences. Compatibility cleanup removes legacy tab keys from

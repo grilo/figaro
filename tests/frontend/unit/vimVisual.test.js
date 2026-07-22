@@ -63,7 +63,10 @@ describe('Vim command and visual theming', () => {
 
     test('styles Vim command input and visual selection with theme variables', () => {
         const stylesheet = readFileSync('frontend/styles.css', 'utf8');
+        const editor = readFileSync('frontend/js/editor.js', 'utf8');
         expect(stylesheet).toMatch(/\.cm-editor \.cm-vim-panel input\s*\{[^}]*color:\s*var\(--text-color\)/s);
         expect(stylesheet).toMatch(/\.cm-editor\.vim-visual \.cm-selectionLayer \.cm-selectionBackground/);
+        expect(stylesheet).toMatch(/\.vim-insert \.cm-cursor\s*\{[^}]*border-left:\s*4px solid var\(--accent-color\)/s);
+        expect(editor).not.toContain('applyBlockCursor');
     });
 });

@@ -189,6 +189,7 @@ Each theme defines these properties (with theme-specific colors):
 ### 4.1 Capabilities
 - Syntax-highlighted markdown editing powered by CodeMirror 6 with `codemirror-live-markdown`.
 - CodeMirror's official language registry is vendored locally. Recognised code files use their syntax parser, a monospace unwrapped layout, normal CodeMirror completion/folding behavior, theme-aware indentation guides, and no Markdown live-preview widgets. Tab / Shift+Tab and the guides share CodeMirror's same two-space indentation unit. Vim mode, tabs, cursor restoration, autosave, conflict handling, and history work the same way as for notes.
+- **Markdown diagnostics**: after a short typing pause, Markdown notes locally mark unclosed leading frontmatter and fenced code, skipped heading levels, and trailing whitespace other than the intentional two-space hard break. Hovering a marker shows a themed, actionable explanation; F8 moves to the next diagnostic. Diagnostics never rewrite source, lint code-fence/frontmatter contents as prose, or replace the separate vault-wide health scan.
 - **Frontmatter / Properties**: a complete leading YAML frontmatter block is rendered as a compact, collapsed Properties card. Activating it opens a structured Properties panel with PDF-layout controls: cover page, contents depth, and a vault-relative print stylesheet picker. Enabling a cover also exposes title, subtitle, author, and date fields. Other YAML remains visible as chips and **Add property** opens the source editor with completion; **Edit YAML** always exposes the original portable frontmatter. Notes without frontmatter get a subtle **+ Add properties** affordance above the editor; it inserts an editable YAML skeleton with the first H1 as `title`, the OS username as `author`, today's local date, an empty-string `subtitle`, and the PDF defaults `cover-page: false` and `toc-depth: 0`, then keeps that source open. Custom PDF CSS is opt-in: **Create starter** proposes `pdf.css` beside the active note, copies the bundled comprehensive example only after confirmation, selects it, refreshes the tree, and opens it. Existing CSS is never overwritten; startup and export never create stylesheets. The panel makes targeted scalar edits only, preserving unrelated YAML and comments. Completion in YAML suggests `title`, `subtitle`, `author`, `date`, `aliases`, `tags`, `description`, `created`, `updated`, `status`, `cover-page`, `toc-depth`, and `print-stylesheet`; it also offers status values and vault-relative CSS paths for `print-stylesheet`.
 - **PDF preview and export**: **Preview PDF** opens an isolated live preview in the right pane. It uses the same printable document structure as the export, waits briefly after Markdown or selected CSS edits to avoid flicker, and refreshes external saved CSS when the file tree updates. Each newer input invalidates active diagram/print work immediately; Figaro keeps only the latest queued snapshot and never sends a stale result into the preview bridge. A code-icon helper opens **Figaro PDF style reference**, which derives the exact classes and IDs from the current preview, displays its generated body HTML, and can copy that HTML. Its splitter has a 340 px preview minimum and otherwise grows dynamically while preserving a 320 px editor floor; the pane may keep growing, but the centered paper surface is capped to the last supported `@page size` declaration. Preview geometry supports named A3/A4/A5, B5, Letter, Legal, Ledger/Tabloid, and Executive paper, portrait/landscape orientation, and one- or two-length explicit sizes, with A4 as fallback. A final preview-only geometry rule prevents user `body` width overrides from stretching the paper while leaving print colors and typography in the normal cascade. Below 560 px of remaining editor width, CodeMirror content padding contracts from 24 px to 12 px. Its **Generate PDF** action saves dirty preview buffers, then renders Markdown into an interactive PDF with a detected local browser engine. Figaro tries Chrome/Chromium-family engines before Edge, and uses Safari/WebKit on macOS if needed; Chromium candidates must complete a real isolated CDP startup and `Browser.getVersion` request. It aborts with an installable-browser error if no viable engine is present instead of generating a PDF with dead links. Export writes `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the default PDF viewer. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`; omitting it keeps the built-in style. `cover-page: true` generates a title page using `title`, `subtitle`/`description`, `author`, and `date`/`created`; `toc-depth: 0` disables the table of contents, while 1–6 includes headings through that Markdown level. Generated cover and table-of-contents sections automatically end with a page break. The print DOM has stable cover, table-of-contents, document-body, task, diagram, and footnote classes documented in `docs/PDF_STYLING.md`; body headings are separate from the cover and table-of-contents titles. Repeated running page headers and footers are not supported. Footnote references render as numbered internal links to a final Footnotes section, with return links for repeated references. Frontmatter itself is not printed.
 - **PDF preview performance**: Printable Markdown parsing runs in a module worker when supported, leaving CodeMirror's input/layout path free while a preview is open. Callout/TOC decoration and DOM-dependent Mermaid/Vega conversion remain in the document pipeline; webviews without module-worker support safely use the established in-thread renderer.
@@ -258,7 +259,7 @@ Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For e
 ## 5. CodeMirror 6 Extensions
 
 ### 5.1 Core Extensions
-`history()`, `bracketMatching()`, and `autocompletion()` are always installed. `lineNumbers()` plus `highlightActiveLineGutter()` live in a compartment controlled by the persistent, off-by-default **Show line numbers** setting. `lineWrapping` and live-preview extensions are installed only for Markdown; `foldGutter()` and its keymap are installed only for source-code files through CodeMirror `Compartment`s.
+`history()`, `bracketMatching()`, and `autocompletion()` are always installed. `lineNumbers()` plus `highlightActiveLineGutter()` live in a compartment controlled by the persistent, off-by-default **Show line numbers** setting. `lineWrapping`, the local Markdown linter, and live-preview extensions are installed only for Markdown; `foldGutter()` and its keymap are installed only for source-code files through CodeMirror `Compartment`s.
 
 ### 5.2 codemirror-live-markdown Extensions
 | Extension | Purpose |
@@ -285,6 +286,7 @@ Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For e
 | `hrPlugin` | ViewPlugin (extrasPlugin) | Horizontal rules with active-line toggle via `Decoration.line` |
 | `mathField` | StateField | `$inline$` and `$$block$$` LaTeX rendering via KaTeX |
 | `vimCompartment` | Compartment | Dynamic vim mode (on/off via `reconfigure`) |
+| `@codemirror/lint` | CodeMirror extension | Idle Markdown diagnostics, themed hover explanations, and F8 navigation |
 | `@codemirror/search` | CodeMirror extension | Native in-document find panel, match navigation, and match decorations |
 
 ### 5.4 Custom EditorView.theme() Overrides
@@ -384,7 +386,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ## 8. Vim Mode
 
 ### 8.1 Activation
-- Toggle via the Settings tab's "Enable Vim keybindings" checkbox.
+- Toggle via the Settings tab's **Enable Vim** checkbox.
 - Uses `@replit/codemirror-vim` (vendored at `frontend/vendored/@replit/codemirror-vim/`).
 - Loaded dynamically via CodeMirror `Compartment` — no page reload required.
 - Preference persisted to `vault/.config/settings.json` (`"vim": true/false`).
@@ -394,8 +396,20 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
   when the first file creates the editor. Reopening Settings never re-applies
   a stale value. A persistence failure restores the last confirmed setting in
   both the switch and editor.
+- Vim Insert mode uses a 4 px accent-colour line caret so the character at the
+  insertion point remains visible. Normal mode retains the contrasting block
+  cursor.
 
-### 8.2 Custom Ex Commands
+### 8.2 Visual-row motions
+- **Move by visual rows** is a portable `settings.json` preference
+  (`"vim_visual_rows": true/false`), disabled by default and unavailable while
+  Vim itself is off.
+- When enabled, Vim Normal and Visual mode map `j`, `k`, Up, and Down to the
+  wrapped-display motions `gj` and `gk`. Operator-pending mappings are not
+  changed, so `dj`, `yj`, and similar commands retain their source-line
+  behavior.
+
+### 8.3 Custom Ex Commands
 | Command | Action |
 |---------|--------|
 | `:w` / `:write` | Save current file |
@@ -408,7 +422,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 or if the buffer changes while that save is in flight, the file tab remains
 open so newer or unsaved text cannot be discarded.
 
-### 8.3 Built-in Vim Features
+### 8.4 Built-in Vim Features
 - `/pattern` — open the Vim search prompt and search forward from the cursor
 - `?pattern` — search backward
 - `:s/old/new/g` — substitute
@@ -746,9 +760,10 @@ Multiple layers prevent a white flash before CSS loads:
 - **Text Width**: −/+ buttons adjusting editor max-width from 50% (350px) to 200% (1400px) in 10% steps. Base is 700px. Persisted to localStorage.
 - **Auto-Save**: content-only save interval for the active dirty file (Off / 5s / 10s / 30s / 1min / 5min). Persisted as `auto_save_seconds` and styled as a themed keyboard-accessible combobox.
 - **Show line numbers**: persistent iOS-style toggle for the CodeMirror gutter, disabled by default and applied live to the current editor.
+- **Move by visual rows**: Vim-only persistent toggle. It remains disabled until Vim mode is enabled; when active, `j`, `k`, and Up/Down traverse wrapped display rows while operator-pending motions stay source-line based.
 - **Links style**: themed, keyboard-accessible combobox for Markdown or conventional target-first Wikilinks. A change always requires a rewrite/keep/cancel decision.
 - **Auto-Commit**: themed on/off toggle, persisted as `auto_commit_enabled` and enabled by default. When on, each successful save records only that file; it has no interval or whole-vault commit mode. Legacy `auto_commit_seconds` values migrate once: zero becomes off and every enabled legacy value becomes on.
-- **Vim toggle**: an iOS-style toggle switch with smooth sliding animation.
+- **Vim toggle**: an iOS-style toggle switch with smooth sliding animation and a linked, keyboard-accessible visual-row motion toggle.
 - Sections separated by a subtle `1px divider`.
 
 ### 21.2 Theme Engine
@@ -862,6 +877,8 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 | `AutoSaveSave(seconds)` | — | Persist auto-save interval to `settings.json` |
 | `AutoCommitLoad()` | `bool` | Read the enabled per-save, single-file history toggle from `settings.json` |
 | `AutoCommitSave(enabled)` | — | Persist the per-save, single-file history toggle |
+| `VimVisualRowsLoad()` | `{enabled: bool}` | Read the Vim wrapped-display-row motion preference from `settings.json` |
+| `VimVisualRowsSave(enabled)` | — | Persist the Vim wrapped-display-row motion preference |
 | `FileHasUncommittedChanges(path)` | `bool` | Report the active file's working-tree state without including unrelated paths |
 | `CommitCurrentFile(path)` | — | Commit one file while preserving unrelated staged changes |
 

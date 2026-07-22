@@ -1727,6 +1727,26 @@ func TestVimLoad_Default(t *testing.T) {
 	}
 }
 
+func TestVimVisualRowsSaveLoadAndDefault(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	loaded, err := app.VimVisualRowsLoad()
+	if err != nil || loaded["enabled"] {
+		t.Fatalf("VimVisualRowsLoad default = %#v, %v; want disabled", loaded, err)
+	}
+	result, err := app.VimVisualRowsSave(true)
+	if err != nil || !result.Success {
+		t.Fatalf("VimVisualRowsSave(true) = %#v, %v", result, err)
+	}
+
+	restarted := NewApp(vaultPath)
+	loaded, err = restarted.VimVisualRowsLoad()
+	if err != nil || !loaded["enabled"] {
+		t.Fatalf("VimVisualRowsLoad after restart = %#v, %v; want enabled", loaded, err)
+	}
+}
+
 func TestLineNumbersSaveLoadAndDefault(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

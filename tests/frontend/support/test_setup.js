@@ -94,6 +94,8 @@ window.go = {
 		GetThemes: jest.fn().mockResolvedValue({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
 		VimLoad: jest.fn().mockResolvedValue({ enabled: false }),
 		VimSave: jest.fn().mockResolvedValue({ success: true }),
+		VimVisualRowsLoad: jest.fn().mockResolvedValue({ enabled: false }),
+		VimVisualRowsSave: jest.fn().mockResolvedValue({ success: true }),
 		LineNumbersLoad: jest.fn().mockResolvedValue({ enabled: false }),
 		LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
 		AutoSaveLoad: jest.fn().mockResolvedValue(300),

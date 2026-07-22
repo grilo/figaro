@@ -44,6 +44,11 @@ When writing the TypeScript extension, you must adhere to the following CodeMirr
 3.  **Coordinate Sorting Rule:** You must collect all decorations in a mutable array, ensure they are strictly sorted by their incremental document positions, and then construct the final set using `Decoration.set(builder, true)`. Overlapping or unsorted ranges will crash the editor.
 4.  **No Layout Snapping:** Ensure inline styles retain their typographic metrics (font-size, line-height) across both states so that text does not shift horizontally or vertically when the cursor enters a line.
 
+Markdown diagnostics are a separate idle-time editor extension, not a
+live-preview decoration pass. Their inline squiggles and hover tooltip must not
+add block geometry or alter text metrics, so normal cursor movement, mouse
+placement, and drag selection keep the same layout contract.
+
 ## 4. Block Widget Geometry Contract
 
 CodeMirror's vertical cursor movement, click mapping, selections, and scrolling

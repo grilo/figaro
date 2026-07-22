@@ -6,6 +6,25 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.4.0 - 2026-07-22
+
+### Added
+
+- Markdown notes now flag unclosed frontmatter or fenced code, skipped heading
+  levels, and accidental trailing whitespace with local themed hover guidance
+  and F8 diagnostic navigation.
+- Vim users can enable persistent **Move by visual rows** to make `j`, `k`,
+  and the Up/Down arrows follow wrapped display rows while retaining normal
+  operator motions such as `dj`.
+
+### Fixed
+
+- Vim Insert mode now shows a high-contrast 4 px line caret instead of an
+  opaque block that could hide the character at the insertion point.
+- Markdown diagnostic hover cards now use the active Figaro theme surface
+  instead of CodeMirror's white default, with readable editor-sized and padded
+  diagnostic text and accent-coloured warning markers.
+
 ## 1.3.3 - 2026-07-21
 
 ### Added

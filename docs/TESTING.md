@@ -43,6 +43,14 @@ npx playwright install chromium # first run only
 npm run test:pdf
 ```
 
+The browser suite starts Figaro's static test server on port `34115` by
+default. If another local application owns that port, choose an isolated port
+for both Playwright and the server, for example:
+
+```bash
+FIGARO_PLAYWRIGHT_PORT=34116 npm run test:pdf
+```
+
 Use the explicit root-plus-`internal/...` package set rather than `go test
 ./...`: one frontend dependency contains an unrelated Go fixture under
 `node_modules/`, which is not part of figaro's application test surface.
@@ -53,9 +61,10 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   Vault-health scanning, single-file-only Auto-Commit migration and isolation,
   history comparison/restoration, Draw.io file handling, print stylesheet
   resolution, and printable-document preparation.
-- Editor behavior, CodeMirror language modes, frontmatter, footnotes,
-  diagrams, tabs, session persistence, Kanban presentation/loading states,
-  file-tree actions, and stale-response guards.
+- Editor behavior, CodeMirror language modes, Markdown diagnostics and their
+  hover/F8 guidance, frontmatter, footnotes, diagrams, tabs, session
+  persistence, Kanban presentation/loading states, file-tree actions, and
+  stale-response guards.
 - Browser rendering of cover pages, table of contents, Mermaid, Vega, and
   Vega-Lite in the PDF export pipeline.
 - The native Figaro Dark and Light theme assets, including their warm reading
@@ -320,14 +329,22 @@ rollback, reopened Settings, and backend persistence across fresh application
 instances. Changes to editor keymaps, save queuing, tab closing, Settings, or
 the Vim dependency must retain this coverage.
 
+The focused browser contract also checks the 4 px Insert caret plus the
+optional **Move by visual rows** mapping: `j`, `k`, and Up/Down move one wrapped
+display row in Vim Normal mode, while operator-pending source-line motions such
+as `dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
+placement, drag selection, themed hover guidance, and F8 navigation.
+
 Run the focused contract with:
 
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/vimCommands.test.js \
   tests/frontend/unit/vimSettings.test.js \
-  tests/frontend/unit/vimVisual.test.js
+  tests/frontend/unit/vimVisual.test.js \
+  tests/frontend/unit/markdownLint.test.js
 go test . -run 'TestVim'
+npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownLint.spec.js
 ```
 
 ## Generating browser assets

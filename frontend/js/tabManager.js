@@ -1396,12 +1396,22 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h4"/></svg>
                         <span>Vim Mode</span>
                     </div>
-                    <div class="settings-row">
-                        <span class="settings-row-label">Enable Vim</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="vim-toggle">
-                            <span class="toggle-slider"></span>
-                        </label>
+                    <div class="settings-row-group">
+                        <div class="settings-row">
+                            <span class="settings-row-label">Enable Vim</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="vim-toggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">Move by visual rows</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="vim-visual-rows-toggle" aria-label="Move by visual rows" disabled
+                                       title="Enable Vim Mode to move by visual rows.">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="settings-section">

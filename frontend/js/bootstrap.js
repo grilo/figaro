@@ -62,6 +62,8 @@ function debugAPI() {
         ThemeSave: mock({ success: true }),
         VimLoad: mock({ enabled: false }),
         VimSave: mock({ success: true }),
+        VimVisualRowsLoad: mock({ enabled: false }),
+        VimVisualRowsSave: mock({ success: true }),
         LineNumbersLoad: mock({ enabled: false }),
         LineNumbersSave: mock({ success: true }),
         LinkStyleLoad: mock({ style: 'markdown' }),

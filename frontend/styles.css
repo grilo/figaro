@@ -1239,6 +1239,13 @@ html, body {
     opacity: .62;
 }
 
+/* The visual-row preference is unavailable by design while Vim is off; it is
+   not a save-in-progress control, so give it the matching unavailable state. */
+#vim-visual-rows-toggle:disabled + .toggle-slider {
+    cursor: not-allowed;
+    opacity: .5;
+}
+
 /* File Tree */
 .file-tree {
     padding: 2px 0 6px;
@@ -3371,10 +3378,76 @@ html, body {
 /* Vim insert mode — thin line cursor */
 .vim-insert .cm-cursor {
     background: transparent !important;
-    border-left: 2px solid var(--accent-color) !important;
+    border-left: 4px solid var(--accent-color) !important;
     width: 0 !important;
     animation: none;
 }
+
+/* Markdown diagnostics stay quiet in the prose flow while their hover card
+   gives a clear, theme-aware explanation of the marked source. CodeMirror
+   puts the lint list inside a generic .cm-tooltip shell, so theme that shell
+   too—otherwise its default white surface peeks around the list. */
+.cm-tooltip {
+    border: 1px solid var(--border-color) !important;
+    border-radius: 7px;
+    background: var(--panel-bg) !important;
+    box-shadow: var(--shadow-md) !important;
+    color: var(--text-color) !important;
+    font-family: var(--font-editor) !important;
+    font-size: var(--font-size-editor) !important;
+    line-height: var(--line-height-editor) !important;
+}
+
+.cm-editor .cm-lintRange-warning {
+    background-image: linear-gradient(to right, var(--warning-color) 50%, transparent 50%) !important;
+    background-position: 0 100% !important;
+    background-repeat: repeat-x !important;
+    background-size: 6px 2px !important;
+    padding-bottom: 1px;
+}
+
+.cm-editor .cm-lintRange-error {
+    background-image: linear-gradient(to right, var(--danger-color) 50%, transparent 50%) !important;
+    background-position: 0 100% !important;
+    background-repeat: repeat-x !important;
+    background-size: 6px 2px !important;
+    padding-bottom: 1px;
+}
+
+.cm-tooltip .cm-tooltip-lint {
+    max-width: min(380px, calc(100vw - 32px));
+    margin: 0;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: inherit;
+    background: transparent !important;
+    box-shadow: none;
+    color: var(--text-color);
+    font: inherit;
+    list-style: none;
+}
+
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic {
+    display: block;
+    margin: 0;
+    padding: 4px 2px 4px 10px !important;
+    list-style: none;
+}
+
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning::before,
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-error::before {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 7px;
+    border-radius: 50%;
+    content: '';
+}
+
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning { border-left-color: var(--accent-color) !important; }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-error { border-left-color: var(--danger-color) !important; }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning::before { background: var(--accent-color); }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-error::before { background: var(--danger-color); }
 
 .cm-gutters {
     background: var(--bg-color) !important;
@@ -6143,6 +6216,11 @@ body.right-sidebar-resizing .pdf-preview-frame {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+.settings-card .settings-row-group {
+    display: grid;
+    gap: 7px;
+    justify-items: end;
 }
 .settings-card .settings-row-label {
     font-size: 12px;

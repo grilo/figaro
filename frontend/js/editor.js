@@ -40,7 +40,9 @@ import {
 } from '@codemirror/language';
 import { acceptCompletion, autocompletion, completionKeymap } from '@codemirror/autocomplete';
 import { markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown';
+import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
+import { markdownLinter } from './markdownLint.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
@@ -71,6 +73,9 @@ let foldingCompartment = null;
 let lineNumbersCompartment = null;
 let vimActive = false;
 let vimRequested = false;
+let vimVisualRowsRequested = false;
+let vimVisualRowsMapped = false;
+let vimAPI = null;
 let lineNumbersRequested = false;
 let vimRequestId = 0;
 let vimModeCM = null;
@@ -95,6 +100,16 @@ let lastMaterializedContent = '';
 // and the indentation-marker extension. Keep the visual tab width in CSS in
 // lockstep with this value (see .cm-code-file .cm-content).
 const codeIndentUnit = '  ';
+const vimVisualRowMappings = [
+    ['j', 'gj', 'normal'],
+    ['k', 'gk', 'normal'],
+    ['<Down>', 'gj', 'normal'],
+    ['<Up>', 'gk', 'normal'],
+    ['j', 'gj', 'visual'],
+    ['k', 'gk', 'visual'],
+    ['<Down>', 'gj', 'visual'],
+    ['<Up>', 'gk', 'visual'],
+];
 
 const isWindowsPlatform = () => typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '');
 
@@ -948,6 +963,7 @@ function createEditorView() {
         mouseSelectingField,
         webKitShiftTabPlugin,
         EditorView.lineWrapping,
+        linter(markdownLinter, { delay: 500 }),
         autocompletion({
             interactionDelay: 0,
             override: [
@@ -988,6 +1004,7 @@ function createEditorView() {
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
             { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },
         ])),
+        keymap.of(lintKeymap),
         keymap.of(markdownKeymap),
     ];
     const codeExtensionsForSupport = (support) => [
@@ -1135,27 +1152,6 @@ function createEditorView() {
             }
         });
     });
-
-    // Block cursor
-    function applyBlockCursor() {
-        const viewDom = editorView?.dom;
-        if (!viewDom) return true;
-
-        const c = viewDom.querySelector('.cm-cursor');
-        if (c) {
-            const styles = getComputedStyle(document.documentElement);
-            const cursorBg = styles.getPropertyValue('--cursor-bg').trim() || 'white';
-            const cursorText = styles.getPropertyValue('--cursor-text').trim() || '#1e1e1e';
-            c.style.setProperty('border-left', 'none', 'important');
-            c.style.setProperty('background', cursorBg, 'important');
-            c.style.setProperty('color', cursorText, 'important');
-            c.style.setProperty('width', '0.65em', 'important');
-            return true;
-        }
-        return false;
-    }
-    if (!applyBlockCursor()) requestAnimationFrame(() => applyBlockCursor());
-    new MutationObserver(() => applyBlockCursor()).observe(editorView.dom, { childList: true, subtree: true });
 
     setState('editorView', editorView);
     return editorView;
@@ -1945,6 +1941,27 @@ function restoreCursorState(_tabId, cs) {
     v.dispatch({ selection: { anchor: cs.anchor, head: cs.head }, scrollIntoView: true });
 }
 
+function applyVimVisualRowsMapping(enabled) {
+    if (!vimAPI || vimVisualRowsMapped === enabled) return vimVisualRowsMapped;
+    for (const [from, to, context] of vimVisualRowMappings) {
+        if (enabled) vimAPI.map(from, to, context);
+        else vimAPI.unmap(from, context);
+    }
+    vimVisualRowsMapped = enabled;
+    return vimVisualRowsMapped;
+}
+
+/**
+ * Configure display-row motions for Vim Normal and Visual mode. Operator
+ * pending mappings intentionally stay untouched, so commands such as `dj`
+ * retain their conventional source-line meaning.
+ */
+function setVimVisualRows(enabled) {
+    vimVisualRowsRequested = Boolean(enabled);
+    if (!vimActive) return false;
+    return applyVimVisualRowsMapping(vimVisualRowsRequested);
+}
+
 async function toggleVim(enable) {
     const requested = Boolean(enable);
     const requestChanged = vimRequested !== requested;
@@ -1967,8 +1984,10 @@ async function toggleVim(enable) {
         if (!vimRequested || requestId !== vimRequestId || !editorView) return false;
 
         const view = editorView;
+        vimAPI = Vim;
         view.dispatch({ effects: vimCompartment.reconfigure(vim()) });
         vimActive = true;
+        applyVimVisualRowsMapping(vimVisualRowsRequested);
 
         // Register custom ex commands after a short delay (vim needs to init)
         setTimeout(() => {
@@ -2035,6 +2054,7 @@ async function toggleVim(enable) {
             cm.on('vim-mode-change', vimModeChangeHandler);
         }
     } else {
+        applyVimVisualRowsMapping(false);
         if (vimModeCM && vimModeChangeHandler) {
             vimModeCM.off('vim-mode-change', vimModeChangeHandler);
         }
@@ -2072,5 +2092,5 @@ function updateVimStatus(mode) {
 export { initEditor, createEditorView, getEditorView,
     getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
-    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setImageBasePath, setReadOnly, setLineNumbers,
+    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setImageBasePath, setReadOnly, setLineNumbers,
     configureEditorForFile, normalizeWebKitShiftTab };
