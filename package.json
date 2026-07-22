@@ -1,6 +1,6 @@
 {
   "name": "figaro",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -69,6 +69,11 @@
   },
   "overrides": {
     "babel-plugin-istanbul": "8.0.0",
+    "eslint": {
+      "minimatch": {
+        "brace-expansion": "1.1.16"
+      }
+    },
     "test-exclude": "8.0.0",
     "glob": "13.0.6",
     "jsdom": "27.4.0"

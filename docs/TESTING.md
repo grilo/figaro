@@ -85,7 +85,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   documented tag command, and all three binary archive definitions.
 
 The focused release checks are `tests/frontend/unit/releaseMetadata.test.js`
-and `tests/frontend/unit/releasePreparation.test.js`. They cover the
+`, `tests/frontend/unit/dependencySecurity.test.js`, and
+`tests/frontend/unit/releasePreparation.test.js`. They cover the
 release-metadata generator's successful version/changelog cut, non-destructive
 invalid-version rejection, and idempotent retry. The release shell test runs
 the publishing and local-only paths against disposable Git repositories and a
@@ -93,7 +94,9 @@ local bare remote, proving that pending non-ignored files join the release
 commit, each automatic version bump resolves from the latest tag, and an
 interrupted release can resume its matching tag and push. They also prove an
 empty `Unreleased` section leaves the worktree untouched and gives the user the
-next steps instead of only reporting the failure. The release script downloads
+next steps instead of only reporting the failure. The dependency-security test
+keeps the audited legacy ESLint dependency on its patched version without
+overriding Jest's newer branch. The release script downloads
 Playwright's pinned browser without using its `--with-deps` system-package
 installer, so it never triggers a password prompt.
 Update them whenever a release version, license, changelog convention,
