@@ -9,6 +9,7 @@
 import {
     frontmatterTemplateChange,
     frontmatterPropertyChange,
+    frontmatterPropertyRemovalChange,
     getFrontmatterValue,
     hasLeadingFrontmatter,
     parseFrontmatter,
@@ -19,6 +20,15 @@ import { backend } from './backend.js';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'print-stylesheet']);
 const COVER_PROPERTY_KEYS = new Set(['title', 'subtitle', 'description', 'author', 'date', 'created']);
+const SPELLCHECK_PROPERTY_KEYS = new Set(['spellcheck']);
+const spellcheckOptions = [
+    { value: '', label: 'Use global default' },
+    { value: 'en-US', label: 'English (US)' },
+    { value: 'en-GB', label: 'English (UK)' },
+    { value: 'es', label: 'Spanish (Spain)' },
+    { value: 'false', label: 'Disabled for this note' },
+    { value: '__custom__', label: 'Custom value (Edit YAML)' },
+];
 let frontmatterMenuID = 0;
 
 function selectionTouchesFrontmatter(frontmatter, selection) {
@@ -359,6 +369,12 @@ export function createFrontmatterField(
         view.dispatch({ changes: change, effects: setMode.of('panel') });
     };
 
+    const removeProperty = (view, key) => {
+        const change = frontmatterPropertyRemovalChange(view.state.doc.toString(), key);
+        if (!change) return;
+        view.dispatch({ changes: change, effects: setMode.of('panel') });
+    };
+
     const showSource = (view, frontmatter, selection = frontmatter.contentFrom) => {
         if (view.isDestroyed) return;
         view.dispatch({
@@ -632,6 +648,34 @@ export function createFrontmatterField(
             pdfSection.appendChild(previewPDF);
             panel.appendChild(pdfSection);
 
+            const spellcheckSection = document.createElement('section');
+            spellcheckSection.className = 'cm-frontmatter-panel-section';
+            const spellcheckTitle = document.createElement('h3');
+            spellcheckTitle.textContent = 'Spellcheck';
+            spellcheckSection.appendChild(spellcheckTitle);
+            const currentSpellcheck = getFrontmatterValue(source, 'spellcheck').trim();
+            const currentSpellcheckOption = spellcheckOptions.some(option => option.value === currentSpellcheck)
+                ? currentSpellcheck
+                : (currentSpellcheck ? '__custom__' : '');
+            spellcheckSection.appendChild(createFieldRow(
+                'Language',
+                createThemedSelect(
+                    currentSpellcheckOption,
+                    spellcheckOptions,
+                    'Spellcheck language for this note',
+                    value => {
+                        if (value === '') removeProperty(view, 'spellcheck');
+                        else if (value === '__custom__') showSource(view, this.frontmatter);
+                        else changeProperty(view, 'spellcheck', value);
+                    }
+                )
+            ));
+            const spellcheckHint = document.createElement('p');
+            spellcheckHint.className = 'cm-frontmatter-panel-hint';
+            spellcheckHint.textContent = 'Use the global default unless this note needs English (US), English (UK), Spanish, or no spellcheck.';
+            spellcheckSection.appendChild(spellcheckHint);
+            panel.appendChild(spellcheckSection);
+
             if (coverInput.checked) {
                 const coverSection = document.createElement('section');
                 coverSection.className = 'cm-frontmatter-panel-section';
@@ -662,6 +706,7 @@ export function createFrontmatterField(
 
             const genericEntries = this.frontmatter.entries.filter(entry =>
                 !PDF_PROPERTY_KEYS.has(entry.key) &&
+                !SPELLCHECK_PROPERTY_KEYS.has(entry.key) &&
                 (!coverInput.checked || !COVER_PROPERTY_KEYS.has(entry.key))
             );
             const otherSection = document.createElement('section');

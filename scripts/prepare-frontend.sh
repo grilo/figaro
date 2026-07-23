@@ -58,6 +58,10 @@ required_vendor_files=(
     frontend/vendored/codemirror/autocomplete/index.js
     frontend/vendored/@uiw/codemirror-extensions-color/index.js
     frontend/vendored/codemirror-markdown-tables/index.js
+    frontend/vendored/spellcheck/nspell.js
+    frontend/vendored/spellcheck/en-US.aff
+    frontend/vendored/spellcheck/en-GB.aff
+    frontend/vendored/spellcheck/es.aff
     frontend/vendored/importmap.json
     frontend/vendored/markdown-it-plugins/index.js
     frontend/vendored/katex/dist/katex.min.js

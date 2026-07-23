@@ -6,6 +6,35 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.5.0 - 2026-07-23
+
+### Added
+
+- Added an enabled-by-default **Show Markdown lint** setting for turning local
+  Markdown diagnostic markers on or off without changing note text.
+- Added offline spellchecking with built-in English (US), English (UK), and
+  Spanish dictionaries, a persistent global default, and per-note frontmatter
+  overrides.
+- Added conservative local spelling replacements to an editor right-click menu;
+  every candidate is verified against the active dictionary, ambiguous words
+  are withheld, and a chosen replacement remains undoable.
+- Added a Chromium integration check that uses the real diagrams.net Save
+  workflow when its hosted editor is reachable.
+- Added an opt-in, metadata-only Draw.io protocol trace for development
+  diagnosis; it never logs diagram contents.
+
+### Changed
+
+- Changed the spellcheck default-language selector to Figaro's themed,
+  keyboard-accessible combobox.
+
+### Fixed
+
+- Wrapped bullet and numbered list items now keep continuation rows aligned
+  beneath the item body in the editor.
+- Draw.io saves now recover from an editor export error or a stalled export
+  instead of leaving the diagram permanently in its Saving state.
+
 ## 1.4.1 - 2026-07-22
 
 ### Fixed

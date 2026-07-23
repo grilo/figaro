@@ -1429,6 +1429,41 @@ function renderSettingsTab(panel, _tab) {
                 </div>
                 <div class="settings-section">
                     <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 12 2 2 4-4"/><path d="M20 12a8 8 0 1 1-4-6.9"/></svg>
+                        <span>Markdown diagnostics</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-row-label">Show Markdown lint</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="markdown-lint-toggle" aria-label="Show Markdown lint" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Z"/><path d="M9.5 9.5h.01M14.5 9.5h.01M9 13c.8.7 1.8 1 3 1s2.2-.3 3-1"/></svg>
+                        <span>Spellcheck</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-row-label">Check spelling</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="spellcheck-toggle" aria-label="Check spelling" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-row settings-row--select">
+                        <label class="settings-row-label" for="spellcheck-language">Default language</label>
+                        <select id="spellcheck-language" aria-label="Default spellcheck language">
+                            <option value="en-US" selected>English (US)</option>
+                            <option value="en-GB">English (UK)</option>
+                            <option value="es">Spanish (Spain)</option>
+                        </select>
+                    </div>
+                    <p class="settings-section-desc">Notes can override this with frontmatter: <code>spellcheck: en-GB</code>, <code>spellcheck: es</code>, or <code>spellcheck: false</code>.</p>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
                         <span>Links style</span>
                     </div>

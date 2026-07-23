@@ -11,6 +11,8 @@ import { log } from './log.js';
 import { errorDialog } from './dialogs.js';
 
 export const drawioEditorOrigin = 'https://embed.diagrams.net';
+export const drawioExportTimeoutMs = 30000;
+const drawioDebugStorageKey = 'figaro.drawio.debug';
 const drawioEditorURL = `${drawioEditorOrigin}/?embed=1&proto=json&spin=1&ui=atlas&libraries=1&saveAndExit=1`;
 
 export function isDrawioDiagramPath(path) {
@@ -91,8 +93,10 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
         latestSVG: sourceSVG,
         saving: false,
         exitAfterSave: false,
+        exportTimeout: null,
         disposed: false,
         post(message) {
+            traceDrawio('sent', message);
             frame.contentWindow?.postMessage(JSON.stringify(message), drawioEditorOrigin);
         },
         setStatus(message) {
@@ -102,6 +106,7 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
             if (session.disposed) return;
             session.disposed = true;
             clearTimeout(session.connectTimeout);
+            clearDrawioExportTimeout(session);
             window.removeEventListener('message', receiveMessage);
             frame.remove();
         },
@@ -109,9 +114,21 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
     panel._drawioSession = session;
 
     const receiveMessage = (event) => {
-        if (session.disposed || event.origin !== drawioEditorOrigin || event.source !== frame.contentWindow) return;
         const message = parseDrawioMessage(event.data);
         if (!message) return;
+        if (session.disposed) {
+            traceDrawio('ignored disposed message', message);
+            return;
+        }
+        if (event.origin !== drawioEditorOrigin) {
+            traceDrawio('ignored origin', { ...message, origin: event.origin });
+            return;
+        }
+        if (event.source !== frame.contentWindow) {
+            traceDrawio('ignored source', message);
+            return;
+        }
+        traceDrawio('received', message);
 
         if (message.event === 'init') {
             session.initialised = true;
@@ -154,7 +171,14 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
         }
 
         if (message.event === 'error') {
-            session.setStatus(message.message || 'Draw.io reported an error');
+            const error = new Error(message.message || 'Draw.io could not export the diagram');
+            if (session.saving) {
+                reportDrawioSaveFailure(session, error).catch(failure => {
+                    log.error('Unable to report draw.io save failure:', failure);
+                });
+            } else {
+                session.setStatus(error.message);
+            }
         }
     };
     window.addEventListener('message', receiveMessage);
@@ -166,27 +190,34 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
     }, 12000);
 }
 
-function requestSVGExport(panel, tab, session, xml, exitAfterSave) {
+function requestSVGExport(panel, tab, session, _xml, exitAfterSave) {
     if (session.disposed || session.saving) return;
     session.saving = true;
     session.exitAfterSave = exitAfterSave;
     session.setStatus('Exporting editable SVG…');
-    session.post({ action: 'spinner', message: 'Saving', show: 1 });
     session.post({
         action: 'export',
         format: 'xmlsvg',
-        xml: xml || '',
         embedImages: true,
-        spinKey: 'export',
+        spinKey: 'saving',
     });
+    session.exportTimeout = setTimeout(() => {
+        if (session.disposed || !session.saving) return;
+        traceDrawio('timeout', { action: 'export', timeoutMs: drawioExportTimeoutMs });
+        reportDrawioSaveFailure(session, new Error('The diagram editor did not finish exporting. Try Save again.')).catch(error => {
+            log.error('Unable to report draw.io export timeout:', error);
+        });
+    }, drawioExportTimeoutMs);
 }
 
 async function persistExportedSVG(panel, tab, session, data) {
     if (session.disposed || !session.saving) return;
+    clearDrawioExportTimeout(session);
 
     try {
         const svg = decodeDrawioSVG(data);
         if (!/<svg[\s>]/i.test(svg)) throw new Error('Draw.io did not return SVG output');
+        traceDrawio('persisting SVG', { bytes: svg.length, path: tab.path });
 
         const { saveFileSnapshot } = await import('./tabManager.js');
         const result = await saveFileSnapshot(tab, svg);
@@ -198,15 +229,71 @@ async function persistExportedSVG(panel, tab, session, data) {
         session.setStatus('Saved');
         session.post({ action: 'spinner', show: 0 });
         session.post({ action: 'status', messageKey: 'allChangesSaved', modified: false });
+        traceDrawio('saved SVG', { bytes: svg.length, path: tab.path });
         import('./fileTree.js').then(({ refreshFileTree }) => refreshFileTree()).catch(() => {});
 
         if (session.exitAfterSave) showDiagramPreview(panel, tab, svg);
     } catch (error) {
-        session.saving = false;
-        session.setStatus('Save failed');
-        session.post({ action: 'spinner', show: 0 });
-        log.error('Unable to save draw.io SVG:', error);
-        await errorDialog('Couldn’t save diagram', error, 'The diagram could not be saved.');
+        await reportDrawioSaveFailure(session, error);
+    }
+}
+
+function clearDrawioExportTimeout(session) {
+    if (session?.exportTimeout == null) return;
+    clearTimeout(session.exportTimeout);
+    session.exportTimeout = null;
+}
+
+/**
+ * Return control to diagrams.net after a failed export so its normal Save
+ * button remains a usable retry. This handles both explicit protocol errors
+ * and an interrupted or missing export response.
+ */
+async function reportDrawioSaveFailure(session, error) {
+    if (session.disposed || !session.saving) return;
+    clearDrawioExportTimeout(session);
+    session.saving = false;
+    session.exitAfterSave = false;
+    session.setStatus('Save failed — try Save again');
+    session.post({ action: 'spinner', show: false });
+    traceDrawio('save failed', { message: error?.message || String(error) });
+    log.error('Unable to save draw.io SVG:', error);
+    await errorDialog('Couldn’t save diagram', error, 'The diagram could not be saved.');
+}
+
+/**
+ * Enable temporary protocol diagnostics from a WebKit/Chromium console with
+ * `window.__figaroDrawioDebug = true`, or persist it across reloads with
+ * `localStorage.setItem('figaro.drawio.debug', 'true')`. Payload contents are
+ * deliberately omitted: diagram data can be large and belongs only in vault
+ * files, not application logs.
+ */
+function traceDrawio(stage, message = {}) {
+    if (!drawioDebugEnabled()) return;
+    const summary = {
+        event: message.event,
+        action: message.action,
+        format: message.format,
+        show: message.show,
+        exit: message.exit,
+        message: message.message,
+        xmlBytes: typeof message.xml === 'string' ? message.xml.length : undefined,
+        dataBytes: typeof message.data === 'string' ? message.data.length : undefined,
+        timeoutMs: message.timeoutMs,
+        path: message.path,
+        bytes: message.bytes,
+    };
+    const trace = window.__figaroDrawioProtocolTrace || (window.__figaroDrawioProtocolTrace = []);
+    trace.push({ at: new Date().toISOString(), stage, ...summary });
+    if (trace.length > 100) trace.splice(0, trace.length - 100);
+    log.debug(`[draw.io] ${stage} ${JSON.stringify(summary)}`);
+}
+
+function drawioDebugEnabled() {
+    try {
+        return window.__figaroDrawioDebug === true || window.localStorage?.getItem(drawioDebugStorageKey) === 'true';
+    } catch (_) {
+        return window.__figaroDrawioDebug === true;
     }
 }
 

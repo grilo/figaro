@@ -35,6 +35,11 @@ VAULT_PATH="$HOME/Documents/figaro-dev-vault" make dev
 `./scripts/debug.sh` starts the frontend development server and opts into the
 loopback-only WebKit inspector for that session.
 
+For a focused Draw.io protocol trace, run
+`window.__figaroDrawioDebug = true` in the inspector before saving a diagram.
+It logs only protocol metadata and byte counts, never diagram contents; inspect
+`window.__figaroDrawioProtocolTrace` to copy the last 100 entries.
+
 ## Build a release binary
 
 The Makefile contains the supported targets:
@@ -128,7 +133,11 @@ make vendor
 The vendor workflow copies only KaTeX's production browser assets:
 minified JavaScript, minified CSS, the CSS-referenced fonts, its license, and
 a versioned manifest. It intentionally excludes KaTeX source, tests, CLI, and
-upstream build tooling, including its Python maintenance scripts.
+upstream build tooling, including its Python maintenance scripts. It also
+bundles the browser-safe `nspell` runtime plus the checked-in dependency
+versions of the US English, UK English, and Spanish Hunspell `.aff`/`.dic`
+assets with their individual license files. Do not replace those language
+assets or remove their notices without auditing the upstream dictionary terms.
 
 ## Repository layout
 

@@ -14,7 +14,7 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
     const lineNumbers = page.locator('#line-numbers-toggle');
     await expect(lineNumbers).not.toBeChecked();
     await expect(page.locator('.cm-lineNumbers')).toHaveCount(0);
-    await expect(page.locator('.select-combobox-trigger')).toHaveCount(1);
+    await expect(page.locator('.select-combobox-trigger')).toHaveCount(2);
     const autoCommit = page.locator('#auto-commit-toggle');
     await expect(autoCommit).toBeChecked();
 

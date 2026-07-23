@@ -125,3 +125,40 @@ test('explains Markdown lint markers on hover and navigates to them with F8', as
         window.__markdownLintView.state.selection.main.head,
     ).number)).toBe(2);
 });
+
+test('lets Settings disable and restore local Markdown diagnostics without changing source', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = '# Overview\n### Skipped level';
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(text);
+        const view = editor.getEditorView();
+        await new Promise(resolve => setTimeout(resolve, 80));
+        window.__markdownLintView = view;
+    }, source);
+
+    const diagnosticCount = () => page.evaluate(async () => {
+        const { forEachDiagnostic } = await import('@codemirror/lint');
+        let count = 0;
+        forEachDiagnostic(window.__markdownLintView.state, () => { count++; });
+        return count;
+    });
+
+    await expect.poll(diagnosticCount).toBe(1);
+    await page.locator('#topbar-settings').click();
+    const toggle = page.locator('#markdown-lint-toggle');
+    const slider = toggle.locator('xpath=following-sibling::*[1]');
+    await toggle.focus();
+    await expect(toggle).toBeFocused();
+    await expect(slider).toHaveCSS('border-radius', '20px');
+    await page.keyboard.press('Space');
+    await expect(toggle).not.toBeChecked();
+    await expect.poll(diagnosticCount).toBe(0);
+    expect(await page.evaluate(() => window.__markdownLintView.state.doc.toString())).toBe(source);
+
+    await toggle.focus();
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(toggle).toBeChecked();
+    await expect.poll(diagnosticCount).toBe(1);
+});

@@ -1,6 +1,6 @@
 {
   "name": "figaro",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -91,9 +91,13 @@
     "@uiw/codemirror-extensions-color": "4.25.11",
     "codemirror-live-markdown": "^0.5.1-alpha.1",
     "codemirror-markdown-tables": "1.0.0",
+    "dictionary-en": "4.0.0",
+    "dictionary-en-gb": "3.0.0",
+    "dictionary-es": "4.0.0",
     "katex": "^0.17.0",
     "lucide": "1.24.0",
     "markdown-it": "^14.3.0",
+    "nspell": "2.1.5",
     "playwright": "^1.61.1"
   }
 }

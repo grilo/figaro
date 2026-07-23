@@ -14,7 +14,7 @@ describe('frontmatter completions', () => {
         expect(result).not.toBeNull();
         expect(result.from).toBe(4);
         expect(result.options.map(option => option.label)).toEqual(expect.arrayContaining([
-            'title', 'aliases', 'tags', 'status', 'cover-page', 'toc-depth', 'print-stylesheet',
+            'title', 'aliases', 'tags', 'status', 'spellcheck', 'cover-page', 'toc-depth', 'print-stylesheet',
         ]));
         expect(result.options.find(option => option.label === 'print-stylesheet')).toMatchObject({
             apply: 'print-stylesheet: ',
@@ -34,7 +34,7 @@ describe('frontmatter completions', () => {
         expect(result.options.some(option => option.label === 'status')).toBe(true);
     });
 
-    test('suggests controlled status values and vault-relative print stylesheets', () => {
+    test('suggests controlled status and spellcheck values plus vault-relative print stylesheets', () => {
         const completions = createFrontmatterCompletionSource({
             getActiveFilePath: () => 'notes/daily/report.md',
             getFileTree: () => [{
@@ -50,6 +50,10 @@ describe('frontmatter completions', () => {
         const statusSource = '---\nstatus: a\n---';
         const status = completions(completionContext(statusSource, statusSource.indexOf('\n---')));
         expect(status.options.map(option => option.label)).toEqual(['draft', 'active', 'archived']);
+
+        const spellcheckSource = '---\nspellcheck: \n---';
+        const spellcheck = completions(completionContext(spellcheckSource, spellcheckSource.indexOf('\n---')));
+        expect(spellcheck.options.map(option => option.label)).toEqual(['en-US', 'en-GB', 'es', 'false']);
 
         const stylesheetSource = '---\nprint-stylesheet: \n---';
         const stylesheet = completions(completionContext(stylesheetSource, stylesheetSource.indexOf('\n---')));

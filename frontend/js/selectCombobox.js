@@ -121,12 +121,20 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
         trigger,
         menu,
         sync,
-        setDisabled(disabled) {
+        setDisabled(disabled, { busy = false } = {}) {
             select.disabled = Boolean(disabled);
             trigger.disabled = Boolean(disabled);
+            trigger.dataset.busy = String(Boolean(disabled && busy));
+            trigger.title = select.title || '';
             if (disabled) setOpen(false);
         },
     };
+    for (const label of Array.from(select.labels || [])) {
+        label.addEventListener('click', event => {
+            event.preventDefault();
+            if (!trigger.disabled) trigger.focus();
+        });
+    }
     select._figaroCombobox = api;
     sync();
     return api;

@@ -3402,8 +3402,28 @@ func defaultSettings() map[string]interface{} {
 		"vim":                 false,
 		"vim_visual_rows":     false,
 		"line_numbers":        false,
+		"markdown_lint":       true,
+		"spellcheck":          true,
+		"spellcheck_language": "en-US",
 		"auto_save_seconds":   300,
 		"auto_commit_enabled": true,
+	}
+}
+
+// canonicalSpellcheckLanguage restricts the portable settings value to the
+// dictionaries Figaro ships inside every desktop build. Frontmatter accepts
+// a few convenient aliases too, but the global setting always stores its
+// canonical BCP-47 spelling.
+func canonicalSpellcheckLanguage(value string) (string, bool) {
+	switch strings.ToLower(strings.ReplaceAll(strings.TrimSpace(value), "_", "-")) {
+	case "en", "en-us":
+		return "en-US", true
+	case "en-gb":
+		return "en-GB", true
+	case "es", "es-es":
+		return "es", true
+	default:
+		return "", false
 	}
 }
 
@@ -3488,6 +3508,12 @@ func (a *App) ensureSettingsDefaults() {
 			} else if key == "link_style" {
 				if style, valid := links.ParseLinkStyle(value); valid {
 					value = string(style)
+				} else {
+					value = ""
+				}
+			} else if key == "spellcheck_language" {
+				if language, valid := canonicalSpellcheckLanguage(value); valid {
+					value = language
 				} else {
 					value = ""
 				}
@@ -3766,6 +3792,93 @@ func (a *App) LineNumbersSave(enabled bool) (*SaveFileResult, error) {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}
 	settings["line_numbers"] = enabled
+	if err := a.writeSettingsFile(settings); err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
+// MarkdownLintLoad loads the persisted local Markdown diagnostics preference.
+// Diagnostics are enabled by default so existing notes retain their current
+// feedback unless the user explicitly turns it off.
+func (a *App) MarkdownLintLoad() (map[string]bool, error) {
+	a.settingsMu.RLock()
+	defer a.settingsMu.RUnlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return map[string]bool{"enabled": true}, nil
+	}
+	enabled, ok := settings["markdown_lint"].(bool)
+	if !ok {
+		enabled = true
+	}
+	return map[string]bool{"enabled": enabled}, nil
+}
+
+// MarkdownLintSave persists whether local Markdown diagnostics are displayed.
+func (a *App) MarkdownLintSave(enabled bool) (*SaveFileResult, error) {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	settings["markdown_lint"] = enabled
+	if err := a.writeSettingsFile(settings); err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
+// SpellcheckPreference is the persisted global fallback for Markdown prose.
+// Per-document frontmatter may override its language or disable checking.
+type SpellcheckPreference struct {
+	Enabled  bool   `json:"enabled"`
+	Language string `json:"language"`
+}
+
+// SpellcheckLoad loads the enabled state and fallback language for offline
+// Markdown spellchecking. New and older settings files safely default to US
+// English so a corrupt optional preference never prevents editing.
+func (a *App) SpellcheckLoad() (*SpellcheckPreference, error) {
+	a.settingsMu.RLock()
+	defer a.settingsMu.RUnlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return &SpellcheckPreference{Enabled: true, Language: "en-US"}, nil
+	}
+	enabled, ok := settings["spellcheck"].(bool)
+	if !ok {
+		enabled = true
+	}
+	rawLanguage, _ := settings["spellcheck_language"].(string)
+	language, valid := canonicalSpellcheckLanguage(rawLanguage)
+	if !valid {
+		language = "en-US"
+	}
+	return &SpellcheckPreference{Enabled: enabled, Language: language}, nil
+}
+
+// SpellcheckSave persists the global offline spellcheck preference. The
+// language validation mirrors the dictionary assets that ship with Figaro.
+func (a *App) SpellcheckSave(enabled bool, language string) (*SaveFileResult, error) {
+	canonicalLanguage, valid := canonicalSpellcheckLanguage(language)
+	if !valid {
+		return &SaveFileResult{Success: false, Error: "unsupported spellcheck language"}, nil
+	}
+
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	settings["spellcheck"] = enabled
+	settings["spellcheck_language"] = canonicalLanguage
 	if err := a.writeSettingsFile(settings); err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}

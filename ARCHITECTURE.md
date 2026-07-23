@@ -24,6 +24,14 @@ The Wails asset server embeds `frontend/` at package-build time. Backend code
 may use an on-disk fallback during development, but a released application must
 not depend on a package manager, CDN, or source checkout at runtime.
 
+Draw.io is the deliberate exception to that offline-editor boundary: its hosted
+iframe returns editable SVG through the documented cross-origin message
+protocol, and Figaro performs the vault write only after that export arrives.
+The frontend gives that handoff a 30-second deadline. A protocol error or
+missing export clears the iframe spinner, reports a retryable failure, and
+never starts a filesystem write, so a service-side interruption cannot leave a
+diagram tab permanently locked in Saving state.
+
 `frontend/js/backend.js` is the frontend's sole backend entry point. It calls
 the native Wails binding at `window.go.main.App` using its generated PascalCase
 method names. Browser debugging installs an explicit same-shaped mock through
@@ -180,12 +188,32 @@ rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
 
+List-marker lines carry an inline hanging-indent decoration that aligns wrapped
+display rows with the visible item body. It is recalculated together with the
+cursor-aware list marker replacement and never adds block height or changes
+Markdown source.
+
 Markdown diagnostics are an intentionally separate idle-time extension rather
 than a live-preview widget. They scan only the active Markdown document after
 a short pause and add inline marks plus CodeMirror's native hover/F8 surface;
-they do not replace source, alter block height, or ask the vault backend to
-validate cross-file links. That keeps editing feedback immediate while the
-read-only Vault Health workflow remains responsible for vault-wide checks.
+the persistent, on-by-default `markdown_lint` setting can reconfigure that
+extension without replacing source, altering block height, or asking the vault
+backend to validate cross-file links. That keeps editing feedback immediate
+while the read-only Vault Health workflow remains responsible for vault-wide
+checks.
+
+Offline spellcheck is another independent idle-time linter compartment. Its
+three Hunspell assets (US English, UK English, and Spanish) are served from
+the embedded frontend bundle and cached in the webview; text is never sent to
+a service. The global `spellcheck` / `spellcheck_language` preferences provide
+the fallback, while a note's leading `spellcheck` frontmatter can select one
+or more bundled dictionaries or disable that note. A right-click resolves
+replacement suggestions from those same cached dictionaries only for the
+diagnostic word under the pointer. Candidates must pass the active dictionary
+again and a conservative prose/edit-distance filter; ambiguous short typos
+produce no replacement rather than a menu of obscure entries. A chosen
+candidate dispatches one normal undoable editor change. Its inline marks use
+the theme link accent and never add block height or change cursor geometry.
 
 Document observers follow the same rule. A changed editor document is kept as
 CodeMirror's immutable text snapshot until the next animation frame, when the
@@ -198,7 +226,8 @@ where possible, avoiding a whole-document tokenization per keypress.
 ## Session state is not settings
 
 `settings.json` stores durable preferences such as theme, fonts, Vim visual-row
-motions, and feature choices. Open tabs, their ordering, and the active workspace state live in the
+motions, the Markdown-lint toggle, and the spellcheck enabled state plus global
+language. Open tabs, their ordering, and the active workspace state live in the
 dedicated session record. Keeping them separate makes startup recovery
 predictable: malformed, missing, or old session data can be discarded without
 damaging user preferences. Compatibility cleanup removes legacy tab keys from

@@ -43,6 +43,7 @@ import { markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown';
 import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
 import { markdownLinter } from './markdownLint.js';
+import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
@@ -71,12 +72,17 @@ let readOnlyCompartment = null;
 let fileModeCompartment = null;
 let foldingCompartment = null;
 let lineNumbersCompartment = null;
+let markdownLintCompartment = null;
+let spellcheckCompartment = null;
 let vimActive = false;
 let vimRequested = false;
 let vimVisualRowsRequested = false;
 let vimVisualRowsMapped = false;
 let vimAPI = null;
 let lineNumbersRequested = false;
+let markdownLintRequested = true;
+let spellcheckRequested = true;
+let spellcheckLanguageRequested = 'en-US';
 let vimRequestId = 0;
 let vimModeCM = null;
 let vimModeChangeHandler = null;
@@ -95,6 +101,7 @@ let pendingStatsDocument = null;
 let statsTimer = null;
 let lastMaterializedDocument = null;
 let lastMaterializedContent = '';
+let contextMenuRequestId = 0;
 
 // CodeMirror's indentUnit is the single source of truth for both Tab / Shift+Tab
 // and the indentation-marker extension. Keep the visual tab width in CSS in
@@ -249,6 +256,51 @@ const bulletMarkers = ['\u2022', '\u25E6', '\u25AA'];
 export function bulletMarkerForListDepth(depth) {
     const normalizedDepth = Math.max(1, Math.floor(Number(depth) || 1));
     return bulletMarkers[(normalizedDepth - 1) % bulletMarkers.length];
+}
+
+/**
+ * Return CSS custom properties for a wrapped Markdown list item. The first
+ * display row stays at the source margin, while subsequent visual rows start
+ * where the item body begins. A source-column fallback keeps non-layout
+ * environments deterministic; a live editor measures the current raw or
+ * rendered marker so the decoration never changes the document.
+ */
+export function markdownListHangingIndentAttributes(lineText, metrics = null) {
+    const match = String(lineText ?? '').match(/^([ \t]*)(?:[-*+]|\d+[.)])([ \t]+)/);
+    if (!match) return null;
+
+    // A Markdown tab conventionally advances to the next four-column stop.
+    // Keep the same calculation for the CSS ch unit used by this editor.
+    let columns = 0;
+    for (const character of match[1]) {
+        columns = character === '\t' ? columns + (4 - (columns % 4)) : columns + 1;
+    }
+    columns += match[0].length - match[1].length;
+    let indent = `${columns}ch`;
+    if (metrics?.view && metrics.markerText) {
+        const computed = getComputedStyle(metrics.view.contentDOM);
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext?.('2d');
+        if (context) {
+            const family = computed.fontFamily || 'sans-serif';
+            const size = computed.fontSize || '16px';
+            const style = computed.fontStyle || 'normal';
+            const sourceFont = `${style} ${computed.fontWeight || '400'} ${size} ${family}`;
+            const markerFont = `${style} ${metrics.markerWeight || computed.fontWeight || '400'} ${size} ${family}`;
+            const expandedLeadingWhitespace = match[1].replace(/\t/g, '    ');
+            context.font = sourceFont;
+            const leadingWidth = context.measureText(
+                expandedLeadingWhitespace + (metrics.trailingSourceWhitespace || '')
+            ).width;
+            context.font = markerFont;
+            const markerWidth = context.measureText(metrics.markerText).width + (metrics.markerMargin || 0);
+            indent = `${leadingWidth + markerWidth}px`;
+        }
+    }
+    return {
+        class: 'cm-markdown-list-item',
+        style: `--cm-list-hanging-indent: ${indent}; --cm-list-hanging-outdent: -${indent};`,
+    };
 }
 
 const codeHighlighting = syntaxHighlighting(HighlightStyle.define([
@@ -674,7 +726,7 @@ function createEditorView() {
                         const text = view.state.doc.sliceString(ref.from, ref.to);
                         const lineNum = view.state.doc.lineAt(ref.from).number;
                         const isActive = activeLines.has(lineNum);
-                        if (ref.type.name === 'ListMark' && !isActive) {
+                        if (ref.type.name === 'ListMark') {
                             const m = text.match(/^(\s*)([-*+]|\d+[.)])\s?/);
                             if (m) {
                                 const start = ref.from + m[1].length;
@@ -692,9 +744,32 @@ function createEditorView() {
                                 } else {
                                     widgetChar = bulletMarkerForListDepth(depth) + ' ';
                                 }
-                                decos.push(Decoration.replace({
-                                    widget: bulletW(widgetChar)
-                                }).range(start, end));
+                                const line = view.state.doc.lineAt(ref.from);
+                                const sourceMarker = line.text.match(/^([ \t]*)(?:[-*+]|\d+[.)])([ \t]+)/);
+                                const attributes = markdownListHangingIndentAttributes(line.text, {
+                                    view,
+                                    markerText: isActive
+                                        ? sourceMarker?.[0].slice(sourceMarker[1].length)
+                                        : widgetChar,
+                                    markerWeight: isActive ? null : '700',
+                                    // The raw ListMark's visible source span
+                                    // carries CodeMirror's inline cursor buffer;
+                                    // include its measured three-pixel tail so
+                                    // an active line and its continuation meet.
+                                    markerMargin: isActive ? 3 : 2,
+                                    // Lezer's ListMark ends before this
+                                    // separator, so it remains in the DOM
+                                    // beside the replacement widget.
+                                    trailingSourceWhitespace: isActive ? '' : sourceMarker?.[2] || '',
+                                });
+                                if (attributes) {
+                                    decos.push(Decoration.line({ attributes }).range(line.from));
+                                }
+                                if (!isActive) {
+                                    decos.push(Decoration.replace({
+                                        widget: bulletW(widgetChar)
+                                    }).range(start, end));
+                                }
                             }
                         } else if (ref.type.name === 'Task') {
                             const m = text.match(/\[([ xX])\]/);
@@ -957,13 +1032,16 @@ function createEditorView() {
     fileModeCompartment = new Compartment();
     foldingCompartment = new Compartment();
     lineNumbersCompartment = new Compartment();
+    markdownLintCompartment = new Compartment();
+    spellcheckCompartment = new Compartment();
 
     const markdownExtensionsForPath = () => [
         collapseOnSelectionFacet.of(true),
         mouseSelectingField,
         webKitShiftTabPlugin,
         EditorView.lineWrapping,
-        linter(markdownLinter, { delay: 500 }),
+        markdownLintCompartment.of(markdownLintRequested ? [linter(markdownLinter, { delay: 500 })] : []),
+        spellcheckCompartment.of(spellcheckRequested ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })] : []),
         autocompletion({
             interactionDelay: 0,
             override: [
@@ -1314,6 +1392,33 @@ function setLineNumbers(enabled) {
         ),
     });
     view.requestMeasure();
+}
+
+/** Toggle local Markdown diagnostics without changing source or preview state. */
+function setMarkdownLint(enabled) {
+    markdownLintRequested = Boolean(enabled);
+    const view = getEditorView();
+    if (!view || !markdownLintCompartment || activeFileLanguage.kind !== 'markdown') return;
+    view.dispatch({
+        effects: markdownLintCompartment.reconfigure(
+            markdownLintRequested ? [linter(markdownLinter, { delay: 500 })] : []
+        ),
+    });
+}
+
+/** Apply the offline spellcheck preference without changing Markdown source. */
+function setSpellcheck({ enabled = true, language = 'en-US' } = {}) {
+    spellcheckRequested = Boolean(enabled);
+    spellcheckLanguageRequested = canonicalSpellcheckLanguage(language);
+    const view = getEditorView();
+    if (!view || !spellcheckCompartment || activeFileLanguage.kind !== 'markdown') return;
+    view.dispatch({
+        effects: spellcheckCompartment.reconfigure(
+            spellcheckRequested
+                ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })]
+                : []
+        ),
+    });
 }
 
 function focusEditor() { const v = getEditorView(); if (v) v.focus(); }
@@ -1740,7 +1845,7 @@ async function pasteIntoEditor(view) {
 
 function handleContextMenu(event, view) {
     event.preventDefault();
-    
+
     const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
     if (pos !== null && !shouldPreserveSelectionForContextMenu(view.state.selection, pos)) {
         view.dispatch({ selection: { anchor: pos, head: pos } });
@@ -1748,7 +1853,25 @@ function handleContextMenu(event, view) {
 
     const existing = document.querySelector('.editor-context-menu');
     if (existing) existing.remove();
+    const requestId = ++contextMenuRequestId;
+    const showMenu = suggestion => {
+        if (requestId !== contextMenuRequestId || view.isDestroyed) return;
+        showEditorContextMenu(event, view, suggestion);
+    };
 
+    if (activeFileLanguage.kind !== 'markdown' || !spellcheckRequested || pos === null) {
+        showMenu(null);
+        return true;
+    }
+
+    const source = view.state.doc.toString();
+    spellcheckSuggestionsAtPosition(source, pos, spellcheckLanguageRequested)
+        .then(showMenu)
+        .catch(() => showMenu(null));
+    return true;
+}
+
+function showEditorContextMenu(event, view, spellcheckSuggestion) {
     const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
     const hasSelection = Boolean(selectedEditorText(view));
     const selectionDisabledClass = hasSelection ? '' : ' disabled';
@@ -1792,6 +1915,7 @@ function handleContextMenu(event, view) {
         </div>
         ${printAction}
     `;
+    appendSpellcheckSuggestionItems(menu, spellcheckSuggestion);
     document.body.appendChild(menu);
     const menuRect = menu.getBoundingClientRect();
     const margin = 8;
@@ -1813,7 +1937,21 @@ function handleContextMenu(event, view) {
         if (!item || item.classList.contains('disabled') || item.getAttribute('aria-disabled') === 'true') return;
         menu.remove();
         const action = item.dataset.action;
-        if (action === 'cut') {
+        if (action === 'replace-spelling') {
+            const replacement = item._figaroSpellcheckReplacement;
+            if (!replacement || view.state.sliceDoc(replacement.from, replacement.to) !== replacement.word) {
+                statusBar.set('Spelling changed; choose a suggestion again');
+                return;
+            }
+            view.dispatch({
+                changes: { from: replacement.from, to: replacement.to, insert: replacement.suggestion },
+                selection: { anchor: replacement.from + replacement.suggestion.length },
+                scrollIntoView: true,
+                userEvent: 'input.spellcheck',
+            });
+            statusBar.set(`Replaced “${replacement.word}”`);
+            setTimeout(() => statusBar.set('Ready'), 1500);
+        } else if (action === 'cut') {
             if (!await cutEditorSelection(view)) statusBar.set('Could not copy selection to clipboard');
         } else if (action === 'copy') {
             if (!await copyEditorSelection(view)) statusBar.set('Could not copy selection to clipboard');
@@ -1857,6 +1995,44 @@ function handleContextMenu(event, view) {
         }
     };
     setTimeout(() => document.addEventListener('click', closeHandler), 0);
+}
+
+function appendSpellcheckSuggestionItems(menu, spellcheckSuggestion) {
+    if (!spellcheckSuggestion) return;
+
+    const section = document.createDocumentFragment();
+    const label = document.createElement('div');
+    label.className = 'context-menu-label';
+    label.textContent = 'Spelling suggestions';
+    section.appendChild(label);
+
+    if (spellcheckSuggestion.suggestions.length) {
+        for (const suggestion of spellcheckSuggestion.suggestions) {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'context-menu-item context-menu-item--spelling-suggestion';
+            item.dataset.action = 'replace-spelling';
+            item.textContent = suggestion;
+            item.setAttribute('aria-label', `Replace “${spellcheckSuggestion.word}” with “${suggestion}”`);
+            item._figaroSpellcheckReplacement = {
+                from: spellcheckSuggestion.from,
+                to: spellcheckSuggestion.to,
+                word: spellcheckSuggestion.word,
+                suggestion,
+            };
+            section.appendChild(item);
+        }
+    } else {
+        const empty = document.createElement('div');
+        empty.className = 'context-menu-item context-menu-item--spelling-empty disabled';
+        empty.textContent = 'No suggestions found';
+        section.appendChild(empty);
+    }
+
+    const separator = document.createElement('div');
+    separator.className = 'context-menu-separator';
+    section.appendChild(separator);
+    menu.prepend(section);
 }
 
 async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
@@ -2092,5 +2268,5 @@ function updateVimStatus(mode) {
 export { initEditor, createEditorView, getEditorView,
     getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
-    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setImageBasePath, setReadOnly, setLineNumbers,
+    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setImageBasePath, setReadOnly, setLineNumbers, setMarkdownLint, setSpellcheck,
     configureEditorForFile, normalizeWebKitShiftTab };

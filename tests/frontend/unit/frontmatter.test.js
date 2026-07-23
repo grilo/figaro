@@ -3,6 +3,7 @@ import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import {
     frontmatterTemplateChange,
     frontmatterPropertyChange,
+    frontmatterPropertyRemovalChange,
     getPrintStylesheet,
     hasLeadingFrontmatter,
     parseFrontmatter,
@@ -53,6 +54,11 @@ describe('frontmatter parsing', () => {
         const coverChange = frontmatterPropertyChange(coverSource, 'cover-page', 'false');
         expect(coverSource.slice(0, coverChange.from) + coverChange.insert + coverSource.slice(coverChange.to))
             .toBe('---\ncover-page: false\n---\n# Body');
+
+        const spellcheckSource = '---\ntitle: Report\nspellcheck: en-GB\n---\n# Body';
+        const removeSpellcheck = frontmatterPropertyRemovalChange(spellcheckSource, 'spellcheck');
+        expect(spellcheckSource.slice(0, removeSpellcheck.from) + removeSpellcheck.insert + spellcheckSource.slice(removeSpellcheck.to))
+            .toBe('---\ntitle: Report\n---\n# Body');
 
         expect(frontmatterTemplateChange('~~~markdown\n# Ignore this\n~~~\n# Quarterly report\n\nBody', {
             author: 'Ada Lovelace',
@@ -122,6 +128,7 @@ describe('frontmatter Properties card', () => {
         expect(view.dom.querySelector('.cm-frontmatter-panel').parentElement.classList.contains('cm-block-widget--frontmatter-panel')).toBe(true);
         expect(view.dom.querySelector('.cm-frontmatter-panel').classList.contains('cm-frontmatter-panel--enter')).toBe(true);
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('PDF layout');
+        expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Spellcheck');
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Table of Contents');
         expect(view.dom.querySelector('.cm-frontmatter-panel-chips').textContent).toContain('title: Report');
         const stylesheetToggle = view.dom.querySelector('.cm-frontmatter-combobox-toggle');
@@ -133,6 +140,15 @@ describe('frontmatter Properties card', () => {
             .find(option => option.dataset.value === 'exports/print.css')
             .click();
         expect(view.state.doc.toString()).toContain('print-stylesheet: exports/print.css');
+
+        const spellcheck = [...view.dom.querySelectorAll('.cm-frontmatter-panel-section')]
+            .find(section => section.textContent.includes('Spellcheck'))
+            .querySelector('.cm-frontmatter-panel-select');
+        spellcheck.click();
+        [...view.dom.querySelectorAll('.cm-frontmatter-combobox-option')]
+            .find(option => option.dataset.value === 'en-GB')
+            .click();
+        expect(view.state.doc.toString()).toContain('spellcheck: en-GB');
 
         const toc = view.dom.querySelector('.cm-frontmatter-panel-select');
         toc.click();

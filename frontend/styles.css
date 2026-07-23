@@ -1186,6 +1186,20 @@ html, body {
     color: var(--text-color);
 }
 
+.settings-row--select {
+    gap: 12px;
+}
+
+.settings-row--select select {
+    width: 156px;
+    flex: 0 1 156px;
+}
+
+.settings-row--select .select-combobox {
+    width: 156px;
+    flex: 0 1 156px;
+}
+
 /* Toggle switch */
 .toggle-switch {
     position: relative;
@@ -1464,6 +1478,14 @@ html, body {
     transition: background var(--transition-fast);
 }
 
+.context-menu button.context-menu-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+}
+
 .context-menu-item button,
 .context-menu-item input,
 .context-menu-item select {
@@ -1472,6 +1494,33 @@ html, body {
 
 .context-menu-item:hover {
     background: var(--hover-bg);
+}
+
+.context-menu-item:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+    background: var(--hover-bg);
+}
+
+.context-menu-label {
+    padding: 7px 12px 4px;
+    color: var(--text-muted);
+    font: 600 10px/1.2 var(--font-sans);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.context-menu-item--spelling-suggestion {
+    color: var(--link-color);
+}
+
+.context-menu-item--spelling-suggestion:hover,
+.context-menu-item--spelling-suggestion:focus-visible {
+    color: var(--link-hover-color);
+}
+
+.context-menu-item--spelling-empty {
+    font-style: italic;
 }
 
 .context-menu-item.danger {
@@ -3414,6 +3463,17 @@ html, body {
     padding-bottom: 1px;
 }
 
+/* Spellchecking is advisory prose feedback, so keep its dotted underline
+   distinct from structural Markdown lint while using the active theme's
+   established secondary (link) accent. */
+.cm-editor .cm-lintRange.cm-spellcheck-range {
+    background-image: linear-gradient(to right, var(--link-color) 50%, transparent 50%) !important;
+    background-position: 0 100% !important;
+    background-repeat: repeat-x !important;
+    background-size: 4px 2px !important;
+    padding-bottom: 1px;
+}
+
 .cm-tooltip .cm-tooltip-lint {
     max-width: min(380px, calc(100vw - 32px));
     margin: 0;
@@ -3435,7 +3495,8 @@ html, body {
 }
 
 .cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning::before,
-.cm-tooltip .cm-tooltip-lint .cm-diagnostic-error::before {
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-error::before,
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-info::before {
     display: inline-block;
     width: 7px;
     height: 7px;
@@ -3446,8 +3507,10 @@ html, body {
 
 .cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning { border-left-color: var(--accent-color) !important; }
 .cm-tooltip .cm-tooltip-lint .cm-diagnostic-error { border-left-color: var(--danger-color) !important; }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-info { border-left-color: var(--link-color) !important; }
 .cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning::before { background: var(--accent-color); }
 .cm-tooltip .cm-tooltip-lint .cm-diagnostic-error::before { background: var(--danger-color); }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-info::before { background: var(--link-color); }
 
 .cm-gutters {
     background: var(--bg-color) !important;
@@ -3807,6 +3870,10 @@ html, body {
 
 .cm-list { padding-left: 1.5em; cursor: text; }
 .cm-list-item { padding-left: 0.5em; }
+.cm-editor .cm-line.cm-markdown-list-item {
+    padding-left: var(--cm-list-hanging-indent) !important;
+    text-indent: var(--cm-list-hanging-outdent) !important;
+}
 .cm-formatting-code { color: var(--text-dim); }
 
 .cm-task-list-item { display: flex; align-items: flex-start; gap: 8px; }
@@ -6173,6 +6240,13 @@ body.right-sidebar-resizing .pdf-preview-frame {
     border-color: var(--accent-color);
     box-shadow: 0 0 0 2px var(--focus-ring);
 }
+.settings-card select:disabled {
+    cursor: not-allowed;
+    opacity: .62;
+    border-color: var(--border-color);
+    background-color: var(--hover-bg);
+    color: var(--text-muted);
+}
 .settings-card .font-size-control,
 .settings-card .text-width-control {
     display: inline-flex;
@@ -6613,8 +6687,12 @@ body.right-sidebar-resizing .pdf-preview-frame {
 }
 
 .settings-picker-btn:disabled {
-    cursor: wait;
+    cursor: not-allowed;
     opacity: 0.62;
+}
+
+.settings-picker-btn:disabled[data-busy="true"] {
+    cursor: wait;
 }
 
 .settings-picker-menu {

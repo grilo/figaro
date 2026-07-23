@@ -45,9 +45,16 @@ When writing the TypeScript extension, you must adhere to the following CodeMirr
 4.  **No Layout Snapping:** Ensure inline styles retain their typographic metrics (font-size, line-height) across both states so that text does not shift horizontally or vertically when the cursor enters a line.
 
 Markdown diagnostics are a separate idle-time editor extension, not a
-live-preview decoration pass. Their inline squiggles and hover tooltip must not
-add block geometry or alter text metrics, so normal cursor movement, mouse
-placement, and drag selection keep the same layout contract.
+live-preview decoration pass. The persistent, on-by-default **Show Markdown
+lint** setting can remove or restore that extension without changing the
+document. Its inline squiggles and hover tooltip must not add block geometry or
+alter text metrics, so normal cursor movement, mouse placement, and drag
+selection keep the same layout contract.
+
+Wrapped Markdown bullet and ordered-list rows use an inline hanging indent:
+every continuation display row begins at the item body, whether the list marker
+is raw source or its rendered widget. The indent is recalculated with that
+line's preview state and must not introduce a block widget or vertical geometry.
 
 ## 4. Block Widget Geometry Contract
 
@@ -76,6 +83,12 @@ Every decoration created with `block: true` must follow these rules:
 5. Do not treat the Arrow Up/Down safety guard as permission to violate this
    contract. It is defense in depth; correct widget geometry is the primary
    fix and also protects mouse placement, selection, and scrolling.
+
+Inline diagnostic decorations, including spellcheck's dotted unknown-word
+marks, must remain source-length-preserving and must not introduce a widget,
+line-height, padding, or block replacement. They are checked with the same
+Arrow Up/Down, mouse placement, and drag-selection contract as other editor
+decorations.
 
 Before merging any block-widget change, run the required checks documented in
 [`TESTING.md`](TESTING.md#block-widget-and-cursor-regressions). Layout changes

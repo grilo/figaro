@@ -59,10 +59,12 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 
 - Vault path safety, atomic file operations, local-link/unlinked-mention and
   Vault-health scanning, single-file-only Auto-Commit migration and isolation,
-  history comparison/restoration, Draw.io file handling, print stylesheet
-  resolution, and printable-document preparation.
-- Editor behavior, CodeMirror language modes, Markdown diagnostics and their
-  hover/F8 guidance, frontmatter, footnotes, diagrams, tabs, session
+  history comparison/restoration, Draw.io file handling and export-recovery
+  states, print stylesheet resolution, and printable-document preparation.
+- Editor behavior, CodeMirror language modes, persistent Markdown diagnostics
+  and their hover/F8 guidance, offline spellcheck language/frontmatter
+  overrides, wrapped-list cursor/selection geometry,
+  frontmatter, footnotes, diagrams, tabs, session
   persistence, Kanban presentation/loading states, file-tree actions, and
   stale-response guards.
 - Browser rendering of cover pages, table of contents, Mermaid, Vega, and
@@ -336,7 +338,31 @@ The focused browser contract also checks the 4 px Insert caret plus the
 optional **Move by visual rows** mapping: `j`, `k`, and Up/Down move one wrapped
 display row in Vim Normal mode, while operator-pending source-line motions such
 as `dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
-placement, drag selection, themed hover guidance, and F8 navigation.
+placement, drag selection, themed hover guidance, F8 navigation, and their
+enabled-by-default Settings toggle. Wrapped Markdown bullet and ordered-list
+items must keep continuation rows under their item bodies and retain Arrow
+Up/Down plus mouse drag-selection behavior.
+
+Offline spellcheck must retain the same editor movement and selection contract:
+its US-English global default, themed keyboard-operable language combobox,
+Spanish frontmatter override, per-note `false` opt-out, themed dotted marker,
+and local-only dictionary assets are covered by unit and browser regressions.
+Right-clicking an underlined prose word must offer only active-dictionary,
+high-confidence prose suggestions, let keyboard activation replace only that
+word as an undoable edit, suppress ambiguous short typos instead of surfacing
+obscure entries, and never offer replacements in masked Markdown regions.
+
+Draw.io's hosted-editor message protocol must cover a successful editable-SVG
+export plus both interrupted paths: an explicit export error and no export
+response within 30 seconds must hide the hosted spinner, report a retryable
+failure, leave the file untouched, and accept another Save request.
+`tests/e2e/drawio.spec.js` additionally opens the real diagrams.net iframe in
+Chromium and invokes its own Save command. It is an external-network
+integration test: it skips with an explicit reason when `embed.diagrams.net`
+cannot be reached, and it complements rather than replaces the native
+WebKitGTK manual smoke check. When diagnosing a native failure, opt into the
+metadata-only trace with `window.__figaroDrawioDebug = true` in the WebKit
+inspector before saving; it must never log diagram XML or SVG contents.
 
 Run the focused contract with:
 
@@ -345,9 +371,12 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/vimCommands.test.js \
   tests/frontend/unit/vimSettings.test.js \
   tests/frontend/unit/vimVisual.test.js \
-  tests/frontend/unit/markdownLint.test.js
-go test . -run 'TestVim'
-npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownLint.spec.js
+  tests/frontend/unit/editorSettings.test.js \
+  tests/frontend/unit/markdownLint.test.js \
+  tests/frontend/unit/spellcheck.test.js \
+  tests/frontend/unit/drawioEditor.test.js
+go test . -run 'Test(Vim|MarkdownLint|Spellcheck)'
+npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawio.spec.js
 ```
 
 ## Generating browser assets

@@ -243,6 +243,28 @@ export function frontmatterPropertyChange(source, key, value) {
 }
 
 /**
+ * Remove one top-level scalar property without changing its neighbours. This
+ * lets a Properties control restore inheritance rather than leaving a blank
+ * value that only happens to behave like the global fallback.
+ */
+export function frontmatterPropertyRemovalChange(source, key) {
+    if (!PROPERTY_RE.test(`${key}: value`)) return null;
+    const text = String(source || '');
+    const frontmatter = parseFrontmatter(text);
+    if (!frontmatter) return null;
+
+    const content = text.slice(frontmatter.contentFrom, frontmatter.contentTo);
+    const propertyLine = new RegExp(`^${escapeRegExp(key)}[ \\t]*:.*?(?:\\r?\\n|$)`, 'm');
+    const match = propertyLine.exec(content);
+    if (!match) return null;
+    return {
+        from: frontmatter.contentFrom + match.index,
+        to: frontmatter.contentFrom + match.index + match[0].length,
+        insert: '',
+    };
+}
+
+/**
  * Create a leading YAML skeleton with useful PDF-export defaults. The caller
  * supplies the OS username; title and date are derived locally so this helper
  * remains deterministic in tests when those values are passed explicitly.

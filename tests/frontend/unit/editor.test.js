@@ -125,6 +125,20 @@ describe('Editor Module - CodeMirror Initialization', () => {
         expect(shouldPreserveSelectionForContextMenu({ main: { from: 4, to: 4 } }, 4)).toBe(false);
     });
 
+    test('calculates a hanging indent for wrapped Markdown list items', async () => {
+        const { markdownListHangingIndentAttributes } = await import('../frontend/js/editor.js');
+
+        expect(markdownListHangingIndentAttributes('- An item')).toEqual({
+            class: 'cm-markdown-list-item',
+            style: '--cm-list-hanging-indent: 2ch; --cm-list-hanging-outdent: -2ch;',
+        });
+        expect(markdownListHangingIndentAttributes('    12. Nested item')).toEqual({
+            class: 'cm-markdown-list-item',
+            style: '--cm-list-hanging-indent: 8ch; --cm-list-hanging-outdent: -8ch;',
+        });
+        expect(markdownListHangingIndentAttributes('Not a list')).toBeNull();
+    });
+
     test('resolves conventional wikilink targets independently from their aliases', async () => {
 		const { normalizeWikiLinkTarget, wikiLinkAtPosition } = await import('../frontend/js/editor.js');
 		const line = 'See [[notes/Guide Note.md#start|Readable guide]] now';

@@ -330,6 +330,25 @@ mkdir -p "$VENDOR_DIR/@uiw/codemirror-extensions-color"
     --external:@lezer/* \
     --outfile="$VENDOR_DIR/@uiw/codemirror-extensions-color/index.js"
 
+echo "Bundling the offline Hunspell spellchecking runtime and dictionaries..."
+mkdir -p "$VENDOR_DIR/spellcheck"
+./node_modules/.bin/esbuild node_modules/nspell/lib/index.js \
+    --bundle \
+    --format=esm \
+    --platform=browser \
+    --target=es2020 \
+    --minify \
+    --outfile="$VENDOR_DIR/spellcheck/nspell.js"
+cp node_modules/nspell/license "$VENDOR_DIR/spellcheck/nspell-LICENSE"
+for dictionary in "en-US dictionary-en" "en-GB dictionary-en-gb" "es dictionary-es"; do
+    set -- $dictionary
+    language="$1"
+    package="$2"
+    cp "node_modules/$package/index.aff" "$VENDOR_DIR/spellcheck/$language.aff"
+    cp "node_modules/$package/index.dic" "$VENDOR_DIR/spellcheck/$language.dic"
+    cp "node_modules/$package/license" "$VENDOR_DIR/spellcheck/$language-LICENSE"
+done
+
 echo "Vendoring the searchable Lucide SVG catalog..."
 mkdir -p "$VENDOR_DIR/lucide"
 cp node_modules/lucide/dist/umd/lucide.min.js "$VENDOR_DIR/lucide/lucide.min.js"
@@ -341,6 +360,7 @@ echo "  View: $([ -f "$VENDOR_DIR/codemirror/view/index.js" ] && echo "✓" || e
 echo "  State: $([ -f "$VENDOR_DIR/codemirror/state/index.js" ] && echo "✓" || echo "✗")"
 echo "  Language: $([ -f "$VENDOR_DIR/codemirror/language/index.js" ] && echo "✓" || echo "✗")"
 echo "  Lang-Markdown: $([ -f "$VENDOR_DIR/codemirror/lang-markdown/index.js" ] && echo "✓" || echo "✗")"
+echo "  Spellcheck: $([ -f "$VENDOR_DIR/spellcheck/nspell.js" ] && echo "✓" || echo "✗")"
 
 # Count total files
 JS_COUNT=$(find "$VENDOR_DIR" -name "*.js" -type f | wc -l)

@@ -30,6 +30,16 @@ let currentLineNumbersEnabled = false;
 let lineNumbersPreferenceLoaded = false;
 let lineNumbersPreferenceLoadPromise = null;
 let lineNumbersSaveQueue = Promise.resolve();
+let currentMarkdownLintEnabled = true;
+let markdownLintPreferenceLoaded = false;
+let markdownLintPreferenceLoadPromise = null;
+let markdownLintSaveQueue = Promise.resolve();
+let currentSpellcheckPreference = { enabled: true, language: 'en-US' };
+let persistedSpellcheckPreference = { enabled: true, language: 'en-US' };
+let spellcheckPreferenceLoaded = false;
+let spellcheckPreferenceLoadPromise = null;
+let spellcheckPreferenceRevision = 0;
+let spellcheckSaveQueue = Promise.resolve();
 
 function isActivePanel(root) {
     return root === document || (!!root && root.isConnected && !root._settingsPanelDisposed);
@@ -75,6 +85,8 @@ export async function initTheme() {
     await initVimPreference();
     await initVimVisualRowsPreference();
     await initLineNumbersPreference();
+    await initMarkdownLintPreference();
+    await initSpellcheckPreference();
 }
 
 export async function applyTheme(themeId) {
@@ -352,6 +364,159 @@ export async function setLineNumbersPreference(enabled) {
     }
 }
 
+function syncMarkdownLintToggles(enabled) {
+    document.querySelectorAll('#markdown-lint-toggle').forEach(toggle => {
+        toggle.checked = enabled;
+    });
+}
+
+async function applyMarkdownLintPreference(enabled) {
+    const { setMarkdownLint } = await import('./editor.js');
+    setMarkdownLint(enabled);
+}
+
+export function getMarkdownLintPreference() { return currentMarkdownLintEnabled; }
+
+export async function initMarkdownLintPreference() {
+    if (markdownLintPreferenceLoaded) return currentMarkdownLintEnabled;
+    if (markdownLintPreferenceLoadPromise) return markdownLintPreferenceLoadPromise;
+    markdownLintPreferenceLoadPromise = (async () => {
+        try {
+            const result = await backend().MarkdownLintLoad();
+            currentMarkdownLintEnabled = result?.enabled !== false;
+            markdownLintPreferenceLoaded = true;
+            syncMarkdownLintToggles(currentMarkdownLintEnabled);
+            await applyMarkdownLintPreference(currentMarkdownLintEnabled);
+        } catch (error) {
+            log.warn('Could not load Markdown diagnostics preference:', error);
+        } finally {
+            markdownLintPreferenceLoadPromise = null;
+        }
+        return currentMarkdownLintEnabled;
+    })();
+    return markdownLintPreferenceLoadPromise;
+}
+
+export async function setMarkdownLintPreference(enabled) {
+    if (!markdownLintPreferenceLoaded) await initMarkdownLintPreference();
+    const previous = currentMarkdownLintEnabled;
+    const requested = Boolean(enabled);
+    currentMarkdownLintEnabled = requested;
+    syncMarkdownLintToggles(requested);
+    await applyMarkdownLintPreference(requested);
+
+    const saveAttempt = markdownLintSaveQueue.then(async () => {
+        const result = await backend().MarkdownLintSave(requested);
+        if (!result?.success) throw new Error(result?.error || 'Markdown diagnostics preference was not saved');
+        return true;
+    });
+    markdownLintSaveQueue = saveAttempt.catch(() => {});
+    try {
+        await saveAttempt;
+        return true;
+    } catch (error) {
+        currentMarkdownLintEnabled = previous;
+        syncMarkdownLintToggles(previous);
+        await applyMarkdownLintPreference(previous);
+        log.warn('Could not save Markdown diagnostics preference:', error);
+        return false;
+    }
+}
+
+function normalizedSpellcheckPreference(preference = {}) {
+    const allowedLanguages = new Set(['en-US', 'en-GB', 'es']);
+    const language = String(preference.language || '').replaceAll('_', '-');
+    return {
+        enabled: preference.enabled !== false,
+        language: allowedLanguages.has(language) ? language : 'en-US',
+    };
+}
+
+function syncSpellcheckControls(preference) {
+    document.querySelectorAll('#spellcheck-toggle').forEach(toggle => {
+        toggle.checked = preference.enabled;
+    });
+    document.querySelectorAll('#spellcheck-language').forEach(select => {
+        select.value = preference.language;
+        select.title = preference.enabled ? '' : 'Enable spellcheck to choose a default language.';
+        select._figaroCombobox?.sync?.();
+        if (select._figaroCombobox?.setDisabled) select._figaroCombobox.setDisabled(!preference.enabled);
+        else select.disabled = !preference.enabled;
+    });
+}
+
+async function applySpellcheckPreference(preference) {
+    const { setSpellcheck } = await import('./editor.js');
+    setSpellcheck(preference);
+}
+
+export function getSpellcheckPreference() {
+    return { ...currentSpellcheckPreference };
+}
+
+/** Load and apply the global offline spellcheck fallback exactly once. */
+export async function initSpellcheckPreference() {
+    if (spellcheckPreferenceLoaded) return getSpellcheckPreference();
+    if (spellcheckPreferenceLoadPromise) return spellcheckPreferenceLoadPromise;
+
+    spellcheckPreferenceLoadPromise = (async () => {
+        try {
+            const result = await backend().SpellcheckLoad();
+            currentSpellcheckPreference = normalizedSpellcheckPreference(result);
+            persistedSpellcheckPreference = { ...currentSpellcheckPreference };
+            spellcheckPreferenceLoaded = true;
+            syncSpellcheckControls(currentSpellcheckPreference);
+            await applySpellcheckPreference(currentSpellcheckPreference);
+        } catch (error) {
+            log.warn('Could not load spellcheck preference:', error);
+        } finally {
+            spellcheckPreferenceLoadPromise = null;
+        }
+        return getSpellcheckPreference();
+    })();
+    return spellcheckPreferenceLoadPromise;
+}
+
+/** Apply and persist the global fallback while preserving a newer UI choice. */
+export async function setSpellcheckPreference(preference) {
+    if (!spellcheckPreferenceLoaded) await initSpellcheckPreference();
+    const requested = normalizedSpellcheckPreference({ ...currentSpellcheckPreference, ...preference });
+    const revision = ++spellcheckPreferenceRevision;
+    currentSpellcheckPreference = requested;
+    syncSpellcheckControls(requested);
+
+    try {
+        await applySpellcheckPreference(requested);
+    } catch (error) {
+        log.warn('Could not apply spellcheck preference:', error);
+        if (revision === spellcheckPreferenceRevision) {
+            currentSpellcheckPreference = { ...persistedSpellcheckPreference };
+            syncSpellcheckControls(currentSpellcheckPreference);
+        }
+        return false;
+    }
+
+    const saveAttempt = spellcheckSaveQueue.then(async () => {
+        const result = await backend().SpellcheckSave(requested.enabled, requested.language);
+        if (!result?.success) throw new Error(result?.error || 'Spellcheck preference was not saved');
+        persistedSpellcheckPreference = { ...requested };
+        return true;
+    });
+    spellcheckSaveQueue = saveAttempt.catch(() => {});
+    try {
+        await saveAttempt;
+        return true;
+    } catch (error) {
+        log.warn('Could not save spellcheck preference:', error);
+        if (revision === spellcheckPreferenceRevision) {
+            currentSpellcheckPreference = { ...persistedSpellcheckPreference };
+            syncSpellcheckControls(currentSpellcheckPreference);
+            try { await applySpellcheckPreference(currentSpellcheckPreference); } catch (_) { /* original error is logged above */ }
+        }
+        return false;
+    }
+}
+
 export async function initSettingsPanel(root = document) {
     log.debug('[settings] initSettingsPanel started');
     try {
@@ -435,6 +600,59 @@ export async function initSettingsPanel(root = document) {
                 lineNumbersToggle.disabled = false;
                 lineNumbersToggle.title = saved ? '' : 'Could not save the line-number preference.';
             });
+        }
+
+        const markdownLintToggle = findIn(root, '#markdown-lint-toggle');
+        if (markdownLintToggle) {
+            markdownLintToggle.checked = await initMarkdownLintPreference();
+            if (!isActivePanel(root)) return;
+            markdownLintToggle.addEventListener('change', async () => {
+                markdownLintToggle.disabled = true;
+                const saved = await setMarkdownLintPreference(markdownLintToggle.checked);
+                if (!isActivePanel(root)) return;
+                markdownLintToggle.checked = currentMarkdownLintEnabled;
+                markdownLintToggle.disabled = false;
+                markdownLintToggle.title = saved ? '' : 'Could not save the Markdown diagnostics preference.';
+            });
+        }
+
+        const spellcheckToggle = findIn(root, '#spellcheck-toggle');
+        const spellcheckLanguage = findIn(root, '#spellcheck-language');
+        if (spellcheckToggle && spellcheckLanguage) {
+            const preference = await initSpellcheckPreference();
+            if (!isActivePanel(root)) return;
+            const spellcheckPicker = enhanceSelectCombobox(spellcheckLanguage, {
+                ariaLabel: 'Default spellcheck language',
+            });
+            spellcheckToggle.checked = preference.enabled;
+            spellcheckLanguage.value = preference.language;
+            spellcheckLanguage.title = preference.enabled ? '' : 'Enable spellcheck to choose a default language.';
+            spellcheckPicker?.sync();
+            if (spellcheckPicker) spellcheckPicker.setDisabled(!preference.enabled);
+            else spellcheckLanguage.disabled = !preference.enabled;
+
+            const save = async () => {
+                spellcheckToggle.disabled = true;
+                if (spellcheckPicker) spellcheckPicker.setDisabled(true, { busy: true });
+                else spellcheckLanguage.disabled = true;
+                const saved = await setSpellcheckPreference({
+                    enabled: spellcheckToggle.checked,
+                    language: spellcheckLanguage.value,
+                });
+                if (!isActivePanel(root)) return;
+                const currentPreference = getSpellcheckPreference();
+                spellcheckToggle.checked = currentPreference.enabled;
+                spellcheckLanguage.value = currentPreference.language;
+                spellcheckToggle.disabled = false;
+                const failure = saved ? '' : 'Could not save the spellcheck preference.';
+                spellcheckToggle.title = failure;
+                spellcheckLanguage.title = failure || (currentPreference.enabled ? '' : 'Enable spellcheck to choose a default language.');
+                spellcheckPicker?.sync();
+                if (spellcheckPicker) spellcheckPicker.setDisabled(!currentPreference.enabled);
+                else spellcheckLanguage.disabled = !currentPreference.enabled;
+            };
+            spellcheckToggle.addEventListener('change', save);
+            spellcheckLanguage.addEventListener('change', save);
         }
 
         initFontSize(root);

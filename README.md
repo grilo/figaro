@@ -91,7 +91,7 @@ Under **Settings → Vault care → Review…**, **Vault health** runs a read-on
 
 ### Markdown and code
 
-figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. Large notes remain responsive because normal cursor movement preserves unaffected preview decorations and interactive widgets are limited to the visible editor region; word statistics settle shortly after a rapid typing burst while dirty content remains immediately safe to save. Markdown notes also receive local, non-destructive diagnostics for unclosed frontmatter or code fences, skipped heading levels, and accidental trailing whitespace; hover a squiggle for the fix and press F8 to move to the next issue. The optional editor gutter is controlled by **Settings → Show line numbers** and is off by default. Standalone CSS hex colors display a theme-aware swatch and native picker; valid hex-shaped tokens take precedence over hashtags while the source and PDF text remain unchanged. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
+figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. Large notes remain responsive because normal cursor movement preserves unaffected preview decorations and interactive widgets are limited to the visible editor region; word statistics settle shortly after a rapid typing burst while dirty content remains immediately safe to save. Markdown notes receive local, non-destructive diagnostics for unclosed frontmatter or code fences, skipped heading levels, and accidental trailing whitespace; hover a squiggle for the fix and press F8 to move to the next issue. They are on by default and can be disabled with **Settings → Markdown diagnostics → Show Markdown lint**. Offline spellcheck is also on by default: choose its English (US), English (UK), or Spanish global fallback in **Settings → Spellcheck**; it never sends note text to a service. Right-click an underlined unknown word to choose a local high-confidence replacement; every suggestion is verified against the active dictionary, while ambiguous words deliberately show no replacement. The change is a normal undoable edit. Wrapped bullet and numbered list text uses a hanging indent beneath its item body. The optional editor gutter is controlled by **Settings → Show line numbers** and is off by default. Standalone CSS hex colors display a theme-aware swatch and native picker; valid hex-shaped tokens take precedence over hashtags while the source and PDF text remain unchanged. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
 
 Vim Insert mode uses a visible 4 px line caret. Under **Settings → Vim Mode**, enable **Move by visual rows** to make `j`, `k`, and Up/Down follow wrapped display rows; it is disabled while Vim itself is off and retains normal source-line semantics for operators such as `dj`.
 
@@ -142,7 +142,7 @@ flowchart TD
 ~~~
 ~~~~
 
-Create a Draw.io diagram from the File Tree context menu. figaro opens diagrams.net for editing and saves a self-contained `.drawio.svg` file. Once saved, that SVG continues to render normally in notes even when you are offline; only opening the Draw.io editor needs a connection to diagrams.net.
+Create a Draw.io diagram from the File Tree context menu. figaro opens diagrams.net for editing and saves a self-contained `.drawio.svg` file. Once saved, that SVG continues to render normally in notes even when you are offline; only opening the Draw.io editor needs a connection to diagrams.net. If its export reports an error or does not return within 30 seconds, Figaro clears the Saving state, explains the failure, and lets you use **Save** again.
 
 ### Properties and interactive PDF export
 
@@ -158,12 +158,15 @@ cover-page: true
 toc-depth: 2
 # Optional: choose Create starter in PDF layout first.
 print-stylesheet: "pdf.css"
+# Optional: override the global spellcheck language for this note.
+spellcheck: en-GB
 ---
 ~~~
 
 - `cover-page: true` creates one title page.
 - `toc-depth` accepts `0` through `6`; `0` disables the table of contents.
 - `print-stylesheet` selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`.
+- `spellcheck` accepts `en-US`, `en-GB`, or `es`; `false` disables checking for this note. Omitting it inherits **Settings → Spellcheck**. A mixed-language note may use `spellcheck: [en-GB, es]`.
 - Footnotes such as `[^source]` print as numbered links to a final Footnotes section, with links back to each reference.
 - Mermaid, Vega, and Vega-Lite blocks are rendered to inline SVG for the printed document.
 
@@ -220,6 +223,13 @@ The development file server is then available at `http://localhost:34115`.
 The script also enables the loopback-only WebKit inspector for that development
 session. Normal launches leave it disabled; to opt in manually, run
 `FIGARO_WEBKIT_INSPECTOR=1 make dev`.
+
+To trace a Draw.io save in the development console, run
+`window.__figaroDrawioDebug = true` before reproducing it. The trace records
+only protocol event names, actions, byte counts, and outcomes—not diagram XML
+or SVG contents. Inspect `window.__figaroDrawioProtocolTrace` to copy its last
+100 entries. Use `localStorage.setItem('figaro.drawio.debug', 'true')` to retain
+it across a reload, then remove that key when finished.
 
 ### Build a desktop binary
 

@@ -1279,7 +1279,7 @@ func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
 	if err := json.Unmarshal(data, &settings); err != nil {
 		t.Fatal(err)
 	}
-	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["line_numbers"] != false || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
+	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["line_numbers"] != false || settings["markdown_lint"] != true || settings["spellcheck"] != true || settings["spellcheck_language"] != "en-US" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
 		t.Fatalf("unexpected normalized settings: %#v", settings)
 	}
 	if _, exists := settings["openTabs"]; exists {
@@ -1763,6 +1763,48 @@ func TestLineNumbersSaveLoadAndDefault(t *testing.T) {
 	loaded, err = restarted.LineNumbersLoad()
 	if err != nil || !loaded["enabled"] {
 		t.Fatalf("LineNumbersLoad after restart = %#v, %v; want enabled", loaded, err)
+	}
+}
+
+func TestMarkdownLintSaveLoadAndDefault(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	loaded, err := app.MarkdownLintLoad()
+	if err != nil || !loaded["enabled"] {
+		t.Fatalf("MarkdownLintLoad default = %#v, %v; want enabled", loaded, err)
+	}
+	result, err := app.MarkdownLintSave(false)
+	if err != nil || !result.Success {
+		t.Fatalf("MarkdownLintSave(false) = %#v, %v", result, err)
+	}
+	restarted := NewApp(vaultPath)
+	loaded, err = restarted.MarkdownLintLoad()
+	if err != nil || loaded["enabled"] {
+		t.Fatalf("MarkdownLintLoad after restart = %#v, %v; want disabled", loaded, err)
+	}
+}
+
+func TestSpellcheckSaveLoadDefaultsAndLanguageValidation(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	loaded, err := app.SpellcheckLoad()
+	if err != nil || !loaded.Enabled || loaded.Language != "en-US" {
+		t.Fatalf("SpellcheckLoad default = %#v, %v; want enabled en-US", loaded, err)
+	}
+	result, err := app.SpellcheckSave(false, "en_gb")
+	if err != nil || !result.Success {
+		t.Fatalf("SpellcheckSave(false, en_gb) = %#v, %v", result, err)
+	}
+	restarted := NewApp(vaultPath)
+	loaded, err = restarted.SpellcheckLoad()
+	if err != nil || loaded.Enabled || loaded.Language != "en-GB" {
+		t.Fatalf("SpellcheckLoad after restart = %#v, %v; want disabled en-GB", loaded, err)
+	}
+	invalid, err := restarted.SpellcheckSave(true, "fr")
+	if err != nil || invalid.Success {
+		t.Fatalf("SpellcheckSave invalid language = %#v, %v; want rejected", invalid, err)
 	}
 }
 

@@ -19,6 +19,7 @@ export const frontmatterProperties = [
     { label: 'created', detail: 'Creation date (YYYY-MM-DD)', apply: 'created: ', type: 'property' },
     { label: 'updated', detail: 'Last-updated date (YYYY-MM-DD)', apply: 'updated: ', type: 'property' },
     { label: 'status', detail: 'draft, active, or archived', apply: 'status: ', type: 'property' },
+    { label: 'spellcheck', detail: 'Per-note spellcheck language or false', apply: 'spellcheck: ', type: 'property', boost: 9 },
     { label: 'cover-page', detail: 'Generate a PDF cover page', apply: 'cover-page: true', type: 'property', boost: 8 },
     { label: 'toc-depth', detail: 'PDF table of contents depth (0–6)', apply: 'toc-depth: 2', type: 'property', boost: 8 },
     {
@@ -32,6 +33,12 @@ export const frontmatterProperties = [
 ];
 
 const statusValues = ['draft', 'active', 'archived'];
+const spellcheckValues = [
+    { label: 'en-US', detail: 'English (US)', type: 'keyword' },
+    { label: 'en-GB', detail: 'English (UK)', type: 'keyword' },
+    { label: 'es', detail: 'Spanish (Spain)', type: 'keyword' },
+    { label: 'false', detail: 'Disable spellcheck for this note', type: 'keyword' },
+];
 
 function collectCSSFiles(items, files = []) {
     for (const item of items || []) {
@@ -91,6 +98,13 @@ function valueCompletions(before, context, getFileTree, getActiveFilePath) {
             from,
             options: statusValues.map(label => ({ label, type: 'keyword' })),
             validFor: /^[A-Za-z-]*$/,
+        };
+    }
+    if (key === 'spellcheck') {
+        return {
+            from,
+            options: spellcheckValues,
+            validFor: /^[A-Za-z_-]*$/,
         };
     }
     if (key !== 'print-stylesheet') return null;
