@@ -21,6 +21,41 @@ async function spellcheckWords(page) {
     });
 }
 
+test('does not mark a correctly spelled hyphenated compound as a spellcheck error', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = 'Before\nA faster-than-usual pace.\nAfter';
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(text);
+        const view = editor.getEditorView();
+        await new Promise(resolve => setTimeout(resolve, 80));
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+        window.__spellcheckView = view;
+    }, source);
+
+    await expect.poll(() => spellcheckWords(page)).toEqual([]);
+    await expect(page.locator('.cm-spellcheck-range')).toHaveCount(0);
+
+    const content = page.locator('.cm-content');
+    await content.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__spellcheckView.state.doc.lineAt(
+        window.__spellcheckView.state.selection.main.head,
+    ).number)).toBe(2);
+    await content.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__spellcheckView.state.doc.lineAt(
+        window.__spellcheckView.state.selection.main.head,
+    ).number)).toBe(3);
+    await content.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__spellcheckView.state.doc.lineAt(
+        window.__spellcheckView.state.selection.main.head,
+    ).number)).toBe(2);
+    await content.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__spellcheckView.state.doc.lineAt(
+        window.__spellcheckView.state.selection.main.head,
+    ).number)).toBe(1);
+});
+
 test('checks offline English and Spanish prose, offers local right-click replacements, and keeps normal editor movement intact', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = 'color colour teh ete\n\nAfter the spelling range';

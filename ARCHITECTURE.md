@@ -207,7 +207,10 @@ three Hunspell assets (US English, UK English, and Spanish) are served from
 the embedded frontend bundle and cached in the webview; text is never sent to
 a service. The global `spellcheck` / `spellcheck_language` preferences provide
 the fallback, while a note's leading `spellcheck` frontmatter can select one
-or more bundled dictionaries or disable that note. A right-click resolves
+or more bundled dictionaries or disable that note. A hyphenated prose compound
+is accepted when every component is recognized by the same active dictionary,
+so terms such as `faster-than-usual` remain unmarked despite dictionary
+compound gaps. A right-click resolves
 replacement suggestions from those same cached dictionaries only for the
 diagnostic word under the pointer. Candidates must pass the active dictionary
 again and a conservative prose/edit-distance filter; ambiguous short typos

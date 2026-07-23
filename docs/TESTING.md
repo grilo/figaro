@@ -347,6 +347,8 @@ Offline spellcheck must retain the same editor movement and selection contract:
 its US-English global default, themed keyboard-operable language combobox,
 Spanish frontmatter override, per-note `false` opt-out, themed dotted marker,
 and local-only dictionary assets are covered by unit and browser regressions.
+Correctly spelled hyphenated compounds must remain unmarked, while a
+misspelled component must retain its diagnostic.
 Right-clicking an underlined prose word must offer only active-dictionary,
 high-confidence prose suggestions, let keyboard activation replace only that
 word as an undoable edit, suppress ambiguous short typos instead of surfacing

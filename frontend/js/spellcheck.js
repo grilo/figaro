@@ -178,6 +178,18 @@ function isDictionarySuggestion(checker, suggestion) {
     return checker.correct?.(suggestion) === true;
 }
 
+function isCorrectlySpelledProseWord(word, checkers) {
+    return checkers.some(checker => {
+        if (checker.correct(word)) return true;
+        // Hunspell dictionaries do not consistently enumerate otherwise valid
+        // compounds. Treat a hyphenated word as correct when every component
+        // belongs to the same active dictionary, while still flagging a typo
+        // in any component.
+        const components = word.split('-');
+        return components.length > 1 && components.every(component => checker.correct(component));
+    });
+}
+
 function isProseLikeSuggestion(suggestion) {
     const value = String(suggestion || '').trim();
     const lower = value.toLocaleLowerCase();
@@ -301,7 +313,7 @@ export async function spellcheckSuggestionsAtPosition(source, position, defaultL
     } catch (_) {
         return null;
     }
-    if (checkers.some(checker => checker.correct(wordRange.word))) return null;
+    if (isCorrectlySpelledProseWord(wordRange.word, checkers)) return null;
 
     const suggestions = highConfidenceSuggestions(wordRange.word, checkers, config.languages)
         .map(suggestion => matchSuggestionCase(suggestion, wordRange.word));
@@ -327,7 +339,7 @@ export async function spellcheckDiagnostics(source, defaultLanguage = 'en-US', g
     }
     const languageDescription = config.languages.map(language => languageLabels.get(language) || language).join(' and ');
     return spellcheckWordRanges(source)
-        .filter(({ word }) => !checkers.some(checker => checker.correct(word)))
+        .filter(({ word }) => !isCorrectlySpelledProseWord(word, checkers))
         .map(({ from, to, word }) => ({
             from,
             to,

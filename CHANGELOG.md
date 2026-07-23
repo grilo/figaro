@@ -6,6 +6,13 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.5.1 - 2026-07-23
+
+### Fixed
+
+- Spellcheck no longer marks correctly spelled hyphenated compounds such as
+  `faster-than-usual` as errors.
+
 ## 1.5.0 - 2026-07-23
 
 ### Added
