@@ -111,6 +111,9 @@ The browser suite is intentionally not a substitute for the desktop webview:
 when changing the PDF preview bridge, also run the packaged Linux build and
 exercise it in Wails/WebKitGTK. The preview's origin/sandbox boundary is
 documented in [`ARCHITECTURE.md`](../ARCHITECTURE.md).
+Its unit coverage must also exercise a reader scroll that arrives while an
+editor-to-preview update awaits its programmatic echo; the reader's newest
+position must win rather than being delayed behind a parent-side timeout.
 
 ## Feature-specific regression contract
 

@@ -412,10 +412,11 @@ Scroll synchronization is deliberately lower-frequency than native scrolling.
 The frame and CodeMirror each scroll locally at the display's normal cadence;
 only the latest document-relative position crosses the bridge, at most about
 30 times per second. Bursts are coalesced and a trailing update preserves the
-final position. Programmatic editor movement is recognized as such so a delayed
-browser scroll event cannot echo back into the preview. Do not make scroll
-events a one-for-one bridge protocol: that makes WebKitGTK pay a cross-frame
-message and a CodeMirror position update for every visual frame.
+final position. Programmatic frame reports are explicitly marked; unmarked
+reader movement always takes precedence, even if an earlier editor update is
+still settling. Do not make scroll events a one-for-one bridge protocol: that
+makes WebKitGTK pay a cross-frame message and a CodeMirror position update for
+every visual frame.
 
 Dragging the PDF splitter temporarily pauses both synchronization directions
 and disables pointer interaction with the frame. This prevents reflow-driven

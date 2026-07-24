@@ -27,7 +27,8 @@ and explicit CSS lengths are reflected in the preview, with A4 as the
 fallback. The preview preserves its position after a refresh and synchronizes
 relative scrolling with the active source Markdown note. Its own scrolling
 stays native and smooth; the companion editor receives coalesced position
-updates rather than a cross-frame update for every display frame. Table-of-contents,
+updates rather than a cross-frame update for every display frame, and a new
+reader scroll always overrides a settling programmatic editor update. Table-of-contents,
 footnote, and return links stay within the rendered preview instead of
 navigating to a vault URL. Web links open in your default browser, while
 vault-local document links open through Figaro rather than replacing the

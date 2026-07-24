@@ -6,6 +6,13 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.6.2 - 2026-07-24
+
+### Fixed
+
+- PDF Preview now keeps a reader's newest scroll position when a preceding
+  editor synchronization report is still settling.
+
 ## 1.6.1 - 2026-07-24
 
 ### Added

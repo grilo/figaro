@@ -71,7 +71,6 @@ const scrollSync = {
     lastProgress: 0,
     resetOnNextRender: true,
     suppressEditor: false,
-    suppressPreview: false,
     editorFrame: null,
     editorSyncTimer: null,
     pendingEditorProgress: null,
@@ -771,7 +770,6 @@ function flushEditorScrollToPreview() {
         return false;
     }
     scrollSync.lastEditorSyncAt = monotonicNow();
-    deferSuppression('suppressPreview');
     return true;
 }
 
@@ -823,7 +821,11 @@ function ensureEditorScrollSync() {
 }
 
 function syncPreviewScrollToEditor(progress) {
-    if (!isPreviewOpen() || !activePreviewSource() || scrollSync.suppressPreview || scrollSync.resizing) return;
+    // The frame explicitly marks host-initiated reports as programmatic before
+    // this function is called. Do not use a parent-side timeout as a second
+    // filter: a real preview scroll can arrive before that timer fires on a
+    // busy runner or webview and must take effect immediately.
+    if (!isPreviewOpen() || !activePreviewSource() || scrollSync.resizing) return;
     const editor = ensureEditorScrollSync();
     if (!editor) return;
     scrollSync.lastProgress = progress;
@@ -849,7 +851,6 @@ function resetScrollSync() {
     scrollSync.lastProgress = 0;
     scrollSync.resetOnNextRender = true;
     scrollSync.suppressEditor = false;
-    scrollSync.suppressPreview = false;
     scrollSync.resizing = false;
     scrollSync.resizeResumeTimer = null;
     // Closing or replacing a preview during the short post-resize settle

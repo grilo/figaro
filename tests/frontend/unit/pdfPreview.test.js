@@ -252,6 +252,43 @@ describe('live PDF preview', () => {
         }));
     });
 
+    test('honors a preview user scroll while the prior editor update awaits its programmatic echo', async () => {
+        mockState.openTabs = [{ id: 'notes/report.md', type: 'file', path: 'notes/report.md' }];
+        mockState.activeTabId = 'notes/report.md';
+        const editorScroller = document.createElement('div');
+        editorScroller.className = 'cm-scroller';
+        setScrollMetrics(editorScroller, { scrollTop: 300, scrollHeight: 1000, clientHeight: 400 });
+        document.getElementById('editor-container').appendChild(editorScroller);
+
+        const { frame, postMessage, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        const token = render().token;
+        const previousAnimationFrame = globalThis.requestAnimationFrame;
+        globalThis.requestAnimationFrame = callback => {
+            callback();
+            return 0;
+        };
+
+        try {
+            editorScroller.dispatchEvent(new Event('scroll'));
+            expect(postedBridgeMessages(postMessage)).toContainEqual(expect.objectContaining({
+                type: 'set-content-progress',
+                token,
+                progress: 0.5,
+            }));
+
+            dispatchBridgeMessage(frame, {
+                type: 'scroll',
+                token,
+                documentProgress: 0.65,
+                contentProgress: 0.2,
+                programmatic: false,
+            });
+            expect(editorScroller.scrollTop).toBe(120);
+        } finally {
+            globalThis.requestAnimationFrame = previousAnimationFrame;
+        }
+    });
+
     test('coalesces rapid editor scrolls and ignores the matching programmatic echo', async () => {
         mockState.openTabs = [{ id: 'notes/report.md', type: 'file', path: 'notes/report.md' }];
         mockState.activeTabId = 'notes/report.md';
