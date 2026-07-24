@@ -360,6 +360,10 @@ export function createFrontmatterField(
             const { openPDFPreview } = await import('./pdfPreview.js');
             return openPDFPreview({ path, title, content });
         },
+        onPreviewMarkdown = async ({ path, title, content }) => {
+            const { openMarkdownPreview } = await import('./markdownPreview.js');
+            return openMarkdownPreview({ path, title, content });
+        },
         reportStylesheetError = message => errorDialog('Couldn’t create PDF stylesheet', message, 'The PDF stylesheet could not be created.'),
     } = options || {};
 
@@ -626,6 +630,26 @@ export function createFrontmatterField(
             stylesheetHint.className = 'cm-frontmatter-panel-hint';
             stylesheetHint.textContent = 'Leave blank for the built-in style or an existing sibling _print.css. Create starter copies an editable example into your vault.';
             pdfSection.appendChild(stylesheetHint);
+            const previewMarkdown = makeButton(
+                'cm-frontmatter-panel-action cm-frontmatter-preview-markdown',
+                'Preview Markdown',
+                'Open a live Markdown preview',
+                async () => {
+                    const notePath = String(getActiveFilePath() || '').trim();
+                    if (!notePath) {
+                        reportStylesheetError('Open a Markdown note before previewing it.');
+                        return;
+                    }
+                    const currentSource = view.state.doc.toString();
+                    const noteTitle = getFrontmatterValue(currentSource, 'title') || notePath.split('/').pop().replace(/\.md$/i, '');
+                    try {
+                        await onPreviewMarkdown({ path: notePath, title: noteTitle, content: currentSource });
+                    } catch (error) {
+                        reportStylesheetError(error?.message || 'Could not open the Markdown preview.');
+                    }
+                }
+            );
+            pdfSection.appendChild(previewMarkdown);
             const previewPDF = makeButton(
                 'cm-frontmatter-panel-action cm-frontmatter-preview-pdf',
                 'Preview PDF',

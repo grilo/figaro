@@ -151,3 +151,37 @@ test('keeps wrapped bullet and ordered list bodies hanging beneath their markers
         return selection.to - selection.from;
     })).toBeGreaterThan(20);
 });
+
+test('keeps a list immediately following a heading visible in live preview, PDF preview, and print output', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = '# Such as this\n* hello \n * world';
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(text);
+        const view = editor.getEditorView();
+        await new Promise(resolve => setTimeout(resolve, 80));
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+        window.__markdownHeadingListView = view;
+    }, source);
+
+    await expect(page.locator('.cm-bullet')).toHaveCount(2);
+    await expect(page.locator('.cm-bullet').nth(0)).toHaveText('•');
+    await expect(page.locator('.cm-bullet').nth(1)).toHaveText('•');
+
+    const rendered = await page.evaluate(async markdown => {
+        const pdf = await import('/js/pdfExport.js');
+        const preview = await import('/js/pdfPreview.js');
+        const printableHTML = pdf.renderPrintableMarkdown(markdown, 'Heading list');
+        const previewHTML = preview.buildPDFPreviewDocument(printableHTML, { notePath: 'notes/list.md' });
+        const printable = new DOMParser().parseFromString(printableHTML, 'text/html');
+        const printablePreview = new DOMParser().parseFromString(previewHTML, 'text/html');
+        return {
+            exportItems: Array.from(printable.querySelectorAll('main > ul > li')).map(item => item.textContent),
+            previewItems: Array.from(printablePreview.querySelectorAll('main > ul > li')).map(item => item.textContent),
+        };
+    }, source);
+
+    expect(rendered.exportItems).toEqual(['hello', 'world']);
+    expect(rendered.previewItems).toEqual(['hello', 'world']);
+});

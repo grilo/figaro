@@ -114,6 +114,10 @@ npx playwright install chromium # first time only
 npm run test:pdf
 ```
 
+For changes to Markdown Preview, current-note heading completion, or Vim table
+cells, also run their focused unit and browser regressions listed in
+[`docs/TESTING.md`](docs/TESTING.md).
+
 Run these locally before opening a pull request. Keep generated vaults, build
 outputs, and personal notes out of commits.
 

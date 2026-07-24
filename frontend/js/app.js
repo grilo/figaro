@@ -22,6 +22,7 @@ import { initTheme } from './theme.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
+import { closeMarkdownPreview, initMarkdownPreview } from './markdownPreview.js';
 import { initOutlinePanel } from './outline.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
 import { initLinkStylePreference } from './linkStyle.js';
@@ -191,11 +192,12 @@ export function initTopBar() {
         });
     }
 
-    // The right pane is reserved for History, Outline, and PDF preview.
+    // The right pane is reserved for History, Outline, and document previews.
     const rsClose = document.getElementById('right-sidebar-close');
     if (rsClose && rightSidebar) {
         rsClose.addEventListener('click', () => {
             if (rightSidebar.dataset.mode === 'pdf-preview') closePDFPreview();
+            else if (rightSidebar.dataset.mode === 'markdown-preview') closeMarkdownPreview();
             else if (rightSidebar.dataset.mode === 'history') document.dispatchEvent(new CustomEvent('close-history-panel'));
             else if (rightSidebar.dataset.mode === 'outline') document.dispatchEvent(new CustomEvent('close-outline-panel'));
             else {
@@ -513,6 +515,7 @@ export async function initApp() {
     // PDF preview shares the right sidebar with History and Outline; Calendar
     // is isolated in the left sidebar and can remain open independently.
     initPDFPreview();
+    initMarkdownPreview();
 
     await initTheme();
     

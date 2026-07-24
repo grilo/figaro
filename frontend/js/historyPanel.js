@@ -281,6 +281,7 @@ async function openHistoryPanel() {
     // release their content first so switching stays predictable.
     document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
     document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
+    document.dispatchEvent(new CustomEvent('close-markdown-preview', { detail: { keepSidebarOpen: true } }));
 
     const histContent = document.getElementById('history-content');
     const rightTitle = document.getElementById('right-sidebar-title');

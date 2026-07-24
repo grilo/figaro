@@ -1309,6 +1309,7 @@ export async function openPDFPreview({ path, title, content } = {}) {
 
     document.dispatchEvent(new CustomEvent('close-history-panel'));
     document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
+    document.dispatchEvent(new CustomEvent('close-markdown-preview', { detail: { keepSidebarOpen: true } }));
 
     previewRequestId++;
     if (previewTimer) clearTimeout(previewTimer);

@@ -6,6 +6,21 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.6.0 - 2026-07-24
+
+### Added
+
+- Added a live, themed **Markdown Preview** in the right pane, available from
+  Markdown context menus and the Properties panel.
+- Markdown links now suggest current-note heading fragments while typing a
+  destination such as `[Jump](#heading)`.
+
+### Fixed
+
+- Vim Normal and Insert modes now work inside interactive Markdown table cells.
+- Vim `:w`, `:q`, `:wq`, and `:x` commands are ready as soon as Vim mode is
+  enabled.
+
 ## 1.5.1 - 2026-07-23
 
 ### Fixed

@@ -260,6 +260,7 @@ export function openOutlinePanel() {
     // local to their panels and preserve the shared splitter for the new pane.
     document.dispatchEvent(new CustomEvent('close-history-panel'));
     document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
+    document.dispatchEvent(new CustomEvent('close-markdown-preview', { detail: { keepSidebarOpen: true } }));
 
     const { sidebar, title, resizer } = outlineElements();
     if (!sidebar) return false;

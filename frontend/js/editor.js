@@ -14,10 +14,15 @@ import { getFileLanguage, loadLanguageSupport } from './languageSupport.js';
 import { createFrontmatterField } from './frontmatterPlugin.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
-import { pdfExportErrorDialog, tableConversionDialog } from './dialogs.js';
+import { errorDialog, pdfExportErrorDialog, tableConversionDialog } from './dialogs.js';
 import { handleClipboardImagePaste, pasteClipboardImage } from './clipboardImage.js';
 import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } from './clipboardTable.js';
-import { noteLinkCompletion, noteLinkCompletionMatch } from './linkCompletions.js';
+import {
+    headingLinkCompletionMatch,
+    markdownHeadingTargets,
+    noteLinkCompletion,
+    noteLinkCompletionMatch,
+} from './linkCompletions.js';
 import { getLinkStylePreference } from './linkStyle.js';
 import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
 import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
@@ -38,7 +43,7 @@ import {
     HighlightStyle, bracketMatching, foldGutter, foldKeymap, indentUnit,
     syntaxHighlighting, syntaxTree,
 } from '@codemirror/language';
-import { acceptCompletion, autocompletion, completionKeymap } from '@codemirror/autocomplete';
+import { acceptCompletion, autocompletion, completionKeymap, startCompletion } from '@codemirror/autocomplete';
 import { markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown';
 import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
@@ -67,6 +72,8 @@ import {
 // Editor instance
 let editorView = null;
 let vimCompartment = null;
+let markdownTableCompartment = null;
+let createMarkdownTableExtension = null;
 let imageBasePathCompartment = null;
 let readOnlyCompartment = null;
 let fileModeCompartment = null;
@@ -79,6 +86,7 @@ let vimRequested = false;
 let vimVisualRowsRequested = false;
 let vimVisualRowsMapped = false;
 let vimAPI = null;
+let vimTableCellExtension = null;
 let lineNumbersRequested = false;
 let markdownLintRequested = true;
 let spellcheckRequested = true;
@@ -987,6 +995,54 @@ function createEditorView() {
         return { from: rf, options, filter: false };
     };
 
+    const headingLinkCompletions = ctx => {
+        const pos = ctx.pos, doc = ctx.state.doc;
+        const line = doc.lineAt(pos), ls = line.from;
+        const before = doc.sliceString(ls, pos);
+        const match = headingLinkCompletionMatch(before);
+        if (!match) return null;
+        const prefix = match.prefix.toLowerCase();
+        const from = ls + match.fromOffset;
+        const targets = markdownHeadingTargets(doc.toString())
+            .filter(target => target.slug.startsWith(prefix) || target.label.toLowerCase().includes(prefix))
+            .slice(0, 20);
+        if (!targets.length) return null;
+
+        return {
+            from,
+            filter: false,
+            options: targets.map(target => ({
+                label: target.label,
+                detail: `#${target.slug}`,
+                apply: (view, _completion, applyFrom, applyTo) => {
+                    const hasClosingParenthesis = view.state.doc.sliceString(applyTo, applyTo + 1) === ')';
+                    const insert = `#${target.slug}${hasClosingParenthesis ? '' : ')'}`;
+                    view.dispatch({
+                        changes: { from: applyFrom, to: applyTo, insert },
+                        selection: { anchor: applyFrom + insert.length },
+                    });
+                },
+            })),
+        };
+    };
+
+    // CodeMirror normally activates completions after word characters. A
+    // fragment target starts with `#`, so explicitly start the same normal
+    // completion flow when typing inside `[label](#fragment)`.
+    const headingLinkCompletionActivator = ViewPlugin.fromClass(class {
+        update(update) {
+            if (!update.docChanged || !update.state.selection.main.empty) return;
+            const typed = update.transactions.some(transaction => transaction.isUserEvent?.('input.type'));
+            if (!typed) return;
+            const head = update.state.selection.main.head;
+            const line = update.state.doc.lineAt(head);
+            if (!headingLinkCompletionMatch(update.state.doc.sliceString(line.from, head))) return;
+            queueMicrotask(() => {
+                if (!update.view.isDestroyed) startCompletion(update.view);
+            });
+        }
+    });
+
     const frontmatterCompletions = createFrontmatterCompletionSource({
         getFileTree: () => getState('fileTreeData') || [],
         getActiveFilePath,
@@ -996,7 +1052,10 @@ function createEditorView() {
     // codemirror-markdown-tables owns both the rendered table and its nested
     // cell editors. Keep document-wide undo/search bindings global while the
     // ordinary editing bindings operate inside the active cell.
-    const markdownTableExtension = markdownTables({
+    // Table cells are independent, embedded CodeMirror editors. They do not
+    // inherit root-editor extensions, so refresh this compartment when Vim
+    // changes and give cells the same modal commands as the surrounding note.
+    createMarkdownTableExtension = () => markdownTables({
         theme: TableTheme.dark.with({
             '--tbl-theme-row-background': 'var(--bg-color)',
             '--tbl-theme-header-row-background': 'var(--hover-bg)',
@@ -1022,11 +1081,12 @@ function createEditorView() {
         selectionType: 'codemirror',
         handlePosition: 'inside',
         lineWrapping: 'wrap',
-        extensions: [keymap.of(defaultKeymap)],
+        extensions: [keymap.of(defaultKeymap), ...(vimTableCellExtension ? [vimTableCellExtension] : [])],
         globalKeyBindings: [...historyKeymap, ...searchKeymap],
     });
 
     vimCompartment = new Compartment();
+    markdownTableCompartment = new Compartment();
     imageBasePathCompartment = new Compartment();
     readOnlyCompartment = new Compartment();
     fileModeCompartment = new Compartment();
@@ -1047,6 +1107,7 @@ function createEditorView() {
             override: [
                 frontmatterCompletions,
                 dateShortcutCompletions,
+                headingLinkCompletions,
                 fileLinkCompletions,
                 imageCompletions,
                 markdownTableAutocompleter(),
@@ -1054,6 +1115,7 @@ function createEditorView() {
         }),
         markdownLanguage,
         markdownStylePlugin,
+        headingLinkCompletionActivator,
         livePreviewPlugin,
         editorTheme,
         ...(Array.isArray(frontmatterField) ? frontmatterField : [frontmatterField]),
@@ -1063,7 +1125,7 @@ function createEditorView() {
         linkPreview(),
         ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages }),
         ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
-        markdownTableExtension,
+        markdownTableCompartment.of(createMarkdownTableExtension()),
         mathField,
         hexColorExtension,
         hashtagPlugin,
@@ -1882,8 +1944,12 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16M15 4v16"/></svg>
             Convert selection to table…
         </div>` : '';
-    const printAction = activeTab?.path?.toLowerCase().endsWith('.md') ? `
+    const previewActions = activeTab?.path?.toLowerCase().endsWith('.md') ? `
         <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="preview-markdown">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+            Preview Markdown
+        </div>
         <div class="context-menu-item" data-action="preview-pdf">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
             Preview PDF
@@ -1913,7 +1979,7 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
             Select All
         </div>
-        ${printAction}
+        ${previewActions}
     `;
     appendSpellcheckSuggestionItems(menu, spellcheckSuggestion);
     document.body.appendChild(menu);
@@ -1973,6 +2039,18 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
         else if (action === 'select-all') {
             const doc = view.state.doc;
             view.dispatch({ selection: { anchor: 0, head: doc.length } });
+        } else if (action === 'preview-markdown') {
+            try {
+                const { openMarkdownPreview } = await import('./markdownPreview.js');
+                await openMarkdownPreview({
+                    path: activeTab.path,
+                    title: activeTab.title,
+                    content: view.state.doc.toString(),
+                });
+            } catch (error) {
+                log.error('Markdown preview failed:', error);
+                await errorDialog('Markdown preview couldn’t open', error, 'Could not open the Markdown preview.');
+            }
         } else if (action === 'preview-pdf') {
             try {
                 const { openPDFPreview } = await import('./pdfPreview.js');
@@ -2138,6 +2216,56 @@ function setVimVisualRows(enabled) {
     return applyVimVisualRowsMapping(vimVisualRowsRequested);
 }
 
+/** Rebuild embedded table-cell editors after their Vim extension changes. */
+function reconfigureMarkdownTableCells() {
+    if (!editorView || !markdownTableCompartment || !createMarkdownTableExtension) return;
+    if (activeFileLanguage.kind !== 'markdown' || !markdownModeExtensions || !fileModeCompartment) return;
+
+    // codemirror-markdown-tables deliberately keeps each embedded cell editor
+    // alive while its table widget is unchanged. Removing and restoring the
+    // Markdown mode makes that lifecycle explicit when the modal editor
+    // changes, so existing cells cannot retain a stale keymap.
+    editorView.dispatch({ effects: fileModeCompartment.reconfigure([]) });
+    editorView.dispatch({ effects: fileModeCompartment.reconfigure(markdownModeExtensions()) });
+}
+
+/** Register the application commands before the newly enabled mode can receive input. */
+function registerVimExCommands(Vim) {
+    Vim.defineEx('write', 'w', () => {
+        saveActiveFile().catch(error => log.warn('Vim :write failed:', error));
+    });
+
+    Vim.defineEx('edit', 'e', (_cm, args) => {
+        const fname = args?.trim();
+        if (!fname) return;
+        import('./app.js').then(({ getActiveTab, openTab }) => {
+            const tab = getActiveTab();
+            let dir = '';
+            if (tab && tab.type === 'file' && tab.path) {
+                const idx = tab.path.lastIndexOf('/');
+                if (idx >= 0) dir = tab.path.substring(0, idx + 1);
+            }
+            const relPath = fname.endsWith('.md') ? fname : fname + '.md';
+            const path = dir + relPath;
+            openTab(path, path.split('/').pop(), 'file', { path, isNew: true });
+        });
+    });
+
+    Vim.defineEx('quit', 'q', () => {
+        import('./app.js').then(({ getActiveTab, closeTab }) => {
+            const tab = getActiveTab();
+            if (tab) closeTab(tab.id);
+        });
+    });
+
+    Vim.defineEx('wq', 'wq', () => {
+        saveAndCloseActiveFile().catch(error => log.warn('Vim :wq failed:', error));
+    });
+    Vim.defineEx('xit', 'x', () => {
+        saveAndCloseActiveFile().catch(error => log.warn('Vim :xit failed:', error));
+    });
+}
+
 async function toggleVim(enable) {
     const requested = Boolean(enable);
     const requestChanged = vimRequested !== requested;
@@ -2161,54 +2289,12 @@ async function toggleVim(enable) {
 
         const view = editorView;
         vimAPI = Vim;
+        vimTableCellExtension = vim();
         view.dispatch({ effects: vimCompartment.reconfigure(vim()) });
+        reconfigureMarkdownTableCells();
         vimActive = true;
         applyVimVisualRowsMapping(vimVisualRowsRequested);
-
-        // Register custom ex commands after a short delay (vim needs to init)
-        setTimeout(() => {
-            if (!vimActive || !vimRequested || requestId !== vimRequestId || editorView !== view) return;
-            const cm = getCM(view);
-            if (!cm || !Vim) return;
-
-            // :w — save file
-            Vim.defineEx('write', 'w', () => {
-                saveActiveFile().catch(error => log.warn('Vim :write failed:', error));
-            });
-
-            // :e <filename> — open/create file relative to current file's directory
-            Vim.defineEx('edit', 'e', (_cm, args) => {
-                const fname = args?.trim();
-                if (!fname) return;
-                import('./app.js').then(({ getActiveTab, openTab }) => {
-                    const tab = getActiveTab();
-                    let dir = '';
-                    if (tab && tab.type === 'file' && tab.path) {
-                        const idx = tab.path.lastIndexOf('/');
-                        if (idx >= 0) dir = tab.path.substring(0, idx + 1);
-                    }
-                    const relPath = fname.endsWith('.md') ? fname : fname + '.md';
-                    const path = dir + relPath;
-                    openTab(path, path.split('/').pop(), 'file', { path, isNew: true });
-                });
-            });
-
-            // :q — close tab
-            Vim.defineEx('quit', 'q', () => {
-                import('./app.js').then(({ getActiveTab, closeTab }) => {
-                    const tab = getActiveTab();
-                    if (tab) closeTab(tab.id);
-                });
-            });
-
-            // :wq / :x — save and close
-            Vim.defineEx('wq', 'wq', () => {
-                saveAndCloseActiveFile().catch(error => log.warn('Vim :wq failed:', error));
-            });
-            Vim.defineEx('xit', 'x', () => {
-                saveAndCloseActiveFile().catch(error => log.warn('Vim :xit failed:', error));
-            });
-        }, 100);
+        registerVimExCommands(Vim);
 
         // Track vim mode for status bar
         updateVimStatus('normal');
@@ -2236,6 +2322,8 @@ async function toggleVim(enable) {
         }
         vimModeCM = null;
         vimModeChangeHandler = null;
+        vimTableCellExtension = null;
+        reconfigureMarkdownTableCells();
         editorView.dispatch({ effects: vimCompartment.reconfigure([]) });
         vimActive = false;
         updateVimStatus(null);

@@ -161,8 +161,8 @@ selection and viewport updates use the cached heading offsets to identify the
 current section without another document scan. Activating an item dispatches a
 normal selection and scroll transaction, so it cannot introduce an alternate
 cursor model or decoration geometry. The navigator is mounted only while its
-right-pane mode owns the sidebar, and History/PDF Preview explicitly release
-it before taking that shared pane.
+right-pane mode owns the sidebar, and History, Markdown Preview, and PDF
+Preview explicitly release it before taking that shared pane.
 
 ## UI continuity surfaces
 
@@ -331,6 +331,22 @@ generated assets. The source material and generator scripts are tracked, while
 the generated output is recreated before development and package builds. This
 keeps the repository small while ensuring packaged applications are
 self-contained.
+
+## Markdown preview: normal-theme document rendering
+
+`markdownPreview.js` owns the non-print **Markdown Preview** right-pane mode.
+It renders the current active/dirty Markdown snapshot with the shared
+Markdown-It plugin set after stripping leading frontmatter. That renderer keeps
+raw HTML disabled, so the application may safely place its output in the
+themed sidebar document surface. This preview deliberately does not enter the
+print worker or apply print CSS, page geometry, cover pages, or generated table
+of contents.
+
+The module listens for active document changes, saves, and matching tab
+switches so it keeps the current note snapshot without competing with the
+editor's source of truth. It shares the sidebar ownership protocol with
+History, Outline, and PDF Preview; each view dispatches the corresponding
+close event before taking the pane.
 
 ## PDF preview: isolated frame and message bridge
 

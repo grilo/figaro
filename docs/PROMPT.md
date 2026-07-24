@@ -26,7 +26,7 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - The sidebar can be resized from **225px to 500px**. Collapsing it leaves a **44px tool rail** rather than removing navigation; Quick note remains directly usable there, while selecting Calendar expands the sidebar and opens the panel. Expanded folders, selected file, recent files, and search filters are stored locally for the current webview profile.
 
 ### 1.3 Right Sidebar
-- The right sidebar is closed by default and is reserved for **History**, **Outline**, and **PDF Preview**. Opening one replaces the others; the left-sidebar Calendar can remain open independently.
+- The right sidebar is closed by default and is reserved for **History**, **Outline**, **Markdown Preview**, and **PDF Preview**. Opening one replaces the others; the left-sidebar Calendar can remain open independently.
 - Clicking a committed-history count in the status bar opens the History view for the active file.
 - **Outline** appears only for Markdown notes with headings. It lists nested H1–H6 headings, ignores frontmatter and fenced-code examples, highlights the current cursor/reading section, and focuses the editor at the selected heading.
 - Its width can be resized from **240px to 480px** for the current session.
@@ -170,6 +170,7 @@ Each theme defines these properties (with theme-specific colors):
 |-----------|-------------|----------|
 | Open in New Tab | Markdown or CodeMirror-supported source file | Opens file in a new tab (doesn't replace current file tab) |
 | Merge Notes | File (2+ candidate notes) | Appends checked source notes to the active/context-selected master with an interactive checkbox list. Disabled when fewer than 2 candidates are available. |
+| Preview Markdown | Markdown file | Opens a live right-pane rendering of the current note using Figaro's theme, without print stylesheets, page geometry, or export-only cover/contents sections. |
 | Preview PDF | Markdown file | Opens a live right-pane preview using the frontmatter-driven layout; **Generate PDF** runs the detected local browser engine export. |
 | Copy | File or Directory | Places the selected item on Figaro's internal file clipboard without changing it. |
 | Paste | File, Directory, or vault root (after Copy) | Saves dirty source tabs, then copies into a selected directory, beside a selected file, or into the vault root. Collisions receive a `copy` suffix and never overwrite existing content; copied Markdown links preserve their resolved targets. |
@@ -191,7 +192,8 @@ Each theme defines these properties (with theme-specific colors):
 - CodeMirror's official language registry is vendored locally. Recognised code files use their syntax parser, a monospace unwrapped layout, normal CodeMirror completion/folding behavior, theme-aware indentation guides, and no Markdown live-preview widgets. Tab / Shift+Tab and the guides share CodeMirror's same two-space indentation unit. Vim mode, tabs, cursor restoration, autosave, conflict handling, and history work the same way as for notes.
 - **Markdown diagnostics**: after a short typing pause, Markdown notes locally mark unclosed leading frontmatter and fenced code, skipped heading levels, and trailing whitespace other than the intentional two-space hard break. The persistent **Settings → Markdown diagnostics → Show Markdown lint** preference is enabled by default and removes or restores only those local marks; it never changes source. Hovering a marker shows a themed, actionable explanation; F8 moves to the next diagnostic. Diagnostics never rewrite source, lint code-fence/frontmatter contents as prose, or replace the separate vault-wide health scan.
 - **Offline spellcheck**: after a short typing pause, Markdown prose is checked only against Figaro's embedded Hunspell dictionaries—English (US), English (UK), and Spanish (Spain)—so note text never leaves the device. The persistent **Settings → Spellcheck** enabled state and themed, keyboard-accessible default-language combobox apply live without changing source. Unknown-word marks use a dotted theme-link accent distinct from Markdown diagnostics, exclude frontmatter, fenced/inline code, URLs, email, and link destinations, and retain normal hover, Arrow Up/Down, mouse placement, and drag-selection behavior. A hyphenated prose compound is correct when every component appears in the same active dictionary, preventing false markers for terms such as `faster-than-usual` while still marking a misspelled component. Right-clicking an unknown prose word offers at most five local high-confidence replacements. Every candidate is checked against the active dictionary, must look like normal prose, and is ranked by a conservative edit-distance rule; ambiguous short words deliberately show no replacement rather than obscure dictionary entries. Selecting a candidate changes just that word as a normal undoable edit, while no result is shown for masked Markdown or a correctly spelled word. A leading scalar `spellcheck` frontmatter property accepts `en-US`, `en-GB`, `es`, `false`, or an inline list such as `[en-GB, es]`; a missing or unsupported value inherits the global language.
-- **Frontmatter / Properties**: a complete leading YAML frontmatter block is rendered as a compact, collapsed Properties card. Activating it opens a structured Properties panel with PDF-layout controls: cover page, contents depth, and a vault-relative print stylesheet picker; a Spellcheck section selects the global fallback, either bundled language, or disables checking for that note. Enabling a cover also exposes title, subtitle, author, and date fields. Other YAML remains visible as chips and **Add property** opens the source editor with completion; **Edit YAML** always exposes the original portable frontmatter. Notes without frontmatter get a subtle **+ Add properties** affordance above the editor; it inserts an editable YAML skeleton with the first H1 as `title`, the OS username as `author`, today's local date, an empty-string `subtitle`, and the PDF defaults `cover-page: false` and `toc-depth: 0`, then keeps that source open. Custom PDF CSS is opt-in: **Create starter** proposes `pdf.css` beside the active note, copies the bundled comprehensive example only after confirmation, selects it, refreshes the tree, and opens it. Existing CSS is never overwritten; startup and export never create stylesheets. The panel makes targeted scalar edits only, preserving unrelated YAML and comments. Completion in YAML suggests `title`, `subtitle`, `author`, `date`, `aliases`, `tags`, `description`, `created`, `updated`, `status`, `spellcheck`, `cover-page`, `toc-depth`, and `print-stylesheet`; it also offers status, spellcheck-language, and vault-relative CSS-path values.
+- **Frontmatter / Properties**: a complete leading YAML frontmatter block is rendered as a compact, collapsed Properties card. Activating it opens a structured Properties panel with PDF-layout controls: cover page, contents depth, a vault-relative print stylesheet picker, and **Preview Markdown** / **Preview PDF** actions; a Spellcheck section selects the global fallback, either bundled language, or disables checking for that note. Enabling a cover also exposes title, subtitle, author, and date fields. Other YAML remains visible as chips and **Add property** opens the source editor with completion; **Edit YAML** always exposes the original portable frontmatter. Notes without frontmatter get a subtle **+ Add properties** affordance above the editor; it inserts an editable YAML skeleton with the first H1 as `title`, the OS username as `author`, today's local date, an empty-string `subtitle`, and the PDF defaults `cover-page: false` and `toc-depth: 0`, then keeps that source open. Custom PDF CSS is opt-in: **Create starter** proposes `pdf.css` beside the active note, copies the bundled comprehensive example only after confirmation, selects it, refreshes the tree, and opens it. Existing CSS is never overwritten; startup and export never create stylesheets. The panel makes targeted scalar edits only, preserving unrelated YAML and comments. Completion in YAML suggests `title`, `subtitle`, `author`, `date`, `aliases`, `tags`, `description`, `created`, `updated`, `status`, `spellcheck`, `cover-page`, `toc-depth`, and `print-stylesheet`; it also offers status, spellcheck-language, and vault-relative CSS-path values.
+- **Markdown preview**: **Preview Markdown** opens a live right-pane rendering from a Markdown file's file-tree or editor context menu, or its Properties panel. It refreshes from the active/dirty note snapshot and saved source updates. It uses the normal themed Markdown renderer with raw HTML disabled, strips leading frontmatter, and intentionally does not apply PDF stylesheets, page geometry, cover pages, table-of-contents sections, or PDF-export work. Closing it or opening History, Outline, or PDF Preview releases the same right pane.
 - **PDF preview and export**: **Preview PDF** opens an isolated live preview in the right pane. It uses the same printable document structure as the export, waits briefly after Markdown or selected CSS edits to avoid flicker, and refreshes external saved CSS when the file tree updates. Each newer input invalidates active diagram/print work immediately; Figaro keeps only the latest queued snapshot and never sends a stale result into the preview bridge. A code-icon helper opens **Figaro PDF style reference**, which derives the exact classes and IDs from the current preview, displays its generated body HTML, and can copy that HTML. Its splitter has a 340 px preview minimum and otherwise grows dynamically while preserving a 320 px editor floor; the pane may keep growing, but the centered paper surface is capped to the last supported `@page size` declaration. Preview geometry supports named A3/A4/A5, B5, Letter, Legal, Ledger/Tabloid, and Executive paper, portrait/landscape orientation, and one- or two-length explicit sizes, with A4 as fallback. A final preview-only geometry rule prevents user `body` width overrides from stretching the paper while leaving print colors and typography in the normal cascade. Below 560 px of remaining editor width, CodeMirror content padding contracts from 24 px to 12 px. Its **Generate PDF** action saves dirty preview buffers, then renders Markdown into an interactive PDF with a detected local browser engine. Figaro tries Chrome/Chromium-family engines before Edge, and uses Safari/WebKit on macOS if needed; Chromium candidates must complete a real isolated CDP startup and `Browser.getVersion` request. It aborts with an installable-browser error if no viable engine is present instead of generating a PDF with dead links. Export writes `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the default PDF viewer. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`; omitting it keeps the built-in style. `cover-page: true` generates a title page using `title`, `subtitle`/`description`, `author`, and `date`/`created`; `toc-depth: 0` disables the table of contents, while 1–6 includes headings through that Markdown level. Generated cover and table-of-contents sections automatically end with a page break. The print DOM has stable cover, table-of-contents, document-body, task, diagram, and footnote classes documented in `docs/PDF_STYLING.md`; body headings are separate from the cover and table-of-contents titles. Repeated running page headers and footers are not supported. Footnote references render as numbered internal links to a final Footnotes section, with return links for repeated references. Frontmatter itself is not printed.
 - **PDF preview performance**: Printable Markdown parsing runs in a module worker when supported, leaving CodeMirror's input/layout path free while a preview is open. Callout/TOC decoration and DOM-dependent Mermaid/Vega conversion remain in the document pipeline; webviews without module-worker support safely use the established in-thread renderer.
 - **PDF preview isolation**: The right-pane preview is a fixed sandboxed frame with a validated message bridge, not a parent-controlled `srcdoc` document. The frame owns anchor interception and reports web, vault, fragment, and scroll actions to the application; the application never reads the sandboxed frame DOM. During splitter resizing the parent sends `set-scroll-sync-paused`, both scroll directions and frame pointer interaction remain quiet, and 80 ms after release one editor-to-preview alignment restores line-level synchronization. This preserves user `html`/`body` print styling while preventing a clicked link from replacing the preview with an external or filesystem document. See `ARCHITECTURE.md` for the protocol and security rationale.
@@ -210,7 +212,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Footnotes**: `[^1]` references render as superscript accent-colored links.
 - **Callouts**: `> [!note]`, `> [!warning]`, `> [!info]`, `> [!tip]`, `> [!danger]`, `> [!example]` blocks render with colored left borders and tinted backgrounds matching the callout type (via `--callout-*-color` variables).
 - **Images**: `![alt](src)` renders inline images via `imageField`. Pasting a raster image from the system clipboard into an open Markdown note writes `image1.<ext>`, `image2.<ext>`, and so on beside that note, inserts note-relative Markdown such as `![Image1](image1.png)`, refreshes the file tree, and displays the new asset immediately. The backend detects the actual PNG, JPEG, GIF, WebP, BMP, or ICO bytes, limits clipboard images to 25 MB, and never overwrites an existing numbered image. A failed write leaves the editor selection and document unchanged.
-- **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
+- **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its embedded cells receive the active Vim extension, so Vim Normal and Insert modes work there as they do in the root Markdown editor. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
 - **Math**: `$inline$` and `$$block$$` LaTeX math renders via KaTeX (StateField-based plugin).
 - In-note search with match highlighting and navigation.
 - **Auto-save**: the active dirty file tab is saved on the configured interval (5 seconds, 10 seconds, 30 seconds, 1 minute, 5 minutes, or Off), when switching away, and when choosing **Save & Exit**. Content is always written first; when the Auto-Commit toggle is on, that successful save then commits only the saved file.
@@ -239,7 +241,7 @@ In **edit mode** (cursor on the link line or intersecting the link's range), raw
 
 **Vault-wide link style**: Settings offers a themed **Links style** combobox with Markdown (the default) and Wikilinks. Conventional Wikilinks are target-first: `[[path/to/note.md|Readable label]]`. Changing the preference always opens a confirmation with **Rewrite vault links**, **Keep existing links**, and **Cancel**. Rewriting first saves dirty Markdown tabs, converts only destinations that resolve to existing vault Markdown files, and reloads affected open buffers. External URLs, `mailto:` links, images, code, malformed links, and unresolved targets remain byte-for-byte unchanged. Alias-free Wikilinks gain the filename without its extension as their alias.
 
-**Link autocomplete**: Typing `[` or `[[` followed by text triggers a dropdown of matching `.md` files. Accepting a suggestion inserts either `[filename](encoded/path.md)` or `[[path.md|filename]]` according to the saved preference. A path or alias that conventional Wikilinks cannot represent safely falls back to Markdown syntax rather than creating a broken link.
+**Link autocomplete**: Typing `[` or `[[` followed by text triggers a dropdown of matching `.md` files. Accepting a suggestion inserts either `[filename](encoded/path.md)` or `[[path.md|filename]]` according to the saved preference. Typing `#` in a Markdown-link destination, for example `[Jump](#point`, opens a separate current-note heading list. It matches heading labels and stable slugs, excludes frontmatter and fenced-code lookalikes, and gives duplicate headings the same `-2`, `-3`, and later suffixes used by printable anchors; accepting a suggestion completes the fragment and closing `)`. A path or alias that conventional Wikilinks cannot represent safely falls back to Markdown syntax rather than creating a broken link.
 
 ### 4.4 Empty-Link Autofill
 - Typing `[link text]()` and pressing `)` automatically fills the URL with `(link text.md)`, using the current file's directory as the parent path.
@@ -272,7 +274,7 @@ Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For e
 | `linkPlugin()` | Renders `[text](url)` as clickable link widgets |
 | `codeBlockField({ lineNumbers: true })` | Fenced code blocks with syntax highlighting, line numbers, copy button |
 | `imageField({})` | Renders `![alt](src)` as inline images |
-| `markdownTables()` | Interactive GFM table rendering, formatting, cell navigation, and row/column editing via `codemirror-markdown-tables` |
+| `markdownTableCompartment` + `markdownTables()` | Interactive GFM table rendering, formatting, cell navigation, row/column editing, and rebuilt embedded cell editors when the active Vim extension changes |
 | `collapseOnSelectionFacet` | Collapses live-preview widgets when cursor enters the line |
 | `mouseSelectingField` | Tracks mouse-drag state so live preview doesn't collapse during selection |
 
@@ -284,6 +286,7 @@ Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For e
 | `widgetPlugin` | ViewPlugin | Bullet list markers → Unicode glyphs; `[ ]`/`[x]` → interactive checkboxes |
 | `extrasPlugin` | ViewPlugin | `==highlight==`, `[^footnote]`, HRs (`cm-hr-passive`/`cm-hr-active`), callouts |
 | `dateShortcutCompletions` | Completion source | `@today`/`@tomorrow`/`@yesterday` date-link suggestions |
+| `headingLinkCompletions` + `headingLinkCompletionActivator` | Completion source + ViewPlugin | Starts and supplies current-note heading targets after `](#`, including stable duplicate slugs |
 | `emptyLinkAutofillPlugin` | ViewPlugin | Fills `[]()` links from their visible text |
 | `hrPlugin` | ViewPlugin (extrasPlugin) | Horizontal rules with active-line toggle via `Decoration.line` |
 | `mathField` | StateField | `$inline$` and `$$block$$` LaTeX rendering via KaTeX |
@@ -365,7 +368,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 7.4 Calendar and Daily Notes
 - The Calendar control in the fixed left-sidebar footer expands an inline monthly grid with month navigation and linked-note results. A day is marked when a vault note is named `YYYY-MM-DD.md` or another Markdown note links to that daily note.
 - The index groups marked days by `YYYY-MM`, so moving between months reads only the selected month's day lists.
-- Collapsing the sidebar closes the expanded panel but leaves the Calendar icon in the 44px rail. Selecting it expands the sidebar and reopens Calendar. History, Outline, and PDF Preview remain independent on the right.
+- Collapsing the sidebar closes the expanded panel but leaves the Calendar icon in the 44px rail. Selecting it expands the sidebar and reopens Calendar. History, Outline, Markdown Preview, and PDF Preview remain independent on the right.
 - Selecting a marked day lists notes that link to its daily note; selecting a listed note opens it in a file tab. Today is always selectable.
 - `@today`, `@tomorrow`, and `@yesterday` offer date-link completions. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
 - The selected date is stored locally for the webview; Calendar reads the shared Markdown index, which ignores dot-directories and symlinks like the rest of the vault scanner.
@@ -382,7 +385,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 7.7 Document Outline
 - The **Outline** status control is hidden for non-Markdown files and Markdown notes without headings, so it does not add empty navigation chrome.
 - Opening it takes ownership of the existing right pane and renders heading buttons indented relative to the shallowest heading. The active button has `aria-current="location"`.
-- Clicking or pressing Enter on a heading moves focus and the normal CodeMirror cursor to that source heading. A later tab switch, History opening, PDF Preview opening, or × close releases the pane without changing note content.
+- Clicking or pressing Enter on a heading moves focus and the normal CodeMirror cursor to that source heading. A later tab switch, History opening, Markdown Preview opening, PDF Preview opening, or × close releases the pane without changing note content.
 
 ---
 
@@ -402,6 +405,8 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Vim Insert mode uses a 4 px accent-colour line caret so the character at the
   insertion point remains visible. Normal mode retains the contrasting block
   cursor.
+- The custom `:w`, `:q`, `:wq`, and `:x` commands are registered before the
+  newly enabled Vim editor can receive input.
 
 ### 8.2 Visual-row motions
 - **Move by visual rows** is a portable `settings.json` preference
@@ -412,7 +417,12 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
   changed, so `dj`, `yj`, and similar commands retain their source-line
   behavior.
 
-### 8.3 Custom Ex Commands
+### 8.3 Interactive table cells
+- Markdown-table cell editors receive the same dynamically loaded Vim extension
+  as the root editor. Enabling or disabling Vim rebuilds existing table cells
+  so their Normal and Insert key handling cannot remain stale.
+
+### 8.4 Custom Ex Commands
 | Command | Action |
 |---------|--------|
 | `:w` / `:write` | Save current file |
@@ -425,7 +435,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 or if the buffer changes while that save is in flight, the file tab remains
 open so newer or unsaved text cannot be discarded.
 
-### 8.4 Built-in Vim Features
+### 8.5 Built-in Vim Features
 - `/pattern` — open the Vim search prompt and search forward from the cursor
 - `?pattern` — search backward
 - `:s/old/new/g` — substitute
@@ -553,6 +563,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 |-------|---------|--------|
 | `@today` / `@tomorrow` / `@yesterday` | Editor | Show date-link completions |
 | `[` + text | Editor | Trigger link autocomplete |
+| `](#` + text | Markdown-link destination | Suggest current-note heading fragments |
 | ↑ / ↓ / Tab | Autocomplete | Navigate suggestions |
 | Enter | Autocomplete | Accept suggestion |
 | Escape | Autocomplete / Search / Dialog | Close / cancel |
@@ -574,7 +585,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 | Click Quick note | Sidebar or collapsed rail | Create and focus a collision-safe timestamped note in `Inbox` |
 | Middle-click tab | Tab bar | Close tab |
 | Right-click tab | Tab bar | Pin/Unpin tab |
-| Right-click editor | Editor | Context menu (Cut, Copy, Paste, Select All, Preview PDF) |
+| Right-click editor | Editor | Context menu (Cut, Copy, Paste, Select All, Preview Markdown, Preview PDF) |
 | Tab / Shift-Tab | Editor list | Indent / dedent list item |
 | Ctrl+S / Cmd+S | Editor | Save file |
 | Ctrl+F / Cmd+F | Editor / active file | Open and focus in-document find |
@@ -942,7 +953,7 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 - **Path resolution** on apply:
   - If typed prefix starts with `/` → absolute path from vault root: `![name](/path/to/photo.png)`
   - Otherwise → relative path from current note's directory: `![name](../../attachments/photo.png)`
-- Same logic applies to `[` link autocomplete for `.md` files.
+- The `[` completion is for `.md` files; `](#` separately completes headings in the current Markdown note.
 
 ### 26.4 Clipboard Image Paste
 - A native image paste is intercepted before the webview can insert an object-replacement character or local filesystem URL.

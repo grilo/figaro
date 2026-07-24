@@ -61,7 +61,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   Vault-health scanning, single-file-only Auto-Commit migration and isolation,
   history comparison/restoration, Draw.io file handling and export-recovery
   states, print stylesheet resolution, and printable-document preparation.
-- Editor behavior, CodeMirror language modes, persistent Markdown diagnostics
+- Editor behavior, CodeMirror language modes, current-note heading-fragment
+  completion, live Markdown preview, persistent Markdown diagnostics
   and their hover/F8 guidance, offline spellcheck language/frontmatter
   overrides, wrapped-list cursor/selection geometry,
   frontmatter, footnotes, diagrams, tabs, session
@@ -146,7 +147,7 @@ Calendar and Kanban are persistent destinations, not title-bar toggles.
 Retain focused coverage that they remain in the footer below the file tree,
 Settings remains beside the window controls, and the title-bar center remains
 clear for native window dragging. Calendar must expand inside the left sidebar without closing or taking
-ownership of History/Outline/PDF preview on the right. Collapsing must leave a 44px
+ownership of History/Outline/Markdown Preview/PDF preview on the right. Collapsing must leave a 44px
 tool rail, close any expanded Calendar content, and reopen both the normal
 sidebar and Calendar when its rail icon is selected.
 
@@ -198,6 +199,25 @@ npm run test:unit -- --runTestsByPath tests/frontend/unit/pdfPreview.test.js
 npx playwright test tests/e2e/pdfPreviewFrame.spec.js
 ```
 
+## Markdown preview and heading-link regressions
+
+Markdown Preview is a normal themed rendering surface, not a print-preview
+shortcut. Keep unit coverage for initial content, active/saved document refresh,
+closing, and disabled raw HTML. The browser workflow must open it from a
+Markdown context menu, assert its themed document geometry, and close it by
+keyboard. Current-note heading completion must ignore frontmatter and fenced
+examples, preserve duplicate anchor suffixes, and accept a keyboard selection
+after typing `](#`.
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/markdownPreview.test.js \
+  tests/frontend/unit/linkCompletions.test.js
+npx playwright test \
+  tests/e2e/markdownPreview.spec.js \
+  tests/e2e/headingLinkCompletions.spec.js
+```
+
 ## Block widget and cursor regressions
 
 CodeMirror block widgets have a strict measured-height contract documented in
@@ -239,7 +259,8 @@ within and across cells, Tab and Shift+Tab between cells, Enter down a column,
 and Arrow Up/Down from source lines immediately above and below the table.
 Confirm that leaving the first/last cell returns to the adjacent document line
 without skipping, and verify mouse placement plus drag selection at every
-table edge. Keep the focused automated checks in
+table edge. With Vim enabled, also test Normal and Insert mode in a cell and
+the transition back to root-editor movement. Keep the focused automated checks in
 `tests/frontend/unit/markdownTables.test.js` and
 `tests/e2e/markdownTables.spec.js`.
 
@@ -325,7 +346,8 @@ npm run test:unit -- --runTestsByPath \
 ## Vim command regressions
 
 Vim commands are exercised through the real vendored CodeMirror Vim adapter,
-not by calling their implementation helpers directly. `:wq` and `:x` must
+not by calling their implementation helpers directly. `:w`, `:q`, `:wq`, and
+`:x` must be available immediately after Vim activates; `:wq` and `:x` must
 keep the tab open until the exact current buffer has saved successfully, while
 `/`, `n`, and `N` must open the query prompt and navigate forward and backward
 between matches. The preference contract also covers startup application,
@@ -336,7 +358,8 @@ the Vim dependency must retain this coverage.
 
 The focused browser contract also checks the 4 px Insert caret plus the
 optional **Move by visual rows** mapping: `j`, `k`, and Up/Down move one wrapped
-display row in Vim Normal mode, while operator-pending source-line motions such
+display row in Vim Normal mode, including inside a long wrapped Markdown-link
+destination, while operator-pending source-line motions such
 as `dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
 placement, drag selection, themed hover guidance, F8 navigation, and their
 enabled-by-default Settings toggle. Wrapped Markdown bullet and ordered-list
@@ -378,7 +401,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/spellcheck.test.js \
   tests/frontend/unit/drawioEditor.test.js
 go test . -run 'Test(Vim|MarkdownLint|Spellcheck)'
-npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawio.spec.js
+npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownTables.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawio.spec.js
 ```
 
 ## Generating browser assets

@@ -13,6 +13,10 @@ note stylesheet cannot change the application interface. It updates after a
 short delay while you edit the note or its selected stylesheet; changes saved
 outside Figaro are picked up when the file tree refreshes too.
 
+**Preview Markdown** is a separate, normal-theme right-pane rendering surface.
+It deliberately does not load this stylesheet, PDF page geometry, cover pages,
+or table-of-contents sections; use **Preview PDF** when checking print styling.
+
 The editable stylesheet is applied after the preview's screen geometry, so
 ordinary `html` and `body` rules affect the page just as they do in the final
 PDF. A final geometry-only guard then keeps the paper centered and capped to

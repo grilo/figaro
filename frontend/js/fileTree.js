@@ -69,6 +69,11 @@ const fileTreeContextMenuActions = [
         icon: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
     },
     {
+        action: 'preview-markdown',
+        label: 'Preview Markdown',
+        icon: '<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/>',
+    },
+    {
         action: 'preview-pdf',
         label: 'Preview PDF',
         icon: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/>',
@@ -151,6 +156,7 @@ export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selecte
     const enabled = {
         'open-new-tab': isOpenableFile,
         'merge-notes': canMerge,
+        'preview-markdown': isMarkdownFile,
         'preview-pdf': isMarkdownFile,
         copy: isTarget,
         paste: Boolean(clipboardPath),
@@ -1102,6 +1108,17 @@ function handleContextMenu(e) {
             } catch (err) {
                 log.error('PDF preview failed:', err);
                 await errorDialog('Couldn’t open PDF preview', err, 'The PDF preview could not be opened.');
+            }
+            break;
+
+        case 'preview-markdown':
+            try {
+                const { openMarkdownPreview } = await import('./markdownPreview.js');
+                const targetPath = getState('contextTargetPath');
+                await openMarkdownPreview({ path: targetPath, title: targetPath.split('/').pop() });
+            } catch (err) {
+                log.error('Markdown preview failed:', err);
+                await errorDialog('Couldn’t open Markdown preview', err, 'The Markdown preview could not be opened.');
             }
             break;
 

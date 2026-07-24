@@ -30,6 +30,14 @@ function deferred() {
     return { promise, resolve };
 }
 
+async function waitForMockCall(mock, expectedCalls = 1, timeout = 500) {
+    const deadline = Date.now() + timeout;
+    while (mock.mock.calls.length < expectedCalls && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    expect(mock).toHaveBeenCalledTimes(expectedCalls);
+}
+
 describe('Vim command behavior', () => {
     test('searches with / and :wq saves the latest buffer before closing the file tab', async () => {
         installSelectionLayoutStubs();
@@ -99,7 +107,7 @@ describe('Vim command behavior', () => {
         const exInput = view.dom.querySelector('.cm-vim-panel input');
         exInput.value = 'wq';
         commandKey(exInput, 'Enter', 13);
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitForMockCall(window.go.main.App.SaveFile);
 
         expect(window.go.main.App.SaveFile).toHaveBeenCalledWith(
             'notes/vim.md', 'alpha beta\nmiddle\nbeta end', 10
@@ -130,8 +138,7 @@ describe('Vim command behavior', () => {
         const secondExInput = view.dom.querySelector('.cm-vim-panel input');
         secondExInput.value = 'wq';
         commandKey(secondExInput, 'Enter', 13);
-        await new Promise(resolve => setTimeout(resolve, 0));
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await waitForMockCall(window.go.main.App.SaveFile, 2);
 
         expect(window.go.main.App.SaveFile).toHaveBeenNthCalledWith(
             2, 'notes/vim.md', 'alpha beta\nmiddle\nbeta end\nnewer text', 20

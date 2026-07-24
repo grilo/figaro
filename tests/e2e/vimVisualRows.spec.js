@@ -126,3 +126,34 @@ test('moves Vim Normal-mode j/k and arrows by visual rows without changing opera
     await content.press('j');
     await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.doc.toString())).toBe('remaining line');
 });
+
+test('moves up one visual row within an expanded long Markdown link in Vim Normal mode', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const url = `https://example.test/${Array.from({ length: 180 }, (_, index) => `segment-${index}`).join('/')}`;
+    const source = `[Long wrapped link](${url})`;
+    const position = source.indexOf(url) + Math.floor(url.length * 0.68);
+    await setEditorSource(page, source, position);
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        editor.setVimVisualRows(true);
+    });
+
+    const before = await page.evaluate(() => {
+        const view = window.__vimVisualRowsView;
+        const position = view.state.selection.main.head;
+        return { position, coords: view.coordsAtPos(position) };
+    });
+    expect(before.coords.top).toBeGreaterThan(0);
+
+    await page.locator('.cm-content').press('k');
+    const after = await page.evaluate(() => {
+        const view = window.__vimVisualRowsView;
+        const position = view.state.selection.main.head;
+        return { position, coords: view.coordsAtPos(position) };
+    });
+
+    expect(after.position).toBeLessThan(before.position);
+    expect(after.coords.top).toBeLessThan(before.coords.top);
+});

@@ -395,6 +395,31 @@ test('renders interactive Markdown tables and keeps cursor movement bounded to a
     expect(await activeCell(page)).toEqual({ row: 1, col: 0 });
 });
 
+test('uses Vim Normal and Insert modes inside interactive Markdown table cells', async ({ page }) => {
+    await createMarkdownEditor(page, tableSource);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+    });
+
+    const firstBodyCell = page.locator('.tbl-table-widget tbody .tbl-cell-view').first();
+    await firstBodyCell.click();
+    const cellEditor = page.locator('.tbl-table-widget tbody .tbl-cell-editor .cm-content').first();
+    await expect(cellEditor).toBeFocused();
+    const before = await page.evaluate(() => window.__figaroTableTestView.state.doc.toString());
+
+    await cellEditor.press('j');
+    expect(await page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).toBe(before);
+
+    await cellEditor.press('i');
+    await cellEditor.press('x');
+    await cellEditor.press('Escape');
+    const afterInsert = await page.evaluate(() => window.__figaroTableTestView.state.doc.toString());
+    expect(afterInsert).not.toBe(before);
+    expect(afterInsert).toContain('x');
+    expect(afterInsert).not.toContain('j');
+});
+
 test('keeps aligned Markdown tables semantic and styled in PDF preview and generated PDF layout', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => typeof window.markdownit === 'function');
