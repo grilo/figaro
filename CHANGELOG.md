@@ -6,6 +6,24 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.6.1 - 2026-07-24
+
+### Added
+
+- Draw.io diagrams now show a themed, accessible loading indicator while the
+  hosted editor opens instead of exposing a blank white buffer.
+
+### Changed
+
+- Draw.io follows Figaro's dark appearance while editing, while saved editable
+  SVGs continue to use the light export theme for portable notes and PDFs.
+
+### Fixed
+
+- Windows Spanish dead keys now compose `ñ`, `ü`, and accented letters instead
+  of inserting the accent immediately; Space emits the spacing accent and
+  Backspace cancels it without deleting note text.
+
 ## 1.6.0 - 2026-07-24
 
 ### Added

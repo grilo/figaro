@@ -218,6 +218,21 @@ npx playwright test \
   tests/e2e/headingLinkCompletions.spec.js
 ```
 
+## Windows Spanish dead-key regressions
+
+WebView2 can report Spanish tilde, diaeresis, acute, grave, and circumflex keys
+without a usable browser composition event. Retain both the CodeMirror DOM/unit
+and real-browser event regressions: a dead key must leave source unchanged,
+then compose `ñ`, `ü`, `á`, `à`, and `â` with their matching letters, or emit
+its spacing accent with Space. Backspace and Escape must cancel it without
+deleting adjacent text, so the following `n` remains plain. Exercise the same
+sequence manually in a packaged Windows/WebView2 build before release.
+
+```bash
+npm run test:unit -- --runTestsByPath tests/frontend/unit/editor.test.js
+npx playwright test tests/e2e/windowsAltGr.spec.js
+```
+
 ## Block widget and cursor regressions
 
 CodeMirror block widgets have a strict measured-height contract documented in
@@ -381,8 +396,15 @@ Draw.io's hosted-editor message protocol must cover a successful editable-SVG
 export plus both interrupted paths: an explicit export error and no export
 response within 30 seconds must hide the hosted spinner, report a retryable
 failure, leave the file untouched, and accept another Save request.
+The host-owned opening overlay must stay visible until the editor's `load`
+message, use Figaro theme tokens rather than a white browser buffer, remain
+non-focusable, and pass the current dark appearance only to the hosted editing
+UI. Its export message must explicitly retain the light SVG theme. The focused
+browser regression aborts the cross-origin iframe after mounting so this
+otherwise-blank state is observable without relying on network timing.
 `tests/e2e/drawio.spec.js` additionally opens the real diagrams.net iframe in
-Chromium and invokes its own Save command. It is an external-network
+Chromium, waits for the opening overlay to dismiss, and invokes its own Save
+command. It is an external-network
 integration test: it skips with an explicit reason when `embed.diagrams.net`
 cannot be reached, and it complements rather than replaces the native
 WebKitGTK manual smoke check. When diagnosing a native failure, opt into the
@@ -399,9 +421,10 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/editorSettings.test.js \
   tests/frontend/unit/markdownLint.test.js \
   tests/frontend/unit/spellcheck.test.js \
-  tests/frontend/unit/drawioEditor.test.js
+  tests/frontend/unit/drawioEditor.test.js \
+  tests/frontend/unit/drawio.test.js
 go test . -run 'Test(Vim|MarkdownLint|Spellcheck)'
-npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownTables.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawio.spec.js
+npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownTables.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawioLoading.spec.js tests/e2e/drawio.spec.js
 ```
 
 ## Generating browser assets

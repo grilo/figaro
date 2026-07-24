@@ -54,6 +54,7 @@ test('saves an editable SVG through the real diagrams.net iframe', async ({ page
         await expect(iframe).toBeVisible();
         const editor = page.frameLocator('.drawio-frame');
         await expect(editor.locator('.geMenubar')).toBeVisible({ timeout: 30000 });
+        await expect(page.locator('[data-drawio-loading]')).toBeHidden({ timeout: 30000 });
 
         // This is the editor's File → Save action, not a host-side synthetic
         // postMessage. In headless Chromium diagrams.net leaves a transparent

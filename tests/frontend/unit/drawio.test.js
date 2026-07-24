@@ -1,4 +1,4 @@
-import { decodeDrawioSVG, encodeDrawioSVG, isDrawioDiagramPath } from '../frontend/js/drawio.js';
+import { decodeDrawioSVG, encodeDrawioSVG, isDrawioDarkTheme, isDrawioDiagramPath } from '../frontend/js/drawio.js';
 
 describe('draw.io SVG integration', () => {
     test('recognizes only the canonical editable SVG extension', () => {
@@ -19,5 +19,10 @@ describe('draw.io SVG integration', () => {
     test('accepts raw SVG returned by the embed protocol', () => {
         const svg = '<svg viewBox="0 0 10 10"></svg>';
         expect(decodeDrawioSVG(svg)).toBe(svg);
+    });
+
+    test('detects the rendered Figaro surface instead of relying on theme IDs', () => {
+        expect(isDrawioDarkTheme('#1a1816')).toBe(true);
+        expect(isDrawioDarkTheme('rgb(252, 248, 241)')).toBe(false);
     });
 });

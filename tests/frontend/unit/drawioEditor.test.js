@@ -53,6 +53,7 @@ describe('draw.io editor protocol', () => {
     afterEach(() => {
         disposeDrawioTab(panel);
         panel.remove();
+        document.documentElement.style.removeProperty('--bg-color');
         consoleError.mockRestore();
     });
 
@@ -89,6 +90,41 @@ describe('draw.io editor protocol', () => {
 
         expect(saveFileSnapshot).toHaveBeenCalledWith(tab, savedSVG);
         expect(refreshFileTree).toHaveBeenCalled();
+    });
+
+    test('keeps the themed loader until Draw.io finishes loading, edits dark, and exports light SVG', async () => {
+        document.documentElement.style.setProperty('--bg-color', '#1a1816');
+        const tab = { id: 'Diagrams/flow.drawio.svg', path: 'Diagrams/flow.drawio.svg', title: 'flow.drawio.svg', mtime: 0 };
+        await renderDrawioTab(panel, tab);
+
+        const frame = panel.querySelector('.drawio-frame');
+        const stage = panel.querySelector('[data-drawio-stage]');
+        const loading = panel.querySelector('[data-drawio-loading]');
+        const postMessage = jest.spyOn(frame.contentWindow, 'postMessage').mockImplementation(() => {});
+
+        expect(loading).not.toBeNull();
+        expect(loading.hidden).toBe(false);
+        expect(stage.getAttribute('aria-busy')).toBe('true');
+        expect(loading.querySelector('[role="progressbar"]').getAttribute('aria-valuetext')).toBe('Connecting to diagrams.net…');
+
+        sendEditorMessage(frame, { event: 'init' });
+        expect(JSON.parse(postMessage.mock.calls.at(-1)[0])).toEqual(expect.objectContaining({
+            action: 'load',
+            dark: true,
+        }));
+        expect(loading.querySelector('[role="progressbar"]').getAttribute('aria-valuetext')).toBe('Preparing editable canvas…');
+
+        sendEditorMessage(frame, { event: 'load' });
+        expect(loading.hidden).toBe(true);
+        expect(stage.getAttribute('aria-busy')).toBe('false');
+
+        sendEditorMessage(frame, { event: 'save', xml: '<mxGraphModel />' });
+        expect(JSON.parse(postMessage.mock.calls.at(-1)[0])).toEqual(expect.objectContaining({
+            action: 'export',
+            format: 'xmlsvg',
+            theme: 'light',
+            keepTheme: false,
+        }));
     });
 
     test('records metadata-only protocol diagnostics when Draw.io tracing is enabled', async () => {

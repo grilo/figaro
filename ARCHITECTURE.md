@@ -27,10 +27,15 @@ not depend on a package manager, CDN, or source checkout at runtime.
 Draw.io is the deliberate exception to that offline-editor boundary: its hosted
 iframe returns editable SVG through the documented cross-origin message
 protocol, and Figaro performs the vault write only after that export arrives.
-The frontend gives that handoff a 30-second deadline. A protocol error or
-missing export clears the iframe spinner, reports a retryable failure, and
-never starts a filesystem write, so a service-side interruption cannot leave a
-diagram tab permanently locked in Saving state.
+The host keeps a themed, accessible loading overlay above the cross-origin
+iframe until its `load` event, so the remote editor cannot flash a white buffer
+while it starts. It derives the editor's dark-mode flag from Figaro's rendered
+surface, but explicitly requests the light SVG export theme when saving; UI
+appearance therefore does not silently change the vault's portable output. The
+frontend gives that handoff a 30-second deadline. A protocol error or missing
+export clears the iframe spinner, reports a retryable failure, and never starts
+a filesystem write, so a service-side interruption cannot leave a diagram tab
+permanently locked in Saving state.
 
 `frontend/js/backend.js` is the frontend's sole backend entry point. It calls
 the native Wails binding at `window.go.main.App` using its generated PascalCase

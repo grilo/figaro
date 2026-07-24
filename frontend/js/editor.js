@@ -127,6 +127,27 @@ const vimVisualRowMappings = [
 ];
 
 const isWindowsPlatform = () => typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '');
+const pendingWindowsSpanishDeadKeys = new WeakMap();
+const windowsSpanishDeadKeyDefinitions = [
+    {
+        matches: event => hasAltGraphModifier(event) && isDigit4Key(event),
+        spacing: '~',
+        combining: '\u0303',
+        composable: 'AaEeIiNnOoUuYy',
+    },
+    {
+        matches: event => event.code === 'BracketLeft' && !hasAltGraphModifier(event),
+        spacing: event => event.shiftKey ? '^' : '`',
+        combining: event => event.shiftKey ? '\u0302' : '\u0300',
+        composable: 'AaEeIiOoUuYy',
+    },
+    {
+        matches: event => event.code === 'Semicolon' && !hasAltGraphModifier(event),
+        spacing: event => event.shiftKey ? '¨' : '´',
+        combining: event => event.shiftKey ? '\u0308' : '\u0301',
+        composable: 'AaEeIiOoUuYy',
+    },
+];
 
 function hasAltGraphModifier(event) {
     return event.getModifierState?.('AltGraph') === true || (event.ctrlKey && event.altKey);
@@ -134,6 +155,30 @@ function hasAltGraphModifier(event) {
 
 function isDigit4Key(event) {
     return event.code === 'Digit4' || event.keyCode === 52 || event.which === 52;
+}
+
+function isModifierOnlyKey(event) {
+    return ['Alt', 'AltGraph', 'Control', 'Meta', 'Shift'].includes(event?.key);
+}
+
+function getWindowsSpanishDeadKey(event) {
+    if (event?.key !== 'Dead') return null;
+    const definition = windowsSpanishDeadKeyDefinitions.find(candidate => candidate.matches(event));
+    if (!definition) return null;
+    return {
+        spacing: typeof definition.spacing === 'function' ? definition.spacing(event) : definition.spacing,
+        combining: typeof definition.combining === 'function' ? definition.combining(event) : definition.combining,
+        composable: definition.composable,
+    };
+}
+
+function resolveWindowsSpanishDeadKey(deadKey, key) {
+    if (key === ' ') return deadKey.spacing;
+    if (typeof key !== 'string' || key.length !== 1) return null;
+    if (deadKey.composable.includes(key)) return `${key}${deadKey.combining}`.normalize('NFC');
+    // A dead key followed by an unsupported printable character conventionally
+    // emits the spacing accent before that character rather than losing either.
+    return `${deadKey.spacing}${key}`;
 }
 
 export function insertTextAtCursor(view, text) {
@@ -148,11 +193,34 @@ export function insertTextAtCursor(view, text) {
     return true;
 }
 
-function handleWindowsAltGrTilde(event, view) {
+function handleWindowsSpanishDeadKey(event, view) {
     if (!isWindowsPlatform() || !event || !view) return false;
-    if (!hasAltGraphModifier(event) || !isDigit4Key(event)) return false;
 
-    if (insertTextAtCursor(view, '~')) {
+    // WebView2 can expose Spanish dead keys without delivering a usable
+    // composition event. Preserve just the layout's known dead-key events so
+    // the following key resolves the accent instead of inserting it early.
+    const deadKey = getWindowsSpanishDeadKey(event);
+    if (deadKey) {
+        pendingWindowsSpanishDeadKeys.set(view, deadKey);
+        event.preventDefault();
+        return true;
+    }
+
+    const pendingDeadKey = pendingWindowsSpanishDeadKeys.get(view);
+    if (!pendingDeadKey) return false;
+    if (isModifierOnlyKey(event)) return false;
+
+    pendingWindowsSpanishDeadKeys.delete(view);
+
+    // Backspace and Escape cancel a native dead key. They must not edit the
+    // document while clearing this compatibility state.
+    if (event.key === 'Backspace' || event.key === 'Escape') {
+        event.preventDefault();
+        return true;
+    }
+
+    const text = resolveWindowsSpanishDeadKey(pendingDeadKey, event.key);
+    if (text && insertTextAtCursor(view, text)) {
         event.preventDefault();
         return true;
     }
@@ -1137,9 +1205,11 @@ function createEditorView() {
             click: handleClick,
             paste: (event, view) => handleClipboardImagePaste(event, view)
                 || (activeFileLanguage.kind === 'markdown' && handleClipboardTablePaste(event, view)),
-            keydown: handleWindowsAltGrTilde,
             drop: handleExternalFileDrop,
         }),
+        // Backspace and Escape must cancel a pending dead key before
+        // CodeMirror's ordinary keymap can edit the document.
+        Prec.highest(EditorView.domEventHandlers({ keydown: handleWindowsSpanishDeadKey })),
         Prec.high(keymap.of([
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
             { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },

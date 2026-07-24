@@ -36,6 +36,25 @@ export function decodeDrawioSVG(data) {
     return header.includes(';base64') ? base64Decode(payload) : decodeURIComponent(payload);
 }
 
+/**
+ * Draw.io runs cross-origin, so it cannot inherit Figaro's CSS directly.
+ * Match its editor appearance to the rendered vault surface instead of relying
+ * on a fixed list of theme IDs that would drift as themes are added.
+ */
+export function isDrawioDarkTheme(background = drawioSurfaceColor()) {
+    const rgb = parseCSSColor(background);
+    if (!rgb) {
+        return typeof window !== 'undefined'
+            ? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true)
+            : true;
+    }
+    const [red, green, blue] = rgb.map(channel => {
+        const normalized = channel / 255;
+        return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue) < 0.42;
+}
+
 export async function renderDrawioTab(panel, tab) {
     if (!panel || !tab?.path) return;
     if (panel._drawioPath === tab.path && (panel._drawioSession || panel._drawioPreview)) return;
@@ -44,7 +63,7 @@ export async function renderDrawioTab(panel, tab) {
     const requestId = (panel._drawioRequestId || 0) + 1;
     panel._drawioRequestId = requestId;
     panel._drawioPath = tab.path;
-    panel.innerHTML = `<div class="drawio-view"><div class="drawio-loading">Loading ${escapeHtml(tab.title || 'diagram')}…</div></div>`;
+    panel.innerHTML = drawioLoadingView(tab.title || 'diagram', 'Opening diagram…');
 
     try {
         const result = await backend().ReadDiagram(tab.path);
@@ -75,22 +94,37 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
     existing?.dispose?.();
     panel._drawioPreview = null;
     panel._drawioPath = tab.path;
+    const darkTheme = isDrawioDarkTheme();
 
     panel.innerHTML = `
-        <div class="drawio-view">
+        <div class="drawio-view" data-drawio-theme="${darkTheme ? 'dark' : 'light'}">
             <div class="drawio-toolbar">
                 <span class="drawio-title">${escapeHtml(tab.title || tab.path.split('/').pop())}</span>
                 <span class="drawio-status" data-drawio-status>Connecting to diagrams.net…</span>
             </div>
-            <iframe class="drawio-frame" title="Draw.io editor" src="${drawioEditorURL}" allow="clipboard-read; clipboard-write"></iframe>
+            <div class="drawio-editor-stage" data-drawio-stage aria-busy="true">
+                <iframe class="drawio-frame" title="Draw.io editor" src="${drawioEditorURL}" allow="clipboard-read; clipboard-write"></iframe>
+                <div class="drawio-loading-overlay" data-drawio-loading role="status" aria-live="polite">
+                    <div class="drawio-loading-card">
+                        <span class="drawio-loading-spinner" aria-hidden="true"></span>
+                        <p class="drawio-loading-label" data-drawio-loading-label>Connecting to diagrams.net…</p>
+                        <span class="drawio-loading-progress" role="progressbar" aria-label="Loading diagram" aria-valuetext="Connecting to diagrams.net…"><span></span></span>
+                    </div>
+                </div>
+            </div>
         </div>`;
 
     const frame = panel.querySelector('.drawio-frame');
     const status = panel.querySelector('[data-drawio-status]');
+    const stage = panel.querySelector('[data-drawio-stage]');
+    const loading = panel.querySelector('[data-drawio-loading]');
+    const loadingLabel = panel.querySelector('[data-drawio-loading-label]');
+    const loadingProgress = loading?.querySelector('[role="progressbar"]');
     const session = {
         frame,
         sourceSVG,
         latestSVG: sourceSVG,
+        darkTheme,
         saving: false,
         exitAfterSave: false,
         exportTimeout: null,
@@ -101,6 +135,12 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
         },
         setStatus(message) {
             if (status) status.textContent = message;
+        },
+        setLoading(visible, message = '') {
+            if (loading) loading.hidden = !visible;
+            if (stage) stage.setAttribute('aria-busy', String(Boolean(visible)));
+            if (message && loadingLabel) loadingLabel.textContent = message;
+            if (message && loadingProgress) loadingProgress.setAttribute('aria-valuetext', message);
         },
         dispose() {
             if (session.disposed) return;
@@ -132,7 +172,8 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
 
         if (message.event === 'init') {
             session.initialised = true;
-            session.setStatus('Editing locally; saving as SVG…');
+            session.setStatus('Preparing diagram…');
+            session.setLoading(true, 'Preparing editable canvas…');
             session.post({
                 action: 'load',
                 xml: encodeDrawioSVG(session.sourceSVG),
@@ -140,7 +181,14 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
                 saveAndExit: 1,
                 title: tab.title || tab.path.split('/').pop(),
                 fit: 1,
+                dark: session.darkTheme,
             });
+            return;
+        }
+
+        if (message.event === 'load') {
+            session.setStatus('Editing locally; saving as SVG…');
+            session.setLoading(false);
             return;
         }
 
@@ -178,6 +226,7 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
                 });
             } else {
                 session.setStatus(error.message);
+                session.setLoading(true, error.message);
             }
         }
     };
@@ -185,7 +234,9 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
 
     session.connectTimeout = setTimeout(() => {
         if (!session.disposed && !session.initialised) {
-            session.setStatus('Waiting for diagrams.net. Check your internet connection.');
+            const waitingMessage = 'Waiting for diagrams.net. Check your internet connection.';
+            session.setStatus(waitingMessage);
+            session.setLoading(true, waitingMessage);
         }
     }, 12000);
 }
@@ -199,6 +250,10 @@ function requestSVGExport(panel, tab, session, _xml, exitAfterSave) {
         action: 'export',
         format: 'xmlsvg',
         embedImages: true,
+        // Editing can follow a dark Figaro theme, but the saved SVG remains a
+        // portable light rendition for notes, browsers, and PDF output.
+        theme: 'light',
+        keepTheme: false,
         spinKey: 'saving',
     });
     session.exportTimeout = setTimeout(() => {
@@ -295,6 +350,43 @@ function drawioDebugEnabled() {
     } catch (_) {
         return window.__figaroDrawioDebug === true;
     }
+}
+
+function drawioLoadingView(title, message) {
+    return `<div class="drawio-view"><div class="drawio-loading" role="status" aria-live="polite">
+        <div class="drawio-loading-card">
+            <span class="drawio-loading-spinner" aria-hidden="true"></span>
+            <p class="drawio-loading-label">${escapeHtml(message)}</p>
+            <span class="drawio-loading-progress" role="progressbar" aria-label="Loading diagram" aria-valuetext="${escapeAttr(message)}"><span></span></span>
+            <span class="drawio-loading-title">${escapeHtml(title)}</span>
+        </div>
+    </div></div>`;
+}
+
+function drawioSurfaceColor() {
+    if (typeof document === 'undefined') return '';
+    try {
+        const root = getComputedStyle(document.documentElement);
+        return root.getPropertyValue('--bg-color').trim()
+            || getComputedStyle(document.getElementById('app') || document.documentElement).backgroundColor;
+    } catch (_) {
+        return '';
+    }
+}
+
+function parseCSSColor(value) {
+    const color = String(value || '').trim();
+    const hex = color.match(/^#([\da-f]{3,8})$/i)?.[1];
+    if (hex) {
+        const bytes = hex.length <= 4
+            ? hex.slice(0, 3).split('').map(channel => parseInt(channel + channel, 16))
+            : [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)].map(channel => parseInt(channel, 16));
+        return bytes.every(Number.isFinite) ? bytes : null;
+    }
+    const rgb = color.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+    if (!rgb) return null;
+    const bytes = rgb.slice(1, 4).map(Number);
+    return bytes.every(Number.isFinite) ? bytes : null;
 }
 
 function showDiagramPreview(panel, tab, svg) {

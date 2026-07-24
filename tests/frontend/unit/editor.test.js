@@ -51,7 +51,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
         });
     });
 
-    test('inserts "~" when typing Windows AltGraph+4', async () => {
+    test('preserves Windows Spanish dead-key composition and cancellation', async () => {
         const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
         const platformDescriptor = Object.getOwnPropertyDescriptor(navigator, 'platform');
         Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' });
@@ -80,21 +80,79 @@ describe('Editor Module - CodeMirror Initialization', () => {
             const view = createEditorView();
             expect(view).not.toBeNull();
 
-            const event = new KeyboardEvent('keydown', {
-                key: 'Dead',
-                code: 'Digit4',
-                bubbles: true,
-                cancelable: true,
-            });
-            Object.defineProperty(event, 'getModifierState', {
-                configurable: true,
-                value: modifier => modifier === 'AltGraph',
-            });
+            const dispatchKey = ({ key, code, altGraph = false, shiftKey = false }) => {
+                const event = new KeyboardEvent('keydown', {
+                    key,
+                    code,
+                    shiftKey,
+                    bubbles: true,
+                    cancelable: true,
+                });
+                if (altGraph) {
+                    Object.defineProperty(event, 'getModifierState', {
+                        configurable: true,
+                        value: modifier => modifier === 'AltGraph',
+                    });
+                }
+                view.contentDOM.dispatchEvent(event);
+                return event;
+            };
 
-            view.contentDOM.dispatchEvent(event);
+            const deadKey = () => dispatchKey({ key: 'Dead', code: 'Digit4', altGraph: true });
 
-            expect(event.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe('~');
+            const composeEnye = deadKey();
+            expect(composeEnye.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('');
+
+            const enye = dispatchKey({ key: 'n', code: 'KeyN' });
+            expect(enye.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('ñ');
+
+            const composeTilde = deadKey();
+            const tilde = dispatchKey({ key: ' ', code: 'Space' });
+            expect(composeTilde.defaultPrevented).toBe(true);
+            expect(tilde.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('ñ~');
+
+            const composeUmlaut = dispatchKey({ key: 'Dead', code: 'Semicolon', shiftKey: true });
+            const umlaut = dispatchKey({ key: 'u', code: 'KeyU' });
+            expect(composeUmlaut.defaultPrevented).toBe(true);
+            expect(umlaut.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('ñ~ü');
+
+            dispatchKey({ key: 'Dead', code: 'Semicolon' });
+            const acute = dispatchKey({ key: 'a', code: 'KeyA' });
+            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
+            const grave = dispatchKey({ key: 'a', code: 'KeyA' });
+            dispatchKey({ key: 'Dead', code: 'BracketLeft', shiftKey: true });
+            const circumflex = dispatchKey({ key: 'a', code: 'KeyA' });
+            expect(acute.defaultPrevented).toBe(true);
+            expect(grave.defaultPrevented).toBe(true);
+            expect(circumflex.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('ñ~üáàâ');
+
+            deadKey();
+            const spacingFallback = dispatchKey({ key: 'q', code: 'KeyQ' });
+            expect(spacingFallback.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('ñ~üáàâ~q');
+
+            const contentBeforeCancellation = view.state.doc.toString();
+            const cancellableDeadKey = deadKey();
+            expect(cancellableDeadKey.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
+            const backspace = dispatchKey({ key: 'Backspace', code: 'Backspace' });
+            expect(backspace.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
+            const plainN = dispatchKey({ key: 'n', code: 'KeyN' });
+            expect(plainN.defaultPrevented).toBe(false);
+            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
+
+            deadKey();
+            const escape = dispatchKey({ key: 'Escape', code: 'Escape' });
+            const plainNAfterEscape = dispatchKey({ key: 'n', code: 'KeyN' });
+            expect(escape.defaultPrevented).toBe(true);
+            expect(plainNAfterEscape.defaultPrevented).toBe(false);
+            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
 
             const otherDeadKey = new KeyboardEvent('keydown', {
                 key: 'Dead',
@@ -110,7 +168,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
             view.contentDOM.dispatchEvent(otherDeadKey);
 
             expect(otherDeadKey.defaultPrevented).toBe(false);
-            expect(view.state.doc.toString()).toBe('~');
+            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
         } finally {
             restorePlatform();
             document.body.innerHTML = '';
