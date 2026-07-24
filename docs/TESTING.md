@@ -277,10 +277,17 @@ within and across cells, Tab and Shift+Tab between cells, Enter down a column,
 and Arrow Up/Down from source lines immediately above and below the table.
 Confirm that leaving the first/last cell returns to the adjacent document line
 without skipping, and verify mouse placement plus drag selection at every
-table edge. With Vim enabled, also test Normal and Insert mode in a cell and
-the transition back to root-editor movement. Keep the focused automated checks in
+table edge. With Vim enabled, also test Normal and Insert mode in a cell,
+Normal/Visual `h`/`j`/`k`/`l` cell transitions, and the transition back to
+root-editor movement; `j` at the final cell must not append a row. While a cell editor has focus, assert that its cursor is
+visible and every direct root-editor cursor layer is hidden. Keep the focused automated checks in
 `tests/frontend/unit/markdownTables.test.js` and
 `tests/e2e/markdownTables.spec.js`.
+
+For tab or workspace-view work, retain a browser regression that places a
+nonzero file selection, opens and closes Settings, and verifies the exact
+anchor/head pair plus the file tab's saved cursor state. Unit coverage must
+also assert that the portable session serializes the current per-file range.
 
 Table creation and conversion share that contract. Retain focused coverage
 that `|` on an otherwise empty line offers the supported sizes and accepts the
@@ -383,6 +390,12 @@ placement, drag selection, themed hover guidance, F8 navigation, and their
 enabled-by-default Settings toggle. Wrapped Markdown bullet and ordered-list
 items must keep continuation rows under their item bodies and retain Arrow
 Up/Down plus mouse drag-selection behavior.
+
+The separate, off-by-default **Enter rendered blocks** preference must be
+disabled while Vim is off, persist and roll back through the same Settings
+contract, and let Normal/Visual `j`/`k` enter adjacent fenced source and the
+first/last table cell even when visual-row motions would otherwise skip the
+widget. Operator-pending motions remain untouched.
 
 Offline spellcheck must retain the same editor movement and selection contract:
 its US-English global default, themed keyboard-operable language combobox,

@@ -193,6 +193,13 @@ rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
 
+When the opt-in Vim rendered-block motion is active, the root editor uses
+those retained source ranges to stop `j`/`k` at the adjacent block. Fenced
+blocks and frontmatter expose their portable source; interactive tables retain
+their widget and focus the first or last cell. A focused table cell still has a
+root selection for source synchronization, but its root cursor layer is hidden
+so only the nested editor paints a caret.
+
 List-marker lines carry an inline hanging-indent decoration that aligns wrapped
 display rows with the visible item body. It is recalculated together with the
 cursor-aware list marker replacement and never adds block height or changes
@@ -234,9 +241,11 @@ where possible, avoiding a whole-document tokenization per keypress.
 ## Session state is not settings
 
 `settings.json` stores durable preferences such as theme, fonts, Vim visual-row
-motions, the Markdown-lint toggle, and the spellcheck enabled state plus global
-language. Open tabs, their ordering, and the active workspace state live in the
-dedicated session record. Keeping them separate makes startup recovery
+and rendered-block motions, the Markdown-lint toggle, and the spellcheck enabled
+state plus global language. Open tabs, their ordering, current per-file cursor
+selections, and the active workspace state live in the dedicated session record.
+Cursor updates are coalesced into portable session writes and installed before
+the restored active file is mounted. Keeping them separate makes startup recovery
 predictable: malformed, missing, or old session data can be discarded without
 damaging user preferences. Compatibility cleanup removes legacy tab keys from
 `settings.json` rather than trying to merge two competing sources of truth.

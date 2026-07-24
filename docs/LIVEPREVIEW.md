@@ -96,3 +96,10 @@ must also be exercised in the packaged desktop webview. At minimum, open the
 Welcome note, place the cursor on `### Text formatting` (line 36), and verify
 that Arrow Up moves to line 35 and Arrow Down returns to line 36 without a
 larger jump.
+
+The optional Vim **Enter rendered blocks** motion changes selection state, not
+widget geometry: `j`/`k` place the selection inside an adjacent rendered block
+so its normal source-first replacement logic reveals portable Markdown. Tables
+remain interactive widgets and receive their first or last cell. Their nested
+cell editor is the only cursor surface while it has focus; the synchronized
+outer selection must never paint a second full-cell caret.

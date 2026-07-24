@@ -7,7 +7,7 @@ import { log } from './log.js';
 import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, settingsIcon, warningIcon } from './icons.js';
 import { setState, getState, subscribe, recordRecentFile } from './state.js';
 import { saveSession } from './session.js';
-import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, restoreCursorState, configureEditorForFile } from './editor.js';
+import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile } from './editor.js';
 import { statusBar } from './statusBar.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
 import { playEntranceAnimation, playExitAnimation } from './motion.js';
@@ -35,14 +35,7 @@ export function setView(type) {
  */
 export function showWorkspaceHome() {
     const currentTab = getActiveTab();
-    if (currentTab?.type === 'file') {
-        const editor = getEditorView();
-        if (editor?.state && getEditorDocumentTabId() === currentTab.id) {
-            currentTab._content = editor.state.doc.toString();
-        }
-        currentTab.cursorState = saveCursorState(currentTab.id);
-        if (currentTab.dirty) saveFileSnapshot(currentTab, contentSnapshotForTab(currentTab));
-    }
+    snapshotActiveFileTab(currentTab);
 
     setState('activeTabId', null);
     document.dispatchEvent(new CustomEvent('active-tab-changed', {
@@ -77,6 +70,17 @@ let previousTabActivationStack = [];
 
 function isFileBackedTab(tab) {
     return Boolean(tab?.path) && (tab.type === 'file' || tab.type === 'drawio');
+}
+
+function snapshotActiveFileTab(tab) {
+    if (!tab || tab.type !== 'file') return;
+    const editor = getEditorView();
+    if (editor?.state && getEditorDocumentTabId() === tab.id) {
+        tab._content = editor.state.doc.toString();
+    }
+    const cursorState = saveCursorState(tab.id);
+    if (cursorState) tab.cursorState = cursorState;
+    if (tab.dirty) saveFileSnapshot(tab, contentSnapshotForTab(tab));
 }
 
 function normalizeTabPath(path) {
@@ -409,6 +413,7 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     const currentActiveId = getState('activeTabId');
     if (currentActiveId && currentActiveId !== tab.id && getState('openTabs').some(tabRef => tabRef.id === currentActiveId)) {
         rememberPreviousActiveTab(currentActiveId);
+        snapshotActiveFileTab(tabs.find(tabRef => tabRef.id === currentActiveId));
     }
 
     const newTabs = [...tabs, tab];
@@ -433,23 +438,12 @@ export function switchTab(tabId) {
         rememberPreviousActiveTab(currentActiveId);
     }
     if (currentActiveId && currentActiveId !== tabId) {
-        const currentTab = tabs.find(t => t.id === currentActiveId);
-        if (currentTab && currentTab.type === 'file') {
-            // Cache content in memory BEFORE switching away (survives even if save fails)
-            const ed = getEditorView();
-            if (ed && ed.state && getEditorDocumentTabId() === currentTab.id) {
-                currentTab._content = ed.state.doc.toString();
-            }
-            currentTab.cursorState = saveCursorState(currentActiveId);
-        }
+        snapshotActiveFileTab(tabs.find(candidate => candidate.id === currentActiveId));
     }
-    
-    if (currentActiveId && currentActiveId !== tabId) {
-        const currentTab = tabs.find(t => t.id === currentActiveId);
-        if (currentTab && currentTab.dirty && currentTab.type === 'file') {
-            saveFileSnapshot(currentTab, contentSnapshotForTab(currentTab));
-        }
-    }
+
+    // Capture before the target document replaces the shared CodeMirror
+    // document. Its temporary selection must never overwrite this snapshot.
+    const cursorState = tab.searchLine ? null : (tab.cursorState ? { ...tab.cursorState } : null);
     
     setState('activeTabId', tabId);
     saveTabsToStorage();
@@ -466,20 +460,17 @@ export function switchTab(tabId) {
         panel.classList.remove('active');
     });
     
-    renderTabContent(tab);
+    renderTabContent(tab, cursorState);
     renderTabBar();
 
     closeHistoryPanel();
     
     if (tab.type === 'file') {
         setTimeout(() => focusEditor(), 0);
-        if (tab.cursorState && !tab.searchLine) {
-            setTimeout(() => restoreCursorState(tabId, tab.cursorState), 50);
-        }
     }
 }
 
-async function renderTabContent(tab) {
+async function renderTabContent(tab, cursorState = null) {
     if (tab.type === 'file') {
         setView('editor');
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -487,7 +478,7 @@ async function renderTabContent(tab) {
             const { createEditorView } = await import('./editor.js');
             createEditorView();
         }
-        renderFileTab(null, tab);
+        renderFileTab(null, tab, cursorState);
     } else {
         setView('panels');
         const panelsContainer = document.getElementById('tab-panels');
@@ -516,7 +507,7 @@ async function renderTabContent(tab) {
     }
 }
 
-async function renderFileTab(panel, tab) {
+async function renderFileTab(panel, tab, cursorState = null) {
     if (!tab.path) return;
     if (tab.isNew) {
         const loadId = (tab._loadGeneration || 0) + 1;
@@ -524,14 +515,14 @@ async function renderFileTab(panel, tab) {
         const configured = await configureEditorForFile(tab.path);
         if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
         if (tab._content == null) tab._content = '';
-        setEditorContent(tab._content, tab.id);
+        setEditorContent(tab._content, tab.id, cursorState);
         document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
         return;
     }
-    loadFileContent(tab);
+    loadFileContent(tab, cursorState);
 }
 
-async function loadFileContent(tab) {
+async function loadFileContent(tab, cursorState = null) {
     const loadId = (tab._loadGeneration || 0) + 1;
     tab._loadGeneration = loadId;
     try {
@@ -541,7 +532,7 @@ async function loadFileContent(tab) {
         if (tab._content != null && tab.dirty) {
             const configured = await configureEditorForFile(tab.path);
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
-            setEditorContent(tab._content, tab.id);
+            setEditorContent(tab._content, tab.id, cursorState);
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
             focusSearchLine(tab);
             return;
@@ -558,7 +549,7 @@ async function loadFileContent(tab) {
             if (tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
             const configured = await configureEditorForFile(tab.path);
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
-            setEditorContent(result.content, tab.id);
+            setEditorContent(result.content, tab.id, cursorState);
             tab._content = result.content;
             tab.mtime = result.mtime;
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
@@ -1409,6 +1400,14 @@ function renderSettingsTab(panel, _tab) {
                             <label class="toggle-switch">
                                 <input type="checkbox" id="vim-visual-rows-toggle" aria-label="Move by visual rows" disabled
                                        title="Enable Vim Mode to move by visual rows.">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-row-label">Enter rendered blocks</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="vim-reveal-blocks-toggle" aria-label="Enter rendered blocks with j and k" disabled
+                                       title="Enable Vim Mode to enter rendered blocks.">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>

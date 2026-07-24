@@ -26,6 +26,12 @@ let vimVisualRowsPreferenceLoaded = false;
 let vimVisualRowsPreferenceLoadPromise = null;
 let vimVisualRowsPreferenceRevision = 0;
 let vimVisualRowsSaveQueue = Promise.resolve();
+let currentVimRevealBlocksEnabled = false;
+let persistedVimRevealBlocksEnabled = false;
+let vimRevealBlocksPreferenceLoaded = false;
+let vimRevealBlocksPreferenceLoadPromise = null;
+let vimRevealBlocksPreferenceRevision = 0;
+let vimRevealBlocksSaveQueue = Promise.resolve();
 let currentLineNumbersEnabled = false;
 let lineNumbersPreferenceLoaded = false;
 let lineNumbersPreferenceLoadPromise = null;
@@ -84,6 +90,7 @@ export async function initTheme() {
     applyCodeFont(codeFontId, true);
     await initVimPreference();
     await initVimVisualRowsPreference();
+    await initVimRevealBlocksPreference();
     await initLineNumbersPreference();
     await initMarkdownLintPreference();
     await initSpellcheckPreference();
@@ -138,6 +145,7 @@ function syncVimToggles(enabled) {
         toggle.checked = enabled;
     });
     syncVimVisualRowsAvailability();
+    syncVimRevealBlocksAvailability();
 }
 
 function syncVimVisualRowsToggles(enabled) {
@@ -153,10 +161,24 @@ function syncVimVisualRowsAvailability() {
     });
 }
 
+function syncVimRevealBlocksToggles(enabled) {
+    document.querySelectorAll('#vim-reveal-blocks-toggle').forEach(toggle => {
+        toggle.checked = enabled;
+    });
+}
+
+function syncVimRevealBlocksAvailability() {
+    document.querySelectorAll('#vim-reveal-blocks-toggle').forEach(toggle => {
+        toggle.disabled = !currentVimEnabled;
+        toggle.title = currentVimEnabled ? '' : 'Enable Vim Mode to enter rendered blocks.';
+    });
+}
+
 async function applyVimPreference(enabled) {
-    const { setVimVisualRows, toggleVim } = await import('./editor.js');
+    const { setVimRevealBlocks, setVimVisualRows, toggleVim } = await import('./editor.js');
     await toggleVim(enabled);
     setVimVisualRows(currentVimVisualRowsEnabled);
+    setVimRevealBlocks(currentVimRevealBlocksEnabled);
 }
 
 export function getVimPreference() { return currentVimEnabled; }
@@ -167,6 +189,13 @@ async function applyVimVisualRowsPreference(enabled) {
 }
 
 export function getVimVisualRowsPreference() { return currentVimVisualRowsEnabled; }
+
+async function applyVimRevealBlocksPreference(enabled) {
+    const { setVimRevealBlocks } = await import('./editor.js');
+    setVimRevealBlocks(enabled);
+}
+
+export function getVimRevealBlocksPreference() { return currentVimRevealBlocksEnabled; }
 
 /** Load and apply the persisted Vim preference exactly once per application run. */
 export async function initVimPreference() {
@@ -302,6 +331,74 @@ export async function setVimVisualRowsPreference(enabled) {
             currentVimVisualRowsEnabled = persistedVimVisualRowsEnabled;
             syncVimVisualRowsToggles(currentVimVisualRowsEnabled);
             try { await applyVimVisualRowsPreference(currentVimVisualRowsEnabled); } catch (_) { /* already logged above */ }
+        }
+        return false;
+    }
+}
+
+/** Load the portable Vim rendered-block motion preference once per run. */
+export async function initVimRevealBlocksPreference() {
+    if (vimRevealBlocksPreferenceLoaded) return currentVimRevealBlocksEnabled;
+    if (vimRevealBlocksPreferenceLoadPromise) return vimRevealBlocksPreferenceLoadPromise;
+
+    vimRevealBlocksPreferenceLoadPromise = (async () => {
+        try {
+            const result = await backend().VimRevealBlocksLoad();
+            currentVimRevealBlocksEnabled = result?.enabled === true;
+            persistedVimRevealBlocksEnabled = currentVimRevealBlocksEnabled;
+            vimRevealBlocksPreferenceLoaded = true;
+            syncVimRevealBlocksToggles(currentVimRevealBlocksEnabled);
+            syncVimRevealBlocksAvailability();
+            await applyVimRevealBlocksPreference(currentVimRevealBlocksEnabled);
+        } catch (error) {
+            log.warn('Could not load Vim rendered-block preference:', error);
+        } finally {
+            vimRevealBlocksPreferenceLoadPromise = null;
+        }
+        return currentVimRevealBlocksEnabled;
+    })();
+    return vimRevealBlocksPreferenceLoadPromise;
+}
+
+/** Apply and persist rendered-block entry without changing Vim itself. */
+export async function setVimRevealBlocksPreference(enabled) {
+    if (!vimRevealBlocksPreferenceLoaded) await initVimRevealBlocksPreference();
+
+    const previous = currentVimRevealBlocksEnabled;
+    const requested = Boolean(enabled);
+    const revision = ++vimRevealBlocksPreferenceRevision;
+    currentVimRevealBlocksEnabled = requested;
+    syncVimRevealBlocksToggles(requested);
+
+    try {
+        await applyVimRevealBlocksPreference(requested);
+    } catch (error) {
+        log.warn('Could not apply Vim rendered-block preference:', error);
+        if (revision === vimRevealBlocksPreferenceRevision) {
+            currentVimRevealBlocksEnabled = previous;
+            syncVimRevealBlocksToggles(previous);
+            try { await applyVimRevealBlocksPreference(previous); } catch (_) { /* already logged above */ }
+        }
+        return false;
+    }
+
+    const saveAttempt = vimRevealBlocksSaveQueue.then(async () => {
+        const result = await backend().VimRevealBlocksSave(requested);
+        if (!result?.success) throw new Error(result?.error || 'Vim rendered-block preference was not saved');
+        persistedVimRevealBlocksEnabled = requested;
+        return true;
+    });
+    vimRevealBlocksSaveQueue = saveAttempt.catch(() => {});
+
+    try {
+        await saveAttempt;
+        return true;
+    } catch (error) {
+        log.warn('Could not save Vim rendered-block preference:', error);
+        if (revision === vimRevealBlocksPreferenceRevision) {
+            currentVimRevealBlocksEnabled = persistedVimRevealBlocksEnabled;
+            syncVimRevealBlocksToggles(currentVimRevealBlocksEnabled);
+            try { await applyVimRevealBlocksPreference(currentVimRevealBlocksEnabled); } catch (_) { /* already logged above */ }
         }
         return false;
     }
@@ -585,6 +682,21 @@ export async function initSettingsPanel(root = document) {
                 vimVisualRowsToggle.checked = getVimVisualRowsPreference();
                 syncVimVisualRowsAvailability();
                 vimVisualRowsToggle.title = saved ? (currentVimEnabled ? '' : 'Enable Vim Mode to move by visual rows.') : 'Could not save the visual-row preference.';
+            });
+        }
+
+        const vimRevealBlocksToggle = findIn(root, '#vim-reveal-blocks-toggle');
+        if (vimRevealBlocksToggle) {
+            vimRevealBlocksToggle.checked = await initVimRevealBlocksPreference();
+            if (!isActivePanel(root)) return;
+            syncVimRevealBlocksAvailability();
+            vimRevealBlocksToggle.addEventListener('change', async () => {
+                vimRevealBlocksToggle.disabled = true;
+                const saved = await setVimRevealBlocksPreference(vimRevealBlocksToggle.checked);
+                if (!isActivePanel(root)) return;
+                vimRevealBlocksToggle.checked = getVimRevealBlocksPreference();
+                syncVimRevealBlocksAvailability();
+                vimRevealBlocksToggle.title = saved ? (currentVimEnabled ? '' : 'Enable Vim Mode to enter rendered blocks.') : 'Could not save the rendered-block preference.';
             });
         }
 
@@ -1134,5 +1246,6 @@ export default {
     initTheme, applyTheme, getCurrentTheme, getCurrentFont, getThemes,
     initVimPreference, getVimPreference, setVimPreference,
     initVimVisualRowsPreference, getVimVisualRowsPreference, setVimVisualRowsPreference,
+    initVimRevealBlocksPreference, getVimRevealBlocksPreference, setVimRevealBlocksPreference,
     initSettingsPanel
 };

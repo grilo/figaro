@@ -64,6 +64,8 @@ function debugAPI() {
         VimSave: mock({ success: true }),
         VimVisualRowsLoad: mock({ enabled: false }),
         VimVisualRowsSave: mock({ success: true }),
+        VimRevealBlocksLoad: mock({ enabled: false }),
+        VimRevealBlocksSave: mock({ success: true }),
         LineNumbersLoad: mock({ enabled: false }),
         LineNumbersSave: mock({ success: true }),
         MarkdownLintLoad: mock({ enabled: true }),

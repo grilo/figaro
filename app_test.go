@@ -1279,7 +1279,7 @@ func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
 	if err := json.Unmarshal(data, &settings); err != nil {
 		t.Fatal(err)
 	}
-	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["line_numbers"] != false || settings["markdown_lint"] != true || settings["spellcheck"] != true || settings["spellcheck_language"] != "en-US" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
+	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["vim_visual_rows"] != false || settings["vim_reveal_blocks"] != false || settings["line_numbers"] != false || settings["markdown_lint"] != true || settings["spellcheck"] != true || settings["spellcheck_language"] != "en-US" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
 		t.Fatalf("unexpected normalized settings: %#v", settings)
 	}
 	if _, exists := settings["openTabs"]; exists {
@@ -1744,6 +1744,26 @@ func TestVimVisualRowsSaveLoadAndDefault(t *testing.T) {
 	loaded, err = restarted.VimVisualRowsLoad()
 	if err != nil || !loaded["enabled"] {
 		t.Fatalf("VimVisualRowsLoad after restart = %#v, %v; want enabled", loaded, err)
+	}
+}
+
+func TestVimRevealBlocksSaveLoadAndDefault(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	loaded, err := app.VimRevealBlocksLoad()
+	if err != nil || loaded["enabled"] {
+		t.Fatalf("VimRevealBlocksLoad default = %#v, %v; want disabled", loaded, err)
+	}
+	result, err := app.VimRevealBlocksSave(true)
+	if err != nil || !result.Success {
+		t.Fatalf("VimRevealBlocksSave(true) = %#v, %v", result, err)
+	}
+
+	restarted := NewApp(vaultPath)
+	loaded, err = restarted.VimRevealBlocksLoad()
+	if err != nil || !loaded["enabled"] {
+		t.Fatalf("VimRevealBlocksLoad after restart = %#v, %v; want enabled", loaded, err)
 	}
 }
 

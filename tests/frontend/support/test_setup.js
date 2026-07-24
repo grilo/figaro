@@ -96,6 +96,8 @@ window.go = {
 		VimSave: jest.fn().mockResolvedValue({ success: true }),
 		VimVisualRowsLoad: jest.fn().mockResolvedValue({ enabled: false }),
 		VimVisualRowsSave: jest.fn().mockResolvedValue({ success: true }),
+		VimRevealBlocksLoad: jest.fn().mockResolvedValue({ enabled: false }),
+		VimRevealBlocksSave: jest.fn().mockResolvedValue({ success: true }),
 		LineNumbersLoad: jest.fn().mockResolvedValue({ enabled: false }),
 		LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
 		MarkdownLintLoad: jest.fn().mockResolvedValue({ enabled: true }),

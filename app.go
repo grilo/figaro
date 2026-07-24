@@ -3401,6 +3401,7 @@ func defaultSettings() map[string]interface{} {
 		"link_style":          string(links.MarkdownLinkStyle),
 		"vim":                 false,
 		"vim_visual_rows":     false,
+		"vim_reveal_blocks":   false,
 		"line_numbers":        false,
 		"markdown_lint":       true,
 		"spellcheck":          true,
@@ -3760,6 +3761,37 @@ func (a *App) VimVisualRowsSave(enabled bool) (*SaveFileResult, error) {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}
 	settings["vim_visual_rows"] = enabled
+	if err := a.writeSettingsFile(settings); err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
+// VimRevealBlocksLoad loads whether Vim j/k should enter rendered Markdown
+// blocks instead of moving around their replacement widgets.
+func (a *App) VimRevealBlocksLoad() (map[string]bool, error) {
+	a.settingsMu.RLock()
+	defer a.settingsMu.RUnlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return map[string]bool{"enabled": false}, nil
+	}
+	enabled, _ := settings["vim_reveal_blocks"].(bool)
+	return map[string]bool{"enabled": enabled}, nil
+}
+
+// VimRevealBlocksSave persists whether Vim j/k should enter rendered Markdown
+// blocks instead of moving around their replacement widgets.
+func (a *App) VimRevealBlocksSave(enabled bool) (*SaveFileResult, error) {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	settings["vim_reveal_blocks"] = enabled
 	if err := a.writeSettingsFile(settings); err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}

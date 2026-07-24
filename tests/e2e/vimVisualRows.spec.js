@@ -53,17 +53,25 @@ test('persists a keyboard-operable visual-row preference that is unavailable wit
 
     const visualRowsToggle = page.locator('#vim-visual-rows-toggle');
     const visualRowsSlider = visualRowsToggle.locator('xpath=following-sibling::*[1]');
+    const revealBlocksToggle = page.locator('#vim-reveal-blocks-toggle');
+    const revealBlocksSlider = revealBlocksToggle.locator('xpath=following-sibling::*[1]');
     const vimToggle = page.locator('#vim-toggle');
     await expect(visualRowsToggle).toBeDisabled();
     await expect(visualRowsToggle).toHaveAttribute('title', /Enable Vim Mode/i);
     await expect(visualRowsSlider).toHaveCSS('cursor', 'not-allowed');
     await expect(visualRowsSlider).toHaveCSS('opacity', '0.5');
     await expect(visualRowsSlider).toHaveCSS('border-radius', '20px');
+    await expect(revealBlocksToggle).toBeDisabled();
+    await expect(revealBlocksToggle).toHaveAttribute('title', /Enable Vim Mode/i);
+    await expect(revealBlocksSlider).toHaveCSS('cursor', 'not-allowed');
+    await expect(revealBlocksSlider).toHaveCSS('opacity', '0.5');
+    await expect(revealBlocksSlider).toHaveCSS('border-radius', '20px');
 
     await vimToggle.focus();
     await page.keyboard.press('Space');
     await expect(vimToggle).toBeChecked();
     await expect(visualRowsToggle).toBeEnabled();
+    await expect(revealBlocksToggle).toBeEnabled();
 
     await visualRowsToggle.focus();
     await expect(visualRowsToggle).toBeFocused();
@@ -74,6 +82,11 @@ test('persists a keyboard-operable visual-row preference that is unavailable wit
         const editor = await import('/js/editor.js');
         return editor.isVimEnabled();
     })).toBe(true);
+
+    await revealBlocksToggle.focus();
+    await page.keyboard.press('Space');
+    await expect(revealBlocksToggle).toBeChecked();
+    await expect(revealBlocksSlider).toHaveCSS('background-color', /.+/);
 });
 
 test('moves Vim Normal-mode j/k and arrows by visual rows without changing operator motions', async ({ page }) => {

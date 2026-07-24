@@ -1,10 +1,12 @@
 const mockToggleVim = jest.fn(() => Promise.resolve(true));
 const mockSetVimVisualRows = jest.fn(() => true);
+const mockSetVimRevealBlocks = jest.fn(() => true);
 
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn(() => null),
     toggleVim: mockToggleVim,
     setVimVisualRows: mockSetVimVisualRows,
+    setVimRevealBlocks: mockSetVimRevealBlocks,
 }));
 
 function settingsDOM() {
@@ -13,6 +15,7 @@ function settingsDOM() {
         <div id="theme-picker-menu"></div>
         <input type="checkbox" id="vim-toggle">
         <input type="checkbox" id="vim-visual-rows-toggle">
+        <input type="checkbox" id="vim-reveal-blocks-toggle">
     `;
 }
 
@@ -37,6 +40,8 @@ describe('Vim preference lifecycle', () => {
             VimSave: jest.fn().mockResolvedValue({ success: true }),
             VimVisualRowsLoad: jest.fn().mockResolvedValue({ enabled: false }),
             VimVisualRowsSave: jest.fn().mockResolvedValue({ success: true }),
+            VimRevealBlocksLoad: jest.fn().mockResolvedValue({ enabled: false }),
+            VimRevealBlocksSave: jest.fn().mockResolvedValue({ success: true }),
         };
         window.go = { main: { App: api } };
         settingsDOM();
@@ -46,6 +51,7 @@ describe('Vim preference lifecycle', () => {
             initSettingsPanel,
             getVimPreference,
             getVimVisualRowsPreference,
+            getVimRevealBlocksPreference,
         } = await import('../frontend/js/theme.js');
 
         await initTheme();
@@ -53,15 +59,21 @@ describe('Vim preference lifecycle', () => {
         expect(mockToggleVim).toHaveBeenLastCalledWith(true);
         expect(api.VimVisualRowsLoad).toHaveBeenCalledTimes(1);
         expect(mockSetVimVisualRows).toHaveBeenLastCalledWith(false);
+        expect(api.VimRevealBlocksLoad).toHaveBeenCalledTimes(1);
+        expect(mockSetVimRevealBlocks).toHaveBeenLastCalledWith(false);
         expect(getVimPreference()).toBe(true);
         expect(getVimVisualRowsPreference()).toBe(false);
+        expect(getVimRevealBlocksPreference()).toBe(false);
 
         await initSettingsPanel();
         const firstToggle = document.getElementById('vim-toggle');
         const visualRowsToggle = document.getElementById('vim-visual-rows-toggle');
+        const revealBlocksToggle = document.getElementById('vim-reveal-blocks-toggle');
         expect(firstToggle.checked).toBe(true);
         expect(visualRowsToggle.checked).toBe(false);
         expect(visualRowsToggle.disabled).toBe(false);
+        expect(revealBlocksToggle.checked).toBe(false);
+        expect(revealBlocksToggle.disabled).toBe(false);
 
         visualRowsToggle.checked = true;
         visualRowsToggle.dispatchEvent(new Event('change', { bubbles: true }));
@@ -69,6 +81,13 @@ describe('Vim preference lifecycle', () => {
         expect(mockSetVimVisualRows).toHaveBeenLastCalledWith(true);
         expect(api.VimVisualRowsSave).toHaveBeenCalledWith(true);
         expect(getVimVisualRowsPreference()).toBe(true);
+
+        revealBlocksToggle.checked = true;
+        revealBlocksToggle.dispatchEvent(new Event('change', { bubbles: true }));
+        await settlePreferenceChange();
+        expect(mockSetVimRevealBlocks).toHaveBeenLastCalledWith(true);
+        expect(api.VimRevealBlocksSave).toHaveBeenCalledWith(true);
+        expect(getVimRevealBlocksPreference()).toBe(true);
 
         firstToggle.checked = false;
         firstToggle.dispatchEvent(new Event('change', { bubbles: true }));
@@ -81,6 +100,8 @@ describe('Vim preference lifecycle', () => {
         expect(firstToggle.disabled).toBe(false);
         expect(visualRowsToggle.disabled).toBe(true);
         expect(visualRowsToggle.checked).toBe(true);
+        expect(revealBlocksToggle.disabled).toBe(true);
+        expect(revealBlocksToggle.checked).toBe(true);
 
         // Reopening Settings must use the current application preference, not
         // re-read a stale backend value and turn Vim back on.
@@ -89,8 +110,11 @@ describe('Vim preference lifecycle', () => {
         expect(document.getElementById('vim-toggle').checked).toBe(false);
         expect(document.getElementById('vim-visual-rows-toggle').checked).toBe(true);
         expect(document.getElementById('vim-visual-rows-toggle').disabled).toBe(true);
+        expect(document.getElementById('vim-reveal-blocks-toggle').checked).toBe(true);
+        expect(document.getElementById('vim-reveal-blocks-toggle').disabled).toBe(true);
         expect(api.VimLoad).toHaveBeenCalledTimes(1);
         expect(api.VimVisualRowsLoad).toHaveBeenCalledTimes(1);
+        expect(api.VimRevealBlocksLoad).toHaveBeenCalledTimes(1);
 
         // A failed persistence attempt restores both the control and editor to
         // the last value that is known to be on disk.
@@ -120,5 +144,14 @@ describe('Vim preference lifecycle', () => {
         expect(getVimVisualRowsPreference()).toBe(true);
         expect(reopenedVisualRowsToggle.checked).toBe(true);
         expect(reopenedVisualRowsToggle.title).toMatch(/could not save the visual-row preference/i);
+
+        const reopenedRevealBlocksToggle = document.getElementById('vim-reveal-blocks-toggle');
+        api.VimRevealBlocksSave.mockResolvedValueOnce({ success: false, error: 'disk unavailable' });
+        reopenedRevealBlocksToggle.checked = false;
+        reopenedRevealBlocksToggle.dispatchEvent(new Event('change', { bubbles: true }));
+        await settlePreferenceChange();
+        expect(getVimRevealBlocksPreference()).toBe(true);
+        expect(reopenedRevealBlocksToggle.checked).toBe(true);
+        expect(reopenedRevealBlocksToggle.title).toMatch(/could not save the rendered-block preference/i);
     });
 });

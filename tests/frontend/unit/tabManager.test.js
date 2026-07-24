@@ -63,7 +63,7 @@ jest.mock('../frontend/js/theme.js', () => ({
 }));
 
 import { state, setState, getState } from '../frontend/js/state.js';
-import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, restoreCursorState } from '../frontend/js/editor.js';
+import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState } from '../frontend/js/editor.js';
 import { initSettingsPanel } from '../frontend/js/theme.js';
 import { setAutoCommitEnabled } from '../frontend/js/automation.js';
 import { statusBar } from '../frontend/js/statusBar.js';
@@ -138,7 +138,7 @@ describe('Tab Manager', () => {
             openTab('fresh.md', 'Fresh', 'file', { path: 'fresh.md', isNew: true });
             await testUtils.waitFor(0);
 
-            expect(setEditorContent).toHaveBeenCalledWith('', 'fresh.md');
+            expect(setEditorContent).toHaveBeenCalledWith('', 'fresh.md', null);
             expect(window.go.main.App.ReadFile).not.toHaveBeenCalled();
         });
 
@@ -266,7 +266,7 @@ describe('Tab Manager', () => {
             firstA.resolve({ content: 'Stale A content', mtime: 1, path: 'a.md' });
             await testUtils.waitFor(0);
 
-            expect(setEditorContent).toHaveBeenLastCalledWith('Latest A content', 'a');
+            expect(setEditorContent).toHaveBeenLastCalledWith('Latest A content', 'a', { anchor: 0, head: 0 });
         });
     });
 
@@ -351,6 +351,23 @@ describe('Tab Manager', () => {
             await closeTab('settings');
 
             expect(getState('activeTabId')).toBe('note-1');
+        });
+
+        test('preserves the active file cursor while Settings is opened and closed', async () => {
+            openTab('note-1', 'Note 1', 'file', { path: 'note-1.md' });
+            await testUtils.waitFor(0);
+            setEditorContent.mockClear();
+            const cursorState = { anchor: 17, head: 19 };
+            saveCursorState.mockReturnValue(cursorState);
+
+            openTab('settings', 'Settings', 'settings');
+            expect(getState('openTabs').find(tab => tab.id === 'note-1').cursorState).toEqual(cursorState);
+
+            await closeTab('settings');
+            await testUtils.waitFor(0);
+
+            expect(getState('activeTabId')).toBe('note-1');
+            expect(setEditorContent).toHaveBeenCalledWith('', 'note-1', cursorState);
         });
 
         test('returns to previously edited file after closing kanban', async () => {

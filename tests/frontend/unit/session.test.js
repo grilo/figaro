@@ -79,6 +79,22 @@ describe('session persistence', () => {
         expect(payload.pinnedTabs).toEqual([]);
     });
 
+    test('persists the latest per-file cursor range in the portable session', async () => {
+        setState('openTabs', [{
+            id: 'note.md',
+            type: 'file',
+            title: 'Note',
+            path: 'note.md',
+            cursorState: { anchor: 14, head: 18 },
+        }]);
+        setState('activeTabId', 'note.md');
+
+        await saveSession();
+
+        const payload = window.go.main.App.SaveSession.mock.calls.at(-1)[0];
+        expect(payload.cursorStates).toEqual({ 'note.md': { anchor: 14, head: 18 } });
+    });
+
     test('persists an editable Draw.io diagram with its vault path', async () => {
         setState('openTabs', [
             { id: 'diagrams/system.drawio.svg', type: 'drawio', title: 'system.drawio.svg', path: 'diagrams/system.drawio.svg' },

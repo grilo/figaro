@@ -6,6 +6,25 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.6.3 - 2026-07-24
+
+### Added
+
+- Vim users can opt into **Enter rendered blocks** so `j` and `k` reveal
+  rendered Markdown source or enter the first and last table cells instead of
+  skipping visual widgets.
+
+### Fixed
+
+- Interactive Markdown tables now show only the active cell's Vim caret rather
+  than a second full-height cursor at the start of the cell.
+- Vim Normal and Visual mode now use `h`, `j`, `k`, and `l` to move between
+  interactive Markdown table cells.
+- Vim `j` now leaves the bottom of an interactive table without appending an
+  unexpected row.
+- Opening and closing Settings now preserves each file's cursor selection, and
+  current per-file selections are saved for the next launch.
+
 ## 1.6.2 - 2026-07-24
 
 ### Fixed

@@ -415,12 +415,9 @@ function restoreOpenTabs() {
         return false;
     }
     setState('pinnedTabs', (getState('pinnedTabs') || []).filter(id => openedIDs.has(id)));
-    
-    if (restoredActiveId && openedIDs.has(restoredActiveId)) {
-        switchTab(restoredActiveId);
-    }
 
-    // Restore cursor states
+    // Install cursor states before the restored active tab is mounted. The
+    // file loader applies this snapshot during its document replacement.
     if (state._restoredCursorStates) {
         const tabs = getState('openTabs');
         for (const t of tabs) {
@@ -429,6 +426,10 @@ function restoreOpenTabs() {
             }
         }
         state._restoredCursorStates = null;
+    }
+
+    if (restoredActiveId && openedIDs.has(restoredActiveId)) {
+        switchTab(restoredActiveId);
     }
 
     // Force-save session after restore

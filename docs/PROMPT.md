@@ -91,7 +91,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Dirty indicator**: A compact accent dot appears on unsaved file tabs as soon as any edit is made.
 - **Auto-save on switch**: When the user switches away from a dirty file tab, Figaro caches its current content and queues a save. The destination can open immediately; a failed save leaves the source tab recoverable from its cache.
 - **Save conflict**: If a file's modification timestamp changed externally, Figaro asks whether to overwrite it with the local version. Cancelling preserves the dirty tab and its in-memory snapshot; Figaro never silently discards the local edit.
-- **Cursor memory**: Each file tab remembers the last cursor/scroll position; restored when switching back.
+- **Cursor memory**: Each file tab continuously remembers its latest cursor/selection. It is restored after switching back or closing a workspace view such as Settings, and is included in the portable session for restart recovery.
 - **Close button (✕)**: Every tab has a close button, always visible even when tabs are narrow. Closing a dirty file tab prompts for confirmation.
 - **Middle-click**: Middle-clicking any tab closes it immediately.
 - **Pin tab**: Right-click a tab and choose "Pin Tab" to pin it. Pinned tabs stay at the leftmost position and have a visual accent border on top. Pinning persists across restarts.
@@ -198,7 +198,7 @@ Each theme defines these properties (with theme-specific colors):
 - **PDF preview and export**: **Preview PDF** opens an isolated live preview in the right pane. It uses the same printable document structure as the export, waits briefly after Markdown or selected CSS edits to avoid flicker, and refreshes external saved CSS when the file tree updates. Each newer input invalidates active diagram/print work immediately; Figaro keeps only the latest queued snapshot and never sends a stale result into the preview bridge. A code-icon helper opens **Figaro PDF style reference**, which derives the exact classes and IDs from the current preview, displays its generated body HTML, and can copy that HTML. Its splitter has a 340 px preview minimum and otherwise grows dynamically while preserving a 320 px editor floor; the pane may keep growing, but the centered paper surface is capped to the last supported `@page size` declaration. Preview geometry supports named A3/A4/A5, B5, Letter, Legal, Ledger/Tabloid, and Executive paper, portrait/landscape orientation, and one- or two-length explicit sizes, with A4 as fallback. A final preview-only geometry rule prevents user `body` width overrides from stretching the paper while leaving print colors and typography in the normal cascade. Below 560 px of remaining editor width, CodeMirror content padding contracts from 24 px to 12 px. Its **Generate PDF** action saves dirty preview buffers, then renders Markdown into an interactive PDF with a detected local browser engine. Figaro tries Chrome/Chromium-family engines before Edge, and uses Safari/WebKit on macOS if needed; Chromium candidates must complete a real isolated CDP startup and `Browser.getVersion` request. It aborts with an installable-browser error if no viable engine is present instead of generating a PDF with dead links. Export writes `<note>.pdf` beside the Markdown file, safely replacing a previous export, and opens it in the default PDF viewer. A scalar frontmatter property, `print-stylesheet: path/to/print.css`, selects a vault-local CSS file relative to the note and takes precedence over a sibling `_print.css`; omitting it keeps the built-in style. `cover-page: true` generates a title page using `title`, `subtitle`/`description`, `author`, and `date`/`created`; `toc-depth: 0` disables the table of contents, while 1–6 includes headings through that Markdown level. Generated cover and table-of-contents sections automatically end with a page break. The print DOM has stable cover, table-of-contents, document-body, task, diagram, and footnote classes documented in `docs/PDF_STYLING.md`; body headings are separate from the cover and table-of-contents titles. Repeated running page headers and footers are not supported. Footnote references render as numbered internal links to a final Footnotes section, with return links for repeated references. Frontmatter itself is not printed.
 - **PDF preview performance**: Printable Markdown parsing runs in a module worker when supported, leaving CodeMirror's input/layout path free while a preview is open. Callout/TOC decoration and DOM-dependent Mermaid/Vega conversion remain in the document pipeline; webviews without module-worker support safely use the established in-thread renderer.
 - **PDF preview isolation**: The right-pane preview is a fixed sandboxed frame with a validated message bridge, not a parent-controlled `srcdoc` document. The frame owns anchor interception and reports web, vault, fragment, and scroll actions to the application; the application never reads the sandboxed frame DOM. Programmatic frame reports are explicitly marked, so a real reader scroll always wins even when a preceding editor synchronization update is still settling. During splitter resizing the parent sends `set-scroll-sync-paused`, both scroll directions and frame pointer interaction remain quiet, and 80 ms after release one editor-to-preview alignment restores line-level synchronization. This preserves user `html`/`body` print styling while preventing a clicked link from replacing the preview with an external or filesystem document. See `ARCHITECTURE.md` for the protocol and security rationale.
-- **Live preview**: Formatting markers (`#`, `**`, `*`, `~~`, backticks, link brackets/parens) are hidden on non-active lines while preserving layout width. Move the cursor to a line to reveal its raw markdown for editing. Bullet points render as styled bullets. Task checkboxes (`- [ ]` / `- [x]`) render as interactive HTML checkboxes that toggle on click. Links render as clickable widgets. Unaffected preview state is retained during ordinary cursor movement, and interactive decorations are limited to the visible editor region so large notes remain responsive. Live content observers receive the latest typing frame, while word statistics settle after a short typing pause; save and tab-switch snapshots stay immediate.
+- **Live preview**: Formatting markers (`#`, `**`, `*`, `~~`, backticks, link brackets/parens) are hidden on non-active lines while preserving layout width. Move the cursor to a line to reveal its raw markdown for editing. Bullet points render as styled bullets. Task checkboxes (`- [ ]` / `- [x]`) render as interactive HTML checkboxes that toggle on click. Links render as clickable widgets. Unaffected preview state is retained during ordinary cursor movement, and interactive decorations are limited to the visible editor region so large notes remain responsive. With the opt-in Vim rendered-block motion, Normal/Visual `j` and `k` deliberately place the selection inside an adjacent block to reveal its source; tables instead keep their interactive widget and enter the first or last cell. Live content observers receive the latest typing frame, while word statistics settle after a short typing pause; save and tab-switch snapshots stay immediate.
 - **Hex colors**: standalone CSS hex tokens in the 3-, 4-, 6-, or 8-digit forms render with a theme-aware inline swatch and native color picker in Markdown and supported source files. Picker changes replace only the token, preserving an existing alpha channel. The raw token remains plain text in Markdown, PDF preview, and export.
 - **Printable diagrams**: Mermaid, Vega, and Vega-Lite fences are rendered to inline SVG before the print document reaches the native dialog. If a renderer is unavailable or a diagram is invalid, the source fence stays visible rather than being dropped.
 - **Line-number gutter**: a persistent Settings toggle adds CodeMirror line numbers and active-line gutter highlighting to Markdown and source files. It is disabled by default. Bracket matching, undo/redo history, and autocompletion remain always available; code folding is enabled for source-code files.
@@ -213,7 +213,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Footnotes**: `[^1]` references render as superscript accent-colored links.
 - **Callouts**: `> [!note]`, `> [!warning]`, `> [!info]`, `> [!tip]`, `> [!danger]`, `> [!example]` blocks render with colored left borders and tinted backgrounds matching the callout type (via `--callout-*-color` variables).
 - **Images**: `![alt](src)` renders inline images via `imageField`. Pasting a raster image from the system clipboard into an open Markdown note writes `image1.<ext>`, `image2.<ext>`, and so on beside that note, inserts note-relative Markdown such as `![Image1](image1.png)`, refreshes the file tree, and displays the new asset immediately. The backend detects the actual PNG, JPEG, GIF, WebP, BMP, or ICO bytes, limits clipboard images to 25 MB, and never overwrites an existing numbered image. A failed write leaves the editor selection and document unchanged.
-- **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its embedded cells receive the active Vim extension, so Vim Normal and Insert modes work there as they do in the root Markdown editor. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
+- **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its embedded cells receive the active Vim extension, so Vim Normal and Insert modes work there as they do in the root Markdown editor; Normal/Visual `h`, `j`, `k`, and `l` move between cells while Insert mode remains text entry. The synchronized root cursor is hidden while a nested cell owns focus, preventing a second full-height caret. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
 - **Math**: `$inline$` and `$$block$$` LaTeX math renders via KaTeX (StateField-based plugin).
 - In-note search with match highlighting and navigation.
 - **Auto-save**: the active dirty file tab is saved on the configured interval (5 seconds, 10 seconds, 30 seconds, 1 minute, 5 minutes, or Off), when switching away, and when choosing **Save & Exit**. Content is always written first; when the Auto-Commit toggle is on, that successful save then commits only the saved file.
@@ -422,8 +422,23 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Markdown-table cell editors receive the same dynamically loaded Vim extension
   as the root editor. Enabling or disabling Vim rebuilds existing table cells
   so their Normal and Insert key handling cannot remain stale.
+- In Normal and Visual modes, `h`, `j`, `k`, and `l` move to the adjacent table
+  cell. Insert mode keeps those characters as ordinary cell text. At the bottom
+  table edge, `j` leaves the widget without creating a row.
+- The root editor retains the selected-cell source range for synchronization,
+  but hides its cursor layer while the nested cell editor has focus so only one
+  Vim caret is visible.
 
-### 8.4 Custom Ex Commands
+### 8.4 Rendered-block motions
+- **Enter rendered blocks** is a portable `settings.json` preference
+  (`"vim_reveal_blocks": true/false`), disabled by default and unavailable
+  while Vim itself is off.
+- When enabled, Vim Normal and Visual `j`/`k` stop at an adjacent rendered
+  frontmatter or fenced block and reveal its raw Markdown source. Tables stay
+  interactive and receive the first/last cell instead. Operator-pending
+  motions are unchanged.
+
+### 8.5 Custom Ex Commands
 | Command | Action |
 |---------|--------|
 | `:w` / `:write` | Save current file |
@@ -436,7 +451,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 or if the buffer changes while that save is in flight, the file tab remains
 open so newer or unsaved text cannot be discarded.
 
-### 8.5 Built-in Vim Features
+### 8.6 Built-in Vim Features
 - `/pattern` — open the Vim search prompt and search forward from the cursor
 - `?pattern` — search backward
 - `:s/old/new/g` — substitute
@@ -515,7 +530,7 @@ The frontend holds a shared state object that tracks:
 - Left and right sidebar width plus collapsed/open state.
 
 The application uses two persistence layers deliberately:
-- `vault/.config/session.json` carries the portable workspace session (tabs, active tab, cursor positions, expanded folders, pinned tabs, and selected file).
+- `vault/.config/session.json` carries the portable workspace session (tabs, active tab, current per-file cursor selections, expanded folders, pinned tabs, and selected file). Cursor updates are coalesced before writing and installed before the restored active file is mounted.
 - Browser `localStorage` keeps webview-local presentation state (selected date, recent files, search filters, font size, text width, and a recovery copy of tabs). A missing or malformed session is ignored safely.
 
 Async file-tree, search, calendar, backlink, history, and diagram requests carry request IDs or connected-DOM checks so an older response cannot overwrite a newer view.
@@ -744,7 +759,7 @@ Multiple layers prevent a white flash before CSS loads:
 
 ### 20.3 Tab Behavior
 - Deduplication: opening an existing resource switches to its tab.
-- Auto-save on switch, cursor memory, middle-click close, right-click context menu, and drag reorder.
+- Auto-save on switch, continuously updated cursor memory (including Settings detours and restart recovery), middle-click close, right-click context menu, and drag reorder.
 - Pin tab: right-click → "Pin Tab". Pinned tabs stay leftmost with a visual accent.
 - Reordering persists with the session and is restricted to the current pin group.
 - Closing the final tab returns the user to the un-tabbed workspace overview.
@@ -778,6 +793,7 @@ Multiple layers prevent a white flash before CSS loads:
 - **Show Markdown lint**: persistent, enabled-by-default toggle for local Markdown diagnostics. It applies live, removes or restores only lint markers, and never changes note text.
 - **Spellcheck**: persistent, enabled-by-default local checker with an English (US) fallback and a themed, keyboard-accessible selector for English (UK) or Spanish (Spain). It uses only bundled dictionaries; per-note `spellcheck` frontmatter can override the fallback or disable that note, and right-clicking an unknown prose word offers conservative, dictionary-verified local replacements only when the correction is high confidence.
 - **Move by visual rows**: Vim-only persistent toggle. It remains disabled until Vim mode is enabled; when active, `j`, `k`, and Up/Down traverse wrapped display rows while operator-pending motions stay source-line based.
+- **Enter rendered blocks**: Vim-only persistent toggle. It remains disabled until Vim mode is enabled; when active, Normal/Visual `j` and `k` enter adjacent rendered Markdown blocks or the first/last interactive table cell instead of skipping the widget.
 - **Links style**: themed, keyboard-accessible combobox for Markdown or conventional target-first Wikilinks. A change always requires a rewrite/keep/cancel decision.
 - **Auto-Commit**: themed on/off toggle, persisted as `auto_commit_enabled` and enabled by default. When on, each successful save records only that file; it has no interval or whole-vault commit mode. Legacy `auto_commit_seconds` values migrate once: zero becomes off and every enabled legacy value becomes on.
 - **Vim toggle**: an iOS-style toggle switch with smooth sliding animation and a linked, keyboard-accessible visual-row motion toggle.
@@ -902,6 +918,8 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 | `AutoCommitSave(enabled)` | — | Persist the per-save, single-file history toggle |
 | `VimVisualRowsLoad()` | `{enabled: bool}` | Read the Vim wrapped-display-row motion preference from `settings.json` |
 | `VimVisualRowsSave(enabled)` | — | Persist the Vim wrapped-display-row motion preference |
+| `VimRevealBlocksLoad()` | `{enabled: bool}` | Read the Vim rendered-block entry preference from `settings.json` |
+| `VimRevealBlocksSave(enabled)` | — | Persist the Vim rendered-block entry preference |
 | `FileHasUncommittedChanges(path)` | `bool` | Report the active file's working-tree state without including unrelated paths |
 | `CommitCurrentFile(path)` | — | Commit one file while preserving unrelated staged changes |
 

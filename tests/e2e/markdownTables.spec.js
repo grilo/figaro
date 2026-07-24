@@ -420,6 +420,142 @@ test('uses Vim Normal and Insert modes inside interactive Markdown table cells',
     expect(afterInsert).not.toContain('j');
 });
 
+test('keeps only the nested Vim caret visible while a table cell is editing', async ({ page }) => {
+    await createMarkdownEditor(page, tableSource);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+    });
+
+    const cellView = page.locator('.tbl-table-widget tbody .tbl-cell-view').first();
+    await cellView.click();
+    const cellEditor = page.locator('.tbl-table-widget tbody .tbl-cell-editor .cm-content').first();
+    await expect(cellEditor).toBeFocused();
+    await cellEditor.press('i');
+    await cellEditor.press('x');
+
+    const caretLayers = await page.evaluate(() => {
+        const root = window.__figaroTableTestView.dom;
+        const outerLayers = Array.from(root.querySelectorAll(':scope > .cm-scroller > .cm-cursorLayer'));
+        const nestedLayers = Array.from(document.activeElement.closest('.tbl-cell-editor').querySelectorAll('.cm-cursorLayer'));
+        return {
+            rootHasCellFocus: root.classList.contains('cm-table-cell-focused'),
+            outer: outerLayers.map(layer => getComputedStyle(layer).visibility),
+            nested: nestedLayers.map(layer => getComputedStyle(layer).visibility),
+        };
+    });
+    expect(caretLayers.rootHasCellFocus).toBe(true);
+    expect(caretLayers.outer.length).toBeGreaterThan(0);
+    expect(caretLayers.outer.every(visibility => visibility === 'hidden')).toBe(true);
+    expect(caretLayers.nested.some(visibility => visibility !== 'hidden')).toBe(true);
+});
+
+test('uses Vim h/j/k/l for interactive table-cell movement in Normal and Visual modes', async ({ page }) => {
+    await createMarkdownEditor(page, tableSource);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+    });
+
+    const firstBodyCell = page.locator('.tbl-table-widget tbody .tbl-cell-view').first();
+    await firstBodyCell.click();
+    const cellEditor = page.locator('.tbl-table-widget tbody .tbl-cell-editor .cm-content').first();
+    await expect(cellEditor).toBeFocused();
+    const before = await page.evaluate(() => window.__figaroTableTestView.state.doc.toString());
+
+    await cellEditor.press('l');
+    expect(await activeCell(page)).toEqual({ row: 1, col: 1 });
+    await cellEditor.press('h');
+    expect(await activeCell(page)).toEqual({ row: 1, col: 0 });
+    await cellEditor.press('j');
+    expect(await activeCell(page)).toEqual({ row: 2, col: 0 });
+    await cellEditor.press('k');
+    expect(await activeCell(page)).toEqual({ row: 1, col: 0 });
+
+    // Visual mode keeps the same cell directions instead of falling back to
+    // a one-line text selection inside the current cell.
+    await cellEditor.press('v');
+    await expect(page.locator('.tbl-cell-editor .cm-editor.cm-focused')).toHaveAttribute('data-vim-mode', 'visual');
+    await cellEditor.press('l');
+    expect(await activeCell(page)).toEqual({ row: 1, col: 1 });
+    await cellEditor.press('j');
+    expect(await activeCell(page)).toEqual({ row: 2, col: 1 });
+    await cellEditor.press('h');
+    expect(await activeCell(page)).toEqual({ row: 2, col: 0 });
+    await cellEditor.press('k');
+    expect(await activeCell(page)).toEqual({ row: 1, col: 0 });
+    expect(await page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).toBe(before);
+});
+
+test('uses Vim j at a table bottom edge without appending a row', async ({ page }) => {
+    await createMarkdownEditor(page, tableSource);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+    });
+
+    const lastBodyCell = page.locator('.tbl-table-widget tbody .tbl-cell-view').last();
+    await lastBodyCell.click();
+    const lastCellEditor = page.locator('.tbl-table-widget tbody .tbl-cell-editor .cm-content').last();
+    await expect(lastCellEditor).toBeFocused();
+    const before = await page.evaluate(() => window.__figaroTableTestView.state.doc.toString());
+
+    await lastCellEditor.press('j');
+
+    await expect(page.locator('.tbl-table-widget tbody tr')).toHaveCount(2);
+    expect(await page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).toBe(before);
+});
+
+test('optionally enters rendered blocks with Vim j/k instead of skipping visual widgets', async ({ page }) => {
+    const source = [
+        'Before',
+        '',
+        '```javascript',
+        'const answer = 42;',
+        '```',
+        '',
+        '| Name | Count |',
+        '| --- | --- |',
+        '| Alpha | 1 |',
+        '',
+        'After',
+    ].join('\n');
+    await createMarkdownEditor(page, source);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        editor.setVimVisualRows(true);
+        editor.setVimRevealBlocks(true);
+        const view = window.__figaroTableTestView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(2).from } });
+        view.focus();
+    });
+
+    const content = page.locator('.cm-editor > .cm-scroller > .cm-content');
+    await content.press('j');
+    await expect(page.locator('.cm-codeblock-widget')).toHaveCount(0);
+    expect(await page.evaluate(() => {
+        const view = window.__figaroTableTestView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(3);
+
+    await page.evaluate(() => {
+        const view = window.__figaroTableTestView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(6).from } });
+        view.focus();
+    });
+    await content.press('j');
+    expect(await activeCell(page)).toEqual({ row: 0, col: 0 });
+
+    await page.evaluate(() => {
+        const view = window.__figaroTableTestView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(10).from } });
+        view.focus();
+    });
+    await content.press('k');
+    expect(await activeCell(page)).toEqual({ row: 1, col: 1 });
+});
+
 test('keeps aligned Markdown tables semantic and styled in PDF preview and generated PDF layout', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => typeof window.markdownit === 'function');

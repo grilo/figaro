@@ -7,6 +7,38 @@ async function openWelcomeEditor(page) {
     await expect(page.locator('.cm-editor')).toBeVisible();
 }
 
+test('preserves the active buffer cursor when Settings opens and closes', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const expectedCursor = await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const source = 'Alpha line\nBeta line\nGamma line';
+        editor.setEditorContent(source, 'Welcome.md');
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== source) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        const cursor = view.state.doc.line(2).from + 3;
+        view.dispatch({ selection: { anchor: cursor, head: cursor } });
+        view.focus();
+        return { anchor: cursor, head: cursor };
+    });
+
+    await page.locator('#topbar-settings').click();
+    await expect(page.locator('.settings-panel-tab')).toBeVisible();
+    await page.locator('#topbar-settings').click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    await expect.poll(() => page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const selection = editor.getEditorView().state.selection.main;
+        return { anchor: selection.anchor, head: selection.head };
+    })).toEqual(expectedCursor);
+    await expect.poll(() => page.evaluate(async () => {
+        const state = await import('/js/state.js');
+        return state.getState('openTabs').find(tab => tab.id === 'Welcome.md').cursorState;
+    })).toEqual(expectedCursor);
+});
+
 test('defaults line numbers off and toggles them without disturbing cursor or mouse selection', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.locator('#topbar-settings').click();

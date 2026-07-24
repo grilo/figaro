@@ -6,6 +6,7 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { setState, getState } from './state.js';
+import { scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { mathField } from './mathPlugin.js';
 import { createDiagramField, diagramLanguages } from './liveDiagramPlugin.js';
@@ -85,7 +86,9 @@ let vimActive = false;
 let vimRequested = false;
 let vimVisualRowsRequested = false;
 let vimVisualRowsMapped = false;
+let vimRevealBlocksRequested = false;
 let vimAPI = null;
+let vimGetCM = null;
 let vimTableCellExtension = null;
 let lineNumbersRequested = false;
 let markdownLintRequested = true;
@@ -125,6 +128,178 @@ const vimVisualRowMappings = [
     ['<Down>', 'gj', 'visual'],
     ['<Up>', 'gk', 'visual'],
 ];
+
+const vimTableNavigationKeys = {
+    h: { key: 'Tab', shiftKey: true },
+    // Enter creates a row when it leaves the last body cell. ArrowDown uses
+    // the table widget's non-destructive edge behavior instead.
+    j: { key: 'ArrowDown' },
+    k: { key: 'ArrowUp' },
+    l: { key: 'Tab' },
+};
+
+function vimStateFor(view) {
+    return vimGetCM?.(view)?.state?.vim || null;
+}
+
+function dispatchTableNavigationKey(event, view, key, shiftKey = false) {
+    const KeyboardEventConstructor = view.dom.ownerDocument?.defaultView?.KeyboardEvent
+        || globalThis.KeyboardEvent;
+    if (typeof KeyboardEventConstructor !== 'function') return false;
+
+    const target = event.target?.dispatchEvent ? event.target : view.contentDOM;
+    return target.dispatchEvent(new KeyboardEventConstructor('keydown', {
+        key,
+        code: key === 'Tab' ? 'Tab' : key,
+        shiftKey,
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+    }));
+}
+
+/**
+ * Table cells are nested CodeMirror editors. In Vim Normal and Visual modes,
+ * retain familiar spreadsheet-style cell motion while Insert mode remains
+ * ordinary text input: h/l move left/right, j/k move down/up.
+ */
+function vimTableCellNavigationExtension() {
+    return Prec.highest(EditorView.domEventHandlers({
+        keydown: (event, view) => {
+            if (event.altKey || event.ctrlKey || event.metaKey || event.defaultPrevented) return false;
+            const direction = vimTableNavigationKeys[event.key];
+            const vimState = vimStateFor(view);
+            if (!direction || !vimState || vimState.insertMode) return false;
+
+            // Do not steal an operator-pending motion such as d{motion}; it
+            // must remain a normal Vim edit rather than a table transition.
+            const bufferedKeys = vimState.inputState?.keyBuffer?.join('') || '';
+            if (vimState.inputState?.operatorShortcut || (bufferedKeys && !/^\d+$/.test(bufferedKeys))) return false;
+            if (vimState.inputState?.keyBuffer) vimState.inputState.keyBuffer.length = 0;
+
+            event.preventDefault();
+            event.stopPropagation();
+            dispatchTableNavigationKey(event, view, direction.key, Boolean(direction.shiftKey));
+            return true;
+        },
+    }));
+}
+
+/** Surface an embedded cell's modal state without changing its table selection. */
+function vimTableCellModeExtension() {
+    return ViewPlugin.fromClass(class {
+        constructor(view) {
+            this.view = view;
+            this.cm = vimGetCM?.(view) || null;
+            this.onModeChange = event => {
+                view.dom.dataset.vimMode = event?.mode || 'normal';
+            };
+            const vimState = this.cm?.state?.vim;
+            view.dom.dataset.vimMode = vimState?.insertMode ? 'insert' : vimState?.visualMode ? 'visual' : 'normal';
+            this.cm?.on('vim-mode-change', this.onModeChange);
+        }
+
+        destroy() {
+            this.cm?.off('vim-mode-change', this.onModeChange);
+            delete this.view.dom.dataset.vimMode;
+        }
+    });
+}
+
+function vimFrontmatterRange(doc) {
+    if (doc.lines < 2 || !/^---\s*$/.test(doc.line(1).text)) return null;
+    for (let number = 2; number <= doc.lines; number += 1) {
+        const line = doc.line(number);
+        if (/^(?:---|\.\.\.)\s*$/.test(line.text)) return { from: 0, to: line.to, kind: 'source' };
+    }
+    return null;
+}
+
+function vimTableCells(line) {
+    const text = line.trim();
+    if (!text.startsWith('|') || !text.endsWith('|')) return null;
+    return text.slice(1, -1).split('|').map(cell => cell.trim());
+}
+
+function isVimTableSeparator(line) {
+    const cells = vimTableCells(line);
+    return Boolean(cells?.length) && cells.every(cell => /^:?-{3,}:?$/.test(cell));
+}
+
+/** Return rendered block source ranges that Vim's vertical motions can enter. */
+export function vimRenderedBlockRanges(state) {
+    const ranges = [];
+    const frontmatter = vimFrontmatterRange(state.doc);
+    if (frontmatter) ranges.push(frontmatter);
+
+    syntaxTree(state).iterate({
+        enter: node => {
+            if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
+                ranges.push({ from: node.from, to: node.to, kind: 'source' });
+            }
+        },
+    });
+
+    for (let number = 1; number < state.doc.lines; number += 1) {
+        const header = vimTableCells(state.doc.line(number).text);
+        if (!header?.length || !isVimTableSeparator(state.doc.line(number + 1).text)) continue;
+        let end = number + 1;
+        while (end < state.doc.lines && vimTableCells(state.doc.line(end + 1).text)) end += 1;
+        ranges.push({
+            from: state.doc.line(number).from,
+            to: state.doc.line(end).to,
+            kind: 'table',
+        });
+        number = end;
+    }
+
+    return ranges.sort((left, right) => left.from - right.from || right.to - left.to);
+}
+
+function adjacentVimRenderedBlock(view, forward) {
+    const selection = view.state.selection.main;
+    const currentLine = view.state.doc.lineAt(selection.head).number;
+    return vimRenderedBlockRanges(view.state).find(range => {
+        const fromLine = view.state.doc.lineAt(range.from).number;
+        const toLine = view.state.doc.lineAt(Math.max(range.from, range.to - 1)).number;
+        return forward ? fromLine === currentLine + 1 : toLine === currentLine - 1;
+    }) || null;
+}
+
+/**
+ * Let optional Vim j/k entry reveal a replacement block's portable source.
+ * Tables are deliberately special: their own selection filter turns the
+ * boundary into the first or last interactive cell instead of raw pipes.
+ */
+function enterAdjacentRenderedBlock(view, forward) {
+    const block = adjacentVimRenderedBlock(view, forward);
+    if (!block) return false;
+    const target = block.kind === 'table'
+        ? (forward ? block.from : block.to)
+        : (forward ? Math.min(block.from + 1, block.to) : Math.max(block.from, block.to - 1));
+    view.dispatch({
+        selection: EditorSelection.cursor(target),
+        scrollIntoView: true,
+        userEvent: 'select',
+    });
+    return true;
+}
+
+function vimRenderedBlockNavigationExtension() {
+    return Prec.highest(EditorView.domEventHandlers({
+        keydown: (event, view) => {
+            if (!vimActive || !vimRevealBlocksRequested || event.altKey || event.ctrlKey || event.metaKey
+                || event.defaultPrevented || (event.key !== 'j' && event.key !== 'k')) return false;
+            const vimState = vimStateFor(view);
+            if (!vimState || vimState.insertMode || vimState.inputState?.operatorShortcut
+                || (vimState.inputState?.keyBuffer?.length || 0) > 0) return false;
+            if (!enterAdjacentRenderedBlock(view, event.key === 'j')) return false;
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+        },
+    }));
+}
 
 const isWindowsPlatform = () => typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '');
 const pendingWindowsSpanishDeadKeys = new WeakMap();
@@ -667,6 +842,32 @@ function createEditorView() {
         }
     });
 
+    // A table cell has its own CodeMirror editor, but the outer editor keeps
+    // an equivalent source selection. Only the nested editor may draw a
+    // caret while that cell owns focus, otherwise the outer cursor paints as
+    // a full-cell rectangle at the start of the active cell.
+    const tableCellFocusPlugin = ViewPlugin.fromClass(class {
+        constructor(view) {
+            this.view = view;
+            this.sync = () => {
+                queueMicrotask(() => {
+                    if (view.isDestroyed) return;
+                    const active = view.dom.ownerDocument?.activeElement;
+                    view.dom.classList.toggle('cm-table-cell-focused', Boolean(active?.closest?.('.tbl-cell-editor')));
+                });
+            };
+            view.dom.addEventListener('focusin', this.sync);
+            view.dom.addEventListener('focusout', this.sync);
+            this.sync();
+        }
+
+        destroy() {
+            this.view.dom.removeEventListener('focusin', this.sync);
+            this.view.dom.removeEventListener('focusout', this.sync);
+            this.view.dom.classList.remove('cm-table-cell-focused');
+        }
+    });
+
     const getActiveFilePath = () => {
         const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
         return activeTab?.type === 'file' ? activeTab.path : '';
@@ -1167,6 +1368,8 @@ function createEditorView() {
         collapseOnSelectionFacet.of(true),
         mouseSelectingField,
         webKitShiftTabPlugin,
+        tableCellFocusPlugin,
+        vimRenderedBlockNavigationExtension(),
         EditorView.lineWrapping,
         markdownLintCompartment.of(markdownLintRequested ? [linter(markdownLinter, { delay: 500 })] : []),
         spellcheckCompartment.of(spellcheckRequested ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })] : []),
@@ -1255,8 +1458,15 @@ function createEditorView() {
             history(), bracketMatching(), drawSelection(),
             searchExtension({ top: false }),
             EditorView.updateListener.of(update => {
+                const replacingDocument = update.docChanged && _programmaticChange;
                 if (update.docChanged) handleDocChange(update);
-                if (update.selectionSet) updateCursorPosition(update);
+                if (update.selectionSet) {
+                    updateCursorPosition(update);
+                    // The shared EditorView temporarily owns each file in
+                    // turn. Keep that file's selection current so workspace
+                    // detours and restarts return to the exact cursor range.
+                    if (!replacingDocument) rememberActiveFileCursor(update);
+                }
                 // Lightweight consumers such as the document Outline can
                 // follow editor state without installing decorations or
                 // competing with CodeMirror's cursor/layout machinery.
@@ -1380,11 +1590,12 @@ let editorDocumentTabId = null;
  * active. This prevents a rapid A -> B -> A switch from mounting B's delayed
  * document into A's editor.
  */
-function setEditorContent(content, tabId = undefined) {
+function setEditorContent(content, tabId = undefined, cursorState = null) {
     if (typeof content !== 'string') return;
     const request = {
         content,
         tabId: tabId === undefined ? editorDocumentTabId : tabId,
+        cursorState,
     };
     _pendingContent = request;
     const v = getEditorView();
@@ -1396,6 +1607,7 @@ function setEditorContent(content, tabId = undefined) {
         if (request.tabId != null && getState('activeTabId') !== request.tabId) return;
         if (v.state.doc.toString() === content) {
             editorDocumentTabId = request.tabId;
+            if (request.cursorState) restoreCursorState(request.tabId, request.cursorState);
             return;
         }
         try {
@@ -1406,9 +1618,10 @@ function setEditorContent(content, tabId = undefined) {
             cancelPendingStatsUpdate();
             editorDocumentTabId = request.tabId;
             _programmaticChange = true;
+            const selection = normalizedCursorState(request.cursorState, content.length);
             v.dispatch({
                 changes: { from: 0, to: v.state.doc.length, insert: content },
-                scrollIntoView: false
+                ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
             });
         } catch (e) {
             _programmaticChange = false;
@@ -1647,6 +1860,24 @@ function updateCursorPosition(update) {
     const el = document.getElementById('cursor-position');
     if (el) el.textContent = `Ln ${line}, Col ${col}`;
 }
+
+function normalizedCursorState(cursorState, documentLength) {
+    if (!cursorState || !Number.isInteger(cursorState.anchor) || !Number.isInteger(cursorState.head)) return null;
+    const clamp = position => Math.max(0, Math.min(position, documentLength));
+    return { anchor: clamp(cursorState.anchor), head: clamp(cursorState.head) };
+}
+
+function rememberActiveFileCursor(update) {
+    const tabId = editorDocumentTabId;
+    if (!tabId || getState('activeTabId') !== tabId) return;
+    const tab = getState('openTabs').find(candidate => candidate.id === tabId);
+    if (!tab || tab.type !== 'file') return;
+
+    const selection = update.state.selection.main;
+    tab.cursorState = { anchor: selection.anchor, head: selection.head };
+    scheduleSessionSave();
+}
+
 function updateStats(text) {
     const w = text.trim() ? text.trim().split(/\s+/).length : 0;
     const c = text.length;
@@ -2262,7 +2493,8 @@ function saveCursorState(_tabId) {
 }
 function restoreCursorState(_tabId, cs) {
     const v = getEditorView(); if (!v || !cs) return;
-    v.dispatch({ selection: { anchor: cs.anchor, head: cs.head }, scrollIntoView: true });
+    const selection = normalizedCursorState(cs, v.state.doc.length);
+    if (selection) v.dispatch({ selection, scrollIntoView: true });
 }
 
 function applyVimVisualRowsMapping(enabled) {
@@ -2284,6 +2516,12 @@ function setVimVisualRows(enabled) {
     vimVisualRowsRequested = Boolean(enabled);
     if (!vimActive) return false;
     return applyVimVisualRowsMapping(vimVisualRowsRequested);
+}
+
+/** Configure whether Vim j/k enters a rendered Markdown block before skipping it. */
+function setVimRevealBlocks(enabled) {
+    vimRevealBlocksRequested = Boolean(enabled);
+    return vimRevealBlocksRequested;
 }
 
 /** Rebuild embedded table-cell editors after their Vim extension changes. */
@@ -2359,7 +2597,8 @@ async function toggleVim(enable) {
 
         const view = editorView;
         vimAPI = Vim;
-        vimTableCellExtension = vim();
+        vimGetCM = getCM;
+        vimTableCellExtension = [vim(), vimTableCellNavigationExtension(), vimTableCellModeExtension()];
         view.dispatch({ effects: vimCompartment.reconfigure(vim()) });
         reconfigureMarkdownTableCells();
         vimActive = true;
@@ -2392,6 +2631,7 @@ async function toggleVim(enable) {
         }
         vimModeCM = null;
         vimModeChangeHandler = null;
+        vimGetCM = null;
         vimTableCellExtension = null;
         reconfigureMarkdownTableCells();
         editorView.dispatch({ effects: vimCompartment.reconfigure([]) });
@@ -2426,5 +2666,5 @@ function updateVimStatus(mode) {
 export { initEditor, createEditorView, getEditorView,
     getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
-    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setImageBasePath, setReadOnly, setLineNumbers, setMarkdownLint, setSpellcheck,
+    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setVimRevealBlocks, setImageBasePath, setReadOnly, setLineNumbers, setMarkdownLint, setSpellcheck,
     configureEditorForFile, normalizeWebKitShiftTab };

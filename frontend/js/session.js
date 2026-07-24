@@ -9,6 +9,7 @@ import { state, setState } from './state.js';
 import { restoreSessionTabs, serializeSessionTabs } from './sessionTabs.js';
 
 let sessionSaveQueue = Promise.resolve();
+let scheduledSessionSave = null;
 
 function resetPortableWorkspaceState() {
     // localStorage is only a webview-local recovery cache. The vault session
@@ -113,6 +114,18 @@ export function saveSession() {
             log.warn('Failed to save session:', e);
         });
     return sessionSaveQueue;
+}
+
+/**
+ * Cursor movement is frequent, but its current position must still survive a
+ * restart. Coalesce nearby movements into one portable session write.
+ */
+export function scheduleSessionSave(delay = 350) {
+    if (scheduledSessionSave !== null) clearTimeout(scheduledSessionSave);
+    scheduledSessionSave = setTimeout(() => {
+        scheduledSessionSave = null;
+        saveSession();
+    }, delay);
 }
 
 export default { loadSession, saveSession };

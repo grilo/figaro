@@ -98,7 +98,7 @@ AltGr+4 then `n` makes `ñ`, the diaeresis key then `u` makes `ü`, and acute,
 grave, and circumflex accents combine with their matching letters. Press Space
 for the standalone accent or Backspace to cancel it without changing the note.
 
-Vim Insert mode uses a visible 4 px line caret, and its `:w`, `:q`, `:wq`, and `:x` commands are ready as soon as Vim mode is enabled. Under **Settings → Vim Mode**, enable **Move by visual rows** to make `j`, `k`, and Up/Down follow wrapped display rows; it is disabled while Vim itself is off and retains normal source-line semantics for operators such as `dj`.
+Vim Insert mode uses a visible 4 px line caret, and its `:w`, `:q`, `:wq`, and `:x` commands are ready as soon as Vim mode is enabled. Under **Settings → Vim Mode**, enable **Move by visual rows** to make `j`, `k`, and Up/Down follow wrapped display rows; it is disabled while Vim itself is off and retains normal source-line semantics for operators such as `dj`. **Enter rendered blocks** is a separate, off-by-default Vim preference: `j` and `k` reveal rendered block source, while tables enter their first or last interactive cell instead of being skipped.
 
 Under **Settings → Links style**, choose Markdown links such as `[Welcome](Welcome.md)` (the default) or conventional target-first Wikilinks such as `[[Welcome.md|Welcome]]`. Note autocomplete follows that preference. In Markdown links, typing a fragment such as `[Jump](#point` suggests headings from the current note, including duplicate-heading suffixes; frontmatter and fenced-code examples are ignored. Changing the preference always asks whether to rewrite links, keep existing syntax, or cancel; a rewrite touches only links that resolve to existing Markdown files in the vault, reloads affected open notes, and leaves external URLs, email addresses, images, code, and unresolved links unchanged.
 
@@ -122,7 +122,9 @@ move between cells, Enter moves down a column and adds a row at the bottom, and
 Shift+Enter creates a line break inside a cell. Click or drag the row, column,
 and table-edge handles to sort, align, add, move, duplicate, clear, delete, or
 resize table content. When Vim mode is on, cells use the same Normal and Insert
-mode controls as the surrounding Markdown note.
+mode controls as the surrounding Markdown note; `h`, `j`, `k`, and `l` move
+between cells in Normal and Visual modes, while Insert mode remains text entry.
+At the bottom edge, Vim `j` leaves the table without adding a row.
 
 Files recognised by CodeMirror's language registry open in the same editor as proper code files, with syntax highlighting, folding, completions, Vim support, and indentation guides. Unsupported or binary files stay safely non-editable in the file tree.
 
