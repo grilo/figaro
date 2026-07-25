@@ -206,7 +206,7 @@ An export of the active dirty note uses the current editor content without forci
 ### Prerequisites
 
 - Go 1.25 or newer
-- Node.js 20 or newer for JavaScript tooling and tests
+- Node.js 20.19+ (20.x), 22.13+ (22.x), or 24+ for JavaScript tooling and tests
 - Wails v2 CLI
 - The platform dependencies required by Wails. On Linux, Figaro uses GTK3 with WebKitGTK 4.1 when available (WebKitGTK 4.0 is also supported).
 - A locally installed Chrome, Chromium (including Ungoogled Chromium and Flatpak installs), Brave, or Edge browser for interactive PDF export. macOS can fall back to its built-in Safari/WebKit engine.

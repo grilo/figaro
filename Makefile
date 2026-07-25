@@ -100,9 +100,7 @@ check-node:
 		./scripts/build-prereqs.sh hint-frontend; \
 		exit 1; \
 	fi
-	@node_major="$$(node -p "process.versions.node.split('.')[0]")"; \
-	if [ "$$node_major" -lt 20 ]; then \
-		echo "Figaro requires Node.js 20 or newer; found $$(node --version)."; \
+	@if ! node ./scripts/check-node-version.js; then \
 		./scripts/build-prereqs.sh hint-frontend; \
 		exit 1; \
 	fi

@@ -2,12 +2,22 @@ import fs from 'node:fs';
 
 const readJSON = path => JSON.parse(fs.readFileSync(path, 'utf8'));
 
-test('pins ESLint’s vulnerable legacy brace-expansion without replacing newer branches', () => {
+const isPatchedBraceExpansion = version => {
+    const [major, minor, patch] = version.split('.').map(Number);
+    return major > 5 || (major === 5 && (minor > 0 || (minor === 0 && patch >= 8)));
+};
+
+test('keeps every brace-expansion dependency above the denial-of-service advisory range', () => {
     const pkg = readJSON('package.json');
     const lock = readJSON('package-lock.json');
+    const braceExpansionPackages = Object.entries(lock.packages)
+        .filter(([packagePath]) => packagePath.endsWith('/brace-expansion'));
 
-    expect(pkg.overrides.eslint.minimatch['brace-expansion']).toBe('1.1.16');
-    expect(lock.packages['node_modules/brace-expansion'].version).toBe('1.1.16');
-    expect(lock.packages['node_modules/glob/node_modules/brace-expansion'].version).toBe('5.0.7');
-    expect(lock.packages['node_modules/test-exclude/node_modules/brace-expansion'].version).toBe('5.0.7');
+    expect(pkg.devDependencies.eslint).toMatch(/^\^10\./);
+    expect(pkg.devDependencies['@eslint/js']).toMatch(/^\^10\./);
+    expect(pkg.overrides).not.toHaveProperty('eslint');
+    expect(braceExpansionPackages.length).toBeGreaterThan(0);
+    for (const [, dependency] of braceExpansionPackages) {
+        expect(isPatchedBraceExpansion(dependency.version)).toBe(true);
+    }
 });

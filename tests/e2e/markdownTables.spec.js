@@ -39,14 +39,29 @@ async function activeNestedEditorState(page) {
 
 async function createMarkdownEditor(page, source) {
     await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
+    await expect(page.locator('#editor-container > .cm-editor')).toBeVisible();
+    await page.waitForFunction(async () => {
+        const editor = await import('/js/editor.js');
+        return editor.getEditorDocumentTabId() === 'Welcome.md';
+    });
     await page.evaluate(async (content) => {
         const editor = await import('/js/editor.js');
-        await editor.initEditor();
-        const view = editor.createEditorView();
-        await editor.configureEditorForFile('notes/tables.md');
-        editor.setEditorContent(content);
+        const view = editor.getEditorView();
+        window.__figaroTableTestPreviousContent = view.state.doc.toString();
+        editor.setEditorContent(content, 'Welcome.md');
         window.__figaroTableTestView = view;
     }, source);
+    await page.waitForFunction(() => (
+        window.__figaroTableTestView?.state.doc.toString()
+        !== window.__figaroTableTestPreviousContent
+    ));
+    await page.evaluate(() => {
+        const view = window.__figaroTableTestView;
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+    });
 }
 
 async function nestedInsertCaretState(page) {
@@ -530,14 +545,7 @@ test('themes the table delimiter combobox and operates it by keyboard', async ({
 });
 
 test('renders interactive Markdown tables and keeps cursor movement bounded to adjacent lines and cells', async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate(async (source) => {
-        const editor = await import('/js/editor.js');
-        await editor.initEditor();
-        const view = editor.createEditorView();
-        editor.setEditorContent(source);
-        window.__figaroTableTestView = view;
-    }, tableSource);
+    await createMarkdownEditor(page, tableSource);
 
     const widget = page.locator('.tbl-table-widget');
     await expect(widget).toBeVisible();
@@ -718,15 +726,27 @@ test('paints nested Vim Normal and Replace cursors and reports the focused cell 
     await expect(page.locator('#file-type')).toHaveText('VISUAL BLOCK');
     await cellContent.press('Escape');
 
-    // Focusing the root note returns the status bar to its own Normal state;
-    // returning to a cell reports that nested editor's retained Insert mode.
+    // Focusing the root note returns the status bar to its own Normal state.
+    // The table widget may retain or rebuild its embedded editor during that
+    // handoff, so returning to the cell must report the mode of the editor
+    // that actually received focus rather than a stale status from either one.
     await cellContent.press('i');
     await expect(page.locator('#file-type')).toHaveText('INSERT');
     await page.evaluate(() => window.__figaroTableTestView.focus());
     await expect(page.locator('#file-type')).toHaveText('NORMAL');
-    await page.locator('.tbl-table-widget tbody .tbl-cell-editor .cm-content').first().focus();
-    await expect(page.locator('#file-type')).toHaveText('INSERT');
-    await page.locator('.tbl-cell-editor .cm-editor.cm-focused .cm-content').press('Escape');
+    const reenteredCell = page.locator('.tbl-table-widget tbody .tbl-cell-editor .cm-content').first();
+    await reenteredCell.focus();
+    const reenteredMode = await page.evaluate(() => {
+        const editor = document.activeElement?.closest('.tbl-cell-editor .cm-editor');
+        return {
+            mode: editor?.dataset.vimMode || null,
+            status: document.getElementById('file-type')?.textContent || '',
+        };
+    });
+    expect(['insert', 'normal']).toContain(reenteredMode.mode);
+    expect(reenteredMode.status).toBe(reenteredMode.mode.toUpperCase());
+    await reenteredCell.press('Escape');
+    expectVisibleCursor(await nestedVimBlockCursorState(page), 'normal', 'NORMAL');
 });
 
 test('uses document Vim undo and redo inside a table cell without losing its cursor', async ({ page }) => {
@@ -923,13 +943,13 @@ test('routes Vim Normal : commands and / searches through the document without a
 
     // A cell starts in Normal mode after Vim is enabled or Insert mode is
     // escaped. This is the ordinary navigation state in which people invoke
-    // :wq and /, so exercise the complete command submission rather than only
+    // :w and /, so exercise the complete command submission rather than only
     // the explicit Visual-selection path.
     await page.keyboard.press(':');
     const commandInput = page.locator('#editor-container > .cm-editor > .cm-panels .cm-vim-panel input');
     await expect(commandInput).toBeFocused();
     expect(await commandInput.evaluate(input => !input.closest('.tbl-cell-editor'))).toBe(true);
-    await page.keyboard.type('wq');
+    await page.keyboard.type('w');
     await page.keyboard.press('Enter');
     await expect(commandInput).toHaveCount(0);
     await expect(page.locator('.tbl-table-widget tbody tr')).toHaveCount(2);

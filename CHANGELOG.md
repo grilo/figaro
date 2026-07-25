@@ -6,6 +6,13 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.6.5 - 2026-07-25
+
+### Fixed
+
+- Updated development-only lint and test dependencies to remove the
+  `brace-expansion` denial-of-service advisory from Figaro's install audit.
+
 ## 1.6.4 - 2026-07-25
 
 ### Fixed

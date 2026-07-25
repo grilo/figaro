@@ -1,9 +1,12 @@
 {
   "name": "figaro",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
+  },
   "scripts": {
     "test": "jest",
     "test:unit": "bash tests/release/prepare-release.test.sh && jest --runInBand",
@@ -18,10 +21,10 @@
   "devDependencies": {
     "@babel/core": "^7.23.9",
     "@babel/preset-env": "^7.23.9",
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "esbuild": "0.28.1",
-    "eslint": "^9.39.5",
+    "eslint": "^10.8.0",
     "globals": "^17.7.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1"
@@ -69,11 +72,6 @@
   },
   "overrides": {
     "babel-plugin-istanbul": "8.0.0",
-    "eslint": {
-      "minimatch": {
-        "brace-expansion": "1.1.16"
-      }
-    },
     "test-exclude": "8.0.0",
     "glob": "13.0.6",
     "jsdom": "27.4.0"

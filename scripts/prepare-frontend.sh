@@ -12,9 +12,7 @@ if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
     exit 1
 fi
 
-node_major="$(node -p "process.versions.node.split('.')[0]")"
-if [[ ! "$node_major" =~ ^[0-9]+$ ]] || ((node_major < 20)); then
-    printf '%s\n' "Figaro requires Node.js 20 or newer; found $(node --version)." >&2
+if ! node ./scripts/check-node-version.js; then
     ./scripts/build-prereqs.sh hint-frontend >&2
     exit 1
 fi

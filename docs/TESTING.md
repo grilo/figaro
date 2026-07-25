@@ -25,6 +25,10 @@ helpers without exposing implementation details merely for testing.
 
 ## Commands
 
+The JavaScript toolchain requires Node.js 20.19+ on the 20.x line, 22.13+ on
+the 22.x line, or Node.js 24+. `make bootstrap` checks this exact supported
+range before installing dependencies.
+
 ```bash
 # Prepare dependencies and generate ignored browser modules first.
 make bootstrap
@@ -50,6 +54,11 @@ for both Playwright and the server, for example:
 ```bash
 FIGARO_PLAYWRIGHT_PORT=34116 npm run test:pdf
 ```
+
+Browser tests that configure preference-backed editor behavior must wait for
+`window._appReady === true` before changing that behavior. Otherwise the normal
+startup preference load can overwrite the test's setting partway through a
+slower CI run.
 
 Use the explicit root-plus-`internal/...` package set rather than `go test
 ./...`: one frontend dependency contains an unrelated Go fixture under
@@ -87,8 +96,9 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Release metadata consistency across npm, Wails, the GPL license, changelog,
   documented tag command, and all three binary archive definitions.
 
-The focused release checks are `tests/frontend/unit/releaseMetadata.test.js`
-`, `tests/frontend/unit/dependencySecurity.test.js`, and
+The focused release checks are `tests/frontend/unit/releaseMetadata.test.js`,
+`tests/frontend/unit/dependencySecurity.test.js`,
+`tests/frontend/unit/nodePrerequisite.test.js`, and
 `tests/frontend/unit/releasePreparation.test.js`. They cover the
 release-metadata generator's successful version/changelog cut, non-destructive
 invalid-version rejection, and idempotent retry. The release shell test runs
@@ -98,10 +108,12 @@ commit, each automatic version bump resolves from the latest tag, and an
 interrupted release can resume its matching tag and push. They also prove an
 empty `Unreleased` section leaves the worktree untouched and gives the user the
 next steps instead of only reporting the failure. The dependency-security test
-keeps the audited legacy ESLint dependency on its patched version without
-overriding Jest's newer branch. The release script downloads
-Playwright's pinned browser without using its `--with-deps` system-package
-installer, so it never triggers a password prompt.
+keeps every `brace-expansion` copy above the denial-of-service advisory range
+and guards the ESLint major that provides that patched dependency graph. The
+Node-prerequisite test exercises every accepted and rejected release-line
+boundary and keeps package metadata aligned with the build checks. The release
+script downloads Playwright's pinned browser without using its `--with-deps`
+system-package installer, so it never triggers a password prompt.
 Update them whenever a release version, license, changelog convention,
 packaged documentation file, tag workflow, Make target, or
 release-preparation skill changes; they prevent a tag from publishing binaries

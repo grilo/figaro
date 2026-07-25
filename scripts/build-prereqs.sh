@@ -46,7 +46,7 @@ print_linux_hint() {
 }
 
 print_frontend_hint() {
-    printf '%s\n' "Figaro requires Node.js 20 or newer and npm. Suggested install command:"
+    printf '%s\n' "Figaro requires Node.js 20.19+ (20.x), 22.13+ (22.x), or 24+, and npm. Suggested install command:"
     case "$(package_manager)" in
         dnf) printf '%s\n' "  sudo dnf install nodejs npm" ;;
         apt-get) printf '%s\n' "  sudo apt-get install nodejs npm" ;;
@@ -55,7 +55,7 @@ print_frontend_hint() {
         emerge) printf '%s\n' "  sudo emerge --ask net-libs/nodejs" ;;
         eopkg) printf '%s\n' "  sudo eopkg it nodejs" ;;
         nix-shell) printf '%s\n' "  nix-shell -p nodejs_20" ;;
-        *) printf '%s\n' "  Install Node.js 20+ from https://nodejs.org/ or your distribution's package manager." ;;
+        *) printf '%s\n' "  Install a supported Node.js release from https://nodejs.org/ or your distribution's package manager." ;;
     esac
 }
 
