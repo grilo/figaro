@@ -213,7 +213,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Footnotes**: `[^1]` references render as superscript accent-colored links.
 - **Callouts**: `> [!note]`, `> [!warning]`, `> [!info]`, `> [!tip]`, `> [!danger]`, `> [!example]` blocks render with colored left borders and tinted backgrounds matching the callout type (via `--callout-*-color` variables).
 - **Images**: `![alt](src)` renders inline images via `imageField`. Pasting a raster image from the system clipboard into an open Markdown note writes `image1.<ext>`, `image2.<ext>`, and so on beside that note, inserts note-relative Markdown such as `![Image1](image1.png)`, refreshes the file tree, and displays the new asset immediately. The backend detects the actual PNG, JPEG, GIF, WebP, BMP, or ICO bytes, limits clipboard images to 25 MB, and never overwrites an existing numbered image. A failed write leaves the editor selection and document unchanged.
-- **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its embedded cells receive the active Vim extension, so Vim Normal and Insert modes work there as they do in the root Markdown editor; Normal/Visual `h`, `j`, `k`, and `l` move between cells while Insert mode remains text entry. The synchronized root cursor is hidden while a nested cell owns focus, preventing a second full-height caret. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
+- **Tables**: `codemirror-markdown-tables` renders GFM tables as interactive widgets with auto-formatting, inline cell editors, row/column controls, Arrow-key movement, Tab/Shift+Tab cell navigation, and Enter navigation. Its embedded cells receive the active Vim extension, so Vim's Normal, Insert, Visual, and Replace states work there and drive the shared status bar. Normal and Replace cursors remain visible in the focused nested editor, while Insert mode uses a visible line caret at the nested selection. In Normal mode, `h` and `l` move by one character inside the cell and stop at its first or final character, while `j` and `k` move between table rows; Visual `h`, `j`, `k`, and `l` move between cells. Visual `h`/`l` stop at the current row's outer columns without wrapping or creating rows. A Visual cell transition restores the matching Visual subtype in the destination cell. In both Normal and Visual modes, `:`, `/`, and `?` prompts belong to the root document editor, so commands cannot mutate a table, forward/backward searches cover the entire note, and cancellation returns focus to the originating cell. The bridge recognizes WebKitGTK's `Unidentified` keydown followed by either `beforeinput` or its legacy `textInput` event. Vim `u`/Ctrl+R and conventional undo/redo operate on root document history and return to the originating cell and caret after the widget rebuild. The synchronized root cursor is hidden while a nested cell owns focus, preventing a second full-height caret. Its measured widget root obeys the block geometry contract. The canonical Markdown-It renderer preserves table headings, rows, and alignment in both the live PDF preview and generated PDF.
 - **Math**: `$inline$` and `$$block$$` LaTeX math renders via KaTeX (StateField-based plugin).
 - In-note search with match highlighting and navigation.
 - **Auto-save**: the active dirty file tab is saved on the configured interval (5 seconds, 10 seconds, 30 seconds, 1 minute, 5 minutes, or Off), when switching away, and when choosing **Save & Exit**. Content is always written first; when the Auto-Commit toggle is on, that successful save then commits only the saved file.
@@ -404,8 +404,11 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
   a stale value. A persistence failure restores the last confirmed setting in
   both the switch and editor.
 - Vim Insert mode uses a 4 px accent-colour line caret so the character at the
-  insertion point remains visible. Normal mode retains the contrasting block
-  cursor.
+  insertion point remains visible. Normal mode uses the active theme's
+  `--cursor-bg` and `--cursor-text` values for its contrasting block cursor
+  rather than the Vim adapter's fixed fallback red. Returning from a nested
+  table cell reapplies the root editor's actual Vim mode before that cursor is
+  painted.
 - The custom `:w`, `:q`, `:wq`, and `:x` commands are registered before the
   newly enabled Vim editor can receive input.
 
@@ -421,13 +424,35 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 8.3 Interactive table cells
 - Markdown-table cell editors receive the same dynamically loaded Vim extension
   as the root editor. Enabling or disabling Vim rebuilds existing table cells
-  so their Normal and Insert key handling cannot remain stale.
-- In Normal and Visual modes, `h`, `j`, `k`, and `l` move to the adjacent table
-  cell. Insert mode keeps those characters as ordinary cell text. At the bottom
-  table edge, `j` leaves the widget without creating a row.
+  so their modal key handling and reported Vim state cannot remain stale.
+- In Normal mode, `h` and `l` move by one character within the active cell and
+  stop at its first or final character, while `j` and `k` move to the adjacent
+  table row. Visual `h`, `j`, `k`, and `l` move to the adjacent table cell.
+  Insert mode keeps those characters as ordinary cell text. Visual horizontal
+  `h`/`l` stop at the current row's outer columns instead of wrapping, and use
+  non-row-creating navigation at every table edge. At the bottom table edge,
+  `j` leaves the widget without creating a row. Leaving the top or bottom edge
+  restores the root editor's Normal-mode styling as focus returns, so its block
+  cursor retains the active theme instead of falling back to red. A destination
+  cell restores the current Visual subtype. Normal and Visual `:`, `/`, and `?` open the root
+  editor's bottom command/search prompt, rather than a cell-local prompt, so
+  forward and backward search span the full note and cancellation restores the
+  original cell without changing table structure or text. This works with
+  WebKitGTK's `Unidentified` keydown plus either `beforeinput` or legacy
+  `textInput`. Vim `u`/Ctrl+R and the conventional undo/redo shortcuts use the
+  root document history; after a reactive table rebuild they restore the
+  originating cell and its saved cursor instead of focusing another cell.
 - The root editor retains the selected-cell source range for synchronization,
   but hides its cursor layer while the nested cell editor has focus so only one
-  Vim caret is visible.
+  Vim caret is visible. Each nested editor reports its own Vim state to the
+  shared status bar; focus changes restore the root mode there. Normal and
+  Replace cursors override the root editor's unfocused styling so they remain
+  visible, while Insert mode restores CodeMirror's standard cursor layer and
+  paints the 4 px line caret at that cell's actual insertion point, both before
+  and after text changes. If WebKitGTK leaves that custom layer empty, Figaro
+  displays the native accent caret at the same DOM insertion point instead; the
+  fallback is inactive whenever a custom cursor exists, preventing a doubled
+  caret.
 
 ### 8.4 Rendered-block motions
 - **Enter rendered blocks** is a portable `settings.json` preference

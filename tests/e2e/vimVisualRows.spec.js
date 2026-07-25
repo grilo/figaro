@@ -47,6 +47,74 @@ test('uses a 4px line caret while Vim is inserting text', async ({ page }) => {
     expect(insertCursor.borderColor).not.toBe('rgba(0, 0, 0, 0)');
 });
 
+test('themes the root Vim Normal block cursor instead of using the adapter fallback red', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await setEditorSource(page, 'alpha');
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+    });
+
+    const themes = ['/themes/default.css', '/themes/figaro-light.css'];
+    const results = [];
+    for (const path of themes) {
+        const state = await page.evaluate(async (themePath) => {
+            const response = await fetch(themePath);
+            if (!response.ok) throw new Error(`Could not load ${themePath}`);
+            let style = document.getElementById('theme-style');
+            if (!style) {
+                style = document.createElement('style');
+                style.id = 'theme-style';
+                document.head.appendChild(style);
+            }
+            style.textContent = await response.text();
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+            const editor = document.querySelector('#editor-container > .cm-editor.vim-normal.cm-focused');
+            const cursor = editor?.querySelector(
+                ':scope > .cm-scroller > .cm-vimCursorLayer .cm-fat-cursor',
+            );
+            const cursorStyle = cursor ? getComputedStyle(cursor) : null;
+            const cursorRect = cursor?.getBoundingClientRect();
+            const probe = document.createElement('span');
+            probe.style.backgroundColor = 'var(--cursor-bg)';
+            probe.style.color = 'var(--cursor-text)';
+            document.body.appendChild(probe);
+            const probeStyle = getComputedStyle(probe);
+            const expected = {
+                background: probeStyle.backgroundColor,
+                color: probeStyle.color,
+            };
+            probe.remove();
+            return {
+                status: document.getElementById('file-type')?.textContent || '',
+                expected,
+                cursor: cursorStyle && cursorRect ? {
+                    background: cursorStyle.backgroundColor,
+                    color: cursorStyle.color,
+                    visibility: cursorStyle.visibility,
+                    opacity: cursorStyle.opacity,
+                    width: cursorRect.width,
+                    height: cursorRect.height,
+                } : null,
+            };
+        }, path);
+
+        expect(state.status).toBe('NORMAL');
+        expect(state.cursor).not.toBeNull();
+        expect(state.cursor.background).toBe(state.expected.background);
+        expect(state.cursor.color).toBe(state.expected.color);
+        expect(state.cursor.background).not.toBe('rgb(255, 150, 150)');
+        expect(state.cursor.visibility).toBe('visible');
+        expect(Number.parseFloat(state.cursor.opacity)).toBeGreaterThan(0.9);
+        expect(state.cursor.width).toBeGreaterThan(1);
+        expect(state.cursor.height).toBeGreaterThan(1);
+        results.push(state.cursor.background);
+    }
+
+    expect(new Set(results).size).toBe(themes.length);
+});
+
 test('persists a keyboard-operable visual-row preference that is unavailable without Vim', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.locator('#topbar-settings').click();

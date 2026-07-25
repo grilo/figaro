@@ -6,6 +6,31 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.6.4 - 2026-07-25
+
+### Fixed
+
+- Vim Normal mode in the main editor now uses each theme's block-cursor and
+  cursor-text colors instead of the Vim adapter's fixed red fallback, including
+  after stepping out of an interactive Markdown table.
+- Vim Visual mode now remains active while moving between interactive Markdown
+  table cells. In both Normal and Visual modes, `:` commands and `/` searches
+  open in the document editor, so they cannot add table rows or text; searches
+  cover the whole note and cancellation returns to the originating cell,
+  including on WebKitGTK's legacy text-input event path.
+- In Normal mode, Vim `h` and `l` now move within the active interactive table
+  cell and stop at its first or final character. Visual mode retains cell-to-
+  cell movement without wrapping or creating rows at table edges.
+- Vim Insert mode now keeps its line caret visible at the active editing
+  position inside interactive Markdown table cells.
+- Interactive Markdown table cells now keep Normal and Replace cursors visible
+  and report the focused nested Vim mode in the status bar.
+- Vim `?` now searches backward across the whole note from a table cell, with
+  the same non-mutating prompt and cancellation behavior as `/`.
+- Vim and conventional undo/redo now use the document history inside table
+  cells and return to the originating cell and cursor instead of jumping to
+  another cell.
+
 ## 1.6.3 - 2026-07-24
 
 ### Added

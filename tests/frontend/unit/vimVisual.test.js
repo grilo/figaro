@@ -67,6 +67,7 @@ describe('Vim command and visual theming', () => {
         expect(stylesheet).toMatch(/\.cm-editor \.cm-vim-panel input\s*\{[^}]*color:\s*var\(--text-color\)/s);
         expect(stylesheet).toMatch(/\.cm-editor\.vim-visual \.cm-selectionLayer \.cm-selectionBackground/);
         expect(stylesheet).toMatch(/\.vim-insert \.cm-cursor\s*\{[^}]*border-left:\s*4px solid var\(--accent-color\)/s);
+        expect(stylesheet).toMatch(/\.cm-editor\.vim-normal\.cm-focused[\s\S]*?\.cm-fat-cursor\s*\{[^}]*background:\s*var\(--cursor-bg\)[^}]*color:\s*var\(--cursor-text\)/s);
         expect(editor).not.toContain('applyBlockCursor');
     });
 });

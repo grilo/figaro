@@ -3441,6 +3441,104 @@ html, body {
     animation: none;
 }
 
+/* codemirror-vim paints Normal mode in a separate high-precedence cursor
+   layer with its own fixed fallback color. Theme the root editor's actual
+   block cursor while leaving nested table editors and other Vim modes to
+   their mode-specific rules below. */
+.cm-editor.vim-normal.cm-focused
+    > .cm-scroller
+    > .cm-vimCursorLayer
+    .cm-fat-cursor {
+    background: var(--cursor-bg) !important;
+    color: var(--cursor-text) !important;
+    border: none !important;
+    outline: none !important;
+}
+
+/* Interactive table cells are independent CodeMirror editors. The outer
+   editor remains in Normal mode while a nested cell enters Insert mode, so
+   style the nested caret from its own Vim state and keep its cursor layer
+   painted above the table widget. */
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="insert"].cm-focused
+    > .cm-scroller
+    > .cm-cursorLayer:not(.cm-vimCursorLayer) {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 30;
+}
+
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="insert"]
+    .cm-cursor {
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: transparent !important;
+    border-left: 4px solid var(--accent-color) !important;
+    width: 0 !important;
+    animation: none !important;
+}
+
+/* The root CodeMirror loses .cm-focused while an embedded cell owns focus.
+   codemirror-vim's unfocused rule would otherwise make the nested Normal and
+   Replace cursors transparent, even though their own editor is focused. */
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor:is([data-vim-mode="normal"], [data-vim-mode="replace"]).cm-focused
+    > .cm-scroller
+    > .cm-vimCursorLayer {
+    visibility: visible !important;
+    opacity: 1 !important;
+    animation: none !important;
+    z-index: 30;
+}
+
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="normal"].cm-focused
+    .cm-fat-cursor {
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: var(--cursor-bg) !important;
+    color: var(--cursor-text) !important;
+    border: none !important;
+    outline: none !important;
+}
+
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="replace"].cm-focused
+    .cm-fat-cursor {
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: var(--accent-color) !important;
+    color: transparent !important;
+    border: none !important;
+    outline: none !important;
+}
+
+/* WebKitGTK can leave CodeMirror's standard cursor layer empty in an embedded
+   table editor. In that case, fall back to the native caret at the same DOM
+   selection. Keep it transparent when the custom 4 px cursor is present so
+   Chromium and other engines never paint a doubled caret. */
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="insert"].cm-focused:has(
+        > .cm-scroller > .cm-cursorLayer:not(.cm-vimCursorLayer):empty
+    )
+    .cm-content,
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="insert"].cm-focused:has(
+        > .cm-scroller > .cm-cursorLayer:not(.cm-vimCursorLayer):empty
+    )
+    .cm-line {
+    caret-color: var(--accent-color) !important;
+}
+
 /* Markdown diagnostics stay quiet in the prose flow while their hover card
    gives a clear, theme-aware explanation of the marked source. CodeMirror
    puts the lint list inside a generic .cm-tooltip shell, so theme that shell

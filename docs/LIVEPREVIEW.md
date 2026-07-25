@@ -102,4 +102,14 @@ widget geometry: `j`/`k` place the selection inside an adjacent rendered block
 so its normal source-first replacement logic reveals portable Markdown. Tables
 remain interactive widgets and receive their first or last cell. Their nested
 cell editor is the only cursor surface while it has focus; the synchronized
-outer selection must never paint a second full-cell caret.
+outer selection must never paint a second full-cell caret. In Vim Insert mode,
+the nested editor's line caret must remain visible and aligned with its actual
+text insertion point. If the desktop engine leaves CodeMirror's custom cursor
+layer empty, the nested editor uses its native accent caret instead, never both.
+Normal mode's full block and Replace mode's underline cursor must also remain
+visible inside the focused cell; the unfocused root editor must not make either
+nested cursor transparent. When focus leaves the first or final table cell, the
+root editor must restore its live Vim mode marker before painting its cursor, so
+the document block cursor remains themed instead of reverting to the adapter's
+red fallback. Undo/redo may rebuild the table widget, but must return focus and
+the caret to the originating cell after that rebuild.

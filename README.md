@@ -91,14 +91,14 @@ Under **Settings → Vault care → Review…**, **Vault health** runs a read-on
 
 ### Markdown and code
 
-figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. Large notes remain responsive because normal cursor movement preserves unaffected preview decorations and interactive widgets are limited to the visible editor region; word statistics settle shortly after a rapid typing burst while dirty content remains immediately safe to save. Markdown notes receive local, non-destructive diagnostics for unclosed frontmatter or code fences, skipped heading levels, and accidental trailing whitespace; hover a squiggle for the fix and press F8 to move to the next issue. They are on by default and can be disabled with **Settings → Markdown diagnostics → Show Markdown lint**. Offline spellcheck is also on by default: choose its English (US), English (UK), or Spanish global fallback in **Settings → Spellcheck**; it never sends note text to a service. Correctly spelled hyphenated compounds such as `faster-than-usual` remain unmarked. Right-click an underlined unknown word to choose a local high-confidence replacement; every suggestion is verified against the active dictionary, while ambiguous words deliberately show no replacement. The change is a normal undoable edit. Wrapped bullet and numbered list text uses a hanging indent beneath its item body. The optional editor gutter is controlled by **Settings → Show line numbers** and is off by default. Standalone CSS hex colors display a theme-aware swatch and native picker; valid hex-shaped tokens take precedence over hashtags while the source and PDF text remain unchanged. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, Vim Normal and Insert modes, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
+figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. Large notes remain responsive because normal cursor movement preserves unaffected preview decorations and interactive widgets are limited to the visible editor region; word statistics settle shortly after a rapid typing burst while dirty content remains immediately safe to save. Markdown notes receive local, non-destructive diagnostics for unclosed frontmatter or code fences, skipped heading levels, and accidental trailing whitespace; hover a squiggle for the fix and press F8 to move to the next issue. They are on by default and can be disabled with **Settings → Markdown diagnostics → Show Markdown lint**. Offline spellcheck is also on by default: choose its English (US), English (UK), or Spanish global fallback in **Settings → Spellcheck**; it never sends note text to a service. Correctly spelled hyphenated compounds such as `faster-than-usual` remain unmarked. Right-click an underlined unknown word to choose a local high-confidence replacement; every suggestion is verified against the active dictionary, while ambiguous words deliberately show no replacement. The change is a normal undoable edit. Wrapped bullet and numbered list text uses a hanging indent beneath its item body. The optional editor gutter is controlled by **Settings → Show line numbers** and is off by default. Standalone CSS hex colors display a theme-aware swatch and native picker; valid hex-shaped tokens take precedence over hashtags while the source and PDF text remain unchanged. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, Vim modal editing, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
 
 On Windows Spanish layouts, dead keys keep their normal composition behavior:
 AltGr+4 then `n` makes `ñ`, the diaeresis key then `u` makes `ü`, and acute,
 grave, and circumflex accents combine with their matching letters. Press Space
 for the standalone accent or Backspace to cancel it without changing the note.
 
-Vim Insert mode uses a visible 4 px line caret, and its `:w`, `:q`, `:wq`, and `:x` commands are ready as soon as Vim mode is enabled. Under **Settings → Vim Mode**, enable **Move by visual rows** to make `j`, `k`, and Up/Down follow wrapped display rows; it is disabled while Vim itself is off and retains normal source-line semantics for operators such as `dj`. **Enter rendered blocks** is a separate, off-by-default Vim preference: `j` and `k` reveal rendered block source, while tables enter their first or last interactive cell instead of being skipped.
+Vim Normal mode uses each theme's block-cursor and cursor-text colors instead of the adapter's fixed fallback red, including after returning from an interactive table to the document. Insert mode uses a visible 4 px line caret, and `:w`, `:q`, `:wq`, and `:x` are ready as soon as Vim mode is enabled. Under **Settings → Vim Mode**, enable **Move by visual rows** to make `j`, `k`, and Up/Down follow wrapped display rows; it is disabled while Vim itself is off and retains normal source-line semantics for operators such as `dj`. **Enter rendered blocks** is a separate, off-by-default Vim preference: `j` and `k` reveal rendered block source, while tables enter their first or last interactive cell instead of being skipped.
 
 Under **Settings → Links style**, choose Markdown links such as `[Welcome](Welcome.md)` (the default) or conventional target-first Wikilinks such as `[[Welcome.md|Welcome]]`. Note autocomplete follows that preference. In Markdown links, typing a fragment such as `[Jump](#point` suggests headings from the current note, including duplicate-heading suffixes; frontmatter and fenced-code examples are ignored. Changing the preference always asks whether to rewrite links, keep existing syntax, or cancel; a rewrite touches only links that resolve to existing Markdown files in the vault, reloads affected open notes, and leaves external URLs, email addresses, images, code, and unresolved links unchanged.
 
@@ -121,10 +121,23 @@ Click a cell to edit it. Arrow keys move within the table, Tab and Shift+Tab
 move between cells, Enter moves down a column and adds a row at the bottom, and
 Shift+Enter creates a line break inside a cell. Click or drag the row, column,
 and table-edge handles to sort, align, add, move, duplicate, clear, delete, or
-resize table content. When Vim mode is on, cells use the same Normal and Insert
-mode controls as the surrounding Markdown note; `h`, `j`, `k`, and `l` move
-between cells in Normal and Visual modes, while Insert mode remains text entry.
-At the bottom edge, Vim `j` leaves the table without adding a row.
+resize table content. When Vim mode is on, cells use the same modal controls as
+the surrounding Markdown note. The status bar follows the focused cell's
+Normal, Insert, Visual, or Replace state, and each mode keeps its cursor visible
+at the nested editing position. In Normal mode, `h` and `l`
+move one character within the cell and stop at its first or final character;
+`j` and `k` move between table rows. Visual `h`, `j`, `k`, and `l` move between
+cells, while Insert mode remains text entry. The Insert-mode line caret stays
+visible at the exact editing position inside the active cell.
+Visual `h` and `l` stop at the current row's first and last columns without
+wrapping or creating rows, and `j` leaves the table's bottom edge without
+adding a row. Leaving either table edge restores the document's themed Normal
+block cursor. Visual cell transitions retain Visual mode. In both Normal and
+Visual modes, `:` opens Vim's document command bar, `/` searches the whole note
+forward, and `?` searches it backward without changing the table's rows.
+Cancelling a prompt returns focus to the originating cell. Vim `u`/Ctrl+R and
+the ordinary undo/redo shortcuts operate on the whole Markdown document and
+restore the same cell and cursor instead of jumping to another cell.
 
 Files recognised by CodeMirror's language registry open in the same editor as proper code files, with syntax highlighting, folding, completions, Vim support, and indentation guides. Unsupported or binary files stay safely non-editable in the file tree.
 

@@ -278,9 +278,35 @@ and Arrow Up/Down from source lines immediately above and below the table.
 Confirm that leaving the first/last cell returns to the adjacent document line
 without skipping, and verify mouse placement plus drag selection at every
 table edge. With Vim enabled, also test Normal and Insert mode in a cell,
-Normal/Visual `h`/`j`/`k`/`l` cell transitions, and the transition back to
-root-editor movement; `j` at the final cell must not append a row. While a cell editor has focus, assert that its cursor is
-visible and every direct root-editor cursor layer is hidden. Keep the focused automated checks in
+Normal `h`/`l` character positions at the first and final cell characters,
+Normal `j`/`k` row transitions, Visual `h`/`j`/`k`/`l` cell transitions, and
+the transition back to root-editor movement. After leaving both the first and
+last cell, assert that the focused root remains in Normal mode and its visible
+block cursor still matches `--cursor-bg` and `--cursor-text`, never the Vim
+adapter's red fallback. Visual `h`/`l` must stop at each row's first/last column
+without wrapping or changing the table, and neither the absolute first nor last
+cell may create a row; `j` at the final cell must not append a row. While a cell editor
+has focus, assert that every direct root-editor cursor layer is hidden. Enter
+Vim Insert mode before typing and again after a text change; assert that the
+nested standard cursor layer is displayed, the 4 px line caret has nonzero
+height inside the cell, and its rectangle aligns with the browser's collapsed
+DOM selection. Also empty that layer to exercise WebKitGTK's native-caret
+fallback, confirming its caret color becomes nontransparent only when the
+custom cursor is absent. In Normal and Replace modes, assert that the nested
+modal cursor has nontransparent theme colors, remains inside the active cell,
+and changes the status bar to `NORMAL` or `REPLACE`; Insert and each Visual
+subtype must likewise report the focused nested mode. Assert that each Visual
+`h`/`j`/`k`/`l` transition
+remains Visual, and that Normal and Visual `:` and `/` open the root editor's
+bottom Vim prompt without adding a row or raw punctuation. Submit a
+Normal-mode `:wq`, verify `/` finds text outside the table, and confirm
+cancellation restores the originating cell. Exercise `?` through the same root
+prompt, verify it searches backward outside the cell, and cover ordinary
+punctuation plus WebKit's `Unidentified` keydown followed by both `beforeinput`
+and legacy `textInput`. Finally, edit a cell and verify Vim `u`/Ctrl+R plus
+conventional undo/redo change the root document and return to the same cell and
+exact cursor; redo must not focus the table's last cell. Keep the focused
+automated checks in
 `tests/frontend/unit/markdownTables.test.js` and
 `tests/e2e/markdownTables.spec.js`.
 
@@ -381,11 +407,14 @@ rollback, reopened Settings, and backend persistence across fresh application
 instances. Changes to editor keymaps, save queuing, tab closing, Settings, or
 the Vim dependency must retain this coverage.
 
-The focused browser contract also checks the 4 px Insert caret plus the
-optional **Move by visual rows** mapping: `j`, `k`, and Up/Down move one wrapped
-display row in Vim Normal mode, including inside a long wrapped Markdown-link
-destination, while operator-pending source-line motions such
-as `dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
+The focused browser contract also checks that the root Normal block cursor
+uses `--cursor-bg` and `--cursor-text`, never the Vim adapter's fixed fallback
+red, after switching between contrasting light and dark themes and after focus
+returns from either edge of an interactive table. It checks the 4 px Insert
+caret plus the optional **Move by visual rows** mapping: `j`, `k`,
+and Up/Down move one wrapped display row in Vim Normal mode, including inside a
+long wrapped Markdown-link destination, while operator-pending source-line
+motions such as `dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
 placement, drag selection, themed hover guidance, F8 navigation, and their
 enabled-by-default Settings toggle. Wrapped Markdown bullet and ordered-list
 items must keep continuation rows under their item bodies and retain Arrow

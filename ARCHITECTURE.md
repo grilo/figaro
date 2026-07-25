@@ -196,9 +196,42 @@ syntax walks and string copies on every arrow key or ordinary keystroke.
 When the opt-in Vim rendered-block motion is active, the root editor uses
 those retained source ranges to stop `j`/`k` at the adjacent block. Fenced
 blocks and frontmatter expose their portable source; interactive tables retain
-their widget and focus the first or last cell. A focused table cell still has a
+their widget and focus the first or last cell. The root Vim Normal cursor is
+drawn by the adapter's separate fat-cursor layer, so a root-scoped override
+maps that layer to the active theme's cursor background and text tokens instead
+of inheriting the adapter's fixed red. A focused table cell still has a
 root selection for source synchronization, but its root cursor layer is hidden
-so only the nested editor paints a caret.
+so only the nested editor paints a caret. Each nested editor exposes its own
+Vim mode; in Insert mode Figaro re-enables CodeMirror's standard cursor layer,
+which the Vim extension otherwise hides, and styles the resulting line caret at
+the nested selection. WebKitGTK can leave that custom layer empty, so an
+`:empty`/`:has()` fallback restores the native accent caret only for that case;
+engines with a custom cursor retain a transparent native caret and cannot paint
+two. Normal and Replace mode override Vim's inherited unfocused-cursor rule so
+their block/underline cursors remain themed and visible in the focused nested
+editor. Nested mode-change and focus events drive the shared status bar, which
+returns to the root Vim state when cell focus leaves. Because the table widget
+returns focus without causing the Vim adapter to emit another root mode-change
+event, the same focus handoff also reapplies the root's mode classes from its
+live Vim state. This keeps the themed block-cursor selector active after exiting
+either table edge. A Visual table move starts the same Visual subtype in its
+destination editor. Normal `h`/`l` fall through to Vim's character motions and
+stop at the cell's first or final character.
+Visual horizontal `h`/`l` movement uses the
+table library's non-row-creating Arrow path and is intercepted at the current
+row's outer columns, preventing both row wrapping and table-edge insertion. In
+both Normal and Visual modes,
+the nested editor captures `:`, `/`, and `?`, including WebKit's `Unidentified`
+keydown followed by either a `beforeinput` or legacy `textInput` event, before
+table navigation observes them, then invokes the root Vim instance. Prompts
+render in the root document, forward and backward searches operate on the
+whole note, and
+cancellation restores the originating cell without mutating table rows or
+text. A shared history bridge likewise runs Vim and conventional undo/redo
+against the root document, skips selection-only history entries around a Vim
+edit, and reapplies the originating table/cell selection without creating a new
+history entry. The table's reactive rebuild then receives focus at the saved
+caret offset, including redo after the cell editor has been recreated.
 
 List-marker lines carry an inline hanging-indent decoration that aligns wrapped
 display rows with the visible item body. It is recalculated together with the
