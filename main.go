@@ -213,19 +213,8 @@ func (a *App) domReady(ctx context.Context) {
 			} catch (_) {
 				Object.defineProperty(navigator, 'language', { value: 'en-US', configurable: true });
 			}
-			// Native startup imports the app only after Wails has completed DOM
-			// readiness. Browser development uses bootstrap.js from index.html.
-			function reportStartupError(error) {
-				window._appInitError = String(error && (error.stack || error.message) || error);
-				console.error('Figaro startup failed:', error);
-				var status = document.getElementById('status-text');
-				if (status) status.textContent = 'Startup failed: ' + (error && error.message || error);
-			}
-			import('/js/app.js').then(function(module) {
-				setTimeout(function() {
-					Promise.resolve(module.initApp()).catch(reportStartupError);
-				}, 0);
-			}).catch(reportStartupError);
+			// bootstrap.js is loaded statically by index.html. It waits for the
+			// Wails binding and owns the single application-startup path.
 		})();
 	`)
 

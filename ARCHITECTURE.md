@@ -42,6 +42,120 @@ the native Wails binding at `window.go.main.App` using its generated PascalCase
 method names. Browser debugging installs an explicit same-shaped mock through
 that module, rather than emulating a retired desktop runtime.
 
+## Dependency direction and I/O boundaries
+
+Figaro separates decisions from effects so each can be tested independently.
+New code and staged refactors use four layers:
+
+1. **Pure core** — validation, normalization, planning, transformations, and
+   state reducers. Core code accepts plain values and does not access Wails,
+   the filesystem, Git, browser processes, the DOM, CodeMirror, timers, or
+   mutable application globals.
+2. **Application use cases** — operation sequencing, conflict handling,
+   cancellation, compensation, and notification decisions. Use cases depend on
+   narrow ports declared beside the consumer and receive those dependencies
+   explicitly.
+3. **I/O adapters** — root-scoped vault operations, settings/session JSON,
+   Git history, Wails bindings, browser processes, DOM views, CodeMirror views,
+   clocks, and schedulers. Adapters translate external representations into the
+   stable values consumed by use cases and the core.
+4. **Composition roots** — Wails `App` and frontend startup construct the
+   adapters and connect them to use cases. No core or application module imports
+   a composition root.
+
+This is a behavioral boundary, not a directory-size target. Dividing a large
+module into smaller services is not sufficient if those services still mix
+domain decisions with I/O. Interfaces remain narrow and are introduced only at
+real effect boundaries; pure functions do not need wrapper interfaces.
+
+### Applying the boundary to future work
+
+The dependency direction applies to new features as well as staged cleanup.
+Before implementing a workflow, identify which parts answer deterministic
+questions and which parts observe or change the outside world. When both are
+present:
+
+1. Represent the decision as a pure plan, transformation, validator, or reducer
+   over plain values.
+2. Put ordering, cancellation, conflicts, compensation, and notifications in
+   an application use case.
+3. Inject only the effect ports that use case actually consumes.
+4. Keep filesystem, Wails, Git, browser-process, DOM, CodeMirror-view, clock,
+   and scheduler access in concrete adapters.
+5. Test the pure decision and use-case sequencing independently, then add a
+   focused adapter contract for the real effect.
+
+Apply the split at the smallest useful seam in the area being changed. A
+trivial pass-through with no policy, branching, sequencing, or reusable
+transformation does not need an artificial core module or interface. Conversely,
+“the code is short” is not a reason to mix a meaningful decision with I/O.
+Future work should leave the touched boundary clearer without requiring an
+unrelated whole-application rewrite.
+
+The safe vault adapter retains `os.Root` containment and atomic-write
+semantics. In-memory stores make use-case failure and rollback tests fast, but
+they cannot prove symlink containment, permissions, atomic replacement, or
+filesystem compensation. Those properties remain adapter contract tests
+against a real temporary root.
+
+The existing link-rewrite split is the model: `internal/links` transforms
+supplied Markdown without I/O, while the vault-facing layer collects and
+applies file changes. Vault indexing follows the same pattern by separating
+the transformation of supplied note content from vault discovery and
+publication.
+
+## Eager application loading
+
+Figaro favors a predictable startup cost and smooth first interaction. All
+bundled first-party feature modules and local feature dependencies must be
+imported and initialized as part of application startup. A user action must not
+trigger its first module download, dynamic `import()`, parser load, renderer
+load, or feature-code initialization. `window._appReady` means the local
+application code needed by normal workflows is ready, not merely that the
+initial shell is visible.
+
+Asynchronous startup is still allowed: independent initialization may run in
+parallel, and background warming may continue while an explicit startup state
+is shown. It must begin during startup and finish before the application
+advertises the affected feature as ready. A source-level architecture test
+rejects dynamic imports in first-party application modules, and the assembled
+startup check verifies the single static bootstrap path.
+
+Demand-driven **work** is distinct from lazy-loaded **application code**.
+Operations that inherently require a user selection or current vault content,
+such as opening a hosted Draw.io document, running Vault health, rendering a
+PDF, or expanding already-loaded tree data, remain request-driven. Their
+application modules, local parsers, renderers, and command handlers are loaded
+and initialized up front, so the request performs only the work itself.
+
+### Implemented refactoring order
+
+The architecture cleanup proceeded in dependency order so tests protected each
+seam before its callers were rewired:
+
+1. Import-direction guardrails and characterization tests established the
+   startup-ready baseline.
+2. Settings normalization and session persistence were split into pure models,
+   injected use cases, and effect adapters.
+3. Workspace search was separated into a pure model, use case, controller, and
+   DOM view.
+4. Shared CodeMirror document/table-cell profiles and the document-session
+   controller centralized editor policy and stale-mount ownership.
+5. Frontend document-save and backend note-save use cases were separated from
+   Wails, dialog, status, history, and filesystem adapters.
+6. Move, copy, merge, descendant, and collision decisions moved into pure
+   mutation plans while real-filesystem execution and rollback coverage stayed
+   at the adapter boundary.
+7. Right-pane geometry, file-tree selection and refresh coordination, and
+   browser state storage moved behind independently tested policies and ports.
+8. All first-party dynamic imports were removed; the static bootstrap now
+   eagerly loads the application graph and warms bundled language and diagram
+   support before readiness.
+
+The public Wails and user-workflow contracts remain unchanged. Further physical
+splitting of `app.go`, `editor.js`, or `tabManager.js` should follow these
+tested ownership seams rather than creating new pass-through modules.
+
 Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. Go records only the explicit launch documents under process-local opaque IDs; the frontend can read or save an ID but cannot turn it into arbitrary filesystem access. An external tab writes atomically to its original document, does not join the vault index, watcher, session, or Git history, and may be explicitly copied into the vault through the existing collision-safe native-drop copy path. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
 
 ## Incremental vault index and native changes
@@ -51,7 +165,7 @@ so they share one Go-owned in-memory index rather than independently walking
 and reopening every note. The index retains a note's source text and derives
 its hashtags/cards, date links, and daily-note state; this makes Kanban and
 calendar lookups direct and keeps search/backlinks disk-free after the initial
-lazy build.
+index build.
 
 Figaro writes known Markdown files atomically and updates that one index entry
 in the same vault lock. The recursive native watcher sends a debounced set of
@@ -75,7 +189,7 @@ depends on indexing every term. Case-sensitive searches intentionally use the
 original text. Search results retain and transfer only the first matching line
 plus an exact total, because that is all the search UI displays. This keeps the
 common save/watcher path proportional to the changed note and its affected
-derived data; a full derived rebuild remains reserved for the first lazy scan
+derived data; a full derived rebuild remains reserved for the first vault scan
 and genuinely broad filesystem changes.
 
 Relationships reuse that same index for both reverse backlinks and unlinked
@@ -557,12 +671,19 @@ launch.
 
 ## Testing layers
 
-Unit tests validate pure parsing, UI contracts, and bridge messages in jsdom.
-jsdom does not enforce real iframe sandbox origins, so it cannot be the only
-test for the PDF preview. Before releasing changes to the preview bridge, run
-the real WebKitGTK/Wails path on Linux as well as the browser/PDF integration
-tests. The regression suite should specifically prove that no user click can
-navigate the preview frame away from Figaro's local bridge.
+The detailed test pyramid and end-to-end exception budget live in
+[`docs/TESTING.md`](docs/TESTING.md). Pure rules are tested with plain values;
+use cases use narrow injected fakes; adapters and components exercise one real
+effect boundary. Playwright is reserved for behavior lower layers cannot
+represent, and packaged-native checks cover differences among WebKitGTK,
+WebView2, and WKWebView.
+
+For example, jsdom does not enforce real iframe sandbox origins, so it cannot
+be the only test for the PDF preview. Before releasing changes to the preview
+bridge, run the focused browser/PDF integration contract and the real
+WebKitGTK/Wails path on Linux. That boundary check proves that no user click can
+navigate the preview frame away from Figaro's local bridge; parsing, bridge
+message validation, and failure matrices remain below the browser layer.
 
 The frontend unit suite also covers the splitter's editor floor, compact
 padding state, synchronization pause, and single post-resize alignment. Go

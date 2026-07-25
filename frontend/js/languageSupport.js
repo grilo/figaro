@@ -2,12 +2,23 @@
  * File-language detection backed by CodeMirror's official language registry.
  *
  * The registry contains both modern CM6 parsers and its maintained legacy
- * modes. Parser modules are loaded lazily, so merely showing the file tree
- * does not load every language grammar.
+ * modes. Figaro warms every parser during application startup so the first
+ * file switch performs no feature-code loading.
  */
 
 import { LanguageDescription } from '@codemirror/language';
 import { languages } from '@codemirror/language-data';
+
+const supportPromises = new Map();
+let preloadPromise = null;
+
+function loadDescription(description) {
+    if (!description) return Promise.resolve(null);
+    if (!supportPromises.has(description)) {
+        supportPromises.set(description, Promise.resolve(description.load()));
+    }
+    return supportPromises.get(description);
+}
 
 function filenameFromPath(path) {
     const normalized = String(path || '').replace(/\\/g, '/');
@@ -45,5 +56,12 @@ export function isEditableCodeMirrorFile(path) {
 export async function loadLanguageSupport(path) {
     const language = getFileLanguage(path);
     if (language.kind !== 'code' || !language.description) return null;
-    return language.description.load();
+    return loadDescription(language.description);
+}
+
+export function preloadLanguageSupport() {
+    if (!preloadPromise) {
+        preloadPromise = Promise.all(languages.map(loadDescription));
+    }
+    return preloadPromise;
 }

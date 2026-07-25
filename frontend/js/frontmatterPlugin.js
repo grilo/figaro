@@ -17,6 +17,9 @@ import {
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { backend } from './backend.js';
+import { openPDFPreview } from './pdfPreview.js';
+import { openMarkdownPreview } from './markdownPreview.js';
+import { startCompletion } from '@codemirror/autocomplete';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'print-stylesheet']);
 const COVER_PROPERTY_KEYS = new Set(['title', 'subtitle', 'description', 'author', 'date', 'created']);
@@ -357,11 +360,9 @@ export function createFrontmatterField(
         },
         onStylesheetReady = async () => {},
         onPreviewPDF = async ({ path, title, content }) => {
-            const { openPDFPreview } = await import('./pdfPreview.js');
             return openPDFPreview({ path, title, content });
         },
         onPreviewMarkdown = async ({ path, title, content }) => {
-            const { openMarkdownPreview } = await import('./markdownPreview.js');
             return openMarkdownPreview({ path, title, content });
         },
         reportStylesheetError = message => errorDialog('Couldn’t create PDF stylesheet', message, 'The PDF stylesheet could not be created.'),
@@ -766,9 +767,7 @@ export function createFrontmatterField(
                         selection: { anchor: position },
                         effects: setMode.of('source'),
                     });
-                    import('@codemirror/autocomplete')
-                        .then(({ startCompletion }) => startCompletion(view))
-                        .catch(() => {});
+                    startCompletion(view);
                 });
             });
             otherSection.append(otherTitle, chips, addProperty);

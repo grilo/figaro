@@ -5,6 +5,9 @@
 
 import { log } from './log.js';
 import { restoreSessionTabs, serializeSessionTabs } from './sessionTabs.js';
+import { createLocalStateStorage } from './adapters/localStateStorage.js';
+
+const stateStorage = createLocalStateStorage();
 export const state = {
     // Editor
     editorView: null,           // CodeMirror EditorView instance
@@ -171,32 +174,20 @@ export function toggleState(key) {
  * Initialize state with persisted values (if any)
  */
 export function initState() {
-    // Check if localStorage is available (some embedded webviews disable it).
-    const hasLocalStorage = (() => {
-        try {
-            const test = '__localStorage_test__';
-            localStorage.setItem(test, test);
-            localStorage.removeItem(test);
-            return true;
-        } catch (e) {
-            return false;
-        }
-    })();
-
-    if (!hasLocalStorage) {
+    if (!stateStorage.available()) {
         log.warn('localStorage not available, skipping state persistence');
         return;
     }
 
     // Restore sidebar widths from localStorage
-    const savedSidebar = localStorage.getItem('sidebarWidth');
+    const savedSidebar = stateStorage.read('sidebarWidth');
     if (savedSidebar) state.sidebarWidth = parseInt(savedSidebar, 10);
     
-    const savedRightSidebar = localStorage.getItem('rightSidebarWidth');
+    const savedRightSidebar = stateStorage.read('rightSidebarWidth');
     if (savedRightSidebar) state.rightSidebarWidth = parseInt(savedRightSidebar, 10);
     
     // Restore expanded directories
-    const savedExpanded = localStorage.getItem('expandedDirs');
+    const savedExpanded = stateStorage.read('expandedDirs');
     if (savedExpanded) {
         try {
             state.expandedDirs = new Set(JSON.parse(savedExpanded));
@@ -206,14 +197,14 @@ export function initState() {
     }
     
     // Restore last selected date
-    const savedDate = localStorage.getItem('selectedCalDate');
+    const savedDate = stateStorage.read('selectedCalDate');
     if (savedDate) {
         state.selectedCalDateStr = savedDate;
     }
 
     // Restore pinned tabs. Stale pins are pruned after the tab snapshot is
     // normalized below.
-    const savedPinned = localStorage.getItem('pinnedTabs');
+    const savedPinned = stateStorage.read('pinnedTabs');
     if (savedPinned) {
         try {
             const pinnedTabs = JSON.parse(savedPinned);
@@ -221,7 +212,7 @@ export function initState() {
         } catch (e) { /* noop */ }
     }
 
-    const savedRecentFiles = localStorage.getItem('recentFiles');
+    const savedRecentFiles = stateStorage.read('recentFiles');
     if (savedRecentFiles) {
         try {
             const recentFiles = JSON.parse(savedRecentFiles);
@@ -229,34 +220,34 @@ export function initState() {
         } catch (e) { /* noop */ }
     }
 
-    const savedSearchFilters = localStorage.getItem('searchFilters');
+    const savedSearchFilters = stateStorage.read('searchFilters');
     if (savedSearchFilters) {
         try {
             state.searchFilters = { ...state.searchFilters, ...JSON.parse(savedSearchFilters) };
         } catch (e) { /* noop */ }
     }
 
-    const savedKanbanDensity = localStorage.getItem('kanbanDensity');
+    const savedKanbanDensity = stateStorage.read('kanbanDensity');
     if (savedKanbanDensity === 'compact' || savedKanbanDensity === 'comfortable') {
         state.kanbanDensity = savedKanbanDensity;
     }
-    const savedKanbanLayout = localStorage.getItem('kanbanLayout');
+    const savedKanbanLayout = stateStorage.read('kanbanLayout');
     if (savedKanbanLayout === 'side-by-side' || savedKanbanLayout === 'stacked') {
         state.kanbanLayout = savedKanbanLayout;
     }
 
     // Restore last selected file
-    const savedSelectedFile = localStorage.getItem('selectedFilePath');
+    const savedSelectedFile = stateStorage.read('selectedFilePath');
     if (savedSelectedFile) {
         state.selectedFilePath = savedSelectedFile;
     }
-    const savedSelectedTreePath = localStorage.getItem('selectedTreePath');
+    const savedSelectedTreePath = stateStorage.read('selectedTreePath');
     if (savedSelectedTreePath) {
         state.selectedTreePath = savedSelectedTreePath;
     }
 
     // Store open tabs for later restoration (after file tree is loaded)
-    const savedOpenTabs = localStorage.getItem('openTabs');
+    const savedOpenTabs = stateStorage.read('openTabs');
     if (savedOpenTabs) {
         try { state._restoredTabs = restoreSessionTabs(JSON.parse(savedOpenTabs), state.pinnedTabs); } catch (e) { /* noop */ }
     } else {
@@ -265,7 +256,7 @@ export function initState() {
     }
     const restoredTabIds = new Set((state._restoredTabs || []).map(tab => tab.id));
     state.pinnedTabs = state.pinnedTabs.filter(tabId => restoredTabIds.has(tabId));
-    const savedActiveTabId = localStorage.getItem('activeTabId');
+    const savedActiveTabId = stateStorage.read('activeTabId');
     if (savedActiveTabId && restoredTabIds.has(savedActiveTabId)) {
         state._restoredActiveTabId = savedActiveTabId;
     }
@@ -275,38 +266,33 @@ export function initState() {
  * Persist state to localStorage
  */
 export function persistState() {
-    // Check if localStorage is available
-    try {
-        const test = '__localStorage_test__';
-        localStorage.setItem(test, test);
-        localStorage.removeItem(test);
-    } catch (e) {
+    if (!stateStorage.available()) {
         log.warn('localStorage not available, skipping persist');
         return;
     }
     
-    localStorage.setItem('sidebarWidth', state.sidebarWidth.toString());
-    localStorage.setItem('rightSidebarWidth', state.rightSidebarWidth.toString());
-    localStorage.setItem('expandedDirs', JSON.stringify([...state.expandedDirs]));
+    stateStorage.write('sidebarWidth', state.sidebarWidth.toString());
+    stateStorage.write('rightSidebarWidth', state.rightSidebarWidth.toString());
+    stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs]));
     const serializable = serializeSessionTabs(state.openTabs);
-    localStorage.setItem('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
-    localStorage.setItem('recentFiles', JSON.stringify(state.recentFiles));
-    localStorage.setItem('searchFilters', JSON.stringify(state.searchFilters));
-    localStorage.setItem('kanbanDensity', state.kanbanDensity);
-    localStorage.setItem('kanbanLayout', state.kanbanLayout);
-    localStorage.setItem('openTabs', JSON.stringify(serializable));
+    stateStorage.write('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
+    stateStorage.write('recentFiles', JSON.stringify(state.recentFiles));
+    stateStorage.write('searchFilters', JSON.stringify(state.searchFilters));
+    stateStorage.write('kanbanDensity', state.kanbanDensity);
+    stateStorage.write('kanbanLayout', state.kanbanLayout);
+    stateStorage.write('openTabs', JSON.stringify(serializable));
     if (state.activeTabId && serializable.some(tab => tab.id === state.activeTabId)) {
-        localStorage.setItem('activeTabId', state.activeTabId);
+        stateStorage.write('activeTabId', state.activeTabId);
     } else {
-        localStorage.removeItem('activeTabId');
+        stateStorage.remove('activeTabId');
     }
     if (state.selectedCalDateStr) {
-        localStorage.setItem('selectedCalDate', state.selectedCalDateStr);
+        stateStorage.write('selectedCalDate', state.selectedCalDateStr);
     }
     if (state.selectedTreePath) {
-        localStorage.setItem('selectedTreePath', state.selectedTreePath);
+        stateStorage.write('selectedTreePath', state.selectedTreePath);
     } else {
-        localStorage.removeItem('selectedTreePath');
+        stateStorage.remove('selectedTreePath');
     }
 }
 
@@ -314,68 +300,68 @@ export function persistState() {
 subscribe('sidebarWidth', persistState);
 subscribe('rightSidebarWidth', persistState);
 subscribe('expandedDirs', () => {
-    try { localStorage.setItem('expandedDirs', JSON.stringify([...state.expandedDirs])); } catch (e) { /* noop */ }
+    try { stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs])); } catch (e) { /* noop */ }
 });
 subscribe('selectedCalDateStr', () => {
     try {
         if (state.selectedCalDateStr) {
-            localStorage.setItem('selectedCalDate', state.selectedCalDateStr);
+            stateStorage.write('selectedCalDate', state.selectedCalDateStr);
         }
     } catch (e) { /* noop */ }
 });
 subscribe('pinnedTabs', () => {
     try {
         const serializable = serializeSessionTabs(state.openTabs);
-        localStorage.setItem('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
+        stateStorage.write('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
     } catch (e) { /* noop */ }
 });
 subscribe('recentFiles', () => {
-    try { localStorage.setItem('recentFiles', JSON.stringify(state.recentFiles)); } catch (e) { /* noop */ }
+    try { stateStorage.write('recentFiles', JSON.stringify(state.recentFiles)); } catch (e) { /* noop */ }
 });
 subscribe('searchFilters', () => {
-    try { localStorage.setItem('searchFilters', JSON.stringify(state.searchFilters)); } catch (e) { /* noop */ }
+    try { stateStorage.write('searchFilters', JSON.stringify(state.searchFilters)); } catch (e) { /* noop */ }
 });
 subscribe('kanbanDensity', () => {
-    try { localStorage.setItem('kanbanDensity', state.kanbanDensity); } catch (e) { /* noop */ }
+    try { stateStorage.write('kanbanDensity', state.kanbanDensity); } catch (e) { /* noop */ }
 });
 subscribe('kanbanLayout', () => {
-    try { localStorage.setItem('kanbanLayout', state.kanbanLayout); } catch (e) { /* noop */ }
+    try { stateStorage.write('kanbanLayout', state.kanbanLayout); } catch (e) { /* noop */ }
 });
 subscribe('selectedFilePath', () => {
     try {
         if (state.selectedFilePath) {
-            localStorage.setItem('selectedFilePath', state.selectedFilePath);
+            stateStorage.write('selectedFilePath', state.selectedFilePath);
         } else {
-            localStorage.removeItem('selectedFilePath');
+            stateStorage.remove('selectedFilePath');
         }
     } catch (e) { /* noop */ }
 });
 subscribe('selectedTreePath', () => {
     try {
         if (state.selectedTreePath) {
-            localStorage.setItem('selectedTreePath', state.selectedTreePath);
+            stateStorage.write('selectedTreePath', state.selectedTreePath);
         } else {
-            localStorage.removeItem('selectedTreePath');
+            stateStorage.remove('selectedTreePath');
         }
     } catch (e) { /* noop */ }
 });
 subscribe('openTabs', () => {
     try {
         const serializable = serializeSessionTabs(state.openTabs);
-        localStorage.setItem('openTabs', JSON.stringify(serializable));
+        stateStorage.write('openTabs', JSON.stringify(serializable));
         if (state.activeTabId) {
-            localStorage.setItem('activeTabId', state.activeTabId);
+            stateStorage.write('activeTabId', state.activeTabId);
         } else {
-            localStorage.removeItem('activeTabId');
+            stateStorage.remove('activeTabId');
         }
     } catch (e) { /* noop */ }
 });
 subscribe('activeTabId', () => {
     try {
         if (state.activeTabId) {
-            localStorage.setItem('activeTabId', state.activeTabId);
+            stateStorage.write('activeTabId', state.activeTabId);
         } else {
-            localStorage.removeItem('activeTabId');
+            stateStorage.remove('activeTabId');
         }
     } catch (e) { /* noop */ }
 });

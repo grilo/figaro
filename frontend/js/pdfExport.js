@@ -9,6 +9,7 @@ import { getFrontmatterValue, getPrintStylesheet, stripLeadingFrontmatter } from
 import { isDiagramLanguage, renderDiagramSVG } from './diagramRenderer.js';
 import { pdfExportErrorDialog } from './dialogs.js';
 import { createPrintMarkdownRenderer } from '../vendored/markdown-it-plugins/index.js';
+import { getEditorContent } from './editor.js';
 
 const defaultPrintCSS = `
   @page { margin: 18mm; }
@@ -293,7 +294,6 @@ export async function exportMarkdownToPDF({ path, title, content }) {
 export async function exportFileToPDF(path, title) {
     const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
     if (activeTab?.type === 'file' && activeTab.path === path && activeTab.dirty) {
-        const { getEditorContent } = await import('./editor.js');
         return exportMarkdownToPDF({ path, title: title || activeTab.title, content: getEditorContent() });
     }
 
@@ -309,7 +309,6 @@ export async function exportActiveMarkdownToPDF() {
     if (!activeTab || activeTab.type !== 'file' || !activeTab.path) {
         throw new Error('Open a Markdown document before exporting it');
     }
-    const { getEditorContent } = await import('./editor.js');
     return exportMarkdownToPDF({ path: activeTab.path, title: activeTab.title, content: getEditorContent() });
 }
 

@@ -40,6 +40,36 @@ For a focused Draw.io protocol trace, run
 It logs only protocol metadata and byte counts, never diagram contents; inspect
 `window.__figaroDrawioProtocolTrace` to copy the last 100 entries.
 
+## Architecture principles
+
+Separate behavior from effects before splitting files:
+
+- Pure core modules own validation, normalization, planning, transformations,
+  and reducers. They do not access files, Wails, Git, browser processes, the
+  DOM, CodeMirror views, timers, or mutable application globals.
+- Application use cases coordinate effects through narrow injected ports and
+  own sequencing, conflicts, cancellation, and rollback.
+- Adapters own `os.Root`, JSON persistence, Git, Wails translation, DOM,
+  CodeMirror, clocks, and schedulers. Composition roots connect the layers.
+- Keep root-scoped filesystem integration coverage even when a use case also
+  has an in-memory fake; only the real adapter can prove containment,
+  permissions, atomic writes, and compensation.
+
+Use this structure for future features whenever a workflow combines
+deterministic decisions with I/O. Extract the smallest useful pure seam and
+leave unrelated code alone. A trivial pass-through with no policy, branching,
+sequencing, or reusable transformation does not need an interface or extra
+layer; effectful workflows with real decisions do.
+
+Bundled application code and local feature dependencies are eagerly loaded and
+initialized during startup. Do not introduce interaction-triggered dynamic
+imports or first-use parser/renderer initialization. User-selected work such as
+opening a hosted Draw.io document, scanning Vault health, or generating a PDF
+remains demand-driven, but its application code must already be ready.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete dependency and startup
+decisions.
+
 ## Build a release binary
 
 The Makefile contains the supported targets:
@@ -93,8 +123,10 @@ asked to publish; pushing the tag starts the GitHub release workflow.
 
 ## Verify a change
 
-Run the checks relevant to the files you touched before opening a pull
-request. Run the complete set for changes that cross the Go/frontend boundary:
+Run the checks relevant to the files and boundaries you touched before opening
+a pull request. Most behavior belongs in pure, use-case, adapter, or focused
+component tests; crossing the Go/frontend boundary does not by itself require
+Playwright.
 
 ```bash
 # Prepare a fresh checkout (or regenerate ignored browser assets).
@@ -109,13 +141,21 @@ go test -race . ./internal/... ./cmd/...
 npm run lint
 npm run test:unit
 
-# Browser-level PDF and diagram regression test
+# Only when the change affects a real browser boundary such as geometry,
+# selection/focus, clipboard/composition, frames, or printed output
 npx playwright install chromium # first time only
 npm run test:pdf
 ```
 
+Assign every acceptance case to the lowest capable test layer. Add Playwright
+coverage only for a browser-only property, prefer extending an existing focused
+spec, and use one representative browser workflow rather than duplicating
+success and failure matrices end to end. The release target still runs the
+complete verification suite.
+
 For changes to Markdown Preview, current-note heading completion, Vim table
-cells/rendered-block navigation, or per-tab cursor persistence, also run their focused unit and browser regressions listed in
+cells/rendered-block navigation, or per-tab cursor persistence, follow the
+focused layer and browser-boundary guidance in
 [`docs/TESTING.md`](docs/TESTING.md).
 
 Run these locally before opening a pull request. Keep generated vaults, build
@@ -151,8 +191,8 @@ internal/vault/              Root-scoped filesystem primitives
 internal/links/              Pure Markdown link rewriting
 internal/history/            Local Git history and auto-commit service
 frontend/                    Webview, CodeMirror, themes, fonts, and assets
-tests/frontend/              Jest unit and UI-integration tests
-tests/e2e/                   Playwright browser tests
+tests/frontend/              Pure, use-case, adapter, and component tests
+tests/e2e/                   Small Playwright browser-boundary suite
 ```
 
 Go tests live alongside the package they exercise. Keep package-internal tests
@@ -176,14 +216,18 @@ the assembled webview rather than one JavaScript package in isolation.
   changes.
 - Add a regression test for a bug fix, especially for file moves, sessions,
   rendering, or concurrency.
-- Treat feature-specific tests as part of every feature: directly exercise the
-  new success case and its cancellation/error or collision behavior at each
-  affected backend, frontend, editor, preview, and export boundary. Generic
-  smoke coverage does not replace a named regression test.
+- Test each acceptance case at the lowest capable layer: pure logic first,
+  use-case fakes for sequencing and failure, real adapters/components for their
+  boundary, and a minimal browser scenario only for behavior lower layers
+  cannot represent. Generic smoke coverage does not replace a named regression
+  test, and end-to-end duplication does not replace focused lower-layer tests.
 - Every CodeMirror extension, widget, keymap, or layout change must retain
   focused cursor-movement coverage (including feature keys), the block-widget
   geometry contract when applicable, and the native-webview checks in
   `docs/TESTING.md`.
+- Eagerly load bundled feature code during startup. Do not hide dependency
+  cycles or postpone feature initialization with interaction-triggered dynamic
+  imports.
 - Keep user-facing workflow changes in `README.md` and the detailed behavior
   contract in `docs/PROMPT.md` in the same change.
 

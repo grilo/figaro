@@ -2245,14 +2245,19 @@ func TestWailsJSON_HasCorrectDimensions(t *testing.T) {
 // 15. Native Wails / Window Control Presence in index.html
 // ============================================================================
 
-func TestIndexHTML_UsesNativeWailsBinding(t *testing.T) {
+func TestIndexHTML_EagerBootstrapWaitsForNativeBinding(t *testing.T) {
 	data, err := os.ReadFile("frontend/index.html")
 	if err != nil {
 		t.Fatalf("cannot read index.html: %v", err)
 	}
 	content := string(data)
-	if !strings.Contains(content, "Wails publishes its bound Go App object natively") {
-		t.Error("index.html must document the native Wails binding startup contract")
+	for _, expected := range []string{
+		"Load the complete application graph during startup",
+		`<script type="module" src="/js/bootstrap.js"></script>`,
+	} {
+		if !strings.Contains(content, expected) {
+			t.Errorf("index.html must document and load the eager native bootstrap: missing %q", expected)
+		}
 	}
 }
 

@@ -13,23 +13,48 @@ import { isDrawioDiagramPath } from './drawio.js';
 import { isEditableCodeMirrorFile } from './languageSupport.js';
 import { renderLucideIcon } from './lucideIcons.js';
 import { importDroppedExternalPaths } from './externalFiles.js';
-import { getEditorView, insertTextAtCursor } from './editor.js';
+import { focusEditor, getEditorView, insertTextAtCursor } from './editor.js';
+import { handleFileOpen } from './app.js';
+import { openPDFPreview } from './pdfPreview.js';
+import { openMarkdownPreview } from './markdownPreview.js';
+import {
+    normalizeFileTreeStyles,
+    toggleExpandedDirectory,
+    toggleSelectedPath,
+} from './core/fileTreeModel.js';
+import { createFileTreeRefresh } from './usecases/fileTreeRefresh.js';
 
 
 let dragSourceNode = null;
 let contextMenu = null;
 
-async function handleFileOpen(filePath) {
-    const app = await import('./app.js');
-    return app.handleFileOpen(filePath);
-}
-let fileTreeRequestId = 0;
 let scheduledTreeRefresh = null;
 let nativeFileDropInitialized = false;
 let externalCopyInProgress = false;
 let internalClipboard = null;
 let internalCopyInProgress = false;
 let fileTreeStyles = { version: 1, entries: {}, recent_icons: [] };
+
+const fileTreeRefresh = createFileTreeRefresh({
+    readTree: () => backend().GetFileTree(),
+    readStyles: () => backend().GetFileTreeStyles(),
+    fallbackStyles: () => fileTreeStyles,
+    publish: ({ tree, styles }) => {
+        fileTreeStyles = normalizeFileTreeStyles(styles);
+        setState('fileTreeData', tree);
+        renderFileTree();
+        document.dispatchEvent(new CustomEvent('vault-file-tree-refreshed', {
+            detail: { tree },
+        }));
+    },
+    onLoading: () => statusBar.set('Loading file tree...'),
+    onReady: () => statusBar.set('Ready'),
+    onStylesFailed: error => log.warn('Could not refresh file-tree appearance:', error),
+    onFailed: error => {
+        log.error('Failed to load file tree:', error);
+        statusBar.set('Failed to load file tree');
+    },
+});
 
 const contextMenuViewportMargin = 8;
 
@@ -255,7 +280,6 @@ export async function createInboxNote() {
         }
         await refreshFileTree();
         await handleFileOpen(result.path);
-        const { focusEditor } = await import('./editor.js');
         focusEditor();
         statusBar.set('Created note in Inbox');
         return result;
@@ -276,35 +300,7 @@ export async function createInboxNote() {
  * Refresh file tree from backend
  */
 export async function refreshFileTree() {
-    const requestId = ++fileTreeRequestId;
-    try {
-        statusBar.set('Loading file tree...');
-        const [treeData, styles] = await Promise.all([
-            backend().GetFileTree(),
-            backend().GetFileTreeStyles().catch(error => {
-                log.warn('Could not refresh file-tree appearance:', error);
-                return fileTreeStyles;
-            }),
-        ]);
-        if (requestId !== fileTreeRequestId) return;
-        fileTreeStyles = normalizeFileTreeStyles(styles);
-        setState('fileTreeData', treeData);
-        renderFileTree();
-        document.dispatchEvent(new CustomEvent('vault-file-tree-refreshed', { detail: { tree: treeData } }));
-        statusBar.set('Ready');
-    } catch (err) {
-        if (requestId !== fileTreeRequestId) return;
-        log.error('Failed to load file tree:', err);
-        statusBar.set('Failed to load file tree');
-    }
-}
-
-function normalizeFileTreeStyles(styles) {
-    return {
-        version: Number(styles?.version) || 1,
-        entries: styles?.entries && typeof styles.entries === 'object' ? styles.entries : {},
-        recent_icons: Array.isArray(styles?.recent_icons) ? styles.recent_icons.slice(0, 10) : [],
-    };
+    return fileTreeRefresh.refresh();
 }
 
 export async function loadFileTreeStyles() {
@@ -472,14 +468,10 @@ function initFileTreeEvents() {
                 // Multi-select toggle (only .md files)
                 if (!isMarkdown) return;
                 e.preventDefault();
-                const paths = [...(getState('selectedFilePaths') || [])];
-                const idx = paths.indexOf(path);
-                if (idx >= 0) {
-                    paths.splice(idx, 1);
-                } else {
-                    paths.push(path);
-                }
-                setState('selectedFilePaths', paths);
+                setState('selectedFilePaths', toggleSelectedPath(
+                    getState('selectedFilePaths'),
+                    path,
+                ));
                 renderFileTree();
             } else {
                 if (!isEditable && !isDiagram) return;
@@ -530,12 +522,7 @@ function initFileTreeEvents() {
  * Toggle directory expansion
  */
 export function toggleDirectory(path) {
-    const expandedDirs = new Set(getState('expandedDirs'));
-    if (expandedDirs.has(path)) {
-        expandedDirs.delete(path);
-    } else {
-        expandedDirs.add(path);
-    }
+    const expandedDirs = toggleExpandedDirectory(getState('expandedDirs'), path);
     setState('expandedDirs', expandedDirs);
     saveSession();
     
@@ -1102,7 +1089,6 @@ function handleContextMenu(e) {
 
         case 'preview-pdf':
             try {
-                const { openPDFPreview } = await import('./pdfPreview.js');
                 const targetPath = getState('contextTargetPath');
                 await openPDFPreview({ path: targetPath, title: targetPath.split('/').pop() });
             } catch (err) {
@@ -1113,7 +1099,6 @@ function handleContextMenu(e) {
 
         case 'preview-markdown':
             try {
-                const { openMarkdownPreview } = await import('./markdownPreview.js');
                 const targetPath = getState('contextTargetPath');
                 await openMarkdownPreview({ path: targetPath, title: targetPath.split('/').pop() });
             } catch (err) {

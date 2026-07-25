@@ -3,6 +3,7 @@ import { errorDialog } from './dialogs.js';
 import { log } from './log.js';
 import { getState } from './state.js';
 import { statusBar } from './statusBar.js';
+import { refreshFileTree } from './fileTree.js';
 
 export const MAX_CLIPBOARD_IMAGE_BYTES = 25 * 1024 * 1024;
 
@@ -86,7 +87,6 @@ function activeFileTab() {
 
 async function refreshPastedImageInTree() {
     try {
-        const { refreshFileTree } = await import('./fileTree.js');
         await refreshFileTree();
     } catch (error) {
         log.warn('Pasted image was saved, but the file tree could not refresh:', error);

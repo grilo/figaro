@@ -7,29 +7,37 @@ async function openWelcomeEditor(page) {
     await expect(page.locator('.cm-editor')).toBeVisible();
 }
 
-test('keeps wrapped bullet and ordered list bodies hanging beneath their markers', async ({ page }) => {
+test('keeps wrapped list and blockquote bodies hanging beneath their markers', async ({ page }) => {
     await openWelcomeEditor(page);
     const words = Array.from({ length: 96 }, (_, index) => `word${index}`).join(' ');
-    const source = `- Bullet ${words}\n1. Ordered ${words}\nAfter the lists`;
+    const source = `- Bullet ${words}\n1. Ordered ${words}\n> Quote ${words}\nAfter the blocks`;
     await page.evaluate(async text => {
         const editor = await import('/js/editor.js');
         editor.setEditorContent(text);
         const view = editor.getEditorView();
         await new Promise(resolve => setTimeout(resolve, 80));
-        view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+        view.dispatch({ selection: { anchor: view.state.doc.line(4).from } });
         view.focus();
         window.__markdownListView = view;
     }, source);
 
     await expect(page.locator('.cm-line.cm-markdown-list-item')).toHaveCount(2);
+    await expect(page.locator('.cm-line.cm-blockquote-line')).toHaveCount(1);
     const geometry = await page.evaluate(() => {
         const view = window.__markdownListView;
-        const checkLine = lineNumber => {
-            const line = view.state.doc.line(lineNumber);
-            const body = lineNumber === 1 ? 'Bullet' : 'Ordered';
-            const element = [...document.querySelectorAll('.cm-line.cm-markdown-list-item')]
-                .find(candidate => candidate.textContent.includes(lineNumber === 1 ? 'Bullet' : 'Ordered'));
-            const firstText = [...element.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.nodeValue.includes(body));
+        const checkLine = ({ lineNumber, selector, body }) => {
+            const element = [...document.querySelectorAll(selector)]
+                .find(candidate => candidate.textContent.includes(body));
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            let firstText = null;
+            let candidate;
+            while ((candidate = walker.nextNode())) {
+                if (candidate.nodeValue.includes(body)) {
+                    firstText = candidate;
+                    break;
+                }
+            }
+            if (!firstText) throw new Error(`Could not find ${body} body text`);
             const rectAt = offset => {
                 const range = document.createRange();
                 range.setStart(firstText, offset);
@@ -54,9 +62,25 @@ test('keeps wrapped bullet and ordered list bodies hanging beneath their markers
                 textIndent: getComputedStyle(element).textIndent,
             };
         };
-        return { bullet: checkLine(1), ordered: checkLine(2) };
+        return {
+            bullet: checkLine({
+                lineNumber: 1,
+                selector: '.cm-line.cm-markdown-list-item',
+                body: 'Bullet',
+            }),
+            ordered: checkLine({
+                lineNumber: 2,
+                selector: '.cm-line.cm-markdown-list-item',
+                body: 'Ordered',
+            }),
+            blockquote: checkLine({
+                lineNumber: 3,
+                selector: '.cm-line.cm-blockquote-line',
+                body: 'Quote',
+            }),
+        };
     });
-    for (const item of [geometry.bullet, geometry.ordered]) {
+    for (const item of [geometry.bullet, geometry.ordered, geometry.blockquote]) {
         expect(item.wrappedTop).toBeGreaterThan(item.firstTop);
         expect(Math.abs(item.wrappedLeft - item.firstLeft)).toBeLessThanOrEqual(1);
         expect(Number.parseFloat(item.paddingLeft)).toBeGreaterThan(0);
@@ -146,6 +170,117 @@ test('keeps wrapped bullet and ordered list bodies hanging beneath their markers
         const selection = window.__markdownListView.state.selection.main;
         return { from: selection.from, to: selection.to };
     })).toEqual(expect.objectContaining({ from: expect.any(Number), to: expect.any(Number) }));
+    expect(await page.evaluate(() => {
+        const selection = window.__markdownListView.state.selection.main;
+        return selection.to - selection.from;
+    })).toBeGreaterThan(20);
+
+    const quoteStart = await page.evaluate(() => {
+        const view = window.__markdownListView;
+        return view.state.doc.line(3).from + 2;
+    });
+    await page.evaluate(position => {
+        const view = window.__markdownListView;
+        view.dispatch({ selection: { anchor: position } });
+        view.focus();
+    }, quoteStart);
+    await expect.poll(() => page.locator(
+        '.cm-line.cm-blockquote-line .cm-formatting-block'
+    ).evaluate(marker => marker.getBoundingClientRect().width)).toBeGreaterThan(9);
+    const activeQuoteGeometry = await page.evaluate(() => {
+        const element = document.querySelector('.cm-line.cm-blockquote-line');
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let textNode = null;
+        let candidate;
+        while ((candidate = walker.nextNode())) {
+            if (candidate.nodeValue.includes('Quote')) {
+                textNode = candidate;
+                break;
+            }
+        }
+        if (!textNode) throw new Error('Could not find the active blockquote body text');
+        const rectAt = offset => {
+            const range = document.createRange();
+            range.setStart(textNode, offset);
+            range.setEnd(textNode, offset + 1);
+            return range.getBoundingClientRect();
+        };
+        const firstOffset = textNode.nodeValue.indexOf('Quote');
+        const firstRect = rectAt(firstOffset);
+        const wrappedRect = Array.from(
+            { length: textNode.nodeValue.length - firstOffset - 1 },
+            (_, offset) => ({
+                character: textNode.nodeValue[firstOffset + offset + 1],
+                rect: rectAt(firstOffset + offset + 1),
+            })
+        ).find(item => /\S/.test(item.character) && item.rect.top > firstRect.top).rect;
+        return {
+            firstLeft: firstRect.left,
+            wrappedLeft: wrappedRect.left,
+            firstTop: firstRect.top,
+            wrappedTop: wrappedRect.top,
+        };
+    });
+    expect(activeQuoteGeometry.wrappedTop).toBeGreaterThan(activeQuoteGeometry.firstTop);
+    expect(Math.abs(activeQuoteGeometry.wrappedLeft - activeQuoteGeometry.firstLeft)).toBeLessThanOrEqual(1);
+
+    const beforeQuoteDown = await page.evaluate(() => {
+        const view = window.__markdownListView;
+        return { head: view.state.selection.main.head };
+    });
+    await content.press('ArrowDown');
+    const afterQuoteDown = await page.evaluate(() => {
+        const view = window.__markdownListView;
+        const head = view.state.selection.main.head;
+        return { head, line: view.state.doc.lineAt(head).number };
+    });
+    expect(afterQuoteDown.head).toBeGreaterThan(beforeQuoteDown.head);
+    expect(afterQuoteDown.line).toBe(3);
+    await content.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__markdownListView.state.selection.main.head))
+        .toBe(quoteStart);
+
+    const afterLineStart = await page.evaluate(() => {
+        const view = window.__markdownListView;
+        const position = view.state.doc.line(4).from;
+        view.dispatch({ selection: { anchor: position } });
+        view.focus();
+        return position;
+    });
+    await content.press('ArrowUp');
+    expect(await page.evaluate(() => {
+        const view = window.__markdownListView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(3);
+    await content.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__markdownListView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(4);
+    expect(await page.evaluate(() => window.__markdownListView.state.selection.main.head))
+        .toBe(afterLineStart);
+
+    const quotePointerTargets = await page.evaluate(() => {
+        const view = window.__markdownListView;
+        const line = view.state.doc.line(3);
+        const click = view.coordsAtPos(line.from + 18);
+        const first = view.coordsAtPos(line.from + 2);
+        const later = view.coordsAtPos(line.from + 220);
+        return {
+            click: { x: click.left + 1, y: (click.top + click.bottom) / 2 },
+            first: { x: first.left + 2, y: (first.top + first.bottom) / 2 },
+            later: { x: later.left + 2, y: (later.top + later.bottom) / 2 },
+        };
+    });
+    await page.mouse.click(quotePointerTargets.click.x, quotePointerTargets.click.y);
+    expect(await page.evaluate(() => {
+        const view = window.__markdownListView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(3);
+    await page.mouse.move(quotePointerTargets.first.x, quotePointerTargets.first.y);
+    await page.mouse.down();
+    await page.mouse.move(quotePointerTargets.later.x, quotePointerTargets.later.y, { steps: 6 });
+    await page.mouse.up();
     expect(await page.evaluate(() => {
         const selection = window.__markdownListView.state.selection.main;
         return selection.to - selection.from;

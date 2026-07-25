@@ -7,6 +7,15 @@ import { log } from './log.js';
 import { initLinkStyleSetting } from './linkStyle.js';
 import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
+import {
+    getEditorView,
+    setLineNumbers,
+    setMarkdownLint,
+    setSpellcheck,
+    setVimRevealBlocks,
+    setVimVisualRows,
+    toggleVim,
+} from './editor.js';
 let currentTheme = 'default';
 let currentFont = 'inter';
 let currentCodeFont = 'theme-mono';
@@ -175,7 +184,6 @@ function syncVimRevealBlocksAvailability() {
 }
 
 async function applyVimPreference(enabled) {
-    const { setVimRevealBlocks, setVimVisualRows, toggleVim } = await import('./editor.js');
     await toggleVim(enabled);
     setVimVisualRows(currentVimVisualRowsEnabled);
     setVimRevealBlocks(currentVimRevealBlocksEnabled);
@@ -184,14 +192,12 @@ async function applyVimPreference(enabled) {
 export function getVimPreference() { return currentVimEnabled; }
 
 async function applyVimVisualRowsPreference(enabled) {
-    const { setVimVisualRows } = await import('./editor.js');
     setVimVisualRows(enabled);
 }
 
 export function getVimVisualRowsPreference() { return currentVimVisualRowsEnabled; }
 
 async function applyVimRevealBlocksPreference(enabled) {
-    const { setVimRevealBlocks } = await import('./editor.js');
     setVimRevealBlocks(enabled);
 }
 
@@ -411,7 +417,6 @@ function syncLineNumbersToggles(enabled) {
 }
 
 async function applyLineNumbersPreference(enabled) {
-    const { setLineNumbers } = await import('./editor.js');
     setLineNumbers(enabled);
 }
 
@@ -468,7 +473,6 @@ function syncMarkdownLintToggles(enabled) {
 }
 
 async function applyMarkdownLintPreference(enabled) {
-    const { setMarkdownLint } = await import('./editor.js');
     setMarkdownLint(enabled);
 }
 
@@ -543,7 +547,6 @@ function syncSpellcheckControls(preference) {
 }
 
 async function applySpellcheckPreference(preference) {
-    const { setSpellcheck } = await import('./editor.js');
     setSpellcheck(preference);
 }
 
@@ -1056,10 +1059,8 @@ function applyFont(fontId, initial, root = document) {
             document.querySelectorAll('.cm-editor:not(.cm-code-file), .cm-editor:not(.cm-code-file) .cm-content, .cm-editor:not(.cm-code-file) .cm-line, .cm-editor:not(.cm-code-file) .cm-scroller').forEach(el => {
                 el.style.fontFamily = family;
             });
-            import('./editor.js').then(({ getEditorView }) => {
-                const view = getEditorView();
-                if (view) view.requestMeasure();
-            });
+            const view = getEditorView();
+            if (view) view.requestMeasure();
         });
 
         if (!initial) {
@@ -1099,10 +1100,8 @@ function applyCodeFont(fontId, initial, root = document) {
             document.querySelectorAll('.cm-editor.cm-code-file, .cm-editor.cm-code-file .cm-content, .cm-editor.cm-code-file .cm-line, .cm-editor.cm-code-file .cm-scroller').forEach(element => {
                 element.style.fontFamily = selected.family;
             });
-            import('./editor.js').then(({ getEditorView }) => {
-                const view = getEditorView();
-                if (view) view.requestMeasure();
-            });
+            const view = getEditorView();
+            if (view) view.requestMeasure();
         });
 
         if (!initial) {
@@ -1144,10 +1143,8 @@ function initFontSize(root) {
         document.documentElement.style.setProperty('--font-size-editor', (16.2 * scale) + 'px');
         document.documentElement.style.setProperty('--line-height-editor', (1.65 * scale).toFixed(2));
 
-        import('./editor.js').then(({ getEditorView }) => {
-            const view = getEditorView();
-            if (view) view.requestMeasure();
-        });
+        const view = getEditorView();
+        if (view) view.requestMeasure();
     }
 }
 
@@ -1179,10 +1176,8 @@ function initTextWidth(root) {
         const width = Math.round(BASE_WIDTH * pct / 100);
         document.documentElement.style.setProperty('--editor-width', width + 'px');
 
-        import('./editor.js').then(({ getEditorView }) => {
-            const view = getEditorView();
-            if (view) view.requestMeasure();
-        });
+        const view = getEditorView();
+        if (view) view.requestMeasure();
     }
 }
 

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	settingsmodel "figaro/internal/settings"
 )
 
 func TestMachineSettingsPathUsesPerUserApplicationDirectory(t *testing.T) {
@@ -93,7 +95,7 @@ func TestLegacyVaultBrowserPreferenceMigratesOnceToMachineSettings(t *testing.T)
 	legacyPath := filepath.Join(vaultPath, "browser", "chrome.exe")
 
 	app.settingsMu.Lock()
-	settings := defaultSettings()
+	settings := settingsmodel.Defaults()
 	settings["pdf_browser_path"] = legacyPath
 	if err := app.writeSettingsFile(settings); err != nil {
 		app.settingsMu.Unlock()
@@ -139,7 +141,7 @@ func TestMigrationKeepsExistingMachineBrowserPreference(t *testing.T) {
 	}
 
 	app.settingsMu.Lock()
-	settings := defaultSettings()
+	settings := settingsmodel.Defaults()
 	settings["pdf_browser_path"] = "/vault/chrome"
 	if err := app.writeSettingsFile(settings); err != nil {
 		app.settingsMu.Unlock()
@@ -159,7 +161,7 @@ func TestMigrationRetainsLegacyPreferenceWhenMachineStorageIsUnavailable(t *test
 	legacyPath := "/vault/chrome"
 
 	app.settingsMu.Lock()
-	settings := defaultSettings()
+	settings := settingsmodel.Defaults()
 	settings["pdf_browser_path"] = legacyPath
 	if err := app.writeSettingsFile(settings); err != nil {
 		app.settingsMu.Unlock()

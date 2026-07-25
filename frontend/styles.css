@@ -3918,7 +3918,8 @@ html, body {
 .cm-quote .cm-formatting-quote { display: none !important; }
 .cm-line.cm-blockquote-line {
     margin-left: 8px;
-    padding-left: 13px !important;
+    padding-left: calc(13px + var(--cm-blockquote-hanging-indent, 0px)) !important;
+    text-indent: var(--cm-blockquote-hanging-outdent, 0px) !important;
     border-left: 3px solid var(--quote-border);
     background: color-mix(in srgb, var(--quote-border) 8%, transparent);
     color: var(--quote-color);
@@ -4174,6 +4175,16 @@ html, body {
 
 .md-cheatsheet-popup .md-cheatsheet-diagram-row td:first-child {
     white-space: normal;
+}
+
+.md-cheatsheet-popup .md-cheatsheet-admonition-row td:first-child {
+    white-space: normal;
+}
+
+.md-cheatsheet-popup .md-cheatsheet-admonition-row code {
+    display: inline-block;
+    margin: 1px 0;
+    white-space: nowrap;
 }
 
 .md-cheatsheet-popup .md-cheatsheet-diagram-row code {

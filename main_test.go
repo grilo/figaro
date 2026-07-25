@@ -9,15 +9,17 @@ import (
 	"testing"
 )
 
-func TestNativeDomReadyStartsAppAndNormalizesWebKitLocale(t *testing.T) {
-	data, err := os.ReadFile("main.go")
+func TestFrontendStartsFromEagerBootstrapAndNormalizesWebKitLocale(t *testing.T) {
+	mainData, err := os.ReadFile("main.go")
 	if err != nil {
 		t.Fatalf("read native entry point: %v", err)
 	}
-	source := string(data)
+	indexData, err := os.ReadFile("frontend/index.html")
+	if err != nil {
+		t.Fatalf("read frontend entry point: %v", err)
+	}
+	source := string(mainData)
 	for _, required := range []string{
-		"import('/js/app.js')",
-		"module.initApp()",
 		"Object.defineProperty(Intl, 'Segmenter'",
 		"new Intl.Collator(navigator.language)",
 		"Object.defineProperty(navigator, 'language'",
@@ -25,6 +27,13 @@ func TestNativeDomReadyStartsAppAndNormalizesWebKitLocale(t *testing.T) {
 		if !strings.Contains(source, required) {
 			t.Errorf("native DOM-ready startup is missing %q", required)
 		}
+	}
+	index := string(indexData)
+	if !strings.Contains(index, `<script type="module" src="/js/bootstrap.js"></script>`) {
+		t.Error("frontend entry point does not eagerly load bootstrap.js")
+	}
+	if strings.Contains(source, "import(") || strings.Contains(index, "import(") {
+		t.Error("startup entry points must not defer application code with dynamic imports")
 	}
 }
 

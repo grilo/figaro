@@ -1,6 +1,10 @@
 import { backend } from './backend.js';
 import { confirmDialog, errorDialog } from './dialogs.js';
 import { log } from './log.js';
+import {
+    prepareTabsForVaultLinkRewrite,
+    refreshTabsForUpdatedLinks,
+} from './tabManager.js';
 
 const validStyles = new Set(['markdown', 'wikilink']);
 const styleLabels = { markdown: 'Markdown', wikilink: 'Wikilinks' };
@@ -75,7 +79,6 @@ export async function requestLinkStyleChange(requestedStyle) {
 
     const rewrite = choice === 'confirm';
     if (rewrite) {
-        const { prepareTabsForVaultLinkRewrite } = await import('./tabManager.js');
         const prepared = await prepareTabsForVaultLinkRewrite();
         if (!prepared?.success) {
             await errorDialog('Links were not changed', prepared?.error, 'Open notes could not be saved safely.');
@@ -93,7 +96,6 @@ export async function requestLinkStyleChange(requestedStyle) {
         syncLinkStyleSelectors();
         window.dispatchEvent(new CustomEvent('figaro:link-style-changed', { detail: { style: currentStyle } }));
         if (rewrite && result.updated_links?.length) {
-            const { refreshTabsForUpdatedLinks } = await import('./tabManager.js');
             await refreshTabsForUpdatedLinks(result.updated_links);
         }
         return result;

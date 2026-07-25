@@ -31,6 +31,13 @@ function initialiseMermaid() {
     return true;
 }
 
+export function initializeDiagramRenderers() {
+    return {
+        mermaid: initialiseMermaid(),
+        vega: typeof window !== 'undefined' && typeof window.vegaEmbed === 'function',
+    };
+}
+
 /**
  * Render a diagram source block to standalone SVG. Unsupported renderers
  * return null; malformed diagram input rejects so callers can keep the

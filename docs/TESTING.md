@@ -1,22 +1,133 @@
 # Testing figaro
 
+## Strategy: prove behavior at the lowest capable layer
+
+Figaro uses a test pyramid that keeps most coverage fast, deterministic, and
+close to the behavior it protects. End-to-end tests are a deliberately small
+boundary suite, not the default test type.
+
+1. **Pure logic tests** receive plain values and assert plain results. They
+   cover validation, normalization, parsing, collision and mutation planning,
+   state reducers, ranking, and transformations without mocks, files, DOM,
+   CodeMirror, timers, or Wails.
+2. **Application use-case tests** inject small fakes for I/O ports. They cover
+   sequencing, stale-request cancellation, conflict choices, rollback,
+   notification decisions, and failure handling without starting the real
+   external system.
+3. **Adapter and component tests** exercise one concrete boundary: root-scoped
+   filesystem operations in a temporary directory, settings/session JSON,
+   Git, Wails response translation, jsdom views, or a real CodeMirror instance.
+   These prove that an adapter honors the contract expected by its use case.
+4. **End-to-end and real-browser tests** are reserved for behavior that the
+   lower layers cannot represent: computed layout and cursor geometry, browser
+   focus or selection handoff, actual clipboard/composition events, sandboxed
+   and cross-origin frames, browser print output, and a small number of
+   assembled startup/workflow contracts.
+5. **Packaged native checks** cover the final WebKitGTK, WebView2, or WKWebView
+   boundary when Chromium cannot establish native cursor, window, drag/drop, or
+   composition behavior.
+
+For every feature or bug fix, list the acceptance cases first, then assign each
+case to the lowest layer that can prove it. Test success, cancellation/error,
+and non-destructive collision behavior where applicable, but do not repeat all
+three through every layer. A browser test that only verifies a backend argument,
+pure transformation, state transition, or error branch is at the wrong layer.
+
+### End-to-end budget
+
+Before adding or expanding a Playwright scenario, record in the test name or
+nearby comment the browser-only property it protects. Prefer extending an
+existing focused boundary spec over creating a new workflow. Use one
+representative input in the browser, while exhaustive inputs and failure cases
+stay in pure, use-case, or adapter tests. Do not add an end-to-end test merely
+because a feature has visible UI.
+
+The focused browser contracts documented below are retained because they
+exercise real geometry, browser events, frames, or print behavior. They are
+exceptions to the default, not a template requiring a new Playwright file for
+every feature.
+
+Existing Playwright assertions that only prove a pure rule, backend argument,
+state transition, or failure matrix are migration debt. When a related area is
+refactored, first move that coverage to the appropriate pure, use-case,
+adapter, or component test, then remove the redundant browser branches.
+Preserve coverage during the move, but do not preserve end-to-end duplication
+solely because it already exists.
+
+### Logic/I/O boundary contract
+
+Tests should reflect the application dependency direction described in
+[`ARCHITECTURE.md`](../ARCHITECTURE.md#dependency-direction-and-io-boundaries):
+
+- Pure frontend modules do not import `backend.js` and do not access
+  `window`, `document`, CodeMirror views, or timers.
+- Pure Go packages do not open files, start processes, invoke Wails, or call
+  Git. Interfaces for effects are declared beside the consuming use case.
+- Use-case tests use purpose-built fakes rather than mocking an entire
+  application module or native API.
+- Adapter tests use the real boundary whenever feasible. In particular,
+  vault security, atomicity, permissions, and rollback require a temporary
+  `os.Root`; an in-memory filesystem is insufficient.
+- A thin integration test confirms each use case is wired to its production
+  adapter. Full end-to-end duplication is unnecessary.
+
+For future features, define the seam while defining the acceptance cases:
+deterministic outcomes belong in pure tests, effect sequencing belongs in
+use-case tests with narrow fakes, and the external mechanism belongs in a
+focused adapter contract. If a code path is a genuine pass-through with no
+decision or sequencing, test the adapter contract directly rather than
+inventing a fake abstraction solely for test structure.
+
+Architecture guardrails should reject imports that point from the pure core
+back to adapters or composition roots. Add a guard when introducing the first
+module in a new layer rather than relying on naming conventions alone.
+
+### Eager-startup contract
+
+Feature code is loaded during startup, never on first interaction. Tests for a
+new module or parser should establish that it is registered by
+`window._appReady` and that the first command does not invoke dynamic
+`import()`, fetch a local module, or perform feature-code initialization.
+Demand-driven operations such as scanning Vault health, opening a hosted
+Draw.io document, or generating a PDF still begin only after the user requests
+the work; their bundled application code and local dependencies are already
+ready.
+
+Eager loading moves latency to a deliberate boundary; it does not make startup
+performance irrelevant. Keep parsing, indexing, and other CPU-heavy algorithms
+under focused benchmarks where they are performance-sensitive. Measure the
+assembled startup path as one representative readiness contract, and verify
+that ordinary post-ready interactions make no local module requests or
+first-use initialization. Do not create a separate end-to-end performance
+scenario for every feature.
+
 ## Layout
 
 ```
 *.go / *_test.go
-    Wails-facing backend facade and integration tests.
+    Wails-facing facade, use-case wiring, and adapter integration tests.
 
 internal/
 ├── history/          Git history service and its tests
 ├── links/            Pure Markdown link rewriting and its tests
+├── mutations/        Pure move/copy/merge and collision plans
+├── notes/            Note-save use case and repository contract
+├── settings/         Pure settings defaults and migrations
 └── vault/            Root-scoped filesystem primitives and their tests
 
 tests/
 ├── frontend/
-│   ├── unit/       Jest unit and UI-integration tests
+│   ├── unit/       Pure, use-case, adapter, and focused component tests
 │   ├── race/       Tests for stale-response and ordering regressions
 │   └── support/    Shared Jest environment and mocks
-└── e2e/            Playwright browser tests
+└── e2e/            Small Playwright browser-boundary suite
+
+frontend/js/
+├── core/           Pure models, transforms, and layout rules
+├── usecases/       Effect sequencing through injected ports
+├── adapters/       Browser/native effect implementations
+├── controllers/    State and use-case wiring
+└── views/          DOM-only rendering
 ```
 
 Go tests intentionally remain next to the Go source. That is the standard Go
@@ -42,7 +153,7 @@ go test -race . ./internal/... ./cmd/...
 npm run lint
 npm run test:unit
 
-# Browser-level printable-document and isolated-preview tests
+# Browser-only geometry, event, frame, and printable-document boundaries
 npx playwright install chromium # first run only
 npm run test:pdf
 ```
@@ -132,19 +243,23 @@ position must win rather than being delayed behind a parent-side timeout.
 Tests ship with the behavior they protect. Every feature and bug fix must add
 or update a focused test whose name describes that exact behavior; relying on
 an unrelated smoke test or only running the existing suite is not enough.
-Cover each boundary the feature crosses:
 
-1. Go tests for filesystem, persistence, link rewriting, or Wails-facing
-   results.
-2. Frontend unit/integration tests for the user action, confirmation/cancel
-   path, state changes, and backend arguments.
-3. CodeMirror DOM and keyboard tests for editor extensions.
-4. Printable-renderer and real-browser tests for Markdown that appears in PDF
-   preview or export.
+Choose coverage by responsibility:
 
-For a Markdown feature, use the same representative source in the editor,
-printable HTML, preview frame, and browser PDF checks. Assert semantic DOM and
-important layout—not merely that the source text occurs somewhere.
+1. Put filesystem-independent rules and transformations in pure Go or
+   JavaScript tests.
+2. Put workflow sequencing, confirmation/cancel paths, stale-response handling,
+   and rollback in use-case tests with narrow fakes.
+3. Put filesystem persistence and Wails translation in adapter tests; put DOM
+   events and CodeMirror transactions in focused component tests.
+4. Add or extend one real-browser case only if actual browser layout, focus,
+   events, sandboxing, or printing is part of the change.
+
+For a Markdown feature, reuse the same representative source in the focused
+editor and printable-renderer tests. Extend the consolidated preview/PDF
+browser contract only when the browser rendering boundary itself changes.
+Assert semantic DOM and important layout—not merely that the source text occurs
+somewhere—and keep exhaustive syntax variants below the browser layer.
 
 ## Frameless window chrome regressions
 
@@ -428,9 +543,10 @@ and Up/Down move one wrapped display row in Vim Normal mode, including inside a
 long wrapped Markdown-link destination, while operator-pending source-line
 motions such as `dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
 placement, drag selection, themed hover guidance, F8 navigation, and their
-enabled-by-default Settings toggle. Wrapped Markdown bullet and ordered-list
-items must keep continuation rows under their item bodies and retain Arrow
-Up/Down plus mouse drag-selection behavior.
+enabled-by-default Settings toggle. Wrapped Markdown bullet, ordered-list, and
+plain blockquote lines must keep continuation rows under their item or quoted
+bodies in both active and passive preview states, while retaining Arrow Up/Down,
+mouse placement, and drag-selection behavior.
 
 The separate, off-by-default **Enter rendered blocks** preference must be
 disabled while Vim is off, persist and roll back through the same Settings

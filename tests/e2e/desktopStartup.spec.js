@@ -65,11 +65,8 @@ test('boots through the native Wails binding with the workspace overview, vault 
     });
 
     await page.goto('/');
-    await page.evaluate(async () => {
-        const app = await import('/js/app.js');
-        await app.initApp();
-    });
     await page.waitForFunction(() => window._appReady === true);
+    await expect.poll(() => page.evaluate(() => window._appBootStarted)).toBe(true);
 
     const nativeState = await page.evaluate(async () => ({
         installed: Boolean(window.go?.main?.App),

@@ -9,6 +9,7 @@ import { openTab } from './tabManager.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
+import { handleFileOpen } from './app.js';
 
 let draggedCard = null;
 let kanbanColumns = [];
@@ -810,9 +811,7 @@ function reloadActiveFileIfNeeded(filePath, tag = null) {
             (tag && activeTab.path && checkFileHasTag(activeTab.path, tag));
         
         if (shouldReload) {
-            import('./app.js').then(({ handleFileOpen }) => {
-                handleFileOpen(activeTab.path);
-            });
+            handleFileOpen(activeTab.path);
         }
     }
 }

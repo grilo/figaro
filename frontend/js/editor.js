@@ -26,8 +26,24 @@ import {
 } from './linkCompletions.js';
 import { getLinkStylePreference } from './linkStyle.js';
 import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
+import { createDocumentKeyBindings, createTableCellProfile } from './codeMirrorProfiles.js';
+import { createEditorDocumentSession } from './usecases/editorDocumentSession.js';
+import { handleFileOpen } from './app.js';
+import { refreshFileTree } from './fileTree.js';
+import {
+    closeTab,
+    getActiveTab,
+    markTabDirty,
+    openTab,
+    replaceActiveFileTab,
+    saveActiveFile as saveActiveTabFile,
+    saveFileSnapshot,
+} from './tabManager.js';
+import { openMarkdownPreview } from './markdownPreview.js';
+import { openPDFPreview } from './pdfPreview.js';
 import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
 import { indentationMarkers as indentationMarkerExtension } from '@replit/codemirror-indentation-markers';
+import { getCM, vim, Vim } from '@replit/codemirror-vim';
 import {
     Decoration, EditorView, ViewPlugin, WidgetType, drawSelection,
     highlightActiveLineGutter, keymap, lineNumbers,
@@ -1082,6 +1098,54 @@ export function markdownListHangingIndentAttributes(lineText, metrics = null) {
     };
 }
 
+/**
+ * Keep wrapped blockquote rows aligned with the first body character. The
+ * source marker is visible only on the active line, while its separator
+ * whitespace remains visible in passive live preview, so each state needs its
+ * own non-destructive hanging indent.
+ */
+export function markdownBlockquoteHangingIndentAttributes(
+    lineText,
+    { view = null, markerVisible = false } = {}
+) {
+    const match = String(lineText ?? '').match(/^([ \t]{0,3})((?:>[ \t]?)+)/);
+    if (!match) return null;
+
+    const visibleMarkerPrefix = markerVisible ? match[2] : match[2].replace(/>/g, '');
+    const visiblePrefix = match[1] + visibleMarkerPrefix;
+    let columns = 0;
+    let expandedPrefix = '';
+    for (const character of visiblePrefix) {
+        if (character === '\t') {
+            const spaces = 4 - (columns % 4);
+            expandedPrefix += ' '.repeat(spaces);
+            columns += spaces;
+        } else {
+            expandedPrefix += character;
+            columns += 1;
+        }
+    }
+
+    let indent = `${columns}ch`;
+    if (view && expandedPrefix) {
+        const computed = getComputedStyle(view.contentDOM);
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext?.('2d');
+        if (context) {
+            const family = computed.fontFamily || 'sans-serif';
+            const size = computed.fontSize || '16px';
+            const style = computed.fontStyle || 'normal';
+            context.font = `${style} ${computed.fontWeight || '400'} ${size} ${family}`;
+            indent = `${context.measureText(expandedPrefix).width}px`;
+        }
+    }
+
+    return {
+        class: 'cm-blockquote-line',
+        style: `--cm-blockquote-hanging-indent: ${indent}; --cm-blockquote-hanging-outdent: -${indent};`,
+    };
+}
+
 const codeHighlighting = syntaxHighlighting(HighlightStyle.define([
     { tag: [tags.keyword, tags.operatorKeyword, tags.controlKeyword, tags.definitionKeyword], color: 'var(--code-keyword-color)' },
     { tag: [tags.string, tags.special(tags.string)], color: 'var(--code-string-color)' },
@@ -1425,9 +1489,7 @@ function createEditorView() {
                     getActiveFilePath,
                     onStylesheetReady: async stylesheetPath => {
                         try {
-                            const { refreshFileTree } = await import('./fileTree.js');
                             await refreshFileTree();
-                            const { handleFileOpen } = await import('./app.js');
                             await handleFileOpen(stylesheetPath);
                         } catch (error) {
                             // The stylesheet was created successfully even if
@@ -1637,7 +1699,11 @@ function createEditorView() {
                     // spans every quoted line (rather than only the `>` mark).
                     // Callouts keep their own stronger visual treatment.
                     if (isBlockquoteLine(line) && !calloutMatch && !continuesCallout) {
-                        builder.add(pos, pos, Decoration.line({ class: 'cm-blockquote-line' }));
+                        const attributes = markdownBlockquoteHangingIndentAttributes(line, {
+                            view,
+                            markerVisible: isActive,
+                        });
+                        builder.add(pos, pos, Decoration.line({ attributes }));
                     }
                     if (calloutMatch) {
                         inCallout = true;
@@ -1853,39 +1919,45 @@ function createEditorView() {
     // Table cells are independent, embedded CodeMirror editors. They do not
     // inherit root-editor extensions, so refresh this compartment when Vim
     // changes and give cells the same modal commands as the surrounding note.
-    createMarkdownTableExtension = () => markdownTables({
-        theme: TableTheme.dark.with({
-            '--tbl-theme-row-background': 'var(--bg-color)',
-            '--tbl-theme-header-row-background': 'var(--hover-bg)',
-            '--tbl-theme-even-row-background': 'var(--bg-color)',
-            '--tbl-theme-odd-row-background': 'var(--panel-bg)',
-            '--tbl-theme-border-color': 'var(--border-color)',
-            '--tbl-theme-border-hover-color': 'var(--border-light)',
-            '--tbl-theme-border-active-color': 'var(--accent-color)',
-            '--tbl-theme-outline-color': 'var(--focus-ring)',
-            '--tbl-theme-text-color': 'var(--text-color)',
-            '--tbl-theme-menu-background': 'var(--panel-bg)',
-            '--tbl-theme-menu-border-color': 'var(--border-color)',
-            '--tbl-theme-menu-text-color': 'var(--text-color)',
-            '--tbl-theme-menu-hover-background': 'var(--active-bg)',
-            '--tbl-theme-menu-hover-text-color': 'var(--text-color)',
-        }),
-        style: TableStyle.default.with({
-            '--tbl-style-font-family': 'var(--font-editor)',
-            '--tbl-style-font-size': 'inherit',
-            '--tbl-style-menu-font-family': 'var(--font-sans)',
-            '--tbl-style-menu-font-size': '12px',
-        }),
-        selectionType: 'codemirror',
-        handlePosition: 'inside',
-        lineWrapping: 'wrap',
-        extensions: [
-            tableCellViewRegistryExtension(),
-            keymap.of(defaultKeymap),
-            ...(vimTableCellExtension ? [vimTableCellExtension] : []),
-        ],
-        globalKeyBindings: [...tableCellHistoryKeymap(), ...searchKeymap],
-    });
+    createMarkdownTableExtension = () => {
+        const cellProfile = createTableCellProfile({
+            viewRegistryExtension: tableCellViewRegistryExtension(),
+            keymapExtension: bindings => keymap.of(bindings),
+            defaultBindings: defaultKeymap,
+            vimExtension: vimTableCellExtension,
+            historyBindings: tableCellHistoryKeymap(),
+            searchBindings: searchKeymap,
+	        });
+	        return markdownTables({
+	            theme: TableTheme.dark.with({
+	                '--tbl-theme-row-background': 'var(--bg-color)',
+	                '--tbl-theme-header-row-background': 'var(--hover-bg)',
+	                '--tbl-theme-even-row-background': 'var(--bg-color)',
+	                '--tbl-theme-odd-row-background': 'var(--panel-bg)',
+	                '--tbl-theme-border-color': 'var(--border-color)',
+	                '--tbl-theme-border-hover-color': 'var(--border-light)',
+	                '--tbl-theme-border-active-color': 'var(--accent-color)',
+	                '--tbl-theme-outline-color': 'var(--focus-ring)',
+	                '--tbl-theme-text-color': 'var(--text-color)',
+	                '--tbl-theme-menu-background': 'var(--panel-bg)',
+	                '--tbl-theme-menu-border-color': 'var(--border-color)',
+	                '--tbl-theme-menu-text-color': 'var(--text-color)',
+	                '--tbl-theme-menu-hover-background': 'var(--active-bg)',
+	                '--tbl-theme-menu-hover-text-color': 'var(--text-color)',
+	            }),
+            style: TableStyle.default.with({
+                '--tbl-style-font-family': 'var(--font-editor)',
+                '--tbl-style-font-size': 'inherit',
+                '--tbl-style-menu-font-family': 'var(--font-sans)',
+                '--tbl-style-menu-font-size': '12px',
+            }),
+            selectionType: 'codemirror',
+            handlePosition: 'inside',
+            lineWrapping: 'wrap',
+            extensions: cellProfile.extensions,
+            globalKeyBindings: cellProfile.globalKeyBindings,
+        });
+    };
 
     vimCompartment = new Compartment();
     markdownTableCompartment = new Compartment();
@@ -2078,10 +2150,15 @@ function createEditorView() {
             EditorView.domEventHandlers({
                 contextmenu: handleContextMenu
             }),
-            keymap.of([
-                ...searchKeymap, ...defaultKeymap, ...historyKeymap, ...completionKeymap,
-                { key: 'Tab', run: view => acceptCompletion(view) || indentMore(view), shift: indentLess },
-            ])
+            keymap.of(createDocumentKeyBindings({
+                searchBindings: searchKeymap,
+                defaultBindings: defaultKeymap,
+                historyBindings: historyKeymap,
+                completionBindings: completionKeymap,
+                acceptCompletion,
+                indentMore,
+                indentLess,
+            }))
         ]
     });
 
@@ -2115,8 +2192,33 @@ function getEditorView() { return editorView || getState('editorView'); }
 function getEditorContent() { const v = getEditorView(); return v ? v.state.doc.toString() : ''; }
 
 let _programmaticChange = false;
-let _pendingContent = null;
-let editorDocumentTabId = null;
+
+const editorDocumentSession = createEditorDocumentSession({
+    schedule: callback => setTimeout(callback, 0),
+    readEditor: getEditorView,
+    editorUnavailable: view => !view || view.isDestroyed,
+    readActiveTabId: () => getState('activeTabId'),
+    readContent: view => view.state.doc.toString(),
+    beforeReplace() {
+        // Preserve the outgoing dirty document before this shared editor
+        // receives another tab's source.
+        flushPendingContentNotification();
+        cancelPendingStatsUpdate();
+    },
+    applyContent(view, request) {
+        _programmaticChange = true;
+        const selection = normalizedCursorState(request.cursorState, request.content.length);
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: request.content },
+            ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
+        });
+    },
+    restoreSelection: restoreCursorState,
+    reportFailure(error) {
+        _programmaticChange = false;
+        log.warn('Failed to set editor content:', error);
+    },
+});
 
 /**
  * Replace the shared editor document. When tabId is supplied, the deferred
@@ -2125,46 +2227,10 @@ let editorDocumentTabId = null;
  * document into A's editor.
  */
 function setEditorContent(content, tabId = undefined, cursorState = null) {
-    if (typeof content !== 'string') return;
-    const request = {
-        content,
-        tabId: tabId === undefined ? editorDocumentTabId : tabId,
-        cursorState,
-    };
-    _pendingContent = request;
-    const v = getEditorView();
-    if (!v || v.isDestroyed) return;
-
-    // Use setTimeout(0) to fully exit CodeMirror's current measurement cycle
-    setTimeout(() => {
-        if (v.isDestroyed || _pendingContent !== request) return;
-        if (request.tabId != null && getState('activeTabId') !== request.tabId) return;
-        if (v.state.doc.toString() === content) {
-            editorDocumentTabId = request.tabId;
-            if (request.cursorState) restoreCursorState(request.tabId, request.cursorState);
-            return;
-        }
-        try {
-            // Preserve the outgoing dirty document before this shared editor
-            // receives another tab's source. The queued observer update is
-            // otherwise deliberately lazy during ordinary typing.
-            flushPendingContentNotification();
-            cancelPendingStatsUpdate();
-            editorDocumentTabId = request.tabId;
-            _programmaticChange = true;
-            const selection = normalizedCursorState(request.cursorState, content.length);
-            v.dispatch({
-                changes: { from: 0, to: v.state.doc.length, insert: content },
-                ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
-            });
-        } catch (e) {
-            _programmaticChange = false;
-            log.warn('Failed to set editor content:', e);
-        }
-    }, 0);
+    editorDocumentSession.mount(content, tabId, cursorState);
 }
 
-function getEditorDocumentTabId() { return editorDocumentTabId; }
+function getEditorDocumentTabId() { return editorDocumentSession.documentTabId(); }
 
 function imageFieldForPath(docPath) {
     const dir = docPath ? docPath.substring(0, docPath.lastIndexOf('/') + 1) : '';
@@ -2368,7 +2434,7 @@ function handleDocChange(update) {
         updateStats(materializedDocumentContent(update.state.doc));
         return;
     }
-    const at = getState('openTabs').find(t => t.id === editorDocumentTabId);
+    const at = getState('openTabs').find(t => t.id === getEditorDocumentTabId());
     if (at && at.type === 'file') {
         const becameDirty = !at.dirty;
         at._editGeneration = (at._editGeneration || 0) + 1;
@@ -2377,7 +2443,7 @@ function handleDocChange(update) {
         // a consumer actually needs a string.
         at.dirty = true;
         if (becameDirty) {
-            import('./tabManager.js').then(({ markTabDirty }) => markTabDirty(at.id, { alreadyDirty: true }));
+            markTabDirty(at.id, { alreadyDirty: true });
         }
         // Kanban and the PDF preview need the current in-memory text, but
         // each can consume the newest frame rather than every transaction in
@@ -2402,7 +2468,7 @@ function normalizedCursorState(cursorState, documentLength) {
 }
 
 function rememberActiveFileCursor(update) {
-    const tabId = editorDocumentTabId;
+    const tabId = getEditorDocumentTabId();
     if (!tabId || getState('activeTabId') !== tabId) return;
     const tab = getState('openTabs').find(candidate => candidate.id === tabId);
     if (!tab || tab.type !== 'file') return;
@@ -2424,19 +2490,17 @@ function updateStats(text) {
 }
 
 async function saveActiveFile() {
-    const { saveActiveFile: saveActiveTabFile } = await import('./tabManager.js');
     return saveActiveTabFile();
 }
 
 /** Save the exact active editor buffer, then close only after save success. */
 export async function saveAndCloseActiveFile() {
-    const tabManager = await import('./tabManager.js');
-    const tab = tabManager.getActiveTab();
+    const tab = getActiveTab();
     if (!tab || tab.type !== 'file' || !tab.path) return false;
 
     const content = getEditorContent();
     try {
-        const result = await tabManager.saveFileSnapshot(tab, content);
+        const result = await saveFileSnapshot(tab, content);
         if (!result?.success) return false;
 
         const currentTab = (getState('openTabs') || []).find(candidate => candidate.id === tab.id);
@@ -2444,11 +2508,11 @@ export async function saveAndCloseActiveFile() {
         // A new edit may land while an asynchronous save is in flight. Never
         // close that newer buffer merely because the older snapshot saved.
         if (getState('activeTabId') === tab.id && getEditorContent() !== content) {
-            tabManager.markTabDirty(tab.id);
+            markTabDirty(tab.id);
             statusBar.set('File changed during save; tab kept open');
             return false;
         }
-        return tabManager.closeTab(tab.id);
+        return closeTab(tab.id);
     } catch (error) {
         log.warn('Could not save and close the active file:', error);
         return false;
@@ -2550,7 +2614,7 @@ function handleMouseDown(event, view) {
     while ((m = hr.exec(lt)) !== null) {
         if (col >= m.index && col <= m.index + m[0].length) {
             event.preventDefault();
-            import('./app.js').then(({ openTab }) => openTab('kanban-board', 'Kanban', 'kanban', { focusCol: m[1].toLowerCase() }));
+            openTab('kanban-board', 'Kanban', 'kanban', { focusCol: m[1].toLowerCase() });
             return true;
         }
     }
@@ -2876,7 +2940,6 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
             view.dispatch({ selection: { anchor: 0, head: doc.length } });
         } else if (action === 'preview-markdown') {
             try {
-                const { openMarkdownPreview } = await import('./markdownPreview.js');
                 await openMarkdownPreview({
                     path: activeTab.path,
                     title: activeTab.title,
@@ -2888,7 +2951,6 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
             }
         } else if (action === 'preview-pdf') {
             try {
-                const { openPDFPreview } = await import('./pdfPreview.js');
                 await openPDFPreview({
                     path: activeTab.path,
                     title: activeTab.title,
@@ -2953,8 +3015,6 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
     try { linkPath = decodeURI(linkPath); } catch (e) { /* decode may fail */ }
     try { linkPath = decodeURI(linkPath); } catch (e) { /* double-decode safety */ }
 
-    const { openTab } = await import('./tabManager.js');
-
     if (!linkPath && linkText) {
         const dm = linkText.match(/^(\d{4}-\d{2}-\d{2})$/);
         if (dm) {
@@ -3005,7 +3065,7 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
                 const displayName = linkPath.endsWith('.md') ? fileName.replace('.md', '') : fileName;
                 await backend().CreateFile(fpath, `# ${displayName}\n\n`);
                 openTab(fpath, fname, 'file', { path: fpath, mtime: Date.now() / 1000 }, true);
-                import('./fileTree.js').then(m => m.refreshFileTree());
+                refreshFileTree();
             }
         }
     } catch (err) { log.error('Failed to open link:', err, 'path was:', linkPath); }
@@ -3016,7 +3076,6 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
  * If the active tab is a file tab, update it in-place.
  */
 async function replaceCurrentFileTab(id, title, type, data) {
-    const { replaceActiveFileTab } = await import('./tabManager.js');
     return replaceActiveFileTab(id, title, type, data);
 }
 
@@ -3080,24 +3139,20 @@ function registerVimExCommands(Vim) {
     Vim.defineEx('edit', 'e', (_cm, args) => {
         const fname = args?.trim();
         if (!fname) return;
-        import('./app.js').then(({ getActiveTab, openTab }) => {
-            const tab = getActiveTab();
-            let dir = '';
-            if (tab && tab.type === 'file' && tab.path) {
-                const idx = tab.path.lastIndexOf('/');
-                if (idx >= 0) dir = tab.path.substring(0, idx + 1);
-            }
-            const relPath = fname.endsWith('.md') ? fname : fname + '.md';
-            const path = dir + relPath;
-            openTab(path, path.split('/').pop(), 'file', { path, isNew: true });
-        });
+        const tab = getActiveTab();
+        let dir = '';
+        if (tab && tab.type === 'file' && tab.path) {
+            const idx = tab.path.lastIndexOf('/');
+            if (idx >= 0) dir = tab.path.substring(0, idx + 1);
+        }
+        const relPath = fname.endsWith('.md') ? fname : fname + '.md';
+        const path = dir + relPath;
+        openTab(path, path.split('/').pop(), 'file', { path, isNew: true });
     });
 
     Vim.defineEx('quit', 'q', () => {
-        import('./app.js').then(({ getActiveTab, closeTab }) => {
-            const tab = getActiveTab();
-            if (tab) closeTab(tab.id);
-        });
+        const tab = getActiveTab();
+        if (tab) closeTab(tab.id);
     });
 
     Vim.defineEx('wq', 'wq', () => {
@@ -3126,7 +3181,6 @@ async function toggleVim(enable) {
     const requestId = ++vimRequestId;
 
     if (requested) {
-        const { vim, Vim, getCM } = await import('@replit/codemirror-vim');
         if (!vimRequested || requestId !== vimRequestId || !editorView) return false;
 
         const view = editorView;

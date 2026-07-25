@@ -91,7 +91,7 @@ Under **Settings → Vault care → Review…**, **Vault health** runs a read-on
 
 ### Markdown and code
 
-figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. Large notes remain responsive because normal cursor movement preserves unaffected preview decorations and interactive widgets are limited to the visible editor region; word statistics settle shortly after a rapid typing burst while dirty content remains immediately safe to save. Markdown notes receive local, non-destructive diagnostics for unclosed frontmatter or code fences, skipped heading levels, and accidental trailing whitespace; hover a squiggle for the fix and press F8 to move to the next issue. They are on by default and can be disabled with **Settings → Markdown diagnostics → Show Markdown lint**. Offline spellcheck is also on by default: choose its English (US), English (UK), or Spanish global fallback in **Settings → Spellcheck**; it never sends note text to a service. Correctly spelled hyphenated compounds such as `faster-than-usual` remain unmarked. Right-click an underlined unknown word to choose a local high-confidence replacement; every suggestion is verified against the active dictionary, while ambiguous words deliberately show no replacement. The change is a normal undoable edit. Wrapped bullet and numbered list text uses a hanging indent beneath its item body. The optional editor gutter is controlled by **Settings → Show line numbers** and is off by default. Standalone CSS hex colors display a theme-aware swatch and native picker; valid hex-shaped tokens take precedence over hashtags while the source and PDF text remain unchanged. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, Vim modal editing, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
+figaro has a source-first live preview: move onto a line to edit its Markdown exactly as written; move away to read the rendered result. It supports headings, emphasis, strikethrough, highlights, task checkboxes, links, callouts, tables, images, KaTeX math, footnotes, blockquotes, and fenced code blocks. Large notes remain responsive because normal cursor movement preserves unaffected preview decorations and interactive widgets are limited to the visible editor region; word statistics settle shortly after a rapid typing burst while dirty content remains immediately safe to save. Markdown notes receive local, non-destructive diagnostics for unclosed frontmatter or code fences, skipped heading levels, and accidental trailing whitespace; hover a squiggle for the fix and press F8 to move to the next issue. They are on by default and can be disabled with **Settings → Markdown diagnostics → Show Markdown lint**. Offline spellcheck is also on by default: choose its English (US), English (UK), or Spanish global fallback in **Settings → Spellcheck**; it never sends note text to a service. Correctly spelled hyphenated compounds such as `faster-than-usual` remain unmarked. Right-click an underlined unknown word to choose a local high-confidence replacement; every suggestion is verified against the active dictionary, while ambiguous words deliberately show no replacement. The change is a normal undoable edit. Wrapped bullet, numbered-list, and blockquote text uses a hanging indent beneath its item or quoted body. The optional editor gutter is controlled by **Settings → Show line numbers** and is off by default. Standalone CSS hex colors display a theme-aware swatch and native picker; valid hex-shaped tokens take precedence over hashtags while the source and PDF text remain unchanged. Markdown tables use `codemirror-markdown-tables` for interactive cell editing, formatting, Arrow-key movement, Tab/Shift+Tab navigation, Vim modal editing, and row/column controls. Their alignment and structure are preserved in the live PDF preview and generated PDF.
 
 On Windows Spanish layouts, dead keys keep their normal composition behavior:
 AltGr+4 then `n` makes `ñ`, the diaeresis key then `u` makes `ü`, and acute,
@@ -351,19 +351,22 @@ go test -race . ./internal/... ./cmd/...
 npm run lint
 npm run test:unit
 
-# Real-browser PDF/diagram integration test
+# Browser-only geometry, event, frame, and printable-output boundaries
 npx playwright install chromium    # first time only
 npm run test:pdf
 ~~~
 
-The PDF tests verify the full application-controlled contract: frontmatter, cover/TOC structure, CSS selection, inline Mermaid/Vega SVG, browser-discovery order, and actual PDF link/destination annotations.
+Most behavior is covered below the browser layer. The Playwright suite is kept
+for the smaller set of contracts that require real layout, browser events,
+frames, or printable output. See [the testing strategy](docs/TESTING.md) before
+adding an end-to-end scenario.
 
 ## Architecture
 
 `figaro` is deliberately small and direct:
 
 - **Go + Wails v2** provides the desktop shell, vault-safe filesystem operations, configurable local Git auto-commit history, settings, and browser-backed interactive PDF export. Reusable backend modules live under `internal/`; the Wails bootstrap remains at the repository root by convention.
-- **Vanilla JavaScript + CodeMirror 6** provides the editor, live Markdown experience, workspace UI, and on-demand language support.
+- **Vanilla JavaScript + CodeMirror 6** provides the editor, live Markdown experience, workspace UI, and language support. Bundled feature modules, language parsers, Vim support, and diagram engines are loaded and initialized during startup so normal interactions do not pause for first-use code loading.
 - **Browser dependencies** keep the editor, Markdown renderer, KaTeX, Mermaid, Vega, Vega-Lite, Vim mode, and language grammars available without a runtime package install. The Makefile recreates generated modules before desktop builds (or on demand with `make vendor`); KaTeX ships only its production JavaScript, CSS, and font assets. Python and Rust grammar support does not add a Python or Rust runtime to Figaro.
 - **The vault** is the source of truth. Configuration lives under `.config/`; content remains portable files.
 
@@ -375,13 +378,21 @@ For the complete behaviour contract and implementation notes, see [the product s
 cmd/devserver/       Small static server used by browser-level tests and debugging
 docs/                Product notes and contributor-facing testing guidance
 internal/vault/      Root-scoped vault filesystem primitives
+internal/settings/   Pure settings normalization and migration rules
+internal/notes/      Note-save use case over an injected repository
+internal/mutations/  Pure move, copy, merge, and collision planning
+frontend/js/core/    Pure frontend models, plans, and layout rules
+frontend/js/usecases/ Effect coordination through injected ports
+frontend/js/adapters/ Browser and native effect adapters
+frontend/js/controllers/ Feature wiring between state, use cases, and views
+frontend/js/views/   DOM rendering with no backend ownership
 internal/links/      Pure Markdown link rewriting used by file moves
 internal/history/    Local Git history and auto-commit service
 frontend/            Wails webview, CodeMirror modules, themes, fonts, and vendored assets
 scripts/             Optional build, debug, and vendor-maintenance helpers
 assets/branding/     Generated square icon master used by application packages
-tests/frontend/      Jest unit, UI-integration, and stale-response tests
-tests/e2e/           Playwright browser tests
+tests/frontend/      Pure, use-case, adapter, component, and race tests
+tests/e2e/           Small Playwright browser-boundary suite
 main.go              Wails entry point and embedded frontend assets
 *.go / *_test.go     Wails-facing backend facade and co-located integration tests
 ```

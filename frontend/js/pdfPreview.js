@@ -19,6 +19,9 @@ import {
 } from './pdfExport.js';
 import { pdfExportErrorDialog, pdfStyleReferenceDialog } from './dialogs.js';
 import { updateRightSidebarEditorLayout } from './historyPanel.js';
+import { handleFileOpen } from './app.js';
+import { getEditorContent } from './editor.js';
+import { saveFileSnapshot } from './tabManager.js';
 
 const previewDebounceMs = 320;
 const previewMode = 'pdf-preview';
@@ -428,7 +431,6 @@ async function openPreviewVaultLink(path) {
         return;
     }
     try {
-        const { handleFileOpen } = await import('./app.js');
         await handleFileOpen(path);
     } catch (error) {
         log.warn('Could not open linked vault file from PDF preview:', error);
@@ -996,7 +998,6 @@ async function getDirtyTabContent(path) {
     const tab = (getState('openTabs') || []).find(candidate => candidate?.type === 'file' && candidate.path === path && candidate.dirty);
     if (!tab) return null;
     if (tab.id === getState('activeTabId')) {
-        const { getEditorContent } = await import('./editor.js');
         return getEditorContent();
     }
     return typeof tab._content === 'string' ? tab._content : null;
@@ -1240,7 +1241,6 @@ async function savePreviewBuffer(path, content) {
     const onDisk = await readVaultText(path);
     if (!tab.dirty && onDisk?.content === content) return;
 
-    const { saveFileSnapshot } = await import('./tabManager.js');
     const result = await saveFileSnapshot(tab, content);
     if (!result?.success) throw new Error(result?.error || `Could not save ${path} before generating the PDF.`);
 }
@@ -1289,7 +1289,6 @@ async function generatePDF() {
 
 async function openPreviewStylesheet() {
     if (!preview.stylesheetPath || preview.stylesheetError) return;
-    const { handleFileOpen } = await import('./app.js');
     await handleFileOpen(preview.stylesheetPath);
 }
 

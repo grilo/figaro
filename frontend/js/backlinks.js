@@ -5,7 +5,12 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
-import { openTab } from './tabManager.js';
+import {
+    openTab,
+    prepareTabsForVaultLinkRewrite,
+    refreshTabsForUpdatedLinks,
+} from './tabManager.js';
+import { getLinkStylePreference } from './linkStyle.js';
 import { errorDialog } from './dialogs.js';
 import { statusBar } from './statusBar.js';
 
@@ -217,10 +222,8 @@ async function linkUnlinkedMention(button, targetPath, containerId) {
     button.setAttribute('aria-busy', 'true');
     button.textContent = 'Linking…';
     try {
-        const { prepareTabsForVaultLinkRewrite, refreshTabsForUpdatedLinks } = await import('./tabManager.js');
         const prepared = await prepareTabsForVaultLinkRewrite();
         if (!prepared?.success) throw new Error(prepared?.error || 'Open notes could not be saved safely.');
-        const { getLinkStylePreference } = await import('./linkStyle.js');
         const result = await backend().LinkUnlinkedMention(sourcePath, lineNumber, targetPath, getLinkStylePreference());
         if (!result?.success) throw new Error(result?.error || 'The mention could not be linked.');
         await refreshTabsForUpdatedLinks([sourcePath]);

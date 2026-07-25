@@ -27,8 +27,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"figaro/internal/links"
+	"figaro/internal/mutations"
+	"figaro/internal/notes"
 	"figaro/internal/pdfexport"
+	settingsmodel "figaro/internal/settings"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -83,19 +85,6 @@ var hashtagRe = regexp.MustCompile(`#([a-zA-Z][a-zA-Z0-9_-]*)\b`)
 var hexColorRe = regexp.MustCompile(`^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$`)
 
 var themeIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
-
-const legacyFigaroDarkThemeID = "figaro-dark"
-
-// canonicalThemeID keeps the original default theme ID stable while allowing
-// Figaro Dark to replace the former Default Dark without breaking saved
-// settings created during the brief standalone Figaro Dark release.
-func canonicalThemeID(themeID string) string {
-	normalized := strings.TrimSpace(strings.ToLower(themeID))
-	if normalized == legacyFigaroDarkThemeID {
-		return "default"
-	}
-	return normalized
-}
 
 // isHashtagBoundaryOK reports whether a hashtag is a standalone token. Tags
 // must be surrounded by whitespace (or a document boundary), so markdown
@@ -946,39 +935,56 @@ func (a *App) SaveFile(relPath string, content string, expectedMtime float64) (*
 	defer root.Close()
 	abs := a.vaultAbsolutePath(cleanRel)
 
-	if expectedMtime != 0 {
-		info, statErr := root.Stat(cleanRel)
-		if statErr != nil {
-			return &SaveFileResult{Success: false, Error: "File modified externally"}, nil
-		}
-		actualMtime := a.currentFileVersionLocked(abs, info)
-		if actualMtime != expectedMtime {
-			return &SaveFileResult{
-				Success: false,
-				Error:   "File modified externally",
-				Mtime:   actualMtime,
-			}, nil
-		}
-	}
-
-	if err := writeRootFileAtomic(root, cleanRel, []byte(content), 0644); err != nil {
+	service := notes.Service{Repository: &vaultNoteSaveRepository{
+		app:      a,
+		root:     root,
+		cleanRel: cleanRel,
+		abs:      abs,
+	}}
+	result, err := service.Save(notes.SaveRequest{
+		Content:         content,
+		ExpectedVersion: expectedMtime,
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	info, err := root.Stat(cleanRel)
-	if err != nil {
-		return nil, fmt.Errorf("inspect saved file: %w", err)
-	}
-	mtime := a.recordFileVersionLocked(abs, info)
-
-	a.updateVaultIndexFileLocked(cleanRel, info, content)
-	a.markInternalVaultWriteLocked(cleanRel)
-
 	return &SaveFileResult{
-		Success: true,
-		Mtime:   mtime,
+		Success: result.Success,
+		Error:   result.Error,
+		Mtime:   result.Version,
 		Path:    relPath,
 	}, nil
+}
+
+// vaultNoteSaveRepository adapts the confined vault root and in-memory index
+// to the note save use case. No conflict or force-save policy lives here.
+type vaultNoteSaveRepository struct {
+	app      *App
+	root     *os.Root
+	cleanRel string
+	abs      string
+}
+
+func (r *vaultNoteSaveRepository) CurrentVersion() (float64, bool) {
+	info, err := r.root.Stat(r.cleanRel)
+	if err != nil {
+		return 0, false
+	}
+	return r.app.currentFileVersionLocked(r.abs, info), true
+}
+
+func (r *vaultNoteSaveRepository) Write(content string) (float64, error) {
+	if err := writeRootFileAtomic(r.root, r.cleanRel, []byte(content), 0644); err != nil {
+		return 0, err
+	}
+	info, err := r.root.Stat(r.cleanRel)
+	if err != nil {
+		return 0, fmt.Errorf("inspect saved file: %w", err)
+	}
+	version := r.app.recordFileVersionLocked(r.abs, info)
+	r.app.updateVaultIndexFileLocked(r.cleanRel, info, content)
+	r.app.markInternalVaultWriteLocked(r.cleanRel)
+	return version, nil
 }
 
 // CommitCurrentFile records exactly one vault file in local Git history.
@@ -1348,32 +1354,42 @@ func (a *App) MovePath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 	if err != nil {
 		return nil, err
 	}
-	if sourceInfo.IsDir() && (targetClean == sourceClean || strings.HasPrefix(targetClean, sourceClean+string(filepath.Separator))) {
+	if sourceInfo.IsDir() && mutations.IsSameOrDescendant(
+		sourceClean,
+		targetClean,
+		goruntime.GOOS == "windows",
+	) {
 		return &SaveFileResult{Success: false, Error: "Cannot move a directory into itself"}, nil
 	}
 	if err := root.MkdirAll(targetClean, 0755); err != nil {
 		return nil, err
 	}
 
-	base := filepath.Base(sourceClean)
-	newRel := targetClean
-	if newRel == "." {
-		newRel = base
-	} else {
-		newRel = filepath.Join(newRel, base)
-	}
+	newRel := mutations.Destination(sourceClean, targetClean)
+	destinationExists := false
+	destinationIsDirectory := false
 	if destinationInfo, destinationErr := root.Lstat(newRel); destinationErr == nil {
-		if sourceInfo.IsDir() && destinationInfo.IsDir() {
-			return &SaveFileResult{
-				Success:        false,
-				Error:          "Destination directory already exists",
-				OldPath:        filepath.ToSlash(sourceClean),
-				Path:           filepath.ToSlash(newRel),
-				MergeAvailable: true,
-			}, nil
-		}
+		destinationExists = true
+		destinationIsDirectory = destinationInfo.IsDir()
 	} else if !os.IsNotExist(destinationErr) {
 		return nil, destinationErr
+	}
+	plan := mutations.PlanMove(
+		sourceClean,
+		targetClean,
+		sourceInfo.IsDir(),
+		destinationExists,
+		destinationIsDirectory,
+		goruntime.GOOS == "windows",
+	)
+	if plan.Error != "" {
+		return &SaveFileResult{
+			Success:        false,
+			Error:          plan.Error,
+			OldPath:        filepath.ToSlash(sourceClean),
+			Path:           filepath.ToSlash(plan.Destination),
+			MergeAvailable: plan.MergeAvailable,
+		}, nil
 	}
 	return a.renamePathLocked(sourceClean, newRel)
 }
@@ -1402,7 +1418,7 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 	if sourceClean == "." {
 		return &SaveFileResult{Success: false, Error: "Cannot merge vault root"}, nil
 	}
-	if targetClean == sourceClean || strings.HasPrefix(targetClean, sourceClean+string(filepath.Separator)) {
+	if mutations.IsSameOrDescendant(sourceClean, targetClean, goruntime.GOOS == "windows") {
 		return &SaveFileResult{Success: false, Error: "Cannot move a directory into itself"}, nil
 	}
 
@@ -1418,10 +1434,7 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 	if err != nil {
 		return nil, err
 	}
-	destination := filepath.Join(targetClean, filepath.Base(sourceClean))
-	if targetClean == "." {
-		destination = filepath.Base(sourceClean)
-	}
+	destination := mutations.Destination(sourceClean, targetClean)
 	destinationInfo, err := root.Lstat(destination)
 	if os.IsNotExist(err) {
 		return &SaveFileResult{Success: false, Error: "Destination directory no longer exists"}, nil
@@ -1604,21 +1617,7 @@ func rootPathAvailable(root *os.Root, path string) (bool, error) {
 }
 
 func parenthesizedCopyCollisionName(name string, isDirectory bool, index int) string {
-	suffix := " (copy)"
-	if index > 1 {
-		suffix = fmt.Sprintf(" (copy %d)", index)
-	}
-	if isDirectory {
-		return name + suffix
-	}
-	extension := filepath.Ext(name)
-	if strings.HasSuffix(strings.ToLower(name), ".drawio.svg") {
-		extension = name[len(name)-len(".drawio.svg"):]
-	}
-	if extension == "" || extension == name {
-		return name + suffix
-	}
-	return strings.TrimSuffix(name, extension) + suffix + extension
+	return mutations.ParenthesizedCopyCollisionName(name, isDirectory, index)
 }
 
 func copyPreparedDirectoryMerge(root *os.Root, sourceDir string, destinationDir string, createdPaths *[]string) error {
@@ -1672,7 +1671,7 @@ func removeMergedPaths(root *os.Root, paths []string) error {
 	return errors.Join(cleanupErrors...)
 }
 
-const recursiveCopyError = "A folder cannot be copied into itself or one of its descendants because that would cause a recursive copy. Select its parent folder to create a sibling copy instead."
+const recursiveCopyError = mutations.RecursiveCopyError
 
 // CopyPath copies one vault file or directory into an existing vault
 // directory. Existing entries are never replaced: a collision receives a
@@ -1723,8 +1722,13 @@ func (a *App) CopyPath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 	if targetInfo.Mode()&fs.ModeSymlink != 0 || !targetInfo.IsDir() {
 		return &SaveFileResult{Success: false, Error: "Paste destination is not a folder"}, nil
 	}
-	if sourceInfo.IsDir() && vaultPathIsSameOrDescendant(sourceClean, targetClean) {
-		return &SaveFileResult{Success: false, Error: recursiveCopyError}, nil
+	if validationError := mutations.ValidateCopy(
+		sourceClean,
+		targetClean,
+		sourceInfo.IsDir(),
+		goruntime.GOOS == "windows",
+	); validationError != "" {
+		return &SaveFileResult{Success: false, Error: validationError}, nil
 	}
 
 	destination, err := nextCopyDestination(root, sourceClean, targetClean, sourceInfo.IsDir())
@@ -1756,13 +1760,7 @@ func (a *App) CopyPath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 }
 
 func vaultPathIsSameOrDescendant(parent, candidate string) bool {
-	parent = filepath.Clean(parent)
-	candidate = filepath.Clean(candidate)
-	if goruntime.GOOS == "windows" {
-		parent = strings.ToLower(parent)
-		candidate = strings.ToLower(candidate)
-	}
-	return candidate == parent || strings.HasPrefix(candidate, parent+string(filepath.Separator))
+	return mutations.IsSameOrDescendant(parent, candidate, goruntime.GOOS == "windows")
 }
 
 func nextCopyDestination(root *os.Root, source, targetDirectory string, isDirectory bool) (string, error) {
@@ -1786,23 +1784,7 @@ func nextCopyDestination(root *os.Root, source, targetDirectory string, isDirect
 }
 
 func copyCollisionName(name string, isDirectory bool, index int) string {
-	suffix := " copy"
-	if index > 1 {
-		suffix += fmt.Sprintf(" %d", index)
-	}
-	if isDirectory {
-		return name + suffix
-	}
-	extension := filepath.Ext(name)
-	// Keep editable Draw.io copies recognisable as .drawio.svg diagrams.
-	if strings.HasSuffix(strings.ToLower(name), ".drawio.svg") {
-		extension = name[len(name)-len(".drawio.svg"):]
-	}
-	if extension == "" || extension == name {
-		return name + suffix
-	}
-	stem := strings.TrimSuffix(name, extension)
-	return stem + suffix + extension
+	return mutations.CopyCollisionName(name, isDirectory, index)
 }
 
 func copyVaultTree(root *os.Root, source, destination string) (bool, error) {
@@ -3368,7 +3350,7 @@ func (a *App) GetThemes() (map[string]interface{}, error) {
 
 // GetThemeCSS returns the raw CSS for a theme.
 func (a *App) GetThemeCSS(themeID string) (map[string]string, error) {
-	themeID = canonicalThemeID(themeID)
+	themeID = settingsmodel.CanonicalThemeID(themeID)
 	if !themeIDRe.MatchString(themeID) {
 		return nil, fmt.Errorf("invalid theme id")
 	}
@@ -3383,82 +3365,6 @@ func (a *App) GetThemeCSS(themeID string) (map[string]string, error) {
 	return map[string]string{"css": string(data)}, nil
 }
 
-var legacyWorkspaceSettingKeys = []string{
-	"openTabs",
-	"activeTabId",
-	"selectedFilePath",
-	"selectedTreePath",
-	"expandedDirs",
-	"pinnedTabs",
-	"cursorStates",
-}
-
-func defaultSettings() map[string]interface{} {
-	return map[string]interface{}{
-		"theme":               "default",
-		"font":                "inter",
-		"code_font":           "theme-mono",
-		"link_style":          string(links.MarkdownLinkStyle),
-		"vim":                 false,
-		"vim_visual_rows":     false,
-		"vim_reveal_blocks":   false,
-		"line_numbers":        false,
-		"markdown_lint":       true,
-		"spellcheck":          true,
-		"spellcheck_language": "en-US",
-		"auto_save_seconds":   300,
-		"auto_commit_enabled": true,
-	}
-}
-
-// canonicalSpellcheckLanguage restricts the portable settings value to the
-// dictionaries Figaro ships inside every desktop build. Frontmatter accepts
-// a few convenient aliases too, but the global setting always stores its
-// canonical BCP-47 spelling.
-func canonicalSpellcheckLanguage(value string) (string, bool) {
-	switch strings.ToLower(strings.ReplaceAll(strings.TrimSpace(value), "_", "-")) {
-	case "en", "en-us":
-		return "en-US", true
-	case "en-gb":
-		return "en-GB", true
-	case "es", "es-es":
-		return "es", true
-	default:
-		return "", false
-	}
-}
-
-func nonNegativeWholeSetting(value interface{}) (int, bool) {
-	switch number := value.(type) {
-	case int:
-		return number, number >= 0
-	case float64:
-		if number < 0 || math.Trunc(number) != number || number > float64(math.MaxInt) {
-			return 0, false
-		}
-		return int(number), true
-	default:
-		return 0, false
-	}
-}
-
-// legacyAutoCommitEnabled maps the retired interval preference to its safe
-// replacement. Any old enabled mode becomes per-save, single-file history;
-// zero remains explicitly off.
-func legacyAutoCommitEnabled(value interface{}) (bool, bool) {
-	switch number := value.(type) {
-	case int:
-		return number != 0, number >= -1
-	case float64:
-		if math.Trunc(number) != number || number < -1 || number > float64(math.MaxInt) {
-			return false, false
-		}
-		return number != 0, true
-	default:
-		return false, false
-	}
-}
-
 // ensureSettingsDefaults makes the settings file a real, recoverable config
 // record. Older versions could leave workspace-tab data in this file, while a
 // missing, empty, or malformed file only happened to work through scattered
@@ -3468,96 +3374,19 @@ func (a *App) ensureSettingsDefaults() {
 	defer a.settingsMu.Unlock()
 
 	settings, err := a.readSettingsFile()
-	changed := false
+	resetInvalid := false
 	if err != nil || settings == nil {
 		if err != nil {
 			log.Printf("[settings] Resetting invalid settings file: %v", err)
 		}
 		settings = make(map[string]interface{})
-		changed = true
+		resetInvalid = true
 	}
-	// Convert the old minute-based autosave preference before filling the
-	// modern seconds key. This preserves a user's prior setting while leaving
-	// the resulting settings file with one canonical representation.
-	if _, hasSeconds := settings["auto_save_seconds"]; !hasSeconds {
-		if minutes, valid := nonNegativeWholeSetting(settings["auto_save_minutes"]); valid {
-			settings["auto_save_seconds"] = minutes * 60
-			changed = true
-		}
-	}
-	// Auto-Commit used to persist an interval and could stage every modified
-	// vault file. Preserve whether it was enabled, but migrate every enabled
-	// legacy mode to the safe per-save, per-file behavior.
-	if _, hasEnabled := settings["auto_commit_enabled"].(bool); !hasEnabled {
-		enabled := true
-		if legacyValue, exists := settings["auto_commit_seconds"]; exists {
-			if migrated, valid := legacyAutoCommitEnabled(legacyValue); valid {
-				enabled = migrated
-			}
-		}
-		settings["auto_commit_enabled"] = enabled
-		changed = true
-	}
-
-	for key, fallback := range defaultSettings() {
-		switch fallbackValue := fallback.(type) {
-		case string:
-			rawValue, ok := settings[key].(string)
-			value := strings.TrimSpace(rawValue)
-			if key == "theme" {
-				value = canonicalThemeID(value)
-			} else if key == "link_style" {
-				if style, valid := links.ParseLinkStyle(value); valid {
-					value = string(style)
-				} else {
-					value = ""
-				}
-			} else if key == "spellcheck_language" {
-				if language, valid := canonicalSpellcheckLanguage(value); valid {
-					value = language
-				} else {
-					value = ""
-				}
-			}
-			if !ok || value == "" {
-				settings[key] = fallbackValue
-				changed = true
-			} else if value != rawValue {
-				settings[key] = value
-				changed = true
-			}
-		case bool:
-			if _, ok := settings[key].(bool); !ok {
-				settings[key] = fallbackValue
-				changed = true
-			}
-		case int:
-			_, valid := nonNegativeWholeSetting(settings[key])
-			if !valid {
-				settings[key] = fallbackValue
-				changed = true
-			}
-		}
-	}
-	if _, exists := settings["auto_save_minutes"]; exists {
-		delete(settings, "auto_save_minutes")
-		changed = true
-	}
-	if _, exists := settings["auto_commit_seconds"]; exists {
-		delete(settings, "auto_commit_seconds")
-		changed = true
-	}
-
-	for _, key := range legacyWorkspaceSettingKeys {
-		if _, exists := settings[key]; exists {
-			delete(settings, key)
-			changed = true
-		}
-	}
-	if !changed {
+	normalized, changed := settingsmodel.Normalize(settings)
+	if !resetInvalid && !changed {
 		return
 	}
-	if err := a.writeSettingsFile(settings); err != nil {
+	if err := a.writeSettingsFile(normalized); err != nil {
 		log.Printf("[settings] Could not write normalized settings: %v", err)
 	}
 }
@@ -3639,22 +3468,9 @@ func (a *App) ThemeLoad() (map[string]string, error) {
 
 	settings, err := a.readSettingsFile()
 	if err != nil {
-		return map[string]string{"theme": "default"}, nil
+		return settingsmodel.Theme(nil), nil
 	}
-	theme, _ := settings["theme"].(string)
-	theme = canonicalThemeID(theme)
-	if theme == "" {
-		theme = "default"
-	}
-	font, _ := settings["font"].(string)
-	if font == "" {
-		font = "inter"
-	}
-	codeFont, _ := settings["code_font"].(string)
-	if codeFont == "" {
-		codeFont = "theme-mono"
-	}
-	return map[string]string{"theme": theme, "font": font, "codeFont": codeFont}, nil
+	return settingsmodel.Theme(settings), nil
 }
 
 // ThemeSave saves the selected theme to settings.
@@ -3666,7 +3482,7 @@ func (a *App) ThemeSave(themeID string) (*SaveFileResult, error) {
 	if err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}
-	settings["theme"] = canonicalThemeID(themeID)
+	settings["theme"] = settingsmodel.CanonicalThemeID(themeID)
 	if err := a.writeSettingsFile(settings); err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}
@@ -3716,8 +3532,7 @@ func (a *App) VimLoad() (map[string]bool, error) {
 	if err != nil {
 		return map[string]bool{"enabled": false}, nil
 	}
-	enabled, _ := settings["vim"].(bool)
-	return map[string]bool{"enabled": enabled}, nil
+	return map[string]bool{"enabled": settingsmodel.Bool(settings, "vim", false)}, nil
 }
 
 // VimSave saves the vim mode preference.
@@ -3746,8 +3561,7 @@ func (a *App) VimVisualRowsLoad() (map[string]bool, error) {
 	if err != nil {
 		return map[string]bool{"enabled": false}, nil
 	}
-	enabled, _ := settings["vim_visual_rows"].(bool)
-	return map[string]bool{"enabled": enabled}, nil
+	return map[string]bool{"enabled": settingsmodel.Bool(settings, "vim_visual_rows", false)}, nil
 }
 
 // VimVisualRowsSave persists whether Vim j/k and arrow motions move across
@@ -3777,8 +3591,7 @@ func (a *App) VimRevealBlocksLoad() (map[string]bool, error) {
 	if err != nil {
 		return map[string]bool{"enabled": false}, nil
 	}
-	enabled, _ := settings["vim_reveal_blocks"].(bool)
-	return map[string]bool{"enabled": enabled}, nil
+	return map[string]bool{"enabled": settingsmodel.Bool(settings, "vim_reveal_blocks", false)}, nil
 }
 
 // VimRevealBlocksSave persists whether Vim j/k should enter rendered Markdown
@@ -3807,11 +3620,7 @@ func (a *App) LineNumbersLoad() (map[string]bool, error) {
 	if err != nil {
 		return map[string]bool{"enabled": false}, nil
 	}
-	enabled, ok := settings["line_numbers"].(bool)
-	if !ok {
-		enabled = false
-	}
-	return map[string]bool{"enabled": enabled}, nil
+	return map[string]bool{"enabled": settingsmodel.Bool(settings, "line_numbers", false)}, nil
 }
 
 // LineNumbersSave saves the editor gutter preference.
@@ -3841,11 +3650,7 @@ func (a *App) MarkdownLintLoad() (map[string]bool, error) {
 	if err != nil {
 		return map[string]bool{"enabled": true}, nil
 	}
-	enabled, ok := settings["markdown_lint"].(bool)
-	if !ok {
-		enabled = true
-	}
-	return map[string]bool{"enabled": enabled}, nil
+	return map[string]bool{"enabled": settingsmodel.Bool(settings, "markdown_lint", true)}, nil
 }
 
 // MarkdownLintSave persists whether local Markdown diagnostics are displayed.
@@ -3882,22 +3687,14 @@ func (a *App) SpellcheckLoad() (*SpellcheckPreference, error) {
 	if err != nil {
 		return &SpellcheckPreference{Enabled: true, Language: "en-US"}, nil
 	}
-	enabled, ok := settings["spellcheck"].(bool)
-	if !ok {
-		enabled = true
-	}
-	rawLanguage, _ := settings["spellcheck_language"].(string)
-	language, valid := canonicalSpellcheckLanguage(rawLanguage)
-	if !valid {
-		language = "en-US"
-	}
+	enabled, language := settingsmodel.Spellcheck(settings)
 	return &SpellcheckPreference{Enabled: enabled, Language: language}, nil
 }
 
 // SpellcheckSave persists the global offline spellcheck preference. The
 // language validation mirrors the dictionary assets that ship with Figaro.
 func (a *App) SpellcheckSave(enabled bool, language string) (*SaveFileResult, error) {
-	canonicalLanguage, valid := canonicalSpellcheckLanguage(language)
+	canonicalLanguage, valid := settingsmodel.CanonicalSpellcheckLanguage(language)
 	if !valid {
 		return &SaveFileResult{Success: false, Error: "unsupported spellcheck language"}, nil
 	}
@@ -4147,24 +3944,7 @@ func (a *App) AutoSaveLoad() int {
 		}
 		return 300
 	}
-	if v, ok := settings["auto_save_seconds"]; ok {
-		switch n := v.(type) {
-		case float64:
-			return int(n)
-		case int:
-			return n
-		}
-	}
-	// Also check old key name for backward compat
-	if v, ok := settings["auto_save_minutes"]; ok {
-		switch n := v.(type) {
-		case float64:
-			return int(n) * 60
-		case int:
-			return n * 60
-		}
-	}
-	return 300 // default: 5 minutes
+	return settingsmodel.AutoSaveSeconds(settings)
 }
 
 // AutoSaveSave persists the auto-save interval in seconds.
@@ -4193,15 +3973,7 @@ func (a *App) AutoCommitLoad() bool {
 		}
 		return true
 	}
-	if enabled, ok := settings["auto_commit_enabled"].(bool); ok {
-		return enabled
-	}
-	if legacy, ok := settings["auto_commit_seconds"]; ok {
-		if enabled, valid := legacyAutoCommitEnabled(legacy); valid {
-			return enabled
-		}
-	}
-	return true
+	return settingsmodel.AutoCommitEnabled(settings)
 }
 
 // AutoCommitSave persists the per-save, single-file history toggle.

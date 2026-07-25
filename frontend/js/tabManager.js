@@ -7,12 +7,25 @@ import { log } from './log.js';
 import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, settingsIcon, warningIcon } from './icons.js';
 import { setState, getState, subscribe, recordRecentFile } from './state.js';
 import { saveSession } from './session.js';
-import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile } from './editor.js';
+import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile, createEditorView, setImageBasePath } from './editor.js';
 import { statusBar } from './statusBar.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
 import { playEntranceAnimation, playExitAnimation } from './motion.js';
 import { shouldCommitOnSave } from './automation.js';
 import { offerExternalFileImport } from './externalFiles.js';
+import { renderHome } from './home.js';
+import { invalidateCalendarCache, loadCalendarResults, refreshCalendarIfVisible } from './calendar.js';
+import { loadBacklinksResults } from './backlinks.js';
+import {
+    applyKanbanPresentationToViews,
+    initKanbanPresentationSettings,
+    renderKanbanBoard,
+} from './kanban.js';
+import { renderVaultHealth } from './vaultHealth.js';
+import { renderDrawioTab } from './drawio.js';
+import { initSettingsPanel } from './theme.js';
+import { isLatestSave, savedLatestEdit, saveStatusMessage } from './core/saveModel.js';
+import { createDocumentSave } from './usecases/documentSave.js';
 
 /**
  * View Manager — shows either the editor or tab panels, never both.
@@ -62,7 +75,6 @@ export function showWorkspaceHome() {
 
 let tabCounter = 1;
 let tabContextMenu = null;
-const saveQueues = new Map();
 let draggedTabId = null;
 let tabDropIndicator = null;
 let suppressTabClick = false;
@@ -475,7 +487,6 @@ async function renderTabContent(tab, cursorState = null) {
         setView('editor');
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         if (!getEditorView()) {
-            const { createEditorView } = await import('./editor.js');
             createEditorView();
         }
         renderFileTab(null, tab, cursorState);
@@ -577,55 +588,44 @@ function focusSearchLine(tab) {
 }
 
 function renderWorkspaceHome(panel) {
-    import('./home.js').then(({ renderHome }) => {
+    try {
         if (panel.classList.contains('active') && panel.isConnected) renderHome(panel);
-    }).catch(error => {
+    } catch (error) {
         log.error('Failed to render workspace home:', error);
         panel.innerHTML = '<div class="home-view"><p class="home-empty">Home is unavailable right now.</p></div>';
-    });
+    }
 }
 
 function renderCalendarTab(panel, tab) {
     panel.innerHTML = `<div class="calendar-view-wrapper"><div class="calendar-view-header"><h2>Mention of Date: [[${tab.dateStr}]]</h2></div><div class="results-list" id="calendar-results-${tab.dateStr}"></div></div>`;
-    import('./calendar.js').then(({ loadCalendarResults }) => {
-        loadCalendarResults(tab.dateStr, `calendar-results-${tab.dateStr}`);
-    });
+    loadCalendarResults(tab.dateStr, `calendar-results-${tab.dateStr}`);
 }
 
 function renderBacklinksTab(panel, tab) {
     const fileName = tab.targetPath.split('/').pop().replace('.md', '');
     panel.innerHTML = `<div class="backlinks-view-wrapper"><div class="backlinks-view-header"><h2>Relationships for [[${fileName}]]</h2><p class="backlinks-subtitle">Linked notes and plain-text mentions across your vault.</p></div><div class="results-list" id="backlinks-results-${tab.id}"></div></div>`;
-    import('./backlinks.js').then(({ loadBacklinksResults }) => {
-        loadBacklinksResults(tab.targetPath, `backlinks-results-${tab.id}`);
-    });
+    loadBacklinksResults(tab.targetPath, `backlinks-results-${tab.id}`);
 }
 
 function renderKanbanTab(panel, tab) {
     const density = getState('kanbanDensity') === 'compact' ? 'compact' : 'comfortable';
     const layout = getState('kanbanLayout') === 'stacked' ? 'stacked' : 'side-by-side';
     panel.innerHTML = `<div class="kanban-view-wrapper" data-density="${density}" data-layout="${layout}"><div class="kanban-view-header"><div><h2>Kanban Task Board</h2><p class="kanban-instruction">Drag cards between columns. Click a card to open its source note. Columns are created from #tags in your notes.</p></div></div><div class="kanban-board" id="kanban-board-main"></div></div>`;
-    import('./kanban.js').then(({ renderKanbanBoard, applyKanbanPresentationToViews }) => {
-        // The board renderer can operate before optional presentation helpers
-        // are available (and keeps compatibility with lean embedded builds).
-        if (typeof applyKanbanPresentationToViews === 'function') applyKanbanPresentationToViews(density, layout);
-        renderKanbanBoard('kanban-board-main', tab.focusCol);
-    });
+    applyKanbanPresentationToViews(density, layout);
+    renderKanbanBoard('kanban-board-main', tab.focusCol);
 }
 
 function renderVaultHealthTab(panel) {
-    import('./vaultHealth.js').then(({ renderVaultHealth }) => {
-        if (panel.classList.contains('active') && panel.isConnected) return renderVaultHealth(panel);
-        return undefined;
-    }).catch(error => {
+    if (!panel.classList.contains('active') || !panel.isConnected) return;
+    renderVaultHealth(panel).catch(error => {
         log.error('Failed to render vault health:', error);
         panel.innerHTML = '<div class="vault-health-view"><p class="vault-health-error">Vault health is unavailable right now.</p></div>';
     });
 }
 
 function renderDrawioDiagramTab(panel, tab) {
-    import('./drawio.js').then(({ renderDrawioTab }) => {
-        if (tab.id === getState('activeTabId') && panel.isConnected) renderDrawioTab(panel, tab);
-    }).catch(error => {
+    if (tab.id !== getState('activeTabId') || !panel.isConnected) return;
+    renderDrawioTab(panel, tab).catch(error => {
         log.error('Failed to render draw.io tab:', error);
         panel.innerHTML = '<div class="drawio-view"><p class="drawio-error">Diagram editor is unavailable right now.</p></div>';
     });
@@ -791,7 +791,7 @@ export function updateTabsForMovedPath(oldPath, newPath) {
 
     const activeTab = getActiveTab();
     if (activeTab?.type === 'file' && activeTab.path) {
-        import('./editor.js').then(({ setImageBasePath }) => setImageBasePath(activeTab.path)).catch(() => {});
+        setImageBasePath(activeTab.path);
     }
     return true;
 }
@@ -865,7 +865,7 @@ async function persistTabsBeforePathOperation(tabsToPrepare, operation) {
     }
 
     await Promise.all(tabsToPrepare
-        .map(tab => saveQueues.get(tab.path))
+        .map(tab => documentSave.pendingForPath(tab.path))
         .filter(Boolean)
         .map(save => save.catch(() => {})));
     return { success: true };
@@ -1115,89 +1115,51 @@ function contentSnapshotForTab(tab) {
     return typeof tab._content === 'string' ? tab._content : '';
 }
 
+const documentSave = createDocumentSave({
+    persist: ({ path, externalFileId, content, expectedMtime }) => externalFileId
+        ? backend().SaveLaunchExternalFile(externalFileId, content, expectedMtime)
+        : backend().SaveFile(path, content, expectedMtime),
+    confirmOverwrite: () => window.confirmDialog(
+        'File changed outside Figaro',
+        'Another application saved a newer version of this file. Overwriting will replace those external changes with the version currently open in Figaro.',
+        true,
+        false,
+        { confirmLabel: 'Overwrite file', cancelLabel: 'Keep external version', icon: 'warning' },
+    ),
+    shouldCommit: () => shouldCommitOnSave(),
+    commit: path => backend().CommitCurrentFile(path),
+    onSaved: applySaveSuccess,
+    onFailed: (snapshot, error) => {
+        log.error('Save failed:', error);
+        if (isLatestSave(snapshot.tab, snapshot)) statusBar.set('Save failed');
+    },
+});
+
 // Queue saves by path. Every subsequent save reads the tab's latest mtime only
 // after its predecessor finishes, turning the backend's optimistic check into
 // a real per-file compare-and-swap sequence.
-export function saveFileSnapshot(tab, content, { offerExternalImport = false } = {}) {
-    if (!tab?.path || typeof content !== 'string') return Promise.resolve(null);
-
-    const path = tab.path;
-    const generation = (tab._saveGeneration || 0) + 1;
-    const editGeneration = tab._editGeneration || 0;
-    tab._saveGeneration = generation;
-    const previous = saveQueues.get(path) || Promise.resolve();
-    const queued = previous
-        .catch(() => {})
-        .then(() => persistFileSnapshot(tab, content, generation, editGeneration, offerExternalImport));
-
-    saveQueues.set(path, queued);
-    queued.finally(() => {
-        if (saveQueues.get(path) === queued) saveQueues.delete(path);
-    }).catch(() => {});
-    return queued;
+export function saveFileSnapshot(tab, content, options = {}) {
+    return documentSave.save(tab, content, options);
 }
 
-async function persistFileSnapshot(tab, content, generation, editGeneration, offerExternalImport) {
-    const path = tab.path;
-    const save = async (expectedMtime) => tab.externalFileId
-        ? backend().SaveLaunchExternalFile(tab.externalFileId, content, expectedMtime || 0)
-        : backend().SaveFile(path, content, expectedMtime || 0);
-
-    try {
-        const result = await save(tab.mtime);
-        if (result.success) {
-            await applySaveSuccess(tab, result, generation, editGeneration, 'Saved', content, offerExternalImport);
-            return result;
-        }
-
-        const shouldOverwrite = await window.confirmDialog(
-            'File changed outside Figaro',
-            'Another application saved a newer version of this file. Overwriting will replace those external changes with the version currently open in Figaro.',
-            true,
-            false,
-            { confirmLabel: 'Overwrite file', cancelLabel: 'Keep external version', icon: 'warning' }
-        );
-        if (shouldOverwrite) {
-            const forceResult = await save(0);
-            if (forceResult.success) {
-                await applySaveSuccess(tab, forceResult, generation, editGeneration, 'Saved (forced)', content, offerExternalImport);
-                return forceResult;
-            }
-            return forceResult;
-        }
-        return result;
-    } catch (err) {
-        log.error('Save failed:', err);
-        if (tab._saveGeneration === generation) statusBar.set('Save failed');
-        throw err;
-    }
-}
-
-async function applySaveSuccess(tab, result, generation, editGeneration, message, content, offerExternalImport) {
+async function applySaveSuccess(snapshot, result, {
+    historyCommitFailed,
+    historyCommitError,
+    successMessage,
+}) {
+    const { tab, content, offerExternalImport } = snapshot;
     tab.mtime = result.mtime;
     const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
     tabsForPath.forEach(candidate => {
         candidate.mtime = result.mtime;
     });
-    const autoCommitEnabled = !tab.externalFileId && shouldCommitOnSave();
-    let historyCommitFailed = false;
-    if (autoCommitEnabled) {
-        try {
-            await backend().CommitCurrentFile(tab.path);
-        } catch (error) {
-            historyCommitFailed = true;
-            log.warn('File saved, but its history commit failed:', error);
-        }
+    if (historyCommitFailed) {
+        log.warn('File saved, but its history commit failed:', historyCommitError);
     }
-    // Consumers such as History already need to create a revision after a
-    // save. Let them reuse this successful, single-file Auto-Commit instead
-    // of issuing a duplicate Git operation; a failed Auto-Commit remains
-    // observable so they can safely retry it themselves.
-    result.historyCommitSucceeded = autoCommitEnabled && !historyCommitFailed;
-    if (tab._saveGeneration !== generation) return;
+    if (!isLatestSave(tab, snapshot)) return;
 
-    const savedLatestEdit = (tab._editGeneration || 0) === editGeneration;
-    if (savedLatestEdit) {
+    const latestEdit = savedLatestEdit(tab, snapshot);
+    if (latestEdit) {
         tab.dirty = false;
         tab._content = null;
     }
@@ -1207,17 +1169,17 @@ async function applySaveSuccess(tab, result, generation, editGeneration, message
             detail: { path: tab.path, content, mtime: result.mtime }
         }));
     }
-    statusBar.set(historyCommitFailed
-        ? 'Saved; history commit failed'
-        : (savedLatestEdit ? message : 'Saved older snapshot; newer changes remain'));
+    statusBar.set(saveStatusMessage({
+        historyCommitFailed,
+        latestEdit,
+        successMessage,
+    }));
     if (!tab.externalFileId) {
-        import('./calendar.js').then(({ invalidateCalendarCache, refreshCalendarIfVisible }) => {
-            invalidateCalendarCache();
-            refreshCalendarIfVisible();
-        }).catch(() => {});
+        invalidateCalendarCache();
+        refreshCalendarIfVisible();
         refreshHistoryIfOpen();
     }
-    if (tab.externalFileId && offerExternalImport && savedLatestEdit && !tab._externalImportOfferShown) {
+    if (tab.externalFileId && offerExternalImport && latestEdit && !tab._externalImportOfferShown) {
         tab._externalImportOfferShown = true;
         try {
             await offerExternalFileImport(tab, { openTab, closeTab });
@@ -1592,18 +1554,15 @@ function renderSettingsTab(panel, _tab) {
     // The panel is removed when Settings closes, so initialize each new panel
     // rather than retaining a module-wide "already initialized" flag.
     panel._settingsPanelDisposed = false;
-    import('./theme.js').then(m => {
+    Promise.resolve().then(() => {
         if (!panel.isConnected || panel._settingsPanelDisposed) return;
-        const initFn = m.initSettingsPanel || (m.default && m.default.initSettingsPanel);
-        if (initFn) return initFn(panel);
+        return initSettingsPanel(panel);
     }).catch(err => {
         log.warn('Settings tab init failed:', err);
     });
-    import('./kanban.js').then(({ initKanbanPresentationSettings }) => {
+    Promise.resolve().then(() => {
         if (!panel.isConnected || panel._settingsPanelDisposed) return;
-        if (typeof initKanbanPresentationSettings === 'function') {
-            initKanbanPresentationSettings(container);
-        }
+        initKanbanPresentationSettings(container);
     }).catch(err => {
         log.warn('Kanban Settings init failed:', err);
     });

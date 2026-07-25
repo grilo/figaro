@@ -6,6 +6,18 @@ import { log } from './log.js';
 import { getState } from './state.js';
 import { confirmDialog, errorDialog } from './dialogs.js';
 import { statusBar } from './statusBar.js';
+import {
+    getEditorContent,
+    getEditorView,
+    setEditorContent,
+    setReadOnly,
+} from './editor.js';
+import { saveFileSnapshot } from './tabManager.js';
+import { renderMarkdownDiff } from './historyDiff.js';
+import {
+    compactEditorRequired,
+    rightSidebarWidth,
+} from './core/rightSidebarLayout.js';
 
 let liveContent = null;
 let viewingHistory = false;
@@ -20,10 +32,6 @@ let historyNotice = '';
 let gitStatusPath = null;
 let gitStatusRequestId = 0;
 let gitCommitInProgress = false;
-
-const pdfPreviewMinimumWidth = 340;
-const pdfPreviewMinimumEditorWidth = 320;
-const compactEditorThreshold = 560;
 
 export function initHistoryPanel() {
     document.addEventListener('close-history-panel', closeHistoryPanel);
@@ -197,10 +205,6 @@ export async function commitCurrentFileChanges() {
 
     try {
         if (tab.dirty) {
-            const [{ getEditorContent }, { saveFileSnapshot }] = await Promise.all([
-                import('./editor.js'),
-                import('./tabManager.js'),
-            ]);
             // A fast tab switch caches the old document on its tab before the
             // active ID changes. Never read the replacement tab's editor text
             // into the file whose commit was clicked.
@@ -385,7 +389,6 @@ async function toggleHistoryDiff(hash, trigger) {
         return;
     }
 
-    const { renderMarkdownDiff } = await import('./historyDiff.js');
     if (!action.isConnected || !viewingHistory || viewedVersionHash !== hash || viewedVersionContent === null) return;
     const diff = document.createElement('section');
     diff.className = 'history-diff';
@@ -429,7 +432,6 @@ async function viewHistoryVersion(hash) {
 
 async function enterHistoryMode(versionContent, hash) {
     const requestId = ++historyModeRequestId;
-    const { getEditorView, getEditorContent, setEditorContent, setReadOnly } = await import('./editor.js');
     if (requestId !== historyModeRequestId) return;
 
     // Cache live content if not already cached
@@ -503,7 +505,6 @@ async function restoreViewedVersion() {
     }
     const restoredContent = viewedVersionContent;
     try {
-        const { saveFileSnapshot } = await import('./tabManager.js');
         const preserved = await saveFileSnapshot(tab, liveContent ?? '');
         if (!preserved?.success) throw new Error(preserved?.error || 'The current version could not be preserved.');
         if (!preserved.historyCommitSucceeded) await backend().CommitCurrentFile(tab.path);
@@ -537,7 +538,6 @@ async function exitHistoryMode() {
     const requestId = ++historyModeRequestId;
     viewingHistory = false;
 
-    const { getEditorView, setEditorContent, setReadOnly } = await import('./editor.js');
     if (requestId !== historyModeRequestId) return;
     const view = getEditorView();
 
@@ -606,7 +606,11 @@ export function updateRightSidebarEditorLayout(remainingEditorWidth = null) {
     if (!main) return;
     const isPDFPreview = Boolean(sidebar?.classList.contains('open') && sidebar.classList.contains('pdf-preview-mode'));
     const measuredWidth = Number.isFinite(remainingEditorWidth) ? remainingEditorWidth : elementWidth(main);
-    main.classList.toggle('pdf-preview-compact-editor', isPDFPreview && measuredWidth > 0 && measuredWidth < compactEditorThreshold);
+    main.classList.toggle('pdf-preview-compact-editor', compactEditorRequired({
+        sidebarOpen: Boolean(sidebar?.classList.contains('open')),
+        pdfPreview: isPDFPreview,
+        editorWidth: measuredWidth,
+    }));
 }
 
 function resizeEvent(type, sidebar, width) {
@@ -652,14 +656,14 @@ export function initRightSidebarResizer() {
 
     function onMove(e) {
         if (activePointerId !== null && e.pointerId !== activePointerId) return;
-        const diff = startX - e.clientX;
-        let newWidth = startWidth + diff;
         const isPDFPreview = sidebar.classList.contains('pdf-preview-mode');
-        const minimumWidth = isPDFPreview ? pdfPreviewMinimumWidth : 240;
-        const maximumWidth = isPDFPreview
-            ? Math.max(minimumWidth, workspaceWidth - pdfPreviewMinimumEditorWidth)
-            : 480;
-        newWidth = Math.min(maximumWidth, Math.max(minimumWidth, newWidth));
+        const newWidth = rightSidebarWidth({
+            startX,
+            currentX: e.clientX,
+            startWidth,
+            workspaceWidth,
+            pdfPreview: isPDFPreview,
+        });
         sidebar.style.width = newWidth + 'px';
         sidebar.style.minWidth = newWidth + 'px';
         document.documentElement.style.setProperty('--right-sidebar-width', newWidth + 'px');

@@ -51,10 +51,12 @@ document. Its inline squiggles and hover tooltip must not add block geometry or
 alter text metrics, so normal cursor movement, mouse placement, and drag
 selection keep the same layout contract.
 
-Wrapped Markdown bullet and ordered-list rows use an inline hanging indent:
-every continuation display row begins at the item body, whether the list marker
-is raw source or its rendered widget. The indent is recalculated with that
-line's preview state and must not introduce a block widget or vertical geometry.
+Wrapped Markdown bullet, ordered-list, and plain blockquote rows use an inline
+hanging indent. Every continuation display row begins at the item or quote
+body. For blockquotes, the indent accounts for the visible `>` while the line
+is active and only its remaining separator whitespace while it is passive.
+The indent is recalculated with that line's preview state and must not change
+source, introduce a block widget, or alter vertical geometry.
 
 ## 4. Block Widget Geometry Contract
 

@@ -141,7 +141,7 @@ Each theme defines these properties (with theme-specific colors):
 - Displays folders before files, both sorted alphabetically.
 - Folders expand/collapse on click; the icon toggles between open/closed states.
 - Clicking a file opens it in the editor (replacing the current file tab).
-- CodeMirror-supported source files (for example CSS, HTML, JavaScript/TypeScript, JSON, Go, Python, Rust, SQL, YAML, Dockerfiles, and maintained legacy modes) open in the same editor with their language parser loaded on demand.
+- CodeMirror-supported source files (for example CSS, HTML, JavaScript/TypeScript, JSON, Go, Python, Rust, SQL, YAML, Dockerfiles, and maintained legacy modes) open in the same editor. Figaro warms all bundled language parsers during startup, so the first switch to a source file does not trigger feature-code loading.
 - Editable Draw.io diagrams use the .drawio.svg suffix. They open in the Draw.io editor while remaining normal SVG assets when embedded in Markdown.
 - **Ctrl/Cmd+Click** adds/removes a Markdown file to the multi-selection (highlighted with an accent-tinted background and outline).
 - **Ctrl/Cmd+C** copies the selected tree file or folder to Figaro's internal file clipboard. **Ctrl/Cmd+V** pastes it into the selected folder, or beside the selected file. The same commands are available from the tree context menu; the clipboard remains available for repeated pastes during the current application session. Paste first saves dirty open files inside the copied source so the duplicate matches the visible editor content. A dirty Draw.io SVG must finish its own explicit save before copying because its editor has an independent save protocol.
@@ -205,7 +205,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Document Outline**: a status-bar control appears only for Markdown files with headings. Its right-pane navigator is source-position based, supports nested H1–H6 heading levels, ignores frontmatter and fenced-code lookalikes, follows selection/viewport changes, and dispatches a normal CodeMirror selection when a heading is activated. It adds no editor decorations or widgets.
 - Inline rendering of hashtags and markdown links with distinct styling.
 - **Fenced code blocks**: triple-backtick blocks with optional language tag, rendered with monospace font, subtle background, syntax highlighting (via highlight.js classes themed with `--code-*-color` variables), copy button, and line numbers.
-- **Blockquotes**: `>` lines rendered with a left `::before` pseudo-element border (4px `var(--quote-border)`) and italic styling.
+- **Blockquotes**: `>` lines render with a themed left border and italic styling. Wrapped continuation rows align beneath the first quoted body character in both active raw-marker and passive live-preview states without changing source.
 - **Lists**: wrapped bullet and ordered-list rows use a hanging indent so every continuation row begins beneath the item body, in both raw editing and rendered-marker states.
 - **Horizontal rules**: `---`, `***`, or `___` render as a full-width separator line via `Decoration.line` with active-line cursor reveal.
 - **Strikethrough**: `~~text~~` renders with a line-through style.
@@ -395,7 +395,8 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 8.1 Activation
 - Toggle via the Settings tab's **Enable Vim** checkbox.
 - Uses `@replit/codemirror-vim` (vendored at `frontend/vendored/@replit/codemirror-vim/`).
-- Loaded dynamically via CodeMirror `Compartment` — no page reload required.
+- Enabled or disabled at runtime through a preloaded CodeMirror `Compartment`
+  — no module loading or page reload is required.
 - Preference persisted to `vault/.config/settings.json` (`"vim": true/false`).
 - The persisted preference is loaded once during application startup and is
   the single source of truth for both the Settings switch and live editor. If
@@ -509,7 +510,7 @@ open so newer or unsaved text cannot be discarded.
 ## 10. Markdown Cheatsheet
 
 - Click "md cheatsheet" in status bar to open popup.
-- Reference table: headings, emphasis, strikethrough/highlight, Markdown links, conventional `[[wikilink.md|wikilink]]` syntax immediately afterward, images, lists, tasks, blockquotes/callouts, code blocks, Mermaid, Vega, Vega-Lite, Draw.io SVGs, math, HRs, hashtags, footnotes, and tables.
+- Reference table: headings, emphasis, strikethrough/highlight, Markdown links, conventional `[[wikilink.md|wikilink]]` syntax immediately afterward, images, lists, tasks, blockquotes, and the complete quoted syntax for the six supported admonitions/callouts—Note, Warning, Info, Tip, Danger, and Example—followed by code blocks, Mermaid, Vega, Vega-Lite, Draw.io SVGs, math, HRs, hashtags, footnotes, and tables.
 - PDF-specific controls remain discoverable in the frontmatter Properties panel rather than crowding the cheatsheet.
 - Close button (✕) at top-right; closes on outside click.
 
@@ -834,7 +835,8 @@ Multiple layers prevent a white flash before CSS loads:
 ### 21.3 Vim Mode
 - Toggle via the Settings tab switch.
 - Uses `@replit/codemirror-vim` (vendored).
-- Loaded dynamically via CodeMirror `Compartment` — no page reload.
+- Enabled or disabled at runtime through a preloaded CodeMirror `Compartment`
+  — no module loading or page reload is required.
 - Custom Ex commands: `:w`, `:e`, `:q`, `:wq`, `:x`.
 
 ---
@@ -1085,7 +1087,9 @@ Fenced code blocks tagged `mermaid`, `vega`, or `vega-lite` are automatically re
 - Language tag extracted from the info string (e.g., `mermaid`, `vega`, `vega-lite`).
 - Code block replaced with a `DiagramWidget` — renders SVG via `mermaid.render()` or `vegaEmbed()`.
 - The regular fenced-code renderer skips these three languages, so it cannot compete with the diagram replacement decoration.
-- Mermaid initialized once on first use with `securityLevel: 'loose'`.
+- Mermaid is initialized during application startup with
+  `securityLevel: 'loose'`; Vega and Vega-Lite availability is registered at
+  the same boundary.
 - Vega specs parsed as JSON, rendered via `vegaEmbed`, SVG extracted via `view.toSVG()`.
 - A diagram-only recovery path tolerates an accidental longer opening fence followed by a normal closing fence, so one malformed diagram cannot swallow later diagrams.
 - The editor and PDF pipeline share the same SVG renderer. Exports use the rendered SVG while preserving a failed source fence for recovery.
@@ -1257,6 +1261,12 @@ npm run test:unit                    # JS tests (editor, tabs, state, rendering,
 npx playwright install chromium # First browser-test setup only
 npm run test:pdf  # Playwright browser test using vendored Mermaid, Vega, and Vega-Lite
 ```
+
+Feature coverage follows the test pyramid in
+[`docs/TESTING.md`](TESTING.md): pure logic and use-case tests carry the
+acceptance matrix, adapters and focused components prove their effect
+boundaries, and Playwright is reserved for irreducible browser layout, event,
+frame, and print behavior.
 
 ### 35.4 Versioned Releases
 - Figaro's first public release is `v1.0.0`. A stable release tag must use `vMAJOR.MINOR.PATCH`, point to a commit already on `main`, and match `package.json`, both root version records in `package-lock.json`, and `wails.json`.

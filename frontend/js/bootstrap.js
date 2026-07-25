@@ -1,5 +1,6 @@
 import { hasBackend, installDebugBackend } from './backend.js';
 import { initApp } from './app.js';
+import { startupBackendDecision } from './core/bootstrapModel.js';
 
 let bootTries = 0;
 let bootStarted = false;
@@ -90,11 +91,16 @@ function debugAPI() {
 }
 
 export function bootWhenReady() {
-    if (hasBackend()) {
+    const decision = startupBackendDecision({
+        hasBackend: hasBackend(),
+        protocol: window.location.protocol,
+        tries: bootTries++,
+    });
+    if (decision === 'start') {
         startApp();
         return;
     }
-    if (bootTries++ > 40 && !window.go?.main?.App) {
+    if (decision === 'debug') {
         console.warn('No Wails backend — running in debug mode');
         installDebugBackend(debugAPI());
         startApp();

@@ -10,6 +10,7 @@ import { backend } from './backend.js';
 import { getState } from './state.js';
 import { stripLeadingFrontmatter } from './frontmatter.js';
 import { createPrintMarkdownRenderer } from '../vendored/markdown-it-plugins/index.js';
+import { getEditorContent } from './editor.js';
 
 const previewMode = 'markdown-preview';
 
@@ -104,7 +105,6 @@ function renderPreview() {
 async function activeOrSavedContent(path) {
     const tab = (getState('openTabs') || []).find(candidate => candidate?.type === 'file' && candidate.path === path);
     if (tab?.id === getState('activeTabId')) {
-        const { getEditorContent } = await import('./editor.js');
         return { content: getEditorContent(), mtime: tab.mtime ?? null };
     }
     if (typeof tab?._content === 'string' && tab.dirty) {

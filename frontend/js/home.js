@@ -5,6 +5,7 @@ import { backend } from './backend.js';
 
 import { getState } from './state.js';
 import { log } from './log.js';
+import { openTab } from './tabManager.js';
 
 export const homeTaskLimit = 6;
 
@@ -106,7 +107,6 @@ async function handleHomeClick(panel, event) {
     const action = event.target.closest('[data-home-action]');
     if (action) {
         if (action.dataset.homeAction === 'kanban') {
-            const { openTab } = await import('./tabManager.js');
             openTab('kanban', 'Kanban', 'kanban');
         }
         return;
@@ -120,7 +120,6 @@ async function handleHomeClick(panel, event) {
 }
 
 async function openFile(path, title, line, mtime) {
-    const { openTab } = await import('./tabManager.js');
     openTab(path, title || path.split('/').pop(), 'file', { path, line, mtime });
 }
 

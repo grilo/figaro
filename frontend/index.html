@@ -112,15 +112,9 @@
     <script src="/vendored/vega/vega-lite.min.js"></script>
     <script src="/vendored/vega/vega-embed.min.js"></script>
     <script src="/vendored/lucide/lucide.min.js"></script>
-    <!-- Wails publishes its bound Go App object natively. -->
-    <script>
-        window.addEventListener('DOMContentLoaded', function () {
-            if (window.location.protocol === 'wails:' || window.go?.main?.App) return;
-            import('/js/bootstrap.js').catch(function (error) {
-                console.error('Figaro bootstrap import failed:', error);
-            });
-        });
-    </script>
+    <!-- Load the complete application graph during startup. The bootstrap waits
+         for Wails' bound Go App object before it initializes the workspace. -->
+    <script type="module" src="/js/bootstrap.js"></script>
 </head>
 <body>
     <div id="app">
@@ -291,7 +285,19 @@
                             <tr><td><code>![alt](image.png)</code></td><td>Image</td></tr>
                             <tr><td><code>- item</code> <code>1. item</code></td><td>Unordered / Ordered list</td></tr>
                             <tr><td><code>- [ ] task</code> <code>- [x] done</code></td><td>Task / Checkbox</td></tr>
-                            <tr><td><code>&gt; quote</code> <code>&gt; [!note]</code></td><td>Blockquote / Callout</td></tr>
+                            <tr><td><code>&gt; quote</code></td><td>Blockquote</td></tr>
+                            <tr class="md-cheatsheet-admonition-row">
+                                <td>
+                                    <code>&gt; [!note]</code>
+                                    <code>&gt; [!warning]</code>
+                                    <code>&gt; [!info]</code>
+                                    <code>&gt; [!tip]</code>
+                                    <code>&gt; [!danger]</code>
+                                    <code>&gt; [!example]</code>
+                                    <br><code>&gt; Body text</code>
+                                </td>
+                                <td>Admonitions / Callouts</td>
+                            </tr>
                             <tr><td><code>```lang</code> <code>```</code></td><td>Fenced code block</td></tr>
                             <tr class="md-cheatsheet-diagram-row"><td><code>```mermaid</code><br><code>flowchart TD; A--&gt;B</code><br><code>```</code></td><td>Mermaid diagram — close with the same fence length</td></tr>
                             <tr class="md-cheatsheet-diagram-row"><td><code>```vega</code> <code>```vega-lite</code><br><code>{ "mark": "bar", ... }</code><br><code>```</code></td><td>Vega / Vega-Lite JSON chart</td></tr>

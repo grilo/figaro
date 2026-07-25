@@ -50,16 +50,29 @@ jest.mock('../frontend/js/dialogs.js', () => ({
 
 jest.mock('../frontend/js/calendar.js', () => ({
     renderCalendar: jest.fn(),
-    loadCalendarResults: jest.fn()
+    loadCalendarResults: jest.fn(),
+    invalidateCalendarCache: jest.fn(),
+    refreshCalendarIfVisible: jest.fn(),
 }));
 jest.mock('../frontend/js/backlinks.js', () => ({
     loadBacklinksResults: jest.fn()
 }));
 jest.mock('../frontend/js/kanban.js', () => ({
-    renderKanbanBoard: jest.fn()
+    applyKanbanPresentationToViews: jest.fn(),
+    initKanbanPresentationSettings: jest.fn(),
+    renderKanbanBoard: jest.fn(),
 }));
 jest.mock('../frontend/js/theme.js', () => ({
     initSettingsPanel: jest.fn().mockResolvedValue()
+}));
+jest.mock('../frontend/js/home.js', () => ({
+    renderHome: jest.fn(),
+}));
+jest.mock('../frontend/js/vaultHealth.js', () => ({
+    renderVaultHealth: jest.fn().mockResolvedValue(),
+}));
+jest.mock('../frontend/js/drawio.js', () => ({
+    renderDrawioTab: jest.fn().mockResolvedValue(),
 }));
 
 import { state, setState, getState } from '../frontend/js/state.js';

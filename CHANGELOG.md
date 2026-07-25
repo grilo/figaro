@@ -6,6 +6,20 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.7.0 - 2026-07-25
+
+### Changed
+
+- Bundled editor features, language parsers, and diagram engines now initialize
+  during application startup, avoiding first-use loading pauses while working.
+- The Markdown cheatsheet now shows the full quoted syntax for the supported
+  Note, Warning, Info, Tip, Danger, and Example admonitions.
+
+### Fixed
+
+- Wrapped blockquotes now keep continuation rows aligned beneath the quoted
+  body in both editing and live-preview states.
+
 ## 1.6.5 - 2026-07-25
 
 ### Fixed

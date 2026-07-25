@@ -7,10 +7,12 @@ import { backend, waitForBackend } from './backend.js';
 import { log } from './log.js';
 import { state, initState, subscribe, setState, getState } from './state.js';
 import { initEditor, getEditorContent, openEditorSearch } from './editor.js';
+import { preloadLanguageSupport } from './languageSupport.js';
+import { initializeDiagramRenderers } from './diagramRenderer.js';
 import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot, showWorkspaceHome } from './tabManager.js';
 import { initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
 import { initCalendar, renderCalendar, invalidateCalendarCache, refreshCalendarIfVisible } from './calendar.js';
-import { initKanban } from './kanban.js';
+import { initKanban, refreshKanbanData } from './kanban.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, promptDialog } from './dialogs.js';
 import { initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
@@ -70,12 +72,12 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
             // the complete board across the native bridge again. Older
             // backends omit this field, so retain their conservative refresh.
             if (payload.kanban_changed !== false) {
-                import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});
+                refreshKanbanData().catch(() => {});
             }
             document.dispatchEvent(new CustomEvent('vault-filesystem-changed'));
         },
         onKanbanIndexed: () => {
-            import('./kanban.js').then(({ refreshKanbanData }) => refreshKanbanData()).catch(() => {});
+            refreshKanbanData().catch(() => {});
         },
         onHistoryChanged: () => {
             document.dispatchEvent(new CustomEvent('vault-history-changed'));
@@ -448,6 +450,8 @@ export async function initApp() {
     window._appReady = false;
     
     statusBar.set('Initializing...');
+    const languageSupportReady = preloadLanguageSupport();
+    initializeDiagramRenderers();
     
     // Initialize persistent state
     initState();
@@ -476,6 +480,7 @@ export async function initApp() {
     
     // Initialize editor (CodeMirror 6)
     statusBar.set('Loading editor...');
+    await languageSupportReady;
     await initEditor();
     
     // Initialize tab manager
@@ -606,5 +611,5 @@ export async function initApp() {
     };
 }
 
-// Native Wails startup calls initApp after DOM readiness; browser debugging
-// starts it through bootstrap.js after installing its explicit debug backend.
+// index.html eagerly loads bootstrap.js, which starts initApp after the native
+// backend is ready (or installs the explicit browser-development backend).

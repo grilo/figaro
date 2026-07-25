@@ -15,13 +15,13 @@ const mockSetReadOnly = jest.fn();
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn(() => mockEditorView),
     getEditorContent: jest.fn(() => 'unsaved current version'),
-    setEditorContent: mockSetEditorContent,
-    setReadOnly: mockSetReadOnly,
+    setEditorContent: (...args) => mockSetEditorContent(...args),
+    setReadOnly: (...args) => mockSetReadOnly(...args),
 }));
 
 const mockSaveFileSnapshot = jest.fn().mockResolvedValue({ success: true, mtime: 11 });
 jest.mock('../frontend/js/tabManager.js', () => ({
-    saveFileSnapshot: mockSaveFileSnapshot,
+    saveFileSnapshot: (...args) => mockSaveFileSnapshot(...args),
 }));
 
 jest.mock('../frontend/js/dialogs.js', () => ({

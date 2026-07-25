@@ -197,6 +197,26 @@ describe('Editor Module - CodeMirror Initialization', () => {
         expect(markdownListHangingIndentAttributes('Not a list')).toBeNull();
     });
 
+    test('calculates active and passive hanging indents for wrapped blockquotes', async () => {
+        const { markdownBlockquoteHangingIndentAttributes } = await import('../frontend/js/editor.js');
+
+        expect(markdownBlockquoteHangingIndentAttributes('> A quote')).toEqual({
+            class: 'cm-blockquote-line',
+            style: '--cm-blockquote-hanging-indent: 1ch; --cm-blockquote-hanging-outdent: -1ch;',
+        });
+        expect(markdownBlockquoteHangingIndentAttributes('> A quote', {
+            markerVisible: true,
+        })).toEqual({
+            class: 'cm-blockquote-line',
+            style: '--cm-blockquote-hanging-indent: 2ch; --cm-blockquote-hanging-outdent: -2ch;',
+        });
+        expect(markdownBlockquoteHangingIndentAttributes('  > > Nested quote')).toEqual({
+            class: 'cm-blockquote-line',
+            style: '--cm-blockquote-hanging-indent: 4ch; --cm-blockquote-hanging-outdent: -4ch;',
+        });
+        expect(markdownBlockquoteHangingIndentAttributes('Not a quote')).toBeNull();
+    });
+
     test('resolves conventional wikilink targets independently from their aliases', async () => {
 		const { normalizeWikiLinkTarget, wikiLinkAtPosition } = await import('../frontend/js/editor.js');
 		const line = 'See [[notes/Guide Note.md#start|Readable guide]] now';

@@ -11,7 +11,7 @@ jest.mock('../frontend/js/state.js', () => ({
 
 const mockGetEditorContent = jest.fn(() => 'pending text');
 jest.mock('../frontend/js/editor.js', () => ({
-    getEditorContent: mockGetEditorContent,
+    getEditorContent: (...args) => mockGetEditorContent(...args),
     getEditorView: jest.fn(() => null),
     setEditorContent: jest.fn(),
     setReadOnly: jest.fn(),
@@ -19,7 +19,7 @@ jest.mock('../frontend/js/editor.js', () => ({
 
 const mockSaveFileSnapshot = jest.fn();
 jest.mock('../frontend/js/tabManager.js', () => ({
-    saveFileSnapshot: mockSaveFileSnapshot,
+    saveFileSnapshot: (...args) => mockSaveFileSnapshot(...args),
 }));
 
 jest.mock('../frontend/js/dialogs.js', () => ({

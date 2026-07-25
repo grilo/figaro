@@ -9,6 +9,8 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { errorDialog } from './dialogs.js';
+import { markTabDirty, saveFileSnapshot } from './tabManager.js';
+import { refreshFileTree } from './fileTree.js';
 
 export const drawioEditorOrigin = 'https://embed.diagrams.net';
 export const drawioExportTimeoutMs = 30000;
@@ -194,7 +196,7 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
 
         if (message.event === 'autosave') {
             if (!session.saving) {
-                import('./tabManager.js').then(({ markTabDirty }) => markTabDirty(tab.id)).catch(() => {});
+                markTabDirty(tab.id);
             }
             return;
         }
@@ -274,7 +276,6 @@ async function persistExportedSVG(panel, tab, session, data) {
         if (!/<svg[\s>]/i.test(svg)) throw new Error('Draw.io did not return SVG output');
         traceDrawio('persisting SVG', { bytes: svg.length, path: tab.path });
 
-        const { saveFileSnapshot } = await import('./tabManager.js');
         const result = await saveFileSnapshot(tab, svg);
         if (!result?.success) throw new Error(result?.error || 'Could not save the diagram');
 
@@ -285,7 +286,7 @@ async function persistExportedSVG(panel, tab, session, data) {
         session.post({ action: 'spinner', show: 0 });
         session.post({ action: 'status', messageKey: 'allChangesSaved', modified: false });
         traceDrawio('saved SVG', { bytes: svg.length, path: tab.path });
-        import('./fileTree.js').then(({ refreshFileTree }) => refreshFileTree()).catch(() => {});
+        refreshFileTree().catch(() => {});
 
         if (session.exitAfterSave) showDiagramPreview(panel, tab, svg);
     } catch (error) {
