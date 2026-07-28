@@ -6,6 +6,53 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.8.0 - 2026-07-28
+
+### Added
+
+- Settings now includes an About card showing the packaged Figaro version.
+- Added a searchable design-system catalogue that displays Figaro's shared UI
+  primitives, intentional feature variants, states, production selectors, and
+  computed tokens across every bundled theme.
+
+### Changed
+
+- The Go desktop application now lives in a capability-oriented
+  `internal/desktop` package, leaving the repository root as a small executable
+  and embedded-asset boundary without changing Figaro workflows.
+- Figaro's former monolithic application stylesheet is now an eagerly loaded,
+  responsibility-based CSS stack shared with the design-system catalogue.
+  Every bundled theme is a token-only override backed by a tested palette and
+  art-direction contract, making theme changes consistent across components.
+- Pickers, steppers, compact and icon actions, badges, menu presentation,
+  fields, and notices now share tokenized production primitives, giving their
+  themed interaction states one consistent implementation while preserving
+  feature-specific behavior and layout.
+- Figaro and its design-system catalogue now load one canonical approved
+  component stylesheet; remaining Home, search, Kanban, Properties, Settings,
+  and cheatsheet controls use those shared primitives instead of parallel
+  presentation rules.
+
+### Fixed
+
+- Newly opened, selected, restored, and pinned tabs now remain fully visible in
+  the horizontal tab rail. The **All tabs** menu appears only for real overflow,
+  while themed edge fades show where additional tabs remain.
+- Settings pickers now retain their themed focus ring while open, including
+  themes that customize the Settings control surface.
+- The design-system catalogue's custom-picker specimen now shows its compact
+  chevron instead of an oversized black triangle.
+- Design-system select-only comboboxes now use Figaro's production themed
+  listbox, so their open menus follow the active theme instead of the host
+  toolkit's native popup styling.
+- Font-size and text-width steppers now use one continuous background across
+  their minus button, current value, and plus button.
+- The local catalogue and browser-test server now disables asset caching, so a
+  normal reload shows current component-style changes during review.
+- The design-system catalogue now loads its CSS, themes, fonts, icons, search,
+  and interactive controls when `index.html` is opened directly from a file
+  explorer, without requiring the local development server.
+
 ## 1.7.0 - 2026-07-25
 
 ### Changed

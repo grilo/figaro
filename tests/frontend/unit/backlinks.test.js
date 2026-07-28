@@ -20,7 +20,7 @@ describe('empty and failed backlink lookups', () => {
     test('treats legacy null and current empty-list responses as normal zero backlinks', async () => {
         expect(normalizeBacklinks(null)).toEqual([]);
         expect(normalizeBacklinks([])).toEqual([]);
-        window.go.main.App.SearchBacklinks.mockResolvedValueOnce(null);
+        window.go.desktop.App.SearchBacklinks.mockResolvedValueOnce(null);
 
         await updateBacklinksForActiveTab();
 
@@ -35,7 +35,7 @@ describe('empty and failed backlink lookups', () => {
         const container = document.createElement('div');
         container.id = 'backlinks-results';
         document.body.appendChild(container);
-        window.go.main.App.SearchBacklinks.mockResolvedValueOnce([]);
+        window.go.desktop.App.SearchBacklinks.mockResolvedValueOnce([]);
 
         await loadBacklinksResults('target.md', container.id);
 
@@ -48,11 +48,11 @@ describe('empty and failed backlink lookups', () => {
         const container = document.createElement('div');
         container.id = 'relationships-results';
         document.body.appendChild(container);
-        window.go.main.App.SearchBacklinks.mockResolvedValueOnce([{
+        window.go.desktop.App.SearchBacklinks.mockResolvedValueOnce([{
             path: 'linked.md', name: 'linked.md', line_num: 4,
             context: 'Discuss [Target](target.md) before the decision.', match_text: 'Target',
         }]);
-        window.go.main.App.SearchUnlinkedMentions.mockResolvedValueOnce([{
+        window.go.desktop.App.SearchUnlinkedMentions.mockResolvedValueOnce([{
             path: 'mention.md', name: 'mention.md', line_num: 8,
             context: 'Target needs an owner before Friday.', match_text: 'Target',
         }]);
@@ -71,8 +71,8 @@ describe('empty and failed backlink lookups', () => {
         const container = document.createElement('div');
         container.id = 'link-mention-results';
         document.body.appendChild(container);
-        window.go.main.App.SearchBacklinks.mockResolvedValue([]);
-        window.go.main.App.SearchUnlinkedMentions
+        window.go.desktop.App.SearchBacklinks.mockResolvedValue([]);
+        window.go.desktop.App.SearchUnlinkedMentions
             .mockResolvedValueOnce([{
                 path: 'mention.md', name: 'mention.md', line_num: 3,
                 context: 'Target needs an owner.', match_text: 'Target',
@@ -84,14 +84,14 @@ describe('empty and failed backlink lookups', () => {
         await testUtils.waitFor(0);
         await testUtils.waitFor(0);
 
-        expect(window.go.main.App.LinkUnlinkedMention).toHaveBeenCalledWith(
+        expect(window.go.desktop.App.LinkUnlinkedMention).toHaveBeenCalledWith(
             'mention.md', 3, 'target.md', 'markdown'
         );
         expect(container.textContent).toContain('No unlinked mentions found');
     });
 
     test('still logs genuine backend failures with their useful message', async () => {
-        window.go.main.App.SearchBacklinks.mockRejectedValueOnce(new Error('vault is unavailable'));
+        window.go.desktop.App.SearchBacklinks.mockRejectedValueOnce(new Error('vault is unavailable'));
 
         await updateBacklinksForActiveTab();
 
@@ -103,7 +103,7 @@ describe('empty and failed backlink lookups', () => {
     });
 
     test('rejects malformed successful responses instead of silently calling them empty', async () => {
-        window.go.main.App.SearchBacklinks.mockResolvedValueOnce({ results: [] });
+        window.go.desktop.App.SearchBacklinks.mockResolvedValueOnce({ results: [] });
 
         await updateBacklinksForActiveTab();
 

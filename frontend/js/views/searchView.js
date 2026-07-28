@@ -18,7 +18,7 @@ function highlightMatch(text, query, caseSensitive) {
 }
 
 function filterChip(name, label, active, ariaLabel = label) {
-    return `<button type="button" class="search-filter-chip ${active ? 'active' : ''}"
+    return `<button type="button" class="ui-button search-filter-chip ${active ? 'active' : ''}"
                 data-search-filter="${name}" aria-pressed="${active}" title="${ariaLabel}">${label}</button>`;
 }
 

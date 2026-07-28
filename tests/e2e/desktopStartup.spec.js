@@ -51,7 +51,7 @@ test('boots through the native Wails binding with the workspace overview, vault 
 
         window.__desktopBridgeCalls = calls;
         window.go = {
-            main: {
+            desktop: {
                 App: new Proxy({}, {
                     get: (_target, method) => method === 'then' ? undefined : (...args) => {
                         calls.push({ method: String(method), args });
@@ -69,9 +69,9 @@ test('boots through the native Wails binding with the workspace overview, vault 
     await expect.poll(() => page.evaluate(() => window._appBootStarted)).toBe(true);
 
     const nativeState = await page.evaluate(async () => ({
-        installed: Boolean(window.go?.main?.App),
+        installed: Boolean(window.go?.desktop?.App),
         calls: window.__desktopBridgeCalls,
-        welcome: await window.go.main.App.ReadFile('Welcome.md'),
+        welcome: await window.go.desktop.App.ReadFile('Welcome.md'),
     }));
     expect(nativeState.installed, browserMessages.join('\n')).toBe(true);
     expect(nativeState.welcome.content).toContain('This text came through the native Wails binding.');

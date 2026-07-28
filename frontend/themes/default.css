@@ -59,148 +59,52 @@
     --code-variable-color: #f5eee4;
     --code-operator-color: #d8bea2;
     --code-builtin-color: #ed8d82;
-}
 
-/* A restrained echo of the icon: collar warmth against calm midnight fur. */
-#app {
-    background:
+    /* Quiet Companion art direction, expressed through the shared surface contract. */
+    --app-surface:
         radial-gradient(64rem 38rem at -12% -16%, rgba(216, 87, 74, 0.075), transparent 56%),
         radial-gradient(48rem 34rem at 108% 110%, rgba(255, 250, 243, 0.035), transparent 64%),
         var(--bg-color);
-}
-
-.top-bar,
-.sidebar {
-    background: linear-gradient(180deg, #171511 0%, #11100e 100%) !important;
-}
-
-.tab-bar {
-    background: linear-gradient(180deg, #1a1713 0%, #14120f 100%) !important;
-    box-shadow: inset 0 -1px 0 rgba(209, 162, 105, 0.16);
-}
-
-.top-bar {
-    position: relative;
-}
-
-.top-bar::after {
-    content: '';
-    position: absolute;
-    right: 18px;
-    bottom: 0;
-    left: 18px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(209, 162, 105, 0.19) 28%, rgba(216, 87, 74, 0.50) 50%, rgba(209, 162, 105, 0.19) 72%, transparent);
-    pointer-events: none;
-}
-
-.editor-panel,
-.cm-editor {
-    background:
+    --navigation-surface: linear-gradient(180deg, #171511 0%, #11100e 100%);
+    --tab-bar-surface: linear-gradient(180deg, #1a1713 0%, #14120f 100%);
+    --tab-bar-shadow: inset 0 -1px 0 rgba(209, 162, 105, 0.16);
+    --top-bar-divider: linear-gradient(90deg, transparent, rgba(209, 162, 105, 0.19) 28%, rgba(216, 87, 74, 0.50) 50%, rgba(209, 162, 105, 0.19) 72%, transparent);
+    --editor-surface:
         radial-gradient(46rem 30rem at 4% -12%, rgba(216, 87, 74, 0.04), transparent 56%),
         linear-gradient(180deg, rgba(255, 250, 243, 0.018), transparent 15rem),
-        #1d1a17 !important;
-}
-
-.tab.active {
-    background: linear-gradient(180deg, rgba(255, 250, 243, 0.085), rgba(255, 250, 243, 0.035)) !important;
-    border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color)) !important;
-    box-shadow: inset 0 -2px 0 var(--accent-color), 0 7px 16px rgba(0, 0, 0, 0.16);
-}
-
-/* Quiet Companion — a distinct navigation frame around a raised reading room. */
-#main-content {
-    background: #181613;
-    box-shadow: inset 1px 0 rgba(255, 250, 243, 0.035);
-}
-
-.editor-panel,
-.cm-editor {
-    box-shadow: inset 0 1px rgba(255, 250, 243, 0.055);
-}
-
-.sidebar {
-    box-shadow: inset -1px 0 rgba(209, 162, 105, 0.12), 9px 0 24px rgba(0, 0, 0, 0.10);
-}
-
-.sidebar::after {
-    background: linear-gradient(180deg, rgba(209, 162, 105, 0.32), rgba(216, 87, 74, 0.28) 40%, rgba(209, 162, 105, 0.14));
-}
-
-.sidebar-search,
-.sidebar-tools {
-    background: linear-gradient(180deg, rgba(255, 250, 243, 0.018), transparent);
-}
-
-.sidebar-calendar-panel {
-    background: #171511;
-}
-
-#file-tree {
-    background: linear-gradient(180deg, rgba(255, 250, 243, 0.014), transparent 14rem);
-}
-
-.file-tree-item > .file-tree-node {
-    border-radius: 6px;
-    transition: background var(--motion-content-duration) ease, box-shadow var(--motion-content-duration) ease, color var(--motion-content-duration) ease;
-}
-
-.file-tree-item > .file-tree-node:hover {
-    background: rgba(255, 250, 243, 0.055);
-}
-
-.file-tree-item > .file-tree-node.selected {
-    background: linear-gradient(90deg, rgba(216, 87, 74, 0.18), rgba(216, 87, 74, 0.055));
-    box-shadow: inset 3px 0 var(--accent-color), 0 3px 10px rgba(0, 0, 0, 0.13);
-    font-weight: 600;
-}
-
-.file-tree-item > .file-tree-node.active-file:not(.selected) {
-    background: rgba(209, 162, 105, 0.045);
-    box-shadow: inset 2px 0 color-mix(in srgb, var(--accent-color) 76%, var(--hashtag-color));
-}
-
-.file-tree-children {
-    background-image: linear-gradient(to right, transparent 34px, rgba(209, 162, 105, 0.13) 34px, rgba(209, 162, 105, 0.13) 35px, transparent 35px);
-}
-
-.tab {
-    border-radius: 7px;
-    transition: transform var(--motion-content-duration) ease, background var(--motion-content-duration) ease, color var(--motion-content-duration) ease, border-color var(--motion-content-duration) ease, box-shadow var(--motion-content-duration) ease;
-}
-
-.tab:hover {
-    background: rgba(255, 250, 243, 0.055);
-}
-
-.tab.active {
-    transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color)) !important;
-    box-shadow: inset 0 -2px 0 var(--accent-color), 0 8px 18px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 250, 243, 0.035);
-}
-
-.settings-card {
-    background: linear-gradient(145deg, rgba(255, 250, 243, 0.045), rgba(255, 250, 243, 0.018));
-    border-color: color-mix(in srgb, var(--border-color) 82%, var(--hashtag-color));
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.11), inset 0 1px rgba(255, 250, 243, 0.045);
-}
-
-.settings-card-title {
-    color: var(--hashtag-color);
-    letter-spacing: 0.11em;
-}
-
-.settings-card select,
-.settings-card .theme-picker-btn,
-.settings-card .font-picker-btn,
-.settings-card .settings-segmented-control {
-    background-color: #1b1916;
-    box-shadow: inset 0 1px rgba(255, 250, 243, 0.035);
-}
-
-.status-bar {
-    background:
+        #1d1a17;
+    --editor-surface-shadow: inset 0 1px rgba(255, 250, 243, 0.055);
+    --workspace-surface: #181613;
+    --workspace-shadow: inset 1px 0 rgba(255, 250, 243, 0.035);
+    --sidebar-shadow: inset -1px 0 rgba(209, 162, 105, 0.12), 9px 0 24px rgba(0, 0, 0, 0.10);
+    --sidebar-rail-surface: linear-gradient(180deg, rgba(209, 162, 105, 0.32), rgba(216, 87, 74, 0.28) 40%, rgba(209, 162, 105, 0.14));
+    --sidebar-search-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.018), transparent);
+    --sidebar-tools-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.018), transparent);
+    --calendar-surface: #171511;
+    --file-tree-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.014), transparent 14rem);
+    --file-tree-guide-color: rgba(209, 162, 105, 0.13);
+    --file-node-radius: 6px;
+    --file-node-hover-surface: rgba(255, 250, 243, 0.055);
+    --file-node-selected-surface: linear-gradient(90deg, rgba(216, 87, 74, 0.18), rgba(216, 87, 74, 0.055));
+    --file-node-selected-shadow: inset 3px 0 var(--accent-color), 0 3px 10px rgba(0, 0, 0, 0.13);
+    --file-node-selected-weight: 600;
+    --file-node-active-surface: rgba(209, 162, 105, 0.045);
+    --file-node-active-shadow: inset 2px 0 color-mix(in srgb, var(--accent-color) 76%, var(--hashtag-color));
+    --tab-radius: 7px;
+    --tab-hover-surface: rgba(255, 250, 243, 0.055);
+    --tab-active-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.085), rgba(255, 250, 243, 0.035));
+    --tab-active-border: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
+    --tab-active-shadow: inset 0 -2px 0 var(--accent-color), 0 8px 18px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 250, 243, 0.035);
+    --tab-active-transform: translateY(-2px);
+    --settings-card-surface: linear-gradient(145deg, rgba(255, 250, 243, 0.045), rgba(255, 250, 243, 0.018));
+    --settings-card-border: color-mix(in srgb, var(--border-color) 82%, var(--hashtag-color));
+    --settings-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.11), inset 0 1px rgba(255, 250, 243, 0.045);
+    --settings-title-color: var(--hashtag-color);
+    --settings-title-letter-spacing: 0.11em;
+    --settings-control-surface: #1b1916;
+    --settings-control-shadow: inset 0 1px rgba(255, 250, 243, 0.035);
+    --status-bar-surface:
         linear-gradient(90deg, transparent, rgba(209, 162, 105, 0.17) 28%, rgba(216, 87, 74, 0.38) 50%, rgba(209, 162, 105, 0.17) 72%, transparent) top / calc(100% - 36px) 1px no-repeat,
-        linear-gradient(180deg, #15130f, #11100e) !important;
-    border-top-color: rgba(209, 162, 105, 0.18);
+        linear-gradient(180deg, #15130f, #11100e);
+    --status-bar-border: rgba(209, 162, 105, 0.18);
 }

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { readApplicationStyles } from '../support/styleSources.js';
 
 function editorDOM() {
     document.body.innerHTML = `
@@ -62,7 +63,7 @@ describe('Vim command and visual theming', () => {
     });
 
     test('styles Vim command input and visual selection with theme variables', () => {
-        const stylesheet = readFileSync('frontend/styles.css', 'utf8');
+        const stylesheet = readApplicationStyles();
         const editor = readFileSync('frontend/js/editor.js', 'utf8');
         expect(stylesheet).toMatch(/\.cm-editor \.cm-vim-panel input\s*\{[^}]*color:\s*var\(--text-color\)/s);
         expect(stylesheet).toMatch(/\.cm-editor\.vim-visual \.cm-selectionLayer \.cm-selectionBackground/);

@@ -7,7 +7,7 @@ describe('native Wails backend access', () => {
 
     test('uses the exact App binding Wails publishes to the frontend', async () => {
         const native = { GetFileTree: jest.fn().mockResolvedValue([{ path: 'Welcome.md' }]) };
-        window.go = { main: { App: native } };
+        window.go = { desktop: { App: native } };
 
         expect(hasBackend()).toBe(true);
         await expect(backend().GetFileTree()).resolves.toEqual([{ path: 'Welcome.md' }]);

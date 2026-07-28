@@ -25,8 +25,8 @@ describe('live Kanban buffers and compact cards', () => {
         setState('kanbanDensity', 'comfortable');
         setState('kanbanLayout', 'side-by-side');
         document.getElementById('tab-panels').innerHTML = '<div id="kanban-board-main"></div>';
-        window.go.main.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
-        window.go.main.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
     });
 
     test('caps visible card text at 120 characters including a Unicode ellipsis', () => {
@@ -70,8 +70,8 @@ describe('live Kanban buffers and compact cards', () => {
         }]);
         initKanban();
         await testUtils.waitFor(20);
-        window.go.main.App.GetKanbanBoard.mockClear();
-        window.go.main.App.GetKanbanColumns.mockClear();
+        window.go.desktop.App.GetKanbanBoard.mockClear();
+        window.go.desktop.App.GetKanbanColumns.mockClear();
         document.dispatchEvent(new CustomEvent('file-content-changed', {
             detail: { path: 'note.md', content: 'A newly typed item #urgent' },
         }));
@@ -80,20 +80,20 @@ describe('live Kanban buffers and compact cards', () => {
         const board = document.getElementById('kanban-board-main');
         expect(board.textContent).toContain('#urgent');
         expect(board.textContent).toContain('A newly typed item');
-        expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
-        expect(window.go.main.App.GetKanbanBoard).not.toHaveBeenCalled();
-        expect(window.go.main.App.GetKanbanColumns).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.GetKanbanBoard).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.GetKanbanColumns).not.toHaveBeenCalled();
     });
 
     test('projects a Figaro-saved note into Kanban without refetching the complete board', async () => {
-        window.go.main.App.GetKanbanBoard.mockResolvedValue({
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
             todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Old task', tag: 'todo' }],
             wip: [], done: [],
         });
         initKanban();
         await testUtils.waitFor(20);
-        window.go.main.App.GetKanbanBoard.mockClear();
-        window.go.main.App.GetKanbanColumns.mockClear();
+        window.go.desktop.App.GetKanbanBoard.mockClear();
+        window.go.desktop.App.GetKanbanColumns.mockClear();
 
         expect(applySavedKanbanSnapshot('note.md', '- [ ] Saved urgent task #urgent')).toBe(true);
 
@@ -101,13 +101,13 @@ describe('live Kanban buffers and compact cards', () => {
         expect(board.textContent).toContain('#urgent');
         expect(board.textContent).toContain('Saved urgent task');
         expect(board.textContent).not.toContain('Old task');
-        expect(window.go.main.App.GetKanbanBoard).not.toHaveBeenCalled();
-        expect(window.go.main.App.GetKanbanColumns).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.GetKanbanBoard).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.GetKanbanColumns).not.toHaveBeenCalled();
     });
 
     test('renders the compact text while retaining the full card text in its title', async () => {
         const longText = 'x'.repeat(140);
-        window.go.main.App.GetKanbanBoard.mockResolvedValue({
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
             todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: longText, tag: 'todo' }],
             wip: [], done: [],
         });
@@ -120,7 +120,7 @@ describe('live Kanban buffers and compact cards', () => {
     });
 
     test('changes density and stacked flow from Settings while preserving board and column scroll', async () => {
-        window.go.main.App.GetKanbanBoard.mockResolvedValue({
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
             todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Existing task', tag: 'todo' }],
             wip: [], done: [],
         });

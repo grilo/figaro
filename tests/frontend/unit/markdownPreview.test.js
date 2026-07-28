@@ -75,6 +75,7 @@ describe('Markdown preview', () => {
         expect(panel.hidden).toBe(false);
         expect(panel.querySelector('.markdown-preview-document').textContent).toBe('');
         expect(panel.querySelector('.markdown-preview-status').dataset.kind).toBe('error');
+        expect(panel.querySelector('.markdown-preview-status').classList.contains('ui-notice--danger')).toBe(true);
         expect(panel.querySelector('.markdown-preview-status').textContent).toMatch(/unavailable/i);
     });
 });

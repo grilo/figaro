@@ -1,0 +1,382 @@
+/* Auto-save interval select */
+
+/* ── Settings Card Controls ── */
+.settings-card select {
+    width: 176px;
+    height: 34px;
+    padding: 0 30px 0 11px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 12px;
+    font-family: var(--font-sans);
+    line-height: 1.2;
+    cursor: pointer;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2372767d' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+    transition: border-color 0.15s ease;
+}
+.settings-card select:hover {
+    border-color: var(--text-dim);
+}
+.settings-card select:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+.settings-card select:disabled {
+    cursor: not-allowed;
+    opacity: .62;
+    border-color: var(--border-color);
+    background-color: var(--hover-bg);
+    color: var(--text-muted);
+}
+.settings-card .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.settings-card .settings-row-group {
+    display: grid;
+    gap: 7px;
+    justify-items: end;
+}
+.settings-card .settings-row-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.settings-card .settings-segmented-control {
+    justify-self: end;
+}
+
+.settings-card .auto-save-select {
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 0 30px 0 11px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+.settings-card .auto-save-select:focus { border-color: var(--accent-color); }
+.settings-card .auto-save-select:hover { border-color: var(--text-dim); }
+.settings-card .auto-save-select option {
+    background: var(--panel-bg);
+    color: var(--text-color);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.settings-card .pdf-browser-setting {
+    align-items: start;
+}
+
+.pdf-browser-setting-copy {
+    min-width: 0;
+}
+
+.settings-panel-tab .pdf-browser-status {
+    max-width: 430px;
+    margin: 5px 0 0 22px;
+    overflow-wrap: anywhere;
+}
+
+.pdf-browser-status[data-kind="configured"] { color: var(--text-color); }
+.pdf-browser-status[data-kind="error"] { color: var(--danger-color); }
+
+.pdf-browser-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 7px;
+}
+
+.vault-health-setting {
+    align-items: start;
+}
+
+/* ── Vault health ── */
+.vault-health-view {
+    box-sizing: border-box;
+    width: min(960px, 100%);
+    min-height: 100%;
+    margin: 0 auto;
+    padding: 30px clamp(20px, 4vw, 46px) 48px;
+    color: var(--text-color);
+}
+
+.vault-health-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 4px 0 22px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.vault-health-kicker {
+    margin: 0 0 5px;
+    color: var(--accent-color);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+}
+
+.vault-health-header h2 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 23px;
+    font-weight: 650;
+    letter-spacing: -.025em;
+}
+
+.vault-health-header p:not(.vault-health-kicker) {
+    max-width: 530px;
+    margin: 7px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.vault-health-scan {
+    flex: 0 0 auto;
+}
+
+.vault-health-open:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+.vault-health-summary {
+    min-height: 18px;
+    margin: 16px 0 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.vault-health-error {
+    color: var(--danger-color);
+}
+
+.vault-health-results {
+    display: grid;
+    gap: 12px;
+}
+
+.vault-health-section {
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--hover-bg);
+}
+
+.vault-health-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    padding: 0 13px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.vault-health-section h3 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.vault-health-empty,
+.vault-health-loading,
+.vault-health-error {
+    margin: 0;
+    padding: 13px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.vault-health-empty,
+.vault-health-loading {
+    color: var(--text-muted);
+}
+
+.vault-health-issues {
+    display: grid;
+}
+
+.vault-health-issue + .vault-health-issue {
+    border-top: 1px solid var(--border-light);
+}
+
+.vault-health-open {
+    display: grid;
+    width: 100%;
+    padding: 11px 13px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.vault-health-open:hover {
+    background: color-mix(in srgb, var(--accent-color) 8%, transparent);
+}
+
+.vault-health-issue-path {
+    color: var(--text-color);
+    font-size: 11px;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
+.vault-health-issue-detail,
+.vault-health-target,
+.vault-health-paths {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.vault-health-target {
+    color: var(--text-dim);
+}
+
+.vault-health-paths {
+    margin-top: 6px;
+    color: var(--text-color);
+}
+
+@media (max-width: 580px) {
+    .vault-health-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .vault-health-scan {
+        align-self: flex-start;
+    }
+}
+
+/* Fully themed select-only comboboxes. Native select popups remain controlled
+   by the host toolkit in WebKitGTK, so settings that need consistent visual
+   treatment use this accessible button/listbox pattern instead. */
+.settings-picker {
+    width: 176px;
+}
+
+.select-combobox-native {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.settings-picker-item svg {
+    visibility: hidden;
+    flex: 0 0 auto;
+    color: var(--accent-color);
+}
+
+.settings-picker-item.selected {
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+}
+
+.settings-picker-item.selected svg {
+    visibility: visible;
+}
+
+.table-conversion-combobox {
+    width: 100%;
+}
+
+.table-conversion-combobox .ui-picker-menu {
+    z-index: 1500;
+}
+
+
+/* ── Settings Tab ── */
+.settings-panel-tab {
+    padding: 32px clamp(20px, 4vw, 48px) 48px;
+    max-width: none;
+    margin: 0;
+    overflow-y: auto;
+    height: 100%;
+}
+.settings-panel-tab .settings-section {
+    padding: 10px 0;
+}
+.settings-panel-tab .settings-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 4px 0;
+}
+.settings-panel-tab .settings-section-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0;
+}
+.settings-panel-tab .settings-section-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0 0 12px 0;
+    line-height: 1.5;
+}
+@media (max-width: 960px) {
+    .settings-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .settings-card:last-child:nth-child(odd) {
+        grid-column: auto;
+    }
+}
+@media (max-width: 480px) {
+    .settings-panel-tab {
+        padding: 20px 16px 32px;
+    }
+    .settings-card {
+        padding: 16px;
+    }
+    .settings-card .settings-section {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 8px;
+    }
+    .settings-card .ui-picker,
+    .settings-picker,
+    .settings-card select {
+        width: 100%;
+    }
+    .settings-card .settings-segmented-control {
+        justify-self: stretch;
+        width: 100%;
+    }
+    .settings-card .settings-segmented-control button {
+        flex: 1 1 0;
+    }
+    .pdf-browser-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}

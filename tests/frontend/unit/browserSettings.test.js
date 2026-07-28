@@ -7,7 +7,7 @@ describe('PDF browser setting', () => {
             <button id="pdf-browser-choose">Choose…</button>
             <button id="pdf-browser-clear" hidden>Use automatic</button>
         `;
-        window.go.main.App.PDFBrowserLoad.mockResolvedValue({
+        window.go.desktop.App.PDFBrowserLoad.mockResolvedValue({
             success: true,
             path: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         });
@@ -22,7 +22,7 @@ describe('PDF browser setting', () => {
         expect(status.title).toContain('Google\\Chrome');
         expect(clear.hidden).toBe(false);
 
-        window.go.main.App.PDFBrowserChoose.mockResolvedValueOnce({
+        window.go.desktop.App.PDFBrowserChoose.mockResolvedValueOnce({
             success: true,
             path: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
             engine: 'edge',
@@ -33,7 +33,7 @@ describe('PDF browser setting', () => {
 
         clear.click();
         await new Promise(resolve => setTimeout(resolve, 0));
-        expect(window.go.main.App.PDFBrowserClear).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.PDFBrowserClear).toHaveBeenCalledTimes(1);
         expect(status.textContent).toContain('Automatic detection');
         expect(clear.hidden).toBe(true);
     });

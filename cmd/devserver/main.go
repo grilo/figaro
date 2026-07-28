@@ -24,6 +24,13 @@ func devServerAddress(portValue string) (string, error) {
 	return ":" + port, nil
 }
 
+func withDisabledAssetCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(response, request)
+	})
+}
+
 func main() {
 	address, err := devServerAddress(os.Getenv("FIGARO_DEVSERVER_PORT"))
 	if err != nil {
@@ -32,7 +39,7 @@ func main() {
 	log.Printf("Dev server: http://localhost%s", address)
 	server := &http.Server{
 		Addr:              address,
-		Handler:           http.FileServer(http.Dir("frontend")),
+		Handler:           withDisabledAssetCache(http.FileServer(http.Dir("frontend"))),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}

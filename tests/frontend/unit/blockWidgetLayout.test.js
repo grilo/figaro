@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { markBlockWidget, wrapBlockWidget } from '../frontend/js/blockWidget.js';
+import { readApplicationStyles } from '../support/styleSources.js';
 
-const stylesheet = readFileSync('frontend/styles.css', 'utf8');
+const stylesheet = readApplicationStyles();
 
 function declarationsFor(selector) {
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

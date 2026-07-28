@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestDevServerAddress(t *testing.T) {
 	tests := []struct {
@@ -29,5 +33,19 @@ func TestDevServerAddress(t *testing.T) {
 				t.Fatalf("devServerAddress(%q) = %q, %v; want %q, nil", test.input, got, err, test.want)
 			}
 		})
+	}
+}
+
+func TestDevServerDisablesAssetCaching(t *testing.T) {
+	handler := withDisabledAssetCache(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.WriteHeader(http.StatusNoContent)
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/styles.css", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if got := response.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q; want %q", got, "no-store")
 	}
 }

@@ -32,20 +32,23 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - Its width can be resized from **240px to 480px** for the current session.
 
 ### 1.4 Workspace
-- A horizontal **tab bar** across the top. Compact tabs use a responsive 104–200px width, truncate long titles, and keep their close controls accessible. The visual scrollbar is hidden; an all-tabs dropdown provides a reliable route to every open tab. A dirty tab uses a compact accent dot, while the file tree mirrors active and background-open files with strong and subtle markers respectively; tab switches and dirty transitions patch those mounted markers without rebuilding the tree.
+- A horizontal **tab bar** across the top. Compact tabs use a responsive 104–200px width, truncate long titles, and keep their close controls accessible. The visual scrollbar is hidden, the active tab is always scrolled fully into view, and subtle themed edge fades indicate additional tabs. The keyboard-accessible all-tabs menu appears only while the rail genuinely overflows. A dirty tab uses a compact accent dot, while the file tree mirrors active and background-open files with strong and subtle markers respectively; tab switches and dirty transitions patch those mounted markers without rebuilding the tree.
 - Below it, **view containers** — only one is visible at a time:
   - **Editor view** — for Markdown and CodeMirror-supported code files. Shows file content immediately once loaded.
   - **Calendar/Relationships results views** — for date searches and note relationships.
   - **Kanban board view** — the full kanban board.
   - **Workspace overview** — a centered, un-tabbed dashboard with Momentum (unfinished tasks) on the left and recent notes on the right.
-  - **Settings view** — typography, editor, and automation preferences.
+  - **Settings view** — typography, editor, automation preferences, and
+    packaged application information.
   - **Draw.io view** — the embedded diagrams.net editor for `.drawio.svg` files.
 
 ### 1.5 Theming
 - **Theme engine**: 17 built-in themes selectable from the Settings tab (Figaro Dark, Figaro Light, GitHub Light/Dark, Catppuccin Mocha/Macchiato, Zenburn, Gruvbox Dark/Light, Nord, One Dark/Vivid, Night Owl, Cobalt2, Ayu Dark/Mirage/Light). All colors are defined as CSS custom properties on `:root`.
 - **Figaro theme philosophy**: Figaro Dark and Figaro Light are a matched, dog-inspired pair. They use quiet midnight-fur and ivory-paper surfaces, frame navigation separately from the raised reading surface, reserve collar red for intentional actions and focus, use brass for tags and highlights, and share semantic success, information, warning, and error roles. A fine brass-and-red collar stitch runs through the title and status bars.
-- Built-in theme CSS is bundled under `frontend/themes/`. The selected theme is persisted in `vault/.config/settings.json` and restored on startup.
+- Built-in theme CSS is bundled under `frontend/themes/`. Every theme is a token-only `:root` override: required palette tokens plus optional semantic and art-direction values are declared by `frontend/design-system/theme-contract.json`, while stable selectors consume them in `theme-surfaces.css`. The selected theme is persisted in `vault/.config/settings.json` and restored on startup.
 - Switching themes applies instantly without page reload — the theme CSS is injected into `<style id="theme-style">` via the Go backend API.
+- **Style architecture**: both entry points eagerly load the order in `frontend/design-system/style-manifest.json`: `tokens.css`, responsibility-based modules under `frontend/styles/`, `primitives.css`, then `theme-surfaces.css`. `frontend/styles.css` is a synchronized compatibility aggregate only; normal startup uses explicit links and performs no interaction-time style loading.
+- **Design-system catalogue**: `frontend/design-system/index.html` is a searchable inventory of the shared production primitives, intentional feature variants, states, selectors, and computed tokens. The application and catalogue both load the complete canonical style manifest; `approved-components.json` records the eight explicitly approved families and variants. Pickers, steppers, compact and icon actions, badges, menu presentation, fields, and notices use those common `.ui-*` foundations; feature classes retain behavior and deliberate host layout, while card layouts and switch-versus-checkbox semantics remain distinct. A new component family, primitive, or visual variant requires explicit approval before implementation. The catalogue works both from the local development server and when opened directly from a file explorer: relative CSS, theme, font, and icon paths remain inside `frontend/`, while an eagerly generated classic-script bundle avoids `file://` module and JSON-fetch restrictions. The bundle imports `frontend/themes/manifest.json` at build time, so the selector still has one canonical theme list and applies each existing theme CSS file. `catalog.css` styles only the review shell and contains otherwise positioned overlays. Select-only Settings specimens eagerly reuse the production combobox enhancer, so their button/listbox popup follows the active theme instead of exposing a host-painted native menu. Pure manifest/path/filter rules are separate from fetch and DOM effects.
 - **Fonts**: 16 locally bundled choices, including Inter, Figtree, Atkinson Hyperlegible, IBM Plex Sans, Fira Sans, EB Garamond, Crimson Pro, JetBrains Mono, and Work Sans. Font selection is persisted and never requires a runtime network request.
 
 ### 1.6 CSS Custom Properties (Theme Variables)
@@ -68,6 +71,7 @@ Each theme defines these properties (with theme-specific colors):
 | **Code highlighting** | `--code-keyword-color`, `--code-string-color`, `--code-number-color`, `--code-function-color`, `--code-comment-color`, `--code-type-color`, `--code-variable-color`, `--code-operator-color`, `--code-builtin-color` |
 | **Layout** | `--sidebar-width`, `--top-bar-height`, `--status-bar-height`, `--tab-height` |
 | **Transitions** | `--transition-fast`, `--transition-normal`, `--transition-slow` (shared 140–180 ms timings) |
+| **Shared controls** | `--ui-control-height`, `--ui-control-radius`, `--ui-control-padding-x`, `--ui-compact-height`, `--ui-menu-radius`, `--ui-item-radius`, `--ui-badge-height` |
 
 ---
 
@@ -83,7 +87,7 @@ Each theme defines these properties (with theme-specific colors):
 | **Relationships** | `backlinks-path/to/note.md` | Shows contextual backlinks and unlinked plain-text mentions for a note |
 | **Kanban** | `kanban` / `kanban-board` | The top-bar board and a hashtag-focused board respectively; each ID is deduplicated while open |
 | **Workspace overview** | No tab ID | Centered dashboard with Momentum and recent notes |
-| **Settings** | `settings` | Application settings for theme, fonts, editor layout, and automation |
+| **Settings** | `settings` | Application settings for theme, fonts, editor layout, automation, and the packaged version |
 | **Vault health** | `vault-health` | Read-only vault-maintenance findings opened from Settings |
 
 ### 2.2 Tab Behavior
@@ -99,7 +103,7 @@ Each theme defines these properties (with theme-specific colors):
 - **Safe empty state**: Closing the final tab keeps the centered workspace overview visible instead of leaving the workspace blank or creating a synthetic tab.
 - **Session persistence**: Open tabs, active tab, cursor positions, expanded directories, pinned tabs, and selected file are persisted to `vault/.config/session.json`. The webview also keeps UI-only preferences such as recent files, search filters, Kanban density and flow, and a local tab snapshot in `localStorage`; the vault session is the portable workspace record.
 - **Exit protection**: Closing the native window with dirty file tabs offers **Save & Exit**, **Exit without saving**, or cancellation.
-- **Overflow**: Tabs keep their compact responsive width, with the visual scrollbar hidden and the all-tabs dropdown available whenever the strip is crowded.
+- **Overflow**: Tabs keep their compact responsive width and a hidden visual scrollbar. Opening, selecting, restoring, pinning, or choosing a tab from the overflow menu minimally scrolls the rail until that active tab is fully visible. Themed fades mark whichever edges contain more tabs, and the all-tabs button is present only while the full-width rail cannot fit every tab.
 
 ### 2.3 Opening and Switching
 - Opening a tab checks if it already exists; if so, it switches to it. A `forceNew` override allows creating a duplicate.
@@ -563,7 +567,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 
 ### 12.2 Initialization Sequence
 1. Restore any webview-local UI state, then initialize the left-sidebar resizer, title-bar and sidebar navigation controls, calendar navigation, and keyboard shortcuts.
-2. Wait for Wails to publish the native `window.go.main.App` binding, then load the portable vault session.
+2. Wait for Wails to publish the native `window.go.desktop.App` binding, then load the portable vault session.
 3. Initialize CodeMirror and the tab manager, load the file tree, and attach tree handlers. Native debounced vault notifications replace polling; content-only changes do not reload the tree, and Figaro's own saved snapshots do not request an already-known Kanban board again.
 4. Restore persisted tabs after the tree is available; otherwise show the un-tabbed workspace overview.
 5. Initialize Calendar, Kanban, global search, backlinks, the History panel, and the Outline navigator.
@@ -572,7 +576,7 @@ Async file-tree, search, calendar, backlink, history, and diagram requests carry
 8. Install the native-window close guard and `beforeunload` handler, which preserve dirty content and save the session.
 
 Frontend code accesses Go only through `frontend/js/backend.js`. It calls the
-native `window.go.main.App` methods with their generated PascalCase names; the
+native `window.go.desktop.App` methods with their generated PascalCase names; the
 browser debugging fallback is installed explicitly with the same method shape.
 
 ---
@@ -730,14 +734,14 @@ browser debugging fallback is installed explicitly with the same method shape.
 ### 18.2 Frameless Window Edge
 - `#app::after` draws a pointer-transparent one-pixel outline inside all four rounded edges. The top color uses `--window-border-highlight`; the quieter sides and bottom use `--window-border-color`.
 - The top edge has slightly more contrast plus a restrained inset highlight, matching the way overhead light catches a physical window frame. It is not a top-only border.
-- The outline lives in `styles.css`, rather than Wails-only injected CSS, so debug Chromium and packaged webviews share the same testable rendering.
+- The outline lives in the eager `styles/base.css` module, rather than Wails-only injected CSS, so debug Chromium and packaged webviews share the same testable rendering.
 
 ### 18.3 Anti-Flash Layers
 Multiple layers prevent a white flash before CSS loads:
-1. **Native canvas**: `BackgroundColour: RGB(21,21,21,255)` in `main.go`
+1. **Native canvas**: `BackgroundColour: RGB(21,21,21,255)` in `internal/desktop/run.go`
 2. **Inline `<style>`**: `html, body { background: #151515 !important }` in `index.html`
 3. **Go domReady CSS**: injects only `html, body { background: #151515 }` via `runtime.WindowExecJS`; it does not add a second window border
-4. **External styles.css**: overrides with `transparent !important` for the rounded corner effect
+4. **External base module**: `styles/base.css` overrides with `transparent !important` for the rounded corner effect
 
 ---
 
@@ -774,7 +778,7 @@ Multiple layers prevent a white flash before CSS loads:
 ### 20.1 Tab Bar
 - Background: `var(--sidebar-bg)` — dark, matching the sidebar.
 - The 54px container uses the same visual family as the title bar, with a subtle divider that separates navigation from the editor without creating a heavy second header.
-- `.tab-strip` hides its visual scrollbar while retaining horizontal overflow as a fallback; the all-tabs control remains available at the right edge.
+- `.tab-strip` hides its visual scrollbar while retaining horizontal overflow. The active tab is minimally scrolled into view after every render or resize; theme-token fades appear only on edges with hidden tabs. The all-tabs control reserves space at the right edge only while the rail overflows.
 
 ### 20.2 Tab Styling
 - Width: `clamp(104px, 18vw, 200px)`; height: 30px; compact padding and icon spacing.
@@ -788,15 +792,16 @@ Multiple layers prevent a white flash before CSS loads:
 - Auto-save on switch, continuously updated cursor memory (including Settings detours and restart recovery), middle-click close, right-click context menu, and drag reorder.
 - Pin tab: right-click → "Pin Tab". Pinned tabs stay leftmost with a visual accent.
 - Reordering persists with the session and is restricted to the current pin group.
+- Opening, selecting, restoring, or pinning a tab keeps the active tab fully visible without reordering it.
 - Closing the final tab returns the user to the un-tabbed workspace overview.
 - Session persistence: tabs, cursor positions, expanded dirs saved to `vault/.config/session.json`.
 
 ### 20.4 All-Tabs Dropdown
-- Chevron button (`#all-tabs-btn`) at the right edge of the tab bar.
-- Clicking opens a scrollable dropdown (`270px wide, max 380px tall`) listing every open tab.
+- Chevron button (`#all-tabs-btn`) at the right edge of the tab bar, hidden whenever every tab fits.
+- Clicking opens a scrollable dropdown (`220px` wide, maximum `320px` tall) listing every open tab.
 - Active tab highlighted with accent color, dirty tabs marked with a warning dot.
-- Clicking an item calls `switchTab()` and closes the dropdown.
-- Outside click dismisses the dropdown.
+- Menu items are native buttons using the approved menu primitive. Click or keyboard activation calls `switchTab()`, closes the dropdown, and scrolls that tab into view; Arrow Up/Down and Home/End move within the menu, while Escape closes it and restores focus to the chevron.
+- Outside click dismisses the dropdown and keeps its expanded state synchronized.
 - Live-updates if the dropdown is open and tabs change.
 
 ---
@@ -806,14 +811,18 @@ Multiple layers prevent a white flash before CSS loads:
 - **Vault care**: a themed **Review…** action opens the read-only Vault-health
   report. It is a deliberate maintenance surface rather than an automatic
   startup check, so large vault walks occur only when the user asks for them.
+- **About**: a read-only, themed value shows the exact packaged Figaro version
+  from the embedded Wails product metadata. It displays **Unavailable** if that
+  metadata cannot be supplied and never adds static information to the
+  document-focused status bar.
 
 ### 21.1 Layout
 - Section headers with **icons** and descriptive text.
 - **Theme picker**: a dropdown combo box showing the current theme, with a scrollable menu of all 17 themes.
 - **Font picker**: dropdown with 16 available fonts (Inter, Figtree, Atkinson Hyperlegible, IBM Plex Sans, Fira Sans, EB Garamond, Crimson Pro, Exo 2, Dancing Script, Overpass, Alegreya, Alegreya Sans, JetBrains Mono, Work Sans, ETbb, Reforma 1918). Font files are vendored locally as woff2. The prose font is persisted to `settings.json` and applied in real time.
 - **Code Font**: a separate font-family preference for supported source-code files. It is stored as `code_font`; Markdown prose and rendered Markdown code blocks retain their normal typography.
-- **Font Size**: −/+ buttons adjusting editor font size from 70% to 150% in 10% steps. The displayed 100% baseline is 16.2px.
-- **Text Width**: −/+ buttons adjusting editor max-width from 50% (350px) to 200% (1400px) in 10% steps. Base is 700px. Persisted to localStorage.
+- **Font Size**: −/+ buttons adjusting editor font size from 70% to 150% in 10% steps. The displayed 100% baseline is 16.2px, and the buttons and value share one continuous themed background.
+- **Text Width**: −/+ buttons adjusting editor max-width from 50% (350px) to 200% (1400px) in 10% steps. Base is 700px and persisted to localStorage; the buttons and value share the same continuous themed background as the font-size stepper.
 - **Auto-Save**: content-only save interval for the active dirty file (Off / 5s / 10s / 30s / 1min / 5min). Persisted as `auto_save_seconds` and styled as a themed keyboard-accessible combobox.
 - **Show line numbers**: persistent iOS-style toggle for the CodeMirror gutter, disabled by default and applied live to the current editor.
 - **Show Markdown lint**: persistent, enabled-by-default toggle for local Markdown diagnostics. It applies live, removes or restores only lint markers, and never changes note text.
@@ -823,6 +832,8 @@ Multiple layers prevent a white flash before CSS loads:
 - **Links style**: themed, keyboard-accessible combobox for Markdown or conventional target-first Wikilinks. A change always requires a rewrite/keep/cancel decision.
 - **Auto-Commit**: themed on/off toggle, persisted as `auto_commit_enabled` and enabled by default. When on, each successful save records only that file; it has no interval or whole-vault commit mode. Legacy `auto_commit_seconds` values migrate once: zero becomes off and every enabled legacy value becomes on.
 - **Vim toggle**: an iOS-style toggle switch with smooth sliding animation and a linked, keyboard-accessible visual-row motion toggle.
+- **Figaro version**: read-only value in the About card, announced after its
+  embedded product metadata is loaded.
 - Sections separated by a subtle `1px divider`.
 
 ### 21.2 Theme Engine
@@ -1223,7 +1234,8 @@ builds the embedded filesystem.
 ### 34.2 Embedded FS vs Disk Reads
 - **Asset server**: Serves embedded files via Wails `AssetServer` — all CSS/JS/images loaded by the frontend come from the embedded FS.
 - **Backend methods**: `GetThemes()` and `GetThemeCSS()` read from `assets.ReadFile` first, falling back to `os.ReadFile` for dev mode.
-- **Dev mode**: `go run ./cmd/devserver` serves from `frontend/` directory on disk for browser DevTools access.
+- **Dev mode**: `go run ./cmd/devserver` serves from `frontend/` directory on disk for browser DevTools access and sends `Cache-Control: no-store`, so a normal reload cannot retain stale catalogue or application assets.
+- **UI inventory**: the same dev server exposes `/design-system/` for reviewing shared primitives and intentional feature variants across every manifest theme.
 
 ---
 

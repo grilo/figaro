@@ -43,7 +43,7 @@ describe('Vim preference lifecycle', () => {
             VimRevealBlocksLoad: jest.fn().mockResolvedValue({ enabled: false }),
             VimRevealBlocksSave: jest.fn().mockResolvedValue({ success: true }),
         };
-        window.go = { main: { App: api } };
+        window.go = { desktop: { App: api } };
         settingsDOM();
 
         const {

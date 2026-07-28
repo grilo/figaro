@@ -9,7 +9,26 @@
     <link rel="shortcut icon" href="/favicon.ico">
     <link rel="stylesheet" href="/vendored/fonts/inter.css?v=3">
     <link rel="stylesheet" href="/fonts/fonts.css?v=3">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="design-system/tokens.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/shell.css">
+    <link rel="stylesheet" href="styles/features/kanban.css">
+    <link rel="stylesheet" href="styles/features/relationships.css">
+    <link rel="stylesheet" href="styles/workspace.css">
+    <link rel="stylesheet" href="styles/editor.css">
+    <link rel="stylesheet" href="styles/markdown.css">
+    <link rel="stylesheet" href="styles/status-tools.css">
+    <link rel="stylesheet" href="styles/dialogs.css">
+    <link rel="stylesheet" href="styles/features/metadata.css">
+    <link rel="stylesheet" href="styles/features/results.css">
+    <link rel="stylesheet" href="styles/utilities.css">
+    <link rel="stylesheet" href="styles/features/right-sidebar.css">
+    <link rel="stylesheet" href="styles/features/settings.css">
+    <link rel="stylesheet" href="styles/features/link-hover.css">
+    <link rel="stylesheet" href="styles/features/embedded-widgets.css">
+    <link rel="stylesheet" href="styles/overrides.css">
+    <link rel="stylesheet" href="design-system/primitives.css">
+    <link rel="stylesheet" href="design-system/theme-surfaces.css">
     <!-- CodeMirror 6 Theme - Local vendor copy -->
     <link rel="stylesheet" href="/vendored/codemirror/theme-one-dark/style.min.css">
     <link rel="stylesheet" href="/vendored/katex/dist/katex.min.css">
@@ -121,7 +140,7 @@
         <!-- Top Bar -->
         <header class="top-bar">
             <div class="top-bar-left">
-                <button id="toggle-sidebar" class="icon-btn" title="Toggle Sidebar (Ctrl+B)">
+                <button id="toggle-sidebar" class="icon-btn ui-icon-button" title="Toggle Sidebar (Ctrl+B)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -135,24 +154,24 @@
             </div>
             <div class="top-bar-center" aria-hidden="true"></div>
             <div class="top-bar-right">
-                <button id="topbar-settings" class="icon-btn titlebar-settings-btn" title="Settings" aria-label="Open Settings">
+                <button id="topbar-settings" class="icon-btn ui-icon-button titlebar-settings-btn" title="Settings" aria-label="Open Settings">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                 </button>
                 <span class="window-controls-separator" aria-hidden="true"></span>
-                <button id="win-minimize" class="icon-btn window-ctrl" title="Minimize">
+                <button id="win-minimize" class="icon-btn ui-icon-button window-ctrl" title="Minimize">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                 </button>
-                <button id="win-maximize" class="icon-btn window-ctrl" title="Maximize">
+                <button id="win-maximize" class="icon-btn ui-icon-button window-ctrl" title="Maximize">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="4" y="4" width="16" height="16" rx="2"></rect>
                     </svg>
                 </button>
-                <button id="win-close" class="icon-btn window-ctrl window-ctrl-close" title="Close">
+                <button id="win-close" class="icon-btn ui-icon-button ui-icon-button--danger window-ctrl window-ctrl-close" title="Close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -173,8 +192,8 @@
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
-                            <input type="text" id="global-search-input" placeholder="Search notes…" spellcheck="false">
-                            <span id="search-results-count" class="search-count"></span>
+                            <input type="text" id="global-search-input" class="ui-field" placeholder="Search notes…" spellcheck="false">
+                            <span id="search-results-count" class="search-count ui-badge ui-badge--muted"></span>
                         </div>
                         <div id="global-search-dropdown" class="search-dropdown"></div>
                     </div>
@@ -189,13 +208,13 @@
                          with the right-pane History, Outline, or PDF preview. -->
                     <section id="sidebar-calendar-panel" class="sidebar-calendar-panel" aria-label="Calendar" aria-hidden="true">
                         <div class="calendar-toolbar">
-                            <button id="cal-prev-month" class="icon-btn" title="Previous Month" aria-label="Previous month">
+                            <button id="cal-prev-month" class="icon-btn ui-icon-button" title="Previous Month" aria-label="Previous month">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="15 18 9 12 15 6"></polyline>
                                 </svg>
                             </button>
                             <span id="cal-month-year" class="cal-month-year"></span>
-                            <button id="cal-next-month" class="icon-btn" title="Next Month" aria-label="Next month">
+                            <button id="cal-next-month" class="icon-btn ui-icon-button" title="Next Month" aria-label="Next month">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="9 18 15 12 9 6"></polyline>
                                 </svg>
@@ -238,12 +257,19 @@
                 <!-- Tab Bar -->
                 <div id="tab-bar" class="tab-bar">
                     <div id="tab-strip" class="tab-strip" role="tablist" aria-label="Open notes"></div>
-                    <button id="all-tabs-btn" class="all-tabs-btn" title="Show all open tabs">
+                    <button id="all-tabs-btn" class="all-tabs-btn ui-icon-button"
+                            type="button" title="Show all open tabs"
+                            aria-label="Show all open tabs"
+                            aria-controls="all-tabs-dropdown"
+                            aria-haspopup="menu"
+                            aria-expanded="false"
+                            hidden>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <div id="all-tabs-dropdown" class="all-tabs-dropdown hidden"></div>
+                    <div id="all-tabs-dropdown" class="all-tabs-dropdown ui-menu hidden"
+                         role="menu" aria-label="All open tabs"></div>
                 </div>
 
                 <!-- Persistent Editor Container (shared across all file tabs) -->
@@ -258,7 +284,7 @@
                 <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
                 <div class="right-sidebar-header">
                     <span id="right-sidebar-title" class="right-sidebar-title">Details</span>
-                    <button id="right-sidebar-close" class="right-sidebar-close" title="Close">×</button>
+                    <button id="right-sidebar-close" class="right-sidebar-close ui-icon-button" title="Close">×</button>
                 </div>
                 <div id="right-sidebar-content" class="right-sidebar-content">
                     <div id="history-content" style="display:none"></div>
@@ -274,7 +300,7 @@
                     <div class="md-cheatsheet-popup" id="md-cheatsheet-popup" role="dialog" aria-labelledby="md-cheatsheet-title">
                         <div class="md-cheatsheet-header">
                             <div class="md-cheatsheet-title" id="md-cheatsheet-title">Markdown cheatsheet</div>
-                            <button type="button" class="md-cheatsheet-close" id="md-cheatsheet-close" title="Close" aria-label="Close Markdown cheatsheet">×</button>
+                            <button type="button" class="ui-icon-button md-cheatsheet-close" id="md-cheatsheet-close" title="Close" aria-label="Close Markdown cheatsheet">×</button>
                         </div>
                         <table>
                             <tr><td><code># H1</code> <code>## H2</code> <code>### H3</code></td><td>Headings</td></tr>

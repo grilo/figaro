@@ -38,7 +38,7 @@ if (typeof Range.prototype.getBoundingClientRect !== 'function') {
 
 // Mock native Wails App binding.
 window.go = {
-    main: {
+    desktop: {
         App: {
         GetFileTree: jest.fn().mockResolvedValue([]),
         GetFileTreeStyles: jest.fn().mockResolvedValue({ version: 1, entries: {}, recent_icons: [] }),
@@ -87,6 +87,7 @@ window.go = {
         SearchNotesByDate: jest.fn().mockResolvedValue([]),
         GetTodayLink: jest.fn().mockReturnValue("2024-01-15"),
         GetOSUsername: jest.fn().mockResolvedValue('Test User'),
+        GetApplicationVersion: jest.fn().mockResolvedValue('Test build'),
         CodeFontSave: jest.fn().mockResolvedValue({ success: true }),
 		ThemeLoad: jest.fn().mockResolvedValue({ theme: 'default', font: 'inter', codeFont: 'theme-mono' }),
 		ThemeSave: jest.fn().mockResolvedValue({ success: true }),
@@ -180,7 +181,7 @@ function createMockDOM() {
                     <div id="sidebar-resizer"></div>
                 </aside>
                 <main id="main-content" class="main-content">
-                    <div id="tab-bar" class="tab-bar"><div id="tab-strip" class="tab-strip" role="tablist"></div><button id="all-tabs-btn"></button><div id="all-tabs-dropdown" class="all-tabs-dropdown hidden"></div></div>
+                    <div id="tab-bar" class="tab-bar"><div id="tab-strip" class="tab-strip" role="tablist"></div><button id="all-tabs-btn" aria-label="Show all open tabs" aria-controls="all-tabs-dropdown" aria-haspopup="menu" aria-expanded="false" hidden></button><div id="all-tabs-dropdown" class="all-tabs-dropdown hidden" role="menu" aria-label="All open tabs"></div></div>
                     <div id="tab-panels" class="tab-panels"></div>
                     <div id="editor-container"></div>
                 </main>

@@ -1,0 +1,62 @@
+/* ── Link Hover Preview Tooltip ── */
+.link-hover-preview {
+	pointer-events: none;
+    padding: 8px 12px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: var(--shadow-lg);
+    font-size: 12px;
+    line-height: 1.5;
+    max-width: 320px;
+    z-index: 1000;
+}
+.lh-type {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+}
+.lh-url,
+.lh-path {
+    display: block;
+    color: var(--link-color);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lh-status {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+}
+.lh-checking { color: var(--text-dim); }
+.lh-exists  { color: var(--success-color); }
+.lh-missing { color: var(--warning-color); }
+.lh-preview {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border-color);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    max-height: 80px;
+    overflow: hidden;
+}
+
+
+/* App icon in top bar */
+.app-icon {
+    vertical-align: middle;
+    margin-right: 4px;
+    border-radius: 4px;
+}
+
+.app-home-btn .app-icon {
+    margin-right: 0;
+}

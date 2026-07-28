@@ -30,7 +30,7 @@ export function renderHome(panel) {
                                 <p class="home-card-kicker">Momentum</p>
                                 <h2>Unfinished tasks</h2>
                             </div>
-                            <button type="button" class="home-card-action" data-home-action="kanban">Open board</button>
+                            <button type="button" class="ui-button home-card-action" data-home-action="kanban">Open board</button>
                         </div>
                         <div class="home-task-list" data-home-tasks>
                             <div class="home-loading">Loading tasks…</div>

@@ -1,0 +1,134 @@
+/* Short, purposeful transitions for panels that are explicitly opened by the
+   user. Reduced-motion users still get an immediate state change. */
+@keyframes figaro-panel-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.figaro-panel-enter {
+    animation: figaro-panel-enter var(--motion-panel-duration) var(--motion-ease-out) both;
+}
+
+@keyframes figaro-panel-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(7px) scale(0.992);
+    }
+}
+
+.figaro-panel-exit {
+    pointer-events: none;
+    animation: figaro-panel-exit var(--motion-panel-duration) var(--motion-ease-out) both;
+}
+
+@keyframes figaro-properties-expand {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scaleY(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --motion-panel-duration: 1ms;
+        --motion-layout-duration: 1ms;
+        --motion-content-duration: 1ms;
+    }
+}
+
+/* ==========================================================================
+   Reset & Base
+   ========================================================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden !important;
+    background: transparent !important;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    isolation: isolate;
+    height: 100%;
+    background: var(--bg-color);
+    font-family: var(--font-sans);
+    font-size: var(--font-size);
+    line-height: var(--line-height);
+    color: var(--text-color);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Frameless windows still need a perceptible physical edge. Octarine's
+   treatment is a full quiet outline with a slightly stronger top edge—not a
+   top-only rule. Keep this overlay inside the clipped application surface so
+   it follows the rounded corners without intercepting resize or UI input. */
+#app::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2147483647;
+    border: 1px solid var(--window-border-color);
+    border-top-color: var(--window-border-highlight);
+    border-radius: inherit;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-color) 4%, transparent);
+    pointer-events: none;
+}
+
+/* ==========================================================================
+   Scrollbars
+   ========================================================================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 4px;
+    border: 2px solid var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
+}
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}

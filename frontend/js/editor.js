@@ -2838,43 +2838,43 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
     const selectionDisabledClass = hasSelection ? '' : ' disabled';
     const selectionDisabledAttribute = hasSelection ? '' : ' aria-disabled="true"';
     const convertTableAction = activeFileLanguage.kind === 'markdown' ? `
-        <div class="context-menu-separator"></div>
-        <div class="context-menu-item${selectionDisabledClass}" data-action="convert-table"${selectionDisabledAttribute}>
+        <div class="ui-menu-separator context-menu-separator"></div>
+        <div class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="convert-table"${selectionDisabledAttribute}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16M15 4v16"/></svg>
             Convert selection to table…
         </div>` : '';
     const previewActions = activeTab?.path?.toLowerCase().endsWith('.md') ? `
-        <div class="context-menu-separator"></div>
-        <div class="context-menu-item" data-action="preview-markdown">
+        <div class="ui-menu-separator context-menu-separator"></div>
+        <div class="ui-menu-item context-menu-item" data-action="preview-markdown">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
             Preview Markdown
         </div>
-        <div class="context-menu-item" data-action="preview-pdf">
+        <div class="ui-menu-item context-menu-item" data-action="preview-pdf">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
             Preview PDF
         </div>` : '';
 
     const menu = document.createElement('div');
-    menu.className = 'context-menu editor-context-menu';
+    menu.className = 'ui-menu context-menu editor-context-menu';
     menu.style.left = `${event.clientX}px`;
     menu.style.top = `${event.clientY}px`;
 
     menu.innerHTML = `
-        <div class="context-menu-item${selectionDisabledClass}" data-action="cut"${selectionDisabledAttribute}>
+        <div class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="cut"${selectionDisabledAttribute}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/></svg>
             Cut
         </div>
-        <div class="context-menu-item${selectionDisabledClass}" data-action="copy"${selectionDisabledAttribute}>
+        <div class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="copy"${selectionDisabledAttribute}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             Copy
         </div>
-        <div class="context-menu-item" data-action="paste">
+        <div class="ui-menu-item context-menu-item" data-action="paste">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
             Paste
         </div>
         ${convertTableAction}
-        <div class="context-menu-separator"></div>
-        <div class="context-menu-item" data-action="select-all">
+        <div class="ui-menu-separator context-menu-separator"></div>
+        <div class="ui-menu-item context-menu-item" data-action="select-all">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
             Select All
         </div>
@@ -2977,7 +2977,7 @@ function appendSpellcheckSuggestionItems(menu, spellcheckSuggestion) {
 
     const section = document.createDocumentFragment();
     const label = document.createElement('div');
-    label.className = 'context-menu-label';
+    label.className = 'ui-menu-label context-menu-label';
     label.textContent = 'Spelling suggestions';
     section.appendChild(label);
 
@@ -2985,7 +2985,7 @@ function appendSpellcheckSuggestionItems(menu, spellcheckSuggestion) {
         for (const suggestion of spellcheckSuggestion.suggestions) {
             const item = document.createElement('button');
             item.type = 'button';
-            item.className = 'context-menu-item context-menu-item--spelling-suggestion';
+            item.className = 'ui-menu-item context-menu-item context-menu-item--spelling-suggestion';
             item.dataset.action = 'replace-spelling';
             item.textContent = suggestion;
             item.setAttribute('aria-label', `Replace “${spellcheckSuggestion.word}” with “${suggestion}”`);
@@ -2999,13 +2999,13 @@ function appendSpellcheckSuggestionItems(menu, spellcheckSuggestion) {
         }
     } else {
         const empty = document.createElement('div');
-        empty.className = 'context-menu-item context-menu-item--spelling-empty disabled';
+        empty.className = 'ui-menu-item context-menu-item context-menu-item--spelling-empty disabled';
         empty.textContent = 'No suggestions found';
         section.appendChild(empty);
     }
 
     const separator = document.createElement('div');
-    separator.className = 'context-menu-separator';
+    separator.className = 'ui-menu-separator context-menu-separator';
     section.appendChild(separator);
     menu.prepend(section);
 }

@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en" data-page="design-system-catalog">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figaro design-system catalogue</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="../icon-32.png">
+    <link rel="stylesheet" href="../vendored/fonts/inter.css">
+    <link rel="stylesheet" href="../fonts/fonts.css">
+    <link rel="stylesheet" href="./tokens.css">
+    <link rel="stylesheet" href="../styles/base.css">
+    <link rel="stylesheet" href="../styles/shell.css">
+    <link rel="stylesheet" href="../styles/features/kanban.css">
+    <link rel="stylesheet" href="../styles/features/relationships.css">
+    <link rel="stylesheet" href="../styles/workspace.css">
+    <link rel="stylesheet" href="../styles/editor.css">
+    <link rel="stylesheet" href="../styles/markdown.css">
+    <link rel="stylesheet" href="../styles/status-tools.css">
+    <link rel="stylesheet" href="../styles/dialogs.css">
+    <link rel="stylesheet" href="../styles/features/metadata.css">
+    <link rel="stylesheet" href="../styles/features/results.css">
+    <link rel="stylesheet" href="../styles/utilities.css">
+    <link rel="stylesheet" href="../styles/features/right-sidebar.css">
+    <link rel="stylesheet" href="../styles/features/settings.css">
+    <link rel="stylesheet" href="../styles/features/link-hover.css">
+    <link rel="stylesheet" href="../styles/features/embedded-widgets.css">
+    <link rel="stylesheet" href="../styles/overrides.css">
+    <link rel="stylesheet" href="./primitives.css">
+    <link rel="stylesheet" href="./theme-surfaces.css">
+    <link id="catalog-theme" rel="stylesheet" href="../themes/default.css" data-theme-id="default">
+    <link rel="stylesheet" href="./catalog.css">
+    <script src="./catalog.bundle.js" defer></script>
+</head>
+<body>
+    <div class="catalog-layout">
+        <aside class="catalog-sidebar">
+            <a class="catalog-brand" href="#catalog-top" aria-label="Figaro design-system catalogue">
+                <img src="../icon-32.png" alt="" width="28" height="28">
+                <span>
+                    <strong>figaro</strong>
+                    <small>design system</small>
+                </span>
+            </a>
+
+            <div class="catalog-control">
+                <label for="theme-select">Theme</label>
+                <select id="theme-select" disabled>
+                    <option>Loading themes…</option>
+                </select>
+                <p id="theme-status" role="status" aria-live="polite" data-state="loading">Reading theme manifest…</p>
+            </div>
+
+            <div class="catalog-control">
+                <label for="catalog-search">Find a component</label>
+                <input id="catalog-search" type="search" placeholder="Button, menu, card…" autocomplete="off">
+                <p id="catalog-visible-count" aria-live="polite">Indexing groups…</p>
+            </div>
+
+            <nav id="catalog-index" class="catalog-index" aria-label="Component index"></nav>
+
+            <div class="catalog-audit-note">
+                <strong>Shared foundations</strong>
+                <p>The approved registry maps each component family to common production primitives; feature classes remain only where behavior or layout differs.</p>
+            </div>
+        </aside>
+
+        <main id="catalog-top" class="catalog-main">
+            <header class="catalog-hero">
+                <p class="catalog-eyebrow">Living UI inventory</p>
+                <h1>Every visible pattern, in one place.</h1>
+                <p>Use this catalogue to review Figaro’s shared primitives, intentional feature variants, and every bundled theme in one place.</p>
+                <div class="catalog-hero-meta" aria-label="Catalogue scope">
+                    <span>Live theme tokens</span>
+                    <span>Production selectors</span>
+                    <span>Interactive states</span>
+                </div>
+            </header>
+
+            <div id="catalog-empty" class="catalog-empty" hidden>
+                No component groups match that search.
+            </div>
+
+            <section id="foundations" class="catalog-section" data-catalog-section
+                     data-catalog-terms="tokens colors typography font mono spacing radius shadow motion focus">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>01 · Foundations</p>
+                        <h2>Theme tokens &amp; type</h2>
+                    </div>
+                    <p>Computed directly from the active theme.</p>
+                </header>
+
+                <div class="ds-token-grid">
+                    <article class="ds-token" data-token="--bg-color">
+                        <span class="ds-token-swatch"></span><strong>Canvas</strong>
+                        <code class="ds-selector">--bg-color</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--sidebar-bg">
+                        <span class="ds-token-swatch"></span><strong>Navigation</strong>
+                        <code class="ds-selector">--sidebar-bg</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--panel-bg">
+                        <span class="ds-token-swatch"></span><strong>Panel</strong>
+                        <code class="ds-selector">--panel-bg</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--hover-bg">
+                        <span class="ds-token-swatch"></span><strong>Hover surface</strong>
+                        <code class="ds-selector">--hover-bg</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--text-color">
+                        <span class="ds-token-swatch"></span><strong>Primary text</strong>
+                        <code class="ds-selector">--text-color</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--text-muted">
+                        <span class="ds-token-swatch"></span><strong>Muted text</strong>
+                        <code class="ds-selector">--text-muted</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--accent-color">
+                        <span class="ds-token-swatch"></span><strong>Accent</strong>
+                        <code class="ds-selector">--accent-color</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--border-color">
+                        <span class="ds-token-swatch"></span><strong>Border</strong>
+                        <code class="ds-selector">--border-color</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--success-color">
+                        <span class="ds-token-swatch"></span><strong>Success</strong>
+                        <code class="ds-selector">--success-color</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--warning-color">
+                        <span class="ds-token-swatch"></span><strong>Warning</strong>
+                        <code class="ds-selector">--warning-color</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--danger-color">
+                        <span class="ds-token-swatch"></span><strong>Danger</strong>
+                        <code class="ds-selector">--danger-color</code><output class="ds-token-value"></output>
+                    </article>
+                    <article class="ds-token" data-token="--focus-ring">
+                        <span class="ds-token-swatch"></span><strong>Focus</strong>
+                        <code class="ds-selector">--focus-ring</code><output class="ds-token-value"></output>
+                    </article>
+                </div>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Interface typography</h3><code class="ds-selector">--font-sans</code></header>
+                        <div class="ds-demo ds-type-demo">
+                            <p class="ds-type-display">Workspace overview</p>
+                            <p class="ds-type-heading">A quiet place for connected notes</p>
+                            <p>Primary copy uses the bundled interface family. Muted text supports hierarchy without becoming illegible.</p>
+                            <small>Metadata · Updated today · 238 words</small>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Editor &amp; code typography</h3><code class="ds-selector">--font-editor</code><code class="ds-selector">--font-mono</code></header>
+                        <div class="ds-demo ds-type-demo">
+                            <p class="ds-editor-sample">Good tools disappear into the work.</p>
+                            <code class="ds-code-sample">const note = await vault.open('Welcome.md');</code>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="shell-navigation" class="catalog-section" data-catalog-section
+                     data-catalog-terms="shell top bar title bar tabs sidebar rail navigation status bottom">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>02 · Structure</p>
+                        <h2>Shell &amp; navigation</h2>
+                    </div>
+                    <p>The application frame and its primary movement controls.</p>
+                </header>
+
+                <article class="ds-specimen">
+                    <header>
+                        <h3>Title bar</h3>
+                        <code class="ds-selector">.top-bar</code>
+                        <code class="ds-selector">.app-home-btn</code>
+                        <code class="ds-selector">.icon-btn</code>
+                    </header>
+                    <div class="ds-demo ds-demo--flush ds-shell-surface">
+                        <div class="top-bar">
+                            <div class="top-bar-left">
+                                <button class="ui-icon-button icon-btn" aria-label="Toggle sidebar">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+                                </button>
+                                <button class="app-home-btn active">
+                                    <img src="../icon-32.png" class="app-icon" alt="" width="22" height="22">
+                                    <span class="app-title">figaro</span>
+                                </button>
+                            </div>
+                            <div class="top-bar-center"></div>
+                            <div class="top-bar-right">
+                                <button class="ui-icon-button icon-btn titlebar-settings-btn" aria-label="Settings">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
+                                </button>
+                                <button class="ui-icon-button icon-btn window-ctrl" aria-label="Minimize">−</button>
+                                <button class="ui-icon-button icon-btn window-ctrl" aria-label="Maximize">□</button>
+                                <button class="ui-icon-button ui-icon-button--danger icon-btn window-ctrl window-ctrl-close" aria-label="Close">×</button>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Document tabs</h3><code class="ds-selector">.tab</code><code class="ds-selector">.all-tabs-btn</code></header>
+                        <div class="ds-demo ds-demo--flush">
+                            <div class="tab-bar ds-tab-bar tabs-overflow tabs-can-scroll-end">
+                                <div class="tab-strip" role="tablist" aria-label="Example document tabs">
+                                    <div class="tab active" role="tab" aria-selected="true">
+                                        <span class="tab-icon">◆</span><span class="tab-title">Welcome.md</span>
+                                        <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Welcome.md">×</button>
+                                    </div>
+                                    <div class="tab dirty pinned" role="tab" aria-selected="false">
+                                        <span class="tab-icon">◇</span><span class="tab-title">Roadmap.md</span>
+                                        <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Roadmap.md">×</button>
+                                    </div>
+                                </div>
+                                <button class="ui-icon-button all-tabs-btn" type="button"
+                                        aria-label="Show all open tabs" aria-haspopup="menu"
+                                        aria-expanded="false">⌄</button>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="ds-specimen">
+                        <header><h3>Sidebar tools</h3><code class="ds-selector">.sidebar-tool-btn</code></header>
+                        <div class="ds-demo ds-demo--flush ds-sidebar-demo">
+                            <nav class="sidebar-tools" aria-label="Example workspace tools">
+                                <button class="sidebar-tool-btn">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8zM14 2v6h6M12 12v6M9 15h6"/></svg>
+                                    <span class="sidebar-tool-label">Quick note</span>
+                                </button>
+                                <button class="sidebar-tool-btn active">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+                                    <span class="sidebar-tool-label">Calendar</span>
+                                </button>
+                                <button class="sidebar-tool-btn">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                    <span class="sidebar-tool-label">Kanban</span>
+                                    <span class="kanban-badges"><span class="ui-badge badge badge-amber">3</span></span>
+                                </button>
+                            </nav>
+                        </div>
+                    </article>
+                </div>
+
+                <article class="ds-specimen">
+                    <header><h3>Status bar</h3><code class="ds-selector">.status-bar</code><code class="ds-selector">.md-cheatsheet-trigger</code></header>
+                    <div class="ds-demo ds-demo--flush">
+                        <footer class="status-bar ds-status-bar">
+                            <div class="status-left"><span>Ready</span><span class="status-separator">|</span><button class="md-cheatsheet-trigger">md cheatsheet</button></div>
+                            <div class="status-right"><span>Ln 12, Col 8</span><span class="status-separator">|</span><span>2 min read</span><span class="status-separator">|</span><a class="status-backlinks">3 backlinks</a></div>
+                        </footer>
+                    </div>
+                </article>
+            </section>
+
+            <section id="buttons-actions" class="catalog-section" data-catalog-section
+                     data-catalog-terms="buttons actions primary secondary ghost danger disabled icon compact">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>03 · Actions</p>
+                        <h2>Buttons &amp; action variants</h2>
+                    </div>
+                    <p>Shared action primitives with feature-specific labels, placement, and behavior.</p>
+                </header>
+
+                <article class="ds-specimen">
+                    <header><h3>Compact actions</h3><span class="ds-review-tag is-decided">Merged</span><code class="ds-selector">.ui-button</code></header>
+                    <div class="ds-demo ds-flow">
+                        <span class="ds-labeled-control"><button class="ui-button settings-action-btn">Choose…</button><code class="ds-selector">.settings-action-btn</code></span>
+                        <span class="ds-labeled-control"><button class="ui-button ui-button--accent drawio-edit-button">Edit diagram</button><code class="ds-selector">.drawio-edit-button</code></span>
+                        <span class="ds-labeled-control"><button class="ui-button history-diff-toggle">Show changes</button><code class="ds-selector">.history-diff-toggle</code></span>
+                        <span class="ds-labeled-control"><button class="ui-button ui-button--accent relationship-link-action">Link mention</button><code class="ds-selector">.relationship-link-action</code></span>
+                        <span class="ds-labeled-control"><button class="ui-button ui-button--warning history-revert-button">Restore version</button><code class="ds-selector">.history-revert-button</code></span>
+                    </div>
+                </article>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Primary actions</h3><code class="ds-selector">.vault-health-scan</code><code class="ds-selector">.pdf-preview-generate</code></header>
+                        <div class="ds-demo ds-flow">
+                            <button class="ui-button ui-button--primary vault-health-scan">Scan vault</button>
+                            <button class="ui-button ui-button--primary pdf-preview-generate">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+                                Generate PDF
+                            </button>
+                            <button class="ui-button ui-button--primary vault-health-scan" disabled>Scanning…</button>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Icon actions</h3><code class="ds-selector">.icon-btn</code><code class="ds-selector">.all-tabs-btn</code><code class="ds-selector">.right-sidebar-close</code></header>
+                        <div class="ds-demo ds-flow">
+                            <button class="ui-icon-button icon-btn" aria-label="Menu">☰</button>
+                            <button class="ui-icon-button all-tabs-btn" type="button"
+                                    aria-label="Show all open tabs" aria-haspopup="menu"
+                                    aria-expanded="false">⌄</button>
+                            <button class="ui-icon-button right-sidebar-close" aria-label="Close panel">×</button>
+                            <button class="ui-icon-button ui-icon-button--small cm-frontmatter-panel-close" aria-label="Close properties">×</button>
+                        </div>
+                    </article>
+                </div>
+
+                <article class="ds-specimen">
+                    <header><h3>Dialog actions</h3><code class="ds-selector">.custom-modal-btn</code></header>
+                    <div class="ds-demo ds-flow">
+                        <button class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                        <button class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Save</button>
+                        <button class="ui-button ui-button--warning custom-modal-btn custom-modal-btn-extra">Keep existing</button>
+                        <button class="ui-button ui-button--danger-ghost custom-modal-btn custom-modal-btn-danger-ghost">Discard</button>
+                        <button class="ui-button ui-button--danger custom-modal-btn custom-modal-btn-delete">Delete</button>
+                        <button class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm" disabled>Saving…</button>
+                    </div>
+                </article>
+            </section>
+
+            <section id="form-controls" class="catalog-section" data-catalog-section
+                     data-catalog-terms="forms inputs search select combobox picker stepper switch toggle checkbox radio segmented disabled validation error">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>04 · Input</p>
+                        <h2>Form controls</h2>
+                    </div>
+                    <p>Current native and custom control families, including state coverage.</p>
+                </header>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Text fields</h3><code class="ds-selector">.search-input-wrapper</code><code class="ds-selector">.custom-modal-input</code></header>
+                        <div class="ds-demo ds-form-stack">
+                            <div class="search-input-wrapper">
+                                <span class="search-icon" aria-hidden="true">⌕</span>
+                                <input class="ui-field" type="search" id="global-search-input" placeholder="Search notes…">
+                                <span class="ui-badge ui-badge--muted search-count">12</span>
+                            </div>
+                            <label class="custom-modal-field" for="catalog-valid-name">Note name</label>
+                            <input id="catalog-valid-name" class="ui-field custom-modal-input" value="Project notes.md">
+                            <label class="custom-modal-field" for="catalog-invalid-name">Invalid state</label>
+                            <input id="catalog-invalid-name" class="ui-field custom-modal-input" value="notes/" aria-invalid="true">
+                            <p class="custom-modal-error">Names cannot contain a slash.</p>
+                            <input class="ui-field custom-modal-input" value="Unavailable" disabled aria-label="Disabled text field">
+                        </div>
+                    </article>
+
+                    <article class="ds-specimen">
+                        <header><h3>Themed comboboxes</h3><code class="ds-selector">.select-combobox</code><code class="ds-selector">.settings-picker</code></header>
+                        <div class="ds-demo ds-form-stack settings-card ds-inline-settings-card">
+                            <label class="settings-row settings-row--select">
+                                <span class="settings-row-label">Auto-save</span>
+                                <select id="catalog-auto-save" class="auto-save-select"
+                                        data-catalog-combobox aria-label="Auto-save interval">
+                                    <option value="300">5 minutes</option>
+                                    <option value="0">Off</option>
+                                </select>
+                            </label>
+                            <label class="settings-row settings-row--select">
+                                <span class="settings-row-label">Links style</span>
+                                <select id="catalog-link-style" data-catalog-combobox
+                                        aria-label="Links style">
+                                    <option value="markdown">Markdown</option>
+                                    <option value="wikilinks">Wikilinks</option>
+                                </select>
+                            </label>
+                            <label class="settings-row settings-row--select">
+                                <span class="settings-row-label">Unavailable</span>
+                                <select id="catalog-unavailable-combobox" data-catalog-combobox
+                                        aria-label="Unavailable option" disabled>
+                                    <option>Loading…</option>
+                                </select>
+                            </label>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Appearance pickers</h3><code class="ds-selector">.ui-picker</code><code class="ds-selector">.ui-picker-trigger</code></header>
+                        <div class="ds-demo settings-card ds-inline-settings-card">
+                            <div class="settings-section">
+                                <span class="settings-section-icon">Theme</span>
+                                <div class="ui-picker theme-picker"><button class="ui-picker-trigger theme-picker-btn"><span>Figaro Dark</span><span>⌄</span></button></div>
+                            </div>
+                            <div class="settings-section">
+                                <span class="settings-section-icon">Font</span>
+                                <div class="ui-picker font-picker"><button class="ui-picker-trigger font-picker-btn"><span>Inter</span><span>⌄</span></button></div>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Steppers</h3><span class="ds-review-tag is-decided">Merged</span><code class="ds-selector">.ui-stepper</code></header>
+                        <div class="ds-demo settings-card ds-inline-settings-card">
+                            <div class="settings-section">
+                                <span class="settings-section-icon">Font size</span>
+                                <div class="ui-stepper font-size-control"><button class="ui-stepper-button font-size-btn">−</button><span class="ui-stepper-value font-size-value">100%</span><button class="ui-stepper-button font-size-btn">+</button></div>
+                            </div>
+                            <div class="settings-section">
+                                <span class="settings-section-icon">Text width</span>
+                                <div class="ui-stepper text-width-control"><button class="ui-stepper-button text-width-btn">−</button><span class="ui-stepper-value text-width-value">100%</span><button class="ui-stepper-button text-width-btn">+</button></div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Switches &amp; checkboxes</h3><code class="ds-selector">.toggle-switch</code><code class="ds-selector">.table-conversion-checkbox</code></header>
+                        <div class="ds-demo ds-form-stack">
+                            <label class="ds-toggle-row"><span>Unchecked</span><span class="toggle-switch"><input type="checkbox" aria-label="Unchecked"><span class="toggle-slider"></span></span></label>
+                            <label class="ds-toggle-row"><span>Checked</span><span class="toggle-switch"><input type="checkbox" checked aria-label="Checked"><span class="toggle-slider"></span></span></label>
+                            <label class="ds-toggle-row"><span>Disabled</span><span class="toggle-switch"><input type="checkbox" disabled aria-label="Disabled"><span class="toggle-slider"></span></span></label>
+                            <label class="table-conversion-checkbox"><input type="checkbox" checked> First row is a header</label>
+                            <label class="ds-native-check"><input class="cm-frontmatter-panel-toggle" type="checkbox" checked> Frontmatter boolean</label>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Segmented control</h3><code class="ds-selector">.settings-segmented-control</code></header>
+                        <div class="ds-demo ds-form-stack">
+                            <div class="settings-segmented-control" role="group" aria-label="Card density example">
+                                <button class="active" aria-pressed="true">Comfortable</button>
+                                <button aria-pressed="false">Compact</button>
+                            </div>
+                            <div class="settings-segmented-control" role="group" aria-label="Column flow example">
+                                <button aria-pressed="false">Side by side</button>
+                                <button class="active" aria-pressed="true">Stacked</button>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="menus-popovers" class="catalog-section" data-catalog-section
+                     data-catalog-terms="menus popovers dropdown listbox context tabs picker autocomplete selected danger">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>05 · Overlays</p>
+                        <h2>Menus &amp; popovers</h2>
+                    </div>
+                    <p>Shared menu surfaces and item states, with separate behavior for each feature.</p>
+                </header>
+
+                <div class="ds-specimen-grid ds-specimen-grid--three ds-menu-grid">
+                    <article class="ds-specimen">
+                        <header><h3>Context menu</h3><code class="ds-selector">.context-menu</code></header>
+                        <div class="ds-demo">
+                            <div class="ui-menu context-menu">
+                                <div class="ui-menu-label context-menu-label">Note</div>
+                                <button class="ui-menu-item context-menu-item">Open in new tab</button>
+                                <button class="ui-menu-item context-menu-item">Rename</button>
+                                <div class="ui-menu-separator context-menu-separator"></div>
+                                <button class="ui-menu-item context-menu-item disabled">Unavailable</button>
+                                <button class="ui-menu-item context-menu-item danger">Delete</button>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>All tabs</h3><code class="ds-selector">.all-tabs-dropdown</code></header>
+                        <div class="ds-demo">
+                            <div class="ui-menu all-tabs-dropdown" role="menu" aria-label="All open tabs">
+                                <button type="button" role="menuitem" class="ui-menu-item all-tabs-item active" aria-current="true">Welcome.md</button>
+                                <button type="button" role="menuitem" class="ui-menu-item all-tabs-item dirty" aria-current="false">Roadmap.md</button>
+                                <button type="button" role="menuitem" class="ui-menu-item all-tabs-item" aria-current="false">Reading list.md</button>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Settings listbox</h3><code class="ds-selector">.settings-picker-menu</code></header>
+                        <div class="ds-demo">
+                            <div class="ui-picker settings-picker ds-open-picker">
+                                <div class="ui-menu ui-picker-menu settings-picker-menu open" role="listbox">
+                                    <button class="ui-menu-item settings-picker-item selected" role="option" aria-selected="true"><span>Markdown</span><span>✓</span></button>
+                                    <button class="ui-menu-item settings-picker-item" role="option" aria-selected="false"><span>Wikilinks</span><span>✓</span></button>
+                                    <button class="ui-menu-item settings-picker-item active" role="option" aria-selected="false"><span>Hovered item</span><span>✓</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="surfaces-cards" class="catalog-section" data-catalog-section
+                     data-catalog-terms="surfaces cards panels settings home kanban result backlinks vault health properties frontmatter">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>06 · Containers</p>
+                        <h2>Cards &amp; panels</h2>
+                    </div>
+                    <p>Related surfaces whose density and emphasis are intentionally still distinct.</p>
+                </header>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Settings card</h3><code class="ds-selector">.settings-card</code></header>
+                        <div class="ds-demo">
+                            <div class="settings-card ds-inline-settings-card">
+                                <div class="settings-card-title">Appearance</div>
+                                <div class="settings-section">
+                                    <span class="settings-section-icon">Theme</span>
+                                    <span class="application-version">Figaro Dark</span>
+                                </div>
+                                <div class="settings-section">
+                                    <span class="settings-section-icon">Font</span>
+                                    <span class="application-version">Inter</span>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Home card</h3><code class="ds-selector">.home-card</code></header>
+                        <div class="ds-demo">
+                            <div class="home-card">
+                                <div class="home-card-heading"><div><p class="home-card-kicker">Workspace</p><h2>Recent notes</h2></div><button class="home-card-action">View all</button></div>
+                                <div class="home-list">
+                                    <div class="home-task-row"><span class="home-task-tag">#doing</span><span class="home-task-text">Review the design audit</span><span class="home-task-source">Roadmap.md</span></div>
+                                    <div class="home-task-row"><span class="home-task-tag">#done</span><span class="home-task-text">Build the inventory</span><span class="home-task-source">Design.md</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Kanban card</h3><code class="ds-selector">.kanban-card</code></header>
+                        <div class="ds-demo">
+                            <div class="kanban-card">
+                                <div class="kanban-card-text">Verify compact action variants against the shared primitive.</div>
+                                <div class="kanban-card-meta"><span class="kanban-card-source">Roadmap.md</span><button class="kanban-card-delete" aria-label="Delete card">×</button></div>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Relationship result</h3><code class="ds-selector">.result-card</code></header>
+                        <div class="ds-demo">
+                            <button class="result-card">
+                                <span class="result-card-title">Architecture notes</span>
+                                <span class="result-card-meta"><span class="result-card-path">docs/architecture.md</span><span class="result-card-line">Line 48</span></span>
+                                <span class="result-card-snippet">Shared controls should preserve <mark>focus</mark> and theme behavior.</span>
+                            </button>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Vault-health section</h3><code class="ds-selector">.vault-health-section</code></header>
+                        <div class="ds-demo">
+                            <div class="vault-health-section has-findings">
+                                <div class="vault-health-section-heading"><h3>Missing local links</h3><span class="ui-badge ui-badge--warning">2</span></div>
+                                <div class="vault-health-issues">
+                                    <div class="vault-health-issue"><button class="vault-health-open"><span class="vault-health-issue-path">Welcome.md</span><span class="vault-health-issue-detail">Could not resolve “Project plan”.</span></button></div>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Editor properties</h3><code class="ds-selector">.cm-frontmatter-panel</code></header>
+                        <div class="ds-demo">
+                            <div class="cm-frontmatter-panel">
+                                <div class="cm-frontmatter-panel-header"><strong class="cm-frontmatter-panel-title">Properties</strong><div class="cm-frontmatter-panel-actions"><button class="cm-frontmatter-panel-action">Raw</button><button class="ui-icon-button ui-icon-button--small cm-frontmatter-panel-close" aria-label="Close">×</button></div></div>
+                                <div class="cm-frontmatter-panel-section">
+                                    <h3>Core</h3>
+                                    <label class="cm-frontmatter-panel-row"><span class="cm-frontmatter-panel-row-label">Title</span><input class="ui-field cm-frontmatter-panel-input" value="Design system"></label>
+                                    <label class="cm-frontmatter-panel-row"><span class="cm-frontmatter-panel-row-label">Status</span><select class="ui-field cm-frontmatter-panel-select"><option>In progress</option></select></label>
+                                    <button class="cm-frontmatter-panel-add">+ Add property</button>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="indicators-metadata" class="catalog-section" data-catalog-section
+                     data-catalog-terms="badges pills counts metadata version status labels chips purple red amber green">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>07 · Metadata</p>
+                        <h2>Badges &amp; indicators</h2>
+                    </div>
+                    <p>Small state and count treatments shown at their native scale.</p>
+                </header>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Kanban counts</h3><code class="ds-selector">.badge</code></header>
+                        <div class="ds-demo ds-flow">
+                            <span class="ui-badge badge badge-purple">12</span>
+                            <span class="ui-badge badge badge-red">3</span>
+                            <span class="ui-badge badge badge-amber">8</span>
+                            <span class="ui-badge badge badge-green">24</span>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Version states</h3><code class="ds-selector">.application-version</code></header>
+                        <div class="ds-demo ds-flow">
+                            <output class="application-version">vX.Y.Z</output>
+                            <output class="application-version" data-state="loading">Loading…</output>
+                            <output class="application-version" data-state="error">Unavailable</output>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="feedback-states" class="catalog-section" data-catalog-section
+                     data-catalog-terms="feedback notice banner error warning success empty loading current history validation">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>08 · Feedback</p>
+                        <h2>Notices &amp; states</h2>
+                    </div>
+                    <p>Shared semantic notice variants with workflow-specific content and placement.</p>
+                </header>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Dialog notices</h3><code class="ds-selector">.custom-modal-notice</code></header>
+                        <div class="ds-demo ds-form-stack">
+                            <div class="ui-notice ui-notice--success custom-modal-notice"><strong>Saved at</strong><code>/Documents/Welcome.pdf</code></div>
+                            <div class="ui-notice ui-notice--warning custom-modal-notice custom-modal-notice--warning"><strong>What to do</strong><span>Choose an installed browser executable.</span></div>
+                            <div class="ui-notice ui-notice--danger custom-modal-notice custom-modal-notice--danger"><strong>Export failed</strong><span>The browser process exited early.</span></div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Inline workflow states</h3><code class="ds-selector">.history-current-notice</code><code class="ds-selector">.results-empty</code></header>
+                        <div class="ds-demo ds-form-stack">
+                            <p class="ui-notice ui-notice--info history-current-notice">You are viewing the current saved version.</p>
+                            <p class="ui-notice ui-notice--success vault-health-summary" data-kind="clear">No vault issues found.</p>
+                            <p class="ui-notice ui-notice--warning vault-health-summary" data-kind="findings">3 items need attention.</p>
+                            <p class="results-empty">No linked notes yet.</p>
+                            <p class="results-error">Could not load results.</p>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="dialogs" class="catalog-section" data-catalog-section
+                     data-catalog-terms="dialog modal overlay confirmation warning danger form footer buttons">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>09 · Dialogs</p>
+                        <h2>Application modal</h2>
+                    </div>
+                    <p>The shared dialog shell, fields, notices, and action hierarchy.</p>
+                </header>
+
+                <article class="ds-specimen">
+                    <header><h3>Warning confirmation</h3><code class="ds-selector">.custom-modal</code><code class="ds-selector">.custom-modal--warning</code></header>
+                    <div class="ds-demo ds-dialog-stage">
+                        <section class="custom-modal custom-modal--warning" role="dialog" aria-labelledby="catalog-dialog-title">
+                            <header class="custom-modal-header">
+                                <span class="custom-modal-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0ZM12 9v4M12 17h.01"/></svg>
+                                </span>
+                                <div class="custom-modal-heading">
+                                    <h3 id="catalog-dialog-title">Rewrite vault links?</h3>
+                                    <p>Choose how existing links should behave after changing the preferred syntax.</p>
+                                </div>
+                            </header>
+                            <div class="custom-modal-content">
+                                <div class="custom-modal-context"><span>Vault</span><code>Notes / Personal</code></div>
+                                <div class="ui-notice ui-notice--warning custom-modal-notice custom-modal-notice--warning"><strong>Review first</strong><span>Dirty notes will be saved before rewriting resolved local links.</span></div>
+                            </div>
+                            <footer class="custom-modal-buttons">
+                                <button class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                                <button class="ui-button ui-button--warning custom-modal-btn custom-modal-btn-extra">Keep existing</button>
+                                <button class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Rewrite links</button>
+                            </footer>
+                        </section>
+                    </div>
+                </article>
+            </section>
+
+            <section id="markdown-content" class="catalog-section" data-catalog-section
+                     data-catalog-terms="markdown preview heading paragraph link code blockquote list task table rule content editor">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>10 · Content</p>
+                        <h2>Markdown rendering</h2>
+                    </div>
+                    <p>The normal themed preview surface, without PDF-only styling.</p>
+                </header>
+
+                <article class="ds-specimen">
+                    <header><h3>Rendered document</h3><code class="ds-selector">.markdown-preview-document</code></header>
+                    <div class="ds-demo ds-markdown-stage">
+                        <article class="markdown-preview-document">
+                            <h1>A quiet workspace</h1>
+                            <p>Figaro keeps <strong>connected notes</strong>, <em>focused writing</em>, and <a href="#markdown-content">useful context</a> in one local workspace.</p>
+                            <blockquote>Good interface patterns become easier to trust when their differences are visible.</blockquote>
+                            <h2>Review checklist</h2>
+                            <ul class="figaro-print-task-list">
+                                <li><input class="figaro-print-task-checkbox" type="checkbox" checked disabled> Compare every theme</li>
+                                <li><input class="figaro-print-task-checkbox" type="checkbox" disabled> Approve component mergers</li>
+                            </ul>
+                            <pre><code>theme: figaro-dark
+catalog: shared-primitives</code></pre>
+                            <table>
+                                <thead><tr><th>Pattern</th><th>Status</th></tr></thead>
+                                <tbody><tr><td>Settings picker</td><td>Merged</td></tr><tr><td>Compact buttons</td><td>Merged</td></tr></tbody>
+                            </table>
+                        </article>
+                    </div>
+                </article>
+            </section>
+
+            <section id="loading-progress" class="catalog-section" data-catalog-section
+                     data-catalog-terms="loading progress spinner skeleton drawio markdown pdf busy">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>11 · Progress</p>
+                        <h2>Loading &amp; busy states</h2>
+                    </div>
+                    <p>Longer operations preserve a themed surface and accessible status.</p>
+                </header>
+
+                <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Draw.io connection</h3><code class="ds-selector">.drawio-loading-card</code></header>
+                        <div class="ds-demo ds-loading-stage">
+                            <div class="drawio-loading-card" role="status">
+                                <span class="drawio-loading-spinner" aria-hidden="true"></span>
+                                <p class="drawio-loading-label">Opening diagrams.net…</p>
+                                <p class="drawio-loading-title">architecture.drawio.svg</p>
+                                <span class="drawio-loading-progress" aria-hidden="true"><span></span></span>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Preview status</h3><code class="ds-selector">.markdown-preview-status</code><code class="ds-selector">.pdf-preview-status</code></header>
+                        <div class="ds-demo ds-form-stack">
+                            <p class="ui-notice markdown-preview-status">Preparing Markdown preview…</p>
+                            <p class="ui-notice ui-notice--danger markdown-preview-status" data-kind="error">Could not render this note.</p>
+                            <p class="ui-notice pdf-preview-status">Generating printable document…</p>
+                            <button class="ui-button settings-action-btn" disabled>Working…</button>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="review-map" class="catalog-section" data-catalog-section
+                     data-catalog-terms="audit review merge comparison duplicate candidates decisions inventory">
+                <header class="catalog-section-header">
+                    <div>
+                        <p>12 · Audit</p>
+                        <h2>Similarity review map</h2>
+                    </div>
+                    <p>The approved consolidation boundaries and the intentional exceptions retained after review.</p>
+                </header>
+
+                <div class="ds-review-table-wrap">
+                    <table class="ds-review-table">
+                        <thead><tr><th>Family</th><th>Current variants</th><th>Suggested boundary</th><th>Decision</th></tr></thead>
+                        <tbody>
+                            <tr><td>Settings pickers</td><td><code>.theme-picker*</code>, <code>.font-picker*</code>, <code>.settings-picker*</code></td><td><code>.ui-picker</code> structure</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Steppers</td><td><code>.font-size-*</code>, <code>.text-width-*</code></td><td><code>.ui-stepper</code> structure</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Compact actions</td><td>Settings, history, relationships, Draw.io</td><td><code>.ui-button</code> + semantic variants</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Icon actions</td><td>Title bar, tabs, properties, sidebars</td><td><code>.ui-icon-button</code> sizes</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Badges</td><td>Kanban, search, relationships, Vault health</td><td><code>.ui-badge</code> roles</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Menus</td><td>Context, tabs, settings, frontmatter</td><td><code>.ui-menu</code> visuals; separate controllers</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Cards</td><td>Settings, home, Kanban, results, health</td><td>Surface tokens only</td><td><span>Keep layouts</span></td></tr>
+                            <tr><td>Form fields</td><td>Dialogs, settings, properties, conversion</td><td><code>.ui-field</code> + context variants</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Notices</td><td>Dialogs, history, health, preview</td><td><code>.ui-notice</code> semantic variants</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Switch vs checkbox</td><td>Settings toggles, task and form checks</td><td>Keep separate semantics</td><td><span class="is-decided">Do not merge</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

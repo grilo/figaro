@@ -51,6 +51,7 @@ function debugAPI() {
         GetLinkedNotesForDate: mock([]),
         GetTodayLink: mock('2026-07-09'),
         GetOSUsername: mock('Test User'),
+        GetApplicationVersion: mock('Development build'),
         GetTomorrowLink: mock('2026-07-10'),
         GetYesterdayLink: mock('2026-07-08'),
         SaveSession: mock({ success: true }),

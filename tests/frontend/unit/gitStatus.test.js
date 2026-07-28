@@ -41,8 +41,8 @@ describe('quiet local-history action', () => {
         jest.clearAllMocks();
         mockState.openTabs = [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', dirty: false }];
         mockState.activeTabId = 'note.md';
-        window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(true);
-        window.go.main.App.CommitCurrentFile.mockResolvedValue(null);
+        window.go.desktop.App.FileHasUncommittedChanges.mockResolvedValue(true);
+        window.go.desktop.App.CommitCurrentFile.mockResolvedValue(null);
         mockSaveFileSnapshot.mockImplementation(async tab => {
             tab.dirty = false;
             return { success: true, mtime: 12 };
@@ -53,7 +53,7 @@ describe('quiet local-history action', () => {
         await expect(updateGitStatus('note.md')).resolves.toBe(true);
 
         const control = document.getElementById('git-status');
-        expect(window.go.main.App.FileHasUncommittedChanges).toHaveBeenCalledWith('note.md');
+        expect(window.go.desktop.App.FileHasUncommittedChanges).toHaveBeenCalledWith('note.md');
         expect(control.textContent).toBe('Save to history');
         expect(control.classList).toContain('is-uncommitted');
         expect(control.disabled).toBe(false);
@@ -66,12 +66,12 @@ describe('quiet local-history action', () => {
     test('saves a dirty buffer before recording it, then hides the clean state', async () => {
         mockState.openTabs[0].dirty = true;
         await updateGitStatus('note.md');
-        window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);
+        window.go.desktop.App.FileHasUncommittedChanges.mockResolvedValue(false);
 
         await expect(commitCurrentFileChanges()).resolves.toBe(true);
 
         expect(mockSaveFileSnapshot).toHaveBeenCalledWith(mockState.openTabs[0], 'pending text');
-        expect(window.go.main.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
+        expect(window.go.desktop.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
         expect(statusBar.set).toHaveBeenCalledWith('Saved file to local history');
         expect(document.getElementById('git-status').textContent).toBe('Save to history');
         expect(document.getElementById('git-status').disabled).toBe(true);
@@ -85,18 +85,18 @@ describe('quiet local-history action', () => {
             return { success: true, mtime: 12, historyCommitSucceeded: true };
         });
         await updateGitStatus('note.md');
-        window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);
+        window.go.desktop.App.FileHasUncommittedChanges.mockResolvedValue(false);
 
         await expect(commitCurrentFileChanges()).resolves.toBe(true);
 
         expect(mockSaveFileSnapshot).toHaveBeenCalledWith(mockState.openTabs[0], 'pending text');
-        expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.CommitCurrentFile).not.toHaveBeenCalled();
         expect(statusBar.set).toHaveBeenCalledWith('Saved file to local history');
     });
 
     test('reappears as a history action when the active file becomes dirty after recording', async () => {
         initHistoryPanel();
-        window.go.main.App.FileHasUncommittedChanges.mockResolvedValue(false);
+        window.go.desktop.App.FileHasUncommittedChanges.mockResolvedValue(false);
         await updateGitStatus('note.md');
 
         document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: 'note.md' } }));
@@ -109,7 +109,7 @@ describe('quiet local-history action', () => {
 
     test('keeps the warning and reports a non-destructive commit failure', async () => {
         await updateGitStatus('note.md');
-        window.go.main.App.CommitCurrentFile.mockRejectedValueOnce(new Error('another file is staged'));
+        window.go.desktop.App.CommitCurrentFile.mockRejectedValueOnce(new Error('another file is staged'));
 
         await expect(commitCurrentFileChanges()).resolves.toBe(false);
 

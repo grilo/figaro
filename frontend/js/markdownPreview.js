@@ -50,7 +50,7 @@ function ensurePreviewPanel() {
             <span class="markdown-preview-document-title"></span>
             <span class="markdown-preview-format">Markdown</span>
         </div>
-        <p class="markdown-preview-status" aria-live="polite">Preparing Markdown preview…</p>
+        <p class="ui-notice markdown-preview-status" aria-live="polite">Preparing Markdown preview…</p>
         <div class="markdown-preview-stage">
             <article class="markdown-preview-document" aria-label="Rendered Markdown document"></article>
         </div>
@@ -80,6 +80,7 @@ function setPreviewStatus(message, kind = '') {
     if (!status) return;
     status.textContent = message;
     status.dataset.kind = kind;
+    status.classList.toggle('ui-notice--danger', kind === 'error');
 }
 
 function updatePreviewMeta() {

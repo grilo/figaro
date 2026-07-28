@@ -133,21 +133,34 @@ describe('frontmatter Properties card', () => {
         expect(view.dom.querySelector('.cm-frontmatter-panel-chips').textContent).toContain('title: Report');
         const stylesheetToggle = view.dom.querySelector('.cm-frontmatter-combobox-toggle');
         stylesheetToggle.click();
+        const stylesheetMenu = view.dom.querySelector('.cm-frontmatter-file-combobox .cm-frontmatter-combobox-menu');
+        expect(stylesheetMenu.classList.contains('ui-menu')).toBe(true);
+        expect(stylesheetMenu.classList.contains('open')).toBe(true);
+        expect(stylesheetMenu.hidden).toBe(false);
         expect([...view.dom.querySelectorAll('.cm-frontmatter-file-combobox .cm-frontmatter-combobox-option')]
             .map(option => option.dataset.value))
             .toEqual(['exports/print.css', 'styles/print.css']);
         [...view.dom.querySelectorAll('.cm-frontmatter-file-combobox .cm-frontmatter-combobox-option')]
             .find(option => option.dataset.value === 'exports/print.css')
             .click();
+        expect(stylesheetMenu.classList.contains('open')).toBe(false);
+        expect(stylesheetMenu.hidden).toBe(true);
         expect(view.state.doc.toString()).toContain('print-stylesheet: exports/print.css');
 
         const spellcheck = [...view.dom.querySelectorAll('.cm-frontmatter-panel-section')]
             .find(section => section.textContent.includes('Spellcheck'))
             .querySelector('.cm-frontmatter-panel-select');
         spellcheck.click();
+        const spellcheckPicker = spellcheck.closest('.ui-picker');
+        const spellcheckMenu = spellcheckPicker.querySelector('.ui-picker-menu');
+        expect(spellcheck.classList.contains('ui-picker-trigger')).toBe(true);
+        expect(spellcheckMenu.classList.contains('ui-menu')).toBe(true);
+        expect(spellcheckMenu.classList.contains('open')).toBe(true);
+        expect(spellcheckMenu.querySelector('[role="option"]').classList.contains('ui-menu-item')).toBe(true);
         [...view.dom.querySelectorAll('.cm-frontmatter-combobox-option')]
             .find(option => option.dataset.value === 'en-GB')
             .click();
+        expect(spellcheckMenu.classList.contains('open')).toBe(false);
         expect(view.state.doc.toString()).toContain('spellcheck: en-GB');
 
         const toc = view.dom.querySelector('.cm-frontmatter-panel-select');

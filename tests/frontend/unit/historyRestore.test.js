@@ -47,13 +47,13 @@ describe('history restore workflow', () => {
         jest.clearAllMocks();
         mockState.openTabs = [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true }];
         mockState.activeTabId = 'note.md';
-        window.go.main.App.GetCommitCount.mockResolvedValue(2);
-        window.go.main.App.GetFileHistory.mockResolvedValue([
+        window.go.desktop.App.GetCommitCount.mockResolvedValue(2);
+        window.go.desktop.App.GetFileHistory.mockResolvedValue([
             { hash: 'latest123456', timestamp: 200, message: 'latest' },
             { hash: 'older1234567', timestamp: 100, message: 'older' },
         ]);
-        window.go.main.App.GetFileVersion.mockResolvedValue('historical version');
-        window.go.main.App.CommitCurrentFile.mockResolvedValue(null);
+        window.go.desktop.App.GetFileVersion.mockResolvedValue('historical version');
+        window.go.desktop.App.CommitCurrentFile.mockResolvedValue(null);
         mockSaveFileSnapshot.mockResolvedValue({ success: true, mtime: 11 });
         initHistoryPanel();
     });
@@ -65,7 +65,7 @@ describe('history restore workflow', () => {
             { hash: 'latest123456', timestamp: 200, message: 'latest' },
             { hash: 'older1234567', timestamp: 100, message: 'older' },
         ];
-        window.go.main.App.GetFileHistory.mockImplementation(async () => entries);
+        window.go.desktop.App.GetFileHistory.mockImplementation(async () => entries);
         updateHistoryCount('note.md');
         await settle();
         document.getElementById('history-count').click();
@@ -92,7 +92,7 @@ describe('history restore workflow', () => {
         restore.click();
         await settle();
         expect(mockSaveFileSnapshot).not.toHaveBeenCalled();
-        expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.CommitCurrentFile).not.toHaveBeenCalled();
 
         mockConfirmDialog.mockResolvedValueOnce('confirm');
         entries = [
@@ -113,7 +113,7 @@ describe('history restore workflow', () => {
             'unsaved current version',
             'historical version',
         ]);
-        expect(window.go.main.App.CommitCurrentFile.mock.calls).toEqual([['note.md'], ['note.md']]);
+        expect(window.go.desktop.App.CommitCurrentFile.mock.calls).toEqual([['note.md'], ['note.md']]);
         expect(mockSetReadOnly).toHaveBeenLastCalledWith(false);
         expect(mockSetEditorContent).toHaveBeenLastCalledWith('historical version');
         expect(document.querySelectorAll('.history-item')).toHaveLength(3);
@@ -140,7 +140,7 @@ describe('history restore workflow', () => {
             expect.any(Error),
             'The selected version was not applied. Your current file remains available.',
         );
-        expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.CommitCurrentFile).not.toHaveBeenCalled();
         expect(mockSetReadOnly).not.toHaveBeenCalledWith(false);
         expect(document.querySelector('.history-revert-button').disabled).toBe(false);
     });

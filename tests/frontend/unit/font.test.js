@@ -31,7 +31,7 @@ const mockApi = {
 beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.go = { main: { App: mockApi } };
+    window.go = { desktop: { App: mockApi } };
     mockEditorView.dom.style.fontFamily = '';
     document.documentElement.style.removeProperty('--font-editor');
     document.body.innerHTML = `

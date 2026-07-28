@@ -20,8 +20,8 @@ describe('history panel async lifecycle', () => {
 
     test('drops a late history list after the active file changes', async () => {
         const slow = deferred();
-        window.go.main.App.GetFileHistory.mockImplementationOnce(() => slow.promise);
-        window.go.main.App.GetCommitCount.mockResolvedValue(0);
+        window.go.desktop.App.GetFileHistory.mockImplementationOnce(() => slow.promise);
+        window.go.desktop.App.GetCommitCount.mockResolvedValue(0);
 
         updateHistoryCount('A.md');
         const refresh = refreshHistoryIfOpen();
@@ -35,7 +35,7 @@ describe('history panel async lifecycle', () => {
 
     test('drops a late local-history result after the active file changes', async () => {
         const slow = deferred();
-        window.go.main.App.FileHasUncommittedChanges
+        window.go.desktop.App.FileHasUncommittedChanges
             .mockImplementationOnce(() => slow.promise)
             .mockResolvedValueOnce(false);
 

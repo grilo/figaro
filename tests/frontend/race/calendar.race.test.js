@@ -34,7 +34,7 @@ describe('calendar async lifecycle', () => {
     test('does not render a stale month after rapid month navigation', async () => {
         const slow = deferred();
         const fast = deferred();
-        window.go.main.App.GetCalendarMonthData
+        window.go.desktop.App.GetCalendarMonthData
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
 

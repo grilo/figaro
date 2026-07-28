@@ -1,0 +1,472 @@
+/* ==========================================================================
+   Shared UI primitives
+
+   Feature classes remain available as behavior and layout hooks. These
+   primitives own the visual and interaction states shared across features.
+   ========================================================================== */
+.ui-picker {
+    position: relative;
+    width: 176px;
+}
+
+.ui-picker .ui-picker-trigger {
+    display: flex;
+    width: 100%;
+    height: var(--ui-control-height);
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 10px 0 var(--ui-control-padding-x);
+    border: 1px solid var(--border-color);
+    border-radius: var(--ui-control-radius);
+    outline: none;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: 500 12px/1.2 var(--font-sans);
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        background var(--transition-fast);
+}
+
+.ui-picker-trigger > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-picker-trigger > svg {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.ui-picker-trigger:hover:not(:disabled) {
+    border-color: var(--text-dim);
+    background: color-mix(in srgb, var(--bg-color) 82%, var(--hover-bg));
+}
+
+.ui-picker .ui-picker-trigger:focus-visible,
+.ui-picker .ui-picker-trigger[aria-expanded="true"] {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.ui-picker-trigger[aria-expanded="true"] > svg {
+    color: var(--accent-color);
+    transform: rotate(180deg);
+}
+
+.ui-picker-trigger:disabled {
+    cursor: not-allowed;
+    opacity: .62;
+}
+
+.ui-picker-trigger:disabled[data-busy="true"] {
+    cursor: wait;
+}
+
+.ui-menu {
+    border: 1px solid var(--border-color);
+    border-radius: var(--ui-menu-radius);
+    background: var(--panel-bg);
+    box-shadow: var(--shadow-lg);
+    color: var(--text-color);
+    font-family: var(--font-ui);
+}
+
+.ui-picker .ui-picker-menu {
+    display: none;
+    position: absolute;
+    z-index: 120;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    max-height: min(310px, calc(100vh - 80px));
+    padding: 4px;
+    overflow-y: auto;
+}
+
+.ui-picker-menu.open {
+    display: grid;
+    gap: 2px;
+}
+
+.ui-menu-item {
+    display: flex;
+    width: 100%;
+    min-height: 32px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: var(--ui-item-radius);
+    outline: none;
+    background: transparent;
+    color: var(--text-color);
+    font: 500 12px/1.2 var(--font-sans);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ui-picker .ui-menu-item {
+    justify-content: space-between;
+}
+
+.ui-menu-item:hover,
+.ui-menu-item.active,
+.ui-menu-item:focus-visible,
+.ui-menu-item[aria-selected="true"] {
+    background: var(--hover-bg);
+}
+
+.ui-menu-item:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--accent-color);
+}
+
+.ui-menu-item.danger {
+    color: var(--danger-color);
+}
+
+.ui-menu-item.danger:hover,
+.ui-menu-item.danger:focus-visible {
+    background: color-mix(in srgb, var(--danger-color) 10%, transparent);
+}
+
+.ui-menu-item.disabled,
+.ui-menu-item:disabled {
+    color: var(--text-dim);
+    cursor: default;
+    pointer-events: none;
+}
+
+.ui-menu-label {
+    padding: 7px 9px 4px;
+    color: var(--text-muted);
+    font: 600 10px/1.2 var(--font-sans);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.ui-menu-separator {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border-color);
+}
+
+.ui-stepper {
+    display: inline-flex;
+    height: 30px;
+    width: fit-content;
+    align-items: center;
+    gap: 6px;
+    padding: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-color);
+}
+
+.ui-stepper-button {
+    display: flex;
+    width: 26px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-muted);
+    font: 15px/1 var(--font-sans);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.ui-stepper-button:hover:not(:disabled) {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.ui-stepper-button:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
+.ui-stepper-button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.ui-stepper-value {
+    min-width: 38px;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    user-select: none;
+}
+
+.ui-button {
+    display: inline-flex;
+    min-height: var(--ui-compact-height);
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    outline: none;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: 600 11px/1.2 var(--font-ui);
+    cursor: pointer;
+    transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.ui-button:hover:not(:disabled),
+.ui-button:focus-visible:not(:disabled) {
+    border-color: var(--accent-color);
+}
+
+.ui-button.active,
+.ui-button[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--accent-color) 42%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 12%, var(--hover-bg));
+    color: var(--accent-color);
+}
+
+.ui-button:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.ui-button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.ui-button:disabled {
+    cursor: wait;
+    opacity: .65;
+}
+
+.ui-button--accent {
+    border-color: color-mix(in srgb, var(--accent-color) 45%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    color: var(--accent-color);
+}
+
+.ui-button--accent:hover:not(:disabled),
+.ui-button--accent:focus-visible:not(:disabled) {
+    border-color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+}
+
+.ui-button--primary {
+    border-color: var(--accent-color);
+    background: var(--accent-color);
+    color: var(--button-text);
+}
+
+.ui-button--primary:hover:not(:disabled),
+.ui-button--primary:focus-visible:not(:disabled) {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+}
+
+.ui-button--warning {
+    border-color: color-mix(in srgb, var(--warning-color) 42%, var(--border-color));
+    background: color-mix(in srgb, var(--warning-color) 8%, var(--panel-bg));
+}
+
+.ui-button--warning:hover:not(:disabled),
+.ui-button--warning:focus-visible:not(:disabled) {
+    border-color: var(--warning-color);
+}
+
+.ui-button--danger {
+    border-color: var(--danger-color);
+    background: var(--danger-color);
+    color: var(--button-text);
+}
+
+.ui-button--danger:hover:not(:disabled),
+.ui-button--danger:focus-visible:not(:disabled) {
+    border-color: var(--danger-hover);
+    background: var(--danger-hover);
+}
+
+.ui-button--danger-ghost {
+    border-color: color-mix(in srgb, var(--danger-color) 38%, var(--border-color));
+    background: color-mix(in srgb, var(--danger-color) 8%, transparent);
+    color: var(--danger-color);
+}
+
+.ui-button--danger-ghost:hover:not(:disabled),
+.ui-button--danger-ghost:focus-visible:not(:disabled) {
+    border-color: var(--danger-color);
+    background: color-mix(in srgb, var(--danger-color) 15%, transparent);
+}
+
+.ui-icon-button {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    outline: none;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    cursor: pointer;
+    transition:
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast);
+}
+
+.ui-icon-button:hover:not(:disabled) {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.ui-icon-button:focus-visible {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.ui-icon-button:active:not(:disabled) {
+    background: var(--active-bg);
+}
+
+.ui-icon-button:disabled {
+    cursor: default;
+    opacity: .5;
+}
+
+.ui-icon-button--small {
+    width: 22px;
+    height: 22px;
+}
+
+.ui-icon-button--danger:hover:not(:disabled) {
+    background: var(--danger-color);
+    color: var(--button-text);
+}
+
+.ui-badge {
+    display: inline-grid;
+    min-width: var(--ui-badge-height);
+    height: var(--ui-badge-height);
+    place-items: center;
+    padding: 0 6px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: var(--text-muted);
+    font: 700 10px/1 var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.ui-badge--muted {
+    border-color: var(--border-color);
+    background: var(--bg-color);
+}
+
+.ui-badge--accent {
+    background: color-mix(in srgb, var(--accent-color) 16%, var(--bg-color));
+    color: var(--accent-color);
+}
+
+.ui-badge--warning {
+    background: color-mix(in srgb, var(--warning-color) 18%, var(--bg-color));
+    color: var(--warning-color);
+}
+
+.ui-field {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--ui-control-radius);
+    outline: none;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font: inherit;
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        background var(--transition-fast);
+}
+
+.ui-field:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--border-color) 55%, var(--text-muted));
+}
+
+.ui-field:focus,
+.ui-field:focus-visible {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+
+.ui-field[aria-invalid="true"] {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-color) 16%, transparent);
+}
+
+.ui-field:disabled {
+    cursor: not-allowed;
+    opacity: .62;
+}
+
+.ui-notice {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--hover-bg);
+    color: color-mix(in srgb, var(--text-muted) 70%, var(--text-color));
+}
+
+.ui-notice--info {
+    border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 8%, var(--hover-bg));
+}
+
+.ui-notice--success {
+    border-color: color-mix(in srgb, var(--success-color) 30%, var(--border-color));
+    background: color-mix(in srgb, var(--success-color) 8%, var(--hover-bg));
+    color: var(--success-color);
+}
+
+.ui-notice--warning {
+    border-color: color-mix(in srgb, var(--warning-color) 30%, var(--border-color));
+    background: color-mix(in srgb, var(--warning-color) 8%, var(--hover-bg));
+    color: var(--warning-color);
+}
+
+.ui-notice--danger {
+    border-color: color-mix(in srgb, var(--danger-color) 30%, var(--border-color));
+    background: color-mix(in srgb, var(--danger-color) 8%, var(--hover-bg));
+    color: var(--danger-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-picker-trigger,
+    .ui-picker-trigger > svg,
+    .ui-stepper-button,
+    .ui-button,
+    .ui-icon-button,
+    .ui-field {
+        transition: none;
+    }
+}

@@ -1,0 +1,1294 @@
+/* ==========================================================================
+   Top Bar
+   ========================================================================== */
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--top-bar-height);
+    padding: 0 12px;
+    background: var(--sidebar-bg);
+    flex-shrink: 0;
+    z-index: 100;
+    --wails-draggable: drag;
+    user-select: none;
+    -webkit-user-select: none;
+    border-radius: 8px 8px 0 0;
+}
+
+.top-bar button,
+.top-bar input,
+.top-bar .search-container {
+    --wails-draggable: no-drag;
+}
+
+
+.app-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-color);
+    margin: 0;
+}
+
+.app-home-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 5px 0 2px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.app-home-btn:hover,
+.app-home-btn.active {
+    background: var(--hover-bg);
+    border-color: var(--border-color);
+}
+
+.app-home-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+.top-bar-left, .top-bar-center, .top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+
+
+
+.top-bar-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.top-bar-right {
+    gap: 4px;
+}
+
+.titlebar-settings-btn.active {
+    color: var(--accent-color);
+    background: var(--hover-bg);
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+
+.window-controls-separator {
+    width: 1px;
+    height: 16px;
+    margin: 0 3px;
+    background: var(--border-color);
+}
+
+/* ── Sidebar Search ── */
+.sidebar-search {
+    position: relative;
+    padding: 12px;
+    flex-shrink: 0;
+}
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.search-input-wrapper .search-icon {
+    position: absolute;
+    left: 10px;
+    color: var(--text-dim);
+    pointer-events: none;
+    z-index: 1;
+}
+.search-input-wrapper #global-search-input {
+    height: 30px;
+    padding: 0 42px 0 32px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+}
+.search-input-wrapper #global-search-input::placeholder {
+    color: var(--text-dim);
+    font-size: 12px;
+}
+.search-input-wrapper .search-count {
+    position: absolute;
+    right: 8px;
+}
+
+/* ── Left Sidebar Calendar ── */
+.sidebar-calendar-panel {
+    flex: 0 1 auto;
+    max-height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    opacity: 0;
+    border-top: 1px solid transparent;
+    background: var(--sidebar-bg);
+    transform: translateY(6px);
+    transition:
+        max-height var(--motion-layout-duration) var(--motion-ease-out),
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out),
+        border-color var(--motion-content-duration) ease;
+}
+
+.sidebar-calendar-panel.open {
+    max-height: min(440px, 58%);
+    overflow-y: auto;
+    visibility: visible;
+    opacity: 1;
+    border-top-color: var(--border-color);
+    transform: translateY(0);
+}
+
+.sidebar-calendar-panel .calendar-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 6px;
+    flex-shrink: 0;
+}
+
+.sidebar-calendar-panel .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    padding: 0 12px 8px;
+}
+
+.sidebar-calendar-panel .cal-linked-notes {
+    border-top: 1px solid var(--border-color);
+    padding: 8px 12px 10px;
+}
+
+/* ── Settings Tab ── */
+.settings-panel-tab {
+    padding: 24px 28px;
+    overflow-y: auto;
+    height: 100%;
+}
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    max-width: 860px;
+    margin: 0 auto;
+}
+.settings-card {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 18px 20px;
+}
+.settings-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+}
+.settings-card-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+.settings-card .settings-section {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 0;
+}
+.settings-card .settings-section + .settings-section {
+    border-top: 1px solid var(--border-light);
+    padding-top: 10px;
+}
+.settings-card .settings-section-icon {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+.settings-card .settings-section-icon svg {
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+.application-version {
+    min-width: 5.5rem;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+    text-align: center;
+}
+.application-version[data-state="loading"] {
+    color: var(--text-muted);
+}
+.application-version[data-state="error"] {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+/* Search Dropdown (used in sidebar) */
+.sidebar-search .search-dropdown {
+    display: none;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: calc(100% - 4px);
+    max-height: min(440px, calc(100vh - 146px));
+    overflow-y: auto;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    padding: 6px;
+}
+
+.create-inbox-note {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 7px;
+    width: calc(100% - 20px);
+    min-height: 32px;
+    margin: 2px 10px 6px;
+    padding: 6px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--accent-color) 7%, var(--sidebar-bg));
+    color: var(--text-color);
+    font: 600 12px/1.2 var(--font-ui);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.create-inbox-note svg { color: var(--accent-color); }
+.create-inbox-note small {
+    color: var(--text-dim);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.create-inbox-note:hover:not(:disabled),
+.create-inbox-note:focus-visible {
+    border-color: color-mix(in srgb, var(--accent-color) 70%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 13%, var(--sidebar-bg));
+    outline: none;
+}
+.create-inbox-note:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+.create-inbox-note:disabled { cursor: wait; opacity: .6; }
+
+.sidebar-search .search-dropdown.visible {
+    display: block;
+}
+
+.search-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 1px 7px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.search-filter-chip {
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 4px;
+    font: 500 10px/1 var(--font-sans);
+}
+
+.search-result-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 4px 5px;
+    color: var(--text-dim);
+    font-size: 10px;
+    line-height: 1.2;
+}
+
+.search-result-summary span:last-child {
+    text-align: right;
+}
+
+.search-result-list {
+    display: grid;
+    gap: 2px;
+}
+
+.search-result-row {
+    display: grid;
+    grid-template-areas: "main meta" "excerpt excerpt";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-color);
+    font-family: var(--font-sans);
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.search-result-row:hover,
+.search-result-row.selected {
+    background: var(--hover-bg);
+    border-color: var(--border-color);
+}
+
+.search-result-row.selected {
+    box-shadow: inset 2px 0 0 var(--accent-color);
+}
+
+.search-result-main {
+    grid-area: main;
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    gap: 6px;
+}
+
+.search-result-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-color);
+    font-size: 11px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-result-path {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-dim);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-result-excerpt {
+    grid-area: excerpt;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.search-result-meta {
+    grid-area: meta;
+    display: flex;
+    gap: 5px;
+    color: var(--text-dim);
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.search-result-row mark {
+    padding: 0 1px;
+    border-radius: 2px;
+    background: var(--highlight-bg);
+    background: color-mix(in srgb, var(--accent-color) 35%, transparent);
+    color: inherit;
+}
+
+.search-dropdown .search-loading,
+.search-dropdown .search-empty {
+    padding: 16px 10px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+/* ==========================================================================
+   Main Container
+   ========================================================================== */
+.main-container {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+/* ==========================================================================
+   Sidebar
+   ========================================================================== */
+.sidebar {
+    width: var(--sidebar-width);
+    min-width: 225px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: relative !important;
+    height: 100%;
+    transition:
+        width var(--motion-layout-duration) var(--motion-ease-out),
+        min-width var(--motion-layout-duration) var(--motion-ease-out);
+    /* Resizer projects past right edge — overflow handled by .sidebar-content */
+}
+
+.sidebar.collapsed {
+    width: var(--sidebar-rail-width) !important;
+    min-width: var(--sidebar-rail-width) !important;
+}
+
+.sidebar::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 1px;
+    background: var(--border-color);
+    opacity: 1;
+    pointer-events: none;
+    transition: opacity var(--motion-content-duration) ease;
+}
+
+.sidebar.collapsed::after {
+    opacity: 1;
+}
+
+/* Internal scroll wrapper — clips sidebar content locally. */
+.sidebar-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    overflow-x: hidden;
+    min-height: 0;
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out);
+}
+
+.sidebar.collapsed .sidebar-content {
+    opacity: 0;
+    transform: translateX(-8px);
+    pointer-events: none;
+}
+
+/* Calendar and Kanban stay reachable at the bottom of the file tree. When the
+   content pane is collapsed, these controls become a compact navigation rail. */
+.sidebar-tools {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 2px;
+    padding: 7px 8px 8px;
+    overflow: hidden;
+    border-top: 1px solid var(--border-color);
+    background: var(--sidebar-bg);
+}
+
+.sidebar-tool-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font: 500 12px/1 var(--font-sans);
+    text-align: left;
+    cursor: pointer;
+    transition:
+        color var(--transition-fast),
+        background var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.sidebar-tool-btn:hover {
+    color: var(--text-color);
+    background: var(--hover-bg);
+    border-color: var(--border-color);
+}
+
+.sidebar-tool-btn.active {
+    color: var(--accent-color);
+    background: var(--hover-bg);
+    border-color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
+}
+
+.sidebar-tool-btn:focus-visible,
+.titlebar-settings-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
+.sidebar-tool-btn > svg {
+    flex: 0 0 auto;
+}
+
+.sidebar-tool-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-tool-btn .kanban-badges {
+    margin-left: auto;
+}
+
+.sidebar-quick-note {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-tools {
+    align-items: center;
+    padding: 7px 5px 8px;
+}
+
+.sidebar.collapsed .sidebar-quick-note {
+    display: flex;
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 9%, transparent);
+}
+
+.sidebar.collapsed .sidebar-quick-note:hover,
+.sidebar.collapsed .sidebar-quick-note:focus-visible {
+    background: color-mix(in srgb, var(--accent-color) 17%, transparent);
+}
+
+.sidebar.collapsed .sidebar-tool-btn {
+    justify-content: center;
+    width: 32px;
+    padding: 0;
+}
+
+.sidebar.collapsed .sidebar-tool-label {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-tool-btn .kanban-badges {
+    position: absolute;
+    top: 3px;
+    right: 2px;
+    gap: 2px;
+    margin: 0;
+}
+
+.sidebar.collapsed .sidebar-tool-btn .kanban-badges .badge {
+    width: 5px;
+    min-width: 5px;
+    height: 5px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    color: transparent !important;
+    font-size: 0;
+}
+
+/* Sidebar resizer — 6px handle nested inside sidebar, projects past right edge.
+   Subtle border-color line, accent highlight on hover. */
+.sidebar-resizer {
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: -3px !important;
+    width: 6px !important;
+
+    z-index: 999999 !important;
+    cursor: col-resize !important;
+    pointer-events: auto !important;
+    -webkit-app-region: no-drag !important;
+
+    background-color: color-mix(in srgb, var(--shadow-color) 1%, transparent) !important;
+    transition:
+        background-color var(--transition-fast) ease,
+        opacity var(--motion-content-duration) ease;
+}
+
+.sidebar-resizer-hidden {
+    opacity: 0;
+    pointer-events: none !important;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer.is-dragging {
+    background-color: var(--accent-color) !important;
+}
+
+#file-tree {
+    --wails-drop-target: drop;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+#file-tree:focus {
+    outline: none;
+}
+
+#file-tree:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 55%, transparent);
+    outline-offset: -1px;
+}
+
+#file-tree.wails-drop-target-active,
+#file-tree .file-tree-item.wails-drop-target-active > .file-tree-node {
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+}
+/* Settings workspace tab */
+#settings-panel {
+    padding: 8px 12px;
+    gap: 0;
+    overflow: visible;
+}
+
+.settings-section {
+    padding: 8px 0;
+}
+
+.settings-section-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 4px;
+}
+
+.settings-section-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 12px 0;
+}
+
+.settings-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 4px 0;
+}
+
+.theme-picker-item.active,
+.font-picker-item.active,
+.code-font-picker-item.active {
+    color: var(--accent-color);
+}
+
+/* Settings row (label + control) */
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.settings-row-label {
+    font-size: 12px;
+    color: var(--text-color);
+}
+
+.settings-row--select {
+    gap: 12px;
+}
+
+.settings-row--select select {
+    width: 156px;
+    flex: 0 1 156px;
+}
+
+.settings-row--select .select-combobox {
+    width: 156px;
+    flex: 0 1 156px;
+}
+
+/* Toggle switch */
+.toggle-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border-color);
+    border-radius: 20px;
+    transition: background var(--transition-fast);
+}
+
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: var(--surface-highlight-color);
+    border-radius: 50%;
+    transition: transform var(--transition-fast);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: var(--accent-color);
+}
+
+.toggle-switch input:checked + .toggle-slider::after {
+    transform: translateX(16px);
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.toggle-switch input:disabled + .toggle-slider {
+    cursor: wait;
+    opacity: .62;
+}
+
+/* The visual-row preference is unavailable by design while Vim is off; it is
+   not a save-in-progress control, so give it the matching unavailable state. */
+#vim-visual-rows-toggle:disabled + .toggle-slider,
+#vim-reveal-blocks-toggle:disabled + .toggle-slider {
+    cursor: not-allowed;
+    opacity: .5;
+}
+
+/* Markdown tables keep an outer CodeMirror selection in sync with their
+   focused nested cell editor. Its cursor measures as a whole cell, so never
+   paint that outer cursor while the cell owns focus. */
+.cm-editor.cm-table-cell-focused > .cm-scroller > .cm-cursorLayer,
+.cm-editor.cm-table-cell-focused > .cm-scroller > .cm-vimCursorLayer {
+    visibility: hidden;
+}
+
+/* File Tree */
+.file-tree {
+    padding: 2px 0 6px;
+}
+
+.file-tree-list {
+    flex: 0 0 auto;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.file-tree-item {
+    position: relative;
+}
+
+.file-tree-item > .file-tree-node {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 9px;
+
+    margin: 1px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.1s ease;
+    user-select: none;
+}
+
+.file-tree-item > .file-tree-node:hover {
+    background: var(--hover-bg);
+}
+
+.file-tree-item > .file-tree-node.selected {
+    background: var(--active-bg);
+    color: var(--text-color);
+}
+
+/* A folder can remain the focused tree item while a different note is open.
+   Keep that active file visible without competing with the full selection. */
+.file-tree-item > .file-tree-node.active-file:not(.selected) {
+    box-shadow: inset 2px 0 0 var(--accent-color);
+    color: var(--text-color);
+}
+
+/* Open background tabs retain a quieter trace than the active file. */
+.file-tree-item > .file-tree-node.open-file:not(.active-file)::after {
+    content: '';
+    width: 4px;
+    height: 4px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent-color) 48%, var(--text-dim));
+    opacity: .72;
+    flex: 0 0 auto;
+}
+
+.file-tree-item > .file-tree-node.multi-selected {
+    background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--accent-color) 30%, transparent);
+    border-radius: 4px;
+}
+
+.file-tree-item > .file-tree-node.non-md {
+    color: var(--text-dim);
+    opacity: 0.55;
+    cursor: default;
+}
+
+.file-tree-item > .file-tree-node.drawio-diagram .node-icon {
+    color: var(--accent-color);
+}
+
+/* Merge animation */
+.file-tree-item.merging {
+    animation: mergeOut 0.3s ease-in forwards;
+}
+@keyframes mergeOut {
+    to {
+        opacity: 0;
+        transform: translateX(20px);
+        max-height: 0;
+        overflow: hidden;
+    }
+}
+
+.file-tree-node .node-chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--text-dim);
+    transition: transform 0.15s ease;
+}
+
+.file-tree-item.expanded > .file-tree-node .node-chevron {
+    transform: rotate(90deg);
+}
+
+/* Cover the indent guide line behind chevrons so guides don't overlap the arrow.
+   Only directories (which have an <svg> inside .node-chevron) get the cover;
+   files have an empty chevron span and let the guide pass through. */
+.node-chevron:has(svg) {
+    background: var(--sidebar-bg);
+    border-radius: 3px;
+    transition: background 0.1s ease, transform 0.15s ease;
+}
+
+.file-tree-node:hover .node-chevron:has(svg) {
+    background: var(--hover-bg);
+}
+
+.file-tree-node.selected .node-chevron:has(svg) {
+    background: var(--active-bg);
+}
+
+.file-tree-node.multi-selected .node-chevron:has(svg) {
+    background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+}
+
+.file-tree-node .node-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.file-tree-node .node-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    line-height: 1.25;
+    padding-top: 0;
+    min-width: 0;
+}
+
+.file-tree-children {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.2s ease;
+    padding-left: 12px;
+    overflow: hidden;
+    /* one vertical guide line per nesting level, aligned with chevron centre
+       (12px padding-left + 23px chevron offset = 35px from container edge) */
+    background-image:
+        linear-gradient(to right,
+            transparent 34px,
+            var(--file-tree-guide-color) 34px,
+            var(--file-tree-guide-color) 35px,
+            transparent 35px);
+    background-repeat: repeat-y;
+}
+
+.file-tree-children > .file-tree-list {
+    min-height: 0;
+}
+
+.file-tree-item.expanded > .file-tree-children {
+    grid-template-rows: 1fr;
+}
+
+.file-tree-empty {
+    padding: 16px;
+    color: var(--text-dim);
+    font-size: var(--font-size-sm);
+    text-align: center;
+}
+
+/* Deliberate empty-area hit target for vault-root actions. It fills unused
+   sidebar height after short lists without adding visual noise. */
+.file-tree-root-dropzone {
+    flex: 1 1 72px;
+    min-height: 72px;
+}
+
+.file-tree-item.drag-over > .file-tree-node {
+    background: var(--active-bg);
+    border: 1px dashed var(--accent-color);
+}
+
+/* Context Menu */
+.context-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    min-width: 180px;
+    padding: 4px 0;
+    z-index: 1000;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    animation: fadeIn 0.1s ease;
+}
+
+.context-menu-item button,
+.context-menu-item input,
+.context-menu-item select {
+    font-family: inherit;
+}
+
+.context-menu-item--spelling-suggestion {
+    color: var(--link-color);
+}
+
+.context-menu-item--spelling-suggestion:hover,
+.context-menu-item--spelling-suggestion:focus-visible {
+    color: var(--link-hover-color);
+}
+
+.context-menu-item--spelling-empty {
+    font-style: italic;
+}
+
+.context-menu-item svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+/* Context menu: tab styling */
+/* Pinned tab */
+.tab.pinned {
+    box-shadow: inset 0 -1px 0 var(--accent-color);
+}
+.tab.pinned.active {
+    box-shadow: inset 0 -2px 0 var(--accent-color);
+}
+.tab.pinned .tab-title {
+    font-weight: 600;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Search Panel */
+.search-panel-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+#search-input {
+    width: 100%;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: var(--font-size);
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#search-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.search-results {
+    margin-top: 8px;
+}
+
+.search-result-file {
+    margin-bottom: 8px;
+}
+
+.search-result-file-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    font-weight: 500;
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background var(--transition-fast);
+}
+
+.search-result-file-header:hover {
+    background: var(--hover-bg);
+}
+
+.search-result-match {
+    padding: 2px 8px 2px 24px;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background var(--transition-fast);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-match:hover {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.search-result-match mark {
+    background: var(--warning-color);
+    color: var(--bg-color);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+/* Calendar */
+.calendar-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+}
+
+.cal-month-year {
+    font-weight: 600;
+    font-size: var(--font-size);
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    padding: 4px 8px 8px;
+}
+
+.cal-day-header {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 4px 0;
+}
+
+.cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    position: relative;
+}
+
+.cal-day:hover {
+    background: var(--hover-bg);
+}
+
+.cal-day.no-notes {
+    color: var(--text-dim);
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.cal-day.cal-empty {
+    pointer-events: none;
+}
+
+.cal-day.today {
+    background: var(--accent-color);
+    color: var(--button-text);
+    font-weight: 600;
+}
+
+.cal-day.today.has-note::after,
+.cal-day.today.has-link::after {
+    background: color-mix(in srgb, var(--button-text) 80%, transparent);
+    border-color: color-mix(in srgb, var(--button-text) 80%, transparent);
+}
+
+.cal-day.selected {
+    background: var(--active-bg);
+    color: var(--accent-color);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 2px var(--accent-color);
+}
+
+.cal-day.has-note::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent-color);
+}
+
+.cal-day.has-link::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    border: 2px solid var(--success-color);
+    background: transparent;
+    box-sizing: border-box;
+}
+
+.cal-linked-notes {
+    margin-top: 8px;
+    padding: 0 8px 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+.cal-linked-notes h4 {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cal-linked-note-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    font-size: var(--font-size-sm);
+}
+
+.cal-linked-note-item:hover {
+    background: var(--hover-bg);
+}
+
+/* Kanban */
+.kanban-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 4px 8px 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+}
+
+#board-new-col-input,
+#kanban-tab-new-col-input {
+    flex: 1;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: var(--font-size);
+    outline: none;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#board-new-col-input:focus,
+#kanban-tab-new-col-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}

@@ -112,11 +112,12 @@ function deferred() {
 }
 
 // Mock native Wails App binding.
-window.go = { main: { App: {
+window.go = { desktop: { App: {
     SaveFile: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() }),
     SaveSession: jest.fn().mockResolvedValue({ success: true }),
     ReadFile: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
     CommitCurrentFile: jest.fn().mockResolvedValue(null),
+    GetApplicationVersion: jest.fn().mockResolvedValue('1.7.0'),
 } } };
 
 describe('Tab Manager', () => {
@@ -152,7 +153,7 @@ describe('Tab Manager', () => {
             await testUtils.waitFor(0);
 
             expect(setEditorContent).toHaveBeenCalledWith('', 'fresh.md', null);
-            expect(window.go.main.App.ReadFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
         });
 
         test('should create new calendar tab', () => {
@@ -243,6 +244,20 @@ describe('Tab Manager', () => {
             expect(panel.querySelector('#pdf-browser-clear').textContent).toContain('automatic');
         });
 
+        test('shows the packaged application version in an accessible Settings About card', async () => {
+            openTab('settings', 'Settings', 'settings');
+            await testUtils.waitFor(0);
+
+            const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
+            const version = panel.querySelector('#application-version');
+            expect(version.closest('.application-about-card').textContent).toContain('About');
+            expect(version.getAttribute('aria-label')).toBe('Application version');
+            expect(version.getAttribute('aria-busy')).toBe('false');
+            expect(version.dataset.state).toBe('ready');
+            expect(version.textContent).toBe('1.7.0');
+            expect(window.go.desktop.App.GetApplicationVersion).toHaveBeenCalledTimes(1);
+        });
+
         test('renders Links style as a themed accessible combobox instead of a native select', () => {
             openTab('settings', 'Settings', 'settings');
             const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
@@ -264,7 +279,7 @@ describe('Tab Manager', () => {
         test('does not let an older read overwrite a newer load of the same tab', async () => {
             const firstA = deferred();
             const latestA = deferred();
-            window.go.main.App.ReadFile
+            window.go.desktop.App.ReadFile
                 .mockImplementationOnce(() => firstA.promise)
                 .mockResolvedValueOnce({ content: 'B content', mtime: 2, path: 'b.md' })
                 .mockImplementationOnce(() => latestA.promise);
@@ -316,7 +331,7 @@ describe('Tab Manager', () => {
 
         test('rapid switching saves each dirty tab from its owned buffer instead of the stale visible document', async () => {
             const saveB = deferred();
-            window.go.main.App.SaveFile.mockImplementationOnce(() => saveB.promise);
+            window.go.desktop.App.SaveFile.mockImplementationOnce(() => saveB.promise);
             mockState.openTabs = [
                 { id: 'a', title: 'A', type: 'file', path: 'a.md', dirty: true, _content: 'A draft', _editGeneration: 1 },
                 { id: 'b', title: 'B', type: 'file', path: 'b.md', dirty: true, _content: 'B draft', _editGeneration: 1 },
@@ -328,7 +343,7 @@ describe('Tab Manager', () => {
             switchTab('a');
             await testUtils.waitFor(0);
 
-            expect(window.go.main.App.SaveFile).toHaveBeenCalledWith('b.md', 'B draft', 0);
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith('b.md', 'B draft', 0);
             expect(mockState.openTabs[1]._content).toBe('B draft');
             saveB.resolve({ success: true, mtime: 3 });
             await testUtils.waitFor(0);
@@ -460,11 +475,11 @@ describe('Tab Manager', () => {
         test('saves a dirty source tab before reusing it for a link destination', async () => {
             openTab('source.md', 'Source', 'file', { path: 'source.md', mtime: 1 });
             markTabDirty('source.md');
-            window.go.main.App.SaveFile.mockResolvedValueOnce({ success: true, mtime: 2 });
+            window.go.desktop.App.SaveFile.mockResolvedValueOnce({ success: true, mtime: 2 });
 
             await replaceActiveFileTab('target.md', 'Target', 'file', { path: 'target.md', mtime: 3 });
 
-            expect(window.go.main.App.SaveFile).toHaveBeenCalledWith('source.md', '', 1);
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith('source.md', '', 1);
             expect(getState('openTabs')).toEqual([
                 expect.objectContaining({ id: 'target.md', path: 'target.md', type: 'file' }),
             ]);
@@ -474,7 +489,7 @@ describe('Tab Manager', () => {
         test('preserves a dirty source tab when saving before navigation fails', async () => {
             openTab('source.md', 'Source', 'file', { path: 'source.md', mtime: 1 });
             markTabDirty('source.md');
-            window.go.main.App.SaveFile.mockRejectedValueOnce(new Error('disk full'));
+            window.go.desktop.App.SaveFile.mockRejectedValueOnce(new Error('disk full'));
 
             await replaceActiveFileTab('target.md', 'Target', 'file', { path: 'target.md', mtime: 3 });
 
@@ -528,7 +543,7 @@ describe('Tab Manager', () => {
                 success: false,
                 error: 'Save "Diagram" before moving it',
             });
-            expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
         });
 
         test('requires an explicitly saved Draw.io editor before copying it', async () => {
@@ -539,7 +554,7 @@ describe('Tab Manager', () => {
                 success: false,
                 error: 'Save "Design" before copying it',
             });
-            expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
         });
 
         test('saves dirty source content before copying without saving unrelated dirty notes', async () => {
@@ -552,8 +567,8 @@ describe('Tab Manager', () => {
 
             await expect(prepareTabsForPathCopy('Projects')).resolves.toEqual({ success: true });
 
-            expect(window.go.main.App.SaveFile).toHaveBeenCalledTimes(1);
-            expect(window.go.main.App.SaveFile).toHaveBeenCalledWith(
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
                 'Projects/plan.md', 'latest visible plan', 10
             );
             expect(mockState.openTabs[0].dirty).toBe(false);
@@ -583,7 +598,7 @@ describe('Tab Manager', () => {
             mockState.activeTabId = 'moved.txt';
 
             await expect(prepareTabsForPathMove('moved.txt')).resolves.toEqual({ success: true });
-            expect(window.go.main.App.SaveFile).toHaveBeenCalledWith(
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
                 'notes/backlink.md', '[Moved](moved.txt)', expect.anything()
             );
         });
@@ -598,9 +613,9 @@ describe('Tab Manager', () => {
 			getEditorContent.mockReturnValueOnce('active latest');
 
 			await expect(prepareTabsForVaultLinkRewrite()).resolves.toEqual({ success: true });
-			expect(window.go.main.App.SaveFile).toHaveBeenCalledTimes(2);
-			expect(window.go.main.App.SaveFile).toHaveBeenCalledWith('active.md', 'active latest', 10);
-			expect(window.go.main.App.SaveFile).toHaveBeenCalledWith('notes/other.md', 'other latest', 20);
+			expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(2);
+			expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith('active.md', 'active latest', 10);
+			expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith('notes/other.md', 'other latest', 20);
 		});
 
 		test('cancels a vault-wide rewrite if a note changes while its save is in flight', async () => {
@@ -609,7 +624,7 @@ describe('Tab Manager', () => {
 			mockState.openTabs = [tab];
 			mockState.activeTabId = tab.id;
 			getEditorContent.mockReturnValueOnce('snapshot');
-			window.go.main.App.SaveFile.mockReturnValueOnce(save.promise);
+			window.go.desktop.App.SaveFile.mockReturnValueOnce(save.promise);
 
 			const preparing = prepareTabsForVaultLinkRewrite();
 			await testUtils.waitFor(0);
@@ -626,7 +641,7 @@ describe('Tab Manager', () => {
         test('refreshes clean open tabs whose links were rewritten on disk', async () => {
             mockState.openTabs = [{ id: 'notes/backlink.md', title: 'Backlink', type: 'file', path: 'notes/backlink.md', dirty: false }];
             mockState.activeTabId = 'notes/backlink.md';
-            window.go.main.App.ReadFile.mockResolvedValueOnce({
+            window.go.desktop.App.ReadFile.mockResolvedValueOnce({
                 path: 'notes/backlink.md', content: '[Moved](archive/moved.txt)', mtime: 42,
             });
 
@@ -662,43 +677,43 @@ describe('Tab Manager', () => {
             };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.main.App.SaveLaunchExternalFile = jest.fn().mockResolvedValue({ success: true, mtime: 11 });
+            window.go.desktop.App.SaveLaunchExternalFile = jest.fn().mockResolvedValue({ success: true, mtime: 11 });
 
             setAutoCommitEnabled(true);
             await expect(saveFileSnapshot(tab, 'saved outside the vault')).resolves.toEqual(
                 expect.objectContaining({ success: true, historyCommitSucceeded: false }),
             );
 
-            expect(window.go.main.App.SaveLaunchExternalFile).toHaveBeenCalledWith('1', 'saved outside the vault', 10);
-            expect(window.go.main.App.SaveFile).not.toHaveBeenCalled();
-            expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.SaveLaunchExternalFile).toHaveBeenCalledWith('1', 'saved outside the vault', 10);
+            expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.CommitCurrentFile).not.toHaveBeenCalled();
         });
 
         test('Auto-Commit records only the saved file and leaves unrelated files untouched', async () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.main.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
+            window.go.desktop.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
 
             setAutoCommitEnabled(true);
             await expect(saveFileSnapshot(tab, 'saved and committed')).resolves.toEqual(
                 expect.objectContaining({ success: true, historyCommitSucceeded: true }),
             );
-            expect(window.go.main.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
+            expect(window.go.desktop.App.CommitCurrentFile).toHaveBeenCalledWith('note.md');
 
-            window.go.main.App.CommitCurrentFile.mockClear();
+            window.go.desktop.App.CommitCurrentFile.mockClear();
             tab.dirty = true;
             setAutoCommitEnabled(false);
             await saveFileSnapshot(tab, 'saved only');
-            expect(window.go.main.App.CommitCurrentFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.CommitCurrentFile).not.toHaveBeenCalled();
         });
 
         test('Auto-Commit keeps a successful save and reports a failed history commit', async () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.main.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
-            window.go.main.App.CommitCurrentFile.mockRejectedValueOnce(new Error('git unavailable'));
+            window.go.desktop.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
+            window.go.desktop.App.CommitCurrentFile.mockRejectedValueOnce(new Error('git unavailable'));
             setAutoCommitEnabled(true);
 
             await expect(saveFileSnapshot(tab, 'saved despite Git failure')).resolves.toEqual(
@@ -716,7 +731,7 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.main.App.SaveFile
+            window.go.desktop.App.SaveFile
                 .mockImplementationOnce(() => first)
                 .mockImplementationOnce(() => second);
 
@@ -724,15 +739,15 @@ describe('Tab Manager', () => {
             const secondSave = saveFileSnapshot(tab, 'second version');
             await testUtils.waitFor(0);
 
-            expect(window.go.main.App.SaveFile).toHaveBeenCalledTimes(1);
-            expect(window.go.main.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'first version', 10);
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'first version', 10);
 
             resolveFirst({ success: true, mtime: 11 });
             await firstSave;
             await testUtils.waitFor(0);
 
-            expect(window.go.main.App.SaveFile).toHaveBeenCalledTimes(2);
-            expect(window.go.main.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'second version', 11);
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(2);
+            expect(window.go.desktop.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'second version', 11);
 
             resolveSecond({ success: true, mtime: 12 });
             await secondSave;
@@ -845,6 +860,93 @@ describe('Tab Manager', () => {
             expect(unpinnedTab.length).toBe(1);
             expect(unpinnedTab[0].dataset.tabId).toBe('tab2');
         });
+
+        test('keeps newly opened and selected active tabs visible and only exposes All tabs while crowded', () => {
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+
+            const tabStrip = document.getElementById('tab-strip');
+            const tabBar = document.getElementById('tab-bar');
+            const allTabsButton = document.getElementById('all-tabs-btn');
+            Object.defineProperties(tabStrip, {
+                clientWidth: { configurable: true, value: 200 },
+                scrollWidth: { configurable: true, value: 420 },
+            });
+            const rectSpy = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+                .mockImplementation(function getTabOverflowRect() {
+                    if (this === tabStrip) return { left: 0, right: 200, width: 200 };
+                    if (this.dataset?.tabId === 'tab1') {
+                        return { left: -tabStrip.scrollLeft, right: 120 - tabStrip.scrollLeft, width: 120 };
+                    }
+                    if (this.dataset?.tabId === 'tab2') {
+                        return { left: 300 - tabStrip.scrollLeft, right: 420 - tabStrip.scrollLeft, width: 120 };
+                    }
+                    return { left: 0, right: 0, width: 0 };
+                });
+            try {
+                tabStrip.scrollLeft = 0;
+                renderTabBar();
+                expect(getState('activeTabId')).toBe('tab2');
+                expect(tabStrip.scrollLeft).toBe(220);
+                expect(allTabsButton.hidden).toBe(false);
+                expect(tabBar.classList.contains('tabs-can-scroll-start')).toBe(true);
+                expect(tabBar.classList.contains('tabs-can-scroll-end')).toBe(false);
+
+                switchTab('tab1');
+                expect(tabStrip.scrollLeft).toBe(0);
+                expect(tabBar.classList.contains('tabs-can-scroll-start')).toBe(false);
+                expect(tabBar.classList.contains('tabs-can-scroll-end')).toBe(true);
+
+                Object.defineProperties(tabStrip, {
+                    clientWidth: { configurable: true, value: 500 },
+                    scrollWidth: { configurable: true, value: 240 },
+                });
+                renderTabBar();
+                expect(allTabsButton.hidden).toBe(true);
+                expect(tabBar.classList.contains('tabs-overflow')).toBe(false);
+            } finally {
+                rectSpy.mockRestore();
+            }
+        });
+
+        test('reveals a restored active tab after pinned tabs are sorted to the leading edge', () => {
+            mockState.openTabs = [
+                { id: 'tab1', title: 'Tab 1', type: 'file', path: 'tab1.md', dirty: false },
+                { id: 'tab2', title: 'Tab 2', type: 'file', path: 'tab2.md', dirty: false },
+                { id: 'tab3', title: 'Tab 3', type: 'file', path: 'tab3.md', dirty: false },
+            ];
+            mockState.activeTabId = 'tab3';
+            mockState.pinnedTabs = ['tab2', 'tab3'];
+
+            const tabStrip = document.getElementById('tab-strip');
+            Object.defineProperties(tabStrip, {
+                clientWidth: { configurable: true, value: 200 },
+                scrollWidth: { configurable: true, value: 420 },
+            });
+            const rectSpy = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+                .mockImplementation(function getRestoredTabRect() {
+                    if (this === tabStrip) return { left: 0, right: 200, width: 200 };
+                    if (this.classList?.contains('tab')) {
+                        const index = [...tabStrip.children].indexOf(this);
+                        const left = index * 140 - tabStrip.scrollLeft;
+                        return { left, right: left + 140, width: 140 };
+                    }
+                    return { left: 0, right: 0, width: 0 };
+                });
+            try {
+                tabStrip.scrollLeft = 220;
+                renderTabBar();
+
+                expect([...tabStrip.children].map(tab => tab.dataset.tabId))
+                    .toEqual(['tab2', 'tab3', 'tab1']);
+                expect(tabStrip.scrollLeft).toBe(140);
+                const active = tabStrip.querySelector('.tab.active').getBoundingClientRect();
+                expect(active.left).toBe(0);
+                expect(active.right).toBe(140);
+            } finally {
+                rectSpy.mockRestore();
+            }
+        });
     });
 
     describe('tab reordering', () => {
@@ -900,6 +1002,43 @@ describe('Tab Manager', () => {
             expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'tab1');
             expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab2', 'tab3', 'tab1']);
             expect(document.querySelector('#tab-strip').classList.contains('is-dragging')).toBe(false);
+        });
+    });
+
+    describe('All tabs overflow menu', () => {
+        test('uses menu buttons and supports keyboard selection of a hidden tab', () => {
+            const tabStrip = document.getElementById('tab-strip');
+            Object.defineProperties(tabStrip, {
+                clientWidth: { configurable: true, value: 120 },
+                scrollWidth: { configurable: true, value: 360 },
+            });
+            initTabManager();
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+
+            const button = document.getElementById('all-tabs-btn');
+            const dropdown = document.getElementById('all-tabs-dropdown');
+            button.click();
+
+            const items = [...dropdown.querySelectorAll('[role="menuitem"]')];
+            expect(button.hidden).toBe(false);
+            expect(button.getAttribute('aria-expanded')).toBe('true');
+            expect(dropdown.getAttribute('aria-label')).toBe('All open tabs');
+            expect(items).toHaveLength(2);
+            expect(items.every(item => item instanceof HTMLButtonElement)).toBe(true);
+            expect(document.activeElement.dataset.tabId).toBe('tab2');
+
+            dropdown.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Home',
+                bubbles: true,
+                cancelable: true,
+            }));
+            expect(document.activeElement.dataset.tabId).toBe('tab1');
+            document.activeElement.click();
+
+            expect(getState('activeTabId')).toBe('tab1');
+            expect(dropdown.classList.contains('hidden')).toBe(true);
+            expect(button.getAttribute('aria-expanded')).toBe('false');
         });
     });
 

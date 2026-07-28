@@ -230,7 +230,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
     test('reuses a short-lived file read for repeated link hover previews', async () => {
         const { fetchLinkPreviewFile, invalidateLinkPreviewCache } = await import('../frontend/js/editor.js');
         invalidateLinkPreviewCache();
-        window.go.main.App.ReadFile.mockResolvedValueOnce({ content: '# Linked note', path: 'notes/linked.md' });
+        window.go.desktop.App.ReadFile.mockResolvedValueOnce({ content: '# Linked note', path: 'notes/linked.md' });
 
         const [first, second] = await Promise.all([
             fetchLinkPreviewFile('notes/linked.md'),
@@ -238,10 +238,10 @@ describe('Editor Module - CodeMirror Initialization', () => {
         ]);
 
         expect(first).toEqual(second);
-        expect(window.go.main.App.ReadFile).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.ReadFile).toHaveBeenCalledTimes(1);
         invalidateLinkPreviewCache('notes/linked.md');
         await fetchLinkPreviewFile('notes/linked.md');
-        expect(window.go.main.App.ReadFile).toHaveBeenCalledTimes(2);
+        expect(window.go.desktop.App.ReadFile).toHaveBeenCalledTimes(2);
     });
 
     test('normalizes WebKitGTK Unidentified Shift+Tab for nested table editors', async () => {

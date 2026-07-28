@@ -9,7 +9,7 @@ describe('native window chrome', () => {
             <span id="resize-grip"></span>
         `;
         window.go = {
-            main: {
+            desktop: {
                 App: {
                     GetFileTree: jest.fn(),
                     WindowMinimize: jest.fn(),
@@ -34,14 +34,14 @@ describe('native window chrome', () => {
         document.getElementById('win-minimize').click();
         document.getElementById('win-maximize').click();
         document.querySelector('.top-bar').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-        expect(window.go.main.App.WindowMinimize).toHaveBeenCalledTimes(1);
-        expect(window.go.main.App.WindowMaximize).toHaveBeenCalledTimes(2);
-        expect(window.go.main.App.WindowCaptureState).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.WindowMinimize).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.WindowMaximize).toHaveBeenCalledTimes(2);
+        expect(window.go.desktop.App.WindowCaptureState).not.toHaveBeenCalled();
 
         window.dispatchEvent(new Event('resize'));
         jest.advanceTimersByTime(249);
-        expect(window.go.main.App.WindowCaptureState).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.WindowCaptureState).not.toHaveBeenCalled();
         jest.advanceTimersByTime(1);
-        expect(window.go.main.App.WindowCaptureState).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.WindowCaptureState).toHaveBeenCalledTimes(1);
     });
 });

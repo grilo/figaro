@@ -99,7 +99,7 @@ describe('Vim command behavior', () => {
         expect(view.state.selection.main.head).toBe(6);
 
         const save = deferred();
-        window.go.main.App.SaveFile.mockImplementationOnce(() => save.promise);
+        window.go.desktop.App.SaveFile.mockImplementationOnce(() => save.promise);
         const confirmDialog = jest.fn().mockResolvedValue(true);
         window.confirmDialog = confirmDialog;
         Vim.handleKey(cm, ':', 'user');
@@ -107,9 +107,9 @@ describe('Vim command behavior', () => {
         const exInput = view.dom.querySelector('.cm-vim-panel input');
         exInput.value = 'wq';
         commandKey(exInput, 'Enter', 13);
-        await waitForMockCall(window.go.main.App.SaveFile);
+        await waitForMockCall(window.go.desktop.App.SaveFile);
 
-        expect(window.go.main.App.SaveFile).toHaveBeenCalledWith(
+        expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
             'notes/vim.md', 'alpha beta\nmiddle\nbeta end', 10
         );
         expect(getState('openTabs')).toContain(fileTab);
@@ -128,7 +128,7 @@ describe('Vim command behavior', () => {
         expect(fileTab.dirty).toBe(true);
         expect(confirmDialog).not.toHaveBeenCalled();
 
-        window.go.main.App.SaveFile.mockResolvedValueOnce({
+        window.go.desktop.App.SaveFile.mockResolvedValueOnce({
             success: true,
             mtime: 30,
             path: 'notes/vim.md',
@@ -138,9 +138,9 @@ describe('Vim command behavior', () => {
         const secondExInput = view.dom.querySelector('.cm-vim-panel input');
         secondExInput.value = 'wq';
         commandKey(secondExInput, 'Enter', 13);
-        await waitForMockCall(window.go.main.App.SaveFile, 2);
+        await waitForMockCall(window.go.desktop.App.SaveFile, 2);
 
-        expect(window.go.main.App.SaveFile).toHaveBeenNthCalledWith(
+        expect(window.go.desktop.App.SaveFile).toHaveBeenNthCalledWith(
             2, 'notes/vim.md', 'alpha beta\nmiddle\nbeta end\nnewer text', 20
         );
         expect(getState('openTabs')).not.toContain(fileTab);

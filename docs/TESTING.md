@@ -104,10 +104,12 @@ scenario for every feature.
 ## Layout
 
 ```
-*.go / *_test.go
-    Wails-facing facade, use-case wiring, and adapter integration tests.
+main.go / main_test.go
+    Thin executable/embed boundary and its packaged-input contract.
 
 internal/
+├── appinfo/          Pure packaged application-metadata parsing
+├── desktop/          Wails composition, bound App capabilities, adapter tests
 ├── history/          Git history service and its tests
 ├── links/            Pure Markdown link rewriting and its tests
 ├── mutations/        Pure move/copy/merge and collision plans
@@ -128,11 +130,27 @@ frontend/js/
 ├── adapters/       Browser/native effect implementations
 ├── controllers/    State and use-case wiring
 └── views/          DOM-only rendering
+
+frontend/design-system/
+├── approved-components.json  Explicitly approved family/primitive registry
+├── style-manifest.json       Canonical eager stylesheet order
+├── theme-contract.json       Required, semantic, and surface token allowlist
+├── tokens.css                Semantic defaults and shared dimensions
+├── primitives.css            Canonical production component presentation
+├── theme-surfaces.css        Stable selectors consuming art-direction tokens
+├── themeCatalogModel.js      Pure manifest, path, and search rules
+├── catalog.js                Fetch and DOM effects
+├── catalogEntry.js           Canonical-manifest composition root
+├── catalog.bundle.js         Generated classic script for direct-file use
+└── index.html                Production-class component specimens
 ```
 
 Go tests intentionally remain next to the Go source. That is the standard Go
-layout and lets package-level tests exercise unexported filesystem and history
-helpers without exposing implementation details merely for testing.
+layout and lets package-level tests exercise unexported desktop, filesystem,
+and history helpers without exposing implementation details merely for
+testing. Repository-wide source-layout and release/handoff contracts live in
+the test-only `internal/repositorycheck` package so the executable root stays
+small.
 
 ## Commands
 
@@ -166,10 +184,55 @@ for both Playwright and the server, for example:
 FIGARO_PLAYWRIGHT_PORT=34116 npm run test:pdf
 ```
 
+`cmd/devserver` sends `Cache-Control: no-store`; its focused Go test protects
+that contract so catalogue and browser checks cannot silently reuse stale
+assets after a source edit.
+
 Browser tests that configure preference-backed editor behavior must wait for
 `window._appReady === true` before changing that behavior. Otherwise the normal
 startup preference load can overwrite the test's setting partway through a
 slower CI run.
+
+### Design-system catalogue
+
+`tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
+contract: indexed group membership, adoption of the eight approved primitives
+in catalogue and production markup, exact agreement between
+`approved-components.json` and the selectors implemented by
+`primitives.css`, exact eager style order in the app, catalogue, compatibility
+aggregate, and `style-manifest.json`, removal of superseded picker, stepper,
+and action rule blocks, preservation of distinct cards and toggles, and the
+explicit approval policy in `AGENTS.md`. The same test validates every theme
+against `theme-contract.json`: each theme supplies every required token,
+declares only allowed tokens, and contains exactly one selector-free `:root`
+rule. It also owns validation of all manifest records and backing CSS files,
+unsafe/duplicate record rejection, multi-word filtering, DOM index
+construction, stylesheet-link selection, direct-file-relative asset
+resolution, and synchronization of the checked-in classic bundle with its
+module sources. These rules do not need a browser matrix. Feature component
+tests continue to own controller behavior; for example, the frontmatter test
+proves that embedded-editor menus expose the shared open state while retaining
+their own selection policy.
+
+`tests/e2e/designSystemCatalog.spec.js` is the single representative browser
+boundary. It proves that the real manifest populates the selector, a light
+theme stylesheet changes computed token values, filtering updates visible
+geometry, and intrinsic control icons retain their production dimensions and
+paint contract. The same representative scenario opens the shared select-only
+combobox and compares its popup surface, text, and border with the active theme
+tokens; computed popup styling cannot be proven in jsdom. It also compares both
+settings steppers' computed button and value backgrounds, because cascade
+equality cannot be proven in jsdom, and confirms that every shared primitive
+family is present in the rendered catalogue. Do not loop all 17 themes through
+Playwright; the unit contract already proves
+manifest-to-file coverage, while one real stylesheet switch proves the browser
+mechanism.
+
+The same spec contains one direct-`file://` boundary case because browsers
+apply distinct module, fetch, stylesheet, font, and image security rules there.
+It opens the actual `index.html`, proves the catalogue CSS and eager bundle
+initialized, switches to one light theme, and checks the local icon without
+duplicating the exhaustive manifest or component assertions.
 
 Use the explicit root-plus-`internal/...` package set rather than `go test
 ./...`: one frontend dependency contains an unrelated Go fixture under
@@ -188,6 +251,11 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   frontmatter, footnotes, diagrams, tabs, session
   persistence, Kanban presentation/loading states, file-tree actions, and
   stale-response guards.
+- Pure and component coverage for tab-overflow direction, nearest active-tab
+  reveal, conditional all-tabs visibility, and keyboard menu selection. One
+  focused browser scenario remains because actual flex widths, horizontal
+  scrolling, and computed pseudo-element fade opacity cannot be represented by
+  jsdom.
 - Browser rendering of cover pages, table of contents, Mermaid, Vega, and
   Vega-Lite in the PDF export pipeline.
 - The native Figaro Dark and Light theme assets, including their warm reading
@@ -206,6 +274,14 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   the module-worker path before the preview document is applied.
 - Release metadata consistency across npm, Wails, the GPL license, changelog,
   documented tag command, and all three binary archive definitions.
+- The Settings About card's packaged-version normalization, backend failure
+  fallback, closed-panel cancellation, accessible component state, and
+  Wails-metadata injection.
+- The design-system catalogue's approved registry, canonical stylesheet links,
+  shared-primitive and production-hook inventory, manifest-backed theme
+  selector, safe path rules, computed token refresh, component filtering, and
+  reuse of the production themed combobox, with only one representative
+  real-browser theme switch.
 
 The focused release checks are `tests/frontend/unit/releaseMetadata.test.js`,
 `tests/frontend/unit/dependencySecurity.test.js`,

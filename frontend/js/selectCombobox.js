@@ -10,10 +10,10 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
     if (!options.length) return null;
     const id = select.id || `figaro-select-${Math.random().toString(36).slice(2)}`;
     const wrapper = document.createElement('div');
-    wrapper.className = `settings-picker select-combobox ${className}`.trim();
+    wrapper.className = `ui-picker settings-picker select-combobox ${className}`.trim();
     const trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'settings-picker-btn select-combobox-trigger';
+    trigger.className = 'ui-picker-trigger settings-picker-btn select-combobox-trigger';
     trigger.setAttribute('role', 'combobox');
     trigger.setAttribute('aria-haspopup', 'listbox');
     trigger.setAttribute('aria-expanded', 'false');
@@ -24,12 +24,12 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
 
     const menu = document.createElement('div');
     menu.id = `${id}-menu`;
-    menu.className = 'settings-picker-menu select-combobox-menu';
+    menu.className = 'ui-menu ui-picker-menu settings-picker-menu select-combobox-menu';
     menu.setAttribute('role', 'listbox');
     menu.setAttribute('aria-label', `${trigger.getAttribute('aria-label')} options`);
     menu.hidden = true;
     menu.innerHTML = options.map((option, index) => `
-        <button type="button" id="${id}-option-${index}" class="settings-picker-item select-combobox-option" role="option" data-value="${escapeAttribute(option.value)}" aria-selected="false" tabindex="-1">
+        <button type="button" id="${id}-option-${index}" class="ui-menu-item settings-picker-item select-combobox-option" role="option" data-value="${escapeAttribute(option.value)}" aria-selected="false" tabindex="-1">
             <span>${escapeHTML(option.textContent)}</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
         </button>`).join('');

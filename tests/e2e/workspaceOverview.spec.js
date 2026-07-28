@@ -33,3 +33,78 @@ test('closing the final tab keeps the centered workspace overview without creati
     });
     expect(workspace).toEqual({ tabs: [], activeTabId: null, centered: true });
 });
+
+test('keeps the active tab inside the real overflow viewport and exposes themed edge fades only while needed', async ({ page }) => {
+    await page.setViewportSize({ width: 760, height: 720 });
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    await page.evaluate(async () => {
+        const { setState } = await import('/js/state.js');
+        const { openTab } = await import('/js/tabManager.js');
+        setState('openTabs', []);
+        setState('activeTabId', null);
+        for (let index = 1; index <= 8; index += 1) {
+            const path = `overflow-${index}.md`;
+            openTab(path, `Overflow note ${index}`, 'file', { path, isNew: true });
+        }
+    });
+
+    const tabGeometry = () => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        const strip = document.getElementById('tab-strip');
+        const bar = document.getElementById('tab-bar');
+        const active = strip.querySelector('.tab.active');
+        const stripRect = strip.getBoundingClientRect();
+        const activeRect = active.getBoundingClientRect();
+        return {
+            activeId: getState('activeTabId'),
+            activeInsideStrip: activeRect.left >= stripRect.left - 1
+                && activeRect.right <= stripRect.right + 1,
+            scrollLeft: strip.scrollLeft,
+            allTabsHidden: document.getElementById('all-tabs-btn').hidden,
+            startFade: getComputedStyle(bar, '::before').opacity,
+            endFade: getComputedStyle(bar, '::after').opacity,
+        };
+    });
+
+    await expect.poll(tabGeometry).toMatchObject({
+        activeId: 'overflow-8.md',
+        activeInsideStrip: true,
+        allTabsHidden: false,
+        startFade: '1',
+        endFade: '0',
+    });
+    expect((await tabGeometry()).scrollLeft).toBeGreaterThan(0);
+
+    await page.locator('#all-tabs-btn').click();
+    await expect(page.locator('#all-tabs-dropdown')).toBeVisible();
+    await expect(page.locator('#all-tabs-dropdown [role="menuitem"]')).toHaveCount(8);
+    await page.locator('.all-tabs-item[data-tab-id="overflow-1.md"]').click();
+
+    await expect.poll(tabGeometry).toMatchObject({
+        activeId: 'overflow-1.md',
+        activeInsideStrip: true,
+        scrollLeft: 0,
+        allTabsHidden: false,
+        startFade: '0',
+        endFade: '1',
+    });
+
+    await page.evaluate(async () => {
+        const { getState, setState } = await import('/js/state.js');
+        const { renderTabBar } = await import('/js/tabManager.js');
+        const active = getState('openTabs').find(tab => tab.id === 'overflow-1.md');
+        setState('openTabs', [active]);
+        setState('activeTabId', active.id);
+        renderTabBar();
+    });
+    await expect(page.locator('#all-tabs-btn')).toBeHidden();
+    await expect.poll(tabGeometry).toMatchObject({
+        activeInsideStrip: true,
+        scrollLeft: 0,
+        allTabsHidden: true,
+        startFade: '0',
+        endFade: '0',
+    });
+});

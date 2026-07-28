@@ -28,7 +28,7 @@ const mockApi = {
 beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.go = { main: { App: mockApi } };
+    window.go = { desktop: { App: mockApi } };
     localStorage.clear();
     document.documentElement.style.removeProperty('--editor-width');
     document.body.innerHTML = `

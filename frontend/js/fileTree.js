@@ -155,7 +155,7 @@ const fileTreeContextMenuActions = [
 ];
 
 function fileTreeContextMenuItemHTML({ action, label, icon, danger }, enabled) {
-    const classes = ['context-menu-item'];
+    const classes = ['ui-menu-item', 'context-menu-item'];
     if (danger) classes.push('danger');
     if (!enabled) classes.push('disabled');
     return `
@@ -195,7 +195,7 @@ export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selecte
     };
 
     return fileTreeContextMenuActions.map(item => item.separator
-        ? '<div class="context-menu-separator"></div>'
+        ? '<div class="ui-menu-separator context-menu-separator"></div>'
         : fileTreeContextMenuItemHTML(item, Boolean(enabled[item.action]))
     ).join('');
 }
@@ -1015,7 +1015,7 @@ function handleContextMenu(e) {
     if (contextMenu) contextMenu.remove();
 
     contextMenu = document.createElement('div');
-    contextMenu.className = 'context-menu';
+    contextMenu.className = 'ui-menu context-menu';
     contextMenu.innerHTML = buildFileTreeContextMenuHTML({
         type,
         path,

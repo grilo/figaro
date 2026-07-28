@@ -1,0 +1,120 @@
+/* Feature layout hooks: shared primitives own visual language and state,
+   while these selectors preserve the density required by their host. */
+.settings-card .ui-picker {
+    width: 176px;
+}
+
+.settings-card .ui-picker .ui-picker-menu {
+    width: max-content;
+    min-width: 100%;
+    max-width: min(280px, calc(100vw - 32px));
+    max-height: 256px;
+}
+
+.settings-card .ui-picker .ui-menu-item {
+    white-space: nowrap;
+}
+
+.tab-close.ui-icon-button {
+    width: 18px;
+    height: 18px;
+}
+
+.md-cheatsheet-close.ui-icon-button {
+    width: 26px;
+    height: 26px;
+}
+
+.kanban-card-delete.ui-icon-button {
+    width: 18px;
+    height: 18px;
+}
+
+.home-card-action.ui-button,
+.search-filter-chip.ui-button {
+    min-height: 24px;
+}
+
+.cm-frontmatter-panel-action.ui-button,
+.cm-frontmatter-panel-add.ui-button {
+    min-height: 26px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font: inherit;
+}
+
+.cm-frontmatter-panel-close.ui-icon-button {
+    width: 24px;
+    height: 24px;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.right-sidebar-close.ui-icon-button {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.cm-frontmatter-combobox.ui-picker {
+    width: 100%;
+    min-width: 0;
+}
+
+.cm-frontmatter-combobox .ui-picker-trigger {
+    height: 28px;
+    padding: 4px 7px;
+    border-radius: 4px;
+    font: inherit;
+}
+
+.cm-frontmatter-panel-input.ui-field,
+.cm-frontmatter-panel-select.ui-field {
+    min-height: 28px;
+    padding: 4px 7px;
+    border-radius: 4px;
+    font-size: inherit;
+}
+
+.custom-modal-input.ui-field {
+    height: 40px;
+    margin: 0;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg-color) 94%, transparent);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+    font-family: var(--font-mono);
+    font-size: 13px;
+}
+
+.custom-modal-input.ui-field:focus {
+    background: var(--bg-color);
+}
+
+.new-note-input-wrap .custom-modal-input.ui-field {
+    height: 40px;
+    border: 0;
+    box-shadow: none;
+}
+
+.cm-frontmatter-combobox .ui-picker-menu,
+.cm-frontmatter-file-combobox .ui-picker-menu {
+    max-height: 180px;
+}
+
+.custom-modal-btn.ui-button {
+    min-height: 36px;
+    padding: 0 15px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.vault-health-summary.ui-notice {
+    padding: 8px 10px;
+}
+
+.markdown-preview-status.ui-notice,
+.pdf-preview-status.ui-notice {
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: transparent;
+}

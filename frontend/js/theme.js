@@ -636,7 +636,7 @@ export async function initSettingsPanel(root = document) {
         nameEl.textContent = currentTheme.name;
 
         menu.innerHTML = themes.map(t =>
-            `<div class="theme-picker-item ${t.id === current ? 'active' : ''}" data-id="${t.id}">${t.name}</div>`
+            `<div class="ui-menu-item theme-picker-item ${t.id === current ? 'active' : ''}" data-id="${t.id}">${t.name}</div>`
         ).join('');
 
         btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('open'); });
@@ -963,7 +963,7 @@ function initFontPicker(root) {
         log.debug('[font] ' + list.length + ' of ' + FONTS.length + ' fonts available');
 
         menu.innerHTML = list.map(f =>
-            `<div class="font-picker-item ${f.id === currentFont ? 'active' : ''}" data-id="${f.id}">${f.name}</div>`
+            `<div class="ui-menu-item font-picker-item ${f.id === currentFont ? 'active' : ''}" data-id="${f.id}">${f.name}</div>`
         ).join('');
 
         const current = FONTS.find(f => f.id === currentFont) || FONTS[0];
@@ -995,7 +995,7 @@ function initCodeFontPicker(root) {
     const current = CODE_FONTS.find(font => font.id === currentCodeFont) || CODE_FONTS[0];
     nameEl.textContent = current.name;
     menu.innerHTML = CODE_FONTS.map(font =>
-        `<div class="code-font-picker-item ${font.id === currentCodeFont ? 'active' : ''}" data-id="${font.id}">${font.name}</div>`
+        `<div class="ui-menu-item code-font-picker-item ${font.id === currentCodeFont ? 'active' : ''}" data-id="${font.id}">${font.name}</div>`
     ).join('');
 
     btn.addEventListener('click', (event) => {

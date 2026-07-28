@@ -1,0 +1,117 @@
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+.hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* Drag Ghost */
+.drag-ghost {
+    opacity: 0.8;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* Focus Visible */
+:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+    background: var(--selection-bg);
+    color: var(--text-color);
+}
+.backlinks-subtitle { font-size: var(--font-size-sm); color: var(--text-dim); margin-top: 2px; }
+
+/* History status in status bar */
+.status-history {
+    color: var(--text-dim);
+    text-decoration: none;
+    cursor: default;
+    font-size: 11px;
+    transition: color var(--transition-fast);
+}
+.status-history.has-history {
+    color: var(--text-color);
+    cursor: pointer;
+}
+.status-history.has-history:hover { color: var(--accent-color); }
+
+/* The document Outline stays available without turning the status bar into a
+   toolbar. It appears only when the active Markdown note has headings. */
+.status-outline {
+    min-height: 20px;
+    margin: 0;
+    padding: 1px 5px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+.status-outline:hover {
+    border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 7%, transparent);
+    color: var(--text-color);
+}
+.status-outline.is-open {
+    border-color: color-mix(in srgb, var(--accent-color) 42%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 11%, transparent);
+    color: var(--accent-color);
+}
+.status-outline:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
+/* Local-history action only appears when there is work to record. */
+.status-git {
+    min-height: 20px;
+    margin: 0;
+    padding: 1px 5px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    font: inherit;
+    line-height: 1;
+    cursor: default;
+    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.status-git.is-uncommitted {
+    border-color: transparent;
+    border-bottom-color: color-mix(in srgb, var(--accent-color) 48%, transparent);
+    background: transparent;
+    color: color-mix(in srgb, var(--accent-color) 74%, var(--text-dim));
+    cursor: pointer;
+}
+
+.status-git.is-uncommitted:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 7%, transparent);
+    color: var(--text-color);
+}
+
+.status-git:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
+.status-git:disabled {
+    opacity: .72;
+}
+
+.status-git.is-committing {
+    cursor: wait;
+    opacity: .86;
+}
+
+.status-git.has-error {
+    border-color: color-mix(in srgb, var(--danger-color) 45%, var(--border-color));
+    color: var(--danger-color);
+}

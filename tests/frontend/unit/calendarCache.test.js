@@ -27,21 +27,21 @@ describe('Calendar cache', () => {
         invalidateCalendarCache();
         setState('currentCalDate', new Date(2025, 0, 15));
         setState('selectedCalDateStr', null);
-        window.go.main.App.GetCalendarMonthData.mockResolvedValue(monthData);
-        window.go.main.App.GetLinkedNotesForDate.mockResolvedValue([]);
+        window.go.desktop.App.GetCalendarMonthData.mockResolvedValue(monthData);
+        window.go.desktop.App.GetLinkedNotesForDate.mockResolvedValue([]);
     });
 
     test('reuses a month response when selecting a day instead of rescanning the vault', async () => {
         renderCalendar();
         await flushCalendar();
 
-        expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.GetCalendarMonthData).toHaveBeenCalledTimes(1);
         expect(typeof window.calendarDayClick).toBe('function');
 
         window.calendarDayClick('2025-01-15');
         await flushCalendar();
 
-        expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.GetCalendarMonthData).toHaveBeenCalledTimes(1);
     });
 
     test('drops the cached month after a vault change', async () => {
@@ -52,7 +52,7 @@ describe('Calendar cache', () => {
         renderCalendar();
         await flushCalendar();
 
-        expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(2);
+        expect(window.go.desktop.App.GetCalendarMonthData).toHaveBeenCalledTimes(2);
     });
 
     test('refreshes the open left-sidebar Calendar after a vault change', async () => {
@@ -67,7 +67,7 @@ describe('Calendar cache', () => {
         expect(refreshCalendarIfVisible()).toBe(true);
         await flushCalendar();
 
-        expect(window.go.main.App.GetCalendarMonthData).toHaveBeenCalledTimes(2);
+        expect(window.go.desktop.App.GetCalendarMonthData).toHaveBeenCalledTimes(2);
         expect(document.querySelectorAll('#calendar-grid .cal-day-header')).toHaveLength(7);
         expect(document.getElementById('calendar-grid').getAttribute('aria-busy')).toBe('false');
     });
@@ -78,6 +78,6 @@ describe('Calendar cache', () => {
         panel.setAttribute('aria-hidden', 'true');
 
         expect(refreshCalendarIfVisible()).toBe(false);
-        expect(window.go.main.App.GetCalendarMonthData).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.GetCalendarMonthData).not.toHaveBeenCalled();
     });
 });

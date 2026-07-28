@@ -404,7 +404,7 @@ function showDiagramPreview(panel, tab, svg) {
         <div class="drawio-view drawio-preview">
             <div class="drawio-toolbar">
                 <span class="drawio-title">${escapeHtml(tab.title || tab.path.split('/').pop())}</span>
-                <button type="button" class="drawio-edit-button">Edit diagram</button>
+                <button type="button" class="ui-button ui-button--accent drawio-edit-button">Edit diagram</button>
             </div>
             <div class="drawio-preview-canvas">${preview}</div>
         </div>`;

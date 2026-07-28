@@ -18,9 +18,9 @@ export async function renderVaultHealth(panel) {
                     <h2>Vault health</h2>
                     <p>Review read-only maintenance findings without changing your notes.</p>
                 </div>
-                <button type="button" class="vault-health-scan">Run scan</button>
+                <button type="button" class="ui-button ui-button--primary vault-health-scan">Run scan</button>
             </header>
-            <div class="vault-health-summary" aria-live="polite"></div>
+            <div class="ui-notice vault-health-summary" aria-live="polite"></div>
             <div class="vault-health-results" aria-live="polite"></div>
         </div>`;
 
@@ -65,12 +65,17 @@ async function loadVaultHealth(panel) {
             ? 'Your vault has no findings in this scan.'
             : `${total} ${total === 1 ? 'finding' : 'findings'} to review.`;
         summary.dataset.kind = total === 0 ? 'clear' : 'findings';
+        summary.classList.toggle('ui-notice--success', total === 0);
+        summary.classList.toggle('ui-notice--warning', total > 0);
+        summary.classList.remove('ui-notice--danger');
         results.innerHTML = healthSections.map(section => renderHealthSection(section, report[section.key])).join('');
     } catch (error) {
         if (!panel.isConnected) return;
         log.error('Vault health scan failed:', error);
         summary.textContent = 'The vault scan could not be completed.';
         summary.dataset.kind = 'error';
+        summary.classList.remove('ui-notice--success', 'ui-notice--warning');
+        summary.classList.add('ui-notice--danger');
         results.innerHTML = '<div class="vault-health-error">Try the scan again. No note was changed.</div>';
     } finally {
         if (panel.isConnected && button) {
@@ -88,7 +93,7 @@ function renderHealthSection(section, issues) {
         <section class="vault-health-section ${issues.length ? 'has-findings' : ''}">
             <div class="vault-health-section-heading">
                 <h3>${escapeHtml(section.title)}</h3>
-                <span>${issues.length}</span>
+                <span class="ui-badge ${issues.length ? 'ui-badge--warning' : 'ui-badge--muted'}">${issues.length}</span>
             </div>
             ${items}
         </section>`;

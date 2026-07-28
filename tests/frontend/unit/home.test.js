@@ -29,7 +29,7 @@ describe('Workspace overview', () => {
         setState('recentFiles', [{ path: 'Projects/Plan.md', title: 'Project plan' }]);
         setState('pinnedTabs', ['reference.md']);
         setState('openTabs', [{ id: 'reference.md', type: 'file', title: 'Reference', path: 'Reference.md' }]);
-        window.go.main.App.GetHomeTasks.mockResolvedValue([
+        window.go.desktop.App.GetHomeTasks.mockResolvedValue([
             { file: 'Projects/Plan.md', file_name: 'Plan.md', line: 12, text: 'Clarify the next milestone', tag: 'todo' },
         ]);
     });
@@ -48,8 +48,8 @@ describe('Workspace overview', () => {
         expect(cards[1].textContent).toContain('Project plan');
         expect(panel.textContent).not.toContain('Pinned tabs');
         expect(panel.querySelector('[data-home-action="today"]')).toBeNull();
-        expect(window.go.main.App.GetHomeTasks).toHaveBeenCalledWith(homeTaskLimit);
-        expect(window.go.main.App.GetKanbanBoard).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.GetHomeTasks).toHaveBeenCalledWith(homeTaskLimit);
+        expect(window.go.desktop.App.GetKanbanBoard).not.toHaveBeenCalled();
     });
 
     test('opens a task at its source line', async () => {
@@ -71,7 +71,7 @@ describe('Workspace overview', () => {
     test('does not let an earlier task request overwrite a newer Home render', async () => {
         const slow = deferred();
         const fast = deferred();
-        window.go.main.App.GetHomeTasks
+        window.go.desktop.App.GetHomeTasks
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
         const panel = document.getElementById('tab-panels');

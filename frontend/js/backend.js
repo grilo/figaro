@@ -10,7 +10,7 @@
 const debugBackendKey = '__figaroDebugBackend';
 
 function nativeBackend() {
-    const app = window.go?.main?.App;
+    const app = window.go?.desktop?.App;
     return app && typeof app === 'object' ? app : null;
 }
 

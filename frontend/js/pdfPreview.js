@@ -939,16 +939,16 @@ function ensurePreviewPanel() {
                 <button type="button" class="pdf-preview-stylesheet" data-action="open-stylesheet" title="Open the active print stylesheet" disabled></button>
             </div>
             <div class="pdf-preview-actions">
-                <button type="button" class="pdf-preview-style-reference" data-action="style-reference" title="Show Figaro’s generated HTML, classes, and IDs" aria-label="Open PDF style reference">
+                <button type="button" class="ui-icon-button pdf-preview-style-reference" data-action="style-reference" title="Show Figaro’s generated HTML, classes, and IDs" aria-label="Open PDF style reference">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 9 4 12l4 3M16 9l4 3-4 3M14 5l-4 14"/></svg>
                 </button>
-                <button type="button" class="pdf-preview-generate" data-action="generate-pdf">
+                <button type="button" class="ui-button ui-button--primary pdf-preview-generate" data-action="generate-pdf">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
                     <span>Generate PDF</span>
                 </button>
             </div>
         </div>
-        <p class="pdf-preview-status" aria-live="polite">Preparing live preview…</p>
+        <p class="ui-notice pdf-preview-status" aria-live="polite">Preparing live preview…</p>
         <div class="pdf-preview-stage">
             <div class="pdf-preview-loading" hidden>Updating preview…</div>
             <iframe class="pdf-preview-frame" title="Live PDF preview" src="${previewBridgeFrameURL()}" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
@@ -963,6 +963,7 @@ function setPreviewStatus(message, kind = '') {
     if (!status) return;
     status.textContent = message;
     status.dataset.kind = kind;
+    status.classList.toggle('ui-notice--danger', kind === 'error');
 }
 
 function isPreviewOpen() {

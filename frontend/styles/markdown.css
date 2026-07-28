@@ -1,0 +1,151 @@
+/* Markdown Syntax Highlighting */
+.cm-header-1, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6 {
+    font-weight: 600;
+    color: var(--heading-color);
+}
+
+.cm-header-1 { font-size: 1.85em !important; margin-top: 36px !important; margin-bottom: 14px !important; }
+.cm-header-2 { font-size: 1.45em !important; margin-top: 28px !important; margin-bottom: 12px !important; }
+.cm-header-3 { font-size: 1.25em !important; margin-top: 22px !important; margin-bottom: 10px !important; }
+.cm-header-4 { font-size: 1.1em !important; margin-top: 18px !important; margin-bottom: 8px !important; }
+.cm-header-5 { font-size: 1em; }
+.cm-header-6 { font-size: 0.9em; }
+
+.cm-strong { font-weight: 600; color: var(--bold-color); }
+.cm-emphasis { font-style: italic; color: var(--italic-color); }
+.cm-strikethrough { text-decoration: line-through; color: var(--text-dim); }
+
+.cm-link, .cm-link:visited { color: var(--link-color); text-decoration: underline; text-decoration-color: var(--link-color); text-decoration-style: dotted; text-underline-offset: 4px; cursor: pointer; }
+.cm-link:hover { text-decoration-style: solid; color: var(--link-hover-color); text-decoration-color: var(--link-hover-color); }
+.cm-url { color: var(--url-color); }
+
+
+.cm-hashtag { color: var(--hashtag-color); cursor: pointer; }
+.cm-hashtag:hover { text-decoration: underline; }
+
+.cm-editor span.cm-hex-color-widget[data-color] {
+    box-sizing: border-box;
+    position: relative;
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    margin: -2px 0.45ch 0 0;
+    overflow: hidden;
+    vertical-align: middle;
+    border: 1px solid color-mix(in srgb, var(--text-color) 38%, transparent);
+    border-radius: 3px;
+    outline: none;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--panel-bg) 35%, transparent);
+}
+.cm-editor .cm-hex-color-widget .cm-hex-color-picker[type="color"] {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.cm-editor .cm-hex-color-widget:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-color) 24%, transparent);
+}
+.cm-editor .cm-hex-color-widget:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 42%, transparent);
+}
+.cm-editor .cm-hex-color-widget:has(.cm-hex-color-picker:disabled) {
+    opacity: 0.58;
+}
+.cm-editor .cm-hex-color-picker:disabled {
+    cursor: not-allowed;
+}
+
+.cm-quote { position: relative; color: var(--quote-color); padding-left: 16px; font-style: italic; }
+.cm-quote::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background-color: var(--quote-border); pointer-events: none; }
+.cm-quote .cm-formatting-quote { display: none !important; }
+.cm-line.cm-blockquote-line {
+    margin-left: 8px;
+    padding-left: calc(13px + var(--cm-blockquote-hanging-indent, 0px)) !important;
+    text-indent: var(--cm-blockquote-hanging-outdent, 0px) !important;
+    border-left: 3px solid var(--quote-border);
+    background: color-mix(in srgb, var(--quote-border) 8%, transparent);
+    color: var(--quote-color);
+    font-style: italic;
+}
+.cm-line.cm-blockquote-line .cm-formatting-block {
+    color: var(--quote-border);
+}
+.cm-code { background: var(--hover-bg) !important; padding: 0.15em 0.4em !important; border-radius: 4px !important; font-size: 0.9em !important; font-family: var(--font-mono) !important; }
+
+/* Code block syntax highlighting */
+.hljs-keyword, .cm-codeblock-widget .hljs-keyword { color: var(--code-keyword-color) !important; }
+.hljs-string, .cm-codeblock-widget .hljs-string { color: var(--code-string-color) !important; }
+.hljs-number, .cm-codeblock-widget .hljs-number { color: var(--code-number-color) !important; }
+.hljs-function, .hljs-title.function_, .cm-codeblock-widget .hljs-function, .cm-codeblock-widget .hljs-title.function_ { color: var(--code-function-color) !important; }
+.hljs-comment, .cm-codeblock-widget .hljs-comment { color: var(--code-comment-color) !important; font-style: italic !important; }
+.hljs-type, .hljs-class, .hljs-name, .cm-codeblock-widget .hljs-type, .cm-codeblock-widget .hljs-class, .cm-codeblock-widget .hljs-name { color: var(--code-type-color) !important; }
+.hljs-variable, .hljs-params, .cm-codeblock-widget .hljs-variable, .cm-codeblock-widget .hljs-params { color: var(--code-variable-color) !important; }
+.hljs-operator, .hljs-punctuation, .cm-codeblock-widget .hljs-operator, .cm-codeblock-widget .hljs-punctuation { color: var(--code-operator-color) !important; }
+.hljs-built_in, .hljs-literal, .hljs-attr, .hljs-attribute, .hljs-meta, .hljs-selector-tag, .hljs-selector-class, .hljs-selector-id, .cm-codeblock-widget .hljs-built_in, .cm-codeblock-widget .hljs-literal, .cm-codeblock-widget .hljs-attr, .cm-codeblock-widget .hljs-attribute, .cm-codeblock-widget .hljs-meta, .cm-codeblock-widget .hljs-selector-tag, .cm-codeblock-widget .hljs-selector-class, .cm-codeblock-widget .hljs-selector-id { color: var(--code-builtin-color) !important; }
+
+/* Table theming */
+.cm-table-widget th, .cm-table-widget td, .cm-table-editor th, .cm-table-editor td { border: 1px solid var(--border-color) !important; padding: 8px 12px; }
+.cm-table-widget th, .cm-table-editor th { background-color: var(--hover-bg) !important; font-weight: 600; }
+.cm-table-toggle { border: 1px solid var(--border-color) !important; background-color: var(--panel-bg) !important; color: var(--text-color) !important; }
+
+/* Code block widget styling */
+.cm-codeblock-widget { background-color: var(--hover-bg) !important; border: 1px solid var(--border-color) !important; border-radius: 6px !important; padding: 34px 18px !important; font-family: var(--font-mono) !important; font-size: 13.5px !important; line-height: 1.5 !important; }
+.cm-codeblock-line { padding-left: 4px !important; line-height: 1.5 !important; color: var(--text-color) !important; }
+.cm-codeblock-fence { color: var(--text-dim) !important; }
+.cm-codeblock-copy { background-color: var(--panel-bg) !important; color: var(--text-muted) !important; border-radius: 4px !important; border: 1px solid var(--border-color) !important; padding: 4px 8px !important; cursor: pointer !important; }
+.cm-codeblock-copy:hover { background-color: var(--active-bg) !important; color: var(--text-color) !important; }
+.cm-codeblock-source { background-color: color-mix(in srgb, var(--accent-color) 8%, transparent) !important; }
+
+/* Live Preview widgets (bullets, checkboxes) */
+.cm-bullet { color: var(--text-muted); font-weight: 700; margin-right: 2px; user-select: none; }
+.cm-task-checkbox { accent-color: var(--accent-color); cursor: pointer; margin-right: 4px; vertical-align: middle; }
+
+/* Live Preview formatting mark hiding (used by codemirror-live-markdown) */
+.cm-formatting-inline {
+    display: inline-block; overflow: hidden; max-width: 0; opacity: 0;
+    vertical-align: bottom; pointer-events: none;
+    transition: max-width 0.15s ease, opacity 0.1s ease;
+}
+.cm-formatting-inline.cm-formatting-visible {
+    max-width: 4ch; opacity: 1; pointer-events: auto; color: var(--text-dim);
+}
+.cm-formatting-block {
+    display: inline; font-size: 0.01em; opacity: 0;
+    transition: font-size 0.15s ease, opacity 0.1s ease;
+    color: var(--text-dim); user-select: none;
+}
+.cm-formatting-block.cm-formatting-visible {
+    font-size: inherit; opacity: 0.6;
+}
+
+.cm-list { padding-left: 1.5em; cursor: text; }
+.cm-list-item { padding-left: 0.5em; }
+.cm-editor .cm-line.cm-markdown-list-item {
+    padding-left: var(--cm-list-hanging-indent) !important;
+    text-indent: var(--cm-list-hanging-outdent) !important;
+}
+.cm-formatting-code { color: var(--text-dim); }
+
+.cm-task-list-item { display: flex; align-items: flex-start; gap: 8px; }
+.cm-task-list-item input[type="checkbox"] { margin-top: 3px; accent-color: var(--accent-color); }
+
+/* Search Highlight */
+.cm-searchMatch {
+    background: var(--warning-color) !important;
+    color: var(--bg-color) !important;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+
+.cm-searchMatch-selected {
+    background: var(--accent-color) !important;
+    color: var(--button-text) !important;
+}

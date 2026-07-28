@@ -1,0 +1,989 @@
+/* CodeMirror Overrides */
+.cm-editor {
+    flex: 1 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    justify-content: flex-start !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    background: var(--bg-color) !important;
+    color: var(--text-color);
+    font-family: var(--font-editor) !important;
+    font-size: var(--font-size-editor) !important;
+    line-height: var(--line-height-editor) !important;
+}
+
+.workspace-content,
+.editor-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    align-items: stretch !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+.editor-container,
+.editor-panel,
+#editor-container {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+.cm-scroller {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-anchor: none !important;
+    scroll-behavior: auto !important;
+    scroll-padding-top: 0 !important;
+}
+
+.cm-editor,
+.cm-scroller {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+.cm-scroller,
+.cm-editor,
+.cm-content {
+    contain: none !important;
+}
+
+.cm-content {
+    width: 100% !important;
+    max-width: var(--editor-width) !important;
+    margin: 0 auto !important;
+    padding: 1em 24px 40px 24px !important;
+    box-sizing: border-box !important;
+    caret-color: var(--cursor-color);
+}
+
+/* Source files use a conventional, unwrapped code-editor layout. The class is
+   set by editor.js when a CodeMirror language parser is active. */
+.cm-editor.cm-code-file {
+    font-family: var(--font-code, var(--font-mono)) !important;
+}
+
+.cm-editor.cm-code-file .cm-scroller {
+    overflow-x: auto !important;
+}
+
+.cm-editor.cm-code-file .cm-content {
+    max-width: none !important;
+    margin: 0 !important;
+    font-family: var(--font-code, var(--font-mono)) !important;
+    /* Matches editor.js' codeIndentUnit, which is also what Tab inserts and
+       what the indentation guides use through CodeMirror's indentUnit facet. */
+    tab-size: 2;
+}
+
+.cm-editor.cm-code-file .cm-line {
+    max-width: none !important;
+    margin: 0 !important;
+    font-family: var(--font-code, var(--font-mono)) !important;
+}
+
+.cm-line {
+    width: 100% !important;
+    max-width: var(--editor-width) !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+}
+
+/* Document Properties: compact by default, with an optional structured PDF
+   layout panel. YAML remains available as an advanced/source view. */
+.cm-block-widget {
+    box-sizing: border-box;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* CodeMirror measures the root returned by a block WidgetType. Keep visual
+   breathing room as padding on that measured, transparent root. Never put
+   vertical margins on it or on the widget surface inside it. */
+.cm-block-widget-spacing {
+    display: flow-root;
+    width: 100%;
+}
+
+.cm-block-widget--frontmatter {
+    padding: 2px 0 14px;
+}
+
+.cm-block-widget--add-properties {
+    padding: 3px 0 14px;
+}
+
+.cm-block-widget--frontmatter-panel {
+    padding: 2px 0 16px;
+}
+
+.cm-frontmatter {
+    width: 100%;
+    max-width: var(--editor-width);
+    min-width: 0;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 auto;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--panel-bg);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    line-height: 1.3;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.cm-frontmatter:hover,
+.cm-frontmatter:focus-visible {
+    border-color: var(--accent-color);
+    background: var(--hover-bg);
+    color: var(--text-color);
+    outline: none;
+}
+
+.cm-frontmatter-disclosure {
+    flex: 0 0 auto;
+    color: var(--text-dim);
+    font-size: 18px;
+    line-height: 12px;
+    transform: translateY(-1px);
+}
+
+.cm-frontmatter-label {
+    flex: 0 0 auto;
+    color: var(--text-color);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.cm-frontmatter-count {
+    flex: 0 0 auto;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.cm-frontmatter-chips {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    overflow: hidden;
+}
+
+.cm-frontmatter-chip,
+.cm-frontmatter-more {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 200px;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: var(--code-bg);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.cm-frontmatter-chip-key {
+    color: var(--accent-color);
+}
+
+.cm-frontmatter-chip-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cm-add-properties {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    padding: 4px 8px;
+    border: 1px dashed var(--border-light);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+}
+
+.cm-add-properties:hover,
+.cm-add-properties:focus-visible {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    outline: none;
+}
+
+/* The live Markdown editor normally turns three dashes into a visual rule.
+   While editing frontmatter, keep its two YAML fences literal. */
+.cm-frontmatter-source-line.cm-hr-passive {
+    color: var(--text-muted) !important;
+}
+
+.cm-frontmatter-source-line.cm-hr-passive * {
+    color: var(--text-muted) !important;
+}
+
+.cm-frontmatter-source-line.cm-hr-passive::after {
+    content: none !important;
+}
+
+.cm-frontmatter-source-line .cm-formatting-block {
+    color: var(--text-dim) !important;
+    font-size: inherit !important;
+    opacity: .7 !important;
+    user-select: text;
+}
+
+.cm-frontmatter-panel {
+    width: 100%;
+    max-width: var(--editor-width);
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 0 auto;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--panel-bg);
+    color: var(--text-color);
+    box-shadow: var(--shadow-md);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm);
+    line-height: 1.35;
+}
+
+.cm-frontmatter-panel--enter {
+    transform-origin: top center;
+    animation: figaro-properties-expand var(--motion-panel-duration) var(--motion-ease-out) both;
+}
+
+.cm-frontmatter-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.cm-frontmatter-panel-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.cm-frontmatter-panel-actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+}
+
+.cm-frontmatter-panel-action,
+.cm-frontmatter-panel-add {
+    padding: 4px 6px;
+    border-radius: 4px;
+    font: inherit;
+    font-size: inherit;
+}
+
+.cm-frontmatter-panel-close {
+    width: 24px;
+    height: 24px;
+    color: var(--text-dim);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.cm-frontmatter-panel-section {
+    display: grid;
+    gap: 7px;
+    padding: 12px 0 0;
+}
+
+.cm-frontmatter-panel-section h3 {
+    margin: 0 0 1px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.cm-frontmatter-panel-row {
+    display: grid;
+    grid-template-columns: minmax(100px, .9fr) minmax(0, 1.6fr);
+    align-items: center;
+    gap: 10px;
+    min-height: 28px;
+}
+
+.cm-frontmatter-panel-row-label {
+    color: var(--text-muted);
+}
+
+.cm-frontmatter-combobox-toggle:focus {
+    border-color: var(--accent-color);
+    outline: 1px solid var(--focus-ring);
+}
+
+.cm-frontmatter-combobox,
+.cm-frontmatter-file-combobox {
+    position: relative;
+    display: flex;
+    width: 100%;
+    min-width: 0;
+}
+
+.cm-frontmatter-stylesheet-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.cm-frontmatter-create-stylesheet {
+    min-height: 28px;
+    padding: 4px 7px;
+    border: 1px solid var(--border-color);
+    color: var(--accent-color);
+    white-space: nowrap;
+}
+
+.cm-frontmatter-create-stylesheet:hover,
+.cm-frontmatter-create-stylesheet:focus-visible {
+    border-color: var(--accent-color);
+}
+
+.cm-frontmatter-create-stylesheet:disabled {
+    cursor: wait;
+    opacity: .6;
+}
+
+.cm-frontmatter-panel-hint {
+    margin: -1px 0 0;
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.cm-frontmatter-combobox-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cm-frontmatter-combobox-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cm-frontmatter-combobox-arrow {
+    flex: 0 0 auto;
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1;
+    transform: translateY(-1px);
+}
+
+.cm-frontmatter-file-combobox .cm-frontmatter-panel-input {
+    flex: 1 1 auto;
+    width: auto;
+    border-radius: 4px 0 0 4px;
+    border-right: 0;
+}
+
+.cm-frontmatter-combobox-toggle {
+    flex: 0 0 29px;
+    min-height: 28px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 0 4px 4px 0;
+    background: var(--bg-color);
+    color: var(--text-muted);
+    font: inherit;
+    cursor: pointer;
+}
+
+.cm-frontmatter-combobox-toggle:hover,
+.cm-frontmatter-combobox-toggle:focus-visible,
+.cm-frontmatter-combobox-trigger:hover,
+.cm-frontmatter-combobox-trigger:focus-visible {
+    border-color: var(--accent-color);
+    color: var(--text-color);
+    outline: none;
+}
+
+.cm-frontmatter-combobox-toggle:disabled {
+    cursor: default;
+    opacity: .45;
+}
+
+.cm-frontmatter-combobox-menu {
+    position: absolute;
+    z-index: 12;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.cm-frontmatter-combobox-menu[hidden] {
+    display: none;
+}
+
+.cm-frontmatter-combobox-option {
+    overflow: hidden;
+    font-size: inherit;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cm-frontmatter-combobox-option[aria-selected="true"] {
+    color: var(--accent-color);
+}
+
+.cm-frontmatter-combobox-empty {
+    padding: 6px 8px;
+    color: var(--text-dim);
+}
+
+.cm-frontmatter-panel-toggle {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--accent-color);
+}
+
+.cm-frontmatter-other-properties {
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+
+.cm-frontmatter-panel-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.cm-frontmatter-panel-empty {
+    color: var(--text-dim);
+}
+
+.cm-frontmatter-panel-add {
+    justify-self: start;
+    margin-top: 2px;
+    border: 1px solid var(--border-color);
+}
+
+@media (max-width: 700px) {
+    .cm-frontmatter-count,
+    .cm-frontmatter-chips .cm-frontmatter-chip:nth-child(n + 2) {
+        display: none;
+    }
+
+    .cm-frontmatter-panel-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+        padding: 2px 0;
+    }
+}
+
+.cm-focused .cm-cursor {
+    border-left: none !important;
+    background: var(--cursor-bg);
+    color: var(--cursor-text);
+    width: 0.65em;
+}
+
+
+.cm-selectionBackground, .cm-content ::selection {
+    background: var(--selection-bg) !important;
+}
+
+/* Vim visual mode — a prominent selection block in the active theme. */
+.cm-editor.vim-visual .cm-selectionLayer .cm-selectionBackground,
+.cm-editor.vim-visual .cm-selectionBackground,
+.cm-editor.vim-visual ::selection,
+.vim-visual .cm-selectionBackground,
+.vim-visual .cm-line ::selection {
+    background-color: color-mix(in srgb, var(--accent-color) 40%, transparent) !important;
+    color: inherit !important;
+}
+
+/* The bundled Vim extension creates this panel outside its own theme color
+   rules. Explicit semantic colors prevent the browser's black input default
+   from leaking into :w, :wq, search, and status prompts. */
+.cm-editor .cm-panels,
+.cm-editor .cm-vim-panel {
+    background: var(--panel-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+    font-family: var(--font-mono) !important;
+}
+
+.cm-editor .cm-vim-panel input {
+    background: transparent !important;
+    color: var(--text-color) !important;
+    caret-color: var(--cursor-color) !important;
+    font: inherit !important;
+}
+
+.cm-editor .cm-vim-message {
+    color: var(--text-color) !important;
+    font-family: var(--font-mono) !important;
+}
+
+/* Vim normal mode — blink block cursor */
+.vim-normal .cm-cursor {
+    background: var(--cursor-bg) !important;
+    border-left: none !important;
+    width: 0.65em !important;
+    animation: vimCursorBlink 1s step-end infinite;
+}
+
+@keyframes vimCursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* Vim insert mode — thin line cursor */
+.vim-insert .cm-cursor {
+    background: transparent !important;
+    border-left: 4px solid var(--accent-color) !important;
+    width: 0 !important;
+    animation: none;
+}
+
+/* codemirror-vim paints Normal mode in a separate high-precedence cursor
+   layer with its own fixed fallback color. Theme the root editor's actual
+   block cursor while leaving nested table editors and other Vim modes to
+   their mode-specific rules below. */
+.cm-editor.vim-normal.cm-focused
+    > .cm-scroller
+    > .cm-vimCursorLayer
+    .cm-fat-cursor {
+    background: var(--cursor-bg) !important;
+    color: var(--cursor-text) !important;
+    border: none !important;
+    outline: none !important;
+}
+
+/* Interactive table cells are independent CodeMirror editors. The outer
+   editor remains in Normal mode while a nested cell enters Insert mode, so
+   style the nested caret from its own Vim state and keep its cursor layer
+   painted above the table widget. */
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="insert"].cm-focused
+    > .cm-scroller
+    > .cm-cursorLayer:not(.cm-vimCursorLayer) {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 30;
+}
+
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="insert"]
+    .cm-cursor {
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: transparent !important;
+    border-left: 4px solid var(--accent-color) !important;
+    width: 0 !important;
+    animation: none !important;
+}
+
+/* The root CodeMirror loses .cm-focused while an embedded cell owns focus.
+   codemirror-vim's unfocused rule would otherwise make the nested Normal and
+   Replace cursors transparent, even though their own editor is focused. */
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor:is([data-vim-mode="normal"], [data-vim-mode="replace"]).cm-focused
+    > .cm-scroller
+    > .cm-vimCursorLayer {
+    visibility: visible !important;
+    opacity: 1 !important;
+    animation: none !important;
+    z-index: 30;
+}
+
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="normal"].cm-focused
+    .cm-fat-cursor {
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: var(--cursor-bg) !important;
+    color: var(--cursor-text) !important;
+    border: none !important;
+    outline: none !important;
+}
+
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="replace"].cm-focused
+    .cm-fat-cursor {
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: var(--accent-color) !important;
+    color: transparent !important;
+    border: none !important;
+    outline: none !important;
+}
+
+/* WebKitGTK can leave CodeMirror's standard cursor layer empty in an embedded
+   table editor. In that case, fall back to the native caret at the same DOM
+   selection. Keep it transparent when the custom 4 px cursor is present so
+   Chromium and other engines never paint a doubled caret. */
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="insert"].cm-focused:has(
+        > .cm-scroller > .cm-cursorLayer:not(.cm-vimCursorLayer):empty
+    )
+    .cm-content,
+.cm-editor.cm-table-cell-focused
+    .tbl-cell-editor
+    .cm-editor[data-vim-mode="insert"].cm-focused:has(
+        > .cm-scroller > .cm-cursorLayer:not(.cm-vimCursorLayer):empty
+    )
+    .cm-line {
+    caret-color: var(--accent-color) !important;
+}
+
+/* Markdown diagnostics stay quiet in the prose flow while their hover card
+   gives a clear, theme-aware explanation of the marked source. CodeMirror
+   puts the lint list inside a generic .cm-tooltip shell, so theme that shell
+   too—otherwise its default white surface peeks around the list. */
+.cm-tooltip {
+    border: 1px solid var(--border-color) !important;
+    border-radius: 7px;
+    background: var(--panel-bg) !important;
+    box-shadow: var(--shadow-md) !important;
+    color: var(--text-color) !important;
+    font-family: var(--font-editor) !important;
+    font-size: var(--font-size-editor) !important;
+    line-height: var(--line-height-editor) !important;
+}
+
+.cm-editor .cm-lintRange-warning {
+    background-image: linear-gradient(to right, var(--warning-color) 50%, transparent 50%) !important;
+    background-position: 0 100% !important;
+    background-repeat: repeat-x !important;
+    background-size: 6px 2px !important;
+    padding-bottom: 1px;
+}
+
+.cm-editor .cm-lintRange-error {
+    background-image: linear-gradient(to right, var(--danger-color) 50%, transparent 50%) !important;
+    background-position: 0 100% !important;
+    background-repeat: repeat-x !important;
+    background-size: 6px 2px !important;
+    padding-bottom: 1px;
+}
+
+/* Spellchecking is advisory prose feedback, so keep its dotted underline
+   distinct from structural Markdown lint while using the active theme's
+   established secondary (link) accent. */
+.cm-editor .cm-lintRange.cm-spellcheck-range {
+    background-image: linear-gradient(to right, var(--link-color) 50%, transparent 50%) !important;
+    background-position: 0 100% !important;
+    background-repeat: repeat-x !important;
+    background-size: 4px 2px !important;
+    padding-bottom: 1px;
+}
+
+.cm-tooltip .cm-tooltip-lint {
+    max-width: min(380px, calc(100vw - 32px));
+    margin: 0;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: inherit;
+    background: transparent !important;
+    box-shadow: none;
+    color: var(--text-color);
+    font: inherit;
+    list-style: none;
+}
+
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic {
+    display: block;
+    margin: 0;
+    padding: 4px 2px 4px 10px !important;
+    list-style: none;
+}
+
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning::before,
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-error::before,
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-info::before {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 7px;
+    border-radius: 50%;
+    content: '';
+}
+
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning { border-left-color: var(--accent-color) !important; }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-error { border-left-color: var(--danger-color) !important; }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-info { border-left-color: var(--link-color) !important; }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-warning::before { background: var(--accent-color); }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-error::before { background: var(--danger-color); }
+.cm-tooltip .cm-tooltip-lint .cm-diagnostic-info::before { background: var(--link-color); }
+
+.cm-gutters {
+    background: var(--bg-color) !important;
+    border-right: 1px solid var(--border-color) !important;
+    padding: 16px 8px 16px 12px !important;
+}
+
+.cm-lineNumbers .cm-gutterElement {
+    color: var(--text-dim) !important;
+    padding: 0 8px 0 0 !important;
+}
+
+.cm-activeLineGutter {
+    background: var(--active-bg) !important;
+}
+
+.cm-tooltip-autocomplete {
+    background: var(--panel-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.cm-tooltip-autocomplete ul {
+    background: transparent !important;
+}
+
+.cm-completionItem {
+    padding: 6px 12px !important;
+    color: var(--text-color) !important;
+    font-size: var(--font-size) !important;
+}
+
+.cm-completionItem-selected {
+    background: var(--active-bg) !important;
+}
+
+.cm-completionIcon {
+    color: var(--text-muted) !important;
+}
+
+.cm-completionLabel {
+    color: var(--text-color) !important;
+}
+
+.cm-completionDetail {
+    color: var(--text-dim) !important;
+}
+
+.cm-completionInfo {
+    background: var(--panel-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.cm-panels {
+    background: var(--panel-bg) !important;
+    border-top: 1px solid var(--border-color) !important;
+    color: var(--text-color) !important;
+}
+
+.cm-panel.cm-search {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 9px 40px 9px 14px !important;
+    color: var(--text-color) !important;
+    font-size: 13px;
+    line-height: 1.3;
+    gap: 7px 10px;
+}
+
+.cm-panel.cm-search > br {
+    flex-basis: 100%;
+    height: 0;
+    margin: 0;
+}
+
+.cm-panel.cm-search > input,
+.cm-panel.cm-search > button,
+.cm-panel.cm-search > label {
+    margin: 0 !important;
+}
+
+.cm-search-field,
+.cm-panel.cm-search .cm-textfield {
+    box-sizing: border-box;
+    min-height: 32px;
+    padding: 5px 10px !important;
+    background: var(--bg-color) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-color) !important;
+    border-radius: 4px !important;
+    font: inherit !important;
+    font-size: 13px !important;
+}
+
+.cm-panel.cm-search .cm-textfield[name="search"] {
+    flex: 1 1 250px;
+    min-width: 190px;
+}
+
+.cm-panel.cm-search .cm-textfield[name="replace"] {
+    flex: 1 1 230px;
+    min-width: 170px;
+}
+
+.cm-panel.cm-search .cm-textfield::placeholder {
+    color: var(--text-dim);
+    opacity: 1;
+}
+
+.cm-search-field:focus,
+.cm-panel.cm-search .cm-textfield:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--focus-ring) !important;
+}
+
+.cm-button {
+    background: var(--hover-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-color) !important;
+    border-radius: 4px !important;
+}
+
+.cm-button:hover {
+    background: var(--active-bg) !important;
+}
+
+.cm-panel.cm-search .cm-button {
+    min-height: 32px;
+    padding: 5px 10px !important;
+    background-image: none !important;
+    color: var(--text-color) !important;
+    font: inherit !important;
+    font-size: 12px !important;
+    line-height: 1;
+}
+
+.cm-panel.cm-search .cm-button:focus-visible {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--focus-ring) !important;
+    outline: none;
+}
+
+.cm-panel.cm-search > label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 32px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--hover-bg) 72%, transparent);
+    color: var(--text-muted) !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.cm-panel.cm-search > label:hover,
+.cm-panel.cm-search > label:focus-within {
+    border-color: var(--border-color);
+    background: var(--hover-bg);
+    color: var(--text-color) !important;
+}
+
+.cm-panel.cm-search > label:has(input:checked) {
+    border-color: color-mix(in srgb, var(--accent-color) 65%, var(--border-color));
+    background: color-mix(in srgb, var(--accent-color) 16%, var(--hover-bg));
+    color: var(--text-color) !important;
+}
+
+.cm-panel.cm-search > label > input[type="checkbox"] {
+    appearance: none;
+    display: grid;
+    width: 15px;
+    height: 15px;
+    place-content: center;
+    margin: 0 !important;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background: var(--bg-color);
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+.cm-panel.cm-search > label > input[type="checkbox"]:checked {
+    border-color: var(--accent-color);
+    background: var(--accent-color);
+}
+
+.cm-panel.cm-search > label > input[type="checkbox"]:checked::after {
+    color: var(--button-text);
+    content: "✓";
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.cm-panel.cm-search > label > input[type="checkbox"]:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+    outline: none;
+}
+
+.cm-panel.cm-search [name="close"] {
+    color: var(--text-muted) !important;
+    font-size: 20px !important;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cm-panel.cm-search [name="close"]:hover,
+.cm-panel.cm-search [name="close"]:focus-visible {
+    color: var(--text-color) !important;
+    outline: none;
+}
+
+@media (max-width: 560px) {
+    .cm-panel.cm-search {
+        padding-right: 30px !important;
+    }
+
+    .cm-panel.cm-search .cm-textfield[name="search"],
+    .cm-panel.cm-search .cm-textfield[name="replace"] {
+        flex-basis: 100%;
+    }
+}

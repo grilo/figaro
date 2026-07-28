@@ -31,7 +31,7 @@ describe('session persistence', () => {
     test('sends a newer snapshot only after the older one finishes', async () => {
         const slow = deferred();
         const fast = deferred();
-        window.go.main.App.SaveSession
+        window.go.desktop.App.SaveSession
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
 
@@ -46,17 +46,17 @@ describe('session persistence', () => {
         const secondSave = saveSession();
         await Promise.resolve();
 
-        expect(window.go.main.App.SaveSession).toHaveBeenCalledTimes(1);
-        expect(window.go.main.App.SaveSession.mock.calls[0][0].activeTabId).toBe('first.md');
-        expect(window.go.main.App.SaveSession.mock.calls[0][0].expandedDirs).toEqual(['First', 'First/Nested']);
+        expect(window.go.desktop.App.SaveSession).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.SaveSession.mock.calls[0][0].activeTabId).toBe('first.md');
+        expect(window.go.desktop.App.SaveSession.mock.calls[0][0].expandedDirs).toEqual(['First', 'First/Nested']);
 
         slow.resolve({ success: true });
         await firstSave;
         await Promise.resolve();
 
-        expect(window.go.main.App.SaveSession).toHaveBeenCalledTimes(2);
-        expect(window.go.main.App.SaveSession.mock.calls[1][0].activeTabId).toBe('second.md');
-        expect(window.go.main.App.SaveSession.mock.calls[1][0].expandedDirs).toEqual(['Second']);
+        expect(window.go.desktop.App.SaveSession).toHaveBeenCalledTimes(2);
+        expect(window.go.desktop.App.SaveSession.mock.calls[1][0].activeTabId).toBe('second.md');
+        expect(window.go.desktop.App.SaveSession.mock.calls[1][0].expandedDirs).toEqual(['Second']);
 
         fast.resolve({ success: true });
         await secondSave;
@@ -72,7 +72,7 @@ describe('session persistence', () => {
 
         await saveSession();
 
-        const payload = window.go.main.App.SaveSession.mock.calls.at(-1)[0];
+        const payload = window.go.desktop.App.SaveSession.mock.calls.at(-1)[0];
         expect(payload.openTabs).toEqual([
             { id: 'note.md', type: 'file', title: 'Note', path: 'note.md' },
         ]);
@@ -91,7 +91,7 @@ describe('session persistence', () => {
 
         await saveSession();
 
-        const payload = window.go.main.App.SaveSession.mock.calls.at(-1)[0];
+        const payload = window.go.desktop.App.SaveSession.mock.calls.at(-1)[0];
         expect(payload.cursorStates).toEqual({ 'note.md': { anchor: 14, head: 18 } });
     });
 
@@ -103,7 +103,7 @@ describe('session persistence', () => {
 
         await saveSession();
 
-        const payload = window.go.main.App.SaveSession.mock.calls.at(-1)[0];
+        const payload = window.go.desktop.App.SaveSession.mock.calls.at(-1)[0];
         expect(payload.openTabs).toEqual([
             { id: 'diagrams/system.drawio.svg', type: 'drawio', title: 'system.drawio.svg', path: 'diagrams/system.drawio.svg' },
         ]);
@@ -112,9 +112,9 @@ describe('session persistence', () => {
     test('persists and restores a folder selected in the file tree', async () => {
         setState('selectedTreePath', 'Projects/Planning');
         await saveSession();
-        expect(window.go.main.App.SaveSession.mock.calls.at(-1)[0].selectedTreePath).toBe('Projects/Planning');
+        expect(window.go.desktop.App.SaveSession.mock.calls.at(-1)[0].selectedTreePath).toBe('Projects/Planning');
 
-        window.go.main.App.LoadSession.mockResolvedValueOnce({
+        window.go.desktop.App.LoadSession.mockResolvedValueOnce({
             selectedTreePath: 'Projects/Planning',
             expandedDirs: ['Projects', 'Projects/Planning'],
         });
@@ -139,7 +139,7 @@ describe('session persistence', () => {
     });
 
     test('drops a legacy Welcome pin instead of recreating a synthetic tab', async () => {
-        window.go.main.App.LoadSession.mockResolvedValueOnce({
+        window.go.desktop.App.LoadSession.mockResolvedValueOnce({
             openTabs: [{ id: 'note.md', type: 'file', title: 'Note', path: 'note.md' }],
             activeTabId: 'note.md',
             pinnedTabs: ['home'],
@@ -164,7 +164,7 @@ describe('session persistence', () => {
         state._restoredTabs = [{ id: 'missing.md', type: 'file', title: 'Missing', path: 'missing.md' }];
         state._restoredActiveTabId = 'missing.md';
         state._restoredCursorStates = { 'missing.md': { anchor: 12 } };
-        window.go.main.App.LoadSession.mockResolvedValueOnce({});
+        window.go.desktop.App.LoadSession.mockResolvedValueOnce({});
 
         await expect(loadSession()).resolves.toBe(false);
 

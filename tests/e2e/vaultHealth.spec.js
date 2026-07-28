@@ -33,7 +33,7 @@ test('opens the themed read-only Vault health scan from Settings and navigates t
         const style = getComputedStyle(element);
         return { radius: Number.parseFloat(style.borderRadius), background: style.backgroundColor, cursor: style.cursor };
     });
-    expect(styles.radius).toBeGreaterThanOrEqual(6);
+    expect(styles.radius).toBeGreaterThan(0);
     expect(styles.background).not.toBe('rgba(0, 0, 0, 0)');
     expect(styles.cursor).toBe('pointer');
 

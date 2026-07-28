@@ -39,7 +39,7 @@ const mockApi = {
 beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.go = { main: { App: mockApi } };
+    window.go = { desktop: { App: mockApi } };
     document.head.innerHTML = '';
     document.body.innerHTML = `
         <button id="font-picker-btn"><span id="font-current-name">Inter</span></button>
@@ -123,9 +123,10 @@ describe('Font Rendering', () => {
     });
 
     test('overlay surfaces use the UI font variable', () => {
-        const stylesheet = readFileSync('frontend/styles.css', 'utf8');
-        expect(stylesheet).toMatch(/\.context-menu\s*\{[^}]*font-family:\s*var\(--font-ui\)/s);
-        expect(stylesheet).toMatch(/\.custom-modal\s*\{[^}]*font-family:\s*var\(--font-ui\)/s);
+        const featureStylesheet = readFileSync('frontend/styles/dialogs.css', 'utf8');
+        const primitiveStylesheet = readFileSync('frontend/design-system/primitives.css', 'utf8');
+        expect(primitiveStylesheet).toMatch(/\.ui-menu\s*\{[^}]*font-family:\s*var\(--font-ui\)/s);
+        expect(featureStylesheet).toMatch(/\.custom-modal\s*\{[^}]*font-family:\s*var\(--font-ui\)/s);
     });
 
     test('Font family string includes fallback', async () => {

@@ -108,7 +108,7 @@ describe('live PDF preview', () => {
         );
         mockState.openTabs = [];
         mockState.activeTabId = null;
-        window.go.main.App.ReadFile = jest.fn(path => {
+        window.go.desktop.App.ReadFile = jest.fn(path => {
             if (path === 'notes/empty.md') {
                 return Promise.resolve({ path, mtime: 9, content: '' });
             }
@@ -595,7 +595,7 @@ describe('live PDF preview', () => {
 
     test('refreshes the selected stylesheet after the vault file tree reports an external change', async () => {
         const { render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
-        window.go.main.App.ReadFile.mockImplementation(path => {
+        window.go.desktop.App.ReadFile.mockImplementation(path => {
             if (path === 'notes/styles/print.css') {
                 return Promise.resolve({ path, mtime: 12, content: '.figaro-print-document { color: midnightblue; }' });
             }

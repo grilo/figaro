@@ -3,11 +3,11 @@ import globals from 'globals';
 
 export default [
     {
-        ignores: ['frontend/vendored/**'],
+        ignores: ['frontend/vendored/**', 'frontend/design-system/catalog.bundle.js'],
     },
     js.configs.recommended,
     {
-        files: ['frontend/js/**/*.js'],
+        files: ['frontend/js/**/*.js', 'frontend/design-system/**/*.js'],
         languageOptions: {
             ecmaVersion: 'latest',
             sourceType: 'module',

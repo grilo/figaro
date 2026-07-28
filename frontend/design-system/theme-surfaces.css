@@ -1,0 +1,147 @@
+/*
+ * Semantic theme surfaces
+ *
+ * Themes override the tokens consumed here. Keeping selectors out of theme
+ * files gives every manifest theme the same stable override contract.
+ */
+#app {
+    background: var(--app-surface);
+}
+
+.top-bar,
+.sidebar {
+    background: var(--navigation-surface) !important;
+}
+
+.tab-bar {
+    background: var(--tab-bar-surface) !important;
+    box-shadow: var(--tab-bar-shadow);
+}
+
+.top-bar {
+    position: relative;
+}
+
+.top-bar::after {
+    content: '';
+    position: absolute;
+    right: 18px;
+    bottom: 0;
+    left: 18px;
+    height: 1px;
+    background: var(--top-bar-divider);
+    pointer-events: none;
+}
+
+.editor-panel,
+.cm-editor {
+    background: var(--editor-surface) !important;
+    box-shadow: var(--editor-surface-shadow);
+}
+
+#main-content {
+    background: var(--workspace-surface);
+    box-shadow: var(--workspace-shadow);
+}
+
+.sidebar {
+    box-shadow: var(--sidebar-shadow);
+}
+
+.sidebar::after {
+    background: var(--sidebar-rail-surface);
+}
+
+.sidebar-search {
+    background: var(--sidebar-search-surface);
+}
+
+.sidebar-tools {
+    background: var(--sidebar-tools-surface);
+}
+
+.sidebar-calendar-panel {
+    background: var(--calendar-surface);
+}
+
+#file-tree {
+    background: var(--file-tree-surface);
+}
+
+.file-tree-item > .file-tree-node {
+    border-radius: var(--file-node-radius);
+    transition:
+        background var(--motion-content-duration) ease,
+        box-shadow var(--motion-content-duration) ease,
+        color var(--motion-content-duration) ease;
+}
+
+.file-tree-item > .file-tree-node:hover {
+    background: var(--file-node-hover-surface);
+}
+
+.file-tree-item > .file-tree-node.selected {
+    background: var(--file-node-selected-surface);
+    box-shadow: var(--file-node-selected-shadow);
+    font-weight: var(--file-node-selected-weight);
+}
+
+.file-tree-item > .file-tree-node.active-file:not(.selected) {
+    background: var(--file-node-active-surface);
+    box-shadow: var(--file-node-active-shadow);
+}
+
+.file-tree-children {
+    background-image:
+        linear-gradient(
+            to right,
+            transparent 34px,
+            var(--file-tree-guide-color) 34px,
+            var(--file-tree-guide-color) 35px,
+            transparent 35px
+        );
+}
+
+.tab {
+    border-radius: var(--tab-radius);
+    transition:
+        transform var(--motion-content-duration) ease,
+        background var(--motion-content-duration) ease,
+        color var(--motion-content-duration) ease,
+        border-color var(--motion-content-duration) ease,
+        box-shadow var(--motion-content-duration) ease;
+}
+
+.tab:hover {
+    background: var(--tab-hover-surface);
+}
+
+.tab.active {
+    transform: var(--tab-active-transform);
+    background: var(--tab-active-surface) !important;
+    border-color: var(--tab-active-border) !important;
+    box-shadow: var(--tab-active-shadow);
+}
+
+.settings-card {
+    background: var(--settings-card-surface);
+    border-color: var(--settings-card-border);
+    box-shadow: var(--settings-card-shadow);
+}
+
+.settings-card-title {
+    color: var(--settings-title-color);
+    letter-spacing: var(--settings-title-letter-spacing);
+}
+
+.settings-card select,
+.settings-card .ui-picker-trigger,
+.settings-card .settings-segmented-control {
+    background-color: var(--settings-control-surface);
+    box-shadow: var(--settings-control-shadow);
+}
+
+.status-bar {
+    background: var(--status-bar-surface) !important;
+    border-top-color: var(--status-bar-border);
+}

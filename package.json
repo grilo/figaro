@@ -1,6 +1,6 @@
 {
   "name": "figaro",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -8,13 +8,14 @@
     "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
   },
   "scripts": {
+    "build:design-system": "node scripts/build-design-system.mjs",
     "test": "jest",
     "test:unit": "bash tests/release/prepare-release.test.sh && jest --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:pdf": "playwright test",
-    "lint": "eslint frontend/js",
-    "lint:fix": "eslint frontend/js --fix",
+    "lint": "eslint frontend/js frontend/design-system",
+    "lint:fix": "eslint frontend/js frontend/design-system --fix",
     "vendor": "bash scripts/vendor.sh",
     "vendor:markdown": "node scripts/vendor-markdown-renderer.mjs"
   },

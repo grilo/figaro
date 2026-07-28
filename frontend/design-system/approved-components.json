@@ -1,0 +1,50 @@
+{
+  "approvalPolicy": "Adding a component family, primitive, or visual variant requires explicit user approval before implementation.",
+  "families": [
+    {
+      "id": "picker",
+      "primitives": [".ui-picker", ".ui-picker-trigger", ".ui-picker-menu"]
+    },
+    {
+      "id": "stepper",
+      "primitives": [".ui-stepper", ".ui-stepper-button", ".ui-stepper-value"]
+    },
+    {
+      "id": "button",
+      "primitives": [
+        ".ui-button",
+        ".ui-button--accent",
+        ".ui-button--primary",
+        ".ui-button--warning",
+        ".ui-button--danger",
+        ".ui-button--danger-ghost"
+      ]
+    },
+    {
+      "id": "icon-button",
+      "primitives": [".ui-icon-button", ".ui-icon-button--small", ".ui-icon-button--danger"]
+    },
+    {
+      "id": "badge",
+      "primitives": [".ui-badge", ".ui-badge--muted", ".ui-badge--accent", ".ui-badge--warning"]
+    },
+    {
+      "id": "menu",
+      "primitives": [".ui-menu", ".ui-menu-item", ".ui-menu-label", ".ui-menu-separator"]
+    },
+    {
+      "id": "field",
+      "primitives": [".ui-field"]
+    },
+    {
+      "id": "notice",
+      "primitives": [
+        ".ui-notice",
+        ".ui-notice--info",
+        ".ui-notice--success",
+        ".ui-notice--warning",
+        ".ui-notice--danger"
+      ]
+    }
+  ]
+}

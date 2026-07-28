@@ -12,7 +12,7 @@ describe('vault health', () => {
     });
 
     test('renders grouped, themed findings and opens their source note at the reported line', async () => {
-        window.go.main.App.GetVaultHealth.mockResolvedValue({
+        window.go.desktop.App.GetVaultHealth.mockResolvedValue({
             broken_links: [{ path: 'notes/source.md', line_num: 4, detail: 'Missing target.', target: 'missing.md' }],
             orphan_attachments: [{ path: 'assets/unused.png', detail: 'No Markdown note references this attachment.' }],
             duplicate_names: [{
@@ -45,7 +45,7 @@ describe('vault health', () => {
         });
         expect(() => normalizeVaultHealth({ broken_links: {} })).toThrow('broken_links was not a list');
 
-        window.go.main.App.GetVaultHealth.mockRejectedValueOnce(new Error('vault unavailable'));
+        window.go.desktop.App.GetVaultHealth.mockRejectedValueOnce(new Error('vault unavailable'));
         const panel = document.createElement('section');
         document.body.appendChild(panel);
         await renderVaultHealth(panel);

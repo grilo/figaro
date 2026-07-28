@@ -103,7 +103,7 @@ function createFieldRow(labelText, control) {
 
 function createTextInput(value, placeholder, onCommit) {
     const input = document.createElement('input');
-    input.className = 'cm-frontmatter-panel-input';
+    input.className = 'ui-field cm-frontmatter-panel-input';
     input.type = 'text';
     input.value = value;
     input.placeholder = placeholder;
@@ -120,7 +120,7 @@ function createTextInput(value, placeholder, onCommit) {
 function createMenuOption(option, selected, onSelect) {
     const item = document.createElement('button');
     item.type = 'button';
-    item.className = 'cm-frontmatter-combobox-option';
+    item.className = 'ui-menu-item cm-frontmatter-combobox-option';
     item.setAttribute('role', 'option');
     item.setAttribute('aria-selected', String(selected));
     item.dataset.value = option.value;
@@ -139,14 +139,14 @@ function createMenuOption(option, selected, onSelect) {
 
 function createThemedSelect(value, options, ariaLabel, onSelect) {
     const root = document.createElement('span');
-    root.className = 'cm-frontmatter-combobox';
+    root.className = 'ui-picker cm-frontmatter-combobox';
     root.addEventListener('mousedown', stopEditorMouseSelection);
 
     const menuID = 'figaro-frontmatter-menu-' + ++frontmatterMenuID;
     const selected = options.find(option => option.value === String(value)) || options[0];
     const trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'cm-frontmatter-panel-select cm-frontmatter-combobox-trigger';
+    trigger.className = 'ui-picker-trigger cm-frontmatter-panel-select cm-frontmatter-combobox-trigger';
     trigger.setAttribute('role', 'combobox');
     trigger.setAttribute('aria-label', ariaLabel);
     trigger.setAttribute('aria-controls', menuID);
@@ -162,7 +162,7 @@ function createThemedSelect(value, options, ariaLabel, onSelect) {
 
     const menu = document.createElement('span');
     menu.id = menuID;
-    menu.className = 'cm-frontmatter-combobox-menu';
+    menu.className = 'ui-menu ui-picker-menu cm-frontmatter-combobox-menu';
     menu.setAttribute('role', 'listbox');
     menu.setAttribute('aria-label', ariaLabel);
     menu.hidden = true;
@@ -173,6 +173,7 @@ function createThemedSelect(value, options, ariaLabel, onSelect) {
         root.classList.toggle('is-open', open);
         trigger.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
+        menu.classList.toggle('open', open);
     };
     const selectOption = nextValue => {
         setOpen(false);
@@ -215,7 +216,7 @@ function createStylesheetCombobox(value, stylesheets, onCommit) {
 
     const menuID = 'figaro-frontmatter-menu-' + ++frontmatterMenuID;
     const input = document.createElement('input');
-    input.className = 'cm-frontmatter-panel-input';
+    input.className = 'ui-field cm-frontmatter-panel-input';
     input.type = 'text';
     input.value = value;
     input.placeholder = 'Built-in style (or _print.css)';
@@ -227,14 +228,14 @@ function createStylesheetCombobox(value, stylesheets, onCommit) {
 
     const toggle = document.createElement('button');
     toggle.type = 'button';
-    toggle.className = 'cm-frontmatter-combobox-toggle';
+    toggle.className = 'ui-icon-button ui-icon-button--small cm-frontmatter-combobox-toggle';
     toggle.textContent = '⌄';
     toggle.title = 'Show vault CSS files';
     toggle.setAttribute('aria-label', 'Show vault CSS files');
 
     const menu = document.createElement('span');
     menu.id = menuID;
-    menu.className = 'cm-frontmatter-combobox-menu';
+    menu.className = 'ui-menu ui-picker-menu cm-frontmatter-combobox-menu';
     menu.setAttribute('role', 'listbox');
     menu.setAttribute('aria-label', 'Vault CSS files');
     menu.hidden = true;
@@ -245,6 +246,7 @@ function createStylesheetCombobox(value, stylesheets, onCommit) {
         root.classList.toggle('is-open', open);
         input.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
+        menu.classList.toggle('open', open);
     };
     const selectPath = path => {
         input.value = path;
@@ -536,8 +538,8 @@ export function createFrontmatterField(
             const actions = document.createElement('span');
             actions.className = 'cm-frontmatter-panel-actions';
             actions.append(
-                makeButton('cm-frontmatter-panel-action', 'Edit YAML', 'Edit raw frontmatter', () => showSource(view, this.frontmatter)),
-                makeButton('cm-frontmatter-panel-close', '×', 'Collapse properties', () => view.dispatch({ effects: setMode.of('collapsed') }))
+                makeButton('ui-button cm-frontmatter-panel-action', 'Edit YAML', 'Edit raw frontmatter', () => showSource(view, this.frontmatter)),
+                makeButton('ui-icon-button ui-icon-button--small cm-frontmatter-panel-close', '×', 'Collapse properties', () => view.dispatch({ effects: setMode.of('collapsed') }))
             );
             header.append(heading, actions);
             panel.appendChild(header);
@@ -586,7 +588,7 @@ export function createFrontmatterField(
 
             let creatingStylesheet = false;
             const createStarter = makeButton(
-                'cm-frontmatter-panel-action cm-frontmatter-create-stylesheet',
+                'ui-button cm-frontmatter-panel-action cm-frontmatter-create-stylesheet',
                 'Create starter',
                 'Create an editable starter PDF stylesheet',
                 async () => {
@@ -632,7 +634,7 @@ export function createFrontmatterField(
             stylesheetHint.textContent = 'Leave blank for the built-in style or an existing sibling _print.css. Create starter copies an editable example into your vault.';
             pdfSection.appendChild(stylesheetHint);
             const previewMarkdown = makeButton(
-                'cm-frontmatter-panel-action cm-frontmatter-preview-markdown',
+                'ui-button cm-frontmatter-panel-action cm-frontmatter-preview-markdown',
                 'Preview Markdown',
                 'Open a live Markdown preview',
                 async () => {
@@ -652,7 +654,7 @@ export function createFrontmatterField(
             );
             pdfSection.appendChild(previewMarkdown);
             const previewPDF = makeButton(
-                'cm-frontmatter-panel-action cm-frontmatter-preview-pdf',
+                'ui-button cm-frontmatter-panel-action cm-frontmatter-preview-pdf',
                 'Preview PDF',
                 'Open a live PDF preview',
                 async () => {
@@ -753,7 +755,7 @@ export function createFrontmatterField(
                 empty.textContent = 'Add tags, aliases, status, or any custom YAML property.';
                 chips.appendChild(empty);
             }
-            const addProperty = makeButton('cm-frontmatter-panel-add', '+ Add property', 'Add a property in YAML', () => {
+            const addProperty = makeButton('ui-button cm-frontmatter-panel-add', '+ Add property', 'Add a property in YAML', () => {
                 showSource(view, this.frontmatter, this.frontmatter.contentTo);
                 requestAnimationFrame(() => {
                     if (view.isDestroyed) return;

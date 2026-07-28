@@ -161,6 +161,55 @@ focused layer and browser-boundary guidance in
 Run these locally before opening a pull request. Keep generated vaults, build
 outputs, and personal notes out of commits.
 
+## Review visible UI changes
+
+Use the
+[design-system catalogue](frontend/design-system/index.html)
+before introducing or consolidating a visible pattern. Run
+`go run ./cmd/devserver`, open
+`http://127.0.0.1:34115/design-system/`, and compare the affected states across
+the bundled themes. The local server disables asset caching, so a normal reload
+reflects current CSS, JavaScript, theme, and specimen changes.
+You may also open `frontend/design-system/index.html` directly from a file
+explorer; its relative assets and classic catalogue bundle support `file://`.
+
+The application and catalogue both load
+`frontend/design-system/primitives.css`; `catalog.css` is not a parallel
+component library. Reuse a registered `.ui-*` primitive and add or update its
+specimen when changing a visible element. Show its selector and meaningful
+states, and keep catalogue-only CSS limited to the review shell and
+containment of normally positioned overlays. Feature classes may retain
+behavior or narrow layout requirements, but must not recreate a primitive's
+hover, focus, open, selected, disabled, validation, or semantic styling.
+
+Before implementing a component family, primitive, or visual variant that is
+not present in `frontend/design-system/approved-components.json`, obtain
+explicit user approval. A broader feature request is not implicit component
+approval. Reusing an approved component or adding a narrow host-layout hook
+does not require another approval. Once approved, update the registry,
+canonical stylesheet, catalogue, audit, and focused regression together.
+
+Keep theme-dependent values in `frontend/design-system/tokens.css` and consume
+optional art-direction values through
+`frontend/design-system/theme-surfaces.css`. Bundled theme files may contain
+only one `:root` rule with custom-property declarations; do not add component
+selectors to an individual theme. When splitting or adding application CSS,
+place it in the narrowest responsibility module under `frontend/styles/`,
+update `frontend/design-system/style-manifest.json`, the explicit links in both
+HTML entry points, and the compatibility imports in `frontend/styles.css` in
+the same order. These links are intentionally eager—do not replace them with
+interaction-time style loading.
+
+When a specimen needs real interaction to expose a state, eagerly reuse its
+production controller instead of duplicating the behavior or falling back to
+a native host-painted control. Theme-manifest validation and filtering belong
+in focused unit/component tests; keep only one representative real-browser
+stylesheet switch for the computed CSS boundary.
+
+Run `npm run build:design-system` after changing catalogue JavaScript or the
+theme manifest. The focused unit contract verifies that the checked-in bundle
+still matches its module sources.
+
 ## Generated and vendored assets
 
 `make icons` runs [scripts/generate-icons.sh](scripts/generate-icons.sh) and
@@ -186,11 +235,13 @@ assets or remove their notices without auditing the upstream dictionary terms.
 ## Repository layout
 
 ```text
-main.go, go.mod, wails.json  Wails bootstrap and project configuration
+main.go, go.mod, wails.json  Thin executable/embed boundary and project configuration
+internal/desktop/            Wails assembly, bound App capabilities, and adapter tests
 internal/vault/              Root-scoped filesystem primitives
 internal/links/              Pure Markdown link rewriting
 internal/history/            Local Git history and auto-commit service
 frontend/                    Webview, CodeMirror, themes, fonts, and assets
+frontend/design-system/      Shared UI assets, approved registry, catalogue, and audit
 tests/frontend/              Pure, use-case, adapter, and component tests
 tests/e2e/                   Small Playwright browser-boundary suite
 ```

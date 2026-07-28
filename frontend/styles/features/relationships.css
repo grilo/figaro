@@ -1,0 +1,53 @@
+/* Backlinks */
+.status-backlinks {
+    display: inline;
+    color: var(--text-muted);
+    text-decoration: none;
+    cursor: default;
+    font-size: 11px;
+    transition: color var(--transition-fast);
+}
+.status-backlinks.has-backlinks {
+    color: var(--accent-color);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    font-weight: 500;
+}
+.status-backlinks.has-backlinks:hover {
+    color: var(--accent-hover);
+}
+
+.backlinks-content {
+    padding: 4px 0;
+}
+
+.backlink-item {
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    margin-bottom: 4px;
+}
+
+.backlink-item:hover {
+    background: var(--hover-bg);
+}
+
+.backlink-item-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.backlink-item-snippet {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 20px;
+}

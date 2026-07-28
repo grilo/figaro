@@ -37,6 +37,11 @@ Every vault is an ordinary directory. Markdown remains Markdown, images remain i
 
 Opening a `.md` file through the desktop file association shows it in an editable external tab even when it is outside the selected vault. Saving writes back to that original file with the same conflict protection as vault notes; the external tab is not added to the vault tree, search, Kanban, Git history, or saved workspace. After an explicit save, Figaro offers to import a collision-safe copy into the vault. Dragging files or folders into an editor buffer asks whether to insert their paths into the note or import them. A successful file import opens that file in a new active tab; folder imports are recursive with their structure intact and leave the current buffer active. Existing vault content is never overwritten, and cancelling changes nothing.
 
+Open tabs use a horizontally scrolling rail that always brings the active tab
+fully into view when it is opened, selected, restored, or pinned. Subtle themed
+edge fades show when more tabs lie to either side, while the keyboard-accessible
+**All tabs** menu appears only when the rail actually overflows.
+
 **Figaro Dark** and **Figaro Light** are companion themes: midnight fur and quiet ivory paper share the same collar-red moments of intent, brass metadata, and calm semantic colors. Their darker/lighter navigation frame, raised reading surface, tactile Settings cards, and fine collar stitch distinguish the workspace without competing with notes.
 
 Paste a screenshot or other raster image from the clipboard directly into an open Markdown note. Figaro saves it beside the note as `image1.png`, `image2.png`, and so on, inserts portable Markdown such as `![Image1](image1.png)`, and renders it immediately. Existing files are never overwritten, and the same action is available through Ctrl/Cmd+V or the editor context menu.
@@ -77,7 +82,7 @@ The selected executable is device-specific and is stored outside the vault in `m
 
 **Quick note** creates an empty, collision-safe timestamped Markdown file in a real `Inbox` folder, opens it, and places focus in the editor. The action sits above the file tree and remains available as an icon in the collapsed sidebar rail, making it suitable for an ad-hoc thought without first choosing a title or location.
 
-The sidebar search finds both note names and Markdown body text. It supports title-only, recent-notes, and case-sensitive filters, plus keyboard navigation. Use Ctrl/Cmd+F for fast in-document find, including case-sensitive, whole-word, and regular-expression matching. Search, backlinks, Kanban, and Calendar share an in-memory vault index, so normal saves and single-file external edits replace only that note's source and planning contributions instead of rebuilding unrelated vault data. The index maintains folded-text terms for fast case-insensitive substring search, reverse backlinks by target path and basename, and pre-grouped Calendar days by month; case-sensitive searches continue to compare the original text. Search returns each note's first matching line and exact match count, avoiding oversized results for common terms. Unsaved Kanban changes update directly from the editor buffer, while a Figaro save updates the local board snapshot without waiting for the watcher to reload it; collapsed folders defer building their descendants until you open them. Calendar and Kanban stay in a fixed footer below the file tree: Calendar expands inside the sidebar, while Kanban opens or returns to its single workspace tab. Kanban density and column flow are persistent Settings preferences, and card/column position is kept while cards refresh. Choosing **Stacked** makes the board scroll vertically as one page. Clicking an already active Kanban button closes that view with a short exit transition. When the sidebar is collapsed those controls and Quick note remain available in a narrow tool rail. Settings is the gear beside the window controls and follows the same animated open, focus, and close behavior. The Calendar highlights daily notes named `YYYY-MM-DD.md` and notes that link to them; date links open a workspace results tab. The un-tabbed workspace overview keeps the last eight opened notes and up to six unfinished Kanban cards close at hand through a bounded backend request rather than loading the board.
+The sidebar search finds both note names and Markdown body text. It supports title-only, recent-notes, and case-sensitive filters, plus keyboard navigation. Use Ctrl/Cmd+F for fast in-document find, including case-sensitive, whole-word, and regular-expression matching. Search, backlinks, Kanban, and Calendar share an in-memory vault index, so normal saves and single-file external edits replace only that note's source and planning contributions instead of rebuilding unrelated vault data. The index maintains folded-text terms for fast case-insensitive substring search, reverse backlinks by target path and basename, and pre-grouped Calendar days by month; case-sensitive searches continue to compare the original text. Search returns each note's first matching line and exact match count, avoiding oversized results for common terms. Unsaved Kanban changes update directly from the editor buffer, while a Figaro save updates the local board snapshot without waiting for the watcher to reload it; collapsed folders defer building their descendants until you open them. Calendar and Kanban stay in a fixed footer below the file tree: Calendar expands inside the sidebar, while Kanban opens or returns to its single workspace tab. Kanban density and column flow are persistent Settings preferences, and card/column position is kept while cards refresh. Choosing **Stacked** makes the board scroll vertically as one page. Clicking an already active Kanban button closes that view with a short exit transition. When the sidebar is collapsed those controls and Quick note remain available in a narrow tool rail. Settings is the gear beside the window controls and follows the same animated open, focus, and close behavior; its **About** card shows the exact packaged Figaro version for support and troubleshooting. The Calendar highlights daily notes named `YYYY-MM-DD.md` and notes that link to them; date links open a workspace results tab. The un-tabbed workspace overview keeps the last eight opened notes and up to six unfinished Kanban cards close at hand through a bounded backend request rather than loading the board.
 
 **Relationships** expands the familiar backlink view into two quiet sections: notes that already link to the current note and plain-text mentions that do not. Each result includes nearby context. **Link this mention** changes only the selected plain-text occurrence, saves any open Markdown buffers first, and uses the active Markdown/Wikilink preference; existing links and fenced code are left alone.
 
@@ -361,11 +366,49 @@ for the smaller set of contracts that require real layout, browser events,
 frames, or printable output. See [the testing strategy](docs/TESTING.md) before
 adding an end-to-end scenario.
 
+## Review the design system
+
+Figaro includes a searchable
+[component catalogue](frontend/design-system/index.html) for reviewing the
+shared UI primitives and intentional feature variants. It shows production
+selectors and states, computes token values from the active theme, and builds
+its theme selector from the same 17-theme manifest used by the application.
+Figaro and the catalogue both load the canonical
+`frontend/design-system/primitives.css` asset, so catalogue changes cannot
+silently diverge from the controls used in the application.
+
+The full style stack is modular and eagerly loaded: shared defaults are in
+`frontend/design-system/tokens.css`, responsibility-based application modules
+are under `frontend/styles/`, and stable theme surfaces are in
+`frontend/design-system/theme-surfaces.css`. Every bundled theme is a
+token-only `:root` override governed by
+`frontend/design-system/theme-contract.json`, while
+`style-manifest.json` records the canonical cascade order used by both the
+application and catalogue.
+
+Start the local asset server, then open the catalogue:
+
+~~~bash
+go run ./cmd/devserver
+# http://127.0.0.1:34115/design-system/
+~~~
+
+Alternatively, open `frontend/design-system/index.html` directly from a file
+explorer. Its relative assets and prebuilt catalogue script retain the same
+styles, themes, search, and interactive specimens without requiring a server.
+
+The accompanying [UI audit](frontend/design-system/AUDIT.md) records the eight
+merged families, the feature hooks they permit, and the deliberately separate
+card, switch, checkbox, and menu-controller boundaries. New component
+families or visual variants are added only after explicit approval; approved
+components are recorded in
+`frontend/design-system/approved-components.json`.
+
 ## Architecture
 
 `figaro` is deliberately small and direct:
 
-- **Go + Wails v2** provides the desktop shell, vault-safe filesystem operations, configurable local Git auto-commit history, settings, and browser-backed interactive PDF export. Reusable backend modules live under `internal/`; the Wails bootstrap remains at the repository root by convention.
+- **Go + Wails v2** provides the desktop shell, vault-safe filesystem operations, configurable local Git auto-commit history, settings, and browser-backed interactive PDF export. The repository root is a thin executable/embed boundary; Wails assembly, the bound application, and capability-oriented adapter files live under `internal/desktop`, while reusable logic remains in smaller `internal/` packages.
 - **Vanilla JavaScript + CodeMirror 6** provides the editor, live Markdown experience, workspace UI, and language support. Bundled feature modules, language parsers, Vim support, and diagram engines are loaded and initialized during startup so normal interactions do not pause for first-use code loading.
 - **Browser dependencies** keep the editor, Markdown renderer, KaTeX, Mermaid, Vega, Vega-Lite, Vim mode, and language grammars available without a runtime package install. The Makefile recreates generated modules before desktop builds (or on demand with `make vendor`); KaTeX ships only its production JavaScript, CSS, and font assets. Python and Rust grammar support does not add a Python or Rust runtime to Figaro.
 - **The vault** is the source of truth. Configuration lives under `.config/`; content remains portable files.
@@ -381,11 +424,13 @@ internal/vault/      Root-scoped vault filesystem primitives
 internal/settings/   Pure settings normalization and migration rules
 internal/notes/      Note-save use case over an injected repository
 internal/mutations/  Pure move, copy, merge, and collision planning
+internal/desktop/    Wails assembly, bound App capabilities, and adapter tests
 frontend/js/core/    Pure frontend models, plans, and layout rules
 frontend/js/usecases/ Effect coordination through injected ports
 frontend/js/adapters/ Browser and native effect adapters
 frontend/js/controllers/ Feature wiring between state, use cases, and views
 frontend/js/views/   DOM rendering with no backend ownership
+frontend/design-system/ Shared UI assets, approved registry, catalogue, and audit
 internal/links/      Pure Markdown link rewriting used by file moves
 internal/history/    Local Git history and auto-commit service
 frontend/            Wails webview, CodeMirror modules, themes, fonts, and vendored assets
@@ -393,8 +438,8 @@ scripts/             Optional build, debug, and vendor-maintenance helpers
 assets/branding/     Generated square icon master used by application packages
 tests/frontend/      Pure, use-case, adapter, component, and race tests
 tests/e2e/           Small Playwright browser-boundary suite
-main.go              Wails entry point and embedded frontend assets
-*.go / *_test.go     Wails-facing backend facade and co-located integration tests
+main.go              Thin executable entry point and root-owned embedded inputs
+main_test.go         Focused contract for packaged metadata and frontend embeds
 ```
 
 Local vault data, generated binaries, test reports, and machine-specific helper

@@ -24,6 +24,69 @@ The Wails asset server embeds `frontend/` at package-build time. Backend code
 may use an on-disk fallback during development, but a released application must
 not depend on a package manager, CDN, or source checkout at runtime.
 
+The composition root separately embeds `wails.json`, validates its
+`info.productVersion` through the pure `internal/appinfo` parser, and injects
+that immutable value into the Wails facade. The Settings application-version
+use case then reads it through the normal backend adapter and presents it only
+while the requesting Settings panel is active. Packaged binaries and the About
+card therefore share the release metadata source instead of maintaining
+another version literal.
+
+## Design-system review surface
+
+`frontend/design-system/` owns the canonical token contract,
+`primitives.css`, semantic theme surfaces, and the approved component registry.
+Both the production application and the static catalogue eagerly load the same
+ordered CSS modules recorded by `style-manifest.json`: token defaults first,
+base/shell/workspace/editor and focused feature modules next, approved
+primitives after feature CSS, and stable theme-surface selectors last. Feature
+selectors may keep behavior and deliberate layout dimensions but cannot
+redefine primitive state presentation. `frontend/styles.css` is only a
+compatibility aggregate for standalone consumers; application startup uses
+explicit links, so it does not defer module loading through CSS imports. The
+catalogue applies one existing theme stylesheet and renders mostly static
+specimens with production classes. A specimen with a meaningful open state
+reuses its eagerly imported production controller:
+select-only controls use `selectCombobox.js`, retaining the native select as
+state while replacing the host-painted popup with the same themed listbox used
+by Settings. `catalog.css` is limited to the page shell and to containing open
+menus, dialogs, and loaders for inspection.
+
+`approved-components.json` is the architectural gate for the eight accepted
+families. Extending it with a family, primitive, or visual variant requires
+explicit approval before implementation. Focused tests verify that every
+registered selector is implemented in `primitives.css`, that no unregistered
+`.ui-*` selector appears there, and that both production and review surfaces
+load the canonical asset.
+
+The selector reads `frontend/themes/manifest.json`, so theme membership has one
+source of truth. Manifest normalization, safe stylesheet-path construction,
+and multi-word catalogue matching are pure functions in
+`themeCatalogModel.js`; `catalog.js` owns fetch, DOM indexing, link replacement,
+and computed-style display. This preserves the same logic/effect direction as
+the application even though the catalogue is a developer-facing surface.
+`catalogEntry.js` imports that canonical manifest and is eagerly built into a
+classic `catalog.bundle.js`, allowing the same initialized catalogue to run
+from `file://` without module-fetch or local-JSON CORS failures. Relative HTML,
+stylesheet, font, icon, and theme paths keep the artifact portable between
+direct-file and local-server use; the generated bundle contains no second
+hand-maintained theme list.
+
+Default semantic values and optional art-direction surfaces live in
+`frontend/design-system/tokens.css`; `theme-surfaces.css` is the only shared
+selector layer that consumes the art-direction tokens. Every file in
+`frontend/themes/` is therefore a token-only `:root` override. The required
+palette and optional surface keys are machine-readable in
+`theme-contract.json`, including optional contrast and semantic-role values, so
+a theme can change a whole workspace treatment without owning component
+selectors. Component tokens and shared `.ui-*`
+primitives live in `primitives.css`. Pickers, steppers, compact and icon
+actions, badges, menu presentation, fields, and notices use that canonical
+asset. Feature classes retain behavior and narrow host-layout differences, but
+do not restate shared hover, focus, open, selected, disabled, validation, or
+semantic rules. Card layouts and switch-versus-checkbox semantics remain
+deliberately distinct.
+
 Draw.io is the deliberate exception to that offline-editor boundary: its hosted
 iframe returns editable SVG through the documented cross-origin message
 protocol, and Figaro performs the vault write only after that export arrives.
@@ -38,7 +101,7 @@ a filesystem write, so a service-side interruption cannot leave a diagram tab
 permanently locked in Saving state.
 
 `frontend/js/backend.js` is the frontend's sole backend entry point. It calls
-the native Wails binding at `window.go.main.App` using its generated PascalCase
+the native Wails binding at `window.go.desktop.App` using its generated PascalCase
 method names. Browser debugging installs an explicit same-shaped mock through
 that module, rather than emulating a retired desktop runtime.
 
@@ -62,6 +125,13 @@ New code and staged refactors use four layers:
 4. **Composition roots** — Wails `App` and frontend startup construct the
    adapters and connect them to use cases. No core or application module imports
    a composition root.
+
+The Go executable keeps a deliberately thin root `main.go` because it alone can
+embed the root-owned `frontend/` tree and `wails.json`. It passes those immutable
+inputs to `internal/desktop.Run`, which assembles Wails and owns the bound
+`desktop.App`. Desktop capabilities and their package-internal tests live
+beside that composition root under `internal/desktop`; pure logic and use cases
+continue to point inward to the smaller packages described above.
 
 This is a behavioral boundary, not a directory-size target. Dividing a large
 module into smaller services is not sufficient if those services still mix
@@ -151,10 +221,15 @@ seam before its callers were rewired:
 8. All first-party dynamic imports were removed; the static bootstrap now
    eagerly loads the application graph and warms bundled language and diagram
    support before readiness.
+9. The root Wails facade moved to `internal/desktop` and its former monolithic
+   source was split by capability, leaving only the executable embed boundary
+   and its focused contract test at repository root.
 
-The public Wails and user-workflow contracts remain unchanged. Further physical
-splitting of `app.go`, `editor.js`, or `tabManager.js` should follow these
-tested ownership seams rather than creating new pass-through modules.
+The frontend backend adapter absorbed the generated Wails namespace change, so
+user workflows and application use-case contracts remain unchanged. Further
+physical splitting of `editor.js`, `tabManager.js`, or a desktop capability
+file should follow tested ownership seams rather than creating pass-through
+modules.
 
 Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. Go records only the explicit launch documents under process-local opaque IDs; the frontend can read or save an ID but cannot turn it into arbitrary filesystem access. An external tab writes atomically to its original document, does not join the vault index, watcher, session, or Git history, and may be explicitly copied into the vault through the existing collision-safe native-drop copy path. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
 
@@ -234,6 +309,13 @@ renders descendants only for explicitly expanded folders. Active/open file
 markers are patched on mounted nodes during tab and dirty-state changes rather
 than rebuilding that structural DOM. This prevents large collapsed or expanded
 trees from imposing a hidden DOM/layout cost on ordinary tab switches.
+
+Tab overflow follows the same decision/effect split. The pure
+`core/tabOverflowModel.js` calculates overflow directions and the nearest
+scroll offset that reveals an active tab from plain geometry. `tabManager.js`
+alone reads DOM measurements, applies `scrollLeft`, toggles themed edge-fade
+classes, and exposes the approved all-tabs button only when the full-width rail
+cannot fit its content.
 
 ## Git status and history restoration
 

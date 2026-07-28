@@ -151,6 +151,7 @@ export function confirmDialog(title, message, isDanger = false, html = false, op
         const tone = options.tone || (isDanger ? 'danger' : 'neutral');
         const icon = options.icon || (isDanger ? 'trash' : tone === 'warning' ? 'warning' : 'question');
         const extraClass = options.extraDanger ? 'custom-modal-btn-danger-ghost' : 'custom-modal-btn-extra';
+        const extraToneClass = options.extraDanger ? 'ui-button--danger-ghost' : 'ui-button--warning';
         const { overlay } = createDialogShell({
             title,
             description: options.description || '',
@@ -158,9 +159,9 @@ export function confirmDialog(title, message, isDanger = false, html = false, op
             icon,
             content: `<div class="custom-modal-body">${html ? message : escapeHtml(message)}</div>`,
             footer: `
-                ${extraLabel ? `<button type="button" class="custom-modal-btn ${extraClass}">${escapeHtml(extraLabel)}</button><span class="custom-modal-button-spacer"></span>` : ''}
-                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">${escapeHtml(cancelLabel)}</button>
-                <button type="button" class="custom-modal-btn ${isDanger ? 'custom-modal-btn-delete' : 'custom-modal-btn-confirm'}">${escapeHtml(confirmLabel)}</button>
+                ${extraLabel ? `<button type="button" class="ui-button ${extraToneClass} custom-modal-btn ${extraClass}">${escapeHtml(extraLabel)}</button><span class="custom-modal-button-spacer"></span>` : ''}
+                <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">${escapeHtml(cancelLabel)}</button>
+                <button type="button" class="ui-button ${isDanger ? 'ui-button--danger custom-modal-btn-delete' : 'ui-button--primary custom-modal-btn-confirm'} custom-modal-btn">${escapeHtml(confirmLabel)}</button>
             `,
         });
         const cancelButton = overlay.querySelector('.custom-modal-btn-cancel');
@@ -191,7 +192,7 @@ export function messageDialog(title, message, options = {}) {
             tone,
             icon: options.icon || (tone === 'danger' ? 'error' : tone === 'warning' ? 'warning' : 'info'),
             content: `<div class="custom-modal-body">${escapeHtml(message)}</div>`,
-            footer: `<button type="button" class="custom-modal-btn custom-modal-btn-confirm">${escapeHtml(options.acknowledgementLabel || 'Got it')}</button>`,
+            footer: `<button type="button" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">${escapeHtml(options.acknowledgementLabel || 'Got it')}</button>`,
         });
         const button = overlay.querySelector('.custom-modal-btn-confirm');
         let lifecycle = null;
@@ -233,14 +234,14 @@ export function promptDialog(title, message, defaultValue = '', options = {}) {
                 <form id="${id}-form" class="custom-modal-form">
                     ${options.context ? `<div class="custom-modal-context"><span>${escapeHtml(options.contextLabel || 'Location')}</span><code title="${escapeHtml(options.context)}">${escapeHtml(options.context)}</code></div>` : ''}
                     <label class="custom-modal-field" for="${id}-input">${escapeHtml(options.label || 'Name')}</label>
-                    <input id="${id}-input" type="text" class="custom-modal-input" value="${escapeHtml(defaultValue)}" autocomplete="off" spellcheck="false" aria-describedby="${id}-help ${id}-error">
+                    <input id="${id}-input" type="text" class="ui-field custom-modal-input" value="${escapeHtml(defaultValue)}" autocomplete="off" spellcheck="false" aria-describedby="${id}-help ${id}-error">
                     <p class="custom-modal-help" id="${id}-help">${escapeHtml(options.help || '')}</p>
                     <p class="custom-modal-error" id="${id}-error" role="alert" hidden></p>
                 </form>
             `,
             footer: `
-                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">${escapeHtml(options.cancelLabel || 'Cancel')}</button>
-                <button type="submit" form="${id}-form" class="custom-modal-btn custom-modal-btn-confirm">${escapeHtml(options.confirmLabel || 'OK')}</button>
+                <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">${escapeHtml(options.cancelLabel || 'Cancel')}</button>
+                <button type="submit" form="${id}-form" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">${escapeHtml(options.confirmLabel || 'OK')}</button>
             `,
         });
         const form = overlay.querySelector('form');
@@ -308,7 +309,7 @@ export function tableConversionDialog(sourceText) {
                     <div class="table-conversion-options">
                         <label class="table-conversion-field" for="${id}-delimiter">
                             <span>Delimiter</span>
-                            <select id="${id}-delimiter" class="table-conversion-select">
+                            <select id="${id}-delimiter" class="ui-field table-conversion-select">
                                 <option value="auto">Detect automatically</option>
                                 <option value="tab">Tab</option>
                                 <option value="comma">Comma</option>
@@ -326,8 +327,8 @@ export function tableConversionDialog(sourceText) {
                 </form>
             `,
             footer: `
-                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                <button type="submit" form="${id}-form" class="custom-modal-btn custom-modal-btn-confirm">Convert</button>
+                <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                <button type="submit" form="${id}-form" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Convert</button>
             `,
         });
         const form = overlay.querySelector('form');
@@ -408,14 +409,14 @@ export function renamePathDialog(path, type) {
                 <form id="${id}-form" class="custom-modal-form">
                     <div class="custom-modal-context"><span>Current location</span><code title="${escapeHtml(parent)}">${escapeHtml(parent)}</code></div>
                     <label class="custom-modal-field" for="${id}-input">New name</label>
-                    <input id="${id}-input" class="custom-modal-input" type="text" value="${escapeHtml(oldName)}" autocomplete="off" spellcheck="false" aria-describedby="${id}-help ${id}-error">
+                    <input id="${id}-input" class="ui-field custom-modal-input" type="text" value="${escapeHtml(oldName)}" autocomplete="off" spellcheck="false" aria-describedby="${id}-help ${id}-error">
                     <p class="custom-modal-help" id="${id}-help">Links to this ${kind} are updated automatically.</p>
                     <p class="custom-modal-error" id="${id}-error" role="alert" hidden></p>
                 </form>
             `,
             footer: `
-                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                <button type="submit" form="${id}-form" class="custom-modal-btn custom-modal-btn-confirm" disabled>Rename</button>
+                <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                <button type="submit" form="${id}-form" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm" disabled>Rename</button>
             `,
         });
         const form = overlay.querySelector('form');
@@ -498,14 +499,14 @@ export function newNoteDialog(parentDirectory = '') {
                 <form id="${id}-form" class="custom-modal-form">
                     <div class="custom-modal-context new-note-location"><span>Location</span><code title="${escapeHtml(location)}">${escapeHtml(location)}</code></div>
                     <label class="custom-modal-field new-note-field" for="new-note-name">Name</label>
-                    <span class="new-note-input-wrap"><input id="new-note-name" class="custom-modal-input" type="text" value="Untitled.md" autocomplete="off" spellcheck="false" aria-describedby="${id}-help ${id}-error"></span>
+                    <span class="new-note-input-wrap"><input id="new-note-name" class="ui-field custom-modal-input" type="text" value="Untitled.md" autocomplete="off" spellcheck="false" aria-describedby="${id}-help ${id}-error"></span>
                     <p class="custom-modal-help new-note-help" id="${id}-help">Use a file name, not a path. Names without an extension use .md.</p>
                     <p class="custom-modal-error new-note-error" id="${id}-error" role="alert" hidden></p>
                 </form>
             `,
             footer: `
-                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                <button type="submit" form="${id}-form" class="custom-modal-btn custom-modal-btn-confirm">Create file</button>
+                <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                <button type="submit" form="${id}-form" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Create file</button>
             `,
         });
         const form = overlay.querySelector('form');
@@ -581,11 +582,11 @@ export function mergeNotesDialog(destinationPath, sourcePaths) {
                     <span class="merge-dest-name">${escapeHtml(destinationName)}</span>
                 </div>
                 <fieldset class="merge-sources"><legend>Sources to append</legend>${sourceRows}</fieldset>
-                <div class="custom-modal-notice custom-modal-notice--warning merge-warning">${iconSVG('warning')}<span>Selected source notes will be permanently deleted after their content is appended.</span></div>
+                <div class="ui-notice ui-notice--warning custom-modal-notice custom-modal-notice--warning merge-warning">${iconSVG('warning')}<span>Selected source notes will be permanently deleted after their content is appended.</span></div>
             `,
             footer: `
-                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                <button type="button" class="custom-modal-btn custom-modal-btn-delete">Merge and delete sources</button>
+                <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                <button type="button" class="ui-button ui-button--danger custom-modal-btn custom-modal-btn-delete">Merge and delete sources</button>
             `,
         });
         const checkboxes = [...overlay.querySelectorAll('.merge-checkbox')];
@@ -625,13 +626,13 @@ export function pdfExportErrorDialog(error, options = {}) {
                 ? 'Figaro uses a local browser engine so links, contents, and footnotes stay clickable in the PDF.'
                 : 'The document was not changed. Correct the issue and try again.';
         const content = viewerFailure
-            ? `<div class="custom-modal-notice pdf-export-error-detail"><span>Saved at</span><code>${escapeHtml(exportedPath)}</code><small>Open it from the file tree or your file manager.</small></div>`
+            ? `<div class="ui-notice ui-notice--warning custom-modal-notice pdf-export-error-detail"><span>Saved at</span><code>${escapeHtml(exportedPath)}</code><small>Open it from the file tree or your file manager.</small></div>`
             : noBrowser
-                ? '<div class="custom-modal-notice custom-modal-notice--warning pdf-export-error-guidance"><strong>What to do</strong><span class="pdf-browser-recovery-message">Install or expose Chrome, Chromium, Ungoogled Chromium, or Edge, or choose the installed executable here or in Settings.</span></div>'
-                : `<div class="custom-modal-notice custom-modal-notice--danger pdf-export-error-detail"><code>${escapeHtml(detail)}</code></div>`;
+                ? '<div class="ui-notice ui-notice--warning custom-modal-notice custom-modal-notice--warning pdf-export-error-guidance"><strong>What to do</strong><span class="pdf-browser-recovery-message">Install or expose Chrome, Chromium, Ungoogled Chromium, or Edge, or choose the installed executable here or in Settings.</span></div>'
+                : `<div class="ui-notice ui-notice--danger custom-modal-notice custom-modal-notice--danger pdf-export-error-detail"><code>${escapeHtml(detail)}</code></div>`;
         const footer = noBrowser
-            ? '<button type="button" class="custom-modal-btn custom-modal-btn-cancel">Not now</button><button type="button" class="custom-modal-btn custom-modal-btn-confirm pdf-browser-choose-btn">Choose browser…</button>'
-            : '<button type="button" class="custom-modal-btn custom-modal-btn-confirm">Got it</button>';
+            ? '<button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">Not now</button><button type="button" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm pdf-browser-choose-btn">Choose browser…</button>'
+            : '<button type="button" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Got it</button>';
         const { overlay } = createDialogShell({
             title,
             description,
@@ -662,7 +663,7 @@ export function pdfExportErrorDialog(error, options = {}) {
                 if (result?.success) return settle();
                 if (!result?.cancelled && recovery) {
                     recovery.textContent = result?.error || 'The selected executable cannot create PDFs.';
-                    recovery.closest('.custom-modal-notice')?.classList.add('custom-modal-notice--danger');
+                    recovery.closest('.custom-modal-notice')?.classList.add('ui-notice--danger', 'custom-modal-notice--danger');
                 }
             } catch (chooseError) {
                 if (recovery) recovery.textContent = chooseError?.message || 'Could not open the browser chooser.';
@@ -707,9 +708,9 @@ export function pdfStyleReferenceDialog(documentHTML) {
                 </section>
             `,
             footer: `
-                <button type="button" class="custom-modal-btn pdf-style-copy">Copy HTML</button>
+                <button type="button" class="ui-button custom-modal-btn pdf-style-copy">Copy HTML</button>
                 <span class="custom-modal-button-spacer"></span>
-                <button type="button" class="custom-modal-btn custom-modal-btn-confirm">Close</button>
+                <button type="button" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Close</button>
             `,
         });
         const closeButton = overlay.querySelector('.custom-modal-btn-confirm');
@@ -771,15 +772,15 @@ export function fileTreeStyleDialog({ name, type, current = {}, recentIcons = []
                     <div class="file-tree-style-icons file-tree-style-recent-icons">${validRecent.map(iconButton).join('')}</div>
                 </fieldset>
                 <label class="file-tree-style-search-label" for="file-tree-style-search">Search all Lucide icons</label>
-                <input id="file-tree-style-search" class="custom-modal-input file-tree-style-search" type="search" autocomplete="off" spellcheck="false" placeholder="Try folder, star, book…">
+                <input id="file-tree-style-search" class="ui-field custom-modal-input file-tree-style-search" type="search" autocomplete="off" spellcheck="false" placeholder="Try folder, star, book…">
                 <div class="file-tree-style-search-status">Type to search the icon catalog.</div>
                 <div class="file-tree-style-icons file-tree-style-search-results" role="listbox" aria-label="Lucide icon results"></div>
             `,
             footer: `
-                <button type="button" class="custom-modal-btn file-tree-style-reset">Reset</button>
+                <button type="button" class="ui-button custom-modal-btn file-tree-style-reset">Reset</button>
                 <span class="custom-modal-button-spacer"></span>
-                <button type="button" class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                <button type="button" class="custom-modal-btn custom-modal-btn-confirm">Apply</button>
+                <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
+                <button type="button" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Apply</button>
             `,
         });
         const preview = overlay.querySelector('.file-tree-style-preview');

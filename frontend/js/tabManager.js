@@ -25,7 +25,9 @@ import { renderVaultHealth } from './vaultHealth.js';
 import { renderDrawioTab } from './drawio.js';
 import { initSettingsPanel } from './theme.js';
 import { isLatestSave, savedLatestEdit, saveStatusMessage } from './core/saveModel.js';
+import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { createDocumentSave } from './usecases/documentSave.js';
+import { loadApplicationVersion } from './usecases/loadApplicationVersion.js';
 
 /**
  * View Manager — shows either the editor or tab panels, never both.
@@ -214,6 +216,74 @@ function getTabDropDestination(tabStrip, event) {
     return { targetId: last.dataset.tabId, placeAfter: true, element: last };
 }
 
+function setAllTabsDropdownOpen(open, { restoreFocus = false } = {}) {
+    const button = document.getElementById('all-tabs-btn');
+    const dropdown = document.getElementById('all-tabs-dropdown');
+    if (!button || !dropdown) return;
+
+    dropdown.classList.toggle('hidden', !open);
+    button.setAttribute('aria-expanded', String(open));
+    if (!open && restoreFocus) button.focus();
+}
+
+function updateTabScrollAffordances(tabStrip) {
+    const tabBar = tabStrip?.closest('.tab-bar');
+    if (!tabStrip || !tabBar) return null;
+
+    const state = tabOverflowState({
+        scrollSize: tabStrip.scrollWidth,
+        viewportSize: tabStrip.clientWidth,
+        scrollOffset: tabStrip.scrollLeft,
+    });
+    tabBar.classList.toggle('tabs-can-scroll-start', state.canScrollStart);
+    tabBar.classList.toggle('tabs-can-scroll-end', state.canScrollEnd);
+    return state;
+}
+
+function revealActiveTab(tabStrip) {
+    const activeId = getState('activeTabId');
+    const activeTab = [...tabStrip.children]
+        .find(element => element.dataset.tabId === activeId);
+    if (!activeTab) return;
+
+    const viewport = tabStrip.getBoundingClientRect();
+    const tab = activeTab.getBoundingClientRect();
+    const target = activeTabScrollTarget({
+        currentScroll: tabStrip.scrollLeft,
+        viewportStart: viewport.left,
+        viewportEnd: viewport.right,
+        tabStart: tab.left,
+        tabEnd: tab.right,
+        maxScroll: Math.max(0, tabStrip.scrollWidth - tabStrip.clientWidth),
+    });
+    if (Math.abs(target - tabStrip.scrollLeft) > 0.5) {
+        tabStrip.scrollLeft = target;
+    }
+}
+
+function refreshTabOverflowLayout(tabStrip, { revealActive = true } = {}) {
+    const tabBar = tabStrip?.closest('.tab-bar');
+    const button = document.getElementById('all-tabs-btn');
+    if (!tabStrip || !tabBar || !button) return;
+
+    // Measure the rail at its full width. Otherwise the button can make itself
+    // permanently necessary by consuming the last available tab space.
+    button.hidden = true;
+    const naturalState = tabOverflowState({
+        scrollSize: tabStrip.scrollWidth,
+        viewportSize: tabStrip.clientWidth,
+        scrollOffset: tabStrip.scrollLeft,
+    });
+    button.hidden = !naturalState.overflow;
+    tabBar.classList.toggle('tabs-overflow', naturalState.overflow);
+
+    if (!naturalState.overflow) {
+        setAllTabsDropdownOpen(false);
+    }
+    if (revealActive) revealActiveTab(tabStrip);
+    updateTabScrollAffordances(tabStrip);
+}
+
 /**
  * Move one tab before or after another tab in the same pin group.
  * Pinned tabs deliberately stay together at the left edge of the tab strip.
@@ -348,6 +418,22 @@ export function initTabManager() {
                 switchTab(nextTab.dataset.tabId);
             }
         });
+
+        tabStrip.addEventListener('scroll', () => {
+            updateTabScrollAffordances(tabStrip);
+        }, { passive: true });
+
+        if (typeof ResizeObserver === 'function') {
+            const overflowObserver = new ResizeObserver(() => {
+                refreshTabOverflowLayout(tabStrip);
+            });
+            overflowObserver.observe(tabStrip);
+            tabStrip._overflowObserver = overflowObserver;
+        } else {
+            window.addEventListener('resize', () => {
+                refreshTabOverflowLayout(tabStrip);
+            });
+        }
     }
 
     // Close tab context menu on outside click
@@ -1034,9 +1120,10 @@ export function renderTabBar() {
                 title="${tab.title}${tab.dirty ? ' (unsaved)' : ''}${isPinned ? ' (pinned)' : ''}">
             <span class="tab-icon">${getTabIcon(tab.type)}</span>
             <span class="tab-title">${escapeHtml(tab.title)}</span>
-            <button class="tab-close" aria-label="Close tab" title="Close tab">✕</button>
+            <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close tab" title="Close tab">✕</button>
         </div>
     `;}).join('');
+    refreshTabOverflowLayout(tabStrip);
 }
 
 function getTabIcon(type) {
@@ -1068,17 +1155,17 @@ function handleTabContextMenu(e) {
     const isPinned = pinned.includes(tabId);
 
     tabContextMenu = document.createElement('div');
-    tabContextMenu.className = 'context-menu tab-context-menu';
+    tabContextMenu.className = 'ui-menu context-menu tab-context-menu';
     tabContextMenu.style.left = `${e.clientX}px`;
     tabContextMenu.style.top = `${e.clientY}px`;
 
     tabContextMenu.innerHTML = `
-        <div class="context-menu-item" data-action="toggle-pin">
+        <div class="ui-menu-item context-menu-item" data-action="toggle-pin">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
             ${isPinned ? 'Unpin Tab' : 'Pin Tab'}
         </div>
-        <div class="context-menu-separator"></div>
-        <div class="context-menu-item" data-action="close-tab">
+        <div class="ui-menu-separator context-menu-separator"></div>
+        <div class="ui-menu-item context-menu-item" data-action="close-tab">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             Close Tab
         </div>
@@ -1200,24 +1287,46 @@ function initAllTabsDropdown() {
         e.stopPropagation();
         const open = !dropdown.classList.contains('hidden');
         if (open) {
-            dropdown.classList.add('hidden');
+            setAllTabsDropdownOpen(false);
         } else {
             renderAllTabsDropdown(dropdown);
-            dropdown.classList.remove('hidden');
+            setAllTabsDropdownOpen(true);
+            (dropdown.querySelector('.all-tabs-item.active')
+                || dropdown.querySelector('.all-tabs-item'))?.focus();
         }
     });
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#all-tabs-dropdown') && !e.target.closest('#all-tabs-btn')) {
-            dropdown.classList.add('hidden');
+            setAllTabsDropdownOpen(false);
         }
     });
 
     dropdown.addEventListener('click', (e) => {
         const item = e.target.closest('.all-tabs-item');
         if (!item) return;
-        dropdown.classList.add('hidden');
+        setAllTabsDropdownOpen(false);
         switchTab(item.dataset.tabId);
+    });
+
+    dropdown.addEventListener('keydown', (e) => {
+        const items = [...dropdown.querySelectorAll('.all-tabs-item')];
+        if (!items.length) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            setAllTabsDropdownOpen(false, { restoreFocus: true });
+            return;
+        }
+        if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+
+        e.preventDefault();
+        const currentIndex = Math.max(0, items.indexOf(document.activeElement));
+        let nextIndex = currentIndex;
+        if (e.key === 'ArrowUp') nextIndex = (currentIndex - 1 + items.length) % items.length;
+        if (e.key === 'ArrowDown') nextIndex = (currentIndex + 1) % items.length;
+        if (e.key === 'Home') nextIndex = 0;
+        if (e.key === 'End') nextIndex = items.length - 1;
+        items[nextIndex].focus();
     });
 
     subscribe('openTabs', () => {
@@ -1234,9 +1343,9 @@ function renderAllTabsDropdown(dropdown) {
     dropdown.innerHTML = tabs.map(t => {
         const active = t.id === activeId ? ' active' : '';
         const dirty = t.dirty ? ' dirty' : '';
-        return `<div class="all-tabs-item${active}${dirty}" data-tab-id="${t.id}">
+        return `<button type="button" role="menuitem" class="ui-menu-item all-tabs-item${active}${dirty}" data-tab-id="${t.id}" aria-current="${t.id === activeId}" tabindex="${t.id === activeId ? '0' : '-1'}">
             <span>${escapeHtml(t.title || t.id)}</span>
-        </div>`;
+        </button>`;
     }).join('');
 }
 
@@ -1284,12 +1393,12 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/><path d="M2 12h20"/></svg>
                         <span>Theme</span>
                     </div>
-                    <div class="theme-picker">
-                        <button class="theme-picker-btn" id="theme-picker-btn">
+                    <div class="ui-picker theme-picker">
+                        <button class="ui-picker-trigger theme-picker-btn" id="theme-picker-btn">
                             <span id="theme-current-name">Loading…</span>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
-                        <div class="theme-picker-menu" id="theme-picker-menu"></div>
+                        <div class="ui-menu ui-picker-menu theme-picker-menu" id="theme-picker-menu"></div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1297,12 +1406,12 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
                         <span>Font</span>
                     </div>
-                    <div class="font-picker">
-                        <button class="font-picker-btn" id="font-picker-btn">
+                    <div class="ui-picker font-picker">
+                        <button class="ui-picker-trigger font-picker-btn" id="font-picker-btn">
                             <span id="font-current-name">Inter</span>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
-                        <div class="font-picker-menu" id="font-picker-menu"></div>
+                        <div class="ui-menu ui-picker-menu font-picker-menu" id="font-picker-menu"></div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1310,12 +1419,12 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 9h11M4 13h16M4 17h11"/><path d="M17 17l2 2 3-4"/></svg>
                         <span>Code Font</span>
                     </div>
-                    <div class="font-picker">
-                        <button class="font-picker-btn" id="code-font-picker-btn" title="Used only for code files">
+                    <div class="ui-picker font-picker">
+                        <button class="ui-picker-trigger font-picker-btn" id="code-font-picker-btn" title="Used only for code files">
                             <span id="code-font-current-name">Theme default</span>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
-                        <div class="font-picker-menu" id="code-font-picker-menu"></div>
+                        <div class="ui-menu ui-picker-menu font-picker-menu" id="code-font-picker-menu"></div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1323,10 +1432,10 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 8 12 4 20 8"/><polyline points="4 16 12 20 20 16"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
                         <span>Font Size</span>
                     </div>
-                    <div class="font-size-control">
-                        <button class="font-size-btn" id="font-size-down" title="Decrease">−</button>
-                        <span class="font-size-value" id="font-size-value">100%</span>
-                        <button class="font-size-btn" id="font-size-up" title="Increase">+</button>
+                    <div class="ui-stepper font-size-control">
+                        <button class="ui-stepper-button font-size-btn" id="font-size-down" title="Decrease">−</button>
+                        <span class="ui-stepper-value font-size-value" id="font-size-value">100%</span>
+                        <button class="ui-stepper-button font-size-btn" id="font-size-up" title="Increase">+</button>
                     </div>
                 </div>
             </div>
@@ -1338,10 +1447,10 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
                         <span>Text Width</span>
                     </div>
-                    <div class="text-width-control">
-                        <button class="text-width-btn" id="text-width-down" title="Narrower">−</button>
-                        <span class="text-width-value" id="text-width-value">100%</span>
-                        <button class="text-width-btn" id="text-width-up" title="Wider">+</button>
+                    <div class="ui-stepper text-width-control">
+                        <button class="ui-stepper-button text-width-btn" id="text-width-down" title="Narrower">−</button>
+                        <span class="ui-stepper-value text-width-value" id="text-width-value">100%</span>
+                        <button class="ui-stepper-button text-width-btn" id="text-width-up" title="Wider">+</button>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1428,8 +1537,8 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
                         <span>Links style</span>
                     </div>
-                    <div class="settings-picker link-style-picker">
-                        <button type="button" id="link-style-select" class="settings-picker-btn"
+                    <div class="ui-picker settings-picker link-style-picker">
+                        <button type="button" id="link-style-select" class="ui-picker-trigger settings-picker-btn"
                                 role="combobox" aria-label="Links style" aria-haspopup="listbox"
                                 aria-controls="link-style-menu" aria-expanded="false">
                             <span id="link-style-current-name">Wikilinks</span>
@@ -1437,15 +1546,15 @@ function renderSettingsTab(panel, _tab) {
                                 <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                             </svg>
                         </button>
-                        <div id="link-style-menu" class="settings-picker-menu" role="listbox"
+                        <div id="link-style-menu" class="ui-menu ui-picker-menu settings-picker-menu" role="listbox"
                              aria-label="Links style options" hidden>
-                            <button type="button" class="settings-picker-item" role="option"
+                            <button type="button" class="ui-menu-item settings-picker-item" role="option"
                                     id="link-style-option-wikilink" data-link-style="wikilink"
                                     aria-selected="false" tabindex="-1">
                                 <span>Wikilinks</span>
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                             </button>
-                            <button type="button" class="settings-picker-item" role="option"
+                            <button type="button" class="ui-menu-item settings-picker-item" role="option"
                                     id="link-style-option-markdown" data-link-style="markdown"
                                     aria-selected="false" tabindex="-1">
                                 <span>Markdown</span>
@@ -1464,8 +1573,8 @@ function renderSettingsTab(panel, _tab) {
                         <span>Card density</span>
                     </div>
                     <div class="settings-segmented-control" role="group" aria-label="Kanban card density">
-                        <button type="button" data-kanban-density="comfortable" aria-pressed="false">Comfortable</button>
-                        <button type="button" data-kanban-density="compact" aria-pressed="false">Compact</button>
+                        <button type="button" class="ui-button" data-kanban-density="comfortable" aria-pressed="false">Comfortable</button>
+                        <button type="button" class="ui-button" data-kanban-density="compact" aria-pressed="false">Compact</button>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1474,8 +1583,8 @@ function renderSettingsTab(panel, _tab) {
                         <span>Column flow</span>
                     </div>
                     <div class="settings-segmented-control" role="group" aria-label="Kanban column flow">
-                        <button type="button" data-kanban-layout="side-by-side" aria-pressed="false">Side by side</button>
-                        <button type="button" data-kanban-layout="stacked" aria-pressed="false">Stacked</button>
+                        <button type="button" class="ui-button" data-kanban-layout="side-by-side" aria-pressed="false">Side by side</button>
+                        <button type="button" class="ui-button" data-kanban-layout="stacked" aria-pressed="false">Stacked</button>
                     </div>
                 </div>
                 <p class="settings-section-desc">Stacked boards flow vertically and scroll as one page.</p>
@@ -1524,8 +1633,8 @@ function renderSettingsTab(panel, _tab) {
                         <p id="pdf-browser-status" class="settings-section-desc pdf-browser-status">Loading browser preference…</p>
                     </div>
                     <div class="pdf-browser-actions">
-                        <button type="button" id="pdf-browser-choose" class="settings-action-btn">Choose…</button>
-                        <button type="button" id="pdf-browser-clear" class="settings-action-btn" hidden>Use automatic</button>
+                        <button type="button" id="pdf-browser-choose" class="ui-button settings-action-btn">Choose…</button>
+                        <button type="button" id="pdf-browser-clear" class="ui-button settings-action-btn" hidden>Use automatic</button>
                     </div>
                 </div>
             </div>
@@ -1540,8 +1649,20 @@ function renderSettingsTab(panel, _tab) {
                         <p class="settings-section-desc pdf-browser-status">Review missing local links, orphan attachments, duplicate names, and unclosed frontmatter.</p>
                     </div>
                     <div class="pdf-browser-actions">
-                        <button type="button" id="open-vault-health" class="settings-action-btn">Review…</button>
+                        <button type="button" id="open-vault-health" class="ui-button settings-action-btn">Review…</button>
                     </div>
+                </div>
+            </div>
+            <div class="settings-card application-about-card">
+                <div class="settings-card-title">About</div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        <span>Figaro version</span>
+                    </div>
+                    <output id="application-version" class="application-version"
+                            aria-label="Application version" aria-live="polite"
+                            aria-busy="true" data-state="loading">Loading…</output>
                 </div>
             </div>
         </div>`;
@@ -1565,5 +1686,16 @@ function renderSettingsTab(panel, _tab) {
         initKanbanPresentationSettings(container);
     }).catch(err => {
         log.warn('Kanban Settings init failed:', err);
+    });
+    loadApplicationVersion({
+        readVersion: () => backend().GetApplicationVersion(),
+        isActive: () => panel.isConnected && !panel._settingsPanelDisposed,
+        present: ({ text, state }) => {
+            const version = container.querySelector('#application-version');
+            if (!version) return;
+            version.textContent = text;
+            version.dataset.state = state;
+            version.setAttribute('aria-busy', 'false');
+        },
     });
 }

@@ -185,7 +185,7 @@ function renderRelationshipSection(title, description, results, emptyMessage, un
                     <h3>${title}</h3>
                     <p>${description}</p>
                 </div>
-                <span class="relationship-count">${results.length}</span>
+                <span class="ui-badge ui-badge--muted relationship-count">${results.length}</span>
             </div>
             <div class="results-list relationship-results">
                 ${cards || `<div class="results-empty relationship-empty">${emptyMessage}</div>`}
@@ -207,7 +207,7 @@ function renderRelationshipCard(link, unlinked, targetPath) {
                 </div>
                 <div class="result-card-snippet relationship-context">${highlightMatch(context, match)}</div>
             </button>
-            ${unlinked ? `<button type="button" class="relationship-link-action" data-path="${escapeAttr(link.path)}" data-line="${Number(link.line_num) || 1}" data-target="${escapeAttr(targetPath)}">Link this mention</button>` : ''}
+            ${unlinked ? `<button type="button" class="ui-button ui-button--accent relationship-link-action" data-path="${escapeAttr(link.path)}" data-line="${Number(link.line_num) || 1}" data-target="${escapeAttr(targetPath)}">Link this mention</button>` : ''}
         </article>
     `;
 }

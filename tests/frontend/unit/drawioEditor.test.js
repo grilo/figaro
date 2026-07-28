@@ -36,7 +36,7 @@ describe('draw.io editor protocol', () => {
         panel = document.createElement('div');
         document.body.appendChild(panel);
         window.go = {
-            main: {
+            desktop: {
                 App: {
                 ReadDiagram: jest.fn().mockResolvedValue({
                     path: 'Diagrams/flow.drawio.svg',

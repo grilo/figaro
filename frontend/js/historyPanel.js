@@ -328,7 +328,7 @@ function renderHistoryList(container, entries) {
     }
 
     const notice = historyNotice
-        ? `<p class="history-current-notice" role="status">${historyNotice}</p>`
+        ? `<p class="ui-notice ui-notice--info history-current-notice" role="status">${historyNotice}</p>`
         : '';
     container.innerHTML = notice + `<div class="history-list">${entries.map((entry, i) => {
         const date = new Date(entry.timestamp * 1000);
@@ -362,12 +362,12 @@ function showHistoryRevertAction(hash) {
     action.className = 'history-revert-action';
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'history-revert-button';
+    button.className = 'ui-button ui-button--warning history-revert-button';
     button.textContent = 'Revert to this version';
     button.addEventListener('click', restoreViewedVersion);
     const compare = document.createElement('button');
     compare.type = 'button';
-    compare.className = 'history-diff-toggle';
+    compare.className = 'ui-button history-diff-toggle';
     compare.textContent = 'Compare to current';
     compare.setAttribute('aria-expanded', 'false');
     compare.addEventListener('click', () => toggleHistoryDiff(hash, compare));

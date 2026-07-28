@@ -55,7 +55,7 @@ describe('editor settings', () => {
             AutoCommitLoad: jest.fn().mockResolvedValue(true),
             AutoCommitSave: jest.fn().mockResolvedValue({ success: true }),
         };
-        window.go = { main: { App: api } };
+        window.go = { desktop: { App: api } };
         localStorage.clear();
         settingsDOM();
 
