@@ -25,6 +25,7 @@ Thumbs.db
 /appicon.png
 /assets/branding/figaro.fullsize.png
 /frontend/icon-*.png
+!/frontend/icon-32.png
 /frontend/favicon.ico
 /figaro
 /test-results/

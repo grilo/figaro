@@ -63,6 +63,9 @@ http://127.0.0.1:34115/design-system/
 
 All HTML asset references are relative, so direct-file and local-server modes
 load the same production CSS, themes, fonts, icons, and catalogue behavior.
+The referenced 32px brand icon is source-controlled so this remains true in a
+clean checkout; larger application-icon derivatives are still generated only
+for native packaging.
 The theme selector is populated from `frontend/themes/manifest.json`; it does
 not maintain another theme list. Selecting a theme replaces the catalogue's
 theme stylesheet and refreshes the displayed token values without reloading

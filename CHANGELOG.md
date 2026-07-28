@@ -6,6 +6,14 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.8.1 - 2026-07-28
+
+### Fixed
+
+- Clean source checkouts now include the design-system catalogue's 32px brand
+  icon, so its direct-file view and release verification do not depend on a
+  previously generated local asset.
+
 ## 1.8.0 - 2026-07-28
 
 ### Added
