@@ -251,6 +251,24 @@ describe('File Tree', () => {
         });
     });
 
+    test('reveals a pinned folder requested from Home and expands every ancestor', () => {
+        state.fileTreeData = [{
+            name: 'Projects', path: 'Projects', type: 'directory', children: [{
+                name: 'Active', path: 'Projects/Active', type: 'directory', children: [],
+            }],
+        }];
+        initFileTree();
+
+        document.dispatchEvent(new CustomEvent('vault-directory-reveal-requested', {
+            detail: { path: 'Projects/Active' },
+        }));
+
+        expect([...state.expandedDirs]).toEqual(['Projects', 'Projects/Active']);
+        expect(state.selectedTreePath).toBe('Projects/Active');
+        expect(document.querySelector('[data-path="Projects/Active"]')).not.toBeNull();
+        expect(saveSession).toHaveBeenCalled();
+    });
+
     test('Quick note makes and opens a real Inbox note, then focuses the editor', async () => {
         window.go.desktop.App.CreateInboxNote.mockResolvedValueOnce({
             success: true,

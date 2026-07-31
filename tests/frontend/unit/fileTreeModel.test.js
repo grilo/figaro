@@ -1,4 +1,5 @@
 import {
+    directoryPathsForReveal,
     isFileTreeEntryPinned,
     normalizeFileTreeStyles,
     sortFileTreeItems,
@@ -26,6 +27,15 @@ describe('file tree model', () => {
         expect([...expanded]).toEqual(['Notes']);
         expect(toggleSelectedPath(['a.md'], 'b.md')).toEqual(['a.md', 'b.md']);
         expect(toggleSelectedPath(['a.md', 'b.md'], 'a.md')).toEqual(['b.md']);
+    });
+
+    test('plans every ancestor needed to reveal a nested folder', () => {
+        expect(directoryPathsForReveal('Projects/Active/Design')).toEqual([
+            'Projects',
+            'Projects/Active',
+            'Projects/Active/Design',
+        ]);
+        expect(directoryPathsForReveal('')).toEqual([]);
     });
 
     test('pins Inbox by default while preserving an explicit unpin', () => {

@@ -63,6 +63,7 @@ describe('design-system catalogue', () => {
             '.ui-icon-button',
             '.ui-badge',
             '.ui-field',
+            '.ui-date-picker',
             '.ui-notice',
             '.settings-card',
             '.home-card',
@@ -161,6 +162,7 @@ describe('design-system catalogue', () => {
             'badge',
             'menu',
             'field',
+            'date-picker',
             'notice',
         ]);
         expect(implementedSelectors).toEqual(approvedSelectors);
@@ -215,6 +217,7 @@ describe('design-system catalogue', () => {
             'frontend/js/kanban.js',
             'frontend/js/markdownPreview.js',
             'frontend/js/pdfPreview.js',
+            'frontend/js/datePicker.js',
             'frontend/js/selectCombobox.js',
             'frontend/js/tabManager.js',
             'frontend/js/vaultHealth.js',
@@ -232,6 +235,7 @@ describe('design-system catalogue', () => {
             '.ui-icon-button',
             '.ui-badge',
             '.ui-field',
+            '.ui-date-picker',
             '.ui-menu',
             '.ui-notice',
         ]) {

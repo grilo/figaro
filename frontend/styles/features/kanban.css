@@ -247,8 +247,25 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     font-size: 11px;
     color: var(--text-dim);
+}
+
+.kanban-card-meta-main,
+.kanban-card-actions {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+}
+
+.kanban-card-meta-main {
+    flex: 1 1 auto;
+}
+
+.kanban-card-actions {
+    flex: 0 0 auto;
 }
 
 .kanban-card-source {
@@ -258,6 +275,37 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.kanban-card-due {
+    min-height: 20px;
+    padding: 2px 6px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    font-size: 9px;
+}
+
+.kanban-card-due[data-due-state="today"] {
+    border-color: color-mix(in srgb, var(--warning-color) 55%, var(--border-color));
+    background: color-mix(in srgb, var(--warning-color) 12%, var(--bg-color));
+    color: var(--warning-color);
+}
+
+.kanban-card-due[data-due-state="overdue"] {
+    border-color: color-mix(in srgb, var(--danger-color) 55%, var(--border-color));
+    background: color-mix(in srgb, var(--danger-color) 10%, var(--bg-color));
+    color: var(--danger-color);
+}
+
+.kanban-card-due[data-due-state="upcoming"] {
+    color: var(--text-muted);
+}
+
+.kanban-card-due-action {
+    width: 18px;
+    height: 18px;
+    color: transparent;
+    opacity: 0;
 }
 
 .kanban-card-delete {
@@ -270,6 +318,13 @@
 }
 
 .kanban-card:hover .kanban-card-delete {
+    opacity: 1;
+    color: var(--text-muted);
+}
+
+.kanban-card:hover .kanban-card-due-action,
+.kanban-card:focus-within .kanban-card-due-action,
+.kanban-card-due-action:focus-visible {
     opacity: 1;
     color: var(--text-muted);
 }

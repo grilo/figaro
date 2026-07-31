@@ -7,12 +7,15 @@ import { log } from './log.js';
 import { setState, getState } from './state.js';
 import { fileIcon } from './icons.js';
 import { openTab } from './tabManager.js';
+import { localISODate } from './core/dueDateModel.js';
 
 let calendarRequestId = 0;
 let linkedNotesRequestId = 0;
+let calendarEventsInitialized = false;
 const calendarResultsRequestIds = new Map();
 const calendarMonthCache = new Map();
 const linkedNotesCache = new Map();
+const dueTasksCache = new Map();
 
 /**
  * Drop cached calendar data after a vault mutation or filesystem event.
@@ -21,6 +24,7 @@ const linkedNotesCache = new Map();
 export function invalidateCalendarCache() {
     calendarMonthCache.clear();
     linkedNotesCache.clear();
+    dueTasksCache.clear();
 }
 
 /** Re-render only when the calendar panel is actually visible. */
@@ -39,6 +43,16 @@ export function refreshCalendarIfVisible() {
 export function initCalendar() {
     // Calendar renders in the expandable left-sidebar panel. When a day is
     // clicked, linked notes appear below the grid without creating a tab.
+    if (calendarEventsInitialized) return;
+    calendarEventsInitialized = true;
+    document.addEventListener('calendar-data-changed', () => {
+        invalidateCalendarCache();
+        refreshCalendarIfVisible();
+    });
+    document.addEventListener('local-date-changed', () => {
+        invalidateCalendarCache();
+        refreshCalendarIfVisible();
+    });
 }
 
 /**
@@ -101,6 +115,7 @@ async function loadCalendarData(year, month) {
                 month,
                 days_with_notes: [],
                 days_with_links: [],
+                days_with_due_tasks: [],
                 calendar: []
             };
         }
@@ -116,8 +131,8 @@ function renderCalendarGrid(container, year, month, data, selectedDateStr) {
     const calendar = Array.isArray(data?.calendar) ? data.calendar : [];
     const days_with_notes = Array.isArray(data?.days_with_notes) ? data.days_with_notes : [];
     const days_with_links = Array.isArray(data?.days_with_links) ? data.days_with_links : [];
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const days_with_due_tasks = Array.isArray(data?.days_with_due_tasks) ? data.days_with_due_tasks : [];
+    const todayStr = localISODate();
     
     let html = '';
     
@@ -140,15 +155,17 @@ function renderCalendarGrid(container, year, month, data, selectedDateStr) {
             const isSelected = dateStr === selectedDateStr;
             const hasNote = days_with_notes.includes(day);
             const hasLink = days_with_links.includes(day);
+            const hasDueTask = days_with_due_tasks.includes(day);
             
             let classes = 'cal-day';
             if (isToday) classes += ' today';
             if (isSelected) classes += ' selected';
             if (hasNote) classes += ' has-note';
             if (hasLink) classes += ' has-link';
-            if (!hasNote && !hasLink && !isToday) classes += ' no-notes';
-            
-            const clickable = hasNote || hasLink || isToday;
+            if (hasDueTask) classes += ' has-due-task';
+            if (!hasNote && !hasLink && !hasDueTask && !isToday) classes += ' no-notes';
+
+            const clickable = hasNote || hasLink || hasDueTask || isToday;
             const clickHandler = clickable ? `onclick="window.calendarDayClick('${dateStr}')"` : '';
             
             html += `<div class="${classes}" data-date="${dateStr}" ${clickHandler}>${day}</div>`;
@@ -172,37 +189,69 @@ function renderLinkedNotes(container, data, selectedDateStr, renderId) {
     const requestId = ++linkedNotesRequestId;
     
     if (!selectedDateStr) {
-        container.innerHTML = '<p class="cal-no-selection">Select a date to see linked notes</p>';
+        container.innerHTML = '<p class="cal-no-selection">Select a date to see due tasks and linked notes</p>';
         return;
     }
     
-    // Load linked notes for selected date
-    loadLinkedNotes(selectedDateStr).then(notes => {
+    Promise.all([loadDueTasks(selectedDateStr), loadLinkedNotes(selectedDateStr)]).then(([tasks, notes]) => {
         if (requestId !== linkedNotesRequestId || renderId !== calendarRequestId || !container.isConnected || getState('selectedCalDateStr') !== selectedDateStr) return;
-        if (notes.length === 0) {
-            container.innerHTML = '<p class="cal-no-notes">No notes link to this date</p>';
+        const taskLocations = new Set(tasks.map(task => `${task.file}:${task.line}`));
+        const remainingNotes = notes.filter(note => !taskLocations.has(`${note.path}:${note.line_num}`));
+        if (tasks.length === 0 && remainingNotes.length === 0) {
+            container.innerHTML = '<p class="cal-no-notes">No tasks or notes for this date</p>';
             return;
         }
-        
-        let html = '<h4>Linked Notes</h4>';
-        for (const note of notes) {
+
+        let html = '';
+        if (tasks.length) {
+            html += '<h4>Due tasks</h4>';
+            for (const task of tasks) {
+                html += `<button type="button" class="cal-due-task-item" data-path="${escapeAttr(task.file)}" data-line="${Number(task.line) || 1}">
+                    <span class="cal-due-task-marker" aria-hidden="true"></span>
+                    <span><strong>${escapeHtml(task.text || 'Untitled task')}</strong><small>${escapeHtml(task.file_name || task.file)}</small></span>
+                </button>`;
+            }
+        }
+        if (remainingNotes.length) html += '<h4>Linked notes</h4>';
+        for (const note of remainingNotes) {
             html += `
-                <div class="cal-linked-note-item" data-path="${note.path}" onclick="window.openLinkedNote('${note.path}')">
+                <button type="button" class="cal-linked-note-item" data-path="${escapeAttr(note.path)}">
                     <span class="cal-linked-note-icon">${fileIcon(14, 1.5)}</span>
                     <span class="cal-linked-note-name">${escapeHtml(note.name)}</span>
-                </div>
+                </button>
             `;
         }
         container.innerHTML = html;
-        
-        window.openLinkedNote = (path) => {
-            openTab(path, path.split('/').pop(), 'file', { path });
-        };
+        container.querySelectorAll('.cal-due-task-item').forEach(item => {
+            item.addEventListener('click', () => openTab(item.dataset.path, item.dataset.path.split('/').pop(), 'file', {
+                path: item.dataset.path,
+                line: Number(item.dataset.line),
+            }));
+        });
+        container.querySelectorAll('.cal-linked-note-item').forEach(item => {
+            item.addEventListener('click', () => openTab(item.dataset.path, item.dataset.path.split('/').pop(), 'file', { path: item.dataset.path }));
+        });
     }).catch(err => {
         if (requestId !== linkedNotesRequestId || renderId !== calendarRequestId || !container.isConnected || getState('selectedCalDateStr') !== selectedDateStr) return;
-        log.error('Failed to load linked notes:', err);
-        container.innerHTML = '<p class="cal-error">Failed to load linked notes</p>';
+        log.error('Failed to load date details:', err);
+        container.innerHTML = '<p class="cal-error">Failed to load date details</p>';
     });
+}
+
+async function loadDueTasks(dateStr) {
+    const cached = dueTasksCache.get(dateStr);
+    if (cached) return cached;
+    const request = (async () => {
+        try {
+            return await backend().GetTasksDueOnDate(dateStr) || [];
+        } catch (error) {
+            dueTasksCache.delete(dateStr);
+            log.error('Due tasks load failed:', error);
+            return [];
+        }
+    })();
+    dueTasksCache.set(dateStr, request);
+    return request;
 }
 
 /**

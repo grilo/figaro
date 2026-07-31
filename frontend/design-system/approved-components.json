@@ -37,6 +37,19 @@
       "primitives": [".ui-field"]
     },
     {
+      "id": "date-picker",
+      "primitives": [
+        ".ui-date-picker",
+        ".ui-date-picker-clear",
+        ".ui-date-picker-day",
+        ".ui-date-picker-footer",
+        ".ui-date-picker-grid",
+        ".ui-date-picker-header",
+        ".ui-date-picker-shortcuts",
+        ".ui-date-picker-weekdays"
+      ]
+    },
+    {
       "id": "notice",
       "primitives": [
         ".ui-notice",

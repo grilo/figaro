@@ -75,14 +75,18 @@ window.go = {
         DeleteKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         GetKanbanBoard: jest.fn().mockResolvedValue({ todo: [], wip: [], done: [] }),
         GetHomeTasks: jest.fn().mockResolvedValue([]),
+        GetDueTaskSummary: jest.fn().mockResolvedValue({ due_today: 0, overdue: 0 }),
+        GetTasksDueOnDate: jest.fn().mockResolvedValue([]),
         UpdateTaskTag: jest.fn().mockResolvedValue({ success: true }),
         RemoveTagFromTask: jest.fn().mockResolvedValue({ success: true }),
+        SetTaskDueDate: jest.fn().mockResolvedValue({ success: true }),
         GetLinkedNotesForDate: jest.fn().mockResolvedValue([]),
         GetCalendarMonthData: jest.fn().mockResolvedValue({
             year: 2024,
             month: 1,
             days_with_notes: [],
             days_with_links: [],
+            days_with_due_tasks: [],
             calendar: []
         }),
         SearchNotesByDate: jest.fn().mockResolvedValue([]),

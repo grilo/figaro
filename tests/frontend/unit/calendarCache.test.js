@@ -12,6 +12,7 @@ const monthData = {
     month: 1,
     days_with_notes: [15],
     days_with_links: [20],
+    days_with_due_tasks: [],
     calendar: [[0, 0, 0, 15, 0, 0, 0]],
 };
 
@@ -29,6 +30,7 @@ describe('Calendar cache', () => {
         setState('selectedCalDateStr', null);
         window.go.desktop.App.GetCalendarMonthData.mockResolvedValue(monthData);
         window.go.desktop.App.GetLinkedNotesForDate.mockResolvedValue([]);
+        window.go.desktop.App.GetTasksDueOnDate.mockResolvedValue([]);
     });
 
     test('reuses a month response when selecting a day instead of rescanning the vault', async () => {
@@ -79,5 +81,32 @@ describe('Calendar cache', () => {
 
         expect(refreshCalendarIfVisible()).toBe(false);
         expect(window.go.desktop.App.GetCalendarMonthData).not.toHaveBeenCalled();
+    });
+
+    test('marks due-task days and lists unfinished tasks before linked notes', async () => {
+        window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
+            ...monthData,
+            days_with_due_tasks: [15],
+        });
+        window.go.desktop.App.GetTasksDueOnDate.mockResolvedValue([
+            { file: 'tasks.md', file_name: 'tasks.md', line: 3, text: 'Submit report', due_date: '2025-01-15' },
+        ]);
+        window.go.desktop.App.GetLinkedNotesForDate.mockResolvedValue([
+            { path: 'tasks.md', name: 'tasks.md', line_num: 3 },
+            { path: 'notes.md', name: 'notes.md', line_num: 1 },
+        ]);
+
+        renderCalendar();
+        await flushCalendar();
+        expect(document.querySelector('[data-date="2025-01-15"]').classList.contains('has-due-task')).toBe(true);
+
+        window.calendarDayClick('2025-01-15');
+        await flushCalendar();
+
+        const details = document.getElementById('cal-linked-notes');
+        expect(details.textContent).toContain('Due tasks');
+        expect(details.textContent).toContain('Submit report');
+        expect(details.textContent).toContain('Linked notes');
+        expect(details.querySelectorAll('.cal-linked-note-item')).toHaveLength(1);
     });
 });

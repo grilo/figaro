@@ -52,7 +52,7 @@ state while replacing the host-painted popup with the same themed listbox used
 by Settings. `catalog.css` is limited to the page shell and to containing open
 menus, dialogs, and loaders for inspection.
 
-`approved-components.json` is the architectural gate for the eight accepted
+`approved-components.json` is the architectural gate for the nine accepted
 families. Extending it with a family, primitive, or visual variant requires
 explicit approval before implementation. Focused tests verify that every
 registered selector is implemented in `primitives.css`, that no unregistered
@@ -238,7 +238,7 @@ Markdown documents supplied as operating-system launch arguments are deliberatel
 Search, backlinks, Kanban, and Calendar project the same Markdown vault data,
 so they share one Go-owned in-memory index rather than independently walking
 and reopening every note. The index retains a note's source text and derives
-its hashtags/cards, date links, and daily-note state; this makes Kanban and
+its hashtags/cards, semantic task due links, date links, and daily-note state; this makes Kanban and
 calendar lookups direct and keeps search/backlinks disk-free after the initial
 index build.
 
@@ -251,7 +251,7 @@ repeat the save work. Ambiguous broad changes such as moves, merges, or an
 unscoped notification deliberately invalidate and rebuild one coherent
 snapshot; correctness wins over a speculative partial update.
 
-Each indexed file owns its own tag, Kanban-card, daily-note, date-link,
+Each indexed file owns its own tag, Kanban-card, due-task, daily-note, date-link,
 month-grouped Calendar-day, case-folded search, trigram, and Markdown-backlink
 contributions. Those projections are derived in one line-oriented document
 walk. A known
@@ -285,10 +285,19 @@ duplicate basenames. Dot-directories and symlinks are excluded; external URLs,
 mail links, and code fences are not findings. The report contains only
 vault-relative paths and lines, so UI navigation needs no filesystem access.
 
-The full Kanban board remains available for its workspace, but the workspace overview asks the
-backend for its bounded unfinished-card projection directly. Calendar month
-navigation similarly copies only that month's pre-grouped daily-note and
-linked-day lists. These narrow methods avoid transferring or filtering the
+The full Kanban board remains available for its workspace, but the Today dashboard asks the
+backend for its bounded unfinished-card projection and due-task summary directly. Due work is
+deduplicated by source line, prioritized ahead of undated work, and stored only as the standard
+`[due YYYY-MM-DD](YYYY-MM-DD.md)` link on that line. Pure Go and JavaScript helpers own parsing,
+date validation, local-day comparison, priority, and calendar-grid decisions; root-scoped task
+mutation, DOM presentation, and the local-midnight timer remain effect adapters. Its Inbox,
+pinned, recent, and rediscovery collections are pure projections of the
+already-loaded tree, vault appearance settings, local recent-file state, and
+the local calendar date. The open-or-create daily-note use case receives its
+tree, creation, refresh, and navigation effects as explicit ports; a same-name
+creation collision opens the existing note without replacing it. Calendar month
+navigation similarly copies only that month's pre-grouped daily-note,
+linked-day, and due-task lists. These narrow methods avoid transferring or filtering the
 rest of a large vault merely to render a small overview.
 
 The `vault:changed` event includes `tree_changed` and `kanban_changed`.

@@ -79,9 +79,10 @@ test('boots through the native Wails binding with the workspace overview, vault 
     await expect(page.locator('#status-text')).toHaveText('Ready');
     await expect(page.locator('.file-tree-item[data-path="Welcome.md"] .node-name')).toHaveText('Welcome.md');
     await expect(page.locator('.tab[data-tab-id="home"]')).toHaveCount(0);
-    await expect(page.locator('.workspace-home-panel.active .home-view h1')).toHaveText('Your workspace');
-    await expect(page.locator('.workspace-home-panel.active .home-view')).toContainText('Unfinished tasks');
-    await expect(page.locator('.workspace-home-panel.active .home-view')).toContainText('Recent');
+    await expect(page.locator('.workspace-home-panel.active .home-view h1')).toHaveText('Today');
+    await expect(page.locator('.workspace-home-panel.active .home-view')).toContainText('Open tasks');
+    await expect(page.locator('.workspace-home-panel.active .home-view')).toContainText('Recent notes');
+    await expect(page.locator('.workspace-home-panel.active [data-home-action="today"]')).toBeVisible();
 
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
     await expect(page.locator('.cm-content')).toContainText('Welcome to Figaro');

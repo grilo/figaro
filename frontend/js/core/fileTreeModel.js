@@ -35,6 +35,11 @@ export function toggleExpandedDirectory(expandedDirectories, path) {
     return next;
 }
 
+export function directoryPathsForReveal(path) {
+    const parts = String(path || '').replaceAll('\\', '/').split('/').filter(Boolean);
+    return parts.map((_part, index) => parts.slice(0, index + 1).join('/'));
+}
+
 export function toggleSelectedPath(selectedPaths, path) {
     const next = [...new Set(selectedPaths || [])];
     const index = next.indexOf(path);

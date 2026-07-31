@@ -10,6 +10,15 @@ import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
 import { handleFileOpen } from './app.js';
+import { openDatePicker } from './datePicker.js';
+import {
+    dueDatePresentation,
+    dueTaskSummary,
+    localISODate,
+    millisecondsUntilNextLocalDay,
+    parseDueDateLink,
+    stripDueDateLinks,
+} from './core/dueDateModel.js';
 
 let draggedCard = null;
 let kanbanColumns = [];
@@ -20,6 +29,7 @@ let kanbanBoardRequestId = 0;
 let kanbanMutationId = 0;
 let liveRefreshFrame = null;
 let liveRefreshInitialized = false;
+let dueDayTimer = null;
 
 export const KANBAN_CARD_TEXT_LIMIT = 120;
 export const KANBAN_DENSITIES = ['comfortable', 'compact'];
@@ -107,7 +117,18 @@ export function initKanban() {
         });
     }
     applyKanbanPresentationToViews();
+    scheduleDueDayRefresh();
     refreshKanbanData().catch(() => {});
+}
+
+function scheduleDueDayRefresh() {
+    if (dueDayTimer !== null) return;
+    dueDayTimer = setTimeout(() => {
+        dueDayTimer = null;
+        renderKanbanSnapshot(getState('kanbanBoardData') || {});
+        document.dispatchEvent(new CustomEvent('local-date-changed'));
+        scheduleDueDayRefresh();
+    }, millisecondsUntilNextLocalDay());
 }
 
 function scheduleLiveKanbanRefresh() {
@@ -161,9 +182,12 @@ export function kanbanCardsForBuffer(file, content) {
     const fileName = String(file || '').replaceAll('\\', '/').split('/').pop() || String(file || '');
     const cards = [];
     String(content || '').split('\n').forEach((line, index) => {
-        for (const tag of standaloneHashtags(line)) {
+        const tags = standaloneHashtags(line);
+        const dueDate = parseDueDateLink(line);
+        const completed = tags.includes('done');
+        for (const tag of tags) {
             const display = removeDisplayHashtag(
-                line.trim().replace(/^[-*+]\s*\[[ x]\]\s*/i, ''),
+                stripDueDateLinks(line.trim().replace(/^[-*+]\s*\[[ x]\]\s*/i, '')),
                 tag
             );
             cards.push({
@@ -172,6 +196,8 @@ export function kanbanCardsForBuffer(file, content) {
                 line: index + 1,
                 text: display,
                 tag,
+                ...(dueDate ? { due_date: dueDate } : {}),
+                ...(completed ? { completed: true } : {}),
             });
         }
     });
@@ -341,7 +367,23 @@ function renderKanbanBadges(boardData) {
             html += `<span class="ui-badge badge" style="background:${color};color:var(--button-text)">${count}</span>`;
         }
     }
+    const reminder = dueTaskSummary(boardData, localISODate());
+    if (reminder.dueToday > 0) {
+        html += `<span class="ui-badge ui-badge--warning badge kanban-due-badge">Due ${reminder.dueToday}</span>`;
+    }
     container.innerHTML = html;
+
+    const button = document.getElementById('sidebar-kanban');
+    if (button) {
+        const hasDueToday = reminder.dueToday > 0;
+        button.classList.toggle('kanban-due-today', hasDueToday);
+        button.dataset.dueTodayCount = String(reminder.dueToday);
+        const label = hasDueToday
+            ? `Kanban — ${reminder.dueToday} ${reminder.dueToday === 1 ? 'task' : 'tasks'} due today`
+            : 'Kanban';
+        button.title = label;
+        button.setAttribute('aria-label', label);
+    }
 }
 
 function renderKanbanSnapshot(boardData, focusCol = null, container = getBoardContainer()) {
@@ -456,7 +498,7 @@ function renderColumns(container, boardData, focusCol) {
     // Add click handlers for cards
     container.querySelectorAll('.kanban-card').forEach(card => {
         card.addEventListener('click', (e) => {
-            if (e.target.closest('.kanban-card-delete')) return;
+            if (e.target.closest('.kanban-card-delete, .kanban-card-date-control')) return;
             const filePath = card.dataset.file;
             const lineNum = parseInt(card.dataset.line, 10);
             if (filePath) {
@@ -473,6 +515,14 @@ function renderColumns(container, boardData, focusCol) {
                 const lineNum = parseInt(card.dataset.line, 10);
                 const tag = card.dataset.tag;
                 removeTagFromTask(filePath, lineNum, tag);
+            });
+        }
+
+        const dueButton = card.querySelector('.kanban-card-date-control');
+        if (dueButton) {
+            dueButton.addEventListener('click', event => {
+                event.stopPropagation();
+                openTaskDueDatePicker(dueButton, card);
             });
         }
     });
@@ -568,6 +618,12 @@ function renderCards(tasks) {
     
     return tasks.map(task => {
         const displayText = truncateKanbanCardText(task.text);
+        const due = dueDatePresentation(task.due_date, localISODate());
+        const dueControl = due
+            ? `<button type="button" class="ui-button kanban-card-date-control kanban-card-due" data-due-state="${due.state}" data-due-date="${task.due_date}" aria-label="Change due date: ${escapeAttribute(due.label)}" title="Change due date">
+                    ${calendarIcon()}<span>${escapeHtml(due.label)}</span>
+                </button>`
+            : `<button type="button" class="ui-icon-button ui-icon-button--small kanban-card-date-control kanban-card-due-action" aria-label="Set due date" title="Set due date">${calendarIcon()}</button>`;
         return `
         <div class="kanban-card" 
              draggable="true" 
@@ -576,16 +632,56 @@ function renderCards(tasks) {
              data-tag="${escapeAttribute(task.tag)}">
             <div class="kanban-card-text" title="${escapeAttribute(task.text)}">${escapeHtml(displayText)}</div>
             <div class="kanban-card-meta">
-                <span class="kanban-card-source">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                    ${escapeHtml(task.file_name)}
-                </span>
-                <button class="ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-card-delete" aria-label="Remove tag">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
+                <span class="kanban-card-meta-main">${due ? dueControl : ''}<span class="kanban-card-source">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        ${escapeHtml(task.file_name)}
+                    </span></span>
+                <span class="kanban-card-actions">${due ? '' : dueControl}<button class="ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-card-delete" aria-label="Remove tag">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button></span>
             </div>
         </div>
     `; }).join('');
+}
+
+function openTaskDueDatePicker(anchor, card) {
+    openDatePicker({
+        anchor,
+        value: card.dataset.dueDate || anchor.dataset.dueDate || '',
+        onSelect: dueDate => setTaskDueDate(
+            card.dataset.file,
+            parseInt(card.dataset.line, 10),
+            dueDate,
+        ),
+    });
+}
+
+async function setTaskDueDate(filePath, lineNum, dueDate) {
+    const mutationId = beginKanbanMutation();
+    try {
+        statusBar.set(dueDate ? 'Setting due date…' : 'Clearing due date…');
+        const result = await backend().SetTaskDueDate(filePath, lineNum, dueDate);
+        if (mutationId !== kanbanMutationId) return;
+        if (!result.success) {
+            await errorDialog('Couldn’t update due date', result.error, 'The due date could not be updated.');
+            statusBar.set('Ready');
+            return;
+        }
+        statusBar.set(dueDate ? 'Due date set' : 'Due date cleared');
+        setTimeout(() => statusBar.set('Ready'), 1000);
+        document.dispatchEvent(new CustomEvent('calendar-data-changed'));
+        if (!await refreshAfterKanbanMutation(mutationId)) return;
+        reloadActiveFileIfNeeded(filePath);
+    } catch (error) {
+        if (mutationId !== kanbanMutationId) return;
+        log.error('Set task due date failed:', error);
+        await errorDialog('Couldn’t update due date', error, 'The due date could not be updated.');
+        statusBar.set('Ready');
+    }
+}
+
+function calendarIcon() {
+    return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>';
 }
 
 /**

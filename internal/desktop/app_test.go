@@ -853,6 +853,24 @@ func TestGetHomeTasksReturnsOnlyTheRequestedUnfinishedProjection(t *testing.T) {
 	}
 }
 
+func TestGetDueTaskSummaryCountsUniqueUnfinishedTasksByLocalDate(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	today := localToday()
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	content := "- [ ] Today #todo #urgent [due " + today + "](" + today + ".md)\n" +
+		"- [ ] Late #wip [due " + yesterday + "](" + yesterday + ".md)\n" +
+		"- [x] Finished #done [due " + today + "](" + today + ".md)\n"
+	writeTestFile(t, vaultPath, "tasks.md", content)
+	app.syncKanbanColumns()
+
+	summary, err := app.GetDueTaskSummary()
+	if err != nil || summary.DueToday != 1 || summary.Overdue != 1 {
+		t.Fatalf("GetDueTaskSummary = %+v, err=%v", summary, err)
+	}
+}
+
 func TestGetKanbanBoard_IgnoresMarkdownAnchors(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
@@ -919,6 +937,43 @@ func TestRemoveTagFromTask(t *testing.T) {
 	content := readTestFile(t, vaultPath, "tasks.md")
 	if strings.Contains(content, "#todo") {
 		t.Errorf("tag should be removed: %q", content)
+	}
+}
+
+func TestSetTaskDueDateUpdatesMarkdownAndIndexedCardWithoutTouchingOtherLines(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Fix bug #todo\nKeep  double  spacing\n")
+	app.syncKanbanColumns()
+
+	result, err := app.SetTaskDueDate("tasks.md", 1, "2026-08-14")
+	if err != nil || !result.Success {
+		t.Fatalf("SetTaskDueDate: result=%+v err=%v", result, err)
+	}
+	content := readTestFile(t, vaultPath, "tasks.md")
+	want := "- [ ] Fix bug #todo [due 2026-08-14](2026-08-14.md)\nKeep  double  spacing\n"
+	if content != want {
+		t.Fatalf("updated content = %q, want %q", content, want)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["todo"]) != 1 {
+		t.Fatalf("GetKanbanBoard: board=%+v err=%v", board, err)
+	}
+	if card := board["todo"][0]; card.DueDate != "2026-08-14" || card.Text != "Fix bug" {
+		t.Fatalf("indexed due card = %+v", card)
+	}
+
+	cleared, err := app.SetTaskDueDate("tasks.md", 1, "")
+	if err != nil || !cleared.Success {
+		t.Fatalf("clear due date: result=%+v err=%v", cleared, err)
+	}
+	if content := readTestFile(t, vaultPath, "tasks.md"); strings.Contains(content, "[due ") {
+		t.Fatalf("due link was not cleared: %q", content)
+	}
+	invalid, err := app.SetTaskDueDate("tasks.md", 1, "2026-02-30")
+	if err != nil || invalid.Success || invalid.Error != "Invalid due date" {
+		t.Fatalf("invalid due date result=%+v err=%v", invalid, err)
 	}
 }
 

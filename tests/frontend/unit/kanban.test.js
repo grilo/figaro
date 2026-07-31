@@ -15,6 +15,7 @@ import {
     initKanbanPresentationSettings,
     truncateKanbanCardText,
 } from '../frontend/js/kanban.js';
+import { localISODate } from '../frontend/js/core/dueDateModel.js';
 
 describe('live Kanban buffers and compact cards', () => {
     beforeEach(() => {
@@ -27,6 +28,7 @@ describe('live Kanban buffers and compact cards', () => {
         document.getElementById('tab-panels').innerHTML = '<div id="kanban-board-main"></div>';
         window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
+        window.go.desktop.App.SetTaskDueDate.mockResolvedValue({ success: true });
     });
 
     test('caps visible card text at 120 characters including a Unicode ellipsis', () => {
@@ -60,6 +62,15 @@ describe('live Kanban buffers and compact cards', () => {
     test('ignores anchors and color literals while indexing a dirty buffer', () => {
         expect(kanbanCardsForBuffer('note.md', '[Jump](#section) #fff\nReal #Urgent')).toEqual([
             expect.objectContaining({ line: 2, tag: 'urgent', text: 'Real' }),
+        ]);
+    });
+
+    test('parses a semantic due link into card metadata without showing it as task text', () => {
+        expect(kanbanCardsForBuffer('note.md', '- [ ] Submit report #todo [due 2026-08-14](2026-08-14.md)')).toEqual([
+            {
+                file: 'note.md', file_name: 'note.md', line: 1,
+                text: 'Submit report', tag: 'todo', due_date: '2026-08-14',
+            },
         ]);
     });
 
@@ -117,6 +128,37 @@ describe('live Kanban buffers and compact cards', () => {
         expect(Array.from(text.textContent)).toHaveLength(120);
         expect(text.textContent.endsWith('…')).toBe(true);
         expect(text.title).toBe(longText);
+    });
+
+    test('renders due-state chips and makes the Kanban navigation urgent for tasks due today', async () => {
+        const today = localISODate();
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Due work', tag: 'todo', due_date: today }],
+            wip: [], done: [],
+        });
+
+        await renderKanbanBoard('kanban-board-main');
+
+        expect(document.querySelector('.kanban-card-due').textContent).toContain('Due today');
+        expect(document.getElementById('sidebar-kanban').classList.contains('kanban-due-today')).toBe(true);
+        expect(document.getElementById('sidebar-kanban').getAttribute('aria-label')).toContain('1 task due today');
+        expect(document.querySelector('.kanban-due-badge').textContent).toBe('Due 1');
+    });
+
+    test('sets a due date from the card picker without opening the source note', async () => {
+        const today = localISODate();
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [{ file: 'note.md', file_name: 'note.md', line: 4, text: 'Schedule me', tag: 'todo' }],
+            wip: [], done: [],
+        });
+        await renderKanbanBoard('kanban-board-main');
+
+        document.querySelector('.kanban-card-due-action').click();
+        document.querySelector(`[data-date-picker-value="${today}"]`).click();
+        await testUtils.waitFor(0);
+
+        expect(window.go.desktop.App.SetTaskDueDate).toHaveBeenCalledWith('note.md', 4, today);
+        expect(window.go.desktop.App.GetCalendarMonthData).not.toHaveBeenCalled();
     });
 
     test('changes density and stacked flow from Settings while preserving board and column scroll', async () => {

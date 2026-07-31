@@ -18,7 +18,7 @@ test('closing the final tab keeps the centered workspace overview without creati
 
     await expect(page.locator('#tab-strip .tab')).toHaveCount(0);
     await expect(page.locator('.tab[data-tab-id="home"]')).toHaveCount(0);
-    await expect(page.locator('.workspace-home-panel.active .home-view h1')).toHaveText('Your workspace');
+    await expect(page.locator('.workspace-home-panel.active .home-view h1')).toHaveText('Today');
 
     const workspace = await page.evaluate(async () => {
         const { getState } = await import('/js/state.js');
@@ -32,6 +32,42 @@ test('closing the final tab keeps the centered workspace overview without creati
         };
     });
     expect(workspace).toEqual({ tabs: [], activeTabId: null, centered: true });
+});
+
+test('keeps the Today launchpad responsive and creates a missing daily note from its primary action', async ({ page }) => {
+    await page.setViewportSize({ width: 860, height: 680 });
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(() => {
+        window.__todayCreates = [];
+        window.__figaroDebugBackend.CreateFile = (path, content) => {
+            window.__todayCreates.push({ path, content });
+            return Promise.resolve({ success: true, path, mtime: 42 });
+        };
+    });
+
+    const home = page.locator('.workspace-home-panel.active .home-view');
+    await expect(home.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+    await expect(home.getByRole('button', { name: 'Create today’s note' })).toBeVisible();
+    await expect(home.locator('.home-card')).toHaveCount(4);
+
+    const geometry = await home.evaluate(element => ({
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        actionWidth: element.querySelector('.home-today-action').getBoundingClientRect().width,
+        shellWidth: element.querySelector('.home-shell').getBoundingClientRect().width,
+        cardLefts: [...element.querySelectorAll('.home-card')].map(card => Math.round(card.getBoundingClientRect().left)),
+    }));
+    expect(geometry.scrollWidth).toBe(geometry.clientWidth);
+    expect(geometry.actionWidth).toBeGreaterThan(120);
+    expect(geometry.shellWidth).toBeLessThanOrEqual(geometry.clientWidth);
+    expect(new Set(geometry.cardLefts).size).toBe(1);
+
+    await home.getByRole('button', { name: 'Create today’s note' }).click();
+    await expect(page.locator('.tab[data-tab-id="2026-07-09.md"]')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__todayCreates)).toEqual([
+        { path: '2026-07-09.md', content: '# 2026-07-09\n\n' },
+    ]);
 });
 
 test('keeps the active tab inside the real overflow viewport and exposes themed edge fades only while needed', async ({ page }) => {

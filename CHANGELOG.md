@@ -6,6 +6,23 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.10.0 - 2026-07-31
+
+### Added
+
+- Kanban tasks can store a due date as a portable Markdown link, set or clear
+  it from a themed keyboard-accessible calendar, and surface due work in
+  Kanban, Today, and Calendar without a separate task database.
+
+### Changed
+
+- The workspace overview is now a Today dashboard with a safe open-or-create
+  daily-note action, quick capture, Inbox items, unfinished tasks, pinned
+  files and folders, recent notes, and a stable daily rediscovery suggestion.
+- Unfinished tasks due today now give the persistent Kanban control a warning
+  treatment and in-app count; Today also calls out due and overdue work, with
+  no operating-system or background notifications.
+
 ## 1.9.0 - 2026-07-31
 
 ### Added

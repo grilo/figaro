@@ -18,6 +18,7 @@ import { handleFileOpen } from './app.js';
 import { openPDFPreview } from './pdfPreview.js';
 import { openMarkdownPreview } from './markdownPreview.js';
 import {
+    directoryPathsForReveal,
     isFileTreeEntryPinned,
     normalizeFileTreeStyles,
     sortFileTreeItems,
@@ -32,6 +33,7 @@ let contextMenu = null;
 
 let scheduledTreeRefresh = null;
 let nativeFileDropInitialized = false;
+let fileTreeRequestEventsInitialized = false;
 let externalCopyInProgress = false;
 let internalClipboard = null;
 let internalCopyInProgress = false;
@@ -231,6 +233,7 @@ export function initFileTree() {
     initContextMenu();
     initNativeFileDrops();
     initInboxNoteButton();
+    initFileTreeRequestEvents();
 
     // Keep file-tab markers in sync without changing folder state. Rebuilding
     // a large tree for a tab switch (or its first dirty transition) is both
@@ -249,6 +252,36 @@ export function initFileTree() {
         syncFileTreeTabMarkers();
     });
     subscribe('openTabs', syncFileTreeTabMarkers);
+}
+
+function initFileTreeRequestEvents() {
+    if (fileTreeRequestEventsInitialized) return;
+    fileTreeRequestEventsInitialized = true;
+
+    document.addEventListener('vault-tree-refresh-requested', () => {
+        refreshFileTree().catch(() => {});
+    });
+    document.addEventListener('vault-directory-reveal-requested', event => {
+        const path = String(event.detail?.path || '');
+        const item = findTreeItem(getState('fileTreeData') || [], path);
+        if (!item || item.type !== 'directory') return;
+
+        if (getState('sidebarCollapsed')) document.getElementById('toggle-sidebar')?.click();
+        const expanded = new Set(getState('expandedDirs') || []);
+        for (const directoryPath of directoryPathsForReveal(path)) expanded.add(directoryPath);
+        setState('expandedDirs', expanded);
+        setState('selectedTreePath', path);
+        setState('selectedFilePaths', []);
+        renderFileTree();
+        saveSession();
+
+        requestAnimationFrame(() => {
+            const escaped = path.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            const node = document.querySelector(`.file-tree-item[data-path="${escaped}"] > .file-tree-node`);
+            node?.scrollIntoView?.({ block: 'nearest' });
+            document.getElementById('file-tree')?.focus({ preventScroll: true });
+        });
+    });
 }
 
 /**

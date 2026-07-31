@@ -548,6 +548,23 @@
     border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
 }
 
+.sidebar-tool-btn.kanban-due-today {
+    border-color: color-mix(in srgb, var(--warning-color) 42%, var(--border-color));
+    background: color-mix(in srgb, var(--warning-color) 10%, transparent);
+    color: var(--warning-color);
+}
+
+.sidebar-tool-btn.kanban-due-today:hover,
+.sidebar-tool-btn.kanban-due-today:focus-visible {
+    border-color: var(--warning-color);
+    background: color-mix(in srgb, var(--warning-color) 16%, transparent);
+    color: var(--warning-color);
+}
+
+.kanban-due-badge {
+    margin-left: 2px;
+}
+
 .sidebar-tool-btn:focus-visible,
 .titlebar-settings-btn:focus-visible {
     outline: 2px solid var(--focus-ring);
@@ -1233,6 +1250,23 @@
     border-color: color-mix(in srgb, var(--button-text) 80%, transparent);
 }
 
+.cal-day.has-due-task::before {
+    content: '';
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--warning-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning-color) 18%, transparent);
+}
+
+.cal-day.today.has-due-task::before {
+    background: var(--button-text);
+    box-shadow: none;
+}
+
 .cal-day.selected {
     background: var(--active-bg);
     color: var(--accent-color);
@@ -1281,19 +1315,65 @@
     letter-spacing: 0.5px;
 }
 
-.cal-linked-note-item {
+.cal-linked-note-item,
+.cal-due-task-item {
     display: flex;
+    width: 100%;
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
+    border: 1px solid transparent;
     border-radius: 4px;
+    outline: none;
+    background: transparent;
+    color: var(--text-color);
+    font-family: var(--font-sans);
+    text-align: left;
     cursor: pointer;
-    transition: background var(--transition-fast);
+    transition: background var(--transition-fast), border-color var(--transition-fast);
     font-size: var(--font-size-sm);
 }
 
-.cal-linked-note-item:hover {
+.cal-linked-note-item:hover,
+.cal-due-task-item:hover {
     background: var(--hover-bg);
+}
+
+.cal-linked-note-item:focus-visible,
+.cal-due-task-item:focus-visible {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.cal-due-task-marker {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--warning-color);
+}
+
+.cal-due-task-item > span:last-child {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.cal-due-task-item strong,
+.cal-due-task-item small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-due-task-item strong {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cal-due-task-item small {
+    color: var(--text-dim);
+    font-size: 9px;
 }
 
 /* Kanban */

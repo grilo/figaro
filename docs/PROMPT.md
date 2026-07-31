@@ -37,7 +37,7 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
   - **Editor view** — for Markdown and CodeMirror-supported code files. Shows file content immediately once loaded.
   - **Calendar/Relationships results views** — for date searches and note relationships.
   - **Kanban board view** — the full kanban board.
-  - **Workspace overview** — a centered, un-tabbed dashboard with Momentum (unfinished tasks) on the left and recent notes on the right.
+  - **Today dashboard** — a centered, un-tabbed daily launchpad with today's note, Quick note, Inbox, unfinished tasks, pinned items, recent notes, and rediscovery.
   - **Settings view** — typography, editor, automation preferences, and
     packaged application information.
   - **Draw.io view** — the embedded diagrams.net editor for `.drawio.svg` files.
@@ -48,7 +48,7 @@ Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript 
 - Built-in theme CSS is bundled under `frontend/themes/`. Every theme is a token-only `:root` override: required palette tokens plus optional semantic and art-direction values are declared by `frontend/design-system/theme-contract.json`, while stable selectors consume them in `theme-surfaces.css`. The selected theme is persisted in `vault/.config/settings.json` and restored on startup.
 - Switching themes applies instantly without page reload — the theme CSS is injected into `<style id="theme-style">` via the Go backend API.
 - **Style architecture**: both entry points eagerly load the order in `frontend/design-system/style-manifest.json`: `tokens.css`, responsibility-based modules under `frontend/styles/`, `primitives.css`, then `theme-surfaces.css`. `frontend/styles.css` is a synchronized compatibility aggregate only; normal startup uses explicit links and performs no interaction-time style loading.
-- **Design-system catalogue**: `frontend/design-system/index.html` is a searchable inventory of the shared production primitives, intentional feature variants, states, selectors, and computed tokens. The application and catalogue both load the complete canonical style manifest; `approved-components.json` records the eight explicitly approved families and variants. Pickers, steppers, compact and icon actions, badges, menu presentation, fields, and notices use those common `.ui-*` foundations; feature classes retain behavior and deliberate host layout, while card layouts and switch-versus-checkbox semantics remain distinct. A new component family, primitive, or visual variant requires explicit approval before implementation. The catalogue works both from the local development server and when opened directly from a file explorer: relative CSS, theme, font, and icon paths remain inside `frontend/`, while an eagerly generated classic-script bundle avoids `file://` module and JSON-fetch restrictions. The bundle imports `frontend/themes/manifest.json` at build time, so the selector still has one canonical theme list and applies each existing theme CSS file. `catalog.css` styles only the review shell and contains otherwise positioned overlays. Select-only Settings specimens eagerly reuse the production combobox enhancer, so their button/listbox popup follows the active theme instead of exposing a host-painted native menu. Pure manifest/path/filter rules are separate from fetch and DOM effects.
+- **Design-system catalogue**: `frontend/design-system/index.html` is a searchable inventory of the shared production primitives, intentional feature variants, states, selectors, and computed tokens. The application and catalogue both load the complete canonical style manifest; `approved-components.json` records the nine explicitly approved families and variants. Pickers, steppers, compact and icon actions, badges, menu presentation, fields, date pickers, and notices use those common `.ui-*` foundations; feature classes retain behavior and deliberate host layout, while card layouts and switch-versus-checkbox semantics remain distinct. A new component family, primitive, or visual variant requires explicit approval before implementation. The catalogue works both from the local development server and when opened directly from a file explorer: relative CSS, theme, font, and icon paths remain inside `frontend/`, while an eagerly generated classic-script bundle avoids `file://` module and JSON-fetch restrictions. The bundle imports `frontend/themes/manifest.json` at build time, so the selector still has one canonical theme list and applies each existing theme CSS file. `catalog.css` styles only the review shell and contains otherwise positioned overlays. Select-only Settings specimens eagerly reuse the production combobox enhancer, so their button/listbox popup follows the active theme instead of exposing a host-painted native menu. Pure manifest/path/filter rules are separate from fetch and DOM effects.
 - **Fonts**: 16 locally bundled choices, including Inter, Figtree, Atkinson Hyperlegible, IBM Plex Sans, Fira Sans, EB Garamond, Crimson Pro, JetBrains Mono, and Work Sans. Font selection is persisted and never requires a runtime network request.
 
 ### 1.6 CSS Custom Properties (Theme Variables)
@@ -86,7 +86,7 @@ Each theme defines these properties (with theme-specific colors):
 | **Calendar** | `calendar-YYYY-MM-DD` | Shows Markdown notes that mention a specific date |
 | **Relationships** | `backlinks-path/to/note.md` | Shows contextual backlinks and unlinked plain-text mentions for a note |
 | **Kanban** | `kanban` / `kanban-board` | The top-bar board and a hashtag-focused board respectively; each ID is deduplicated while open |
-| **Workspace overview** | No tab ID | Centered dashboard with Momentum and recent notes |
+| **Today dashboard** | No tab ID | Daily note, capture, review, tasks, pins, recent notes, and rediscovery |
 | **Settings** | `settings` | Application settings for theme, fonts, editor layout, automation, and the packaged version |
 | **Vault health** | `vault-health` | Read-only vault-maintenance findings opened from Settings |
 
@@ -319,13 +319,14 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Custom columns discovered from standalone whitespace-delimited `#tag` tokens in vault files, sorted alphabetically. Markdown anchors such as `[guide](#section)` are ignored.
 - Saved note, create, and per-card tag changes update the shared vault index incrementally; vault-wide tag rewrite, move, merge, and delete operations rebuild one coherent snapshot.
 - The Kanban board reads its current columns and cards from that shared index when it is rendered.
-- The workspace overview reads a bounded six-card unfinished projection from the same index instead of loading the complete board.
+- The Today dashboard reads a bounded six-card unfinished projection from the same index instead of loading the complete board.
 - A custom column disappears as soon as its final matching hashtag is removed; the three system columns remain.
 
 ### 6.2 Task Discovery
 - The initial shared vault index scans each `.md` file once, deriving tags, cards, dates, and backlinks in one line-oriented walk; board reads use its precomputed cards.
 - **Any line** that contains a standalone hashtag matching a known column name has its task placed in that column.
 - Display text: line with checkbox markers, list markers, and matching tag stripped in order.
+- A semantic `[due YYYY-MM-DD](YYYY-MM-DD.md)` link on the same line supplies that task's due date when the visible and target dates match and form a real calendar date. The link is stripped from card display but remains ordinary, portable Markdown and a Calendar/daily-note link in the source.
 - Card text is limited to 120 characters and ends in an ellipsis when more source text exists; hovering exposes the complete text.
 - The same line can appear in multiple columns if it contains multiple known hashtags.
 - The active Markdown editor contributes its in-memory buffer on the next animation frame, so typing or removing a hashtag updates an open Kanban board before the file is saved without a backend request. A Figaro save folds that same final buffer into the local board snapshot; only external Markdown changes request a complete board refresh.
@@ -334,7 +335,8 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - **Header**: Title ("Kanban Task Board") and instruction text. Presentation choices stay in Settings rather than in the workspace header.
 - **Board area**: a horizontally scrollable row of columns by default; Settings can switch it to a vertically scrolling stacked flow.
 - Each column has a header showing `#column-name`, color picker, and (for non-system) rename/delete buttons.
-- Each card shows cleaned task text, source file name with icon, and remove-tag button.
+- Each card shows cleaned task text, source file name with icon, due-date chip or focusable calendar action, and remove-tag button. Due today uses the warning treatment; overdue uses danger; later dates stay quiet.
+- The themed date picker offers Today, Tomorrow, Next week, month navigation, direct date selection, and Clear. Escape closes it, Arrow keys move by day/week, focus returns to the invoking card control, and no host-painted date input is exposed.
 - The first board request uses a theme-aware three-column skeleton. Reprojection keeps the board's horizontal position and each mounted column's vertical reading position.
 - **Focus highlight**: when board is opened by clicking a hashtag in the editor, the matching column gets a brief highlight animation (~2.5s) and is scrolled into view.
 
@@ -352,6 +354,8 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 6.6 Task Actions
 - **Click a card**: opens the source file in the editor, scrolled to the line containing the tag.
 - **Click ✕ (remove tag)**: strips that specific `#tag` from the line in the file.
+- **Click the calendar/date control**: sets, replaces, or clears the source line's semantic due link, refreshes the indexed board and visible Calendar, and preserves every other source line.
+- Unfinished tasks due today recolor the persistent sidebar Kanban icon and label and add a warning count. The state is recomputed from the in-memory board on changes and at the next local midnight; Figaro does not use operating-system or background notifications.
 
 ---
 
@@ -378,16 +382,19 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Use ↑/↓ to select a result, Enter to open the selected result, or Escape to clear and close search. Opening a result positions the editor at its first matching line.
 
 ### 7.4 Calendar and Daily Notes
-- The Calendar control in the fixed left-sidebar footer expands an inline monthly grid with month navigation and linked-note results. A day is marked when a vault note is named `YYYY-MM-DD.md` or another Markdown note links to that daily note.
+- The Calendar control in the fixed left-sidebar footer expands an inline monthly grid with month navigation, due-task results, and linked-note results. A day is marked when a vault note is named `YYYY-MM-DD.md`, another Markdown note links to that daily note, or an unfinished Kanban task is due that day. Due tasks use a separate warning marker and appear before linked notes when the day is selected; the same due source line is not duplicated in both lists.
 - The index groups marked days by `YYYY-MM`, so moving between months reads only the selected month's day lists.
 - Collapsing the sidebar closes the expanded panel but leaves the Calendar icon in the 44px rail. Selecting it expands the sidebar and reopens Calendar. History, Outline, Markdown Preview, and PDF Preview remain independent on the right.
 - Selecting a marked day lists notes that link to its daily note; selecting a listed note opens it in a file tab. Today is always selectable.
 - `@today`, `@tomorrow`, and `@yesterday` offer date-link completions. Clicking `[YYYY-MM-DD](YYYY-MM-DD.md)` or a date-form empty link opens a workspace results tab listing every Markdown note that mentions that date.
 - The selected date is stored locally for the webview; Calendar reads the shared Markdown index, which ignores dot-directories and symlinks like the rest of the vault scanner.
 
-### 7.5 Workspace Overview
-- The un-tabbed workspace overview has **Momentum**, the first six Kanban cards outside the `done` column, and **Recent**, the last eight file tabs opened by the user. Momentum is a bounded backend projection, not a complete-board fetch.
-- Clicking a task returns to its source note and line; **Open board** opens the Kanban tab. Recent notes are local UI history, not a separate vault index.
+### 7.5 Today Dashboard
+- The un-tabbed workspace overview is headed **Today** and uses the operating system's local calendar date. **Open/Create today’s note** opens the root `YYYY-MM-DD.md` daily note when present; otherwise it creates that file once with a date heading, refreshes the tree, and opens it. A concurrent same-name file is treated as the existing daily note and is never overwritten. Creation errors remain inline on Home with focus returned to the action.
+- **Quick note** reuses the normal guarded Inbox capture workflow. **Inbox** lists up to five newest Markdown captures and can reveal the real folder in the file tree.
+- **Open tasks** is a bounded six-card projection outside the `done` column, deduplicated by source line and ordered overdue, due today, upcoming, then undated. Due-state chips stay visible, and a warning notice summarizes all due-today and overdue tasks. Clicking a task returns to its source note and line; **Open board** opens the Kanban tab.
+- **Pinned** lists up to five files or folders using the same vault appearance preferences and default/explicit Inbox pin semantics as the tree. Selecting a pinned folder expands its ancestors and focuses the real tree entry. **Recent notes** remains the last eight locally recorded file tabs.
+- **Rediscover** chooses one Markdown note outside Today and Inbox. The choice is stable for the local date, avoids recent notes when alternatives exist, and never changes vault data.
 
 ### 7.6 Quick Note and Inbox
 - **Quick note** creates an empty `Inbox/YYYY-MM-DD-HHMMSS.md` and opens it with editor focus. If that timestamp already exists, `-2`, `-3`, and later suffixes are tried without overwriting anything.
@@ -609,6 +616,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 - Common format: `- [ ] Task description #tag` (incomplete) or `- [x] Task description #tag` (complete).
 - Any line with a recognized `#tag` becomes a kanban card, even without a checkbox.
 - A single line can carry multiple tags and will appear in multiple kanban columns.
+- Optional due date: `- [ ] Task description #todo [due 2026-08-14](2026-08-14.md)`. Figaro treats the source line as authoritative and derives card, Today, Calendar, and reminder state without a second task database.
 
 ---
 

@@ -35,11 +35,12 @@ func (a *App) GetLinkedNotesForDate(dateStr string) ([]LinkedNote, error) {
 
 // CalendarMonthData returns calendar information for a month.
 type CalendarMonthData struct {
-	Year          int     `json:"year"`
-	Month         int     `json:"month"`
-	DaysWithNotes []int   `json:"days_with_notes"`
-	DaysWithLinks []int   `json:"days_with_links"`
-	Calendar      [][]int `json:"calendar"`
+	Year             int     `json:"year"`
+	Month            int     `json:"month"`
+	DaysWithNotes    []int   `json:"days_with_notes"`
+	DaysWithLinks    []int   `json:"days_with_links"`
+	DaysWithDueTasks []int   `json:"days_with_due_tasks"`
+	Calendar         [][]int `json:"calendar"`
 }
 
 // GetCalendarMonthData returns which days have notes/links in a given month.
@@ -79,11 +80,12 @@ func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, err
 	}
 
 	return &CalendarMonthData{
-		Year:          year,
-		Month:         month,
-		DaysWithNotes: calendarMonthDays(index.dailyDaysByMonth, year, month),
-		DaysWithLinks: calendarMonthDays(index.linkedDaysByMonth, year, month),
-		Calendar:      cal,
+		Year:             year,
+		Month:            month,
+		DaysWithNotes:    calendarMonthDays(index.dailyDaysByMonth, year, month),
+		DaysWithLinks:    calendarMonthDays(index.linkedDaysByMonth, year, month),
+		DaysWithDueTasks: calendarMonthDays(index.dueDaysByMonth, year, month),
+		Calendar:         cal,
 	}, nil
 }
 

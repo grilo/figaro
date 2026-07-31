@@ -15,6 +15,7 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "2025-01-15.md", "# Daily note")
 	writeTestFile(t, vaultPath, "notes/source.md", "[Project date](2025-01-20.md)\n")
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Due work #todo [due 2025-01-22](2025-01-22.md)\n- [x] Finished #done [due 2025-01-23](2025-01-23.md)\n")
 
 	month, err := app.GetCalendarMonthData(2025, 1)
 	if err != nil {
@@ -23,8 +24,19 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	if got, want := month.DaysWithNotes, []int{15}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithNotes = %v, want %v", got, want)
 	}
-	if got, want := month.DaysWithLinks, []int{20}; !reflect.DeepEqual(got, want) {
+	if got, want := month.DaysWithLinks, []int{20, 22, 23}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithLinks = %v, want %v", got, want)
+	}
+	if got, want := month.DaysWithDueTasks, []int{22}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("DaysWithDueTasks = %v, want %v", got, want)
+	}
+	dueTasks, err := app.GetTasksDueOnDate("2025-01-22")
+	if err != nil || len(dueTasks) != 1 || dueTasks[0].Text != "Due work" {
+		t.Fatalf("GetTasksDueOnDate = %+v, err=%v", dueTasks, err)
+	}
+	finished, err := app.GetTasksDueOnDate("2025-01-23")
+	if err != nil || len(finished) != 0 {
+		t.Fatalf("completed due tasks = %+v, err=%v", finished, err)
 	}
 	firstIndex := cachedCalendarIndex(app)
 	if firstIndex == nil {
@@ -60,7 +72,7 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	if err != nil {
 		t.Fatalf("rebuilt GetCalendarMonthData: %v", err)
 	}
-	if got, want := month.DaysWithLinks, []int{20, 21}; !reflect.DeepEqual(got, want) {
+	if got, want := month.DaysWithLinks, []int{20, 21, 22, 23}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithLinks after mutation = %v, want %v", got, want)
 	}
 	if got := cachedCalendarIndex(app); got != firstIndex {

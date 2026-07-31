@@ -196,7 +196,7 @@ slower CI run.
 ### Design-system catalogue
 
 `tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
-contract: indexed group membership, adoption of the eight approved primitives
+contract: indexed group membership, adoption of the nine approved families
 in catalogue and production markup, exact agreement between
 `approved-components.json` and the selectors implemented by
 `primitives.css`, exact eager style order in the app, catalogue, compatibility
@@ -372,24 +372,53 @@ npm run test:unit -- --runTestsByPath tests/frontend/unit/topBar.test.js
 npx playwright test tests/e2e/sidebarNavigation.spec.js
 ```
 
-## Workspace overview regressions
+## Today dashboard regressions
 
-The workspace overview is an un-tabbed empty state, not a synthetic
-**Welcome** tab. Closing the final tab, deleting the final open file, and
-clicking the Figaro name must leave the overview centered in the workspace
-with an empty tab strip. Old sessions that contain the former `home` tab must
-be repaired rather than restored. Keep the state/session checks in
+The Today dashboard is an un-tabbed empty state, not a synthetic **Welcome**
+tab. Closing the final tab, deleting the final open file, and clicking the
+Figaro name must leave it centered with an empty tab strip. Pure coverage owns
+the local-date presentation, Inbox/pin/rediscovery projections, and daily-note
+open/create/collision plan. Component coverage owns task/pin stale-response
+guards, quick-capture reuse, folder reveal, inline errors, and focus recovery.
+Due-task coverage additionally owns semantic-link parsing, valid local dates,
+urgency ordering, the ambient Today reminder, and the warning state on the
+persistent Kanban control.
+The real-browser workflow keeps the responsive dashboard geometry and primary
+Today activation observable. Old sessions that contain the former `home` tab
+must still be repaired rather than restored. Keep these checks in
+`tests/frontend/unit/homeModel.test.js`, `tests/frontend/unit/openTodayNote.test.js`,
+`tests/frontend/unit/home.test.js`, `tests/frontend/unit/fileTree.test.js`,
 `tests/frontend/unit/tabManager.test.js`, `tests/frontend/unit/session.test.js`,
-and `app_test.go`, plus the real-browser close workflow in
-`tests/e2e/workspaceOverview.spec.js`:
+and `app_test.go`, plus `tests/e2e/workspaceOverview.spec.js`:
 
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/tabManager.test.js \
-  tests/frontend/unit/session.test.js
+  tests/frontend/unit/session.test.js \
+  tests/frontend/unit/homeModel.test.js \
+  tests/frontend/unit/openTodayNote.test.js \
+  tests/frontend/unit/home.test.js
 npx playwright test tests/e2e/workspaceOverview.spec.js
 go test . -run TestLoadSessionPrunesMissingTabsAndWorkspaceReferences
 ```
+
+## Kanban due-date regressions
+
+Due dates remain Markdown data, not configuration state. Pure tests cover the
+matching `[due YYYY-MM-DD](YYYY-MM-DD.md)` contract, invalid and mismatched
+dates, local-day presentation, unique summary counts, Home priority, picker
+months, and the next-midnight refresh plan. Root-scoped backend tests prove
+that setting, replacing, and clearing a due date changes only the requested
+task line and immediately updates the shared Kanban/Calendar index. Component
+tests own picker focus and Arrow-key movement, card controls, warning states,
+Today reminders, Calendar task results, and cache invalidation. Keep these in
+`kanban_due_test.go`, `app_test.go`, `calendar_index_test.go`,
+`tests/frontend/unit/dueDateModel.test.js`,
+`tests/frontend/unit/datePicker.test.js`, `tests/frontend/unit/kanban.test.js`,
+`tests/frontend/unit/home.test.js`, and
+`tests/frontend/unit/calendarCache.test.js`. One focused browser workflow may
+cover the computed popup position and source-line round trip; pure parsing and
+backend mutation branches do not belong in Playwright.
 
 ## PDF preview page-geometry regressions
 

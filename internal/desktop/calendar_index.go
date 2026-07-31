@@ -18,18 +18,22 @@ var (
 type calendarDateIndex struct {
 	dailyNotes        map[string]struct{}
 	linkedDays        map[string]struct{}
+	dueTaskDays       map[string]struct{}
 	linkedNotes       map[string][]LinkedNote
 	dailyDaysByMonth  map[string][]int
 	linkedDaysByMonth map[string][]int
+	dueDaysByMonth    map[string][]int
 }
 
 func newCalendarDateIndex() *calendarDateIndex {
 	return &calendarDateIndex{
 		dailyNotes:        make(map[string]struct{}),
 		linkedDays:        make(map[string]struct{}),
+		dueTaskDays:       make(map[string]struct{}),
 		linkedNotes:       make(map[string][]LinkedNote),
 		dailyDaysByMonth:  make(map[string][]int),
 		linkedDaysByMonth: make(map[string][]int),
+		dueDaysByMonth:    make(map[string][]int),
 	}
 }
 
@@ -124,6 +128,16 @@ func (index *calendarDateIndex) addLinkedDay(dateStr string) {
 func (index *calendarDateIndex) removeLinkedDay(dateStr string) {
 	delete(index.linkedDays, dateStr)
 	removeCalendarMonthDay(index.linkedDaysByMonth, dateStr)
+}
+
+func (index *calendarDateIndex) addDueTaskDay(dateStr string) {
+	index.dueTaskDays[dateStr] = struct{}{}
+	addCalendarMonthDay(index.dueDaysByMonth, dateStr)
+}
+
+func (index *calendarDateIndex) removeDueTaskDay(dateStr string) {
+	delete(index.dueTaskDays, dateStr)
+	removeCalendarMonthDay(index.dueDaysByMonth, dateStr)
 }
 
 func calendarMonthDays(daysByMonth map[string][]int, year, month int) []int {
