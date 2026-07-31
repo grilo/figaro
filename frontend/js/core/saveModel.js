@@ -1,4 +1,4 @@
-export function createSaveSnapshot(tab, content, { offerExternalImport = false } = {}) {
+export function createSaveSnapshot(tab, content) {
     if (!tab?.path || typeof content !== 'string') return null;
     return Object.freeze({
         tab,
@@ -7,7 +7,6 @@ export function createSaveSnapshot(tab, content, { offerExternalImport = false }
         generation: (tab._saveGeneration || 0) + 1,
         editGeneration: tab._editGeneration || 0,
         externalFileId: tab.externalFileId || null,
-        offerExternalImport: Boolean(offerExternalImport),
     });
 }
 

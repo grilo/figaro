@@ -231,7 +231,7 @@ physical splitting of `editor.js`, `tabManager.js`, or a desktop capability
 file should follow tested ownership seams rather than creating pass-through
 modules.
 
-Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. Go records only the explicit launch documents under process-local opaque IDs; the frontend can read or save an ID but cannot turn it into arbitrary filesystem access. An external tab writes atomically to its original document, does not join the vault index, watcher, session, or Git history, and may be explicitly copied into the vault through the existing collision-safe native-drop copy path. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
+Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. Go records only the explicit launch documents under process-local opaque IDs; the frontend can read or save an ID but cannot turn it into arbitrary filesystem access. Before opening, the frontend offers a collision-safe vault import. Declining creates a process-local root projection in the file tree and an external tab; that projection is not vault membership and is never persisted or passed to vault mutation APIs. Removing it closes the capability-backed tab after dirty-state protection and mutates only frontend state, so the original file cannot be deleted by that workflow. The pure external-file model distinguishes capability-backed reads from vault-relative reads and describes destination-specific native-drop confirmation without calling a dialog or backend. Tab activation executes that read plan before committing an external tab as selected; failed or superseded reads leave the previous active tab and CodeMirror owner paired. An external tab writes atomically to its original document and does not join the recent-files list, vault index, watcher, session, or Git history. Native drops on the file tree require confirmation before the copy adapter runs. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
 
 ## Incremental vault index and native changes
 
@@ -374,7 +374,14 @@ Refreshing a board snapshots its horizontal position and each mounted column's
 scroll position before replacing cards, then restores them after render. The
 file tree applies the same continuity principle to structural refreshes by
 retaining its scroll position and focused container; selected entries remain
-the state-owned source of truth.
+the state-owned source of truth. Vault-scoped path presentation records keep
+custom icons, colors, and an optional explicit pin preference together so
+rename, move, copy, merge, and delete remap one path-owned record. The pure
+tree model resolves an absent top-level `Inbox` preference to pinned, preserves
+an explicit false override, and stably promotes pinned siblings before the
+backend's ordinary ordering. External launch projections are appended from
+separate process state and are never eligible for those persistent path
+preferences.
 
 ## Editor decoration updates
 
@@ -388,6 +395,24 @@ visible document region and rebuilt on viewport changes. Cursor movement only
 rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
+The Properties field uses the same source-first transition: its disclosure
+generates missing default frontmatter directly into structured-panel mode,
+while a later selection entering that replaced range reveals raw YAML and a
+selection leaving it restores the compact card. Expanded and collapsed states
+share one disclosure control. A stable CodeMirror scrollbar gutter prevents
+the control's viewport position from shifting when the taller panel introduces
+vertical overflow.
+
+Vertical document navigation has a separate deterministic boundary policy in
+`frontend/js/core/verticalCursorModel.js`. It consumes movement at the absolute
+first and last positions and rejects a browser or height-map result that moves
+in the opposite direction. The CodeMirror keymap adapter supplies line facts
+and applies any correction, keeping the policy independent from CodeMirror,
+the DOM, and viewport effects. The same model projects wheel deltas against the
+scroll extent; its CodeMirror adapter cancels a gesture that would cross an
+edge and pins the scroller to that boundary before WebKitGTK can reinterpret
+the overscroll. These guards are unconditional and do not create a wraparound
+preference.
 
 When the opt-in Vim rendered-block motion is active, the root editor uses
 those retained source ranges to stop `j`/`k` at the adjacent block. Fenced
@@ -443,7 +468,8 @@ backend to validate cross-file links. That keeps editing feedback immediate
 while the read-only Vault Health workflow remains responsible for vault-wide
 checks.
 
-Offline spellcheck is another independent idle-time linter compartment. Its
+Offline spellcheck is another independent, off-by-default idle-time linter
+compartment. Its
 three Hunspell assets (US English, UK English, and Spanish) are served from
 the embedded frontend bundle and cached in the webview; text is never sent to
 a service. The global `spellcheck` / `spellcheck_language` preferences provide

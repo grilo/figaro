@@ -32,7 +32,7 @@ func Defaults() map[string]any {
 		"vim_reveal_blocks":   false,
 		"line_numbers":        false,
 		"markdown_lint":       true,
-		"spellcheck":          true,
+		"spellcheck":          false,
 		"spellcheck_language": "en-US",
 		"auto_save_seconds":   300,
 		"auto_commit_enabled": true,
@@ -195,7 +195,7 @@ func Bool(values map[string]any, key string, fallback bool) bool {
 }
 
 func Spellcheck(values map[string]any) (bool, string) {
-	enabled := Bool(values, "spellcheck", true)
+	enabled := Bool(values, "spellcheck", false)
 	rawLanguage, _ := values["spellcheck_language"].(string)
 	language, valid := CanonicalSpellcheckLanguage(rawLanguage)
 	if !valid {

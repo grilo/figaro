@@ -381,15 +381,15 @@ type SpellcheckPreference struct {
 }
 
 // SpellcheckLoad loads the enabled state and fallback language for offline
-// Markdown spellchecking. New and older settings files safely default to US
-// English so a corrupt optional preference never prevents editing.
+// Markdown spellchecking. New and older settings files safely default to off
+// with US English retained as the language selected when checking is enabled.
 func (a *App) SpellcheckLoad() (*SpellcheckPreference, error) {
 	a.settingsMu.RLock()
 	defer a.settingsMu.RUnlock()
 
 	settings, err := a.readSettingsFile()
 	if err != nil {
-		return &SpellcheckPreference{Enabled: true, Language: "en-US"}, nil
+		return &SpellcheckPreference{Enabled: false, Language: "en-US"}, nil
 	}
 	enabled, language := settingsmodel.Spellcheck(settings)
 	return &SpellcheckPreference{Enabled: enabled, Language: language}, nil

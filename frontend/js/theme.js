@@ -49,8 +49,8 @@ let currentMarkdownLintEnabled = true;
 let markdownLintPreferenceLoaded = false;
 let markdownLintPreferenceLoadPromise = null;
 let markdownLintSaveQueue = Promise.resolve();
-let currentSpellcheckPreference = { enabled: true, language: 'en-US' };
-let persistedSpellcheckPreference = { enabled: true, language: 'en-US' };
+let currentSpellcheckPreference = { enabled: false, language: 'en-US' };
+let persistedSpellcheckPreference = { enabled: false, language: 'en-US' };
 let spellcheckPreferenceLoaded = false;
 let spellcheckPreferenceLoadPromise = null;
 let spellcheckPreferenceRevision = 0;
@@ -528,7 +528,7 @@ function normalizedSpellcheckPreference(preference = {}) {
     const allowedLanguages = new Set(['en-US', 'en-GB', 'es']);
     const language = String(preference.language || '').replaceAll('_', '-');
     return {
-        enabled: preference.enabled !== false,
+        enabled: preference.enabled === true,
         language: allowedLanguages.has(language) ? language : 'en-US',
     };
 }

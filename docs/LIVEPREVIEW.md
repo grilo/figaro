@@ -44,6 +44,12 @@ When writing the TypeScript extension, you must adhere to the following CodeMirr
 3.  **Coordinate Sorting Rule:** You must collect all decorations in a mutable array, ensure they are strictly sorted by their incremental document positions, and then construct the final set using `Decoration.set(builder, true)`. Overlapping or unsorted ranges will crash the editor.
 4.  **No Layout Snapping:** Ensure inline styles retain their typographic metrics (font-size, line-height) across both states so that text does not shift horizontally or vertically when the cursor enters a line.
 
+The shared editor document and selected file tab must change ownership
+together. In particular, an external capability read completes before its tab
+becomes active; a failed or superseded read leaves the previous tab and
+CodeMirror document paired. Never select a destination tab while another tab's
+source is still mounted.
+
 Markdown diagnostics are a separate idle-time editor extension, not a
 live-preview decoration pass. The persistent, on-by-default **Show Markdown
 lint** setting can remove or restore that extension without changing the
@@ -85,6 +91,22 @@ Every decoration created with `block: true` must follow these rules:
 5. Do not treat the Arrow Up/Down safety guard as permission to violate this
    contract. It is defense in depth; correct widget geometry is the primary
    fix and also protects mouse placement, selection, and scrolling.
+
+The same guard enforces symmetric document boundaries independently of widget
+geometry. Arrow Down at the final position and Arrow Up at the first position
+are consumed without moving; a browser result that crosses in the opposite
+direction is clamped back to the requested source line's edge. Vim `j`/`k` and
+visual-row movement share this invariant, and viewport scrolling remains at
+the corresponding boundary. Wraparound is never enabled by a preference.
+
+The frontmatter Properties replacement keeps one left-edge disclosure control
+across collapsed and expanded states. CodeMirror's scroller reserves a stable
+scrollbar gutter so opening the taller panel cannot shift that control
+horizontally. Expanding a note without frontmatter inserts the default YAML in
+panel mode; Arrow navigation into the replaced range must still reveal raw
+source, and leaving it must restore the compact card. Cover this with the
+focused frontmatter component test and
+`tests/e2e/frontmatterProperties.spec.js`.
 
 Inline diagnostic decorations, including spellcheck's dotted unknown-word
 marks, must remain source-length-preserving and must not introduce a widget,

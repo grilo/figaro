@@ -48,4 +48,11 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/margin:\s*0\s*!important/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/padding-bottom:\s*6px/);
     });
+
+    test('keeps the frontmatter disclosure aligned while its panel changes height', () => {
+        expect(declarationsFor('.cm-scroller')).toMatch(/scrollbar-gutter:\s*stable/);
+        expect(declarationsFor('.cm-frontmatter-disclosure')).toMatch(/width:\s*16px/);
+        expect(declarationsFor('.cm-frontmatter-disclosure')).toMatch(/transition:\s*transform/);
+        expect(declarationsFor('.cm-frontmatter-disclosure.expanded')).toMatch(/rotate\(90deg\)/);
+    });
 });

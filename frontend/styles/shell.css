@@ -863,6 +863,12 @@
     flex: 0 0 auto;
 }
 
+.file-tree-item > .file-tree-node.pinned.open-file:not(.active-file)::after,
+.file-tree-item > .file-tree-node.external-file.open-file:not(.active-file)::after {
+    order: 1;
+    margin-left: 0;
+}
+
 .file-tree-item > .file-tree-node.multi-selected {
     background: color-mix(in srgb, var(--accent-color) 15%, transparent);
     outline: 1px solid color-mix(in srgb, var(--accent-color) 30%, transparent);
@@ -947,6 +953,32 @@
     line-height: 1.25;
     padding-top: 0;
     min-width: 0;
+}
+
+.file-tree-node .node-pin-indicator,
+.file-tree-node .node-external-indicator {
+    display: inline-flex;
+    flex: 0 0 auto;
+    order: 2;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: var(--text-dim);
+}
+
+.file-tree-node .node-pin-indicator {
+    color: color-mix(in srgb, var(--accent-color) 72%, var(--text-muted));
+}
+
+.file-tree-node.external-file .node-icon,
+.file-tree-node.external-file .node-external-indicator {
+    color: var(--text-dim);
+}
+
+.file-tree-node.selected .node-pin-indicator,
+.file-tree-node.selected .node-external-indicator {
+    color: currentColor;
 }
 
 .file-tree-children {

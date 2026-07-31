@@ -45,7 +45,8 @@ jest.mock('../frontend/js/statusBar.js', () => ({
 }));
 
 jest.mock('../frontend/js/dialogs.js', () => ({
-    confirmDialog: jest.fn().mockResolvedValue(true)
+    confirmDialog: jest.fn().mockResolvedValue(true),
+    errorDialog: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../frontend/js/calendar.js', () => ({
@@ -80,6 +81,7 @@ import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorConte
 import { initSettingsPanel } from '../frontend/js/theme.js';
 import { setAutoCommitEnabled } from '../frontend/js/automation.js';
 import { statusBar } from '../frontend/js/statusBar.js';
+import { errorDialog } from '../frontend/js/dialogs.js';
 // confirmDialog accessed via window.confirmDialog
 
 import { 
@@ -116,6 +118,7 @@ window.go = { desktop: { App: {
     SaveFile: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() }),
     SaveSession: jest.fn().mockResolvedValue({ success: true }),
     ReadFile: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
+    ReadLaunchExternalFile: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
     CommitCurrentFile: jest.fn().mockResolvedValue(null),
     GetApplicationVersion: jest.fn().mockResolvedValue('1.7.0'),
 } } };
@@ -212,6 +215,109 @@ describe('Tab Manager', () => {
             
             expect(tab1.id).not.toBe(tab2.id);
             expect(tab1.id).toMatch(/^tab-\d+$/);
+        });
+
+        test('keeps an external tab unselected until its capability read is ready', async () => {
+            const externalRead = deferred();
+            mockState.openTabs = [{
+                id: 'inside.md',
+                title: 'Inside',
+                type: 'file',
+                path: 'inside.md',
+                dirty: false,
+            }];
+            mockState.activeTabId = 'inside.md';
+            getEditorDocumentTabId.mockReturnValue('inside.md');
+            window.go.desktop.App.ReadLaunchExternalFile.mockImplementationOnce(() => externalRead.promise);
+
+            const external = openTab('external:launch-1', 'outside.md', 'file', {
+                path: '/home/writer/outside.md',
+                mtime: 1,
+                externalFileId: 'launch-1',
+            });
+
+            expect(external.externalFileId).toBe('launch-1');
+            expect(getState('activeTabId')).toBe('inside.md');
+            expect(window.go.desktop.App.ReadLaunchExternalFile).toHaveBeenCalledWith('launch-1');
+            expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalledWith('/home/writer/outside.md');
+
+            externalRead.resolve({
+                content: '# Outside\n',
+                mtime: 2,
+                path: '/home/writer/outside.md',
+            });
+            await testUtils.waitFor(0);
+
+            expect(getState('activeTabId')).toBe('external:launch-1');
+            expect(setEditorContent).toHaveBeenCalledWith('# Outside\n', 'external:launch-1', null);
+            expect(mockState.recentFiles).toEqual([]);
+        });
+
+        test('leaves the previous tab and buffer active when an external read fails', async () => {
+            mockState.openTabs = [{
+                id: 'inside.md',
+                title: 'Inside',
+                type: 'file',
+                path: 'inside.md',
+                dirty: false,
+            }];
+            mockState.activeTabId = 'inside.md';
+            getEditorDocumentTabId.mockReturnValue('inside.md');
+            window.go.desktop.App.ReadLaunchExternalFile.mockRejectedValueOnce(new Error('External file is unavailable'));
+
+            openTab('external:launch-1', 'outside.md', 'file', {
+                path: '/home/writer/outside.md',
+                externalFileId: 'launch-1',
+            });
+            await testUtils.waitFor(0);
+
+            expect(getState('activeTabId')).toBe('inside.md');
+            expect(setEditorContent).not.toHaveBeenCalledWith(
+                expect.anything(),
+                'external:launch-1',
+                expect.anything(),
+            );
+            expect(errorDialog).toHaveBeenCalledWith(
+                'Couldn’t open external note',
+                expect.objectContaining({ message: 'External file is unavailable' }),
+                'The original external note could not be read.',
+            );
+        });
+
+        test('does not let an older external read overtake a newer tab choice', async () => {
+            const firstRead = deferred();
+            const secondRead = deferred();
+            mockState.openTabs = [{
+                id: 'inside.md',
+                title: 'Inside',
+                type: 'file',
+                path: 'inside.md',
+                dirty: false,
+            }];
+            mockState.activeTabId = 'inside.md';
+            getEditorDocumentTabId.mockReturnValue('inside.md');
+            window.go.desktop.App.ReadLaunchExternalFile
+                .mockImplementationOnce(() => firstRead.promise)
+                .mockImplementationOnce(() => secondRead.promise);
+
+            openTab('external:first', 'first.md', 'file', {
+                path: '/home/writer/first.md',
+                externalFileId: 'first',
+            });
+            openTab('external:second', 'second.md', 'file', {
+                path: '/home/writer/second.md',
+                externalFileId: 'second',
+            });
+
+            secondRead.resolve({ content: '# Second\n', mtime: 2 });
+            await testUtils.waitFor(0);
+            expect(getState('activeTabId')).toBe('external:second');
+
+            firstRead.resolve({ content: '# First\n', mtime: 1 });
+            await testUtils.waitFor(0);
+
+            expect(getState('activeTabId')).toBe('external:second');
+            expect(setEditorContent).toHaveBeenLastCalledWith('# Second\n', 'external:second', null);
         });
 
         test('reinitializes settings when the settings tab is reopened', async () => {

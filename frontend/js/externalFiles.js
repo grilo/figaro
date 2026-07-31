@@ -1,22 +1,51 @@
 import { backend } from './backend.js';
+import { externalTreeImportPrompt } from './core/externalFileModel.js';
 
 function fileName(path) {
     return String(path || '').split(/[\\/]/).pop() || 'Untitled.md';
 }
 
-// Open only the Markdown files the native process received at launch. The
+// Resolve only the Markdown files the native process received at launch. The
 // backend keeps the capability mapping, so this module never asks it to open
 // an arbitrary path supplied by the webview.
-export async function openLaunchExternalFiles(openTab, api = backend()) {
+export async function openLaunchExternalFiles(openTab, {
+    api = backend(),
+    confirm = window.confirmDialog,
+    closeTab,
+    onExternalKept = () => {},
+    onImported = async () => {},
+    onImportError = () => {},
+} = {}) {
     if (typeof openTab !== 'function' || typeof api?.GetLaunchExternalFiles !== 'function') return [];
     const files = await api.GetLaunchExternalFiles();
     for (const file of Array.isArray(files) ? files : []) {
         if (!file?.id || !file?.path) continue;
-        openTab(`external:${file.id}`, file.name || fileName(file.path), 'file', {
+        const tab = {
+            id: `external:${file.id}`,
+            title: file.name || fileName(file.path),
             path: file.path,
             mtime: file.mtime,
             externalFileId: file.id,
+        };
+        let imported = false;
+        try {
+            imported = await offerExternalFileImport(tab, {
+                openTab,
+                closeTab,
+                api,
+                confirm,
+                onImported,
+            });
+        } catch (error) {
+            onImportError(error, file);
+        }
+        if (imported) continue;
+        openTab(tab.id, tab.title, 'file', {
+            path: tab.path,
+            mtime: tab.mtime,
+            externalFileId: tab.externalFileId,
         });
+        onExternalKept(file);
     }
     return Array.isArray(files) ? files : [];
 }
@@ -28,13 +57,14 @@ export async function offerExternalFileImport(tab, {
     closeTab,
     api = backend(),
     confirm = window.confirmDialog,
+    onImported = async () => {},
 } = {}) {
     if (!tab?.externalFileId || !tab.path || typeof openTab !== 'function' || typeof api?.CopyExternalPaths !== 'function') {
         return false;
     }
     const shouldImport = await confirm(
         'Import this note into the vault?',
-        `“${tab.title || fileName(tab.path)}” was saved in its original location. Importing copies it into this vault without replacing an existing note.`,
+        `“${tab.title || fileName(tab.path)}” is outside this vault. Importing copies it into the vault without replacing an existing note. Keeping it outside adds a temporary root shortcut and continues saving to the original file.`,
         false,
         false,
         { confirmLabel: 'Import note', cancelLabel: 'Keep outside vault' }
@@ -46,6 +76,7 @@ export async function offerExternalFileImport(tab, {
     if (!result?.success || !importedPath) {
         throw new Error(result?.error || 'Could not import the external note');
     }
+    await onImported(importedPath);
     openTab(importedPath, fileName(importedPath), 'file', { path: importedPath, mtime: result.mtime });
     if (typeof closeTab === 'function') await closeTab(tab.id);
     return true;
@@ -79,4 +110,22 @@ export async function importDroppedExternalPaths(paths, targetDirectory, {
         result: await api.MergeExternalPaths(sourcePaths, targetDirectory),
         paths: sourcePaths,
     };
+}
+
+// A file-tree drop already expresses the destination, so it needs only an
+// import/cancel decision. Unlike an editor drop, there is no path-insertion
+// action and cancellation leaves the tree and source items unchanged.
+export async function confirmExternalTreeImport(paths, targetDirectory, {
+    confirm = window.confirmDialog,
+} = {}) {
+    const prompt = externalTreeImportPrompt(paths, targetDirectory);
+    if (!prompt || typeof confirm !== 'function') return false;
+    const choice = await confirm(
+        prompt.title,
+        prompt.message,
+        false,
+        false,
+        prompt.options,
+    );
+    return choice === true || choice === 'confirm';
 }

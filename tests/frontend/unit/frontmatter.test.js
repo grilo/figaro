@@ -131,6 +131,15 @@ describe('frontmatter Properties card', () => {
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Spellcheck');
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Table of Contents');
         expect(view.dom.querySelector('.cm-frontmatter-panel-chips').textContent).toContain('title: Report');
+        const disclosure = view.dom.querySelector('.cm-frontmatter-disclosure-button');
+        expect(disclosure.getAttribute('aria-expanded')).toBe('true');
+        expect(disclosure.querySelector('.cm-frontmatter-disclosure').classList.contains('expanded')).toBe(true);
+        expect(view.dom.querySelector('.cm-frontmatter-panel-close')).toBeNull();
+        disclosure.click();
+        expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull();
+        expect(view.dom.querySelector('.cm-frontmatter').getAttribute('aria-expanded')).toBe('false');
+        view.dom.querySelector('.cm-frontmatter').click();
+
         const stylesheetToggle = view.dom.querySelector('.cm-frontmatter-combobox-toggle');
         stylesheetToggle.click();
         const stylesheetMenu = view.dom.querySelector('.cm-frontmatter-file-combobox .cm-frontmatter-combobox-menu');
@@ -204,7 +213,7 @@ describe('frontmatter Properties card', () => {
         expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull();
     });
 
-    test('adds an editable PDF-properties YAML template for notes without frontmatter', async () => {
+    test('adds a default template and immediately opens its rendered panel for notes without frontmatter', async () => {
         const field = createFrontmatterField(
             StateField,
             StateEffect,
@@ -240,10 +249,30 @@ describe('frontmatter Properties card', () => {
         expect(template).toContain('toc-depth: 0');
         expect(template).not.toContain('print-stylesheet:');
         expect(template.endsWith('---\n\n# Body')).toBe(true);
-        expect(view.dom.querySelector('.cm-frontmatter-panel')).toBeNull();
+        expect(view.dom.querySelector('.cm-frontmatter-panel')).not.toBeNull();
         expect(view.dom.querySelector('.cm-frontmatter')).toBeNull();
-        expect(view.state.selection.main.head).toBe(template.indexOf('subtitle: "') + 'subtitle: "'.length);
+        expect(view.dom.querySelector('.cm-frontmatter-disclosure-button').getAttribute('aria-expanded')).toBe('true');
+        expect(view.dom.querySelectorAll('.cm-frontmatter-source-line')).toHaveLength(0);
+    });
+
+    test('reveals raw YAML when cursor navigation enters the rendered frontmatter and collapses after it leaves', () => {
+        const field = createFrontmatterField(StateField, StateEffect, EditorView, Decoration, WidgetType, null);
+        const source = '---\ntitle: Report\n---\n# Body\n\nAfter';
+        view = new EditorView({
+            state: EditorState.create({ doc: source, extensions: [field] }),
+            parent: document.body,
+        });
+
+        view.dispatch({ selection: { anchor: source.indexOf('After') } });
+        expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull();
+        view.dispatch({ selection: { anchor: source.indexOf('Report') } });
+        expect(view.dom.querySelector('.cm-frontmatter')).toBeNull();
+        expect(view.dom.querySelector('.cm-frontmatter-panel')).toBeNull();
         expect(view.dom.querySelectorAll('.cm-frontmatter-source-line')).toHaveLength(2);
+
+        view.dispatch({ selection: { anchor: source.indexOf('After') } });
+        expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull();
+        expect(view.dom.querySelectorAll('.cm-frontmatter-source-line')).toHaveLength(0);
     });
 
     test('creates a starter stylesheet only after an explicit Properties action', async () => {

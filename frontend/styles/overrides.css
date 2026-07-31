@@ -43,9 +43,11 @@
     font: inherit;
 }
 
-.cm-frontmatter-panel-close.ui-icon-button {
-    width: 24px;
-    height: 24px;
+.cm-frontmatter-disclosure-button.ui-icon-button {
+    width: 16px;
+    height: 20px;
+    margin-left: -2px;
+    border-radius: 4px;
     font-size: 18px;
     line-height: 1;
 }

@@ -24,11 +24,13 @@ var (
 	}
 )
 
-// FileTreeStyle is one path-specific visual override. Empty fields retain the
-// normal file/folder icon or inherited theme color.
+// FileTreeStyle is one path-specific presentation override. Pinned is a
+// pointer so an absent preference remains distinct from an explicit unpin,
+// which lets the frontend give Inbox its overridable default.
 type FileTreeStyle struct {
-	Icon  string `json:"icon,omitempty"`
-	Color string `json:"color,omitempty"`
+	Icon   string `json:"icon,omitempty"`
+	Color  string `json:"color,omitempty"`
+	Pinned *bool  `json:"pinned,omitempty"`
 }
 
 // FileTreeStyles is vault-scoped because entry paths and their presentation
@@ -98,35 +100,44 @@ func (a *App) GetFileTreeStyles() (*FileTreeStyles, error) {
 	return a.loadFileTreeStylesLocked()
 }
 
-// SetFileTreeStyle saves or resets one existing vault entry.
-func (a *App) SetFileTreeStyle(relPath, icon, color string) (*FileTreeStyles, error) {
-	a.vaultMu.Lock()
-	defer a.vaultMu.Unlock()
-
+func (a *App) validatedFileTreeStylePathLocked(relPath string) (string, error) {
 	clean, err := vaultRelativePath(relPath)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if clean == "." || strings.HasPrefix(filepath.ToSlash(clean), ".config/") {
-		return nil, fmt.Errorf("a visible file or directory is required")
+		return "", fmt.Errorf("a visible file or directory is required")
 	}
 	root, err := a.openVaultRoot()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	info, statErr := root.Lstat(clean)
 	root.Close()
 	if os.IsNotExist(statErr) {
-		return nil, fmt.Errorf("file-tree entry no longer exists")
+		return "", fmt.Errorf("file-tree entry no longer exists")
 	}
 	if statErr != nil {
-		return nil, statErr
+		return "", statErr
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return nil, fmt.Errorf("symbolic links cannot be styled")
+		return "", fmt.Errorf("symbolic links cannot be styled")
+	}
+	return filepath.ToSlash(clean), nil
+}
+
+// SetFileTreeStyle saves or resets one existing vault entry's custom icon and
+// color without disturbing its independent pin preference.
+func (a *App) SetFileTreeStyle(relPath, icon, color string) (*FileTreeStyles, error) {
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	key, err := a.validatedFileTreeStylePathLocked(relPath)
+	if err != nil {
+		return nil, err
 	}
 
-	style, err := normalizeFileTreeStyle(FileTreeStyle{Icon: icon, Color: color})
+	visualStyle, err := normalizeFileTreeStyle(FileTreeStyle{Icon: icon, Color: color})
 	if err != nil {
 		return nil, err
 	}
@@ -134,8 +145,10 @@ func (a *App) SetFileTreeStyle(relPath, icon, color string) (*FileTreeStyles, er
 	if err != nil {
 		return nil, err
 	}
-	key := filepath.ToSlash(clean)
-	if style.Icon == "" && style.Color == "" {
+	style := styles.Entries[key]
+	style.Icon = visualStyle.Icon
+	style.Color = visualStyle.Color
+	if style.Icon == "" && style.Color == "" && style.Pinned == nil {
 		delete(styles.Entries, key)
 	} else {
 		styles.Entries[key] = style
@@ -152,6 +165,31 @@ func (a *App) SetFileTreeStyle(relPath, icon, color string) (*FileTreeStyles, er
 		}
 		styles.RecentIcons = recent
 	}
+	if err := a.saveFileTreeStylesLocked(styles); err != nil {
+		return nil, err
+	}
+	return styles, nil
+}
+
+// SetFileTreePinned persists one existing vault entry's navigation priority.
+// Explicit false values are retained so Inbox can be unpinned despite its
+// frontend default.
+func (a *App) SetFileTreePinned(relPath string, pinned bool) (*FileTreeStyles, error) {
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	key, err := a.validatedFileTreeStylePathLocked(relPath)
+	if err != nil {
+		return nil, err
+	}
+	styles, err := a.loadFileTreeStylesLocked()
+	if err != nil {
+		return nil, err
+	}
+	style := styles.Entries[key]
+	style.Pinned = new(bool)
+	*style.Pinned = pinned
+	styles.Entries[key] = style
 	if err := a.saveFileTreeStylesLocked(styles); err != nil {
 		return nil, err
 	}

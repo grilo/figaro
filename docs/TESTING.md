@@ -462,6 +462,23 @@ npm run test:unit
 npm run test:pdf
 ```
 
+Every change to vertical cursor movement or its keymaps must also prove the
+document-edge contract in both directions. The pure boundary cases belong in
+`verticalCursorModel.test.js`; the CodeMirror adapter must prove Arrow Down at
+the final position and Arrow Up at the first position remain there, including
+an engine result that attempts to move in the wrong direction. The focused
+browser checks must cover the real viewport at both scroll limits and Vim
+`j`/`k` plus Up/Down while visual-row movement is enabled:
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/verticalCursorModel.test.js \
+  tests/frontend/unit/editor.test.js
+npx playwright test \
+  tests/e2e/editorUX.spec.js \
+  tests/e2e/vimVisualRows.spec.js
+```
+
 Because jsdom has no real layout and Chromium may tolerate geometry that fails
 in a desktop webview, automated browser success is not sufficient for a block
 layout change. Run the packaged application on every affected desktop engine:
@@ -473,7 +490,10 @@ layout change. Run the packaged application on every affected desktop engine:
 Use the Welcome note as the minimum native regression: put the cursor on line
 36, `### Text formatting`; Arrow Up must move to line 35, and Arrow Down must
 return to line 36. Also navigate across each newly added widget from above and
-below, and verify mouse placement and drag selection around it.
+below, and verify mouse placement and drag selection around it. For a vertical
+navigation change, also put the cursor and viewport at the end and press Arrow
+Down, then put both at the beginning and press Arrow Up; neither action may
+move or wrap, and wheel input must remain at the corresponding scroll limit.
 
 Interactive Markdown tables add a stricter cursor matrix. Test Arrow keys
 within and across cells, Tab and Shift+Tab between cells, Enter down a column,
@@ -582,19 +602,75 @@ files, gives colliding moved/imported entries parenthesized names such as
 on the resulting paths. Retain Go coverage for internal and native-drop merges
 and frontend coverage for both confirmation flows.
 
-## External Markdown launch regressions
+## File-tree pin regressions
 
-Native file-association launches are an explicit boundary: retain Go coverage that startup accepts only existing `.md` arguments, the opaque launch ID reads and saves exactly its original file, and unknown IDs are refused. Frontend coverage must assert external tabs use the external save binding, do not Auto-Commit or persist in the vault session, and that cancelling import performs no copy while a backend collision result opens the returned non-overwriting destination. Buffer drops must prevent CodeMirror's uncontrolled path insertion, ask once for an entire native drop batch, insert the selected path at the drop position, and call the recursive collision-safe import once for a dropped directory. A successful dropped-file import must open that imported file in a new active tab, while a dropped directory keeps the current buffer active. The Wails callback must register without the CSS-drop-target filter so it reaches CodeMirror on Linux/WebKit. Exercise a packaged Windows/WebView2 build manually by opening an associated `.md` file, saving it, declining import, then repeating the save and importing into a vault that already contains the same filename; also drag a standalone note and a folder into an editor buffer, choose path insertion once, then import once and verify the folder hierarchy.
+Pinning is a vault-scoped appearance preference, independent from a row's
+custom icon and color. Unit coverage must prove stable pinned-first ordering
+within each sibling group, the rightmost pin marker, persistence through
+rename/move/copy/merge/delete mappings, and an explicit unpin that overrides
+the top-level `Inbox` default without discarding appearance. Keep the
+representative browser case in `tests/e2e/fileTreeAppearance.spec.js` focused
+on computed marker position and the Pin/Unpin menu transition; sibling ordering
+and persistence belong below the browser.
 
 Run the focused contract with:
 
 ```bash
-go test . -run 'Test(LaunchExternalFile|MarkdownLaunchPaths)'
+go test ./internal/desktop -run 'TestFileTreePin'
 npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/fileTreeModel.test.js \
+  tests/frontend/unit/fileTree.test.js
+npx playwright test tests/e2e/fileTreeAppearance.spec.js
+```
+
+## External Markdown launch regressions
+
+Native file-association launches are an explicit boundary: retain Go coverage
+that startup accepts only existing `.md` arguments, the opaque launch ID reads
+and saves exactly its original file, and unknown IDs are refused. Frontend
+coverage must assert that the import choice occurs before the first tab opens;
+import opens the returned collision-safe vault copy, while declining opens the
+capability-backed original and adds one process-local root shortcut with the
+distinct `FileSymlink` default icon. The existing `delete` action must remain
+the single final menu entry and relabel itself **Remove from file tree** for
+that shortcut. External shortcuts must not enter the vault Markdown
+multi-selection; deletion remains a single-target workflow with no mixed
+bulk-delete dialog. External tabs must use the external save binding, never
+Auto-Commit or enter the vault session or recent-notes list, and removing the
+root shortcut must show the non-deletion warning, close through normal dirty-state protection,
+mutate only frontend state, and never call a vault delete binding. Opening or
+selecting an external tab must preserve its opaque capability, call the
+external read binding, and commit the selected tab plus CodeMirror document
+ownership only after that read succeeds. Failed and superseded reads must leave
+the previous tab and buffer paired. Native drops onto the file tree must show
+the destination-specific import confirmation before any copy binding; cancel
+must produce no backend mutation. Buffer drops
+must prevent CodeMirror's uncontrolled path insertion, ask once for an entire
+native drop batch, insert the selected path at the drop position, and call the recursive collision-safe
+import once for a dropped directory. A successful dropped-file import must
+open that imported file in a new active tab, while a dropped directory keeps
+the current buffer active. The Wails callback must register without the
+CSS-drop-target filter so it reaches CodeMirror on Linux/WebKit. Exercise a
+packaged Windows/WebView2 build manually by opening an associated `.md` file,
+declining import, saving the original, then removing its root shortcut and
+confirming the original still exists unchanged except for that explicit save.
+Repeat by importing into a vault that already contains the same filename; also
+drop a standalone note onto a file-tree folder, cancel once and confirm once,
+then drag a note and folder into an editor buffer, choose path insertion once,
+and import once to verify the folder hierarchy.
+
+Run the focused contract with:
+
+```bash
+go test ./internal/desktop -run 'Test(LaunchExternalFile|MarkdownLaunchPaths)'
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/externalFileModel.test.js \
   tests/frontend/unit/externalFiles.test.js \
   tests/frontend/unit/externalDrop.test.js \
   tests/frontend/unit/importedExternalTabs.test.js \
-  tests/frontend/unit/tabManager.test.js
+  tests/frontend/unit/tabManager.test.js \
+  tests/frontend/unit/fileTree.test.js
+npx playwright test tests/e2e/tabBufferOwnership.spec.js
 ```
 
 ## Vim command regressions
@@ -631,9 +707,10 @@ first/last table cell even when visual-row motions would otherwise skip the
 widget. Operator-pending motions remain untouched.
 
 Offline spellcheck must retain the same editor movement and selection contract:
-its US-English global default, themed keyboard-operable language combobox,
-Spanish frontmatter override, per-note `false` opt-out, themed dotted marker,
-and local-only dictionary assets are covered by unit and browser regressions.
+its disabled-by-default global state, explicit enablement with the US-English
+fallback, themed keyboard-operable language combobox, Spanish frontmatter
+override, per-note `false` opt-out, themed dotted marker, and local-only
+dictionary assets are covered by unit and browser regressions.
 Correctly spelled hyphenated compounds must remain unmarked, while a
 misspelled component must retain its diagnostic.
 Right-clicking an underlined prose word must offer only active-dictionary,
@@ -672,7 +749,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/spellcheck.test.js \
   tests/frontend/unit/drawioEditor.test.js \
   tests/frontend/unit/drawio.test.js
-go test . -run 'Test(Vim|MarkdownLint|Spellcheck)'
+go test ./internal/desktop -run 'Test(Vim|MarkdownLint|Spellcheck)'
 npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownTables.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawioLoading.spec.js tests/e2e/drawio.spec.js
 ```
 

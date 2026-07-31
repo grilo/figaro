@@ -67,6 +67,10 @@ import { tags } from '@lezer/highlight';
 import { markdownLinter } from './markdownLint.js';
 import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
+    verticalBoundaryTarget,
+    verticalViewportBoundaryTarget,
+} from './core/verticalCursorModel.js';
+import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
     search as searchExtension,
@@ -1023,11 +1027,37 @@ export function moveCursorVerticallySafely(view, forward) {
     const before = view.state.selection.main;
     if (!before.empty || view.state.selection.ranges.length !== 1) return false;
 
+    const sourceLine = view.state.doc.lineAt(before.head);
+    const blockedAtBoundary = verticalBoundaryTarget({
+        beforePosition: before.head,
+        afterPosition: before.head,
+        sourceLineNumber: sourceLine.number,
+        movedLineNumber: sourceLine.number,
+        sourceLineFrom: sourceLine.from,
+        sourceLineTo: sourceLine.to,
+        totalLines: view.state.doc.lines,
+        documentLength: view.state.doc.length,
+        forward,
+    });
+    if (blockedAtBoundary !== null) return true;
+
     const move = forward ? cursorLineDown : cursorLineUp;
     if (!move || !move(view)) return false;
 
     const after = view.state.selection.main;
-    const targetPosition = adjacentLinePositionForUnexpectedVerticalSkip(
+    const movedLine = view.state.doc.lineAt(after.head);
+    const boundaryTarget = verticalBoundaryTarget({
+        beforePosition: before.head,
+        afterPosition: after.head,
+        sourceLineNumber: sourceLine.number,
+        movedLineNumber: movedLine.number,
+        sourceLineFrom: sourceLine.from,
+        sourceLineTo: sourceLine.to,
+        totalLines: view.state.doc.lines,
+        documentLength: view.state.doc.length,
+        forward,
+    });
+    const targetPosition = boundaryTarget ?? adjacentLinePositionForUnexpectedVerticalSkip(
         view.state.doc,
         before.head,
         after.head,
@@ -1040,6 +1070,28 @@ export function moveCursorVerticallySafely(view, forward) {
         scrollIntoView: true,
         userEvent: 'select',
     });
+    return true;
+}
+
+/**
+ * Stop WebKitGTK from interpreting wheel overscroll as a jump to the opposite
+ * document edge. Returning true lets CodeMirror cancel the native wheel event.
+ */
+export function handleVerticalBoundaryWheel(event, view) {
+    const scroller = view?.scrollDOM;
+    if (!scroller) return false;
+
+    const target = verticalViewportBoundaryTarget({
+        scrollTop: scroller.scrollTop,
+        scrollHeight: scroller.scrollHeight,
+        clientHeight: scroller.clientHeight,
+        deltaY: event?.deltaY,
+        deltaMode: event?.deltaMode,
+        lineHeight: view.defaultLineHeight,
+    });
+    if (target === null) return false;
+
+    scroller.scrollTop = target;
     return true;
 }
 
@@ -2012,6 +2064,7 @@ function createEditorView() {
         EditorView.domEventHandlers({
             mousedown: handleMouseDown,
             click: handleClick,
+            wheel: handleVerticalBoundaryWheel,
             paste: (event, view) => handleClipboardImagePaste(event, view)
                 || (activeFileLanguage.kind === 'markdown' && handleClipboardTablePaste(event, view)),
             drop: handleExternalFileDrop,

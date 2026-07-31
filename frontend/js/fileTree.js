@@ -6,19 +6,21 @@ import { backend } from './backend.js';
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
 import { saveSession } from './session.js';
-import { closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
+import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
 import { isDrawioDiagramPath } from './drawio.js';
 import { isEditableCodeMirrorFile } from './languageSupport.js';
 import { renderLucideIcon } from './lucideIcons.js';
-import { importDroppedExternalPaths } from './externalFiles.js';
+import { confirmExternalTreeImport, importDroppedExternalPaths } from './externalFiles.js';
 import { focusEditor, getEditorView, insertTextAtCursor } from './editor.js';
 import { handleFileOpen } from './app.js';
 import { openPDFPreview } from './pdfPreview.js';
 import { openMarkdownPreview } from './markdownPreview.js';
 import {
+    isFileTreeEntryPinned,
     normalizeFileTreeStyles,
+    sortFileTreeItems,
     toggleExpandedDirectory,
     toggleSelectedPath,
 } from './core/fileTreeModel.js';
@@ -140,6 +142,11 @@ const fileTreeContextMenuActions = [
         label: 'Customize appearance…',
         icon: '<circle cx="12" cy="12" r="9"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="8" r="1"/><circle cx="16" cy="14" r="1"/><path d="M12 21a3 3 0 0 1 0-6h1"/>',
     },
+    {
+        action: 'toggle-pin',
+        label: 'Pin',
+        icon: '<path d="M12 17v5"/><path d="M5 17h14"/><path d="m7 2 1 7-3 3v2h14v-2l-3-3 1-7z"/>',
+    },
     { separator: true },
     {
         action: 'reveal',
@@ -169,7 +176,15 @@ function fileTreeContextMenuItemHTML({ action, label, icon, danger }, enabled) {
  * The file tree always presents the same action inventory. Context determines
  * which entries are enabled, rather than making the menu jump between shapes.
  */
-export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selectedPaths = [], openPath = '', clipboardPath = '' } = {}) {
+export function buildFileTreeContextMenuHTML({
+    type = 'root',
+    path = '',
+    selectedPaths = [],
+    openPath = '',
+    clipboardPath = '',
+    external = false,
+    pinned = false,
+} = {}) {
     const normalizedType = type === 'file' || type === 'directory' ? type : 'root';
     const targetPath = String(path || '');
     const isFile = normalizedType === 'file';
@@ -179,25 +194,31 @@ export function buildFileTreeContextMenuHTML({ type = 'root', path = '', selecte
     const mergePaths = [...new Set([targetPath, ...(selectedPaths || []), openPath].filter(Boolean))];
     const canMerge = isMarkdownFile && mergePaths.length >= 2;
     const enabled = {
-        'open-new-tab': isOpenableFile,
-        'merge-notes': canMerge,
-        'preview-markdown': isMarkdownFile,
-        'preview-pdf': isMarkdownFile,
-        copy: isTarget,
-        paste: Boolean(clipboardPath),
-        'new-file': true,
-        'new-drawio': true,
-        'new-folder': true,
-        rename: isTarget,
-        'customize-style': isTarget && (!isFile || isOpenableFile),
-        reveal: isTarget,
+        'open-new-tab': isOpenableFile || (external && isFile),
+        'merge-notes': !external && canMerge,
+        'preview-markdown': !external && isMarkdownFile,
+        'preview-pdf': !external && isMarkdownFile,
+        copy: !external && isTarget,
+        paste: !external && Boolean(clipboardPath),
+        'new-file': !external,
+        'new-drawio': !external,
+        'new-folder': !external,
+        rename: !external && isTarget,
+        'customize-style': !external && isTarget && (!isFile || isOpenableFile),
+        'toggle-pin': !external && isTarget,
+        reveal: !external && isTarget,
         delete: isTarget,
     };
 
-    return fileTreeContextMenuActions.map(item => item.separator
-        ? '<div class="ui-menu-separator context-menu-separator"></div>'
-        : fileTreeContextMenuItemHTML(item, Boolean(enabled[item.action]))
-    ).join('');
+    return fileTreeContextMenuActions.map(item => {
+        if (item.separator) return '<div class="ui-menu-separator context-menu-separator"></div>';
+        const contextualItem = item.action === 'toggle-pin'
+            ? { ...item, label: pinned ? 'Unpin' : 'Pin' }
+            : (item.action === 'delete' && external
+                ? { ...item, label: 'Remove from file tree', danger: false }
+                : item);
+        return fileTreeContextMenuItemHTML(contextualItem, Boolean(enabled[item.action]));
+    }).join('');
 }
 
 /**
@@ -314,6 +335,31 @@ export async function loadFileTreeStyles() {
     }
 }
 
+export function addExternalFileTreeEntry(file) {
+    if (!file?.id || !file?.path) return false;
+    const current = getState('externalFileTreeEntries') || [];
+    const entry = {
+        name: file.name || String(file.path).split(/[\\/]/).pop() || 'Untitled.md',
+        path: file.path,
+        type: 'file',
+        mtime: file.mtime,
+        externalFileId: file.id,
+    };
+    setState('externalFileTreeEntries', [
+        ...current.filter(candidate => candidate.externalFileId !== file.id),
+        entry,
+    ]);
+    renderFileTree();
+    return true;
+}
+
+function visibleFileTreeData() {
+    return [
+        ...(getState('fileTreeData') || []),
+        ...(getState('externalFileTreeEntries') || []),
+    ];
+}
+
 // Native vault events may arrive in quick batches for an editor's atomic save
 // or a directory move. Coalesce them into one full tree request instead of
 // keeping a permanent polling loop alive.
@@ -330,7 +376,7 @@ export function scheduleFileTreeRefresh(delay = 180) {
  */
 export function renderFileTree() {
     const container = document.getElementById('file-tree');
-    const treeData = getState('fileTreeData');
+    const treeData = visibleFileTreeData();
     const expandedDirs = getState('expandedDirs');
     const selectedPath = getState('selectedTreePath');
     const activeFilePath = getState('selectedFilePath');
@@ -367,8 +413,9 @@ export function renderFileTree() {
 export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries, openFilePaths = []) {
     let html = '<ul class="file-tree-list">';
     
-    for (const item of items) {
+    for (const item of sortFileTreeItems(items, styles)) {
         const isDir = item.type === 'directory';
+        const isExternal = Boolean(item.externalFileId);
         const isExpanded = expandedDirs.has(item.path);
         const isSelected = item.path === selectedPath;
         const isActiveFile = !isDir && item.path === activeFilePath;
@@ -376,11 +423,15 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
         const isMultiSelected = selectedPaths.includes(item.path);
         const hasChildren = isDir && item.children && item.children.length > 0;
         const isDrawioDiagram = !isDir && isDrawioDiagramPath(item.path);
-        const isNonMd = !isDir && !isEditableCodeMirrorFile(item.path) && !isDrawioDiagram;
+        const isNonMd = !isDir && !isExternal && !isEditableCodeMirrorFile(item.path) && !isDrawioDiagram;
+        const isPinned = !isExternal && isFileTreeEntryPinned(item, styles);
         const appearance = styles?.[item.path] || {};
         const customIcon = appearance.icon ? renderLucideIcon(appearance.icon, { size: 16 }) : '';
         const defaultInboxIcon = isDir && item.path === 'Inbox'
             ? renderLucideIcon('Mail', { size: 16, className: 'default-inbox-icon' })
+            : '';
+        const defaultExternalIcon = isExternal
+            ? renderLucideIcon('FileSymlink', { size: 16, className: 'default-external-icon' })
             : '';
         const resolvedIcon = customIcon || defaultInboxIcon;
         const customColor = /^#[0-9a-f]{6}$/i.test(appearance.color || '') ? appearance.color : '';
@@ -388,8 +439,8 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
         const appearanceStyle = customColor ? ` style="--file-tree-entry-color:${customColor}"` : '';
         
         html += `
-            <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" data-path="${escapeHtml(item.path)}" data-type="${item.type}">
-                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isOpenFile ? 'open-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${appearanceClasses}" draggable="true"${appearanceStyle}>
+            <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" data-path="${escapeHtml(item.path)}" data-type="${item.type}"${isExternal ? ` data-external-file-id="${escapeHtml(item.externalFileId)}"` : ''}>
+                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isOpenFile ? 'open-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${isPinned ? 'pinned' : ''} ${isExternal ? 'external-file' : ''} ${appearanceClasses}" draggable="${isExternal ? 'false' : 'true'}"${isExternal ? ` title="Outside vault: ${escapeHtml(item.path)}"` : ''}${appearanceStyle}>
                     ${isDir ? `
                         <span class="node-chevron">${hasChildren ? `
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -403,13 +454,23 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
                     ` : `
                         <span class="node-chevron"></span>
                         <span class="node-icon">
-                            ${customIcon || `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            ${customIcon || defaultExternalIcon || `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                 <polyline points="14 2 14 8 20 8"></polyline>
                             </svg>`}
                         </span>
                     `}
                     <span class="node-name">${escapeHtml(item.name)}</span>
+                    ${isExternal ? `<span class="node-external-indicator" title="Outside vault" aria-label="Outside vault">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        </svg>
+                    </span>` : ''}
+                    ${isPinned ? `<span class="node-pin-indicator" title="Pinned" aria-label="Pinned">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 17v5"></path><path d="M5 17h14"></path><path d="m7 2 1 7-3 3v2h14v-2l-3-3 1-7z"></path>
+                        </svg>
+                    </span>` : ''}
                 </div>
                 ${isDir && hasChildren && isExpanded ? `
                     <div class="file-tree-children">
@@ -453,6 +514,7 @@ function initFileTreeEvents() {
         
         const path = item.dataset.path;
         const type = item.dataset.type;
+        const externalFileId = item.dataset.externalFileId;
         
         if (type === 'directory') {
             setState('selectedTreePath', path);
@@ -462,11 +524,11 @@ function initFileTreeEvents() {
         } else if (type === 'file') {
             const isDiagram = isDrawioDiagramPath(path);
             const isMarkdown = path.toLowerCase().endsWith('.md');
-            const isEditable = isEditableCodeMirrorFile(path);
+            const isEditable = Boolean(externalFileId) || isEditableCodeMirrorFile(path);
             const isCtrl = e.ctrlKey || e.metaKey;
             if (isCtrl) {
                 // Multi-select toggle (only .md files)
-                if (!isMarkdown) return;
+                if (!isMarkdown || externalFileId) return;
                 e.preventDefault();
                 setState('selectedFilePaths', toggleSelectedPath(
                     getState('selectedFilePaths'),
@@ -479,7 +541,16 @@ function initFileTreeEvents() {
                 setState('selectedFilePath', path);
                 setState('selectedTreePath', path);
                 setState('selectedFilePaths', []);
-                if (isDiagram) {
+                if (externalFileId) {
+                    const external = (getState('externalFileTreeEntries') || [])
+                        .find(entry => entry.externalFileId === externalFileId);
+                    if (!external) return;
+                    openTab(`external:${externalFileId}`, external.name, 'file', {
+                        path: external.path,
+                        mtime: external.mtime,
+                        externalFileId,
+                    });
+                } else if (isDiagram) {
                     openTab(path, path.split('/').pop(), 'drawio', { path });
                 } else {
                     handleFileOpen(path);
@@ -650,10 +721,10 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
 function handleFileTreeKeydown(event) {
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
     const key = event.key.toLowerCase();
-    const treeData = getState('fileTreeData') || [];
+    const treeData = visibleFileTreeData();
     const selectedPath = getState('selectedTreePath');
     const selectedItem = selectedPath ? findTreeItem(treeData, selectedPath) : null;
-    if (key === 'c' && selectedItem) {
+    if (key === 'c' && selectedItem && !selectedItem.externalFileId) {
         event.preventDefault();
         copyInternalPath(selectedItem.path, selectedItem.type);
     } else if (key === 'v' && internalClipboard) {
@@ -671,6 +742,10 @@ function handleDragStart(e) {
     
     const item = node.closest('.file-tree-item');
     if (!item) return;
+    if (item.dataset.externalFileId) {
+        e.preventDefault();
+        return;
+    }
     
     dragSourceNode = item;
     item.classList.add('dragging');
@@ -829,6 +904,7 @@ export function externalDropTargetDirectory(element) {
     if (!tree) return null;
     const item = element.closest('.file-tree-item');
     if (!item) return '';
+    if (item.dataset.externalFileId) return '';
     const path = String(item.dataset.path || '');
     if (item.dataset.type === 'directory') return path;
     const separator = path.lastIndexOf('/');
@@ -860,10 +936,24 @@ function insertDroppedPathsIntoEditor(paths, coordinates) {
     return insertTextAtCursor(view, paths.map(path => String(path)).join('\n'));
 }
 
-export async function copyExternalDrop(paths, targetDirectory, { confirmImport = false, coordinates = null } = {}) {
+export async function copyExternalDrop(paths, targetDirectory, {
+    confirmImport = false,
+    confirmTreeImport = false,
+    coordinates = null,
+} = {}) {
     if (externalCopyInProgress || !Array.isArray(paths) || paths.length === 0 || targetDirectory === null) return false;
     externalCopyInProgress = true;
     try {
+        if (confirmTreeImport) {
+            const confirmed = await confirmExternalTreeImport(paths, targetDirectory, {
+                confirm: confirmDialog,
+            });
+            if (!confirmed) {
+                statusBar.set('Import cancelled');
+                setTimeout(() => statusBar.set('Ready'), 1800);
+                return false;
+            }
+        }
         let result;
         let openImportedFiles = false;
         if (confirmImport) {
@@ -960,11 +1050,10 @@ export function initNativeFileDrops(runtime = window.runtime) {
         const element = document.elementFromPoint(x, y);
         const targetDirectory = externalDropTargetDirectory(element);
         if (targetDirectory !== null) {
-            copyExternalDrop(paths, targetDirectory).catch(() => {});
-            return;
+            return copyExternalDrop(paths, targetDirectory, { confirmTreeImport: true }).catch(() => false);
         }
         if (element?.closest?.('#editor-container')) {
-            copyExternalDrop(paths, '', { confirmImport: true, coordinates: { x, y } }).catch(() => {});
+            return copyExternalDrop(paths, '', { confirmImport: true, coordinates: { x, y } }).catch(() => false);
         }
     // Handle every native file drop ourselves. Passing true would make Wails
     // invoke the callback only for CSS --wails-drop-target elements, which
@@ -998,6 +1087,7 @@ function handleContextMenu(e) {
     // space is a vault-root action rather than a no-op.
     const path = item?.dataset.path || '';
     const type = item?.dataset.type || 'root';
+    const externalFileId = item?.dataset.externalFileId || '';
 
     // A folder is a first-class tree selection even when it has no tab to
     // open. Keep right-click selection consistent with a normal click before
@@ -1011,6 +1101,7 @@ function handleContextMenu(e) {
 
     setState('contextTargetType', type);
     setState('contextTargetPath', path);
+    setState('contextTargetExternalFileId', externalFileId);
 
     if (contextMenu) contextMenu.remove();
 
@@ -1022,6 +1113,8 @@ function handleContextMenu(e) {
         selectedPaths: getState('selectedFilePaths') || [],
         openPath: getState('selectedFilePath'),
         clipboardPath: internalClipboard?.path || '',
+        external: Boolean(externalFileId),
+        pinned: item?.querySelector('.file-tree-node')?.classList.contains('pinned') || false,
     });
     document.body.appendChild(contextMenu);
     positionContextMenu(contextMenu, e.clientX, e.clientY);
@@ -1041,7 +1134,18 @@ function handleContextMenu(e) {
         case 'open-new-tab':
             if (getState('contextTargetType') === 'file') {
                 const targetPath = getState('contextTargetPath');
-                if (isDrawioDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath)) {
+                const targetExternalFileId = getState('contextTargetExternalFileId');
+                if (targetExternalFileId) {
+                    const external = (getState('externalFileTreeEntries') || [])
+                        .find(entry => entry.externalFileId === targetExternalFileId);
+                    if (external) {
+                        openTab(`external:${targetExternalFileId}`, external.name, 'file', {
+                            path: external.path,
+                            mtime: external.mtime,
+                            externalFileId: targetExternalFileId,
+                        }, true);
+                    }
+                } else if (isDrawioDiagramPath(targetPath) || isEditableCodeMirrorFile(targetPath)) {
                     openTab(targetPath, targetPath.split('/').pop(), isDrawioDiagramPath(targetPath) ? 'drawio' : 'file', { path: targetPath }, true);
                 }
             }
@@ -1075,8 +1179,16 @@ function handleContextMenu(e) {
             await customizeTreePath(getState('contextTargetPath'), getState('contextTargetType'));
             break;
 
+        case 'toggle-pin':
+            await toggleTreePin(getState('contextTargetPath'), getState('contextTargetType'));
+            break;
+
         case 'delete':
-            await deletePath(getState('contextTargetPath'), getState('contextTargetType'));
+            if (getState('contextTargetExternalFileId')) {
+                await removeExternalFileTreeEntry(getState('contextTargetExternalFileId'));
+            } else {
+                await deletePath(getState('contextTargetPath'), getState('contextTargetType'));
+            }
             break;
 
         case 'reveal':
@@ -1135,6 +1247,24 @@ export async function customizeTreePath(path, type) {
         return true;
     } catch (error) {
         await errorDialog('Couldn’t style entry', error, 'The file-tree appearance could not be saved.');
+        return false;
+    }
+}
+
+export async function toggleTreePin(path, type) {
+    if (!path || (type !== 'file' && type !== 'directory')) return false;
+    const item = findTreeItem(getState('fileTreeData') || [], path);
+    if (!item) return false;
+    const pinned = !isFileTreeEntryPinned(item, fileTreeStyles.entries);
+    try {
+        const styles = await backend().SetFileTreePinned(path, pinned);
+        fileTreeStyles = normalizeFileTreeStyles(styles);
+        renderFileTree();
+        statusBar.set(`${pinned ? 'Pinned' : 'Unpinned'} “${item.name}”`);
+        setTimeout(() => statusBar.set('Ready'), 1600);
+        return true;
+    } catch (error) {
+        await errorDialog('Couldn’t update pin', error, 'The file-tree pin could not be saved.');
         return false;
     }
 }
@@ -1353,6 +1483,37 @@ async function renameTreePath(path, type) {
         log.error('Rename failed:', err);
         await errorDialog(`Couldn’t rename ${kind}`, err, `The ${kind} could not be renamed.`);
     }
+}
+
+export async function removeExternalFileTreeEntry(externalFileId, {
+    confirm = confirmDialog,
+    close = closeTab,
+} = {}) {
+    const entries = getState('externalFileTreeEntries') || [];
+    const external = entries.find(entry => entry.externalFileId === externalFileId);
+    if (!external) return false;
+
+    const confirmed = await confirm(
+        'Remove external note from the file tree?',
+        `“${external.name}” is outside this vault. Removing it here will NOT delete or modify the original file; it only removes this shortcut from Figaro’s file tree.`,
+        false,
+        false,
+        { confirmLabel: 'Remove from file tree', cancelLabel: 'Keep in file tree' }
+    );
+    if (!confirmed) return false;
+
+    const tabId = `external:${externalFileId}`;
+    if ((getState('openTabs') || []).some(tab => tab.id === tabId)) {
+        const closed = await close(tabId);
+        if (!closed) return false;
+    }
+    setState('externalFileTreeEntries', entries.filter(entry => entry.externalFileId !== externalFileId));
+    if (getState('selectedTreePath') === external.path) setState('selectedTreePath', null);
+    if (getState('selectedFilePath') === external.path) setState('selectedFilePath', null);
+    renderFileTree();
+    statusBar.set(`Removed “${external.name}” from the file tree`);
+    setTimeout(() => statusBar.set('Ready'), 1800);
+    return true;
 }
 
 async function deletePath(path) {

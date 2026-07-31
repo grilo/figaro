@@ -10,7 +10,7 @@ import { initEditor, getEditorContent, openEditorSearch } from './editor.js';
 import { preloadLanguageSupport } from './languageSupport.js';
 import { initializeDiagramRenderers } from './diagramRenderer.js';
 import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot, showWorkspaceHome } from './tabManager.js';
-import { initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
+import { addExternalFileTreeEntry, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
 import { initCalendar, renderCalendar, invalidateCalendarCache, refreshCalendarIfVisible } from './calendar.js';
 import { initKanban, refreshKanbanData } from './kanban.js';
 import { statusBar } from './statusBar.js';
@@ -324,7 +324,7 @@ function initKeyboardShortcuts() {
         // Ctrl/Cmd + S: Save current file
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            saveActiveTabFile({ offerExternalImport: true });
+            saveActiveTabFile();
         }
         
         // Ctrl/Cmd + W: Close current tab
@@ -498,7 +498,14 @@ export async function initApp() {
 
     // Restore previously open tabs (after file tree is available)
     const didRestore = restoreOpenTabs();
-    await openLaunchExternalFiles(openTab);
+    await openLaunchExternalFiles(openTab, {
+        onExternalKept: addExternalFileTreeEntry,
+        onImported: () => refreshFileTree(),
+        onImportError: error => {
+            log.warn('Could not import external launch note:', error);
+            statusBar.set('Opened outside vault; import failed');
+        },
+    });
     
     // Initialize calendar
     initCalendar();
@@ -525,7 +532,7 @@ export async function initApp() {
 
     await initTheme();
     
-    if (!didRestore) {
+    if (!didRestore && !getState('activeTabId')) {
         // A missing, empty, or pruned workspace begins at the overview rather
         // than opening an arbitrary note or manufacturing a fake tab.
         showWorkspaceHome();

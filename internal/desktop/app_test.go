@@ -1288,7 +1288,7 @@ func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
 	if err := json.Unmarshal(data, &settings); err != nil {
 		t.Fatal(err)
 	}
-	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["vim_visual_rows"] != false || settings["vim_reveal_blocks"] != false || settings["line_numbers"] != false || settings["markdown_lint"] != true || settings["spellcheck"] != true || settings["spellcheck_language"] != "en-US" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
+	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["vim_visual_rows"] != false || settings["vim_reveal_blocks"] != false || settings["line_numbers"] != false || settings["markdown_lint"] != true || settings["spellcheck"] != false || settings["spellcheck_language"] != "en-US" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
 		t.Fatalf("unexpected normalized settings: %#v", settings)
 	}
 	if _, exists := settings["openTabs"]; exists {
@@ -1819,8 +1819,8 @@ func TestSpellcheckSaveLoadDefaultsAndLanguageValidation(t *testing.T) {
 	defer os.RemoveAll(vaultPath)
 
 	loaded, err := app.SpellcheckLoad()
-	if err != nil || !loaded.Enabled || loaded.Language != "en-US" {
-		t.Fatalf("SpellcheckLoad default = %#v, %v; want enabled en-US", loaded, err)
+	if err != nil || loaded.Enabled || loaded.Language != "en-US" {
+		t.Fatalf("SpellcheckLoad default = %#v, %v; want disabled en-US", loaded, err)
 	}
 	result, err := app.SpellcheckSave(false, "en_gb")
 	if err != nil || !result.Success {

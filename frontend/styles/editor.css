@@ -37,6 +37,7 @@
     flex: 1 !important;
     min-height: 0 !important;
     overflow-y: auto !important;
+    scrollbar-gutter: stable;
     overflow-anchor: none !important;
     scroll-behavior: auto !important;
     scroll-padding-top: 0 !important;
@@ -155,11 +156,21 @@
 }
 
 .cm-frontmatter-disclosure {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
     flex: 0 0 auto;
     color: var(--text-dim);
     font-size: 18px;
     line-height: 12px;
     transform: translateY(-1px);
+    transition: transform var(--motion-content-duration) var(--motion-ease-out);
+}
+
+.cm-frontmatter-disclosure.expanded {
+    transform: translateY(-1px) rotate(90deg);
 }
 
 .cm-frontmatter-label {
@@ -211,6 +222,7 @@
 .cm-add-properties {
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     margin: 0;
     padding: 4px 8px;
     border: 1px dashed var(--border-light);
@@ -303,14 +315,6 @@
     border-radius: 4px;
     font: inherit;
     font-size: inherit;
-}
-
-.cm-frontmatter-panel-close {
-    width: 24px;
-    height: 24px;
-    color: var(--text-dim);
-    font-size: 18px;
-    line-height: 1;
 }
 
 .cm-frontmatter-panel-section {

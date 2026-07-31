@@ -85,6 +85,25 @@ function makeButton(className, label, title, onClick) {
     return button;
 }
 
+function createDisclosureIndicator(expanded) {
+    const disclosure = document.createElement('span');
+    disclosure.className = `cm-frontmatter-disclosure${expanded ? ' expanded' : ''}`;
+    disclosure.textContent = '›';
+    return disclosure;
+}
+
+function createDisclosureButton(expanded, onClick) {
+    const button = makeButton(
+        'ui-icon-button ui-icon-button--small cm-frontmatter-disclosure-button',
+        '',
+        expanded ? 'Collapse document properties' : 'Open document properties',
+        onClick,
+    );
+    button.setAttribute('aria-expanded', String(expanded));
+    button.appendChild(createDisclosureIndicator(expanded));
+    return button;
+}
+
 function createFieldRow(labelText, control) {
     const row = document.createElement('div');
     row.className = 'cm-frontmatter-panel-row';
@@ -408,12 +427,11 @@ export function createFrontmatterField(
             button.type = 'button';
             button.className = 'cm-frontmatter';
             button.setAttribute('aria-label', 'Open document properties');
+            button.setAttribute('aria-expanded', 'false');
             button.title = 'Open document properties';
             button.addEventListener('mousedown', stopEditorMouseSelection);
 
-            const disclosure = document.createElement('span');
-            disclosure.className = 'cm-frontmatter-disclosure';
-            disclosure.textContent = '›';
+            const disclosure = createDisclosureIndicator(false);
 
             const label = document.createElement('span');
             label.className = 'cm-frontmatter-label';
@@ -467,7 +485,7 @@ export function createFrontmatterField(
             let creating = false;
             const button = makeButton(
                 'cm-add-properties',
-                '+ Add properties',
+                '',
                 'Add document properties',
                 async () => {
                     if (creating || view.isDestroyed) return;
@@ -485,13 +503,9 @@ export function createFrontmatterField(
                         if (view.isDestroyed || hasLeadingFrontmatter(view.state.doc.toString())) return;
 
                         const change = frontmatterTemplateChange(view.state.doc.toString(), { author });
-                        const subtitlePosition = change.from +
-                            change.insert.indexOf('subtitle: "') +
-                            'subtitle: "'.length;
                         view.dispatch({
                             changes: change,
-                            effects: setMode.of('source'),
-                            selection: { anchor: subtitlePosition },
+                            effects: setMode.of('panel'),
                             scrollIntoView: true,
                         });
                         view.focus();
@@ -502,6 +516,10 @@ export function createFrontmatterField(
                     }
                 }
             );
+            button.setAttribute('aria-expanded', 'false');
+            const label = document.createElement('span');
+            label.textContent = 'Add properties';
+            button.append(createDisclosureIndicator(false), label);
             return wrapBlockWidget(button, 'cm-block-widget--add-properties');
         }
 
@@ -538,10 +556,13 @@ export function createFrontmatterField(
             const actions = document.createElement('span');
             actions.className = 'cm-frontmatter-panel-actions';
             actions.append(
-                makeButton('ui-button cm-frontmatter-panel-action', 'Edit YAML', 'Edit raw frontmatter', () => showSource(view, this.frontmatter)),
-                makeButton('ui-icon-button ui-icon-button--small cm-frontmatter-panel-close', '×', 'Collapse properties', () => view.dispatch({ effects: setMode.of('collapsed') }))
+                makeButton('ui-button cm-frontmatter-panel-action', 'Edit YAML', 'Edit raw frontmatter', () => showSource(view, this.frontmatter))
             );
-            header.append(heading, actions);
+            header.append(
+                createDisclosureButton(true, () => view.dispatch({ effects: setMode.of('collapsed') })),
+                heading,
+                actions,
+            );
             panel.appendChild(header);
 
             const pdfSection = document.createElement('section');
@@ -840,6 +861,12 @@ export function createFrontmatterField(
             if (transaction.selection && !transaction.docChanged && !explicitMode && mode === 'source') {
                 if (!selectionTouchesFrontmatter(frontmatter, transaction.state.selection)) {
                     mode = 'collapsed';
+                    needsRebuild = true;
+                }
+            }
+            if (transaction.selection && !transaction.docChanged && !explicitMode && mode !== 'source') {
+                if (selectionTouchesFrontmatter(frontmatter, transaction.state.selection)) {
+                    mode = 'source';
                     needsRebuild = true;
                 }
             }

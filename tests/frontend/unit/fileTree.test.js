@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -14,7 +14,8 @@ var mockState = {
     selectedTreePath: null,
     selectedFilePaths: [],
     openTabs: [],
-    activeTabId: null
+    activeTabId: null,
+    externalFileTreeEntries: [],
 };
 
 jest.mock('../frontend/js/state.js', () => ({
@@ -50,6 +51,7 @@ jest.mock('../frontend/js/session.js', () => ({
 
 jest.mock('../frontend/js/tabManager.js', () => ({
     openTab: jest.fn(),
+    closeTab: jest.fn().mockResolvedValue(true),
     closeTabsForDeletedPath: jest.fn(),
     prepareTabsForPathCopy: jest.fn().mockResolvedValue({ success: true }),
     prepareTabsForPathMove: jest.fn().mockResolvedValue({ success: true }),
@@ -65,7 +67,7 @@ import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
-import { openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
+import { closeTab, openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 import { focusEditor } from '../frontend/js/editor.js';
 
@@ -90,6 +92,7 @@ describe('File Tree', () => {
         state.selectedFilePaths = [];
         state.openTabs = [];
         state.activeTabId = null;
+        state.externalFileTreeEntries = [];
         clearFileTreeClipboard();
         delete window.lucide;
     });
@@ -219,12 +222,32 @@ describe('File Tree', () => {
             const surface = document.createElement('div');
             surface.innerHTML = buildTreeHTML(items, new Set(), null);
             expect(surface.querySelector('.default-inbox-icon path').getAttribute('d')).toBe('M4 4h16v16H4z');
+            expect(surface.querySelector('.node-pin-indicator')).not.toBeNull();
 
             surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, null, {
-                Inbox: { icon: 'Star' },
+                Inbox: { icon: 'Star', pinned: false },
             });
             expect(surface.querySelector('.default-inbox-icon')).toBeNull();
             expect(surface.querySelector('.node-icon path').getAttribute('d')).toBe('M12 2 15 9 22 9Z');
+            expect(surface.querySelector('.node-pin-indicator')).toBeNull();
+        });
+
+        test('puts pinned siblings first and renders their pin at the right edge', () => {
+            const items = [
+                { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+                { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
+                { name: 'reference.md', path: 'reference.md', type: 'file', mtime: 2 },
+            ];
+            const surface = document.createElement('div');
+            surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, null, {
+                'draft.md': { pinned: true },
+            });
+
+            expect([...surface.querySelectorAll(':scope > .file-tree-list > .file-tree-item')]
+                .map(item => item.dataset.path)).toEqual(['draft.md', 'Archive', 'reference.md']);
+            const pinnedNode = surface.querySelector('[data-path="draft.md"] > .file-tree-node');
+            expect(pinnedNode.classList.contains('pinned')).toBe(true);
+            expect(pinnedNode.lastElementChild.classList.contains('node-pin-indicator')).toBe(true);
         });
     });
 
@@ -318,6 +341,109 @@ describe('File Tree', () => {
             expect(document.querySelector('.file-tree-node').style.getPropertyValue('--file-tree-entry-color'))
                 .toBe('#ef4444');
         });
+
+        test('persists the opposite of the effective pin state, including Inbox default', async () => {
+            state.fileTreeData = [{ name: 'Inbox', path: 'Inbox', type: 'directory', children: [] }];
+            window.go.desktop.App.SetFileTreePinned.mockResolvedValueOnce({
+                version: 1,
+                entries: { Inbox: { pinned: false } },
+                recent_icons: [],
+            });
+
+            await expect(toggleTreePin('Inbox', 'directory')).resolves.toBe(true);
+
+            expect(window.go.desktop.App.SetFileTreePinned).toHaveBeenCalledWith('Inbox', false);
+            expect(document.querySelector('[data-path="Inbox"] .node-pin-indicator')).toBeNull();
+        });
+
+        test('reports a pin persistence failure without changing the visible state', async () => {
+            state.fileTreeData = [{ name: 'note.md', path: 'note.md', type: 'file' }];
+            window.go.desktop.App.SetFileTreePinned.mockRejectedValueOnce(new Error('Vault is read-only'));
+
+            await expect(toggleTreePin('note.md', 'file')).resolves.toBe(false);
+
+            expect(errorDialog).toHaveBeenCalledWith(
+                'Couldn’t update pin',
+                expect.objectContaining({ message: 'Vault is read-only' }),
+                'The file-tree pin could not be saved.',
+            );
+            expect(document.querySelector('[data-path="note.md"] .node-pin-indicator')).toBeNull();
+        });
+    });
+
+    test('keeps a declined external note at the root and removes only its tree shortcut', async () => {
+        state.fileTreeData = [{ name: 'Inbox', path: 'Inbox', type: 'directory', children: [] }];
+        window.lucide = { icons: {
+            FileSymlink: [
+                ['path', { d: 'M14 2H6a2 2 0 0 0-2 2v12' }],
+                ['path', { d: 'm10 18 3-3-3-3' }],
+            ],
+        } };
+        initFileTree();
+        addExternalFileTreeEntry({
+            id: 'launch-1',
+            name: 'outside.md',
+            path: '/home/writer/outside.md',
+            mtime: 12,
+        });
+
+        const item = document.querySelector('.file-tree-item[data-external-file-id="launch-1"]');
+        expect(item.parentElement.parentElement.id).toBe('file-tree');
+        expect(item.querySelector('.node-icon .default-external-icon')).not.toBeNull();
+        expect(item.querySelector('.node-icon path').getAttribute('d')).toContain('M14 2H6');
+        expect(item.querySelector('.node-external-indicator')).not.toBeNull();
+        item.querySelector('.file-tree-node').dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            ctrlKey: true,
+        }));
+        expect(state.selectedFilePaths).toEqual([]);
+        expect(openTab).not.toHaveBeenCalled();
+        item.querySelector('.file-tree-node').click();
+        expect(openTab).toHaveBeenCalledWith('external:launch-1', 'outside.md', 'file', {
+            path: '/home/writer/outside.md',
+            mtime: 12,
+            externalFileId: 'launch-1',
+        });
+
+        const confirm = jest.fn().mockResolvedValue(true);
+        state.openTabs = [{ id: 'external:launch-1', externalFileId: 'launch-1', type: 'file' }];
+        await expect(removeExternalFileTreeEntry('launch-1', { confirm, close: closeTab })).resolves.toBe(true);
+
+        expect(confirm).toHaveBeenCalledWith(
+            'Remove external note from the file tree?',
+            expect.stringContaining('will NOT delete or modify the original file'),
+            false,
+            false,
+            { confirmLabel: 'Remove from file tree', cancelLabel: 'Keep in file tree' },
+        );
+        expect(closeTab).toHaveBeenCalledWith('external:launch-1');
+        expect(window.go.desktop.App.DeletePath).not.toHaveBeenCalled();
+        expect(state.externalFileTreeEntries).toEqual([]);
+        expect(document.querySelector('[data-external-file-id="launch-1"]')).toBeNull();
+    });
+
+    test('keeps an external shortcut when removal is cancelled or its dirty tab stays open', async () => {
+        state.externalFileTreeEntries = [{
+            externalFileId: 'launch-1',
+            name: 'outside.md',
+            path: '/home/writer/outside.md',
+            type: 'file',
+        }];
+        state.openTabs = [{ id: 'external:launch-1', externalFileId: 'launch-1', type: 'file', dirty: true }];
+
+        await expect(removeExternalFileTreeEntry('launch-1', {
+            confirm: jest.fn().mockResolvedValue(false),
+            close: closeTab,
+        })).resolves.toBe(false);
+        expect(closeTab).not.toHaveBeenCalled();
+        expect(state.externalFileTreeEntries).toHaveLength(1);
+
+        await expect(removeExternalFileTreeEntry('launch-1', {
+            confirm: jest.fn().mockResolvedValue(true),
+            close: jest.fn().mockResolvedValue(false),
+        })).resolves.toBe(false);
+        expect(window.go.desktop.App.DeletePath).not.toHaveBeenCalled();
+        expect(state.externalFileTreeEntries).toHaveLength(1);
     });
 
     describe('toggleDirectory', () => {
@@ -503,11 +629,35 @@ describe('File Tree', () => {
 
         expect(initNativeFileDrops(runtime)).toBe(true);
         expect(runtime.OnFileDrop).toHaveBeenCalledWith(expect.any(Function), false);
-        callback(42, 84, ['/home/writer/note.md']);
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await callback(42, 84, ['/home/writer/note.md']);
 
+        expect(confirmDialog).toHaveBeenCalledWith(
+            'Import “note.md” into “Inbox”?',
+            expect.stringContaining('will not be modified or removed'),
+            false,
+            false,
+            {
+                confirmLabel: 'Import to vault',
+                cancelLabel: 'Cancel',
+                icon: 'file-add',
+            },
+        );
         expect(window.go.desktop.App.CopyExternalPaths).toHaveBeenCalledWith(['/home/writer/note.md'], 'Inbox', false);
         document.elementFromPoint = originalElementFromPoint;
+    });
+
+    test('does not copy a native file-tree drop when import is cancelled', async () => {
+        confirmDialog.mockResolvedValueOnce(false);
+
+        await expect(copyExternalDrop(
+            ['/home/writer/note.md'],
+            'Inbox',
+            { confirmTreeImport: true },
+        )).resolves.toBe(false);
+
+        expect(confirmDialog).toHaveBeenCalled();
+        expect(window.go.desktop.App.CopyExternalPaths).not.toHaveBeenCalled();
+        expect(statusBar.set).toHaveBeenCalledWith('Import cancelled');
     });
 
     test('asks before replacing a conflicting external drop', async () => {
@@ -621,10 +771,10 @@ describe('File Tree', () => {
         expect([...menu.querySelectorAll('[data-action]')].map(item => item.dataset.action)).toEqual([
             'open-new-tab', 'merge-notes', 'preview-markdown', 'preview-pdf',
             'copy', 'paste',
-            'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'reveal', 'delete',
+            'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
         ]);
         expect(menu.querySelector('[data-action="new-file"]').classList.contains('disabled')).toBe(false);
-        for (const action of ['open-new-tab', 'merge-notes', 'preview-markdown', 'preview-pdf', 'copy', 'paste', 'rename', 'customize-style', 'reveal', 'delete']) {
+        for (const action of ['open-new-tab', 'merge-notes', 'preview-markdown', 'preview-pdf', 'copy', 'paste', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete']) {
             expect(menu.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
         }
         expect(state.contextTargetType).toBe('root');
@@ -640,12 +790,28 @@ describe('File Tree', () => {
         const expectedActions = [
             'open-new-tab', 'merge-notes', 'preview-markdown', 'preview-pdf',
             'copy', 'paste',
-            'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'reveal', 'delete',
+            'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
         ];
 
         expect(actionsFor({ type: 'root' })).toEqual(expectedActions);
         expect(actionsFor({ type: 'directory', path: 'notes' })).toEqual(expectedActions);
         expect(actionsFor({ type: 'file', path: 'notes/report.md', selectedPaths: ['notes/other.md'] })).toEqual(expectedActions);
+    });
+
+    test('names external removal honestly and disables vault-only mutations', () => {
+        const surface = document.createElement('div');
+        surface.innerHTML = buildFileTreeContextMenuHTML({
+            type: 'file',
+            path: '/home/writer/outside.md',
+            external: true,
+        });
+
+        expect(surface.querySelector('[data-action="delete"]').textContent).toContain('Remove from file tree');
+        expect(surface.querySelector('[data-action="delete"]').classList.contains('danger')).toBe(false);
+        expect(surface.querySelectorAll('[data-action="delete"]')).toHaveLength(1);
+        for (const action of ['copy', 'rename', 'customize-style', 'toggle-pin', 'reveal']) {
+            expect(surface.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
+        }
     });
 
     test('copies an internal folder to its original parent and selects the uniquely named copy', async () => {

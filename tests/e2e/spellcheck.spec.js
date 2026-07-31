@@ -3,6 +3,10 @@ import { expect, test } from '@playwright/test';
 async function openWelcomeEditor(page) {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(async () => {
+        const theme = await import('/js/theme.js');
+        await theme.setSpellcheckPreference({ enabled: true, language: 'en-US' });
+    });
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
     await expect(page.locator('.cm-editor')).toBeVisible();
 }

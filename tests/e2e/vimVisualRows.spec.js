@@ -208,6 +208,37 @@ test('moves Vim Normal-mode j/k and arrows by visual rows without changing opera
     await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.doc.toString())).toBe('remaining line');
 });
 
+test('clamps Vim vertical movement at the first and last document lines', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = 'first line\nmiddle line\nlast line';
+    await setEditorSource(page, source, source.indexOf('last line') + 2);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        editor.setVimVisualRows(true);
+    });
+
+    const content = page.locator('.cm-content');
+    await content.press('j');
+    await content.press('ArrowDown');
+    expect(await page.evaluate(() => {
+        const view = window.__vimVisualRowsView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(3);
+
+    await page.evaluate(() => {
+        const view = window.__vimVisualRowsView;
+        view.dispatch({ selection: { anchor: 2 } });
+        view.focus();
+    });
+    await content.press('k');
+    await content.press('ArrowUp');
+    expect(await page.evaluate(() => {
+        const view = window.__vimVisualRowsView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(1);
+});
+
 test('moves up one visual row within an expanded long Markdown link in Vim Normal mode', async ({ page }) => {
     await openWelcomeEditor(page);
     const url = `https://example.test/${Array.from({ length: 180 }, (_, index) => `segment-${index}`).join('/')}`;

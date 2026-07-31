@@ -57,6 +57,47 @@ func TestFileTreeStylesPersistRecentIconsAndReset(t *testing.T) {
 	}
 }
 
+func TestFileTreePinsPersistExplicitUnpinWithoutLosingAppearance(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Inbox/note.md", "# Note\n")
+	if _, err := app.SetFileTreeStyle("Inbox", "Mail", "#3b82f6"); err != nil {
+		t.Fatalf("style Inbox: %v", err)
+	}
+	styles, err := app.SetFileTreePinned("Inbox", false)
+	if err != nil {
+		t.Fatalf("unpin Inbox: %v", err)
+	}
+	inbox := styles.Entries["Inbox"]
+	if inbox.Pinned == nil || *inbox.Pinned {
+		t.Fatalf("explicit Inbox unpin was not retained: %+v", inbox)
+	}
+	if inbox.Icon != "Mail" || inbox.Color != "#3b82f6" {
+		t.Fatalf("pin update lost appearance: %+v", inbox)
+	}
+
+	if _, err := app.SetFileTreeStyle("Inbox", "", ""); err != nil {
+		t.Fatalf("reset Inbox appearance: %v", err)
+	}
+	styles, err = app.GetFileTreeStyles()
+	if err != nil {
+		t.Fatalf("reload styles: %v", err)
+	}
+	inbox = styles.Entries["Inbox"]
+	if inbox.Icon != "" || inbox.Color != "" || inbox.Pinned == nil || *inbox.Pinned {
+		t.Fatalf("appearance reset did not preserve explicit unpin: %+v", inbox)
+	}
+
+	styles, err = app.SetFileTreePinned("Inbox/note.md", true)
+	if err != nil {
+		t.Fatalf("pin note: %v", err)
+	}
+	if pinned := styles.Entries["Inbox/note.md"].Pinned; pinned == nil || !*pinned {
+		t.Fatalf("note pin was not persisted: %+v", styles.Entries["Inbox/note.md"])
+	}
+}
+
 func TestFileTreeStylesFollowRenameCopyAndDelete(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
@@ -67,6 +108,9 @@ func TestFileTreeStylesFollowRenameCopyAndDelete(t *testing.T) {
 	}
 	if _, err := app.SetFileTreeStyle("Projects/plan.md", "NotebookTabs", "#14b8a6"); err != nil {
 		t.Fatalf("style note: %v", err)
+	}
+	if _, err := app.SetFileTreePinned("Projects", true); err != nil {
+		t.Fatalf("pin folder: %v", err)
 	}
 
 	rename, err := app.RenamePath("Projects", "Work")
@@ -83,6 +127,9 @@ func TestFileTreeStylesFollowRenameCopyAndDelete(t *testing.T) {
 	if styles.Entries["Work"].Icon != "FolderStar" || styles.Entries["Work/plan.md"].Icon != "NotebookTabs" {
 		t.Fatalf("rename did not move folder subtree styles: %+v", styles.Entries)
 	}
+	if pinned := styles.Entries["Work"].Pinned; pinned == nil || !*pinned {
+		t.Fatalf("rename did not move folder pin: %+v", styles.Entries["Work"])
+	}
 
 	copyResult, err := app.CopyPath("Work", ".")
 	if err != nil || !copyResult.Success {
@@ -97,6 +144,9 @@ func TestFileTreeStylesFollowRenameCopyAndDelete(t *testing.T) {
 	}
 	if styles.Entries["Work copy"].Icon != "FolderStar" || styles.Entries["Work copy/plan.md"].Icon != "NotebookTabs" {
 		t.Fatalf("copy did not clone folder subtree styles: %+v", styles.Entries)
+	}
+	if pinned := styles.Entries["Work copy"].Pinned; pinned == nil || !*pinned {
+		t.Fatalf("copy did not clone folder pin: %+v", styles.Entries["Work copy"])
 	}
 
 	deleted, err := app.DeletePath("Work")

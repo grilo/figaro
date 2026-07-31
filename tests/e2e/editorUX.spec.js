@@ -138,6 +138,77 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
     })).toEqual({ fromLine: 1, toLine: 3 });
 });
 
+test('clamps cursor and viewport movement at both document boundaries', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = Array.from({ length: 180 }, (_, index) => `Line ${index + 1} with enough text to remain visible.`).join('\n');
+    await page.evaluate(async nextSource => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(nextSource, 'Welcome.md');
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== nextSource) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({
+            selection: { anchor: view.state.doc.length },
+            scrollIntoView: true,
+        });
+        view.focus();
+        window.__boundaryView = view;
+    }, source);
+
+    const content = page.locator('.cm-content');
+    const scroller = page.locator('.cm-scroller');
+    await scroller.evaluate(element => {
+        element.scrollTop = element.scrollHeight;
+    });
+    await expect.poll(() => scroller.evaluate(element => (
+        element.scrollTop >= element.scrollHeight - element.clientHeight - 1
+    ))).toBe(true);
+    await content.press('ArrowDown');
+    await content.press('ArrowDown');
+    expect(await page.evaluate(() => window.__boundaryView.state.selection.main.head))
+        .toBe(source.length);
+
+    await page.evaluate(() => {
+        window.__bottomBoundaryWheelPrevented = false;
+        document.addEventListener('wheel', event => {
+            window.__bottomBoundaryWheelPrevented = event.defaultPrevented;
+        }, { once: true });
+    });
+    await content.hover();
+    await page.mouse.wheel(0, 900);
+    const bottom = await scroller.evaluate(element => ({
+        top: element.scrollTop,
+        max: element.scrollHeight - element.clientHeight,
+    }));
+    expect(bottom.top).toBeGreaterThanOrEqual(bottom.max - 1);
+    expect(await page.evaluate(() => window.__bottomBoundaryWheelPrevented)).toBe(true);
+
+    await page.evaluate(() => {
+        const view = window.__boundaryView;
+        view.dispatch({ selection: { anchor: 0 }, scrollIntoView: true });
+        view.focus();
+    });
+    await scroller.evaluate(element => {
+        element.scrollTop = 0;
+    });
+    await expect.poll(() => scroller.evaluate(element => element.scrollTop <= 1)).toBe(true);
+    await content.press('ArrowUp');
+    await content.press('ArrowUp');
+    expect(await page.evaluate(() => window.__boundaryView.state.selection.main.head)).toBe(0);
+
+    await page.evaluate(() => {
+        window.__topBoundaryWheelPrevented = false;
+        document.addEventListener('wheel', event => {
+            window.__topBoundaryWheelPrevented = event.defaultPrevented;
+        }, { once: true });
+    });
+    await content.hover();
+    await page.mouse.wheel(0, -900);
+    expect(await scroller.evaluate(element => element.scrollTop)).toBeLessThanOrEqual(1);
+    expect(await page.evaluate(() => window.__topBoundaryWheelPrevented)).toBe(true);
+});
+
 test('keeps math and diagram previews cursor-safe during keyboard and mouse selection', async ({ page }) => {
     await openWelcomeEditor(page);
     const fence = '`'.repeat(3);

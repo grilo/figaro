@@ -78,3 +78,48 @@ test('mounts descendants only when their folder is expanded', async ({ page }) =
     await expect(nested).toBeVisible();
     await expect(nested.locator('.node-name')).toHaveText('plan.md');
 });
+
+test('keeps pinned entries first with a right-edge marker and lets Inbox be unpinned', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    await page.evaluate(async () => {
+        const app = (await import('/js/backend.js')).backend();
+        const tree = [
+            { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+            { name: 'Inbox', path: 'Inbox', type: 'directory', children: [] },
+            { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
+        ];
+        let entries = {};
+        app.GetFileTree = async () => tree;
+        app.GetFileTreeStyles = async () => ({ version: 1, entries, recent_icons: [] });
+        app.SetFileTreePinned = async (path, pinned) => {
+            entries = { ...entries, [path]: { ...(entries[path] || {}), pinned } };
+            return { version: 1, entries, recent_icons: [] };
+        };
+        const { refreshFileTree } = await import('/js/fileTree.js');
+        await refreshFileTree();
+    });
+
+    const rootItems = page.locator('#file-tree > .file-tree-list > .file-tree-item');
+    await expect(rootItems.first()).toHaveAttribute('data-path', 'Inbox');
+    const inbox = page.locator('.file-tree-item[data-path="Inbox"] > .file-tree-node');
+    const marker = inbox.locator('.node-pin-indicator');
+    await expect(marker).toBeVisible();
+    const geometry = await inbox.evaluate(node => {
+        const name = node.querySelector('.node-name').getBoundingClientRect();
+        const pin = node.querySelector('.node-pin-indicator').getBoundingClientRect();
+        const row = node.getBoundingClientRect();
+        return { nameRight: name.right, pinLeft: pin.left, pinRight: pin.right, rowRight: row.right };
+    });
+    expect(geometry.pinLeft).toBeGreaterThanOrEqual(geometry.nameRight);
+    expect(geometry.rowRight - geometry.pinRight).toBeLessThan(12);
+
+    await inbox.click({ button: 'right' });
+    const pinAction = page.locator('.context-menu-item[data-action="toggle-pin"]');
+    await expect(pinAction).toContainText('Unpin');
+    await pinAction.click();
+
+    await expect(inbox.locator('.node-pin-indicator')).toHaveCount(0);
+    await expect(rootItems.first()).toHaveAttribute('data-path', 'Archive');
+});

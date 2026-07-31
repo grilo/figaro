@@ -6,6 +6,34 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.9.0 - 2026-07-31
+
+### Added
+
+- Files and folders can now be pinned ahead of their unpinned siblings from the
+  file-tree context menu, with a right-edge marker; a top-level `Inbox` starts
+  pinned when present and can be explicitly unpinned.
+
+### Changed
+
+- Opening an external Markdown document now asks whether to import it before
+  opening. Keeping it outside the vault adds a temporary root shortcut with a
+  distinct icon; the existing Delete menu position becomes **Remove from file
+  tree**, and removal never deletes or modifies the original file. Native
+  file-tree drops now confirm the destination before copying, and external tabs
+  become active only after their original content has loaded.
+- Offline spellcheck is now disabled by default for new and missing settings.
+- Notes without frontmatter now create the default properties and immediately
+  show the rendered Properties panel. One stable, rotating disclosure arrow
+  expands and collapses the panel, while cursor navigation into frontmatter
+  still reveals the raw YAML.
+
+### Fixed
+
+- Vertical editor navigation and scrolling now stop symmetrically at the first
+  and last document boundaries instead of a further downward move wrapping to
+  the top.
+
 ## 1.8.1 - 2026-07-28
 
 ### Fixed

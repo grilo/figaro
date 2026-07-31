@@ -55,3 +55,14 @@ func TestSettingsSelectorsApplyIndependentFallbacks(t *testing.T) {
 		t.Fatalf("Spellcheck fallback = %v, %q", enabled, language)
 	}
 }
+
+func TestSpellcheckDefaultsOffUntilExplicitlyEnabled(t *testing.T) {
+	enabled, language := Spellcheck(nil)
+	if enabled || language != "en-US" {
+		t.Fatalf("Spellcheck(nil) = %v, %q; want disabled en-US", enabled, language)
+	}
+	enabled, language = Spellcheck(map[string]any{"spellcheck": true, "spellcheck_language": "es"})
+	if !enabled || language != "es" {
+		t.Fatalf("explicit spellcheck preference = %v, %q; want enabled es", enabled, language)
+	}
+}

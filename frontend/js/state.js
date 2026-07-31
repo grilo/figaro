@@ -36,6 +36,7 @@ export const state = {
     selectedFilePath: null,     // File currently active in an editor tab
     selectedTreePath: null,     // Focused tree item (file or directory)
     selectedFilePaths: [],      // Multi-selected file paths (for merge)
+    externalFileTreeEntries: [], // Process-local launch documents kept outside the vault
     
     // Search
     searchQuery: '',            // Current search query
@@ -62,6 +63,7 @@ export const state = {
     // Context Menu
     contextTargetType: 'root',  // 'file' | 'directory' | 'root'
     contextTargetPath: '',      // Path for context menu target
+    contextTargetExternalFileId: '', // Opaque launch capability for an external root entry
 
     // Pinned Tabs
     pinnedTabs: [],             // Array of pinned tab IDs (persisted)

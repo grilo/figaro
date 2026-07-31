@@ -9,10 +9,10 @@ import { setState, getState, subscribe, recordRecentFile } from './state.js';
 import { saveSession } from './session.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile, createEditorView, setImageBasePath } from './editor.js';
 import { statusBar } from './statusBar.js';
+import { errorDialog } from './dialogs.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
 import { playEntranceAnimation, playExitAnimation } from './motion.js';
 import { shouldCommitOnSave } from './automation.js';
-import { offerExternalFileImport } from './externalFiles.js';
 import { renderHome } from './home.js';
 import { invalidateCalendarCache, loadCalendarResults, refreshCalendarIfVisible } from './calendar.js';
 import { loadBacklinksResults } from './backlinks.js';
@@ -28,6 +28,7 @@ import { isLatestSave, savedLatestEdit, saveStatusMessage } from './core/saveMod
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { createDocumentSave } from './usecases/documentSave.js';
 import { loadApplicationVersion } from './usecases/loadApplicationVersion.js';
+import { fileTabReadTarget } from './core/externalFileModel.js';
 
 /**
  * View Manager — shows either the editor or tab panels, never both.
@@ -81,6 +82,8 @@ let draggedTabId = null;
 let tabDropIndicator = null;
 let suppressTabClick = false;
 let previousTabActivationStack = [];
+let tabActivationGeneration = 0;
+let pendingExternalActivationId = 0;
 
 function isFileBackedTab(tab) {
     return Boolean(tab?.path) && (tab.type === 'file' || tab.type === 'drawio');
@@ -466,7 +469,7 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
 
     const tabs = getState('openTabs');
     
-    if (!forceNew) {
+    if (!forceNew || data.externalFileId) {
         const existing = tabs.find(t => t.id === id);
         if (existing) {
             if (existing.type === 'file' && data.line) existing.searchLine = data.line;
@@ -489,6 +492,7 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
         tab.isNew = data.isNew || false;
         tab.cursorState = null;
         tab.searchLine = data.line || null;
+        tab.externalFileId = data.externalFileId || null;
         break;
     case 'drawio':
         tab.path = data.path;
@@ -509,14 +513,14 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     }
     
     const currentActiveId = getState('activeTabId');
-    if (currentActiveId && currentActiveId !== tab.id && getState('openTabs').some(tabRef => tabRef.id === currentActiveId)) {
+    if (!tab.externalFileId && currentActiveId && currentActiveId !== tab.id && getState('openTabs').some(tabRef => tabRef.id === currentActiveId)) {
         rememberPreviousActiveTab(currentActiveId);
         snapshotActiveFileTab(tabs.find(tabRef => tabRef.id === currentActiveId));
     }
 
     const newTabs = [...tabs, tab];
     setState('openTabs', newTabs);
-    setState('activeTabId', tab.id);
+    if (!tab.externalFileId) setState('activeTabId', tab.id);
     saveTabsToStorage();
     
     renderTabBar();
@@ -525,12 +529,64 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     return tab;
 }
 
-export function switchTab(tabId) {
+export async function switchTab(tabId) {
+    const activationId = ++tabActivationGeneration;
     const tabs = getState('openTabs');
     const tab = tabs.find(t => t.id === tabId);
-    if (!tab) return;
+    if (!tab) return false;
     
-    const currentActiveId = getState('activeTabId');
+    let currentActiveId = getState('activeTabId');
+    if (tab.externalFileId && currentActiveId === tabId && getEditorDocumentTabId() === tabId) {
+        return true;
+    }
+
+    // External paths are display metadata, not vault-relative paths. Read the
+    // capability-backed document before changing the selected tab so a failed
+    // read can never leave the previous document under an external tab title.
+    let preparedFile = null;
+    if (tab.type === 'file' && tab.externalFileId) {
+        pendingExternalActivationId = activationId;
+        statusBar.set(`Opening “${tab.title}”…`);
+        try {
+            preparedFile = await readFileTab(tab);
+            if (activationId !== tabActivationGeneration) return false;
+            if (!getState('openTabs').some(candidate => candidate.id === tab.id)) {
+                if (pendingExternalActivationId === activationId) {
+                    pendingExternalActivationId = 0;
+                    statusBar.set('Ready');
+                }
+                return false;
+            }
+            if (!preparedFile || preparedFile.binary) {
+                throw new Error(preparedFile?.binary
+                    ? 'This external file is binary and cannot be edited.'
+                    : 'The external file returned no readable content.');
+            }
+            if (!getEditorView()) createEditorView();
+            const configured = await configureEditorForFile(tab.path);
+            if (activationId !== tabActivationGeneration) return false;
+            if (!configured) throw new Error('The editor is unavailable for this external note.');
+        } catch (error) {
+            if (activationId !== tabActivationGeneration) return false;
+            pendingExternalActivationId = 0;
+            log.error('Failed to load external file:', error);
+            statusBar.set('Failed to open external file');
+            await errorDialog(
+                'Couldn’t open external note',
+                error,
+                'The original external note could not be read.',
+            );
+            statusBar.set('Ready');
+            return false;
+        }
+        pendingExternalActivationId = 0;
+        statusBar.set('Ready');
+        currentActiveId = getState('activeTabId');
+    } else if (pendingExternalActivationId) {
+        pendingExternalActivationId = 0;
+        statusBar.set('Ready');
+    }
+
     const stillOpen = tabs.some(tab => tab.id === currentActiveId);
     if (currentActiveId && currentActiveId !== tabId && stillOpen) {
         rememberPreviousActiveTab(currentActiveId);
@@ -550,7 +606,7 @@ export function switchTab(tabId) {
         detail: { path: tab.type === 'file' ? tab.path : null, type: tab.type },
     }));
 
-    if (tab.type === 'file' && tab.path) {
+    if (tab.type === 'file' && tab.path && !tab.externalFileId) {
         recordRecentFile(tab.path, tab.title);
     }
     
@@ -558,7 +614,7 @@ export function switchTab(tabId) {
         panel.classList.remove('active');
     });
     
-    renderTabContent(tab, cursorState);
+    renderTabContent(tab, cursorState, preparedFile);
     renderTabBar();
 
     closeHistoryPanel();
@@ -566,16 +622,17 @@ export function switchTab(tabId) {
     if (tab.type === 'file') {
         setTimeout(() => focusEditor(), 0);
     }
+    return true;
 }
 
-async function renderTabContent(tab, cursorState = null) {
+async function renderTabContent(tab, cursorState = null, preparedFile = null) {
     if (tab.type === 'file') {
         setView('editor');
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         if (!getEditorView()) {
             createEditorView();
         }
-        renderFileTab(null, tab, cursorState);
+        renderFileTab(null, tab, cursorState, preparedFile);
     } else {
         setView('panels');
         const panelsContainer = document.getElementById('tab-panels');
@@ -604,8 +661,17 @@ async function renderTabContent(tab, cursorState = null) {
     }
 }
 
-async function renderFileTab(panel, tab, cursorState = null) {
+async function renderFileTab(panel, tab, cursorState = null, preparedFile = null) {
     if (!tab.path) return;
+    if (preparedFile) {
+        setEditorContent(preparedFile.content, tab.id, cursorState);
+        tab._content = preparedFile.content;
+        tab.mtime = preparedFile.mtime;
+        tab.dirty = false;
+        document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
+        focusSearchLine(tab);
+        return;
+    }
     if (tab.isNew) {
         const loadId = (tab._loadGeneration || 0) + 1;
         tab._loadGeneration = loadId;
@@ -635,9 +701,7 @@ async function loadFileContent(tab, cursorState = null) {
             return;
         }
         
-        const result = tab.externalFileId
-            ? await backend().ReadLaunchExternalFile(tab.externalFileId)
-            : await backend().ReadFile(tab.path);
+        const result = await readFileTab(tab);
         if (result) {
             if (result.binary) {
                 statusBar.set('Cannot edit binary file');
@@ -657,6 +721,14 @@ async function loadFileContent(tab, cursorState = null) {
         log.error('Failed to load file:', err);
         statusBar.set('Failed to load file');
     }
+}
+
+async function readFileTab(tab) {
+    const target = fileTabReadTarget(tab);
+    if (!target) throw new Error('The file tab has no readable source.');
+    return target.kind === 'external'
+        ? backend().ReadLaunchExternalFile(target.externalFileId)
+        : backend().ReadFile(target.path);
 }
 
 function focusSearchLine(tab) {
@@ -1187,10 +1259,10 @@ function handleTabContextMenu(e) {
     });
 }
 
-export function saveActiveFile({ offerExternalImport = false } = {}) {
+export function saveActiveFile() {
     const activeTab = getActiveTab();
     if (!activeTab || activeTab.type !== 'file' || !getEditorView()) return Promise.resolve(null);
-    return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab), { offerExternalImport });
+    return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab));
 }
 
 function contentSnapshotForTab(tab) {
@@ -1234,7 +1306,7 @@ async function applySaveSuccess(snapshot, result, {
     historyCommitError,
     successMessage,
 }) {
-    const { tab, content, offerExternalImport } = snapshot;
+    const { tab, content } = snapshot;
     tab.mtime = result.mtime;
     const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
     tabsForPath.forEach(candidate => {
@@ -1265,15 +1337,6 @@ async function applySaveSuccess(snapshot, result, {
         invalidateCalendarCache();
         refreshCalendarIfVisible();
         refreshHistoryIfOpen();
-    }
-    if (tab.externalFileId && offerExternalImport && latestEdit && !tab._externalImportOfferShown) {
-        tab._externalImportOfferShown = true;
-        try {
-            await offerExternalFileImport(tab, { openTab, closeTab });
-        } catch (error) {
-            log.warn('Could not import external file into vault:', error);
-            statusBar.set('Saved outside vault; import failed');
-        }
     }
     setTimeout(() => statusBar.set('Ready'), 1000);
 }

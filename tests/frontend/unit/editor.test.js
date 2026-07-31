@@ -469,6 +469,83 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(state.selection.main.head - state.doc.line(3).from).toBe(4);
         });
 
+        test('consumes Arrow movement at the first and last document positions', async () => {
+            const { EditorSelection, EditorState, Transaction } = await import('@codemirror/state');
+            const { initEditor, moveCursorVerticallySafely } = await import('../frontend/js/editor.js');
+            await initEditor();
+
+            let state = EditorState.create({
+                doc: 'one\ntwo\nthree',
+                selection: { anchor: 13 },
+            });
+            const view = {
+                get state() { return state; },
+                moveVertically: jest.fn(() => EditorSelection.cursor(0)),
+                moveToLineBoundary: jest.fn(),
+                dispatch: transaction => {
+                    state = transaction instanceof Transaction
+                        ? transaction.state
+                        : state.update(transaction).state;
+                },
+            };
+
+            expect(moveCursorVerticallySafely(view, true)).toBe(true);
+            expect(view.moveVertically).not.toHaveBeenCalled();
+            expect(state.selection.main.head).toBe(state.doc.length);
+
+            state = state.update({ selection: { anchor: 0 } }).state;
+            expect(moveCursorVerticallySafely(view, false)).toBe(true);
+            expect(view.moveVertically).not.toHaveBeenCalled();
+            expect(state.selection.main.head).toBe(0);
+        });
+
+        test('clamps a wrong-direction engine wrap to the requested edge', async () => {
+            const { EditorSelection, EditorState, Transaction } = await import('@codemirror/state');
+            const { initEditor, moveCursorVerticallySafely } = await import('../frontend/js/editor.js');
+            await initEditor();
+
+            let state = EditorState.create({
+                doc: 'one\ntwo\nthree',
+                selection: { anchor: 11 },
+            });
+            const view = {
+                get state() { return state; },
+                moveVertically: jest.fn(() => EditorSelection.cursor(1)),
+                moveToLineBoundary: jest.fn(),
+                dispatch: transaction => {
+                    state = transaction instanceof Transaction
+                        ? transaction.state
+                        : state.update(transaction).state;
+                },
+            };
+
+            expect(moveCursorVerticallySafely(view, true)).toBe(true);
+            expect(state.selection.main.head).toBe(state.doc.length);
+        });
+
+        test('handles wheel overscroll at both viewport boundaries', async () => {
+            const { handleVerticalBoundaryWheel, initEditor } = await import('../frontend/js/editor.js');
+            await initEditor();
+
+            const scrollDOM = {
+                scrollTop: 900,
+                scrollHeight: 1000,
+                clientHeight: 100,
+            };
+            const view = { scrollDOM, defaultLineHeight: 20 };
+
+            expect(handleVerticalBoundaryWheel({ deltaY: 1, deltaMode: 1 }, view)).toBe(true);
+            expect(scrollDOM.scrollTop).toBe(900);
+
+            scrollDOM.scrollTop = 0;
+            expect(handleVerticalBoundaryWheel({ deltaY: -1, deltaMode: 1 }, view)).toBe(true);
+            expect(scrollDOM.scrollTop).toBe(0);
+
+            scrollDOM.scrollTop = 400;
+            expect(handleVerticalBoundaryWheel({ deltaY: 1, deltaMode: 1 }, view)).toBe(false);
+            expect(scrollDOM.scrollTop).toBe(400);
+        });
+
     });
 });
 
