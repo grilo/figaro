@@ -8,6 +8,11 @@ import { initLinkStyleSetting } from './linkStyle.js';
 import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import {
+    normalizeSpellcheckPreference,
+    spellcheckPreferenceFromSetting,
+    spellcheckSettingValue,
+} from './spellcheckPreference.js';
+import {
     getEditorView,
     setLineNumbers,
     setMarkdownLint,
@@ -524,25 +529,10 @@ export async function setMarkdownLintPreference(enabled) {
     }
 }
 
-function normalizedSpellcheckPreference(preference = {}) {
-    const allowedLanguages = new Set(['en-US', 'en-GB', 'es']);
-    const language = String(preference.language || '').replaceAll('_', '-');
-    return {
-        enabled: preference.enabled === true,
-        language: allowedLanguages.has(language) ? language : 'en-US',
-    };
-}
-
 function syncSpellcheckControls(preference) {
-    document.querySelectorAll('#spellcheck-toggle').forEach(toggle => {
-        toggle.checked = preference.enabled;
-    });
     document.querySelectorAll('#spellcheck-language').forEach(select => {
-        select.value = preference.language;
-        select.title = preference.enabled ? '' : 'Enable spellcheck to choose a default language.';
+        select.value = spellcheckSettingValue(preference);
         select._figaroCombobox?.sync?.();
-        if (select._figaroCombobox?.setDisabled) select._figaroCombobox.setDisabled(!preference.enabled);
-        else select.disabled = !preference.enabled;
     });
 }
 
@@ -562,7 +552,7 @@ export async function initSpellcheckPreference() {
     spellcheckPreferenceLoadPromise = (async () => {
         try {
             const result = await backend().SpellcheckLoad();
-            currentSpellcheckPreference = normalizedSpellcheckPreference(result);
+            currentSpellcheckPreference = normalizeSpellcheckPreference(result);
             persistedSpellcheckPreference = { ...currentSpellcheckPreference };
             spellcheckPreferenceLoaded = true;
             syncSpellcheckControls(currentSpellcheckPreference);
@@ -580,7 +570,7 @@ export async function initSpellcheckPreference() {
 /** Apply and persist the global fallback while preserving a newer UI choice. */
 export async function setSpellcheckPreference(preference) {
     if (!spellcheckPreferenceLoaded) await initSpellcheckPreference();
-    const requested = normalizedSpellcheckPreference({ ...currentSpellcheckPreference, ...preference });
+    const requested = normalizeSpellcheckPreference({ ...currentSpellcheckPreference, ...preference });
     const revision = ++spellcheckPreferenceRevision;
     currentSpellcheckPreference = requested;
     syncSpellcheckControls(requested);
@@ -731,42 +721,32 @@ export async function initSettingsPanel(root = document) {
             });
         }
 
-        const spellcheckToggle = findIn(root, '#spellcheck-toggle');
         const spellcheckLanguage = findIn(root, '#spellcheck-language');
-        if (spellcheckToggle && spellcheckLanguage) {
+        if (spellcheckLanguage) {
             const preference = await initSpellcheckPreference();
             if (!isActivePanel(root)) return;
             const spellcheckPicker = enhanceSelectCombobox(spellcheckLanguage, {
-                ariaLabel: 'Default spellcheck language',
+                ariaLabel: 'Spellcheck language',
             });
-            spellcheckToggle.checked = preference.enabled;
-            spellcheckLanguage.value = preference.language;
-            spellcheckLanguage.title = preference.enabled ? '' : 'Enable spellcheck to choose a default language.';
+            spellcheckLanguage.value = spellcheckSettingValue(preference);
             spellcheckPicker?.sync();
-            if (spellcheckPicker) spellcheckPicker.setDisabled(!preference.enabled);
-            else spellcheckLanguage.disabled = !preference.enabled;
 
             const save = async () => {
-                spellcheckToggle.disabled = true;
                 if (spellcheckPicker) spellcheckPicker.setDisabled(true, { busy: true });
                 else spellcheckLanguage.disabled = true;
-                const saved = await setSpellcheckPreference({
-                    enabled: spellcheckToggle.checked,
-                    language: spellcheckLanguage.value,
-                });
+                const saved = await setSpellcheckPreference(spellcheckPreferenceFromSetting(
+                    spellcheckLanguage.value,
+                    getSpellcheckPreference(),
+                ));
                 if (!isActivePanel(root)) return;
                 const currentPreference = getSpellcheckPreference();
-                spellcheckToggle.checked = currentPreference.enabled;
-                spellcheckLanguage.value = currentPreference.language;
-                spellcheckToggle.disabled = false;
+                spellcheckLanguage.value = spellcheckSettingValue(currentPreference);
                 const failure = saved ? '' : 'Could not save the spellcheck preference.';
-                spellcheckToggle.title = failure;
-                spellcheckLanguage.title = failure || (currentPreference.enabled ? '' : 'Enable spellcheck to choose a default language.');
+                spellcheckLanguage.title = failure;
                 spellcheckPicker?.sync();
-                if (spellcheckPicker) spellcheckPicker.setDisabled(!currentPreference.enabled);
-                else spellcheckLanguage.disabled = !currentPreference.enabled;
+                if (spellcheckPicker) spellcheckPicker.setDisabled(false);
+                else spellcheckLanguage.disabled = false;
             };
-            spellcheckToggle.addEventListener('change', save);
             spellcheckLanguage.addEventListener('change', save);
         }
 

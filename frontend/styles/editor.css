@@ -121,6 +121,11 @@
 }
 
 .cm-block-widget--frontmatter-panel {
+    /* The expanded surface animates with a transform, which creates a nested
+       stacking context. Keep its measured widget root above later positioned
+       CodeMirror lines so picker menus remain interactive beyond the card. */
+    position: relative;
+    z-index: 2;
     padding: 2px 0 16px;
 }
 
@@ -281,7 +286,7 @@
 
 .cm-frontmatter-panel--enter {
     transform-origin: top center;
-    animation: figaro-properties-expand var(--motion-panel-duration) var(--motion-ease-out) both;
+    animation: figaro-properties-expand var(--motion-panel-duration) var(--motion-ease-out);
 }
 
 .cm-frontmatter-panel-header {

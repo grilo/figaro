@@ -55,4 +55,14 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-frontmatter-disclosure')).toMatch(/transition:\s*transform/);
         expect(declarationsFor('.cm-frontmatter-disclosure.expanded')).toMatch(/rotate\(90deg\)/);
     });
+
+    test('keeps expanded frontmatter menus above later editor lines', () => {
+        const widgetRoot = declarationsFor('.cm-block-widget--frontmatter-panel');
+        const panelEntrance = declarationsFor('.cm-frontmatter-panel--enter');
+
+        expect(widgetRoot).toMatch(/position:\s*relative/);
+        expect(widgetRoot).toMatch(/z-index:\s*2/);
+        expect(panelEntrance).toMatch(/animation:\s*figaro-properties-expand/);
+        expect(panelEntrance).not.toMatch(/\bboth\b/);
+    });
 });

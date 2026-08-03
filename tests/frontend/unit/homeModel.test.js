@@ -36,9 +36,26 @@ describe('Home model', () => {
             kind: 'open', path: '2024-01-15.md', mtime: 4,
         });
         expect(todayNotePlan('2024-01-16.md', tree)).toEqual({
-            kind: 'create', path: '2024-01-16.md', content: '# 2024-01-16\n\n',
+            kind: 'create',
+            directory: 'Inbox',
+            path: 'Inbox/2024-01-16.md',
+            content: '# 2024-01-16\n\n',
         });
         expect(todayNotePlan('../outside.md', tree).kind).toBe('invalid');
+    });
+
+    test('prefers an Inbox daily note while retaining a legacy root-note fallback', () => {
+        const inboxToday = {
+            name: '2024-01-15.md', path: 'Inbox/2024-01-15.md', type: 'file', mtime: 8,
+        };
+        const inboxTree = tree.map(item => item.path === 'Inbox'
+            ? { ...item, children: [...item.children, inboxToday] }
+            : item);
+
+        expect(todayNotePlan('2024-01-15.md', inboxTree)).toEqual({
+            kind: 'open', path: 'Inbox/2024-01-15.md', mtime: 8,
+        });
+        expect(homeCollections({ tree: inboxTree, todayPath: '2024-01-15.md' }).todayExists).toBe(true);
     });
 
     test('derives Inbox, explicit/default pins, and a stable rediscovery note without changing the tree', () => {

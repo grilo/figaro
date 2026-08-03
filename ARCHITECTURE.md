@@ -294,9 +294,11 @@ mutation, DOM presentation, and the local-midnight timer remain effect adapters.
 pinned, recent, and rediscovery collections are pure projections of the
 already-loaded tree, vault appearance settings, local recent-file state, and
 the local calendar date. The open-or-create daily-note use case receives its
-tree, creation, refresh, and navigation effects as explicit ports; a same-name
-creation collision opens the existing note without replacing it. Calendar month
-navigation similarly copies only that month's pre-grouped daily-note,
+tree, Inbox-directory creation, exclusive file creation, refresh, and navigation
+effects as explicit ports. It prefers `Inbox/YYYY-MM-DD.md`, retains a root-file
+fallback for existing vaults, and opens a same-name creation collision without
+replacing it. Calendar month navigation similarly copies only that month's
+pre-grouped daily-note,
 linked-day, and due-task lists. These narrow methods avoid transferring or filtering the
 rest of a large vault merely to render a small overview.
 
@@ -410,7 +412,10 @@ while a later selection entering that replaced range reveals raw YAML and a
 selection leaving it restores the compact card. Expanded and collapsed states
 share one disclosure control. A stable CodeMirror scrollbar gutter prevents
 the control's viewport position from shifting when the taller panel introduces
-vertical overflow.
+vertical overflow. The measured expanded-widget root establishes a paint layer
+above later positioned editor lines; transient panel transforms can therefore
+animate without trapping an absolutely positioned picker menu beneath the note
+content that follows it.
 
 Vertical document navigation has a separate deterministic boundary policy in
 `frontend/js/core/verticalCursorModel.js`. It consumes movement at the absolute
@@ -481,9 +486,11 @@ Offline spellcheck is another independent, off-by-default idle-time linter
 compartment. Its
 three Hunspell assets (US English, UK English, and Spanish) are served from
 the embedded frontend bundle and cached in the webview; text is never sent to
-a service. The global `spellcheck` / `spellcheck_language` preferences provide
-the fallback, while a note's leading `spellcheck` frontmatter can select one
-or more bundled dictionaries or disable that note. A hyphenated prose compound
+a service. The Settings language combobox maps **None** to the global
+`spellcheck: false` preference while retaining `spellcheck_language` as the
+last valid dictionary for later re-enablement. When enabled, those preferences
+provide the fallback, while a note's leading `spellcheck` frontmatter can
+select one or more bundled dictionaries or disable that note. A hyphenated prose compound
 is accepted when every component is recognized by the same active dictionary,
 so terms such as `faster-than-usual` remain unmarked despite dictionary
 compound gaps. A right-click resolves
@@ -506,7 +513,7 @@ where possible, avoiding a whole-document tokenization per keypress.
 
 `settings.json` stores durable preferences such as theme, fonts, Vim visual-row
 and rendered-block motions, the Markdown-lint toggle, and the spellcheck enabled
-state plus global language. Open tabs, their ordering, current per-file cursor
+state plus last selected global language. Open tabs, their ordering, current per-file cursor
 selections, and the active workspace state live in the dedicated session record.
 Cursor updates are coalesced into portable session writes and installed before
 the restored active file is mounted. Keeping them separate makes startup recovery

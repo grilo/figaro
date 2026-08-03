@@ -2,12 +2,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Markdown cheatsheet', () => {
-    test('lists every supported admonition marker and its quoted body syntax', () => {
+    function loadPopup() {
         const source = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
         const template = document.createElement('template');
         template.innerHTML = source;
+        return template.content.querySelector('#md-cheatsheet-popup');
+    }
 
-        const popup = template.content.querySelector('#md-cheatsheet-popup');
+    test('lists every supported admonition marker and its quoted body syntax', () => {
+        const popup = loadPopup();
         const admonitionRow = popup.querySelector('.md-cheatsheet-admonition-row');
         const blockquoteRow = Array.from(popup.querySelectorAll('tr'))
             .find(row => row.cells[1]?.textContent.trim() === 'Blockquote');
@@ -24,5 +27,17 @@ describe('Markdown cheatsheet', () => {
                 '> Body text',
             ]);
         expect(admonitionRow.cells[1].textContent.trim()).toBe('Admonitions / Callouts');
+    });
+
+    test('shows the portable task due-date Markdown immediately after task syntax', () => {
+        const popup = loadPopup();
+        const rows = Array.from(popup.querySelectorAll('tr'));
+        const taskIndex = rows.findIndex(row => row.cells[1]?.textContent.trim() === 'Task / Checkbox');
+        const dueRow = popup.querySelector('.md-cheatsheet-task-due-row');
+
+        expect(rows.indexOf(dueRow)).toBe(taskIndex + 1);
+        expect(dueRow.querySelector('code').textContent.trim())
+            .toBe('- [ ] task #todo [due 2026-08-14](2026-08-14.md)');
+        expect(dueRow.cells[1].textContent.trim()).toBe('Task due date');
     });
 });

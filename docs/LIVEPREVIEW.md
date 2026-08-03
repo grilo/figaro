@@ -104,8 +104,12 @@ across collapsed and expanded states. CodeMirror's scroller reserves a stable
 scrollbar gutter so opening the taller panel cannot shift that control
 horizontally. Expanding a note without frontmatter inserts the default YAML in
 panel mode; Arrow navigation into the replaced range must still reveal raw
-source, and leaving it must restore the compact card. Cover this with the
-focused frontmatter component test and
+source, and leaving it must restore the compact card. The expanded widget root
+also owns a paint layer above subsequent positioned editor lines. A picker
+listbox may visually extend past the measured card, but every exposed option
+must remain the pointer hit target; hover keeps the picker focused and clicking
+an option must not place the CodeMirror selection beneath it. Cover this with
+the focused frontmatter component and block-widget layout tests plus
 `tests/e2e/frontmatterProperties.spec.js`.
 
 Inline diagnostic decorations, including spellcheck's dotted unknown-word

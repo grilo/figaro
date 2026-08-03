@@ -299,6 +299,7 @@ async function openToday(panel, button) {
     const openTodayNote = createOpenTodayNote({
         getTodayPath: () => backend().GetTodayLink(),
         getTree: () => getState('fileTreeData') || [],
+        ensureDirectory: path => backend().CreateDirectory(path),
         createFile: (path, content) => backend().CreateFile(path, content),
         afterCreate: path => document.dispatchEvent(new CustomEvent('vault-tree-refresh-requested', { detail: { path } })),
         openFile: ({ path, mtime }) => openFile(path, path.split('/').pop(), undefined, mtime),

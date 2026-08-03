@@ -80,6 +80,7 @@ describe('Today workspace overview', () => {
         await testUtils.waitFor(0);
 
         expect(window.go.desktop.App.CreateFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.CreateDirectory).not.toHaveBeenCalled();
         expect(openTab).toHaveBeenCalledWith('2024-01-15.md', '2024-01-15.md', 'file', {
             path: '2024-01-15.md',
             line: undefined,
@@ -92,7 +93,7 @@ describe('Today workspace overview', () => {
         document.addEventListener('vault-tree-refresh-requested', refresh, { once: true });
         window.go.desktop.App.CreateFile.mockResolvedValueOnce({
             success: true,
-            path: '2024-01-15.md',
+            path: 'Inbox/2024-01-15.md',
             mtime: 31,
         });
         const panel = document.getElementById('tab-panels');
@@ -101,10 +102,11 @@ describe('Today workspace overview', () => {
         panel.querySelector('[data-home-action="today"]').click();
         await testUtils.waitFor(0);
 
-        expect(window.go.desktop.App.CreateFile).toHaveBeenCalledWith('2024-01-15.md', '# 2024-01-15\n\n');
+        expect(window.go.desktop.App.CreateDirectory).toHaveBeenCalledWith('Inbox');
+        expect(window.go.desktop.App.CreateFile).toHaveBeenCalledWith('Inbox/2024-01-15.md', '# 2024-01-15\n\n');
         expect(refresh).toHaveBeenCalled();
-        expect(openTab).toHaveBeenCalledWith('2024-01-15.md', '2024-01-15.md', 'file', {
-            path: '2024-01-15.md',
+        expect(openTab).toHaveBeenCalledWith('Inbox/2024-01-15.md', '2024-01-15.md', 'file', {
+            path: 'Inbox/2024-01-15.md',
             line: undefined,
             mtime: 31,
         });

@@ -6,6 +6,27 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.10.1 - 2026-08-04
+
+### Added
+
+- The Markdown cheatsheet now shows the portable Markdown syntax for assigning
+  a due date to a Kanban task.
+
+### Changed
+
+- Spellcheck settings now use one Language picker with a **None** option that
+  disables checking across every note, while retaining the last selected
+  dictionary for later re-enabling.
+- **Create today’s note** now creates the dated note inside the real `Inbox`
+  folder, creating that folder when needed while continuing to open existing
+  root daily notes.
+
+### Fixed
+
+- Properties picker options that extend beyond the expanded card now remain
+  interactive instead of focusing or moving the cursor in the note beneath.
+
 ## 1.10.0 - 2026-07-31
 
 ### Added

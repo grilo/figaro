@@ -39,7 +39,12 @@ test('keeps the Today launchpad responsive and creates a missing daily note from
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     await page.evaluate(() => {
+        window.__todayDirectories = [];
         window.__todayCreates = [];
+        window.__figaroDebugBackend.CreateDirectory = path => {
+            window.__todayDirectories.push(path);
+            return Promise.resolve({ success: true, path });
+        };
         window.__figaroDebugBackend.CreateFile = (path, content) => {
             window.__todayCreates.push({ path, content });
             return Promise.resolve({ success: true, path, mtime: 42 });
@@ -64,9 +69,10 @@ test('keeps the Today launchpad responsive and creates a missing daily note from
     expect(new Set(geometry.cardLefts).size).toBe(1);
 
     await home.getByRole('button', { name: 'Create today’s note' }).click();
-    await expect(page.locator('.tab[data-tab-id="2026-07-09.md"]')).toBeVisible();
+    await expect(page.locator('.tab[data-tab-id="Inbox/2026-07-09.md"]')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__todayDirectories)).toEqual(['Inbox']);
     await expect.poll(() => page.evaluate(() => window.__todayCreates)).toEqual([
-        { path: '2026-07-09.md', content: '# 2026-07-09\n\n' },
+        { path: 'Inbox/2026-07-09.md', content: '# 2026-07-09\n\n' },
     ]);
 });
 

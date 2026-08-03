@@ -25,6 +25,38 @@ test('generates rendered Properties first and reuses one disclosure across curso
     await expect.poll(() => page.evaluate(() => window.__frontmatterView.state.doc.toString()))
         .toMatch(/^---\ntitle: Body\n/);
 
+    const selectedLine = () => page.evaluate(() => {
+        const view = window.__frontmatterView;
+        return view.state.doc.lineAt(view.state.selection.main.head).text;
+    });
+    await expect.poll(selectedLine).toBe('After');
+
+    const language = page.getByRole('combobox', { name: 'Spellcheck language for this note' });
+    await language.click();
+    const disabledLanguage = page.getByRole('option', { name: 'Disabled for this note' });
+    await expect(disabledLanguage).toBeVisible();
+    const popupHit = await disabledLanguage.evaluate(option => {
+        const panelBox = option.closest('.cm-frontmatter-panel').getBoundingClientRect();
+        const optionBox = option.getBoundingClientRect();
+        const x = optionBox.left + optionBox.width / 2;
+        const y = optionBox.top + optionBox.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return {
+            extendsBeyondPanel: optionBox.bottom > panelBox.bottom,
+            hitValue: hit?.closest('[role="option"]')?.getAttribute('data-value') || '',
+        };
+    });
+    expect(popupHit.extendsBeyondPanel).toBe(true);
+    expect(popupHit.hitValue).toBe('false');
+    await disabledLanguage.hover();
+    await expect(language).toBeFocused();
+    await expect(language).toHaveAttribute('aria-expanded', 'true');
+    await disabledLanguage.click();
+    await expect(language).toContainText('Disabled for this note');
+    await expect.poll(() => page.evaluate(() => window.__frontmatterView.state.doc.toString()))
+        .toContain('spellcheck: false');
+    await expect.poll(selectedLine).toBe('After');
+
     await expandedDisclosure.click();
     const collapsedCard = page.locator('.cm-frontmatter');
     await expect(collapsedCard).toBeVisible();

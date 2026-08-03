@@ -1578,22 +1578,16 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Z"/><path d="M9.5 9.5h.01M14.5 9.5h.01M9 13c.8.7 1.8 1 3 1s2.2-.3 3-1"/></svg>
                         <span>Spellcheck</span>
                     </div>
-                    <div class="settings-row">
-                        <span class="settings-row-label">Check spelling</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="spellcheck-toggle" aria-label="Check spelling" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
                     <div class="settings-row settings-row--select">
-                        <label class="settings-row-label" for="spellcheck-language">Default language</label>
-                        <select id="spellcheck-language" aria-label="Default spellcheck language">
-                            <option value="en-US" selected>English (US)</option>
+                        <label class="settings-row-label" for="spellcheck-language">Language</label>
+                        <select id="spellcheck-language" aria-label="Spellcheck language">
+                            <option value="none" selected>None</option>
+                            <option value="en-US">English (US)</option>
                             <option value="en-GB">English (UK)</option>
                             <option value="es">Spanish (Spain)</option>
                         </select>
                     </div>
-                    <p class="settings-section-desc">Notes can override this with frontmatter: <code>spellcheck: en-GB</code>, <code>spellcheck: es</code>, or <code>spellcheck: false</code>.</p>
+                    <p class="settings-section-desc">Choose None to disable spellcheck across all notes. When enabled, a note can override the language or use <code>spellcheck: false</code>.</p>
                 </div>
                 <div class="settings-section">
                     <div class="settings-section-icon">

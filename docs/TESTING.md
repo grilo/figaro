@@ -246,8 +246,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   states, print stylesheet resolution, and printable-document preparation.
 - Editor behavior, CodeMirror language modes, current-note heading-fragment
   completion, live Markdown preview, persistent Markdown diagnostics
-  and their hover/F8 guidance, offline spellcheck language/frontmatter
-  overrides, wrapped-list cursor/selection geometry,
+  and their hover/F8 guidance, offline spellcheck's global **None** state and
+  language/frontmatter overrides, wrapped-list cursor/selection geometry,
   frontmatter, footnotes, diagrams, tabs, session
   persistence, Kanban presentation/loading states, file-tree actions, and
   stale-response guards.
@@ -378,18 +378,20 @@ The Today dashboard is an un-tabbed empty state, not a synthetic **Welcome**
 tab. Closing the final tab, deleting the final open file, and clicking the
 Figaro name must leave it centered with an empty tab strip. Pure coverage owns
 the local-date presentation, Inbox/pin/rediscovery projections, and daily-note
-open/create/collision plan. Component coverage owns task/pin stale-response
-guards, quick-capture reuse, folder reveal, inline errors, and focus recovery.
+Inbox preference, legacy-root fallback, and directory/create/collision plan.
+Component coverage owns task/pin stale-response guards, quick-capture reuse,
+folder reveal, inline errors, and focus recovery.
 Due-task coverage additionally owns semantic-link parsing, valid local dates,
 urgency ordering, the ambient Today reminder, and the warning state on the
 persistent Kanban control.
 The real-browser workflow keeps the responsive dashboard geometry and primary
-Today activation observable. Old sessions that contain the former `home` tab
-must still be repaired rather than restored. Keep these checks in
+Today activation—including Inbox creation before the dated note—observable.
+Old sessions that contain the former `home` tab must still be repaired rather
+than restored. Keep these checks in
 `tests/frontend/unit/homeModel.test.js`, `tests/frontend/unit/openTodayNote.test.js`,
 `tests/frontend/unit/home.test.js`, `tests/frontend/unit/fileTree.test.js`,
 `tests/frontend/unit/tabManager.test.js`, `tests/frontend/unit/session.test.js`,
-and `app_test.go`, plus `tests/e2e/workspaceOverview.spec.js`:
+and `internal/desktop/app_test.go`, plus `tests/e2e/workspaceOverview.spec.js`:
 
 ```bash
 npm run test:unit -- --runTestsByPath \
@@ -399,7 +401,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/openTodayNote.test.js \
   tests/frontend/unit/home.test.js
 npx playwright test tests/e2e/workspaceOverview.spec.js
-go test . -run TestLoadSessionPrunesMissingTabsAndWorkspaceReferences
+go test ./internal/desktop -run 'Test(CreateDirectory|CreateInboxNote|LoadSessionPrunesMissingTabsAndWorkspaceReferences)'
 ```
 
 ## Kanban due-date regressions
@@ -416,7 +418,10 @@ Today reminders, Calendar task results, and cache invalidation. Keep these in
 `tests/frontend/unit/dueDateModel.test.js`,
 `tests/frontend/unit/datePicker.test.js`, `tests/frontend/unit/kanban.test.js`,
 `tests/frontend/unit/home.test.js`, and
-`tests/frontend/unit/calendarCache.test.js`. One focused browser workflow may
+`tests/frontend/unit/calendarCache.test.js`. The static discoverability
+contract belongs in `tests/frontend/unit/markdownCheatsheet.test.js`: it keeps
+the complete portable due-date line directly after the ordinary task row.
+One focused browser workflow may
 cover the computed popup position and source-line round trip; pure parsing and
 backend mutation branches do not belong in Playwright.
 
@@ -489,6 +494,22 @@ npm run test:unit -- --runTestsByPath \
 npm run lint
 npm run test:unit
 npm run test:pdf
+```
+
+The Properties picker adds a browser-only paint and pointer boundary to that
+contract. `blockWidgetLayout.test.js` owns its explicit widget paint layer and
+the cleared entrance transform; `frontmatterProperties.spec.js` opens a
+language option whose center extends below the card, verifies that option is
+the topmost hit target, hovers and activates it, and confirms the document
+selection remains on its original body line. Keep this focused regression when
+changing frontmatter animation, block-widget stacking, picker positioning, or
+CodeMirror line positioning:
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/blockWidgetLayout.test.js \
+  tests/frontend/unit/frontmatter.test.js
+npx playwright test tests/e2e/frontmatterProperties.spec.js
 ```
 
 Every change to vertical cursor movement or its keymaps must also prove the
@@ -736,8 +757,9 @@ first/last table cell even when visual-row motions would otherwise skip the
 widget. Operator-pending motions remain untouched.
 
 Offline spellcheck must retain the same editor movement and selection contract:
-its disabled-by-default global state, explicit enablement with the US-English
-fallback, themed keyboard-operable language combobox, Spanish frontmatter
+its disabled-by-default global **None** state, explicit enablement with the US-English
+fallback, themed keyboard-operable language combobox, settings-level disablement
+across every note, Spanish frontmatter
 override, per-note `false` opt-out, themed dotted marker, and local-only
 dictionary assets are covered by unit and browser regressions.
 Correctly spelled hyphenated compounds must remain unmarked, while a
@@ -775,6 +797,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/vimVisual.test.js \
   tests/frontend/unit/editorSettings.test.js \
   tests/frontend/unit/markdownLint.test.js \
+  tests/frontend/unit/spellcheckPreference.test.js \
   tests/frontend/unit/spellcheck.test.js \
   tests/frontend/unit/drawioEditor.test.js \
   tests/frontend/unit/drawio.test.js

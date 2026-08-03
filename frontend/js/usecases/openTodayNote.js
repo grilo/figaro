@@ -1,7 +1,7 @@
 import { todayNotePlan } from '../core/homeModel.js';
 
-export function createOpenTodayNote({ getTodayPath, getTree, createFile, openFile, afterCreate = () => {} }) {
-    if (![getTodayPath, getTree, createFile, openFile].every(port => typeof port === 'function')) {
+export function createOpenTodayNote({ getTodayPath, getTree, ensureDirectory, createFile, openFile, afterCreate = () => {} }) {
+    if (![getTodayPath, getTree, ensureDirectory, createFile, openFile].every(port => typeof port === 'function')) {
         throw new TypeError('Open-today-note ports are required');
     }
 
@@ -13,6 +13,11 @@ export function createOpenTodayNote({ getTodayPath, getTree, createFile, openFil
         if (plan.kind === 'open') {
             await openFile({ path: plan.path, mtime: plan.mtime, created: false });
             return { success: true, path: plan.path, created: false };
+        }
+
+        const directory = await ensureDirectory(plan.directory);
+        if (!directory?.success) {
+            throw new Error(directory?.error || 'Could not create the Inbox directory.');
         }
 
         const result = await createFile(plan.path, plan.content);

@@ -49,9 +49,18 @@ export function todayNotePlan(todayPath, tree) {
     if (!/^\d{4}-\d{2}-\d{2}\.md$/.test(path)) {
         return { kind: 'invalid', error: 'The application returned an invalid daily-note date.' };
     }
-    const existing = flattenTree(tree, []).find(item => item.type === 'file' && normalizedPath(item.path) === path);
-    if (existing) return { kind: 'open', path, mtime: existing.mtime };
-    return { kind: 'create', path, content: `# ${path.slice(0, -3)}\n\n` };
+    const inboxPath = `Inbox/${path}`;
+    const files = flattenTree(tree, []).filter(item => item.type === 'file');
+    const existing = [inboxPath, path]
+        .map(candidate => files.find(item => normalizedPath(item.path) === candidate))
+        .find(Boolean);
+    if (existing) return { kind: 'open', path: normalizedPath(existing.path), mtime: existing.mtime };
+    return {
+        kind: 'create',
+        directory: 'Inbox',
+        path: inboxPath,
+        content: `# ${path.slice(0, -3)}\n\n`,
+    };
 }
 
 export function homeCollections({
@@ -66,6 +75,7 @@ export function homeCollections({
     const files = markdownFiles(entries);
     const safeLimit = Math.max(1, Number(limit) || 5);
     const normalizedToday = normalizedPath(todayPath);
+    const todayPaths = new Set([normalizedToday, `Inbox/${normalizedToday}`]);
     const recent = new Set((recentPaths || []).map(normalizedPath));
     const styleEntries = styles?.entries || {};
 
@@ -79,11 +89,11 @@ export function homeCollections({
 
     const preferredRediscovery = files.filter(item => {
         const path = normalizedPath(item.path);
-        return path !== normalizedToday && !path.startsWith('Inbox/') && !recent.has(path);
+        return !todayPaths.has(path) && !path.startsWith('Inbox/') && !recent.has(path);
     });
     const fallbackRediscovery = files.filter(item => {
         const path = normalizedPath(item.path);
-        return path !== normalizedToday && !path.startsWith('Inbox/');
+        return !todayPaths.has(path) && !path.startsWith('Inbox/');
     });
     const rediscoveryPool = preferredRediscovery.length ? preferredRediscovery : fallbackRediscovery;
     const rediscover = rediscoveryPool.length
@@ -95,7 +105,7 @@ export function homeCollections({
         inboxCount: inboxFiles.length,
         pinned,
         rediscover,
-        todayExists: files.some(item => normalizedPath(item.path) === normalizedToday),
+        todayExists: files.some(item => todayPaths.has(normalizedPath(item.path))),
     };
 }
 

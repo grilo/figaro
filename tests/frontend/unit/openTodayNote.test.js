@@ -7,6 +7,7 @@ describe('Open today note use case', () => {
         const openToday = createOpenTodayNote({
             getTodayPath: () => '2024-01-15',
             getTree: () => [{ path: '2024-01-15.md', type: 'file', mtime: 12 }],
+            ensureDirectory: jest.fn(),
             createFile,
             openFile,
         });
@@ -21,6 +22,10 @@ describe('Open today note use case', () => {
         const openToday = createOpenTodayNote({
             getTodayPath: async () => '2024-01-15',
             getTree: () => [],
+            ensureDirectory: async path => {
+                calls.push(['directory', path]);
+                return { success: true, path };
+            },
             createFile: async (path, content) => {
                 calls.push(['create', path, content]);
                 return { success: true, path, mtime: 13 };
@@ -29,11 +34,12 @@ describe('Open today note use case', () => {
             openFile: async file => calls.push(['open', file]),
         });
 
-        await expect(openToday()).resolves.toEqual({ success: true, path: '2024-01-15.md', created: true });
+        await expect(openToday()).resolves.toEqual({ success: true, path: 'Inbox/2024-01-15.md', created: true });
         expect(calls).toEqual([
-            ['create', '2024-01-15.md', '# 2024-01-15\n\n'],
-            ['refresh', '2024-01-15.md'],
-            ['open', { path: '2024-01-15.md', mtime: 13, created: true }],
+            ['directory', 'Inbox'],
+            ['create', 'Inbox/2024-01-15.md', '# 2024-01-15\n\n'],
+            ['refresh', 'Inbox/2024-01-15.md'],
+            ['open', { path: 'Inbox/2024-01-15.md', mtime: 13, created: true }],
         ]);
     });
 
@@ -42,6 +48,7 @@ describe('Open today note use case', () => {
         const openToday = createOpenTodayNote({
             getTodayPath: () => '2024-01-15',
             getTree: () => [],
+            ensureDirectory: () => ({ success: true, path: 'Inbox' }),
             createFile: () => ({ success: false, error: 'File already exists' }),
             afterCreate: jest.fn(),
             openFile,
@@ -49,11 +56,11 @@ describe('Open today note use case', () => {
 
         await expect(openToday()).resolves.toEqual({
             success: true,
-            path: '2024-01-15.md',
+            path: 'Inbox/2024-01-15.md',
             created: false,
             collision: true,
         });
-        expect(openFile).toHaveBeenCalledWith({ path: '2024-01-15.md', created: false });
+        expect(openFile).toHaveBeenCalledWith({ path: 'Inbox/2024-01-15.md', created: false });
     });
 
     test('reports a creation failure without opening a note', async () => {
@@ -61,11 +68,26 @@ describe('Open today note use case', () => {
         const openToday = createOpenTodayNote({
             getTodayPath: () => '2024-01-15',
             getTree: () => [],
+            ensureDirectory: () => ({ success: true, path: 'Inbox' }),
             createFile: () => ({ success: false, error: 'Vault is read-only' }),
             openFile,
         });
 
         await expect(openToday()).rejects.toThrow('Vault is read-only');
         expect(openFile).not.toHaveBeenCalled();
+    });
+
+    test('does not attempt note creation when Inbox cannot be created', async () => {
+        const createFile = jest.fn();
+        const openToday = createOpenTodayNote({
+            getTodayPath: () => '2024-01-15',
+            getTree: () => [],
+            ensureDirectory: () => ({ success: false, error: 'Inbox is read-only' }),
+            createFile,
+            openFile: jest.fn(),
+        });
+
+        await expect(openToday()).rejects.toThrow('Inbox is read-only');
+        expect(createFile).not.toHaveBeenCalled();
     });
 });
