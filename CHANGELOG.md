@@ -6,6 +6,14 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.10.2 - 2026-08-04
+
+### Changed
+
+- Reworked the project README into an application-focused overview with a
+  current screenshot, moving development, testing, build, and release guidance
+  into the contributor guide.
+
 ## 1.10.1 - 2026-08-04
 
 ### Added

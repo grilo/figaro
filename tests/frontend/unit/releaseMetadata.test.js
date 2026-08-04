@@ -35,20 +35,26 @@ describe('release metadata and documentation', () => {
         expect(changelog.slice(release)).toContain('GNU General Public License version 3');
     });
 
-    test('validates tag metadata and ships the license and changelog in every binary archive', () => {
+    test('validates tag metadata and keeps release instructions in the contributor guide', () => {
         const workflow = read('.github/workflows/release.yml');
         const readme = read('README.md');
+        const contributing = read('CONTRIBUTING.md');
+        const productReference = read('docs/PROMPT.md');
 
         expect(workflow).toContain('Validate release metadata');
         expect(workflow).toContain('package-lock root package');
         expect(workflow).toContain('GPL-3.0-or-later');
         expect(workflow.match(/cp README\.md CHANGELOG\.md LICENSE/g)).toHaveLength(2);
         expect(workflow).toContain('Copy-Item README.md, CHANGELOG.md, LICENSE');
-        expect(readme).toContain('make release patch');
-        expect(readme).toContain('make release VERSION=vMAJOR.MINOR.PATCH');
-        expect(readme).toContain('git push origin main');
-        expect(readme).toContain('git push origin vMAJOR.MINOR.PATCH');
-        expect(readme).toContain('$prepare-figaro-release');
+        expect(readme).toContain('docs/images/figaro-editor.jpg');
+        expect(readme).not.toContain('make release');
+        expect(readme).not.toContain('$prepare-figaro-release');
+        expect(productReference).not.toContain('make release');
+        expect(productReference).toContain('[CONTRIBUTING.md](../CONTRIBUTING.md)');
+        expect(contributing).toContain('make release patch');
+        expect(contributing).toContain('make release VERSION=vMAJOR.MINOR.PATCH');
+        expect(contributing).toContain('make release-local patch');
+        expect(contributing).toContain('$prepare-figaro-release');
     });
 
     test('requires every affected documentation surface to stay synchronized', () => {

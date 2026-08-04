@@ -1,6 +1,6 @@
-# Contributing to figaro
+# Contributing to Figaro
 
-Thank you for helping improve figaro. The project is a local-first Wails desktop
+Thank you for helping improve Figaro. The project is a local-first Wails desktop
 application: changes should preserve portable vault files, work without a
 cloud service, and avoid silently discarding a user's edits.
 
@@ -12,6 +12,11 @@ Install the following before working on the project:
 - Node.js 20.19+ (20.x), 22.13+ (22.x), or 24+
 - Wails v2 CLI
 - The native build dependencies required by Wails for your platform
+
+On Linux, run `make doctor` for distribution-specific package names. The build
+requires a C compiler, `pkg-config`, GTK 3, WebKitGTK 4.1 or 4.0, and
+ImageMagick. Windows uses the Wails WebView2 toolchain. Building the universal
+macOS package requires a macOS host.
 
 Install Wails once, then prepare the repository:
 
@@ -39,6 +44,22 @@ For a focused Draw.io protocol trace, run
 `window.__figaroDrawioDebug = true` in the inspector before saving a diagram.
 It logs only protocol metadata and byte counts, never diagram contents; inspect
 `window.__figaroDrawioProtocolTrace` to copy the last 100 entries.
+
+## Development workflow
+
+1. Start from the current `main` branch and keep each change focused.
+2. Add or update a regression test at the lowest layer that can prove the
+   behavior.
+3. Update `CHANGELOG.md` under `Unreleased` for user-facing changes and keep
+   every affected documentation surface synchronized.
+4. Run the relevant checks described in [Testing and
+   verification](#testing-and-verification).
+5. Open a pull request that explains the user-visible outcome, the important
+   implementation decisions, and how the change was verified.
+
+Do not commit generated vaults, build outputs, personal notes, tokens, or other
+local credentials. Preserve unrelated changes when working in an existing
+checkout.
 
 ## Architecture principles
 
@@ -70,7 +91,7 @@ remains demand-driven, but its application code must already be ready.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete dependency and startup
 decisions.
 
-## Build a release binary
+## Building the application
 
 The Makefile contains the supported targets:
 
@@ -91,7 +112,10 @@ supported by the current host. See the `help` target in the [Makefile](Makefile)
 On Fedora, `./scripts/build-fedora.sh` delegates to the same `make linux`
 workflow.
 
-## Prepare a GitHub release
+## Release process
+
+Release commands are for maintainers publishing an approved version. They are
+intentionally documented here rather than in the application README.
 
 Use the release target from `main` when a stable release version is approved:
 
@@ -121,7 +145,11 @@ unchanged and tells you to add a concise entry under **Added**, **Changed**, or
 `$prepare-figaro-release` invokes the publishing target only when explicitly
 asked to publish; pushing the tag starts the GitHub release workflow.
 
-## Verify a change
+The workflow publishes Linux x86-64, Windows x86-64, and universal macOS
+archives, plus `SHA256SUMS`. Each archive includes `README.md`, `CHANGELOG.md`,
+and `LICENSE`. Builds are currently unsigned.
+
+## Testing and verification
 
 Run the checks relevant to the files and boundaries you touched before opening
 a pull request. Most behavior belongs in pure, use-case, adapter, or focused
@@ -158,8 +186,7 @@ cells/rendered-block navigation, or per-tab cursor persistence, follow the
 focused layer and browser-boundary guidance in
 [`docs/TESTING.md`](docs/TESTING.md).
 
-Run these locally before opening a pull request. Keep generated vaults, build
-outputs, and personal notes out of commits.
+Run these locally before opening a pull request.
 
 ## Review visible UI changes
 

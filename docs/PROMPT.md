@@ -1257,50 +1257,9 @@ builds the embedded filesystem.
 
 ---
 
-## 35. Building & Running
+## 35. Development, Testing, and Releases
 
-### 35.1 Development
-```bash
-make dev          # Starts Wails dev server with hot-reload
-./scripts/debug.sh # Starts Go file server + wails dev (for browser DevTools)
-```
-
-### 35.2 Production Builds
-```bash
-make linux        # Native Linux build
-make windows      # Cross-compile Windows .exe
-make darwin       # macOS builds (macOS host required)
-make all          # Targets supported by the current host
-make icons        # Regenerate icon assets from figaro.appicon.png
-```
-
-On Linux, `make all` runs the Linux and Windows targets; on macOS it runs the
-Darwin target. The Makefile checks for Wails and the host-specific native
-dependencies before it starts a package build. It prepares a clean checkout by
-running `go mod download`, `npm ci` when the lockfile inputs have changed, and
-the vendor generator when its inputs or output files require it. `make doctor`
-prints a concrete package-manager command for missing native dependencies.
-
-### 35.3 Test Suite
-```bash
-go vet . ./internal/... ./cmd/...  # Static checks for application packages
-go test . ./internal/... ./cmd/...     # Go tests (backend logic, file ops, kanban, hashtags, session)
-go test -race . ./internal/... ./cmd/... # Concurrency regression pass
-npm run lint                         # JavaScript lint
-npm run test:unit                    # JS tests (editor, tabs, state, rendering, PDF pipeline)
-npx playwright install chromium # First browser-test setup only
-npm run test:pdf  # Playwright browser test using vendored Mermaid, Vega, and Vega-Lite
-```
-
-Feature coverage follows the test pyramid in
-[`docs/TESTING.md`](TESTING.md): pure logic and use-case tests carry the
-acceptance matrix, adapters and focused components prove their effect
-boundaries, and Playwright is reserved for irreducible browser layout, event,
-frame, and print behavior.
-
-### 35.4 Versioned Releases
-- Figaro's first public release is `v1.0.0`. A stable release tag must use `vMAJOR.MINOR.PATCH`, point to a commit already on `main`, and match `package.json`, both root version records in `package-lock.json`, and `wails.json`.
-- `make release major`, `make release minor`, and `make release patch` derive the next stable version from the highest matching `vMAJOR.MINOR.PATCH` tag reachable from `main`; `make release VERSION=vMAJOR.MINOR.PATCH` publishes an explicit approved version. A bump prints its selected base tag and target before touching metadata, and an untagged package version never counts as a release. Every form moves the accumulated changelog entries into a dated version section, leaves a fresh `Unreleased` section above it, runs the complete release suite, stages every current non-ignored repository change in one release commit, creates the annotated tag, then pushes `main` and that exact tag in order. It downloads Playwright's pinned Chromium when needed, but never installs operating-system dependencies or requests elevated privileges. It never uses a clean/reset operation, moves an existing tag, or pushes other refs. If `Unreleased` is empty, it makes no metadata changes and instructs the user to add a grouped **Added**, **Changed**, or **Fixed** entry and rerun, or to skip the release when nothing changed. Repeating the same version verifies and resumes a matching tag at `HEAD`; later uncommitted changes make that resume fail safely. The matching `make release-local` commands stop before publication. `$prepare-figaro-release` runs the publishing target only when the user explicitly asks to publish.
-- Pushing the tag runs the full lint, unit, Go race, and Playwright suites before building Linux amd64, Windows amd64, and universal macOS packages. A failed verification or platform build prevents publication.
-- Each binary archive contains the application, `README.md`, `CHANGELOG.md`, and `LICENSE`; the release also publishes SHA-256 checksums and generated notes. Builds are currently unsigned.
-- Figaro is distributed under `GPL-3.0-or-later`. The repository and GitHub tag source archives provide the corresponding source alongside the downloadable binaries.
+Development setup, supported build targets, generated-asset maintenance, and
+the complete versioned release process are maintained in
+[CONTRIBUTING.md](../CONTRIBUTING.md). The test-layer contract and focused
+verification commands are maintained in [docs/TESTING.md](TESTING.md).
