@@ -137,12 +137,19 @@ Each theme defines these properties (with theme-specific colors):
 |-----------|----------|
 | **Read file** | Returns file content and last-modified timestamp. |
 | **Save file** | Writes content to disk. Accepts expected last-modified timestamp for conflict detection, incrementally replaces only that note's search, Kanban, tag, and Calendar contributions, and projects its final Kanban cards locally instead of reloading the complete board when the native watcher acknowledges the same save. |
-| **Create file** | Creates a `.md` file with a `# Title` header and incrementally adds it to discovery data. |
+| **Create file** | Creates a `.md` file with a `# Title` header and incrementally adds it to discovery data. Before writing, a same-folder Markdown name that differs only by spacing, punctuation, or capitalization offers **Open existing**, **Create anyway**, or cancellation. An exact case-insensitive name offers no overwrite path. |
 | **Create directory** | Creates a new folder. |
-| **Delete** | Deletes a file or directory (recursive) and refreshes discovery data without leaving stale cards, search results, backlinks, or dates. |
+| **Delete** | After confirmation, saves dirty open files under the target, ensures the current file or every current file in a directory is recorded in local Git history, then removes the target recursively without moving it to the system Trash. A dirty Draw.io editor or failed history archive leaves the target untouched. Successful deletion refreshes discovery data without leaving stale cards, search results, backlinks, or dates. |
 | **Move** | Moves a file or folder to a target directory. Prevents moving a folder into itself, rewrites affected Markdown and wiki links across the vault, refreshes affected open tabs, and rolls the move back if its link rewrite cannot complete. If a same-named destination directory exists, it warns and offers a non-destructive recursive merge; cancellation writes nothing, while confirmation keeps existing files and names collisions `name (copy).ext`, `name (copy 2).ext`, and so on. |
 | **Copy** | Saves dirty open source tabs, then copies a file or complete folder tree to an existing vault directory without changing the source. Existing entries are never overwritten: collisions become `Folder copy`, `Folder copy 2`, or `note copy.md`. Relative, root-relative, and wiki links inside copied Markdown are rewritten to preserve their resolved targets; incoming links elsewhere remain attached to the original. Copying a folder into itself or one of its descendants is refused because it would recurse. |
-| **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline, disables an unchanged rename, and then moves the item within the same directory with the same link-rewrite and open-tab protections. |
+| **Rename** | Opens a contextual rename dialog showing the current folder. For files it initially selects the stem but leaves the extension editable; it validates unsafe names inline, disables an unchanged rename, and then moves the item within the same directory with the same link-rewrite and open-tab protections. A same-folder Markdown name variant offers **Open existing**, **Rename anyway**, or cancellation before any open tab is saved or path is moved. |
+
+Markdown name comparison removes the `.md` suffix, applies Unicode compatibility
+normalization and lowercasing, then ignores characters other than letters and
+numbers. Identities shorter than four characters are not compared, preserving
+short names such as `C++.md` and `C#.md`. Creation and rename prompts inspect
+only direct siblings; a matching name elsewhere in the vault never interrupts
+those workflows, and Figaro never merges notes automatically.
 
 ### 3.3 File Tree (Sidebar)
 - Pinned siblings display first; within the pinned and unpinned groups, the backend's folder-before-file alphabetical order is preserved.
@@ -189,7 +196,7 @@ Each theme defines these properties (with theme-specific colors):
 | New Folder | File or Directory | Prompts for name, creates folder |
 | Customize appearance… | Non-greyed-out File or Directory | Opens the Lucide icon and color picker; Reset restores the default icon and text color. |
 | Pin / Unpin | File or Directory | Changes sibling priority and the persistent right-edge Pin marker. |
-| Delete / Remove from file tree | File, Directory, or external root shortcut (not root) | Uses one final menu entry. Vault targets confirm and delete only the right-clicked item; an external shortcut relabels the entry, warns that the original file will not be deleted or modified, and removes only the process-local shortcut after dirty-tab protection. There is no bulk-delete dialog. |
+| Delete / Remove from file tree | File, Directory, or external root shortcut (not root) | Uses one final menu entry. A vault target opens **Delete from vault?**, explains that removal bypasses Trash, saves its dirty open files, and records its current contents in local Git history before deleting only that right-clicked item. Cancellation writes nothing; a save or archive failure leaves the item intact. An external shortcut relabels the entry, warns that the original file will not be deleted or modified, and removes only the process-local shortcut after dirty-tab protection. There is no bulk-delete dialog. |
 
 - Context menus are clamped to the visible viewport so all actions remain reachable near the bottom or edge of the file tree.
 
@@ -234,6 +241,8 @@ Each theme defines these properties (with theme-specific colors):
 ### 4.2 Hashtags in the Editor
 - Hashtags follow the rule: must start with a letter, can contain letters, digits, underscores, and hyphens. They must be preceded by a non-word, non-hash character and end at a word boundary.
 - A standalone token that is also a valid CSS hex color is treated as a color, not a hashtag. For example, `#bad` opens a color picker; use a non-hex-shaped name when the intent is a Kanban tag.
+- Typing a whitespace-delimited hashtag opens completion from the three system columns plus custom columns present in the saved Kanban vocabulary. This works at the end of ordinary prose, while a line-leading `#` remains Markdown heading syntax. Frontmatter, inline/fenced code, links, URLs, and HTML do not offer hashtag completion. Unsaved tags still update the live board, but a partially typed new tag is not echoed back as a completion candidate before it has been saved.
+- An exact known tag in an explicit unfinished Markdown checkbox task (`- [ ]`, `* [ ]`, `+ [ ]`, or an ordered-list equivalent) exposes **Add due date…**, **Due today**, and **Due tomorrow** in the same completion menu. Accepting a partial tag on an eligible task reopens the menu once so those actions are discoverable. The picker is the shared themed calendar positioned at the editor caret; either shortcut inserts the portable `[due YYYY-MM-DD](YYYY-MM-DD.md)` link atomically. Prose, completed tasks, tasks with an existing semantic due link, and excluded syntax contexts remain tag-only or quiet.
 - Styled distinctly (accent color, pointer cursor on hover, subtle background highlight on hover).
 - **Clicking a hashtag** opens the kanban board scrolled to the column matching that tag, with a brief highlight animation.
 
@@ -248,7 +257,7 @@ In **edit mode** (cursor on the link line or intersecting the link's range), raw
 **Click behavior**:
 - Clicking the **visible link text** navigates to the link target
 - Date links (`YYYY-MM-DD.md`) open the calendar search tab
-- Broken links prompt to create the missing note
+- Broken conventional Markdown links first check for a same-folder note whose name differs only by spacing, punctuation, or capitalization. **Use existing note** verifies that note still exists, updates only the clicked destination while preserving its label, and follows it; **Create anyway** retains the typed destination and creates the variant; cancellation changes nothing. With no match, the normal create-note prompt appears.
 - `http(s)://` links open in external browser
 
 **Vault-wide link style**: Settings offers a themed **Links style** combobox with Markdown (the default) and Wikilinks. Conventional Wikilinks are target-first: `[[path/to/note.md|Readable label]]`. Changing the preference always opens a confirmation with **Rewrite vault links**, **Keep existing links**, and **Cancel**. Rewriting first saves dirty Markdown tabs, converts only destinations that resolve to existing vault Markdown files, and reloads affected open buffers. External URLs, `mailto:` links, images, code, malformed links, and unresolved targets remain byte-for-byte unchanged. Alias-free Wikilinks gain the filename without its extension as their alias.
@@ -266,6 +275,17 @@ In **edit mode** (cursor on the link line or intersecting the link's range), raw
 | **Left** | No | Save the current dirty file if necessary, then replace its tab; if that save cannot complete, preserve it and open the destination in a new tab |
 | **Middle** | Yes | Switch to it |
 | **Middle** | No | Open in new tab alongside |
+
+For a missing conventional Markdown target, similarity review uses the same
+direct-sibling canonical rule as file creation. The rendered widget is mapped
+back to its exact destination range. After the dialog, Figaro re-reads the
+selected existing note and revalidates that source range before dispatching a
+normal undoable editor change. A stale link or disappeared note produces an
+error without rewriting source or creating a file. On a left click, the updated
+dirty source is saved through the normal tab-replacement guard before the
+existing note replaces it; a failed save keeps the source tab recoverable and
+opens the destination alongside it. This review does not apply to a different
+folder based on name alone and never merges note content.
 
 ### 4.6 Date Shortcuts
 Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For example, `@to` lists **today** before **tomorrow**. Accept with Enter, Tab, or Space to insert `[YYYY-MM-DD](YYYY-MM-DD.md)`.
@@ -298,6 +318,7 @@ Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For e
 | `widgetPlugin` | ViewPlugin | Bullet list markers → Unicode glyphs; `[ ]`/`[x]` → interactive checkboxes |
 | `extrasPlugin` | ViewPlugin | `==highlight==`, `[^footnote]`, HRs (`cm-hr-passive`/`cm-hr-active`), callouts |
 | `dateShortcutCompletions` | Completion source | `@today`/`@tomorrow`/`@yesterday` date-link suggestions |
+| `taskDueDateCompletions` + `hashtagCompletionActivator` | Completion source + ViewPlugin | Suggests saved Kanban hashtags in Markdown prose and offers task-only due-date actions after an eligible exact tag |
 | `headingLinkCompletions` + `headingLinkCompletionActivator` | Completion source + ViewPlugin | Starts and supplies current-note heading targets after `](#`, including stable duplicate slugs |
 | `emptyLinkAutofillPlugin` | ViewPlugin | Fills `[]()` links from their visible text |
 | `hrPlugin` | ViewPlugin (extrasPlugin) | Horizontal rules with active-line toggle via `Decoration.line` |
@@ -321,6 +342,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - The Kanban board reads its current columns and cards from that shared index when it is rendered.
 - The Today dashboard reads a bounded six-card unfinished projection from the same index instead of loading the complete board.
 - A custom column disappears as soon as its final matching hashtag is removed; the three system columns remain.
+- Hashtag completion reads the stable saved-column vocabulary, while the board separately includes columns projected from unsaved dirty buffers. This prevents a partial new tag from suggesting itself without delaying live board updates.
 
 ### 6.2 Task Discovery
 - The initial shared vault index scans each `.md` file once, deriving tags, cards, dates, and backlinks in one line-oriented walk; board reads use its precomputed cards.
@@ -334,7 +356,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 ### 6.3 Board Layout
 - **Header**: Title ("Kanban Task Board") and instruction text. Presentation choices stay in Settings rather than in the workspace header.
 - **Board area**: a horizontally scrollable row of columns by default; Settings can switch it to a vertically scrolling stacked flow.
-- Each column has a header showing `#column-name`, color picker, and (for non-system) rename/delete buttons.
+- Each column has a header showing `#column-name`, color picker, and (for non-system) rename/delete buttons. The picker control uses the neutral palette icon when no color is selected and replaces it with a small swatch of the persisted color after selection; its accessible label exposes the same state.
 - Each card shows cleaned task text, source file name with icon, due-date chip or focusable calendar action, and remove-tag button. Due today uses the warning treatment; overdue uses danger; later dates stay quiet.
 - The themed date picker offers Today, Tomorrow, Next week, month navigation, direct date selection, and Clear. Escape closes it, Arrow keys move by day/week, focus returns to the invoking card control, and no host-painted date input is exposed.
 - The first board request uses a theme-aware three-column skeleton. Reprojection keeps the board's horizontal position and each mounted column's vertical reading position.
@@ -347,7 +369,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 
 ### 6.5 Column Management
 - **Add column**: Not available via UI (columns auto-discovered from hashtags).
-- **Set color**: 12-color palette picker + "no color" option; persisted to `vault/.config/kanban-colors.json`.
+- **Set color**: 12-color palette picker + "no color" option; persisted to `vault/.config/kanban-colors.json`. Choosing a color replaces the header's neutral palette icon with that color's swatch, while choosing "no color" restores the neutral icon.
 - **Rename column**: Prompts for new name; all occurrences of old `#tag` replaced across vault.
 - **Delete column**: Confirms, then removes `#tag` from every line in vault. System columns protected.
 
@@ -370,9 +392,10 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 
 ### 7.2 Vault Health
 - **Settings → Vault care → Review…** opens a user-triggered, read-only health tab.
-- The scan reports missing vault-local Markdown/attachment links, unreferenced common image/media/PDF attachments, duplicate filenames, and Markdown frontmatter that opens with `---` without a closing `---` or `...` delimiter.
+- The scan reports missing vault-local Markdown/attachment links, unreferenced common image/media/PDF attachments, repeated filenames, possible duplicate notes, and Markdown frontmatter that opens with `---` without a closing `---` or `...` delimiter.
+- **Repeated filenames** is a neutral, muted inventory of exact case-insensitive basenames in different locations. It is excluded from the maintenance-finding count, so ordinary structures such as `monday/shopping-list.md` and `tuesday/shopping-list.md` are not treated as merge suggestions. **Possible duplicate notes** includes punctuation/spacing/case variants in one folder; variants in different folders appear only when their meaningful vocabulary is sufficiently large and overlaps by at least 80 percent.
 - External URLs, `mailto:` links, fenced code, dot-directories, and symlinks are excluded. The scan never edits, moves, or deletes files.
-- Each finding carries a vault-relative source path and, where applicable, line number. Selecting it opens that source note at the finding; duplicate-name findings open the first path while showing all colliding paths.
+- Each finding carries a vault-relative source path and, where applicable, line number. Selecting a normal finding opens that source note at the finding; selecting a possible duplicate opens both notes for manual comparison. The existing merge command remains separate and retains its explicit permanent-deletion warning.
 
 ### 7.3 Global Search
 - The left-sidebar search field searches Markdown note bodies and note filenames. It waits briefly while the user types and ignores stale responses from earlier queries.
@@ -546,7 +569,7 @@ open so newer or unsaved text cannot be discarded.
 ### 11.2 Confirm Dialog
 - Shows a concise consequence and action-specific labels rather than generic OK text. Ordinary confirmations focus the primary action; destructive confirmations use the danger treatment and focus Cancel first.
 - Supports a third action for the application-exit flow: **Save and exit**, **Keep editing**, or the danger-styled **Exit without saving**.
-- Delete, overwrite, merge, unsaved-tab, and replace-existing flows explicitly state what data will be removed or overwritten.
+- Delete, overwrite, merge, unsaved-tab, and replace-existing flows explicitly state what data will be removed or overwritten. File-tree deletion distinguishes direct removal from the system Trash from recoverability through the pre-delete local Git archive.
 
 ### 11.3 Text Entry and Rename
 - Generic prompts use a real labelled form, optional location context and helper text, inline validation, Cancel, and a purpose-specific submit label. Enter submits and Escape cancels.
@@ -611,12 +634,14 @@ browser debugging fallback is installed explicitly with the same method shape.
 - Placement: anywhere in a line (end of a task, inline in prose, etc.).
 - Case-insensitive: normalized to lowercase.
 - Kanban mapping: each `#tagname` found in vault files becomes a kanban column.
+- Completion: after a whitespace boundary, suggest system and saved custom columns in normal Markdown prose; keep heading markers and masked syntax contexts quiet.
 
 ### 13.3 Tasks
 - Common format: `- [ ] Task description #tag` (incomplete) or `- [x] Task description #tag` (complete).
 - Any line with a recognized `#tag` becomes a kanban card, even without a checkbox.
 - A single line can carry multiple tags and will appear in multiple kanban columns.
 - Optional due date: `- [ ] Task description #todo [due 2026-08-14](2026-08-14.md)`. Figaro treats the source line as authoritative and derives card, Today, Calendar, and reminder state without a second task database.
+- When an unfinished checkbox task has no due date, its exact known hashtag completion also offers the shared calendar, Today, and Tomorrow actions. No scheduling action is offered for prose, completed tasks, or a task that already has a semantic due link.
 
 ---
 
@@ -625,6 +650,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 | Input | Context | Action |
 |-------|---------|--------|
 | `@today` / `@tomorrow` / `@yesterday` | Editor | Show date-link completions |
+| `#` + text after whitespace | Markdown editor | Suggest saved Kanban columns; an eligible exact task tag also offers due-date actions |
 | `[` + text | Editor | Trigger link autocomplete |
 | `](#` + text | Markdown-link destination | Suggest current-note heading fragments |
 | ↑ / ↓ / Tab | Autocomplete | Navigate suggestions |
@@ -634,7 +660,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 | Click hashtag | Editor | Open kanban board, focus column |
 | Left-click link | Editor | Switch to existing tab or replace current file tab |
 | Middle-click link | Editor | Open in new tab |
-| Click broken link | Editor | Prompt to create missing note |
+| Click broken conventional Markdown link | Editor | Offer a verified same-folder name variant when available; otherwise prompt to create the missing note |
 | Type `[text]()` | Editor | Auto-fill URL with `text.md` in current directory |
 | Drag card | Kanban | Move task to another column (rewrites tag) |
 | Click card | Kanban | Open source file at task line |
@@ -944,7 +970,7 @@ Multiple layers prevent a white flash before CSS loads:
 ## 25. Git-Based File History
 
 ### 25.1 Overview
-Figaro initializes a local Git repository in the vault. **Auto-Save** writes the active dirty file; the enabled **Auto-Commit** toggle then records that same file after each successful save. There is no background interval or whole-vault auto-commit path, preserving note-local history with no network service.
+Figaro initializes a local Git repository in the vault. **Auto-Save** writes the active dirty file; the enabled **Auto-Commit** toggle then records that same file after each successful save. There is no background interval or whole-vault auto-commit path, preserving note-local history with no network service. File-tree deletion is an explicit safety operation independent of the Auto-Commit toggle: it records the current target contents before direct filesystem removal.
 
 ### 25.2 Repository
 - Initialized automatically on first launch in the vault root directory.
@@ -959,6 +985,7 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 | **Auto-Save timer** | Configurable interval (default 5 min, 5s–5min, or Off) | Writes the active dirty file; when Auto-Commit is enabled, that successful write then commits only that file. |
 | **Save to history** | Click the status-bar action shown only for a file with unrecorded changes | Saves pending active-editor text and commits only that file, preserving unrelated staged changes; the action hides again after success and returns with the next edit. |
 | **History restore** | Click **Revert to this version** beside a selected history entry, then confirm | Saves and commits the current file version first, restores and commits the selected contents, then reloads History with the restored snapshot as latest. |
+| **Pre-delete archive** | Confirm **Delete from vault?** in the file tree | Saves affected open file tabs, then stages the target file or every current regular file and symlink under the target folder, including explicitly targeted ignored files. When any current content differs from history, one `archive before delete` commit records it; already recorded unchanged content needs no redundant commit. The operation refuses to absorb unrelated staged changes, and any save, staging, or commit failure leaves the target on disk. Empty folders require no content commit. |
 | **Backend commit API** | `CommitCurrentFile` | Powers enabled per-save history, the status action, and history restore through the native Wails `App` binding. |
 
 ### 25.4 API Methods (Go Backend → Frontend)

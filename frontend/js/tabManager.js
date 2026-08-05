@@ -986,6 +986,14 @@ export async function prepareTabsForPathCopy(path) {
     return persistTabsBeforePathOperation(affected, 'copying');
 }
 
+/** Persist dirty file-backed tabs before their current disk contents are archived and deleted. */
+export async function prepareTabsForPathDelete(path) {
+    const normalized = normalizeTabPath(path);
+    const affected = getState('openTabs').filter(tab => isFileBackedTab(tab) &&
+        (normalizeTabPath(tab.path) === normalized || normalizeTabPath(tab.path).startsWith(normalized + '/')));
+    return persistTabsBeforePathOperation(affected, 'deleting');
+}
+
 /** Save every dirty Markdown tab before a vault-wide link rewrite. */
 export async function prepareTabsForVaultLinkRewrite() {
     const dirtyMarkdownTabs = getState('openTabs').filter(tab =>
@@ -1432,6 +1440,7 @@ export default {
     updateTabsForMovedPath,
     prepareTabsForPathMove,
     prepareTabsForPathCopy,
+    prepareTabsForPathDelete,
     prepareTabsForVaultLinkRewrite,
     refreshTabsForUpdatedLinks,
     closeTabsForDeletedPath,
@@ -1703,7 +1712,7 @@ function renderSettingsTab(panel, _tab) {
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                             <span>Vault health</span>
                         </div>
-                        <p class="settings-section-desc pdf-browser-status">Review missing local links, orphan attachments, duplicate names, and unclosed frontmatter.</p>
+                        <p class="settings-section-desc pdf-browser-status">Review missing local links, orphan attachments, repeated filenames, possible duplicate notes, and unclosed frontmatter.</p>
                     </div>
                     <div class="pdf-browser-actions">
                         <button type="button" id="open-vault-health" class="ui-button settings-action-btn">Review…</button>

@@ -23,6 +23,12 @@ Your implementation must accurately transition states for the following elements
 ### Links (`[Display Text](https://url.com)`)
 * **Cursor inside node bounds:** Show the entire raw string exactly as written.
 * **Cursor outside node bounds:** Mask the opening `[`, the closing `]`, and the entire `(https://url.com)` token. Apply a distinct clickable link class to the remaining "Display Text".
+* **Missing-note review:** A click on a rendered conventional Markdown link must map the widget back to the exact source destination. When a same-folder canonical name match exists, **Use existing note** replaces only that revalidated destination as a normal undoable edit, keeps the display text byte-for-byte unchanged, and follows the existing note. A stale range, unavailable target, cancellation, or different-folder name-only match must not edit source.
+
+### Hashtags (`#todo`, `#urgent`)
+* **Completion context:** A whitespace-delimited partial hashtag may open the normal CodeMirror completion list in ordinary Markdown prose. A line-leading `#` remains heading syntax, and completion stays disabled in frontmatter, code, links, URLs, and HTML.
+* **Task due actions:** Only an exact known tag in an explicit unchecked Markdown task without an existing semantic due link may add **Add due date…**, **Due today**, and **Due tomorrow**. The shared picker is anchored at the caret, returns focus to the editor, and inserts ordinary Markdown rather than a replacement widget.
+* **Cursor contract:** Accepting a tag or due-date action leaves the selection at the end of the inserted source. Arrow Up/Down, mouse placement, and bidirectional drag selection around that line must continue to use CodeMirror's normal source geometry.
 
 ### Images (`![Alt Text](image.png)`)
 * **Cursor inside node bounds:** Display the plain text markdown markup exactly. Do not show the image preview.

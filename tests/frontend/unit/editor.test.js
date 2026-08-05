@@ -849,6 +849,35 @@ describe('Extras behavior verification', () => {
             expect(view.dom.querySelectorAll('.cm-link-widget').length).toBe(1);
         });
 
+        test('rewrites only a clicked Markdown destination as a normal dirty editor change', async () => {
+            document.body.innerHTML = '<div id="editor-container"></div>';
+            const { initEditor, createEditorView, replaceMarkdownLinkTarget, setEditorContent } = await import('../frontend/js/editor.js');
+            const { setState } = await import('../frontend/js/state.js');
+            const tab = { id: 'notes/current.md', path: 'notes/current.md', title: 'current.md', type: 'file', dirty: false };
+            setState('openTabs', [tab]);
+            setState('activeTabId', tab.id);
+            await initEditor();
+            const view = createEditorView();
+            const source = 'See [Inner Source](notes/Inner%20Source.md) today.';
+            setEditorContent(source, tab.id);
+            await new Promise(resolve => setTimeout(resolve, 0));
+            tab.dirty = false;
+
+            expect(replaceMarkdownLinkTarget(view, {
+                from: 19,
+                to: 42,
+                target: 'notes/Inner%20Source.md',
+            }, 'notes/InnerSource.md')).toBe(true);
+
+            expect(view.state.doc.toString()).toBe('See [Inner Source](notes/InnerSource.md) today.');
+            expect(tab.dirty).toBe(true);
+            expect(replaceMarkdownLinkTarget(view, {
+                from: 19,
+                to: 42,
+                target: 'notes/Inner%20Source.md',
+            }, 'notes/Other.md')).toBe(false);
+        });
+
         test('editor renders wiki link [[target]] as .cm-wikilink-widget', async () => {
             document.body.innerHTML = '<div id="editor-container"></div>';
             const { initEditor, createEditorView } = await import('../frontend/js/editor.js');

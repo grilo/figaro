@@ -56,6 +56,15 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 	} else if err != nil {
 		return nil, err
 	}
+	if a.history == nil {
+		return &SaveFileResult{Success: false, Error: "Local history is unavailable. Nothing was deleted."}, nil
+	}
+	if err := a.history.ArchivePathWithVaultLocked(cleanRel); err != nil {
+		return &SaveFileResult{
+			Success: false,
+			Error:   fmt.Sprintf("Could not record the current contents in local history: %v. Nothing was deleted.", err),
+		}, nil
+	}
 	if err := root.RemoveAll(cleanRel); err != nil {
 		return nil, err
 	}

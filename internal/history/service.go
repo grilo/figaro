@@ -4,9 +4,11 @@ package history
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -116,6 +118,137 @@ func (h *Service) CommitFile(relPath string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.commitFileLocked(relPath)
+}
+
+// ArchivePathWithVaultLocked records the current contents of one file or
+// directory immediately before the owning application removes it. The caller
+// must hold the vault's write lock so no Figaro mutation can land between this
+// snapshot and the subsequent deletion.
+func (h *Service) ArchivePathWithVaultLocked(relPath string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.archivePathLocked(relPath)
+}
+
+func (h *Service) archivePathLocked(relPath string) error {
+	if h.repo == nil {
+		return fmt.Errorf("history service not initialized")
+	}
+
+	files, err := h.archiveFiles(relPath)
+	if err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		return nil
+	}
+
+	worktree, err := h.repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("get worktree: %w", err)
+	}
+	status, err := worktree.Status()
+	if err != nil {
+		return fmt.Errorf("check status: %w", err)
+	}
+	for path, statusFile := range status {
+		if archiveContainsPath(relPath, path) {
+			continue
+		}
+		if statusFile.Staging != git.Unmodified && statusFile.Staging != git.Untracked {
+			return fmt.Errorf("cannot archive %s while %s has staged changes", relPath, path)
+		}
+	}
+
+	originalIndex, err := h.repo.Storer.Index()
+	if err != nil {
+		return fmt.Errorf("read index: %w", err)
+	}
+	restoreIndex := func(cause error) error {
+		if restoreErr := h.repo.Storer.SetIndex(originalIndex); restoreErr != nil {
+			return fmt.Errorf("%w (restore index: %v)", cause, restoreErr)
+		}
+		return cause
+	}
+	for _, path := range files {
+		if err := worktree.AddWithOptions(&git.AddOptions{
+			Path:       filepath.FromSlash(path),
+			SkipStatus: true,
+		}); err != nil {
+			return restoreIndex(fmt.Errorf("stage file %s: %w", path, err))
+		}
+	}
+
+	status, err = worktree.Status()
+	if err != nil {
+		return restoreIndex(fmt.Errorf("check staged archive: %w", err))
+	}
+	hasStaged := false
+	for path, statusFile := range status {
+		if statusFile.Staging == git.Unmodified || statusFile.Staging == git.Untracked {
+			continue
+		}
+		if !archiveContainsPath(relPath, path) {
+			return restoreIndex(fmt.Errorf("archive unexpectedly staged %s", path))
+		}
+		hasStaged = true
+	}
+	if !hasStaged {
+		return nil
+	}
+
+	message := fmt.Sprintf("archive before delete: %s — %s", filepath.ToSlash(relPath), time.Now().Format("2006-01-02 15:04:05"))
+	if _, err := worktree.Commit(message, &git.CommitOptions{
+		Author: &object.Signature{Name: "figaro", Email: "figaro@local", When: time.Now()},
+	}); err != nil {
+		return restoreIndex(fmt.Errorf("commit archive: %w", err))
+	}
+	log.Println("[history] Archived before delete:", relPath)
+	h.notifyCommitLocked()
+	return nil
+}
+
+func (h *Service) archiveFiles(relPath string) ([]string, error) {
+	clean := filepath.Clean(filepath.FromSlash(relPath))
+	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("a vault-relative file or directory path is required")
+	}
+	root, err := os.OpenRoot(h.repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("open history root: %w", err)
+	}
+	defer root.Close()
+
+	var files []string
+	walkRoot := filepath.ToSlash(clean)
+	err = fs.WalkDir(root.FS(), walkRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() && info.Mode()&os.ModeSymlink == 0 {
+			return fmt.Errorf("cannot archive unsupported file type %s", path)
+		}
+		files = append(files, filepath.ToSlash(path))
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("inspect %s for archive: %w", relPath, err)
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+func archiveContainsPath(relPath string, candidate string) bool {
+	target := filepath.ToSlash(filepath.Clean(filepath.FromSlash(relPath)))
+	path := filepath.ToSlash(filepath.Clean(filepath.FromSlash(candidate)))
+	return path == target || strings.HasPrefix(path, target+"/")
 }
 
 func (h *Service) commitFileLocked(relPath string) error {

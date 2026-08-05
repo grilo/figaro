@@ -39,6 +39,167 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
     })).toEqual(expectedCursor);
 });
 
+test('uses a same-folder note from a rendered missing link and rewrites only its destination', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const tabs = await import('/js/tabManager.js');
+        const state = await import('/js/state.js');
+        const app = (await import('/js/backend.js')).backend();
+        const source = 'See [Inner Source](notes/Inner%20Source.md) for the policy.';
+        window.__similarLinkDialog = null;
+        window.__similarLinkSaved = null;
+        window.__similarLinkCreates = [];
+        window.confirmDialog = async (...args) => {
+            window.__similarLinkDialog = args;
+            return 'confirm';
+        };
+        app.ReadFile = async path => {
+            if (path === 'notes/current.md') return { content: source, path, mtime: 1 };
+            if (path === 'notes/InnerSource.md') return { content: '# Existing note', path, mtime: 2 };
+            return null;
+        };
+        app.SaveFile = async (path, content) => {
+            window.__similarLinkSaved = { path, content };
+            return { success: true, path, mtime: 3 };
+        };
+        app.CreateFile = async (...args) => {
+            window.__similarLinkCreates.push(args);
+            return { success: true, path: args[0], mtime: 4 };
+        };
+        state.setState('fileTreeData', [{
+            name: 'notes', path: 'notes', type: 'directory', children: [
+                { name: 'current.md', path: 'notes/current.md', type: 'file', mtime: 1 },
+                { name: 'InnerSource.md', path: 'notes/InnerSource.md', type: 'file', mtime: 2 },
+            ],
+        }]);
+        await editor.initEditor();
+        await editor.configureEditorForFile('notes/current.md');
+        tabs.openTab('notes/current.md', 'current.md', 'file', { path: 'notes/current.md', mtime: 1 });
+        const view = editor.getEditorView();
+        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || view.state.doc.toString() !== source) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+    });
+
+    const widget = page.locator('.cm-link-widget');
+    await expect(widget).toBeVisible();
+    await expect(widget).toHaveText('Inner Source');
+    await widget.click();
+
+    await expect.poll(() => page.evaluate(() => window.__similarLinkDialog?.[0])).toBe('Similar linked note');
+    await expect.poll(() => page.evaluate(() => window.__similarLinkSaved)).toEqual({
+        path: 'notes/current.md',
+        content: 'See [Inner Source](notes/InnerSource.md) for the policy.',
+    });
+    expect(await page.evaluate(() => window.__similarLinkCreates)).toEqual([]);
+    await expect(page.locator('.tab[data-tab-id="notes/InnerSource.md"]')).toBeVisible();
+    await expect(page.locator('.cm-content')).toContainText('Existing note');
+});
+
+test('offers due-date actions only for an unfinished task hashtag and keeps editor navigation intact', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const content = page.locator('.cm-content');
+    const completionLabels = page.locator('.cm-tooltip-autocomplete .cm-completionLabel');
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const state = await import('/js/state.js');
+        state.setState('kanbanCompletionColumns', ['urgent']);
+        editor.setEditorContent('A long paragraph ');
+        const view = editor.getEditorView();
+        view.dispatch({ selection: { anchor: view.state.doc.length } });
+        view.focus();
+    });
+    await page.keyboard.type('#ur');
+    await expect(completionLabels).toHaveText(['#urgent']);
+    await page.keyboard.press('Escape');
+
+    const source = 'Before\n- [ ] Prepare release \nAfter';
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        const view = window.__taskDueView = editor.getEditorView();
+        const taskEnd = markdown.indexOf('\nAfter');
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: markdown },
+            selection: { anchor: taskEnd },
+        });
+        view.focus();
+    }, source);
+    await page.keyboard.type('#todo');
+    await expect(completionLabels).toHaveText([
+        '#todo', 'Add due date…', 'Due today', 'Due tomorrow',
+    ]);
+    await page.evaluate(() => {
+        const view = window.__taskDueView;
+        const rect = view.coordsAtPos(view.state.selection.main.head);
+        window.__taskDueCursorRect = {
+            left: rect.left,
+            top: rect.top,
+            bottom: rect.bottom,
+        };
+    });
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    const picker = page.locator('.ui-date-picker[aria-label="Choose due date"]');
+    await expect(picker).toBeVisible();
+    const placement = await page.evaluate(() => {
+        const cursor = window.__taskDueCursorRect;
+        const element = document.querySelector('.ui-date-picker');
+        const rect = element.getBoundingClientRect();
+        const expectedLeft = Math.max(8, Math.min(cursor.left, window.innerWidth - rect.width - 8));
+        const below = cursor.bottom + 6;
+        const expectedTop = below + rect.height <= window.innerHeight - 8
+            ? below
+            : Math.max(8, cursor.top - rect.height - 6);
+        return {
+            leftDelta: Math.abs(rect.left - expectedLeft),
+            topDelta: Math.abs(rect.top - expectedTop),
+            focusedInside: element.contains(document.activeElement),
+        };
+    });
+    expect(placement.leftDelta).toBeLessThan(2);
+    expect(placement.topDelta).toBeLessThan(2);
+    expect(placement.focusedInside).toBe(true);
+
+    await picker.getByRole('button', { name: 'Today', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => window.__taskDueView.state.doc.toString()))
+        .toMatch(/^Before\n- \[ \] Prepare release #todo \[due \d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)\nAfter$/);
+    await content.press('ArrowDown');
+    expect(await page.evaluate(() => window.__taskDueView.state.doc.lineAt(
+        window.__taskDueView.state.selection.main.head,
+    ).number)).toBe(3);
+    await content.press('ArrowUp');
+    expect(await page.evaluate(() => window.__taskDueView.state.doc.lineAt(
+        window.__taskDueView.state.selection.main.head,
+    ).number)).toBe(2);
+
+    const drag = await page.evaluate(() => {
+        const view = window.__taskDueView;
+        const point = position => {
+            const rect = view.coordsAtPos(position);
+            return { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+        };
+        return {
+            start: point(view.state.doc.line(1).from + 1),
+            end: point(view.state.doc.line(3).to - 1),
+        };
+    });
+    await page.mouse.move(drag.start.x, drag.start.y);
+    await page.mouse.down();
+    await page.mouse.move(drag.end.x, drag.end.y, { steps: 8 });
+    await page.mouse.up();
+    expect(await page.evaluate(() => {
+        const view = window.__taskDueView;
+        return {
+            fromLine: view.state.doc.lineAt(view.state.selection.main.from).number,
+            toLine: view.state.doc.lineAt(view.state.selection.main.to).number,
+        };
+    })).toEqual({ fromLine: 1, toLine: 3 });
+});
+
 test('defaults line numbers off and toggles them without disturbing cursor or mouse selection', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.locator('#topbar-settings').click();

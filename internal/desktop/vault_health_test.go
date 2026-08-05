@@ -49,7 +49,39 @@ func TestGetVaultHealthKeepsEmptyGroupsAsArrays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetVaultHealth: %v", err)
 	}
-	if report.BrokenLinks == nil || report.OrphanAttachments == nil || report.DuplicateNames == nil || report.InvalidFrontmatter == nil {
+	if report.BrokenLinks == nil || report.OrphanAttachments == nil || report.DuplicateNames == nil || report.SimilarNotes == nil || report.InvalidFrontmatter == nil {
 		t.Fatalf("health groups must be non-nil arrays: %#v", report)
+	}
+}
+
+func TestGetVaultHealthSeparatesRepeatedFilenamesFromPossibleDuplicateNotes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "monday/shopping-list.md", "milk bread eggs")
+	writeTestFile(t, vaultPath, "tuesday/shopping-list.md", "paint brushes tape")
+	writeTestFile(t, vaultPath, "notes/InnerSource.md", "An internal collaboration guide.")
+	writeTestFile(t, vaultPath, "notes/Inner Source.md", "A separate draft in the same folder.")
+	shared := "Architecture teams document ownership boundaries dependencies testing releases security performance"
+	writeTestFile(t, vaultPath, "current/ReleaseNotes.md", shared+" delivery")
+	writeTestFile(t, vaultPath, "archive/Release Notes.md", shared+" maintenance")
+	writeTestFile(t, vaultPath, "monday/TravelPlan.md", "flights hotels beaches museums restaurants tickets packing weather transport")
+	writeTestFile(t, vaultPath, "tuesday/Travel Plan.md", "architecture ownership dependencies releases security reviews testing maintenance performance")
+
+	report, err := app.GetVaultHealth()
+	if err != nil {
+		t.Fatalf("GetVaultHealth: %v", err)
+	}
+	if len(report.DuplicateNames) != 1 || len(report.DuplicateNames[0].Paths) != 2 {
+		t.Fatalf("repeated filenames = %#v, want only the two shopping-list notes", report.DuplicateNames)
+	}
+	if len(report.SimilarNotes) != 2 {
+		t.Fatalf("similar notes = %#v, want same-folder InnerSource and overlapping ReleaseNotes pairs", report.SimilarNotes)
+	}
+	if report.SimilarNotes[0].Paths[0] != "archive/Release Notes.md" || report.SimilarNotes[0].Paths[1] != "current/ReleaseNotes.md" {
+		t.Fatalf("first similar pair = %#v, want cross-folder release notes", report.SimilarNotes[0])
+	}
+	if report.SimilarNotes[1].Paths[0] != "notes/Inner Source.md" || report.SimilarNotes[1].Paths[1] != "notes/InnerSource.md" {
+		t.Fatalf("second similar pair = %#v, want same-folder InnerSource notes", report.SimilarNotes[1])
 	}
 }

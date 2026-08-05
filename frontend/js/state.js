@@ -50,7 +50,8 @@ export const state = {
     },
     
     // Kanban
-    kanbanColumns: [],          // Available kanban columns (hashtags)
+    kanbanColumns: [],          // Available Kanban columns, including dirty-buffer discoveries
+    kanbanCompletionColumns: ['todo', 'wip', 'done'], // Stable saved vocabulary for hashtag completion
     kanbanBoardData: {},        // Kanban board data by column
     kanbanFocusColumn: null,    // Column to highlight on render
     kanbanDensity: 'comfortable', // Comfortable | compact card density

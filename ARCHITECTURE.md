@@ -281,9 +281,19 @@ Vault health is deliberately separate from the hot index projections. It is a
 user-triggered, read-only root-scoped walk: cached Markdown source checks
 vault-local Markdown/Wikilinks and structural frontmatter delimiters, while
 the visible regular-file walk identifies common unreferenced attachments and
-duplicate basenames. Dot-directories and symlinks are excluded; external URLs,
-mail links, and code fences are not findings. The report contains only
-vault-relative paths and lines, so UI navigation needs no filesystem access.
+repeated basenames. The pure `internal/notenames` package canonicalizes Markdown
+names and applies the conservative content-overlap rule used for possible
+duplicates: same-folder variants need no content evidence, while cross-folder
+variants do. Exact repeated basenames stay informational. The frontend mirrors
+the same pure canonical-name rule for sibling create/rename planning and missing
+conventional Markdown-link review. Injected use cases own the dialog/navigation
+sequences before filesystem effects begin. A separate pure link plan locates
+only the clicked destination and revalidates its source bytes after the dialog;
+the CodeMirror adapter then dispatches the ordinary dirty editor transaction
+before the existing tab-replacement save guard runs. Dot-directories and
+symlinks are excluded; external URLs, mail links, and code fences are not
+findings. The report contains only vault-relative paths and lines, so UI
+navigation needs no filesystem access.
 
 The full Kanban board remains available for its workspace, but the Today dashboard asks the
 backend for its bounded unfinished-card projection and due-task summary directly. Due work is
@@ -321,6 +331,16 @@ markers are patched on mounted nodes during tab and dirty-state changes rather
 than rebuilding that structural DOM. This prevents large collapsed or expanded
 trees from imposing a hidden DOM/layout cost on ordinary tab switches.
 
+Hashtag completion deliberately reads a second, stable projection of the saved
+Kanban columns rather than the dirty-buffer column list. Unsaved tags still
+reproject the visible board immediately, but a partial new tag cannot become
+its own completion candidate during the same typing frame. The pure
+`core/taskDueDateCompletionModel.js` owns column normalization, unfinished-task
+eligibility, existing-date rejection, and portable due-link insertion plans.
+`taskDueDateCompletions.js` translates those plans into CodeMirror completion
+transactions, while `editor.js` supplies syntax-context filtering and anchors
+the existing shared date-picker adapter at `coordsAtPos()`.
+
 Tab overflow follows the same decision/effect split. The pure
 `core/tabOverflowModel.js` calculates overflow directions and the nearest
 scroll offset that reveals an active tab from plain geometry. `tabManager.js`
@@ -344,6 +364,16 @@ path stages only the requested file and refuses when another path is already
 staged, because go-git commits the index as a whole. Unstaged changes in other
 notes therefore remain outside both the new commit and the target note's
 restore history.
+
+File-tree deletion is a separate, explicit history boundary. The frontend
+first persists dirty affected CodeMirror tabs; the backend then holds the vault
+write lock while the history adapter enumerates the target through `os.Root`,
+stages only that file or the files beneath that directory, and creates one
+`archive before delete` revision when those current bytes are not already
+recorded before `RemoveAll`. The archive path refuses unrelated staged entries
+and restores the prior index if staging or commit fails. Any preparation or
+archive error aborts removal, so the recorded bytes and filesystem deletion
+cannot be reordered by another Figaro mutation.
 
 History is non-destructive: a revert saves and commits the pre-revert content,
 saves and commits the selected historical content, then reloads the right-pane

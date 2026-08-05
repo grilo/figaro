@@ -6,6 +6,34 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.11.0 - 2026-08-05
+
+### Added
+
+- Typing a standalone hashtag now suggests saved Kanban columns in ordinary
+  Markdown prose. On an unfinished checkbox task without a due date, an exact
+  tag also offers the shared date picker plus Today and Tomorrow shortcuts.
+- Creating or renaming a Markdown note now warns when the same folder already
+  contains a name that differs only by spacing, punctuation, or capitalization,
+  offering to open the existing note before an explicit create/rename-anyway
+  choice.
+- Vault health now separates ordinary filenames repeated across folders from
+  possible duplicate notes. Cross-folder name variants are suggested only when
+  their note content also strongly overlaps, and both notes open for comparison.
+- Activating a missing Markdown link now offers to use a similarly named note
+  from the same folder. That choice updates only the link destination, preserves
+  its visible label, verifies the source and target before editing, and opens the
+  existing note; creating the variant remains an explicit alternative.
+
+### Changed
+
+- Kanban column color controls now replace their neutral palette icon with a
+  small swatch of the selected color, making the current choice visible in the
+  board header.
+- File-tree deletion now clearly warns that items bypass the system Trash,
+  saves affected open files, and records their current contents in local Git
+  history before removal; a save or archive failure leaves the item untouched.
+
 ## 1.10.2 - 2026-08-04
 
 ### Changed

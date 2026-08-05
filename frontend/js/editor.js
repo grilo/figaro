@@ -15,6 +15,8 @@ import { getFileLanguage, loadLanguageSupport } from './languageSupport.js';
 import { createFrontmatterField } from './frontmatterPlugin.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
+import { createTaskDueDateCompletionSource } from './taskDueDateCompletions.js';
+import { openDatePicker } from './datePicker.js';
 import { errorDialog, pdfExportErrorDialog, tableConversionDialog } from './dialogs.js';
 import { handleClipboardImagePaste, pasteClipboardImage } from './clipboardImage.js';
 import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } from './clipboardTable.js';
@@ -28,6 +30,8 @@ import { getLinkStylePreference } from './linkStyle.js';
 import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
 import { createDocumentKeyBindings, createTableCellProfile } from './codeMirrorProfiles.js';
 import { createEditorDocumentSession } from './usecases/editorDocumentSession.js';
+import { reviewMissingLinkedNote } from './usecases/similarNoteReview.js';
+import { markdownLinkDestinationAtPosition, planMarkdownLinkTargetReplacement } from './core/noteLinks.js';
 import { handleFileOpen } from './app.js';
 import { refreshFileTree } from './fileTree.js';
 import {
@@ -761,6 +765,16 @@ function vimFrontmatterRange(doc) {
         if (/^(?:---|\.\.\.)\s*$/.test(line.text)) return { from: 0, to: line.to, kind: 'source' };
     }
     return null;
+}
+
+function hashtagCompletionContextAllowed(context) {
+    const frontmatter = vimFrontmatterRange(context.state.doc);
+    if (frontmatter && context.pos <= frontmatter.to) return false;
+    const probe = Math.max(0, Math.min(context.pos - 1, context.state.doc.length));
+    for (let node = syntaxTree(context.state).resolveInner(probe, -1); node; node = node.parent) {
+        if (/(?:Code|Link|URL|HTML)/.test(node.name)) return false;
+    }
+    return true;
 }
 
 function vimTableCells(line) {
@@ -1959,11 +1973,39 @@ function createEditorView() {
         }
     });
 
+    const hashtagCompletionActivator = ViewPlugin.fromClass(class {
+        update(update) {
+            if (!update.docChanged || !update.state.selection.main.empty) return;
+            const typed = update.transactions.some(transaction => transaction.isUserEvent?.('input.type'));
+            if (!typed) return;
+            const head = update.state.selection.main.head;
+            const line = update.state.doc.lineAt(head);
+            if (!/\s#[a-zA-Z0-9_-]*$/.test(update.state.doc.sliceString(line.from, head))) return;
+            queueMicrotask(() => {
+                if (!update.view.isDestroyed) startCompletion(update.view);
+            });
+        }
+    });
+
     const frontmatterCompletions = createFrontmatterCompletionSource({
         getFileTree: () => getState('fileTreeData') || [],
         getActiveFilePath,
     });
     const dateShortcutCompletions = createDateShortcutCompletionSource();
+    const taskDueDateCompletions = createTaskDueDateCompletionSource({
+        getColumns: () => getState('kanbanCompletionColumns') || [],
+        restartCompletion: startCompletion,
+        contextAllowed: hashtagCompletionContextAllowed,
+        openPicker: ({ view, position, now, onSelect }) => {
+            const anchorRect = view.coordsAtPos(position) || view.contentDOM.getBoundingClientRect();
+            openDatePicker({
+                anchor: view.contentDOM,
+                anchorRect,
+                now,
+                onSelect,
+            });
+        },
+    });
 
     // codemirror-markdown-tables owns both the rendered table and its nested
     // cell editors. Keep document-wide undo/search bindings global while the
@@ -2035,6 +2077,7 @@ function createEditorView() {
             interactionDelay: 0,
             override: [
                 frontmatterCompletions,
+                taskDueDateCompletions,
                 dateShortcutCompletions,
                 headingLinkCompletions,
                 fileLinkCompletions,
@@ -2045,6 +2088,7 @@ function createEditorView() {
         markdownLanguage,
         markdownStylePlugin,
         headingLinkCompletionActivator,
+        hashtagCompletionActivator,
         livePreviewPlugin,
         editorTheme,
         ...(Array.isArray(frontmatterField) ? frontmatterField : [frontmatterField]),
@@ -2651,7 +2695,12 @@ function handleMouseDown(event, view) {
                 if (/^https?:\/\//.test(href)) {
                     window.open(href, '_blank');
                 } else {
-                    handleLinkClick(decodeURI(href), linkEl.textContent, replaceCurrent);
+                    handleLinkClick(
+                        decodeURI(href),
+                        linkEl.textContent,
+                        replaceCurrent,
+                        markdownLinkEditForClick(view, position, linkEl)
+                    );
                 }
             }
         }
@@ -2676,7 +2725,14 @@ function handleMouseDown(event, view) {
         const linkTextStart = m.index;
         const linkTextEnd = m.index + m[1].length + 2;
         if (col >= linkTextStart && col <= linkTextEnd) {
-            event.preventDefault(); handleLinkClick(m[2], m[1], replaceCurrent); return;
+            const destinationOffset = m[0].indexOf('(') + 1;
+            event.preventDefault();
+            handleLinkClick(m[2], m[1], replaceCurrent, {
+                from: line.from + m.index + destinationOffset,
+                to: line.from + m.index + destinationOffset + m[2].length,
+                target: m[2],
+            });
+            return;
         }
     }
     const wiki = wikiLinkAtPosition(lt, col);
@@ -2685,6 +2741,30 @@ function handleMouseDown(event, view) {
         handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, replaceCurrent);
         return true;
     }
+}
+
+function markdownLinkEditForClick(view, coordinatePosition, linkElement) {
+    const positions = [];
+    if (Number.isInteger(coordinatePosition)) positions.push(coordinatePosition);
+    try {
+        const domPosition = view.posAtDOM(linkElement, 0);
+        if (Number.isInteger(domPosition) && !positions.includes(domPosition)) positions.push(domPosition);
+    } catch {
+        // A detached widget has no stable source position.
+    }
+    for (const position of positions) {
+        const bounded = Math.max(0, Math.min(position, view.state.doc.length));
+        const line = view.state.doc.lineAt(bounded);
+        const link = markdownLinkDestinationAtPosition(line.text, bounded - line.from);
+        if (link) {
+            return {
+                from: line.from + link.destinationFrom,
+                to: line.from + link.destinationTo,
+                target: link.target,
+            };
+        }
+    }
+    return null;
 }
 
 /** Parse the conventional target-first wikilink covering a source position. */
@@ -3063,7 +3143,7 @@ function appendSpellcheckSuggestionItems(menu, spellcheckSuggestion) {
     menu.prepend(section);
 }
 
-async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
+async function handleLinkClick(linkPath, linkText, replaceCurrent = false, linkEdit = null) {
     // Decode any percent-encoded characters (e.g., %20 → space) for file operations
     try { linkPath = decodeURI(linkPath); } catch (e) { /* decode may fail */ }
     try { linkPath = decodeURI(linkPath); } catch (e) { /* double-decode safety */ }
@@ -3098,30 +3178,70 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false) {
         const r = await backend().ReadFile(linkPath);
         log.debug('handleLinkClick: read_file result for', linkPath, ':', r ? 'found' : 'not found');
         if (r) {
-            const tabs = getState('openTabs');
-            if (replaceCurrent && !tabs.find(t => t.id === linkPath)) {
-                await replaceCurrentFileTab(linkPath, linkPath.split('/').pop(), 'file', { path: linkPath, mtime: r.mtime });
-            } else {
-                openTab(linkPath, linkPath.split('/').pop(), 'file', { path: linkPath, mtime: r.mtime });
-            }
+            await openLinkedNote(linkPath, r, replaceCurrent);
         } else {
             const fileName = linkPath.split('/').pop();
             const fullPath = linkPath.endsWith('.md') ? linkPath : linkPath + '.md';
-            const msg = `The note “${fileName}” doesn’t exist yet.\n\nPath: ${fullPath}`;
-            const sc = await window.confirmDialog('Create this note?', msg, false, false, {
-                icon: 'file-add',
-                confirmLabel: 'Create note',
-            });
-            if (sc) {
+            let creationConfirmed = false;
+            if (linkEdit) {
+                const review = await reviewMissingLinkedNote({
+                    tree: getState('fileTreeData'),
+                    targetPath: fullPath,
+                    confirm: window.confirmDialog,
+                    read: path => backend().ReadFile(path),
+                    replaceTarget: path => replaceMarkdownLinkTarget(getEditorView(), linkEdit, path),
+                    open: (path, existing) => openLinkedNote(path, existing, replaceCurrent),
+                });
+                if (review === 'used-existing' || review === 'cancelled') return;
+                if (review === 'stale') {
+                    await errorDialog('Link changed', 'The link changed while the note choice was open.', 'Nothing was replaced. Try the link again.');
+                    return;
+                }
+                if (review === 'unavailable') {
+                    await errorDialog('Couldn’t open existing note', 'The similar note is no longer available.', 'Nothing was replaced. Refresh the file tree and try again.');
+                    return;
+                }
+                creationConfirmed = review === 'create';
+            }
+            if (!creationConfirmed) {
+                const msg = `The note “${fileName}” doesn’t exist yet.\n\nPath: ${fullPath}`;
+                creationConfirmed = await window.confirmDialog('Create this note?', msg, false, false, {
+                    icon: 'file-add',
+                    confirmLabel: 'Create note',
+                });
+            }
+            if (creationConfirmed) {
                 const fpath = linkPath.endsWith('.md') ? linkPath : linkPath + '.md';
                 const fname = fpath.split('/').pop();
                 const displayName = linkPath.endsWith('.md') ? fileName.replace('.md', '') : fileName;
-                await backend().CreateFile(fpath, `# ${displayName}\n\n`);
-                openTab(fpath, fname, 'file', { path: fpath, mtime: Date.now() / 1000 }, true);
-                refreshFileTree();
+                const created = await backend().CreateFile(fpath, `# ${displayName}\n\n`);
+                if (!created?.success) {
+                    await errorDialog('Couldn’t create note', created?.error, 'The linked note could not be created.');
+                    return;
+                }
+                openTab(fpath, fname, 'file', { path: fpath, mtime: created.mtime || Date.now() / 1000 }, true);
+                await refreshFileTree();
             }
         }
     } catch (err) { log.error('Failed to open link:', err, 'path was:', linkPath); }
+}
+
+async function openLinkedNote(path, file, replaceCurrent) {
+    const tabs = getState('openTabs');
+    const data = { path, mtime: file?.mtime };
+    if (replaceCurrent && !tabs.find(tab => tab.id === path)) {
+        await replaceCurrentFileTab(path, path.split('/').pop(), 'file', data);
+    } else {
+        openTab(path, path.split('/').pop(), 'file', data);
+    }
+}
+
+export function replaceMarkdownLinkTarget(view, edit, existingPath) {
+    if (!view || view.isDestroyed) return false;
+    const change = planMarkdownLinkTargetReplacement(view.state.doc.toString(), edit, existingPath);
+    if (!change) return false;
+    view.dispatch({ changes: change });
+    return true;
 }
 
 /**

@@ -78,6 +78,18 @@ focused adapter contract. If a code path is a genuine pass-through with no
 decision or sequencing, test the adapter contract directly rather than
 inventing a fake abstraction solely for test structure.
 
+Similar-note coverage follows that split. Pure frontend and Go tests own
+Unicode/case/punctuation canonicalization, the short-name cutoff, sibling
+scope, and conservative content overlap. The injected review-use-case tests
+prove open-existing, explicit create/rename-anyway, exact-name, and cancellation
+outcomes without filesystem effects. File-tree component tests prove the create
+and rename wiring, while the root-scoped Vault-health adapter test distinguishes
+repeated cross-folder filenames from actionable same-folder or content-backed
+variants. The existing editor UX browser spec contains one representative
+rendered-link click because mapping a replaced CodeMirror link widget back to
+its exact source destination is a real geometry/DOM boundary; exhaustive name,
+choice, stale-range, and error cases remain below the browser layer.
+
 Architecture guardrails should reject imports that point from the pure core
 back to adapters or composition roots. Add a guard when introducing the first
 module in a new layer rather than relying on naming conventions alone.
@@ -113,6 +125,7 @@ internal/
 ├── history/          Git history service and its tests
 ├── links/            Pure Markdown link rewriting and its tests
 ├── mutations/        Pure move/copy/merge and collision plans
+├── notenames/        Pure note-name canonicalization and content comparison
 ├── notes/            Note-save use case and repository contract
 ├── settings/         Pure settings defaults and migrations
 └── vault/            Root-scoped filesystem primitives and their tests
@@ -241,9 +254,12 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 ## What is covered
 
 - Vault path safety, atomic file operations, local-link/unlinked-mention and
-  Vault-health scanning, single-file-only Auto-Commit migration and isolation,
-  history comparison/restoration, Draw.io file handling and export-recovery
-  states, print stylesheet resolution, and printable-document preparation.
+  Vault-health scanning including conservative similar-note classification,
+  single-file-only Auto-Commit migration and isolation,
+  history comparison/restoration, pre-delete file and recursive-folder archives
+  with non-destructive save/commit failures, Draw.io file handling and
+  export-recovery states, print stylesheet resolution, and printable-document
+  preparation.
 - Editor behavior, CodeMirror language modes, current-note heading-fragment
   completion, live Markdown preview, persistent Markdown diagnostics
   and their hover/F8 guidance, offline spellcheck's global **None** state and
@@ -409,21 +425,32 @@ go test ./internal/desktop -run 'Test(CreateDirectory|CreateInboxNote|LoadSessio
 Due dates remain Markdown data, not configuration state. Pure tests cover the
 matching `[due YYYY-MM-DD](YYYY-MM-DD.md)` contract, invalid and mismatched
 dates, local-day presentation, unique summary counts, Home priority, picker
-months, and the next-midnight refresh plan. Root-scoped backend tests prove
+months, the next-midnight refresh plan, hashtag-column normalization, and the
+task/prose/completed/already-dated eligibility matrix. Completion-source tests
+own atomic Today/Tomorrow insertion, picker handoff, and the one-time restart
+after accepting a task tag. Root-scoped backend tests prove
 that setting, replacing, and clearing a due date changes only the requested
 task line and immediately updates the shared Kanban/Calendar index. Component
 tests own picker focus and Arrow-key movement, card controls, warning states,
-Today reminders, Calendar task results, and cache invalidation. Keep these in
+Today reminders, the column header's neutral-icon/selected-color indicator,
+Calendar task results, cache invalidation, prose hashtag completion, and
+frontmatter/code suppression. The live Kanban component must also prove that a
+dirty new tag appears on the board without entering the saved completion
+vocabulary until save. Keep these in
 `kanban_due_test.go`, `app_test.go`, `calendar_index_test.go`,
 `tests/frontend/unit/dueDateModel.test.js`,
-`tests/frontend/unit/datePicker.test.js`, `tests/frontend/unit/kanban.test.js`,
+`tests/frontend/unit/taskDueDateCompletionModel.test.js`,
+`tests/frontend/unit/taskDueDateCompletions.test.js`,
+`tests/frontend/unit/datePicker.test.js`,
+`tests/frontend/unit/dateShortcutEditor.test.js`, `tests/frontend/unit/kanban.test.js`,
 `tests/frontend/unit/home.test.js`, and
 `tests/frontend/unit/calendarCache.test.js`. The static discoverability
 contract belongs in `tests/frontend/unit/markdownCheatsheet.test.js`: it keeps
 the complete portable due-date line directly after the ordinary task row.
-One focused browser workflow may
-cover the computed popup position and source-line round trip; pure parsing and
-backend mutation branches do not belong in Playwright.
+One focused browser workflow in `tests/e2e/editorUX.spec.js` covers the normal
+prose/task distinction, keyboard acceptance, computed caret-relative picker
+position, source-line round trip, Arrow Up/Down, and drag selection. Pure
+parsing and backend mutation branches do not belong in Playwright.
 
 ## PDF preview page-geometry regressions
 
@@ -672,6 +699,14 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/fileTree.test.js
 npx playwright test tests/e2e/fileTreeAppearance.spec.js
 ```
+
+File-tree deletion stays at the lowest useful boundaries: tab-manager coverage
+proves dirty affected buffers save before the request; file-tree component
+coverage proves cancellation, copy, and save-failure sequencing; history
+service tests prove the exact archived contents, ignored-file inclusion, and
+unrelated-index isolation; root-scoped desktop tests prove removal occurs only
+after a recoverable revision exists. Do not duplicate this deterministic
+contract in Playwright.
 
 ## External Markdown launch regressions
 

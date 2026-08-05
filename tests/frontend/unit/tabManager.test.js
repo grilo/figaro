@@ -97,6 +97,7 @@ import {
     replaceActiveFileTab,
     updateTabsForMovedPath,
     prepareTabsForPathCopy,
+    prepareTabsForPathDelete,
     prepareTabsForPathMove,
 	prepareTabsForVaultLinkRewrite,
     refreshTabsForUpdatedLinks,
@@ -672,6 +673,24 @@ describe('Tab Manager', () => {
             getEditorContent.mockReturnValueOnce('latest visible plan');
 
             await expect(prepareTabsForPathCopy('Projects')).resolves.toEqual({ success: true });
+
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
+                'Projects/plan.md', 'latest visible plan', 10
+            );
+            expect(mockState.openTabs[0].dirty).toBe(false);
+            expect(mockState.openTabs[1].dirty).toBe(true);
+        });
+
+        test('saves dirty source content before deletion so the archive sees the visible editor version', async () => {
+            mockState.openTabs = [
+                { id: 'Projects/plan.md', title: 'Plan', type: 'file', path: 'Projects/plan.md', dirty: true, mtime: 10 },
+                { id: 'outside.md', title: 'Outside', type: 'file', path: 'outside.md', dirty: true, mtime: 20, _content: 'unrelated dirty content' },
+            ];
+            mockState.activeTabId = 'Projects/plan.md';
+            getEditorContent.mockReturnValueOnce('latest visible plan');
+
+            await expect(prepareTabsForPathDelete('Projects')).resolves.toEqual({ success: true });
 
             expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
             expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(

@@ -102,6 +102,19 @@ Files and folders can also be copied or dropped into the tree. Figaro asks
 before importing, preserves directory structure, and never silently overwrites
 existing content.
 
+When a new or renamed Markdown note resembles another note in the same folder
+after ignoring spacing, punctuation, and capitalization, Figaro offers to open
+the existing note first. It never merges notes automatically. The on-demand
+**Settings → Vault care** scan lists repeated filenames separately and only
+shows them as informational; it only suggests cross-folder name variants when
+their content also strongly overlaps.
+
+The same guard applies when activating a missing conventional Markdown link.
+Choosing **Use existing note** changes only its destination—for example,
+`[Inner Source](Inner%20Source.md)` becomes
+`[Inner Source](InnerSource.md)`—then opens the existing note. The visible label
+stays intact, while **Create anyway** deliberately keeps the original target.
+
 ## Writing and planning
 
 Markdown diagnostics identify structural problems without changing source.
@@ -121,9 +134,15 @@ dates remain portable links:
 - [ ] Submit report #todo [due 2026-08-14](2026-08-14.md)
 ```
 
+Typing a standalone hashtag suggests saved Kanban columns even at the end of
+ordinary prose. On an unfinished checkbox task with no existing due date, an
+exact tag also offers **Add due date…**, **Due today**, and **Due tomorrow**;
+paragraphs, completed tasks, and already dated tasks remain tag-only.
+
 The same dates appear in the Today dashboard and calendar. Figaro keeps
 reminders inside the application and does not request operating-system
-notification access.
+notification access. A Kanban column with a chosen color shows that color as a
+small header swatch; an uncolored column keeps the neutral palette icon.
 
 ## Diagrams and PDFs
 
@@ -143,9 +162,12 @@ format. Search, backlinks, planning, history, Markdown rendering, and
 spellcheck run locally. The only hosted editing surface is the optional Draw.io
 editor; saved diagram output remains local.
 
-Local Git history is scoped to the active file. Auto-Commit records only a file
-that Figaro successfully saved, and the **Save to history** action never sweeps
-unrelated staged work into the note's history.
+Local Git history is file-oriented. Auto-Commit records only a file that Figaro
+successfully saved, and the **Save to history** action never sweeps unrelated
+staged work into the note's history. Deleting from the file tree bypasses the
+system Trash, but first saves affected open editors and records the file—or
+every file in a folder—in local history. If that archive cannot be recorded,
+Figaro leaves the item untouched.
 
 ## Current limitations
 

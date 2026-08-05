@@ -64,7 +64,7 @@ window.go = {
         SearchBacklinks: jest.fn().mockResolvedValue([]),
         SearchUnlinkedMentions: jest.fn().mockResolvedValue([]),
         LinkUnlinkedMention: jest.fn().mockResolvedValue({ success: true }),
-        GetVaultHealth: jest.fn().mockResolvedValue({ broken_links: [], orphan_attachments: [], duplicate_names: [], invalid_frontmatter: [] }),
+        GetVaultHealth: jest.fn().mockResolvedValue({ broken_links: [], orphan_attachments: [], duplicate_names: [], similar_notes: [], invalid_frontmatter: [] }),
         GetCommitCount: jest.fn().mockResolvedValue(0),
         FileHasUncommittedChanges: jest.fn().mockResolvedValue(false),
         GetFileHistory: jest.fn().mockResolvedValue([]),

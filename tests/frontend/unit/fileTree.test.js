@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin, deletePath } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -54,6 +54,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
     closeTab: jest.fn().mockResolvedValue(true),
     closeTabsForDeletedPath: jest.fn(),
     prepareTabsForPathCopy: jest.fn().mockResolvedValue({ success: true }),
+    prepareTabsForPathDelete: jest.fn().mockResolvedValue({ success: true }),
     prepareTabsForPathMove: jest.fn().mockResolvedValue({ success: true }),
     refreshTabsForUpdatedLinks: jest.fn().mockResolvedValue(false),
     updateTabsForMovedPath: jest.fn(),
@@ -67,7 +68,7 @@ import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
-import { closeTab, openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
+import { closeTab, openTab, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 import { focusEditor } from '../frontend/js/editor.js';
 
@@ -462,6 +463,45 @@ describe('File Tree', () => {
         })).resolves.toBe(false);
         expect(window.go.desktop.App.DeletePath).not.toHaveBeenCalled();
         expect(state.externalFileTreeEntries).toHaveLength(1);
+    });
+
+    test('explains recoverable vault deletion and saves open changes before the backend archive', async () => {
+        await deletePath('Projects/plan.md', 'file');
+
+        expect(confirmDialog).toHaveBeenCalledWith(
+            'Delete from vault?',
+            expect.stringContaining('without moving it to Trash'),
+            true,
+            false,
+            { confirmLabel: 'Delete', cancelLabel: 'Keep' },
+        );
+        expect(confirmDialog.mock.calls[0][1]).toContain('record the current contents in local Git history');
+        expect(prepareTabsForPathDelete).toHaveBeenCalledWith('Projects/plan.md');
+        expect(window.go.desktop.App.DeletePath).toHaveBeenCalledWith('Projects/plan.md');
+        expect(prepareTabsForPathDelete.mock.invocationCallOrder[0])
+            .toBeLessThan(window.go.desktop.App.DeletePath.mock.invocationCallOrder[0]);
+    });
+
+    test('cancels vault deletion before saving or archiving anything', async () => {
+        confirmDialog.mockResolvedValueOnce(false);
+
+        await deletePath('Projects/plan.md', 'file');
+
+        expect(prepareTabsForPathDelete).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.DeletePath).not.toHaveBeenCalled();
+    });
+
+    test('leaves a vault item untouched when its open changes cannot be saved for archival', async () => {
+        prepareTabsForPathDelete.mockResolvedValueOnce({ success: false, error: 'Save "Plan" before deleting it' });
+
+        await deletePath('Projects', 'directory');
+
+        expect(window.go.desktop.App.DeletePath).not.toHaveBeenCalled();
+        expect(errorDialog).toHaveBeenCalledWith(
+            'Couldn’t delete folder',
+            'Save "Plan" before deleting it',
+            'Save open files before deleting this folder.',
+        );
     });
 
     describe('toggleDirectory', () => {
@@ -978,6 +1018,35 @@ describe('File Tree', () => {
         expect(handleFileOpen).toHaveBeenCalledWith('print.css');
     });
 
+    test('opens a same-folder punctuation variant instead of creating it by default', async () => {
+        state.fileTreeData = [{
+            name: 'notes', path: 'notes', type: 'directory', children: [
+                { name: 'InnerSource.md', path: 'notes/InnerSource.md', type: 'file', mtime: 1 },
+            ],
+        }];
+        newNoteDialog.mockResolvedValueOnce('Inner Source.md');
+        confirmDialog.mockResolvedValueOnce('confirm');
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('.file-tree-item[data-path="notes"] .file-tree-node').dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        document.querySelector('.context-menu [data-action="new-file"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(confirmDialog).toHaveBeenCalledWith(
+            'Similar note name',
+            expect.stringContaining('notes/InnerSource.md'),
+            false,
+            false,
+            expect.objectContaining({ confirmLabel: 'Open existing', extraLabel: 'Create anyway' })
+        );
+        expect(handleFileOpen).toHaveBeenCalledWith('notes/InnerSource.md');
+        expect(window.go.desktop.App.CreateFile).not.toHaveBeenCalled();
+    });
+
     test('renames a tree item and refreshes tabs whose backlinks were rewritten', async () => {
         state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 100 }];
         state.selectedFilePath = 'notes/draft.md';
@@ -1006,6 +1075,39 @@ describe('File Tree', () => {
         expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith(['notes/references.md']);
         expect(state.selectedFilePath).toBe('notes/final.md');
         expect(state.selectedFilePaths).toEqual(['notes/final.md']);
+    });
+
+    test('requires an explicit choice before renaming to a same-folder punctuation variant', async () => {
+        state.fileTreeData = [{
+            name: 'notes', path: 'notes', type: 'directory', children: [
+                { name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 1 },
+                { name: 'InnerSource.md', path: 'notes/InnerSource.md', type: 'file', mtime: 1 },
+            ],
+        }];
+        state.expandedDirs = new Set(['notes']);
+        renamePathDialog.mockResolvedValueOnce('Inner Source.md');
+        confirmDialog.mockResolvedValueOnce('extra');
+        window.go.desktop.App.RenamePath.mockResolvedValueOnce({
+            success: true,
+            old_path: 'notes/draft.md',
+            path: 'notes/Inner Source.md',
+            updated_links: [],
+        });
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('.file-tree-item[data-path="notes/draft.md"] .file-tree-node').dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        document.querySelector('.context-menu [data-action="rename"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(confirmDialog.mock.calls[0][4]).toEqual(expect.objectContaining({
+            confirmLabel: 'Open existing',
+            extraLabel: 'Rename anyway',
+        }));
+        expect(window.go.desktop.App.RenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/Inner Source.md');
     });
 
     describe('findTreeItem', () => {

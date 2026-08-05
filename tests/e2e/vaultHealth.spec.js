@@ -12,6 +12,7 @@ test('opens the themed read-only Vault health scan from Settings and navigates t
                 broken_links: [{ path: 'notes/source.md', line_num: 6, detail: 'Links to a vault entry that does not exist.', target: 'missing.md' }],
                 orphan_attachments: [{ path: 'assets/orphan.png', detail: 'No Markdown note references this attachment.' }],
                 duplicate_names: [],
+                similar_notes: [],
                 invalid_frontmatter: [],
             };
         };
@@ -21,11 +22,13 @@ test('opens the themed read-only Vault health scan from Settings and navigates t
     await page.locator('#topbar-settings').click();
     const review = page.locator('#open-vault-health');
     await expect(review).toBeVisible();
+    await expect(page.locator('.vault-health-setting')).toContainText('repeated filenames');
+    await expect(page.locator('.vault-health-setting')).toContainText('possible duplicate notes');
     await review.click();
 
     await expect(page.locator('.vault-health-view h2')).toHaveText('Vault health');
     await expect(page.locator('.vault-health-summary')).toContainText('2 findings');
-    await expect(page.locator('.vault-health-section')).toHaveCount(4);
+    await expect(page.locator('.vault-health-section')).toHaveCount(5);
     await expect(page.locator('.vault-health-open').first()).toContainText('notes/source.md:6');
     await expect.poll(() => page.evaluate(() => window.__vaultHealthCalls)).toBe(1);
 

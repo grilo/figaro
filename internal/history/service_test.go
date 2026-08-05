@@ -156,6 +156,98 @@ func TestCommitFileRefusesUnrelatedStagedChangesWithoutChangingTheIndex(t *testi
 	}
 }
 
+func TestArchivePathWithVaultLockedRecordsEveryCurrentFileBeforeDeletion(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "Drafts"), 0755); err != nil {
+		t.Fatalf("create archive fixture directory: %v", err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, ".gitignore"), ".config/\nDrafts/private.md\n")
+	writeHistoryFixture(t, filepath.Join(dir, "Drafts", "note.md"), "latest note\n")
+	writeHistoryFixture(t, filepath.Join(dir, "Drafts", "private.md"), "ignored but recoverable\n")
+
+	if err := service.ArchivePathWithVaultLocked("Drafts"); err != nil {
+		t.Fatalf("ArchivePathWithVaultLocked: %v", err)
+	}
+	for path, want := range map[string]string{
+		"Drafts/note.md":    "latest note\n",
+		"Drafts/private.md": "ignored but recoverable\n",
+	} {
+		entries, err := service.GetFileHistory(path)
+		if err != nil {
+			t.Fatalf("GetFileHistory(%s): %v", path, err)
+		}
+		if len(entries) != 1 || !strings.HasPrefix(entries[0].Message, "archive before delete: Drafts") {
+			t.Fatalf("history for %s = %#v, want one archive revision", path, entries)
+		}
+		content, err := service.GetFileVersion(path, entries[0].Hash)
+		if err != nil {
+			t.Fatalf("GetFileVersion(%s): %v", path, err)
+		}
+		if content != want {
+			t.Fatalf("archived %s = %q, want %q", path, content, want)
+		}
+	}
+}
+
+func TestArchivePathWithVaultLockedDoesNotCreateARedundantRevision(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, "note.md"), "already recorded\n")
+	if err := service.CommitFile("note.md"); err != nil {
+		t.Fatalf("CommitFile: %v", err)
+	}
+
+	if err := service.ArchivePathWithVaultLocked("note.md"); err != nil {
+		t.Fatalf("ArchivePathWithVaultLocked: %v", err)
+	}
+	entries, err := service.GetFileHistory("note.md")
+	if err != nil {
+		t.Fatalf("GetFileHistory: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("unchanged pre-delete archive created a redundant revision: %#v", entries)
+	}
+}
+
+func TestArchivePathWithVaultLockedRefusesUnrelatedStagedChangesWithoutStagingTarget(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, "delete-me.md"), "keep until archived\n")
+	writeHistoryFixture(t, filepath.Join(dir, "staged.md"), "staged elsewhere\n")
+	worktree, err := service.repo.Worktree()
+	if err != nil {
+		t.Fatalf("Worktree: %v", err)
+	}
+	if _, err := worktree.Add("staged.md"); err != nil {
+		t.Fatalf("stage unrelated file: %v", err)
+	}
+
+	err = service.ArchivePathWithVaultLocked("delete-me.md")
+	if err == nil || !strings.Contains(err.Error(), "staged.md has staged changes") {
+		t.Fatalf("ArchivePathWithVaultLocked error = %v; want unrelated-stage refusal", err)
+	}
+	status, err := worktree.Status()
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status["staged.md"].Staging == git.Unmodified {
+		t.Fatal("unrelated staged change was removed")
+	}
+	if status["delete-me.md"].Staging != git.Untracked {
+		t.Fatalf("delete target was staged despite refusal: %q", status["delete-me.md"].Staging)
+	}
+}
+
 func TestSuccessfulCommitNotifiesTheFrontendStatusPath(t *testing.T) {
 	dir := t.TempDir()
 	service, err := New(dir)

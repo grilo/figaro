@@ -19,7 +19,7 @@ export function closeDatePicker({ restoreFocus = true } = {}) {
     if (restoreFocus && anchor?.isConnected) anchor.focus();
 }
 
-export function openDatePicker({ anchor, value = '', onSelect, now = () => new Date(), locale = undefined }) {
+export function openDatePicker({ anchor, anchorRect = null, value = '', onSelect, now = () => new Date(), locale = undefined }) {
     if (!anchor || typeof onSelect !== 'function') throw new TypeError('Date picker anchor and selection handler are required');
     closeDatePicker({ restoreFocus: false });
 
@@ -31,7 +31,7 @@ export function openDatePicker({ anchor, value = '', onSelect, now = () => new D
     picker.setAttribute('role', 'dialog');
     picker.setAttribute('aria-label', 'Choose due date');
 
-    const position = () => positionPicker(picker, anchor);
+    const position = () => positionPicker(picker, anchor, anchorRect);
     const render = focusDate => {
         const monthDate = new Date(state.year, state.month, 1, 12);
         const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(monthDate);
@@ -112,8 +112,8 @@ export function openDatePicker({ anchor, value = '', onSelect, now = () => new D
     return picker;
 }
 
-function positionPicker(picker, anchor) {
-    const anchorRect = anchor.getBoundingClientRect();
+function positionPicker(picker, anchor, requestedRect = null) {
+    const anchorRect = requestedRect || anchor.getBoundingClientRect();
     const pickerRect = picker.getBoundingClientRect();
     const margin = 8;
     const width = pickerRect.width || 280;

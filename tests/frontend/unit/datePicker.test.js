@@ -48,4 +48,19 @@ describe('Due date picker', () => {
         expect(document.querySelector('.ui-date-picker')).toBeNull();
         expect(document.activeElement).toBe(anchor);
     });
+
+    test('can position the shared picker at an editor cursor rectangle', () => {
+        const anchor = document.createElement('div');
+        anchor.tabIndex = -1;
+        document.body.appendChild(anchor);
+        const picker = openDatePicker({
+            anchor,
+            anchorRect: { left: 120, right: 121, top: 80, bottom: 98, width: 1, height: 18 },
+            onSelect: jest.fn(),
+            now: () => new Date(2026, 7, 4, 12),
+        });
+
+        expect(picker.style.left).toBe('120px');
+        expect(picker.style.top).toBe('104px');
+    });
 });

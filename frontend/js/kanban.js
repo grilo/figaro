@@ -23,6 +23,7 @@ import {
 let draggedCard = null;
 let kanbanColumns = [];
 let savedKanbanColumns = ['todo', 'wip', 'done'];
+let savedKanbanBoardData = {};
 let kanbanColors = {};
 const persistedColumns = new Set();
 let kanbanBoardRequestId = 0;
@@ -264,16 +265,18 @@ export function applySavedKanbanSnapshot(filePath, content) {
     // Invalidate an earlier initial/external request before it can replace the
     // just-saved snapshot with stale cards.
     kanbanBoardRequestId++;
-    const boardData = replaceKanbanCardsForFile(
-        getState('kanbanBoardData') || {},
+    savedKanbanBoardData = replaceKanbanCardsForFile(
+        savedKanbanBoardData,
         path,
         kanbanCardsForBuffer(path, content),
     );
-    savedKanbanColumns = savedColumnsForBoard(boardData);
+    savedKanbanColumns = savedColumnsForBoard(savedKanbanBoardData);
     kanbanColumns = appendDirtyColumns(savedKanbanColumns);
+    const boardData = overlayDirtyKanbanBuffers(savedKanbanBoardData);
     persistedColumns.clear();
     for (const column of savedKanbanColumns) persistedColumns.add(column);
     setState('kanbanColumns', kanbanColumns);
+    setState('kanbanCompletionColumns', [...savedKanbanColumns]);
     setState('kanbanBoardData', boardData);
     renderKanbanSnapshot(boardData);
     return true;
@@ -320,7 +323,8 @@ export async function refreshKanbanData({ focusCol = null, container = getBoardC
         ]);
         if (requestId !== kanbanBoardRequestId) return false;
         applyKanbanColumns(columnResult);
-        const boardData = overlayDirtyKanbanBuffers(savedBoard);
+        savedKanbanBoardData = savedBoard || {};
+        const boardData = overlayDirtyKanbanBuffers(savedKanbanBoardData);
         setState('kanbanBoardData', boardData);
         persistedColumns.clear();
         for (const column of savedKanbanColumns) persistedColumns.add(column);
@@ -336,7 +340,7 @@ export async function refreshKanbanData({ focusCol = null, container = getBoardC
 // Reproject the existing saved board with dirty tabs only. This is the hot
 // typing path and intentionally never calls the backend.
 function refreshKanbanFromDirtyBuffers() {
-    const boardData = overlayDirtyKanbanBuffers(getState('kanbanBoardData') || {});
+    const boardData = overlayDirtyKanbanBuffers(savedKanbanBoardData);
     kanbanColumns = appendDirtyColumns(savedKanbanColumns);
     setState('kanbanColumns', kanbanColumns);
     setState('kanbanBoardData', boardData);
@@ -353,6 +357,7 @@ function applyKanbanColumns(result) {
     }
     kanbanColumns = appendDirtyColumns(savedKanbanColumns);
     setState('kanbanColumns', kanbanColumns);
+    setState('kanbanCompletionColumns', [...savedKanbanColumns]);
 }
 
 function renderKanbanBadges(boardData) {
@@ -446,13 +451,20 @@ function renderColumns(container, boardData, focusCol) {
         const tasks = boardData[column] || [];
         const isSystem = ['todo', 'wip', 'done'].includes(column);
         const isFocused = column === focusCol;
+        const selectedColor = ACCENT_COLOR_PALETTE.includes(kanbanColors[column]) ? kanbanColors[column] : '';
+        const colorLabel = selectedColor
+            ? `Change color for #${column}; selected color ${selectedColor}`
+            : `Set color for #${column}; no color selected`;
+        const colorIndicator = selectedColor
+            ? `<span class="kanban-column-color-indicator" style="--kanban-column-color:${selectedColor}" aria-hidden="true"></span>`
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 0 20"></path><path d="M2 12h20"></path></svg>';
         html += `
             <div class="kanban-column ${isFocused ? 'focused' : ''}" data-column="${column}">
                 <div class="kanban-column-header">
                     <span class="kanban-column-title">#${column}</span>
                     <div class="kanban-column-actions">
-                        <button class="ui-icon-button ui-icon-button--small kanban-column-btn color-col" title="Set color" data-column="${column}">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 0 20"></path><path d="M2 12h20"></path></svg>
+                        <button class="ui-icon-button ui-icon-button--small kanban-column-btn color-col" title="${escapeAttribute(colorLabel)}" aria-label="${escapeAttribute(colorLabel)}" data-column="${column}" data-selected-color="${selectedColor}">
+                            ${colorIndicator}
                         </button>
                         ${!isSystem ? `
                             <button class="ui-icon-button ui-icon-button--small kanban-column-btn rename-col" title="Rename column" data-column="${column}">

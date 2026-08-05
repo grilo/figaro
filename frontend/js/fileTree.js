@@ -6,7 +6,7 @@ import { backend } from './backend.js';
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
 import { saveSession } from './session.js';
-import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
+import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
 import { isDrawioDiagramPath } from './drawio.js';
@@ -26,6 +26,7 @@ import {
     toggleSelectedPath,
 } from './core/fileTreeModel.js';
 import { createFileTreeRefresh } from './usecases/fileTreeRefresh.js';
+import { reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
 
 
 let dragSourceNode = null;
@@ -1360,6 +1361,16 @@ async function createNewFileIn(targetPath, targetType) {
     
     const fileName = await newNoteDialog(parentDir);
     if (!fileName) return;
+
+    const nameReview = await reviewSameDirectoryNoteName({
+        tree: getState('fileTreeData'),
+        parentDirectory: parentDir,
+        proposedName: fileName,
+        operation: 'create',
+        confirm: confirmDialog,
+        open: handleFileOpen,
+    });
+    if (nameReview !== 'proceed') return;
     
     try {
         const result = await backend().CreateFile(
@@ -1489,6 +1500,18 @@ async function renameTreePath(path, type) {
 
     const separator = path.lastIndexOf('/');
     const newPath = separator >= 0 ? `${path.slice(0, separator + 1)}${nextName}` : nextName;
+    if (type === 'file') {
+        const nameReview = await reviewSameDirectoryNoteName({
+            tree: getState('fileTreeData'),
+            parentDirectory: separator >= 0 ? path.slice(0, separator) : '',
+            proposedName: nextName,
+            currentPath: path,
+            operation: 'rename',
+            confirm: confirmDialog,
+            open: handleFileOpen,
+        });
+        if (nameReview !== 'proceed') return;
+    }
     try {
         const saveState = await prepareTabsForPathMove(path);
         if (!saveState.success) {
@@ -1549,19 +1572,25 @@ export async function removeExternalFileTreeEntry(externalFileId, {
     return true;
 }
 
-async function deletePath(path) {
+export async function deletePath(path, type = 'file') {
     const name = path.split('/').pop();
     const confirmed = await confirmDialog(
-        'Delete permanently?',
-        `“${name}” will be removed from the vault. This cannot be undone.`,
+        'Delete from vault?',
+        `This removes “${name}” without moving it to Trash. Figaro will first save open changes and record the current contents in local Git history so they can be recovered.`,
         true,
         false,
-        { confirmLabel: 'Delete permanently' }
+        { confirmLabel: 'Delete', cancelLabel: 'Keep' }
     );
     
     if (!confirmed) return;
-    
+
     try {
+        const kind = type === 'directory' ? 'folder' : 'file';
+        const saveState = await prepareTabsForPathDelete(path);
+        if (!saveState.success) {
+            await errorDialog(`Couldn’t delete ${kind}`, saveState.error, `Save open files before deleting this ${kind}.`);
+            return;
+        }
         const result = await backend().DeletePath(path);
         if (result.success) {
             await refreshFileTree();

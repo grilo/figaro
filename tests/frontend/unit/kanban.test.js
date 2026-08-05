@@ -28,6 +28,7 @@ describe('live Kanban buffers and compact cards', () => {
         document.getElementById('tab-panels').innerHTML = '<div id="kanban-board-main"></div>';
         window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
+        window.go.desktop.App.SetColumnColor = jest.fn().mockResolvedValue({ success: true, colors: {} });
         window.go.desktop.App.SetTaskDueDate.mockResolvedValue({ success: true });
     });
 
@@ -91,6 +92,8 @@ describe('live Kanban buffers and compact cards', () => {
         const board = document.getElementById('kanban-board-main');
         expect(board.textContent).toContain('#urgent');
         expect(board.textContent).toContain('A newly typed item');
+        expect(getState('kanbanColumns')).toContain('urgent');
+        expect(getState('kanbanCompletionColumns')).not.toContain('urgent');
         expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
         expect(window.go.desktop.App.GetKanbanBoard).not.toHaveBeenCalled();
         expect(window.go.desktop.App.GetKanbanColumns).not.toHaveBeenCalled();
@@ -112,8 +115,23 @@ describe('live Kanban buffers and compact cards', () => {
         expect(board.textContent).toContain('#urgent');
         expect(board.textContent).toContain('Saved urgent task');
         expect(board.textContent).not.toContain('Old task');
+        expect(getState('kanbanCompletionColumns')).toContain('urgent');
         expect(window.go.desktop.App.GetKanbanBoard).not.toHaveBeenCalled();
         expect(window.go.desktop.App.GetKanbanColumns).not.toHaveBeenCalled();
+    });
+
+    test('does not promote another dirty note hashtag into the saved completion vocabulary', async () => {
+        setState('openTabs', [{
+            id: 'draft.md', type: 'file', path: 'draft.md', dirty: true,
+            _content: 'Still typing #ur',
+        }]);
+        initKanban();
+        await testUtils.waitFor(20);
+
+        expect(applySavedKanbanSnapshot('saved.md', '- [ ] Saved task #todo')).toBe(true);
+
+        expect(getState('kanbanColumns')).toContain('ur');
+        expect(getState('kanbanCompletionColumns')).not.toContain('ur');
     });
 
     test('renders the compact text while retaining the full card text in its title', async () => {
@@ -128,6 +146,37 @@ describe('live Kanban buffers and compact cards', () => {
         expect(Array.from(text.textContent)).toHaveLength(120);
         expect(text.textContent.endsWith('…')).toBe(true);
         expect(text.title).toBe(longText);
+    });
+
+    test('replaces the neutral color icon with the selected column-color indicator', async () => {
+        await renderKanbanBoard('kanban-board-main');
+        const initialControl = document.querySelector('.color-col[data-column="todo"]');
+        expect(initialControl.dataset.selectedColor).toBe('');
+        expect(initialControl.querySelector('svg')).not.toBeNull();
+        expect(initialControl.querySelector('.kanban-column-color-indicator')).toBeNull();
+        expect(initialControl.getAttribute('aria-label')).toContain('no color selected');
+
+        window.go.desktop.App.SetColumnColor.mockResolvedValueOnce({
+            success: true,
+            colors: { todo: '#22c55e' },
+        });
+        window.go.desktop.App.GetKanbanColumns.mockResolvedValue({
+            columns: ['todo', 'wip', 'done'],
+            colors: { todo: '#22c55e' },
+        });
+        initialControl.click();
+        const green = [...document.querySelectorAll('.kanban-color-swatch')]
+            .find(swatch => swatch.dataset.color === '#22c55e');
+        green.click();
+        await testUtils.waitFor(20);
+
+        const selectedControl = document.querySelector('.color-col[data-column="todo"]');
+        const indicator = selectedControl.querySelector('.kanban-column-color-indicator');
+        expect(window.go.desktop.App.SetColumnColor).toHaveBeenCalledWith('todo', '#22c55e');
+        expect(selectedControl.dataset.selectedColor).toBe('#22c55e');
+        expect(selectedControl.querySelector('svg')).toBeNull();
+        expect(indicator.style.getPropertyValue('--kanban-column-color')).toBe('#22c55e');
+        expect(selectedControl.getAttribute('aria-label')).toContain('selected color #22c55e');
     });
 
     test('renders due-state chips and makes the Kanban navigation urgent for tasks due today', async () => {

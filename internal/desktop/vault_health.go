@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"figaro/internal/notenames"
 )
 
 // VaultHealthIssue identifies one read-only finding from a vault health scan.
@@ -27,6 +29,7 @@ type VaultHealthReport struct {
 	BrokenLinks        []VaultHealthIssue `json:"broken_links"`
 	OrphanAttachments  []VaultHealthIssue `json:"orphan_attachments"`
 	DuplicateNames     []VaultHealthIssue `json:"duplicate_names"`
+	SimilarNotes       []VaultHealthIssue `json:"similar_notes"`
 	InvalidFrontmatter []VaultHealthIssue `json:"invalid_frontmatter"`
 }
 
@@ -53,6 +56,7 @@ func (a *App) GetVaultHealth() (*VaultHealthReport, error) {
 		BrokenLinks:        make([]VaultHealthIssue, 0),
 		OrphanAttachments:  make([]VaultHealthIssue, 0),
 		DuplicateNames:     make([]VaultHealthIssue, 0),
+		SimilarNotes:       make([]VaultHealthIssue, 0),
 		InvalidFrontmatter: make([]VaultHealthIssue, 0),
 	}
 
@@ -93,20 +97,72 @@ func (a *App) GetVaultHealth() (*VaultHealthReport, error) {
 			}
 		}
 	}
-	for name, paths := range byName {
+	for _, paths := range byName {
 		if len(paths) < 2 {
 			continue
 		}
 		sort.Strings(paths)
 		report.DuplicateNames = append(report.DuplicateNames, VaultHealthIssue{
 			Path:   paths[0],
-			Detail: fmt.Sprintf("%d entries share the filename %q.", len(paths), filepath.Base(name)),
+			Detail: fmt.Sprintf("%d entries use the filename %q in different locations.", len(paths), filepath.Base(paths[0])),
 			Paths:  append([]string(nil), paths...),
 		})
 	}
+	report.SimilarNotes = similarNoteNameIssues(index)
 
 	sortVaultHealthReport(report)
 	return report, nil
+}
+
+func similarNoteNameIssues(index *vaultIndex) []VaultHealthIssue {
+	groups := make(map[string][]vaultIndexedFile)
+	for _, file := range index.files {
+		canonical := notenames.CanonicalMarkdownName(file.path)
+		if canonical != "" {
+			groups[canonical] = append(groups[canonical], file)
+		}
+	}
+
+	issues := make([]VaultHealthIssue, 0)
+	for _, files := range groups {
+		sort.Slice(files, func(i, j int) bool { return files[i].path < files[j].path })
+		if len(files) < 2 {
+			continue
+		}
+		firstName := filepath.Base(files[0].path)
+		hasVariant := false
+		for _, file := range files[1:] {
+			if !strings.EqualFold(firstName, filepath.Base(file.path)) {
+				hasVariant = true
+				break
+			}
+		}
+		if !hasVariant {
+			continue
+		}
+		for left := 0; left < len(files); left++ {
+			for right := left + 1; right < len(files); right++ {
+				first, second := files[left], files[right]
+				if strings.EqualFold(filepath.Base(first.path), filepath.Base(second.path)) {
+					continue
+				}
+				sameDirectory := filepath.Dir(first.path) == filepath.Dir(second.path)
+				if !sameDirectory && !notenames.SubstantialContentOverlap(first.content, second.content) {
+					continue
+				}
+				detail := "Names differ only by spacing, punctuation, or capitalization in the same folder."
+				if !sameDirectory {
+					detail = "Names differ only by spacing, punctuation, or capitalization, and their content strongly overlaps."
+				}
+				issues = append(issues, VaultHealthIssue{
+					Path:   first.path,
+					Detail: detail,
+					Paths:  []string{first.path, second.path},
+				})
+			}
+		}
+	}
+	return issues
 }
 
 func visibleVaultFiles(root *os.Root) (map[string]struct{}, error) {
@@ -247,5 +303,6 @@ func sortVaultHealthReport(report *VaultHealthReport) {
 	sortIssues(report.BrokenLinks)
 	sortIssues(report.OrphanAttachments)
 	sortIssues(report.DuplicateNames)
+	sortIssues(report.SimilarNotes)
 	sortIssues(report.InvalidFrontmatter)
 }

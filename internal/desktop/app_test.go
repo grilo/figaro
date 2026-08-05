@@ -430,7 +430,7 @@ func TestDeletePath_File(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
 
-	writeTestFile(t, vaultPath, "test.md", "content")
+	writeTestFile(t, vaultPath, "test.md", "latest content")
 	result, err := app.DeletePath("test.md")
 	if err != nil {
 		t.Fatalf("DeletePath error: %v", err)
@@ -440,6 +440,14 @@ func TestDeletePath_File(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(vaultPath, "test.md")); !os.IsNotExist(err) {
 		t.Error("file should be deleted")
+	}
+	entries, err := app.GetFileHistory("test.md")
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("deleted file history = %#v, %v; want one archive revision", entries, err)
+	}
+	content, err := app.GetFileVersion("test.md", entries[0].Hash)
+	if err != nil || content != "latest content" {
+		t.Fatalf("deleted file archive = %q, %v; want latest content", content, err)
 	}
 }
 
@@ -457,6 +465,28 @@ func TestDeletePath_Directory(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(vaultPath, "subdir")); !os.IsNotExist(err) {
 		t.Error("directory should be deleted")
+	}
+	entries, err := app.GetFileHistory("subdir/test.md")
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("deleted directory file history = %#v, %v; want one archive revision", entries, err)
+	}
+}
+
+func TestDeletePathLeavesFileUntouchedWhenHistoryIsUnavailable(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "test.md", "content")
+	app.history = nil
+	result, err := app.DeletePath("test.md")
+	if err != nil {
+		t.Fatalf("DeletePath error: %v", err)
+	}
+	if result.Success || !strings.Contains(result.Error, "Nothing was deleted") {
+		t.Fatalf("DeletePath result = %+v; want non-destructive history failure", result)
+	}
+	if content := readTestFile(t, vaultPath, "test.md"); content != "content" {
+		t.Fatalf("file changed after archive failure: %q", content)
 	}
 }
 

@@ -5,7 +5,8 @@ import { openTab } from './tabManager.js';
 const healthSections = [
     { key: 'broken_links', title: 'Broken links', empty: 'All vault-local links resolve.' },
     { key: 'orphan_attachments', title: 'Orphan attachments', empty: 'Every tracked attachment is referenced.' },
-    { key: 'duplicate_names', title: 'Duplicate filenames', empty: 'No duplicate filenames found.' },
+    { key: 'duplicate_names', title: 'Repeated filenames', empty: 'No filenames are repeated in multiple locations.', informational: true },
+    { key: 'similar_notes', title: 'Possible duplicate notes', empty: 'No similar note names need review.' },
     { key: 'invalid_frontmatter', title: 'Frontmatter', empty: 'No unclosed frontmatter found.' },
 ];
 
@@ -60,13 +61,19 @@ async function loadVaultHealth(panel) {
     try {
         const report = normalizeVaultHealth(await backend().GetVaultHealth());
         if (!panel.isConnected) return;
-        const total = healthSections.reduce((count, section) => count + report[section.key].length, 0);
-        summary.textContent = total === 0
-            ? 'Your vault has no findings in this scan.'
-            : `${total} ${total === 1 ? 'finding' : 'findings'} to review.`;
-        summary.dataset.kind = total === 0 ? 'clear' : 'findings';
-        summary.classList.toggle('ui-notice--success', total === 0);
-        summary.classList.toggle('ui-notice--warning', total > 0);
+        const actionableTotal = healthSections
+            .filter(section => !section.informational)
+            .reduce((count, section) => count + report[section.key].length, 0);
+        const repeatedTotal = report.duplicate_names.length;
+        const repeatedSummary = repeatedTotal > 0
+            ? ` ${repeatedTotal} repeated ${repeatedTotal === 1 ? 'filename is' : 'filenames are'} listed for reference.`
+            : '';
+        summary.textContent = actionableTotal === 0
+            ? `Your vault has no maintenance findings in this scan.${repeatedSummary}`
+            : `${actionableTotal} ${actionableTotal === 1 ? 'finding' : 'findings'} to review.${repeatedSummary}`;
+        summary.dataset.kind = actionableTotal === 0 ? 'clear' : 'findings';
+        summary.classList.toggle('ui-notice--success', actionableTotal === 0);
+        summary.classList.toggle('ui-notice--warning', actionableTotal > 0);
         summary.classList.remove('ui-notice--danger');
         results.innerHTML = healthSections.map(section => renderHealthSection(section, report[section.key])).join('');
     } catch (error) {
@@ -86,20 +93,21 @@ async function loadVaultHealth(panel) {
 }
 
 function renderHealthSection(section, issues) {
+    const actionable = issues.length > 0 && !section.informational;
     const items = issues.length
-        ? `<div class="vault-health-issues">${issues.map(issue => renderHealthIssue(issue)).join('')}</div>`
+        ? `<div class="vault-health-issues">${issues.map(issue => renderHealthIssue(issue, section.key)).join('')}</div>`
         : `<p class="vault-health-empty">${escapeHtml(section.empty)}</p>`;
     return `
-        <section class="vault-health-section ${issues.length ? 'has-findings' : ''}">
+        <section class="vault-health-section ${actionable ? 'has-findings' : ''}">
             <div class="vault-health-section-heading">
                 <h3>${escapeHtml(section.title)}</h3>
-                <span class="ui-badge ${issues.length ? 'ui-badge--warning' : 'ui-badge--muted'}">${issues.length}</span>
+                <span class="ui-badge ${actionable ? 'ui-badge--warning' : 'ui-badge--muted'}">${issues.length}</span>
             </div>
             ${items}
         </section>`;
 }
 
-function renderHealthIssue(issue) {
+function renderHealthIssue(issue, sectionKey) {
     const path = String(issue.path || '');
     const line = Number.isInteger(issue.line_num) && issue.line_num > 0 ? issue.line_num : null;
     const title = line ? `${path}:${line}` : path;
@@ -107,9 +115,12 @@ function renderHealthIssue(issue) {
         ? `<span class="vault-health-paths">${issue.paths.map(escapeHtml).join('<br>')}</span>`
         : '';
     const target = issue.target ? `<span class="vault-health-target">Target: ${escapeHtml(issue.target)}</span>` : '';
+    const reviewPaths = sectionKey === 'similar_notes' && Array.isArray(issue.paths)
+        ? ` data-paths="${escapeAttribute(JSON.stringify(issue.paths))}"`
+        : '';
     return `
         <article class="vault-health-issue">
-            <button type="button" class="vault-health-open" data-path="${escapeAttribute(path)}" data-line="${line || ''}">
+            <button type="button" class="vault-health-open" data-path="${escapeAttribute(path)}" data-line="${line || ''}"${reviewPaths}>
                 <span class="vault-health-issue-path">${escapeHtml(title)}</span>
                 <span class="vault-health-issue-detail">${escapeHtml(issue.detail || 'Review this finding.')}</span>
                 ${target}
@@ -119,6 +130,21 @@ function renderHealthIssue(issue) {
 }
 
 function openHealthIssue(button) {
+    if (button.dataset.paths) {
+        let paths;
+        try {
+            paths = JSON.parse(button.dataset.paths);
+        } catch {
+            paths = [];
+        }
+        if (Array.isArray(paths) && paths.length > 0) {
+            for (const candidate of paths) {
+                const path = String(candidate || '');
+                if (path) openTab(path, path.split('/').pop(), 'file', { path, line: null });
+            }
+            return;
+        }
+    }
     const path = button.dataset.path;
     if (!path) return;
     const line = Number.parseInt(button.dataset.line || '', 10);

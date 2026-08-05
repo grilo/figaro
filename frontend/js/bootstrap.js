@@ -39,7 +39,7 @@ function debugAPI() {
         SearchBacklinks: mock([]),
         SearchUnlinkedMentions: mock([]),
         LinkUnlinkedMention: mock({ success: true }),
-        GetVaultHealth: mock({ broken_links: [], orphan_attachments: [], duplicate_names: [], invalid_frontmatter: [] }),
+        GetVaultHealth: mock({ broken_links: [], orphan_attachments: [], duplicate_names: [], similar_notes: [], invalid_frontmatter: [] }),
         GetKanbanColumns: mock({ columns: ['todo', 'wip', 'done'], colors: {} }),
         GetKanbanBoard: mock({ todo: [], wip: [], done: [] }),
         GetHomeTasks: mock([]),
