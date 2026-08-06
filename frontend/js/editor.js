@@ -22,16 +22,26 @@ import { handleClipboardImagePaste, pasteClipboardImage } from './clipboardImage
 import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } from './clipboardTable.js';
 import {
     headingLinkCompletionMatch,
+    linkedNoteCompletionInsertion,
     markdownHeadingTargets,
     noteLinkCompletion,
     noteLinkCompletionMatch,
+    planLinkedNoteCompletion,
+    shouldOfferLinkedNoteCreation,
 } from './linkCompletions.js';
 import { getLinkStylePreference } from './linkStyle.js';
 import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
 import { createDocumentKeyBindings, createTableCellProfile } from './codeMirrorProfiles.js';
 import { createEditorDocumentSession } from './usecases/editorDocumentSession.js';
-import { reviewMissingLinkedNote } from './usecases/similarNoteReview.js';
-import { markdownLinkDestinationAtPosition, planMarkdownLinkTargetReplacement } from './core/noteLinks.js';
+import { createLinkedNoteFromCompletion } from './usecases/createLinkedNoteFromCompletion.js';
+import { reviewMissingLinkedNote, reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
+import {
+    markdownLinkDestinationAtPosition,
+    markdownReferenceDefinitions,
+    markdownReferenceLink,
+    planMarkdownLinkTargetReplacement,
+    resolveMarkdownReferenceLink,
+} from './core/noteLinks.js';
 import { handleFileOpen } from './app.js';
 import { refreshFileTree } from './fileTree.js';
 import {
@@ -1475,6 +1485,142 @@ function destroyEditorView() {
     editorView = null;
 }
 
+function applyLinkedNoteCompletion(view, request, plan, path) {
+    if (!view || view.isDestroyed) return false;
+    const { from, to, expectedSource } = request;
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from
+        || to > view.state.doc.length || view.state.doc.sliceString(from, to) !== expectedSource) {
+        return false;
+    }
+    const insert = linkedNoteCompletionInsertion(plan, path);
+    if (!insert) return false;
+    view.dispatch({
+        changes: { from, to, insert },
+        selection: { anchor: from + insert.length },
+        annotations: Transaction.userEvent.of('input.complete'),
+    });
+    view.focus();
+    return true;
+}
+
+async function completeLinkedNoteCreation(view, request, plan) {
+    const outcome = await createLinkedNoteFromCompletion({
+        tree: getState('fileTreeData') || [],
+        plan,
+        reviewName: options => reviewSameDirectoryNoteName({
+            ...options,
+            confirm: window.confirmDialog,
+        }),
+        createFile: (path, content) => backend().CreateFile(path, content),
+        applyLink: path => applyLinkedNoteCompletion(view, request, plan, path),
+        refreshTree: refreshFileTree,
+        openExisting: handleFileOpen,
+    });
+
+    if (outcome.kind === 'failed') {
+        await errorDialog('Couldn’t create linked note', outcome.error, 'The link text and existing notes were left unchanged.');
+    } else if (outcome.kind === 'stale') {
+        await errorDialog('Link text changed', 'The link text changed while the note choice was open.', 'Nothing was replaced. Try the link again.');
+    } else if (outcome.kind === 'created-stale') {
+        await errorDialog('Linked note created', `“${outcome.path}” was created, but the original link text changed before it could be completed.`, 'The new note is available in the file tree.');
+    } else if (outcome.kind === 'created') {
+        statusBar.set(`Created linked note: ${outcome.path}`);
+        setTimeout(() => statusBar.set('Ready'), 2500);
+    }
+}
+
+function safeReferenceHref(target) {
+    const value = String(target || '').trim();
+    if (!value || /^(?:javascript|vbscript|data):/i.test(value)) return '';
+    try { return encodeURI(value); } catch (_) { return ''; }
+}
+
+class ReferenceLinkWidget extends WidgetType {
+    constructor(link) {
+        super();
+        this.link = link;
+    }
+
+    eq(other) {
+        return other.link.label === this.link.label && other.link.target === this.link.target;
+    }
+
+    toDOM() {
+        const anchor = document.createElement('a');
+        anchor.className = 'cm-link-widget cm-reference-link-widget';
+        anchor.textContent = this.link.label;
+        anchor.title = this.link.target;
+        const href = safeReferenceHref(this.link.target);
+        if (href) anchor.setAttribute('href', href);
+        return anchor;
+    }
+
+    ignoreEvent() {
+        return false;
+    }
+}
+
+function referenceLinkPlugin() {
+    const buildDecorations = view => {
+        const state = view.state;
+        const definitions = markdownReferenceDefinitions(state.doc.toString());
+
+        const decorations = [];
+        const seen = new Set();
+        const isDragging = state.field(mouseSelectingField, false);
+        for (const range of view.visibleRanges) {
+            syntaxTree(state).iterate({
+                from: range.from,
+                to: range.to,
+                enter: node => {
+                    if (node.name !== 'Link') return;
+                    const key = `${node.from}:${node.to}`;
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    const source = state.doc.sliceString(node.from, node.to);
+                    const reference = markdownReferenceLink(source);
+                    if (!reference) return;
+                    const resolved = resolveMarkdownReferenceLink(source, definitions);
+                    if (!resolved) {
+                        decorations.push(Decoration.mark({ class: 'cm-unresolved-reference' }).range(node.from, node.to));
+                        return;
+                    }
+                    if (shouldShowSource(state, node.from, node.to) || isDragging) {
+                        decorations.push(Decoration.mark({
+                            class: 'cm-reference-link-source',
+                            attributes: {
+                                'data-reference-label': resolved.label,
+                                'data-reference-target': resolved.target,
+                            },
+                        }).range(node.from, node.to));
+                        return;
+                    }
+                    decorations.push(Decoration.replace({
+                        widget: new ReferenceLinkWidget(resolved),
+                    }).range(node.from, node.to));
+                },
+            });
+        }
+        return Decoration.set(decorations.sort((a, b) => a.from - b.from), true);
+    };
+
+    return ViewPlugin.fromClass(class {
+        constructor(view) {
+            this.decorations = buildDecorations(view);
+        }
+
+        update(update) {
+            if (update.docChanged || update.viewportChanged || update.selectionSet) {
+                this.decorations = buildDecorations(update.view);
+                return;
+            }
+            const dragging = update.state.field(mouseSelectingField, false);
+            const wasDragging = update.startState.field(mouseSelectingField, false);
+            if (dragging !== wasDragging) this.decorations = buildDecorations(update.view);
+        }
+    }, { decorations: value => value.decorations });
+}
+
 function createEditorView() {
     const container = document.getElementById('editor-container');
     if (editorView) {
@@ -1909,7 +2055,6 @@ function createEditorView() {
                 if (item.type === 'directory' && item.children) collect(item.children);
             }
         })(fileTreeData);
-        if (!mdFiles.length) return null;
         // Sort by modification time, most recent first
         mdFiles.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
         const rf = ls + match.fromOffset;
@@ -1922,6 +2067,29 @@ function createEditorView() {
                     view.dispatch({ changes: { from, to, insert: rep }, selection: { anchor: from + rep.length } });
                 }
             }));
+        const activeTab = getActiveTab();
+        const creationPlan = planLinkedNoteCompletion({
+            label: rawPrefix,
+            currentPath: activeTab?.type === 'file' ? activeTab.path : '',
+            style: getLinkStylePreference(),
+        });
+        if (shouldOfferLinkedNoteCreation(creationPlan, mdFiles)) {
+            options.push({
+                label: `Create “${creationPlan.label}”`,
+                detail: `New note · ${creationPlan.path}`,
+                type: 'text',
+                boost: -100,
+                apply: (view, _completion, from, to) => {
+                    const request = {
+                        from,
+                        to,
+                        expectedSource: view.state.doc.sliceString(from, to),
+                    };
+                    void completeLinkedNoteCreation(view, request, creationPlan);
+                },
+            });
+        }
+        if (!options.length) return null;
         return { from: rf, options, filter: false };
     };
 
@@ -2095,6 +2263,7 @@ function createEditorView() {
         linkPlugin({
             onWikiLinkClick: target => handleLinkClick(normalizeWikiLinkTarget(target), target, true),
         }),
+        referenceLinkPlugin(),
         linkPreview(),
         ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages }),
         ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
@@ -2705,6 +2874,18 @@ function handleMouseDown(event, view) {
             }
         }
         return true;
+    }
+
+    const referenceSource = event.target.closest('.cm-reference-link-source');
+    if (referenceSource) {
+        const target = referenceSource.dataset.referenceTarget;
+        const label = referenceSource.dataset.referenceLabel || referenceSource.textContent;
+        if (target) {
+            event.preventDefault();
+            if (/^https?:\/\//i.test(target)) window.open(target, '_blank');
+            else handleLinkClick(target, label, replaceCurrent);
+            return true;
+        }
     }
 
     const pos = position;

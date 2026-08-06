@@ -27,6 +27,76 @@ export function encodeMarkdownLinkTarget(path) {
     return String(path || '').replaceAll(' ', '%20');
 }
 
+export function normalizeMarkdownReferenceLabel(label) {
+    return String(label || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+// Parse the three CommonMark reference-link forms without treating a normal
+// inline link, image, footnote, task checkbox, or wikilink as a reference.
+export function markdownReferenceLink(source) {
+    const text = String(source || '');
+    const match = text.match(/^\[([^\]\r\n]+)\](?:\[([^\]\r\n]*)\])?$/);
+    if (!match || match[1].startsWith('[') || match[1].startsWith('^')) return null;
+    const label = match[1].trim();
+    if (!label || /^[ xX]$/.test(label)) return null;
+    const reference = match[2] === undefined || match[2] === '' ? label : match[2].trim();
+    if (!reference) return null;
+    return {
+        label,
+        reference,
+        key: normalizeMarkdownReferenceLabel(reference),
+    };
+}
+
+export function markdownReferenceDefinition(source) {
+    const text = String(source || '');
+    const match = text.match(/^ {0,3}\[([^\]\r\n]+)\]:[ \t]*(?:<([^>\r\n]+)>|([^\s\r\n]+))/);
+    if (!match) return null;
+    const label = match[1].trim();
+    const target = match[2] || match[3] || '';
+    if (!label || !target) return null;
+    return {
+        label,
+        target,
+        key: normalizeMarkdownReferenceLabel(label),
+    };
+}
+
+export function markdownReferenceDefinitions(document) {
+    const definitions = new Map();
+    const lines = String(document || '').split(/\r?\n/);
+    let fenceCharacter = '';
+    let inFrontmatter = lines[0]?.trim() === '---';
+    for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        const trimmed = line.trim();
+        if (inFrontmatter) {
+            if (index > 0 && (trimmed === '---' || trimmed === '...')) inFrontmatter = false;
+            continue;
+        }
+        const fence = line.match(/^\s*(`{3,}|~{3,})/);
+        if (fence) {
+            const character = fence[1][0];
+            if (!fenceCharacter) fenceCharacter = character;
+            else if (fenceCharacter === character) fenceCharacter = '';
+            continue;
+        }
+        if (fenceCharacter) continue;
+        const definition = markdownReferenceDefinition(line);
+        if (definition && !definitions.has(definition.key)) definitions.set(definition.key, definition.target);
+    }
+    return definitions;
+}
+
+export function resolveMarkdownReferenceLink(source, definitions) {
+    const link = markdownReferenceLink(source);
+    if (!link) return null;
+    const target = definitions instanceof Map
+        ? definitions.get(link.key)
+        : definitions?.[link.key];
+    return target ? { ...link, target } : null;
+}
+
 // Revalidate the clicked source range before planning an editor transaction;
 // a modal response must never overwrite text that changed in the meantime.
 export function planMarkdownLinkTargetReplacement(document, edit, existingPath) {

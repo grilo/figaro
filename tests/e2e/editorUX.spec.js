@@ -98,6 +98,178 @@ test('uses a same-folder note from a rendered missing link and rewrites only its
     await expect(page.locator('.cm-content')).toContainText('Existing note');
 });
 
+test('keeps unresolved bracket labels ordinary while defined references remain navigable and cursor-safe', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const tabs = await import('/js/tabManager.js');
+        const state = await import('/js/state.js');
+        const app = (await import('/js/backend.js')).backend();
+        const source = [
+            'Above',
+            '',
+            '[defined]',
+            '',
+            '[missing]',
+            '',
+            'Below',
+            '',
+            '[defined]: notes/Target.md',
+        ].join('\n');
+        window.__referenceReads = [];
+        app.ReadFile = async path => {
+            window.__referenceReads.push(path);
+            if (path === 'notes/current.md') return { content: source, path, mtime: 1 };
+            if (path === 'notes/Target.md') return { content: '# Target', path, mtime: 2 };
+            return null;
+        };
+        state.setState('fileTreeData', [{
+            name: 'notes', path: 'notes', type: 'directory', children: [
+                { name: 'current.md', path: 'notes/current.md', type: 'file', mtime: 1 },
+                { name: 'Target.md', path: 'notes/Target.md', type: 'file', mtime: 2 },
+            ],
+        }]);
+        await editor.initEditor();
+        await editor.configureEditorForFile('notes/current.md');
+        tabs.openTab('notes/current.md', 'current.md', 'file', { path: 'notes/current.md', mtime: 1 });
+        const view = editor.getEditorView();
+        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || view.state.doc.toString() !== source) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        view.focus();
+        window.__referenceView = view;
+    });
+
+    const unresolved = page.locator('.cm-unresolved-reference');
+    const resolved = page.locator('.cm-reference-link-widget');
+    await expect(unresolved).toHaveText('[missing]');
+    await expect(resolved).toHaveText('defined');
+    await expect.poll(() => unresolved.evaluate(element => {
+        const style = getComputedStyle(element);
+        return {
+            anchor: element.closest('a') !== null,
+            cursor: style.cursor,
+            decoration: style.textDecorationLine,
+        };
+    })).toEqual({ anchor: false, cursor: 'text', decoration: 'none' });
+
+    // Arrow navigation crosses the inline reference widget in both directions.
+    await page.evaluate(() => {
+        const view = window.__referenceView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        view.focus();
+    });
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__referenceView.state.doc.lineAt(
+        window.__referenceView.state.selection.main.head
+    ).number)).toBe(3);
+    await page.evaluate(() => {
+        const view = window.__referenceView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(5).from } });
+        view.focus();
+    });
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__referenceView.state.doc.lineAt(
+        window.__referenceView.state.selection.main.head
+    ).number)).toBe(3);
+
+    // Drag selection crosses the replaced source in either direction.
+    const points = await page.evaluate(() => {
+        const view = window.__referenceView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(7).from } });
+        const point = position => {
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 2, y: (coords.top + coords.bottom) / 2 };
+        };
+        return {
+            above: point(view.state.doc.line(1).from),
+            below: point(view.state.doc.line(5).to),
+            referenceFrom: view.state.doc.line(3).from,
+            referenceTo: view.state.doc.line(3).to,
+        };
+    });
+    for (const [start, end] of [[points.above, points.below], [points.below, points.above]]) {
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(end.x, end.y, { steps: 8 });
+        await page.mouse.up();
+        await expect.poll(() => page.evaluate(({ from, to }) => {
+            const selection = window.__referenceView.state.selection.main;
+            return selection.from <= from && selection.to >= to;
+        }, { from: points.referenceFrom, to: points.referenceTo })).toBe(true);
+    }
+
+    await unresolved.click();
+    expect(await page.evaluate(() => window.__referenceReads)).not.toContain('missing.md');
+    await page.evaluate(() => {
+        const view = window.__referenceView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+    });
+    await expect(resolved).toBeVisible();
+    await resolved.click();
+    await expect(page.locator('.tab[data-tab-id="notes/Target.md"]')).toBeVisible();
+});
+
+test('creates a same-folder note from link autocomplete by keyboard', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const tabs = await import('/js/tabManager.js');
+        const state = await import('/js/state.js');
+        const app = (await import('/js/backend.js')).backend();
+        const source = 'Draft ';
+        window.__linkedNoteCreates = [];
+        app.ReadFile = async path => path === 'notes/current.md' ? { content: source, path, mtime: 1 } : null;
+        app.CreateFile = async (path, content) => {
+            window.__linkedNoteCreates.push({ path, content });
+            return { success: true, path, mtime: 2 };
+        };
+        app.GetFileTree = async () => [{
+            name: 'notes', path: 'notes', type: 'directory', children: [
+                { name: 'current.md', path: 'notes/current.md', type: 'file', mtime: 1 },
+                { name: 'Brand new.md', path: 'notes/Brand new.md', type: 'file', mtime: 2 },
+            ],
+        }];
+        state.setState('fileTreeData', [{
+            name: 'notes', path: 'notes', type: 'directory', children: [
+                { name: 'current.md', path: 'notes/current.md', type: 'file', mtime: 1 },
+            ],
+        }]);
+        await editor.initEditor();
+        await editor.configureEditorForFile('notes/current.md');
+        tabs.openTab('notes/current.md', 'current.md', 'file', { path: 'notes/current.md', mtime: 1 });
+        const view = editor.getEditorView();
+        while (editor.getEditorDocumentTabId() !== 'notes/current.md' || view.state.doc.toString() !== source) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.length } });
+        view.focus();
+        window.__linkedNoteView = view;
+    });
+
+    await page.keyboard.type('[Brand new');
+    const completion = page.locator('.cm-tooltip-autocomplete');
+    await expect(completion).toBeVisible();
+    await expect(completion).toContainText('Create “Brand new”');
+    await expect(completion).toContainText('New note · notes/Brand new.md');
+    await page.keyboard.press('Enter');
+
+    await expect.poll(() => page.evaluate(() => window.__linkedNoteCreates)).toEqual([
+        { path: 'notes/Brand new.md', content: '# Brand new\n\n' },
+    ]);
+    await expect.poll(() => page.evaluate(() => window.__linkedNoteView.state.doc.toString()))
+        .toBe('Draft [Brand new](notes/Brand%20new.md) ');
+    await expect.poll(() => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        return getState('activeTabId');
+    })).toBe('notes/current.md');
+});
+
 test('offers due-date actions only for an unfinished task hashtag and keeps editor navigation intact', async ({ page }) => {
     await openWelcomeEditor(page);
     const content = page.locator('.cm-content');

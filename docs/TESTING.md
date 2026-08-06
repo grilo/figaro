@@ -90,6 +90,16 @@ rendered-link click because mapping a replaced CodeMirror link widget back to
 its exact source destination is a real geometry/DOM boundary; exhaustive name,
 choice, stale-range, and error cases remain below the browser layer.
 
+Link-authoring coverage follows the same boundary. Keep reference-label parsing,
+definition normalization, exact-target suppression, filename planning, creation
+failure, cancellation, similar-name review, and stale editor ranges in focused
+unit/use-case tests. `tests/frontend/unit/editor.test.js` owns the assembled DOM
+distinction between unresolved source and a defined reference widget. The one
+representative `tests/e2e/editorUX.spec.js` workflow verifies the unresolved
+text cursor and lack of an anchor, keyboard acceptance of **Create note**,
+defined-reference navigation, Arrow Up/Down from both directions, and mouse
+drag selection across the inline replacement.
+
 Architecture guardrails should reject imports that point from the pure core
 back to adapters or composition roots. Add a guard when introducing the first
 module in a new layer rather than relying on naming conventions alone.
@@ -371,7 +381,12 @@ Settings remains beside the window controls, and the title-bar center remains
 clear for native window dragging. Calendar must expand inside the left sidebar without closing or taking
 ownership of History/Outline/Markdown Preview/PDF preview on the right. Collapsing must leave a 44px
 tool rail, close any expanded Calendar content, and reopen both the normal
-sidebar and Calendar when its rail icon is selected.
+sidebar and Calendar when its rail icon is selected. Populate a representative
+large tree plus overflowing due-task and linked-note results, then assert that
+the file tree and Calendar results scroll without flex-shrinking the monthly
+grid out of the open panel. Select a date with no results separately and verify
+that its guidance uses the Calendar font family, compact 12px/18px type, muted
+theme color, and deliberate spacing instead of inherited application body text.
 
 Kanban and Settings must open or switch to one de-duplicated workspace tab.
 Clicking an inactive destination focuses its existing tab; clicking the
@@ -797,6 +812,9 @@ fallback, themed keyboard-operable language combobox, settings-level disablement
 across every note, Spanish frontmatter
 override, per-note `false` opt-out, themed dotted marker, and local-only
 dictionary assets are covered by unit and browser regressions.
+The Settings regression must keep the scope guidance as two concise rows using
+the approved information-notice primitive and preserve its `aria-describedby`
+relationship on the visible themed combobox trigger.
 Correctly spelled hyphenated compounds must remain unmarked, while a
 misspelled component must retain its diagnostic.
 Right-clicking an underlined prose word must offer only active-dictionary,
@@ -831,6 +849,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/vimSettings.test.js \
   tests/frontend/unit/vimVisual.test.js \
   tests/frontend/unit/editorSettings.test.js \
+  tests/frontend/unit/tabManager.test.js \
   tests/frontend/unit/markdownLint.test.js \
   tests/frontend/unit/spellcheckPreference.test.js \
   tests/frontend/unit/spellcheck.test.js \

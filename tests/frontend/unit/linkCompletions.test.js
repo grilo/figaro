@@ -2,8 +2,11 @@ import {
     headingLinkCompletionMatch,
     markdownHeadingSlug,
     markdownHeadingTargets,
+    linkedNoteCompletionInsertion,
     noteLinkCompletion,
     noteLinkCompletionMatch,
+    planLinkedNoteCompletion,
+    shouldOfferLinkedNoteCreation,
 } from '../frontend/js/linkCompletions.js';
 
 describe('note link autocomplete syntax', () => {
@@ -32,6 +35,34 @@ describe('note link autocomplete syntax', () => {
         expect(noteLinkCompletionMatch('See [Wel')).toEqual({ fromOffset: 4, prefix: 'Wel' });
         expect(noteLinkCompletionMatch('See [[Wel')).toEqual({ fromOffset: 4, prefix: 'Wel' });
         expect(noteLinkCompletionMatch('See ![Wel')).toBeNull();
+    });
+
+    test('plans an explicit same-folder note creation and its configured link syntax', () => {
+        const markdownPlan = planLinkedNoteCompletion({
+            label: 'A link',
+            currentPath: 'notes/current.md',
+            style: 'markdown',
+        });
+        expect(markdownPlan).toEqual({
+            label: 'A link',
+            fileName: 'A link.md',
+            parentDirectory: 'notes',
+            path: 'notes/A link.md',
+            content: '# A link\n\n',
+            style: 'markdown',
+        });
+        expect(linkedNoteCompletionInsertion(markdownPlan)).toBe('[A link](notes/A%20link.md) ');
+
+        const wikiPlan = planLinkedNoteCompletion({ label: 'A link.md', style: 'wikilink' });
+        expect(linkedNoteCompletionInsertion(wikiPlan)).toBe('[[A link.md|A link]] ');
+    });
+
+    test('offers creation only for a valid label without an exact same-folder note', () => {
+        const plan = planLinkedNoteCompletion({ label: 'A link', currentPath: 'notes/current.md' });
+        expect(shouldOfferLinkedNoteCreation(plan, [{ path: 'archive/A link.md' }])).toBe(true);
+        expect(shouldOfferLinkedNoteCreation(plan, [{ path: 'notes/a LINK.md' }])).toBe(false);
+        expect(planLinkedNoteCompletion({ label: '../escape', currentPath: 'notes/current.md' })).toBeNull();
+        expect(planLinkedNoteCompletion({ label: '   ', currentPath: 'notes/current.md' })).toBeNull();
     });
 
     test('offers stable in-document heading fragments without frontmatter or fenced examples', () => {

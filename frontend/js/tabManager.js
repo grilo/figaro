@@ -1589,14 +1589,23 @@ function renderSettingsTab(panel, _tab) {
                     </div>
                     <div class="settings-row settings-row--select">
                         <label class="settings-row-label" for="spellcheck-language">Language</label>
-                        <select id="spellcheck-language" aria-label="Spellcheck language">
+                        <select id="spellcheck-language" aria-label="Spellcheck language" aria-describedby="spellcheck-guidance">
                             <option value="none" selected>None</option>
                             <option value="en-US">English (US)</option>
                             <option value="en-GB">English (UK)</option>
                             <option value="es">Spanish (Spain)</option>
                         </select>
                     </div>
-                    <p class="settings-section-desc">Choose None to disable spellcheck across all notes. When enabled, a note can override the language or use <code>spellcheck: false</code>.</p>
+                    <div id="spellcheck-guidance" class="ui-notice ui-notice--info settings-spellcheck-guidance" role="note">
+                        <div class="settings-spellcheck-guidance-row">
+                            <strong>Vault default</strong>
+                            <span><b>None</b> turns spellcheck off across all notes.</span>
+                        </div>
+                        <div class="settings-spellcheck-guidance-row">
+                            <strong>Per note</strong>
+                            <span>Frontmatter can override the language or set <code>spellcheck: false</code>.</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="settings-section">
                     <div class="settings-section-icon">

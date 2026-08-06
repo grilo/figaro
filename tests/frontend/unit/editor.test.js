@@ -849,6 +849,39 @@ describe('Extras behavior verification', () => {
             expect(view.dom.querySelectorAll('.cm-link-widget').length).toBe(1);
         });
 
+        test('keeps an unresolved bare bracket label as non-widget editor text', async () => {
+            document.body.innerHTML = '<div id="editor-container"></div>';
+            const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+            await initEditor();
+            const view = createEditorView();
+            const source = 'Above\n\n[a link]\n\nBelow';
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: source },
+                selection: { anchor: 0 },
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            expect(view.dom.querySelector('.cm-unresolved-reference')?.textContent).toBe('[a link]');
+            expect(view.dom.querySelector('.cm-reference-link-widget')).toBeNull();
+        });
+
+        test('renders a defined shortcut reference as a navigable link widget', async () => {
+            document.body.innerHTML = '<div id="editor-container"></div>';
+            const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+            await initEditor();
+            const view = createEditorView();
+            const source = 'Above\n\n[a link]\n\nBelow\n\n[a link]: notes/Target.md';
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: source },
+                selection: { anchor: 0 },
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            const widget = view.dom.querySelector('.cm-reference-link-widget');
+            expect(widget?.textContent).toBe('a link');
+            expect(widget?.getAttribute('href')).toBe('notes/Target.md');
+        });
+
         test('rewrites only a clicked Markdown destination as a normal dirty editor change', async () => {
             document.body.innerHTML = '<div id="editor-container"></div>';
             const { initEditor, createEditorView, replaceMarkdownLinkTarget, setEditorContent } = await import('../frontend/js/editor.js');

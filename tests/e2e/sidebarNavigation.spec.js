@@ -105,3 +105,132 @@ test('keeps workspace destinations in the sidebar and expands Calendar inline', 
     })).toBe(0);
     await expect(settingsButton).not.toHaveClass(/active/);
 });
+
+test('keeps the Calendar grid visible when a large vault competes for sidebar height', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(async () => {
+        const app = window.__figaroDebugBackend;
+        const days = Array.from({ length: 31 }, (_, index) => index + 1);
+        app.GetFileTree = async () => Array.from({ length: 180 }, (_, index) => ({
+            name: `Note-${String(index + 1).padStart(3, '0')}.md`,
+            path: `Projects/Note-${String(index + 1).padStart(3, '0')}.md`,
+            type: 'file',
+            mtime: index + 1,
+        }));
+        app.GetCalendarMonthData = async () => ({
+            year: 2026,
+            month: 8,
+            days_with_notes: days,
+            days_with_links: days,
+            days_with_due_tasks: days,
+            calendar: [
+                [0, 0, 0, 0, 0, 0, 1],
+                [2, 3, 4, 5, 6, 7, 8],
+                [9, 10, 11, 12, 13, 14, 15],
+                [16, 17, 18, 19, 20, 21, 22],
+                [23, 24, 25, 26, 27, 28, 29],
+                [30, 31, 0, 0, 0, 0, 0],
+            ],
+        });
+        app.GetTasksDueOnDate = async () => Array.from({ length: 18 }, (_, index) => ({
+            file: `Projects/Plan-${index + 1}.md`,
+            file_name: `Plan-${index + 1}.md`,
+            line: index + 2,
+            text: `Production task ${index + 1}`,
+            due_date: '2026-08-06',
+        }));
+        app.GetLinkedNotesForDate = async () => Array.from({ length: 12 }, (_, index) => ({
+            path: `Notes/Linked-${index + 1}.md`,
+            name: `Linked-${index + 1}.md`,
+            line_num: index + 1,
+        }));
+
+        const { setState } = await import('/js/state.js');
+        const { invalidateCalendarCache } = await import('/js/calendar.js');
+        const { refreshFileTree } = await import('/js/fileTree.js');
+        setState('currentCalDate', new Date(2026, 7, 6));
+        setState('selectedCalDateStr', '2026-08-06');
+        invalidateCalendarCache();
+        await refreshFileTree();
+    });
+
+    await page.locator('#sidebar-calendar').click();
+    await expect(page.locator('#calendar-grid .cal-day-header')).toHaveCount(7);
+    await expect(page.locator('#cal-linked-notes .cal-due-task-item')).toHaveCount(18);
+    await expect(page.locator('#cal-linked-notes .cal-linked-note-item')).toHaveCount(12);
+
+    await expect.poll(() => page.evaluate(() => {
+        const panel = document.getElementById('sidebar-calendar-panel');
+        const grid = document.getElementById('calendar-grid');
+        const fileTree = document.getElementById('file-tree');
+        const panelRect = panel.getBoundingClientRect();
+        const gridRect = grid.getBoundingClientRect();
+        return {
+            fileTreeScrolls: fileTree.scrollHeight > fileTree.clientHeight,
+            calendarResultsScroll: panel.scrollHeight > panel.clientHeight,
+            gridFullyVisible: gridRect.top >= panelRect.top && gridRect.bottom <= panelRect.bottom + 1,
+        };
+    })).toEqual({
+        fileTreeScrolls: true,
+        calendarResultsScroll: true,
+        gridFullyVisible: true,
+    });
+});
+
+test('uses compact calendar typography for an empty selected date', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(async () => {
+        const app = window.__figaroDebugBackend;
+        app.GetCalendarMonthData = async () => ({
+            year: 2026,
+            month: 8,
+            days_with_notes: [6],
+            days_with_links: [],
+            days_with_due_tasks: [],
+            calendar: [
+                [0, 0, 0, 0, 0, 0, 1],
+                [2, 3, 4, 5, 6, 7, 8],
+                [9, 10, 11, 12, 13, 14, 15],
+                [16, 17, 18, 19, 20, 21, 22],
+                [23, 24, 25, 26, 27, 28, 29],
+                [30, 31, 0, 0, 0, 0, 0],
+            ],
+        });
+        app.GetTasksDueOnDate = async () => [];
+        app.GetLinkedNotesForDate = async () => [];
+
+        const { setState } = await import('/js/state.js');
+        const { invalidateCalendarCache } = await import('/js/calendar.js');
+        setState('currentCalDate', new Date(2026, 7, 6));
+        setState('selectedCalDateStr', '2026-08-06');
+        invalidateCalendarCache();
+    });
+
+    await page.locator('#sidebar-calendar').click();
+    const guidance = page.locator('#cal-linked-notes .cal-no-notes');
+    await expect(guidance).toHaveText('No tasks or notes for this date');
+    await expect.poll(() => guidance.evaluate(element => {
+        const style = getComputedStyle(element);
+        const dayStyle = getComputedStyle(document.querySelector('.cal-day'));
+        const colorProbe = document.createElement('span');
+        colorProbe.style.color = 'color-mix(in srgb, var(--text-muted) 75%, var(--text-color))';
+        document.body.append(colorProbe);
+        const mutedColor = getComputedStyle(colorProbe).color;
+        colorProbe.remove();
+        return {
+            fontFamilyMatchesCalendar: style.fontFamily === dayStyle.fontFamily,
+            fontSize: style.fontSize,
+            lineHeight: style.lineHeight,
+            usesMutedColor: style.color === mutedColor,
+            paddingTop: style.paddingTop,
+        };
+    })).toEqual({
+        fontFamilyMatchesCalendar: true,
+        fontSize: '12px',
+        lineHeight: '18px',
+        usesMutedColor: true,
+        paddingTop: '8px',
+    });
+});

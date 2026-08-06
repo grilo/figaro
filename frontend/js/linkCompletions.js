@@ -80,6 +80,41 @@ export function noteLinkCompletion(style, note) {
     return `[${markdownLabel}](${markdownPath}) `;
 }
 
+export function planLinkedNoteCompletion({ label, currentPath = '', style = 'markdown' } = {}) {
+    const displayLabel = String(label || '').trim();
+    if (!displayLabel || /[\\/]/.test(displayLabel) || /^\.+$/.test(displayLabel)
+        || Array.from(displayLabel).some(character => character.charCodeAt(0) < 0x20)) {
+        return null;
+    }
+    const fileName = /\.md$/i.test(displayLabel) ? displayLabel : `${displayLabel}.md`;
+    const title = fileName.slice(0, -3);
+    const normalizedCurrentPath = String(currentPath || '').replaceAll('\\', '/');
+    const separator = normalizedCurrentPath.lastIndexOf('/');
+    const parentDirectory = separator >= 0 ? normalizedCurrentPath.slice(0, separator) : '';
+    const path = parentDirectory ? `${parentDirectory}/${fileName}` : fileName;
+    return {
+        label: title,
+        fileName,
+        parentDirectory,
+        path,
+        content: `# ${title}\n\n`,
+        style: style === 'wikilink' ? 'wikilink' : 'markdown',
+    };
+}
+
+export function linkedNoteCompletionInsertion(plan, path = plan?.path) {
+    if (!plan || !path) return '';
+    const fileName = String(path).split('/').pop() || plan.fileName;
+    return noteLinkCompletion(plan.style, { name: fileName, path });
+}
+
+export function shouldOfferLinkedNoteCreation(plan, notes) {
+    if (!plan) return false;
+    const wanted = plan.path.toLowerCase();
+    return !(Array.isArray(notes) ? notes : []).some(note =>
+        String(note?.path || '').replaceAll('\\', '/').toLowerCase() === wanted);
+}
+
 /** Match either "[Wel" or "[[Wel" while leaving image syntax alone. */
 export function noteLinkCompletionMatch(textBeforeCursor) {
     const text = String(textBeforeCursor || '');

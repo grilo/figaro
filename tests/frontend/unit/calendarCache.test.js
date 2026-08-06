@@ -109,4 +109,17 @@ describe('Calendar cache', () => {
         expect(details.textContent).toContain('Linked notes');
         expect(details.querySelectorAll('.cal-linked-note-item')).toHaveLength(1);
     });
+
+    test('renders compact empty-date guidance when a selected date has no tasks or linked notes', async () => {
+        setState('selectedCalDateStr', '2025-01-15');
+
+        renderCalendar();
+        await flushCalendar();
+
+        const guidance = document.querySelector('#cal-linked-notes .cal-no-notes');
+        expect(guidance).not.toBeNull();
+        expect(guidance.textContent).toBe('No tasks or notes for this date');
+        expect(document.querySelector('#cal-linked-notes .cal-due-task-item')).toBeNull();
+        expect(document.querySelector('#cal-linked-notes .cal-linked-note-item')).toBeNull();
+    });
 });

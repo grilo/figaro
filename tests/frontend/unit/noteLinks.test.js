@@ -1,7 +1,12 @@
 import {
     encodeMarkdownLinkTarget,
     markdownLinkDestinationAtPosition,
+    markdownReferenceDefinition,
+    markdownReferenceDefinitions,
+    markdownReferenceLink,
+    normalizeMarkdownReferenceLabel,
     planMarkdownLinkTargetReplacement,
+    resolveMarkdownReferenceLink,
 } from '../frontend/js/core/noteLinks.js';
 
 describe('Markdown note-link target planning', () => {
@@ -34,5 +39,48 @@ describe('Markdown note-link target planning', () => {
             'InnerSource.md'
         )).toBeNull();
         expect(planMarkdownLinkTargetReplacement('text', { from: -1, to: 2, target: 'te' }, 'note.md')).toBeNull();
+    });
+
+    test('resolves full, collapsed, and shortcut reference links by normalized label', () => {
+        expect(normalizeMarkdownReferenceLabel('  A   Link ')).toBe('a link');
+        expect(markdownReferenceDefinition('[A Link]: notes/Target.md "Title"')).toEqual({
+            label: 'A Link',
+            target: 'notes/Target.md',
+            key: 'a link',
+        });
+        expect(markdownReferenceLink('[Readable][A Link]')).toEqual({
+            label: 'Readable',
+            reference: 'A Link',
+            key: 'a link',
+        });
+        expect(markdownReferenceLink('[A Link][]')).toEqual({
+            label: 'A Link',
+            reference: 'A Link',
+            key: 'a link',
+        });
+        expect(resolveMarkdownReferenceLink('[a link]', new Map([['a link', 'notes/Target.md']]))).toEqual({
+            label: 'a link',
+            reference: 'a link',
+            key: 'a link',
+            target: 'notes/Target.md',
+        });
+        expect(markdownReferenceDefinitions([
+            '---',
+            '[metadata]: ignore.md',
+            '---',
+            '[A Link]: notes/Target.md',
+            '[a link]: notes/Later.md',
+            '```markdown',
+            '[example]: ignore.md',
+            '```',
+        ].join('\n'))).toEqual(new Map([['a link', 'notes/Target.md']]));
+    });
+
+    test('leaves unresolved bracket prose and non-reference Markdown alone', () => {
+        expect(resolveMarkdownReferenceLink('[a link]', new Map())).toBeNull();
+        expect(markdownReferenceLink('[label](target.md)')).toBeNull();
+        expect(markdownReferenceLink('[[Wiki target]]')).toBeNull();
+        expect(markdownReferenceLink('[^footnote]')).toBeNull();
+        expect(markdownReferenceLink('[ ]')).toBeNull();
     });
 });

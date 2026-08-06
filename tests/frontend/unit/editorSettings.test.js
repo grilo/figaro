@@ -18,7 +18,8 @@ function settingsDOM() {
         <div id="theme-picker-menu"></div>
         <input type="checkbox" id="line-numbers-toggle" checked>
         <input type="checkbox" id="markdown-lint-toggle" checked>
-        <select id="spellcheck-language"><option value="none">None</option><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="es">Spanish (Spain)</option></select>
+        <select id="spellcheck-language" aria-describedby="spellcheck-guidance"><option value="none">None</option><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="es">Spanish (Spain)</option></select>
+        <div id="spellcheck-guidance">Spellcheck scope</div>
         <div class="font-size-control">
             <button id="font-size-down">−</button>
             <span id="font-size-value">100%</span>
@@ -77,6 +78,7 @@ describe('editor settings', () => {
         expect(document.getElementById('spellcheck-language').classList.contains('select-combobox-native')).toBe(true);
         expect(document.querySelectorAll('.select-combobox-trigger')).toHaveLength(2);
         expect(document.getElementById('spellcheck-language')._figaroCombobox.trigger.getAttribute('role')).toBe('combobox');
+        expect(document.getElementById('spellcheck-language')._figaroCombobox.trigger.getAttribute('aria-describedby')).toBe('spellcheck-guidance');
         expect(document.getElementById('spellcheck-language').value).toBe('en-US');
         expect(document.querySelector('#auto-commit-toggle').checked).toBe(true);
 

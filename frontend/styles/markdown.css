@@ -17,6 +17,15 @@
 
 .cm-link, .cm-link:visited { color: var(--link-color); text-decoration: underline; text-decoration-color: var(--link-color); text-decoration-style: dotted; text-underline-offset: 4px; cursor: pointer; }
 .cm-link:hover { text-decoration-style: solid; color: var(--link-hover-color); text-decoration-color: var(--link-hover-color); }
+.cm-editor .cm-unresolved-reference,
+.cm-editor .cm-unresolved-reference .cm-link,
+.cm-editor .cm-link.cm-unresolved-reference,
+.cm-editor .cm-unresolved-reference:hover,
+.cm-editor .cm-unresolved-reference:hover .cm-link {
+    color: inherit !important;
+    text-decoration: none !important;
+    cursor: text !important;
+}
 .cm-url { color: var(--url-color); }
 
 

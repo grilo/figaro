@@ -123,7 +123,7 @@
 
 /* ── Left Sidebar Calendar ── */
 .sidebar-calendar-panel {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     max-height: 0;
     overflow: hidden;
     visibility: hidden;
@@ -1304,6 +1304,25 @@
     margin-top: 8px;
     padding: 0 8px 8px;
     border-top: 1px solid var(--border-color);
+}
+
+.cal-no-selection,
+.cal-no-notes,
+.cal-error {
+    padding-top: 8px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 18px;
+    color: color-mix(in srgb, var(--text-muted) 75%, var(--text-color));
+}
+
+.cal-error {
+    color: var(--danger-color);
+}
+
+.calendar-grid > .cal-error {
+    grid-column: 1 / -1;
+    padding: 4px 8px 8px;
 }
 
 .cal-linked-notes h4 {

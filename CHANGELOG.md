@@ -6,6 +6,29 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.11.1 - 2026-08-06
+
+### Added
+
+- Link autocomplete now offers to create a valid new note beside the current
+  note when no exact same-folder target exists, then inserts the configured
+  Markdown-link or Wikilink syntax without interrupting writing.
+
+### Changed
+
+- Spellcheck settings now explain vault-wide and per-note behavior in a compact,
+  two-row information panel instead of one long paragraph.
+
+### Fixed
+
+- Calendar now opens to its intended height in large vaults instead of being
+  squeezed by a long file tree, while both the tree and date results remain
+  independently scrollable.
+- Calendar empty-date guidance now uses the same compact, muted typography as
+  the rest of the monthly panel.
+- Bare bracket labels such as `[a link]` no longer look clickable when they
+  have no reference definition; defined Markdown references remain navigable.
+
 ## 1.11.0 - 2026-08-05
 
 ### Added

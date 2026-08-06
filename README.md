@@ -114,13 +114,18 @@ Choosing **Use existing note** changes only its destination—for example,
 `[Inner Source](Inner%20Source.md)` becomes
 `[Inner Source](InnerSource.md)`—then opens the existing note. The visible label
 stays intact, while **Create anyway** deliberately keeps the original target.
+While authoring a link, autocomplete also offers **Create note** when there is
+no exact target in the current folder; it creates the note there and inserts
+the configured portable link syntax. A bare `[label]` stays ordinary text
+unless the document contains a matching Markdown reference definition.
 
 ## Writing and planning
 
 Markdown diagnostics identify structural problems without changing source.
 Offline spellcheck is disabled by default; choose **Settings → Spellcheck →
 Language** to select English (US), English (UK), Spanish (Spain), or **None**.
-Spellcheck text never leaves the device.
+The setting separates the vault default from per-note frontmatter controls, and
+spellcheck text never leaves the device.
 
 Quick notes create collision-safe timestamped files in `Inbox`. The Today
 action creates the dated note in the same folder and continues to open legacy
@@ -142,7 +147,10 @@ paragraphs, completed tasks, and already dated tasks remain tag-only.
 The same dates appear in the Today dashboard and calendar. Figaro keeps
 reminders inside the application and does not request operating-system
 notification access. A Kanban column with a chosen color shows that color as a
-small header swatch; an uncolored column keeps the neutral palette icon.
+small header swatch; an uncolored column keeps the neutral palette icon. At
+normal window heights, the calendar keeps its monthly grid visible when large
+vaults make the neighboring file tree scroll, and empty dates use compact,
+muted guidance below the grid.
 
 ## Diagrams and PDFs
 

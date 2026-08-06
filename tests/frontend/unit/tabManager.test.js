@@ -383,6 +383,24 @@ describe('Tab Manager', () => {
             expect(panel.querySelector('#auto-commit-description').textContent).toMatch(/only the file that just saved/i);
         });
 
+        test('presents Spellcheck scope as concise accessible guidance', () => {
+            openTab('settings', 'Settings', 'settings');
+            const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
+            const language = panel.querySelector('#spellcheck-language');
+            const guidance = panel.querySelector('#spellcheck-guidance');
+            const rows = guidance.querySelectorAll('.settings-spellcheck-guidance-row');
+
+            expect(language.getAttribute('aria-describedby')).toBe('spellcheck-guidance');
+            expect(guidance.classList.contains('ui-notice')).toBe(true);
+            expect(guidance.classList.contains('ui-notice--info')).toBe(true);
+            expect(guidance.getAttribute('role')).toBe('note');
+            expect(rows).toHaveLength(2);
+            expect(rows[0].querySelector('strong').textContent).toBe('Vault default');
+            expect(rows[0].textContent).toContain('None');
+            expect(rows[1].querySelector('strong').textContent).toBe('Per note');
+            expect(rows[1].querySelector('code').textContent).toBe('spellcheck: false');
+        });
+
         test('does not let an older read overwrite a newer load of the same tab', async () => {
             const firstA = deferred();
             const latestA = deferred();

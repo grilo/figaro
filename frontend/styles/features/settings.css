@@ -51,6 +51,36 @@
     color: var(--text-muted);
 }
 
+.settings-spellcheck-guidance {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 7px;
+    margin: 2px 0 4px;
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.settings-spellcheck-guidance-row {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 10px;
+    align-items: baseline;
+}
+
+.settings-spellcheck-guidance-row > strong {
+    color: var(--text-color);
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: .02em;
+}
+
+.settings-spellcheck-guidance code {
+    color: var(--accent-color);
+    font-family: var(--font-mono);
+    font-size: 10px;
+}
+
 .settings-card .settings-segmented-control {
     justify-self: end;
 }
@@ -374,6 +404,10 @@
     }
     .settings-card .settings-segmented-control button {
         flex: 1 1 0;
+    }
+    .settings-spellcheck-guidance-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2px;
     }
     .pdf-browser-actions {
         width: 100%;

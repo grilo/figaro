@@ -290,7 +290,12 @@ conventional Markdown-link review. Injected use cases own the dialog/navigation
 sequences before filesystem effects begin. A separate pure link plan locates
 only the clicked destination and revalidates its source bytes after the dialog;
 the CodeMirror adapter then dispatches the ordinary dirty editor transaction
-before the existing tab-replacement save guard runs. Dot-directories and
+before the existing tab-replacement save guard runs. The same pure link core
+normalizes Markdown reference labels and distinguishes unresolved bracket text
+from defined full, collapsed, and shortcut references. New-link autocomplete
+uses a pure same-folder creation/insertion plan plus an injected coordinator;
+the backend create must succeed before the adapter replaces the typed prefix,
+while cancellation and failure perform no editor transaction. Dot-directories and
 symlinks are excluded; external URLs, mail links, and code fences are not
 findings. The report contains only vault-relative paths and lines, so UI
 navigation needs no filesystem access.

@@ -134,8 +134,18 @@ test('checks offline English and Spanish prose, offers local right-click replace
     await page.locator('#topbar-settings').click();
     const language = page.locator('#spellcheck-language');
     const languageControl = page.locator('.select-combobox').filter({ has: language }).locator('.select-combobox-trigger');
+    const guidance = page.locator('#spellcheck-guidance');
     await expect(language).toHaveClass(/select-combobox-native/);
+    await expect(language).toHaveAttribute('aria-describedby', 'spellcheck-guidance');
     await expect(languageControl).toBeVisible();
+    await expect(languageControl).toHaveAttribute('aria-describedby', 'spellcheck-guidance');
+    await expect(guidance).toBeVisible();
+    await expect(guidance).toHaveClass(/ui-notice--info/);
+    await expect(guidance.locator('.settings-spellcheck-guidance-row')).toHaveCount(2);
+    await expect(guidance).toContainText('Vault default');
+    await expect(guidance).toContainText('Per note');
+    await expect(guidance).toHaveCSS('display', 'grid');
+    await expect(guidance).toHaveCSS('border-radius', '8px');
     await expect(languageControl).toHaveAttribute('role', 'combobox');
     await expect(languageControl).toHaveCSS('height', '34px');
     await expect(languageControl).toHaveCSS('border-radius', '7px');

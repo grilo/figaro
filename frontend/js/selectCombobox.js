@@ -19,6 +19,8 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
     trigger.setAttribute('aria-expanded', 'false');
     trigger.setAttribute('aria-controls', `${id}-menu`);
     trigger.setAttribute('aria-label', ariaLabel || select.getAttribute('aria-label') || select.labels?.[0]?.textContent?.trim() || 'Choose option');
+    const describedBy = select.getAttribute('aria-describedby');
+    if (describedBy) trigger.setAttribute('aria-describedby', describedBy);
     trigger.innerHTML = `<span class="select-combobox-label"></span>
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
