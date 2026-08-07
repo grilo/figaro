@@ -100,7 +100,7 @@
     --sidebar-rail-width: 44px;
     --top-bar-height: 36px;
     --status-bar-height: 24px;
-    --tab-height: 56px;
+    --tab-height: 43px;
     --transition-fast: 0.14s ease;
     --transition-normal: 0.18s ease;
     --transition-slow: 0.18s ease;
@@ -137,11 +137,11 @@
     --file-node-selected-weight: inherit;
     --file-node-active-surface: transparent;
     --file-node-active-shadow: inset 2px 0 0 var(--accent-color);
-    --tab-radius: 5px;
+    --tab-radius: 0;
     --tab-hover-surface: var(--hover-bg);
     --tab-active-surface: var(--hover-bg);
     --tab-active-border: var(--border-color);
-    --tab-active-shadow: inset 0 -2px 0 var(--accent-color);
+    --tab-active-shadow: inset 0 2px 0 var(--accent-color);
     --tab-active-transform: none;
     --settings-card-surface: var(--hover-bg);
     --settings-card-border: var(--border-color);

@@ -31,9 +31,11 @@ There is no account, hosted database, or required cloud service.
   `.drawio.svg` diagrams remain normal files in a directory you control.
 - **Source-first Markdown editing.** The active line stays editable Markdown
   while surrounding content renders headings, tables, tasks, callouts,
-  footnotes, math, images, links, and fenced code.
-- **Fast navigation.** Use tabs, full-vault search, backlinks, unlinked
-  mentions, a heading outline, recent notes, pins, and file-tree customization.
+  footnotes, math, images, links, and fenced code. Fold controls beside `#`
+  headings collapse nested sections without changing the saved source.
+- **Fast navigation.** Use compact drag-reorderable document tabs, optional
+  path breadcrumbs, full-vault search, backlinks, unlinked mentions, a heading
+  outline, recent notes, pins, and file-tree customization.
 - **Capture and planning.** Quick notes and daily notes live in a real `Inbox`;
   hashtags form a Kanban board, and portable due-date links feed the Today
   dashboard and calendar.
@@ -84,9 +86,10 @@ overdue tasks, reopen recent notes, and rediscover older material.
 ## Working with files
 
 The vault is the source of truth. Markdown stays Markdown, images remain image
-files, and code files open with language-aware syntax highlighting, folding,
-completion, and indentation guides. Vault-specific settings and workspace state
-live in `.config/` inside the vault.
+files, Markdown heading sections can be folded in the editor, and code files
+open with language-aware syntax highlighting, folding, completion, and
+indentation guides. Vault-specific settings and workspace state live in
+`.config/` inside the vault.
 
 Machine-specific settings, such as window geometry and a selected PDF browser,
 are stored in the operating system's per-user application-data directory
@@ -126,6 +129,13 @@ Offline spellcheck is disabled by default; choose **Settings → Spellcheck →
 Language** to select English (US), English (UK), Spanish (Spain), or **None**.
 The setting separates the vault default from per-note frontmatter controls, and
 spellcheck text never leaves the device.
+
+Optional Vim editing keeps wrapped-row motion and Visual selections compatible
+with rendered Markdown, and vertical motions stop at the exact first and last
+document positions instead of wrapping on a backwards native geometry result.
+Vim `p`/`P` use the operating-system clipboard while retaining the unnamed
+register as a fallback, and ordinary yanks and deletes are available to other
+desktop applications.
 
 Quick notes create collision-safe timestamped files in `Inbox`. The Today
 action creates the dated note in the same folder and continues to open legacy

@@ -52,7 +52,8 @@ describe('Editor Module - CodeMirror Initialization', () => {
     });
 
     test('preserves Windows Spanish dead-key composition and cancellation', async () => {
-        const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+        const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
         const platformDescriptor = Object.getOwnPropertyDescriptor(navigator, 'platform');
         Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' });
         const restorePlatform = () => {
@@ -169,6 +170,27 @@ describe('Editor Module - CodeMirror Initialization', () => {
 
             expect(otherDeadKey.defaultPrevented).toBe(false);
             expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
+
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: '' },
+                selection: { anchor: 0 },
+            });
+            await toggleVim(true);
+            Vim.handleKey(getCM(view), 'i', 'user');
+            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
+            const spacingGrave = dispatchKey({ key: ' ', code: 'Space' });
+            const delayedText = new InputEvent('beforeinput', {
+                inputType: 'insertText',
+                data: '`',
+                bubbles: true,
+                cancelable: true,
+            });
+            view.contentDOM.dispatchEvent(delayedText);
+
+            expect(spacingGrave.defaultPrevented).toBe(true);
+            expect(delayedText.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('`');
+            await toggleVim(false);
         } finally {
             restorePlatform();
             document.body.innerHTML = '';
@@ -455,7 +477,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
             const view = {
                 get state() { return state; },
                 moveVertically: jest.fn(() => EditorSelection.cursor(state.doc.line(1).to)),
-                moveToLineBoundary: jest.fn(),
+                moveToLineBoundary: jest.fn(range => range),
                 dispatch: transaction => {
                     state = transaction instanceof Transaction
                         ? transaction.state
@@ -467,6 +489,31 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(view.moveVertically).toHaveBeenCalledTimes(1);
             expect(state.doc.lineAt(state.selection.main.head).number).toBe(3);
             expect(state.selection.main.head - state.doc.line(3).from).toBe(4);
+        });
+
+        test('moves to the adjacent source line when the engine reports a stalled visual row', async () => {
+            const { EditorSelection, EditorState, Transaction } = await import('@codemirror/state');
+            const { initEditor, moveCursorVerticallySafely } = await import('../frontend/js/editor.js');
+            await initEditor();
+
+            let state = EditorState.create({
+                doc: 'one\ntwo\nthree',
+                selection: { anchor: 5 },
+            });
+            const view = {
+                get state() { return state; },
+                moveVertically: jest.fn(() => EditorSelection.cursor(state.selection.main.head)),
+                moveToLineBoundary: jest.fn(range => range),
+                dispatch: transaction => {
+                    state = transaction instanceof Transaction
+                        ? transaction.state
+                        : state.update(transaction).state;
+                },
+            };
+
+            expect(moveCursorVerticallySafely(view, true)).toBe(true);
+            expect(view.moveVertically).toHaveBeenCalledTimes(1);
+            expect(state.selection.main.head).toBe(state.doc.line(3).from + 1);
         });
 
         test('consumes Arrow movement at the first and last document positions', async () => {

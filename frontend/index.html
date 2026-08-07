@@ -255,7 +255,7 @@
             <!-- Main Content Area -->
             <main id="main-content" class="main-content">
                 <!-- Tab Bar -->
-                <div id="tab-bar" class="tab-bar">
+                <div id="tab-bar" class="ui-document-tabs tab-bar">
                     <div id="tab-strip" class="tab-strip" role="tablist" aria-label="Open notes"></div>
                     <button id="all-tabs-btn" class="all-tabs-btn ui-icon-button"
                             type="button" title="Show all open tabs"
@@ -271,6 +271,9 @@
                     <div id="all-tabs-dropdown" class="all-tabs-dropdown ui-menu hidden"
                          role="menu" aria-label="All open tabs"></div>
                 </div>
+
+                <nav id="editor-breadcrumb" class="editor-breadcrumb"
+                     aria-label="Current document path" hidden></nav>
 
                 <!-- Persistent Editor Container (shared across all file tabs) -->
                 <div id="editor-container" class="editor-panel"></div>

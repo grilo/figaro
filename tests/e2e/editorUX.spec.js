@@ -39,6 +39,131 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
     })).toEqual(expectedCursor);
 });
 
+test('folds nested Markdown headings without breaking cursor or drag-selection geometry', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = [
+        '# Product roadmap',
+        'Overview',
+        '## Goals',
+        'Goal body',
+        '### Editor details',
+        'Nested body',
+        '## Release scope',
+        'Scope body',
+        '# Archive',
+        'Archived body',
+    ].join('\n');
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        const view = window.__headingFoldView = editor.getEditorView();
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: markdown },
+            selection: { anchor: 0 },
+        });
+        view.focus();
+    }, source);
+
+    const collapseControls = page.locator(
+        '.ui-editor-fold-control[aria-expanded="true"]:visible',
+    );
+    await expect(collapseControls).toHaveCount(5);
+    await expect(page.getByRole('button', { name: 'Collapse heading section' })).toHaveCount(5);
+    await expect(collapseControls.first()).toHaveAttribute('aria-label', 'Collapse heading section');
+    await collapseControls.nth(1).click();
+
+    const expandControl = page.locator(
+        '.ui-editor-fold-control[aria-expanded="false"]:visible',
+    );
+    await expect(expandControl).toHaveCount(1);
+    await expect(expandControl).toHaveAttribute('aria-label', 'Expand heading section');
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+    expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(source);
+
+    // A collapsed nested section is one visual row: Arrow Down/Up must move
+    // between its heading and the next visible peer without revealing source.
+    await page.evaluate(() => {
+        const view = window.__headingFoldView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+        view.focus();
+    });
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__headingFoldView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(7);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__headingFoldView;
+        const head = view.state.selection.main.head;
+        return view.state.doc.lineAt(head).number;
+    })).toBe(3);
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+
+    // Mouse placement on the next visible line remains exact, and a drag can
+    // cross the folded source in either direction without losing that source.
+    const points = await page.evaluate(() => {
+        const view = window.__headingFoldView;
+        const point = position => {
+            const rect = view.coordsAtPos(position);
+            return { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+        };
+        return {
+            above: point(view.state.doc.line(2).from + 1),
+            below: point(view.state.doc.line(8).to - 1),
+            nextHeading: point(view.state.doc.line(7).from + 2),
+            hiddenFrom: view.state.doc.line(4).from,
+            hiddenTo: view.state.doc.line(6).to,
+        };
+    });
+    await page.mouse.click(points.nextHeading.x, points.nextHeading.y);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__headingFoldView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(7);
+
+    for (const [start, end] of [[points.above, points.below], [points.below, points.above]]) {
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(end.x, end.y, { steps: 8 });
+        await page.mouse.up();
+        await expect.poll(() => page.evaluate(({ from, to }) => {
+            const selection = window.__headingFoldView.state.selection.main;
+            return selection.from <= from && selection.to >= to;
+        }, { from: points.hiddenFrom, to: points.hiddenTo })).toBe(true);
+        await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+    }
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        editor.setVimVisualRows(true);
+        const view = window.__headingFoldView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+        view.focus();
+    });
+    await page.keyboard.press('j');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__headingFoldView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(7);
+    await page.keyboard.press('k');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__headingFoldView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(3);
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(false);
+    });
+
+    await expandControl.focus();
+    await page.keyboard.press('Space');
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(0);
+    await expect(collapseControls).toHaveCount(5);
+    expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(source);
+});
+
 test('uses a same-folder note from a rendered missing link and rewrites only its destination', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);

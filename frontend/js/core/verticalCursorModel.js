@@ -40,6 +40,42 @@ export function verticalBoundaryTarget({
 }
 
 /**
+ * Return an adjacent-line fallback when a browser height-map result either
+ * stalls in place or skips more than one source line. Ordinary visual-row
+ * movement, including movement inside a wrapped source line, remains intact.
+ */
+export function unexpectedVerticalMotionTarget({
+    beforePosition = 0,
+    afterPosition = beforePosition,
+    sourceLineNumber = 1,
+    movedLineNumber = sourceLineNumber,
+    sourceLineColumn = 0,
+    totalLines = 1,
+    adjacentLineFrom = 0,
+    adjacentLineTo = adjacentLineFrom,
+    forward = true,
+} = {}) {
+    const before = Math.max(0, Number(beforePosition) || 0);
+    const after = Math.max(0, Number(afterPosition) || 0);
+    const sourceLine = Math.max(1, Number(sourceLineNumber) || 1);
+    const movedLine = Math.max(1, Number(movedLineNumber) || 1);
+    const lineCount = Math.max(1, Number(totalLines) || 1);
+    const targetLine = sourceLine + (forward ? 1 : -1);
+    if (targetLine < 1 || targetLine > lineCount) return null;
+
+    const stalled = after === before;
+    const skipped = forward
+        ? movedLine > sourceLine + 1
+        : movedLine < sourceLine - 1;
+    if (!stalled && !skipped) return null;
+
+    const from = Math.max(0, Number(adjacentLineFrom) || 0);
+    const to = Math.max(from, Number(adjacentLineTo) || 0);
+    const column = Math.max(0, Number(sourceLineColumn) || 0);
+    return from + Math.min(column, to - from);
+}
+
+/**
  * Return the scroll boundary that a vertical wheel gesture would cross, or
  * null when the browser can safely perform its normal scrolling.
  */

@@ -20,6 +20,7 @@ export const state = {
     rightSidebarWidth: 320,     // Right sidebar width
     sidebarCollapsed: false,    // Left sidebar collapsed state
     rightSidebarCollapsed: false, // Right sidebar collapsed state
+    showEditorBreadcrumbs: false, // Optional vault-relative path above the editor
     
     // Calendar
     currentCalDate: new Date(), // Current calendar month view
@@ -188,6 +189,8 @@ export function initState() {
     
     const savedRightSidebar = stateStorage.read('rightSidebarWidth');
     if (savedRightSidebar) state.rightSidebarWidth = parseInt(savedRightSidebar, 10);
+
+    state.showEditorBreadcrumbs = stateStorage.read('showEditorBreadcrumbs') === 'true';
     
     // Restore expanded directories
     const savedExpanded = stateStorage.read('expandedDirs');
@@ -276,6 +279,7 @@ export function persistState() {
     
     stateStorage.write('sidebarWidth', state.sidebarWidth.toString());
     stateStorage.write('rightSidebarWidth', state.rightSidebarWidth.toString());
+    stateStorage.write('showEditorBreadcrumbs', String(state.showEditorBreadcrumbs));
     stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs]));
     const serializable = serializeSessionTabs(state.openTabs);
     stateStorage.write('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
@@ -302,6 +306,9 @@ export function persistState() {
 // Auto-persist on changes
 subscribe('sidebarWidth', persistState);
 subscribe('rightSidebarWidth', persistState);
+subscribe('showEditorBreadcrumbs', () => {
+    try { stateStorage.write('showEditorBreadcrumbs', String(state.showEditorBreadcrumbs)); } catch (e) { /* noop */ }
+});
 subscribe('expandedDirs', () => {
     try { stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs])); } catch (e) { /* noop */ }
 });

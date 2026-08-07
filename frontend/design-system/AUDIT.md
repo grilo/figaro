@@ -1,11 +1,11 @@
 # Figaro UI audit
 
-Audit snapshot: 2026-07-31. The approved consolidation is represented by the
+Audit snapshot: 2026-08-07. The approved consolidation is represented by the
 [visual catalogue](index.html) and used by the production interface.
 
 ## Consolidated foundation
 
-Nine approved families now use shared production
+Eleven approved families now use shared production
 primitives in `frontend/design-system/primitives.css`. Both Figaro and this
 catalogue load that canonical asset, and `approved-components.json` records the
 approved selector set:
@@ -21,16 +21,23 @@ approved selector set:
 | Form fields | `.ui-field` | Context density, input type, validation policy, and value handling |
 | Due-date calendars | `.ui-date-picker` and its grid/day primitives | Anchor position, selected date, task mutation, and local-day policy |
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
+| Document tabs | `.ui-document-tabs`, `.ui-document-tab`, and state modifiers | Overflow geometry, ordering, drag placement, and tab controller behavior |
+| Editor heading folds | `.ui-editor-fold-control` | Markdown/code fold ranges and CodeMirror gutter behavior |
 
 The primitives own the repeated border, radius, surface, typography, focus,
 hover, active, disabled, busy, selected, and semantic-color rules. Existing
 feature classes remain as behavior selectors and deliberate layout hooks; they
 must not recreate the primitive's state language.
 
-The tab rail retains its approved `.ui-icon-button`, `.ui-menu`, and
-`.ui-menu-item` primitives. Its overflow-only visibility, scroll geometry, and
-theme-token edge fades remain narrow tab-layout behavior rather than another
-button or menu variant.
+The tab rail combines its document-tab family with the approved
+`.ui-icon-button`, `.ui-menu`, and `.ui-menu-item` primitives. Its
+overflow-only visibility, scroll geometry, and theme-token edge fades remain
+narrow tab-layout behavior rather than another button or menu variant.
+
+The editor fold gutter uses the approved disclosure control for Markdown
+heading sections and source-code regions. CodeMirror retains ownership of fold
+ranges, announcements, pointer dispatch, and keyboard commands; the shared
+primitive owns only the themed chevron states.
 
 The shared control-size tokens (`--ui-control-height`,
 `--ui-compact-height`, and `--ui-badge-height`) and radius/padding tokens make
@@ -75,7 +82,7 @@ so all 17 theme files now contain token overrides only.
 
 ## Verification
 
-- `tests/frontend/unit/designSystemCatalog.test.js` verifies all nine
+- `tests/frontend/unit/designSystemCatalog.test.js` verifies all eleven
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, and keeps cards and toggles

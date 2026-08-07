@@ -17,8 +17,6 @@ import {
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { backend } from './backend.js';
-import { openPDFPreview } from './pdfPreview.js';
-import { openMarkdownPreview } from './markdownPreview.js';
 import { startCompletion } from '@codemirror/autocomplete';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'print-stylesheet']);
@@ -380,12 +378,6 @@ export function createFrontmatterField(
             return app.CreateStarterPrintStylesheet(notePath, stylesheetPath);
         },
         onStylesheetReady = async () => {},
-        onPreviewPDF = async ({ path, title, content }) => {
-            return openPDFPreview({ path, title, content });
-        },
-        onPreviewMarkdown = async ({ path, title, content }) => {
-            return openMarkdownPreview({ path, title, content });
-        },
         reportStylesheetError = message => errorDialog('Couldn’t create PDF stylesheet', message, 'The PDF stylesheet could not be created.'),
     } = options || {};
 
@@ -654,46 +646,6 @@ export function createFrontmatterField(
             stylesheetHint.className = 'cm-frontmatter-panel-hint';
             stylesheetHint.textContent = 'Leave blank for the built-in style or an existing sibling _print.css. Create starter copies an editable example into your vault.';
             pdfSection.appendChild(stylesheetHint);
-            const previewMarkdown = makeButton(
-                'ui-button cm-frontmatter-panel-action cm-frontmatter-preview-markdown',
-                'Preview Markdown',
-                'Open a live Markdown preview',
-                async () => {
-                    const notePath = String(getActiveFilePath() || '').trim();
-                    if (!notePath) {
-                        reportStylesheetError('Open a Markdown note before previewing it.');
-                        return;
-                    }
-                    const currentSource = view.state.doc.toString();
-                    const noteTitle = getFrontmatterValue(currentSource, 'title') || notePath.split('/').pop().replace(/\.md$/i, '');
-                    try {
-                        await onPreviewMarkdown({ path: notePath, title: noteTitle, content: currentSource });
-                    } catch (error) {
-                        reportStylesheetError(error?.message || 'Could not open the Markdown preview.');
-                    }
-                }
-            );
-            pdfSection.appendChild(previewMarkdown);
-            const previewPDF = makeButton(
-                'ui-button cm-frontmatter-panel-action cm-frontmatter-preview-pdf',
-                'Preview PDF',
-                'Open a live PDF preview',
-                async () => {
-                    const notePath = String(getActiveFilePath() || '').trim();
-                    if (!notePath) {
-                        reportStylesheetError('Open a Markdown note before previewing its PDF.');
-                        return;
-                    }
-                    const currentSource = view.state.doc.toString();
-                    const noteTitle = getFrontmatterValue(currentSource, 'title') || notePath.split('/').pop().replace(/\.md$/i, '');
-                    try {
-                        await onPreviewPDF({ path: notePath, title: noteTitle, content: currentSource });
-                    } catch (error) {
-                        reportStylesheetError(error?.message || 'Could not open the PDF preview.');
-                    }
-                }
-            );
-            pdfSection.appendChild(previewPDF);
             panel.appendChild(pdfSection);
 
             const spellcheckSection = document.createElement('section');

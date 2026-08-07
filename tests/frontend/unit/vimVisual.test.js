@@ -62,6 +62,29 @@ describe('Vim command and visual theming', () => {
         await toggleVim(false);
     });
 
+    test('extends rather than collapses a Visual selection when revealing code-block source', async () => {
+        const { vimRenderedBlockSelection } = await import('../frontend/js/editor.js');
+
+        expect(vimRenderedBlockSelection(
+            { anchor: 3, head: 6 },
+            { from: 10, to: 24, kind: 'source' },
+            true,
+            true,
+        )).toEqual({ anchor: 3, head: 11 });
+        expect(vimRenderedBlockSelection(
+            { anchor: 28, head: 26 },
+            { from: 10, to: 24, kind: 'source' },
+            false,
+            true,
+        )).toEqual({ anchor: 28, head: 23 });
+        expect(vimRenderedBlockSelection(
+            { anchor: 3, head: 6 },
+            { from: 10, to: 24, kind: 'source' },
+            true,
+            false,
+        )).toEqual({ anchor: 11, head: 11 });
+    });
+
     test('styles Vim command input and visual selection with theme variables', () => {
         const stylesheet = readApplicationStyles();
         const editor = readFileSync('frontend/js/editor.js', 'utf8');

@@ -90,12 +90,12 @@
     --file-node-selected-weight: 600;
     --file-node-active-surface: rgba(209, 162, 105, 0.045);
     --file-node-active-shadow: inset 2px 0 color-mix(in srgb, var(--accent-color) 76%, var(--hashtag-color));
-    --tab-radius: 7px;
+    --tab-radius: 0;
     --tab-hover-surface: rgba(255, 250, 243, 0.055);
     --tab-active-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.085), rgba(255, 250, 243, 0.035));
     --tab-active-border: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
-    --tab-active-shadow: inset 0 -2px 0 var(--accent-color), 0 8px 18px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 250, 243, 0.035);
-    --tab-active-transform: translateY(-2px);
+    --tab-active-shadow: inset 0 2px 0 var(--accent-color);
+    --tab-active-transform: none;
     --settings-card-surface: linear-gradient(145deg, rgba(255, 250, 243, 0.045), rgba(255, 250, 243, 0.018));
     --settings-card-border: color-mix(in srgb, var(--border-color) 82%, var(--hashtag-color));
     --settings-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.11), inset 0 1px rgba(255, 250, 243, 0.045);

@@ -164,6 +164,8 @@ describe('design-system catalogue', () => {
             'field',
             'date-picker',
             'notice',
+            'document-tabs',
+            'editor-fold-control',
         ]);
         expect(implementedSelectors).toEqual(approvedSelectors);
         expect(featureStyles).not.toMatch(/^\.ui-[a-z0-9-]+(?:\s|:|,|\{)/m);
@@ -218,6 +220,7 @@ describe('design-system catalogue', () => {
             'frontend/js/markdownPreview.js',
             'frontend/js/pdfPreview.js',
             'frontend/js/datePicker.js',
+            'frontend/js/editor.js',
             'frontend/js/selectCombobox.js',
             'frontend/js/tabManager.js',
             'frontend/js/vaultHealth.js',
@@ -238,6 +241,9 @@ describe('design-system catalogue', () => {
             '.ui-date-picker',
             '.ui-menu',
             '.ui-notice',
+            '.ui-document-tabs',
+            '.ui-document-tab',
+            '.ui-editor-fold-control',
         ]) {
             expect(styles).toContain(selector);
         }

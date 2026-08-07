@@ -98,11 +98,22 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
         const bar = document.getElementById('tab-bar');
         const active = strip.querySelector('.tab.active');
         const stripRect = strip.getBoundingClientRect();
+        const barRect = bar.getBoundingClientRect();
         const activeRect = active.getBoundingClientRect();
+        const activeStyle = getComputedStyle(active);
+        const inactive = strip.querySelector('.tab:not(.active)');
         return {
             activeId: getState('activeTabId'),
             activeInsideStrip: activeRect.left >= stripRect.left - 1
                 && activeRect.right <= stripRect.right + 1,
+            barHeight: barRect.height,
+            tabFillsBar: Math.abs(activeRect.height - barRect.height) <= 1,
+            tabGap: getComputedStyle(strip).gap,
+            activeRadius: activeStyle.borderRadius,
+            activeShadow: activeStyle.boxShadow,
+            inactiveCloseOpacity: inactive
+                ? getComputedStyle(inactive.querySelector('.tab-close')).opacity
+                : '',
             scrollLeft: strip.scrollLeft,
             allTabsHidden: document.getElementById('all-tabs-btn').hidden,
             startFade: getComputedStyle(bar, '::before').opacity,
@@ -113,10 +124,16 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
     await expect.poll(tabGeometry).toMatchObject({
         activeId: 'overflow-8.md',
         activeInsideStrip: true,
+        barHeight: 43,
+        tabFillsBar: true,
+        tabGap: '0px',
+        activeRadius: '0px',
+        inactiveCloseOpacity: '0.62',
         allTabsHidden: false,
         startFade: '1',
         endFade: '0',
     });
+    expect((await tabGeometry()).activeShadow).toContain('inset');
     expect((await tabGeometry()).scrollLeft).toBeGreaterThan(0);
 
     await page.locator('#all-tabs-btn').click();
@@ -149,4 +166,41 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
         startFade: '0',
         endFade: '0',
     });
+});
+
+test('reorders document tabs with a real pointer drag', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    await page.evaluate(async () => {
+        const { setState } = await import('/js/state.js');
+        const { openTab } = await import('/js/tabManager.js');
+        setState('openTabs', []);
+        setState('activeTabId', null);
+        for (let index = 1; index <= 3; index += 1) {
+            const path = `drag-${index}.md`;
+            openTab(path, `Drag note ${index}`, 'file', { path, isNew: true });
+        }
+    });
+
+    const source = page.locator('.tab[data-tab-id="drag-1.md"]');
+    const target = page.locator('.tab[data-tab-id="drag-3.md"]');
+    const sourceBox = await source.boundingBox();
+    const targetBox = await target.boundingBox();
+
+    await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(targetBox.x + targetBox.width * 0.8, targetBox.y + targetBox.height / 2, { steps: 8 });
+    await expect(target).toHaveClass(/drop-after/);
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString() || '')).toBe('');
+    await expect.poll(() => source.evaluate(element => ({
+        userSelect: getComputedStyle(element).userSelect,
+        webkitUserSelect: getComputedStyle(element).webkitUserSelect,
+    }))).toEqual({ userSelect: 'none', webkitUserSelect: 'none' });
+    await page.mouse.up();
+
+    await expect.poll(() => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        return getState('openTabs').map(tab => tab.id);
+    })).toEqual(['drag-2.md', 'drag-3.md', 'drag-1.md']);
 });

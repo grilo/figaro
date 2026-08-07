@@ -22,6 +22,8 @@ test('generates rendered Properties first and reuses one disclosure across curso
     await expect(panel).toBeVisible();
     await expect(expandedDisclosure).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: /Preview Markdown/i })).toHaveCount(0);
+    await expect(panel.getByRole('button', { name: /Preview PDF/i })).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => window.__frontmatterView.state.doc.toString()))
         .toMatch(/^---\ntitle: Body\n/);
 

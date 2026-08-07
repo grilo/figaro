@@ -13,7 +13,7 @@
     background: var(--navigation-surface) !important;
 }
 
-.tab-bar {
+.ui-document-tabs {
     background: var(--tab-bar-surface) !important;
     box-shadow: var(--tab-bar-shadow);
 }
@@ -102,24 +102,23 @@
         );
 }
 
-.tab {
+.ui-document-tab {
     border-radius: var(--tab-radius);
     transition:
-        transform var(--motion-content-duration) ease,
         background var(--motion-content-duration) ease,
         color var(--motion-content-duration) ease,
         border-color var(--motion-content-duration) ease,
         box-shadow var(--motion-content-duration) ease;
 }
 
-.tab:hover {
+.ui-document-tab:hover {
     background: var(--tab-hover-surface);
 }
 
-.tab.active {
+.ui-document-tab--active {
     transform: var(--tab-active-transform);
     background: var(--tab-active-surface) !important;
-    border-color: var(--tab-active-border) !important;
+    border-right-color: var(--tab-active-border) !important;
     box-shadow: var(--tab-active-shadow);
 }
 

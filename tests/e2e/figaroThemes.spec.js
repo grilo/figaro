@@ -97,7 +97,7 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
         expect(details.appBackground).toContain('radial-gradient');
         expect(details.topBarBackground).toContain('linear-gradient');
         expect(details.activeTabShadow).toContain('rgb');
-        expect(details.activeTabTransform).not.toBe('none');
+        expect(details.activeTabTransform).toBe('none');
         expect(details.statusBarBackground).toContain('linear-gradient');
         expect(details.settingsCardBackground).toContain('linear-gradient');
         expect(details.settingsCardShadow).toContain('rgb');

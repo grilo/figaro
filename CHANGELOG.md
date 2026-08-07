@@ -6,6 +6,42 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.12.0 - 2026-08-07
+
+### Added
+
+- Settings now offers an optional editor breadcrumb that shows the active
+  note's vault-relative path. It is disabled by default and hides for workspace
+  views and files kept outside the vault.
+- Markdown `#` headings now have compact fold controls that collapse their
+  complete nested section without changing the note's source or rendered
+  output.
+
+### Changed
+
+- Document tabs now use a compact, contiguous rail with quiet inactive states,
+  always-available close controls, and a clear accent along the active tab's
+  top edge.
+- The Properties panel now focuses on document metadata and layout settings;
+  Markdown and PDF preview commands remain available from context menus.
+
+### Fixed
+
+- Dragging a document tab now reorders it reliably in packaged desktop
+  webviews without selecting its title text or depending on inconsistent
+  native HTML drag events.
+- Windows Vim Insert mode now inserts one backtick from Spanish-layout dead-key
+  input instead of duplicating it when WebView2 also sends delayed text.
+- Up/Down and Vim visual-row movement now recover when a stale browser height
+  map reports no movement, skips lines, or returns a backwards position at a
+  document edge, instead of leaving the cursor stuck or wrapping around.
+- Vim Visual mode now keeps its selection active and reveals fenced code source
+  when `j` or `k` crosses a rendered block, even when normal rendered-block
+  entry is disabled.
+- Vim `p` and `P` now use text from the operating-system clipboard, synchronize
+  ordinary Vim yanks and deletes back to it, and fall back to the unnamed Vim
+  register whenever clipboard access is empty or unavailable.
+
 ## 1.11.1 - 2026-08-06
 
 ### Added

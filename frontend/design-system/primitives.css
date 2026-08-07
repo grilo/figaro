@@ -365,6 +365,146 @@
     color: var(--button-text);
 }
 
+.ui-document-tabs {
+    background: var(--tab-bar-surface);
+    box-shadow: var(--tab-bar-shadow);
+}
+
+.ui-document-tab {
+    border: 0;
+    border-right: 1px solid var(--border-color);
+    border-radius: var(--tab-radius);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    transition:
+        background var(--motion-content-duration) ease,
+        color var(--motion-content-duration) ease,
+        border-color var(--motion-content-duration) ease,
+        box-shadow var(--motion-content-duration) ease;
+}
+
+.ui-document-tab:hover {
+    background: var(--tab-hover-surface);
+    color: var(--text-color);
+}
+
+.ui-document-tab--active {
+    transform: var(--tab-active-transform);
+    border-right-color: var(--tab-active-border);
+    background: var(--tab-active-surface);
+    box-shadow: var(--tab-active-shadow);
+    color: var(--text-color);
+}
+
+.ui-document-tab:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+}
+
+.ui-document-tab .tab-icon {
+    color: inherit;
+    opacity: .6;
+}
+
+.ui-document-tab--active .tab-icon {
+    color: var(--accent-color);
+    opacity: .9;
+}
+
+.ui-document-tab .tab-close {
+    opacity: .62;
+}
+
+.ui-document-tab:hover .tab-close,
+.ui-document-tab--active .tab-close,
+.ui-document-tab:focus-within .tab-close,
+.ui-document-tab .tab-close:hover {
+    opacity: 1;
+}
+
+.ui-document-tab .tab-close:disabled {
+    opacity: 0;
+    cursor: default;
+    pointer-events: none;
+}
+
+.ui-document-tab--dirty .tab-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin: 0 5px 1px 0;
+    border-radius: 50%;
+    background: var(--accent-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 15%, transparent);
+    vertical-align: middle;
+}
+
+.ui-document-tab--pinned .tab-icon {
+    color: var(--accent-color);
+    opacity: .82;
+}
+
+.ui-document-tab--pinned .tab-title {
+    font-weight: 600;
+}
+
+.ui-editor-fold-control {
+    display: inline-grid;
+    width: 18px;
+    height: 18px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    outline: none;
+    background: transparent;
+    color: var(--text-dim);
+    font: inherit;
+    cursor: pointer;
+    transition:
+        background var(--motion-content-duration) ease,
+        border-color var(--motion-content-duration) ease,
+        color var(--motion-content-duration) ease;
+}
+
+.ui-editor-fold-control::before {
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    content: '';
+    transform: rotate(45deg) translate(-1px, -1px);
+    transition: transform var(--motion-content-duration) var(--motion-ease-out);
+}
+
+.ui-editor-fold-control[aria-expanded='false']::before {
+    transform: rotate(-45deg) translate(-1px, 0);
+}
+
+.ui-editor-fold-control:hover {
+    border-color: var(--border-light);
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.ui-editor-fold-control:focus-visible {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+    color: var(--text-color);
+}
+
+.ui-editor-fold-control:active:not(:disabled) {
+    background: var(--active-bg);
+}
+
+.ui-editor-fold-control:disabled {
+    cursor: default;
+    opacity: .5;
+}
+
 .ui-badge {
     display: inline-grid;
     min-width: var(--ui-badge-height);
@@ -570,6 +710,8 @@
     .ui-stepper-button,
     .ui-button,
     .ui-icon-button,
+    .ui-editor-fold-control,
+    .ui-editor-fold-control::before,
     .ui-date-picker-day,
     .ui-field {
         transition: none;

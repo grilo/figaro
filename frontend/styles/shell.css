@@ -1082,18 +1082,6 @@
     color: var(--text-muted);
 }
 
-/* Context menu: tab styling */
-/* Pinned tab */
-.tab.pinned {
-    box-shadow: inset 0 -1px 0 var(--accent-color);
-}
-.tab.pinned.active {
-    box-shadow: inset 0 -2px 0 var(--accent-color);
-}
-.tab.pinned .tab-title {
-    font-weight: 600;
-}
-
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-4px); }
     to { opacity: 1; transform: translateY(0); }

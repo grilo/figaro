@@ -58,6 +58,20 @@
         ".ui-notice--warning",
         ".ui-notice--danger"
       ]
+    },
+    {
+      "id": "document-tabs",
+      "primitives": [
+        ".ui-document-tabs",
+        ".ui-document-tab",
+        ".ui-document-tab--active",
+        ".ui-document-tab--dirty",
+        ".ui-document-tab--pinned"
+      ]
+    },
+    {
+      "id": "editor-fold-control",
+      "primitives": [".ui-editor-fold-control"]
     }
   ]
 }

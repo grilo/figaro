@@ -208,23 +208,40 @@ test('moves Vim Normal-mode j/k and arrows by visual rows without changing opera
     await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.doc.toString())).toBe('remaining line');
 });
 
-test('clamps Vim vertical movement at the first and last document lines', async ({ page }) => {
+test('keeps Vim vertical movement at the exact first and last document positions', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = 'first line\nmiddle line\nlast line';
-    await setEditorSource(page, source, source.indexOf('last line') + 2);
+    const lastCharacter = source.length - 1;
+    await setEditorSource(page, source, lastCharacter);
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         await editor.toggleVim(true);
-        editor.setVimVisualRows(true);
+        editor.setVimVisualRows(false);
     });
 
     const content = page.locator('.cm-content');
-    await content.press('j');
     await content.press('ArrowDown');
-    expect(await page.evaluate(() => {
+    await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.selection.main.head))
+        .toBe(lastCharacter);
+    await content.press('j');
+    await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.selection.main.head))
+        .toBe(lastCharacter);
+
+    await page.evaluate(position => {
         const view = window.__vimVisualRowsView;
-        return view.state.doc.lineAt(view.state.selection.main.head).number;
-    })).toBe(3);
+        view.dispatch({ selection: { anchor: position } });
+        view.focus();
+    }, lastCharacter);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        editor.setVimVisualRows(true);
+    });
+    await content.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.selection.main.head))
+        .toBe(lastCharacter);
+    await content.press('j');
+    await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.selection.main.head))
+        .toBe(lastCharacter);
 
     await page.evaluate(() => {
         const view = window.__vimVisualRowsView;
@@ -233,10 +250,7 @@ test('clamps Vim vertical movement at the first and last document lines', async 
     });
     await content.press('k');
     await content.press('ArrowUp');
-    expect(await page.evaluate(() => {
-        const view = window.__vimVisualRowsView;
-        return view.state.doc.lineAt(view.state.selection.main.head).number;
-    })).toBe(1);
+    await expect.poll(() => page.evaluate(() => window.__vimVisualRowsView.state.selection.main.head)).toBe(0);
 });
 
 test('moves up one visual row within an expanded long Markdown link in Vim Normal mode', async ({ page }) => {
@@ -268,4 +282,85 @@ test('moves up one visual row within an expanded long Markdown link in Vim Norma
 
     expect(after.position).toBeLessThan(before.position);
     expect(after.coords.top).toBeLessThan(before.coords.top);
+});
+
+test('keeps Vim Visual mode while selecting through a rendered code block from either direction', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const fence = '`'.repeat(3);
+    const source = [
+        'Before the block',
+        `${fence}javascript`,
+        'const answer = 42;',
+        fence,
+        'After the block',
+    ].join('\n');
+    await setEditorSource(page, source, 2);
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        editor.setVimRevealBlocks(false);
+    });
+
+    const content = page.locator('.cm-content');
+    await expect(page.locator('.cm-codeblock-widget')).toHaveCount(1);
+    await content.press('v');
+    await content.press('j');
+
+    const downward = await page.evaluate(async () => {
+        const { getCM } = await import('@replit/codemirror-vim');
+        const view = window.__vimVisualRowsView;
+        const selection = view.state.selection.main;
+        return {
+            visualMode: Boolean(getCM(view).state.vim?.visualMode),
+            empty: selection.empty,
+            anchor: selection.anchor,
+            head: selection.head,
+            headLine: view.state.doc.lineAt(selection.head).number,
+        };
+    });
+    expect(downward.visualMode).toBe(true);
+    expect(downward.empty).toBe(false);
+    expect(downward.head).toBeGreaterThan(downward.anchor);
+    expect(downward.headLine).toBe(2);
+    await expect(page.locator('.cm-codeblock-widget')).toHaveCount(0);
+    await expect(page.locator('.cm-codeblock-source').first()).toBeVisible();
+
+    await content.press('j');
+    expect(await page.evaluate(async () => {
+        const { getCM } = await import('@replit/codemirror-vim');
+        const view = window.__vimVisualRowsView;
+        return {
+            visualMode: Boolean(getCM(view).state.vim?.visualMode),
+            line: view.state.doc.lineAt(view.state.selection.main.head).number,
+        };
+    })).toEqual({ visualMode: true, line: 3 });
+
+    await content.press('Escape');
+    await page.evaluate((position) => {
+        const view = window.__vimVisualRowsView;
+        view.dispatch({ selection: { anchor: position } });
+        view.focus();
+    }, source.lastIndexOf('After') + 2);
+    await expect(page.locator('.cm-codeblock-widget')).toHaveCount(1);
+
+    await content.press('v');
+    await content.press('k');
+    const upward = await page.evaluate(async () => {
+        const { getCM } = await import('@replit/codemirror-vim');
+        const view = window.__vimVisualRowsView;
+        const selection = view.state.selection.main;
+        return {
+            visualMode: Boolean(getCM(view).state.vim?.visualMode),
+            empty: selection.empty,
+            anchor: selection.anchor,
+            head: selection.head,
+            headLine: view.state.doc.lineAt(selection.head).number,
+        };
+    });
+    expect(upward.visualMode).toBe(true);
+    expect(upward.empty).toBe(false);
+    expect(upward.head).toBeLessThan(upward.anchor);
+    expect(upward.headLine).toBe(4);
+    await expect(page.locator('.cm-codeblock-widget')).toHaveCount(0);
 });

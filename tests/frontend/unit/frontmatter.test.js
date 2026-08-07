@@ -352,9 +352,7 @@ describe('frontmatter Properties card', () => {
         expect(view.state.doc.toString()).not.toContain('print-stylesheet:');
     });
 
-    test('opens live Markdown and PDF previews from the PDF layout controls', async () => {
-        const onPreviewPDF = jest.fn().mockResolvedValue(undefined);
-        const onPreviewMarkdown = jest.fn().mockResolvedValue(undefined);
+    test('omits Markdown and PDF preview shortcuts from the expanded Properties panel', () => {
         const field = createFrontmatterField(
             StateField,
             StateEffect,
@@ -366,8 +364,6 @@ describe('frontmatter Properties card', () => {
             () => '',
             {
                 getActiveFilePath: () => 'notes/report.md',
-                onPreviewPDF,
-                onPreviewMarkdown,
             }
         );
         view = new EditorView({
@@ -376,24 +372,12 @@ describe('frontmatter Properties card', () => {
         });
 
         view.dom.querySelector('.cm-frontmatter').click();
-        const markdownPreview = view.dom.querySelector('.cm-frontmatter-preview-markdown');
-        const pdfPreview = view.dom.querySelector('.cm-frontmatter-preview-pdf');
-        expect(markdownPreview).not.toBeNull();
-        expect(pdfPreview).not.toBeNull();
-        markdownPreview.click();
-        pdfPreview.click();
-        await new Promise(resolve => setTimeout(resolve, 0));
-
-        expect(onPreviewMarkdown).toHaveBeenCalledWith({
-            path: 'notes/report.md',
-            title: 'Quarterly Report',
-            content: '---\ntitle: Quarterly Report\n---\n# Body',
-        });
-        expect(onPreviewPDF).toHaveBeenCalledWith({
-            path: 'notes/report.md',
-            title: 'Quarterly Report',
-            content: '---\ntitle: Quarterly Report\n---\n# Body',
-        });
+        const panel = view.dom.querySelector('.cm-frontmatter-panel');
+        expect(panel).not.toBeNull();
+        expect(panel.textContent).not.toContain('Preview Markdown');
+        expect(panel.textContent).not.toContain('Preview PDF');
+        expect(panel.querySelector('.cm-frontmatter-preview-markdown')).toBeNull();
+        expect(panel.querySelector('.cm-frontmatter-preview-pdf')).toBeNull();
     });
 
     test('does not offer a second properties block while YAML is being typed', () => {

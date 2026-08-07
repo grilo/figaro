@@ -17,9 +17,9 @@ describe('Code file editor mode', () => {
         await initEditor();
         const view = createEditorView();
 
-        // Markdown has live-preview replacements, so it deliberately leaves
-        // folding and its gutter chevrons disabled.
-        expect(view.dom.querySelector('.cm-foldGutter')).toBeNull();
+        // Markdown and source files share the same deliberately styled fold
+        // control, while their language services continue to own the ranges.
+        expect(view.dom.querySelector('.cm-foldGutter')).not.toBeNull();
 
         await expect(configureEditorForFile('themes/_print.css')).resolves.toBe(true);
         view.dispatch({
@@ -50,6 +50,48 @@ describe('Code file editor mode', () => {
         expect(view.state.doc.toString()).toBe('package main');
 
         await expect(configureEditorForFile('notes/example.md')).resolves.toBe(true);
-        expect(view.dom.querySelector('.cm-foldGutter')).toBeNull();
+        expect(view.dom.querySelector('.cm-foldGutter')).not.toBeNull();
+    });
+
+    test('folds Markdown heading sections from the gutter and exposes an accessible control', async () => {
+        const { initEditor, createEditorView, configureEditorForFile } = await import('../frontend/js/editor.js');
+        const { foldedRanges } = await import('@codemirror/language');
+        await initEditor();
+        const view = createEditorView();
+        await configureEditorForFile('notes/roadmap.md');
+        view.dispatch({
+            changes: {
+                from: 0,
+                to: view.state.doc.length,
+                insert: '# Roadmap\nOverview\n## Goals\nGoal body\n# Archive\nArchived body',
+            },
+            selection: { anchor: 0 },
+        });
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const controls = [...view.dom.querySelectorAll('.ui-editor-fold-control')];
+        const expanded = controls.find(control => control.getAttribute('aria-expanded') === 'true');
+        expect(controls.length).toBeGreaterThanOrEqual(3);
+        expect(expanded.tagName).toBe('BUTTON');
+        expect(expanded.getAttribute('aria-label')).toBe('Collapse heading section');
+        expect(expanded.getAttribute('aria-expanded')).toBe('true');
+        expect(expanded.closest('.cm-foldGutter').getAttribute('aria-label')).toBe('Section folding');
+        expect(expanded.closest('.cm-gutters').hasAttribute('aria-hidden')).toBe(false);
+
+        expanded.click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(view.dom.querySelector('.cm-foldPlaceholder')).not.toBeNull();
+        expect(foldedRanges(view.state).size).toBeGreaterThan(0);
+        const collapsed = [...view.dom.querySelectorAll(
+            '.ui-editor-fold-control[aria-expanded="false"]',
+        )].at(-1);
+        expect(collapsed).not.toBeNull();
+        expect(collapsed.getAttribute('aria-label')).toBe('Expand heading section');
+
+        collapsed.click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(view.dom.querySelector('.cm-foldPlaceholder')).toBeNull();
+        expect(foldedRanges(view.state).size).toBe(0);
     });
 });

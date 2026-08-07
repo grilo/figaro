@@ -774,6 +774,46 @@
     padding: 16px 8px 16px 12px !important;
 }
 
+/* Markdown keeps a narrow, borderless disclosure rail when line numbers are
+   disabled. The optional number gutter restores its own separator without
+   making heading folds feel like a second source-code column. */
+.cm-editor.cm-markdown-file .cm-gutters {
+    border-right-color: transparent !important;
+    padding: 16px 4px 16px 5px !important;
+}
+
+.cm-editor.cm-markdown-file .cm-lineNumbers {
+    margin-right: 3px;
+    padding-left: 7px;
+    border-right: 1px solid var(--border-color);
+}
+
+.cm-foldGutter .cm-gutterElement {
+    display: flex;
+    min-width: 24px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px !important;
+}
+
+.cm-foldPlaceholder {
+    margin: 0 3px !important;
+    padding: 0 5px 1px !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: 5px !important;
+    background: var(--hover-bg) !important;
+    color: var(--text-dim) !important;
+    font-family: var(--font-mono) !important;
+    font-size: .75em !important;
+    letter-spacing: .08em;
+    cursor: pointer;
+}
+
+.cm-foldPlaceholder:hover {
+    border-color: var(--accent-color) !important;
+    color: var(--text-color) !important;
+}
+
 .cm-lineNumbers .cm-gutterElement {
     color: var(--text-dim) !important;
     padding: 0 8px 0 0 !important;

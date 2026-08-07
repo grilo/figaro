@@ -204,15 +204,15 @@
 
                 <div class="ds-specimen-grid ds-specimen-grid--two">
                     <article class="ds-specimen">
-                        <header><h3>Document tabs</h3><code class="ds-selector">.tab</code><code class="ds-selector">.all-tabs-btn</code></header>
+                        <header><h3>Document tabs</h3><code class="ds-selector">.ui-document-tabs</code><code class="ds-selector">.ui-document-tab</code><code class="ds-selector">.all-tabs-btn</code></header>
                         <div class="ds-demo ds-demo--flush">
-                            <div class="tab-bar ds-tab-bar tabs-overflow tabs-can-scroll-end">
+                            <div class="ui-document-tabs tab-bar ds-tab-bar tabs-overflow tabs-can-scroll-end">
                                 <div class="tab-strip" role="tablist" aria-label="Example document tabs">
-                                    <div class="tab active" role="tab" aria-selected="true">
+                                    <div class="ui-document-tab ui-document-tab--active tab active" role="tab" aria-selected="true">
                                         <span class="tab-icon">◆</span><span class="tab-title">Welcome.md</span>
                                         <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Welcome.md">×</button>
                                     </div>
-                                    <div class="tab dirty pinned" role="tab" aria-selected="false">
+                                    <div class="ui-document-tab ui-document-tab--dirty ui-document-tab--pinned tab dirty pinned" role="tab" aria-selected="false">
                                         <span class="tab-icon">◇</span><span class="tab-title">Roadmap.md</span>
                                         <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Roadmap.md">×</button>
                                     </div>
@@ -220,6 +220,22 @@
                                 <button class="ui-icon-button all-tabs-btn" type="button"
                                         aria-label="Show all open tabs" aria-haspopup="menu"
                                         aria-expanded="false">⌄</button>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="ds-specimen">
+                        <header><h3>Editor heading folds</h3><code class="ds-selector">.ui-editor-fold-control</code></header>
+                        <div class="ds-demo ds-form-stack">
+                            <div class="ds-flow">
+                                <button type="button" class="ui-editor-fold-control"
+                                        aria-label="Collapse heading section" aria-expanded="true"></button>
+                                <span class="ds-editor-sample"># Product roadmap</span>
+                            </div>
+                            <div class="ds-flow">
+                                <button type="button" class="ui-editor-fold-control"
+                                        aria-label="Expand heading section" aria-expanded="false"></button>
+                                <span class="ds-editor-sample">## Release scope&nbsp; …</span>
                             </div>
                         </div>
                     </article>
@@ -771,6 +787,8 @@ catalog: shared-primitives</code></pre>
                             <tr><td>Icon actions</td><td>Title bar, tabs, properties, sidebars</td><td><code>.ui-icon-button</code> sizes</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Badges</td><td>Kanban, search, relationships, Vault health</td><td><code>.ui-badge</code> roles</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Menus</td><td>Context, tabs, settings, frontmatter</td><td><code>.ui-menu</code> visuals; separate controllers</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Document tabs</td><td>Active, dirty, pinned, hover, and focus</td><td><code>.ui-document-tab</code> + state modifiers</td><td><span class="is-decided">Approved</span></td></tr>
+                            <tr><td>Editor heading folds</td><td>Expanded, collapsed, hover, focus, and active</td><td><code>.ui-editor-fold-control</code></td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Cards</td><td>Settings, home, Kanban, results, health</td><td>Surface tokens only</td><td><span>Keep layouts</span></td></tr>
                             <tr><td>Form fields</td><td>Dialogs, settings, properties, conversion</td><td><code>.ui-field</code> + context variants</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Notices</td><td>Dialogs, history, health, preview</td><td><code>.ui-notice</code> semantic variants</td><td><span class="is-decided">Merged</span></td></tr>

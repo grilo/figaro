@@ -378,6 +378,8 @@ describe('Tab Manager', () => {
             expect(menu.getAttribute('role')).toBe('listbox');
             expect(menu.querySelectorAll('[role="option"]')).toHaveLength(2);
             expect(panel.querySelector('#line-numbers-toggle')).not.toBeNull();
+            expect(panel.querySelector('#editor-breadcrumbs-toggle').getAttribute('aria-label'))
+                .toBe('Show editor breadcrumbs');
             expect(panel.querySelector('#auto-commit-toggle')).not.toBeNull();
             expect(panel.querySelector('#auto-commit-toggle').checked).toBe(true);
             expect(panel.querySelector('#auto-commit-description').textContent).toMatch(/only the file that just saved/i);
@@ -937,11 +939,23 @@ describe('Tab Manager', () => {
             expect(tabStrip.children.length).toBe(2);
         });
 
-        test('marks rendered tabs as draggable', () => {
+        test('renders tabs as pointer-driven drag targets without native HTML dragging', () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
             renderTabBar();
 
-            expect(document.querySelector('[data-tab-id="tab1"]').getAttribute('draggable')).toBe('true');
+            expect(document.querySelector('[data-tab-id="tab1"]').hasAttribute('draggable')).toBe(false);
+        });
+
+        test('prevents tab-title selection while tabs are manipulated', () => {
+            initTabManager();
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+
+            const selection = new Event('selectstart', { bubbles: true, cancelable: true });
+            const dispatched = document.querySelector('[data-tab-id="tab1"] .tab-title')
+                .dispatchEvent(selection);
+
+            expect(dispatched).toBe(false);
+            expect(selection.defaultPrevented).toBe(true);
         });
 
         test('should mark active tab', () => {
@@ -953,6 +967,9 @@ describe('Tab Manager', () => {
             const tabStrip = document.getElementById('tab-strip');
             const activeTab = tabStrip.querySelector('.tab.active');
             expect(activeTab.dataset.tabId).toBe('tab2');
+            expect(activeTab.classList.contains('ui-document-tab')).toBe(true);
+            expect(activeTab.classList.contains('ui-document-tab--active')).toBe(true);
+            expect(activeTab.querySelector('.tab-close').getAttribute('aria-label')).toBe('Close Tab 2');
         });
 
         test('should show dirty indicator', () => {
@@ -964,6 +981,7 @@ describe('Tab Manager', () => {
             const tabStrip = document.getElementById('tab-strip');
             const dirtyTab = tabStrip.querySelector('.tab.dirty');
             expect(dirtyTab).not.toBeNull();
+            expect(dirtyTab.classList.contains('ui-document-tab--dirty')).toBe(true);
         });
 
         test('should sort pinned tabs first', () => {
@@ -989,6 +1007,7 @@ describe('Tab Manager', () => {
             const pinnedTab = tabStrip.querySelector('.tab.pinned');
             expect(pinnedTab).not.toBeNull();
             expect(pinnedTab.dataset.tabId).toBe('tab1');
+            expect(pinnedTab.classList.contains('ui-document-tab--pinned')).toBe(true);
         });
 
         test('should not add pinned class to unpinned tabs', () => {
@@ -1114,37 +1133,64 @@ describe('Tab Manager', () => {
             expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab1', 'tab2']);
         });
 
-        test('reorders through the native tab drag events', async () => {
+        test('reorders through pointer drag events', async () => {
             initTabManager();
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
             openTab('tab3', 'Tab 3', 'file', { path: 'tab3.md' });
 
-            const dataTransfer = {
-                effectAllowed: '',
-                dropEffect: '',
-                setData: jest.fn(),
-            };
-            const dispatchDrag = (element, type, clientX = 1) => {
+            const dispatchPointer = (element, type, clientX, { button = 0, buttons = 1 } = {}) => {
                 const event = new Event(type, { bubbles: true, cancelable: true });
                 Object.defineProperties(event, {
                     clientX: { value: clientX },
-                    dataTransfer: { value: dataTransfer },
+                    clientY: { value: 10 },
+                    pointerId: { value: 7 },
+                    isPrimary: { value: true },
+                    button: { value: button },
+                    buttons: { value: buttons },
                 });
                 element.dispatchEvent(event);
             };
 
             const source = document.querySelector('[data-tab-id="tab1"]');
             const target = document.querySelector('[data-tab-id="tab3"]');
-            dispatchDrag(source, 'dragstart');
-            dispatchDrag(target, 'dragover');
+            dispatchPointer(source, 'pointerdown', 1);
+            dispatchPointer(target, 'pointermove', 20);
             expect(target.classList.contains('drop-after')).toBe(true);
-            dispatchDrag(target, 'drop');
+            dispatchPointer(target, 'pointerup', 20, { buttons: 0 });
             await new Promise(resolve => setTimeout(resolve, 0));
 
-            expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'tab1');
             expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab2', 'tab3', 'tab1']);
             expect(document.querySelector('#tab-strip').classList.contains('is-dragging')).toBe(false);
+        });
+
+        test('cancels a pointer drag without changing tab order', () => {
+            initTabManager();
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+
+            const dispatchPointer = (element, type, clientX) => {
+                const event = new Event(type, { bubbles: true, cancelable: true });
+                Object.defineProperties(event, {
+                    clientX: { value: clientX },
+                    clientY: { value: 10 },
+                    pointerId: { value: 8 },
+                    isPrimary: { value: true },
+                    button: { value: 0 },
+                    buttons: { value: 1 },
+                });
+                element.dispatchEvent(event);
+            };
+
+            const source = document.querySelector('[data-tab-id="tab1"]');
+            const target = document.querySelector('[data-tab-id="tab2"]');
+            dispatchPointer(source, 'pointerdown', 1);
+            dispatchPointer(target, 'pointermove', 20);
+            dispatchPointer(target, 'pointercancel', 20);
+
+            expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab1', 'tab2']);
+            expect(document.querySelector('.tab.dragging')).toBeNull();
+            expect(document.querySelector('.tab.drop-after')).toBeNull();
         });
     });
 

@@ -18,6 +18,7 @@ function settingsDOM() {
         <div id="theme-picker-menu"></div>
         <input type="checkbox" id="line-numbers-toggle" checked>
         <input type="checkbox" id="markdown-lint-toggle" checked>
+        <input type="checkbox" id="editor-breadcrumbs-toggle">
         <select id="spellcheck-language" aria-describedby="spellcheck-guidance"><option value="none">None</option><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="es">Spanish (Spain)</option></select>
         <div id="spellcheck-guidance">Spellcheck scope</div>
         <div class="font-size-control">
@@ -69,6 +70,7 @@ describe('editor settings', () => {
         expect(mockSetSpellcheck).toHaveBeenCalledWith({ enabled: true, language: 'en-US' });
         expect(document.getElementById('line-numbers-toggle').checked).toBe(false);
         expect(document.getElementById('markdown-lint-toggle').checked).toBe(true);
+        expect(document.getElementById('editor-breadcrumbs-toggle').checked).toBe(false);
         expect(document.getElementById('font-size-value').textContent).toBe('100%');
         expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('16.2px');
 
@@ -81,6 +83,11 @@ describe('editor settings', () => {
         expect(document.getElementById('spellcheck-language')._figaroCombobox.trigger.getAttribute('aria-describedby')).toBe('spellcheck-guidance');
         expect(document.getElementById('spellcheck-language').value).toBe('en-US');
         expect(document.querySelector('#auto-commit-toggle').checked).toBe(true);
+
+        const breadcrumbToggle = document.getElementById('editor-breadcrumbs-toggle');
+        breadcrumbToggle.checked = true;
+        breadcrumbToggle.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(localStorage.getItem('showEditorBreadcrumbs')).toBe('true');
 
         const lineToggle = document.getElementById('line-numbers-toggle');
         lineToggle.checked = true;

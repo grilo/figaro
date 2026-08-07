@@ -52,7 +52,7 @@ state while replacing the host-painted popup with the same themed listbox used
 by Settings. `catalog.css` is limited to the page shell and to containing open
 menus, dialogs, and loaders for inspection.
 
-`approved-components.json` is the architectural gate for the nine accepted
+`approved-components.json` is the architectural gate for the eleven accepted
 families. Extending it with a family, primitive, or visual variant requires
 explicit approval before implementation. Focused tests verify that every
 registered selector is implemented in `primitives.css`, that no unregistered
@@ -65,12 +65,19 @@ and multi-word catalogue matching are pure functions in
 `themeCatalogModel.js`; `catalog.js` owns fetch, DOM indexing, link replacement,
 and computed-style display. This preserves the same logic/effect direction as
 the application even though the catalogue is a developer-facing surface.
+
 `catalogEntry.js` imports that canonical manifest and is eagerly built into a
 classic `catalog.bundle.js`, allowing the same initialized catalogue to run
 from `file://` without module-fetch or local-JSON CORS failures. Relative HTML,
 stylesheet, font, icon, and theme paths keep the artifact portable between
 direct-file and local-server use; the generated bundle contains no second
 hand-maintained theme list.
+
+Document-tab ordering follows the same dependency direction. The pure
+`tabReorderModel.js` owns movement thresholds, pin-group constraints, and the
+resulting order; `tabManager.js` translates pointer events into that model and
+owns DOM feedback plus session persistence. Figaro therefore does not depend
+on native HTML drag-and-drop behavior that differs between desktop webviews.
 
 Default semantic values and optional art-direction surfaces live in
 `frontend/design-system/tokens.css`; `theme-surfaces.css` is the only shared
@@ -353,6 +360,17 @@ alone reads DOM measurements, applies `scrollLeft`, toggles themed edge-fade
 classes, and exposes the approved all-tabs button only when the full-width rail
 cannot fit its content.
 
+The optional editor breadcrumb follows the same direction. The pure
+`core/editorBreadcrumbModel.js` derives vault-relative display segments from
+the active tab and the disabled-by-default local preference; workspace tabs
+and capability-backed external files produce no breadcrumb. The eager
+`editorBreadcrumb.js` coordinator subscribes to tab and preference state and
+owns only DOM rendering, while Settings writes the presentation preference to
+local storage. Document-tab presentation itself is the approved
+`ui-document-tabs` family; `workspace.css` retains rail geometry, overflow, and
+drag placement while the shared primitive owns active, dirty, pinned, hover,
+and focus states.
+
 ## Git status and history restoration
 
 Editor changes mark their tab model dirty synchronously, then publish the
@@ -441,6 +459,13 @@ visible document region and rebuilt on viewport changes. Cursor movement only
 rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
+Markdown heading folding follows the same source-first boundary. The
+`markdownHeadingFolding` adapter asks Lezer whether the gutter line is a real
+ATX heading, then returns a view-only range ending before the next peer or
+ancestor heading. CodeMirror owns the folded decoration and announcements;
+saves, Markdown preview, and PDF rendering never observe fold state. The fold
+control is the approved design-system primitive while the gutter retains only
+CodeMirror layout and event ownership.
 The Properties field uses the same source-first transition: its disclosure
 generates missing default frontmatter directly into structured-panel mode,
 while a later selection entering that replaced range reveals raw YAML and a
@@ -455,18 +480,33 @@ content that follows it.
 Vertical document navigation has a separate deterministic boundary policy in
 `frontend/js/core/verticalCursorModel.js`. It consumes movement at the absolute
 first and last positions and rejects a browser or height-map result that moves
-in the opposite direction. The CodeMirror keymap adapter supplies line facts
-and applies any correction, keeping the policy independent from CodeMirror,
-the DOM, and viewport effects. The same model projects wheel deltas against the
+in the opposite direction. It also plans an adjacent-source-line fallback when
+the engine returns the same position or skips more than one line. The
+CodeMirror Arrow adapter and Figaro's Vim display-row motion supply line facts
+and apply any correction, keeping the policy independent from CodeMirror, the
+DOM, and viewport effects. Vim source-line motion is stopped before its native
+geometry adapter at the first or last line, while visual-row motion validates
+the returned candidate so healthy movement within a wrapped edge line remains
+available. The same model projects wheel deltas against the
 scroll extent; its CodeMirror adapter cancels a gesture that would cross an
 edge and pins the scroller to that boundary before WebKitGTK can reinterpret
 the overscroll. These guards are unconditional and do not create a wraparound
 preference.
 
+The CodeMirror adapter recognizes one deliberate exception to the generic
+multi-source-line fallback: a collapsed range is one visual row. It preserves
+a valid forward jump over exactly that fold and, before dispatching an upward
+selection, maps a hidden fold endpoint back to the visible heading. The same
+normalization is used by ordinary Arrow motion and Vim display-row motion, so
+entering hidden source cannot accidentally expand a section.
+
 When the opt-in Vim rendered-block motion is active, the root editor uses
-those retained source ranges to stop `j`/`k` at the adjacent block. Fenced
-blocks and frontmatter expose their portable source; interactive tables retain
-their widget and focus the first or last cell. The root Vim Normal cursor is
+those retained source ranges to stop Normal `j`/`k` at the adjacent block.
+Visual `j`/`k` independently preserves its anchor and extends the selection
+into adjacent fenced source, so source-first decoration rebuilding reveals the
+block without exiting Visual mode. Fenced blocks and frontmatter expose their
+portable source; interactive tables retain their widget and focus the first or
+last cell. The root Vim Normal cursor is
 drawn by the adapter's separate fat-cursor layer, so a root-scoped override
 maps that layer to the active theme's cursor background and text tokens instead
 of inheriting the adapter's fixed red. A focused table cell still has a
@@ -502,6 +542,15 @@ against the root document, skips selection-only history entries around a Vim
 edit, and reapplies the originating table/cell selection without creating a new
 history entry. The table's reactive rebuild then receives focus at the saved
 caret offset, including redo after the cell editor has been recreated.
+
+Vim clipboard integration separates policy from browser effects. The pure
+`frontend/js/core/vimClipboardModel.js` chooses OS text versus the unnamed
+register, preserves linewise/blockwise shape when both contain the same text,
+and plans the replay keys for `p`/`P` counts and placement. The editor adapter
+reads and writes `navigator.clipboard`, updates the register only when external
+text differs, and replays the vendored Vim paste action. Clipboard denial or an
+empty system value therefore falls back to Vim state without bypassing the
+adapter's normal Visual, linewise, blockwise, or repeat behavior.
 
 List-marker lines carry an inline hanging-indent decoration that aligns wrapped
 display rows with the visible item body. It is recalculated together with the

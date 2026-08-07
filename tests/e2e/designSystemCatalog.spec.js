@@ -106,10 +106,36 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ui-field': 4,
         '.ui-menu': 3,
         '.ui-notice': 8,
+        '.ui-document-tabs': 1,
+        '.ui-document-tab': 2,
+        '.ui-editor-fold-control': 2,
     };
     for (const [selector, minimum] of Object.entries(primitiveFamilies)) {
         expect(await page.locator(selector).count()).toBeGreaterThanOrEqual(minimum);
     }
+
+    const foldControl = page.locator('.ui-editor-fold-control[aria-expanded="true"]').first();
+    await expect(foldControl).toHaveAttribute('aria-label', 'Collapse heading section');
+    const foldPaint = await foldControl.evaluate(control => {
+        const style = getComputedStyle(control);
+        const indicator = getComputedStyle(control, '::before');
+        return {
+            width: style.width,
+            height: style.height,
+            radius: style.borderRadius,
+            cursor: style.cursor,
+            indicatorContent: indicator.content,
+            indicatorBorder: indicator.borderRightStyle,
+        };
+    });
+    expect(foldPaint).toEqual({
+        width: '18px',
+        height: '18px',
+        radius: '5px',
+        cursor: 'pointer',
+        indicatorContent: '""',
+        indicatorBorder: 'solid',
+    });
 
     const search = page.getByLabel('Find a component');
     await search.fill('compact action');

@@ -186,7 +186,8 @@ function createMockDOM() {
                     <div id="sidebar-resizer"></div>
                 </aside>
                 <main id="main-content" class="main-content">
-                    <div id="tab-bar" class="tab-bar"><div id="tab-strip" class="tab-strip" role="tablist"></div><button id="all-tabs-btn" aria-label="Show all open tabs" aria-controls="all-tabs-dropdown" aria-haspopup="menu" aria-expanded="false" hidden></button><div id="all-tabs-dropdown" class="all-tabs-dropdown hidden" role="menu" aria-label="All open tabs"></div></div>
+                    <div id="tab-bar" class="ui-document-tabs tab-bar"><div id="tab-strip" class="tab-strip" role="tablist"></div><button id="all-tabs-btn" aria-label="Show all open tabs" aria-controls="all-tabs-dropdown" aria-haspopup="menu" aria-expanded="false" hidden></button><div id="all-tabs-dropdown" class="all-tabs-dropdown hidden" role="menu" aria-label="All open tabs"></div></div>
+                    <nav id="editor-breadcrumb" class="editor-breadcrumb" aria-label="Current document path" hidden></nav>
                     <div id="tab-panels" class="tab-panels"></div>
                     <div id="editor-container"></div>
                 </main>

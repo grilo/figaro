@@ -26,6 +26,7 @@ import { renderDrawioTab } from './drawio.js';
 import { initSettingsPanel } from './theme.js';
 import { isLatestSave, savedLatestEdit, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
+import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
 import { createDocumentSave } from './usecases/documentSave.js';
 import { loadApplicationVersion } from './usecases/loadApplicationVersion.js';
 import { fileTabReadTarget } from './core/externalFileModel.js';
@@ -80,6 +81,7 @@ let tabCounter = 1;
 let tabContextMenu = null;
 let draggedTabId = null;
 let tabDropIndicator = null;
+let tabPointerDrag = null;
 let suppressTabClick = false;
 let previousTabActivationStack = [];
 let tabActivationGeneration = 0;
@@ -188,7 +190,8 @@ function getTabDropDestination(tabStrip, event) {
     const tabs = getState('openTabs');
     const pinned = getState('pinnedTabs');
     const draggedPinned = pinned.includes(draggedTabId);
-    const target = event.target.closest('.tab');
+    const pointerTarget = document.elementFromPoint?.(event.clientX, event.clientY) || event.target;
+    const target = pointerTarget?.closest?.('.tab');
 
     if (target && tabStrip.contains(target)) {
         const targetId = target.dataset.tabId;
@@ -294,18 +297,8 @@ function refreshTabOverflowLayout(tabStrip, { revealActive = true } = {}) {
 export function reorderTab(tabId, targetTabId, placeAfter = false) {
     const tabs = getState('openTabs');
     const pinned = getState('pinnedTabs');
-    const sourceIndex = tabs.findIndex(tab => tab.id === tabId);
-    const targetIndex = tabs.findIndex(tab => tab.id === targetTabId);
-
-    if (sourceIndex < 0 || targetIndex < 0 || tabId === targetTabId) return false;
-    if (pinned.includes(tabId) !== pinned.includes(targetTabId)) return false;
-
-    const reordered = [...tabs];
-    const [moved] = reordered.splice(sourceIndex, 1);
-    const targetAfterRemoval = reordered.findIndex(tab => tab.id === targetTabId);
-    reordered.splice(targetAfterRemoval + (placeAfter ? 1 : 0), 0, moved);
-
-    if (reordered.every((tab, index) => tab.id === tabs[index].id)) return false;
+    const reordered = reorderedTabs({ tabs, pinnedTabIds: pinned, tabId, targetTabId, placeAfter });
+    if (!reordered) return false;
 
     setState('openTabs', reordered);
     saveTabsToStorage();
@@ -350,56 +343,77 @@ export function initTabManager() {
 
         tabStrip.addEventListener('contextmenu', handleTabContextMenu);
 
-        tabStrip.addEventListener('dragstart', (e) => {
-            const tab = e.target.closest('.tab');
-            if (!tab || e.target.closest('.tab-close')) {
-                e.preventDefault();
-                return;
-            }
-
-            draggedTabId = tab.dataset.tabId;
-            tab.classList.add('dragging');
-            tabStrip.classList.add('is-dragging');
-            if (e.dataTransfer) {
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', draggedTabId);
-            }
+        tabStrip.addEventListener('selectstart', (e) => {
+            if (e.target.closest('.tab')) e.preventDefault();
         });
 
-        tabStrip.addEventListener('dragover', (e) => {
-            const destination = getTabDropDestination(tabStrip, e);
-            if (!destination) {
-                clearTabDropIndicator();
-                if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
-                return;
+        tabStrip.addEventListener('pointerdown', (e) => {
+            const tab = e.target.closest('.tab');
+            if (!tab || e.target.closest('.tab-close') || e.button !== 0 || e.isPrimary === false) return;
+
+            tabPointerDrag = {
+                pointerId: e.pointerId,
+                tabId: tab.dataset.tabId,
+                source: tab,
+                startX: e.clientX,
+                startY: e.clientY,
+                active: false,
+                destination: null,
+            };
+            try { tab.setPointerCapture?.(e.pointerId); } catch { /* Older webviews can omit pointer capture. */ }
+        });
+
+        tabStrip.addEventListener('pointermove', (e) => {
+            if (!tabPointerDrag || e.pointerId !== tabPointerDrag.pointerId) return;
+            if (!tabPointerDrag.active && !hasTabDragStarted({
+                startX: tabPointerDrag.startX,
+                startY: tabPointerDrag.startY,
+                currentX: e.clientX,
+                currentY: e.clientY,
+            })) return;
+
+            if (!tabPointerDrag.active) {
+                tabPointerDrag.active = true;
+                draggedTabId = tabPointerDrag.tabId;
+                tabPointerDrag.source.classList.add('dragging');
+                tabStrip.classList.add('is-dragging');
             }
 
             e.preventDefault();
-            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            const destination = getTabDropDestination(tabStrip, e);
+            tabPointerDrag.destination = destination;
+            if (!destination) {
+                clearTabDropIndicator();
+                return;
+            }
+
             setTabDropIndicator(destination.element, destination.placeAfter);
         });
 
-        tabStrip.addEventListener('dragleave', (e) => {
-            if (!tabStrip.contains(e.relatedTarget)) clearTabDropIndicator();
-        });
+        tabStrip.addEventListener('pointerup', (e) => {
+            if (!tabPointerDrag || e.pointerId !== tabPointerDrag.pointerId) return;
 
-        tabStrip.addEventListener('drop', (e) => {
-            const destination = getTabDropDestination(tabStrip, e);
-            if (!destination) return;
-
-            e.preventDefault();
-            const tabId = draggedTabId;
+            const drag = tabPointerDrag;
+            const destination = drag.active
+                ? getTabDropDestination(tabStrip, e) || drag.destination
+                : null;
+            tabPointerDrag = null;
+            try { drag.source.releasePointerCapture?.(e.pointerId); } catch { /* Capture may already be released. */ }
             finishTabDrag(tabStrip);
-            if (tabId && reorderTab(tabId, destination.targetId, destination.placeAfter)) {
+            if (drag.active) {
+                e.preventDefault();
                 suppressTabClick = true;
                 setTimeout(() => { suppressTabClick = false; }, 0);
             }
+            if (destination) reorderTab(drag.tabId, destination.targetId, destination.placeAfter);
         });
 
-        tabStrip.addEventListener('dragend', () => {
+        tabStrip.addEventListener('pointercancel', (e) => {
+            if (!tabPointerDrag || e.pointerId !== tabPointerDrag.pointerId) return;
+            const drag = tabPointerDrag;
+            tabPointerDrag = null;
+            try { drag.source.releasePointerCapture?.(e.pointerId); } catch { /* Capture may already be released. */ }
             finishTabDrag(tabStrip);
-            suppressTabClick = true;
-            setTimeout(() => { suppressTabClick = false; }, 0);
         });
 
         tabStrip.addEventListener('keydown', (e) => {
@@ -1190,17 +1204,25 @@ export function renderTabBar() {
     
     tabStrip.innerHTML = sorted.map(tab => {
         const isPinned = pinned.includes(tab.id);
+        const isActive = tab.id === activeId;
+        const tabClasses = [
+            'ui-document-tab',
+            'tab',
+            isActive ? 'ui-document-tab--active active' : '',
+            tab.dirty ? 'ui-document-tab--dirty dirty' : '',
+            isPinned ? 'ui-document-tab--pinned pinned' : '',
+        ].filter(Boolean).join(' ');
         return `
-        <div class="tab ${tab.id === activeId ? 'active' : ''} ${tab.dirty ? 'dirty' : ''} ${isPinned ? 'pinned' : ''}" 
+        <div class="${tabClasses}"
                 data-tab-id="${tab.id}"
                 role="tab"
-                draggable="true"
-                tabindex="${tab.id === activeId ? '0' : '-1'}"
-                aria-selected="${tab.id === activeId}"
+                tabindex="${isActive ? '0' : '-1'}"
+                aria-selected="${isActive}"
                 title="${tab.title}${tab.dirty ? ' (unsaved)' : ''}${isPinned ? ' (pinned)' : ''}">
             <span class="tab-icon">${getTabIcon(tab.type)}</span>
             <span class="tab-title">${escapeHtml(tab.title)}</span>
-            <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close tab" title="Close tab">✕</button>
+            <button class="ui-icon-button ui-icon-button--small tab-close"
+                    aria-label="Close ${escapeHtml(tab.title)}" title="Close ${escapeHtml(tab.title)}">✕</button>
         </div>
     `;}).join('');
     refreshTabOverflowLayout(tabStrip);
@@ -1523,6 +1545,19 @@ function renderSettingsTab(panel, _tab) {
                         <button class="ui-stepper-button text-width-btn" id="text-width-down" title="Narrower">−</button>
                         <span class="ui-stepper-value text-width-value" id="text-width-value">100%</span>
                         <button class="ui-stepper-button text-width-btn" id="text-width-up" title="Wider">+</button>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h5M4 12h9M4 18h13"/><path d="m17 9 3 3-3 3"/></svg>
+                        <span>Breadcrumbs</span>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-row-label">Show document path</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="editor-breadcrumbs-toggle" aria-label="Show editor breadcrumbs">
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
                 </div>
                 <div class="settings-section">

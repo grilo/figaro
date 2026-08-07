@@ -15,6 +15,7 @@ test('preserves Windows Spanish dead keys for ñ, ü, accents, spacing, and canc
         try {
             await editor.initEditor();
             const view = editor.getEditorView() || editor.createEditorView();
+            const { Vim, getCM } = await import('@replit/codemirror-vim');
             const dispatchKey = ({ key, code, altGraph = false, shiftKey = false }) => {
                 const event = new KeyboardEvent('keydown', {
                     key,
@@ -35,6 +36,23 @@ test('preserves Windows Spanish dead keys for ñ, ü, accents, spacing, and canc
             const deadKey = () => dispatchKey({ key: 'Dead', code: 'Digit4', altGraph: true });
 
             editor.setEditorContent('');
+            await editor.toggleVim(true);
+            Vim.handleKey(getCM(view), 'i', 'user');
+            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
+            const spacingGrave = dispatchKey({ key: ' ', code: 'Space' });
+            const delayedGrave = new InputEvent('beforeinput', {
+                inputType: 'insertText',
+                data: '`',
+                bubbles: true,
+                cancelable: true,
+            });
+            view.contentDOM.dispatchEvent(delayedGrave);
+            if (!delayedGrave.defaultPrevented) editor.insertTextAtCursor(view, '`');
+            const vimBacktickResult = view.state.doc.toString();
+            await editor.toggleVim(false);
+
+            editor.setEditorContent('');
+            await new Promise(resolve => setTimeout(resolve, 80));
             const composeEnye = deadKey();
             const enye = dispatchKey({ key: 'n', code: 'KeyN' });
             const enyeResult = view.state.doc.toString();
@@ -65,6 +83,9 @@ test('preserves Windows Spanish dead keys for ñ, ü, accents, spacing, and canc
             const plainNAfterEscape = dispatchKey({ key: 'n', code: 'KeyN' });
 
             return {
+                vimBacktickResult,
+                spacingGravePrevented: spacingGrave.defaultPrevented,
+                delayedGravePrevented: delayedGrave.defaultPrevented,
                 composeEnyePrevented: composeEnye.defaultPrevented,
                 enyePrevented: enye.defaultPrevented,
                 enyeResult,
@@ -96,6 +117,9 @@ test('preserves Windows Spanish dead keys for ñ, ü, accents, spacing, and canc
     });
 
     expect(result).toEqual({
+        vimBacktickResult: '`',
+        spacingGravePrevented: true,
+        delayedGravePrevented: true,
         composeEnyePrevented: true,
         enyePrevented: true,
         enyeResult: 'ñ',

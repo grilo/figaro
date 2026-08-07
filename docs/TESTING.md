@@ -219,7 +219,7 @@ slower CI run.
 ### Design-system catalogue
 
 `tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
-contract: indexed group membership, adoption of the nine approved families
+contract: indexed group membership, adoption of the eleven approved families
 in catalogue and production markup, exact agreement between
 `approved-components.json` and the selectors implemented by
 `primitives.css`, exact eager style order in the app, catalogue, compatibility
@@ -271,21 +271,23 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   export-recovery states, print stylesheet resolution, and printable-document
   preparation.
 - Editor behavior, CodeMirror language modes, current-note heading-fragment
-  completion, live Markdown preview, persistent Markdown diagnostics
+  completion, nested Markdown heading folding, live Markdown preview, persistent Markdown diagnostics
   and their hover/F8 guidance, offline spellcheck's global **None** state and
   language/frontmatter overrides, wrapped-list cursor/selection geometry,
   frontmatter, footnotes, diagrams, tabs, session
   persistence, Kanban presentation/loading states, file-tree actions, and
   stale-response guards.
-- Pure and component coverage for tab-overflow direction, nearest active-tab
-  reveal, conditional all-tabs visibility, and keyboard menu selection. One
-  focused browser scenario remains because actual flex widths, horizontal
-  scrolling, and computed pseudo-element fade opacity cannot be represented by
-  jsdom.
+- Pure and component coverage for tab-reorder planning and drag thresholds,
+  selection suppression, cancellation, pin-group boundaries, tab-overflow
+  direction, nearest active-tab reveal, conditional all-tabs visibility,
+  keyboard menu selection, and the disabled-by-default vault-relative editor
+  breadcrumb. Focused browser scenarios retain a real primary-pointer drag
+  without selected text and the actual flex widths, horizontal scrolling, and
+  computed pseudo-element fade opacity that cannot be represented by jsdom.
 - Browser rendering of cover pages, table of contents, Mermaid, Vega, and
   Vega-Lite in the PDF export pipeline.
 - The native Figaro Dark and Light theme assets, including their warm reading
-  surfaces, framed navigation, raised active tab, selected tree state, tactile
+  surfaces, framed navigation, contiguous active tab, selected tree state, tactile
   Settings card, collar stitch, focus token, and text/link contrast.
 - Browser workflows for contextual Relationships, keyboard-triggered mention
   linking, the themed Vault-health Settings entry and finding navigation, and
@@ -426,6 +428,7 @@ and `internal/desktop/app_test.go`, plus `tests/e2e/workspaceOverview.spec.js`:
 
 ```bash
 npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/tabReorderModel.test.js \
   tests/frontend/unit/tabManager.test.js \
   tests/frontend/unit/session.test.js \
   tests/frontend/unit/homeModel.test.js \
@@ -507,8 +510,11 @@ without a usable browser composition event. Retain both the CodeMirror DOM/unit
 and real-browser event regressions: a dead key must leave source unchanged,
 then compose `ñ`, `ü`, `á`, `à`, and `â` with their matching letters, or emit
 its spacing accent with Space. Backspace and Escape must cancel it without
-deleting adjacent text, so the following `n` remains plain. Exercise the same
-sequence manually in a packaged Windows/WebView2 build before release.
+deleting adjacent text, so the following `n` remains plain. In Vim Insert mode,
+resolve the grave dead key with Space and then deliver WebView2's delayed
+matching `beforeinput`; the event must be consumed and the document must contain
+exactly one backtick. Exercise the same sequence manually in a packaged
+Windows/WebView2 build before release.
 
 ```bash
 npm run test:unit -- --runTestsByPath tests/frontend/unit/editor.test.js
@@ -558,9 +564,13 @@ Every change to vertical cursor movement or its keymaps must also prove the
 document-edge contract in both directions. The pure boundary cases belong in
 `verticalCursorModel.test.js`; the CodeMirror adapter must prove Arrow Down at
 the final position and Arrow Up at the first position remain there, including
-an engine result that attempts to move in the wrong direction. The focused
-browser checks must cover the real viewport at both scroll limits and Vim
-`j`/`k` plus Up/Down while visual-row movement is enabled:
+an engine result that attempts to move in the wrong direction. It must also
+prove that a no-op result and a multi-line skip fall back to exactly one
+adjacent source line, for both the ordinary Arrow adapter and Vim's visual-row
+motion. An injected backwards Vim geometry result must retain the exact cursor
+position. The focused browser checks must cover the real viewport at both
+scroll limits and exact first/last Vim positions for `j`/`k` plus Up/Down with
+both source-line and visual-row movement:
 
 ```bash
 npm run test:unit -- --runTestsByPath \
@@ -586,6 +596,24 @@ below, and verify mouse placement and drag selection around it. For a vertical
 navigation change, also put the cursor and viewport at the end and press Arrow
 Down, then put both at the beginning and press Arrow Up; neither action may
 move or wrap, and wheel input must remain at the corresponding scroll limit.
+
+Markdown heading folding adds its own focused matrix. Unit coverage must prove
+parent, child, peer, and end-of-document ranges, an empty section, and a
+heading-shaped line inside frontmatter or fenced code. The real CodeMirror component must
+exercise accessible collapse/expand controls and show that folding never edits
+the source. The browser boundary must click a nested fold, move across it with
+Arrow Up/Down and Vim visual-row `j`/`k`, place the mouse on the adjacent line,
+and drag a selection across the folded source in both directions. In a native
+WebKitGTK, WebView2, and WKWebView build, repeat those cursor and drag checks
+with both line numbers off and on.
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/markdownHeadingFolding.test.js \
+  tests/frontend/unit/codeEditorMode.test.js \
+  tests/frontend/unit/editor.test.js
+npx playwright test tests/e2e/editorUX.spec.js --grep "folds nested Markdown headings"
+```
 
 Interactive Markdown tables add a stricter cursor matrix. Test Arrow keys
 within and across cells, Tab and Shift+Tab between cells, Enter down a column,
@@ -792,8 +820,10 @@ red, after switching between contrasting light and dark themes and after focus
 returns from either edge of an interactive table. It checks the 4 px Insert
 caret plus the optional **Move by visual rows** mapping: `j`, `k`,
 and Up/Down move one wrapped display row in Vim Normal mode, including inside a
-long wrapped Markdown-link destination, while operator-pending source-line
-motions such as `dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
+long wrapped Markdown-link destination, recover to the adjacent source line
+when the engine returns the same position, and reject a backwards result at
+the exact first or last position; operator-pending source-line motions such as
+`dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
 placement, drag selection, themed hover guidance, F8 navigation, and their
 enabled-by-default Settings toggle. Wrapped Markdown bullet, ordered-list, and
 plain blockquote lines must keep continuation rows under their item or quoted
@@ -802,9 +832,21 @@ mouse placement, and drag-selection behavior.
 
 The separate, off-by-default **Enter rendered blocks** preference must be
 disabled while Vim is off, persist and roll back through the same Settings
-contract, and let Normal/Visual `j`/`k` enter adjacent fenced source and the
-first/last table cell even when visual-row motions would otherwise skip the
-widget. Operator-pending motions remain untouched.
+contract, and let Normal `j`/`k` enter adjacent fenced source and the first/last
+table cell even when visual-row motions would otherwise skip the widget. With
+that preference explicitly off, Visual `j`/`k` must keep Visual mode and its
+original anchor while selecting into fenced source from above and below;
+subsequent motion must continue through the unrendered block. Operator-pending
+motions remain untouched.
+
+Ordinary Vim `p`/`P` must prefer non-empty OS clipboard text, retain linewise or
+blockwise register metadata when the clipboard matches the unnamed register,
+honor before/after placement and counts through the vendored paste action, and
+fall back to the unnamed register when clipboard reads fail or return empty.
+Default yanks, deletes, and changes must write their resulting unnamed register
+to the OS clipboard without making a clipboard denial break the Vim command.
+Keep the text/shape and replay-key decisions in `vimClipboardModel.test.js` and
+the actual adapter/register integration in `vimCommands.test.js`.
 
 Offline spellcheck must retain the same editor movement and selection contract:
 its disabled-by-default global **None** state, explicit enablement with the US-English
@@ -845,6 +887,7 @@ Run the focused contract with:
 
 ```bash
 npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/vimClipboardModel.test.js \
   tests/frontend/unit/vimCommands.test.js \
   tests/frontend/unit/vimSettings.test.js \
   tests/frontend/unit/vimVisual.test.js \

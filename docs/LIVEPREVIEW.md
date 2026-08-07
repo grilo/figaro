@@ -15,6 +15,7 @@ Your implementation must accurately transition states for the following elements
 ### Headers (`# Heading`)
 * **Cursor on line:** Show the `#` marks. Apply the corresponding heading typography class to the line block.
 * **Cursor off line:** Hide the `#` marks and any trailing spaces. Keep the typography styling active on the line to prevent layout snapping.
+* **Section folding:** Every ATX heading (`#` through `######`) that owns content receives a narrow themed disclosure control. Its range begins after the heading and ends before the next heading at the same or a higher level; deeper headings are therefore folded with their parent. The replacement is editor-only and never changes source, Markdown preview, or PDF output. Frontmatter comments and fenced-code lookalikes are excluded.
 
 ### Inline Styles (Bold `**text**`, Italic `*text*`, Code `` `code` ``)
 * **Cursor inside node bounds:** Show the boundary delimiters (`**`, `*`, `` ` ``). Keep the inner text styled (bolded, italicized, or monospaced).
@@ -103,9 +104,16 @@ Every decoration created with `block: true` must follow these rules:
 The same guard enforces symmetric document boundaries independently of widget
 geometry. Arrow Down at the final position and Arrow Up at the first position
 are consumed without moving; a browser result that crosses in the opposite
-direction is clamped back to the requested source line's edge. Vim `j`/`k` and
-visual-row movement share this invariant, and viewport scrolling remains at
-the corresponding boundary. Wraparound is never enabled by a preference.
+direction is clamped back to the requested source line's edge. A result that
+claims success without moving, or skips more than one source line, falls back
+to the adjacent source line at the nearest source column unless the skipped
+source is exactly covered by a folded range. A fold is one intentional visual
+row: downward movement reaches the next visible line, while upward movement
+normalizes the hidden range endpoint back to its visible heading. Vim `j`/`k`
+and Up/Down share these invariants in both source-line and optional visual-row
+mode. A backwards native geometry result keeps the exact Vim cursor position
+at the first or last row, and viewport scrolling remains at the corresponding
+boundary. Wraparound is never enabled by a preference.
 
 The frontmatter Properties replacement keeps one left-edge disclosure control
 across collapsed and expanded states. CodeMirror's scroller reserves a stable
@@ -134,9 +142,12 @@ that Arrow Up moves to line 35 and Arrow Down returns to line 36 without a
 larger jump.
 
 The optional Vim **Enter rendered blocks** motion changes selection state, not
-widget geometry: `j`/`k` place the selection inside an adjacent rendered block
-so its normal source-first replacement logic reveals portable Markdown. Tables
-remain interactive widgets and receive their first or last cell. Their nested
+widget geometry: Normal `j`/`k` place the selection inside an adjacent rendered
+block so its normal source-first replacement logic reveals portable Markdown.
+Visual `j`/`k` always keeps its original anchor, extends the range into an
+adjacent fenced block, and reveals that source even when the option is off;
+crossing a preview can therefore never collapse Visual mode. Tables remain
+interactive widgets and receive their first or last cell. Their nested
 cell editor is the only cursor surface while it has focus; the synchronized
 outer selection must never paint a second full-cell caret. In Vim Insert mode,
 the nested editor's line caret must remain visible and aligned with its actual

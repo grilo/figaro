@@ -7,6 +7,7 @@ import { log } from './log.js';
 import { initLinkStyleSetting } from './linkStyle.js';
 import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
+import { initEditorBreadcrumbSetting } from './editorBreadcrumb.js';
 import {
     normalizeSpellcheckPreference,
     spellcheckPreferenceFromSetting,
@@ -720,6 +721,8 @@ export async function initSettingsPanel(root = document) {
                 markdownLintToggle.title = saved ? '' : 'Could not save the Markdown diagnostics preference.';
             });
         }
+
+        initEditorBreadcrumbSetting(root);
 
         const spellcheckLanguage = findIn(root, '#spellcheck-language');
         if (spellcheckLanguage) {

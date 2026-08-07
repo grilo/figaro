@@ -1,4 +1,5 @@
 import {
+    unexpectedVerticalMotionTarget,
     verticalBoundaryTarget,
     verticalViewportBoundaryTarget,
 } from '../frontend/js/core/verticalCursorModel.js';
@@ -76,6 +77,38 @@ describe('vertical cursor boundary policy', () => {
             totalLines: 5,
             documentLength: 42,
             forward: false,
+        })).toBeNull();
+    });
+
+    test('repairs a stalled or multi-line engine result to the adjacent source line', () => {
+        const common = {
+            sourceLineNumber: 3,
+            sourceLineColumn: 4,
+            totalLines: 5,
+            adjacentLineFrom: 20,
+            adjacentLineTo: 27,
+        };
+
+        expect(unexpectedVerticalMotionTarget({
+            ...common,
+            beforePosition: 16,
+            afterPosition: 16,
+            movedLineNumber: 3,
+            forward: true,
+        })).toBe(24);
+        expect(unexpectedVerticalMotionTarget({
+            ...common,
+            beforePosition: 16,
+            afterPosition: 31,
+            movedLineNumber: 5,
+            forward: true,
+        })).toBe(24);
+        expect(unexpectedVerticalMotionTarget({
+            ...common,
+            beforePosition: 16,
+            afterPosition: 22,
+            movedLineNumber: 4,
+            forward: true,
         })).toBeNull();
     });
 

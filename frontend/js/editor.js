@@ -71,7 +71,7 @@ import {
     indentLess, indentMore, redo, undo,
 } from '@codemirror/commands';
 import {
-    HighlightStyle, bracketMatching, foldGutter, foldKeymap, indentUnit,
+    HighlightStyle, bracketMatching, foldGutter, foldedRanges, foldKeymap, indentUnit,
     syntaxHighlighting, syntaxTree,
 } from '@codemirror/language';
 import { acceptCompletion, autocompletion, completionKeymap, startCompletion } from '@codemirror/autocomplete';
@@ -79,11 +79,18 @@ import { markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown';
 import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
 import { markdownLinter } from './markdownLint.js';
+import { markdownHeadingFoldingExtension } from './markdownHeadingFolding.js';
 import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
+    unexpectedVerticalMotionTarget,
     verticalBoundaryTarget,
     verticalViewportBoundaryTarget,
 } from './core/verticalCursorModel.js';
+import {
+    planVimClipboardPaste,
+    vimPasteKeys,
+    vimPasteReplayKeys,
+} from './core/vimClipboardModel.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
@@ -120,6 +127,7 @@ let vimActive = false;
 let vimRequested = false;
 let vimVisualRowsRequested = false;
 let vimVisualRowsMapped = false;
+let vimVisualRowMotionsRegistered = false;
 let vimRevealBlocksRequested = false;
 let vimAPI = null;
 let vimGetCM = null;
@@ -150,20 +158,53 @@ let statsTimer = null;
 let lastMaterializedDocument = null;
 let lastMaterializedContent = '';
 let contextMenuRequestId = 0;
+let vimClipboardMappingsRegistered = false;
+const vimClipboardControllers = new WeakSet();
 
 // CodeMirror's indentUnit is the single source of truth for both Tab / Shift+Tab
 // and the indentation-marker extension. Keep the visual tab width in CSS in
 // lockstep with this value (see .cm-code-file .cm-content).
 const codeIndentUnit = '  ';
+
+function createEditorFoldControl(expanded, regionLabel) {
+    const control = document.createElement('button');
+    const action = expanded ? 'Collapse' : 'Expand';
+    control.type = 'button';
+    control.className = 'ui-editor-fold-control';
+    control.setAttribute('aria-label', `${action} ${regionLabel}`);
+    control.setAttribute('aria-expanded', String(expanded));
+    control.title = `${action} ${regionLabel}`;
+
+    // A primary-pointer fold should leave typing focus in the editor. Keyboard
+    // activation remains native: Enter and Space still dispatch the click that
+    // CodeMirror's gutter controller handles.
+    control.addEventListener('mousedown', event => {
+        if (event.button === 0) event.preventDefault();
+    });
+    return control;
+}
+
+function editorFoldingExtensions(kind) {
+    if (!foldGutter || !foldKeymap) return [];
+    const regionLabel = kind === 'markdown' ? 'heading section' : 'code region';
+    return [
+        ...(kind === 'markdown' ? [markdownHeadingFoldingExtension] : []),
+        foldGutter({
+            markerDOM: expanded => createEditorFoldControl(expanded, regionLabel),
+        }),
+        keymap.of(foldKeymap),
+    ];
+}
+
 const vimVisualRowMappings = [
-    ['j', 'gj', 'normal'],
-    ['k', 'gk', 'normal'],
-    ['<Down>', 'gj', 'normal'],
-    ['<Up>', 'gk', 'normal'],
-    ['j', 'gj', 'visual'],
-    ['k', 'gk', 'visual'],
-    ['<Down>', 'gj', 'visual'],
-    ['<Up>', 'gk', 'visual'],
+    ['j', '<FigaroVisualDown>', 'normal'],
+    ['k', '<FigaroVisualUp>', 'normal'],
+    ['<Down>', '<FigaroVisualDown>', 'normal'],
+    ['<Up>', '<FigaroVisualUp>', 'normal'],
+    ['j', '<FigaroVisualDown>', 'visual'],
+    ['k', '<FigaroVisualUp>', 'visual'],
+    ['<Down>', '<FigaroVisualDown>', 'visual'],
+    ['<Up>', '<FigaroVisualUp>', 'visual'],
 ];
 
 const vimTableNavigationKeys = {
@@ -838,19 +879,29 @@ function adjacentVimRenderedBlock(view, forward) {
     }) || null;
 }
 
+/** Plan the CodeMirror selection used to reveal a rendered source block. */
+export function vimRenderedBlockSelection(selection, block, forward, extendVisual = false) {
+    if (!selection || !block) return null;
+    const target = block.kind === 'table'
+        ? (forward ? block.from : block.to)
+        : (forward ? Math.min(block.from + 1, block.to) : Math.max(block.from, block.to - 1));
+    if (extendVisual && block.kind === 'source') {
+        return { anchor: selection.anchor, head: target };
+    }
+    return { anchor: target, head: target };
+}
+
 /**
  * Let optional Vim j/k entry reveal a replacement block's portable source.
  * Tables are deliberately special: their own selection filter turns the
  * boundary into the first or last interactive cell instead of raw pipes.
  */
-function enterAdjacentRenderedBlock(view, forward) {
-    const block = adjacentVimRenderedBlock(view, forward);
+function enterAdjacentRenderedBlock(view, forward, extendVisual = false, block = adjacentVimRenderedBlock(view, forward)) {
     if (!block) return false;
-    const target = block.kind === 'table'
-        ? (forward ? block.from : block.to)
-        : (forward ? Math.min(block.from + 1, block.to) : Math.max(block.from, block.to - 1));
+    const selection = vimRenderedBlockSelection(view.state.selection.main, block, forward, extendVisual);
+    if (!selection) return false;
     view.dispatch({
-        selection: EditorSelection.cursor(target),
+        selection: EditorSelection.range(selection.anchor, selection.head),
         scrollIntoView: true,
         userEvent: 'select',
     });
@@ -860,12 +911,42 @@ function enterAdjacentRenderedBlock(view, forward) {
 function vimRenderedBlockNavigationExtension() {
     return Prec.highest(EditorView.domEventHandlers({
         keydown: (event, view) => {
-            if (!vimActive || !vimRevealBlocksRequested || event.altKey || event.ctrlKey || event.metaKey
+            if (!vimActive || event.altKey || event.ctrlKey || event.metaKey
                 || event.defaultPrevented || (event.key !== 'j' && event.key !== 'k')) return false;
             const vimState = vimStateFor(view);
             if (!vimState || vimState.insertMode || vimState.inputState?.operatorShortcut
                 || (vimState.inputState?.keyBuffer?.length || 0) > 0) return false;
-            if (!enterAdjacentRenderedBlock(view, event.key === 'j')) return false;
+            const forward = event.key === 'j';
+            const block = adjacentVimRenderedBlock(view, forward);
+            if (!block || (!vimRevealBlocksRequested && (!vimState.visualMode || block.kind !== 'source'))) return false;
+            if (!enterAdjacentRenderedBlock(view, forward, Boolean(vimState.visualMode), block)) return false;
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
+        },
+    }));
+}
+
+/**
+ * Preserve Vim's source-line edge semantics before its compatibility adapter
+ * asks a native webview for vertical geometry. Display-row mappings perform
+ * their own candidate check because they may still move within a wrapped
+ * first or last source line.
+ */
+function vimSourceBoundaryExtension() {
+    return Prec.highest(EditorView.domEventHandlers({
+        keydown: (event, view) => {
+            if (!vimActive || vimVisualRowsRequested || event.altKey || event.ctrlKey
+                || event.metaKey || event.defaultPrevented) return false;
+            const forward = event.key === 'j' || event.key === 'ArrowDown';
+            if (!forward && event.key !== 'k' && event.key !== 'ArrowUp') return false;
+
+            const vimState = vimStateFor(view);
+            if (!vimState || vimState.insertMode || vimState.inputState?.operatorShortcut
+                || (vimState.inputState?.keyBuffer?.length || 0) > 0) return false;
+            const headLine = view.state.doc.lineAt(view.state.selection.main.head).number;
+            if ((forward && headLine !== view.state.doc.lines) || (!forward && headLine !== 1)) return false;
+
             event.preventDefault();
             event.stopPropagation();
             return true;
@@ -875,6 +956,7 @@ function vimRenderedBlockNavigationExtension() {
 
 const isWindowsPlatform = () => typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '');
 const pendingWindowsSpanishDeadKeys = new WeakMap();
+const pendingWindowsSpanishDeadKeyText = new WeakMap();
 const windowsSpanishDeadKeyDefinitions = [
     {
         matches: event => hasAltGraphModifier(event) && isDigit4Key(event),
@@ -940,8 +1022,45 @@ export function insertTextAtCursor(view, text) {
     return true;
 }
 
+function windowsSpanishTextFromEvent(event) {
+    if (event?.type === 'textInput' || event?.type === 'textinput') return event.data;
+    return event?.inputType === 'insertText' ? event.data : null;
+}
+
+function queueWindowsSpanishDeadKeyText(view, text) {
+    const pending = { text };
+    pendingWindowsSpanishDeadKeyText.set(view, pending);
+    setTimeout(() => {
+        if (pendingWindowsSpanishDeadKeyText.get(view) === pending) {
+            pendingWindowsSpanishDeadKeyText.delete(view);
+        }
+    }, 100);
+}
+
+/** Suppress WebView2's delayed native text after the compatibility path inserted it. */
+function handleWindowsSpanishDeadKeyText(event, view) {
+    if (!isWindowsPlatform() || !event || !view) return false;
+    const pending = pendingWindowsSpanishDeadKeyText.get(view);
+    if (!pending) return false;
+
+    const text = windowsSpanishTextFromEvent(event);
+    if (text === null) return false;
+    pendingWindowsSpanishDeadKeyText.delete(view);
+    if (text !== pending.text) return false;
+
+    event.preventDefault();
+    event.stopImmediatePropagation?.();
+    event.stopPropagation?.();
+    return true;
+}
+
 function handleWindowsSpanishDeadKey(event, view) {
     if (!isWindowsPlatform() || !event || !view) return false;
+
+    // Any later physical key proves that WebView2 did not deliver the queued
+    // text event. Do not let a stale guard swallow an intentionally repeated
+    // character.
+    pendingWindowsSpanishDeadKeyText.delete(view);
 
     // WebView2 can expose Spanish dead keys without delivering a usable
     // composition event. Preserve just the layout's known dead-key events so
@@ -968,6 +1087,7 @@ function handleWindowsSpanishDeadKey(event, view) {
 
     const text = resolveWindowsSpanishDeadKey(pendingDeadKey, event.key);
     if (text && insertTextAtCursor(view, text)) {
+        queueWindowsSpanishDeadKeyText(view, text);
         event.preventDefault();
         return true;
     }
@@ -1025,21 +1145,66 @@ export function invalidateLinkPreviewCache(path = null) {
 }
 
 /**
- * Return the adjacent source-line position only when the browser's visual
- * cursor calculation unexpectedly skipped multiple document lines.
+ * Return the adjacent source-line position when the browser's visual cursor
+ * calculation unexpectedly stalls or skips multiple document lines.
  */
 export function adjacentLinePositionForUnexpectedVerticalSkip(document, beforePosition, afterPosition, forward) {
     const sourceLine = document.lineAt(beforePosition);
     const movedLine = document.lineAt(afterPosition);
     const targetNumber = sourceLine.number + (forward ? 1 : -1);
-    const skippedLines = forward
-        ? movedLine.number > sourceLine.number + 1
-        : movedLine.number < sourceLine.number - 1;
-    if (!skippedLines || targetNumber < 1 || targetNumber > document.lines) return null;
+    if (targetNumber < 1 || targetNumber > document.lines) return null;
 
     const targetLine = document.line(targetNumber);
+    return unexpectedVerticalMotionTarget({
+        beforePosition,
+        afterPosition,
+        sourceLineNumber: sourceLine.number,
+        movedLineNumber: movedLine.number,
+        sourceLineColumn: beforePosition - sourceLine.from,
+        totalLines: document.lines,
+        adjacentLineFrom: targetLine.from,
+        adjacentLineTo: targetLine.to,
+        forward,
+    });
+}
+
+/** A folded range intentionally turns several source lines into one visual row. */
+function verticalMovementCrossesFoldedRange(state, beforePosition, afterPosition) {
+    const beforeLine = state.doc.lineAt(beforePosition);
+    const afterLine = state.doc.lineAt(afterPosition);
+    if (Math.abs(afterLine.number - beforeLine.number) <= 1) return false;
+
+    const upperLine = beforeLine.number < afterLine.number ? beforeLine : afterLine;
+    const lowerLine = beforeLine.number < afterLine.number ? afterLine : beforeLine;
+    const gapFrom = upperLine.to;
+    const gapTo = lowerLine.from;
+    let covered = false;
+    foldedRanges(state).between(gapFrom, gapTo, (from, to) => {
+        if (from <= gapFrom && to >= gapTo - 1) covered = true;
+    });
+    return covered;
+}
+
+/**
+ * CodeMirror may report the hidden end of a folded range when moving upward
+ * from the next visible row. Normalize that logical endpoint back onto the
+ * visible heading while preserving the requested source column.
+ */
+function visibleFoldBoundaryTarget(state, beforePosition, afterPosition, forward) {
+    if (forward || afterPosition >= beforePosition) return null;
+    const sourceLine = state.doc.lineAt(beforePosition);
     const sourceColumn = beforePosition - sourceLine.from;
-    return targetLine.from + Math.min(sourceColumn, targetLine.length);
+    let target = null;
+    foldedRanges(state).between(
+        Math.max(0, sourceLine.from - 2),
+        sourceLine.from,
+        (from, to) => {
+            if (to < sourceLine.from - 1 || afterPosition > to || beforePosition <= to) return;
+            const headingLine = state.doc.lineAt(from);
+            target = headingLine.from + Math.min(sourceColumn, headingLine.length);
+        },
+    );
+    return target;
 }
 
 /**
@@ -1065,8 +1230,59 @@ export function moveCursorVerticallySafely(view, forward) {
     });
     if (blockedAtBoundary !== null) return true;
 
+    // Inspect a fold before a command dispatch can place its selection inside
+    // hidden source (which CodeMirror correctly interprets as an unfold). Keep
+    // the long-established command path for every ordinary visual row.
+    if (foldedRanges(view.state).size) {
+        let foldedMove = view.moveVertically(before, forward);
+        if (foldedMove.head === before.head) {
+            foldedMove = view.moveToLineBoundary(before, forward);
+        }
+        const foldBoundaryTarget = visibleFoldBoundaryTarget(
+            view.state,
+            before.head,
+            foldedMove.head,
+            forward,
+        );
+        if (foldBoundaryTarget !== null
+            || verticalMovementCrossesFoldedRange(view.state, before.head, foldedMove.head)) {
+            view.dispatch({
+                selection: foldBoundaryTarget === null
+                    ? foldedMove
+                    : EditorSelection.cursor(
+                        foldBoundaryTarget,
+                        foldedMove.assoc,
+                        foldedMove.bidiLevel,
+                        foldedMove.goalColumn,
+                    ),
+                scrollIntoView: true,
+                userEvent: 'select',
+            });
+            return true;
+        }
+    }
+
     const move = forward ? cursorLineDown : cursorLineUp;
-    if (!move || !move(view)) return false;
+    if (!move(view)) {
+        const stalledTarget = adjacentLinePositionForUnexpectedVerticalSkip(
+            view.state.doc,
+            before.head,
+            before.head,
+            forward,
+        );
+        if (stalledTarget === null) return false;
+        view.dispatch({
+            selection: EditorSelection.cursor(
+                stalledTarget,
+                before.assoc,
+                before.bidiLevel,
+                before.goalColumn,
+            ),
+            scrollIntoView: true,
+            userEvent: 'select',
+        });
+        return true;
+    }
 
     const after = view.state.selection.main;
     const movedLine = view.state.doc.lineAt(after.head);
@@ -1088,13 +1304,86 @@ export function moveCursorVerticallySafely(view, forward) {
         forward
     );
     if (targetPosition === null) return true;
-
     view.dispatch({
-        selection: EditorSelection.cursor(targetPosition, after.assoc, after.bidiLevel, after.goalColumn),
+        selection: EditorSelection.cursor(
+            targetPosition,
+            after.assoc,
+            after.bidiLevel,
+            after.goalColumn,
+        ),
         scrollIntoView: true,
         userEvent: 'select',
     });
     return true;
+}
+
+/** Vim motion equivalent of gj/gk with the same stalled-height-map repair. */
+function moveVimByVisualRows(cm, head, motionArgs, vimState) {
+    const view = cm?.cm6;
+    if (!view || !head) return head;
+
+    if (vimState.lastMotion !== moveVimByVisualRows || !Number.isFinite(vimState.lastHSPos)) {
+        vimState.lastHSPos = cm.charCoords(head, 'div').left;
+    }
+
+    const forward = Boolean(motionArgs.forward);
+    const repeat = Math.max(1, Math.floor(Number(motionArgs.repeat) || 1));
+    let range = EditorSelection.cursor(cm.indexFromPos(head), 1, undefined, vimState.lastHSPos);
+    for (let index = 0; index < repeat; index += 1) {
+        const before = range.head;
+        const moved = view.moveVertically(range, forward);
+        const sourceLine = view.state.doc.lineAt(before);
+        const movedLine = view.state.doc.lineAt(moved.head);
+        const crossedBoundary = verticalBoundaryTarget({
+            beforePosition: before,
+            afterPosition: moved.head,
+            sourceLineNumber: sourceLine.number,
+            movedLineNumber: movedLine.number,
+            sourceLineFrom: sourceLine.from,
+            sourceLineTo: sourceLine.to,
+            totalLines: view.state.doc.lines,
+            documentLength: view.state.doc.length,
+            forward,
+        }) !== null;
+        const foldBoundaryTarget = visibleFoldBoundaryTarget(
+            view.state,
+            before,
+            moved.head,
+            forward,
+        );
+        const fallback = crossedBoundary
+            ? before
+            : foldBoundaryTarget ?? (
+                verticalMovementCrossesFoldedRange(view.state, before, moved.head)
+                    ? null
+                    : adjacentLinePositionForUnexpectedVerticalSkip(
+                        view.state.doc,
+                        before,
+                        moved.head,
+                        forward,
+                    )
+            );
+        range = fallback === null
+            ? moved
+            : EditorSelection.cursor(
+                fallback,
+                moved.assoc,
+                moved.bidiLevel,
+                moved.goalColumn ?? vimState.lastHSPos,
+            );
+    }
+
+    const result = cm.posFromIndex(range.head);
+    vimState.lastHPos = result.ch;
+    return result;
+}
+
+function registerVimVisualRowMotions(api) {
+    if (!api || vimVisualRowMotionsRegistered) return;
+    api.defineMotion('figaroMoveByVisualRows', moveVimByVisualRows);
+    api.mapCommand('<FigaroVisualDown>', 'motion', 'figaroMoveByVisualRows', { forward: true }, {});
+    api.mapCommand('<FigaroVisualUp>', 'motion', 'figaroMoveByVisualRows', { forward: false }, {});
+    vimVisualRowMotionsRegistered = true;
 }
 
 /**
@@ -1670,6 +1959,43 @@ function createEditorView() {
             this.view.dom.removeEventListener('focusin', this.sync);
             this.view.dom.removeEventListener('focusout', this.sync);
             this.view.dom.classList.remove('cm-table-cell-focused');
+        }
+    });
+
+    // CodeMirror marks its complete gutter rail aria-hidden because line
+    // numbers and ordinary markers are decorative. Heading-fold markers are
+    // real controls, so expose only that gutter and keep every sibling hidden.
+    const foldGutterAccessibilityPlugin = ViewPlugin.fromClass(class {
+        constructor(view) {
+            this.view = view;
+            this.sync();
+            queueMicrotask(() => this.sync());
+        }
+
+        update() {
+            this.sync();
+            queueMicrotask(() => this.sync());
+        }
+
+        sync() {
+            if (this.view.isDestroyed) return;
+            for (const gutters of this.view.dom.querySelectorAll('.cm-gutters')) {
+                const fold = gutters.querySelector('.cm-foldGutter');
+                if (!fold) {
+                    gutters.setAttribute('aria-hidden', 'true');
+                    continue;
+                }
+                gutters.removeAttribute('aria-hidden');
+                for (const gutter of gutters.querySelectorAll(':scope > .cm-gutter')) {
+                    if (gutter === fold) {
+                        gutter.removeAttribute('aria-hidden');
+                        gutter.setAttribute('role', 'group');
+                        gutter.setAttribute('aria-label', 'Section folding');
+                    } else {
+                        gutter.setAttribute('aria-hidden', 'true');
+                    }
+                }
+            }
         }
     });
 
@@ -2284,7 +2610,12 @@ function createEditorView() {
         }),
         // Backspace and Escape must cancel a pending dead key before
         // CodeMirror's ordinary keymap can edit the document.
-        Prec.highest(EditorView.domEventHandlers({ keydown: handleWindowsSpanishDeadKey })),
+        Prec.highest(EditorView.domEventHandlers({
+            keydown: handleWindowsSpanishDeadKey,
+            beforeinput: handleWindowsSpanishDeadKeyText,
+            textInput: handleWindowsSpanishDeadKeyText,
+            textinput: handleWindowsSpanishDeadKeyText,
+        })),
         Prec.high(keymap.of([
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
             { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },
@@ -2321,12 +2652,14 @@ function createEditorView() {
     const editorState = EditorState.create({
         doc: '',
         extensions: [
+            vimSourceBoundaryExtension(),
             vimCompartment.of([]),
             readOnlyCompartment.of([]),
             imageBasePathCompartment.of(imageField({ basePath: '/vault/' })),
             fileModeCompartment.of(markdownExtensionsForPath()),
             lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
-            foldingCompartment.of([]),
+            foldingCompartment.of(editorFoldingExtensions('markdown')),
+            foldGutterAccessibilityPlugin,
             history(), bracketMatching(), drawSelection(),
             searchExtension({ top: false }),
             EditorView.updateListener.of(update => {
@@ -2552,9 +2885,9 @@ async function configureEditorForFile(path) {
     }
 
     if (request !== fileModeRequest || view.isDestroyed) return false;
-    const foldingExtensions = language.kind === 'code' && foldGutter && foldKeymap
-        ? [foldGutter(), keymap.of(foldKeymap)]
-        : [];
+    const foldingExtensions = language.kind === 'plain'
+        ? []
+        : editorFoldingExtensions(language.kind);
     view.dispatch({
         effects: [
             fileModeCompartment.reconfigure(extensions),
@@ -3037,6 +3370,91 @@ export async function copyTextToClipboard(text) {
         }
     }
     return legacyCopyTextToClipboard(value);
+}
+
+function writeVimUnnamedRegisterToSystemClipboard(text) {
+    const clipboard = typeof navigator === 'undefined' ? null : navigator.clipboard;
+    if (!text || typeof clipboard?.writeText !== 'function') return;
+    try {
+        Promise.resolve(clipboard.writeText(text)).catch(error => {
+            log.debug?.('Could not synchronize the Vim register to the OS clipboard:', error);
+        });
+    } catch (error) {
+        log.debug?.('Could not synchronize the Vim register to the OS clipboard:', error);
+    }
+}
+
+function installVimClipboardControllerBridge(api) {
+    const controller = api?.getRegisterController?.();
+    if (!controller || vimClipboardControllers.has(controller)) return;
+
+    const pushText = controller.pushText;
+    controller.pushText = function bridgedVimRegisterPush(registerName, ...args) {
+        const result = pushText.call(this, registerName, ...args);
+        if (!registerName || registerName === '"') {
+            writeVimUnnamedRegisterToSystemClipboard(this.unnamedRegister?.toString?.() || '');
+        }
+        return result;
+    };
+    vimClipboardControllers.add(controller);
+}
+
+async function replayVimClipboardPaste(cm, actionArgs) {
+    if (actionArgs?.registerName && actionArgs.registerName !== '"') {
+        for (const key of vimPasteReplayKeys(actionArgs)) {
+            vimAPI.handleKey(cm, key, 'mapping');
+        }
+        return;
+    }
+
+    const clipboard = typeof navigator === 'undefined' ? null : navigator.clipboard;
+    let systemText = '';
+    if (typeof clipboard?.readText === 'function') {
+        try {
+            systemText = await clipboard.readText();
+        } catch (_) {
+            // The unnamed register remains the deterministic fallback when a
+            // desktop webview denies or intermittently loses clipboard access.
+        }
+    }
+    if (!cm?.cm6 || cm.cm6.isDestroyed) return;
+
+    const controller = vimAPI?.getRegisterController?.();
+    const register = controller?.unnamedRegister;
+    if (!register) return;
+    const plan = planVimClipboardPaste({
+        systemText,
+        internalText: register.toString(),
+        internalLinewise: register.linewise,
+        internalBlockwise: register.blockwise,
+    });
+    if (!plan.text) return;
+    if (plan.updateRegister) register.setText(plan.text, plan.linewise, plan.blockwise);
+
+    for (const key of vimPasteReplayKeys(actionArgs)) {
+        vimAPI.handleKey(cm, key, 'mapping');
+    }
+}
+
+function registerVimClipboardBridge(api) {
+    if (!api) return;
+    installVimClipboardControllerBridge(api);
+    if (vimClipboardMappingsRegistered) return;
+
+    api.mapCommand(vimPasteKeys.after, 'action', 'paste', {
+        after: true,
+        isEdit: true,
+    }, { isEdit: true });
+    api.mapCommand(vimPasteKeys.before, 'action', 'paste', {
+        after: false,
+        isEdit: true,
+    }, { isEdit: true });
+    api.defineAction('figaroClipboardPaste', (cm, actionArgs) => {
+        void replayVimClipboardPaste(cm, actionArgs);
+    });
+    api.mapCommand('p', 'action', 'figaroClipboardPaste', { after: true }, {});
+    api.mapCommand('P', 'action', 'figaroClipboardPaste', { after: false }, {});
+    vimClipboardMappingsRegistered = true;
 }
 
 export async function copyEditorSelection(view) {
@@ -3540,6 +3958,8 @@ async function toggleVim(enable) {
         const view = editorView;
         vimAPI = Vim;
         vimGetCM = getCM;
+        registerVimVisualRowMotions(Vim);
+        registerVimClipboardBridge(Vim);
         vimTableCellExtension = [
             vim(),
             vimTableCellPromptCaptureExtension(),

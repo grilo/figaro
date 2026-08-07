@@ -30,6 +30,7 @@ import { registerVaultChangeEvents } from './vaultEvents.js';
 import { initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitEnabled } from './automation.js';
 import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
+import { initEditorBreadcrumb } from './editorBreadcrumb.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -485,6 +486,7 @@ export async function initApp() {
     
     // Initialize tab manager
     initTabManager();
+    initEditorBreadcrumb();
 
     // Register before the first vault request. If the background Kanban index
     // finishes while the initial tree is loading, the ready event is still

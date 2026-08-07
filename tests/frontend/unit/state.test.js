@@ -22,6 +22,7 @@ Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
 const DEFAULTS = {
     sidebarWidth: 280,
     rightSidebarWidth: 320,
+    showEditorBreadcrumbs: false,
     activeTabId: null,
     openTabs: [],
     pinnedTabs: [],
@@ -162,6 +163,15 @@ describe('State Management', () => {
             expect(getState('kanbanLayout')).toBe('stacked');
         });
 
+        test('restores editor breadcrumbs only when explicitly enabled', () => {
+            initState();
+            expect(getState('showEditorBreadcrumbs')).toBe(false);
+
+            localStorage.setItem('showEditorBreadcrumbs', 'true');
+            initState();
+            expect(getState('showEditorBreadcrumbs')).toBe(true);
+        });
+
         test('should restore openTabs to _restoredTabs', () => {
             const tabs = [{ id: 'hello.md', type: 'file', title: 'hello', path: 'hello.md' }];
             localStorage.setItem('openTabs', JSON.stringify(tabs));
@@ -237,6 +247,12 @@ describe('State Management', () => {
             expect(localStorage.getItem('kanbanDensity')).toBe('compact');
             expect(localStorage.getItem('kanbanLayout')).toBe('stacked');
         });
+
+        test('should save the editor breadcrumb preference', () => {
+            setState('showEditorBreadcrumbs', true);
+            persistState();
+            expect(localStorage.getItem('showEditorBreadcrumbs')).toBe('true');
+        });
     });
 
     describe('auto-persist subscriptions', () => {
@@ -274,6 +290,11 @@ describe('State Management', () => {
             expect(localStorage.getItem('selectedTreePath')).toBe('notes/projects');
             setState('selectedTreePath', null);
             expect(localStorage.getItem('selectedTreePath')).toBeNull();
+        });
+
+        test('should auto-persist the editor breadcrumb preference', () => {
+            setState('showEditorBreadcrumbs', true);
+            expect(localStorage.getItem('showEditorBreadcrumbs')).toBe('true');
         });
 
         test('should auto-persist openTabs as serializable subset', () => {

@@ -150,4 +150,155 @@ describe('Vim command behavior', () => {
         expect(confirmDialog).not.toHaveBeenCalled();
         await toggleVim(false);
     });
+
+    test('repairs stalled or wrapping Vim display-row motions', async () => {
+        installSelectionLayoutStubs();
+        document.body.innerHTML = `
+            <div id="editor-container"></div>
+            <span id="file-type"></span>
+            <span id="cursor-position"></span>
+            <span id="word-count"></span>
+            <span id="char-count"></span>
+            <span id="reading-time"></span>
+        `;
+
+        const { initEditor, createEditorView, setVimVisualRows, toggleVim } = await import('../frontend/js/editor.js');
+        const { EditorSelection } = await import('@codemirror/state');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
+        await initEditor();
+        const view = createEditorView();
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: 'one\ntwo\nthree' },
+            selection: { anchor: 1 },
+        });
+        await toggleVim(true);
+        setVimVisualRows(true);
+        Object.defineProperty(view, 'moveVertically', {
+            configurable: true,
+            value: jest.fn(range => range),
+        });
+
+        Vim.handleKey(getCM(view), 'j', 'user');
+
+        expect(view.moveVertically).toHaveBeenCalled();
+        expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from + 1);
+
+        const lastCharacter = view.state.doc.length - 1;
+        view.dispatch({ selection: { anchor: lastCharacter } });
+        Object.defineProperty(view, 'moveVertically', {
+            configurable: true,
+            value: jest.fn(() => EditorSelection.cursor(1)),
+        });
+
+        Vim.handleKey(getCM(view), '<Down>', 'user');
+
+        expect(view.moveVertically).toHaveBeenCalled();
+        expect(view.state.selection.main.head).toBe(lastCharacter);
+        setVimVisualRows(false);
+        await toggleVim(false);
+        view.destroy();
+    });
+
+    test('uses the OS clipboard for ordinary Vim paste and falls back to the unnamed register', async () => {
+        installSelectionLayoutStubs();
+        document.body.innerHTML = `
+            <div id="editor-container"></div>
+            <span id="file-type"></span>
+            <span id="cursor-position"></span>
+            <span id="word-count"></span>
+            <span id="char-count"></span>
+            <span id="reading-time"></span>
+        `;
+
+        const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+        const readText = jest.fn();
+        const writeText = jest.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: { readText, writeText },
+        });
+
+        const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
+        await initEditor();
+        const view = createEditorView();
+
+        try {
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: 'x' },
+                selection: { anchor: 0 },
+            });
+            await toggleVim(true);
+            const cm = getCM(view);
+
+            readText.mockResolvedValueOnce('OS');
+            Vim.handleKey(cm, 'p', 'user');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(view.state.doc.toString()).toBe('xOS');
+
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: 'x' },
+                selection: { anchor: 0 },
+            });
+            readText.mockResolvedValueOnce('LEFT');
+            Vim.handleKey(cm, 'P', 'user');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(view.state.doc.toString()).toBe('LEFTx');
+
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: 'abc' },
+                selection: { anchor: 0 },
+            });
+            Vim.handleKey(cm, 'v', 'user');
+            Vim.handleKey(cm, 'l', 'user');
+            readText.mockResolvedValueOnce('Z');
+            Vim.handleKey(cm, 'p', 'user');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(view.state.doc.toString()).toBe('Zc');
+
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: 'x' },
+                selection: { anchor: 0 },
+            });
+            Vim.getRegisterController().unnamedRegister.setText('VIM');
+            readText.mockRejectedValueOnce(new Error('clipboard permission denied'));
+            Vim.handleKey(cm, 'p', 'user');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(view.state.doc.toString()).toBe('xVIM');
+
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: 'x' },
+                selection: { anchor: 0 },
+            });
+            Vim.getRegisterController().getRegister('a').setText('NAMED');
+            const readsBeforeNamedPaste = readText.mock.calls.length;
+            Vim.handleKey(cm, '"', 'user');
+            Vim.handleKey(cm, 'a', 'user');
+            Vim.handleKey(cm, 'p', 'user');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(view.state.doc.toString()).toBe('xNAMED');
+            expect(readText).toHaveBeenCalledTimes(readsBeforeNamedPaste);
+
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: 'alpha\nbeta' },
+                selection: { anchor: 0 },
+            });
+            writeText.mockRejectedValueOnce(new Error('clipboard write denied'));
+            Vim.handleKey(cm, 'y', 'user');
+            Vim.handleKey(cm, 'y', 'user');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(writeText).toHaveBeenLastCalledWith('alpha\n');
+            expect(Vim.getRegisterController().unnamedRegister.toString()).toBe('alpha\n');
+
+            readText.mockResolvedValueOnce('alpha\n');
+            Vim.handleKey(cm, 'p', 'user');
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(view.state.doc.toString()).toBe('alpha\nalpha\nbeta');
+        } finally {
+            await toggleVim(false);
+            view.destroy();
+            if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard);
+            else delete navigator.clipboard;
+        }
+    });
 });
