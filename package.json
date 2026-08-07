@@ -93,7 +93,7 @@
     "dictionary-en": "4.0.0",
     "dictionary-en-gb": "3.0.0",
     "dictionary-es": "4.0.0",
-    "katex": "^0.17.0",
+    "katex": "^0.18.1",
     "lucide": "1.27.0",
     "markdown-it": "^14.3.0",
     "nspell": "2.1.5",
