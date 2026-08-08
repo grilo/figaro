@@ -52,7 +52,12 @@ describe('Editor Module - CodeMirror Initialization', () => {
     });
 
     test('preserves Windows Spanish dead-key composition and cancellation', async () => {
-        const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
+        const {
+            initEditor,
+            createEditorView,
+            insertTextAtCursor,
+            toggleVim,
+        } = await import('../frontend/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
         const platformDescriptor = Object.getOwnPropertyDescriptor(navigator, 'platform');
         Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' });
@@ -95,6 +100,26 @@ describe('Editor Module - CodeMirror Initialization', () => {
                         value: modifier => modifier === 'AltGraph',
                     });
                 }
+                view.contentDOM.dispatchEvent(event);
+                return event;
+            };
+            const dispatchKeyup = ({ key, code }) => {
+                const event = new KeyboardEvent('keyup', {
+                    key,
+                    code,
+                    bubbles: true,
+                    cancelable: true,
+                });
+                view.contentDOM.dispatchEvent(event);
+                return event;
+            };
+            const dispatchText = ({ type, inputType, data, cancelable }) => {
+                const event = new InputEvent(type, {
+                    inputType,
+                    data,
+                    bubbles: true,
+                    cancelable,
+                });
                 view.contentDOM.dispatchEvent(event);
                 return event;
             };
@@ -179,16 +204,57 @@ describe('Editor Module - CodeMirror Initialization', () => {
             Vim.handleKey(getCM(view), 'i', 'user');
             dispatchKey({ key: 'Dead', code: 'BracketLeft' });
             const spacingGrave = dispatchKey({ key: ' ', code: 'Space' });
-            const delayedText = new InputEvent('beforeinput', {
-                inputType: 'insertText',
+            const nativeComposition = dispatchText({
+                type: 'beforeinput',
+                inputType: 'insertCompositionText',
                 data: '`',
-                bubbles: true,
                 cancelable: true,
             });
-            view.contentDOM.dispatchEvent(delayedText);
+            if (!nativeComposition.defaultPrevented) insertTextAtCursor(view, '`');
+            dispatchText({
+                type: 'input',
+                inputType: 'insertCompositionText',
+                data: '`',
+                cancelable: false,
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const duplicateLegacyText = dispatchText({
+                type: 'beforeinput',
+                inputType: 'insertText',
+                data: '`',
+                cancelable: true,
+            });
 
             expect(spacingGrave.defaultPrevented).toBe(true);
-            expect(delayedText.defaultPrevented).toBe(true);
+            expect(nativeComposition.defaultPrevented).toBe(false);
+            expect(duplicateLegacyText.defaultPrevented).toBe(true);
+            expect(view.state.doc.toString()).toBe('`');
+
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: '' },
+                selection: { anchor: 0 },
+            });
+            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
+            dispatchKey({ key: ' ', code: 'Space' });
+            dispatchKeyup({ key: ' ', code: 'Space' });
+            expect(view.state.doc.toString()).toBe('`');
+
+            const nonCancelableComposition = dispatchText({
+                type: 'beforeinput',
+                inputType: 'insertCompositionText',
+                data: '`',
+                cancelable: false,
+            });
+            if (!nonCancelableComposition.defaultPrevented) insertTextAtCursor(view, '`');
+            dispatchText({
+                type: 'input',
+                inputType: 'insertCompositionText',
+                data: '`',
+                cancelable: false,
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            expect(nonCancelableComposition.defaultPrevented).toBe(false);
             expect(view.state.doc.toString()).toBe('`');
             await toggleVim(false);
         } finally {

@@ -6,6 +6,14 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.12.1 - 2026-08-08
+
+### Fixed
+
+- Windows Vim Insert mode now accepts WebView2's native Spanish-layout
+  backtick composition, falls back when no text arrives, and repairs delayed
+  composition duplicates so each resolved key inserts exactly one backtick.
+
 ## 1.12.0 - 2026-08-07
 
 ### Added

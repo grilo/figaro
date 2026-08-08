@@ -511,13 +511,19 @@ and real-browser event regressions: a dead key must leave source unchanged,
 then compose `ñ`, `ü`, `á`, `à`, and `â` with their matching letters, or emit
 its spacing accent with Space. Backspace and Escape must cancel it without
 deleting adjacent text, so the following `n` remains plain. In Vim Insert mode,
-resolve the grave dead key with Space and then deliver WebView2's delayed
-matching `beforeinput`; the event must be consumed and the document must contain
-exactly one backtick. Exercise the same sequence manually in a packaged
-Windows/WebView2 build before release.
+resolve the grave dead key with Space and cover both WebView2 paths. First,
+deliver `beforeinput`/`input` with `insertCompositionText` and prove the native
+insertion is accepted exactly once; a later legacy `insertText` event must be
+consumed. Then let key release trigger Figaro's fallback and deliver a delayed,
+non-cancelable `insertCompositionText`; the second copy must be repaired back to
+one backtick. Keep Arrow Up/Down working across the resulting line. Exercise the
+same immediate, missing, and delayed composition sequences manually in a
+packaged Windows/WebView2 build before release.
 
 ```bash
-npm run test:unit -- --runTestsByPath tests/frontend/unit/editor.test.js
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/windowsDeadKeyModel.test.js \
+  tests/frontend/unit/editor.test.js
 npx playwright test tests/e2e/windowsAltGr.spec.js
 ```
 

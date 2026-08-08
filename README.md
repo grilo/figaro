@@ -135,7 +135,9 @@ with rendered Markdown, and vertical motions stop at the exact first and last
 document positions instead of wrapping on a backwards native geometry result.
 Vim `p`/`P` use the operating-system clipboard while retaining the unnamed
 register as a fallback, and ordinary yanks and deletes are available to other
-desktop applications.
+desktop applications. On Windows Spanish layouts, a grave dead key followed by
+Space produces one backtick in Vim Insert mode whether WebView2 reports native
+composition immediately, late, or not at all.
 
 Quick notes create collision-safe timestamped files in `Inbox`. The Today
 action creates the dated note in the same folder and continues to open legacy

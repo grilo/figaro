@@ -86,6 +86,7 @@ import {
     verticalBoundaryTarget,
     verticalViewportBoundaryTarget,
 } from './core/verticalCursorModel.js';
+import { planWindowsDeadKeyTextReconciliation } from './core/windowsDeadKeyModel.js';
 import {
     planVimClipboardPaste,
     vimPasteKeys,
@@ -957,6 +958,9 @@ function vimSourceBoundaryExtension() {
 const isWindowsPlatform = () => typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '');
 const pendingWindowsSpanishDeadKeys = new WeakMap();
 const pendingWindowsSpanishDeadKeyText = new WeakMap();
+const pendingWindowsSpanishNativeBackticks = new WeakMap();
+const windowsSpanishNativeBacktickFallbackDelay = 180;
+const windowsSpanishNativeBacktickGuardDelay = 250;
 const windowsSpanishDeadKeyDefinitions = [
     {
         matches: event => hasAltGraphModifier(event) && isDigit4Key(event),
@@ -1023,8 +1027,124 @@ export function insertTextAtCursor(view, text) {
 }
 
 function windowsSpanishTextFromEvent(event) {
-    if (event?.type === 'textInput' || event?.type === 'textinput') return event.data;
-    return event?.inputType === 'insertText' ? event.data : null;
+    if (String(event?.type || '').toLowerCase() === 'textinput') return event.data;
+    return event?.inputType === 'insertText' || event?.inputType === 'insertCompositionText'
+        ? event.data
+        : null;
+}
+
+function clearWindowsSpanishNativeBacktickTimers(pending) {
+    clearTimeout(pending?.fallbackTimer);
+    clearTimeout(pending?.settleTimer);
+    clearTimeout(pending?.cleanupTimer);
+}
+
+function clearWindowsSpanishNativeBacktick(view, pending) {
+    if (pendingWindowsSpanishNativeBackticks.get(view) !== pending) return;
+    clearWindowsSpanishNativeBacktickTimers(pending);
+    pendingWindowsSpanishNativeBackticks.delete(view);
+}
+
+function retainWindowsSpanishNativeBacktickGuard(view, pending) {
+    clearTimeout(pending.fallbackTimer);
+    clearTimeout(pending.settleTimer);
+    clearTimeout(pending.cleanupTimer);
+    pending.committed = true;
+    pending.cleanupTimer = setTimeout(() => {
+        clearWindowsSpanishNativeBacktick(view, pending);
+    }, windowsSpanishNativeBacktickGuardDelay);
+}
+
+function reconcileWindowsSpanishNativeBacktick(view, pending) {
+    if (pendingWindowsSpanishNativeBackticks.get(view) !== pending || !view || view.isDestroyed) return 'stale';
+    const plan = planWindowsDeadKeyTextReconciliation({
+        sourceText: pending.sourceText,
+        currentText: view.state.doc.toString(),
+        from: pending.from,
+        to: pending.to,
+        text: pending.text,
+    });
+    if (pending.committed && plan.action === 'insert-fallback') {
+        clearWindowsSpanishNativeBacktick(view, pending);
+        return 'preserve';
+    }
+    if (plan.changes) {
+        view.dispatch({
+            changes: plan.changes,
+            selection: { anchor: plan.anchor },
+            userEvent: 'input.type',
+        });
+    }
+    if (plan.action === 'preserve') {
+        clearWindowsSpanishNativeBacktick(view, pending);
+    } else {
+        retainWindowsSpanishNativeBacktickGuard(view, pending);
+    }
+    return plan.action;
+}
+
+function scheduleWindowsSpanishNativeBacktickSettlement(view, pending) {
+    clearTimeout(pending.settleTimer);
+    pending.settleTimer = setTimeout(() => {
+        reconcileWindowsSpanishNativeBacktick(view, pending);
+    }, 0);
+}
+
+function queueWindowsSpanishNativeBacktick(view, text) {
+    const previous = pendingWindowsSpanishNativeBackticks.get(view);
+    if (previous) reconcileWindowsSpanishNativeBacktick(view, previous);
+
+    const selection = view.state.selection.main;
+    const pending = {
+        sourceText: view.state.doc.toString(),
+        from: selection.from,
+        to: selection.to,
+        text,
+        committed: false,
+        fallbackTimer: null,
+        settleTimer: null,
+        cleanupTimer: null,
+    };
+    pendingWindowsSpanishNativeBackticks.set(view, pending);
+    pending.fallbackTimer = setTimeout(() => {
+        reconcileWindowsSpanishNativeBacktick(view, pending);
+    }, windowsSpanishNativeBacktickFallbackDelay);
+}
+
+function handleWindowsSpanishNativeBacktickText(event, view) {
+    const pending = pendingWindowsSpanishNativeBackticks.get(view);
+    if (!pending) return false;
+    const text = windowsSpanishTextFromEvent(event);
+    if (text !== pending.text) return false;
+
+    const plan = planWindowsDeadKeyTextReconciliation({
+        sourceText: pending.sourceText,
+        currentText: view.state.doc.toString(),
+        from: pending.from,
+        to: pending.to,
+        text: pending.text,
+    });
+    const eventType = String(event.type || '').toLowerCase();
+    const beforeNativeMutation = eventType === 'beforeinput' || eventType === 'textinput';
+    if ((pending.committed || plan.action === 'accept-native') && beforeNativeMutation && event.cancelable) {
+        retainWindowsSpanishNativeBacktickGuard(view, pending);
+        event.preventDefault();
+        event.stopImmediatePropagation?.();
+        event.stopPropagation?.();
+        return true;
+    }
+    if (plan.action === 'remove-duplicate') {
+        reconcileWindowsSpanishNativeBacktick(view, pending);
+        if (beforeNativeMutation && event.cancelable) {
+            event.preventDefault();
+            event.stopImmediatePropagation?.();
+            event.stopPropagation?.();
+            return true;
+        }
+    } else {
+        scheduleWindowsSpanishNativeBacktickSettlement(view, pending);
+    }
+    return false;
 }
 
 function queueWindowsSpanishDeadKeyText(view, text) {
@@ -1040,6 +1160,7 @@ function queueWindowsSpanishDeadKeyText(view, text) {
 /** Suppress WebView2's delayed native text after the compatibility path inserted it. */
 function handleWindowsSpanishDeadKeyText(event, view) {
     if (!isWindowsPlatform() || !event || !view) return false;
+    if (handleWindowsSpanishNativeBacktickText(event, view)) return true;
     const pending = pendingWindowsSpanishDeadKeyText.get(view);
     if (!pending) return false;
 
@@ -1054,13 +1175,23 @@ function handleWindowsSpanishDeadKeyText(event, view) {
     return true;
 }
 
+function handleWindowsSpanishDeadKeyKeyup(event, view) {
+    if (!isWindowsPlatform() || !event || !view) return false;
+    const pending = pendingWindowsSpanishNativeBackticks.get(view);
+    if (!pending || (event.key !== ' ' && event.code !== 'Space')) return false;
+    reconcileWindowsSpanishNativeBacktick(view, pending);
+    return false;
+}
+
 function handleWindowsSpanishDeadKey(event, view) {
     if (!isWindowsPlatform() || !event || !view) return false;
 
-    // Any later physical key proves that WebView2 did not deliver the queued
-    // text event. Do not let a stale guard swallow an intentionally repeated
-    // character.
+    // Settle a missing native backtick before the next physical key edits the
+    // document, and do not let the older accent guard swallow an intentionally
+    // repeated character.
     pendingWindowsSpanishDeadKeyText.delete(view);
+    const pendingNativeBacktick = pendingWindowsSpanishNativeBackticks.get(view);
+    if (pendingNativeBacktick) reconcileWindowsSpanishNativeBacktick(view, pendingNativeBacktick);
 
     // WebView2 can expose Spanish dead keys without delivering a usable
     // composition event. Preserve just the layout's known dead-key events so
@@ -1086,6 +1217,11 @@ function handleWindowsSpanishDeadKey(event, view) {
     }
 
     const text = resolveWindowsSpanishDeadKey(pendingDeadKey, event.key);
+    if (text === '`') {
+        queueWindowsSpanishNativeBacktick(view, text);
+        event.preventDefault();
+        return true;
+    }
     if (text && insertTextAtCursor(view, text)) {
         queueWindowsSpanishDeadKeyText(view, text);
         event.preventDefault();
@@ -2612,7 +2748,9 @@ function createEditorView() {
         // CodeMirror's ordinary keymap can edit the document.
         Prec.highest(EditorView.domEventHandlers({
             keydown: handleWindowsSpanishDeadKey,
+            keyup: handleWindowsSpanishDeadKeyKeyup,
             beforeinput: handleWindowsSpanishDeadKeyText,
+            input: handleWindowsSpanishNativeBacktickText,
             textInput: handleWindowsSpanishDeadKeyText,
             textinput: handleWindowsSpanishDeadKeyText,
         })),

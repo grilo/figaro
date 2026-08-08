@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('preserves Windows Spanish dead keys for ñ, ü, accents, spacing, and cancellation', async ({ page }) => {
+test('keeps one Vim backtick across Windows composition timing while preserving Spanish dead keys', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     // Let the application's deferred initial document mount finish before the
@@ -33,25 +33,94 @@ test('preserves Windows Spanish dead keys for ñ, ü, accents, spacing, and canc
                 view.contentDOM.dispatchEvent(event);
                 return event;
             };
+            const dispatchKeyup = ({ key, code }) => {
+                const event = new KeyboardEvent('keyup', {
+                    key,
+                    code,
+                    bubbles: true,
+                    cancelable: true,
+                });
+                view.contentDOM.dispatchEvent(event);
+                return event;
+            };
+            const dispatchText = ({ type, inputType, data, cancelable }) => {
+                const event = new InputEvent(type, {
+                    inputType,
+                    data,
+                    bubbles: true,
+                    cancelable,
+                });
+                view.contentDOM.dispatchEvent(event);
+                return event;
+            };
+            const replaceDocument = (content, anchor = 0) => {
+                view.dispatch({
+                    changes: { from: 0, to: view.state.doc.length, insert: content },
+                    selection: { anchor },
+                });
+            };
             const deadKey = () => dispatchKey({ key: 'Dead', code: 'Digit4', altGraph: true });
 
-            editor.setEditorContent('');
+            replaceDocument('');
             await editor.toggleVim(true);
             Vim.handleKey(getCM(view), 'i', 'user');
             dispatchKey({ key: 'Dead', code: 'BracketLeft' });
             const spacingGrave = dispatchKey({ key: ' ', code: 'Space' });
-            const delayedGrave = new InputEvent('beforeinput', {
-                inputType: 'insertText',
+            const nativeComposition = dispatchText({
+                type: 'beforeinput',
+                inputType: 'insertCompositionText',
                 data: '`',
-                bubbles: true,
                 cancelable: true,
             });
-            view.contentDOM.dispatchEvent(delayedGrave);
-            if (!delayedGrave.defaultPrevented) editor.insertTextAtCursor(view, '`');
+            if (!nativeComposition.defaultPrevented) editor.insertTextAtCursor(view, '`');
+            dispatchText({
+                type: 'input',
+                inputType: 'insertCompositionText',
+                data: '`',
+                cancelable: false,
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const delayedLegacyText = dispatchText({
+                type: 'beforeinput',
+                inputType: 'insertText',
+                data: '`',
+                cancelable: true,
+            });
+            if (!delayedLegacyText.defaultPrevented) editor.insertTextAtCursor(view, '`');
             const vimBacktickResult = view.state.doc.toString();
+
+            replaceDocument('');
+            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
+            dispatchKey({ key: ' ', code: 'Space' });
+            dispatchKeyup({ key: ' ', code: 'Space' });
+            const fallbackBacktickResult = view.state.doc.toString();
+            const nonCancelableComposition = dispatchText({
+                type: 'beforeinput',
+                inputType: 'insertCompositionText',
+                data: '`',
+                cancelable: false,
+            });
+            if (!nonCancelableComposition.defaultPrevented) editor.insertTextAtCursor(view, '`');
+            dispatchText({
+                type: 'input',
+                inputType: 'insertCompositionText',
+                data: '`',
+                cancelable: false,
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const repairedBacktickResult = view.state.doc.toString();
+
+            replaceDocument('top\n`\nbottom', 5);
+            view.focus();
+            dispatchKey({ key: 'ArrowDown', code: 'ArrowDown' });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const arrowDownLine = view.state.doc.lineAt(view.state.selection.main.head).number;
+            dispatchKey({ key: 'ArrowUp', code: 'ArrowUp' });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const arrowUpLine = view.state.doc.lineAt(view.state.selection.main.head).number;
             await editor.toggleVim(false);
 
-            editor.setEditorContent('');
+            replaceDocument('');
             await new Promise(resolve => setTimeout(resolve, 80));
             const composeEnye = deadKey();
             const enye = dispatchKey({ key: 'n', code: 'KeyN' });
@@ -84,8 +153,14 @@ test('preserves Windows Spanish dead keys for ñ, ü, accents, spacing, and canc
 
             return {
                 vimBacktickResult,
+                fallbackBacktickResult,
+                repairedBacktickResult,
+                arrowDownLine,
+                arrowUpLine,
                 spacingGravePrevented: spacingGrave.defaultPrevented,
-                delayedGravePrevented: delayedGrave.defaultPrevented,
+                nativeCompositionPrevented: nativeComposition.defaultPrevented,
+                delayedLegacyTextPrevented: delayedLegacyText.defaultPrevented,
+                nonCancelableCompositionPrevented: nonCancelableComposition.defaultPrevented,
                 composeEnyePrevented: composeEnye.defaultPrevented,
                 enyePrevented: enye.defaultPrevented,
                 enyeResult,
@@ -118,8 +193,14 @@ test('preserves Windows Spanish dead keys for ñ, ü, accents, spacing, and canc
 
     expect(result).toEqual({
         vimBacktickResult: '`',
+        fallbackBacktickResult: '`',
+        repairedBacktickResult: '`',
+        arrowDownLine: 3,
+        arrowUpLine: 2,
         spacingGravePrevented: true,
-        delayedGravePrevented: true,
+        nativeCompositionPrevented: false,
+        delayedLegacyTextPrevented: true,
+        nonCancelableCompositionPrevented: false,
         composeEnyePrevented: true,
         enyePrevented: true,
         enyeResult: 'ñ',
