@@ -110,6 +110,44 @@ test('keeps one Vim backtick across Windows composition timing while preserving 
             await new Promise(resolve => setTimeout(resolve, 0));
             const repairedBacktickResult = view.state.doc.toString();
 
+            replaceDocument('');
+            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
+            dispatchKey({ key: ' ', code: 'Space' });
+            dispatchKeyup({ key: ' ', code: 'Space' });
+            const line = view.contentDOM.querySelector('.cm-line');
+            const textNode = line?.firstChild;
+            if (!(textNode instanceof Text)) throw new Error('Expected the backtick text node');
+            textNode.nodeValue += '`';
+            window.getSelection()?.collapse(textNode, textNode.nodeValue.length);
+            dispatchText({
+                type: 'input',
+                inputType: 'insertCompositionText',
+                data: null,
+                cancelable: false,
+            });
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            const nativeDomMutationResult = view.state.doc.toString();
+
+            replaceDocument('');
+            for (let index = 0; index < 3; index += 1) {
+                dispatchKey({ key: 'Dead', code: 'BracketLeft' });
+                dispatchKey({ key: ' ', code: 'Space' });
+                dispatchKeyup({ key: ' ', code: 'Space' });
+                const codeFenceLine = view.contentDOM.querySelector('.cm-line');
+                const codeFenceText = codeFenceLine?.firstChild;
+                if (!(codeFenceText instanceof Text)) throw new Error('Expected code-fence text');
+                codeFenceText.nodeValue += '`';
+                window.getSelection()?.collapse(codeFenceText, codeFenceText.nodeValue.length);
+                dispatchText({
+                    type: 'input',
+                    inputType: 'insertCompositionText',
+                    data: null,
+                    cancelable: false,
+                });
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            }
+            const nativeCodeFenceResult = view.state.doc.toString();
+
             replaceDocument('top\n`\nbottom', 5);
             view.focus();
             dispatchKey({ key: 'ArrowDown', code: 'ArrowDown' });
@@ -155,6 +193,8 @@ test('keeps one Vim backtick across Windows composition timing while preserving 
                 vimBacktickResult,
                 fallbackBacktickResult,
                 repairedBacktickResult,
+                nativeDomMutationResult,
+                nativeCodeFenceResult,
                 arrowDownLine,
                 arrowUpLine,
                 spacingGravePrevented: spacingGrave.defaultPrevented,
@@ -195,6 +235,8 @@ test('keeps one Vim backtick across Windows composition timing while preserving 
         vimBacktickResult: '`',
         fallbackBacktickResult: '`',
         repairedBacktickResult: '`',
+        nativeDomMutationResult: '`',
+        nativeCodeFenceResult: '```',
         arrowDownLine: 3,
         arrowUpLine: 2,
         spacingGravePrevented: true,

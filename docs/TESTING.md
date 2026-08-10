@@ -286,6 +286,11 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   computed pseudo-element fade opacity that cannot be represented by jsdom.
 - Browser rendering of cover pages, table of contents, Mermaid, Vega, and
   Vega-Lite in the PDF export pipeline.
+- Dependency security coverage for patched root lockfile entries and embedded
+  packages that `npm audit` cannot see. Mermaid's actual browser bundle remains
+  behind a pure pre-parse size and ordered-map policy until its embedded YAML
+  parser reaches a fixed release; the representative PDF browser scenario
+  proves rejected source remains printable.
 - The native Figaro Dark and Light theme assets, including their warm reading
   surfaces, framed navigation, contiguous active tab, selected tree state, tactile
   Settings card, collar stitch, focus token, and text/link contrast.
@@ -323,8 +328,9 @@ commit, each automatic version bump resolves from the latest tag, and an
 interrupted release can resume its matching tag and push. They also prove an
 empty `Unreleased` section leaves the worktree untouched and gives the user the
 next steps instead of only reporting the failure. The dependency-security test
-keeps every `brace-expansion` copy above the denial-of-service advisory range
-and guards the ESLint major that provides that patched dependency graph. The
+keeps every `brace-expansion` and `js-yaml` copy above its denial-of-service
+advisory range and guards the ESLint major that provides that patched
+dependency graph. The
 Node-prerequisite test exercises every accepted and rejected release-line
 boundary and keeps package metadata aligned with the build checks. The release
 script downloads Playwright's pinned browser without using its `--with-deps`
@@ -516,9 +522,13 @@ deliver `beforeinput`/`input` with `insertCompositionText` and prove the native
 insertion is accepted exactly once; a later legacy `insertText` event must be
 consumed. Then let key release trigger Figaro's fallback and deliver a delayed,
 non-cancelable `insertCompositionText`; the second copy must be repaired back to
-one backtick. Keep Arrow Up/Down working across the resulting line. Exercise the
-same immediate, missing, and delayed composition sequences manually in a
-packaged Windows/WebView2 build before release.
+one backtick. The real-browser case must also mutate the contenteditable text
+node and dispatch an input event with `data: null`, proving CodeMirror discards
+the resulting duplicate at its DOM-change boundary. Repeat that physical-key
+and native-mutation sequence three times and require exactly one Markdown code
+fence. Keep Arrow Up/Down working across the resulting line. Exercise the same
+immediate, missing, and delayed composition sequences manually in a packaged
+Windows/WebView2 build before release.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
@@ -921,3 +931,28 @@ make vendor
 
 Run the full frontend and browser suites after regeneration. Do not commit the
 generated output.
+
+## Dependency and vendored-browser security
+
+Run both npm views of the dependency graph, because the full audit includes
+build/test tooling while the production-only audit answers a different
+question. Neither command inventories packages embedded inside checked-in
+browser bundles:
+
+```bash
+npm audit
+npm audit --omit=dev
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/diagramSecurityModel.test.js \
+  tests/frontend/unit/diagramRenderer.test.js \
+  tests/frontend/unit/vendoredBrowserSecurity.test.js
+npx playwright test tests/e2e/pdfExport.spec.js
+```
+
+The vendored security contract reads Mermaid's embedded `js-yaml` version,
+while the dependency-security contract checks every resolved npm copy of
+`brace-expansion` and test-only `js-yaml`,
+and proves that every production `window.mermaid.render` call passes through
+the shared guard. If Mermaid updates its embedded parser to `js-yaml` 4.3.1 or
+newer, keep the guard as defense in depth and update the inventory expectation
+only after the actual bundle changes.

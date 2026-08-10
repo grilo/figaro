@@ -153,6 +153,11 @@ its semantic HTML, so standard selectors such as `p`, `table`, `blockquote`,
 | Math | `.katex-block`, `.katex-display`, `.katex` |
 | Footnotes | `.footnote-ref`, `.footnotes-sep`, `.footnotes`, `.footnote-backref` |
 
+Mermaid source that exceeds 50,000 characters or uses a YAML ordered-map tag
+is preserved as its original printable code fence. It does not produce a
+`figure.figaro-print-diagram`, and custom print CSS may style it like any other
+fenced code block.
+
 The generated order is cover, table of contents, then
 `main.figaro-print-document`. Scope document-heading rules to that `main`
 element so the cover title and contents title can have independent designs:

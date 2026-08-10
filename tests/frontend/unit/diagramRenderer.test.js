@@ -3,7 +3,7 @@ describe('diagram renderer startup', () => {
         jest.resetModules();
         window.mermaid = {
             initialize: jest.fn(),
-            render: jest.fn(),
+            render: jest.fn().mockResolvedValue({ svg: '<svg></svg>' }),
         };
         window.vegaEmbed = jest.fn();
     });
@@ -23,5 +23,23 @@ describe('diagram renderer startup', () => {
             startOnLoad: false,
             securityLevel: 'loose',
         }));
+    });
+
+    test('rejects unsafe Mermaid frontmatter before calling the vendored parser', async () => {
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        const source = [
+            '---',
+            'config: !!omap',
+            '- dangerous: value',
+            '---',
+            'flowchart TD',
+            '  A --> B',
+        ].join('\n');
+
+        await expect(renderDiagramSVG('mermaid', source)).rejects.toMatchObject({
+            code: 'unsafe-yaml-ordered-map',
+        });
+        expect(window.mermaid.initialize).not.toHaveBeenCalled();
+        expect(window.mermaid.render).not.toHaveBeenCalled();
     });
 });

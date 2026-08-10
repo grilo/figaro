@@ -493,6 +493,15 @@ edge and pins the scroller to that boundary before WebKitGTK can reinterpret
 the overscroll. These guards are unconditional and do not create a wraparound
 preference.
 
+Windows spacing-grave input follows a similar split. The pure
+`windowsDeadKeyModel` compares the keydown snapshot, current editor state, and
+CodeMirror's concrete DOM-change range. The editor adapter owns event/timer
+effects and lets CodeMirror apply the first native insertion, but claims a
+second matching DOM mutation without dispatching it. CodeMirror then restores
+the contenteditable DOM from its already-correct state. Duplicate suppression
+therefore does not depend on optional WebView2 `InputEvent.data` payloads or on
+guessing when its composition event will arrive.
+
 The CodeMirror adapter recognizes one deliberate exception to the generic
 multi-source-line fallback: a collapsed range is one visual row. It preserves
 a valid forward jump over exactly that fold and, before dispatching an upward
@@ -757,6 +766,11 @@ The pure Markdown-It parsing phase runs in a module worker when the webview
 supports it; callout/TOC decoration and DOM-dependent Mermaid/Vega conversion
 remain on the document side. A worker failure or unsupported WebKit build falls
 back to the established in-thread renderer, preserving preview correctness.
+The shared diagram renderer consults a pure Mermaid source policy before the
+vendored parser is initialized: it applies the parser's 50,000-character limit
+before YAML frontmatter work and rejects YAML ordered-map tags. Live preview,
+PDF preview, and export therefore share one effect-free security decision and
+the existing failed-source recovery behavior.
 
 | Direction | Messages | Purpose |
 | --- | --- | --- |

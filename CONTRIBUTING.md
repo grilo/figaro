@@ -259,6 +259,12 @@ versions of the US English, UK English, and Spanish Hunspell `.aff`/`.dic`
 assets with their individual license files. Do not replace those language
 assets or remove their notices without auditing the upstream dictionary terms.
 
+Some browser libraries, including Mermaid, are checked in separately from the
+root npm dependency graph and may embed their own packages. After changing a
+vendored bundle, run `tests/frontend/unit/vendoredBrowserSecurity.test.js` as
+well as `npm audit`; the former inventories known embedded versions and proves
+that vulnerable Mermaid YAML releases remain behind Figaro's pre-parse guard.
+
 ## Repository layout
 
 ```text

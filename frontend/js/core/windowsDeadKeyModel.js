@@ -42,3 +42,54 @@ export function planWindowsDeadKeyTextReconciliation({
     }
     return { action: 'preserve', changes: null, anchor: null };
 }
+
+/**
+ * Decide whether a CodeMirror DOM change belongs to the pending Windows
+ * spacing-grave input. This operates after the webview has mutated the
+ * contenteditable DOM, so it does not depend on InputEvent.data being present.
+ */
+export function planWindowsDeadKeyDOMChange({
+    sourceText = '',
+    currentText = '',
+    from = 0,
+    to = from,
+    text = '',
+    changeFrom = 0,
+    changeTo = changeFrom,
+    insertedText = '',
+} = {}) {
+    const pendingText = String(text);
+    if (!pendingText) return { action: 'ignore' };
+
+    const reconciliation = planWindowsDeadKeyTextReconciliation({
+        sourceText,
+        currentText,
+        from,
+        to,
+        text: pendingText,
+    });
+    const start = Math.max(0, Math.floor(Number(from) || 0));
+    const domFrom = Math.max(0, Math.floor(Number(changeFrom) || 0));
+    const domTo = Math.max(domFrom, Math.floor(Number(changeTo) || domFrom));
+    const inserted = String(insertedText);
+
+    if (reconciliation.action === 'insert-fallback'
+        && domFrom === start
+        && domTo === Math.max(start, Math.floor(Number(to) || start))
+        && inserted === pendingText) {
+        return { action: 'accept-native' };
+    }
+
+    if (reconciliation.action === 'accept-native') {
+        const after = start + pendingText.length;
+        const insertedDuplicate = domFrom >= start && domFrom <= after
+            && domTo === domFrom && inserted === pendingText;
+        const replacedWithDuplicate = domFrom === start && domTo === after
+            && inserted === pendingText.repeat(2);
+        if (insertedDuplicate || replacedWithDuplicate) {
+            return { action: 'discard-native-duplicate' };
+        }
+    }
+
+    return { action: 'ignore' };
+}

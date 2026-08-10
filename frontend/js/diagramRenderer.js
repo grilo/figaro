@@ -6,6 +6,8 @@
  * isolation.
  */
 
+import { planMermaidSourceRender } from './core/diagramSecurityModel.js';
+
 export const diagramLanguages = ['mermaid', 'vega', 'vega-lite'];
 
 let initializedMermaid = null;
@@ -48,6 +50,14 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
     const code = String(source || '');
 
     if (normalizedLanguage === 'mermaid') {
+        const plan = planMermaidSourceRender(code);
+        if (plan.action !== 'render') {
+            const error = new Error(plan.reason === 'source-too-large'
+                ? `Mermaid source exceeds the ${plan.maxLength}-character safe rendering limit`
+                : 'Mermaid YAML ordered maps are not rendered');
+            error.code = plan.reason;
+            throw error;
+        }
         if (!initialiseMermaid()) return null;
         renderSequence += 1;
         const id = String(idPrefix || 'figaro-diagram') + '-mermaid-' + renderSequence;

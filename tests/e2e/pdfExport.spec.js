@@ -25,6 +25,8 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
         '',
         fence('mermaid', 'flowchart TD\n  Start --> Finish'),
         '',
+        fence('mermaid', '---\nconfig: !!omap\n- dangerous: value\n---\nflowchart TD\n  Hidden --> Parser'),
+        '',
         '## Charts',
         '',
         fence('vega', '{"$schema":"https://vega.github.io/schema/vega/v5.json","width":80,"height":40,"data":[{"name":"table","values":[{"x":10,"y":20}]}],"marks":[{"type":"rect","from":{"data":"table"},"encode":{"enter":{"x":{"field":"x"},"y":{"field":"y"},"width":{"value":20},"height":{"value":10},"fill":{"value":"steelblue"}}}}]}'),
@@ -45,6 +47,7 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
             diagramLanguages: Array.from(printable.querySelectorAll('.figaro-print-diagram')).map(element => element.dataset.diagramLanguage),
             renderedSVGs: printable.querySelectorAll('.figaro-print-diagram svg').length,
             remainingDiagramFences: printable.querySelectorAll('pre > code.language-mermaid, pre > code.language-vega, pre > code.language-vega-lite').length,
+            unsafeMermaidSource: printable.querySelector('pre > code.language-mermaid')?.textContent,
         };
     }, source);
 
@@ -56,7 +59,8 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
     expect(result.tocHrefs).toEqual(['#introduction', '#charts']);
     expect(result.diagramLanguages).toEqual(['mermaid', 'vega', 'vega-lite']);
     expect(result.renderedSVGs).toBe(3);
-    expect(result.remainingDiagramFences).toBe(0);
+    expect(result.remainingDiagramFences).toBe(1);
+    expect(result.unsafeMermaidSource).toContain('!!omap');
 });
 
 test('renders the selected vendored Markdown-It extensions with stable TOC targets', async ({ page }) => {

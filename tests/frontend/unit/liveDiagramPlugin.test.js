@@ -99,6 +99,45 @@ describe('live diagram preview', () => {
         expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
     });
 
+    test('shows a recoverable error without sending unsafe YAML frontmatter to Mermaid', async () => {
+        const fence = '`'.repeat(3);
+        const source = [
+            '# Preview',
+            '',
+            fence + 'mermaid',
+            '---',
+            'config: !!omap',
+            '- dangerous: value',
+            '---',
+            'flowchart TD',
+            '  A --> B',
+            fence,
+        ].join('\n');
+        const diagramField = createDiagramField(
+            StateField,
+            EditorView,
+            Decoration,
+            WidgetType,
+            shouldShowSource,
+            mouseSelectingField,
+        );
+        view = new EditorView({
+            state: EditorState.create({
+                doc: source,
+                extensions: [collapseOnSelectionFacet.of(true), mouseSelectingField, diagramField],
+            }),
+            parent: document.body,
+        });
+
+        const diagramDOM = decorationsIn(view.state, diagramField)[0].decoration.widget.toDOM();
+        document.body.appendChild(diagramDOM);
+        await flush();
+
+        expect(diagramDOM.querySelector('.cm-live-diagram-error')?.textContent)
+            .toBe('Unable to render mermaid diagram');
+        expect(window.mermaid.render).not.toHaveBeenCalled();
+    });
+
     test('recovers a shorter diagram closer without swallowing later diagrams', () => {
         const fence = '`'.repeat(3);
         const longerFence = '`'.repeat(6);

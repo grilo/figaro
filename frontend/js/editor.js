@@ -86,7 +86,10 @@ import {
     verticalBoundaryTarget,
     verticalViewportBoundaryTarget,
 } from './core/verticalCursorModel.js';
-import { planWindowsDeadKeyTextReconciliation } from './core/windowsDeadKeyModel.js';
+import {
+    planWindowsDeadKeyDOMChange,
+    planWindowsDeadKeyTextReconciliation,
+} from './core/windowsDeadKeyModel.js';
 import {
     planVimClipboardPaste,
     vimPasteKeys,
@@ -1143,6 +1146,35 @@ function handleWindowsSpanishNativeBacktickText(event, view) {
         }
     } else {
         scheduleWindowsSpanishNativeBacktickSettlement(view, pending);
+    }
+    return false;
+}
+
+function handleWindowsSpanishNativeBacktickDOMChange(view, from, to, text) {
+    if (!isWindowsPlatform() || !view) return false;
+    const pending = pendingWindowsSpanishNativeBackticks.get(view);
+    if (!pending) return false;
+
+    const plan = planWindowsDeadKeyDOMChange({
+        sourceText: pending.sourceText,
+        currentText: view.state.doc.toString(),
+        from: pending.from,
+        to: pending.to,
+        text: pending.text,
+        changeFrom: from,
+        changeTo: to,
+        insertedText: text,
+    });
+    if (plan.action === 'accept-native') {
+        // Let CodeMirror and Vim apply the first native DOM change normally.
+        retainWindowsSpanishNativeBacktickGuard(view, pending);
+        return false;
+    }
+    if (plan.action === 'discard-native-duplicate') {
+        // Claiming the DOM change without dispatching makes CodeMirror restore
+        // the contenteditable DOM from the already-correct editor state.
+        retainWindowsSpanishNativeBacktickGuard(view, pending);
+        return true;
     }
     return false;
 }
@@ -2754,6 +2786,7 @@ function createEditorView() {
             textInput: handleWindowsSpanishDeadKeyText,
             textinput: handleWindowsSpanishDeadKeyText,
         })),
+        Prec.highest(EditorView.inputHandler.of(handleWindowsSpanishNativeBacktickDOMChange)),
         Prec.high(keymap.of([
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
             { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },

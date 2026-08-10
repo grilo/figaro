@@ -101,6 +101,11 @@ Every decoration created with `block: true` must follow these rules:
    contract. It is defense in depth; correct widget geometry is the primary
    fix and also protects mouse placement, selection, and scrolling.
 
+The Mermaid block widget also uses the shared pre-parse security policy. Source
+over 50,000 characters or YAML frontmatter containing an ordered-map tag never
+reaches the vendored parser. The measured widget displays its normal error
+state, and moving the selection into the block reveals the unchanged source.
+
 The same guard enforces symmetric document boundaries independently of widget
 geometry. Arrow Down at the final position and Arrow Up at the first position
 are consumed without moving; a browser result that crosses in the opposite

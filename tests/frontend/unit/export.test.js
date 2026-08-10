@@ -554,6 +554,27 @@ describe('Interactive PDF export', () => {
         expect(printable.querySelector('pre > code.language-vega-lite').textContent).toContain('{not valid JSON}');
     });
 
+    test('keeps unsafe Mermaid YAML source printable without invoking the vendored parser', async () => {
+        setDiagramRenderers();
+        const unsafeMermaid = [
+            '---',
+            'config: !!omap',
+            '- dangerous: value',
+            '---',
+            'flowchart TD',
+            '  A --> B',
+        ].join('\n');
+
+        const printable = parseHTML(await renderPrintableMarkdownWithDiagrams(
+            fence('mermaid', unsafeMermaid),
+            'Unsafe diagram'
+        ));
+
+        expect(window.mermaid.render).not.toHaveBeenCalled();
+        expect(printable.querySelectorAll('.figaro-print-diagram')).toHaveLength(0);
+        expect(printable.querySelector('pre > code.language-mermaid').textContent).toContain('!!omap');
+    });
+
     test('hands the fully rendered document and frontmatter stylesheet to the interactive PDF backend', async () => {
         setDiagramRenderers();
         const content = [

@@ -137,7 +137,8 @@ Vim `p`/`P` use the operating-system clipboard while retaining the unnamed
 register as a fallback, and ordinary yanks and deletes are available to other
 desktop applications. On Windows Spanish layouts, a grave dead key followed by
 Space produces one backtick in Vim Insert mode whether WebView2 reports native
-composition immediately, late, or not at all.
+composition immediately, late, without event text, or not at all; repeating
+the physical input three times produces one triple-backtick fence.
 
 Quick notes create collision-safe timestamped files in `Inbox`. The Today
 action creates the dated note in the same folder and continues to open legacy
@@ -169,6 +170,9 @@ muted guidance below the grid.
 Mermaid, Vega, and Vega-Lite blocks render directly in notes and printable
 documents. Draw.io editing uses the hosted diagrams.net editor, but the
 resulting `.drawio.svg` file stays in the vault and remains readable offline.
+Mermaid source is checked before parsing; oversized diagrams and unsafe YAML
+ordered maps remain editable source instead of blocking the editor or PDF
+renderer.
 
 Markdown Preview shows a live themed document. PDF Preview adds pagination,
 cover pages, a depth-limited table of contents, footnotes, internal links, and

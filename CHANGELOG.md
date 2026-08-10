@@ -6,6 +6,17 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.12.2 - 2026-08-10
+
+### Fixed
+
+- Updated vulnerable build/test dependencies and now rejects oversized or
+  YAML ordered-map Mermaid input before the vendored parser runs, preventing
+  crafted diagrams from exhausting the editor or PDF renderer.
+- Windows Vim Insert mode now deduplicates delayed backtick composition at
+  CodeMirror's actual DOM-change boundary, including when WebView2 omits the
+  `InputEvent` text, so three physical inputs produce one Markdown code fence.
+
 ## 1.12.1 - 2026-08-08
 
 ### Fixed
