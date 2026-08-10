@@ -8,7 +8,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/wailsapp/wails/v2 v2.14.0
 	golang.org/x/sys v0.46.0
-	golang.org/x/text v0.39.0
+	golang.org/x/text v0.40.0
 )
 
 // Keep Windows AltGr/dead-key input inside WebView2 instead of reposting it to
