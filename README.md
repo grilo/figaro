@@ -31,13 +31,13 @@ There is no account, hosted database, or required cloud service.
   `.drawio.svg` diagrams remain normal files in a directory you control.
 - **Source-first Markdown editing.** The active line stays editable Markdown
   while surrounding content renders headings, tables, tasks, callouts,
-  footnotes, math, images, links, and fenced code. Quiet typed guides identify
-  Markdown blocks and collapse a block or nested heading section without
-  changing the saved source.
+  footnotes, math, images, links, and fenced code. Editor-sized gutter guides
+  fold headings, fenced code, and tables without changing the saved source;
+  typed fences use their language name.
 - **Fast navigation.** Use compact drag-reorderable document tabs, optional
-  path breadcrumbs, sticky heading hierarchies, full-vault search, backlinks,
-  unlinked mentions, a top-right document-outline launcher, recent notes, pins,
-  and file-tree customization.
+  path breadcrumbs, full-width sticky heading hierarchies, full-vault search,
+  backlinks, unlinked mentions, a top-right document-outline launcher, recent
+  notes, pins, and file-tree customization.
 - **Capture and planning.** Quick notes and daily notes live in a real `Inbox`;
   hashtags form a Kanban board, and portable due-date links feed the Today
   dashboard and calendar.

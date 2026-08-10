@@ -422,8 +422,11 @@ CodeMirror live-preview feature. It parses only the active Markdown document's
 headings, keeps their document offsets, and ignores frontmatter plus
 heading-shaped text in fenced code. A pure hierarchy reducer derives every
 active ancestor from those offsets. The DOM adapter renders that hierarchy in
-an editor-top overlay and renders the same typed headings in the right pane;
-both dispatch ordinary selection and scroll transactions when activated.
+an edge-to-edge, flat editor-top strip and renders the same typed headings in
+the right pane; both dispatch ordinary selection and scroll transactions when
+activated. CodeMirror's scroll margin matches the strip's measured height, so
+the full-width surface does not change source geometry or hide navigation
+targets beneath an obsolete floating-card inset.
 Document changes or a tab source swap rebuild the cached model, while selection
 and viewport updates reuse it. The small top-right launcher is hidden while the
 outline owns the right pane. History, Raw Text Preview, and PDF Preview release
@@ -461,14 +464,18 @@ This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
 Markdown block folding follows the same source-first boundary.
 `core/markdownBlockGuideModel.js` classifies deterministic syntax descriptors
-as `h1`–`h6`, `raw`, `list`, `task`, `mermaid`, `table`, and the other visible
-guide labels. `markdownBlockGuides.js` is the CodeMirror adapter: it reads
-Lezer's top-level blocks, maps a heading through its descendants until the next
-peer or ancestor, maps other guides to their own block, and dispatches standard
-fold effects. CodeMirror owns the folded decoration and announcements; saves,
-Raw Text Preview, and PDF rendering never observe fold state. The typed guide
-and source-code chevron are approved design-system primitives, while the gutter
-retains only CodeMirror layout and event ownership.
+as `h1`–`h6`, fenced-code language names with an untyped `code` fallback, or
+`table`; every other Markdown block is deliberately omitted. The pure model
+bounds and normalizes the first fence-info token before it becomes a label.
+`markdownBlockGuides.js` is the CodeMirror adapter: it reads Lezer's top-level
+blocks, maps a heading through its descendants until the next peer or ancestor,
+maps fenced code and tables to their own block, and dispatches standard fold
+effects. CodeMirror owns the folded decoration and announcements; saves, Raw
+Text Preview, and PDF rendering never observe fold state. The editor-sized
+typed guide and source-code chevron are approved design-system primitives,
+while the gutter retains only CodeMirror layout and event ownership. Ordinary
+line markers cover revealed source, and CodeMirror's widget-marker hook keeps
+fence and table guides aligned with their live-rendered block replacements.
 The Properties field uses the same source-first transition: its disclosure
 generates missing default frontmatter directly into structured-panel mode,
 while a later selection entering that replaced range reveals raw YAML and a

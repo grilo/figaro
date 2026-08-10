@@ -139,8 +139,8 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     });
 
     const blockGuide = page.locator('.ui-editor-block-guide[aria-expanded="false"]').first();
-    await expect(blockGuide).toHaveText('mermaid');
-    await expect(blockGuide).toHaveAttribute('aria-label', 'Expand mermaid block');
+    await expect(blockGuide).toHaveText('yaml');
+    await expect(blockGuide).toHaveAttribute('aria-label', 'Expand yaml code block');
     expect(await blockGuide.evaluate(control => getComputedStyle(control).cursor)).toBe('pointer');
 
     const search = page.getByLabel('Find a component');

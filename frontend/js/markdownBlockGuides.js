@@ -2,6 +2,7 @@ import { RangeSet, RangeSetBuilder } from '@codemirror/state';
 import { GutterMarker, ViewPlugin, gutter, keymap } from '@codemirror/view';
 import {
     codeFolding,
+    ensureSyntaxTree,
     foldEffect,
     foldedRanges,
     foldKeymap,
@@ -11,6 +12,7 @@ import {
 import { markdownHeadingFoldingExtension } from './markdownHeadingFolding.js';
 import {
     leadingFrontmatterEnd,
+    markdownHeadingLevel,
     markdownBlockGuidePlan,
 } from './core/markdownBlockGuideModel.js';
 
@@ -26,16 +28,8 @@ function topLevelBlocks(state) {
     const blocks = [];
     const source = state.doc.toString();
     const frontmatterEnd = leadingFrontmatterEnd(source);
-    if (frontmatterEnd > 0) {
-        blocks.push({
-            name: 'Frontmatter',
-            from: 0,
-            to: frontmatterEnd,
-            source: source.slice(0, frontmatterEnd),
-            info: '',
-        });
-    }
-    for (let node = syntaxTree(state).topNode.firstChild; node; node = node.nextSibling) {
+    const tree = ensureSyntaxTree(state, state.doc.length) || syntaxTree(state);
+    for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
         if (node.from < frontmatterEnd) continue;
         blocks.push({
             name: node.name,
@@ -51,13 +45,15 @@ function topLevelBlocks(state) {
 /** Build stable, DOM-free guide descriptors from the current Markdown tree. */
 export function buildMarkdownBlockGuides(state) {
     const blocks = topLevelBlocks(state);
-    return blocks.map((block, index) => {
+    const guides = [];
+    blocks.forEach((block, index) => {
         const plan = markdownBlockGuidePlan(block);
+        if (!plan) return;
         let range = { from: block.from, to: block.to };
         if (plan.rangeStrategy === 'heading-section') {
             const relativeBoundaryIndex = blocks.slice(index + 1).findIndex(candidate => {
-                const next = markdownBlockGuidePlan(candidate);
-                return next.level && next.level <= plan.level;
+                const nextLevel = markdownHeadingLevel(candidate.name);
+                return nextLevel && nextLevel <= plan.level;
             });
             const boundaryIndex = relativeBoundaryIndex < 0 ? blocks.length : index + 1 + relativeBoundaryIndex;
             range = {
@@ -69,7 +65,7 @@ export function buildMarkdownBlockGuides(state) {
         const headingTitle = plan.level
             ? block.source.replace(/^#{1,6}[ \t]+/, '').replace(/[ \t]+#*[ \t]*$/u, '').split(/\r?\n/, 1)[0].trim()
             : '';
-        return {
+        guides.push({
             ...plan,
             from: block.from,
             to: block.to,
@@ -78,8 +74,9 @@ export function buildMarkdownBlockGuides(state) {
             foldTo: range.to,
             title: headingTitle,
             foldable: range.to > range.from,
-        };
+        });
     });
+    return guides;
 }
 
 function exactFoldExists(state, guide) {
@@ -109,9 +106,12 @@ class MarkdownBlockGuideMarker extends GutterMarker {
     toDOM() {
         const control = document.createElement('button');
         const action = this.folded ? 'Expand' : 'Collapse';
-        const subject = this.guide.title
-            ? `${this.guide.label} ${this.guide.title} section`
-            : `${this.guide.label} block`;
+        let subject = 'table';
+        if (this.guide.type === 'heading') {
+            subject = `${this.guide.label} ${this.guide.title} section`;
+        } else if (this.guide.type === 'code') {
+            subject = this.guide.label === 'code' ? 'code block' : `${this.guide.label} code block`;
+        }
         control.type = 'button';
         control.className = 'ui-editor-block-guide';
         control.textContent = this.guide.label;
@@ -132,7 +132,7 @@ class MarkdownBlockGuideSpacer extends GutterMarker {
     toDOM() {
         const spacer = document.createElement('span');
         spacer.className = 'cm-markdownBlockGuideSpacer';
-        spacer.textContent = 'mermaid';
+        spacer.textContent = 'table';
         spacer.setAttribute('aria-hidden', 'true');
         return spacer;
     }
@@ -142,7 +142,7 @@ const spacerMarker = new MarkdownBlockGuideSpacer();
 
 const markerPlugin = ViewPlugin.fromClass(class {
     constructor(view) {
-        this.markers = this.build(view);
+        this.rebuild(view);
     }
 
     update(update) {
@@ -153,22 +153,35 @@ const markerPlugin = ViewPlugin.fromClass(class {
                 effect.is(foldEffect) || effect.is(unfoldEffect)
             )))
             || syntaxTree(update.startState) !== syntaxTree(update.state)) {
-            this.markers = this.build(update.view);
+            this.rebuild(update.view);
         }
     }
 
-    build(view) {
+    rebuild(view) {
+        this.guides = buildMarkdownBlockGuides(view.state);
         const builder = new RangeSetBuilder();
-        for (const guide of buildMarkdownBlockGuides(view.state)) {
+        for (const guide of this.guides) {
             if (guide.lineFrom < view.viewport.from || guide.lineFrom > view.viewport.to) continue;
             builder.add(guide.lineFrom, guide.lineFrom, new MarkdownBlockGuideMarker(
                 guide,
                 exactFoldExists(view.state, guide),
             ));
         }
-        return builder.finish();
+        this.markers = builder.finish();
     }
 });
+
+function widgetGuide(view, block) {
+    const guides = view.plugin(markerPlugin)?.guides || [];
+    const guide = guides.find(candidate => candidate.type !== 'heading' && (
+        (candidate.from === block.from && candidate.to === block.to)
+        || (block.from <= candidate.from && block.to >= candidate.to)
+        || (candidate.from <= block.from && candidate.to >= block.to)
+    ));
+    return guide
+        ? new MarkdownBlockGuideMarker(guide, exactFoldExists(view.state, guide))
+        : null;
+}
 
 function guideOnLine(state, lineFrom) {
     return buildMarkdownBlockGuides(state).find(guide => guide.lineFrom === lineFrom) || null;
@@ -185,6 +198,9 @@ export const markdownBlockGuidesExtension = [
         },
         initialSpacer() {
             return spacerMarker;
+        },
+        widgetMarker(view, _widget, block) {
+            return widgetGuide(view, block);
         },
         domEventHandlers: {
             click(view, line, event) {

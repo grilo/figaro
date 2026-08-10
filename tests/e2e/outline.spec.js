@@ -151,6 +151,26 @@ test('sticks the complete active heading hierarchy and keeps every row navigable
     await expect(rows).toHaveCount(3);
     await expect(rows.locator('.sticky-heading-item-type')).toHaveText(['h1', 'h2', 'h3']);
     await expect(rows.locator('.sticky-heading-item-text')).toHaveText(['Project', 'Decisions', 'Next steps']);
+    const stickyGeometry = await sticky.evaluate(element => {
+        const stickyRect = element.getBoundingClientRect();
+        const editorRect = document.getElementById('editor-container').getBoundingClientRect();
+        const rowRect = element.firstElementChild.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+            left: stickyRect.left - editorRect.left,
+            right: editorRect.right - stickyRect.right,
+            rowLeft: rowRect.left - stickyRect.left,
+            rowRight: stickyRect.right - rowRect.right,
+            radius: Number.parseFloat(style.borderRadius),
+            shadow: style.boxShadow,
+        };
+    });
+    expect(Math.abs(stickyGeometry.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(stickyGeometry.right)).toBeLessThanOrEqual(1);
+    expect(Math.abs(stickyGeometry.rowLeft)).toBeLessThanOrEqual(1);
+    expect(Math.abs(stickyGeometry.rowRight)).toBeLessThanOrEqual(1);
+    expect(stickyGeometry.radius).toBe(0);
+    expect(stickyGeometry.shadow).toBe('none');
 
     await page.evaluate(async () => {
         const outline = await import('/js/outline.js');
@@ -168,4 +188,12 @@ test('sticks the complete active heading hierarchy and keeps every row navigable
         window.__stickyOutlineView.state.selection.main.head,
     ).text)).toBe('## Decisions');
     await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__stickyOutlineView.state.doc.lineAt(
+        window.__stickyOutlineView.state.selection.main.head,
+    ).text)).toBe('Decision line 1');
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__stickyOutlineView.state.doc.lineAt(
+        window.__stickyOutlineView.state.selection.main.head,
+    ).text)).toBe('## Decisions');
 });

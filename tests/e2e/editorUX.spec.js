@@ -69,6 +69,11 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(collapseControls).toHaveCount(5);
     await expect(page.getByRole('button', { name: 'Collapse h2 Goals section' })).toHaveCount(1);
     await expect(collapseControls.first()).toHaveAttribute('aria-label', 'Collapse h1 Product roadmap section');
+    const guideTypeScale = await collapseControls.first().evaluate(control => ({
+        guide: Number.parseFloat(getComputedStyle(control).fontSize),
+        editor: Number.parseFloat(getComputedStyle(control.closest('.cm-editor')).fontSize),
+    }));
+    expect(guideTypeScale.guide).toBeGreaterThanOrEqual(guideTypeScale.editor);
     await collapseControls.nth(1).click();
 
     const expandControl = page.locator(
@@ -162,6 +167,43 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(0);
     await expect(collapseControls).toHaveCount(5);
     expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(source);
+
+    const focusedGuideSource = [
+        '# Guide labels',
+        'ordinary prose',
+        '- ordinary list',
+        '```yaml',
+        'enabled: true',
+        '```',
+        '```',
+        'untyped',
+        '```',
+        '| Key | Value |',
+        '| --- | --- |',
+        '| mode | test |',
+    ].join('\n');
+    await page.evaluate(markdown => {
+        const view = window.__headingFoldView;
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: markdown },
+            selection: { anchor: 0 },
+        });
+        view.focus();
+    }, focusedGuideSource);
+
+    const focusedGuides = page.locator('.ui-editor-block-guide:visible');
+    await expect(focusedGuides).toHaveCount(4);
+    await expect(focusedGuides).toHaveText(['h1', 'yaml', 'code', 'table']);
+    const yamlGuide = page.getByRole('button', { name: 'Collapse yaml code block' });
+    await expect(yamlGuide).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Collapse code block' })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Collapse table' })).toHaveCount(1);
+    const sourceBeforeFenceFold = await page.evaluate(() => window.__headingFoldView.state.doc.toString());
+    await yamlGuide.click();
+    await expect(page.getByRole('button', { name: 'Expand yaml code block' })).toHaveCount(1);
+    expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(sourceBeforeFenceFold);
+    await page.getByRole('button', { name: 'Expand yaml code block' }).click();
+    await expect(page.getByRole('button', { name: 'Collapse yaml code block' })).toHaveCount(1);
 });
 
 test('uses a same-folder note from a rendered missing link and rewrites only its destination', async ({ page }) => {

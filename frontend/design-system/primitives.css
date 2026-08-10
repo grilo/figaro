@@ -508,15 +508,15 @@
 .ui-editor-block-guide {
     display: inline-grid;
     min-width: 34px;
-    height: 18px;
+    min-height: 24px;
     place-items: center;
-    padding: 0 4px;
+    padding: 2px 5px;
     border: 1px solid transparent;
     border-radius: 4px;
     outline: none;
     background: transparent;
     color: var(--text-dim);
-    font: 8px/1 var(--font-mono);
+    font: 500 var(--font-size-editor)/1 var(--font-mono);
     letter-spacing: .025em;
     text-transform: lowercase;
     cursor: pointer;

@@ -199,7 +199,7 @@ function editorFoldingExtensions(kind) {
 const stickyHeadingScrollMargins = EditorView.scrollMargins.of(() => {
     const stack = document.getElementById('sticky-heading-stack');
     if (!stack || stack.hidden) return null;
-    return { top: Math.ceil(stack.getBoundingClientRect().height + 8) };
+    return { top: Math.ceil(stack.getBoundingClientRect().height) };
 });
 
 const vimVisualRowMappings = [

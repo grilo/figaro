@@ -5,47 +5,36 @@ export function markdownHeadingLevel(nodeName) {
     return match ? Number(match[1]) : null;
 }
 
-export function markdownBlockGuideKind({ name, source = '', info = '' } = {}) {
+export function fencedCodeGuideLabel(info) {
+    const firstToken = String(info || '').trim().split(/\s+/, 1)[0]
+        .replace(/^\{\./, '')
+        .replace(/\}$/, '')
+        .toLowerCase();
+    return /^[a-z0-9][a-z0-9.+#_-]{0,15}$/.test(firstToken) ? firstToken : 'code';
+}
+
+export function markdownBlockGuideKind({ name, info = '' } = {}) {
     const headingLevel = markdownHeadingLevel(name);
     if (headingLevel) return `h${headingLevel}`;
 
-    const text = String(source).trimStart();
     switch (name) {
-    case 'BulletList':
-    case 'OrderedList':
-        return /^(?:[-+*]|\d+[.)])\s+\[[ xX]\]/m.test(text) ? 'task' : 'list';
-    case 'Blockquote':
-        return /^>\s*\[!/m.test(text) ? 'callout' : 'quote';
-    case 'FencedCode': {
-        const language = String(info).trim().toLowerCase();
-        if (language === 'mermaid') return 'mermaid';
-        if (language === 'vega' || language === 'vega-lite') return 'chart';
-        return 'code';
-    }
-    case 'CodeBlock':
-        return 'code';
+    case 'FencedCode':
+        return fencedCodeGuideLabel(info);
     case 'Table':
         return 'table';
-    case 'HorizontalRule':
-        return 'rule';
-    case 'HTMLBlock':
-        return 'html';
-    case 'Paragraph':
-        if (/^!\[/.test(text)) return 'image';
-        if (/^\$\$/.test(text)) return 'math';
-        return 'raw';
-    case 'Frontmatter':
-        return 'raw';
     default:
-        return 'raw';
+        return null;
     }
 }
 
 export function markdownBlockGuidePlan(descriptor) {
     const level = markdownHeadingLevel(descriptor?.name);
+    const label = markdownBlockGuideKind(descriptor);
+    if (!label) return null;
     return {
-        label: markdownBlockGuideKind(descriptor),
+        label,
         level,
+        type: level ? 'heading' : descriptor.name === 'FencedCode' ? 'code' : 'table',
         rangeStrategy: level ? 'heading-section' : 'whole-block',
     };
 }

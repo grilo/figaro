@@ -298,8 +298,9 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   linking, the themed Vault-health Settings entry and finding navigation, and
   the full-width, non-overlapping History source comparison before restoration,
   plus the nested Document outline's visual hierarchy, active-section
-  tracking, top-right launcher, complete sticky hierarchy, keyboard jump, and
-  editor-focus handoff.
+  tracking, top-right launcher, complete sticky hierarchy, full-width flush
+  strip geometry without floating-card radius or shadow, keyboard jump,
+  Arrow Up/Down movement, and editor-focus handoff.
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
   links remain in the rendered document. High-frequency scroll reports are
@@ -618,10 +619,13 @@ Down, then put both at the beginning and press Arrow Up; neither action may
 move or wrap, and wheel input must remain at the corresponding scroll limit.
 
 Markdown block guides add their own focused matrix. Pure coverage must prove
-classification, frontmatter boundaries, parent/child/peer heading ranges, and
-non-heading block ranges. The real CodeMirror component must exercise typed,
-accessible collapse/expand controls, disabling and re-enabling the gutter, and
-show that folding never edits source. The browser boundary must click a nested fold, move across it with
+that only headings, fenced code, and tables receive guides; typed fences use a
+bounded normalized language label; untyped fences use `code`; frontmatter and
+every omitted block stay quiet; and parent/child/peer heading plus fence/table
+ranges remain exact. The real CodeMirror component must exercise editor-sized,
+typed, accessible collapse/expand controls, disabling and re-enabling the
+gutter, and show that folding never edits source. The browser boundary must
+compare guide and editor font sizes, click a nested fold, move across it with
 Arrow Up/Down and Vim visual-row `j`/`k`, place the mouse on the adjacent line,
 and drag a selection across the folded source in both directions. In a native
 WebKitGTK, WebView2, and WKWebView build, repeat those cursor and drag checks

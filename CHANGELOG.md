@@ -6,6 +6,16 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.13.1 - 2026-08-11
+
+### Changed
+
+- Markdown block guides now use the editor's normal text size and appear only
+  for headings, fenced code blocks, and tables. Typed fences show their
+  language, such as `yaml`, while untyped fences use `code`.
+- Sticky heading hierarchies now span the full editor width as a flat strip
+  instead of appearing as a floating card.
+
 ## 1.13.0 - 2026-08-10
 
 ### Added
