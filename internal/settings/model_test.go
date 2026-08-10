@@ -56,6 +56,17 @@ func TestSettingsSelectorsApplyIndependentFallbacks(t *testing.T) {
 	}
 }
 
+func TestNavigationDefaultsStayEnabledUnlessExplicitlyDisabled(t *testing.T) {
+	for _, key := range []string{"sticky_headings", "markdown_block_guides", "document_outline"} {
+		if !Bool(nil, key, true) {
+			t.Fatalf("Bool(nil, %q, true) = false", key)
+		}
+		if Bool(map[string]any{key: false}, key, true) {
+			t.Fatalf("explicit false for %q was ignored", key)
+		}
+	}
+}
+
 func TestSpellcheckDefaultsOffUntilExplicitlyEnabled(t *testing.T) {
 	enabled, language := Spellcheck(nil)
 	if enabled || language != "en-US" {

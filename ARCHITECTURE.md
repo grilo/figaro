@@ -420,14 +420,14 @@ allocation.
 Outline is intentionally a source-navigation surface rather than another
 CodeMirror live-preview feature. It parses only the active Markdown document's
 headings, keeps their document offsets, and ignores frontmatter plus
-heading-shaped text in fenced code. The parser runs after document changes or a
-tab source swap;
-selection and viewport updates use the cached heading offsets to identify the
-current section without another document scan. Activating an item dispatches a
-normal selection and scroll transaction, so it cannot introduce an alternate
-cursor model or decoration geometry. The navigator is mounted only while its
-right-pane mode owns the sidebar, and History, Markdown Preview, and PDF
-Preview explicitly release it before taking that shared pane.
+heading-shaped text in fenced code. A pure hierarchy reducer derives every
+active ancestor from those offsets. The DOM adapter renders that hierarchy in
+an editor-top overlay and renders the same typed headings in the right pane;
+both dispatch ordinary selection and scroll transactions when activated.
+Document changes or a tab source swap rebuild the cached model, while selection
+and viewport updates reuse it. The small top-right launcher is hidden while the
+outline owns the right pane. History, Raw Text Preview, and PDF Preview release
+the outline before taking that shared pane.
 
 ## UI continuity surfaces
 
@@ -459,13 +459,16 @@ visible document region and rebuilt on viewport changes. Cursor movement only
 rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
-Markdown heading folding follows the same source-first boundary. The
-`markdownHeadingFolding` adapter asks Lezer whether the gutter line is a real
-ATX heading, then returns a view-only range ending before the next peer or
-ancestor heading. CodeMirror owns the folded decoration and announcements;
-saves, Markdown preview, and PDF rendering never observe fold state. The fold
-control is the approved design-system primitive while the gutter retains only
-CodeMirror layout and event ownership.
+Markdown block folding follows the same source-first boundary.
+`core/markdownBlockGuideModel.js` classifies deterministic syntax descriptors
+as `h1`–`h6`, `raw`, `list`, `task`, `mermaid`, `table`, and the other visible
+guide labels. `markdownBlockGuides.js` is the CodeMirror adapter: it reads
+Lezer's top-level blocks, maps a heading through its descendants until the next
+peer or ancestor, maps other guides to their own block, and dispatches standard
+fold effects. CodeMirror owns the folded decoration and announcements; saves,
+Raw Text Preview, and PDF rendering never observe fold state. The typed guide
+and source-code chevron are approved design-system primitives, while the gutter
+retains only CodeMirror layout and event ownership.
 The Properties field uses the same source-first transition: its disclosure
 generates missing default frontmatter directly into structured-panel mode,
 while a later selection entering that replaced range reveals raw YAML and a
@@ -493,14 +496,17 @@ edge and pins the scroller to that boundary before WebKitGTK can reinterpret
 the overscroll. These guards are unconditional and do not create a wraparound
 preference.
 
-Windows spacing-grave input follows a similar split. The pure
-`windowsDeadKeyModel` compares the keydown snapshot, current editor state, and
-CodeMirror's concrete DOM-change range. The editor adapter owns event/timer
-effects and lets CodeMirror apply the first native insertion, but claims a
-second matching DOM mutation without dispatching it. CodeMirror then restores
-the contenteditable DOM from its already-correct state. Duplicate suppression
-therefore does not depend on optional WebView2 `InputEvent.data` payloads or on
-guessing when its composition event will arrive.
+Windows keyboard layouts remain owned by the native WebView2 and CodeMirror
+input stack. The editor does not map physical key codes to assumed Spanish
+characters, prevent dead-key events, synthesize accent output, or reconcile
+composition with timers. This rule applies in regular editing and Vim Insert
+mode. Figaro pins Wails v2.14 to the `v2.14.0-figaro.1` fork tag: its Windows
+accelerator boundary recognizes Ctrl+Right Alt as AltGr and leaves those events
+with WebView2 instead of reposting a duplicate `WM_KEYDOWN` to the native
+window. Component coverage proves Figaro does not consume representative key
+events, the fork's Windows unit test owns the native forwarding decision,
+browser coverage proves literal and already-composed text reaches the document
+once, and the packaged Windows check owns actual layout composition.
 
 The CodeMirror adapter recognizes one deliberate exception to the generic
 multi-source-line fallback: a collapsed range is one visual row. It preserves
@@ -710,21 +716,19 @@ the generated output is recreated before development and package builds. This
 keeps the repository small while ensuring packaged applications are
 self-contained.
 
-## Markdown preview: normal-theme document rendering
+## Raw text preview: exact Markdown source
 
-`markdownPreview.js` owns the non-print **Markdown Preview** right-pane mode.
-It renders the current active/dirty Markdown snapshot with the shared
-Markdown-It plugin set after stripping leading frontmatter. That renderer keeps
-raw HTML disabled, so the application may safely place its output in the
-themed sidebar document surface. This preview deliberately does not enter the
-print worker or apply print CSS, page geometry, cover pages, or generated table
-of contents.
+`rawTextPreview.js` owns the non-print **Raw Text Preview** right-pane mode. It
+places the current active/dirty Markdown snapshot into a selectable `pre` with
+`textContent`, preserving frontmatter, HTML, fences, and every delimiter
+exactly. It does not invoke Markdown-It or the print worker and cannot apply
+print CSS, page geometry, cover pages, or a generated table of contents.
 
 The module listens for active document changes, saves, and matching tab
 switches so it keeps the current note snapshot without competing with the
 editor's source of truth. It shares the sidebar ownership protocol with
-History, Outline, and PDF Preview; each view dispatches the corresponding
-close event before taking the pane.
+History, Outline, and PDF Preview; each view dispatches the corresponding close
+event before taking the pane.
 
 ## PDF preview: isolated frame and message bridge
 

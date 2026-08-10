@@ -108,14 +108,15 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ui-notice': 8,
         '.ui-document-tabs': 1,
         '.ui-document-tab': 2,
-        '.ui-editor-fold-control': 2,
+        '.ui-editor-fold-control': 1,
+        '.ui-editor-block-guide': 2,
     };
     for (const [selector, minimum] of Object.entries(primitiveFamilies)) {
         expect(await page.locator(selector).count()).toBeGreaterThanOrEqual(minimum);
     }
 
     const foldControl = page.locator('.ui-editor-fold-control[aria-expanded="true"]').first();
-    await expect(foldControl).toHaveAttribute('aria-label', 'Collapse heading section');
+    await expect(foldControl).toHaveAttribute('aria-label', 'Collapse code region');
     const foldPaint = await foldControl.evaluate(control => {
         const style = getComputedStyle(control);
         const indicator = getComputedStyle(control, '::before');
@@ -136,6 +137,11 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         indicatorContent: '""',
         indicatorBorder: 'solid',
     });
+
+    const blockGuide = page.locator('.ui-editor-block-guide[aria-expanded="false"]').first();
+    await expect(blockGuide).toHaveText('mermaid');
+    await expect(blockGuide).toHaveAttribute('aria-label', 'Expand mermaid block');
+    expect(await blockGuide.evaluate(control => getComputedStyle(control).cursor)).toBe('pointer');
 
     const search = page.getByLabel('Find a component');
     await search.fill('compact action');

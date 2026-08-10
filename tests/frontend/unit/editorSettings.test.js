@@ -1,6 +1,7 @@
 const mockSetLineNumbers = jest.fn();
 const mockSetMarkdownLint = jest.fn();
 const mockSetSpellcheck = jest.fn();
+const mockSetMarkdownBlockGuides = jest.fn();
 
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn(() => ({ requestMeasure: jest.fn() })),
@@ -8,6 +9,7 @@ jest.mock('../frontend/js/editor.js', () => ({
     setLineNumbers: mockSetLineNumbers,
     setMarkdownLint: mockSetMarkdownLint,
     setSpellcheck: mockSetSpellcheck,
+    setMarkdownBlockGuides: mockSetMarkdownBlockGuides,
 }));
 
 import { getAutoCommitEnabled } from '../frontend/js/automation.js';
@@ -49,6 +51,8 @@ describe('editor settings', () => {
             LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
             MarkdownLintLoad: jest.fn().mockResolvedValue({ enabled: true }),
             MarkdownLintSave: jest.fn().mockResolvedValue({ success: true }),
+            EditorNavigationLoad: jest.fn().mockResolvedValue({ stickyHeadings: true, blockGuides: true, documentOutline: true }),
+            EditorNavigationSave: jest.fn().mockResolvedValue({ success: true }),
             SpellcheckLoad: jest.fn().mockResolvedValue({ enabled: true, language: 'en-US' }),
             SpellcheckSave: jest.fn().mockResolvedValue({ success: true }),
             AutoSaveLoad: jest.fn().mockResolvedValue(300),

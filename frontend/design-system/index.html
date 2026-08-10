@@ -225,17 +225,19 @@
                     </article>
 
                     <article class="ds-specimen">
-                        <header><h3>Editor heading folds</h3><code class="ds-selector">.ui-editor-fold-control</code></header>
+                        <header><h3>Editor folding</h3><code class="ds-selector">.ui-editor-fold-control</code><code class="ds-selector">.ui-editor-block-guide</code></header>
                         <div class="ds-demo ds-form-stack">
                             <div class="ds-flow">
                                 <button type="button" class="ui-editor-fold-control"
-                                        aria-label="Collapse heading section" aria-expanded="true"></button>
-                                <span class="ds-editor-sample"># Product roadmap</span>
+                                        aria-label="Collapse code region" aria-expanded="true"></button>
+                                <span class="ds-editor-sample">Source-code region</span>
                             </div>
                             <div class="ds-flow">
-                                <button type="button" class="ui-editor-fold-control"
-                                        aria-label="Expand heading section" aria-expanded="false"></button>
-                                <span class="ds-editor-sample">## Release scope&nbsp; …</span>
+                                <button type="button" class="ui-editor-block-guide"
+                                        aria-label="Collapse h2 Release scope section" aria-expanded="true">h2</button>
+                                <button type="button" class="ui-editor-block-guide"
+                                        aria-label="Expand mermaid block" aria-expanded="false">mermaid</button>
+                                <span class="ds-editor-sample">Typed Markdown guides</span>
                             </div>
                         </div>
                     </article>
@@ -701,34 +703,25 @@
             </section>
 
             <section id="markdown-content" class="catalog-section" data-catalog-section
-                     data-catalog-terms="markdown preview heading paragraph link code blockquote list task table rule content editor">
+                     data-catalog-terms="markdown raw source text preview frontmatter code content editor">
                 <header class="catalog-section-header">
                     <div>
                         <p>10 · Content</p>
-                        <h2>Markdown rendering</h2>
+                        <h2>Raw Markdown text</h2>
                     </div>
-                    <p>The normal themed preview surface, without PDF-only styling.</p>
+                    <p>The exact underlying source, without live rendering or PDF styling.</p>
                 </header>
 
                 <article class="ds-specimen">
-                    <header><h3>Rendered document</h3><code class="ds-selector">.markdown-preview-document</code></header>
+                    <header><h3>Source document</h3><code class="ds-selector">.raw-text-preview-source</code></header>
                     <div class="ds-demo ds-markdown-stage">
-                        <article class="markdown-preview-document">
-                            <h1>A quiet workspace</h1>
-                            <p>Figaro keeps <strong>connected notes</strong>, <em>focused writing</em>, and <a href="#markdown-content">useful context</a> in one local workspace.</p>
-                            <blockquote>Good interface patterns become easier to trust when their differences are visible.</blockquote>
-                            <h2>Review checklist</h2>
-                            <ul class="figaro-print-task-list">
-                                <li><input class="figaro-print-task-checkbox" type="checkbox" checked disabled> Compare every theme</li>
-                                <li><input class="figaro-print-task-checkbox" type="checkbox" disabled> Approve component mergers</li>
-                            </ul>
-                            <pre><code>theme: figaro-dark
-catalog: shared-primitives</code></pre>
-                            <table>
-                                <thead><tr><th>Pattern</th><th>Status</th></tr></thead>
-                                <tbody><tr><td>Settings picker</td><td>Merged</td></tr><tr><td>Compact buttons</td><td>Merged</td></tr></tbody>
-                            </table>
-                        </article>
+                        <pre class="raw-text-preview-source" tabindex="0" aria-label="Exact Markdown source">---
+title: A quiet workspace
+---
+# Product roadmap
+
+- [x] Compare every theme
+- [ ] Approve block guides</pre>
                     </div>
                 </article>
             </section>
@@ -756,10 +749,10 @@ catalog: shared-primitives</code></pre>
                         </div>
                     </article>
                     <article class="ds-specimen">
-                        <header><h3>Preview status</h3><code class="ds-selector">.markdown-preview-status</code><code class="ds-selector">.pdf-preview-status</code></header>
+                        <header><h3>Preview status</h3><code class="ds-selector">.raw-text-preview-status</code><code class="ds-selector">.pdf-preview-status</code></header>
                         <div class="ds-demo ds-form-stack">
-                            <p class="ui-notice markdown-preview-status">Preparing Markdown preview…</p>
-                            <p class="ui-notice ui-notice--danger markdown-preview-status" data-kind="error">Could not render this note.</p>
+                            <p class="ui-notice raw-text-preview-status">Loading raw text…</p>
+                            <p class="ui-notice ui-notice--danger raw-text-preview-status" data-kind="error">Could not read this note.</p>
                             <p class="ui-notice pdf-preview-status">Generating printable document…</p>
                             <button class="ui-button settings-action-btn" disabled>Working…</button>
                         </div>
@@ -788,7 +781,7 @@ catalog: shared-primitives</code></pre>
                             <tr><td>Badges</td><td>Kanban, search, relationships, Vault health</td><td><code>.ui-badge</code> roles</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Menus</td><td>Context, tabs, settings, frontmatter</td><td><code>.ui-menu</code> visuals; separate controllers</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Document tabs</td><td>Active, dirty, pinned, hover, and focus</td><td><code>.ui-document-tab</code> + state modifiers</td><td><span class="is-decided">Approved</span></td></tr>
-                            <tr><td>Editor heading folds</td><td>Expanded, collapsed, hover, focus, and active</td><td><code>.ui-editor-fold-control</code></td><td><span class="is-decided">Approved</span></td></tr>
+                            <tr><td>Editor folding</td><td>Code arrows plus typed Markdown guides in expanded, collapsed, hover, focus, and active states</td><td><code>.ui-editor-fold-control</code>, <code>.ui-editor-block-guide</code></td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Cards</td><td>Settings, home, Kanban, results, health</td><td>Surface tokens only</td><td><span>Keep layouts</span></td></tr>
                             <tr><td>Form fields</td><td>Dialogs, settings, properties, conversion</td><td><code>.ui-field</code> + context variants</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Notices</td><td>Dialogs, history, health, preview</td><td><code>.ui-notice</code> semantic variants</td><td><span class="is-decided">Merged</span></td></tr>

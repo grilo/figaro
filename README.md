@@ -31,24 +31,26 @@ There is no account, hosted database, or required cloud service.
   `.drawio.svg` diagrams remain normal files in a directory you control.
 - **Source-first Markdown editing.** The active line stays editable Markdown
   while surrounding content renders headings, tables, tasks, callouts,
-  footnotes, math, images, links, and fenced code. Fold controls beside `#`
-  headings collapse nested sections without changing the saved source.
+  footnotes, math, images, links, and fenced code. Quiet typed guides identify
+  Markdown blocks and collapse a block or nested heading section without
+  changing the saved source.
 - **Fast navigation.** Use compact drag-reorderable document tabs, optional
-  path breadcrumbs, full-vault search, backlinks, unlinked mentions, a heading
-  outline, recent notes, pins, and file-tree customization.
+  path breadcrumbs, sticky heading hierarchies, full-vault search, backlinks,
+  unlinked mentions, a top-right document-outline launcher, recent notes, pins,
+  and file-tree customization.
 - **Capture and planning.** Quick notes and daily notes live in a real `Inbox`;
   hashtags form a Kanban board, and portable due-date links feed the Today
   dashboard and calendar.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
   or edit Draw.io diagrams while keeping the saved SVG readable outside Figaro.
-- **Document publishing.** Preview Markdown and paginated output, add cover
-  pages and tables of contents, apply vault-local print CSS, and generate linked
-  PDFs.
+- **Source and publishing tools.** Preview the exact raw Markdown or paginated
+  output, add cover pages and tables of contents, apply vault-local print CSS,
+  and generate linked PDFs.
 - **Local history.** Optional per-file Auto-Commit, explicit history saves,
   comparisons, and restoration keep unrelated vault changes separate.
 - **Configurable workspace.** Choose from seventeen themes, prose and code
-  fonts, Vim editing, line numbers, diagnostics, and fully local spellcheck
-  dictionaries.
+  fonts, Vim editing, line numbers, sticky headings, block guides, document
+  outline, diagnostics, and fully local spellcheck dictionaries.
 
 ## Download
 
@@ -135,10 +137,13 @@ with rendered Markdown, and vertical motions stop at the exact first and last
 document positions instead of wrapping on a backwards native geometry result.
 Vim `p`/`P` use the operating-system clipboard while retaining the unnamed
 register as a fallback, and ordinary yanks and deletes are available to other
-desktop applications. On Windows Spanish layouts, a grave dead key followed by
-Space produces one backtick in Vim Insert mode whether WebView2 reports native
-composition immediately, late, without event text, or not at all; repeating
-the physical input three times produces one triple-backtick fence.
+desktop applications. Figaro leaves Windows keyboard-layout and dead-key
+composition to WebView2 and CodeMirror in regular editing and Vim Insert mode.
+It does not reinterpret Spanish physical key codes: the ordinary backtick key
+inserts one character, while AltGr+4 remains available for native composition
+with a following character such as `a` → `ã`. The desktop dependency is Wails
+v2.14 with a pinned Windows-host fix that prevents AltGr input from being
+reposted to the native window before WebView2 processes it.
 
 Quick notes create collision-safe timestamped files in `Inbox`. The Today
 action creates the dated note in the same folder and continues to open legacy
@@ -174,9 +179,10 @@ Mermaid source is checked before parsing; oversized diagrams and unsafe YAML
 ordered maps remain editable source instead of blocking the editor or PDF
 renderer.
 
-Markdown Preview shows a live themed document. PDF Preview adds pagination,
-cover pages, a depth-limited table of contents, footnotes, internal links, and
-optional vault-local CSS. Generated PDFs are written beside their source note.
+Raw Text Preview shows the exact Markdown source, including frontmatter, while
+PDF Preview adds pagination, cover pages, a depth-limited table of contents,
+footnotes, internal links, and optional vault-local CSS. Generated PDFs are
+written beside their source note.
 See [PDF styling](docs/PDF_STYLING.md) for the supported print contract.
 
 ## Data and privacy

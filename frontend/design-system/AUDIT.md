@@ -22,7 +22,7 @@ approved selector set:
 | Due-date calendars | `.ui-date-picker` and its grid/day primitives | Anchor position, selected date, task mutation, and local-day policy |
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
 | Document tabs | `.ui-document-tabs`, `.ui-document-tab`, and state modifiers | Overflow geometry, ordering, drag placement, and tab controller behavior |
-| Editor heading folds | `.ui-editor-fold-control` | Markdown/code fold ranges and CodeMirror gutter behavior |
+| Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, Markdown block classification, and CodeMirror gutter behavior |
 
 The primitives own the repeated border, radius, surface, typography, focus,
 hover, active, disabled, busy, selected, and semantic-color rules. Existing
@@ -34,10 +34,10 @@ The tab rail combines its document-tab family with the approved
 overflow-only visibility, scroll geometry, and theme-token edge fades remain
 narrow tab-layout behavior rather than another button or menu variant.
 
-The editor fold gutter uses the approved disclosure control for Markdown
-heading sections and source-code regions. CodeMirror retains ownership of fold
-ranges, announcements, pointer dispatch, and keyboard commands; the shared
-primitive owns only the themed chevron states.
+Editor folding uses the approved typed block guide for Markdown and the
+approved disclosure control for source-code regions. CodeMirror retains
+ownership of fold ranges, announcements, pointer dispatch, and keyboard
+commands; the shared primitives own only their themed interaction states.
 
 The shared control-size tokens (`--ui-control-height`,
 `--ui-compact-height`, and `--ui-badge-height`) and radius/padding tokens make

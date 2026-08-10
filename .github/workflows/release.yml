@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  WAILS_VERSION: v2.12.0
+  WAILS_VERSION: v2.14.0
 
 jobs:
   verify:

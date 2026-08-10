@@ -16,7 +16,7 @@ import { confirmExternalTreeImport, importDroppedExternalPaths } from './externa
 import { focusEditor, getEditorView, insertTextAtCursor } from './editor.js';
 import { handleFileOpen } from './app.js';
 import { openPDFPreview } from './pdfPreview.js';
-import { openMarkdownPreview } from './markdownPreview.js';
+import { openRawTextPreview } from './rawTextPreview.js';
 import {
     directoryPathsForReveal,
     isFileTreeEntryPinned,
@@ -99,8 +99,8 @@ const fileTreeContextMenuActions = [
         icon: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
     },
     {
-        action: 'preview-markdown',
-        label: 'Preview Markdown',
+        action: 'preview-raw-text',
+        label: 'Preview Raw Text',
         icon: '<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/>',
     },
     {
@@ -199,7 +199,7 @@ export function buildFileTreeContextMenuHTML({
     const enabled = {
         'open-new-tab': isOpenableFile || (external && isFile),
         'merge-notes': !external && canMerge,
-        'preview-markdown': !external && isMarkdownFile,
+        'preview-raw-text': !external && isMarkdownFile,
         'preview-pdf': !external && isMarkdownFile,
         copy: !external && isTarget,
         paste: !external && Boolean(clipboardPath),
@@ -1243,13 +1243,13 @@ function handleContextMenu(e) {
             }
             break;
 
-        case 'preview-markdown':
+        case 'preview-raw-text':
             try {
                 const targetPath = getState('contextTargetPath');
-                await openMarkdownPreview({ path: targetPath, title: targetPath.split('/').pop() });
+                await openRawTextPreview({ path: targetPath, title: targetPath.split('/').pop() });
             } catch (err) {
-                log.error('Markdown preview failed:', err);
-                await errorDialog('Couldn’t open Markdown preview', err, 'The Markdown preview could not be opened.');
+                log.error('Raw text preview failed:', err);
+                await errorDialog('Couldn’t open raw text preview', err, 'The raw text preview could not be opened.');
             }
             break;
 

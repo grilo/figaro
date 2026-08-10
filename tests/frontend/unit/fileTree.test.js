@@ -827,12 +827,12 @@ describe('File Tree', () => {
         const menu = document.querySelector('.context-menu');
         expect(menu).not.toBeNull();
         expect([...menu.querySelectorAll('[data-action]')].map(item => item.dataset.action)).toEqual([
-            'open-new-tab', 'merge-notes', 'preview-markdown', 'preview-pdf',
+            'open-new-tab', 'merge-notes', 'preview-raw-text', 'preview-pdf',
             'copy', 'paste',
             'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
         ]);
         expect(menu.querySelector('[data-action="new-file"]').classList.contains('disabled')).toBe(false);
-        for (const action of ['open-new-tab', 'merge-notes', 'preview-markdown', 'preview-pdf', 'copy', 'paste', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete']) {
+        for (const action of ['open-new-tab', 'merge-notes', 'preview-raw-text', 'preview-pdf', 'copy', 'paste', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete']) {
             expect(menu.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
         }
         expect(state.contextTargetType).toBe('root');
@@ -846,7 +846,7 @@ describe('File Tree', () => {
             return [...surface.querySelectorAll('[data-action]')].map(item => item.dataset.action);
         };
         const expectedActions = [
-            'open-new-tab', 'merge-notes', 'preview-markdown', 'preview-pdf',
+            'open-new-tab', 'merge-notes', 'preview-raw-text', 'preview-pdf',
             'copy', 'paste',
             'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
         ];
@@ -996,10 +996,10 @@ describe('File Tree', () => {
         }));
 
         const menu = document.querySelector('.context-menu');
-        expect(menu.textContent).toContain('Preview Markdown');
+        expect(menu.textContent).toContain('Preview Raw Text');
         expect(menu.textContent).toContain('Preview PDF');
         expect(menu.textContent).not.toContain('Export to PDF');
-        expect(menu.querySelector('[data-action="preview-markdown"]')).not.toBeNull();
+        expect(menu.querySelector('[data-action="preview-raw-text"]')).not.toBeNull();
         expect(menu.querySelector('[data-action="preview-pdf"]')).not.toBeNull();
     });
 

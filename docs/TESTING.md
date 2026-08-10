@@ -271,7 +271,7 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   export-recovery states, print stylesheet resolution, and printable-document
   preparation.
 - Editor behavior, CodeMirror language modes, current-note heading-fragment
-  completion, nested Markdown heading folding, live Markdown preview, persistent Markdown diagnostics
+  completion, typed Markdown block-guide folding, exact Raw Text Preview, persistent Markdown diagnostics
   and their hover/F8 guidance, offline spellcheck's global **None** state and
   language/frontmatter overrides, wrapped-list cursor/selection geometry,
   frontmatter, footnotes, diagrams, tabs, session
@@ -297,8 +297,9 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Browser workflows for contextual Relationships, keyboard-triggered mention
   linking, the themed Vault-health Settings entry and finding navigation, and
   the full-width, non-overlapping History source comparison before restoration,
-  plus the nested Outline's visual hierarchy, active-section tracking,
-  keyboard jump, and editor-focus handoff.
+  plus the nested Document outline's visual hierarchy, active-section
+  tracking, top-right launcher, complete sticky hierarchy, keyboard jump, and
+  editor-focus handoff.
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
   links remain in the rendered document. High-frequency scroll reports are
@@ -387,7 +388,7 @@ Calendar and Kanban are persistent destinations, not title-bar toggles.
 Retain focused coverage that they remain in the footer below the file tree,
 Settings remains beside the window controls, and the title-bar center remains
 clear for native window dragging. Calendar must expand inside the left sidebar without closing or taking
-ownership of History/Outline/Markdown Preview/PDF preview on the right. Collapsing must leave a 44px
+ownership of History/Document outline/Raw Text Preview/PDF preview on the right. Collapsing must leave a 44px
 tool rail, close any expanded Calendar content, and reopen both the normal
 sidebar and Calendar when its rail icon is selected. Populate a representative
 large tree plus overflowing due-task and linked-note results, then assert that
@@ -490,49 +491,52 @@ npm run test:unit -- --runTestsByPath tests/frontend/unit/pdfPreview.test.js
 npx playwright test tests/e2e/pdfPreviewFrame.spec.js
 ```
 
-## Markdown preview and heading-link regressions
+## Raw text preview and heading-link regressions
 
-Markdown Preview is a normal themed rendering surface, not a print-preview
-shortcut. Keep unit coverage for initial content, active/saved document refresh,
-closing, and disabled raw HTML. The browser workflow must open it from a
-Markdown context menu, assert its themed document geometry, and close it by
-keyboard. Current-note heading completion must ignore frontmatter and fenced
+Raw Text Preview is an exact source surface, not a renderer or print-preview
+shortcut. Keep unit coverage for frontmatter, HTML, fences, an explicitly empty
+document, active/saved document refresh, and closing. The browser workflow must
+open it from a Markdown context menu, assert exact text plus deliberate source
+geometry, and close it by keyboard. Current-note heading completion must ignore frontmatter and fenced
 examples, preserve duplicate anchor suffixes, and accept a keyboard selection
 after typing `](#`.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
-  tests/frontend/unit/markdownPreview.test.js \
+  tests/frontend/unit/rawTextPreview.test.js \
   tests/frontend/unit/linkCompletions.test.js
 npx playwright test \
-  tests/e2e/markdownPreview.spec.js \
+  tests/e2e/rawTextPreview.spec.js \
   tests/e2e/headingLinkCompletions.spec.js
 ```
 
-## Windows Spanish dead-key regressions
+## Windows keyboard-layout regressions
 
-WebView2 can report Spanish tilde, diaeresis, acute, grave, and circumflex keys
-without a usable browser composition event. Retain both the CodeMirror DOM/unit
-and real-browser event regressions: a dead key must leave source unchanged,
-then compose `ñ`, `ü`, `á`, `à`, and `â` with their matching letters, or emit
-its spacing accent with Space. Backspace and Escape must cancel it without
-deleting adjacent text, so the following `n` remains plain. In Vim Insert mode,
-resolve the grave dead key with Space and cover both WebView2 paths. First,
-deliver `beforeinput`/`input` with `insertCompositionText` and prove the native
-insertion is accepted exactly once; a later legacy `insertText` event must be
-consumed. Then let key release trigger Figaro's fallback and deliver a delayed,
-non-cancelable `insertCompositionText`; the second copy must be repaired back to
-one backtick. The real-browser case must also mutate the contenteditable text
-node and dispatch an input event with `data: null`, proving CodeMirror discards
-the resulting duplicate at its DOM-change boundary. Repeat that physical-key
-and native-mutation sequence three times and require exactly one Markdown code
-fence. Keep Arrow Up/Down working across the resulting line. Exercise the same
-immediate, missing, and delayed composition sequences manually in a packaged
-Windows/WebView2 build before release.
+Figaro must not infer text from Windows physical key codes or replace native
+WebView2 dead-key composition. The focused component regression spoofs Windows
+and verifies that an ordinary backtick, `AltGr+4` dead key, and another reported
+dead key are not consumed in either regular editing or Vim Insert mode. The
+real-browser regression supplies browser text, requires one backtick per input
+and exactly three for a Markdown fence, accepts already-composed Unicode such
+as `ã`, and keeps Arrow Up/Down working across the resulting fence.
+
+The dependency contract pins the application to Wails v2.14 and replaces its
+runtime module with `github.com/grilo/wails/v2` tag `v2.14.0-figaro.1`. That
+fork carries the native regression which distinguishes AltGr's Ctrl+Right-Alt
+state from ordinary Left-Alt accelerators. The official v2.14 CLI remains the
+build driver; its application build consumes the replacement declared by
+Figaro's `go.mod`.
+
+Synthetic Chromium events cannot activate the operating system's Spanish
+layout. Before a Windows release, repeat the irreducible packaged WebView2
+check with a Spanish keyboard in both regular editing and Vim Insert mode:
+press the ordinary backtick key once and require one backtick without Space;
+press it three times and require one three-character fence; then press
+`AltGr+4` followed by `a` and `o` and require `ã` and `õ`. Also check native
+acute and diaeresis composition, cancellation, and surrounding cursor motion.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
-  tests/frontend/unit/windowsDeadKeyModel.test.js \
   tests/frontend/unit/editor.test.js
 npx playwright test tests/e2e/windowsAltGr.spec.js
 ```
@@ -613,11 +617,11 @@ navigation change, also put the cursor and viewport at the end and press Arrow
 Down, then put both at the beginning and press Arrow Up; neither action may
 move or wrap, and wheel input must remain at the corresponding scroll limit.
 
-Markdown heading folding adds its own focused matrix. Unit coverage must prove
-parent, child, peer, and end-of-document ranges, an empty section, and a
-heading-shaped line inside frontmatter or fenced code. The real CodeMirror component must
-exercise accessible collapse/expand controls and show that folding never edits
-the source. The browser boundary must click a nested fold, move across it with
+Markdown block guides add their own focused matrix. Pure coverage must prove
+classification, frontmatter boundaries, parent/child/peer heading ranges, and
+non-heading block ranges. The real CodeMirror component must exercise typed,
+accessible collapse/expand controls, disabling and re-enabling the gutter, and
+show that folding never edits source. The browser boundary must click a nested fold, move across it with
 Arrow Up/Down and Vim visual-row `j`/`k`, place the mouse on the adjacent line,
 and drag a selection across the folded source in both directions. In a native
 WebKitGTK, WebView2, and WKWebView build, repeat those cursor and drag checks
@@ -626,9 +630,10 @@ with both line numbers off and on.
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/markdownHeadingFolding.test.js \
+  tests/frontend/unit/markdownBlockGuides.test.js \
   tests/frontend/unit/codeEditorMode.test.js \
   tests/frontend/unit/editor.test.js
-npx playwright test tests/e2e/editorUX.spec.js --grep "folds nested Markdown headings"
+npx playwright test tests/e2e/editorUX.spec.js --grep "folds nested Markdown block guides"
 ```
 
 Interactive Markdown tables add a stricter cursor matrix. Test Arrow keys

@@ -39,7 +39,7 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
     })).toEqual(expectedCursor);
 });
 
-test('folds nested Markdown headings without breaking cursor or drag-selection geometry', async ({ page }) => {
+test('folds nested Markdown block guides without breaking cursor or drag-selection geometry', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = [
         '# Product roadmap',
@@ -64,18 +64,18 @@ test('folds nested Markdown headings without breaking cursor or drag-selection g
     }, source);
 
     const collapseControls = page.locator(
-        '.ui-editor-fold-control[aria-expanded="true"]:visible',
+        '.ui-editor-block-guide[aria-expanded="true"][aria-label*="section"]:visible',
     );
     await expect(collapseControls).toHaveCount(5);
-    await expect(page.getByRole('button', { name: 'Collapse heading section' })).toHaveCount(5);
-    await expect(collapseControls.first()).toHaveAttribute('aria-label', 'Collapse heading section');
+    await expect(page.getByRole('button', { name: 'Collapse h2 Goals section' })).toHaveCount(1);
+    await expect(collapseControls.first()).toHaveAttribute('aria-label', 'Collapse h1 Product roadmap section');
     await collapseControls.nth(1).click();
 
     const expandControl = page.locator(
-        '.ui-editor-fold-control[aria-expanded="false"]:visible',
+        '.ui-editor-block-guide[aria-expanded="false"][aria-label="Expand h2 Goals section"]:visible',
     );
     await expect(expandControl).toHaveCount(1);
-    await expect(expandControl).toHaveAttribute('aria-label', 'Expand heading section');
+    await expect(expandControl).toHaveText('h2');
     await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
     expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(source);
 
@@ -932,12 +932,11 @@ test('keeps local history quiet until the active file needs recording again', as
     expect(highlighted.cursor).toBe('pointer');
     expect(highlighted.beforeChanges).toBe(true);
     // Focusing the cheatsheet opens its popup; keyboard users tab through its
-    // close button and then reach the adjacent status controls.
+    // close button and then reach the remaining adjacent status control. The
+    // outline launcher now lives at the editor's top-left instead.
     await page.locator('#md-cheatsheet-trigger').focus();
     await page.keyboard.press('Tab');
     await expect(page.locator('#md-cheatsheet-close')).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(page.locator('#outline-toggle')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(gitStatus).toBeFocused();
     expect(await gitStatus.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('solid');

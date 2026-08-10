@@ -24,7 +24,7 @@ import { initTheme } from './theme.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
-import { closeMarkdownPreview, initMarkdownPreview } from './markdownPreview.js';
+import { closeRawTextPreview, initRawTextPreview } from './rawTextPreview.js';
 import { initOutlinePanel } from './outline.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
 import { initLinkStylePreference } from './linkStyle.js';
@@ -200,7 +200,7 @@ export function initTopBar() {
     if (rsClose && rightSidebar) {
         rsClose.addEventListener('click', () => {
             if (rightSidebar.dataset.mode === 'pdf-preview') closePDFPreview();
-            else if (rightSidebar.dataset.mode === 'markdown-preview') closeMarkdownPreview();
+            else if (rightSidebar.dataset.mode === 'raw-text-preview') closeRawTextPreview();
             else if (rightSidebar.dataset.mode === 'history') document.dispatchEvent(new CustomEvent('close-history-panel'));
             else if (rightSidebar.dataset.mode === 'outline') document.dispatchEvent(new CustomEvent('close-outline-panel'));
             else {
@@ -527,10 +527,10 @@ export async function initApp() {
     // Outline shares the right sidebar with History and PDF Preview.
     initOutlinePanel();
 
-    // PDF preview shares the right sidebar with History and Outline; Calendar
-    // is isolated in the left sidebar and can remain open independently.
+    // PDF and raw-text previews share the right sidebar with History and
+    // Document outline; Calendar remains independent in the left sidebar.
     initPDFPreview();
-    initMarkdownPreview();
+    initRawTextPreview();
 
     await initTheme();
     

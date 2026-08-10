@@ -78,6 +78,18 @@ func TestReleaseWorkflowPinsTheWailsVersionRequiredByGoMod(t *testing.T) {
 	}
 }
 
+func TestWindowsHostUsesPinnedAltGrWailsFork(t *testing.T) {
+	goModBytes, err := os.ReadFile("go.mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const replacement = "replace github.com/wailsapp/wails/v2 => github.com/grilo/wails/v2 v2.14.0-figaro.1"
+	if !strings.Contains(string(goModBytes), replacement) {
+		t.Fatalf("go.mod must contain the reviewed Windows AltGr host replacement %q", replacement)
+	}
+}
+
 func TestHostedReleaseCanGenerateIconsWithUbuntuImageMagick(t *testing.T) {
 	scriptBytes, err := os.ReadFile("scripts/generate-icons.sh")
 	if err != nil {

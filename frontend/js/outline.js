@@ -1,9 +1,9 @@
 /**
  * Document Outline — a quiet heading navigator for Markdown notes.
  *
- * The pane deliberately reads the CodeMirror document and selection rather
- * than adding editor decorations. That keeps it useful for long notes without
- * changing source layout, cursor movement, or live-preview widgets.
+ * The pane and sticky hierarchy deliberately read the CodeMirror document
+ * rather than changing source. Navigation remains outside the editor's
+ * decoration and widget layers, so cursor geometry stays owned by CodeMirror.
  */
 
 import { getEditorContent, getEditorDocumentTabId, getEditorView } from './editor.js';
@@ -15,6 +15,9 @@ const FENCE = /^\s*(`{3,}|~{3,})/;
 const SETEXT = /^\s*(=+|-+)\s*$/;
 
 let initialized = false;
+let stickyHeadingsEnabled = true;
+let documentOutlineEnabled = true;
+let stickySignature = '';
 let model = {
     tabId: null,
     source: null,
@@ -97,6 +100,7 @@ export function extractOutlineHeadings(source) {
 /** Return the heading whose section contains a CodeMirror document position. */
 export function activeOutlineHeadingIndex(headings, position) {
     if (!Array.isArray(headings) || !headings.length) return -1;
+    if (position < headings[0].from) return -1;
     let active = 0;
     for (let index = 1; index < headings.length; index++) {
         if (headings[index].from > position) break;
@@ -105,10 +109,25 @@ export function activeOutlineHeadingIndex(headings, position) {
     return active;
 }
 
+/** Return every active ancestor, including the current heading. */
+export function activeOutlineHeadingHierarchy(headings, position) {
+    const activeIndex = activeOutlineHeadingIndex(headings, position);
+    if (activeIndex < 0) return [];
+    const hierarchy = [];
+    for (let index = 0; index <= activeIndex; index += 1) {
+        const heading = headings[index];
+        while (hierarchy.length && hierarchy[hierarchy.length - 1].level >= heading.level) {
+            hierarchy.pop();
+        }
+        hierarchy.push(heading);
+    }
+    return hierarchy;
+}
+
 function outlineElements() {
     return {
         button: document.getElementById('outline-toggle'),
-        separator: document.getElementById('outline-separator'),
+        sticky: document.getElementById('sticky-heading-stack'),
         sidebar: document.getElementById('right-sidebar'),
         content: document.getElementById('right-sidebar-content'),
         title: document.getElementById('right-sidebar-title'),
@@ -122,15 +141,15 @@ function sidebarOwnsOutline() {
 }
 
 function setOutlineControlVisible(visible) {
-    const { button, separator } = outlineElements();
+    const { button } = outlineElements();
     if (button) {
-        button.hidden = !visible;
-        if (!visible) {
+        const shouldShow = documentOutlineEnabled && visible && !sidebarOwnsOutline();
+        button.hidden = !shouldShow;
+        if (!shouldShow) {
             button.classList.remove('is-open');
-            button.setAttribute('aria-expanded', 'false');
+            if (!sidebarOwnsOutline()) button.setAttribute('aria-expanded', 'false');
         }
     }
-    if (separator) separator.hidden = !visible;
 }
 
 function setOutlineOpenState(open) {
@@ -138,10 +157,12 @@ function setOutlineOpenState(open) {
     if (!button) return;
     button.classList.toggle('is-open', open);
     button.setAttribute('aria-expanded', String(open));
+    button.hidden = open || !documentOutlineEnabled || !model.headings.length;
 }
 
 function resetModel() {
     model = { tabId: null, source: null, headings: [] };
+    renderStickyHeadings();
 }
 
 function refreshOutlineModel() {
@@ -165,6 +186,7 @@ function refreshOutlineModel() {
         };
     }
     setOutlineControlVisible(model.headings.length > 0);
+    if (changed) renderStickyHeadings();
     return changed;
 }
 
@@ -198,6 +220,42 @@ function navigateToHeading(from) {
     updateActiveOutlineItem();
 }
 
+function headingButton(heading, className) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = className;
+    item.dataset.position = String(heading.from);
+    item.title = heading.text;
+
+    const type = document.createElement('span');
+    type.className = `${className}-type`;
+    type.textContent = `h${heading.level}`;
+    type.setAttribute('aria-hidden', 'true');
+    const text = document.createElement('span');
+    text.className = `${className}-text`;
+    text.textContent = heading.text;
+    item.setAttribute('aria-label', `Go to h${heading.level} ${heading.text}`);
+    item.append(type, text);
+    item.addEventListener('click', () => navigateToHeading(heading.from));
+    return item;
+}
+
+function renderStickyHeadings() {
+    const { sticky } = outlineElements();
+    if (!sticky) return;
+    const view = getEditorView();
+    const viewportStart = view?.viewport?.from ?? 0;
+    const hierarchy = stickyHeadingsEnabled && model.headings.length && viewportStart > 0
+        ? activeOutlineHeadingHierarchy(model.headings, viewportStart - 1)
+        : [];
+    const signature = hierarchy.map(heading => `${heading.level}:${heading.from}:${heading.text}`).join('|');
+    if (signature === stickySignature && sticky.childElementCount === hierarchy.length) return;
+    stickySignature = signature;
+    sticky.replaceChildren(...hierarchy.map(heading => headingButton(heading, 'sticky-heading-item')));
+    sticky.hidden = hierarchy.length === 0;
+    view?.requestMeasure?.();
+}
+
 function renderOutlinePanel() {
     const { content } = outlineElements();
     if (!content || !sidebarOwnsOutline()) return;
@@ -217,15 +275,9 @@ function renderOutlinePanel() {
     list.setAttribute('aria-label', 'Heading navigation');
     const baseLevel = Math.min(...model.headings.map(heading => heading.level));
     model.headings.forEach((heading, index) => {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'outline-item';
+        const item = headingButton(heading, 'outline-item');
         item.dataset.index = String(index);
-        item.dataset.position = String(heading.from);
         item.style.paddingInlineStart = `${8 + (heading.level - baseLevel) * 12}px`;
-        item.textContent = heading.text;
-        item.title = heading.text;
-        item.addEventListener('click', () => navigateToHeading(heading.from));
         list.append(item);
     });
     panel.append(list);
@@ -253,6 +305,7 @@ function toggleOutlinePanel() {
 }
 
 export function openOutlinePanel() {
+    if (!documentOutlineEnabled) return false;
     refreshOutlineModel();
     if (!model.headings.length) return false;
 
@@ -260,14 +313,14 @@ export function openOutlinePanel() {
     // local to their panels and preserve the shared splitter for the new pane.
     document.dispatchEvent(new CustomEvent('close-history-panel'));
     document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
-    document.dispatchEvent(new CustomEvent('close-markdown-preview', { detail: { keepSidebarOpen: true } }));
+    document.dispatchEvent(new CustomEvent('close-raw-text-preview', { detail: { keepSidebarOpen: true } }));
 
     const { sidebar, title, resizer } = outlineElements();
     if (!sidebar) return false;
     sidebar.dataset.mode = 'outline';
     sidebar.classList.remove('pdf-preview-mode', 'collapsed');
     sidebar.classList.add('open');
-    if (title) title.textContent = 'Outline';
+    if (title) title.textContent = 'Document outline';
     resizer?.classList.add('visible');
     setOutlineOpenState(true);
     renderOutlinePanel();
@@ -289,7 +342,19 @@ export function closeOutlinePanel({ keepSidebarOpen = false } = {}) {
         }
     }
     setOutlineOpenState(false);
+    setOutlineControlVisible(model.headings.length > 0);
     window.dispatchEvent(new Event('resize'));
+}
+
+export function setStickyHeadingsEnabled(enabled) {
+    stickyHeadingsEnabled = Boolean(enabled);
+    renderStickyHeadings();
+}
+
+export function setDocumentOutlineEnabled(enabled) {
+    documentOutlineEnabled = Boolean(enabled);
+    if (!documentOutlineEnabled && sidebarOwnsOutline()) closeOutlinePanel();
+    setOutlineControlVisible(model.headings.length > 0);
 }
 
 export function initOutlinePanel() {
@@ -308,9 +373,10 @@ export function initOutlinePanel() {
     document.addEventListener('editor-view-updated', event => {
         const detail = event.detail || {};
         if (detail.docChanged) refreshOpenOutline();
-        else if (sidebarOwnsOutline() && (detail.selectionSet || detail.viewportChanged)) {
+        else if (detail.selectionSet || detail.viewportChanged) {
             refreshOutlineModel();
-            updateActiveOutlineItem(Boolean(detail.viewportChanged && !detail.selectionSet));
+            if (detail.viewportChanged) renderStickyHeadings();
+            if (sidebarOwnsOutline()) updateActiveOutlineItem(Boolean(detail.viewportChanged && !detail.selectionSet));
         }
     });
 
@@ -319,8 +385,11 @@ export function initOutlinePanel() {
 
 export default {
     activeOutlineHeadingIndex,
+    activeOutlineHeadingHierarchy,
     closeOutlinePanel,
     extractOutlineHeadings,
     initOutlinePanel,
     openOutlinePanel,
+    setDocumentOutlineEnabled,
+    setStickyHeadingsEnabled,
 };

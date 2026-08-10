@@ -6,6 +6,33 @@ All notable user-facing changes are recorded here from this point forward.
 
 _No changes yet._
 
+## 1.13.0 - 2026-08-10
+
+### Added
+
+- Markdown notes now keep the complete active heading hierarchy at the top of
+  the editor and offer a compact top-right launcher for a typed, nested document
+  outline in the right pane.
+- Settings now persist independent, enabled-by-default controls for sticky
+  headings, Markdown block guides and folding, and the document outline.
+
+### Changed
+
+- Markdown fold arrows are replaced by quiet typed guides such as `h1`,
+  `list`, `raw`, and `mermaid`; activating a guide collapses its block or
+  complete nested heading section without changing source. Source-code fold
+  arrows remain unchanged.
+- **Preview Markdown** is now **Preview Raw Text** and shows the exact,
+  selectable Markdown source—including frontmatter and unrendered HTML—in the
+  right pane.
+
+### Fixed
+
+- Windows keyboard input now uses Wails v2.14 with a pinned native-host fix and
+  is left to WebView2 and CodeMirror instead of remapping Spanish physical keys
+  or synthesizing dead-key output, so ordinary backticks stay single and
+  AltGr+4 can compose tilded characters normally.
+
 ## 1.12.2 - 2026-08-10
 
 ### Fixed

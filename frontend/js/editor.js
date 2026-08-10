@@ -53,7 +53,7 @@ import {
     saveActiveFile as saveActiveTabFile,
     saveFileSnapshot,
 } from './tabManager.js';
-import { openMarkdownPreview } from './markdownPreview.js';
+import { openRawTextPreview } from './rawTextPreview.js';
 import { openPDFPreview } from './pdfPreview.js';
 import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
 import { indentationMarkers as indentationMarkerExtension } from '@replit/codemirror-indentation-markers';
@@ -79,17 +79,13 @@ import { markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown';
 import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
 import { markdownLinter } from './markdownLint.js';
-import { markdownHeadingFoldingExtension } from './markdownHeadingFolding.js';
+import { markdownBlockGuidesExtension } from './markdownBlockGuides.js';
 import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
     unexpectedVerticalMotionTarget,
     verticalBoundaryTarget,
     verticalViewportBoundaryTarget,
 } from './core/verticalCursorModel.js';
-import {
-    planWindowsDeadKeyDOMChange,
-    planWindowsDeadKeyTextReconciliation,
-} from './core/windowsDeadKeyModel.js';
 import {
     planVimClipboardPaste,
     vimPasteKeys,
@@ -141,6 +137,7 @@ const vimTableCellViews = new WeakMap();
 let tableHistoryRedoBookmark = null;
 let lineNumbersRequested = false;
 let markdownLintRequested = true;
+let markdownBlockGuidesRequested = true;
 let spellcheckRequested = true;
 let spellcheckLanguageRequested = 'en-US';
 let vimRequestId = 0;
@@ -190,15 +187,20 @@ function createEditorFoldControl(expanded, regionLabel) {
 
 function editorFoldingExtensions(kind) {
     if (!foldGutter || !foldKeymap) return [];
-    const regionLabel = kind === 'markdown' ? 'heading section' : 'code region';
+    if (kind === 'markdown') return markdownBlockGuidesRequested ? markdownBlockGuidesExtension : [];
     return [
-        ...(kind === 'markdown' ? [markdownHeadingFoldingExtension] : []),
         foldGutter({
-            markerDOM: expanded => createEditorFoldControl(expanded, regionLabel),
+            markerDOM: expanded => createEditorFoldControl(expanded, 'code region'),
         }),
         keymap.of(foldKeymap),
     ];
 }
+
+const stickyHeadingScrollMargins = EditorView.scrollMargins.of(() => {
+    const stack = document.getElementById('sticky-heading-stack');
+    if (!stack || stack.hidden) return null;
+    return { top: Math.ceil(stack.getBoundingClientRect().height + 8) };
+});
 
 const vimVisualRowMappings = [
     ['j', '<FigaroVisualDown>', 'normal'],
@@ -958,65 +960,6 @@ function vimSourceBoundaryExtension() {
     }));
 }
 
-const isWindowsPlatform = () => typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '');
-const pendingWindowsSpanishDeadKeys = new WeakMap();
-const pendingWindowsSpanishDeadKeyText = new WeakMap();
-const pendingWindowsSpanishNativeBackticks = new WeakMap();
-const windowsSpanishNativeBacktickFallbackDelay = 180;
-const windowsSpanishNativeBacktickGuardDelay = 250;
-const windowsSpanishDeadKeyDefinitions = [
-    {
-        matches: event => hasAltGraphModifier(event) && isDigit4Key(event),
-        spacing: '~',
-        combining: '\u0303',
-        composable: 'AaEeIiNnOoUuYy',
-    },
-    {
-        matches: event => event.code === 'BracketLeft' && !hasAltGraphModifier(event),
-        spacing: event => event.shiftKey ? '^' : '`',
-        combining: event => event.shiftKey ? '\u0302' : '\u0300',
-        composable: 'AaEeIiOoUuYy',
-    },
-    {
-        matches: event => event.code === 'Semicolon' && !hasAltGraphModifier(event),
-        spacing: event => event.shiftKey ? '¨' : '´',
-        combining: event => event.shiftKey ? '\u0308' : '\u0301',
-        composable: 'AaEeIiOoUuYy',
-    },
-];
-
-function hasAltGraphModifier(event) {
-    return event.getModifierState?.('AltGraph') === true || (event.ctrlKey && event.altKey);
-}
-
-function isDigit4Key(event) {
-    return event.code === 'Digit4' || event.keyCode === 52 || event.which === 52;
-}
-
-function isModifierOnlyKey(event) {
-    return ['Alt', 'AltGraph', 'Control', 'Meta', 'Shift'].includes(event?.key);
-}
-
-function getWindowsSpanishDeadKey(event) {
-    if (event?.key !== 'Dead') return null;
-    const definition = windowsSpanishDeadKeyDefinitions.find(candidate => candidate.matches(event));
-    if (!definition) return null;
-    return {
-        spacing: typeof definition.spacing === 'function' ? definition.spacing(event) : definition.spacing,
-        combining: typeof definition.combining === 'function' ? definition.combining(event) : definition.combining,
-        composable: definition.composable,
-    };
-}
-
-function resolveWindowsSpanishDeadKey(deadKey, key) {
-    if (key === ' ') return deadKey.spacing;
-    if (typeof key !== 'string' || key.length !== 1) return null;
-    if (deadKey.composable.includes(key)) return `${key}${deadKey.combining}`.normalize('NFC');
-    // A dead key followed by an unsupported printable character conventionally
-    // emits the spacing accent before that character rather than losing either.
-    return `${deadKey.spacing}${key}`;
-}
-
 export function insertTextAtCursor(view, text) {
     if (!view?.state?.selection) return false;
     const selection = view.state.selection.main;
@@ -1027,239 +970,6 @@ export function insertTextAtCursor(view, text) {
         userEvent: 'input.type',
     });
     return true;
-}
-
-function windowsSpanishTextFromEvent(event) {
-    if (String(event?.type || '').toLowerCase() === 'textinput') return event.data;
-    return event?.inputType === 'insertText' || event?.inputType === 'insertCompositionText'
-        ? event.data
-        : null;
-}
-
-function clearWindowsSpanishNativeBacktickTimers(pending) {
-    clearTimeout(pending?.fallbackTimer);
-    clearTimeout(pending?.settleTimer);
-    clearTimeout(pending?.cleanupTimer);
-}
-
-function clearWindowsSpanishNativeBacktick(view, pending) {
-    if (pendingWindowsSpanishNativeBackticks.get(view) !== pending) return;
-    clearWindowsSpanishNativeBacktickTimers(pending);
-    pendingWindowsSpanishNativeBackticks.delete(view);
-}
-
-function retainWindowsSpanishNativeBacktickGuard(view, pending) {
-    clearTimeout(pending.fallbackTimer);
-    clearTimeout(pending.settleTimer);
-    clearTimeout(pending.cleanupTimer);
-    pending.committed = true;
-    pending.cleanupTimer = setTimeout(() => {
-        clearWindowsSpanishNativeBacktick(view, pending);
-    }, windowsSpanishNativeBacktickGuardDelay);
-}
-
-function reconcileWindowsSpanishNativeBacktick(view, pending) {
-    if (pendingWindowsSpanishNativeBackticks.get(view) !== pending || !view || view.isDestroyed) return 'stale';
-    const plan = planWindowsDeadKeyTextReconciliation({
-        sourceText: pending.sourceText,
-        currentText: view.state.doc.toString(),
-        from: pending.from,
-        to: pending.to,
-        text: pending.text,
-    });
-    if (pending.committed && plan.action === 'insert-fallback') {
-        clearWindowsSpanishNativeBacktick(view, pending);
-        return 'preserve';
-    }
-    if (plan.changes) {
-        view.dispatch({
-            changes: plan.changes,
-            selection: { anchor: plan.anchor },
-            userEvent: 'input.type',
-        });
-    }
-    if (plan.action === 'preserve') {
-        clearWindowsSpanishNativeBacktick(view, pending);
-    } else {
-        retainWindowsSpanishNativeBacktickGuard(view, pending);
-    }
-    return plan.action;
-}
-
-function scheduleWindowsSpanishNativeBacktickSettlement(view, pending) {
-    clearTimeout(pending.settleTimer);
-    pending.settleTimer = setTimeout(() => {
-        reconcileWindowsSpanishNativeBacktick(view, pending);
-    }, 0);
-}
-
-function queueWindowsSpanishNativeBacktick(view, text) {
-    const previous = pendingWindowsSpanishNativeBackticks.get(view);
-    if (previous) reconcileWindowsSpanishNativeBacktick(view, previous);
-
-    const selection = view.state.selection.main;
-    const pending = {
-        sourceText: view.state.doc.toString(),
-        from: selection.from,
-        to: selection.to,
-        text,
-        committed: false,
-        fallbackTimer: null,
-        settleTimer: null,
-        cleanupTimer: null,
-    };
-    pendingWindowsSpanishNativeBackticks.set(view, pending);
-    pending.fallbackTimer = setTimeout(() => {
-        reconcileWindowsSpanishNativeBacktick(view, pending);
-    }, windowsSpanishNativeBacktickFallbackDelay);
-}
-
-function handleWindowsSpanishNativeBacktickText(event, view) {
-    const pending = pendingWindowsSpanishNativeBackticks.get(view);
-    if (!pending) return false;
-    const text = windowsSpanishTextFromEvent(event);
-    if (text !== pending.text) return false;
-
-    const plan = planWindowsDeadKeyTextReconciliation({
-        sourceText: pending.sourceText,
-        currentText: view.state.doc.toString(),
-        from: pending.from,
-        to: pending.to,
-        text: pending.text,
-    });
-    const eventType = String(event.type || '').toLowerCase();
-    const beforeNativeMutation = eventType === 'beforeinput' || eventType === 'textinput';
-    if ((pending.committed || plan.action === 'accept-native') && beforeNativeMutation && event.cancelable) {
-        retainWindowsSpanishNativeBacktickGuard(view, pending);
-        event.preventDefault();
-        event.stopImmediatePropagation?.();
-        event.stopPropagation?.();
-        return true;
-    }
-    if (plan.action === 'remove-duplicate') {
-        reconcileWindowsSpanishNativeBacktick(view, pending);
-        if (beforeNativeMutation && event.cancelable) {
-            event.preventDefault();
-            event.stopImmediatePropagation?.();
-            event.stopPropagation?.();
-            return true;
-        }
-    } else {
-        scheduleWindowsSpanishNativeBacktickSettlement(view, pending);
-    }
-    return false;
-}
-
-function handleWindowsSpanishNativeBacktickDOMChange(view, from, to, text) {
-    if (!isWindowsPlatform() || !view) return false;
-    const pending = pendingWindowsSpanishNativeBackticks.get(view);
-    if (!pending) return false;
-
-    const plan = planWindowsDeadKeyDOMChange({
-        sourceText: pending.sourceText,
-        currentText: view.state.doc.toString(),
-        from: pending.from,
-        to: pending.to,
-        text: pending.text,
-        changeFrom: from,
-        changeTo: to,
-        insertedText: text,
-    });
-    if (plan.action === 'accept-native') {
-        // Let CodeMirror and Vim apply the first native DOM change normally.
-        retainWindowsSpanishNativeBacktickGuard(view, pending);
-        return false;
-    }
-    if (plan.action === 'discard-native-duplicate') {
-        // Claiming the DOM change without dispatching makes CodeMirror restore
-        // the contenteditable DOM from the already-correct editor state.
-        retainWindowsSpanishNativeBacktickGuard(view, pending);
-        return true;
-    }
-    return false;
-}
-
-function queueWindowsSpanishDeadKeyText(view, text) {
-    const pending = { text };
-    pendingWindowsSpanishDeadKeyText.set(view, pending);
-    setTimeout(() => {
-        if (pendingWindowsSpanishDeadKeyText.get(view) === pending) {
-            pendingWindowsSpanishDeadKeyText.delete(view);
-        }
-    }, 100);
-}
-
-/** Suppress WebView2's delayed native text after the compatibility path inserted it. */
-function handleWindowsSpanishDeadKeyText(event, view) {
-    if (!isWindowsPlatform() || !event || !view) return false;
-    if (handleWindowsSpanishNativeBacktickText(event, view)) return true;
-    const pending = pendingWindowsSpanishDeadKeyText.get(view);
-    if (!pending) return false;
-
-    const text = windowsSpanishTextFromEvent(event);
-    if (text === null) return false;
-    pendingWindowsSpanishDeadKeyText.delete(view);
-    if (text !== pending.text) return false;
-
-    event.preventDefault();
-    event.stopImmediatePropagation?.();
-    event.stopPropagation?.();
-    return true;
-}
-
-function handleWindowsSpanishDeadKeyKeyup(event, view) {
-    if (!isWindowsPlatform() || !event || !view) return false;
-    const pending = pendingWindowsSpanishNativeBackticks.get(view);
-    if (!pending || (event.key !== ' ' && event.code !== 'Space')) return false;
-    reconcileWindowsSpanishNativeBacktick(view, pending);
-    return false;
-}
-
-function handleWindowsSpanishDeadKey(event, view) {
-    if (!isWindowsPlatform() || !event || !view) return false;
-
-    // Settle a missing native backtick before the next physical key edits the
-    // document, and do not let the older accent guard swallow an intentionally
-    // repeated character.
-    pendingWindowsSpanishDeadKeyText.delete(view);
-    const pendingNativeBacktick = pendingWindowsSpanishNativeBackticks.get(view);
-    if (pendingNativeBacktick) reconcileWindowsSpanishNativeBacktick(view, pendingNativeBacktick);
-
-    // WebView2 can expose Spanish dead keys without delivering a usable
-    // composition event. Preserve just the layout's known dead-key events so
-    // the following key resolves the accent instead of inserting it early.
-    const deadKey = getWindowsSpanishDeadKey(event);
-    if (deadKey) {
-        pendingWindowsSpanishDeadKeys.set(view, deadKey);
-        event.preventDefault();
-        return true;
-    }
-
-    const pendingDeadKey = pendingWindowsSpanishDeadKeys.get(view);
-    if (!pendingDeadKey) return false;
-    if (isModifierOnlyKey(event)) return false;
-
-    pendingWindowsSpanishDeadKeys.delete(view);
-
-    // Backspace and Escape cancel a native dead key. They must not edit the
-    // document while clearing this compatibility state.
-    if (event.key === 'Backspace' || event.key === 'Escape') {
-        event.preventDefault();
-        return true;
-    }
-
-    const text = resolveWindowsSpanishDeadKey(pendingDeadKey, event.key);
-    if (text === '`') {
-        queueWindowsSpanishNativeBacktick(view, text);
-        event.preventDefault();
-        return true;
-    }
-    if (text && insertTextAtCursor(view, text)) {
-        queueWindowsSpanishDeadKeyText(view, text);
-        event.preventDefault();
-        return true;
-    }
-    return false;
 }
 
 // Native desktop drops are imported through the Wails file-drop callback. Do
@@ -2131,8 +1841,8 @@ function createEditorView() {
     });
 
     // CodeMirror marks its complete gutter rail aria-hidden because line
-    // numbers and ordinary markers are decorative. Heading-fold markers are
-    // real controls, so expose only that gutter and keep every sibling hidden.
+    // numbers and ordinary markers are decorative. Fold arrows and Markdown
+    // block guides are real controls, so expose only that interactive gutter.
     const foldGutterAccessibilityPlugin = ViewPlugin.fromClass(class {
         constructor(view) {
             this.view = view;
@@ -2148,7 +1858,7 @@ function createEditorView() {
         sync() {
             if (this.view.isDestroyed) return;
             for (const gutters of this.view.dom.querySelectorAll('.cm-gutters')) {
-                const fold = gutters.querySelector('.cm-foldGutter');
+                const fold = gutters.querySelector('.cm-markdownBlockGutter, .cm-foldGutter');
                 if (!fold) {
                     gutters.setAttribute('aria-hidden', 'true');
                     continue;
@@ -2158,7 +1868,9 @@ function createEditorView() {
                     if (gutter === fold) {
                         gutter.removeAttribute('aria-hidden');
                         gutter.setAttribute('role', 'group');
-                        gutter.setAttribute('aria-label', 'Section folding');
+                        gutter.setAttribute('aria-label', gutter.classList.contains('cm-markdownBlockGutter')
+                            ? 'Markdown block guides'
+                            : 'Code folding');
                     } else {
                         gutter.setAttribute('aria-hidden', 'true');
                     }
@@ -2733,6 +2445,7 @@ function createEditorView() {
         vimTableCellPromptInputGuardExtension(),
         vimRenderedBlockNavigationExtension(),
         EditorView.lineWrapping,
+        stickyHeadingScrollMargins,
         markdownLintCompartment.of(markdownLintRequested ? [linter(markdownLinter, { delay: 500 })] : []),
         spellcheckCompartment.of(spellcheckRequested ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })] : []),
         autocompletion({
@@ -2776,17 +2489,6 @@ function createEditorView() {
                 || (activeFileLanguage.kind === 'markdown' && handleClipboardTablePaste(event, view)),
             drop: handleExternalFileDrop,
         }),
-        // Backspace and Escape must cancel a pending dead key before
-        // CodeMirror's ordinary keymap can edit the document.
-        Prec.highest(EditorView.domEventHandlers({
-            keydown: handleWindowsSpanishDeadKey,
-            keyup: handleWindowsSpanishDeadKeyKeyup,
-            beforeinput: handleWindowsSpanishDeadKeyText,
-            input: handleWindowsSpanishNativeBacktickText,
-            textInput: handleWindowsSpanishDeadKeyText,
-            textinput: handleWindowsSpanishDeadKeyText,
-        })),
-        Prec.highest(EditorView.inputHandler.of(handleWindowsSpanishNativeBacktickDOMChange)),
         Prec.high(keymap.of([
             { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
             { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },
@@ -3105,6 +2807,17 @@ function setLineNumbers(enabled) {
         effects: lineNumbersCompartment.reconfigure(
             lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []
         ),
+    });
+    view.requestMeasure();
+}
+
+/** Toggle Markdown's typed block-guide gutter without affecting code folds. */
+function setMarkdownBlockGuides(enabled) {
+    markdownBlockGuidesRequested = Boolean(enabled);
+    const view = getEditorView();
+    if (!view || !foldingCompartment || activeFileLanguage.kind !== 'markdown') return;
+    view.dispatch({
+        effects: foldingCompartment.reconfigure(editorFoldingExtensions('markdown')),
     });
     view.requestMeasure();
 }
@@ -3748,9 +3461,9 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
         </div>` : '';
     const previewActions = activeTab?.path?.toLowerCase().endsWith('.md') ? `
         <div class="ui-menu-separator context-menu-separator"></div>
-        <div class="ui-menu-item context-menu-item" data-action="preview-markdown">
+        <div class="ui-menu-item context-menu-item" data-action="preview-raw-text">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-            Preview Markdown
+            Preview Raw Text
         </div>
         <div class="ui-menu-item context-menu-item" data-action="preview-pdf">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
@@ -3841,16 +3554,16 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
         else if (action === 'select-all') {
             const doc = view.state.doc;
             view.dispatch({ selection: { anchor: 0, head: doc.length } });
-        } else if (action === 'preview-markdown') {
+        } else if (action === 'preview-raw-text') {
             try {
-                await openMarkdownPreview({
+                await openRawTextPreview({
                     path: activeTab.path,
                     title: activeTab.title,
                     content: view.state.doc.toString(),
                 });
             } catch (error) {
-                log.error('Markdown preview failed:', error);
-                await errorDialog('Markdown preview couldn’t open', error, 'Could not open the Markdown preview.');
+                log.error('Raw text preview failed:', error);
+                await errorDialog('Raw text preview couldn’t open', error, 'Could not open the raw text preview.');
             }
         } else if (action === 'preview-pdf') {
             try {
@@ -4202,5 +3915,5 @@ function updateVimStatus(mode) {
 export { initEditor, createEditorView, getEditorView,
     getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
-    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setVimRevealBlocks, setImageBasePath, setReadOnly, setLineNumbers, setMarkdownLint, setSpellcheck,
+    saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setVimRevealBlocks, setImageBasePath, setReadOnly, setLineNumbers, setMarkdownBlockGuides, setMarkdownLint, setSpellcheck,
     configureEditorForFile, normalizeWebKitShiftTab };

@@ -1,12 +1,14 @@
 const mockToggleVim = jest.fn(() => Promise.resolve(true));
 const mockSetVimVisualRows = jest.fn(() => true);
 const mockSetVimRevealBlocks = jest.fn(() => true);
+const mockSetMarkdownBlockGuides = jest.fn();
 
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn(() => null),
     toggleVim: mockToggleVim,
     setVimVisualRows: mockSetVimVisualRows,
     setVimRevealBlocks: mockSetVimRevealBlocks,
+    setMarkdownBlockGuides: mockSetMarkdownBlockGuides,
 }));
 
 function settingsDOM() {
@@ -42,6 +44,8 @@ describe('Vim preference lifecycle', () => {
             VimVisualRowsSave: jest.fn().mockResolvedValue({ success: true }),
             VimRevealBlocksLoad: jest.fn().mockResolvedValue({ enabled: false }),
             VimRevealBlocksSave: jest.fn().mockResolvedValue({ success: true }),
+            EditorNavigationLoad: jest.fn().mockResolvedValue({ stickyHeadings: true, blockGuides: true, documentOutline: true }),
+            EditorNavigationSave: jest.fn().mockResolvedValue({ success: true }),
         };
         window.go = { desktop: { App: api } };
         settingsDOM();

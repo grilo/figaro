@@ -374,9 +374,9 @@ describe('frontmatter Properties card', () => {
         view.dom.querySelector('.cm-frontmatter').click();
         const panel = view.dom.querySelector('.cm-frontmatter-panel');
         expect(panel).not.toBeNull();
-        expect(panel.textContent).not.toContain('Preview Markdown');
+        expect(panel.textContent).not.toContain('Preview Raw Text');
         expect(panel.textContent).not.toContain('Preview PDF');
-        expect(panel.querySelector('.cm-frontmatter-preview-markdown')).toBeNull();
+        expect(panel.querySelector('.cm-frontmatter-preview-raw-text')).toBeNull();
         expect(panel.querySelector('.cm-frontmatter-preview-pdf')).toBeNull();
     });
 

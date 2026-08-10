@@ -109,7 +109,7 @@
     padding: 8px 10px;
 }
 
-.markdown-preview-status.ui-notice,
+.raw-text-preview-status.ui-notice,
 .pdf-preview-status.ui-notice {
     border-width: 0 0 1px;
     border-radius: 0;

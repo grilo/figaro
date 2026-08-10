@@ -38,7 +38,7 @@ WAILS ?= $(shell command -v wails 2>/dev/null || true)
 ifeq ($(strip $(WAILS)),)
 WAILS := $(GO_BIN)/wails
 endif
-WAILS_VERSION := v2.12.0
+WAILS_VERSION := v2.14.0
 HOST_GOOS := $(shell go env GOOS 2>/dev/null)
 
 # Wails uses WebKitGTK 4.0 by default. Fedora and other current distributions

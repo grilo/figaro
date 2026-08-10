@@ -373,6 +373,50 @@ func (a *App) MarkdownLintSave(enabled bool) (*SaveFileResult, error) {
 	return &SaveFileResult{Success: true}, nil
 }
 
+// EditorNavigationPreference groups the Markdown navigation aids that work
+// together in the editor. Keeping them in one settings record lets the
+// frontend apply or roll back a complete, internally consistent snapshot.
+type EditorNavigationPreference struct {
+	StickyHeadings  bool `json:"stickyHeadings"`
+	BlockGuides     bool `json:"blockGuides"`
+	DocumentOutline bool `json:"documentOutline"`
+}
+
+// EditorNavigationLoad loads the persisted Markdown navigation preferences.
+// All three features are on by default for existing vaults.
+func (a *App) EditorNavigationLoad() (*EditorNavigationPreference, error) {
+	a.settingsMu.RLock()
+	defer a.settingsMu.RUnlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		settings = nil
+	}
+	return &EditorNavigationPreference{
+		StickyHeadings:  settingsmodel.Bool(settings, "sticky_headings", true),
+		BlockGuides:     settingsmodel.Bool(settings, "markdown_block_guides", true),
+		DocumentOutline: settingsmodel.Bool(settings, "document_outline", true),
+	}, nil
+}
+
+// EditorNavigationSave persists one complete Markdown navigation snapshot.
+func (a *App) EditorNavigationSave(stickyHeadings, blockGuides, documentOutline bool) (*SaveFileResult, error) {
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	settings["sticky_headings"] = stickyHeadings
+	settings["markdown_block_guides"] = blockGuides
+	settings["document_outline"] = documentOutline
+	if err := a.writeSettingsFile(settings); err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
 // SpellcheckPreference is the persisted global fallback for Markdown prose.
 // Per-document frontmatter may override its language or disable checking.
 type SpellcheckPreference struct {

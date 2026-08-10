@@ -71,7 +71,7 @@
     },
     {
       "id": "editor-fold-control",
-      "primitives": [".ui-editor-fold-control"]
+      "primitives": [".ui-editor-fold-control", ".ui-editor-block-guide"]
     }
   ]
 }

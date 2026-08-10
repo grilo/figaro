@@ -70,7 +70,7 @@ describe('design-system catalogue', () => {
             '.kanban-card',
             '.result-card',
             '.custom-modal',
-            '.markdown-preview-document',
+            '.raw-text-preview-source',
             '.drawio-loading-card',
         ]) {
             expect(catalogue.querySelector(selector)).not.toBeNull();
@@ -217,7 +217,7 @@ describe('design-system catalogue', () => {
             'frontend/js/frontmatterPlugin.js',
             'frontend/js/historyPanel.js',
             'frontend/js/kanban.js',
-            'frontend/js/markdownPreview.js',
+            'frontend/js/rawTextPreview.js',
             'frontend/js/pdfPreview.js',
             'frontend/js/datePicker.js',
             'frontend/js/editor.js',
@@ -244,6 +244,7 @@ describe('design-system catalogue', () => {
             '.ui-document-tabs',
             '.ui-document-tab',
             '.ui-editor-fold-control',
+            '.ui-editor-block-guide',
         ]) {
             expect(styles).toContain(selector);
         }

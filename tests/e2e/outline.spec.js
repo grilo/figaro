@@ -36,15 +36,35 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     const toggle = page.locator('#outline-toggle');
     await expect(toggle).toBeVisible();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await page.evaluate(async () => {
+        const outline = await import('/js/outline.js');
+        outline.setDocumentOutlineEnabled(false);
+    });
+    await expect(toggle).toBeHidden();
+    await page.evaluate(async () => {
+        const outline = await import('/js/outline.js');
+        outline.setDocumentOutlineEnabled(true);
+    });
+    await expect(toggle).toBeVisible();
+    const launcherGeometry = await toggle.evaluate(element => {
+        const button = element.getBoundingClientRect();
+        const editor = document.getElementById('editor-container').getBoundingClientRect();
+        return { right: editor.right - button.right, top: button.top - editor.top };
+    });
+    expect(launcherGeometry.right).toBeLessThanOrEqual(12);
+    expect(launcherGeometry.top).toBeLessThanOrEqual(12);
     await toggle.click();
 
     await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'outline');
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(toggle).toBeHidden();
+    await expect(page.locator('#right-sidebar-title')).toHaveText('Document outline');
     const headings = page.locator('.outline-item');
     await expect(headings).toHaveCount(3);
-    await expect(headings.nth(0)).toHaveText('Project');
-    await expect(headings.nth(1)).toHaveText('Decisions');
-    await expect(headings.nth(2)).toHaveText('Next steps');
+    await expect(headings.nth(0).locator('.outline-item-type')).toHaveText('h1');
+    await expect(headings.nth(0).locator('.outline-item-text')).toHaveText('Project');
+    await expect(headings.nth(1).locator('.outline-item-text')).toHaveText('Decisions');
+    await expect(headings.nth(2).locator('.outline-item-text')).toHaveText('Next steps');
     await expect(headings.nth(0)).toHaveAttribute('aria-current', 'location');
 
     const styles = await headings.nth(2).evaluate(element => {
@@ -90,6 +110,7 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'history');
     await expect(page.locator('.outline-panel')).toHaveCount(0);
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).toBeVisible();
     await page.locator('#history-count').click();
     await expect(page.locator('#right-sidebar')).not.toHaveClass(/open/);
 
@@ -99,4 +120,52 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     });
     await expect(toggle).toBeHidden();
     await expect(page.locator('#right-sidebar')).not.toHaveClass(/open/);
+});
+
+test('sticks the complete active heading hierarchy and keeps every row navigable', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = [
+        '# Project',
+        ...Array.from({ length: 35 }, (_, index) => `Project line ${index + 1}`),
+        '## Decisions',
+        ...Array.from({ length: 35 }, (_, index) => `Decision line ${index + 1}`),
+        '### Next steps',
+        ...Array.from({ length: 100 }, (_, index) => `Step line ${index + 1}`),
+    ].join('\n');
+
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown);
+        const view = window.__stickyOutlineView = editor.getEditorView();
+        while (view.state.doc.toString() !== markdown) await new Promise(resolve => setTimeout(resolve, 10));
+        const target = view.state.doc.line(160).from;
+        view.dispatch({ selection: { anchor: target }, scrollIntoView: true });
+        view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+        view.scrollDOM.dispatchEvent(new Event('scroll'));
+        view.focus();
+    }, source);
+
+    const sticky = page.locator('#sticky-heading-stack');
+    await expect(sticky).toBeVisible();
+    const rows = sticky.locator('.sticky-heading-item');
+    await expect(rows).toHaveCount(3);
+    await expect(rows.locator('.sticky-heading-item-type')).toHaveText(['h1', 'h2', 'h3']);
+    await expect(rows.locator('.sticky-heading-item-text')).toHaveText(['Project', 'Decisions', 'Next steps']);
+
+    await page.evaluate(async () => {
+        const outline = await import('/js/outline.js');
+        outline.setStickyHeadingsEnabled(false);
+    });
+    await expect(sticky).toBeHidden();
+    await page.evaluate(async () => {
+        const outline = await import('/js/outline.js');
+        outline.setStickyHeadingsEnabled(true);
+    });
+    await expect(rows).toHaveCount(3);
+
+    await rows.nth(1).click();
+    await expect.poll(() => page.evaluate(() => window.__stickyOutlineView.state.doc.lineAt(
+        window.__stickyOutlineView.state.selection.main.head,
+    ).text)).toBe('## Decisions');
+    await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/);
 });

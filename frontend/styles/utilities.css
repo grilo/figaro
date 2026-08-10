@@ -38,36 +38,6 @@
 }
 .status-history.has-history:hover { color: var(--accent-color); }
 
-/* The document Outline stays available without turning the status bar into a
-   toolbar. It appears only when the active Markdown note has headings. */
-.status-outline {
-    min-height: 20px;
-    margin: 0;
-    padding: 1px 5px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--text-dim);
-    font: inherit;
-    line-height: 1;
-    cursor: pointer;
-    transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
-}
-.status-outline:hover {
-    border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color));
-    background: color-mix(in srgb, var(--accent-color) 7%, transparent);
-    color: var(--text-color);
-}
-.status-outline.is-open {
-    border-color: color-mix(in srgb, var(--accent-color) 42%, var(--border-color));
-    background: color-mix(in srgb, var(--accent-color) 11%, transparent);
-    color: var(--accent-color);
-}
-.status-outline:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 1px;
-}
-
 /* Local-history action only appears when there is work to record. */
 .status-git {
     min-height: 20px;

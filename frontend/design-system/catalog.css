@@ -720,12 +720,16 @@ a:focus-visible {
     background: color-mix(in srgb, var(--bg-color) 82%, var(--sidebar-bg));
 }
 
-.ds-markdown-stage .markdown-preview-document {
+.ds-markdown-stage .raw-text-preview-source {
     max-width: 760px;
     min-height: 0;
     margin: 0 auto;
     padding: clamp(26px, 6vw, 64px);
     background: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-mono);
+    line-height: 1.55;
+    white-space: pre-wrap;
 }
 
 .ds-loading-stage {

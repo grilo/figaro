@@ -15,7 +15,7 @@ Your implementation must accurately transition states for the following elements
 ### Headers (`# Heading`)
 * **Cursor on line:** Show the `#` marks. Apply the corresponding heading typography class to the line block.
 * **Cursor off line:** Hide the `#` marks and any trailing spaces. Keep the typography styling active on the line to prevent layout snapping.
-* **Section folding:** Every ATX heading (`#` through `######`) that owns content receives a narrow themed disclosure control. Its range begins after the heading and ends before the next heading at the same or a higher level; deeper headings are therefore folded with their parent. The replacement is editor-only and never changes source, Markdown preview, or PDF output. Frontmatter comments and fenced-code lookalikes are excluded.
+* **Typed block guides and folding:** Top-level Markdown blocks receive quiet gutter labels such as `h1`, `raw`, `list`, `task`, `mermaid`, and `table`. Activating a non-heading guide folds that source block; activating an `h1`–`h6` guide folds its complete section through the last block before the next peer or ancestor, so descendants remain grouped with their parent. The replacement is editor-only and never changes source, Raw Text Preview, or PDF output. Leading frontmatter is one `raw` block, while heading-shaped fence content remains part of its code block rather than becoming a heading guide. Source-code modes keep their normal chevron fold gutter.
 
 ### Inline Styles (Bold `**text**`, Italic `*text*`, Code `` `code` ``)
 * **Cursor inside node bounds:** Show the boundary delimiters (`**`, `*`, `` ` ``). Keep the inner text styled (bolded, italicized, or monospaced).

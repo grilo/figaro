@@ -51,19 +51,16 @@ describe('Editor Module - CodeMirror Initialization', () => {
         });
     });
 
-    test('preserves Windows Spanish dead-key composition and cancellation', async () => {
-        const {
-            initEditor,
-            createEditorView,
-            insertTextAtCursor,
-            toggleVim,
-        } = await import('../frontend/js/editor.js');
+    test('delegates Windows printable and dead-key input to the native editor', async () => {
+        const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
         const platformDescriptor = Object.getOwnPropertyDescriptor(navigator, 'platform');
         Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' });
         const restorePlatform = () => {
             if (platformDescriptor) {
                 Object.defineProperty(navigator, 'platform', platformDescriptor);
+            } else {
+                delete navigator.platform;
             }
         };
 
@@ -86,11 +83,10 @@ describe('Editor Module - CodeMirror Initialization', () => {
             const view = createEditorView();
             expect(view).not.toBeNull();
 
-            const dispatchKey = ({ key, code, altGraph = false, shiftKey = false }) => {
+            const dispatchKey = ({ key, code, altGraph = false }) => {
                 const event = new KeyboardEvent('keydown', {
                     key,
                     code,
-                    shiftKey,
                     bubbles: true,
                     cancelable: true,
                 });
@@ -103,159 +99,23 @@ describe('Editor Module - CodeMirror Initialization', () => {
                 view.contentDOM.dispatchEvent(event);
                 return event;
             };
-            const dispatchKeyup = ({ key, code }) => {
-                const event = new KeyboardEvent('keyup', {
-                    key,
-                    code,
-                    bubbles: true,
-                    cancelable: true,
-                });
-                view.contentDOM.dispatchEvent(event);
-                return event;
-            };
-            const dispatchText = ({ type, inputType, data, cancelable }) => {
-                const event = new InputEvent(type, {
-                    inputType,
-                    data,
-                    bubbles: true,
-                    cancelable,
-                });
-                view.contentDOM.dispatchEvent(event);
-                return event;
-            };
+            const regularBacktick = dispatchKey({ key: '`', code: 'BracketLeft' });
+            const regularTildeDeadKey = dispatchKey({ key: 'Dead', code: 'Digit4', altGraph: true });
+            const regularBracketDeadKey = dispatchKey({ key: 'Dead', code: 'BracketLeft' });
 
-            const deadKey = () => dispatchKey({ key: 'Dead', code: 'Digit4', altGraph: true });
-
-            const composeEnye = deadKey();
-            expect(composeEnye.defaultPrevented).toBe(true);
+            expect(regularBacktick.defaultPrevented).toBe(false);
+            expect(regularTildeDeadKey.defaultPrevented).toBe(false);
+            expect(regularBracketDeadKey.defaultPrevented).toBe(false);
             expect(view.state.doc.toString()).toBe('');
 
-            const enye = dispatchKey({ key: 'n', code: 'KeyN' });
-            expect(enye.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe('ñ');
-
-            const composeTilde = deadKey();
-            const tilde = dispatchKey({ key: ' ', code: 'Space' });
-            expect(composeTilde.defaultPrevented).toBe(true);
-            expect(tilde.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe('ñ~');
-
-            const composeUmlaut = dispatchKey({ key: 'Dead', code: 'Semicolon', shiftKey: true });
-            const umlaut = dispatchKey({ key: 'u', code: 'KeyU' });
-            expect(composeUmlaut.defaultPrevented).toBe(true);
-            expect(umlaut.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe('ñ~ü');
-
-            dispatchKey({ key: 'Dead', code: 'Semicolon' });
-            const acute = dispatchKey({ key: 'a', code: 'KeyA' });
-            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
-            const grave = dispatchKey({ key: 'a', code: 'KeyA' });
-            dispatchKey({ key: 'Dead', code: 'BracketLeft', shiftKey: true });
-            const circumflex = dispatchKey({ key: 'a', code: 'KeyA' });
-            expect(acute.defaultPrevented).toBe(true);
-            expect(grave.defaultPrevented).toBe(true);
-            expect(circumflex.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe('ñ~üáàâ');
-
-            deadKey();
-            const spacingFallback = dispatchKey({ key: 'q', code: 'KeyQ' });
-            expect(spacingFallback.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe('ñ~üáàâ~q');
-
-            const contentBeforeCancellation = view.state.doc.toString();
-            const cancellableDeadKey = deadKey();
-            expect(cancellableDeadKey.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
-            const backspace = dispatchKey({ key: 'Backspace', code: 'Backspace' });
-            expect(backspace.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
-            const plainN = dispatchKey({ key: 'n', code: 'KeyN' });
-            expect(plainN.defaultPrevented).toBe(false);
-            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
-
-            deadKey();
-            const escape = dispatchKey({ key: 'Escape', code: 'Escape' });
-            const plainNAfterEscape = dispatchKey({ key: 'n', code: 'KeyN' });
-            expect(escape.defaultPrevented).toBe(true);
-            expect(plainNAfterEscape.defaultPrevented).toBe(false);
-            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
-
-            const otherDeadKey = new KeyboardEvent('keydown', {
-                key: 'Dead',
-                code: 'Digit5',
-                bubbles: true,
-                cancelable: true,
-            });
-            Object.defineProperty(otherDeadKey, 'getModifierState', {
-                configurable: true,
-                value: modifier => modifier === 'AltGraph',
-            });
-
-            view.contentDOM.dispatchEvent(otherDeadKey);
-
-            expect(otherDeadKey.defaultPrevented).toBe(false);
-            expect(view.state.doc.toString()).toBe(contentBeforeCancellation);
-
-            view.dispatch({
-                changes: { from: 0, to: view.state.doc.length, insert: '' },
-                selection: { anchor: 0 },
-            });
             await toggleVim(true);
             Vim.handleKey(getCM(view), 'i', 'user');
-            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
-            const spacingGrave = dispatchKey({ key: ' ', code: 'Space' });
-            const nativeComposition = dispatchText({
-                type: 'beforeinput',
-                inputType: 'insertCompositionText',
-                data: '`',
-                cancelable: true,
-            });
-            if (!nativeComposition.defaultPrevented) insertTextAtCursor(view, '`');
-            dispatchText({
-                type: 'input',
-                inputType: 'insertCompositionText',
-                data: '`',
-                cancelable: false,
-            });
-            await new Promise(resolve => setTimeout(resolve, 0));
-            const duplicateLegacyText = dispatchText({
-                type: 'beforeinput',
-                inputType: 'insertText',
-                data: '`',
-                cancelable: true,
-            });
+            const vimBacktick = dispatchKey({ key: '`', code: 'BracketLeft' });
+            const vimTildeDeadKey = dispatchKey({ key: 'Dead', code: 'Digit4', altGraph: true });
 
-            expect(spacingGrave.defaultPrevented).toBe(true);
-            expect(nativeComposition.defaultPrevented).toBe(false);
-            expect(duplicateLegacyText.defaultPrevented).toBe(true);
-            expect(view.state.doc.toString()).toBe('`');
-
-            view.dispatch({
-                changes: { from: 0, to: view.state.doc.length, insert: '' },
-                selection: { anchor: 0 },
-            });
-            dispatchKey({ key: 'Dead', code: 'BracketLeft' });
-            dispatchKey({ key: ' ', code: 'Space' });
-            dispatchKeyup({ key: ' ', code: 'Space' });
-            expect(view.state.doc.toString()).toBe('`');
-
-            const nonCancelableComposition = dispatchText({
-                type: 'beforeinput',
-                inputType: 'insertCompositionText',
-                data: '`',
-                cancelable: false,
-            });
-            if (!nonCancelableComposition.defaultPrevented) insertTextAtCursor(view, '`');
-            dispatchText({
-                type: 'input',
-                inputType: 'insertCompositionText',
-                data: '`',
-                cancelable: false,
-            });
-            await new Promise(resolve => setTimeout(resolve, 0));
-
-            expect(nonCancelableComposition.defaultPrevented).toBe(false);
-            expect(view.state.doc.toString()).toBe('`');
+            expect(vimBacktick.defaultPrevented).toBe(false);
+            expect(vimTildeDeadKey.defaultPrevented).toBe(false);
+            expect(view.state.doc.toString()).toBe('');
             await toggleVim(false);
         } finally {
             restorePlatform();

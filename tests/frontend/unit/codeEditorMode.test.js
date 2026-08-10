@@ -17,9 +17,7 @@ describe('Code file editor mode', () => {
         await initEditor();
         const view = createEditorView();
 
-        // Markdown and source files share the same deliberately styled fold
-        // control, while their language services continue to own the ranges.
-        expect(view.dom.querySelector('.cm-foldGutter')).not.toBeNull();
+        expect(view.dom.querySelector('.cm-markdownBlockGutter')).not.toBeNull();
 
         await expect(configureEditorForFile('themes/_print.css')).resolves.toBe(true);
         view.dispatch({
@@ -50,11 +48,11 @@ describe('Code file editor mode', () => {
         expect(view.state.doc.toString()).toBe('package main');
 
         await expect(configureEditorForFile('notes/example.md')).resolves.toBe(true);
-        expect(view.dom.querySelector('.cm-foldGutter')).not.toBeNull();
+        expect(view.dom.querySelector('.cm-markdownBlockGutter')).not.toBeNull();
     });
 
     test('folds Markdown heading sections from the gutter and exposes an accessible control', async () => {
-        const { initEditor, createEditorView, configureEditorForFile } = await import('../frontend/js/editor.js');
+        const { initEditor, createEditorView, configureEditorForFile, setMarkdownBlockGuides } = await import('../frontend/js/editor.js');
         const { foldedRanges } = await import('@codemirror/language');
         await initEditor();
         const view = createEditorView();
@@ -69,13 +67,13 @@ describe('Code file editor mode', () => {
         });
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        const controls = [...view.dom.querySelectorAll('.ui-editor-fold-control')];
-        const expanded = controls.find(control => control.getAttribute('aria-expanded') === 'true');
+        const controls = [...view.dom.querySelectorAll('.ui-editor-block-guide')];
+        const expanded = controls.find(control => control.textContent === 'h2');
         expect(controls.length).toBeGreaterThanOrEqual(3);
         expect(expanded.tagName).toBe('BUTTON');
-        expect(expanded.getAttribute('aria-label')).toBe('Collapse heading section');
+        expect(expanded.getAttribute('aria-label')).toBe('Collapse h2 Goals section');
         expect(expanded.getAttribute('aria-expanded')).toBe('true');
-        expect(expanded.closest('.cm-foldGutter').getAttribute('aria-label')).toBe('Section folding');
+        expect(expanded.closest('.cm-markdownBlockGutter').getAttribute('aria-label')).toBe('Markdown block guides');
         expect(expanded.closest('.cm-gutters').hasAttribute('aria-hidden')).toBe(false);
 
         expanded.click();
@@ -84,14 +82,21 @@ describe('Code file editor mode', () => {
         expect(view.dom.querySelector('.cm-foldPlaceholder')).not.toBeNull();
         expect(foldedRanges(view.state).size).toBeGreaterThan(0);
         const collapsed = [...view.dom.querySelectorAll(
-            '.ui-editor-fold-control[aria-expanded="false"]',
-        )].at(-1);
+            '.ui-editor-block-guide[aria-expanded="false"]',
+        )].find(control => control.textContent === 'h2');
         expect(collapsed).not.toBeNull();
-        expect(collapsed.getAttribute('aria-label')).toBe('Expand heading section');
+        expect(collapsed.getAttribute('aria-label')).toBe('Expand h2 Goals section');
 
         collapsed.click();
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(view.dom.querySelector('.cm-foldPlaceholder')).toBeNull();
         expect(foldedRanges(view.state).size).toBe(0);
+
+        setMarkdownBlockGuides(false);
+        expect(view.dom.querySelector('.cm-markdownBlockGutter')).toBeNull();
+        expect(view.state.doc.toString()).toContain('## Goals');
+        setMarkdownBlockGuides(true);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(view.dom.querySelector('.cm-markdownBlockGutter')).not.toBeNull();
     });
 });

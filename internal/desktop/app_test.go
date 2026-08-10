@@ -1373,7 +1373,7 @@ func TestEnsureSettingsDefaultsCreatesAndCleansSettings(t *testing.T) {
 	if err := json.Unmarshal(data, &settings); err != nil {
 		t.Fatal(err)
 	}
-	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["vim_visual_rows"] != false || settings["vim_reveal_blocks"] != false || settings["line_numbers"] != false || settings["markdown_lint"] != true || settings["spellcheck"] != false || settings["spellcheck_language"] != "en-US" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
+	if settings["theme"] != "default" || settings["font"] != "inter" || settings["code_font"] != "theme-mono" || settings["link_style"] != "markdown" || settings["vim"] != false || settings["vim_visual_rows"] != false || settings["vim_reveal_blocks"] != false || settings["line_numbers"] != false || settings["markdown_lint"] != true || settings["sticky_headings"] != true || settings["markdown_block_guides"] != true || settings["document_outline"] != true || settings["spellcheck"] != false || settings["spellcheck_language"] != "en-US" || settings["auto_save_seconds"] != float64(300) || settings["auto_commit_enabled"] != true {
 		t.Fatalf("unexpected normalized settings: %#v", settings)
 	}
 	if _, exists := settings["openTabs"]; exists {
@@ -1896,6 +1896,25 @@ func TestMarkdownLintSaveLoadAndDefault(t *testing.T) {
 	loaded, err = restarted.MarkdownLintLoad()
 	if err != nil || loaded["enabled"] {
 		t.Fatalf("MarkdownLintLoad after restart = %#v, %v; want disabled", loaded, err)
+	}
+}
+
+func TestEditorNavigationSaveLoadAndDefaults(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	loaded, err := app.EditorNavigationLoad()
+	if err != nil || !loaded.StickyHeadings || !loaded.BlockGuides || !loaded.DocumentOutline {
+		t.Fatalf("EditorNavigationLoad default = %#v, %v; want all enabled", loaded, err)
+	}
+	result, err := app.EditorNavigationSave(false, true, false)
+	if err != nil || !result.Success {
+		t.Fatalf("EditorNavigationSave(false, true, false) = %#v, %v", result, err)
+	}
+	restarted := NewApp(vaultPath)
+	loaded, err = restarted.EditorNavigationLoad()
+	if err != nil || loaded.StickyHeadings || !loaded.BlockGuides || loaded.DocumentOutline {
+		t.Fatalf("EditorNavigationLoad after restart = %#v, %v", loaded, err)
 	}
 }
 

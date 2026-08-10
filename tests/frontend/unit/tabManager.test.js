@@ -351,6 +351,26 @@ describe('Tab Manager', () => {
             expect(panel.querySelector('#pdf-browser-clear').textContent).toContain('automatic');
         });
 
+        test('renders the three enabled-by-default Markdown navigation controls with accessible descriptions', () => {
+            openTab('settings', 'Settings', 'settings');
+            const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
+            const controls = [
+                ['sticky-headings-toggle', 'sticky-headings-description'],
+                ['markdown-block-guides-toggle', 'markdown-block-guides-description'],
+                ['document-outline-toggle', 'document-outline-description'],
+            ];
+
+            for (const [id, description] of controls) {
+                const control = panel.querySelector(`#${id}`);
+                expect(control).toBeInstanceOf(HTMLInputElement);
+                expect(control.type).toBe('checkbox');
+                expect(control.checked).toBe(true);
+                expect(control.getAttribute('aria-label')).toBeTruthy();
+                expect(control.getAttribute('aria-describedby')).toBe(description);
+                expect(panel.querySelector(`#${description}`)).not.toBeNull();
+            }
+        });
+
         test('shows the packaged application version in an accessible Settings About card', async () => {
             openTab('settings', 'Settings', 'settings');
             await testUtils.waitFor(0);

@@ -21,7 +21,7 @@ macOS package requires a macOS host.
 Install Wails once, then prepare the repository:
 
 ```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.14.0
 make bootstrap
 ```
 
@@ -181,8 +181,8 @@ spec, and use one representative browser workflow rather than duplicating
 success and failure matrices end to end. The release target still runs the
 complete verification suite.
 
-For changes to Markdown Preview, current-note heading completion, Vim table
-cells/rendered-block navigation, or per-tab cursor persistence, follow the
+For changes to Raw Text Preview, sticky headings or Markdown block guides,
+current-note heading completion, Vim table cells/rendered-block navigation, or per-tab cursor persistence, follow the
 focused layer and browser-boundary guidance in
 [`docs/TESTING.md`](docs/TESTING.md).
 

@@ -1,4 +1,8 @@
-import { activeOutlineHeadingIndex, extractOutlineHeadings } from '../frontend/js/outline.js';
+import {
+    activeOutlineHeadingHierarchy,
+    activeOutlineHeadingIndex,
+    extractOutlineHeadings,
+} from '../frontend/js/outline.js';
 
 describe('Markdown document outline', () => {
     test('extracts nested ATX headings with exact source positions', () => {
@@ -55,5 +59,20 @@ describe('Markdown document outline', () => {
         expect(activeOutlineHeadingIndex(headings, 44)).toBe(1);
         expect(activeOutlineHeadingIndex(headings, 55)).toBe(2);
         expect(activeOutlineHeadingIndex([], 12)).toBe(-1);
+    });
+
+    test('keeps every active ancestor in the sticky hierarchy', () => {
+        const headings = [
+            { level: 1, text: 'Product', from: 0 },
+            { level: 2, text: 'Goals', from: 20 },
+            { level: 3, text: 'Editor', from: 40 },
+            { level: 2, text: 'Release', from: 70 },
+        ];
+
+        expect(activeOutlineHeadingHierarchy(headings, 55).map(heading => heading.text))
+            .toEqual(['Product', 'Goals', 'Editor']);
+        expect(activeOutlineHeadingHierarchy(headings, 75).map(heading => heading.text))
+            .toEqual(['Product', 'Release']);
+        expect(activeOutlineHeadingHierarchy(headings, -1)).toEqual([]);
     });
 });

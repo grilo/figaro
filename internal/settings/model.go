@@ -23,19 +23,22 @@ var legacyWorkspaceKeys = []string{
 
 func Defaults() map[string]any {
 	return map[string]any{
-		"theme":               "default",
-		"font":                "inter",
-		"code_font":           "theme-mono",
-		"link_style":          string(links.MarkdownLinkStyle),
-		"vim":                 false,
-		"vim_visual_rows":     false,
-		"vim_reveal_blocks":   false,
-		"line_numbers":        false,
-		"markdown_lint":       true,
-		"spellcheck":          false,
-		"spellcheck_language": "en-US",
-		"auto_save_seconds":   300,
-		"auto_commit_enabled": true,
+		"theme":                 "default",
+		"font":                  "inter",
+		"code_font":             "theme-mono",
+		"link_style":            string(links.MarkdownLinkStyle),
+		"vim":                   false,
+		"vim_visual_rows":       false,
+		"vim_reveal_blocks":     false,
+		"line_numbers":          false,
+		"markdown_lint":         true,
+		"sticky_headings":       true,
+		"markdown_block_guides": true,
+		"document_outline":      true,
+		"spellcheck":            false,
+		"spellcheck_language":   "en-US",
+		"auto_save_seconds":     300,
+		"auto_commit_enabled":   true,
 	}
 }
 

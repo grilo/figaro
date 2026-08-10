@@ -276,13 +276,24 @@
                      aria-label="Current document path" hidden></nav>
 
                 <!-- Persistent Editor Container (shared across all file tabs) -->
-                <div id="editor-container" class="editor-panel"></div>
+                <div id="editor-container" class="editor-panel">
+                    <div class="editor-navigation-overlay">
+                        <button type="button" id="outline-toggle" class="ui-icon-button editor-outline-launcher"
+                                title="Show document outline" aria-label="Show document outline"
+                                aria-controls="right-sidebar" aria-expanded="false" hidden>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                        </button>
+                        <nav id="sticky-heading-stack" class="sticky-heading-stack" aria-label="Sticky heading hierarchy" hidden></nav>
+                    </div>
+                </div>
 
                 <!-- Tab Content Panels (for non-file tabs: calendar, backlinks, kanban) -->
                 <div id="tab-panels" class="tab-panels"></div>
             </main>
 
-            <!-- Right Sidebar (used for History, Outline, and PDF preview) -->
+            <!-- Right Sidebar (used for History, Outline, Raw Text, and PDF preview) -->
             <aside id="right-sidebar" class="right-sidebar collapsed">
                 <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
                 <div class="right-sidebar-header">
@@ -354,8 +365,6 @@
                 <span class="status-separator">|</span>
                 <span id="file-type">Standard</span>
                 <span class="status-separator">|</span>
-                <button type="button" id="outline-toggle" class="status-outline" title="Show document outline" aria-controls="right-sidebar" aria-expanded="false" hidden>Outline</button>
-                <span id="outline-separator" class="status-separator" hidden>|</span>
                 <a id="backlinks-status" class="status-backlinks" title="View backlinks">0 backlinks</a>
                 <span class="status-separator">|</span>
                 <button type="button" id="git-status" class="status-git" title="Save this file to local history" hidden disabled>Save to history</button>

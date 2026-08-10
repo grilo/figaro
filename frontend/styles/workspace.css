@@ -653,6 +653,7 @@
 
 /* Persistent editor container (shared across file tabs) */
 #editor-container {
+    position: relative;
     display: none;
     flex: 1;
     min-height: 0;

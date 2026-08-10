@@ -8,6 +8,7 @@ import { initLinkStyleSetting } from './linkStyle.js';
 import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import { initEditorBreadcrumbSetting } from './editorBreadcrumb.js';
+import { initEditorNavigationPreference, initEditorNavigationSettings } from './editorNavigationPreferences.js';
 import {
     normalizeSpellcheckPreference,
     spellcheckPreferenceFromSetting,
@@ -109,6 +110,7 @@ export async function initTheme() {
     await initLineNumbersPreference();
     await initMarkdownLintPreference();
     await initSpellcheckPreference();
+    await initEditorNavigationPreference();
 }
 
 export async function applyTheme(themeId) {
@@ -723,6 +725,7 @@ export async function initSettingsPanel(root = document) {
         }
 
         initEditorBreadcrumbSetting(root);
+        await initEditorNavigationSettings(root);
 
         const spellcheckLanguage = findIn(root, '#spellcheck-language');
         if (spellcheckLanguage) {

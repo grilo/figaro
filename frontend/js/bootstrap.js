@@ -76,6 +76,8 @@ function debugAPI() {
         LineNumbersSave: mock({ success: true }),
         MarkdownLintLoad: mock({ enabled: true }),
         MarkdownLintSave: mock({ success: true }),
+        EditorNavigationLoad: mock({ stickyHeadings: true, blockGuides: true, documentOutline: true }),
+        EditorNavigationSave: mock({ success: true }),
         SpellcheckLoad: mock({ enabled: false, language: 'en-US' }),
         SpellcheckSave: mock({ success: true }),
         LinkStyleLoad: mock({ style: 'markdown' }),

@@ -6,10 +6,14 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/gorilla/websocket v1.5.3
-	github.com/wailsapp/wails/v2 v2.12.0
+	github.com/wailsapp/wails/v2 v2.14.0
 	golang.org/x/sys v0.46.0
 	golang.org/x/text v0.39.0
 )
+
+// Keep Windows AltGr/dead-key input inside WebView2 instead of reposting it to
+// the native window. Remove this replacement once the fix ships upstream.
+replace github.com/wailsapp/wails/v2 => github.com/grilo/wails/v2 v2.14.0-figaro.1
 
 require (
 	dario.cat/mergo v1.0.0 // indirect

@@ -108,6 +108,8 @@ window.go = {
 		LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
 		MarkdownLintLoad: jest.fn().mockResolvedValue({ enabled: true }),
 		MarkdownLintSave: jest.fn().mockResolvedValue({ success: true }),
+		EditorNavigationLoad: jest.fn().mockResolvedValue({ stickyHeadings: true, blockGuides: true, documentOutline: true }),
+		EditorNavigationSave: jest.fn().mockResolvedValue({ success: true }),
 		SpellcheckLoad: jest.fn().mockResolvedValue({ enabled: false, language: 'en-US' }),
 		SpellcheckSave: jest.fn().mockResolvedValue({ success: true }),
 		AutoSaveLoad: jest.fn().mockResolvedValue(300),
@@ -189,7 +191,12 @@ function createMockDOM() {
                     <div id="tab-bar" class="ui-document-tabs tab-bar"><div id="tab-strip" class="tab-strip" role="tablist"></div><button id="all-tabs-btn" aria-label="Show all open tabs" aria-controls="all-tabs-dropdown" aria-haspopup="menu" aria-expanded="false" hidden></button><div id="all-tabs-dropdown" class="all-tabs-dropdown hidden" role="menu" aria-label="All open tabs"></div></div>
                     <nav id="editor-breadcrumb" class="editor-breadcrumb" aria-label="Current document path" hidden></nav>
                     <div id="tab-panels" class="tab-panels"></div>
-                    <div id="editor-container"></div>
+                    <div id="editor-container">
+                        <div class="editor-navigation-overlay">
+                            <button id="outline-toggle" class="ui-icon-button editor-outline-launcher" aria-label="Show document outline" aria-controls="right-sidebar" aria-expanded="false" hidden></button>
+                            <nav id="sticky-heading-stack" class="sticky-heading-stack" aria-label="Sticky heading hierarchy" hidden></nav>
+                        </div>
+                    </div>
                 </main>
                 <aside id="right-sidebar" class="right-sidebar collapsed">
                     <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
@@ -208,8 +215,6 @@ function createMockDOM() {
                 <span id="reading-time">0 min read</span>
                 <span id="word-count">0 words</span>
                 <span id="char-count">0 chars</span>
-                <button id="outline-toggle" class="status-outline" aria-controls="right-sidebar" aria-expanded="false" hidden>Outline</button>
-                <span id="outline-separator" class="status-separator" hidden>|</span>
                 <a id="backlinks-status" class="status-backlinks">0 backlinks</a>
                 <button id="git-status" class="status-git" hidden disabled>Save to history</button>
                 <span id="git-status-separator" class="status-separator" hidden>|</span>

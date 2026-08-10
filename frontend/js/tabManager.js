@@ -1562,6 +1562,35 @@ function renderSettingsTab(panel, _tab) {
                 </div>
                 <div class="settings-section">
                     <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="19" cy="12" r="2"/></svg>
+                        <span>Navigation</span>
+                    </div>
+                    <div class="settings-row-group">
+                        <div class="settings-row">
+                            <span id="sticky-headings-description" class="settings-row-label">Sticky heading hierarchy</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="sticky-headings-toggle" aria-label="Show sticky heading hierarchy" aria-describedby="sticky-headings-description" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <span id="markdown-block-guides-description" class="settings-row-label">Block guides and folding</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="markdown-block-guides-toggle" aria-label="Show Markdown block guides and folding" aria-describedby="markdown-block-guides-description" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <span id="document-outline-description" class="settings-row-label">Document outline</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="document-outline-toggle" aria-label="Show document outline launcher" aria-describedby="document-outline-description" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h4"/></svg>
                         <span>Vim Mode</span>
                     </div>
