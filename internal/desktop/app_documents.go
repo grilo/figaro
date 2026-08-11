@@ -516,6 +516,7 @@ func (a *App) SaveClipboardImage(noteRelPath string, declaredMIME string, encode
 			return nil, fmt.Errorf("inspect pasted image: %w", err)
 		}
 		a.recordFileVersionLocked(a.vaultAbsolutePath(imagePath), info)
+		a.updateFileTreeCacheFileLocked(imagePath, info)
 		return &ClipboardImageResult{
 			Success:  true,
 			Path:     filepath.ToSlash(imagePath),

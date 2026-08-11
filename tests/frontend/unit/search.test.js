@@ -106,6 +106,33 @@ describe('workspace search', () => {
         });
     });
 
+    test('bounds mounted rows while keeping distant keyboard results reachable and described', async () => {
+        setState('fileTreeData', []);
+        window.go.desktop.App.SearchFiles.mockResolvedValue(Array.from({ length: 300 }, (_, index) => ({
+            name: `Result ${String(index).padStart(3, '0')}.md`,
+            path: `Archive/Result ${String(index).padStart(3, '0')}.md`,
+            matches: [{ line: index + 1, text: 'project result' }],
+        })));
+        const input = document.getElementById('global-search-input');
+        input.value = 'project';
+        input.focus();
+        await performGlobalSearch(input.value);
+
+        expect(state.searchResults).toHaveLength(300);
+        expect(document.querySelectorAll('.search-result-row')).toHaveLength(96);
+        for (let index = 0; index < 151; index += 1) {
+            handleSearchKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
+        }
+
+        const selected = document.querySelector('.search-result-row.selected');
+        expect(selected.dataset.searchIndex).toBe('150');
+        expect(selected.getAttribute('aria-posinset')).toBe('151');
+        expect(selected.getAttribute('aria-setsize')).toBe('300');
+        expect(input.getAttribute('aria-activedescendant')).toBe(selected.id);
+        expect(document.querySelectorAll('.search-result-row')).toHaveLength(96);
+        expect(document.activeElement).toBe(input);
+    });
+
     test('keeps combobox focus when Escape closes search results', async () => {
         const input = document.getElementById('global-search-input');
         input.value = 'project';

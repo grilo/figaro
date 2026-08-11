@@ -16,7 +16,7 @@ import {
     currentSearchQuery,
     isSearchVisible,
     renderSearchResults,
-    scrollSearchSelection,
+    selectSearchResult,
     showSearchLoading,
 } from '../views/searchView.js';
 
@@ -147,8 +147,7 @@ export function handleSearchKeydown(event) {
             results.length,
             event.key === 'ArrowDown' ? 1 : -1,
         );
-        render(results, query);
-        scrollSearchSelection(activeSearchIndex);
+        selectSearchResult(activeSearchIndex);
         event.preventDefault();
         return true;
     }

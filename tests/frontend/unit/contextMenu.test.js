@@ -47,4 +47,20 @@ describe('shared context-menu accessibility', () => {
         expect(menu.isConnected).toBe(false);
         expect(onDismiss).toHaveBeenCalledTimes(1);
     });
+
+    test('can resolve a replacement focus target after its invoking row is repainted', () => {
+        const original = document.getElementById('origin');
+        const menu = document.getElementById('menu');
+        const replacement = document.createElement('button');
+        document.body.appendChild(replacement);
+        original.focus();
+        configureContextMenu(menu, { returnFocus: () => replacement.focus() });
+        original.remove();
+
+        menu.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Escape', bubbles: true, cancelable: true,
+        }));
+
+        expect(document.activeElement).toBe(replacement);
+    });
 });

@@ -76,6 +76,134 @@ func collectVaultLinkRewrites(root *os.Root, oldRel string, newRel string) ([]va
 	return rewrites, nil
 }
 
+// collectVaultLinkRewritesIndexed avoids reopening every Markdown document
+// when the shared index still describes the filesystem. A metadata-only walk
+// validates that precondition first; any external change the watcher has not
+// yet delivered falls back to the complete root-scoped scan above.
+func collectVaultLinkRewritesIndexed(
+	root *os.Root,
+	index *vaultIndex,
+	oldRel string,
+	newRel string,
+) ([]vaultLinkRewrite, bool, error) {
+	valid, err := vaultIndexMatchesMarkdownFiles(root, index)
+	if err != nil {
+		return nil, false, err
+	}
+	if !valid {
+		rewrites, err := collectVaultLinkRewrites(root, oldRel, newRel)
+		return rewrites, false, err
+	}
+
+	oldRel = links.NormalizeVaultPath(oldRel)
+	newRel = links.NormalizeVaultPath(newRel)
+	candidates := vaultLinkRewriteCandidates(index, oldRel)
+	rewrites := make([]vaultLinkRewrite, 0, len(candidates))
+	for _, file := range candidates {
+		futureSourceRel := links.MovedVaultPath(file.path, oldRel, newRel)
+		updated := links.RewriteMarkdownLinksForMove(
+			file.content,
+			file.path,
+			futureSourceRel,
+			oldRel,
+			newRel,
+		)
+		if updated == file.content {
+			continue
+		}
+		rewrites = append(rewrites, vaultLinkRewrite{
+			path:     filepath.FromSlash(futureSourceRel),
+			original: []byte(file.content),
+			updated:  []byte(updated),
+			mode:     file.mode.Perm(),
+		})
+	}
+	return rewrites, true, nil
+}
+
+// vaultLinkRewriteCandidates is the pure pruning rule for a move. Markdown
+// inside the moved tree is considered when it has an internal destination,
+// because explicit relative links may need to change with the source path.
+// Other files are considered only when one of their destinations enters the
+// moved tree.
+func vaultLinkRewriteCandidates(index *vaultIndex, oldRel string) []vaultIndexedFile {
+	if index == nil {
+		return nil
+	}
+	oldRel = links.NormalizeVaultPath(oldRel)
+	candidates := make([]vaultIndexedFile, 0)
+	for _, path := range index.paths {
+		file := index.files[path]
+		candidate := pathAtOrBelow(file.path, oldRel) && len(file.linkTargets) > 0
+		if !candidate {
+			for _, target := range file.linkTargets {
+				if pathAtOrBelow(target, oldRel) {
+					candidate = true
+					break
+				}
+			}
+		}
+		if candidate {
+			candidates = append(candidates, file)
+		}
+	}
+	return candidates
+}
+
+func pathAtOrBelow(path string, root string) bool {
+	path = links.NormalizeVaultPath(path)
+	root = links.NormalizeVaultPath(root)
+	return path == root || strings.HasPrefix(path, root+"/")
+}
+
+func vaultIndexMatchesMarkdownFiles(root *os.Root, index *vaultIndex) (bool, error) {
+	if index == nil {
+		return false, nil
+	}
+	matched := 0
+	matches := true
+	err := fs.WalkDir(root.FS(), ".", func(rel string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return fmt.Errorf("walk vault path %q: %w", rel, walkErr)
+		}
+		if rel == "." {
+			return nil
+		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return fmt.Errorf("inspect vault path %q: %w", rel, err)
+		}
+		if info.Mode()&fs.ModeSymlink != 0 {
+			return nil
+		}
+		if info.IsDir() {
+			if strings.HasPrefix(entry.Name(), ".") {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
+			return nil
+		}
+
+		file, found := index.files[filepath.ToSlash(rel)]
+		if !found || file.size != info.Size() ||
+			file.modTimeNano != info.ModTime().UnixNano() || file.mode != info.Mode() {
+			matches = false
+			return fs.SkipAll
+		}
+		matched++
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return matches && matched == len(index.files), nil
+}
+
 func applyVaultLinkRewrites(root *os.Root, rewrites []vaultLinkRewrite) ([]vaultLinkRewrite, error) {
 	applied := make([]vaultLinkRewrite, 0, len(rewrites))
 	for _, rewrite := range rewrites {

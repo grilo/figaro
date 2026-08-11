@@ -81,6 +81,7 @@ func (a *App) MergeNotes(paths []string) (*MergeNotesResult, error) {
 		}
 	}
 
+	a.invalidateFileTreeCacheLocked()
 	a.resetFileVersionsLocked()
 	a.syncKanbanColumnsLocked()
 	return &MergeNotesResult{

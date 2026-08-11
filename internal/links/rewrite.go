@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"figaro/internal/vault"
@@ -63,6 +64,76 @@ func RewriteMarkdownLinksForMove(content string, sourceRel string, futureSourceR
 // the vault must keep pointing to the source.
 func RewriteMarkdownLinksForCopy(content string, sourceRel string, copiedSourceRel string, sourceRoot string, copiedRoot string) string {
 	return rewriteMarkdownLinksForPathMapping(content, sourceRel, copiedSourceRel, sourceRoot, copiedRoot)
+}
+
+// MarkdownLinkTargets returns the normalized internal targets the move
+// rewriter can act on. It follows the same fence, destination, and wiki-link
+// rules as RewriteMarkdownLinksForMove so callers can prune candidate files
+// without changing the transformation's result.
+func MarkdownLinkTargets(content string, sourceRel string) []string {
+	targets := make(map[string]struct{})
+	lines := strings.SplitAfter(content, "\n")
+	inFence := false
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " \t")
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
+		for _, expression := range []*regexp.Regexp{markdownInlineLinkRe, markdownReferenceLinkRe} {
+			for _, match := range expression.FindAllStringSubmatch(line, -1) {
+				if len(match) < 3 {
+					continue
+				}
+				if target, ok := markdownDestinationTarget(match[2], sourceRel); ok {
+					targets[target] = struct{}{}
+				}
+			}
+		}
+		for _, match := range wikiLinkRe.FindAllStringSubmatch(line, -1) {
+			if len(match) != 2 {
+				continue
+			}
+			target, _, _ := strings.Cut(match[1], "|")
+			target, _ = splitMarkdownLinkSuffix(strings.TrimSpace(target))
+			decoded, err := url.PathUnescape(target)
+			if err != nil || isExternalMarkdownDestination(decoded) {
+				continue
+			}
+			if !strings.HasSuffix(strings.ToLower(decoded), ".md") {
+				decoded += ".md"
+			}
+			clean, err := vault.RelativePath(decoded)
+			if err == nil && clean != "." {
+				targets[filepath.ToSlash(clean)] = struct{}{}
+			}
+		}
+	}
+	result := make([]string, 0, len(targets))
+	for target := range targets {
+		result = append(result, target)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func markdownDestinationTarget(destination string, sourceRel string) (string, bool) {
+	if strings.HasPrefix(destination, "<") && strings.HasSuffix(destination, ">") {
+		destination = destination[1 : len(destination)-1]
+	}
+	pathValue, _ := splitMarkdownLinkSuffix(destination)
+	if pathValue == "" || isExternalMarkdownDestination(pathValue) {
+		return "", false
+	}
+	decoded, err := url.PathUnescape(pathValue)
+	if err != nil {
+		return "", false
+	}
+	target, _, ok := resolveMarkdownLinkTarget(sourceRel, decoded)
+	return target, ok
 }
 
 func rewriteMarkdownLinksForPathMapping(content string, sourceRel string, futureSourceRel string, oldRel string, newRel string) string {

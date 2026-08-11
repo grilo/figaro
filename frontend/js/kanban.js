@@ -23,6 +23,7 @@ import {
     adjacentKanbanColumn,
     applyKanbanCardOrder,
     kanbanCardOrderRef,
+    kanbanCardWindow,
     reorderKanbanCardRefs,
 } from './core/kanbanKeyboardModel.js';
 
@@ -38,6 +39,11 @@ let liveRefreshFrame = null;
 let liveRefreshInitialized = false;
 let dueDayTimer = null;
 const rememberedKanbanOrder = new Map();
+const kanbanRenderStates = new WeakMap();
+
+const KANBAN_VIRTUAL_THRESHOLD = 120;
+const KANBAN_WINDOW_SIZE = 96;
+const KANBAN_CARD_STRIDE_ESTIMATE = 91;
 
 export const KANBAN_CARD_TEXT_LIMIT = 120;
 export const KANBAN_DENSITIES = ['comfortable', 'compact'];
@@ -426,6 +432,7 @@ function renderKanbanSnapshot(boardData, focusCol = null, container = getBoardCo
     }
     initKanbanDragDrop(container);
     initKanbanKeyboard(container);
+    initKanbanWindowing(container);
 }
 
 /**
@@ -463,8 +470,19 @@ function renderColumns(container, boardData, focusCol) {
     for (const col of kanbanColumns) {
         if (!persistedColumns.has(col)) allColumns.push(col);
     }
+    const renderState = {
+        allColumns,
+        boardData,
+        ranges: new Map(),
+        rowStrides: new Map(),
+    };
     for (const column of allColumns) {
         const tasks = boardData[column] || [];
+        const range = tasks.length > KANBAN_VIRTUAL_THRESHOLD
+            ? kanbanCardWindow(tasks.length, { windowSize: KANBAN_WINDOW_SIZE })
+            : { start: 0, end: tasks.length };
+        renderState.ranges.set(column, range);
+        renderState.rowStrides.set(column, KANBAN_CARD_STRIDE_ESTIMATE);
         const isSystem = ['todo', 'wip', 'done'].includes(column);
         const isFocused = column === focusCol;
         const selectedColor = ACCENT_COLOR_PALETTE.includes(kanbanColors[column]) ? kanbanColors[column] : '';
@@ -493,13 +511,14 @@ function renderColumns(container, boardData, focusCol) {
                     </div>
                 </div>
                 <div class="kanban-column-cards" data-column="${column}">
-                    ${renderCards(tasks)}
+                    ${renderCards(tasks, range, KANBAN_CARD_STRIDE_ESTIMATE)}
                 </div>
             </div>
         `;
     }
     
     container.innerHTML = html;
+    kanbanRenderStates.set(container, renderState);
     
     // Event listeners for color picker
     container.querySelectorAll('.color-col').forEach(btn => {
@@ -523,8 +542,19 @@ function renderColumns(container, boardData, focusCol) {
         });
     });
     
-    // Add click handlers for cards
-    container.querySelectorAll('.kanban-card').forEach(card => {
+    initKanbanCardActions(container);
+
+    // Auto-clear focus highlight after 2.5s
+    if (focusCol) {
+        setTimeout(() => {
+            const focusedCol = container.querySelector('.kanban-column.focused');
+            if (focusedCol) focusedCol.classList.remove('focused');
+        }, 2500);
+    }
+}
+
+function initKanbanCardActions(root) {
+    root.querySelectorAll('.kanban-card').forEach(card => {
         card.addEventListener('click', (e) => {
             if (e.target.closest('.kanban-card-delete, .kanban-card-date-control')) return;
             const filePath = card.dataset.file;
@@ -554,14 +584,6 @@ function renderColumns(container, boardData, focusCol) {
             });
         }
     });
-    
-    // Auto-clear focus highlight after 2.5s
-    if (focusCol) {
-        setTimeout(() => {
-            const focusedCol = container.querySelector('.kanban-column.focused');
-            if (focusedCol) focusedCol.classList.remove('focused');
-        }, 2500);
-    }
 }
 
 /**
@@ -639,12 +661,22 @@ async function setColumnColor(columnName, color) {
 /**
  * Render task cards for a column
  */
-function renderCards(tasks) {
+function renderCards(
+    tasks,
+    range = { start: 0, end: tasks?.length || 0 },
+    rowStride = KANBAN_CARD_STRIDE_ESTIMATE,
+) {
     if (!tasks || tasks.length === 0) {
         return '<div class="kanban-empty">No tasks</div>';
     }
-    
-    return tasks.map(task => {
+
+    const rows = [];
+    if (range.start > 0) {
+        rows.push(`<div class="kanban-card-spacer" aria-hidden="true"
+            style="height:${range.start * rowStride}px"></div>`);
+    }
+    tasks.slice(range.start, range.end).forEach((task, offset) => {
+        const index = range.start + offset;
         const displayText = truncateKanbanCardText(task.text);
         const due = dueDatePresentation(task.due_date, localISODate());
         const dueControl = due
@@ -652,15 +684,17 @@ function renderCards(tasks) {
                     ${calendarIcon()}<span>${escapeHtml(due.label)}</span>
                 </button>`
             : `<button type="button" tabindex="-1" class="ui-icon-button ui-icon-button--small kanban-card-date-control kanban-card-due-action" aria-label="Set due date" title="Set due date">${calendarIcon()}</button>`;
-        return `
+        rows.push(`
         <div class="kanban-card" role="button" tabindex="0"
              aria-label="${escapeAttribute(`${task.text}. Column ${task.tag}. Source ${task.file_name}`)}"
              aria-description="Enter opens the source. Arrow keys move the card. D changes its due date. Delete removes its column tag."
              aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight D Delete"
+             aria-posinset="${index + 1}" aria-setsize="${tasks.length}"
              draggable="true" 
              data-file="${escapeAttribute(task.file)}"
              data-line="${task.line}"
              data-tag="${escapeAttribute(task.tag)}"
+             data-card-index="${index}"
              data-text="${escapeAttribute(task.text)}">
             <div class="kanban-card-text" title="${escapeAttribute(task.text)}">${escapeHtml(displayText)}</div>
             <div class="kanban-card-meta">
@@ -673,10 +707,82 @@ function renderCards(tasks) {
                     </button></span>
             </div>
         </div>
-    `; }).join('');
+    `);
+    });
+    if (range.end < tasks.length) {
+        rows.push(`<div class="kanban-card-spacer" aria-hidden="true"
+            style="height:${(tasks.length - range.end) * rowStride}px"></div>`);
+    }
+    return rows.join('');
+}
+
+function renderKanbanColumnWindow(container, column, { anchorIndex = 0, selectedIndex = -1 } = {}) {
+    const state = kanbanRenderStates.get(container);
+    const cardsContainer = container.querySelector(
+        `.kanban-column-cards[data-column="${escapeAttribute(column)}"]`,
+    );
+    const tasks = state?.boardData?.[column] || [];
+    if (!state || !cardsContainer) return false;
+    const protection = state.focusProtection;
+    const protectedIndex = protection?.column === column && Date.now() < protection.until
+        ? protection.index
+        : -1;
+    const range = tasks.length > KANBAN_VIRTUAL_THRESHOLD
+        ? kanbanCardWindow(tasks.length, {
+            anchorIndex,
+            selectedIndex: protectedIndex >= 0 ? protectedIndex : selectedIndex,
+            windowSize: KANBAN_WINDOW_SIZE,
+        })
+        : { start: 0, end: tasks.length };
+    state.ranges.set(column, range);
+    const rowStride = state.rowStrides.get(column) || KANBAN_CARD_STRIDE_ESTIMATE;
+    cardsContainer.innerHTML = renderCards(tasks, range, rowStride);
+    initKanbanCardActions(cardsContainer);
+    initKanbanCardDrag(cardsContainer);
+    initKanbanKeyboard(container, cardsContainer);
+    if (
+        protectedIndex >= range.start
+        && protectedIndex < range.end
+        && document.activeElement === document.body
+    ) {
+        cardsContainer.querySelector(`[data-card-index="${protectedIndex}"]`)
+            ?.focus({ preventScroll: true });
+    }
+    return true;
+}
+
+function focusKanbanCardAt(container, column, index) {
+    const state = kanbanRenderStates.get(container);
+    const tasks = state?.boardData?.[column] || [];
+    if (index < 0 || index >= tasks.length) return false;
+    let card = container.querySelector(
+        `.kanban-column-cards[data-column="${escapeAttribute(column)}"] [data-card-index="${index}"]`,
+    );
+    if (!card) {
+        renderKanbanColumnWindow(container, column, { selectedIndex: index });
+        card = container.querySelector(
+            `.kanban-column-cards[data-column="${escapeAttribute(column)}"] [data-card-index="${index}"]`,
+        );
+    }
+    if (!card) return false;
+    card.focus({ preventScroll: true });
+    state.focusProtection = { column, index, until: Date.now() + 500 };
+    card.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    return true;
 }
 
 function focusKanbanCard(container, ref, column) {
+    const state = kanbanRenderStates.get(container);
+    const candidateColumns = column ? [column] : (state?.allColumns || []);
+    for (const candidateColumn of candidateColumns) {
+        const index = (state?.boardData?.[candidateColumn] || []).findIndex(card => (
+            card.file === ref.file
+            && Number(card.line) === Number(ref.line)
+            && card.text === ref.text
+        ));
+        if (index >= 0) return focusKanbanCardAt(container, candidateColumn, index);
+    }
+
     const match = [...(container?.querySelectorAll?.('.kanban-card') || [])].find(card => (
         card.dataset.file === ref.file
         && Number(card.dataset.line) === Number(ref.line)
@@ -688,14 +794,12 @@ function focusKanbanCard(container, ref, column) {
     return true;
 }
 
-function cardElements(container) {
-    return [...container.querySelectorAll('.kanban-card')];
-}
-
 async function reorderCardWithKeyboard(container, card, offset) {
     const column = card.dataset.tag;
-    const columnCards = [...container.querySelectorAll(`.kanban-column-cards[data-column="${escapeAttribute(column)}"] .kanban-card`)];
-    const index = columnCards.indexOf(card);
+    const focusedRef = kanbanCardOrderRef(card);
+    const state = kanbanRenderStates.get(container);
+    const columnCards = state?.boardData?.[column] || [];
+    const index = Number(card.dataset.cardIndex);
     const result = reorderKanbanCardRefs(columnCards.map(kanbanCardOrderRef), index, offset);
     if (!result.changed) {
         statusBar.set(offset < 0 ? 'Task is already first' : 'Task is already last');
@@ -720,7 +824,7 @@ async function reorderCardWithKeyboard(container, card, offset) {
         const boardData = applyRememberedKanbanOrder(getState('kanbanBoardData') || {});
         setState('kanbanBoardData', boardData);
         renderKanbanSnapshot(boardData, null, container);
-        focusKanbanCard(container, kanbanCardOrderRef(card), column);
+        focusKanbanCard(container, focusedRef, column);
         statusBar.set('Task reordered');
         setTimeout(() => statusBar.set('Ready'), 1000);
         return true;
@@ -733,17 +837,42 @@ async function reorderCardWithKeyboard(container, card, offset) {
     }
 }
 
-function initKanbanKeyboard(container) {
-    container.querySelectorAll('.kanban-card').forEach(card => {
+function nextKanbanCardLocation(state, column, index, offset) {
+    const columnIndex = state.allColumns.indexOf(column);
+    if (columnIndex < 0) return null;
+    const inColumn = index + offset;
+    const currentTasks = state.boardData[column] || [];
+    if (inColumn >= 0 && inColumn < currentTasks.length) return { column, index: inColumn };
+
+    for (
+        let nextColumnIndex = columnIndex + offset;
+        nextColumnIndex >= 0 && nextColumnIndex < state.allColumns.length;
+        nextColumnIndex += offset
+    ) {
+        const nextColumn = state.allColumns[nextColumnIndex];
+        const tasks = state.boardData[nextColumn] || [];
+        if (tasks.length) {
+            return { column: nextColumn, index: offset > 0 ? 0 : tasks.length - 1 };
+        }
+    }
+    return null;
+}
+
+function initKanbanKeyboard(container, root = container) {
+    root.querySelectorAll('.kanban-card').forEach(card => {
         card.addEventListener('keydown', event => {
             if (event.target !== card || event.altKey || event.ctrlKey || event.metaKey) return;
             if (event.key === 'Tab') {
-                const cards = cardElements(container);
-                const target = cards[cards.indexOf(card) + (event.shiftKey ? -1 : 1)];
+                const state = kanbanRenderStates.get(container);
+                const target = state && nextKanbanCardLocation(
+                    state,
+                    card.dataset.tag,
+                    Number(card.dataset.cardIndex),
+                    event.shiftKey ? -1 : 1,
+                );
                 if (target) {
                     event.preventDefault();
-                    target.focus();
-                    target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+                    focusKanbanCardAt(container, target.column, target.index);
                 }
                 return;
             }
@@ -857,22 +986,91 @@ function initKanbanDragDrop(container) {
             draggedCard = null;
         });
         
-        // Card drag events
-        const cards = cardsContainer.querySelectorAll('.kanban-card');
-        cards.forEach(card => {
-            card.addEventListener('dragstart', (e) => {
-                draggedCard = card;
-                card.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', card.dataset.file);
-            });
-            
-            card.addEventListener('dragend', () => {
-                card.classList.remove('dragging');
-                draggedCard = null;
-            });
+        initKanbanCardDrag(cardsContainer);
+    });
+}
+
+function initKanbanCardDrag(root) {
+    root.querySelectorAll('.kanban-card').forEach(card => {
+        card.addEventListener('dragstart', (event) => {
+            draggedCard = card;
+            card.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', card.dataset.file);
+        });
+
+        card.addEventListener('dragend', () => {
+            card.classList.remove('dragging');
+            draggedCard = null;
         });
     });
+}
+
+function scheduleKanbanWindowUpdate(callback) {
+    if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(callback);
+    return setTimeout(callback, 0);
+}
+
+function initKanbanWindowing(container) {
+    const state = kanbanRenderStates.get(container);
+    if (!state) return;
+    for (const cards of container.querySelectorAll('.kanban-column-cards')) {
+        const column = cards.dataset.column;
+        if ((state.boardData[column] || []).length <= KANBAN_VIRTUAL_THRESHOLD) continue;
+        let frame = 0;
+        cards.onscroll = () => {
+            if (frame) return;
+            frame = scheduleKanbanWindowUpdate(() => {
+                frame = 0;
+                const activeState = kanbanRenderStates.get(container);
+                if (!activeState) return;
+                if (
+                    Date.now() < (activeState.focusProtection?.until || 0)
+                    && cards.contains(document.activeElement)
+                ) return;
+                const stride = activeState.rowStrides.get(column) || KANBAN_CARD_STRIDE_ESTIMATE;
+                const anchorIndex = Math.floor(cards.scrollTop / stride);
+                const range = kanbanCardWindow((activeState.boardData[column] || []).length, {
+                    anchorIndex,
+                    windowSize: KANBAN_WINDOW_SIZE,
+                });
+                const current = activeState.ranges.get(column);
+                if (range.start !== current?.start || range.end !== current?.end) {
+                    renderKanbanColumnWindow(container, column, { anchorIndex });
+                }
+            });
+        };
+        if (cards.scrollTop > 0) cards.onscroll();
+    }
+
+    let boardFrame = 0;
+    container.onscroll = () => {
+        const wrapper = container.closest('.kanban-view-wrapper');
+        if (wrapper?.dataset.layout !== 'stacked' || boardFrame) return;
+        boardFrame = scheduleKanbanWindowUpdate(() => {
+            boardFrame = 0;
+            const activeState = kanbanRenderStates.get(container);
+            if (!activeState) return;
+            const boardRect = container.getBoundingClientRect();
+            for (const cards of container.querySelectorAll('.kanban-column-cards')) {
+                const column = cards.dataset.column;
+                const tasks = activeState.boardData[column] || [];
+                if (tasks.length <= KANBAN_VIRTUAL_THRESHOLD) continue;
+                const relativeTop = Math.max(0, boardRect.top - cards.getBoundingClientRect().top);
+                const stride = activeState.rowStrides.get(column) || KANBAN_CARD_STRIDE_ESTIMATE;
+                const anchorIndex = Math.floor(relativeTop / stride);
+                const range = kanbanCardWindow(tasks.length, {
+                    anchorIndex,
+                    windowSize: KANBAN_WINDOW_SIZE,
+                });
+                const current = activeState.ranges.get(column);
+                if (range.start !== current?.start || range.end !== current?.end) {
+                    renderKanbanColumnWindow(container, column, { anchorIndex });
+                }
+            }
+        });
+    };
+    if (container.scrollTop > 0) container.onscroll();
 }
 
 /**
@@ -882,6 +1080,7 @@ async function moveCard(card, targetColumn, { restoreFocus = false } = {}) {
     const filePath = card.dataset.file;
     const lineNum = parseInt(card.dataset.line, 10);
     const oldTag = card.dataset.tag;
+    const focusedRef = kanbanCardOrderRef(card);
     const mutationId = beginKanbanMutation();
     
     try {
@@ -894,7 +1093,7 @@ async function moveCard(card, targetColumn, { restoreFocus = false } = {}) {
             setTimeout(() => statusBar.set('Ready'), 1000);
             if (!await refreshAfterKanbanMutation(mutationId)) return;
             if (restoreFocus) {
-                focusKanbanCard(getBoardContainer(), kanbanCardOrderRef(card), targetColumn);
+                focusKanbanCard(getBoardContainer(), focusedRef, targetColumn);
             }
             
             // Reload active file if it's the one we modified

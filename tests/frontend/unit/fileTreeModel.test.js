@@ -1,6 +1,7 @@
 import {
     directoryPathsForReveal,
     fileTreeKeyboardPlan,
+    fileTreeWindow,
     isFileTreeEntryPinned,
     normalizeFileTreeStyles,
     sortFileTreeItems,
@@ -10,6 +11,14 @@ import {
 } from '../frontend/js/core/fileTreeModel.js';
 
 describe('file tree model', () => {
+    test('bounds a large visible-row window around scroll and keyboard anchors', () => {
+        expect(fileTreeWindow(20_000)).toEqual({ start: 0, end: 160 });
+        expect(fileTreeWindow(20_000, { selectedIndex: 10_000 }))
+            .toEqual({ start: 9_920, end: 10_080 });
+        expect(fileTreeWindow(20_000, { anchorIndex: 19_999 }))
+            .toEqual({ start: 19_840, end: 20_000 });
+        expect(fileTreeWindow(0)).toEqual({ start: 0, end: 0 });
+    });
     test('normalizes appearance data without retaining unbounded recent icons', () => {
         const styles = normalizeFileTreeStyles({
             version: '2',

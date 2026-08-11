@@ -1,7 +1,11 @@
 package desktop
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -101,5 +105,99 @@ func TestRenamePathRewritesRootMarkdownAndWikiLinks(t *testing.T) {
 	}
 	if got := readTestFile(t, vaultPath, "source.md"); got != "[Old](new.md)\n[[new]]\n" {
 		t.Fatalf("links were not rewritten after rename: %q", got)
+	}
+}
+
+func TestDirectoryMoveRewritesSparseLinksAcrossLargeVault(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Projects/Spec.md", "# Specification\n")
+	for index := 0; index < 256; index++ {
+		path := fmt.Sprintf("Bulk/%02d/Note-%03d.md", index%16, index)
+		writeTestFile(t, vaultPath, path, fmt.Sprintf("Unrelated scale note %03d.\n", index))
+	}
+	writeTestFile(t, vaultPath, "References/first.md", "[Spec](../Projects/Spec.md)\n")
+	writeTestFile(t, vaultPath, "Bulk/07/middle.md", "[Spec](../../Projects/Spec.md#overview)\n")
+	writeTestFile(t, vaultPath, "References/last.md", "[spec]: ../Projects/Spec.md \"Specification\"\n")
+	writeTestFile(t, vaultPath, "wiki.md", "[[Projects/Spec|Read the spec]]\n")
+	if _, err := app.SearchFiles("Unrelated scale", false); err != nil {
+		t.Fatalf("warm shared index: %v", err)
+	}
+	initialIndex := app.vaultIndex
+
+	result, err := app.MovePath("Projects", "Archive")
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("MovePath: result=%+v err=%v", result, err)
+	}
+	sort.Strings(result.UpdatedLinks)
+	wantUpdated := []string{"Bulk/07/middle.md", "References/first.md", "References/last.md", "wiki.md"}
+	if !reflect.DeepEqual(result.UpdatedLinks, wantUpdated) {
+		t.Fatalf("updated sparse links = %#v, want %#v", result.UpdatedLinks, wantUpdated)
+	}
+	if app.vaultIndex != initialIndex {
+		t.Fatal("sparse directory move replaced the warm index instead of remapping it")
+	}
+	if _, found := app.vaultIndex.files["Projects/Spec.md"]; found {
+		t.Fatal("warm index retained the old moved path")
+	}
+	if _, found := app.vaultIndex.files["Archive/Projects/Spec.md"]; !found {
+		t.Fatal("warm index did not publish the moved path")
+	}
+
+	checks := map[string]string{
+		"References/first.md": "[Spec](../Archive/Projects/Spec.md)\n",
+		"Bulk/07/middle.md":   "[Spec](../../Archive/Projects/Spec.md#overview)\n",
+		"References/last.md":  "[spec]: ../Archive/Projects/Spec.md \"Specification\"\n",
+		"wiki.md":             "[[Archive/Projects/Spec|Read the spec]]\n",
+	}
+	for path, want := range checks {
+		if got := readTestFile(t, vaultPath, path); got != want {
+			t.Errorf("rewritten %s = %q, want %q", path, got, want)
+		}
+	}
+	for _, index := range []int{0, 127, 255} {
+		path := fmt.Sprintf("Bulk/%02d/Note-%03d.md", index%16, index)
+		want := fmt.Sprintf("Unrelated scale note %03d.\n", index)
+		if got := readTestFile(t, vaultPath, path); got != want {
+			t.Errorf("unrelated %s changed: %q", path, got)
+		}
+	}
+}
+
+func TestIndexedMoveFallsBackWhenExternalMarkdownWasNotObserved(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Projects/Spec.md", "# Specification\n")
+	writeTestFile(t, vaultPath, "known.md", "Known note\n")
+	if _, err := app.SearchFiles("Known note", false); err != nil {
+		t.Fatalf("warm shared index: %v", err)
+	}
+	writeTestFile(t, vaultPath, "external.md", "[Spec](Projects/Spec.md)\n")
+
+	root, err := app.openVaultRoot()
+	if err != nil {
+		t.Fatalf("open vault root: %v", err)
+	}
+	defer root.Close()
+	rewrites, usedIndex, err := collectVaultLinkRewritesIndexed(root, app.vaultIndex, "Projects", "Archive/Projects")
+	if err != nil {
+		t.Fatalf("collect rewrites with stale index: %v", err)
+	}
+	if usedIndex {
+		t.Fatal("stale index unexpectedly used the pruned rewrite path")
+	}
+	if len(rewrites) != 1 || filepath.ToSlash(rewrites[0].path) != "external.md" {
+		t.Fatalf("fallback rewrites = %#v, want external.md", rewrites)
+	}
+	if result, err := app.MovePath("Projects", "Archive"); err != nil || !result.Success {
+		t.Fatalf("MovePath with stale index: result=%+v err=%v", result, err)
+	}
+	if got := readTestFile(t, vaultPath, "external.md"); got != "[Spec](Archive/Projects/Spec.md)\n" {
+		t.Fatalf("fallback move rewrite = %q", got)
+	}
+	if _, found := app.vaultIndex.files["external.md"]; !found {
+		t.Fatal("fallback move did not rebuild the externally changed index")
 	}
 }

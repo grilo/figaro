@@ -336,6 +336,11 @@
     gap: 2px;
 }
 
+.search-result-spacer {
+    min-height: 0;
+    pointer-events: none;
+}
+
 .search-result-row {
     display: grid;
     grid-template-areas: "main meta" "path path" "excerpt excerpt";
@@ -845,6 +850,29 @@
     list-style: none;
     margin: 0;
     padding: 0;
+}
+
+.file-tree-list--virtual > .file-tree-item {
+    padding-left: calc(var(--file-tree-depth, 0) * 12px);
+}
+
+.file-tree-list--virtual > .file-tree-item::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    left: calc((var(--file-tree-depth, 0) * 12px) - 1px);
+    width: 1px;
+    background: var(--file-tree-guide-color);
+    pointer-events: none;
+}
+
+.file-tree-list--virtual > .file-tree-item[style="--file-tree-depth:0"]::before {
+    display: none;
+}
+
+.file-tree-spacer {
+    list-style: none;
+    pointer-events: none;
 }
 
 .file-tree-item {

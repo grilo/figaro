@@ -43,7 +43,8 @@ There is no account, hosted database, or required cloud service.
   backlinks, unlinked mentions, a top-right document-outline launcher that
   stays beneath the sticky hierarchy, recent notes, pins, and file-tree
   customization. Long tabs preserve their differentiating filename ending and
-  show their parent path; repeated arrow presses continue through the tab list.
+  show their parent path; repeated arrow presses and vertical mouse-wheel input
+  continue through the tab list.
   Search results expose their selected option to assistive technology and put
   a tail-preserving parent path on its own readable line so even deeply nested
   repeated filenames remain distinguishable. The active document leads the
@@ -51,7 +52,10 @@ There is no account, hosted database, or required cloud service.
   arrows, Home/End, and Escape. Tab enters one current file-tree row; standard
   tree arrows then traverse, expand, collapse, and return to parent folders.
   Tab dragging remains selection-free even when the pointer crosses the file
-  tree or another workspace region.
+  tree or another workspace region. Large searches, expanded trees, Kanban
+  columns, and backlink sets retain their complete logical content while
+  mounting bounded windows, so keyboard and assistive navigation remain
+  available without creating tens of thousands of DOM elements.
 - **Capture and planning.** Quick notes and daily notes live in a real `Inbox`;
   hashtags form a Kanban board, and portable due-date links feed the Today
   dashboard and calendar.
@@ -61,7 +65,8 @@ There is no account, hosted database, or required cloud service.
   output, preserve fenced-code syntax colors, add cover pages and tables of
   contents, apply vault-local print CSS, and generate linked PDFs.
 - **Local history.** Optional per-file Auto-Commit, explicit history saves,
-  comparisons, and restoration keep unrelated vault changes separate.
+  comparisons, and restoration keep unrelated vault changes separate; the
+  active-note status check does not scan unrelated vault files.
 - **Configurable workspace.** Choose from seventeen themes, prose and code
   fonts, Vim editing, line numbers, sticky headings, block guides, document
   outline, diagnostics, and fully local spellcheck dictionaries.

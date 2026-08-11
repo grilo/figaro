@@ -62,6 +62,7 @@ export function visibleFileTreeRows(items, expandedDirectories, styles = {}, dep
         const hasChildren = children.length > 0;
         const isExpanded = hasChildren && expanded.has(item.path);
         rows.push({
+            item,
             path: item.path,
             type: item.type,
             depth,
@@ -75,6 +76,19 @@ export function visibleFileTreeRows(items, expandedDirectories, styles = {}, dep
     }
 
     return rows;
+}
+
+export function fileTreeWindow(
+    rowCount,
+    { anchorIndex = 0, selectedIndex = -1, windowSize = 160 } = {},
+) {
+    const count = Math.max(0, Number(rowCount) || 0);
+    if (!count) return { start: 0, end: 0 };
+    const size = Math.min(count, Math.max(1, Number(windowSize) || 1));
+    const requestedAnchor = selectedIndex >= 0 ? selectedIndex : anchorIndex;
+    const anchor = Math.min(count - 1, Math.max(0, Number(requestedAnchor) || 0));
+    const start = Math.min(count - size, Math.max(0, anchor - Math.floor(size / 2)));
+    return { start, end: start + size };
 }
 
 /**

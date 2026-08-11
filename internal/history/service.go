@@ -320,15 +320,19 @@ func (h *Service) HasUncommittedChanges(relPath string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("get worktree: %w", err)
 	}
+	dirty, needsFullStatus, err := h.pathHasUncommittedChanges(worktree, relPath)
+	if err != nil {
+		return false, fmt.Errorf("check path status: %w", err)
+	}
+	if !needsFullStatus {
+		return dirty, nil
+	}
 	status, err := worktree.Status()
 	if err != nil {
-		return false, fmt.Errorf("check status: %w", err)
+		return false, fmt.Errorf("check status fallback: %w", err)
 	}
 	fileStatus, exists := status[filepath.ToSlash(relPath)]
-	if !exists {
-		return false, nil
-	}
-	return fileStatus.Staging != git.Unmodified || fileStatus.Worktree != git.Unmodified, nil
+	return exists && (fileStatus.Staging != git.Unmodified || fileStatus.Worktree != git.Unmodified), nil
 }
 
 func (h *Service) notifyCommitLocked() {

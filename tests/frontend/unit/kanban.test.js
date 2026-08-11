@@ -176,6 +176,41 @@ describe('live Kanban buffers and compact cards', () => {
             .every(button => button.tabIndex === -1)).toBe(true);
     });
 
+    test('keeps a large logical column keyboard-operable outside its mounted window', async () => {
+        const tasks = Array.from({ length: 300 }, (_, index) => ({
+            file: `task-${index}.md`,
+            file_name: `task-${index}.md`,
+            line: index + 1,
+            text: `Task ${index}`,
+            tag: 'todo',
+        }));
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: tasks, wip: [], done: [] });
+        await renderKanbanBoard('kanban-board-main');
+
+        expect(document.querySelectorAll('.kanban-card')).toHaveLength(96);
+        document.querySelector('.kanban-card').focus();
+        for (let index = 0; index < 150; index += 1) {
+            document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Tab', bubbles: true, cancelable: true,
+            }));
+        }
+
+        expect(document.activeElement.dataset.cardIndex).toBe('150');
+        expect(document.activeElement.dataset.file).toBe('task-150.md');
+        expect(document.activeElement.getAttribute('aria-posinset')).toBe('151');
+        expect(document.activeElement.getAttribute('aria-setsize')).toBe('300');
+        expect(document.querySelectorAll('.kanban-card')).toHaveLength(96);
+
+        document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'ArrowDown', bubbles: true, cancelable: true,
+        }));
+        await testUtils.waitFor(0);
+        const persistedRefs = window.go.desktop.App.SetKanbanCardOrder.mock.calls.at(-1)[1];
+        expect(persistedRefs).toHaveLength(300);
+        expect(persistedRefs[151].file).toBe('task-150.md');
+        expect(document.activeElement.dataset.file).toBe('task-150.md');
+    });
+
     test('persists ArrowUp reordering and restores focus to the moved card', async () => {
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
             todo: [

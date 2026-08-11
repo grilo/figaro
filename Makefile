@@ -8,6 +8,7 @@
 .NOTPARALLEL:
 
 .PHONY: all help bootstrap doctor vendor release release-local major minor patch dev linux windows darwin clean icons install-desktop \
+	stress-vault \
 	check-go check-node check-wails check-linux-host check-linux-deps check-darwin-host check-darwin-deps check-icon-tool \
 	ensure-go-modules ensure-frontend-assets ensure-icons
 
@@ -40,6 +41,8 @@ WAILS := $(GO_BIN)/wails
 endif
 WAILS_VERSION := v2.14.0
 HOST_GOOS := $(shell go env GOOS 2>/dev/null)
+STRESS_VAULT_PATH ?= $(CURDIR)/stress-vault/huge-vault
+STRESS_REPORT_DIR ?= $(CURDIR)/stress-vault
 
 # Wails uses WebKitGTK 4.0 by default. Fedora and other current distributions
 # ship 4.1, which requires this explicit build tag.
@@ -73,6 +76,7 @@ help:
 	@echo "  make release VERSION=vX.Y.Z    Publish an explicit stable version"
 	@echo "  make release-local patch       Bump, verify, commit, and tag without pushing"
 	@echo "  make dev         Run the Wails development server"
+	@echo "  make stress-vault Generate and profile the opt-in 10,000-note stress vault"
 	@echo "  make icons       Rebuild application icons from figaro.appicon.png"
 	@echo "  make clean       Remove generated assets, installs, builds, and local vault data"
 	@echo ""
@@ -192,6 +196,22 @@ major minor patch:
 dev: check-go check-wails ensure-go-modules ensure-frontend-assets ensure-icons
 	$(WAILS) dev $(LINUX_WAILS_TAGS)
 
+stress-vault: check-go check-node ensure-frontend-assets
+	@node scripts/generate-stress-vault.mjs --output "$(STRESS_VAULT_PATH)" --replace
+	@go test ./internal/desktop \
+		-run 'TestWarmVaultStateMatchesColdRebuildAcrossMutationSequence|TestDirectoryMoveRewritesSparseLinksAcrossLargeVault' \
+		-count=1
+	@go test ./internal/history \
+		-run 'TestFileUncommittedStatusMatchesFullWorktreeStateMatrix' \
+		-count=1
+	@FIGARO_STRESS_VAULT="$(STRESS_VAULT_PATH)" \
+		FIGARO_STRESS_REPORT="$(STRESS_REPORT_DIR)/backend-report.json" \
+		go test ./internal/desktop -run '^TestHugeVaultStress$$' -count=1 -v -timeout=10m
+	@FIGARO_STRESS_VAULT="$(STRESS_VAULT_PATH)" \
+		FIGARO_STRESS_BROWSER_REPORT="$(STRESS_REPORT_DIR)/browser-report.json" \
+		npx playwright test tests/e2e/hugeVaultStress.spec.js --reporter=line
+	@echo "Stress reports: $(STRESS_REPORT_DIR)/backend-report.json and $(STRESS_REPORT_DIR)/browser-report.json"
+
 # ── Production builds ────────────────────────────────────────────────────
 
 linux: check-go check-wails check-linux-host check-linux-deps ensure-go-modules ensure-frontend-assets ensure-icons
@@ -217,7 +237,7 @@ clean:
 		frontend/vendored/lucide \
 		frontend/vendored/markdown-it-plugins frontend/vendored/style-mod \
 		frontend/vendored/spellcheck frontend/vendored/w3c-keyname node_modules test-results playwright-report coverage \
-		vault scripts/*.local.sh
+		vault stress-vault scripts/*.local.sh
 
 icons:
 	./scripts/generate-icons.sh

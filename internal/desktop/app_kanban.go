@@ -32,6 +32,7 @@ func (a *App) syncKanbanColumnsLocked() {
 	// affect an unknown set of notes. Discard the old snapshot once, then build
 	// a coherent replacement. Ordinary saves use updateVaultIndexFileLocked
 	// instead and never enter this path.
+	a.invalidateFileTreeCacheLocked()
 	a.invalidateVaultIndexLocked()
 	if _, err := a.ensureVaultIndexLocked(); err != nil {
 		log.Printf("[vault-index] Could not index vault: %v", err)

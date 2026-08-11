@@ -27,6 +27,7 @@ import { initSettingsPanel } from './theme.js';
 import { isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
+import { wheelTabNavigationPlan } from './core/tabWheelModel.js';
 import {
     compactTabTitle,
     tabAccessibleLabel,
@@ -96,8 +97,11 @@ let suppressTabClick = false;
 let previousTabActivationStack = [];
 let tabActivationGeneration = 0;
 let pendingExternalActivationId = 0;
+let tabWheelAccumulatedDeltaY = 0;
+let tabWheelLastEventAt = 0;
 
 const tabDragSelectionGuardClass = 'tab-drag-selection-guard';
+const tabWheelGestureGapMs = 240;
 
 function preventSelectionDuringTabDrag(event) {
     event.preventDefault();
@@ -338,6 +342,8 @@ export function reorderTab(tabId, targetTabId, placeAfter = false) {
 export function initTabManager() {
     const tabStrip = document.getElementById('tab-strip');
     if (tabStrip) {
+        tabWheelAccumulatedDeltaY = 0;
+        tabWheelLastEventAt = 0;
         tabStrip.addEventListener('click', (e) => {
             if (suppressTabClick) {
                 e.preventDefault();
@@ -461,6 +467,31 @@ export function initTabManager() {
                 switchTab(nextTab.dataset.tabId, { preserveTabFocus: true });
             }
         });
+
+        tabStrip.addEventListener('wheel', (e) => {
+            const eventTime = Number.isFinite(e.timeStamp) ? e.timeStamp : 0;
+            if (tabWheelLastEventAt && eventTime - tabWheelLastEventAt > tabWheelGestureGapMs) {
+                tabWheelAccumulatedDeltaY = 0;
+            }
+            const plan = wheelTabNavigationPlan({
+                tabIds: [...tabStrip.querySelectorAll('.tab')].map(tab => tab.dataset.tabId),
+                activeTabId: getState('activeTabId'),
+                deltaX: e.deltaX,
+                deltaY: e.deltaY,
+                deltaMode: e.deltaMode,
+                accumulatedDeltaY: tabWheelAccumulatedDeltaY,
+                modified: e.ctrlKey || e.metaKey || e.altKey || e.shiftKey,
+            });
+            tabWheelAccumulatedDeltaY = plan.accumulatedDeltaY;
+            if (!plan.handled) {
+                tabWheelLastEventAt = 0;
+                return;
+            }
+
+            e.preventDefault();
+            tabWheelLastEventAt = eventTime;
+            if (plan.targetTabId) switchTab(plan.targetTabId);
+        }, { passive: false });
 
         tabStrip.addEventListener('scroll', () => {
             updateTabScrollAffordances(tabStrip);

@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"figaro/internal/links"
 )
 
 const maxIndexedSearchTrigrams = 32768
@@ -33,7 +35,7 @@ type vaultIndex struct {
 	dailyNoteCounts      map[string]int
 	linkedDayCounts      map[string]int
 	dueTaskCounts        map[string]int
-	searchTrigrams       map[string]map[string]struct{}
+	searchTrigrams       map[string][]string
 	searchUnindexedFiles map[string]struct{}
 	backlinksByTarget    map[string][]BacklinkResult
 }
@@ -42,10 +44,14 @@ type vaultIndexedFile struct {
 	path           string
 	name           string
 	mtime          float64
+	size           int64
+	modTimeNano    int64
+	mode           os.FileMode
 	content        string
 	searchLower    string
 	searchTrigrams []string
 	searchIndexed  bool
+	linkTargets    []string
 	tags           []string
 	cards          []KanbanCard
 	dueTasks       []KanbanCard
@@ -55,10 +61,17 @@ type vaultIndexedFile struct {
 	backlinks      map[string]BacklinkResult
 }
 
+type vaultIndexedText struct {
+	content        string
+	searchLower    string
+	searchTrigrams []string
+	searchIndexed  bool
+}
+
 func newVaultIndex() *vaultIndex {
 	return &vaultIndex{
 		files:                make(map[string]vaultIndexedFile),
-		searchTrigrams:       make(map[string]map[string]struct{}),
+		searchTrigrams:       make(map[string][]string),
 		searchUnindexedFiles: make(map[string]struct{}),
 		backlinksByTarget:    make(map[string][]BacklinkResult),
 	}
@@ -72,17 +85,49 @@ func indexMtime(info fs.FileInfo) float64 {
 }
 
 func indexMarkdownFile(rel string, info fs.FileInfo, data []byte) vaultIndexedFile {
-	content := string(data)
-	file := vaultIndexedFile{
-		path:        filepath.ToSlash(rel),
-		name:        info.Name(),
-		mtime:       indexMtime(info),
-		content:     content,
-		searchLower: strings.ToLower(content),
-		linked:      make(map[string]LinkedNote),
-		backlinks:   make(map[string]BacklinkResult),
+	return indexMarkdownText(rel, info, newVaultIndexedText(string(data)))
+}
+
+func newVaultIndexedText(content string) vaultIndexedText {
+	searchLower := strings.ToLower(content)
+	searchTrigrams, searchIndexed := collectSearchTrigrams(
+		searchLower,
+		maxIndexedSearchTrigrams,
+	)
+	return vaultIndexedText{
+		content:        content,
+		searchLower:    searchLower,
+		searchTrigrams: searchTrigrams,
+		searchIndexed:  searchIndexed,
 	}
-	file.searchTrigrams, file.searchIndexed = collectSearchTrigrams(file.searchLower, maxIndexedSearchTrigrams)
+}
+
+func pooledVaultIndexedText(pool map[string]vaultIndexedText, content string) vaultIndexedText {
+	if text, found := pool[content]; found {
+		return text
+	}
+	text := newVaultIndexedText(content)
+	pool[text.content] = text
+	return text
+}
+
+func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaultIndexedFile {
+	content := text.content
+	file := vaultIndexedFile{
+		path:           filepath.ToSlash(rel),
+		name:           info.Name(),
+		mtime:          indexMtime(info),
+		size:           info.Size(),
+		modTimeNano:    info.ModTime().UnixNano(),
+		mode:           info.Mode(),
+		content:        content,
+		searchLower:    text.searchLower,
+		searchTrigrams: text.searchTrigrams,
+		searchIndexed:  text.searchIndexed,
+		linked:         make(map[string]LinkedNote),
+		backlinks:      make(map[string]BacklinkResult),
+	}
+	file.linkTargets = links.MarkdownLinkTargets(content, file.path)
 
 	if matches := dailyNoteFilenameRE.FindStringSubmatch(file.name); len(matches) == 2 && isCalendarDate(matches[1]) {
 		file.dailyNote = matches[1]
@@ -245,7 +290,7 @@ func (index *vaultIndex) rebuildDerived() {
 	index.dailyNoteCounts = make(map[string]int)
 	index.linkedDayCounts = make(map[string]int)
 	index.dueTaskCounts = make(map[string]int)
-	index.searchTrigrams = make(map[string]map[string]struct{})
+	index.searchTrigrams = make(map[string][]string)
 	index.searchUnindexedFiles = make(map[string]struct{})
 	index.backlinksByTarget = make(map[string][]BacklinkResult)
 	for _, path := range index.paths {
@@ -288,12 +333,10 @@ func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
 	}
 	if file.searchIndexed {
 		for _, trigram := range file.searchTrigrams {
-			postings := index.searchTrigrams[trigram]
-			if postings == nil {
-				postings = make(map[string]struct{})
-				index.searchTrigrams[trigram] = postings
-			}
-			postings[file.path] = struct{}{}
+			index.searchTrigrams[trigram] = insertSortedPath(
+				index.searchTrigrams[trigram],
+				file.path,
+			)
 		}
 	} else {
 		index.searchUnindexedFiles[file.path] = struct{}{}
@@ -382,9 +425,11 @@ func (index *vaultIndex) removeFileContributions(file vaultIndexedFile) {
 	if file.searchIndexed {
 		for _, trigram := range file.searchTrigrams {
 			postings := index.searchTrigrams[trigram]
-			delete(postings, file.path)
+			postings = removeSortedPath(postings, file.path)
 			if len(postings) == 0 {
 				delete(index.searchTrigrams, trigram)
+			} else {
+				index.searchTrigrams[trigram] = postings
 			}
 		}
 	} else {
@@ -489,7 +534,7 @@ func (index *vaultIndex) searchCandidates(foldedQuery string) map[string]struct{
 		return candidates
 	}
 
-	var smallest map[string]struct{}
+	var smallest []string
 	for _, trigram := range queryTrigrams {
 		postings := index.searchTrigrams[trigram]
 		if len(postings) == 0 {
@@ -499,10 +544,10 @@ func (index *vaultIndex) searchCandidates(foldedQuery string) map[string]struct{
 			smallest = postings
 		}
 	}
-	for path := range smallest {
+	for _, path := range smallest {
 		matchesAll := true
 		for _, trigram := range queryTrigrams {
-			if _, found := index.searchTrigrams[trigram][path]; !found {
+			if !containsSortedPath(index.searchTrigrams[trigram], path) {
 				matchesAll = false
 				break
 			}
@@ -512,6 +557,32 @@ func (index *vaultIndex) searchCandidates(foldedQuery string) map[string]struct{
 		}
 	}
 	return candidates
+}
+
+func insertSortedPath(paths []string, path string) []string {
+	position := sort.SearchStrings(paths, path)
+	if position < len(paths) && paths[position] == path {
+		return paths
+	}
+	paths = append(paths, "")
+	copy(paths[position+1:], paths[position:])
+	paths[position] = path
+	return paths
+}
+
+func removeSortedPath(paths []string, path string) []string {
+	position := sort.SearchStrings(paths, path)
+	if position >= len(paths) || paths[position] != path {
+		return paths
+	}
+	copy(paths[position:], paths[position+1:])
+	paths[len(paths)-1] = ""
+	return paths[:len(paths)-1]
+}
+
+func containsSortedPath(paths []string, path string) bool {
+	position := sort.SearchStrings(paths, path)
+	return position < len(paths) && paths[position] == path
 }
 
 func (index *vaultIndex) removeFile(path string) {
@@ -577,8 +648,11 @@ func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
 	}
 
 	index := newVaultIndex()
+	textPool := make(map[string]vaultIndexedText)
 	if err := a.walkVaultMarkdown(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
-		file := indexMarkdownFile(rel, info, data)
+		content := string(data)
+		text := pooledVaultIndexedText(textPool, content)
+		file := indexMarkdownText(rel, info, text)
 		index.files[file.path] = file
 		return nil
 	}); err != nil {
@@ -602,6 +676,7 @@ func (a *App) publishVaultIndexLocked(index *vaultIndex) {
 // updateVaultIndexFileLocked performs the common fast path: a single known
 // Markdown file was saved by Figaro. It never reopens unrelated notes.
 func (a *App) updateVaultIndexFileLocked(rel string, info fs.FileInfo, content string) {
+	a.updateFileTreeCacheFileLocked(rel, info)
 	if a.vaultIndex == nil {
 		a.invalidateCalendarIndexLocked()
 		return
@@ -615,6 +690,7 @@ func (a *App) updateVaultIndexFileLocked(rel string, info fs.FileInfo, content s
 }
 
 func (a *App) removeVaultIndexPathLocked(rel string) {
+	a.removeFileTreeCachePathLocked(rel)
 	if a.vaultIndex == nil {
 		a.invalidateCalendarIndexLocked()
 		return
@@ -626,6 +702,59 @@ func (a *App) removeVaultIndexPathLocked(rel string) {
 		}
 	}
 	a.publishVaultIndexLocked(a.vaultIndex)
+}
+
+// refreshVaultIndexAfterMoveLocked remaps only Markdown files whose source
+// path or rewritten content changed, then reconstructs cross-file projections
+// from the retained in-memory file records. It performs no unrelated content
+// reads; callers fall back to a cold rebuild if any post-move stat fails.
+func (a *App) refreshVaultIndexAfterMoveLocked(
+	root *os.Root,
+	oldRel string,
+	newRel string,
+	rewrites []vaultLinkRewrite,
+) error {
+	index := a.vaultIndex
+	if index == nil {
+		return fmt.Errorf("vault index is unavailable")
+	}
+	oldRel = links.NormalizeVaultPath(oldRel)
+	newRel = links.NormalizeVaultPath(newRel)
+	rewritten := make(map[string]string, len(rewrites))
+	for _, rewrite := range rewrites {
+		rewritten[filepath.ToSlash(rewrite.path)] = string(rewrite.updated)
+	}
+
+	oldPaths := append([]string(nil), index.paths...)
+	textPool := make(map[string]vaultIndexedText)
+	for _, oldPath := range oldPaths {
+		file := index.files[oldPath]
+		futurePath := links.MovedVaultPath(oldPath, oldRel, newRel)
+		updatedContent, contentChanged := rewritten[futurePath]
+		if futurePath == oldPath && !contentChanged {
+			continue
+		}
+
+		text := vaultIndexedText{
+			content:        file.content,
+			searchLower:    file.searchLower,
+			searchTrigrams: file.searchTrigrams,
+			searchIndexed:  file.searchIndexed,
+		}
+		if contentChanged {
+			text = pooledVaultIndexedText(textPool, updatedContent)
+		}
+		info, err := root.Stat(filepath.FromSlash(futurePath))
+		if err != nil {
+			return fmt.Errorf("inspect moved Markdown %q: %w", futurePath, err)
+		}
+		a.updateFileTreeCacheFileLocked(futurePath, info)
+		delete(index.files, oldPath)
+		index.files[futurePath] = indexMarkdownText(futurePath, info, text)
+	}
+	index.rebuildDerived()
+	a.publishVaultIndexLocked(index)
+	return nil
 }
 
 func (a *App) invalidateVaultIndexLocked() {

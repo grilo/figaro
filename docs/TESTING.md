@@ -127,6 +127,101 @@ that ordinary post-ready interactions make no local module requests or
 first-use initialization. Do not create a separate end-to-end performance
 scenario for every feature.
 
+### Huge-vault stress profile
+
+Scale-sensitive changes can use the opt-in deterministic vault profile. The
+generator writes one small source and one 10,000-line source, then creates
+renamed filesystem copies across a deep hierarchy until the vault contains
+10,000 Markdown documents. Generated data and JSON reports live under the
+ignored `stress-vault/` directory; no fixture notes are checked into Git.
+
+Run the complete profile with:
+
+```bash
+make stress-vault
+```
+
+The target regenerates only a directory carrying the generator's
+`.figaro-stress-vault.json` marker, then runs the real desktop/backend adapter
+profile and the focused Chromium layout profile. It writes
+`stress-vault/backend-report.json` and `stress-vault/browser-report.json`.
+Neither test has timing assertions because hardware and filesystem caches vary;
+the reports are measurement evidence, not a release gate. Install Playwright's
+pinned Chromium first if it is not already available.
+
+To run or customize the boundaries separately:
+
+```bash
+node scripts/generate-stress-vault.mjs \
+  --output stress-vault/huge-vault --replace
+
+FIGARO_STRESS_VAULT="$PWD/stress-vault/huge-vault" \
+FIGARO_STRESS_REPORT="$PWD/stress-vault/backend-report.json" \
+go test ./internal/desktop -run '^TestHugeVaultStress$' -count=1 -v -timeout=10m
+
+FIGARO_STRESS_VAULT="$PWD/stress-vault/huge-vault" \
+FIGARO_STRESS_BROWSER_REPORT="$PWD/stress-vault/browser-report.json" \
+npx playwright test tests/e2e/hugeVaultStress.spec.js --reporter=line
+
+VAULT_PATH="$PWD/stress-vault/huge-vault" make dev
+```
+
+The Go test owns real filesystem discovery, indexing, bridge serialization,
+search, relationships, Git status, health, and a reversible directory move.
+The browser test supplies equivalent 10,000-item responses to isolate real DOM,
+layout, CodeMirror virtualization, and keyboard rerender behavior. Opening the
+generated vault through `make dev` remains the native packaged-webview smoke
+check. Current reference measurements and prioritized findings live in
+[`docs/HUGE_VAULT_STRESS.md`](HUGE_VAULT_STRESS.md).
+
+Large-scale optimizations must pass the correctness oracles before their
+timings are compared:
+
+- `TestWarmVaultStateMatchesColdRebuildAcrossMutationSequence` keeps one shared
+  index warm through a known save, watcher create/remove, and directory move,
+  then compares search, backlinks, unlinked mentions, Kanban, calendar, Vault
+  Health, and tree results with a fresh application rebuild. Stage-specific
+  golden paths and dates prevent both sides from agreeing on the same wrong
+  result, and the warm tree is also compared with an independent filesystem
+  walk.
+- `TestDirectoryMoveRewritesSparseLinksAcrossLargeVault` places Markdown,
+  reference-definition, and wiki links among 256 unrelated notes. Every link
+  must be rewritten and sampled decoys must remain byte-identical. A separate
+  stale-index regression creates an unobserved Markdown file and proves that
+  move planning selects the complete scan/rebuild fallback.
+- `TestFileUncommittedStatusMatchesFullWorktreeStateMatrix` treats go-git's
+  complete worktree status as the oracle for clean, modified, staged, deleted,
+  untracked, root/nested ignored, negated, executable-mode,
+  staged-delete/recreate, and renamed path states.
+- `TestBuildFileTreeFromEntriesPreservesHierarchyAndSortOrder` and
+  `TestFileTreeCacheReusesSnapshotAndRemapsKnownMove` prove the pure cached-tree
+  projection, immutable reuse, known create, new-parent synthesis, and move
+  remapping. Focused watcher/generated-file cases prove that a non-Markdown
+  timestamp change, starter stylesheet, and generated PDF remain visible after
+  the cache is warm. The warm-vs-cold oracle still compares its paths with an
+  independent disk walk after watcher and mutation stages.
+- The non-opt-in Playwright case in `hugeVaultStress.spec.js` traverses 121
+  logical positions in the file tree and search, 110 Kanban cards, and every
+  relationship in a 160-document collection. It then activates a distant tree
+  row, opens its keyboard context menu, reorders and drags a distant Kanban
+  card, and opens the selected search result. The focused item must remain
+  mounted, selected, operable, and correctly identified after crossing any
+  future render window.
+
+The opt-in timing profile asserts logical collection counts separately from
+mounted row/card counts. A virtualized implementation can therefore reduce DOM
+size without weakening the functional oracle or teaching the performance test
+to expect truncated data. Run the focused pre-optimization gates with:
+
+```bash
+go test ./internal/desktop \
+  -run 'TestWarmVaultStateMatchesColdRebuildAcrossMutationSequence|TestDirectoryMoveRewritesSparseLinksAcrossLargeVault'
+go test ./internal/history \
+  -run 'TestFileUncommittedStatusMatchesFullWorktreeStateMatrix'
+npx playwright test tests/e2e/hugeVaultStress.spec.js \
+  --grep 'preserves keyboard reachability'
+```
+
 ## Layout
 
 ```
@@ -287,14 +382,15 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Pure and component coverage for tab-reorder planning and drag thresholds,
   application-wide selection suppression during the active gesture, cleanup
   after drop and cancellation, pin-group boundaries, tab-overflow direction,
-  nearest active-tab reveal, two-ended filename/path presentation, conditional
-  all-tabs visibility, keyboard menu selection, and the disabled-by-default
-  vault-relative editor breadcrumb.
+  nearest active-tab reveal, vertical-wheel direction/wrapping/high-resolution
+  accumulation, preservation of horizontal wheel scrolling, two-ended
+  filename/path presentation, conditional all-tabs visibility, keyboard menu
+  selection, and the disabled-by-default vault-relative editor breadcrumb.
   The focused browser scenario drags a real primary pointer from the tab rail
   into the file tree and back, retaining no selected text while asserting the
-  temporary computed `user-select` guard. It also owns the actual flex widths,
-  horizontal scrolling, and computed pseudo-element fade opacity that cannot
-  be represented by jsdom.
+  temporary computed `user-select` guard. It also owns real vertical wheel tab
+  cycling, the actual flex widths, horizontal scrolling, and computed
+  pseudo-element fade opacity that cannot be represented by jsdom.
 - Browser rendering of cover pages, table of contents, fenced-code token colors,
   Mermaid, Vega, and Vega-Lite in the PDF export pipeline.
 - Dependency security coverage for patched root lockfile entries and embedded

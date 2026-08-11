@@ -67,6 +67,41 @@ describe('empty and failed backlink lookups', () => {
         expect(container.querySelector('.relationship-open').getAttribute('type')).toBe('button');
     });
 
+    test('keeps distant backlinks keyboard-reachable outside the mounted window', async () => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'backlinks-view-wrapper';
+        const container = document.createElement('div');
+        container.id = 'large-relationships-results';
+        wrapper.appendChild(container);
+        document.body.appendChild(wrapper);
+        window.go.desktop.App.SearchBacklinks.mockResolvedValueOnce(
+            Array.from({ length: 300 }, (_, index) => ({
+                path: `archive/note-${index}.md`,
+                name: `note-${index}.md`,
+                line_num: index + 1,
+                context: `Target context ${index}`,
+                match_text: 'Target',
+            })),
+        );
+        window.go.desktop.App.SearchUnlinkedMentions.mockResolvedValueOnce([]);
+
+        await loadBacklinksResults('target.md', container.id);
+        expect(container.querySelectorAll('.relationship-card')).toHaveLength(96);
+        container.querySelector('.relationship-open').focus();
+        for (let index = 0; index < 150; index += 1) {
+            document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Tab', bubbles: true, cancelable: true,
+            }));
+        }
+
+        expect(document.activeElement.dataset.relationshipIndex).toBe('150');
+        expect(document.activeElement.getAttribute('aria-posinset')).toBe('151');
+        expect(document.activeElement.getAttribute('aria-setsize')).toBe('300');
+        expect(document.activeElement.closest('.relationship-card').dataset.path)
+            .toBe('archive/note-150.md');
+        expect(container.querySelectorAll('.relationship-card')).toHaveLength(96);
+    });
+
     test('links one unlinked mention in the preferred syntax after safeguarding open buffers', async () => {
         const container = document.createElement('div');
         container.id = 'link-mention-results';

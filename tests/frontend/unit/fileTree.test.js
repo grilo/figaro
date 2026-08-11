@@ -926,6 +926,32 @@ describe('File Tree', () => {
         expect(handleFileOpen).toHaveBeenCalledWith('Archive.md');
     });
 
+    test('keeps every row reachable while bounding a large mounted tree window', async () => {
+        state.fileTreeData = Array.from({ length: 600 }, (_, index) => ({
+            name: `note-${String(index).padStart(3, '0')}.md`,
+            path: `note-${String(index).padStart(3, '0')}.md`,
+            type: 'file',
+            mtime: index,
+        }));
+        initFileTree();
+        renderFileTree();
+
+        const tree = document.getElementById('file-tree');
+        expect(tree.querySelectorAll('.file-tree-node')).toHaveLength(160);
+        tree.scrollTop = 599 * 26;
+        tree.dispatchEvent(new Event('scroll'));
+        await testUtils.waitFor(20);
+        expect(tree.querySelector('[data-path="note-599.md"] > .file-tree-node')).not.toBeNull();
+
+        tree.querySelector('.file-tree-node').focus();
+        document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'End', bubbles: true, cancelable: true,
+        }));
+        expect(document.activeElement.closest('.file-tree-item').dataset.path).toBe('note-599.md');
+        expect(document.activeElement.getAttribute('aria-level')).toBe('1');
+        expect(tree.querySelectorAll('.file-tree-node')).toHaveLength(160);
+    });
+
     test('keeps the same action order for files, folders, and the vault root', () => {
         const actionsFor = options => {
             const surface = document.createElement('div');

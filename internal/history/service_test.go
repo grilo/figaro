@@ -3,6 +3,7 @@ package history
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -97,6 +98,160 @@ func TestFileUncommittedStatusTracksOnlyTheRequestedPath(t *testing.T) {
 	dirty, err = service.HasUncommittedChanges("active.md")
 	if err != nil || !dirty {
 		t.Fatalf("modified active note status = %v, %v; want dirty", dirty, err)
+	}
+}
+
+func assertFileStatusMatchesFullWorktreeOracle(t *testing.T, service *Service, paths ...string) {
+	t.Helper()
+	worktree, err := service.repo.Worktree()
+	if err != nil {
+		t.Fatalf("Worktree: %v", err)
+	}
+	status, err := worktree.Status()
+	if err != nil {
+		t.Fatalf("full worktree Status oracle: %v", err)
+	}
+	for _, path := range paths {
+		fileStatus, exists := status[filepath.ToSlash(path)]
+		want := exists && (fileStatus.Staging != git.Unmodified || fileStatus.Worktree != git.Unmodified)
+		got, statusErr := service.HasUncommittedChanges(path)
+		if statusErr != nil {
+			t.Fatalf("HasUncommittedChanges(%q): %v", path, statusErr)
+		}
+		if got != want {
+			t.Errorf("HasUncommittedChanges(%q) = %v, want full-status oracle %v (%c%c)",
+				path, got, want, fileStatus.Staging, fileStatus.Worktree)
+		}
+	}
+}
+
+func TestFileUncommittedStatusMatchesFullWorktreeStateMatrix(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(t *testing.T, dir string, service *Service) []string
+	}{
+		{
+			name: "clean tracked file",
+			mutate: func(_ *testing.T, _ string, _ *Service) []string {
+				return []string{"active.md"}
+			},
+		},
+		{
+			name: "modified tracked file",
+			mutate: func(t *testing.T, dir string, _ *Service) []string {
+				writeHistoryFixture(t, filepath.Join(dir, "active.md"), "modified\n")
+				return []string{"active.md"}
+			},
+		},
+		{
+			name: "staged tracked file",
+			mutate: func(t *testing.T, dir string, service *Service) []string {
+				writeHistoryFixture(t, filepath.Join(dir, "active.md"), "staged\n")
+				worktree, err := service.repo.Worktree()
+				if err != nil {
+					t.Fatalf("Worktree: %v", err)
+				}
+				if _, err := worktree.Add("active.md"); err != nil {
+					t.Fatalf("stage active.md: %v", err)
+				}
+				return []string{"active.md"}
+			},
+		},
+		{
+			name: "deleted tracked file",
+			mutate: func(t *testing.T, dir string, _ *Service) []string {
+				if err := os.Remove(filepath.Join(dir, "active.md")); err != nil {
+					t.Fatalf("remove active.md: %v", err)
+				}
+				return []string{"active.md"}
+			},
+		},
+		{
+			name: "untracked file",
+			mutate: func(t *testing.T, dir string, _ *Service) []string {
+				writeHistoryFixture(t, filepath.Join(dir, "new.md"), "untracked\n")
+				return []string{"active.md", "new.md"}
+			},
+		},
+		{
+			name: "ignored file",
+			mutate: func(t *testing.T, dir string, _ *Service) []string {
+				ignorePath := filepath.Join(dir, ".gitignore")
+				ignore, err := os.ReadFile(ignorePath)
+				if err != nil {
+					t.Fatalf("read .gitignore: %v", err)
+				}
+				writeHistoryFixture(t, ignorePath, string(ignore)+"ignored.md\n")
+				writeHistoryFixture(t, filepath.Join(dir, "ignored.md"), "ignored\n")
+				return []string{"ignored.md"}
+			},
+		},
+		{
+			name: "nested ignore and negation",
+			mutate: func(t *testing.T, dir string, _ *Service) []string {
+				if err := os.MkdirAll(filepath.Join(dir, "notes"), 0755); err != nil {
+					t.Fatalf("create nested ignore directory: %v", err)
+				}
+				writeHistoryFixture(t, filepath.Join(dir, "notes", ".gitignore"), "*.md\n!kept.md\n")
+				writeHistoryFixture(t, filepath.Join(dir, "notes", "ignored.md"), "ignored\n")
+				writeHistoryFixture(t, filepath.Join(dir, "notes", "kept.md"), "kept\n")
+				return []string{"notes/ignored.md", "notes/kept.md"}
+			},
+		},
+		{
+			name: "executable mode change",
+			mutate: func(t *testing.T, dir string, _ *Service) []string {
+				if runtime.GOOS == "windows" {
+					t.Skip("Windows does not expose Git executable-bit changes")
+				}
+				if err := os.Chmod(filepath.Join(dir, "active.md"), 0755); err != nil {
+					t.Fatalf("make active.md executable: %v", err)
+				}
+				return []string{"active.md"}
+			},
+		},
+		{
+			name: "staged deletion recreated in worktree",
+			mutate: func(t *testing.T, dir string, service *Service) []string {
+				if err := os.Remove(filepath.Join(dir, "active.md")); err != nil {
+					t.Fatalf("remove active.md before staging deletion: %v", err)
+				}
+				worktree, err := service.repo.Worktree()
+				if err != nil {
+					t.Fatalf("Worktree: %v", err)
+				}
+				if _, err := worktree.Add("active.md"); err != nil {
+					t.Fatalf("stage active.md deletion: %v", err)
+				}
+				writeHistoryFixture(t, filepath.Join(dir, "active.md"), "tracked\n")
+				return []string{"active.md"}
+			},
+		},
+		{
+			name: "worktree rename",
+			mutate: func(t *testing.T, dir string, _ *Service) []string {
+				if err := os.Rename(filepath.Join(dir, "active.md"), filepath.Join(dir, "renamed.md")); err != nil {
+					t.Fatalf("rename active.md: %v", err)
+				}
+				return []string{"active.md", "renamed.md"}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			service, err := New(dir)
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			writeHistoryFixture(t, filepath.Join(dir, "active.md"), "tracked\n")
+			if err := service.CommitFile("active.md"); err != nil {
+				t.Fatalf("CommitFile(active.md): %v", err)
+			}
+
+			assertFileStatusMatchesFullWorktreeOracle(t, service, test.mutate(t, dir, service)...)
+		})
 	}
 }
 

@@ -31,6 +31,7 @@ func (a *App) CreateDirectory(relPath string) (*SaveFileResult, error) {
 	if err := root.MkdirAll(cleanRel, 0755); err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}
+	a.addFileTreeCacheDirectoryLocked(cleanRel)
 	return &SaveFileResult{Success: true, Path: relPath}, nil
 }
 
@@ -68,6 +69,7 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 	if err := root.RemoveAll(cleanRel); err != nil {
 		return nil, err
 	}
+	a.removeFileTreeCachePathLocked(cleanRel)
 	if err := a.removeFileTreeStylePathsLocked(cleanRel); err != nil {
 		log.Printf("[file-tree] Could not remove styles for deleted path %q: %v", filepath.ToSlash(cleanRel), err)
 	}
@@ -116,7 +118,11 @@ func (a *App) renamePathLocked(oldRel string, newRel string) (*SaveFileResult, e
 	if err := root.MkdirAll(filepath.Dir(newClean), 0755); err != nil {
 		return nil, err
 	}
-	linkRewrites, err := collectVaultLinkRewrites(root, oldClean, newClean)
+	index, err := a.ensureVaultIndexLocked()
+	if err != nil {
+		return nil, fmt.Errorf("index links for move: %w", err)
+	}
+	linkRewrites, indexCurrent, err := collectVaultLinkRewritesIndexed(root, index, oldClean, newClean)
 	if err != nil {
 		return nil, fmt.Errorf("collect links for move: %w", err)
 	}
@@ -132,8 +138,18 @@ func (a *App) renamePathLocked(oldRel string, newRel string) (*SaveFileResult, e
 		}
 		return nil, err
 	}
+	if indexCurrent {
+		a.remapFileTreeCachePathLocked(oldClean, newClean)
+	} else {
+		a.invalidateFileTreeCacheLocked()
+	}
 	a.resetFileVersionsLocked()
-	a.syncKanbanColumnsLocked()
+	if !indexCurrent {
+		a.syncKanbanColumnsLocked()
+	} else if err := a.refreshVaultIndexAfterMoveLocked(root, oldClean, newClean, linkRewrites); err != nil {
+		log.Printf("[vault-index] Could not update moved paths incrementally: %v", err)
+		a.syncKanbanColumnsLocked()
+	}
 	if err := a.rewriteFileTreeStylePathsLocked(oldClean, newClean, false); err != nil {
 		log.Printf("[file-tree] Could not move styles from %q to %q: %v", filepath.ToSlash(oldClean), filepath.ToSlash(newClean), err)
 	}
@@ -296,6 +312,7 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 	if err := root.RemoveAll(sourceClean); err != nil {
 		return &SaveFileResult{Success: false, Error: fmt.Sprintf("Merged contents were copied, but the source folder could not be removed: %v", err)}, nil
 	}
+	a.invalidateFileTreeCacheLocked()
 
 	finalUpdatedLinkSet := make(map[string]struct{}, len(updatedLinkSet)+len(linkRewrites))
 	for path := range updatedLinkSet {
@@ -573,6 +590,7 @@ func (a *App) CopyPath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 		return &SaveFileResult{Success: false, Error: fmt.Sprintf("Could not preserve links in copied item %q: %v", filepath.Base(sourceClean), rewriteErr)}, nil
 	}
 
+	a.invalidateFileTreeCacheLocked()
 	a.syncKanbanColumnsLocked()
 	if err := a.rewriteFileTreeStylePathsLocked(sourceClean, destination, true); err != nil {
 		log.Printf("[file-tree] Could not copy styles from %q to %q: %v", filepath.ToSlash(sourceClean), filepath.ToSlash(destination), err)

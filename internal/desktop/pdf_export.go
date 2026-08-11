@@ -98,6 +98,11 @@ func (a *App) CreateStarterPrintStylesheet(sourcePath string, stylesheetRef stri
 		}
 		return nil, fmt.Errorf("create starter print stylesheet: %w", err)
 	}
+	if info, statErr := root.Lstat(cssRel); statErr == nil {
+		a.updateFileTreeCacheFileLocked(cssRel, info)
+	} else {
+		a.invalidateFileTreeCacheLocked()
+	}
 	result.Created = true
 	return result, nil
 }
@@ -194,6 +199,9 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 
 	if err := publishPDF(temporaryPDF, outputPath); err != nil {
 		return &PDFExportResult{Success: false, Error: fmt.Sprintf("save PDF: %v", err)}, nil
+	}
+	if outputRel, relativeErr := filepath.Rel(a.vaultPath, outputPath); relativeErr == nil {
+		a.refreshFileTreeCachePath(outputRel)
 	}
 
 	result := &PDFExportResult{

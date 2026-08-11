@@ -159,6 +159,21 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
         };
     })).toEqual({ activeId: 'overflow-8.md', focusedId: 'overflow-8.md' });
 
+    // Use the browser's real wheel input so the non-passive rail handler and
+    // end-to-start wrapping are both exercised outside jsdom.
+    const tabStripBox = await page.locator('#tab-strip').boundingBox();
+    await page.mouse.move(tabStripBox.x + tabStripBox.width / 2, tabStripBox.y + tabStripBox.height / 2);
+    await page.mouse.wheel(0, 100);
+    await expect.poll(() => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        return getState('activeTabId');
+    })).toBe('overflow-1.md');
+    await page.mouse.wheel(0, -100);
+    await expect.poll(() => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        return getState('activeTabId');
+    })).toBe('overflow-8.md');
+
     await page.locator('#all-tabs-btn').click();
     await expect(page.locator('#all-tabs-dropdown')).toBeVisible();
     await expect(page.locator('#all-tabs-dropdown [role="menuitem"]')).toHaveCount(8);

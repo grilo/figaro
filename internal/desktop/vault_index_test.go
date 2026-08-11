@@ -258,3 +258,35 @@ func TestVaultIndexUpdatesSearchAndBacklinksWithoutReplacingUnchangedProjection(
 		t.Fatalf("known save rebuilt an unchanged backlink contribution: %#v", updatedStableBacklinks)
 	}
 }
+
+func TestSortedSearchPostingsInsertRemoveAndLookupWithoutDuplicates(t *testing.T) {
+	postings := []string{"a.md", "c.md"}
+	postings = insertSortedPath(postings, "b.md")
+	postings = insertSortedPath(postings, "b.md")
+	if got, want := postings, []string{"a.md", "b.md", "c.md"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("insertSortedPath = %v, want %v", got, want)
+	}
+	if !containsSortedPath(postings, "b.md") || containsSortedPath(postings, "missing.md") {
+		t.Fatalf("containsSortedPath returned the wrong membership for %v", postings)
+	}
+	postings = removeSortedPath(postings, "b.md")
+	postings = removeSortedPath(postings, "missing.md")
+	if got, want := postings, []string{"a.md", "c.md"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("removeSortedPath = %v, want %v", got, want)
+	}
+}
+
+func TestColdIndexTextPoolSharesImmutableSearchRepresentations(t *testing.T) {
+	pool := make(map[string]vaultIndexedText)
+	first := pooledVaultIndexedText(pool, "Repeated template content")
+	second := pooledVaultIndexedText(pool, "Repeated template content")
+	if len(pool) != 1 {
+		t.Fatalf("pooled text entries = %d, want 1", len(pool))
+	}
+	if len(first.searchTrigrams) == 0 || &first.searchTrigrams[0] != &second.searchTrigrams[0] {
+		t.Fatal("identical text did not share its immutable trigram slice")
+	}
+	if first.content != second.content || first.searchLower != second.searchLower {
+		t.Fatal("identical text pool changed searchable content")
+	}
+}

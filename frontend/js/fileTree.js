@@ -20,6 +20,7 @@ import { openRawTextPreview } from './rawTextPreview.js';
 import {
     directoryPathsForReveal,
     fileTreeKeyboardPlan,
+    fileTreeWindow,
     isFileTreeEntryPinned,
     normalizeFileTreeStyles,
     sortFileTreeItems,
@@ -47,6 +48,11 @@ let internalClipboard = null;
 let internalCopyInProgress = false;
 let internalMoveInProgress = false;
 let fileTreeStyles = { version: 1, entries: {}, recent_icons: [] };
+const fileTreeRenderStates = new WeakMap();
+
+const FILE_TREE_VIRTUAL_THRESHOLD = 400;
+const FILE_TREE_WINDOW_SIZE = 160;
+const FILE_TREE_ROW_STRIDE = 26;
 
 const fileTreeRefresh = createFileTreeRefresh({
     readTree: () => backend().GetFileTree(),
@@ -496,12 +502,42 @@ export function renderFileTree() {
     const restoreFocusPath = focusedNode ? treeNodePath(focusedNode) : selectedPath;
     
     if (!treeData || treeData.length === 0) {
+        fileTreeRenderStates.delete(container);
+        container.onscroll = null;
+        container.onwheel = null;
+        container.onpointerdown = null;
         container.innerHTML = '<div class="file-tree-empty">No files in vault</div><div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
         container.tabIndex = 0;
         container.scrollTop = restoreScrollTop;
         if (treeOwnedFocus) container.focus({ preventScroll: true });
         return;
     }
+
+    const visibleRows = visibleFileTreeRows(treeData, expandedDirs, fileTreeStyles.entries);
+    if (visibleRows.length > FILE_TREE_VIRTUAL_THRESHOLD) {
+        const selectedIndex = visibleRows.findIndex(row => row.path === restoreFocusPath);
+        fileTreeRenderStates.set(container, {
+            activeFilePath,
+            focusProtection: null,
+            openFilePaths,
+            range: { start: 0, end: 0 },
+            restoreFocusPath,
+            rows: visibleRows,
+            selectedPath,
+            selectedPaths,
+            styles: fileTreeStyles.entries,
+        });
+        const focusTarget = renderFileTreeWindow(container, { selectedIndex });
+        initFileTreeWindowing(container);
+        container.scrollTop = restoreScrollTop;
+        if (treeOwnedFocus) focusTreePath(container, restoreFocusPath || treeNodePath(focusTarget));
+        return;
+    }
+
+    fileTreeRenderStates.delete(container);
+    container.onscroll = null;
+    container.onwheel = null;
+    container.onpointerdown = null;
     
     // Keep a real flexing surface after short file lists. Delegated context
     // events then reach #file-tree even when the user clicks below the last
@@ -589,6 +625,115 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
     
     html += '</ul>';
     return html;
+}
+
+function buildFlatTreeRowHTML(row, state) {
+    // Reuse the canonical row renderer with a shallow child sentinel. The
+    // sentinel preserves directory disclosure semantics without recursively
+    // mounting descendants that live elsewhere in the logical flat window.
+    const shallowItem = row.hasChildren
+        ? { ...row.item, children: [{ name: '', path: '', type: 'file' }] }
+        : { ...row.item, children: [] };
+    const wrapper = buildTreeHTML(
+        [shallowItem],
+        new Set(),
+        state.selectedPath,
+        state.selectedPaths,
+        row.depth - 1,
+        state.activeFilePath,
+        state.styles,
+        state.openFilePaths,
+    );
+    let html = wrapper.slice(wrapper.indexOf('>') + 1, wrapper.lastIndexOf('</ul>'));
+    html = html.replace(
+        '<li class="file-tree-item ',
+        `<li style="--file-tree-depth:${Math.max(0, row.depth - 1)}" class="file-tree-item `,
+    );
+    if (row.expanded) {
+        html = html.replace('class="file-tree-item ', 'class="file-tree-item expanded ')
+            .replace('aria-expanded="false"', 'aria-expanded="true"');
+    }
+    return html;
+}
+
+function renderFileTreeWindow(container, { anchorIndex = 0, selectedIndex = -1 } = {}) {
+    const state = fileTreeRenderStates.get(container);
+    if (!state) return null;
+    const protection = state.focusProtection;
+    const protectedIndex = protection ? protection.index : -1;
+    const range = fileTreeWindow(state.rows.length, {
+        anchorIndex,
+        selectedIndex: protectedIndex >= 0 ? protectedIndex : selectedIndex,
+        windowSize: FILE_TREE_WINDOW_SIZE,
+    });
+    state.range = range;
+    const scrollTop = container.scrollTop;
+    const parts = ['<ul class="file-tree-list file-tree-list--virtual" role="group">'];
+    if (range.start > 0) {
+        parts.push(`<li class="file-tree-spacer" aria-hidden="true"
+            style="height:${range.start * FILE_TREE_ROW_STRIDE}px"></li>`);
+    }
+    for (let index = range.start; index < range.end; index += 1) {
+        parts.push(buildFlatTreeRowHTML(state.rows[index], state));
+    }
+    if (range.end < state.rows.length) {
+        parts.push(`<li class="file-tree-spacer" aria-hidden="true"
+            style="height:${(state.rows.length - range.end) * FILE_TREE_ROW_STRIDE}px"></li>`);
+    }
+    parts.push('</ul><div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>');
+    container.innerHTML = parts.join('');
+    container.scrollTop = scrollTop;
+    const focusTarget = synchronizeTreeRovingTabIndex(container, state.restoreFocusPath);
+    if (protectedIndex >= range.start && protectedIndex < range.end) {
+        const protectedNode = mountedTreeNodeForPath(container, state.rows[protectedIndex].path);
+        if (document.activeElement === document.body) protectedNode?.focus({ preventScroll: true });
+    }
+    return focusTarget;
+}
+
+function focusTreePath(container, path) {
+    const mounted = mountedTreeNodeForPath(container, path);
+    const state = fileTreeRenderStates.get(container);
+    const index = state?.rows.findIndex(row => row.path === path) ?? -1;
+    if (mounted) {
+        if (state && index >= 0) {
+            state.restoreFocusPath = path;
+            state.focusProtection = { index };
+        }
+        return focusTreeNode(mounted);
+    }
+    if (!state || index < 0) return false;
+    state.restoreFocusPath = path;
+    state.focusProtection = { index };
+    renderFileTreeWindow(container, { selectedIndex: index });
+    return focusTreeNode(mountedTreeNodeForPath(container, path));
+}
+
+function initFileTreeWindowing(container) {
+    let frame = 0;
+    container.onscroll = () => {
+        if (frame) return;
+        frame = (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : setTimeout)(() => {
+            frame = 0;
+            const state = fileTreeRenderStates.get(container);
+            if (!state) return;
+            if (state.focusProtection) return;
+            const anchorIndex = Math.floor(container.scrollTop / FILE_TREE_ROW_STRIDE);
+            const range = fileTreeWindow(state.rows.length, {
+                anchorIndex,
+                windowSize: FILE_TREE_WINDOW_SIZE,
+            });
+            if (range.start !== state.range.start || range.end !== state.range.end) {
+                renderFileTreeWindow(container, { anchorIndex });
+            }
+        });
+    };
+    const releaseFocusProtection = () => {
+        const state = fileTreeRenderStates.get(container);
+        if (state) state.focusProtection = null;
+    };
+    container.onwheel = releaseFocusProtection;
+    container.onpointerdown = releaseFocusProtection;
 }
 
 /**
@@ -833,6 +978,9 @@ function handleFileTreeKeydown(event) {
     if (isContextMenuInvocationKey(event)) {
         event.preventDefault();
         const selectedPath = getState('selectedTreePath');
+        if (selectedPath && !mountedTreeNodeForPath(event.currentTarget, selectedPath)) {
+            focusTreePath(event.currentTarget, selectedPath);
+        }
         const target = mountedTreeNodeForPath(event.currentTarget, selectedPath)
             || event.target.closest?.('.file-tree-node[role="treeitem"]')
             || event.currentTarget;
@@ -847,7 +995,7 @@ function handleFileTreeKeydown(event) {
     }
 
     if (!event.altKey && !event.ctrlKey && !event.metaKey) {
-        const rows = visibleFileTreeRows(
+        const rows = fileTreeRenderStates.get(event.currentTarget)?.rows || visibleFileTreeRows(
             visibleFileTreeData(),
             getState('expandedDirs'),
             fileTreeStyles.entries,
@@ -859,7 +1007,7 @@ function handleFileTreeKeydown(event) {
             event.preventDefault();
             event.stopPropagation();
             if (plan.action === 'focus') {
-                focusTreeNode(mountedTreeNodeForPath(event.currentTarget, plan.path));
+                focusTreePath(event.currentTarget, plan.path);
             } else if (plan.action === 'expand' || plan.action === 'collapse') {
                 const expanded = getState('expandedDirs') instanceof Set
                     ? getState('expandedDirs')
@@ -868,7 +1016,9 @@ function handleFileTreeKeydown(event) {
                 if (expanded.has(plan.path) !== shouldExpand) toggleDirectory(plan.path);
                 renderFileTree();
             } else if (plan.action === 'activate') {
-                mountedTreeNodeForPath(event.currentTarget, plan.path)?.click();
+                if (focusTreePath(event.currentTarget, plan.path)) {
+                    mountedTreeNodeForPath(event.currentTarget, plan.path)?.click();
+                }
             }
             return;
         }
@@ -1300,7 +1450,11 @@ function handleContextMenu(e) {
     const contextName = item?.querySelector('.node-name')?.textContent?.trim() || 'vault root';
     configureContextMenu(contextMenu, {
         label: `File actions for ${contextName}`,
-        returnFocus,
+        returnFocus: () => {
+            if (path && focusTreePath(e.currentTarget, path)) return;
+            if (returnFocus?.isConnected) returnFocus.focus?.({ preventScroll: true });
+            else e.currentTarget.focus?.({ preventScroll: true });
+        },
         onDismiss: () => { contextMenu = null; },
     });
 

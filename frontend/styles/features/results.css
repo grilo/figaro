@@ -167,6 +167,11 @@
     outline-offset: 2px;
 }
 
+.relationship-spacer {
+    flex: 0 0 auto;
+    pointer-events: none;
+}
+
 .relationship-link-action {
     align-self: flex-start;
     margin: 10px 0 0 10px;

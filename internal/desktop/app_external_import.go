@@ -192,6 +192,7 @@ func (a *App) CopyExternalPaths(sourcePaths []string, targetDirRel string, repla
 			log.Printf("[file-drop] Could not remove completed replacement backup %q: %v", backupRoot, err)
 		}
 	}
+	a.invalidateFileTreeCacheLocked()
 	a.syncKanbanColumnsLocked()
 	paths := make([]string, len(copied))
 	for index, path := range copied {

@@ -1384,6 +1384,44 @@ describe('Tab Manager', () => {
         });
     });
 
+    describe('tab-list wheel navigation', () => {
+        test('cycles active tabs with vertical wheel input and preserves horizontal scrolling', () => {
+            initTabManager();
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md', isNew: true });
+            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md', isNew: true });
+            openTab('tab3', 'Tab 3', 'file', { path: 'tab3.md', isNew: true });
+
+            const tabStrip = document.getElementById('tab-strip');
+            const forward = new WheelEvent('wheel', {
+                deltaY: 100,
+                bubbles: true,
+                cancelable: true,
+            });
+            tabStrip.dispatchEvent(forward);
+            expect(forward.defaultPrevented).toBe(true);
+            expect(getState('activeTabId')).toBe('tab1');
+
+            const backward = new WheelEvent('wheel', {
+                deltaY: -100,
+                bubbles: true,
+                cancelable: true,
+            });
+            tabStrip.dispatchEvent(backward);
+            expect(backward.defaultPrevented).toBe(true);
+            expect(getState('activeTabId')).toBe('tab3');
+
+            const horizontal = new WheelEvent('wheel', {
+                deltaX: 100,
+                deltaY: 10,
+                bubbles: true,
+                cancelable: true,
+            });
+            tabStrip.dispatchEvent(horizontal);
+            expect(horizontal.defaultPrevented).toBe(false);
+            expect(getState('activeTabId')).toBe('tab3');
+        });
+    });
+
     describe('middle-click close', () => {
         test('should close tab on middle-click', () => {
             initTabManager();

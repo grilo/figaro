@@ -265,9 +265,13 @@ in the same vault lock. The recursive native watcher sends a debounced set of
 changed paths to the backend: a one-file external edit similarly rereads and
 reprojects only that file, while creates/removes update the tree as needed.
 Recent Figaro-originated write events are recognized so the watcher does not
-repeat the save work. Ambiguous broad changes such as moves, merges, or an
-unscoped notification deliberately invalidate and rebuild one coherent
-snapshot; correctness wins over a speculative partial update.
+repeat the save work. A move first verifies the warm index against a
+metadata-only Markdown walk, prunes link rewriting to indexed source/target
+candidates, then remaps only affected file records and reconstructs derived
+projections from retained memory. Any stale snapshot falls back to the complete
+root-scoped rewrite scan and cold index rebuild. Other ambiguous broad changes,
+such as merges or an unscoped notification, deliberately invalidate and rebuild
+one coherent snapshot; correctness wins over a speculative partial update.
 
 Each indexed file owns its own tag, Kanban-card, due-task, daily-note, date-link,
 month-grouped Calendar-day, case-folded search, trigram, and Markdown-backlink
@@ -284,6 +288,15 @@ plus an exact total, because that is all the search UI displays. This keeps the
 common save/watcher path proportional to the changed note and its affected
 derived data; a full derived rebuild remains reserved for the first vault scan
 and genuinely broad filesystem changes.
+
+The file tree has a separate metadata projection under the same vault lock.
+Its published hierarchy is immutable and may be returned unchanged across
+no-change refreshes; a flat path map updates known file writes/creates and
+remaps known moves before rebuilding the hierarchy in memory. Broad mutations,
+ambiguous watcher batches, and unscoped notifications discard that projection,
+so the next request repeats the established root-scoped scan. The bridge still
+returns the complete hierarchy; this cache removes rediscovery cost without
+changing tree membership, sorting, hidden-path, or symlink rules.
 
 Relationships reuse that same index for both reverse backlinks and unlinked
 mentions. A mention scan walks cached source only, excludes fenced code and
@@ -420,6 +433,14 @@ keeps saves and rapid tab switches safe while ensuring the active-file
 local-history action immediately becomes actionable again after a later edit.
 A clean state is deliberately silent: the frontend shows **Save to history**
 only when recording that file is an available action.
+
+The active-note dirty query is path-scoped below the Wails layer. Its adapter
+compares that one path in HEAD, the Git index, and the root-scoped worktree;
+clean tracked files use the index stat cache, while uncertain content is hashed.
+Untracked paths evaluate only applicable ancestor `.gitignore` files. Unmerged
+entries are observably dirty, and submodules retain go-git's complete-status
+fallback. This keeps the status control independent of unrelated vault size
+without replacing Git's result semantics.
 
 Auto-Commit deliberately has no timer or repository-wide operation. Its
 single persisted boolean causes a successful active-file save to invoke the
@@ -1023,3 +1044,23 @@ padding state, synchronization pause, and single post-resize alignment. Go
 tests inject browser validation for deterministic discovery-order checks; the
 opt-in system-browser test exercises the real isolated CDP validation on a
 developer machine.
+
+The opt-in huge-vault profile follows the same layering. A pure CommonJS plan
+defines the deterministic 10,000-document hierarchy and the two source
+templates; a thin Node adapter materializes those sources and filesystem
+copies. The Go profile exercises real root-scoped vault and Git adapters, while
+one focused Playwright profile measures only irreducible DOM, layout,
+CodeMirror-viewport, and keyboard-update costs with equivalent planned
+payloads. Absolute timings remain reports rather than test assertions. See
+[`docs/HUGE_VAULT_STRESS.md`](docs/HUGE_VAULT_STRESS.md) for the measured
+boundaries and [`docs/TESTING.md`](docs/TESTING.md) for the repeatable command.
+
+Correctness comparisons remain independent from those measurements. A warm
+application snapshot is differentially checked against a fresh rebuild after
+incremental mutations, file-tree results are checked against a direct disk
+walk, sparse move candidates are checked among unrelated files, and
+path-scoped Git status is checked against the complete go-git worktree oracle.
+The browser contract navigates logical collections beyond a prospective render
+window and never equates mounted-node count with result count. This lets future
+adapters change storage and rendering strategies without weakening the stable
+observable contract.

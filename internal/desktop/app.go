@@ -47,6 +47,8 @@ type App struct {
 	kanbanColors        map[string]string
 	calendarIndex       *calendarDateIndex
 	vaultIndex          *vaultIndex
+	fileTreeEntries     map[string]fileTreeCacheEntry
+	fileTreeSnapshot    []*FileTreeItem
 	internalVaultWrites map[string]time.Time
 	vaultWatcher        *vaultWatcher
 	watcherStopping     bool
@@ -470,6 +472,7 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 	a.resetFileVersionsLocked()
 
 	if len(changes) == 0 {
+		a.invalidateFileTreeCacheLocked()
 		a.invalidateVaultIndexLocked()
 	} else {
 		root, err := a.openVaultRoot()
@@ -496,6 +499,11 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 				}
 
 				if !strings.EqualFold(filepath.Ext(cleanRel), ".md") {
+					if change.Op&fsnotify.Write != 0 {
+						if info, statErr := root.Lstat(cleanRel); statErr == nil {
+							a.updateFileTreeCacheFileLocked(cleanRel, info)
+						}
+					}
 					if change.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
 						result.treeChanged = true
 					}
@@ -533,6 +541,9 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 			}
 			root.Close()
 		}
+	}
+	if result.treeChanged {
+		a.invalidateFileTreeCacheLocked()
 	}
 	a.vaultMu.Unlock()
 	return result

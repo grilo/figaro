@@ -3,6 +3,7 @@ import {
     findTitleMatches,
     mergeSearchResults,
     nextSearchSelection,
+    searchResultWindow,
     searchResultLocation,
     updateSearchFilter,
 } from '../frontend/js/core/searchModel.js';
@@ -53,6 +54,16 @@ describe('search model', () => {
         });
         expect(nextSearchSelection(-1, 2, -1)).toBe(1);
         expect(nextSearchSelection(1, 2, 1)).toBe(0);
+    });
+
+    test('keeps a bounded result window around scrolling and keyboard anchors', () => {
+        expect(searchResultWindow(10_000, { anchorIndex: 0, windowSize: 96 }))
+            .toEqual({ start: 0, end: 96 });
+        expect(searchResultWindow(10_000, { selectedIndex: 5_000, windowSize: 96 }))
+            .toEqual({ start: 4_952, end: 5_048 });
+        expect(searchResultWindow(10_000, { anchorIndex: 9_999, windowSize: 96 }))
+            .toEqual({ start: 9_904, end: 10_000 });
+        expect(searchResultWindow(0)).toEqual({ start: 0, end: 0 });
     });
 
     test('derives a distinguishing parent location for search results', () => {

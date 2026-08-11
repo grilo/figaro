@@ -25,7 +25,9 @@ export function dismissContextMenu(menu, { restoreFocus = true } = {}) {
     menu.remove();
     menuState.delete(menu);
     state?.onDismiss?.();
-    if (restoreFocus && state?.returnFocus?.isConnected) {
+    if (restoreFocus && typeof state?.returnFocus === 'function') {
+        state.returnFocus();
+    } else if (restoreFocus && state?.returnFocus?.isConnected) {
         state.returnFocus.focus?.({ preventScroll: true });
     }
 }

@@ -149,6 +149,9 @@ func TestCreateStarterPrintStylesheetCopiesBundledCSSWithoutOverwriting(t *testi
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)
 	writeTestFile(t, vaultPath, "notes/report.md", "# Report")
+	if _, err := app.GetFileTree(); err != nil {
+		t.Fatalf("warm file-tree cache: %v", err)
+	}
 
 	created, err := app.CreateStarterPrintStylesheet("notes/report.md", "pdf.css")
 	if err != nil {
@@ -156,6 +159,9 @@ func TestCreateStarterPrintStylesheetCopiesBundledCSSWithoutOverwriting(t *testi
 	}
 	if !created.Success || !created.Created || created.Path != "notes/pdf.css" {
 		t.Fatalf("unexpected create result: %#v", created)
+	}
+	if entry, found := app.fileTreeEntries["notes/pdf.css"]; !found || entry.typeName != "file" {
+		t.Fatalf("starter stylesheet was not published to warm file-tree cache: %#v", entry)
 	}
 	stylesheetPath := filepath.Join(vaultPath, "notes", "pdf.css")
 	stylesheet, err := os.ReadFile(stylesheetPath)

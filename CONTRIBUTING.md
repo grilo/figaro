@@ -198,6 +198,14 @@ spec, and use one representative browser workflow rather than duplicating
 success and failure matrices end to end. The release target still runs the
 complete verification suite.
 
+For changes whose cost grows with vault size, run `make stress-vault`. It
+generates an ignored 10,000-document fixture from two source templates and
+runs cold-rebuild, filesystem, sparse-link, Git-state, and large-collection
+keyboard oracles before recording backend plus browser measurements. Timings
+remain free of machine-dependent pass/fail thresholds. See
+[the huge-vault procedure](docs/TESTING.md#huge-vault-stress-profile) and
+[the reference audit](docs/HUGE_VAULT_STRESS.md).
+
 For changes to Raw Text Preview, sticky headings or Markdown block guides,
 current-note heading completion, Vim table cells/rendered-block navigation, or per-tab cursor persistence, follow the
 focused layer and browser-boundary guidance in

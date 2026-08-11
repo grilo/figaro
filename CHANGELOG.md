@@ -10,6 +10,50 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.15.0] - 2026-08-12
+
+### Added
+
+- Added a deterministic, opt-in 10,000-document stress fixture, backend/browser
+  performance profiles, and differential correctness oracles for testing huge
+  vault optimizations without committing generated notes or silently losing
+  filesystem, index, Git-status, relationship, or keyboard behavior.
+- Vertical mouse-wheel input over the document tab rail now cycles through
+  open tabs in either direction and wraps at the ends; horizontal and modified
+  wheel gestures retain their native behavior.
+
+### Changed
+
+- Large searches now keep only a bounded result window in the DOM, reducing a
+  10,000-note search from seconds to about 100 ms in the reference profile
+  while preserving mouse, keyboard, and assistive-technology reachability.
+- Large Kanban columns now mount bounded card windows and reconcile saved order
+  in linear time, reducing the 10,000-card reference render from about two
+  seconds to about 120 ms while preserving keyboard moves and drag/drop.
+- Large expanded file trees now mount a bounded row window, reducing the
+  21,630-row reference render from roughly 2.5 seconds to about 130 ms while
+  preserving hierarchy, keyboard navigation, context menus, and activation.
+- Large backlink collections now mount a bounded card window, reducing the
+  10,000-relationship reference render from over one second to about 100 ms
+  while preserving complete counts, keyboard reachability, and source opening.
+- Cold vault indexing now uses compact sorted search postings and shares
+  immutable text representations for identical notes, cutting the reference
+  10,000-note build from roughly two seconds to roughly one second with
+  substantially lower retained memory.
+- Large file and directory moves now validate and reuse the warm vault index
+  for link-rewrite candidates and moved projections, cutting the reference
+  subtree move from more than two seconds to well below one second while retaining a
+  complete-scan fallback for unobserved external changes.
+- Active-note Git status now compares only that path across HEAD, the index,
+  and its root-scoped worktree state, reducing the reference 10,000-file check
+  from over one second to well below one millisecond without conflating other
+  files or changing tracked, staged, ignored, or untracked results.
+- File-tree refreshes now reuse an immutable metadata snapshot and remap known
+  creates and moves in memory, reducing the warm reference refresh for 10,000
+  documents from hundreds of milliseconds to about 16 ms. Generated PDF/CSS
+  files and external content timestamps remain coherent, while broad or
+  ambiguous changes retain the complete root-scoped scan fallback.
+
 ## [1.14.0] - 2026-08-11
 
 ### Added
@@ -899,5 +943,6 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.15.0...HEAD
+[1.15.0]: https://github.com/grilo/figaro/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/grilo/figaro/compare/v1.13.1...v1.14.0
