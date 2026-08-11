@@ -284,6 +284,15 @@ versions of the US English, UK English, and Spanish Hunspell `.aff`/`.dic`
 assets with their individual license files. Do not replace those language
 assets or remove their notices without auditing the upstream dictionary terms.
 
+The printable Markdown renderer currently targets Markdown-It 14.3.0. All ten
+bundled `@mdit` packages declare `markdown-it ^14.2.0`: the direct anchor,
+footnote, KaTeX, mark, subscript, superscript, and task-list plugins, together
+with the transitive helper, inline-rule, and TeX packages. Treat a Markdown-It
+major upgrade as a coordinated renderer migration: first verify every peer
+range, then update the separately vendored core runtime and run the complete
+preview/export contract. A root `package.json` bump by itself does not replace
+that runtime.
+
 The interactive-table bundle is generated through
 `scripts/vendor-codemirror-markdown-tables.mjs`. Its exact-match, in-memory
 transform makes the third-party table decoration yield to Figaro's native fold

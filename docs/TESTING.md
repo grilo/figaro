@@ -1180,14 +1180,17 @@ browser bundles:
 npm audit
 npm audit --omit=dev
 npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/dependencyPolicy.test.js \
   tests/frontend/unit/diagramSecurityModel.test.js \
   tests/frontend/unit/diagramRenderer.test.js \
   tests/frontend/unit/vendoredBrowserSecurity.test.js
 npx playwright test tests/e2e/pdfExport.spec.js
 ```
 
-The vendored security contract reads Mermaid's embedded `js-yaml` version,
-while the dependency-security contract checks every resolved npm copy of
+The dependency-policy contract also keeps the root Markdown-It runtime within
+the peer range declared by every selected `@mdit` renderer plugin. The vendored
+security contract reads Mermaid's embedded `js-yaml` version, while the
+dependency-security contract checks every resolved npm copy of
 `brace-expansion` and test-only `js-yaml`,
 and proves that every production `window.mermaid.render` call passes through
 the shared guard. If Mermaid updates its embedded parser to `js-yaml` 4.3.1 or

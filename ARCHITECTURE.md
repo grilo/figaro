@@ -829,6 +829,13 @@ the generated output is recreated before development and package builds. This
 keeps the repository small while ensuring packaged applications are
 self-contained.
 
+The printable Markdown bundle aliases its selected `@mdit` plugins to Figaro's
+separately vendored Markdown-It core. Its seven direct plugins and three
+transitive implementation packages currently share the `markdown-it ^14.2.0`
+peer boundary, so a core major upgrade must update and verify both sides of
+that generated seam; changing only the root npm resolution would leave the
+packaged runtime unchanged.
+
 ## Raw text preview: exact Markdown source
 
 `rawTextPreview.js` owns the non-print **Raw Text Preview** right-pane mode. It

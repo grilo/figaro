@@ -10,6 +10,14 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.15.1] - 2026-08-12
+
+### Changed
+
+- Updated the bundled KaTeX runtime to 0.18.4, the Markdown-It footnote plugin
+  to 1.0.2, and the filesystem, Unicode, and platform Go modules to their
+  current compatible releases while retaining Markdown-It 14 compatibility.
+
 ## [1.15.0] - 2026-08-12
 
 ### Added
@@ -943,6 +951,7 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.15.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.15.1...HEAD
+[1.15.1]: https://github.com/grilo/figaro/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/grilo/figaro/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/grilo/figaro/compare/v1.13.1...v1.14.0

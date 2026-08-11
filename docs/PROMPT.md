@@ -8,6 +8,8 @@ figaro is a desktop Markdown workspace with vault-based file management, quick-n
 
 Tech stack: Go backend (Wails v2, using WebKitGTK on Linux), vanilla JavaScript frontend (CodeMirror 6, codemirror-live-markdown, KaTeX, markdown-it, Mermaid, Vega, and Vega-Lite), with browser dependencies vendored in the frontend bundle.
 
+Markdown renderer compatibility: the printable renderer remains on Markdown-It 14.3.0 because all ten bundled `@mdit` packages declare `markdown-it ^14.2.0` as their peer contract. Those packages comprise the directly selected anchor, footnote, KaTeX, mark, subscript, superscript, and task-list plugins plus their helper, inline-rule, and TeX implementation dependencies. Upgrade Markdown-It only after all ten packages support the new major and the separately vendored core runtime is regenerated and verified.
+
 ---
 
 ## 1. UI Layout
@@ -574,7 +576,7 @@ OS clipboard. Named and numbered Vim registers remain available normally.
 
 ### 9.1 Architecture
 - `StateField`-based plugin at `frontend/js/mathPlugin.js` (safe for block decorations).
-- KaTeX v0.17.0 is generated as a slim browser runtime at `frontend/vendored/katex/` by the `make bootstrap` / `make vendor` workflow; `index.html` loads its global minified script and CSS. The generated directory contains only the license, manifest, minified JS/CSS, and their required fonts—no KaTeX source, CLI, tests, or Python build helpers.
+- KaTeX v0.18.4 is generated as a slim browser runtime at `frontend/vendored/katex/` by the `make bootstrap` / `make vendor` workflow; `index.html` loads its global minified script and CSS. The generated directory contains only the license, manifest, minified JS/CSS, and their required fonts—no KaTeX source, CLI, tests, or Python build helpers.
 
 ### 9.2 Syntax
 | Type | Syntax | Rendering |
