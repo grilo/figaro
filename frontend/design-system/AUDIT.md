@@ -32,12 +32,22 @@ must not recreate the primitive's state language.
 The tab rail combines its document-tab family with the approved
 `.ui-icon-button`, `.ui-menu`, and `.ui-menu-item` primitives. Its
 overflow-only visibility, scroll geometry, and theme-token edge fades remain
-narrow tab-layout behavior rather than another button or menu variant.
+narrow tab-layout behavior rather than another button or menu variant. The
+two-ended filename treatment and muted parent-path copy are content/layout
+hooks within that same approved tab and menu family.
+
+Kanban keyboard focus reuses the existing card surface and global focus token;
+it does not introduce a new component state. Home's small instructional copy
+uses the established `--text-muted` semantic token so both native themes meet
+contrast without a feature-specific color.
 
 Editor folding uses the approved typed block guide for Markdown and the
 approved disclosure control for source-code regions. CodeMirror retains
 ownership of fold ranges, announcements, pointer dispatch, and keyboard
 commands; the shared primitives own only their themed interaction states.
+The interactive table's direct delete action reuses the approved danger-ghost
+button; its absolute placement within the measured widget is a table-layout
+hook rather than a new component or visual variant.
 
 The shared control-size tokens (`--ui-control-height`,
 `--ui-compact-height`, and `--ui-badge-height`) and radius/padding tokens make

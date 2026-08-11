@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>figaro - CodeMirror 6 Edition</title>
+    <title>Figaro</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/icon-16.png">
     <link rel="shortcut icon" href="/favicon.ico">
@@ -192,8 +192,10 @@
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
-                            <input type="text" id="global-search-input" class="ui-field" placeholder="Search notes…" spellcheck="false">
-                            <span id="search-results-count" class="search-count ui-badge ui-badge--muted"></span>
+                            <input type="text" id="global-search-input" class="ui-field" placeholder="Search notes…" spellcheck="false"
+                                   role="combobox" aria-label="Search notes" aria-autocomplete="list" aria-haspopup="listbox"
+                                   aria-controls="search-result-list" aria-expanded="false">
+                            <span id="search-results-count" class="search-count ui-badge ui-badge--muted" aria-live="polite" aria-atomic="true"></span>
                         </div>
                         <div id="global-search-dropdown" class="search-dropdown"></div>
                     </div>
@@ -203,7 +205,7 @@
                         <small>Inbox</small>
                     </button>
                     <!-- File Tree -->
-                    <div id="file-tree" class="file-tree"></div>
+                    <div id="file-tree" class="file-tree" role="tree" aria-label="Vault file tree" aria-multiselectable="true"></div>
                     <!-- Calendar expands inside the left sidebar so it can coexist
                          with the right-pane History, Outline, or PDF preview. -->
                     <section id="sidebar-calendar-panel" class="sidebar-calendar-panel" aria-label="Calendar" aria-hidden="true">
@@ -294,7 +296,7 @@
             </main>
 
             <!-- Right Sidebar (used for History, Outline, Raw Text, and PDF preview) -->
-            <aside id="right-sidebar" class="right-sidebar collapsed">
+            <aside id="right-sidebar" class="right-sidebar collapsed" aria-hidden="true" inert>
                 <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
                 <div class="right-sidebar-header">
                     <span id="right-sidebar-title" class="right-sidebar-title">Details</span>
@@ -307,7 +309,7 @@
             </div>
         <footer id="status-bar" class="status-bar">
             <div class="status-left">
-                <span id="status-text">Ready</span>
+                <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
                 <span class="status-separator">|</span>
                 <span class="md-cheatsheet-wrapper">
                     <button type="button" class="md-cheatsheet-trigger" id="md-cheatsheet-trigger" aria-expanded="false" aria-haspopup="dialog">md cheatsheet</button>
@@ -354,16 +356,16 @@
             </div>
             <div class="status-right">
                 <span id="cursor-position">Ln 1, Col 1</span>
-                <span class="status-separator">|</span>
-                <span id="reading-time">0 min read</span>
-                <span class="status-separator">|</span>
-                <span id="word-count">0 words</span>
-                <span class="status-separator">|</span>
-                <span id="char-count">0 chars</span>
-                <span class="status-separator">|</span>
-                <span id="file-encoding">UTF-8</span>
-                <span class="status-separator">|</span>
-                <span id="file-type">Standard</span>
+                <span class="status-separator status-detail-reading">|</span>
+                <span id="reading-time" class="status-detail-reading">0 min read</span>
+                <span class="status-separator status-detail-word">|</span>
+                <span id="word-count" class="status-detail-word">0 words</span>
+                <span class="status-separator status-detail-extended">|</span>
+                <span id="char-count" class="status-detail-extended">0 chars</span>
+                <span class="status-separator status-detail-extended">|</span>
+                <span id="file-encoding" class="status-detail-extended">UTF-8</span>
+                <span class="status-separator status-detail-extended">|</span>
+                <span id="file-type" class="status-detail-extended">Standard</span>
                 <span class="status-separator">|</span>
                 <a id="backlinks-status" class="status-backlinks" title="View backlinks">0 backlinks</a>
                 <span class="status-separator">|</span>

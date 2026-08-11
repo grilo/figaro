@@ -5,6 +5,13 @@ jest.mock('../frontend/js/app.js', () => ({
     openTab: jest.fn(),
 }));
 
+const mockKanbanErrorDialog = jest.fn().mockResolvedValue(undefined);
+jest.mock('../frontend/js/dialogs.js', () => ({
+    confirmDialog: jest.fn().mockResolvedValue(true),
+    errorDialog: (...args) => mockKanbanErrorDialog(...args),
+    promptDialog: jest.fn().mockResolvedValue(null),
+}));
+
 import {
     KANBAN_CARD_TEXT_LIMIT,
     initKanban,
@@ -146,6 +153,98 @@ describe('live Kanban buffers and compact cards', () => {
         expect(Array.from(text.textContent)).toHaveLength(120);
         expect(text.textContent.endsWith('…')).toBe(true);
         expect(text.title).toBe(longText);
+    });
+
+    test('tabs directly through cards across column boundaries', async () => {
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [
+                { file: 'tab-a.md', file_name: 'tab-a.md', line: 1, text: 'First card', tag: 'todo' },
+                { file: 'tab-b.md', file_name: 'tab-b.md', line: 1, text: 'Last todo card', tag: 'todo' },
+            ],
+            wip: [{ file: 'tab-c.md', file_name: 'tab-c.md', line: 1, text: 'First wip card', tag: 'wip' }],
+            done: [],
+        });
+        await renderKanbanBoard('kanban-board-main');
+
+        const todoCards = document.querySelectorAll('.kanban-column[data-column="todo"] .kanban-card');
+        const wipCard = document.querySelector('.kanban-column[data-column="wip"] .kanban-card');
+        todoCards[1].focus();
+        todoCards[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+
+        expect(document.activeElement).toBe(wipCard);
+        expect([...document.querySelectorAll('.kanban-card-date-control, .kanban-card-delete')]
+            .every(button => button.tabIndex === -1)).toBe(true);
+    });
+
+    test('persists ArrowUp reordering and restores focus to the moved card', async () => {
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [
+                { file: 'order-a.md', file_name: 'order-a.md', line: 1, text: 'First ordered card', tag: 'todo' },
+                { file: 'order-b.md', file_name: 'order-b.md', line: 2, text: 'Second ordered card', tag: 'todo' },
+            ],
+            wip: [], done: [],
+        });
+        await renderKanbanBoard('kanban-board-main');
+
+        const second = document.querySelectorAll('.kanban-card')[1];
+        second.focus();
+        second.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+        await testUtils.waitFor(0);
+
+        expect(window.go.desktop.App.SetKanbanCardOrder).toHaveBeenCalledWith('todo', [
+            { file: 'order-b.md', line: 2, text: 'Second ordered card' },
+            { file: 'order-a.md', line: 1, text: 'First ordered card' },
+        ]);
+        const reordered = [...document.querySelectorAll('.kanban-column[data-column="todo"] .kanban-card')];
+        expect(reordered.map(card => card.dataset.text)).toEqual(['Second ordered card', 'First ordered card']);
+        expect(document.activeElement.dataset.text).toBe('Second ordered card');
+    });
+
+    test('leaves card order unchanged when keyboard persistence fails', async () => {
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [
+                { file: 'safe-a.md', file_name: 'safe-a.md', line: 1, text: 'Keep first', tag: 'todo' },
+                { file: 'safe-b.md', file_name: 'safe-b.md', line: 2, text: 'Keep second', tag: 'todo' },
+            ],
+            wip: [], done: [],
+        });
+        window.go.desktop.App.SetKanbanCardOrder.mockResolvedValueOnce({ success: false, error: 'disk unavailable' });
+        await renderKanbanBoard('kanban-board-main');
+
+        const first = document.querySelector('.kanban-card');
+        first.focus();
+        first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        await testUtils.waitFor(0);
+
+        expect([...document.querySelectorAll('.kanban-column[data-column="todo"] .kanban-card')]
+            .map(card => card.dataset.text)).toEqual(['Keep first', 'Keep second']);
+        expect(mockKanbanErrorDialog).toHaveBeenCalledWith(
+            'Couldn’t reorder task',
+            'disk unavailable',
+            'The task order was not changed.',
+        );
+    });
+
+    test('uses ArrowRight to move a focused card to the adjacent column', async () => {
+        window.go.desktop.App.GetKanbanBoard
+            .mockResolvedValueOnce({
+                todo: [{ file: 'move.md', file_name: 'move.md', line: 3, text: 'Move sideways', tag: 'todo' }],
+                wip: [], done: [],
+            })
+            .mockResolvedValue({
+                todo: [],
+                wip: [{ file: 'move.md', file_name: 'move.md', line: 3, text: 'Move sideways', tag: 'wip' }],
+                done: [],
+            });
+        await renderKanbanBoard('kanban-board-main');
+        const card = document.querySelector('.kanban-card');
+        card.focus();
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+        await testUtils.waitFor(10);
+
+        expect(window.go.desktop.App.UpdateTaskTag).toHaveBeenCalledWith('move.md', 3, 'todo', 'wip');
+        expect(document.activeElement.dataset.tag).toBe('wip');
+        expect(document.activeElement.dataset.text).toBe('Move sideways');
     });
 
     test('replaces the neutral color icon with the selected column-color indicator', async () => {

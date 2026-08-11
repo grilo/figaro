@@ -25,13 +25,15 @@ describe('release metadata and documentation', () => {
     test('retains a valid Unreleased section above the current release', () => {
         const changelog = read('CHANGELOG.md');
         const version = JSON.parse(read('package.json')).version;
-        const unreleased = changelog.indexOf('## Unreleased');
-        const release = changelog.search(/^## \d+\.\d+\.\d+ - \d{4}-\d{2}-\d{2}$/m);
+        const unreleased = changelog.indexOf('## [Unreleased]');
+        const release = changelog.search(/^## \[?\d+\.\d+\.\d+\]? - \d{4}-\d{2}-\d{2}$/m);
 
         expect(unreleased).toBeGreaterThan(-1);
         expect(release).toBeGreaterThan(unreleased);
         expect(changelog.slice(unreleased, release)).toMatch(/### (Added|Changed|Fixed)|_No changes yet\._/);
-        expect(changelog).toContain(`## ${version} - `);
+        expect(changelog).toMatch(new RegExp(`^## \\[?${version.replaceAll('.', '\\.')}\\]? - `, 'm'));
+        expect(changelog).toContain('[Keep a Changelog](https://keepachangelog.com/en/1.1.0/)');
+        expect(changelog).toContain('[Unreleased]: https://github.com/grilo/figaro/compare/');
         expect(changelog.slice(release)).toContain('GNU General Public License version 3');
     });
 
@@ -44,6 +46,10 @@ describe('release metadata and documentation', () => {
         expect(workflow).toContain('Validate release metadata');
         expect(workflow).toContain('package-lock root package');
         expect(workflow).toContain('GPL-3.0-or-later');
+        expect(workflow.match(/node scripts\/extract-release-notes\.mjs "\$GITHUB_REF_NAME" --output release-notes\.md/g)).toHaveLength(2);
+        expect(workflow).toContain('gh release edit "$GITHUB_REF_NAME"');
+        expect(workflow).toContain('--notes-file release-notes.md');
+        expect(workflow).not.toContain('--generate-notes');
         expect(workflow.match(/cp README\.md CHANGELOG\.md LICENSE/g)).toHaveLength(2);
         expect(workflow).toContain('Copy-Item README.md, CHANGELOG.md, LICENSE');
         expect(readme).toContain('docs/images/figaro-editor.jpg');

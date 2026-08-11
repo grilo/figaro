@@ -2284,6 +2284,7 @@ func TestEmbedFS_HasStarterPrintStylesheet(t *testing.T) {
 	}
 	if !strings.Contains(string(data), ".figaro-print-cover-title") ||
 		!strings.Contains(string(data), ".figaro-print-document") ||
+		!strings.Contains(string(data), ".figaro-print-code") ||
 		!strings.Contains(string(data), "--figaro-page-background") {
 		t.Fatal("starter print stylesheet is missing its stable PDF hooks")
 	}
@@ -2538,6 +2539,11 @@ func TestWindowMinimizeMaximizeClose_NoPanic(t *testing.T) {
 			f.fn()
 		}()
 	}
+}
+
+func TestWindowSetTitle_NoPanicWithoutRuntimeContext(t *testing.T) {
+	app, _ := newTestApp(t)
+	app.WindowSetTitle("Project brief.md — Figaro")
 }
 
 func TestWindowSetPosition_NoPanic(t *testing.T) {

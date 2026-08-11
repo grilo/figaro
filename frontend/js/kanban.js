@@ -19,6 +19,12 @@ import {
     parseDueDateLink,
     stripDueDateLinks,
 } from './core/dueDateModel.js';
+import {
+    adjacentKanbanColumn,
+    applyKanbanCardOrder,
+    kanbanCardOrderRef,
+    reorderKanbanCardRefs,
+} from './core/kanbanKeyboardModel.js';
 
 let draggedCard = null;
 let kanbanColumns = [];
@@ -31,6 +37,7 @@ let kanbanMutationId = 0;
 let liveRefreshFrame = null;
 let liveRefreshInitialized = false;
 let dueDayTimer = null;
+const rememberedKanbanOrder = new Map();
 
 export const KANBAN_CARD_TEXT_LIMIT = 120;
 export const KANBAN_DENSITIES = ['comfortable', 'compact'];
@@ -231,6 +238,14 @@ export function overlayDirtyKanbanBuffers(boardData, snapshots = dirtyKanbanBuff
     return board;
 }
 
+function applyRememberedKanbanOrder(boardData) {
+    const board = { ...(boardData || {}) };
+    for (const [column, refs] of rememberedKanbanOrder) {
+        board[column] = applyKanbanCardOrder(board[column] || [], refs);
+    }
+    return board;
+}
+
 function replaceKanbanCardsForFile(boardData, filePath, cards) {
     const board = {};
     for (const [column, tasks] of Object.entries(boardData || {})) {
@@ -272,7 +287,7 @@ export function applySavedKanbanSnapshot(filePath, content) {
     );
     savedKanbanColumns = savedColumnsForBoard(savedKanbanBoardData);
     kanbanColumns = appendDirtyColumns(savedKanbanColumns);
-    const boardData = overlayDirtyKanbanBuffers(savedKanbanBoardData);
+    const boardData = applyRememberedKanbanOrder(overlayDirtyKanbanBuffers(savedKanbanBoardData));
     persistedColumns.clear();
     for (const column of savedKanbanColumns) persistedColumns.add(column);
     setState('kanbanColumns', kanbanColumns);
@@ -324,7 +339,7 @@ export async function refreshKanbanData({ focusCol = null, container = getBoardC
         if (requestId !== kanbanBoardRequestId) return false;
         applyKanbanColumns(columnResult);
         savedKanbanBoardData = savedBoard || {};
-        const boardData = overlayDirtyKanbanBuffers(savedKanbanBoardData);
+        const boardData = applyRememberedKanbanOrder(overlayDirtyKanbanBuffers(savedKanbanBoardData));
         setState('kanbanBoardData', boardData);
         persistedColumns.clear();
         for (const column of savedKanbanColumns) persistedColumns.add(column);
@@ -340,7 +355,7 @@ export async function refreshKanbanData({ focusCol = null, container = getBoardC
 // Reproject the existing saved board with dirty tabs only. This is the hot
 // typing path and intentionally never calls the backend.
 function refreshKanbanFromDirtyBuffers() {
-    const boardData = overlayDirtyKanbanBuffers(savedKanbanBoardData);
+    const boardData = applyRememberedKanbanOrder(overlayDirtyKanbanBuffers(savedKanbanBoardData));
     kanbanColumns = appendDirtyColumns(savedKanbanColumns);
     setState('kanbanColumns', kanbanColumns);
     setState('kanbanBoardData', boardData);
@@ -410,6 +425,7 @@ function renderKanbanSnapshot(boardData, focusCol = null, container = getBoardCo
         if (cards) cards.scrollTop = top;
     }
     initKanbanDragDrop(container);
+    initKanbanKeyboard(container);
 }
 
 /**
@@ -632,28 +648,135 @@ function renderCards(tasks) {
         const displayText = truncateKanbanCardText(task.text);
         const due = dueDatePresentation(task.due_date, localISODate());
         const dueControl = due
-            ? `<button type="button" class="ui-button kanban-card-date-control kanban-card-due" data-due-state="${due.state}" data-due-date="${task.due_date}" aria-label="Change due date: ${escapeAttribute(due.label)}" title="Change due date">
+            ? `<button type="button" tabindex="-1" class="ui-button kanban-card-date-control kanban-card-due" data-due-state="${due.state}" data-due-date="${task.due_date}" aria-label="Change due date: ${escapeAttribute(due.label)}" title="Change due date">
                     ${calendarIcon()}<span>${escapeHtml(due.label)}</span>
                 </button>`
-            : `<button type="button" class="ui-icon-button ui-icon-button--small kanban-card-date-control kanban-card-due-action" aria-label="Set due date" title="Set due date">${calendarIcon()}</button>`;
+            : `<button type="button" tabindex="-1" class="ui-icon-button ui-icon-button--small kanban-card-date-control kanban-card-due-action" aria-label="Set due date" title="Set due date">${calendarIcon()}</button>`;
         return `
-        <div class="kanban-card" 
+        <div class="kanban-card" role="button" tabindex="0"
+             aria-label="${escapeAttribute(`${task.text}. Column ${task.tag}. Source ${task.file_name}`)}"
+             aria-description="Enter opens the source. Arrow keys move the card. D changes its due date. Delete removes its column tag."
+             aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight D Delete"
              draggable="true" 
              data-file="${escapeAttribute(task.file)}"
              data-line="${task.line}"
-             data-tag="${escapeAttribute(task.tag)}">
+             data-tag="${escapeAttribute(task.tag)}"
+             data-text="${escapeAttribute(task.text)}">
             <div class="kanban-card-text" title="${escapeAttribute(task.text)}">${escapeHtml(displayText)}</div>
             <div class="kanban-card-meta">
                 <span class="kanban-card-meta-main">${due ? dueControl : ''}<span class="kanban-card-source">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                         ${escapeHtml(task.file_name)}
                     </span></span>
-                <span class="kanban-card-actions">${due ? '' : dueControl}<button class="ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-card-delete" aria-label="Remove tag">
+                <span class="kanban-card-actions">${due ? '' : dueControl}<button tabindex="-1" class="ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-card-delete" aria-label="Remove tag">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button></span>
             </div>
         </div>
     `; }).join('');
+}
+
+function focusKanbanCard(container, ref, column) {
+    const match = [...(container?.querySelectorAll?.('.kanban-card') || [])].find(card => (
+        card.dataset.file === ref.file
+        && Number(card.dataset.line) === Number(ref.line)
+        && (!column || card.dataset.tag === column)
+    ));
+    if (!match) return false;
+    match.focus({ preventScroll: true });
+    match.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    return true;
+}
+
+function cardElements(container) {
+    return [...container.querySelectorAll('.kanban-card')];
+}
+
+async function reorderCardWithKeyboard(container, card, offset) {
+    const column = card.dataset.tag;
+    const columnCards = [...container.querySelectorAll(`.kanban-column-cards[data-column="${escapeAttribute(column)}"] .kanban-card`)];
+    const index = columnCards.indexOf(card);
+    const result = reorderKanbanCardRefs(columnCards.map(kanbanCardOrderRef), index, offset);
+    if (!result.changed) {
+        statusBar.set(offset < 0 ? 'Task is already first' : 'Task is already last');
+        return false;
+    }
+
+    const mutationId = beginKanbanMutation();
+    try {
+        statusBar.set('Reordering task…');
+        const saved = await backend().SetKanbanCardOrder(column, result.refs);
+        if (mutationId !== kanbanMutationId) return false;
+        if (!saved?.success) {
+            await errorDialog('Couldn’t reorder task', saved?.error, 'The task order was not changed.');
+            statusBar.set('Ready');
+            return false;
+        }
+        rememberedKanbanOrder.set(column, result.refs);
+        savedKanbanBoardData = {
+            ...savedKanbanBoardData,
+            [column]: applyKanbanCardOrder(savedKanbanBoardData[column] || [], result.refs),
+        };
+        const boardData = applyRememberedKanbanOrder(getState('kanbanBoardData') || {});
+        setState('kanbanBoardData', boardData);
+        renderKanbanSnapshot(boardData, null, container);
+        focusKanbanCard(container, kanbanCardOrderRef(card), column);
+        statusBar.set('Task reordered');
+        setTimeout(() => statusBar.set('Ready'), 1000);
+        return true;
+    } catch (error) {
+        if (mutationId !== kanbanMutationId) return false;
+        log.error('Reorder task failed:', error);
+        await errorDialog('Couldn’t reorder task', error, 'The task order was not changed.');
+        statusBar.set('Ready');
+        return false;
+    }
+}
+
+function initKanbanKeyboard(container) {
+    container.querySelectorAll('.kanban-card').forEach(card => {
+        card.addEventListener('keydown', event => {
+            if (event.target !== card || event.altKey || event.ctrlKey || event.metaKey) return;
+            if (event.key === 'Tab') {
+                const cards = cardElements(container);
+                const target = cards[cards.indexOf(card) + (event.shiftKey ? -1 : 1)];
+                if (target) {
+                    event.preventDefault();
+                    target.focus();
+                    target.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+                }
+                return;
+            }
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                reorderCardWithKeyboard(container, card, event.key === 'ArrowUp' ? -1 : 1);
+                return;
+            }
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                event.preventDefault();
+                const columns = [...container.querySelectorAll('.kanban-column')].map(column => column.dataset.column);
+                const target = adjacentKanbanColumn(columns, card.dataset.tag, event.key === 'ArrowLeft' ? -1 : 1);
+                if (target) moveCard(card, target, { restoreFocus: true });
+                else statusBar.set(event.key === 'ArrowLeft' ? 'Task is already in the first column' : 'Task is already in the last column');
+                return;
+            }
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                card.click();
+                return;
+            }
+            if (event.key.toLowerCase() === 'd') {
+                event.preventDefault();
+                const dueButton = card.querySelector('.kanban-card-date-control');
+                if (dueButton) openTaskDueDatePicker(dueButton, card);
+                return;
+            }
+            if (event.key === 'Delete') {
+                event.preventDefault();
+                removeTagFromTask(card.dataset.file, Number(card.dataset.line), card.dataset.tag);
+            }
+        });
+    });
 }
 
 function openTaskDueDatePicker(anchor, card) {
@@ -755,7 +878,7 @@ function initKanbanDragDrop(container) {
 /**
  * Move card to new column
  */
-async function moveCard(card, targetColumn) {
+async function moveCard(card, targetColumn, { restoreFocus = false } = {}) {
     const filePath = card.dataset.file;
     const lineNum = parseInt(card.dataset.line, 10);
     const oldTag = card.dataset.tag;
@@ -770,6 +893,9 @@ async function moveCard(card, targetColumn) {
             statusBar.set('Task moved');
             setTimeout(() => statusBar.set('Ready'), 1000);
             if (!await refreshAfterKanbanMutation(mutationId)) return;
+            if (restoreFocus) {
+                focusKanbanCard(getBoardContainer(), kanbanCardOrderRef(card), targetColumn);
+            }
             
             // Reload active file if it's the one we modified
             reloadActiveFileIfNeeded(filePath);

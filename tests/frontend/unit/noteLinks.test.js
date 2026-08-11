@@ -1,5 +1,6 @@
 import {
     encodeMarkdownLinkTarget,
+    markdownEditorNavigationAtPosition,
     markdownLinkDestinationAtPosition,
     markdownReferenceDefinition,
     markdownReferenceDefinitions,
@@ -20,6 +21,29 @@ describe('Markdown note-link target planning', () => {
         });
         expect(markdownLinkDestinationAtPosition(line, 2)).toBeNull();
         expect(markdownLinkDestinationAtPosition('![Inner Source](image.png)', 4)).toBeNull();
+    });
+
+    test('gives Markdown links precedence over hashtag-shaped fragment destinations', () => {
+        const line = '[such](#as-this) and #todo';
+        expect(markdownEditorNavigationAtPosition(line, line.indexOf('such') + 1)).toEqual({
+            kind: 'link',
+            label: 'such',
+            target: '#as-this',
+            destinationFrom: 7,
+            destinationTo: 15,
+        });
+        expect(markdownEditorNavigationAtPosition(line, line.indexOf('#as-this') + 2)).toEqual({
+            kind: 'link',
+            label: 'such',
+            target: '#as-this',
+            destinationFrom: 7,
+            destinationTo: 15,
+        });
+        expect(markdownEditorNavigationAtPosition(line, line.indexOf('#todo') + 2)).toEqual({
+            kind: 'hashtag',
+            tag: 'todo',
+        });
+        expect(markdownEditorNavigationAtPosition('punctuation(#not-a-tag)', 14)).toBeNull();
     });
 
     test('rewrites only a still-current destination and URL-encodes spaces', () => {

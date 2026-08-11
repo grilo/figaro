@@ -79,6 +79,53 @@ test('mounts descendants only when their folder is expanded', async ({ page }) =
     await expect(nested.locator('.node-name')).toHaveText('plan.md');
 });
 
+test('enters a semantic file-tree row and traverses visible hierarchy by keyboard', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    await page.evaluate(async () => {
+        const app = (await import('/js/backend.js')).backend();
+        app.GetFileTree = async () => [{
+            name: 'Projects', path: 'Projects', type: 'directory', children: [
+                { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1 },
+                { name: 'spec.md', path: 'Projects/spec.md', type: 'file', mtime: 2 },
+            ],
+        }, { name: 'Archive.md', path: 'Archive.md', type: 'file', mtime: 3 }];
+        app.GetFileTreeStyles = async () => ({ version: 1, entries: {}, recent_icons: [] });
+        const state = await import('/js/state.js');
+        state.setState('selectedTreePath', null);
+        state.setState('expandedDirs', new Set());
+        const { refreshFileTree } = await import('/js/fileTree.js');
+        await refreshFileTree();
+    });
+
+    const tree = page.locator('#file-tree');
+    const projects = page.locator('[data-path="Projects"] > .file-tree-node');
+    const plan = page.locator('[data-path="Projects/plan.md"] > .file-tree-node');
+    const spec = page.locator('[data-path="Projects/spec.md"] > .file-tree-node');
+    await expect(tree).toHaveAttribute('role', 'tree');
+    await expect(projects).toHaveAttribute('role', 'treeitem');
+    await expect(projects).toHaveAttribute('aria-expanded', 'false');
+
+    await page.locator('#create-inbox-note').focus();
+    await page.keyboard.press('Tab');
+    await expect(projects).toBeFocused();
+    await expect(projects).toHaveCSS('outline-style', 'solid');
+
+    await page.keyboard.press('ArrowRight');
+    await expect(projects).toHaveAttribute('aria-expanded', 'true');
+    await expect(plan).toHaveAttribute('aria-level', '2');
+    await page.keyboard.press('ArrowRight');
+    await expect(plan).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(spec).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(projects).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(projects).toHaveAttribute('aria-expanded', 'false');
+    await expect(plan).toHaveCount(0);
+});
+
 test('keeps pinned entries first with a right-edge marker and lets Inbox be unpinned', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);

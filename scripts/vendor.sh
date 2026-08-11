@@ -310,14 +310,7 @@ node scripts/vendor-markdown-renderer.mjs
 
 echo "Bundling codemirror-markdown-tables with its non-CodeMirror dependencies..."
 mkdir -p "$VENDOR_DIR/codemirror-markdown-tables"
-./node_modules/.bin/esbuild node_modules/codemirror-markdown-tables/dist/codemirror-markdown-tables.js \
-    --bundle \
-    --format=esm \
-    --target=es2020 \
-    --minify \
-    --external:@codemirror/* \
-    --external:@lezer/* \
-    --outfile="$VENDOR_DIR/codemirror-markdown-tables/index.js"
+node scripts/vendor-codemirror-markdown-tables.mjs
 
 echo "Bundling the CodeMirror color-picker theme with its helper dependencies..."
 mkdir -p "$VENDOR_DIR/@uiw/codemirror-extensions-color"

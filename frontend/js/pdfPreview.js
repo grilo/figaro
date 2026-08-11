@@ -22,6 +22,7 @@ import { updateRightSidebarEditorLayout } from './historyPanel.js';
 import { handleFileOpen } from './app.js';
 import { getEditorContent } from './editor.js';
 import { saveFileSnapshot } from './tabManager.js';
+import { setRightSidebarOpen } from './rightSidebarState.js';
 
 const previewDebounceMs = 320;
 const previewMode = 'pdf-preview';
@@ -1334,7 +1335,8 @@ export async function openPDFPreview({ path, title, content } = {}) {
 
     panel.hidden = false;
     sidebar.dataset.mode = previewMode;
-    sidebar.classList.add('open', 'pdf-preview-mode');
+    setRightSidebarOpen(sidebar, true);
+    sidebar.classList.add('pdf-preview-mode');
     sidebar.classList.remove('collapsed');
     if (rightTitle) rightTitle.textContent = 'PDF Preview';
     if (resizer) resizer.classList.add('visible');
@@ -1369,7 +1371,7 @@ export function closePDFPreview({ keepSidebarOpen = false } = {}) {
         delete sidebar.dataset.mode;
         sidebar.classList.remove('pdf-preview-mode');
         if (!keepSidebarOpen) {
-            sidebar.classList.remove('open');
+            setRightSidebarOpen(sidebar, false);
             sidebar.style.width = '';
             sidebar.style.minWidth = '';
         }

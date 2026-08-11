@@ -2,6 +2,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const usage = 'Usage: node sync-release-metadata.mjs <MAJOR.MINOR.PATCH|vMAJOR.MINOR.PATCH> [--date YYYY-MM-DD] [--root PATH] [--dry-run]';
+const changelogRepository = 'https://github.com/grilo/figaro';
+const keepAChangelogCategories = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'];
 
 class ReleaseMetadataError extends Error {}
 
@@ -27,8 +29,33 @@ function formatJson(value) {
     return `${JSON.stringify(value, null, 2)}\n`;
 }
 
+function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function unreleasedHeading(changelog) {
+    return /^## (?:\[Unreleased\]|Unreleased)\s*$/m.exec(changelog);
+}
+
+function releaseHeading(version) {
+    return new RegExp(`^## \\[?${escapeRegExp(version)}\\]? - (\\d{4}-\\d{2}-\\d{2})\\s*$`, 'm');
+}
+
+function updateComparisonLinks(changelog, version, previousVersion) {
+    const definitions = /^\[(?:Unreleased|\d+\.\d+\.\d+)\]:\s+https:\/\/github\.com\/grilo\/figaro\/compare\/.*$/gm;
+    const existing = changelog.match(definitions) || [];
+    const retained = existing.filter(line => !line.startsWith('[Unreleased]:') && !line.startsWith(`[${version}]:`));
+    const body = changelog.replace(definitions, '').trimEnd();
+    const links = [
+        `[Unreleased]: ${changelogRepository}/compare/v${version}...HEAD`,
+        `[${version}]: ${changelogRepository}/compare/v${previousVersion}...v${version}`,
+        ...retained,
+    ];
+    return `${body}\n\n${links.join('\n')}\n`;
+}
+
 function existingReleaseDate(changelog, version) {
-    const heading = /^## Unreleased\s*$/m.exec(changelog);
+    const heading = unreleasedHeading(changelog);
     if (!heading) return null;
 
     const following = changelog.slice(heading.index + heading[0].length);
@@ -36,16 +63,16 @@ function existingReleaseDate(changelog, version) {
     if (nextHeadingOffset === -1) return null;
 
     const unreleased = following.slice(0, nextHeadingOffset).trim();
-    const releaseHeading = new RegExp(`^## ${version.replaceAll('.', '\\.') } - (\\d{4}-\\d{2}-\\d{2})\\s*$`, 'm').exec(
+    const matchingRelease = releaseHeading(version).exec(
         following.slice(nextHeadingOffset),
     );
-    return unreleased === '_No changes yet._' && releaseHeading ? releaseHeading[1] : null;
+    return unreleased === '_No changes yet._' && matchingRelease ? matchingRelease[1] : null;
 }
 
 function cutChangelog(changelog, version, releaseDate) {
-    const heading = /^## Unreleased\s*$/m.exec(changelog);
+    const heading = unreleasedHeading(changelog);
     if (!heading) fail([
-        'CHANGELOG.md has no "## Unreleased" heading.',
+        'CHANGELOG.md has no "## [Unreleased]" heading.',
         'Restore an Unreleased section above the dated releases, add the changes for this release there, then retry.',
     ].join('\n'));
 
@@ -58,7 +85,7 @@ function cutChangelog(changelog, version, releaseDate) {
     ].join('\n'));
 
     const unreleased = following.slice(0, nextHeadingOffset).trim();
-    if (new RegExp(`^## ${version.replaceAll('.', '\\.') } - `).test(following.slice(nextHeadingOffset))) {
+    if (new RegExp(`^## \\[?${escapeRegExp(version)}\\]? - `).test(following.slice(nextHeadingOffset))) {
         fail([
             `CHANGELOG.md already contains ${version}; resolve its Unreleased entries before retrying.`,
             `If ${version} is the interrupted release, rerun that exact version from its release commit to resume it.`,
@@ -70,24 +97,25 @@ function cutChangelog(changelog, version, releaseDate) {
             'CHANGELOG.md has no accumulated Unreleased entries to release.',
             `Nothing new is ready to release as v${version}.`,
             'To prepare a release:',
-            '  1. Add a concise user-facing entry under "## Unreleased", grouped beneath "### Added", "### Changed", or "### Fixed".',
+            '  1. Add a concise user-facing entry under "## [Unreleased]", grouped beneath a Keep a Changelog category.',
             '  2. Run the same release command again.',
             'If there is no user-facing change to add, do not create a release.',
         ].join('\n'));
     }
-    if (!/^### (Added|Changed|Fixed)\s*$/m.test(unreleased)) {
+    if (!new RegExp(`^### (${keepAChangelogCategories.join('|')})\\s*$`, 'm').test(unreleased)) {
         fail([
-            'Unreleased changelog entries must be grouped under Added, Changed, or Fixed.',
-            'Move the pending entries beneath one of these headings, then run the same release command again:',
-            '  ### Added',
-            '  ### Changed',
-            '  ### Fixed',
+            'Unreleased entries must use Keep a Changelog category headings.',
+            `Move the pending entries beneath one of: ${keepAChangelogCategories.join(', ')}.`,
+            'Then run the same release command again.',
         ].join('\n'));
     }
 
     const remainder = following.slice(nextHeadingOffset).trim();
-    const before = changelog.slice(0, afterHeading).trimEnd();
-    return `${before}\n\n_No changes yet._\n\n## ${version} - ${releaseDate}\n\n${unreleased}\n\n${remainder}\n`;
+    const previousRelease = /^## \[?((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))\]? - \d{4}-\d{2}-\d{2}\s*$/m.exec(remainder);
+    if (!previousRelease) fail('CHANGELOG.md has no previous stable release heading after Unreleased.');
+    const before = `${changelog.slice(0, heading.index).trimEnd()}\n\n## [Unreleased]`;
+    const cut = `${before}\n\n_No changes yet._\n\n## [${version}] - ${releaseDate}\n\n${unreleased}\n\n${remainder}\n`;
+    return updateComparisonLinks(cut, version, previousRelease[1]);
 }
 
 function parseArguments(args) {

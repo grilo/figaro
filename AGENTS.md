@@ -5,12 +5,16 @@ These requirements apply to every change in this repository.
 ## Changelog updates are part of every feature
 
 - Every user-facing feature, behavior change, and bug fix must update
-  `CHANGELOG.md` under `Unreleased` in the same change. A feature is not
+  `CHANGELOG.md` under `[Unreleased]` in the same change. A feature is not
   complete until its changelog entry describes the outcome in user-facing
   language.
 - Keep entries concise and place them under Added, Changed, or Fixed as
   appropriate. Before finishing any implementation, explicitly check that the
   current feature has a matching changelog entry.
+- Preserve the Keep a Changelog heading/category order and comparison-link
+  contract. Release preparation must validate and publish the exact dated
+  changelog section as the GitHub release notes; generated commit summaries are
+  not a substitute.
 
 ## Keep all documentation synchronized
 
@@ -26,8 +30,8 @@ These requirements apply to every change in this repository.
   either updated or still correct.
 - Release preparation must keep the version, license identifier, tag examples,
   changelog heading, package metadata, Wails metadata, and release workflow in
-  agreement. Cut the accumulated `Unreleased` entries into the dated release
-  section and leave a fresh `Unreleased` section for future work.
+  agreement. Cut the accumulated `[Unreleased]` entries into the dated release
+  section and leave a fresh `[Unreleased]` section for future work.
 
 ## Future implementation must preserve the dependency direction
 

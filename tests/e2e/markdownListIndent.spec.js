@@ -7,6 +7,64 @@ async function openWelcomeEditor(page) {
     await expect(page.locator('.cm-editor')).toBeVisible();
 }
 
+test('exits an empty second list item with one Enter and preserves cursor geometry', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const source = '- First item\n- ';
+        editor.setEditorContent(source);
+        const view = editor.getEditorView();
+        await new Promise(resolve => setTimeout(resolve, 80));
+        view.dispatch({ selection: { anchor: view.state.doc.length } });
+        view.focus();
+        window.__figaroListExitView = view;
+    });
+
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => ({
+        source: window.__figaroListExitView.state.doc.toString(),
+        head: window.__figaroListExitView.state.selection.main.head,
+    }))).toEqual({ source: '- First item\n', head: 13 });
+
+    await page.keyboard.type('After list');
+    await expect.poll(() => page.evaluate(() => window.__figaroListExitView.state.doc.toString()))
+        .toBe('- First item\nAfter list');
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__figaroListExitView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(1);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__figaroListExitView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(2);
+
+    const points = await page.evaluate(() => {
+        const view = window.__figaroListExitView;
+        const start = view.coordsAtPos(view.state.doc.line(1).from + 2);
+        const end = view.coordsAtPos(view.state.doc.line(2).to);
+        return {
+            start: { x: start.left + 1, y: (start.top + start.bottom) / 2 },
+            end: { x: end.left - 1, y: (end.top + end.bottom) / 2 },
+        };
+    });
+    await page.mouse.click(points.end.x, points.end.y);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__figaroListExitView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(2);
+    await page.mouse.move(points.start.x, points.start.y);
+    await page.mouse.down();
+    await page.mouse.move(points.end.x, points.end.y, { steps: 6 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => {
+        const selection = window.__figaroListExitView.state.selection.main;
+        const lineBreak = window.__figaroListExitView.state.doc.line(1).to;
+        return selection.from < lineBreak && selection.to > lineBreak;
+    })).toBe(true);
+});
+
 test('keeps wrapped list and blockquote bodies hanging beneath their markers', async ({ page }) => {
     await openWelcomeEditor(page);
     const words = Array.from({ length: 96 }, (_, index) => `word${index}`).join(' ');

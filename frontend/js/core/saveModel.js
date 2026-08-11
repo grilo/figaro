@@ -27,3 +27,9 @@ export function saveStatusMessage({
     if (!latestEdit) return 'Saved older snapshot; newer changes remain';
     return successMessage;
 }
+
+export function saveFailureStatusMessage(error) {
+    const rawCause = error?.message || error?.error || error;
+    const cause = String(rawCause || '').trim().replace(/^Error:\s*/i, '');
+    return cause ? `Save failed — ${cause}` : 'Save failed — unknown error';
+}

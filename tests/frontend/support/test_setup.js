@@ -74,6 +74,7 @@ window.go = {
         RenameKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         DeleteKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         GetKanbanBoard: jest.fn().mockResolvedValue({ todo: [], wip: [], done: [] }),
+        SetKanbanCardOrder: jest.fn().mockResolvedValue({ success: true }),
         GetHomeTasks: jest.fn().mockResolvedValue([]),
         GetDueTaskSummary: jest.fn().mockResolvedValue({ due_today: 0, overdue: 0 }),
         GetTasksDueOnDate: jest.fn().mockResolvedValue([]),
@@ -131,6 +132,7 @@ window.go = {
         WindowCaptureState: jest.fn().mockResolvedValue(undefined),
         WindowGetSize: jest.fn().mockResolvedValue({ w: 1280, h: 800 }),
         WindowSetSize: jest.fn().mockResolvedValue(undefined),
+        WindowSetTitle: jest.fn().mockResolvedValue(undefined),
         }
     }
 };
@@ -158,8 +160,8 @@ function createMockDOM() {
                     <div class="sidebar-content">
                         <div id="sidebar-search" class="sidebar-search">
                             <div class="search-input-wrapper">
-                                <input id="global-search-input" />
-                                <span id="search-results-count"></span>
+                                <input id="global-search-input" role="combobox" aria-label="Search notes" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="search-result-list" aria-expanded="false" />
+                                <span id="search-results-count" aria-live="polite" aria-atomic="true"></span>
                             </div>
                             <div id="global-search-dropdown" class="search-dropdown"></div>
                         </div>
@@ -210,7 +212,7 @@ function createMockDOM() {
                 </aside>
             </div>
             <footer id="status-bar" class="status-bar">
-                <span id="status-text">Ready</span>
+                <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
                 <span id="cursor-position">Ln 1, Col 1</span>
                 <span id="reading-time">0 min read</span>
                 <span id="word-count">0 words</span>

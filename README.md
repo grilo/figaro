@@ -33,19 +33,33 @@ There is no account, hosted database, or required cloud service.
   while surrounding content renders headings, tables, tasks, callouts,
   footnotes, math, images, links, and fenced code. Editor-sized gutter guides
   fold headings, fenced code, and tables without changing the saved source;
-  typed fences use their language name.
+  each guide stays aligned to its block and under the pointer while toggling.
+  Rendered fences and tables contract to one native fold row, typed fences use
+  their language name, and interactive tables have a one-click undoable delete.
 - **Fast navigation.** Use compact drag-reorderable document tabs, optional
-  path breadcrumbs, full-width sticky heading hierarchies, full-vault search,
-  backlinks, unlinked mentions, a top-right document-outline launcher, recent
-  notes, pins, and file-tree customization.
+  path breadcrumbs, full-width editor-sized sticky heading hierarchies that
+  add each active ancestor as its source row reaches the visible stack,
+  full-vault search,
+  backlinks, unlinked mentions, a top-right document-outline launcher that
+  stays beneath the sticky hierarchy, recent notes, pins, and file-tree
+  customization. Long tabs preserve their differentiating filename ending and
+  show their parent path; repeated arrow presses continue through the tab list.
+  Search results expose their selected option to assistive technology and put
+  a tail-preserving parent path on its own readable line so even deeply nested
+  repeated filenames remain distinguishable. The active document leads the
+  browser and native window title, and custom context menus support Shift+F10,
+  arrows, Home/End, and Escape. Tab enters one current file-tree row; standard
+  tree arrows then traverse, expand, collapse, and return to parent folders.
+  Tab dragging remains selection-free even when the pointer crosses the file
+  tree or another workspace region.
 - **Capture and planning.** Quick notes and daily notes live in a real `Inbox`;
   hashtags form a Kanban board, and portable due-date links feed the Today
   dashboard and calendar.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
   or edit Draw.io diagrams while keeping the saved SVG readable outside Figaro.
 - **Source and publishing tools.** Preview the exact raw Markdown or paginated
-  output, add cover pages and tables of contents, apply vault-local print CSS,
-  and generate linked PDFs.
+  output, preserve fenced-code syntax colors, add cover pages and tables of
+  contents, apply vault-local print CSS, and generate linked PDFs.
 - **Local history.** Optional per-file Auto-Commit, explicit history saves,
   comparisons, and restoration keep unrelated vault changes separate.
 - **Configurable workspace.** Choose from seventeen themes, prose and code
@@ -63,13 +77,16 @@ Download the latest build from
 | Windows | x86-64 `.zip` |
 | macOS | Universal Intel and Apple Silicon `.zip` |
 
-Release archives include Figaro, the changelog, and the GPL license. Builds are
-currently unsigned, so Windows SmartScreen or macOS Gatekeeper may ask you to
-confirm the first launch.
+Release archives include Figaro, the changelog, and the GPL license. Each
+GitHub release page reproduces the curated Added, Changed, and Fixed sections
+for that exact version from the Keep a Changelog source. Builds are currently
+unsigned, so Windows SmartScreen or macOS Gatekeeper may ask you to confirm the
+first launch.
 
 Linux requires GTK 3 and WebKitGTK 4.1 or 4.0 at runtime. PDF generation uses an
-installed Chrome, Chromium, Brave, or Edge browser; macOS can also use its
-built-in WebKit engine.
+installed Chrome, Chromium, Brave, or Edge browser. Linux discovery includes
+supported commands under `/snap/bin`, and macOS can also use its built-in
+WebKit engine.
 
 ## Getting started
 
@@ -105,7 +122,9 @@ Opening a Markdown file from outside the vault offers two safe choices:
 
 Files and folders can also be copied or dropped into the tree. Figaro asks
 before importing, preserves directory structure, and never silently overwrites
-existing content.
+existing content. A long internal move is announced in the live status bar;
+while it is running, Figaro ignores duplicate drag attempts instead of starting
+the same move twice.
 
 When a new or renamed Markdown note resembles another note in the same folder
 after ignoring spacing, punctuation, and capitalization, Figaro offers to open
@@ -122,7 +141,9 @@ stays intact, while **Create anyway** deliberately keeps the original target.
 While authoring a link, autocomplete also offers **Create note** when there is
 no exact target in the current folder; it creates the note there and inserts
 the configured portable link syntax. A bare `[label]` stays ordinary text
-unless the document contains a matching Markdown reference definition.
+unless the document contains a matching Markdown reference definition. A
+same-document link such as `[Jump](#writing-and-planning)` moves directly to
+that heading whether the link is currently rendered or showing raw source.
 
 ## Writing and planning
 
@@ -162,6 +183,11 @@ ordinary prose. On an unfinished checkbox task with no existing due date, an
 exact tag also offers **Add due date…**, **Due today**, and **Due tomorrow**;
 paragraphs, completed tasks, and already dated tasks remain tag-only.
 
+The board is fully keyboard-operable. Tab advances through every card in
+column order; Up/Down persists a card's vertical position, Left/Right moves it
+to the adjacent column, Enter opens its note, D changes its due date, and
+Delete removes that column tag. Pointer drag remains available.
+
 The same dates appear in the Today dashboard and calendar. Figaro keeps
 reminders inside the application and does not request operating-system
 notification access. A Kanban column with a chosen color shows that color as a
@@ -181,8 +207,8 @@ renderer.
 
 Raw Text Preview shows the exact Markdown source, including frontmatter, while
 PDF Preview adds pagination, cover pages, a depth-limited table of contents,
-footnotes, internal links, and optional vault-local CSS. Generated PDFs are
-written beside their source note.
+footnotes, internal links, fenced-code syntax colors, and optional vault-local
+CSS. Generated PDFs are written beside their source note.
 See [PDF styling](docs/PDF_STYLING.md) for the supported print contract.
 
 ## Data and privacy
@@ -197,7 +223,9 @@ successfully saved, and the **Save to history** action never sweeps unrelated
 staged work into the note's history. Deleting from the file tree bypasses the
 system Trash, but first saves affected open editors and records the file—or
 every file in a folder—in local history. If that archive cannot be recorded,
-Figaro leaves the item untouched.
+Figaro leaves the item untouched. A failed document save keeps the buffer dirty
+and announces its concrete cause in the status bar so the text can be recovered
+or saved again.
 
 ## Current limitations
 

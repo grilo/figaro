@@ -5,7 +5,7 @@ import { backend } from './backend.js';
  */
 
 import { log } from './log.js';
-import { setState, getState } from './state.js';
+import { setState, getState, subscribe } from './state.js';
 import { scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { mathField } from './mathPlugin.js';
@@ -23,6 +23,7 @@ import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } f
 import {
     headingLinkCompletionMatch,
     linkedNoteCompletionInsertion,
+    markdownHeadingPosition,
     markdownHeadingTargets,
     noteLinkCompletion,
     noteLinkCompletionMatch,
@@ -36,6 +37,7 @@ import { createEditorDocumentSession } from './usecases/editorDocumentSession.js
 import { createLinkedNoteFromCompletion } from './usecases/createLinkedNoteFromCompletion.js';
 import { reviewMissingLinkedNote, reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
 import {
+    markdownEditorNavigationAtPosition,
     markdownLinkDestinationAtPosition,
     markdownReferenceDefinitions,
     markdownReferenceLink,
@@ -55,6 +57,10 @@ import {
 } from './tabManager.js';
 import { openRawTextPreview } from './rawTextPreview.js';
 import { openPDFPreview } from './pdfPreview.js';
+import {
+    configureContextMenu,
+    dismissContextMenu,
+} from './contextMenu.js';
 import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
 import { indentationMarkers as indentationMarkerExtension } from '@replit/codemirror-indentation-markers';
 import { getCM, vim, Vim } from '@replit/codemirror-vim';
@@ -75,7 +81,12 @@ import {
     syntaxHighlighting, syntaxTree,
 } from '@codemirror/language';
 import { acceptCompletion, autocompletion, completionKeymap, startCompletion } from '@codemirror/autocomplete';
-import { markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown';
+import {
+    deleteMarkupBackward,
+    insertNewlineContinueMarkupCommand,
+    markdownLanguage,
+    pasteURLAsLink,
+} from '@codemirror/lang-markdown';
 import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
 import { markdownLinter } from './markdownLint.js';
@@ -146,6 +157,36 @@ let vimModeChangeHandler = null;
 let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: null };
 let fileModeRequest = 0;
 let markdownModeExtensions = null;
+
+// Figaro exits an empty list item with one Enter. CodeMirror's default keeps a
+// two-item tight list alive for one extra press, which is surprising in a
+// prose editor. Backspace retains the library's Markdown-aware behavior.
+const figaroMarkdownKeymap = [
+    { key: 'Enter', run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },
+    { key: 'Backspace', run: deleteMarkupBackward },
+];
+
+export function editorAccessibleLabel({ language = activeFileLanguage, tab = null } = {}) {
+    const title = tab?.title || tab?.path?.split('/').pop() || 'Untitled document';
+    const surface = language?.kind === 'markdown'
+        ? 'Markdown editor'
+        : (language?.kind === 'code' ? `${language.label || 'Code'} editor` : 'Plain text editor');
+    return `${surface} — ${title}`;
+}
+
+function syncEditorAccessibleLabel() {
+    const view = getEditorView();
+    if (!view?.contentDOM) return false;
+    const activeId = getState('activeTabId');
+    const tab = (getState('openTabs') || []).find(candidate => candidate.id === activeId) || null;
+    view.contentDOM.setAttribute('aria-label', editorAccessibleLabel({ tab }));
+    return true;
+}
+
+if (typeof subscribe === 'function') {
+    subscribe('activeTabId', syncEditorAccessibleLabel);
+    subscribe('openTabs', syncEditorAccessibleLabel);
+}
 let codeModeExtensions = null;
 const footnoteReturnPositions = new Map();
 const linkPreviewCache = new Map();
@@ -2461,6 +2502,7 @@ function createEditorView() {
             ],
         }),
         markdownLanguage,
+        pasteURLAsLink,
         markdownStylePlugin,
         headingLinkCompletionActivator,
         hashtagCompletionActivator,
@@ -2494,7 +2536,7 @@ function createEditorView() {
             { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },
         ])),
         keymap.of(lintKeymap),
-        keymap.of(markdownKeymap),
+        keymap.of(figaroMarkdownKeymap),
     ];
     const codeExtensionsForSupport = (support) => [
         ...(support ? [support] : []),
@@ -2635,6 +2677,7 @@ function createEditorView() {
     });
 
     editorView = new EditorView({ state: editorState, parent: container });
+    syncEditorAccessibleLabel();
 
     // The persisted preference may load while the workspace overview is active, before
     // an EditorView exists. Apply that requested state as soon as a file first
@@ -2722,6 +2765,7 @@ function applyFileLanguageUI(view, language) {
     view.dom.classList.toggle('cm-markdown-file', !isCode);
     view.dom.dataset.fileLanguage = language.kind;
     if (!vimActive) updateFileLanguageStatus();
+    syncEditorAccessibleLabel();
 }
 
 /**
@@ -3109,29 +3153,20 @@ function handleMouseDown(event, view) {
     if (pos === null) return;
     if (event.button === 0 && handleFootnoteNavigation(event, view, pos)) return true;
     const doc = view.state.doc, line = doc.lineAt(pos), lt = line.text, col = pos - line.from;
-    const hr = /(?<!\w)(?<!#)#([a-zA-Z][a-zA-Z0-9_-]*)\b/g;
-    let m;
-    while ((m = hr.exec(lt)) !== null) {
-        if (col >= m.index && col <= m.index + m[0].length) {
-            event.preventDefault();
-            openTab('kanban-board', 'Kanban', 'kanban', { focusCol: m[1].toLowerCase() });
-            return true;
-        }
+    const navigation = markdownEditorNavigationAtPosition(lt, col);
+    if (navigation?.kind === 'link') {
+        event.preventDefault();
+        handleLinkClick(navigation.target, navigation.label, replaceCurrent, {
+            from: line.from + navigation.destinationFrom,
+            to: line.from + navigation.destinationTo,
+            target: navigation.target,
+        });
+        return true;
     }
-    const lr = /\[([^\]]+)\]\(([^)]*)\)/g;
-    while ((m = lr.exec(lt)) !== null) {
-        const linkTextStart = m.index;
-        const linkTextEnd = m.index + m[1].length + 2;
-        if (col >= linkTextStart && col <= linkTextEnd) {
-            const destinationOffset = m[0].indexOf('(') + 1;
-            event.preventDefault();
-            handleLinkClick(m[2], m[1], replaceCurrent, {
-                from: line.from + m.index + destinationOffset,
-                to: line.from + m.index + destinationOffset + m[2].length,
-                target: m[2],
-            });
-            return;
-        }
+    if (navigation?.kind === 'hashtag') {
+        event.preventDefault();
+        openTab('kanban-board', 'Kanban', 'kanban', { focusCol: navigation.tag });
+        return true;
     }
     const wiki = wikiLinkAtPosition(lt, col);
     if (wiki) {
@@ -3423,17 +3458,25 @@ async function pasteIntoEditor(view) {
 function handleContextMenu(event, view) {
     event.preventDefault();
 
-    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    const keyboardInvocation = !event.clientX && !event.clientY;
+    const pos = keyboardInvocation
+        ? view.state.selection.main.head
+        : view.posAtCoords({ x: event.clientX, y: event.clientY });
+    const caret = keyboardInvocation ? view.coordsAtPos(pos) : null;
+    const menuEvent = keyboardInvocation ? {
+        clientX: caret?.left || view.dom.getBoundingClientRect().left + 16,
+        clientY: caret?.bottom || view.dom.getBoundingClientRect().top + 24,
+    } : event;
     if (pos !== null && !shouldPreserveSelectionForContextMenu(view.state.selection, pos)) {
         view.dispatch({ selection: { anchor: pos, head: pos } });
     }
 
     const existing = document.querySelector('.editor-context-menu');
-    if (existing) existing.remove();
+    if (existing) dismissContextMenu(existing, { restoreFocus: false });
     const requestId = ++contextMenuRequestId;
     const showMenu = suggestion => {
         if (requestId !== contextMenuRequestId || view.isDestroyed) return;
-        showEditorContextMenu(event, view, suggestion);
+        showEditorContextMenu(menuEvent, view, suggestion);
     };
 
     if (activeFileLanguage.kind !== 'markdown' || !spellcheckRequested || pos === null) {
@@ -3455,20 +3498,20 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
     const selectionDisabledAttribute = hasSelection ? '' : ' aria-disabled="true"';
     const convertTableAction = activeFileLanguage.kind === 'markdown' ? `
         <div class="ui-menu-separator context-menu-separator"></div>
-        <div class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="convert-table"${selectionDisabledAttribute}>
+        <button type="button" class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="convert-table"${selectionDisabledAttribute}${hasSelection ? '' : ' disabled'}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16M15 4v16"/></svg>
             Convert selection to table…
-        </div>` : '';
+        </button>` : '';
     const previewActions = activeTab?.path?.toLowerCase().endsWith('.md') ? `
         <div class="ui-menu-separator context-menu-separator"></div>
-        <div class="ui-menu-item context-menu-item" data-action="preview-raw-text">
+        <button type="button" class="ui-menu-item context-menu-item" data-action="preview-raw-text">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
             Preview Raw Text
-        </div>
-        <div class="ui-menu-item context-menu-item" data-action="preview-pdf">
+        </button>
+        <button type="button" class="ui-menu-item context-menu-item" data-action="preview-pdf">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/></svg>
             Preview PDF
-        </div>` : '';
+        </button>` : '';
 
     const menu = document.createElement('div');
     menu.className = 'ui-menu context-menu editor-context-menu';
@@ -3476,24 +3519,24 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
     menu.style.top = `${event.clientY}px`;
 
     menu.innerHTML = `
-        <div class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="cut"${selectionDisabledAttribute}>
+        <button type="button" class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="cut"${selectionDisabledAttribute}${hasSelection ? '' : ' disabled'}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/></svg>
             Cut
-        </div>
-        <div class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="copy"${selectionDisabledAttribute}>
+        </button>
+        <button type="button" class="ui-menu-item context-menu-item${selectionDisabledClass}" data-action="copy"${selectionDisabledAttribute}${hasSelection ? '' : ' disabled'}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             Copy
-        </div>
-        <div class="ui-menu-item context-menu-item" data-action="paste">
+        </button>
+        <button type="button" class="ui-menu-item context-menu-item" data-action="paste">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
             Paste
-        </div>
+        </button>
         ${convertTableAction}
         <div class="ui-menu-separator context-menu-separator"></div>
-        <div class="ui-menu-item context-menu-item" data-action="select-all">
+        <button type="button" class="ui-menu-item context-menu-item" data-action="select-all">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
             Select All
-        </div>
+        </button>
         ${previewActions}
     `;
     appendSpellcheckSuggestionItems(menu, spellcheckSuggestion);
@@ -3513,10 +3556,19 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
         menu.style.top = `${Math.max(margin, event.clientY)}px`;
     }
 
+    const closeHandler = (ev) => {
+        if (!menu.contains(ev.target)) dismissContextMenu(menu, { restoreFocus: false });
+    };
+    configureContextMenu(menu, {
+        label: 'Editor actions',
+        returnFocus: view.contentDOM,
+        onDismiss: () => document.removeEventListener('click', closeHandler),
+    });
+
     menu.addEventListener('click', async (ev) => {
         const item = ev.target.closest('.context-menu-item');
         if (!item || item.classList.contains('disabled') || item.getAttribute('aria-disabled') === 'true') return;
-        menu.remove();
+        dismissContextMenu(menu, { restoreFocus: true });
         const action = item.dataset.action;
         if (action === 'replace-spelling') {
             const replacement = item._figaroSpellcheckReplacement;
@@ -3579,13 +3631,9 @@ function showEditorContextMenu(event, view, spellcheckSuggestion) {
         }
     });
 
-    const closeHandler = (ev) => {
-        if (!menu.contains(ev.target)) {
-            menu.remove();
-            document.removeEventListener('click', closeHandler);
-        }
-    };
-    setTimeout(() => document.addEventListener('click', closeHandler), 0);
+    setTimeout(() => {
+        if (menu.isConnected) document.addEventListener('click', closeHandler);
+    }, 0);
 }
 
 function appendSpellcheckSuggestionItems(menu, spellcheckSuggestion) {
@@ -3630,6 +3678,21 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false, linkE
     // Decode any percent-encoded characters (e.g., %20 → space) for file operations
     try { linkPath = decodeURI(linkPath); } catch (e) { /* decode may fail */ }
     try { linkPath = decodeURI(linkPath); } catch (e) { /* double-decode safety */ }
+
+    if (String(linkPath || '').startsWith('#')) {
+        const view = getEditorView();
+        const position = view
+            ? markdownHeadingPosition(view.state.doc.toString(), linkPath)
+            : null;
+        if (view && Number.isInteger(position)) {
+            view.dispatch({ selection: { anchor: position }, scrollIntoView: true });
+            view.focus();
+        } else {
+            statusBar.set(`Heading not found: ${linkPath}`);
+            setTimeout(() => statusBar.clear(), 1800);
+        }
+        return true;
+    }
 
     if (!linkPath && linkText) {
         const dm = linkText.match(/^(\d{4}-\d{2}-\d{2})$/);

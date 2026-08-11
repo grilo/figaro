@@ -799,9 +799,13 @@
 .cm-markdownBlockGutter .cm-gutterElement {
     display: flex;
     min-width: 42px;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-end;
     padding: 0 4px 0 1px !important;
+}
+
+.cm-markdownBlockGutter {
+    transform: translateY(-16px);
 }
 
 .cm-markdownBlockGuideSpacer {
@@ -814,17 +818,20 @@
     position: absolute;
     z-index: 8;
     inset: 0 0 auto;
-    height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
     pointer-events: none;
 }
 
 .editor-outline-launcher {
-    position: absolute;
+    position: relative;
     z-index: 1;
-    top: 8px;
-    right: 10px;
+    grid-row: 2;
+    justify-self: end;
     width: 28px;
     height: 28px;
+    margin: 8px 10px 0 0;
     border-color: color-mix(in srgb, var(--border-color) 78%, transparent);
     background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
     box-shadow: var(--shadow-sm);
@@ -841,10 +848,9 @@
 }
 
 .sticky-heading-stack {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    position: relative;
+    z-index: 2;
+    grid-row: 1;
     display: grid;
     width: 100%;
     max-width: none;
@@ -872,7 +878,7 @@
     border-bottom: 1px solid color-mix(in srgb, var(--border-color) 68%, transparent);
     background: transparent;
     color: var(--text-muted);
-    font: 11px/1.35 var(--font-sans);
+    font: var(--font-size-editor)/1.35 var(--font-sans);
     text-align: left;
     cursor: pointer;
 }

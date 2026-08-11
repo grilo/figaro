@@ -18,6 +18,14 @@ func (a *App) WindowMinimize() {
 	}
 }
 
+// WindowSetTitle keeps the native task-switcher identity aligned with the
+// active Figaro document. The frontend owns the presentation decision.
+func (a *App) WindowSetTitle(title string) {
+	if a.ctx != nil {
+		safeRuntimeCall(func() { runtime.WindowSetTitle(a.ctx, title) })
+	}
+}
+
 // WindowMaximize toggles between maximized and normal window size.
 func (a *App) WindowMaximize() {
 	if a.ctx != nil {

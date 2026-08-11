@@ -5,6 +5,7 @@ import {
     leadingFrontmatterEnd,
     markdownBlockGuideKind,
 } from '../../../frontend/js/core/markdownBlockGuideModel.js';
+import { markdownFoldAnchorPlan } from '../../../frontend/js/core/markdownFoldAnchorModel.js';
 import { buildMarkdownBlockGuides } from '../../../frontend/js/markdownBlockGuides.js';
 
 function guidePlan(source) {
@@ -59,6 +60,9 @@ describe('Markdown block guide model', () => {
         const { state, guides } = guidePlan(source);
         expect(guides.map(guide => guide.label)).toEqual(['h1', 'yaml', 'code', 'table']);
         expect(guides.slice(1).map(guide => guide.type)).toEqual(['code', 'code', 'table']);
+        expect(guides.slice(1).map(guide => guide.foldFrom)).toEqual(
+            guides.slice(1).map(guide => state.doc.lineAt(guide.from).to),
+        );
         expect(state.sliceDoc(guides[1].foldFrom, guides[1].foldTo)).toContain('enabled: true');
         expect(state.sliceDoc(guides[3].foldFrom, guides[3].foldTo)).toContain('| mode | test |');
     });
@@ -72,5 +76,32 @@ describe('Markdown block guide model', () => {
         expect(state.sliceDoc(headings[0].foldFrom, headings[0].foldTo)).not.toContain('# Archive');
         expect(state.sliceDoc(headings[1].foldFrom, headings[1].foldTo)).toContain('### Detail');
         expect(state.sliceDoc(headings[1].foldFrom, headings[1].foldTo)).not.toContain('## Release');
+    });
+
+    test('keeps a clicked guide fixed and adds only the bottom reserve required by scroll clamping', () => {
+        expect(markdownFoldAnchorPlan({
+            currentGuideTop: 420,
+            targetGuideTop: 400,
+            scrollTop: 300,
+            scrollHeight: 1200,
+            clientHeight: 600,
+        })).toEqual({ scrollTop: 320, reserve: 0 });
+
+        expect(markdownFoldAnchorPlan({
+            currentGuideTop: 460,
+            targetGuideTop: 400,
+            scrollTop: 300,
+            scrollHeight: 850,
+            clientHeight: 600,
+        })).toEqual({ scrollTop: 360, reserve: 110 });
+
+        expect(markdownFoldAnchorPlan({
+            currentGuideTop: 400,
+            targetGuideTop: 400,
+            scrollTop: 360,
+            scrollHeight: 1070,
+            clientHeight: 600,
+            currentReserve: 110,
+        })).toEqual({ scrollTop: 360, reserve: 0 });
     });
 });

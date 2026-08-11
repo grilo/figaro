@@ -24,12 +24,22 @@ import {
 import { renderVaultHealth } from './vaultHealth.js';
 import { renderDrawioTab } from './drawio.js';
 import { initSettingsPanel } from './theme.js';
-import { isLatestSave, savedLatestEdit, saveStatusMessage } from './core/saveModel.js';
+import { isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
+import {
+    compactTabTitle,
+    tabAccessibleLabel,
+    tabLocationLabel,
+} from './core/tabPresentationModel.js';
 import { createDocumentSave } from './usecases/documentSave.js';
 import { loadApplicationVersion } from './usecases/loadApplicationVersion.js';
 import { fileTabReadTarget } from './core/externalFileModel.js';
+import {
+    configureContextMenu,
+    contextMenuAnchorPoint,
+    dismissContextMenu,
+} from './contextMenu.js';
 
 /**
  * View Manager — shows either the editor or tab panels, never both.
@@ -86,6 +96,21 @@ let suppressTabClick = false;
 let previousTabActivationStack = [];
 let tabActivationGeneration = 0;
 let pendingExternalActivationId = 0;
+
+const tabDragSelectionGuardClass = 'tab-drag-selection-guard';
+
+function preventSelectionDuringTabDrag(event) {
+    event.preventDefault();
+}
+
+function setTabDragSelectionGuard(active) {
+    document.documentElement.classList.toggle(tabDragSelectionGuardClass, active);
+    if (active) {
+        document.addEventListener('selectstart', preventSelectionDuringTabDrag, true);
+    } else {
+        document.removeEventListener('selectstart', preventSelectionDuringTabDrag, true);
+    }
+}
 
 function isFileBackedTab(tab) {
     return Boolean(tab?.path) && (tab.type === 'file' || tab.type === 'drawio');
@@ -181,6 +206,7 @@ function finishTabDrag(tabStrip) {
     clearTabDropIndicator();
     tabStrip?.querySelectorAll('.tab.dragging').forEach(tab => tab.classList.remove('dragging'));
     tabStrip?.classList.remove('is-dragging');
+    setTabDragSelectionGuard(false);
     draggedTabId = null;
 }
 
@@ -377,6 +403,7 @@ export function initTabManager() {
                 draggedTabId = tabPointerDrag.tabId;
                 tabPointerDrag.source.classList.add('dragging');
                 tabStrip.classList.add('is-dragging');
+                setTabDragSelectionGuard(true);
             }
 
             e.preventDefault();
@@ -431,8 +458,7 @@ export function initTabManager() {
             const nextTab = tabs[nextIndex];
             if (nextTab) {
                 e.preventDefault();
-                nextTab.focus();
-                switchTab(nextTab.dataset.tabId);
+                switchTab(nextTab.dataset.tabId, { preserveTabFocus: true });
             }
         });
 
@@ -456,8 +482,7 @@ export function initTabManager() {
     // Close tab context menu on outside click
     document.addEventListener('click', (e) => {
         if (tabContextMenu && !e.target.closest('.tab-context-menu')) {
-            tabContextMenu.remove();
-            tabContextMenu = null;
+            dismissContextMenu(tabContextMenu, { restoreFocus: false });
         }
     });
     
@@ -543,7 +568,7 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     return tab;
 }
 
-export async function switchTab(tabId) {
+export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
     const activationId = ++tabActivationGeneration;
     const tabs = getState('openTabs');
     const tab = tabs.find(t => t.id === tabId);
@@ -633,7 +658,11 @@ export async function switchTab(tabId) {
 
     closeHistoryPanel();
     
-    if (tab.type === 'file') {
+    if (preserveTabFocus) {
+        [...document.querySelectorAll('#tab-strip .tab')]
+            .find(element => element.dataset.tabId === tab.id)
+            ?.focus();
+    } else if (tab.type === 'file') {
         setTimeout(() => focusEditor(), 0);
     }
     return true;
@@ -782,7 +811,7 @@ function renderBacklinksTab(panel, tab) {
 function renderKanbanTab(panel, tab) {
     const density = getState('kanbanDensity') === 'compact' ? 'compact' : 'comfortable';
     const layout = getState('kanbanLayout') === 'stacked' ? 'stacked' : 'side-by-side';
-    panel.innerHTML = `<div class="kanban-view-wrapper" data-density="${density}" data-layout="${layout}"><div class="kanban-view-header"><div><h2>Kanban Task Board</h2><p class="kanban-instruction">Drag cards between columns. Click a card to open its source note. Columns are created from #tags in your notes.</p></div></div><div class="kanban-board" id="kanban-board-main"></div></div>`;
+    panel.innerHTML = `<div class="kanban-view-wrapper" data-density="${density}" data-layout="${layout}"><div class="kanban-view-header"><div><h2>Kanban Task Board</h2><p class="kanban-instruction">Tab through cards; use arrow keys to reorder or move the focused card. Enter opens its source, D changes its due date, and Delete removes its tag. You can also drag cards between columns.</p></div></div><div class="kanban-board" id="kanban-board-main"></div></div>`;
     applyKanbanPresentationToViews(density, layout);
     renderKanbanBoard('kanban-board-main', tab.focusCol);
 }
@@ -1212,15 +1241,27 @@ export function renderTabBar() {
             tab.dirty ? 'ui-document-tab--dirty dirty' : '',
             isPinned ? 'ui-document-tab--pinned pinned' : '',
         ].filter(Boolean).join(' ');
+        const compactTitle = compactTabTitle(tab.title);
+        const visibleTitle = compactTitle.compacted
+            ? `<span class="tab-title-leading">${escapeHtml(compactTitle.leading)}</span><span class="tab-title-ellipsis" aria-hidden="true">…</span><span class="tab-title-trailing">${escapeHtml(compactTitle.trailing)}</span>`
+            : `<span class="tab-title-single">${escapeHtml(compactTitle.leading)}</span>`;
+        const accessibleLabel = tabAccessibleLabel(tab);
+        const location = tabLocationLabel(tab);
+        const visibleLocation = location && location !== 'Vault root'
+            ? `<span class="tab-location" aria-hidden="true" title="${escapeHtml(location)}"><span class="tab-location-separator">·</span><span class="tab-location-path">${escapeHtml(location)}</span></span>`
+            : '';
+        const tooltip = `${tab.path || tab.title}${tab.dirty ? ' (unsaved)' : ''}${isPinned ? ' (pinned)' : ''}`;
         return `
         <div class="${tabClasses}"
                 data-tab-id="${tab.id}"
                 role="tab"
                 tabindex="${isActive ? '0' : '-1'}"
                 aria-selected="${isActive}"
-                title="${tab.title}${tab.dirty ? ' (unsaved)' : ''}${isPinned ? ' (pinned)' : ''}">
+                aria-label="${escapeHtml(accessibleLabel)}"
+                title="${escapeHtml(tooltip)}">
             <span class="tab-icon">${getTabIcon(tab.type)}</span>
-            <span class="tab-title">${escapeHtml(tab.title)}</span>
+            <span class="tab-title" aria-hidden="true"><span class="tab-title-text">${visibleTitle}</span></span>
+            ${visibleLocation}
             <button class="ui-icon-button ui-icon-button--small tab-close"
                     aria-label="Close ${escapeHtml(tab.title)}" title="Close ${escapeHtml(tab.title)}">✕</button>
         </div>
@@ -1251,41 +1292,47 @@ function handleTabContextMenu(e) {
     const tab = tabs.find(t => t.id === tabId);
     if (!tab) return;
 
-    if (tabContextMenu) tabContextMenu.remove();
+    if (tabContextMenu) dismissContextMenu(tabContextMenu, { restoreFocus: false });
 
     const pinned = getState('pinnedTabs');
     const isPinned = pinned.includes(tabId);
 
     tabContextMenu = document.createElement('div');
     tabContextMenu.className = 'ui-menu context-menu tab-context-menu';
-    tabContextMenu.style.left = `${e.clientX}px`;
-    tabContextMenu.style.top = `${e.clientY}px`;
+    const anchor = contextMenuAnchorPoint(e, tabEl);
+    tabContextMenu.style.left = `${anchor.x}px`;
+    tabContextMenu.style.top = `${anchor.y}px`;
 
     tabContextMenu.innerHTML = `
-        <div class="ui-menu-item context-menu-item" data-action="toggle-pin">
+        <button type="button" class="ui-menu-item context-menu-item" data-action="toggle-pin">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
             ${isPinned ? 'Unpin Tab' : 'Pin Tab'}
-        </div>
+        </button>
         <div class="ui-menu-separator context-menu-separator"></div>
-        <div class="ui-menu-item context-menu-item" data-action="close-tab">
+        <button type="button" class="ui-menu-item context-menu-item" data-action="close-tab">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             Close Tab
-        </div>
+        </button>
     `;
     document.body.appendChild(tabContextMenu);
+    configureContextMenu(tabContextMenu, {
+        label: `Tab actions for ${tab.title}`,
+        returnFocus: tabEl,
+        onDismiss: () => { tabContextMenu = null; },
+    });
 
     tabContextMenu.addEventListener('click', (ev) => {
         const menuItem = ev.target.closest('.context-menu-item');
         if (!menuItem) return;
         const action = menuItem.dataset.action;
 
+        dismissContextMenu(tabContextMenu, { restoreFocus: true });
+
         if (action === 'toggle-pin') {
             togglePinTab(tabId);
         } else if (action === 'close-tab') {
             closeTab(tabId);
         }
-        tabContextMenu.remove();
-        tabContextMenu = null;
     });
 }
 
@@ -1320,7 +1367,7 @@ const documentSave = createDocumentSave({
     onSaved: applySaveSuccess,
     onFailed: (snapshot, error) => {
         log.error('Save failed:', error);
-        if (isLatestSave(snapshot.tab, snapshot)) statusBar.set('Save failed');
+        if (isLatestSave(snapshot.tab, snapshot)) statusBar.set(saveFailureStatusMessage(error));
     },
 });
 
@@ -1358,17 +1405,18 @@ async function applySaveSuccess(snapshot, result, {
             detail: { path: tab.path, content, mtime: result.mtime }
         }));
     }
-    statusBar.set(saveStatusMessage({
+    const statusMessage = saveStatusMessage({
         historyCommitFailed,
         latestEdit,
         successMessage,
-    }));
+    });
+    statusBar.set(statusMessage);
     if (!tab.externalFileId) {
         invalidateCalendarCache();
         refreshCalendarIfVisible();
         refreshHistoryIfOpen();
     }
-    setTimeout(() => statusBar.set('Ready'), 1000);
+    statusBar.clearAfter(1000, statusMessage);
 }
 
 function initAllTabsDropdown() {
@@ -1436,8 +1484,9 @@ function renderAllTabsDropdown(dropdown) {
     dropdown.innerHTML = tabs.map(t => {
         const active = t.id === activeId ? ' active' : '';
         const dirty = t.dirty ? ' dirty' : '';
-        return `<button type="button" role="menuitem" class="ui-menu-item all-tabs-item${active}${dirty}" data-tab-id="${t.id}" aria-current="${t.id === activeId}" tabindex="${t.id === activeId ? '0' : '-1'}">
-            <span>${escapeHtml(t.title || t.id)}</span>
+        const location = tabLocationLabel(t);
+        return `<button type="button" role="menuitem" class="ui-menu-item all-tabs-item${active}${dirty}" data-tab-id="${t.id}" aria-current="${t.id === activeId}" aria-label="${escapeHtml(tabAccessibleLabel(t))}" title="${escapeHtml(t.path || t.title || t.id)}" tabindex="${t.id === activeId ? '0' : '-1'}">
+            <span class="all-tabs-item-copy"><span class="all-tabs-item-title">${escapeHtml(t.title || t.id)}</span>${location ? `<span class="all-tabs-item-location">${escapeHtml(location)}</span>` : ''}</span>
         </button>`;
     }).join('');
 }

@@ -35,7 +35,7 @@ export function markdownBlockGuidePlan(descriptor) {
         label,
         level,
         type: level ? 'heading' : descriptor.name === 'FencedCode' ? 'code' : 'table',
-        rangeStrategy: level ? 'heading-section' : 'whole-block',
+        rangeStrategy: level ? 'heading-section' : 'block-after-first-line',
     };
 }
 

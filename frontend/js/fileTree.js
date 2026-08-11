@@ -5,7 +5,7 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
-import { saveSession } from './session.js';
+import { saveSession, scheduleSessionSave } from './session.js';
 import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
@@ -19,14 +19,21 @@ import { openPDFPreview } from './pdfPreview.js';
 import { openRawTextPreview } from './rawTextPreview.js';
 import {
     directoryPathsForReveal,
+    fileTreeKeyboardPlan,
     isFileTreeEntryPinned,
     normalizeFileTreeStyles,
     sortFileTreeItems,
     toggleExpandedDirectory,
     toggleSelectedPath,
+    visibleFileTreeRows,
 } from './core/fileTreeModel.js';
 import { createFileTreeRefresh } from './usecases/fileTreeRefresh.js';
 import { reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
+import {
+    configureContextMenu,
+    dismissContextMenu,
+} from './contextMenu.js';
+import { isContextMenuInvocationKey } from './core/contextMenuModel.js';
 
 
 let dragSourceNode = null;
@@ -38,6 +45,7 @@ let fileTreeRequestEventsInitialized = false;
 let externalCopyInProgress = false;
 let internalClipboard = null;
 let internalCopyInProgress = false;
+let internalMoveInProgress = false;
 let fileTreeStyles = { version: 1, entries: {}, recent_icons: [] };
 
 const fileTreeRefresh = createFileTreeRefresh({
@@ -169,10 +177,10 @@ function fileTreeContextMenuItemHTML({ action, label, icon, danger }, enabled) {
     if (danger) classes.push('danger');
     if (!enabled) classes.push('disabled');
     return `
-        <div class="${classes.join(' ')}" data-action="${action}"${enabled ? '' : ' aria-disabled="true"'}>
+        <button type="button" class="${classes.join(' ')}" data-action="${action}"${enabled ? '' : ' aria-disabled="true" disabled'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>
             ${label}
-        </div>`;
+        </button>`;
 }
 
 /**
@@ -280,7 +288,7 @@ function initFileTreeRequestEvents() {
             const escaped = path.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
             const node = document.querySelector(`.file-tree-item[data-path="${escaped}"] > .file-tree-node`);
             node?.scrollIntoView?.({ block: 'nearest' });
-            document.getElementById('file-tree')?.focus({ preventScroll: true });
+            focusTreeNode(node, { scroll: false });
         });
     });
 }
@@ -394,6 +402,65 @@ function visibleFileTreeData() {
     ];
 }
 
+function mountedTreeNodes(container) {
+    return [...(container?.querySelectorAll?.('.file-tree-node[role="treeitem"]') || [])];
+}
+
+function treeNodePath(node) {
+    return node?.closest?.('.file-tree-item')?.dataset.path || '';
+}
+
+function mountedTreeNodeForPath(container, path) {
+    return mountedTreeNodes(container).find(node => treeNodePath(node) === path) || null;
+}
+
+function synchronizeTreeRovingTabIndex(container, preferredPath = '') {
+    const nodes = mountedTreeNodes(container);
+    if (!nodes.length) {
+        if (container) container.tabIndex = 0;
+        return null;
+    }
+
+    container.tabIndex = -1;
+    const selectedPath = preferredPath || getState('selectedTreePath') || getState('selectedFilePath') || '';
+    const target = mountedTreeNodeForPath(container, selectedPath) || nodes[0];
+    for (const node of nodes) node.tabIndex = node === target ? 0 : -1;
+    return target;
+}
+
+function adoptTreeNodeFocus(node) {
+    const container = node?.closest?.('#file-tree');
+    const path = treeNodePath(node);
+    if (!container || !path) return false;
+
+    if (getState('selectedTreePath') !== path) setState('selectedTreePath', path);
+    const multiSelected = new Set(getState('selectedFilePaths') || []);
+    for (const candidate of mountedTreeNodes(container)) {
+        const candidatePath = treeNodePath(candidate);
+        const selected = candidatePath === path;
+        candidate.classList.toggle('selected', selected);
+        candidate.setAttribute('aria-selected', String(selected || multiSelected.has(candidatePath)));
+        candidate.tabIndex = selected ? 0 : -1;
+    }
+    scheduleSessionSave();
+    return true;
+}
+
+function focusTreeNode(node, { scroll = true } = {}) {
+    if (!node) return false;
+    adoptTreeNodeFocus(node);
+    node.focus?.({ preventScroll: true });
+    if (scroll) node.scrollIntoView?.({ block: 'nearest' });
+    return true;
+}
+
+function configureFileTreeContainer(container) {
+    if (!container) return;
+    container.setAttribute('role', 'tree');
+    container.setAttribute('aria-label', 'Vault file tree');
+    container.setAttribute('aria-multiselectable', 'true');
+}
+
 // Native vault events may arrive in quick batches for an editor's atomic save
 // or a directory move. Coalesce them into one full tree request instead of
 // keeping a permanent polling loop alive.
@@ -422,13 +489,17 @@ export function renderFileTree() {
     if (!container) return;
     // Structural tree refreshes are intentionally rare, but they should not
     // pull a reader away from the selected entry or steal keyboard ownership.
+    configureFileTreeContainer(container);
     const restoreScrollTop = container.scrollTop;
-    const restoreFocus = document.activeElement === container;
+    const focusedNode = document.activeElement?.closest?.('.file-tree-node[role="treeitem"]');
+    const treeOwnedFocus = document.activeElement === container || Boolean(focusedNode && container.contains(focusedNode));
+    const restoreFocusPath = focusedNode ? treeNodePath(focusedNode) : selectedPath;
     
     if (!treeData || treeData.length === 0) {
         container.innerHTML = '<div class="file-tree-empty">No files in vault</div><div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
+        container.tabIndex = 0;
         container.scrollTop = restoreScrollTop;
-        if (restoreFocus) container.focus({ preventScroll: true });
+        if (treeOwnedFocus) container.focus({ preventScroll: true });
         return;
     }
     
@@ -437,15 +508,16 @@ export function renderFileTree() {
     // file, making an empty/new vault easy to populate.
     container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath, fileTreeStyles.entries, openFilePaths) +
         '<div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
+    const focusTarget = synchronizeTreeRovingTabIndex(container, restoreFocusPath);
     container.scrollTop = restoreScrollTop;
-    if (restoreFocus) container.focus({ preventScroll: true });
+    if (treeOwnedFocus) focusTreeNode(focusTarget, { scroll: false });
 }
 
 /**
  * Build tree HTML recursively
  */
 export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries, openFilePaths = []) {
-    let html = '<ul class="file-tree-list">';
+    let html = `<ul class="file-tree-list" role="${depth === 0 ? 'group' : 'none'}">`;
     
     for (const item of sortFileTreeItems(items, styles)) {
         const isDir = item.type === 'directory';
@@ -473,8 +545,8 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
         const appearanceStyle = customColor ? ` style="--file-tree-entry-color:${customColor}"` : '';
         
         html += `
-            <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" data-path="${escapeHtml(item.path)}" data-type="${item.type}"${isExternal ? ` data-external-file-id="${escapeHtml(item.externalFileId)}"` : ''}>
-                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isOpenFile ? 'open-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${isPinned ? 'pinned' : ''} ${isExternal ? 'external-file' : ''} ${appearanceClasses}" draggable="${isExternal ? 'false' : 'true'}"${isExternal ? ` title="Outside vault: ${escapeHtml(item.path)}"` : ''}${appearanceStyle}>
+            <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" role="none" data-path="${escapeHtml(item.path)}" data-type="${item.type}"${isExternal ? ` data-external-file-id="${escapeHtml(item.externalFileId)}"` : ''}>
+                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isOpenFile ? 'open-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${isPinned ? 'pinned' : ''} ${isExternal ? 'external-file' : ''} ${appearanceClasses}" role="treeitem" tabindex="${isSelected ? '0' : '-1'}" aria-level="${depth + 1}" aria-selected="${isSelected || isMultiSelected}"${hasChildren ? ` aria-expanded="${isExpanded}"` : ''}${isNonMd ? ' aria-disabled="true"' : ''} draggable="${isExternal ? 'false' : 'true'}"${isExternal ? ` title="Outside vault: ${escapeHtml(item.path)}"` : ''}${appearanceStyle}>
                     ${isDir ? `
                         <span class="node-chevron">${hasChildren ? `
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -507,7 +579,7 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
                     </span>` : ''}
                 </div>
                 ${isDir && hasChildren && isExpanded ? `
-                    <div class="file-tree-children">
+                    <div class="file-tree-children" role="group">
                         ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1, activeFilePath, styles, openFilePaths)}
                     </div>
                 ` : ''}
@@ -525,23 +597,28 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
 function initFileTreeEvents() {
     const container = document.getElementById('file-tree');
     if (!container) return;
-    container.tabIndex = 0;
-    if (!container.getAttribute('aria-label')) container.setAttribute('aria-label', 'Vault file tree');
+    configureFileTreeContainer(container);
+    synchronizeTreeRovingTabIndex(container);
+
+    container.addEventListener('focusin', event => {
+        const node = event.target.closest?.('.file-tree-node[role="treeitem"]');
+        if (node && container.contains(node)) adoptTreeNodeFocus(node);
+    });
     
     // Click delegation for nodes
     container.addEventListener('click', (e) => {
         const node = e.target.closest('.file-tree-node');
         if (!node) {
             if (e.target.closest('.file-tree-root-dropzone')) {
-                container.focus({ preventScroll: true });
                 setState('selectedTreePath', null);
                 setState('selectedFilePaths', []);
                 saveSession();
                 renderFileTree();
+                container.focus({ preventScroll: true });
             }
             return;
         }
-        container.focus({ preventScroll: true });
+        focusTreeNode(node, { scroll: false });
         
         const item = node.closest('.file-tree-item');
         if (!item) return;
@@ -753,6 +830,49 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
 }
 
 function handleFileTreeKeydown(event) {
+    if (isContextMenuInvocationKey(event)) {
+        event.preventDefault();
+        const selectedPath = getState('selectedTreePath');
+        const target = mountedTreeNodeForPath(event.currentTarget, selectedPath)
+            || event.target.closest?.('.file-tree-node[role="treeitem"]')
+            || event.currentTarget;
+        const rect = target?.getBoundingClientRect?.();
+        target?.dispatchEvent?.(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: rect ? rect.left + Math.min(24, rect.width / 2) : 16,
+            clientY: rect ? rect.bottom : 16,
+        }));
+        return;
+    }
+
+    if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+        const rows = visibleFileTreeRows(
+            visibleFileTreeData(),
+            getState('expandedDirs'),
+            fileTreeStyles.entries,
+        );
+        const currentNode = event.target.closest?.('.file-tree-node[role="treeitem"]');
+        const currentPath = treeNodePath(currentNode) || getState('selectedTreePath');
+        const plan = fileTreeKeyboardPlan(event.key, rows, currentPath);
+        if (plan) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (plan.action === 'focus') {
+                focusTreeNode(mountedTreeNodeForPath(event.currentTarget, plan.path));
+            } else if (plan.action === 'expand' || plan.action === 'collapse') {
+                const expanded = getState('expandedDirs') instanceof Set
+                    ? getState('expandedDirs')
+                    : new Set(getState('expandedDirs') || []);
+                const shouldExpand = plan.action === 'expand';
+                if (expanded.has(plan.path) !== shouldExpand) toggleDirectory(plan.path);
+                renderFileTree();
+            } else if (plan.action === 'activate') {
+                mountedTreeNodeForPath(event.currentTarget, plan.path)?.click();
+            }
+            return;
+        }
+    }
     if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
     const key = event.key.toLowerCase();
     const treeData = visibleFileTreeData();
@@ -771,6 +891,10 @@ function handleFileTreeKeydown(event) {
  * Drag and drop handlers
  */
 function handleDragStart(e) {
+    if (internalMoveInProgress) {
+        e.preventDefault();
+        return;
+    }
     const node = e.target.closest('.file-tree-node');
     if (!node) return;
     
@@ -872,12 +996,20 @@ async function handleDrop(e) {
 
 /** Move one tree item, offering a non-destructive directory merge on conflict. */
 export async function moveInternalPath(sourcePath, targetDir) {
+    if (internalMoveInProgress) return false;
+    internalMoveInProgress = true;
+    const tree = document.getElementById('file-tree');
+    tree?.setAttribute('aria-busy', 'true');
+    const itemName = String(sourcePath || '').replaceAll('\\', '/').split('/').pop() || 'item';
+    statusBar.set(`Moving “${itemName}”…`);
     try {
         const saveState = await prepareTabsForPathMove(sourcePath);
         if (!saveState.success) {
+            statusBar.set('Move not completed');
             await errorDialog('Couldn’t move item', saveState.error, 'Save open files before moving them.');
             return false;
         }
+        statusBar.set(`Moving “${itemName}”…`);
         let result = await backend().MovePath(sourcePath, targetDir);
         let merged = false;
         if (!result?.success && result?.merge_available) {
@@ -890,8 +1022,9 @@ export async function moveInternalPath(sourcePath, targetDir) {
                 { confirmLabel: 'Merge contents', tone: 'warning', icon: 'merge' }
             );
             if (!confirmed) {
-                statusBar.set('Move cancelled');
-                setTimeout(() => statusBar.set('Ready'), 1800);
+                const message = 'Move cancelled';
+                statusBar.set(message);
+                statusBar.clearAfter(1800, message);
                 return false;
             }
             statusBar.set(`Merging “${directoryName}”…`);
@@ -899,6 +1032,7 @@ export async function moveInternalPath(sourcePath, targetDir) {
             merged = true;
         }
         if (!result?.success) {
+            statusBar.set('Move failed');
             await errorDialog('Couldn’t move item', result?.error, 'The item could not be moved.');
             return false;
         }
@@ -918,17 +1052,27 @@ export async function moveInternalPath(sourcePath, targetDir) {
         await refreshTabsForUpdatedLinks(result.updated_links);
         const linkCount = Array.isArray(result.updated_links) ? result.updated_links.length : 0;
         if (linkCount) {
-            statusBar.set(`Updated links in ${linkCount} ${linkCount === 1 ? 'note' : 'notes'}`);
-            setTimeout(() => statusBar.set('Ready'), 2500);
+            const message = `Updated links in ${linkCount} ${linkCount === 1 ? 'note' : 'notes'}`;
+            statusBar.set(message);
+            statusBar.clearAfter(2500, message);
         } else if (merged) {
-            statusBar.set(`Merged “${String(movedTo).replaceAll('\\', '/').split('/').pop()}”`);
-            setTimeout(() => statusBar.set('Ready'), 2500);
+            const message = `Merged “${String(movedTo).replaceAll('\\', '/').split('/').pop()}”`;
+            statusBar.set(message);
+            statusBar.clearAfter(2500, message);
+        } else {
+            const message = `Moved “${String(movedTo).replaceAll('\\', '/').split('/').pop()}”`;
+            statusBar.set(message);
+            statusBar.clearAfter(2500, message);
         }
         return true;
     } catch (err) {
         log.error('Move failed:', err);
+        statusBar.set('Move failed');
         await errorDialog('Couldn’t move item', err, 'The item could not be moved.');
         return false;
+    } finally {
+        internalMoveInProgress = false;
+        tree?.setAttribute('aria-busy', 'false');
     }
 }
 
@@ -1104,16 +1248,13 @@ function initContextMenu() {
     // Close context menu on click anywhere outside it
     document.addEventListener('click', (e) => {
         if (contextMenu && !contextMenu.contains(e.target)) {
-            contextMenu.remove();
-            contextMenu = null;
+            dismissContextMenu(contextMenu, { restoreFocus: false });
         }
     });
 }
 
 function handleContextMenu(e) {
     e.preventDefault();
-
-    e.currentTarget?.focus?.({ preventScroll: true });
 
     const node = e.target.closest('.file-tree-node');
     const item = node?.closest('.file-tree-item');
@@ -1122,6 +1263,8 @@ function handleContextMenu(e) {
     const path = item?.dataset.path || '';
     const type = item?.dataset.type || 'root';
     const externalFileId = item?.dataset.externalFileId || '';
+    let returnFocus = node || e.currentTarget;
+    if (node) focusTreeNode(node, { scroll: false });
 
     // A folder is a first-class tree selection even when it has no tab to
     // open. Keep right-click selection consistent with a normal click before
@@ -1131,13 +1274,14 @@ function handleContextMenu(e) {
         setState('selectedFilePaths', []);
         saveSession();
         renderFileTree();
+        returnFocus = mountedTreeNodeForPath(e.currentTarget, path) || e.currentTarget;
     }
 
     setState('contextTargetType', type);
     setState('contextTargetPath', path);
     setState('contextTargetExternalFileId', externalFileId);
 
-    if (contextMenu) contextMenu.remove();
+    if (contextMenu) dismissContextMenu(contextMenu, { restoreFocus: false });
 
     contextMenu = document.createElement('div');
     contextMenu.className = 'ui-menu context-menu';
@@ -1153,6 +1297,13 @@ function handleContextMenu(e) {
     document.body.appendChild(contextMenu);
     positionContextMenu(contextMenu, e.clientX, e.clientY);
 
+    const contextName = item?.querySelector('.node-name')?.textContent?.trim() || 'vault root';
+    configureContextMenu(contextMenu, {
+        label: `File actions for ${contextName}`,
+        returnFocus,
+        onDismiss: () => { contextMenu = null; },
+    });
+
     contextMenu.addEventListener('click', async (event) => {
         event.stopPropagation();
         const menuItem = event.target.closest('.context-menu-item');
@@ -1161,8 +1312,7 @@ function handleContextMenu(e) {
         }
 
         const action = menuItem.dataset.action;
-        contextMenu.remove();
-        contextMenu = null;
+        dismissContextMenu(contextMenu, { restoreFocus: true });
 
         switch (action) {
         case 'open-new-tab':

@@ -32,7 +32,8 @@ dependency_fingerprint() {
 }
 
 vendor_fingerprint() {
-    cksum package.json package-lock.json scripts/vendor.sh scripts/vendor-markdown-renderer.mjs
+    cksum package.json package-lock.json scripts/vendor.sh \
+        scripts/vendor-codemirror-markdown-tables.mjs scripts/vendor-markdown-renderer.mjs
 }
 
 needs_dependencies=false

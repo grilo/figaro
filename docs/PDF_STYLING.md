@@ -53,6 +53,18 @@ The preview is a screen representation of the printable document; final
 pagination remains the browser engine's responsibility and is most accurately
 checked in the generated PDF.
 
+On Linux, automatic browser discovery includes supported Chromium-family
+commands under `/snap/bin`. Figaro keeps each confined browser's temporary
+profile, printable document, local assets, and generated output in that Snap's
+user-common area for the duration of the export, then removes the temporary
+workspace.
+
+Fenced code uses the same bundled, offline highlighter as the Markdown editor.
+A supported language tag such as `javascript` selects that grammar; an untyped
+fence may be detected automatically. PDF Preview and generated PDFs therefore
+share the same token markup and built-in light print palette. Unsupported
+language tags remain escaped, readable source instead of failing export.
+
 ## Create and select a stylesheet
 
 Open a Markdown note's **Properties → PDF layout** panel and choose **Create
@@ -110,6 +122,13 @@ these common customizations do not require selector-order knowledge:
   --figaro-muted: #cbd5e1;
   --figaro-soft: #16202a;
   --figaro-code: #e2e8f0;
+  --figaro-code-keyword: #ff7b72;
+  --figaro-code-string: #a5d6ff;
+  --figaro-code-number: #79c0ff;
+  --figaro-code-title: #d2a8ff;
+  --figaro-code-comment: #8b949e;
+  --figaro-code-type: #7ee787;
+  --figaro-code-variable: #ffa657;
 }
 ```
 
@@ -148,6 +167,7 @@ its semantic HTML, so standard selectors such as `p`, `table`, `blockquote`,
 | Contents wrapper | `nav.figaro-print-toc`, `h2.figaro-print-toc-title`, `ol.figaro-print-toc-list` |
 | Contents levels | `.figaro-toc-level-1` through `.figaro-toc-level-6` |
 | Markdown headings | `.figaro-print-document h1` through `.figaro-print-document h6` |
+| Fenced code | `code.figaro-print-code`, `.hljs-keyword`, `.hljs-string`, `.hljs-number`, `.hljs-title`, `.hljs-function`, `.hljs-comment`, `.hljs-type`, `.hljs-variable`, and the other highlight.js-compatible token classes in the starter stylesheet |
 | Callouts | `blockquote.figaro-print-callout`, `.figaro-print-callout-note`, `.figaro-print-callout-warning`, `.figaro-print-callout-info`, `.figaro-print-callout-tip`, `.figaro-print-callout-danger`, `.figaro-print-callout-example` |
 | Task lists | `.figaro-print-task-list`, `.figaro-print-task-item`, `.figaro-print-task-checkbox`, `.figaro-print-task-label` |
 | Printable diagrams | `figure.figaro-print-diagram`, `.figaro-print-diagram-content` |
@@ -158,6 +178,16 @@ Mermaid source that exceeds 50,000 characters or uses a YAML ordered-map tag
 is preserved as its original printable code fence. It does not produce a
 `figure.figaro-print-diagram`, and custom print CSS may style it like any other
 fenced code block.
+
+Each fenced `code.figaro-print-code` also carries
+`data-highlight-language="…"`; automatically detected fences additionally carry
+`data-highlight-detected="true"`. Override token colors after the built-in CSS,
+or edit the starter's `--figaro-code-*` variables:
+
+```css
+.figaro-print-code .hljs-keyword { color: #7c3aed; }
+.figaro-print-code .hljs-comment { color: #64748b; }
+```
 
 The generated order is cover, table of contents, then
 `main.figaro-print-document`. Scope document-heading rules to that `main`

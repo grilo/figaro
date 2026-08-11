@@ -7,6 +7,100 @@ async function openWelcomeEditor(page) {
     await expect(page.locator('.cm-editor')).toBeVisible();
 }
 
+test('gives the main editor a document-specific accessible name', async ({ page }) => {
+    await openWelcomeEditor(page);
+
+    await expect(page.locator('#editor-container > .cm-editor .cm-content'))
+        .toHaveAttribute('aria-label', 'Markdown editor — Welcome.md');
+    await expect(page).toHaveTitle('Welcome.md — Figaro');
+});
+
+test('opens file, tab, and editor context menus from the keyboard', async ({ page }) => {
+    await openWelcomeEditor(page);
+
+    const treeItem = page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node');
+    await treeItem.focus();
+    await page.keyboard.press('Shift+F10');
+    let menu = page.locator('.context-menu');
+    await expect(menu).toHaveAttribute('role', 'menu');
+    await expect(menu).toHaveAttribute('aria-label', 'File actions for Welcome.md');
+    await expect(page.locator(':focus')).toHaveAttribute('data-action', 'open-new-tab');
+    await page.keyboard.press('End');
+    await expect(page.locator(':focus')).toHaveAttribute('data-action', 'delete');
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(treeItem).toBeFocused();
+
+    const tab = page.locator('.tab[data-tab-id="Welcome.md"]');
+    await tab.focus();
+    await page.keyboard.press('Shift+F10');
+    menu = page.locator('.tab-context-menu');
+    await expect(menu).toHaveAttribute('role', 'menu');
+    await expect(page.locator(':focus')).toHaveAttribute('data-action', 'toggle-pin');
+    await page.keyboard.press('Escape');
+    await expect(tab).toBeFocused();
+
+    const editor = page.locator('.cm-content');
+    await editor.focus();
+    await page.keyboard.press('Shift+F10');
+    menu = page.locator('.editor-context-menu');
+    await expect(menu).toHaveAttribute('role', 'menu');
+    await expect(page.locator(':focus')).toHaveAttribute('data-action', 'paste');
+    await page.keyboard.press('Escape');
+    await expect(editor).toBeFocused();
+});
+
+test('turns a pasted URL into a Markdown link for regular and Vim Visual selections', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const pasteURL = async () => page.evaluate(() => {
+        const view = window.__figaroSmartPasteView;
+        const clipboard = new DataTransfer();
+        clipboard.setData('text/plain', 'https://example.com/reference');
+        const event = new ClipboardEvent('paste', {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: clipboard,
+        });
+        view.contentDOM.dispatchEvent(event);
+        return { prevented: event.defaultPrevented, source: view.state.doc.toString() };
+    });
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent('Selected words');
+        const view = editor.getEditorView();
+        view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+        view.focus();
+        window.__figaroSmartPasteView = view;
+    });
+    expect(await pasteURL()).toEqual({
+        prevented: true,
+        source: '[Selected words](https://example.com/reference)',
+    });
+
+    const visualMode = await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
+        const view = editor.getEditorView();
+        editor.setEditorContent('Selected words');
+        await editor.toggleVim(true);
+        view.dispatch({ selection: { anchor: 0 } });
+        Vim.handleKey(getCM(view), 'v', 'user');
+        view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+        view.focus();
+        return Boolean(getCM(view).state.vim?.visualMode);
+    });
+    expect(visualMode).toBe(true);
+    expect(await pasteURL()).toEqual({
+        prevented: true,
+        source: '[Selected words](https://example.com/reference)',
+    });
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(false);
+    });
+});
+
 test('preserves the active buffer cursor when Settings opens and closes', async ({ page }) => {
     await openWelcomeEditor(page);
     const expectedCursor = await page.evaluate(async () => {
@@ -74,6 +168,13 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
         editor: Number.parseFloat(getComputedStyle(control.closest('.cm-editor')).fontSize),
     }));
     expect(guideTypeScale.guide).toBeGreaterThanOrEqual(guideTypeScale.editor);
+    const headingGuideAlignment = await collapseControls.first().evaluate(control => {
+        return {
+            guideTop: control.getBoundingClientRect().top,
+            lineTop: document.querySelector('.cm-line').getBoundingClientRect().top,
+        };
+    });
+    expect(Math.abs(headingGuideAlignment.guideTop - headingGuideAlignment.lineTop)).toBeLessThan(2);
     await collapseControls.nth(1).click();
 
     const expandControl = page.locator(
@@ -168,6 +269,8 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(collapseControls).toHaveCount(5);
     expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(source);
 
+    // Browser-only boundary: third-party block widgets and their computed
+    // layout must visibly yield to CodeMirror's native fold decoration.
     const focusedGuideSource = [
         '# Guide labels',
         'ordinary prose',
@@ -181,6 +284,8 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
         '| Key | Value |',
         '| --- | --- |',
         '| mode | test |',
+        '',
+        'after table',
     ].join('\n');
     await page.evaluate(markdown => {
         const view = window.__headingFoldView;
@@ -198,12 +303,164 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(yamlGuide).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Collapse code block' })).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Collapse table' })).toHaveCount(1);
+    const yamlWidget = page.locator('.cm-codeblock-widget').filter({ hasText: 'enabled: true' });
+    const untypedWidget = page.locator('.cm-codeblock-widget').filter({ hasText: 'untyped' });
+    const tableWidget = page.locator('.tbl-table-widget');
+    await expect(yamlWidget).toHaveCount(1);
+    await expect(untypedWidget).toHaveCount(1);
+    await expect(tableWidget).toHaveCount(1);
+    const expandedWidgetHeights = {
+        yaml: await yamlWidget.evaluate(widget => widget.getBoundingClientRect().height),
+        code: await untypedWidget.evaluate(widget => widget.getBoundingClientRect().height),
+        table: await tableWidget.evaluate(widget => widget.getBoundingClientRect().height),
+    };
     const sourceBeforeFenceFold = await page.evaluate(() => window.__headingFoldView.state.doc.toString());
-    await yamlGuide.click();
+    const expandedYamlGuideBox = await yamlGuide.boundingBox();
+    const expandedYamlWidgetBox = await yamlWidget.boundingBox();
+    expect(Math.abs(expandedYamlGuideBox.y - expandedYamlWidgetBox.y)).toBeLessThan(2);
+    const fixedYamlGuidePoint = {
+        x: expandedYamlGuideBox.x + expandedYamlGuideBox.width / 2,
+        y: expandedYamlGuideBox.y + expandedYamlGuideBox.height / 2,
+    };
+    await page.mouse.click(fixedYamlGuidePoint.x, fixedYamlGuidePoint.y);
     await expect(page.getByRole('button', { name: 'Expand yaml code block' })).toHaveCount(1);
+    await expect.poll(async () => {
+        const box = await page.getByRole('button', { name: 'Expand yaml code block' }).boundingBox();
+        return box?.y;
+    }).toBeCloseTo(expandedYamlGuideBox.y, 0);
+    await page.mouse.click(fixedYamlGuidePoint.x, fixedYamlGuidePoint.y);
+    await expect(page.getByRole('button', { name: 'Collapse yaml code block' })).toHaveCount(1);
+    await expect(yamlWidget).toBeVisible();
+    await page.mouse.click(fixedYamlGuidePoint.x, fixedYamlGuidePoint.y);
+    await expect(page.getByRole('button', { name: 'Expand yaml code block' })).toHaveCount(1);
+    await expect(yamlWidget).toHaveCount(0);
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+    await expect(untypedWidget).toHaveCount(1);
+    const yamlGeometry = await page.evaluate(() => {
+        const view = window.__headingFoldView;
+        const row = document.querySelector('.cm-foldPlaceholder').closest('.cm-line');
+        const next = Array.from(document.querySelectorAll('.cm-codeblock-widget'))
+            .find(widget => widget.textContent.includes('untyped'));
+        const rowRect = row.getBoundingClientRect();
+        const sourcePosition = view.state.doc.toString().indexOf('```yaml');
+        return {
+            heightMapDelta: Math.abs(view.lineBlockAt(sourcePosition).height - rowRect.height),
+            nextGap: next.getBoundingClientRect().top - rowRect.bottom,
+        };
+    });
+    expect(yamlGeometry.heightMapDelta).toBeLessThan(2);
+    expect(yamlGeometry.nextGap).toBeLessThan(2);
+    expect(await page.locator('.cm-foldPlaceholder').evaluate(row => row.getBoundingClientRect().height))
+        .toBeLessThan(expandedWidgetHeights.yaml);
+    await page.evaluate(() => {
+        const view = window.__headingFoldView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+        view.focus();
+    });
+    for (const [key, expectedLine] of [['ArrowDown', 4], ['ArrowUp', 3]]) {
+        await page.keyboard.press(key);
+        await expect.poll(() => page.evaluate(() => window.__headingFoldView.state.doc.lineAt(
+            window.__headingFoldView.state.selection.main.head,
+        ).number)).toBe(expectedLine);
+    }
     expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(sourceBeforeFenceFold);
     await page.getByRole('button', { name: 'Expand yaml code block' }).click();
     await expect(page.getByRole('button', { name: 'Collapse yaml code block' })).toHaveCount(1);
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(0);
+    await expect(yamlWidget).toBeVisible();
+    await expect.poll(() => yamlWidget.evaluate(widget => widget.getBoundingClientRect().height))
+        .toBeGreaterThanOrEqual(expandedWidgetHeights.yaml);
+
+    await page.getByRole('button', { name: 'Collapse code block' }).click();
+    await expect(page.getByRole('button', { name: 'Expand code block' })).toHaveCount(1);
+    await expect(untypedWidget).toHaveCount(0);
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+    expect(await page.locator('.cm-foldPlaceholder').evaluate(row => row.getBoundingClientRect().height))
+        .toBeLessThan(expandedWidgetHeights.code);
+    await expect(yamlWidget).toHaveCount(1);
+    await page.getByRole('button', { name: 'Expand code block' }).click();
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(0);
+    await expect(untypedWidget).toBeVisible();
+    await expect.poll(() => untypedWidget.evaluate(widget => widget.getBoundingClientRect().height))
+        .toBeGreaterThanOrEqual(expandedWidgetHeights.code);
+
+    const sourceBeforeTableFold = await page.evaluate(() => window.__headingFoldView.state.doc.toString());
+    await page.getByRole('button', { name: 'Collapse table' }).click();
+    await expect(page.getByRole('button', { name: 'Expand table' })).toHaveCount(1);
+    await expect(tableWidget).toHaveCount(0);
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+    const tableGeometry = await page.evaluate(() => {
+        const row = document.querySelector('.cm-foldPlaceholder').closest('.cm-line');
+        const rowRect = row.getBoundingClientRect();
+        const after = Array.from(document.querySelectorAll('.cm-line'))
+            .find(line => line.textContent.includes('after table'));
+        const afterRect = after.getBoundingClientRect();
+        return {
+            nextGap: afterRect.top - rowRect.bottom,
+            rowHeight: rowRect.height,
+        };
+    });
+    expect(Math.abs(tableGeometry.nextGap)).toBeLessThanOrEqual(tableGeometry.rowHeight + 2);
+    expect(await page.locator('.cm-foldPlaceholder').evaluate(row => row.getBoundingClientRect().height))
+        .toBeLessThan(expandedWidgetHeights.table);
+    await page.evaluate(() => {
+        const view = window.__headingFoldView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(9).from } });
+        view.focus();
+    });
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__headingFoldView.state.doc.lineAt(
+        window.__headingFoldView.state.selection.main.head,
+    ).number)).toBe(10);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__headingFoldView.state.doc.lineAt(
+        window.__headingFoldView.state.selection.main.head,
+    ).number)).toBe(9);
+    expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(sourceBeforeTableFold);
+    await page.getByRole('button', { name: 'Expand table' }).click();
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(0);
+    await expect(tableWidget).toBeVisible();
+    await expect.poll(() => tableWidget.evaluate(widget => widget.getBoundingClientRect().height))
+        .toBeGreaterThanOrEqual(expandedWidgetHeights.table);
+
+    // Collapsing the final block would normally clamp scrollTop and move its
+    // guide. The anchor reserve keeps the control under the pointer so the
+    // exact same screen coordinate can immediately expand it again.
+    const bottomGuideSource = [
+        ...Array.from({ length: 55 }, (_, index) => `Lead-in line ${index + 1}`),
+        '```yaml',
+        ...Array.from({ length: 18 }, (_, index) => `option_${index + 1}: true`),
+        '```',
+    ].join('\n');
+    await page.evaluate(markdown => {
+        const view = window.__headingFoldView;
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: markdown } });
+        view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+        view.scrollDOM.dispatchEvent(new Event('scroll'));
+    }, bottomGuideSource);
+    const bottomGuide = page.getByRole('button', { name: 'Collapse yaml code block' });
+    await expect(bottomGuide).toBeVisible();
+    const bottomGuideBox = await bottomGuide.boundingBox();
+    const fixedBottomGuidePoint = {
+        x: bottomGuideBox.x + bottomGuideBox.width / 2,
+        y: bottomGuideBox.y + bottomGuideBox.height / 2,
+    };
+    await page.mouse.click(fixedBottomGuidePoint.x, fixedBottomGuidePoint.y);
+    const expandedBottomGuide = page.getByRole('button', { name: 'Expand yaml code block' });
+    await expect(expandedBottomGuide).toBeVisible();
+    await expect.poll(async () => (await expandedBottomGuide.boundingBox())?.y)
+        .toBeCloseTo(bottomGuideBox.y, 0);
+    expect(await page.evaluate(() => Number.parseFloat(
+        window.__headingFoldView.contentDOM.style.getPropertyValue('--markdown-fold-anchor-reserve'),
+    ))).toBeGreaterThan(0);
+    await page.mouse.click(fixedBottomGuidePoint.x, fixedBottomGuidePoint.y);
+    await expect(bottomGuide).toBeVisible();
+    await expect.poll(async () => (await bottomGuide.boundingBox())?.y)
+        .toBeCloseTo(bottomGuideBox.y, 0);
+    expect(await page.evaluate(() => Number.parseFloat(
+        window.__headingFoldView.contentDOM.style.getPropertyValue('--markdown-fold-anchor-reserve'),
+    ))).toBe(0);
+    expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(bottomGuideSource);
 });
 
 test('uses a same-folder note from a rendered missing link and rewrites only its destination', async ({ page }) => {
@@ -1050,11 +1307,19 @@ test('prepares live PDF Markdown in a worker before applying the preview documen
             }
         };
         const { openPDFPreview } = await import('/js/pdfPreview.js');
-        await openPDFPreview({ path: 'Welcome.md', title: 'Welcome', content: '# Worker preview\n\nA responsive editor stays responsive.' });
+        const fence = String.fromCharCode(96).repeat(3);
+        await openPDFPreview({
+            path: 'Welcome.md',
+            title: 'Welcome',
+            content: `# Worker preview\n\nA responsive editor stays responsive.\n\n${fence}javascript\nconst answer = 42;\n${fence}`,
+        });
     });
 
     await expect.poll(() => page.evaluate(() => window.__pdfWorkerRequests.length)).toBe(1);
     await expect.poll(() => page.locator('.pdf-preview-status').textContent()).toContain('Live preview up to date');
+    const preview = page.frameLocator('.pdf-preview-frame');
+    await expect(preview.locator('.figaro-print-code .hljs-keyword')).toHaveText('const');
+    await expect(preview.locator('.figaro-print-code .hljs-keyword')).toHaveCSS('color', 'rgb(207, 34, 46)');
     expect(await page.evaluate(() => window.__pdfWorkerErrors)).toEqual([]);
 });
 

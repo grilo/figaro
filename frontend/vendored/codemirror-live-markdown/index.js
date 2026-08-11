@@ -1,5 +1,5 @@
 import { Facet, StateEffect, StateField } from '@codemirror/state';
-import { syntaxTree } from '@codemirror/language';
+import { foldedRanges, syntaxTree } from '@codemirror/language';
 import { ViewPlugin, Decoration, EditorView, WidgetType } from '@codemirror/view';
 
 var __create = Object.create;
@@ -53290,6 +53290,14 @@ var defaultOptions = {
   skipLanguages: []
 };
 var SKIP_LANGUAGES = /* @__PURE__ */ new Set(["math"]);
+function sourceRangeIsFolded(state, from, to) {
+  const foldFrom = state.doc.lineAt(from).to;
+  let found = false;
+  foldedRanges(state).between(foldFrom, to, (rangeFrom, rangeTo) => {
+    if (rangeFrom === foldFrom && rangeTo === to) found = true;
+  });
+  return found;
+}
 function buildCodeBlockDecorations(state, options) {
   const decorations = [];
   const isDrag = state.field(mouseSelectingField, false);
@@ -53320,7 +53328,8 @@ function buildCodeBlockDecorations(state, options) {
           }
         }
         const isTouched = shouldShowSource(state, node.from, node.to);
-        if (!isTouched && !isDrag) {
+        const isFolded = sourceRangeIsFolded(state, node.from, node.to);
+        if (!isTouched && !isDrag && !isFolded) {
           const widget = createCodeBlockWidget({
             code,
             language,
@@ -53369,7 +53378,7 @@ function createCodeBlockField(options) {
       return buildCodeBlockDecorations(state, options);
     },
     update(deco, tr) {
-      if (tr.docChanged || tr.reconfigured) {
+      if (tr.docChanged || tr.reconfigured || foldedRanges(tr.startState) !== foldedRanges(tr.state)) {
         return buildCodeBlockDecorations(tr.state, options);
       }
       const isDragging = tr.state.field(mouseSelectingField, false);

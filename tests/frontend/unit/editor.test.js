@@ -9,6 +9,19 @@ describe('Editor Module - CodeMirror Initialization', () => {
     });
 
     describe('Module Loading Safety', () => {
+        test('builds a document-specific accessible editor name independently from window identity', async () => {
+            const { editorAccessibleLabel } = await import('../frontend/js/editor.js');
+
+            expect(editorAccessibleLabel({
+                language: { kind: 'markdown', label: 'Markdown' },
+                tab: { title: 'Project brief.md', path: 'Projects/Project brief.md' },
+            })).toBe('Markdown editor — Project brief.md');
+            expect(editorAccessibleLabel({
+                language: { kind: 'code', label: 'JavaScript' },
+                tab: { title: 'build.js', path: 'scripts/build.js' },
+            })).toBe('JavaScript editor — build.js');
+        });
+
         test('initEditor should complete without throwing unhandled errors', async () => {
             // Dynamically import to avoid module caching issues
             const { initEditor } = await import('../frontend/js/editor.js');
@@ -364,6 +377,36 @@ describe('Editor Module - CodeMirror Initialization', () => {
             }));
             expect(view.dom.querySelector('.cm-panel.cm-search')).not.toBeNull();
             expect(closeSearchPanel()).toBe(true);
+        });
+
+        test('opens a semantic editor menu at the caret and restores focus on Escape', async () => {
+            const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+
+            await initEditor();
+            const view = createEditorView();
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'Context menu text' } });
+            view.contentDOM.focus();
+            view.contentDOM.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 0,
+                clientY: 0,
+            }));
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            const menu = document.querySelector('.editor-context-menu');
+            expect(menu.getAttribute('role')).toBe('menu');
+            expect(menu.getAttribute('aria-label')).toBe('Editor actions');
+            expect([...menu.querySelectorAll('[role="menuitem"]')]
+                .every(item => item instanceof HTMLButtonElement)).toBe(true);
+            expect(document.activeElement.dataset.action).toBe('paste');
+
+            menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
+            expect(document.activeElement.dataset.action).toBe('select-all');
+            menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+            expect(document.querySelector('.editor-context-menu')).toBeNull();
+            expect(document.activeElement).toBe(view.contentDOM);
         });
 
         test('contains an unexpected vertical jump to the adjacent source line', async () => {

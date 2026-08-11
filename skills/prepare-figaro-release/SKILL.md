@@ -22,16 +22,23 @@ make release VERSION=vMAJOR.MINOR.PATCH
 The bump form reads the highest stable tag reachable from `main`, reports its
 base tag and resolved target, and changes only the requested number. Do not
 treat an untagged package version as a prior release. The target verifies the
-`main` branch, Git identity, release metadata, and complete suite. It moves the
-accumulated changelog entries into the dated release, stages all non-ignored
-changes currently in the repository, creates one release commit and annotated
-tag, then pushes only `main` and that tag in order. It never uses `git clean`, a
-reset, a force-push, or a tag move.
+`main` branch, Git identity, release metadata, curated release notes, and
+complete suite. It moves the accumulated Keep a Changelog entries into the
+bracketed dated release, updates comparison links, validates the exact body
+that the GitHub release will show, stages all non-ignored changes currently in
+the repository, creates one release commit and annotated tag, then pushes only
+`main` and that tag in order. It never uses `git clean`, a reset, a force-push,
+or a tag move.
 
-When the command reports an empty or malformed `Unreleased` section, follow its
+When the command reports an empty or malformed `[Unreleased]` section, follow its
 printed repair steps: add a concise user-facing entry grouped under **Added**,
 **Changed**, or **Fixed**, then rerun the same command. If there is no entry to
 add, do not create a release.
+
+The tag workflow publishes the exact dated changelog section under its Added,
+Changed, Deprecated, Removed, Fixed, and Security headings; it never infers the
+body from commit history. Retrying the workflow repairs an existing release's
+curated title and notes before replacing its assets.
 
 The command is safe to repeat for the same version: when the matching local tag
 already points at `HEAD`, it verifies the release again and resumes the pushes.

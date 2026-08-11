@@ -9,6 +9,8 @@ import { getFrontmatterValue, getPrintStylesheet, stripLeadingFrontmatter } from
 import { isDiagramLanguage, renderDiagramSVG } from './diagramRenderer.js';
 import { pdfExportErrorDialog } from './dialogs.js';
 import { createPrintMarkdownRenderer } from '../vendored/markdown-it-plugins/index.js';
+import { highlightCode } from '../vendored/codemirror-live-markdown/index.js';
+import { planPrintableCodeHighlight } from './core/printableCodeHighlight.js';
 import { getEditorContent } from './editor.js';
 
 const defaultPrintCSS = `
@@ -22,6 +24,17 @@ const defaultPrintCSS = `
   code { background: #f4f4f5; padding: .15em .3em; border-radius: 3px; }
   pre { padding: 12px; overflow-wrap: break-word; white-space: pre-wrap; background: #f6f8fa; border-radius: 6px; break-inside: avoid; }
   pre code { padding: 0; background: none; }
+  pre > code.figaro-print-code { color: #24292f; }
+  .figaro-print-code .hljs-keyword, .figaro-print-code .hljs-selector-tag { color: #cf222e; }
+  .figaro-print-code .hljs-string, .figaro-print-code .hljs-regexp, .figaro-print-code .hljs-addition { color: #0a3069; }
+  .figaro-print-code .hljs-number, .figaro-print-code .hljs-symbol, .figaro-print-code .hljs-bullet, .figaro-print-code .hljs-literal { color: #0550ae; }
+  .figaro-print-code .hljs-title, .figaro-print-code .hljs-section, .figaro-print-code .hljs-function { color: #8250df; }
+  .figaro-print-code .hljs-comment, .figaro-print-code .hljs-quote { color: #57606a; font-style: italic; }
+  .figaro-print-code .hljs-deletion { color: #82071e; }
+  .figaro-print-code .hljs-type, .figaro-print-code .hljs-class, .figaro-print-code .hljs-name, .figaro-print-code .hljs-selector-class, .figaro-print-code .hljs-selector-id { color: #116329; }
+  .figaro-print-code .hljs-variable, .figaro-print-code .hljs-template-variable, .figaro-print-code .hljs-params { color: #953800; }
+  .figaro-print-code .hljs-built_in, .figaro-print-code .hljs-attr, .figaro-print-code .hljs-attribute, .figaro-print-code .hljs-meta { color: #0550ae; }
+  .figaro-print-code .hljs-operator, .figaro-print-code .hljs-punctuation { color: #24292f; }
   blockquote { border-left: 4px solid #d0d7de; margin: 1em 0; padding: 0 16px; color: #57606a; }
   .figaro-print-callout { --figaro-print-callout-color: #0969da; margin: 1em 0; padding: .85em 1em; border: 1px solid #c8d9eb; border-left: 4px solid var(--figaro-print-callout-color); border-radius: 6px; background: #eef6ff; color: #202124; break-inside: avoid; page-break-inside: avoid; }
   .figaro-print-callout::before { content: attr(data-callout-label); display: block; margin: 0 0 .35em; color: var(--figaro-print-callout-color); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: .78em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
@@ -131,6 +144,19 @@ function renderMarkdownBodyFromRendered(rendered) {
 
     const template = document.createElement('template');
     template.innerHTML = rendered;
+    for (const code of template.content.querySelectorAll('pre > code')) {
+        code.classList.add('figaro-print-code');
+        const plan = planPrintableCodeHighlight({
+            source: code.textContent,
+            classNames: code.classList,
+            highlight: highlightCode,
+        });
+        if (!plan) continue;
+        code.classList.add('hljs');
+        code.dataset.highlightLanguage = plan.language;
+        if (plan.detected) code.dataset.highlightDetected = 'true';
+        code.innerHTML = plan.html;
+    }
     decoratePrintCallouts(template.content);
     const headings = [];
     template.content.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(element => {

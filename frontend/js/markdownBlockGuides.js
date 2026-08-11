@@ -15,6 +15,9 @@ import {
     markdownHeadingLevel,
     markdownBlockGuidePlan,
 } from './core/markdownBlockGuideModel.js';
+import { markdownFoldAnchorPlan } from './core/markdownFoldAnchorModel.js';
+
+const foldAnchorReserveProperty = '--markdown-fold-anchor-reserve';
 
 function codeInfo(node, state) {
     for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -60,6 +63,8 @@ export function buildMarkdownBlockGuides(state) {
                 from: block.to,
                 to: boundaryIndex < blocks.length ? blocks[boundaryIndex - 1].to : state.doc.length,
             };
+        } else if (plan.rangeStrategy === 'block-after-first-line') {
+            range = { from: state.doc.lineAt(block.from).to, to: block.to };
         }
         const line = state.doc.lineAt(block.from);
         const headingTitle = plan.level
@@ -146,6 +151,7 @@ const markerPlugin = ViewPlugin.fromClass(class {
     }
 
     update(update) {
+        if (update.docChanged) clearFoldAnchorReserve(update.view);
         if (update.docChanged
             || update.viewportChanged
             || foldedRanges(update.startState) !== foldedRanges(update.state)
@@ -187,6 +193,50 @@ function guideOnLine(state, lineFrom) {
     return buildMarkdownBlockGuides(state).find(guide => guide.lineFrom === lineFrom) || null;
 }
 
+function guideControl(view, guide) {
+    return view.dom.querySelector(
+        `.ui-editor-block-guide[data-fold-from="${guide.foldFrom}"][data-fold-to="${guide.foldTo}"]`,
+    );
+}
+
+function currentFoldAnchorReserve(view) {
+    return Number.parseFloat(view.contentDOM.style.getPropertyValue(foldAnchorReserveProperty)) || 0;
+}
+
+function clearFoldAnchorReserve(view) {
+    view.contentDOM.style.removeProperty(foldAnchorReserveProperty);
+    view.contentDOM.style.removeProperty('padding-bottom');
+}
+
+function applyFoldAnchorPlan(view, guide, targetGuideTop, correctionPass = false) {
+    view.requestMeasure({
+        read() {
+            const control = guideControl(view, guide);
+            if (!control) return null;
+            return {
+                currentGuideTop: control.getBoundingClientRect().top,
+                targetGuideTop,
+                scrollTop: view.scrollDOM.scrollTop,
+                scrollHeight: view.scrollDOM.scrollHeight,
+                clientHeight: view.scrollDOM.clientHeight,
+                currentReserve: currentFoldAnchorReserve(view),
+            };
+        },
+        write(measurement) {
+            if (!measurement) return;
+            const plan = markdownFoldAnchorPlan(measurement);
+            view.contentDOM.style.setProperty(foldAnchorReserveProperty, `${plan.reserve}px`);
+            view.contentDOM.style.setProperty(
+                'padding-bottom',
+                `calc(40px + ${plan.reserve}px)`,
+                'important',
+            );
+            view.scrollDOM.scrollTop = plan.scrollTop;
+            if (!correctionPass) applyFoldAnchorPlan(view, guide, targetGuideTop, true);
+        },
+    });
+}
+
 export const markdownBlockGuidesExtension = [
     codeFolding(),
     markdownHeadingFoldingExtension,
@@ -212,9 +262,13 @@ export const markdownBlockGuidesExtension = [
                     candidate.foldFrom === requestedFrom && candidate.foldTo === requestedTo
                 )) || guideOnLine(view.state, line.from);
                 if (!guide?.foldable) return true;
-                const effect = exactFoldExists(view.state, guide) ? unfoldEffect : foldEffect;
-                view.dispatch({ effects: effect.of({ from: guide.foldFrom, to: guide.foldTo }) });
-                view.focus();
+                const targetGuideTop = control.getBoundingClientRect().top;
+                const folded = exactFoldExists(view.state, guide);
+                const range = { from: guide.foldFrom, to: guide.foldTo };
+                const effect = folded ? unfoldEffect : foldEffect;
+                view.dispatch({ effects: effect.of(range) });
+                view.contentDOM.focus({ preventScroll: true });
+                applyFoldAnchorPlan(view, guide, targetGuideTop);
                 return true;
             },
         },

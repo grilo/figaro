@@ -95,6 +95,7 @@ func (a *App) GetKanbanBoard() (map[string][]KanbanCard, error) {
 			board[tag] = append([]KanbanCard(nil), cards...)
 		}
 	}
+	a.applyKanbanCardOrder(board)
 	return board, nil
 }
 
@@ -122,7 +123,12 @@ func (a *App) GetHomeTasks(limit int) ([]KanbanCard, error) {
 	columns := append([]string(nil), a.kanbanColumns...)
 	a.mu.RUnlock()
 
-	return homeTaskProjection(index.cardsByTag, columns, limit, localToday()), nil
+	orderedCards := make(map[string][]KanbanCard, len(index.cardsByTag))
+	for tag, cards := range index.cardsByTag {
+		orderedCards[tag] = append([]KanbanCard(nil), cards...)
+	}
+	a.applyKanbanCardOrder(orderedCards)
+	return homeTaskProjection(orderedCards, columns, limit, localToday()), nil
 }
 
 // GetDueTaskSummary returns the small local-date reminder projection used by
@@ -233,6 +239,9 @@ func (a *App) RenameKanbanColumn(oldName string, newName string) (map[string]int
 	if err := a.renameHashtagInVault(oldName, newName); err != nil {
 		return nil, fmt.Errorf("rename hashtag in vault: %w", err)
 	}
+	if err := a.renameKanbanOrderColumn(oldName, newName); err != nil {
+		log.Printf("[kanban] Could not rename saved card order from %q to %q: %v", oldName, newName, err)
+	}
 	a.syncKanbanColumnsLocked()
 
 	a.mu.RLock()
@@ -280,6 +289,9 @@ func (a *App) DeleteKanbanColumn(name string) (map[string]interface{}, error) {
 
 	if err := a.removeHashtagFromVault(name); err != nil {
 		return nil, fmt.Errorf("remove hashtag from vault: %w", err)
+	}
+	if err := a.removeKanbanOrderColumn(name); err != nil {
+		log.Printf("[kanban] Could not remove saved card order for %q: %v", name, err)
 	}
 	a.syncKanbanColumnsLocked()
 

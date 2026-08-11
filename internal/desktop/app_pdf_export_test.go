@@ -169,6 +169,8 @@ func TestCreateStarterPrintStylesheetCopiesBundledCSSWithoutOverwriting(t *testi
 		".figaro-print-cover-date",
 		".figaro-print-toc-title",
 		".figaro-toc-level-6",
+		".figaro-print-code",
+		"--figaro-code-keyword",
 		".figaro-print-diagram",
 		".footnote-backref",
 	} {

@@ -7,9 +7,12 @@
  */
 
 import { backend } from './backend.js';
+import { getState, subscribe } from './state.js';
+import { windowTitleForTab } from './core/windowTitleModel.js';
 
 let initialized = false;
 let closeRequestHandler = () => callNative('WindowClose');
+let titleSubscriptions = [];
 
 function callNative(method, ...args) {
     try {
@@ -92,6 +95,22 @@ function installWindowStateCapture() {
     }, { passive: true });
 }
 
+function syncWindowTitle() {
+    const activeId = getState('activeTabId');
+    const activeTab = (getState('openTabs') || []).find(tab => tab.id === activeId) || null;
+    const title = windowTitleForTab(activeTab);
+    document.title = title;
+    callNative('WindowSetTitle', title);
+}
+
+function installWindowTitleSync() {
+    titleSubscriptions = [
+        subscribe('activeTabId', syncWindowTitle),
+        subscribe('openTabs', syncWindowTitle),
+    ];
+    syncWindowTitle();
+}
+
 export function initWindowChrome() {
     if (initialized) return;
     initialized = true;
@@ -102,9 +121,12 @@ export function initWindowChrome() {
     installResizeGrip();
     installTitleBarDoubleClick();
     installWindowStateCapture();
+    installWindowTitleSync();
 }
 
 export function resetWindowChromeForTests() {
+    for (const unsubscribe of titleSubscriptions) unsubscribe?.();
+    titleSubscriptions = [];
     initialized = false;
     closeRequestHandler = () => closeNativeWindow();
 }

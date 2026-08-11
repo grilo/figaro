@@ -76,6 +76,7 @@ if [ "$tag_exists" = true ]; then
 else
     node skills/prepare-figaro-release/scripts/sync-release-metadata.mjs "$version" --date "$release_date"
 fi
+node scripts/extract-release-notes.mjs "$tag" >/dev/null
 git diff --check
 git diff --cached --check
 

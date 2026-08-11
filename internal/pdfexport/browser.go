@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -32,6 +33,10 @@ const (
 type Browser struct {
 	Engine     Engine
 	Executable string
+	// SnapName identifies the owning Linux Snap when Executable is exported
+	// through /snap/bin. Snap browsers need temporary profiles and documents
+	// below their user-common directory so confinement can access them.
+	SnapName string
 	// Arguments are fixed launcher arguments placed before Chromium flags.
 	// Flatpak installations use this for `flatpak run <application-id>`; direct
 	// browser executables leave it empty.
@@ -66,6 +71,7 @@ type FinderOptions struct {
 	Getenv   func(string) string
 	LookPath func(string) (string, error)
 	Stat     func(string) (os.FileInfo, error)
+	ReadDir  func(string) ([]os.DirEntry, error)
 	Validate func(context.Context, Browser) error
 	// Trace receives each discovery decision, including paths that were not
 	// present and executables rejected by the real headless startup validation.
@@ -81,6 +87,7 @@ func FindBrowser(ctx context.Context) (Browser, error) {
 		Getenv:   os.Getenv,
 		LookPath: exec.LookPath,
 		Stat:     os.Stat,
+		ReadDir:  os.ReadDir,
 		Validate: ValidateChromiumHeadless,
 		Trace: func(message string) {
 			log.Printf("[pdf-browser] %s", message)
@@ -103,6 +110,9 @@ func FindBrowserWith(ctx context.Context, options FinderOptions) (Browser, error
 	if options.Stat == nil {
 		options.Stat = os.Stat
 	}
+	if options.ReadDir == nil {
+		options.ReadDir = os.ReadDir
+	}
 	if options.Validate == nil {
 		options.Validate = ValidateChromiumHeadless
 	}
@@ -113,8 +123,24 @@ func FindBrowserWith(ctx context.Context, options FinderOptions) (Browser, error
 	}
 
 	trace("starting automatic discovery for %s", options.GOOS)
+	var snapCandidates []candidate
+	if options.GOOS == "linux" {
+		entries, err := options.ReadDir("/snap/bin")
+		if err != nil {
+			trace("Snap browser directory unavailable: %v", err)
+		} else {
+			names := make([]string, 0, len(entries))
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					names = append(names, entry.Name())
+				}
+			}
+			snapCandidates = snapBrowserCandidates(names)
+			trace("found %d supported browser candidate(s) under /snap/bin", len(snapCandidates))
+		}
+	}
 	seen := make(map[string]struct{})
-	for _, candidate := range browserCandidates(options.GOOS, options.Getenv) {
+	for _, candidate := range browserCandidates(options.GOOS, options.Getenv, snapCandidates) {
 		trace("checking %s candidate %q", candidate.engine, candidate.path)
 		executable, err := resolveExecutable(candidate.path, options.LookPath, options.Stat)
 		if err != nil {
@@ -130,6 +156,7 @@ func FindBrowserWith(ctx context.Context, options FinderOptions) (Browser, error
 		browser := Browser{
 			Engine:     candidate.engine,
 			Executable: executable,
+			SnapName:   snapNameForExecutable(executable),
 			Arguments:  append([]string(nil), candidate.args...),
 		}
 
@@ -198,7 +225,11 @@ func BrowserForExecutable(_ context.Context, executable string) (Browser, error)
 		trace("user-selected executable is unavailable: %v", err)
 		return Browser{}, err
 	}
-	browser := Browser{Engine: engineForExecutable(resolved), Executable: resolved}
+	browser := Browser{
+		Engine:     engineForExecutable(resolved),
+		Executable: resolved,
+		SnapName:   snapNameForExecutable(resolved),
+	}
 	trace("selected configured %s executable %q", browser.Engine, browser.Executable)
 	return browser, nil
 }
@@ -219,7 +250,7 @@ func engineForExecutable(executable string) Engine {
 	}
 }
 
-func browserCandidates(goos string, getenv func(string) string) []candidate {
+func browserCandidates(goos string, getenv func(string) string, snapCandidates []candidate) []candidate {
 	var candidates []candidate
 	appendCandidates := func(engine Engine, paths ...string) {
 		for _, path := range paths {
@@ -238,6 +269,13 @@ func browserCandidates(goos string, getenv func(string) string) []candidate {
 				path:   "flatpak",
 				args:   []string{"run", appID},
 			})
+		}
+	}
+	appendSnapCandidates := func(engine Engine) {
+		for _, candidate := range snapCandidates {
+			if candidate.engine == engine {
+				candidates = append(candidates, candidate)
+			}
 		}
 	}
 
@@ -313,6 +351,7 @@ func browserCandidates(goos string, getenv func(string) string) []candidate {
 			"/usr/bin/google-chrome",
 			"/opt/google/chrome/google-chrome",
 		)
+		appendSnapCandidates(EngineChrome)
 		appendFlatpakCandidates(EngineChrome, "com.google.Chrome")
 		appendCandidates(EngineChromium,
 			"chromium",
@@ -324,13 +363,13 @@ func browserCandidates(goos string, getenv func(string) string) []candidate {
 			"/usr/bin/ungoogled-chromium",
 			"/usr/local/bin/ungoogled-chromium",
 			"/opt/ungoogled-chromium/ungoogled-chromium",
-			"/snap/bin/chromium",
 			"/var/lib/flatpak/exports/bin/com.google.Chrome",
 			"/var/lib/flatpak/exports/bin/org.chromium.Chromium",
 			"/var/lib/flatpak/exports/bin/io.github.ungoogled_software.ungoogled_chromium",
 			filepath.Join(getenv("HOME"), ".local", "share", "flatpak", "exports", "bin", "org.chromium.Chromium"),
 			filepath.Join(getenv("HOME"), ".local", "share", "flatpak", "exports", "bin", "io.github.ungoogled_software.ungoogled_chromium"),
 		)
+		appendSnapCandidates(EngineChromium)
 		appendFlatpakCandidates(EngineChromium,
 			"org.chromium.Chromium",
 			"io.github.ungoogled_software.ungoogled_chromium",
@@ -344,14 +383,83 @@ func browserCandidates(goos string, getenv func(string) string) []candidate {
 			"/usr/bin/microsoft-edge",
 			"/usr/bin/microsoft-edge-stable",
 		)
+		appendSnapCandidates(EngineEdge)
 		appendCandidates(EngineBrave,
 			"brave-browser",
 			"brave",
 			"/usr/bin/brave-browser",
 		)
+		appendSnapCandidates(EngineBrave)
 	}
 
 	return candidates
+}
+
+// snapBrowserCandidates turns the names exported by snapd into deterministic,
+// supported browser candidates. Broad directory discovery is deliberately
+// paired with conservative name classification and the same CDP capability
+// validation used for every other Chromium-family executable.
+func snapBrowserCandidates(names []string) []candidate {
+	ordered := append([]string(nil), names...)
+	sort.Strings(ordered)
+	byEngine := map[Engine][]candidate{}
+	for _, name := range ordered {
+		engine, ok := snapBrowserEngine(name)
+		if !ok {
+			continue
+		}
+		byEngine[engine] = append(byEngine[engine], candidate{
+			engine: engine,
+			path:   filepath.Join("/snap/bin", name),
+		})
+	}
+
+	var candidates []candidate
+	for _, engine := range []Engine{EngineChrome, EngineChromium, EngineEdge, EngineBrave} {
+		candidates = append(candidates, byEngine[engine]...)
+	}
+	return candidates
+}
+
+func snapBrowserEngine(name string) (Engine, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	if normalized == "" || strings.Contains(normalized, "driver") || strings.Contains(normalized, "sandbox") {
+		return "", false
+	}
+	switch {
+	case normalized == "chrome", strings.HasPrefix(normalized, "chrome."),
+		normalized == "google-chrome", strings.HasPrefix(normalized, "google-chrome-") || strings.HasPrefix(normalized, "google-chrome."):
+		return EngineChrome, true
+	case normalized == "chromium", normalized == "chromium-browser",
+		strings.HasPrefix(normalized, "chromium."), strings.HasPrefix(normalized, "chromium-"),
+		strings.HasPrefix(normalized, "ungoogled-chromium"):
+		return EngineChromium, true
+	case normalized == "microsoft-edge", strings.HasPrefix(normalized, "microsoft-edge-") || strings.HasPrefix(normalized, "microsoft-edge."),
+		normalized == "msedge", strings.HasPrefix(normalized, "msedge."):
+		return EngineEdge, true
+	case normalized == "brave", normalized == "brave-browser",
+		strings.HasPrefix(normalized, "brave."), strings.HasPrefix(normalized, "brave-browser-") || strings.HasPrefix(normalized, "brave-browser."):
+		return EngineBrave, true
+	default:
+		return "", false
+	}
+}
+
+func snapNameForExecutable(executable string) string {
+	cleaned := filepath.Clean(strings.TrimSpace(executable))
+	if filepath.Clean(filepath.Dir(cleaned)) != filepath.Clean("/snap/bin") {
+		return ""
+	}
+	name := strings.SplitN(filepath.Base(cleaned), ".", 2)[0]
+	if name == "" {
+		return ""
+	}
+	for _, character := range name {
+		if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '-' {
+			return ""
+		}
+	}
+	return name
 }
 
 func isFlatpakBrowser(browser Browser) bool {

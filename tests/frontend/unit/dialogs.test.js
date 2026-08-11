@@ -150,6 +150,22 @@ describe('New note dialog', () => {
         expect(document.activeElement).toBe(trigger);
     });
 
+    test('does not override a newer focus target with delayed modal restoration', async () => {
+        const trigger = document.createElement('button');
+        const newerTarget = document.createElement('button');
+        document.body.append(trigger, newerTarget);
+        trigger.focus();
+
+        const result = confirmDialog('Continue?', 'Review this action.');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        document.querySelector('.custom-modal-btn-cancel').click();
+        newerTarget.focus();
+
+        await expect(result).resolves.toBe(false);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(document.activeElement).toBe(newerTarget);
+    });
+
     test('keeps text-entry prompts open on backdrop clicks and validates inline', async () => {
         const result = promptDialog('New folder', 'Choose a folder name.', 'Drafts', {
             validate: value => value.includes('/') ? 'Choose a name, not a path.' : '',

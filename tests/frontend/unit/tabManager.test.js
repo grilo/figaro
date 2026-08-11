@@ -41,7 +41,7 @@ jest.mock('../frontend/js/editor.js', () => ({
 }));
 
 jest.mock('../frontend/js/statusBar.js', () => ({
-    statusBar: { set: jest.fn() }
+    statusBar: { set: jest.fn(), clearAfter: jest.fn() }
 }));
 
 jest.mock('../frontend/js/dialogs.js', () => ({
@@ -888,6 +888,21 @@ describe('Tab Manager', () => {
             expect(statusBar.set).toHaveBeenLastCalledWith('Saved; history commit failed');
         });
 
+        test('keeps a failed save dirty and reports its cause through the live status surface', async () => {
+            const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            window.go.desktop.App.SaveFile.mockRejectedValueOnce(new Error('permission denied'));
+
+            await expect(saveFileSnapshot(tab, 'unsaved body')).rejects.toThrow('permission denied');
+
+            expect(tab.dirty).toBe(true);
+            expect(statusBar.set).toHaveBeenCalledWith('Save failed — permission denied');
+            const liveStatus = document.getElementById('status-text');
+            expect(liveStatus.getAttribute('role')).toBe('status');
+            expect(liveStatus.getAttribute('aria-live')).toBe('polite');
+        });
+
         test('serializes snapshots for one file using the prior save revision', async () => {
             let resolveFirst;
             let resolveSecond;
@@ -957,6 +972,30 @@ describe('Tab Manager', () => {
             
             const tabStrip = document.getElementById('tab-strip');
             expect(tabStrip.children.length).toBe(2);
+        });
+
+        test('keeps long filename endings and parent paths visible for similar tabs', () => {
+            openTab(
+                'Clients/Acme/Quarterly planning and forecasting — Europe.md',
+                'Quarterly planning and forecasting — Europe.md',
+                'file',
+                { path: 'Clients/Acme/Quarterly planning and forecasting — Europe.md' },
+            );
+            openTab(
+                'Clients/Beacon/Quarterly planning and forecasting — Americas.md',
+                'Quarterly planning and forecasting — Americas.md',
+                'file',
+                { path: 'Clients/Beacon/Quarterly planning and forecasting — Americas.md' },
+            );
+            renderTabBar();
+
+            const tabs = [...document.querySelectorAll('.tab')];
+            expect(tabs[0].querySelector('.tab-title-leading').textContent).toMatch(/^Quarterly/);
+            expect(tabs[0].querySelector('.tab-title-trailing').textContent).toContain('Europe.md');
+            expect(tabs[0].querySelector('.tab-location-path').textContent).toBe('Clients/Acme');
+            expect(tabs[1].querySelector('.tab-title-trailing').textContent).toContain('Americas.md');
+            expect(tabs[1].querySelector('.tab-location-path').textContent).toBe('Clients/Beacon');
+            expect(tabs[0].getAttribute('aria-label')).toContain('Clients/Acme/');
         });
 
         test('renders tabs as pointer-driven drag targets without native HTML dragging', () => {
@@ -1184,6 +1223,42 @@ describe('Tab Manager', () => {
             expect(document.querySelector('#tab-strip').classList.contains('is-dragging')).toBe(false);
         });
 
+        test('prevents selection outside the tab strip only while a pointer drag is active', () => {
+            initTabManager();
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+
+            const dispatchPointer = (element, type, clientX, { buttons = 1 } = {}) => {
+                const event = new Event(type, { bubbles: true, cancelable: true });
+                Object.defineProperties(event, {
+                    clientX: { value: clientX },
+                    clientY: { value: 10 },
+                    pointerId: { value: 17 },
+                    isPrimary: { value: true },
+                    button: { value: 0 },
+                    buttons: { value: buttons },
+                });
+                element.dispatchEvent(event);
+            };
+
+            const source = document.querySelector('[data-tab-id="tab1"]');
+            const target = document.querySelector('[data-tab-id="tab2"]');
+            const fileTree = document.getElementById('file-tree');
+            dispatchPointer(source, 'pointerdown', 1);
+            dispatchPointer(target, 'pointermove', 20);
+
+            expect(document.documentElement.classList.contains('tab-drag-selection-guard')).toBe(true);
+            const duringDrag = new Event('selectstart', { bubbles: true, cancelable: true });
+            expect(fileTree.dispatchEvent(duringDrag)).toBe(false);
+            expect(duringDrag.defaultPrevented).toBe(true);
+
+            dispatchPointer(target, 'pointerup', 20, { buttons: 0 });
+            expect(document.documentElement.classList.contains('tab-drag-selection-guard')).toBe(false);
+            const afterDrop = new Event('selectstart', { bubbles: true, cancelable: true });
+            expect(fileTree.dispatchEvent(afterDrop)).toBe(true);
+            expect(afterDrop.defaultPrevented).toBe(false);
+        });
+
         test('cancels a pointer drag without changing tab order', () => {
             initTabManager();
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
@@ -1211,6 +1286,40 @@ describe('Tab Manager', () => {
             expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab1', 'tab2']);
             expect(document.querySelector('.tab.dragging')).toBeNull();
             expect(document.querySelector('.tab.drop-after')).toBeNull();
+            expect(document.documentElement.classList.contains('tab-drag-selection-guard')).toBe(false);
+            const afterCancel = new Event('selectstart', { bubbles: true, cancelable: true });
+            expect(document.getElementById('file-tree').dispatchEvent(afterCancel)).toBe(true);
+            expect(afterCancel.defaultPrevented).toBe(false);
+        });
+    });
+
+    describe('tab context menu accessibility', () => {
+        test('uses menu buttons, arrow navigation, and Escape focus restoration', () => {
+            initTabManager();
+            openTab('tab1', 'Project brief.md', 'file', { path: 'Projects/Project brief.md', isNew: true });
+
+            const tab = document.querySelector('[data-tab-id="tab1"]');
+            tab.focus();
+            tab.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: 0,
+                clientY: 0,
+            }));
+
+            const menu = document.querySelector('.tab-context-menu');
+            const items = [...menu.querySelectorAll('[role="menuitem"]')];
+            expect(menu.getAttribute('role')).toBe('menu');
+            expect(menu.getAttribute('aria-label')).toBe('Tab actions for Project brief.md');
+            expect(items.every(item => item instanceof HTMLButtonElement)).toBe(true);
+            expect(document.activeElement.dataset.action).toBe('toggle-pin');
+
+            menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+            expect(document.activeElement.dataset.action).toBe('close-tab');
+            menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+            expect(document.querySelector('.tab-context-menu')).toBeNull();
+            expect(document.activeElement).toBe(tab);
         });
     });
 
@@ -1222,8 +1331,8 @@ describe('Tab Manager', () => {
                 scrollWidth: { configurable: true, value: 360 },
             });
             initTabManager();
-            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
-            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            openTab('tab1', 'Tab 1', 'file', { path: 'Clients/Acme/tab1.md' });
+            openTab('tab2', 'Tab 2', 'file', { path: 'Clients/Beacon/tab2.md' });
 
             const button = document.getElementById('all-tabs-btn');
             const dropdown = document.getElementById('all-tabs-dropdown');
@@ -1235,6 +1344,8 @@ describe('Tab Manager', () => {
             expect(dropdown.getAttribute('aria-label')).toBe('All open tabs');
             expect(items).toHaveLength(2);
             expect(items.every(item => item instanceof HTMLButtonElement)).toBe(true);
+            expect(items[0].querySelector('.all-tabs-item-location').textContent).toBe('Clients/Acme');
+            expect(items[1].getAttribute('aria-label')).toContain('Clients/Beacon/tab2.md');
             expect(document.activeElement.dataset.tabId).toBe('tab2');
 
             dropdown.dispatchEvent(new KeyboardEvent('keydown', {
@@ -1248,6 +1359,28 @@ describe('Tab Manager', () => {
             expect(getState('activeTabId')).toBe('tab1');
             expect(dropdown.classList.contains('hidden')).toBe(true);
             expect(button.getAttribute('aria-expanded')).toBe('false');
+        });
+    });
+
+    describe('tab-list keyboard navigation', () => {
+        test('keeps focus in the rerendered tab list across repeated arrow presses', async () => {
+            initTabManager();
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md', isNew: true });
+            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md', isNew: true });
+            openTab('tab3', 'Tab 3', 'file', { path: 'tab3.md', isNew: true });
+            await testUtils.waitFor(0);
+
+            document.querySelector('[data-tab-id="tab3"]').focus();
+            document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'ArrowLeft', bubbles: true, cancelable: true,
+            }));
+            document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'ArrowLeft', bubbles: true, cancelable: true,
+            }));
+
+            expect(getState('activeTabId')).toBe('tab1');
+            expect(document.activeElement.dataset.tabId).toBe('tab1');
+            expect(document.activeElement.getAttribute('role')).toBe('tab');
         });
     });
 

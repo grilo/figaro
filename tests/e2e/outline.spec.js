@@ -34,6 +34,8 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     }, source);
 
     const toggle = page.locator('#outline-toggle');
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('inert', '');
     await expect(toggle).toBeVisible();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await page.evaluate(async () => {
@@ -56,6 +58,8 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     await toggle.click();
 
     await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'outline');
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.locator('#right-sidebar')).not.toHaveAttribute('inert', '');
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(toggle).toBeHidden();
     await expect(page.locator('#right-sidebar-title')).toHaveText('Document outline');
@@ -113,6 +117,8 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     await expect(toggle).toBeVisible();
     await page.locator('#history-count').click();
     await expect(page.locator('#right-sidebar')).not.toHaveClass(/open/);
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('inert', '');
 
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
@@ -138,24 +144,59 @@ test('sticks the complete active heading hierarchy and keeps every row navigable
         editor.setEditorContent(markdown);
         const view = window.__stickyOutlineView = editor.getEditorView();
         while (view.state.doc.toString() !== markdown) await new Promise(resolve => setTimeout(resolve, 10));
-        const target = view.state.doc.line(160).from;
-        view.dispatch({ selection: { anchor: target }, scrollIntoView: true });
-        view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+        view.scrollDOM.scrollTop = 0;
         view.scrollDOM.dispatchEvent(new Event('scroll'));
         view.focus();
     }, source);
 
     const sticky = page.locator('#sticky-heading-stack');
-    await expect(sticky).toBeVisible();
     const rows = sticky.locator('.sticky-heading-item');
+    await expect(sticky).toBeHidden();
+
+    const crossStickyBoundary = async (line, offset) => {
+        await page.evaluate(({ targetLine, targetOffset }) => {
+            const view = window.__stickyOutlineView;
+            const stickyElement = document.getElementById('sticky-heading-stack');
+            const block = view.lineBlockAt(view.state.doc.line(targetLine).from);
+            const editorTop = view.scrollDOM.getBoundingClientRect().top;
+            const stackHeight = stickyElement.hidden ? 0 : stickyElement.getBoundingClientRect().height;
+            const headingTop = view.documentTop + block.top;
+            view.scrollDOM.scrollTop += headingTop - (editorTop + stackHeight) + targetOffset;
+            view.scrollDOM.dispatchEvent(new Event('scroll'));
+        }, { targetLine: line, targetOffset: offset });
+    };
+
+    // Each heading enters as its own source row passes beneath the current
+    // sticky stack. The first transition happens while CodeMirror's virtual
+    // viewport still begins at zero, proving timing does not depend on its
+    // intentionally batched virtualization boundary.
+    await crossStickyBoundary(1, -6);
+    await expect(sticky).toBeHidden();
+    await crossStickyBoundary(1, 2);
+    await expect(rows.locator('.sticky-heading-item-text')).toHaveText(['Project']);
+    expect(await page.evaluate(() => window.__stickyOutlineView.viewport.from)).toBe(0);
+
+    await crossStickyBoundary(37, -6);
+    await expect(rows.locator('.sticky-heading-item-text')).toHaveText(['Project']);
+    await crossStickyBoundary(37, 2);
+    await expect(rows.locator('.sticky-heading-item-text')).toHaveText(['Project', 'Decisions']);
+
+    await crossStickyBoundary(73, -6);
+    await expect(rows.locator('.sticky-heading-item-text')).toHaveText(['Project', 'Decisions']);
+    await crossStickyBoundary(73, 2);
+    await expect(sticky).toBeVisible();
     await expect(rows).toHaveCount(3);
     await expect(rows.locator('.sticky-heading-item-type')).toHaveText(['h1', 'h2', 'h3']);
     await expect(rows.locator('.sticky-heading-item-text')).toHaveText(['Project', 'Decisions', 'Next steps']);
+    const launcher = page.locator('#outline-toggle');
+    await expect(launcher).toBeVisible();
     const stickyGeometry = await sticky.evaluate(element => {
         const stickyRect = element.getBoundingClientRect();
         const editorRect = document.getElementById('editor-container').getBoundingClientRect();
         const rowRect = element.firstElementChild.getBoundingClientRect();
         const style = getComputedStyle(element);
+        const rowStyle = getComputedStyle(element.firstElementChild);
+        const editorStyle = getComputedStyle(document.querySelector('.cm-content'));
         return {
             left: stickyRect.left - editorRect.left,
             right: editorRect.right - stickyRect.right,
@@ -163,6 +204,8 @@ test('sticks the complete active heading hierarchy and keeps every row navigable
             rowRight: stickyRect.right - rowRect.right,
             radius: Number.parseFloat(style.borderRadius),
             shadow: style.boxShadow,
+            rowFontSize: Number.parseFloat(rowStyle.fontSize),
+            editorFontSize: Number.parseFloat(editorStyle.fontSize),
         };
     });
     expect(Math.abs(stickyGeometry.left)).toBeLessThanOrEqual(1);
@@ -171,6 +214,13 @@ test('sticks the complete active heading hierarchy and keeps every row navigable
     expect(Math.abs(stickyGeometry.rowRight)).toBeLessThanOrEqual(1);
     expect(stickyGeometry.radius).toBe(0);
     expect(stickyGeometry.shadow).toBe('none');
+    expect(Math.abs(stickyGeometry.rowFontSize - stickyGeometry.editorFontSize)).toBeLessThanOrEqual(0.1);
+    const navigationGeometry = await page.evaluate(() => {
+        const stickyRect = document.getElementById('sticky-heading-stack').getBoundingClientRect();
+        const launcherRect = document.getElementById('outline-toggle').getBoundingClientRect();
+        return { stickyBottom: stickyRect.bottom, launcherTop: launcherRect.top };
+    });
+    expect(navigationGeometry.launcherTop).toBeGreaterThanOrEqual(navigationGeometry.stickyBottom + 7);
 
     await page.evaluate(async () => {
         const outline = await import('/js/outline.js');

@@ -41,7 +41,7 @@ chmod 755 "$mock_bin/npx"
 make_fixture() {
     local root="$1"
     mkdir -p "$root/scripts" "$root/skills/prepare-figaro-release/scripts"
-    cp "$repository_root/scripts/prepare-release.sh" "$root/scripts/"
+    cp "$repository_root/scripts/"{prepare-release.sh,extract-release-notes.mjs,releaseNotes.cjs} "$root/scripts/"
     cp "$repository_root/skills/prepare-figaro-release/scripts/"{sync-release-metadata.mjs,releaseMetadata.cjs} \
         "$root/skills/prepare-figaro-release/scripts/"
     cp "$repository_root/"{package.json,package-lock.json,wails.json,CHANGELOG.md} "$root/"
@@ -151,5 +151,5 @@ if run_release "$no_entries_fixture" minor > "$no_entries_output" 2>&1; then
     exit 1
 fi
 grep -q 'Nothing new is ready to release as v2.4.0.' "$no_entries_output"
-grep -q 'Add a concise user-facing entry under "## Unreleased"' "$no_entries_output"
+grep -q 'Add a concise user-facing entry under "## \[Unreleased\]"' "$no_entries_output"
 test -z "$(git -C "$no_entries_fixture" status --porcelain)"

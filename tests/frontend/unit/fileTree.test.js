@@ -30,7 +30,7 @@ jest.mock('../frontend/js/app.js', () => ({
 }));
 
 jest.mock('../frontend/js/statusBar.js', () => ({
-    statusBar: { set: jest.fn() }
+    statusBar: { set: jest.fn(), clearAfter: jest.fn() }
 }));
 
 jest.mock('../frontend/js/dialogs.js', () => ({
@@ -46,7 +46,8 @@ jest.mock('../frontend/js/dialogs.js', () => ({
 }));
 
 jest.mock('../frontend/js/session.js', () => ({
-    saveSession: jest.fn()
+    saveSession: jest.fn(),
+    scheduleSessionSave: jest.fn(),
 }));
 
 jest.mock('../frontend/js/tabManager.js', () => ({
@@ -101,7 +102,7 @@ describe('File Tree', () => {
     describe('buildTreeHTML', () => {
         test('should render empty tree', () => {
             const html = buildTreeHTML([], new Set(), null);
-            expect(html).toBe('<ul class="file-tree-list"></ul>');
+            expect(html).toBe('<ul class="file-tree-list" role="group"></ul>');
         });
 
         test('should render files and directories', () => {
@@ -826,6 +827,8 @@ describe('File Tree', () => {
 
         const menu = document.querySelector('.context-menu');
         expect(menu).not.toBeNull();
+        expect(menu.getAttribute('role')).toBe('menu');
+        expect(menu.getAttribute('aria-label')).toBe('File actions for vault root');
         expect([...menu.querySelectorAll('[data-action]')].map(item => item.dataset.action)).toEqual([
             'open-new-tab', 'merge-notes', 'preview-raw-text', 'preview-pdf',
             'copy', 'paste',
@@ -834,9 +837,93 @@ describe('File Tree', () => {
         expect(menu.querySelector('[data-action="new-file"]').classList.contains('disabled')).toBe(false);
         for (const action of ['open-new-tab', 'merge-notes', 'preview-raw-text', 'preview-pdf', 'copy', 'paste', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete']) {
             expect(menu.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
+            expect(menu.querySelector(`[data-action="${action}"]`).getAttribute('role')).toBe('menuitem');
         }
+        expect(document.activeElement).toBe(menu.querySelector('[data-action="new-file"]'));
         expect(state.contextTargetType).toBe('root');
         expect(state.contextTargetPath).toBe('');
+    });
+
+    test('opens the selected file actions with Shift+F10 and navigates them by keyboard', () => {
+        state.fileTreeData = [{ name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 }];
+        state.selectedTreePath = 'Welcome.md';
+        initFileTree();
+        renderFileTree();
+
+        const selectedNode = document.querySelector('[data-path="Welcome.md"] > .file-tree-node');
+        selectedNode.focus();
+        selectedNode.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'F10',
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        const menu = document.querySelector('.context-menu');
+        expect(menu.getAttribute('role')).toBe('menu');
+        expect(menu.getAttribute('aria-label')).toBe('File actions for Welcome.md');
+        expect(document.activeElement).toBe(menu.querySelector('[data-action="open-new-tab"]'));
+
+        menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
+        expect(document.activeElement).toBe(menu.querySelector('[data-action="delete"]'));
+        menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+        expect(document.querySelector('.context-menu')).toBeNull();
+        expect(document.activeElement).toBe(selectedNode);
+    });
+
+    test('uses one roving treeitem and standard arrows across visible folders and files', () => {
+        state.fileTreeData = [{
+            name: 'Projects', path: 'Projects', type: 'directory', children: [
+                { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1 },
+                { name: 'spec.md', path: 'Projects/spec.md', type: 'file', mtime: 2 },
+            ],
+        }, { name: 'Archive.md', path: 'Archive.md', type: 'file', mtime: 3 }];
+        initFileTree();
+        renderFileTree();
+
+        const tree = document.getElementById('file-tree');
+        const node = path => tree.querySelector(`[data-path="${path}"] > .file-tree-node`);
+        const press = key => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+            key, bubbles: true, cancelable: true,
+        }));
+
+        expect(tree.getAttribute('role')).toBe('tree');
+        expect(tree.getAttribute('aria-multiselectable')).toBe('true');
+        expect(tree.tabIndex).toBe(-1);
+        expect(node('Projects').getAttribute('role')).toBe('treeitem');
+        expect(node('Projects').getAttribute('aria-level')).toBe('1');
+        expect(node('Projects').getAttribute('aria-expanded')).toBe('false');
+        expect(node('Projects').tabIndex).toBe(0);
+        expect([...tree.querySelectorAll('[role="treeitem"][tabindex="0"]')]).toHaveLength(1);
+
+        node('Projects').focus();
+        press('ArrowRight');
+        expect(node('Projects').getAttribute('aria-expanded')).toBe('true');
+        expect(document.activeElement).toBe(node('Projects'));
+        expect(node('Projects/plan.md').getAttribute('aria-level')).toBe('2');
+
+        press('ArrowRight');
+        expect(document.activeElement).toBe(node('Projects/plan.md'));
+        press('ArrowDown');
+        expect(document.activeElement).toBe(node('Projects/spec.md'));
+        expect(state.selectedTreePath).toBe('Projects/spec.md');
+        expect(node('Projects/spec.md').getAttribute('aria-selected')).toBe('true');
+
+        press('ArrowLeft');
+        expect(document.activeElement).toBe(node('Projects'));
+        press('End');
+        expect(document.activeElement).toBe(node('Archive.md'));
+        press('Home');
+        expect(document.activeElement).toBe(node('Projects'));
+        press('Enter');
+        expect(node('Projects').getAttribute('aria-expanded')).toBe('false');
+        expect(node('Projects/plan.md')).toBeNull();
+        expect(document.activeElement).toBe(node('Projects'));
+
+        press('End');
+        press('Enter');
+        expect(handleFileOpen).toHaveBeenCalledWith('Archive.md');
     });
 
     test('keeps the same action order for files, folders, and the vault root', () => {
@@ -1203,6 +1290,32 @@ describe('File Tree', () => {
             expect(window.go.desktop.App.MergeDirectory).not.toHaveBeenCalled();
             expect(updateTabsForMovedPath).not.toHaveBeenCalled();
         });
+
+        test('announces a long move and suppresses a duplicate while it is in flight', async () => {
+            const moving = deferred();
+            window.go.desktop.App.MovePath.mockReturnValueOnce(moving.promise);
+
+            const firstMove = moveInternalPath('Projects/Archive', 'Storage');
+            await Promise.resolve();
+            const duplicateMove = moveInternalPath('Projects/Archive', 'Storage');
+
+            await expect(duplicateMove).resolves.toBe(false);
+            expect(window.go.desktop.App.MovePath).toHaveBeenCalledTimes(1);
+            expect(statusBar.set).toHaveBeenCalledWith('Moving “Archive”…');
+            expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('true');
+
+            window.go.desktop.App.GetFileTree.mockResolvedValueOnce([]);
+            moving.resolve({
+                success: true,
+                old_path: 'Projects/Archive',
+                path: 'Storage/Archive',
+                updated_links: [],
+            });
+            await expect(firstMove).resolves.toBe(true);
+
+            expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
+            expect(statusBar.set).toHaveBeenCalledWith('Moved “Archive”');
+        });
     });
 
     describe('context menu placement', () => {
@@ -1293,17 +1406,16 @@ describe('File Tree', () => {
             expect(container.innerHTML).toContain('note.md');
         });
 
-        test('preserves tree scroll and keyboard ownership across a structural refresh', () => {
+        test('preserves tree scroll and focused-row ownership across a structural refresh', () => {
             state.fileTreeData = [
                 { name: 'first.md', path: 'first.md', type: 'file', mtime: 1 },
                 { name: 'second.md', path: 'second.md', type: 'file', mtime: 2 },
             ];
             state.selectedTreePath = 'second.md';
             const container = document.getElementById('file-tree');
-            container.tabIndex = 0;
             renderFileTree();
             container.scrollTop = 48;
-            container.focus();
+            container.querySelector('[data-path="second.md"] > .file-tree-node').focus();
 
             state.fileTreeData = [
                 ...state.fileTreeData,
@@ -1312,8 +1424,9 @@ describe('File Tree', () => {
             renderFileTree();
 
             expect(container.scrollTop).toBe(48);
-            expect(document.activeElement).toBe(container);
+            expect(document.activeElement).toBe(container.querySelector('[data-path="second.md"] > .file-tree-node'));
             expect(container.querySelector('[data-path="second.md"] > .file-tree-node').classList.contains('selected')).toBe(true);
+            expect(container.querySelectorAll('[role="treeitem"][tabindex="0"]')).toHaveLength(1);
         });
 
         test('patches mounted active and open markers without rebuilding the tree after a dirty tab transition', () => {

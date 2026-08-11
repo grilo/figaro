@@ -11,6 +11,10 @@ const statusBar = {
         const el = document.getElementById('status-text');
         if (el) {
             el.textContent = text;
+            el.title = text;
+            el.setAttribute('role', 'status');
+            el.setAttribute('aria-live', 'polite');
+            el.setAttribute('aria-atomic', 'true');
         }
     },
     
@@ -21,6 +25,15 @@ const statusBar = {
      */
     clear() {
         this.set('Ready');
+    },
+
+    /** Clear one message later without overwriting newer activity. */
+    clearAfter(delay, expectedText) {
+        const currentText = expectedText ?? document.getElementById('status-text')?.textContent;
+        setTimeout(() => {
+            const el = document.getElementById('status-text');
+            if (el?.textContent === currentText) this.clear();
+        }, delay);
     }
 };
 

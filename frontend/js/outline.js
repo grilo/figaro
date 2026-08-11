@@ -8,16 +8,31 @@
 
 import { getEditorContent, getEditorDocumentTabId, getEditorView } from './editor.js';
 import { getState } from './state.js';
+import { setRightSidebarOpen } from './rightSidebarState.js';
+import {
+    activeOutlineHeadingHierarchy,
+    activeOutlineHeadingIndex,
+    extractOutlineHeadings,
+    stickyHeadingBoundaryPosition,
+} from './core/outlineModel.js';
+
+export {
+    activeOutlineHeadingHierarchy,
+    activeOutlineHeadingIndex,
+    extractOutlineHeadings,
+    stickyHeadingBoundaryPosition,
+};
 
 const MARKDOWN_PATH = /\.(?:md|markdown|mdown|mkdn)$/i;
-const HEADING = /^(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/;
-const FENCE = /^\s*(`{3,}|~{3,})/;
-const SETEXT = /^\s*(=+|-+)\s*$/;
 
 let initialized = false;
 let stickyHeadingsEnabled = true;
 let documentOutlineEnabled = true;
 let stickySignature = '';
+const stickyHeadingMeasureKey = {};
+let stickyMeasureView = null;
+let stickyScrollDOM = null;
+let stickyScrollHandler = null;
 let model = {
     tabId: null,
     source: null,
@@ -31,97 +46,6 @@ function activeFileTab() {
 
 function isMarkdownTab(tab) {
     return Boolean(tab?.path && MARKDOWN_PATH.test(tab.path));
-}
-
-/**
- * Return source positions for Markdown headings while deliberately ignoring
- * frontmatter and fenced code. `from` is a CodeMirror document offset, so
- * callers can select a heading without searching its (possibly repeated) text
- * again.
- */
-export function extractOutlineHeadings(source) {
-    const text = String(source ?? '');
-    const headings = [];
-    let inFence = false;
-    let fenceCharacter = '';
-    let inFrontmatter = text.split('\n')[0]?.trim() === '---';
-    let position = 0;
-    const lines = text.split('\n');
-
-    for (let index = 0; index < lines.length; index++) {
-        const rawLine = lines[index];
-        const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
-        const trimmed = line.trim();
-        if (inFrontmatter) {
-            if (index > 0 && (trimmed === '---' || trimmed === '...')) inFrontmatter = false;
-            position += rawLine.length + 1;
-            continue;
-        }
-        const fence = line.match(FENCE);
-        if (fence) {
-            const character = fence[1][0];
-            if (!inFence) {
-                inFence = true;
-                fenceCharacter = character;
-            } else if (character === fenceCharacter) {
-                inFence = false;
-                fenceCharacter = '';
-            }
-            position += rawLine.length + 1;
-            continue;
-        }
-
-        if (!inFence) {
-            const match = line.match(HEADING);
-            if (match) {
-                headings.push({
-                    level: match[1].length,
-                    text: match[2].trim(),
-                    from: position,
-                });
-            } else {
-                const next = lines[index + 1] || '';
-                const underline = next.endsWith('\r') ? next.slice(0, -1) : next;
-                const setext = underline.match(SETEXT);
-                if (trimmed && setext) {
-                    headings.push({
-                        level: setext[1][0] === '=' ? 1 : 2,
-                        text: trimmed,
-                        from: position,
-                    });
-                }
-            }
-        }
-        position += rawLine.length + 1;
-    }
-    return headings;
-}
-
-/** Return the heading whose section contains a CodeMirror document position. */
-export function activeOutlineHeadingIndex(headings, position) {
-    if (!Array.isArray(headings) || !headings.length) return -1;
-    if (position < headings[0].from) return -1;
-    let active = 0;
-    for (let index = 1; index < headings.length; index++) {
-        if (headings[index].from > position) break;
-        active = index;
-    }
-    return active;
-}
-
-/** Return every active ancestor, including the current heading. */
-export function activeOutlineHeadingHierarchy(headings, position) {
-    const activeIndex = activeOutlineHeadingIndex(headings, position);
-    if (activeIndex < 0) return [];
-    const hierarchy = [];
-    for (let index = 0; index <= activeIndex; index += 1) {
-        const heading = headings[index];
-        while (hierarchy.length && hierarchy[hierarchy.length - 1].level >= heading.level) {
-            hierarchy.pop();
-        }
-        hierarchy.push(heading);
-    }
-    return hierarchy;
 }
 
 function outlineElements() {
@@ -162,7 +86,7 @@ function setOutlineOpenState(open) {
 
 function resetModel() {
     model = { tabId: null, source: null, headings: [] };
-    renderStickyHeadings();
+    renderStickyHeadingsAtPosition(-1);
 }
 
 function refreshOutlineModel() {
@@ -186,7 +110,10 @@ function refreshOutlineModel() {
         };
     }
     setOutlineControlVisible(model.headings.length > 0);
-    if (changed) renderStickyHeadings();
+    if (changed) {
+        if (model.headings.length) scheduleStickyHeadingMeasure();
+        else renderStickyHeadingsAtPosition(-1);
+    }
     return changed;
 }
 
@@ -240,20 +167,64 @@ function headingButton(heading, className) {
     return item;
 }
 
-function renderStickyHeadings() {
+function renderStickyHeadingsAtPosition(position) {
     const { sticky } = outlineElements();
     if (!sticky) return;
     const view = getEditorView();
-    const viewportStart = view?.viewport?.from ?? 0;
-    const hierarchy = stickyHeadingsEnabled && model.headings.length && viewportStart > 0
-        ? activeOutlineHeadingHierarchy(model.headings, viewportStart - 1)
+    const hierarchy = stickyHeadingsEnabled && model.headings.length && position >= 0
+        ? activeOutlineHeadingHierarchy(model.headings, position)
         : [];
     const signature = hierarchy.map(heading => `${heading.level}:${heading.from}:${heading.text}`).join('|');
-    if (signature === stickySignature && sticky.childElementCount === hierarchy.length) return;
+    if (signature === stickySignature && sticky.childElementCount === hierarchy.length) return false;
     stickySignature = signature;
     sticky.replaceChildren(...hierarchy.map(heading => headingButton(heading, 'sticky-heading-item')));
     sticky.hidden = hierarchy.length === 0;
     view?.requestMeasure?.();
+    // A newly added or removed row changes the covered boundary. Measure once
+    // more so tightly spaced descendants settle without touching raw scroll
+    // events or forcing synchronous layout.
+    scheduleStickyHeadingMeasure(view);
+    return true;
+}
+
+function scheduleStickyHeadingMeasure(view = getEditorView()) {
+    const { sticky } = outlineElements();
+    if (!sticky || !view || view.isDestroyed || !stickyHeadingsEnabled || !model.headings.length) return;
+    if (stickyMeasureView === view) return;
+    stickyMeasureView = view;
+    view.requestMeasure({
+        key: stickyHeadingMeasureKey,
+        read(measuredView) {
+            const stackHeight = sticky.hidden ? 0 : sticky.getBoundingClientRect().height;
+            const boundaryHeight = measuredView.scrollDOM.getBoundingClientRect().top
+                + stackHeight
+                - measuredView.documentTop;
+            const lineBlock = measuredView.lineBlockAtHeight(boundaryHeight);
+            return stickyHeadingBoundaryPosition(boundaryHeight, lineBlock);
+        },
+        write(position, measuredView) {
+            if (stickyMeasureView === measuredView) stickyMeasureView = null;
+            if (measuredView !== getEditorView() || measuredView.isDestroyed) return;
+            renderStickyHeadingsAtPosition(position);
+        },
+    });
+}
+
+function synchronizeStickyHeadingScrollListener(view = getEditorView()) {
+    const nextScrollDOM = view && !view.isDestroyed ? view.scrollDOM : null;
+    if (nextScrollDOM === stickyScrollDOM) return;
+    if (stickyScrollDOM && stickyScrollHandler) {
+        stickyScrollDOM.removeEventListener('scroll', stickyScrollHandler);
+    }
+    stickyScrollDOM = nextScrollDOM;
+    stickyScrollHandler = nextScrollDOM
+        ? () => scheduleStickyHeadingMeasure(view)
+        : null;
+    if (stickyScrollDOM && stickyScrollHandler) {
+        // CodeMirror coalesces the keyed measure into its next read/write
+        // cycle, so this passive handler does no layout or DOM work itself.
+        stickyScrollDOM.addEventListener('scroll', stickyScrollHandler, { passive: true });
+    }
 }
 
 function renderOutlinePanel() {
@@ -319,7 +290,7 @@ export function openOutlinePanel() {
     if (!sidebar) return false;
     sidebar.dataset.mode = 'outline';
     sidebar.classList.remove('pdf-preview-mode', 'collapsed');
-    sidebar.classList.add('open');
+    setRightSidebarOpen(sidebar, true);
     if (title) title.textContent = 'Document outline';
     resizer?.classList.add('visible');
     setOutlineOpenState(true);
@@ -335,7 +306,7 @@ export function closeOutlinePanel({ keepSidebarOpen = false } = {}) {
     if (sidebar && ownsSidebar) {
         delete sidebar.dataset.mode;
         if (!keepSidebarOpen) {
-            sidebar.classList.remove('open');
+            setRightSidebarOpen(sidebar, false);
             sidebar.style.width = '';
             sidebar.style.minWidth = '';
             resizer?.classList.remove('visible');
@@ -348,7 +319,11 @@ export function closeOutlinePanel({ keepSidebarOpen = false } = {}) {
 
 export function setStickyHeadingsEnabled(enabled) {
     stickyHeadingsEnabled = Boolean(enabled);
-    renderStickyHeadings();
+    if (!stickyHeadingsEnabled) renderStickyHeadingsAtPosition(-1);
+    else {
+        synchronizeStickyHeadingScrollListener();
+        scheduleStickyHeadingMeasure();
+    }
 }
 
 export function setDocumentOutlineEnabled(enabled) {
@@ -362,6 +337,7 @@ export function initOutlinePanel() {
     initialized = true;
 
     const { button } = outlineElements();
+    synchronizeStickyHeadingScrollListener();
     button?.addEventListener('click', toggleOutlinePanel);
     document.addEventListener('close-outline-panel', event => closeOutlinePanel(event.detail || {}));
     document.addEventListener('active-tab-changed', () => {
@@ -371,16 +347,18 @@ export function initOutlinePanel() {
     });
     document.addEventListener('tab-switched', refreshOpenOutline);
     document.addEventListener('editor-view-updated', event => {
+        synchronizeStickyHeadingScrollListener();
         const detail = event.detail || {};
         if (detail.docChanged) refreshOpenOutline();
         else if (detail.selectionSet || detail.viewportChanged) {
             refreshOutlineModel();
-            if (detail.viewportChanged) renderStickyHeadings();
+            if (detail.viewportChanged) scheduleStickyHeadingMeasure();
             if (sidebarOwnsOutline()) updateActiveOutlineItem(Boolean(detail.viewportChanged && !detail.selectionSet));
         }
     });
 
     refreshOutlineModel();
+    scheduleStickyHeadingMeasure();
 }
 
 export default {

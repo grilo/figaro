@@ -35,7 +35,7 @@ func ValidateChromiumHeadless(ctx context.Context, browser Browser) error {
 	if strings.TrimSpace(browser.Executable) == "" {
 		return errors.New("browser executable is empty")
 	}
-	workspace, err := os.MkdirTemp("", "figaro-browser-check-*")
+	workspace, err := CreateBrowserWorkspace(browser, "figaro-browser-check-*")
 	if err != nil {
 		return fmt.Errorf("create browser validation workspace: %w", err)
 	}
@@ -77,6 +77,47 @@ func ValidateChromiumHeadless(ctx context.Context, browser Browser) error {
 	}
 	closed = true
 	return nil
+}
+
+// CreateBrowserWorkspace creates an ephemeral directory visible to the
+// selected browser. Ordinary installations use the operating-system temp
+// directory; confined Snap browsers use their own user-common directory.
+func CreateBrowserWorkspace(browser Browser, pattern string) (string, error) {
+	home := ""
+	if browser.SnapName != "" {
+		var err error
+		home, err = os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("locate home directory for Snap browser workspace: %w", err)
+		}
+	}
+	parent, err := browserWorkspaceParent(browser, home)
+	if err != nil {
+		return "", err
+	}
+	if parent != "" {
+		if err := os.MkdirAll(parent, 0700); err != nil {
+			return "", fmt.Errorf("create Snap browser workspace root: %w", err)
+		}
+	}
+	workspace, err := os.MkdirTemp(parent, pattern)
+	if err != nil {
+		return "", fmt.Errorf("create browser workspace: %w", err)
+	}
+	return workspace, nil
+}
+
+func browserWorkspaceParent(browser Browser, home string) (string, error) {
+	if browser.SnapName == "" {
+		return "", nil
+	}
+	if strings.TrimSpace(home) == "" {
+		return "", errors.New("home directory is empty for Snap browser workspace")
+	}
+	if snapNameForExecutable(filepath.Join("/snap/bin", browser.SnapName)) != browser.SnapName {
+		return "", fmt.Errorf("invalid Snap browser name %q", browser.SnapName)
+	}
+	return filepath.Join(home, "snap", browser.SnapName, "common", "figaro"), nil
 }
 
 // RenderChromiumPDF renders through Chrome DevTools Protocol instead of

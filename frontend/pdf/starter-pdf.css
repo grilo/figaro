@@ -33,6 +33,13 @@
   --figaro-accent: #0b7285;
   --figaro-accent-soft: #e6f5f7;
   --figaro-code: #22303a;
+  --figaro-code-keyword: #cf222e;
+  --figaro-code-string: #0a3069;
+  --figaro-code-number: #0550ae;
+  --figaro-code-title: #8250df;
+  --figaro-code-comment: #57606a;
+  --figaro-code-type: #116329;
+  --figaro-code-variable: #953800;
   --figaro-emphasis: #3d4a54;
   --figaro-mark-background: #fff0ad;
   --figaro-mark-ink: var(--figaro-ink);
@@ -414,6 +421,37 @@ body {
   padding: 0;
   background: transparent;
 }
+
+/* Fenced code receives the same highlight.js token classes as the editor. */
+.figaro-print-code .hljs-keyword,
+.figaro-print-code .hljs-selector-tag { color: var(--figaro-code-keyword); }
+.figaro-print-code .hljs-string,
+.figaro-print-code .hljs-regexp,
+.figaro-print-code .hljs-addition { color: var(--figaro-code-string); }
+.figaro-print-code .hljs-number,
+.figaro-print-code .hljs-symbol,
+.figaro-print-code .hljs-bullet,
+.figaro-print-code .hljs-literal,
+.figaro-print-code .hljs-built_in,
+.figaro-print-code .hljs-attr,
+.figaro-print-code .hljs-attribute,
+.figaro-print-code .hljs-meta { color: var(--figaro-code-number); }
+.figaro-print-code .hljs-title,
+.figaro-print-code .hljs-section,
+.figaro-print-code .hljs-function { color: var(--figaro-code-title); }
+.figaro-print-code .hljs-comment,
+.figaro-print-code .hljs-quote { color: var(--figaro-code-comment); font-style: italic; }
+.figaro-print-code .hljs-deletion { color: var(--figaro-code-keyword); }
+.figaro-print-code .hljs-type,
+.figaro-print-code .hljs-class,
+.figaro-print-code .hljs-name,
+.figaro-print-code .hljs-selector-class,
+.figaro-print-code .hljs-selector-id { color: var(--figaro-code-type); }
+.figaro-print-code .hljs-variable,
+.figaro-print-code .hljs-template-variable,
+.figaro-print-code .hljs-params { color: var(--figaro-code-variable); }
+.figaro-print-code .hljs-operator,
+.figaro-print-code .hljs-punctuation { color: var(--figaro-code); }
 
 /* Images, diagrams, and KaTeX output remain within the printable area. */
 .figaro-print-document img,

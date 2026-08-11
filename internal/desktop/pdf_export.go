@@ -163,7 +163,12 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 		// without exposing arbitrary files elsewhere on the machine.
 		workspaceParent = sourceDir
 	}
-	workspace, err := os.MkdirTemp(workspaceParent, ".figaro-pdf-")
+	var workspace string
+	if browser.Engine == pdfexport.EngineSafari {
+		workspace, err = os.MkdirTemp(workspaceParent, ".figaro-pdf-")
+	} else {
+		workspace, err = pdfexport.CreateBrowserWorkspace(browser, ".figaro-pdf-")
+	}
 	if err != nil {
 		return &PDFExportResult{Success: false, Error: fmt.Sprintf("create PDF workspace: %v", err)}, nil
 	}

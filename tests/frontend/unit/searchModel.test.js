@@ -1,7 +1,9 @@
 import {
+    compactSearchResultLocation,
     findTitleMatches,
     mergeSearchResults,
     nextSearchSelection,
+    searchResultLocation,
     updateSearchFilter,
 } from '../frontend/js/core/searchModel.js';
 
@@ -51,5 +53,19 @@ describe('search model', () => {
         });
         expect(nextSearchSelection(-1, 2, -1)).toBe(1);
         expect(nextSearchSelection(1, 2, 1)).toBe(0);
+    });
+
+    test('derives a distinguishing parent location for search results', () => {
+        expect(searchResultLocation('Clients/Acme/Meeting.md')).toBe('Clients/Acme');
+        expect(searchResultLocation('Meeting.md')).toBe('Vault root');
+        expect(searchResultLocation('Clients\\Beacon\\Meeting.md')).toBe('Clients/Beacon');
+    });
+
+    test('preserves the distinguishing tail of very deep search-result paths', () => {
+        expect(compactSearchResultLocation(
+            'Clients/International/Western-Europe/Enterprise/Acme/2026/Planning/Meeting.md'
+        )).toBe('Clients/…/Acme/2026/Planning');
+        expect(compactSearchResultLocation('Clients/Acme/Meeting.md')).toBe('Clients/Acme');
+        expect(compactSearchResultLocation('Meeting.md')).toBe('Vault root');
     });
 });

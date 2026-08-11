@@ -9,7 +9,6 @@ import {
 } from '../core/searchModel.js';
 import { createWorkspaceSearch } from '../usecases/workspaceSearch.js';
 import {
-    blurSearchInput,
     clearSearchCount,
     clearSearchView,
     closeSearchView,
@@ -127,7 +126,6 @@ export function handleSearchKeydown(event) {
     const query = currentSearchQuery();
     if (event.key === 'Escape') {
         clearGlobalSearch();
-        blurSearchInput();
         event.preventDefault();
         return true;
     }

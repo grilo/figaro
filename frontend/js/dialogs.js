@@ -87,7 +87,16 @@ function activateModal(overlay, { initialFocus, onDismiss, dismissOnBackdrop = t
             activeModalDismiss = null;
             document.body.classList.remove('custom-modal-open');
         }
-        if (restoreFocus && previousFocus?.isConnected) setTimeout(() => previousFocus.focus(), 0);
+        if (restoreFocus && previousFocus?.isConnected) {
+            const focusAfterClose = document.activeElement;
+            setTimeout(() => {
+                // A caller may immediately open another menu or dialog after
+                // this one settles. Do not let a stale deferred restoration
+                // steal focus back from that newer interaction.
+                if (document.activeElement !== focusAfterClose && document.activeElement !== document.body) return;
+                previousFocus.focus();
+            }, 0);
+        }
         return true;
     };
 

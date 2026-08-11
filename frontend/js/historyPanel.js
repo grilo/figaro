@@ -18,6 +18,7 @@ import {
     compactEditorRequired,
     rightSidebarWidth,
 } from './core/rightSidebarLayout.js';
+import { setRightSidebarOpen } from './rightSidebarState.js';
 
 let liveContent = null;
 let viewingHistory = false;
@@ -295,7 +296,7 @@ async function openHistoryPanel() {
 
     sidebar.dataset.mode = 'history';
     sidebar.classList.remove('pdf-preview-mode');
-    sidebar.classList.add('open');
+    setRightSidebarOpen(sidebar, true);
     const resizer2 = document.getElementById('right-sidebar-resizer');
     if (resizer2) resizer2.classList.add('visible');
 
@@ -581,7 +582,7 @@ export function closeHistoryPanel() {
     const resizer = document.getElementById('right-sidebar-resizer');
     if (sidebar && ownsSidebar) {
         delete sidebar.dataset.mode;
-        sidebar.classList.remove('open');
+        setRightSidebarOpen(sidebar, false);
         sidebar.style.width = '';
         sidebar.style.minWidth = '';
     }
@@ -632,7 +633,7 @@ export function initRightSidebarResizer() {
 
     const beginDrag = (e) => {
         e.preventDefault();
-        sidebar.classList.add('open');
+        setRightSidebarOpen(sidebar, true);
         sidebar.classList.add('is-resizing');
         resizer.classList.add('is-dragging');
         startX = e.clientX;

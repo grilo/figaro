@@ -2,6 +2,7 @@ import {
     createSaveSnapshot,
     isLatestSave,
     savedLatestEdit,
+    saveFailureStatusMessage,
     saveStatusMessage,
 } from '../frontend/js/core/saveModel.js';
 
@@ -30,5 +31,14 @@ describe('save model', () => {
             .toBe('Saved older snapshot; newer changes remain');
         expect(saveStatusMessage({ historyCommitFailed: true }))
             .toBe('Saved; history commit failed');
+    });
+
+    test('includes the concrete failure cause in save status text', () => {
+        expect(saveFailureStatusMessage(new Error('permission denied')))
+            .toBe('Save failed — permission denied');
+        expect(saveFailureStatusMessage({ error: 'disk is full' }))
+            .toBe('Save failed — disk is full');
+        expect(saveFailureStatusMessage(null))
+            .toBe('Save failed — unknown error');
     });
 });

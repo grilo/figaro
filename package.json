@@ -1,6 +1,6 @@
 {
   "name": "figaro",
-  "version": "1.13.1",
+  "version": "1.14.0",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -44,6 +44,7 @@
       "^@lezer/(.*)$": "<rootDir>/frontend/vendored/lezer/$1/index.js",
       "^@replit/(.*)$": "<rootDir>/frontend/vendored/@replit/$1/dist/index.js",
       "^@uiw/codemirror-extensions-color$": "<rootDir>/frontend/vendored/@uiw/codemirror-extensions-color/index.js",
+      "^codemirror-markdown-tables$": "<rootDir>/frontend/vendored/codemirror-markdown-tables/index.js",
       "^style-mod$": "<rootDir>/frontend/vendored/style-mod/index.js",
       "^crelt$": "<rootDir>/frontend/vendored/crelt/index.js",
       "^w3c-keyname$": "<rootDir>/frontend/vendored/w3c-keyname/index.js"

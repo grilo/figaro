@@ -50,8 +50,9 @@ It logs only protocol metadata and byte counts, never diagram contents; inspect
 1. Start from the current `main` branch and keep each change focused.
 2. Add or update a regression test at the lowest layer that can prove the
    behavior.
-3. Update `CHANGELOG.md` under `Unreleased` for user-facing changes and keep
-   every affected documentation surface synchronized.
+3. Update `CHANGELOG.md` under `[Unreleased]` for user-facing changes, using an
+   applicable Keep a Changelog category, and keep every affected documentation
+   surface synchronized.
 4. Run the relevant checks described in [Testing and
    verification](#testing-and-verification).
 5. Open a pull request that explains the user-visible outcome, the important
@@ -130,18 +131,34 @@ release tag reachable from `main`; an explicit `VERSION` remains available for
 an approved version. It prints the exact base tag and resolved target before
 changing metadata, so an untagged package version is never mistaken for a
 release. The target validates the version and Git identity,
-synchronizes the root npm and Wails metadata plus the changelog, runs the
-complete release verification suite, stages all current non-ignored changes
-into one release commit and annotated tag, then pushes `main` and that exact
-tag in order. It never deletes pending work, alters an existing tag, or pushes
-other refs. Repeating the same version resumes a matching tagged release after
-a failed push. Use `make release-local patch` or
+synchronizes the root npm and Wails metadata plus the changelog, validates the
+exact curated release-note body, runs the complete release verification suite,
+stages all current non-ignored changes into one release commit and annotated
+tag, then pushes `main` and that exact tag in order. It never deletes pending
+work, alters an existing tag, or pushes other refs. Repeating the same version
+resumes a matching tagged release after a failed push. Use `make release-local patch` or
 `make release-local VERSION=vMAJOR.MINOR.PATCH` to stop before the push.
 The browser check downloads Playwright's pinned Chromium if necessary, but does
 not install system packages or request elevated privileges.
-When `CHANGELOG.md` has no entries under `Unreleased`, the target leaves files
-unchanged and tells you to add a concise entry under **Added**, **Changed**, or
-**Fixed** and rerun; if there is nothing to add, no release is needed.
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and Semantic Versioning from 1.14.0 onward. Add concise user-facing bullets
+under `[Unreleased]`, normally beneath **Added**, **Changed**, or **Fixed**;
+**Deprecated**, **Removed**, and **Security** are available when applicable.
+The release target moves those entries under a bracketed, dated version,
+updates the `Unreleased` and version comparison links, and rejects empty,
+unknown, duplicated, out-of-order, or entry-free categories. When no entries
+are ready, it leaves files unchanged and explains the repair instead of
+creating an empty release.
+
+The tag workflow extracts that exact dated section into the GitHub release
+body. It does not infer notes from commit or pull-request history, and a retry
+repairs the title and notes of an existing release before replacing its assets.
+You can preview the body locally after the changelog has been cut with:
+
+```bash
+node scripts/extract-release-notes.mjs vMAJOR.MINOR.PATCH
+```
+
 `$prepare-figaro-release` invokes the publishing target only when explicitly
 asked to publish; pushing the tag starts the GitHub release workflow.
 
@@ -259,6 +276,16 @@ versions of the US English, UK English, and Spanish Hunspell `.aff`/`.dic`
 assets with their individual license files. Do not replace those language
 assets or remove their notices without auditing the upstream dictionary terms.
 
+The interactive-table bundle is generated through
+`scripts/vendor-codemirror-markdown-tables.mjs`. Its exact-match, in-memory
+transform makes the third-party table decoration yield to Figaro's native fold
+range, adds the direct approved **Delete table** control through the upstream
+history action, and deliberately fails if a dependency update changes the
+reviewed upstream shape. The vendored `codemirror-live-markdown` fenced-code provider
+has the equivalent fold-aware rebuild. Preserve and reverify both integrations
+when refreshing either dependency; the focused browser folding regression must
+pass before accepting the generated bundle.
+
 Some browser libraries, including Mermaid, are checked in separately from the
 root npm dependency graph and may embed their own packages. After changing a
 vendored bundle, run `tests/frontend/unit/vendoredBrowserSecurity.test.js` as
@@ -288,7 +315,7 @@ the assembled webview rather than one JavaScript package in isolation.
 
 - Format Go with `gofmt`; run the JavaScript linter rather than hand-formatting
   vendored dependencies.
-- Update `CHANGELOG.md` under `Unreleased` for every user-facing feature,
+- Update `CHANGELOG.md` under `[Unreleased]` for every user-facing feature,
   behavior change, and bug fix; changelog work is part of feature completion.
 - Audit every affected document in the same change. Keep user workflows in
   `README.md`, the detailed contract in `docs/PROMPT.md`, and update the

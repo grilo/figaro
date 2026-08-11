@@ -3,6 +3,7 @@
 import { backend } from './backend.js';
 import { getEditorContent } from './editor.js';
 import { getState } from './state.js';
+import { setRightSidebarOpen } from './rightSidebarState.js';
 
 const previewMode = 'raw-text-preview';
 const markdownPath = /\.(?:md|markdown|mdown|mkdn)$/i;
@@ -134,7 +135,8 @@ export async function openRawTextPreview({ path, title, content } = {}) {
 
     panel.hidden = false;
     sidebar.dataset.mode = previewMode;
-    sidebar.classList.add('open', 'raw-text-preview-mode');
+    setRightSidebarOpen(sidebar, true);
+    sidebar.classList.add('raw-text-preview-mode');
     sidebar.classList.remove('collapsed');
     if (rightTitle) rightTitle.textContent = 'Raw Text';
     resizer?.classList.add('visible');
@@ -154,7 +156,7 @@ export function closeRawTextPreview({ keepSidebarOpen = false } = {}) {
         delete sidebar.dataset.mode;
         sidebar.classList.remove('raw-text-preview-mode');
         if (!keepSidebarOpen) {
-            sidebar.classList.remove('open');
+            setRightSidebarOpen(sidebar, false);
             sidebar.style.width = '';
             sidebar.style.minWidth = '';
             resizer?.classList.remove('visible');

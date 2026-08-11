@@ -1,5 +1,6 @@
 import {
     headingLinkCompletionMatch,
+    markdownHeadingPosition,
     markdownHeadingSlug,
     markdownHeadingTargets,
     linkedNoteCompletionInsertion,
@@ -85,6 +86,10 @@ describe('note link autocomplete syntax', () => {
             { label: 'Start here', slug: 'start-here-2' },
             { label: 'A Setext heading', slug: 'a-setext-heading' },
         ]);
+        expect(markdownHeadingPosition(source, '#start-here')).toBe(source.indexOf('# Start here'));
+        expect(markdownHeadingPosition(source, '#start-here-2')).toBe(source.indexOf('## Start here'));
+        expect(markdownHeadingPosition(source, '#a-setext-heading')).toBe(source.indexOf('A Setext heading'));
+        expect(markdownHeadingPosition(source, '#missing')).toBeNull();
     });
 
     test('matches only an unfinished Markdown-link heading fragment', () => {

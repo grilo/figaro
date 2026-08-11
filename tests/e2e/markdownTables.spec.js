@@ -64,6 +64,27 @@ async function createMarkdownEditor(page, source) {
     });
 }
 
+test('deletes a whole table from its direct control and restores it with undo', async ({ page }) => {
+    await createMarkdownEditor(page, tableSource);
+    const widget = page.locator('.tbl-table-widget');
+    const deleteButton = page.getByRole('button', { name: 'Delete table' });
+    await expect(widget).toBeVisible();
+    await expect(deleteButton).toBeVisible();
+    await expect(deleteButton).toHaveClass(/ui-button--danger-ghost/);
+    const sourceBeforeDelete = await page.evaluate(() => window.__figaroTableTestView.state.doc.toString());
+
+    await deleteButton.click();
+    await expect(widget).toHaveCount(0);
+    await expect(deleteButton).toHaveCount(0);
+    expect(await page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).not.toContain('|');
+    await expect(page.locator('#editor-container > .cm-editor')).toHaveClass(/cm-focused/);
+
+    await page.keyboard.press('Control+z');
+    await expect(widget).toBeVisible();
+    await expect(deleteButton).toBeVisible();
+    expect(await page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).toBe(sourceBeforeDelete);
+});
+
 async function nestedInsertCaretState(page) {
     // CodeMirror measures and paints its cursor layer on an animation frame.
     // Wait for that paint rather than observing the previous modal cursor.

@@ -68,6 +68,8 @@ jobs:
               throw new Error("LICENSE does not contain the GNU GPL text");
             }
           '
+      - name: Validate curated release notes
+        run: node scripts/extract-release-notes.mjs "$GITHUB_REF_NAME" --output release-notes.md
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -202,6 +204,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           pattern: figaro-release-*
@@ -212,6 +215,8 @@ jobs:
         run: |
           cd dist
           sha256sum figaro-*.tar.gz figaro-*.zip > SHA256SUMS
+      - name: Generate curated release notes
+        run: node scripts/extract-release-notes.mjs "$GITHUB_REF_NAME" --output release-notes.md
       - name: Create or repair GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -219,10 +224,13 @@ jobs:
         shell: bash
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "Figaro $GITHUB_REF_NAME" \
+              --notes-file release-notes.md
             gh release upload "$GITHUB_REF_NAME" dist/* --clobber
           else
             gh release create "$GITHUB_REF_NAME" dist/* \
               --verify-tag \
-              --generate-notes \
+              --notes-file release-notes.md \
               --title "Figaro $GITHUB_REF_NAME"
           fi

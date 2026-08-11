@@ -229,6 +229,13 @@
     border-color: var(--border-light);
 }
 
+.kanban-card:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-md);
+}
+
 .kanban-card.dragging {
     opacity: 0.3;
     border-style: dashed;

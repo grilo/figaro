@@ -32,6 +32,17 @@ while the requesting Settings panel is active. Packaged binaries and the About
 card therefore share the release metadata source instead of maintaining
 another version literal.
 
+Release publication uses the changelog as its single editorial source. The
+pure `scripts/releaseNotes.cjs` parser selects one bracketed dated version,
+validates its Keep a Changelog category order and non-empty bullet groups, and
+returns only that release body. The `.mjs` CLI owns file I/O. Local release
+preparation runs the same parser after metadata synchronization and before any
+commit or tag; the tag workflow runs it again before verification and uses the
+result as the GitHub release body. Creation and retry therefore publish the
+same curated Added/Changed/Fixed content rather than GitHub-generated commit
+summaries. The metadata synchronizer owns version/date movement and comparison
+links from 1.14.0 onward; historical headings remain untouched.
+
 ## Design-system review surface
 
 `frontend/design-system/` owns the canonical token contract,
@@ -343,6 +354,15 @@ markers are patched on mounted nodes during tab and dirty-state changes rather
 than rebuilding that structural DOM. This prevents large collapsed or expanded
 trees from imposing a hidden DOM/layout cost on ordinary tab switches.
 
+Keyboard card ordering is a separate presentation projection rather than a
+rewrite of note lines. The pure Go `orderedKanbanCards` transformation and the
+matching frontend `core/kanbanKeyboardModel.js` reconcile saved references by
+file/line/text, fall back to file/text after edits shift a task, and append all
+unmatched cards. The root-scoped adapter atomically stores only those references
+in `.config/kanban-order.json`; column and vault-path rename/delete workflows
+rewrite or prune them. `kanban.js` owns keyboard events, status/focus handoff,
+and the existing hashtag mutation boundary for horizontal moves.
+
 Hashtag completion deliberately reads a second, stable projection of the saved
 Kanban columns rather than the dirty-buffer column list. Unsaved tags still
 reproject the visible board immediately, but a partial new tag cannot become
@@ -358,7 +378,9 @@ Tab overflow follows the same decision/effect split. The pure
 scroll offset that reveals an active tab from plain geometry. `tabManager.js`
 alone reads DOM measurements, applies `scrollLeft`, toggles themed edge-fade
 classes, and exposes the approved all-tabs button only when the full-width rail
-cannot fit its content.
+cannot fit its content. `core/tabPresentationModel.js` separately derives the
+full accessible path, parent-location copy, and two-ended filename segments;
+the tab DOM adapter and approved menu/tab primitives only render that plan.
 
 The optional editor breadcrumb follows the same direction. The pure
 `core/editorBreadcrumbModel.js` derives vault-relative display segments from
@@ -369,7 +391,26 @@ owns only DOM rendering, while Settings writes the presentation preference to
 local storage. Document-tab presentation itself is the approved
 `ui-document-tabs` family; `workspace.css` retains rail geometry, overflow, and
 drag placement while the shared primitive owns active, dirty, pinned, hover,
-and focus states.
+and focus states. Once the pointer crosses the tab-reorder threshold,
+`tabManager.js` brackets the active gesture with a document-level
+`selectstart` guard and one root state class. `workspace.css` uses that class to
+disable native selection beneath the pointer across the application; drop and
+pointer cancellation remove both effects immediately.
+
+The mounted right sidebar has one state adapter,
+`rightSidebarState.js`, which changes visibility, `aria-hidden`, and `inert`
+together. Each History/Outline/preview owner retains its own content lifecycle,
+but no zero-width closed pane can leave descendants in sequential focus. The
+editor follows the same separation: active tab/language state supplies a
+dynamic CodeMirror accessible name. The pure `core/windowTitleModel.js` derives
+the document-first browser/native title, while `windowChrome.js` subscribes to
+tab state and owns the DOM and Wails title effects. Context-menu key decisions
+likewise live in pure `core/contextMenuModel.js`; `contextMenu.js` owns menu
+semantics, roving focus, dismissal, and focus restoration for the file-tree,
+tab, and editor adapters. Search location compaction stays in
+`core/searchModel.js`: shallow parents remain complete, deep parents preserve
+their root and differentiating final folders, and the view retains the full
+path in its accessible name and tooltip.
 
 ## Git status and history restoration
 
@@ -418,19 +459,30 @@ allocation.
 ## Outline navigation
 
 Outline is intentionally a source-navigation surface rather than another
-CodeMirror live-preview feature. It parses only the active Markdown document's
-headings, keeps their document offsets, and ignores frontmatter plus
-heading-shaped text in fenced code. A pure hierarchy reducer derives every
-active ancestor from those offsets. The DOM adapter renders that hierarchy in
-an edge-to-edge, flat editor-top strip and renders the same typed headings in
-the right pane; both dispatch ordinary selection and scroll transactions when
-activated. CodeMirror's scroll margin matches the strip's measured height, so
-the full-width surface does not change source geometry or hide navigation
-targets beneath an obsolete floating-card inset.
-Document changes or a tab source swap rebuild the cached model, while selection
-and viewport updates reuse it. The small top-right launcher is hidden while the
-outline owns the right pane. History, Raw Text Preview, and PDF Preview release
-the outline before taking that shared pane.
+CodeMirror live-preview feature. `core/outlineModel.js` parses only the active
+Markdown document's headings, keeps their document offsets, ignores
+frontmatter plus heading-shaped text in fenced code, derives every active
+ancestor, and decides whether a measured line has crossed the visible sticky
+boundary. The DOM adapter renders that hierarchy in an edge-to-edge, flat
+editor-top strip and renders the same typed headings in the right pane; both
+dispatch ordinary selection and scroll transactions when activated. Sticky
+titles consume the shared `--font-size-editor` token, while the level marker
+remains compact metadata; the measured scroll margin absorbs the resulting
+row height without changing editor source geometry.
+CodeMirror's scroll margin matches the strip's measured height, so the
+full-width surface does not change source geometry or hide navigation targets
+beneath an obsolete floating-card inset.
+
+Document changes or a tab source swap rebuild the cached model. A passive
+listener on the current shared editor's scroll surface requests a keyed
+CodeMirror read/write measurement; repeated scroll events coalesce, the read
+phase resolves one line through CodeMirror's height map, and the write phase
+touches the sticky DOM only when the hierarchy signature changes. This follows
+the visible covered edge instead of the deliberately batched virtual viewport
+without parsing Markdown or forcing layout from the scroll handler. The small
+top-right launcher is hidden while the outline owns the right pane. History,
+Raw Text Preview, and PDF Preview release the outline before taking that shared
+pane.
 
 ## UI continuity surfaces
 
@@ -440,8 +492,12 @@ default arrangement retains the horizontal column row.
 Refreshing a board snapshots its horizontal position and each mounted column's
 scroll position before replacing cards, then restores them after render. The
 file tree applies the same continuity principle to structural refreshes by
-retaining its scroll position and focused container; selected entries remain
-the state-owned source of truth. Vault-scoped path presentation records keep
+retaining its scroll position and focused row; `selectedTreePath` remains the
+state-owned source of truth for roving focus. The pure `core/fileTreeModel.js`
+flattens only expanded rows and plans Up/Down, Home/End, parent/child,
+expand/collapse, and activation commands. The `fileTree.js` DOM adapter owns
+ARIA tree semantics, focus, scrolling, rendering, and activation effects.
+Vault-scoped path presentation records keep
 custom icons, colors, and an optional explicit pin preference together so
 rename, move, copy, merge, and delete remap one path-owned record. The pure
 tree model resolves an absent top-level `Inbox` preference to pinned, preserves
@@ -462,6 +518,13 @@ visible document region and rebuilt on viewport changes. Cursor movement only
 rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
+Conventional-link and standalone-hashtag click precedence is decided in the
+pure `core/noteLinks.js` model before the CodeMirror adapter runs effects. A
+complete `[label](#fragment)` therefore remains one link whether it is rendered
+or revealed source; its stable heading slug resolves to an editor offset and
+dispatches an ordinary selection, while only a standalone whitespace-delimited
+hashtag may open Kanban. Missing fragments are consumed locally and cannot fall
+through to vault reads or note creation.
 Markdown block folding follows the same source-first boundary.
 `core/markdownBlockGuideModel.js` classifies deterministic syntax descriptors
 as `h1`–`h6`, fenced-code language names with an untyped `code` fallback, or
@@ -476,6 +539,21 @@ typed guide and source-code chevron are approved design-system primitives,
 while the gutter retains only CodeMirror layout and event ownership. Ordinary
 line markers cover revealed source, and CodeMirror's widget-marker hook keeps
 fence and table guides aligned with their live-rendered block replacements.
+`core/markdownFoldAnchorModel.js` independently plans the scroll offset and
+minimum trailing reserve needed to preserve a clicked guide's viewport
+coordinate. The adapter measures before and after the fold, applies that plan
+through CodeMirror's measure phases, and performs one correction pass; it does
+not put DOM or scroll policy into the syntax classifier.
+The fenced-code and interactive-table decoration providers observe
+`foldedRanges`: an exact guide-owned fold causes them to omit their replacement
+widget and rebuild, leaving CodeMirror's native fold as the sole visual owner
+of that source range. Unfolding rebuilds the original widget.
+The table bundle receives this narrow integration during vendoring through an
+in-memory, exact-match transform that fails when the pinned upstream source no
+longer has the reviewed shape. The same transform attaches Figaro's approved
+danger-ghost button to the measured widget root and routes it through the
+extension's existing `table.delete` history annotation, so direct deletion and
+the table's internal command remain one undoable action.
 The Properties field uses the same source-first transition: its disclosure
 generates missing default frontmatter directly into structured-panel mode,
 while a later selection entering that replaced range reveals raw YAML and a
@@ -573,6 +651,13 @@ reads and writes `navigator.clipboard`, updates the register only when external
 text differs, and replays the vendored Vim paste action. Clipboard denial or an
 empty system value therefore falls back to Vim state without bypassing the
 adapter's normal Visual, linewise, blockwise, or repeat behavior.
+
+Ordinary URL paste uses CodeMirror Markdown's eager `pasteURLAsLink` extension,
+so a non-empty plain-prose selection is wrapped by one normal editor transaction
+and an active Vim Visual selection reaches the same path. The Markdown Enter
+keymap uses the library's configurable continuation command with non-tight-list
+retention disabled; this changes only the deterministic empty-item exit rule
+while leaving CodeMirror's parser, history, and cursor geometry in control.
 
 List-marker lines carry an inline hanging-indent decoration that aligns wrapped
 display rows with the visible item body. It is recalculated together with the
@@ -774,8 +859,8 @@ the active request immediately, preserves the ordinary trailing debounce, and
 queues one latest snapshot. Completed stale work is never sent through the
 bridge, so expensive bursts cannot race a later edit or paint an older preview.
 The pure Markdown-It parsing phase runs in a module worker when the webview
-supports it; callout/TOC decoration and DOM-dependent Mermaid/Vega conversion
-remain on the document side. A worker failure or unsupported WebKit build falls
+supports it; callout/TOC decoration, fenced-code highlighting, and DOM-dependent
+Mermaid/Vega conversion remain on the document side. A worker failure or unsupported WebKit build falls
 back to the established in-thread renderer, preserving preview correctness.
 The shared diagram renderer consults a pure Mermaid source policy before the
 vendored parser is initialized: it applies the parser's 50,000-character limit
@@ -838,9 +923,15 @@ link interaction.
 
 `pdfExport.js` builds one semantic printable HTML contract used by both the
 preview and the final browser export. It owns generated cover pages, tables of
-contents, callouts, footnotes, task lists, and diagram replacement. The preview
-adds only screen geometry and a selected stylesheet; the final export uses the
-same body and default print CSS.
+contents, callouts, footnotes, task lists, code highlighting, and diagram
+replacement. `core/printableCodeHighlight.js` makes the effect-free decision
+about an explicit fence language versus automatic detection through an injected
+highlighter; the printable DOM adapter applies the returned escaped token markup
+after either worker or in-thread Markdown parsing. It reuses the eagerly loaded
+editor highlighter, then emits `.figaro-print-code`, `data-highlight-language`,
+and highlight.js-compatible token classes before diagram fences are replaced.
+The preview adds only screen geometry and a selected stylesheet; the final
+export uses the same body and default print CSS.
 
 Before **Generate PDF**, Figaro saves the exact in-memory Markdown and selected
 stylesheet snapshots used by the preview. This avoids a race where an edit is
@@ -856,6 +947,15 @@ temporary profile already isolates user extensions. A configured executable
 that has moved or no longer starts is logged and automatic discovery continues.
 Startup diagnostics retain the failing executable, launch stage, timeout, and
 captured browser output so chooser errors are actionable.
+
+Linux discovery also reads `/snap/bin`, classifies only conservatively named
+Chrome, Chromium, Edge, and Brave commands, preserves the normal engine
+priority, and subjects every candidate to that same DevTools startup. The pure
+candidate and workspace policies remain separate from directory reads and
+process launch. A `/snap/bin/<snap>[.<app>]` executable uses an ephemeral leaf
+below `$HOME/snap/<snap>/common/figaro` for validation and export, keeping the
+profile, printable HTML, local assets, and output inside a path visible through
+Snap confinement; the effect coordinator removes that leaf afterward.
 
 ## Dialog system and focus boundary
 

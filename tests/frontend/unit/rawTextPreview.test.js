@@ -57,5 +57,7 @@ describe('raw text preview', () => {
         closeRawTextPreview();
         expect(panel.hidden).toBe(true);
         expect(sidebar.classList.contains('open')).toBe(false);
+        expect(sidebar.getAttribute('aria-hidden')).toBe('true');
+        expect(sidebar.hasAttribute('inert')).toBe(true);
     });
 });

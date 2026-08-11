@@ -119,7 +119,7 @@ describe('Interactive PDF export', () => {
             '',
             '<span id="raw-html">raw HTML must remain text</span>',
             '',
-            fence('javascript', 'const answer = 42;'),
+            fence('javascript', 'const answer = 42;\nconst markup = "<img src=x onerror=alert(1)>";'),
         ].join('\n');
 
         const html = renderPrintableMarkdown(content, 'Fallback <note>');
@@ -140,7 +140,16 @@ describe('Interactive PDF export', () => {
         expect(printable.body.textContent).toContain('<span id=');
         expect(printable.body.textContent).toContain('raw HTML must remain text</span>');
         expect(printable.body.textContent).not.toContain('title: metadata is not body text');
-        expect(printable.querySelector('pre > code.language-javascript').textContent).toContain('const answer = 42;');
+        const code = printable.querySelector('pre > code.language-javascript');
+        expect(code.textContent).toContain('const answer = 42;');
+        expect(code.classList.contains('figaro-print-code')).toBe(true);
+        expect(code.classList.contains('hljs')).toBe(true);
+        expect(code.dataset.highlightLanguage).toBe('javascript');
+        expect(code.querySelector('.hljs-keyword').textContent).toBe('const');
+        expect(code.textContent).toContain('<img src=x onerror=alert(1)>');
+        expect(code.querySelector('img')).toBeNull();
+        expect(printable.querySelector('style').textContent)
+            .toContain('.figaro-print-code .hljs-keyword');
     });
 
 	test('renders conventional wikilinks in printable preview and export HTML without parsing code', () => {

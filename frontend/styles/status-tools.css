@@ -8,6 +8,10 @@
     align-items: center;
     justify-content: space-between;
     height: var(--status-bar-height);
+    min-height: var(--status-bar-height);
+    max-height: var(--status-bar-height);
+    min-width: 0;
+    overflow: hidden;
     padding: 0 12px;
     background: var(--sidebar-bg);
     border-top: 1px solid var(--border-color);
@@ -16,16 +20,38 @@
     flex-shrink: 0;
     border-radius: 0 0 8px 8px;
     padding-right: 2px;
+    white-space: nowrap;
 }
 
 .status-left, .status-center, .status-right {
     display: flex;
     align-items: center;
     gap: 12px;
+    min-width: 0;
+    white-space: nowrap;
 }
 
 .status-left {
+    flex: 1 1 auto;
+    overflow: hidden;
     padding-left: 12px;
+}
+
+#status-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-right {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+.status-right > * {
+    flex: 0 0 auto;
 }
 
 #resize-grip {
@@ -43,6 +69,34 @@
 
 .status-separator {
     color: var(--border-color);
+}
+
+@media (max-width: 720px) {
+    .status-bar {
+        padding-left: 8px;
+    }
+
+    .status-left,
+    .status-right {
+        gap: 8px;
+    }
+
+    .status-left {
+        padding-left: 0;
+    }
+
+    .status-left > .status-separator,
+    .status-left .md-cheatsheet-wrapper,
+    .status-detail-extended {
+        display: none;
+    }
+}
+
+@media (max-width: 520px) {
+    .status-detail-reading,
+    .status-detail-word {
+        display: none;
+    }
 }
 
 /* Markdown Cheatsheet */

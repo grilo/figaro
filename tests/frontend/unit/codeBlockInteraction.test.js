@@ -1,5 +1,6 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { codeFolding, foldEffect, unfoldEffect } from '@codemirror/language';
 import { markdownLanguage } from '@codemirror/lang-markdown';
 import {
     codeBlockField,
@@ -47,5 +48,42 @@ describe('code block interaction', () => {
 
         expect(view.state.selection.main.anchor).toBe(source.indexOf('const answer'));
         expect(view.dom.querySelector('.cm-codeblock-widget')).toBeNull();
+    });
+
+    test('yields the rendered preview to a native fold and restores it on unfold', () => {
+        const fence = '`'.repeat(3);
+        const source = [
+            fence + 'yaml',
+            'enabled: true',
+            fence,
+            'after',
+        ].join('\n');
+        const state = EditorState.create({
+            doc: source,
+            selection: { anchor: source.length },
+            extensions: [
+                collapseOnSelectionFacet.of(true),
+                mouseSelectingField,
+                codeFolding(),
+                markdownLanguage,
+                ...codeBlockField({ lineNumbers: true }),
+            ],
+        });
+        view = new EditorView({ state, parent: document.body });
+        const foldRange = {
+            from: view.state.doc.line(1).to,
+            to: view.state.doc.line(3).to,
+        };
+
+        expect(view.dom.querySelector('.cm-codeblock-widget')).not.toBeNull();
+        view.dispatch({ effects: foldEffect.of(foldRange) });
+
+        expect(view.dom.querySelector('.cm-codeblock-widget')).toBeNull();
+        expect(view.dom.querySelector('.cm-foldPlaceholder')).not.toBeNull();
+        expect(view.state.doc.toString()).toBe(source);
+
+        view.dispatch({ effects: unfoldEffect.of(foldRange) });
+        expect(view.dom.querySelector('.cm-foldPlaceholder')).toBeNull();
+        expect(view.dom.querySelector('.cm-codeblock-widget')).not.toBeNull();
     });
 });

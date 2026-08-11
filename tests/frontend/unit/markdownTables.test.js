@@ -38,6 +38,11 @@ describe('codemirror-markdown-tables integration', () => {
 
         const widget = view.dom.querySelector('.tbl-table-widget');
         expect(widget).not.toBeNull();
+        const deleteButton = widget.querySelector('.tbl-delete-table-button');
+        expect(deleteButton).not.toBeNull();
+        expect(deleteButton.classList.contains('ui-button')).toBe(true);
+        expect(deleteButton.classList.contains('ui-button--danger-ghost')).toBe(true);
+        expect(deleteButton.getAttribute('aria-label')).toBe('Delete table');
         expect(widget.querySelector('table.tbl-table')).not.toBeNull();
         expect(widget.querySelectorAll('thead .tbl-cell')).toHaveLength(2);
         expect(widget.querySelectorAll('tbody .tbl-table-row')).toHaveLength(2);

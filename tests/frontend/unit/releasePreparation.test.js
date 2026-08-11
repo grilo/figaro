@@ -50,8 +50,10 @@ describe('prepare Figaro release metadata', () => {
             expect(JSON.parse(fs.readFileSync(path.join(root, 'wails.json'), 'utf8')).info.productVersion).toBe('2.3.4');
 
             const changelog = fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8');
-            expect(changelog).toMatch(/^## Unreleased\n\n_No changes yet\._\n\n## 2\.3\.4 - 2030-04-05/m);
-            expect(changelog).toMatch(/## 2\.3\.4 - 2030-04-05[\s\S]*### Added/);
+            expect(changelog).toMatch(/^## \[Unreleased\]\n\n_No changes yet\._\n\n## \[2\.3\.4\] - 2030-04-05/m);
+            expect(changelog).toMatch(/## \[2\.3\.4\] - 2030-04-05[\s\S]*### Added/);
+            expect(changelog).toContain('[Unreleased]: https://github.com/grilo/figaro/compare/v2.3.4...HEAD');
+            expect(changelog).toContain('[2.3.4]: https://github.com/grilo/figaro/compare/v1.0.0...v2.3.4');
         } finally {
             fs.rmSync(root, { recursive: true, force: true });
         }
@@ -105,7 +107,7 @@ describe('prepare Figaro release metadata', () => {
                 requestedVersion: 'v2.4.0',
                 releaseDate: '2030-04-06',
                 root,
-            })).toThrow('Add a concise user-facing entry under "## Unreleased"');
+            })).toThrow('Add a concise user-facing entry under "## [Unreleased]"');
         } finally {
             fs.rmSync(root, { recursive: true, force: true });
         }
@@ -160,6 +162,7 @@ describe('prepare Figaro release metadata', () => {
             'go test -race . ./internal/... ./cmd/...',
             'npx playwright install chromium',
             'npm run test:pdf',
+            'node scripts/extract-release-notes.mjs "$tag"',
         ]) {
             expect(script).toContain(command);
         }

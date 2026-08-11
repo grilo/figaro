@@ -2,7 +2,8 @@ import {
     activeOutlineHeadingHierarchy,
     activeOutlineHeadingIndex,
     extractOutlineHeadings,
-} from '../frontend/js/outline.js';
+    stickyHeadingBoundaryPosition,
+} from '../frontend/js/core/outlineModel.js';
 
 describe('Markdown document outline', () => {
     test('extracts nested ATX headings with exact source positions', () => {
@@ -74,5 +75,13 @@ describe('Markdown document outline', () => {
         expect(activeOutlineHeadingHierarchy(headings, 75).map(heading => heading.text))
             .toEqual(['Product', 'Release']);
         expect(activeOutlineHeadingHierarchy(headings, -1)).toEqual([]);
+    });
+
+    test('activates a sticky section only when its source line crosses the covered boundary', () => {
+        expect(stickyHeadingBoundaryPosition(-12, { from: 0, top: 0 })).toBe(-1);
+        expect(stickyHeadingBoundaryPosition(0, { from: 0, top: 0 })).toBe(0);
+        expect(stickyHeadingBoundaryPosition(199, { from: 20, top: 200 })).toBe(19);
+        expect(stickyHeadingBoundaryPosition(200, { from: 20, top: 200 })).toBe(20);
+        expect(stickyHeadingBoundaryPosition(Number.NaN, { from: 20, top: 200 })).toBe(-1);
     });
 });

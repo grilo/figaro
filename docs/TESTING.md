@@ -93,8 +93,12 @@ choice, stale-range, and error cases remain below the browser layer.
 Link-authoring coverage follows the same boundary. Keep reference-label parsing,
 definition normalization, exact-target suppression, filename planning, creation
 failure, cancellation, similar-name review, and stale editor ranges in focused
-unit/use-case tests. `tests/frontend/unit/editor.test.js` owns the assembled DOM
-distinction between unresolved source and a defined reference widget. The one
+unit/use-case tests. The pure link-click plan must prove both the visible label
+and a `#fragment` destination beat hashtag routing, while the focused CodeMirror
+component must prove rendered and revealed-source clicks select the exact
+heading without a vault read, Kanban tab, prompt, or file creation.
+`tests/frontend/unit/editor.test.js` owns the assembled DOM distinction between
+unresolved source and a defined reference widget. The one
 representative `tests/e2e/editorUX.spec.js` workflow verifies the unresolved
 text cursor and lack of an anchor, keyboard acceptance of **Create note**,
 defined-reference navigation, Arrow Up/Down from both directions, and mouse
@@ -273,19 +277,26 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Editor behavior, CodeMirror language modes, current-note heading-fragment
   completion, typed Markdown block-guide folding, exact Raw Text Preview, persistent Markdown diagnostics
   and their hover/F8 guidance, offline spellcheck's global **None** state and
-  language/frontmatter overrides, wrapped-list cursor/selection geometry,
+  language/frontmatter overrides, the dynamic editor accessible name, one-Enter
+  empty-list exit, smart URL paste for ordinary and Vim Visual selections, and
+  wrapped-list cursor/selection geometry,
   frontmatter, footnotes, diagrams, tabs, session
-  persistence, Kanban presentation/loading states, file-tree actions, and
+  persistence, Kanban presentation/loading and keyboard-order states,
+  file-tree actions and roving keyboard-tree states, and
   stale-response guards.
 - Pure and component coverage for tab-reorder planning and drag thresholds,
-  selection suppression, cancellation, pin-group boundaries, tab-overflow
-  direction, nearest active-tab reveal, conditional all-tabs visibility,
-  keyboard menu selection, and the disabled-by-default vault-relative editor
-  breadcrumb. Focused browser scenarios retain a real primary-pointer drag
-  without selected text and the actual flex widths, horizontal scrolling, and
-  computed pseudo-element fade opacity that cannot be represented by jsdom.
-- Browser rendering of cover pages, table of contents, Mermaid, Vega, and
-  Vega-Lite in the PDF export pipeline.
+  application-wide selection suppression during the active gesture, cleanup
+  after drop and cancellation, pin-group boundaries, tab-overflow direction,
+  nearest active-tab reveal, two-ended filename/path presentation, conditional
+  all-tabs visibility, keyboard menu selection, and the disabled-by-default
+  vault-relative editor breadcrumb.
+  The focused browser scenario drags a real primary pointer from the tab rail
+  into the file tree and back, retaining no selected text while asserting the
+  temporary computed `user-select` guard. It also owns the actual flex widths,
+  horizontal scrolling, and computed pseudo-element fade opacity that cannot
+  be represented by jsdom.
+- Browser rendering of cover pages, table of contents, fenced-code token colors,
+  Mermaid, Vega, and Vega-Lite in the PDF export pipeline.
 - Dependency security coverage for patched root lockfile entries and embedded
   packages that `npm audit` cannot see. Mermaid's actual browser bundle remains
   behind a pure pre-parse size and ordered-map policy until its embedded YAML
@@ -293,21 +304,29 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   proves rejected source remains printable.
 - The native Figaro Dark and Light theme assets, including their warm reading
   surfaces, framed navigation, contiguous active tab, selected tree state, tactile
-  Settings card, collar stitch, focus token, and text/link contrast.
+  Settings card, collar stitch, focus token, text/link contrast, and at least
+  4.5:1 rendered contrast for Home's small muted instructions.
 - Browser workflows for contextual Relationships, keyboard-triggered mention
   linking, the themed Vault-health Settings entry and finding navigation, and
   the full-width, non-overlapping History source comparison before restoration,
   plus the nested Document outline's visual hierarchy, active-section
-  tracking, top-right launcher, complete sticky hierarchy, full-width flush
-  strip geometry without floating-card radius or shadow, keyboard jump,
-  Arrow Up/Down movement, and editor-focus handoff.
+  tracking, top-right launcher positioned beneath the complete sticky
+  hierarchy, each sticky ancestor entering separately as its real source row
+  crosses the covered editor edge even while CodeMirror's virtual viewport is
+  unchanged, sticky title text matching CodeMirror's computed normal font size,
+  full-width flush strip geometry without floating-card radius or shadow, keyboard jump,
+  Arrow Up/Down movement, editor-focus handoff, and the right pane's atomic
+  visible/`aria-hidden`/`inert` focus boundary.
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
   links remain in the rendered document. High-frequency scroll reports are
   coalesced before they can cause a matching burst of editor updates. The
   real-browser suite also verifies that printable Markdown preparation enters
-  the module-worker path before the preview document is applied.
-- Release metadata consistency across npm, Wails, the GPL license, changelog,
+  the module-worker path before the preview document is applied and that the
+  document-side pass adds visible syntax-token colors before it enters the
+  sandboxed frame.
+- Release metadata consistency across npm, Wails, the GPL license, Keep a
+  Changelog headings and comparison links, exact-version GitHub release notes,
   documented tag command, and all three binary archive definitions.
 - The Settings About card's packaged-version normalization, backend failure
   fallback, closed-panel cancellation, accessible component state, and
@@ -319,16 +338,22 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   real-browser theme switch.
 
 The focused release checks are `tests/frontend/unit/releaseMetadata.test.js`,
+`tests/frontend/unit/releaseNotes.test.js`,
 `tests/frontend/unit/dependencySecurity.test.js`,
 `tests/frontend/unit/nodePrerequisite.test.js`, and
 `tests/frontend/unit/releasePreparation.test.js`. They cover the
-release-metadata generator's successful version/changelog cut, non-destructive
-invalid-version rejection, and idempotent retry. The release shell test runs
+release-metadata generator's successful bracketed version/changelog cut,
+comparison-link update, non-destructive invalid-version rejection, and
+idempotent retry. The release-note parser independently proves exact-version
+selection, canonical Keep a Changelog category order, non-empty groups, and
+exclusion of neighboring releases and link definitions. Workflow assertions
+require both validation and publication to use that parser, forbid GitHub's
+generated-note path, and require retries to edit the curated body. The release shell test runs
 the publishing and local-only paths against disposable Git repositories and a
 local bare remote, proving that pending non-ignored files join the release
 commit, each automatic version bump resolves from the latest tag, and an
 interrupted release can resume its matching tag and push. They also prove an
-empty `Unreleased` section leaves the worktree untouched and gives the user the
+empty `[Unreleased]` section leaves the worktree untouched and gives the user the
 next steps instead of only reporting the failure. The dependency-security test
 keeps every `brace-expansion` and `js-yaml` copy above its denial-of-service
 advisory range and guards the ESLint major that provides that patched
@@ -492,6 +517,30 @@ npm run test:unit -- --runTestsByPath tests/frontend/unit/pdfPreview.test.js
 npx playwright test tests/e2e/pdfPreviewFrame.spec.js
 ```
 
+## PDF browser discovery and Snap confinement regressions
+
+Keep Linux browser discovery deterministic by injecting the `/snap/bin`
+directory listing, filesystem lookup, and DevTools validator. The focused Go
+contract must prove that unsupported Snap commands are ignored, browser-engine
+priority is preserved, and a `/snap/bin/<snap>[.<app>]` command maps only to an
+ephemeral workspace below `$HOME/snap/<snap>/common/figaro`. Path validation
+must reject traversal and malformed Snap names.
+
+For a workstation with Snap Chromium installed, run both opt-in boundaries.
+The first exercises automatic discovery plus an actual isolated DevTools
+startup; the second writes printable HTML, its browser profile, and the PDF to
+the confinement-visible workspace and asserts multiple pages plus internal and
+external link annotations:
+
+```bash
+go test ./internal/pdfexport \
+  -run 'Test(FindBrowserScansSnapBin|SnapBrowser)'
+FIGARO_BROWSER_PDF_DISCOVERY_INTEGRATION=1 \
+  go test -v ./internal/pdfexport -run '^TestFindBrowserAgainstOptInSystem$'
+FIGARO_BROWSER_PDF_EXECUTABLE=/snap/bin/chromium \
+  go test -v ./internal/pdfexport -run '^TestRenderChromiumPDFAgainstOptInBrowser$'
+```
+
 ## Raw text preview and heading-link regressions
 
 Raw Text Preview is an exact source surface, not a renderer or print-preview
@@ -627,14 +676,24 @@ typed, accessible collapse/expand controls, disabling and re-enabling the
 gutter, and show that folding never edits source. The browser boundary must
 compare guide and editor font sizes, click a nested fold, move across it with
 Arrow Up/Down and Vim visual-row `j`/`k`, place the mouse on the adjacent line,
-and drag a selection across the folded source in both directions. In a native
-WebKitGTK, WebView2, and WKWebView build, repeat those cursor and drag checks
-with both line numbers off and on.
+and drag a selection across the folded source in both directions. For both a
+typed and untyped fence and for an interactive table, it must also prove that
+the rendered widget disappears, one native fold row replaces it, the next
+visible content has no stale widget-sized gap, expansion restores the widget,
+and source stays exact. Measure each guide against the top of its source line
+or block widget. Collapse and expand a middle block by clicking the same fixed
+screen coordinate, then repeat with the final block while scrolled to the
+document end; the guide must remain fixed and any trailing anchor reserve must
+disappear once natural content height can support the scroll offset. A
+fold-state or ARIA-only assertion is not sufficient. In a native WebKitGTK,
+WebView2, and WKWebView build, repeat those cursor and drag checks with both
+line numbers off and on.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/markdownHeadingFolding.test.js \
   tests/frontend/unit/markdownBlockGuides.test.js \
+  tests/frontend/unit/codeBlockInteraction.test.js \
   tests/frontend/unit/codeEditorMode.test.js \
   tests/frontend/unit/editor.test.js
 npx playwright test tests/e2e/editorUX.spec.js --grep "folds nested Markdown block guides"
@@ -677,6 +736,11 @@ exact cursor; redo must not focus the table's last cell. Keep the focused
 automated checks in
 `tests/frontend/unit/markdownTables.test.js` and
 `tests/e2e/markdownTables.spec.js`.
+The same focused browser spec must expose one approved danger-ghost **Delete
+table** action, remove the complete table without leaving a widget, retain root
+editor focus, and restore the byte-exact pre-delete source with one Undo.
+Jest maps `codemirror-markdown-tables` to Figaro's generated vendored module so
+component coverage cannot silently exercise the unpatched npm entry point.
 
 For tab or workspace-view work, retain a browser regression that places a
 nonzero file selection, opens and closes Settings, and verifies the exact
@@ -746,6 +810,45 @@ files, gives colliding moved/imported entries parenthesized names such as
 `report (copy).md` and `report (copy 2).md`, and keeps open tabs plus backlinks
 on the resulting paths. Retain Go coverage for internal and native-drop merges
 and frontend coverage for both confirmation flows.
+
+Long internal moves add a single-flight UI contract: set the tree's `aria-busy`
+state and announce the source name before awaiting the backend, refuse another
+move while that promise is pending, then clear busy state and report the final
+path. Keep this sequencing in `tests/frontend/unit/fileTree.test.js`; it does
+not require a browser or a second filesystem matrix.
+
+## Search and shell accessibility regressions
+
+Global-search component coverage must keep focus on the combobox, synchronize
+`aria-expanded`, `aria-activedescendant`, and option `aria-selected`, clear the
+active descendant on Escape, and put a repeated filename's parent location on
+its own line with the complete path in its accessible name and tooltip. Pure
+coverage owns parent derivation and the tail-preserving deep-path compaction:
+keep a shallow parent complete, but retain the root and final three folders
+around an ellipsis when depth would otherwise erase distinguishing context.
+The native-theme browser check owns computed 4.5:1 contrast for summary, path,
+excerpt, and line/count metadata.
+
+Tab activation rerenders the tab DOM, so unit and browser coverage must prove
+two consecutive Left/Right presses keep focus on the newly mounted active tab.
+The real narrow viewport also owns the status bar's 24px fixed-height contract;
+save-model and tab-manager units own failure-cause formatting, dirty-buffer
+retention, and the live status semantics.
+
+Run the focused contract with:
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/searchModel.test.js \
+  tests/frontend/unit/search.test.js \
+  tests/frontend/unit/saveModel.test.js \
+  tests/frontend/unit/statusBar.test.js \
+  tests/frontend/unit/tabManager.test.js \
+  tests/frontend/unit/fileTree.test.js
+npx playwright test \
+  tests/e2e/figaroThemes.spec.js \
+  tests/e2e/workspaceOverview.spec.js
+```
 
 ## File-tree pin regressions
 
@@ -854,6 +957,35 @@ enabled-by-default Settings toggle. Wrapped Markdown bullet, ordered-list, and
 plain blockquote lines must keep continuation rows under their item or quoted
 bodies in both active and passive preview states, while retaining Arrow Up/Down,
 mouse placement, and drag-selection behavior.
+
+The empty-second-item regression must press Enter once in the assembled
+Markdown editor, assert the exact source/cursor result, then exercise Arrow
+Up/Down, mouse placement, and a drag across the former list boundary. Smart URL
+paste must use a real browser `ClipboardEvent`, preserve the selected label as
+Markdown, and repeat with the Vim adapter's actual Visual state active. The
+same focused editor workflow asserts the main textbox's document-specific
+accessible name and the active document-first browser title. Pure title-model
+coverage owns the `Document — Figaro`/`Figaro` decision; the native adapter has
+a no-panic backend test. A focused browser workflow opens file-tree, tab, and
+editor context menus with Shift+F10, checks menu/menuitem semantics and
+Up/Down/Home/End focus, then verifies Escape restores the invoking focus.
+Modal coverage must also prove that a deferred return-focus step does not
+override a newer menu or dialog that has already taken focus.
+
+File-tree keyboard coverage is split at the same seam. Pure model tests own the
+visible-row flattening and Up/Down, Home/End, parent/child, expand/collapse, and
+activation plans. Component tests own `tree`/`treeitem`/`group` semantics,
+exactly one row with `tabindex="0"`, selection-following-focus, collapsed-child
+mounting, activation, and focused-row restoration after rerender. One browser
+scenario owns the irreducible Tab-entry and `:focus-visible` behavior, then
+uses Right/Down/Left against real focused rows. Mouse selection, opening, drag,
+and context-menu behavior must remain unchanged.
+
+Kanban ordering keeps pure JavaScript and Go reconciliation tests, a root-scoped
+config persistence/path-escape test, and one browser sequence: Tab crosses a
+column boundary, Up reorders and restores focus, then Right rewrites the tag and
+restores focus in the adjacent column. Closing the right pane must assert both
+`aria-hidden` and `inert`; CSS width or `.open` alone is insufficient.
 
 The separate, off-by-default **Enter rendered blocks** preference must be
 disabled while Vim is off, persist and roll back through the same Settings

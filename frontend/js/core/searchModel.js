@@ -100,3 +100,24 @@ export function nextSearchSelection(currentIndex, resultCount, direction) {
     if (currentIndex < 0) return direction > 0 ? 0 : resultCount - 1;
     return (currentIndex + direction + resultCount) % resultCount;
 }
+
+export function searchResultLocation(path) {
+    const normalized = String(path || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+    const separator = normalized.lastIndexOf('/');
+    return separator >= 0 ? normalized.slice(0, separator) : 'Vault root';
+}
+
+/**
+ * Keep the stable vault root and the most specific parent folders visible.
+ * Search rows are intentionally narrow, so showing every leading folder can
+ * hide the only segment that distinguishes otherwise identical filenames.
+ */
+export function compactSearchResultLocation(path, trailingSegments = 3) {
+    const location = searchResultLocation(path);
+    if (location === 'Vault root') return location;
+
+    const segments = location.split('/').filter(Boolean);
+    const tailCount = Math.max(1, Number(trailingSegments) || 1);
+    if (segments.length <= tailCount + 1) return location;
+    return `${segments[0]}/…/${segments.slice(-tailCount).join('/')}`;
+}

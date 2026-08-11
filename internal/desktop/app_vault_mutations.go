@@ -71,6 +71,9 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 	if err := a.removeFileTreeStylePathsLocked(cleanRel); err != nil {
 		log.Printf("[file-tree] Could not remove styles for deleted path %q: %v", filepath.ToSlash(cleanRel), err)
 	}
+	if err := a.rewriteKanbanOrderPaths(cleanRel, "", true); err != nil {
+		log.Printf("[kanban] Could not remove card-order paths beneath %q: %v", filepath.ToSlash(cleanRel), err)
+	}
 	a.resetFileVersionsLocked()
 	a.syncKanbanColumnsLocked()
 	return &SaveFileResult{Success: true}, nil
@@ -133,6 +136,9 @@ func (a *App) renamePathLocked(oldRel string, newRel string) (*SaveFileResult, e
 	a.syncKanbanColumnsLocked()
 	if err := a.rewriteFileTreeStylePathsLocked(oldClean, newClean, false); err != nil {
 		log.Printf("[file-tree] Could not move styles from %q to %q: %v", filepath.ToSlash(oldClean), filepath.ToSlash(newClean), err)
+	}
+	if err := a.rewriteKanbanOrderPaths(oldClean, newClean, false); err != nil {
+		log.Printf("[kanban] Could not move card-order paths from %q to %q: %v", filepath.ToSlash(oldClean), filepath.ToSlash(newClean), err)
 	}
 	updatedLinks := make([]string, 0, len(linkRewrites))
 	for _, rewrite := range linkRewrites {

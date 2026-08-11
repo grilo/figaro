@@ -47,6 +47,8 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-block-widget--diagram')).toMatch(/padding:\s*8px 0/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-top:\s*0\s*!important/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-bottom:\s*0\s*!important/);
+        expect(declarationsFor('.tbl-table-widget')).toMatch(/padding-top:\s*44px\s*!important/);
+        expect(declarationsFor('.tbl-delete-table-button')).toMatch(/position:\s*absolute/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/margin:\s*0\s*!important/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/padding-bottom:\s*6px/);
     });
@@ -56,6 +58,13 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-frontmatter-disclosure')).toMatch(/width:\s*16px/);
         expect(declarationsFor('.cm-frontmatter-disclosure')).toMatch(/transition:\s*transform/);
         expect(declarationsFor('.cm-frontmatter-disclosure.expanded')).toMatch(/rotate\(90deg\)/);
+    });
+
+    test('top-aligns Markdown block guides and provides fold-anchor scroll space', () => {
+        expect(declarationsFor('.cm-markdownBlockGutter .cm-gutterElement'))
+            .toMatch(/align-items:\s*flex-start/);
+        expect(declarationsFor('.cm-markdownBlockGutter'))
+            .toMatch(/translateY\(-16px\)/);
     });
 
     test('keeps expanded frontmatter menus above later editor lines', () => {

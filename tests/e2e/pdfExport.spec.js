@@ -157,6 +157,8 @@ test('renders every section across pages with interactive links and numbered foo
         '',
         'The first reference is named[^world]. Read the [external export guide](https://example.com/figaro-export-guide).',
         '',
+        fence('javascript', 'const answer = 42; // printable token colors'),
+        '',
         ...paragraphs.slice(0, 30).flatMap(paragraph => [paragraph, '']),
         '## Second section',
         '',
@@ -196,16 +198,26 @@ test('renders every section across pages with interactive links and numbered foo
     await page.emulateMedia({ media: 'print' });
     const printLayout = await page.evaluate(() => {
         const body = document.body;
+        const keyword = document.querySelector('.figaro-print-code .hljs-keyword');
+        const comment = document.querySelector('.figaro-print-code .hljs-comment');
         return {
             bodyOverflow: getComputedStyle(body).overflow,
             bodyDisplay: getComputedStyle(body).display,
             bodyHeight: body.getBoundingClientRect().height,
             viewportHeight: window.innerHeight,
+            codeLanguage: document.querySelector('.figaro-print-code')?.dataset.highlightLanguage,
+            keywordText: keyword?.textContent,
+            keywordColor: keyword ? getComputedStyle(keyword).color : '',
+            commentColor: comment ? getComputedStyle(comment).color : '',
         };
     });
     expect(printLayout.bodyOverflow).toBe('visible');
     expect(printLayout.bodyDisplay).toBe('block');
     expect(printLayout.bodyHeight).toBeGreaterThan(printLayout.viewportHeight * 3);
+    expect(printLayout.codeLanguage).toBe('javascript');
+    expect(printLayout.keywordText).toBe('const');
+    expect(printLayout.keywordColor).toBe('rgb(207, 34, 46)');
+    expect(printLayout.commentColor).toBe('rgb(87, 96, 106)');
 
     const pdf = await page.pdf({ format: 'A4', printBackground: true });
     const pdfText = pdf.toString('latin1');

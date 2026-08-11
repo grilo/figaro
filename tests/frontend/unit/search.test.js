@@ -86,11 +86,17 @@ describe('workspace search', () => {
     test('opens the selected result from the keyboard at its matching line', async () => {
         const input = document.getElementById('global-search-input');
         input.value = 'project';
+        input.focus();
         await performGlobalSearch(input.value);
 
         handleSearchKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
         handleSearchKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
-        expect(document.querySelector('.search-result-row.selected')).not.toBeNull();
+        const selected = document.querySelector('.search-result-row.selected');
+        expect(selected).not.toBeNull();
+        expect(input.getAttribute('aria-expanded')).toBe('true');
+        expect(input.getAttribute('aria-activedescendant')).toBe(selected.id);
+        expect(selected.getAttribute('aria-selected')).toBe('true');
+        expect(document.activeElement).toBe(input);
 
         handleSearchKeydown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
         expect(openTab).toHaveBeenCalledWith('Journal.md', 'Journal.md', 'file', {
@@ -98,6 +104,66 @@ describe('workspace search', () => {
             mtime: 10,
             line: 7
         });
+    });
+
+    test('keeps combobox focus when Escape closes search results', async () => {
+        const input = document.getElementById('global-search-input');
+        input.value = 'project';
+        input.focus();
+        await performGlobalSearch(input.value);
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
+
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+
+        expect(input.getAttribute('aria-expanded')).toBe('false');
+        expect(input.hasAttribute('aria-activedescendant')).toBe(false);
+        expect(document.activeElement).toBe(input);
+    });
+
+    test('shows the parent folder separately so repeated filenames remain distinguishable', async () => {
+        setState('fileTreeData', []);
+        window.go.desktop.App.SearchFiles.mockResolvedValue([
+            { name: 'Meeting.md', path: 'Clients/Acme/Meeting.md', matches: [{ line: 2, text: 'project review' }] },
+            { name: 'Meeting.md', path: 'Clients/Beacon/Meeting.md', matches: [{ line: 4, text: 'project review' }] },
+        ]);
+
+        await performGlobalSearch('project');
+
+        const rows = [...document.querySelectorAll('.search-result-row')];
+        expect(rows.map(row => row.querySelector('.search-result-path').textContent.trim()))
+            .toEqual(['Clients/Acme', 'Clients/Beacon']);
+        expect(rows.map(row => row.title)).toEqual([
+            'Clients/Acme/Meeting.md',
+            'Clients/Beacon/Meeting.md',
+        ]);
+    });
+
+    test('keeps the distinguishing tail visible for repeated filenames under deep common paths', async () => {
+        setState('fileTreeData', []);
+        window.go.desktop.App.SearchFiles.mockResolvedValue([
+            {
+                name: 'Meeting.md',
+                path: 'Clients/International/Western-Europe/Enterprise/Acme/2026/Planning/Meeting.md',
+                matches: [{ line: 2, text: 'project review' }],
+            },
+            {
+                name: 'Meeting.md',
+                path: 'Clients/International/Western-Europe/Enterprise/Beacon/2026/Planning/Meeting.md',
+                matches: [{ line: 4, text: 'project review' }],
+            },
+        ]);
+
+        await performGlobalSearch('project');
+
+        const rows = [...document.querySelectorAll('.search-result-row')];
+        expect(rows.map(row => row.querySelector('.search-result-path').textContent.trim()))
+            .toEqual(['Clients/…/Acme/2026/Planning', 'Clients/…/Beacon/2026/Planning']);
+        expect(rows[0].getAttribute('aria-label')).toContain(
+            'Clients/International/Western-Europe/Enterprise/Acme/2026/Planning/Meeting.md'
+        );
+        expect(rows[1].getAttribute('aria-label')).toContain(
+            'Clients/International/Western-Europe/Enterprise/Beacon/2026/Planning/Meeting.md'
+        );
     });
 
     test('keeps the newest query when an earlier backend response arrives late', async () => {

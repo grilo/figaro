@@ -47,3 +47,69 @@ export function toggleSelectedPath(selectedPaths, path) {
     else next.push(path);
     return next;
 }
+
+/** Flatten only the rows a collapsed/expanded tree currently exposes. */
+export function visibleFileTreeRows(items, expandedDirectories, styles = {}, depth = 1, parentPath = null) {
+    const expanded = expandedDirectories instanceof Set
+        ? expandedDirectories
+        : new Set(expandedDirectories || []);
+    const rows = [];
+
+    for (const item of sortFileTreeItems(items, styles)) {
+        const children = item?.type === 'directory' && Array.isArray(item.children)
+            ? item.children
+            : [];
+        const hasChildren = children.length > 0;
+        const isExpanded = hasChildren && expanded.has(item.path);
+        rows.push({
+            path: item.path,
+            type: item.type,
+            depth,
+            parentPath,
+            hasChildren,
+            expanded: isExpanded,
+        });
+        if (isExpanded) {
+            rows.push(...visibleFileTreeRows(children, expanded, styles, depth + 1, item.path));
+        }
+    }
+
+    return rows;
+}
+
+/**
+ * Plan one WAI-ARIA tree keyboard command without touching DOM or state.
+ * Selection follows focus; activation and expansion remain adapter effects.
+ */
+export function fileTreeKeyboardPlan(key, rows, currentPath) {
+    const supported = ['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End', 'Enter', ' '];
+    if (!supported.includes(key)) return null;
+    if (!Array.isArray(rows) || !rows.length) return { action: 'none' };
+
+    const foundIndex = rows.findIndex(row => row.path === currentPath);
+    const currentIndex = foundIndex >= 0 ? foundIndex : 0;
+    const current = rows[currentIndex];
+    const focus = index => ({ action: 'focus', path: rows[index].path });
+
+    if (key === 'Home') return focus(0);
+    if (key === 'End') return focus(rows.length - 1);
+    if (key === 'ArrowDown') return focus(foundIndex < 0 ? 0 : Math.min(rows.length - 1, currentIndex + 1));
+    if (key === 'ArrowUp') return focus(foundIndex < 0 ? 0 : Math.max(0, currentIndex - 1));
+    if (key === 'Enter' || key === ' ') return { action: 'activate', path: current.path };
+
+    if (key === 'ArrowRight') {
+        if (current.type !== 'directory' || !current.hasChildren) return { action: 'none' };
+        if (!current.expanded) return { action: 'expand', path: current.path };
+        const child = rows[currentIndex + 1];
+        return child?.parentPath === current.path
+            ? { action: 'focus', path: child.path }
+            : { action: 'none' };
+    }
+
+    if (current.type === 'directory' && current.expanded) {
+        return { action: 'collapse', path: current.path };
+    }
+    return current.parentPath
+        ? { action: 'focus', path: current.parentPath }
+        : { action: 'none' };
+}

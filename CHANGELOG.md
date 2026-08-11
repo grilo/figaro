@@ -1,10 +1,83 @@
 # Changelog
 
-All notable user-facing changes are recorded here from this point forward.
+All notable user-facing changes are recorded here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Figaro adheres
+to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Version headings
+and comparison links use that format from 1.14.0 onward; historical entries
+remain as originally published.
 
-## Unreleased
+## [Unreleased]
 
 _No changes yet._
+
+## [1.14.0] - 2026-08-11
+
+### Added
+
+- Interactive Markdown tables now include a direct **Delete table** action
+  that removes the complete table as one undoable edit.
+- Kanban cards are now keyboard-operable: Tab moves through cards across
+  columns, Up/Down persist vertical order, and Left/Right move a task to the
+  adjacent hashtag column.
+
+### Changed
+
+- Release preparation now uses Keep a Changelog headings and comparison links,
+  validates the exact version section, and publishes its curated categories as
+  the GitHub release notes instead of inferring them from commit history.
+- Sticky heading titles now use the editor's normal text size instead of a
+  smaller fixed UI size.
+- Markdown block guides now align with the top of their heading, fenced-code,
+  or table element and keep the clicked guide at the same screen position
+  while collapsing or expanding, including at the end of a note.
+- Long document tabs now preserve both ends of the filename and show their
+  parent vault path; the All tabs menu also shows the full path context.
+- The active document now leads the browser and native window title, for
+  example `Project brief.md — Figaro`; Home uses `Figaro`.
+
+### Fixed
+
+- Sticky heading ancestors now appear separately as their source rows reach
+  the visible editor edge instead of arriving late in virtual-viewport batches.
+- Search now exposes its active result to assistive technology, keeps focus in
+  the field when dismissed, gives metadata accessible contrast, and preserves
+  the distinguishing tail of very deep parent paths instead of reducing
+  repeated filenames to identical locations.
+- File-tree, document-tab, and editor context menus now expose menu semantics
+  and support Shift+F10/Menu, Up/Down, Home/End, Escape, and focus restoration.
+- The file tree now places keyboard focus on one real row: Tab enters the
+  current item, arrows traverse or expand/collapse its hierarchy, Home/End
+  reach the boundaries, and Enter/Space activates it.
+- Repeated Left/Right arrow presses now continue across document tabs instead
+  of moving focus into the editor after the first switch.
+- Failed saves now retain the dirty buffer and announce the concrete failure
+  cause through the live status bar.
+- The status bar now remains one fixed-height row at narrow window widths and
+  hides lower-priority details instead of wrapping or overflowing vertically.
+- Long-running file-tree moves now announce the item being moved and ignore
+  duplicate drag attempts until the first move finishes.
+- Dragging a document tab beyond the tab rail no longer selects text in the
+  file tree or other workspace regions beneath the pointer.
+- Linux PDF export now discovers supported Chromium-family Snap commands under
+  `/snap/bin` and uses a Snap-visible workspace so confined browsers can start
+  and read the document being exported.
+- Fenced code now keeps its language-aware syntax colors in PDF Preview and
+  generated PDFs instead of exporting as uniformly colored source text.
+- The document-outline launcher now stays beneath the complete sticky-heading
+  hierarchy instead of overlapping it.
+- Fenced-code and table guides now visibly collapse their live-rendered
+  widgets into a single native fold row and restore them without changing the
+  Markdown source.
+- Same-document Markdown fragment links such as `[Jump](#section)` now move to
+  the matching heading from rendered or raw source instead of opening Kanban
+  or offering to create a note.
+- The main editor now exposes its document name to assistive technology, and a
+  closed right pane no longer leaves its invisible Close button in the Tab order.
+- Small Home instructions now meet text-contrast requirements in both native
+  Figaro themes.
+- One Enter now exits an empty second Markdown list item.
+- Pasting a URL over selected prose now creates a Markdown link without losing
+  the label, including selections made in Vim Visual mode.
 
 ## 1.13.1 - 2026-08-11
 
@@ -825,3 +898,6 @@ _No changes yet._
   tabs; Figaro repairs the record and opens Welcome when no valid workspace
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
+
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/grilo/figaro/compare/v1.13.1...v1.14.0

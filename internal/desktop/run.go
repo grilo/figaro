@@ -97,7 +97,7 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	}
 
 	return wails.Run(&options.App{
-		Title:            "figaro",
+		Title:            "Figaro",
 		Width:            windowState.Width,
 		Height:           windowState.Height,
 		MinWidth:         minimumWindowWidth,

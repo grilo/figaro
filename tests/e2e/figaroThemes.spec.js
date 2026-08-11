@@ -34,6 +34,31 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.settings-card')).toHaveCount(7);
     await expect(page.locator('.settings-card').filter({ hasText: 'Vault care' })).toContainText('Vault health');
+    await page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        tabs.showWorkspaceHome();
+    });
+    await expect(page.locator('.home-eyebrow')).toBeVisible();
+    await page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        tabs.switchTab('settings');
+    });
+    await page.evaluate(async () => {
+        const { renderSearchResults } = await import('/js/views/searchView.js');
+        renderSearchResults({
+            results: [{
+                name: 'Meeting.md',
+                path: 'Clients/Acme/Quarterly Planning/Meeting.md',
+                matches: [{ line: 12, text: 'Review the quarterly project plan' }],
+                matchCount: 3,
+            }],
+            query: 'project',
+            filters: { titleOnly: false, recentOnly: false, caseSensitive: false },
+            selectedIndex: 0,
+            onFilter() {},
+            onOpen() {},
+        });
+    });
 
     for (const theme of nativeThemes) {
         const details = await page.evaluate(async ({ path }) => {
@@ -57,6 +82,17 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
             };
             const contrast = (first, second) => {
                 const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+                return (lighter + 0.05) / (darker + 0.05);
+            };
+            const rgbLuminance = value => {
+                const channels = value.match(/[\d.]+/g).slice(0, 3).map(channel => Number(channel) / 255)
+                    .map(channel => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+                return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+            };
+            const renderedContrast = (textSelector, backgroundSelector) => {
+                const foreground = getComputedStyle(document.querySelector(textSelector)).color;
+                const background = getComputedStyle(document.querySelector(backgroundSelector)).backgroundColor;
+                const [lighter, darker] = [rgbLuminance(foreground), rgbLuminance(background)].sort((a, b) => b - a);
                 return (lighter + 0.05) / (darker + 0.05);
             };
             const activeTab = document.querySelector('.tab.active');
@@ -83,6 +119,13 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
                 settingsCardBackground: settingsCard.backgroundImage,
                 settingsCardShadow: settingsCard.boxShadow,
                 selectedTreeShadow: selectedTreeNode.boxShadow,
+                homeEyebrowContrast: renderedContrast('.home-eyebrow', '.home-view'),
+                homeKickerContrast: renderedContrast('.home-card-kicker', '.home-card'),
+                homeInstructionContrast: renderedContrast('.home-empty', '.home-card'),
+                searchSummaryContrast: renderedContrast('.search-result-summary', '.search-dropdown'),
+                searchPathContrast: renderedContrast('.search-result-path', '.search-dropdown'),
+                searchExcerptContrast: renderedContrast('.search-result-excerpt', '.search-dropdown'),
+                searchMetaContrast: renderedContrast('.search-result-meta', '.search-dropdown'),
             };
         }, theme);
 
@@ -102,5 +145,12 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
         expect(details.settingsCardBackground).toContain('linear-gradient');
         expect(details.settingsCardShadow).toContain('rgb');
         expect(details.selectedTreeShadow).toContain('rgb');
+        expect(details.homeEyebrowContrast).toBeGreaterThanOrEqual(4.5);
+        expect(details.homeKickerContrast).toBeGreaterThanOrEqual(4.5);
+        expect(details.homeInstructionContrast).toBeGreaterThanOrEqual(4.5);
+        expect(details.searchSummaryContrast).toBeGreaterThanOrEqual(4.5);
+        expect(details.searchPathContrast).toBeGreaterThanOrEqual(4.5);
+        expect(details.searchExcerptContrast).toBeGreaterThanOrEqual(4.5);
+        expect(details.searchMetaContrast).toBeGreaterThanOrEqual(4.5);
     }
 });

@@ -74,6 +74,16 @@
 
 .tab-strip::-webkit-scrollbar { display: none; }
 
+/* Pointer capture keeps tab-reorder events flowing outside the rail, but a
+   browser may still begin native selection under that pointer. Limit the
+   selection guard to the active gesture so normal document selection returns
+   immediately after drop or cancellation. */
+html.tab-drag-selection-guard,
+html.tab-drag-selection-guard * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
 .tab {
     display: flex;
     align-items: center;
@@ -133,10 +143,60 @@
 
 .tab-title {
     flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: flex;
+    align-items: baseline;
     min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.tab-title-text {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) auto minmax(0, 3fr);
+    align-items: baseline;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.tab-title-single,
+.tab-title-leading,
+.tab-title-trailing {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.tab-title-single {
+    grid-column: 1 / -1;
+    text-overflow: ellipsis;
+}
+
+.tab-location {
+    display: flex;
+    flex: 0 1 62px;
+    min-width: 0;
+    align-items: baseline;
+    gap: 3px;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 9px;
+    font-weight: 400;
+}
+
+.tab-location-separator { flex: 0 0 auto; }
+
+.tab-location-path {
+    min-width: 0;
+    overflow: hidden;
+    direction: rtl;
+    text-align: left;
+    unicode-bidi: plaintext;
+}
+
+.tab-title-trailing {
+    direction: rtl;
+    text-align: left;
+    unicode-bidi: plaintext;
 }
 
 .tab-close { flex-shrink: 0; }
@@ -244,7 +304,7 @@
     top: calc(100% + 3px);
     right: 6px;
     z-index: 1000;
-    width: 220px;
+    width: min(360px, calc(100vw - 24px));
     max-height: 320px;
     overflow-y: auto;
     padding: 2px 0;
@@ -256,9 +316,29 @@
     font-size: var(--font-size-sm);
     color: var(--text-muted);
     user-select: none;
-    white-space: nowrap;
+    min-width: 0;
+}
+
+.all-tabs-item-copy {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    text-align: left;
+}
+
+.all-tabs-item-title,
+.all-tabs-item-location {
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.all-tabs-item-title { color: inherit; }
+
+.all-tabs-item-location {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 400;
 }
 
 .all-tabs-item.active {
@@ -327,7 +407,7 @@
 .home-eyebrow,
 .home-card-kicker {
     margin-bottom: 5px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.85px;
@@ -473,7 +553,7 @@
 }
 
 .home-row-meta {
-    color: var(--text-dim);
+    color: var(--text-muted);
     font-size: 10px;
 }
 
@@ -517,7 +597,7 @@
 }
 
 .home-task-source {
-    color: var(--text-dim);
+    color: var(--text-muted);
     font-size: 10px;
     text-align: right;
 }
@@ -525,7 +605,7 @@
 .home-empty,
 .home-loading {
     padding: 8px;
-    color: var(--text-dim);
+    color: var(--text-muted);
     font-size: 11px;
     line-height: 1.45;
 }
@@ -544,7 +624,7 @@
 .home-notice {
     min-height: 17px;
     margin: 12px 2px 0;
-    color: var(--text-dim);
+    color: var(--text-muted);
     font-size: 11px;
 }
 

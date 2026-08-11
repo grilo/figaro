@@ -1,3 +1,5 @@
+import { compactSearchResultLocation } from '../core/searchModel.js';
+
 function escapeHtml(text) {
     return String(text || '')
         .replaceAll('&', '&amp;')
@@ -31,11 +33,22 @@ function elements() {
     };
 }
 
+function setComboboxState({ expanded, activeOptionId = '' }) {
+    const { input } = elements();
+    if (!input) return;
+    input.setAttribute('aria-expanded', String(Boolean(expanded)));
+    if (activeOptionId) input.setAttribute('aria-activedescendant', activeOptionId);
+    else input.removeAttribute('aria-activedescendant');
+}
+
 export function showSearchLoading() {
     const { dropdown } = elements();
     if (!dropdown) return false;
-    dropdown.innerHTML = '<div class="search-loading">Searching…</div>';
+    dropdown.innerHTML = `
+        <div class="search-loading" role="status">Searching…</div>
+        <div id="search-result-list" role="listbox" aria-label="Search results" hidden></div>`;
     dropdown.classList.add('visible');
+    setComboboxState({ expanded: true });
     return true;
 }
 
@@ -56,6 +69,7 @@ export function renderSearchResults({
     const safeSelection = selectedIndex >= 0 && selectedIndex < results.length
         ? selectedIndex
         : -1;
+    const activeOptionId = safeSelection >= 0 ? `search-result-option-${safeSelection}` : '';
     const filterControls = `
         <div class="search-filter-row" role="toolbar" aria-label="Search filters">
             ${filterChip('titleOnly', 'Titles', filters.titleOnly)}
@@ -65,7 +79,8 @@ export function renderSearchResults({
 
     if (!results.length) {
         dropdown.innerHTML = `${filterControls}
-            <div class="search-empty">No notes match this search</div>`;
+            <div class="search-empty">No notes match this search</div>
+            <div id="search-result-list" role="listbox" aria-label="Search results" hidden></div>`;
     } else {
         const resultRows = results.map((file, index) => {
             const firstMatch = file.matches[0];
@@ -76,13 +91,19 @@ export function renderSearchResults({
                 : file.matches.length;
             const matchLabel = matchCount > 1 ? `${matchCount} matches` : '';
             const selected = index === safeSelection;
+            const normalizedPath = String(file.path || '').replaceAll('\\', '/');
+            const parentPath = compactSearchResultLocation(normalizedPath);
+            const accessibleLabel = `${file.name} — ${normalizedPath}. ${meta}${matchLabel ? `. ${matchLabel}` : ''}`;
             return `
-                <button type="button" class="search-result-row ${selected ? 'selected' : ''}"
-                        data-search-index="${index}" role="option" aria-selected="${selected}">
+                <button type="button" id="search-result-option-${index}"
+                        class="search-result-row ${selected ? 'selected' : ''}"
+                        data-search-index="${index}" role="option" tabindex="-1"
+                        aria-selected="${selected}" aria-label="${escapeHtml(accessibleLabel)}"
+                        title="${escapeHtml(normalizedPath)}">
                     <span class="search-result-main">
                         <span class="search-result-name">${highlightMatch(file.name, query, filters.caseSensitive)}</span>
-                        <span class="search-result-path">${escapeHtml(file.path)}</span>
                     </span>
+                    <span class="search-result-path" title="${escapeHtml(normalizedPath)}">${escapeHtml(parentPath)}</span>
                     <span class="search-result-excerpt">${highlightMatch(excerpt, query, filters.caseSensitive)}</span>
                     <span class="search-result-meta"><span>${meta}</span>${matchLabel ? `<span>${matchLabel}</span>` : ''}</span>
                 </button>`;
@@ -92,8 +113,10 @@ export function renderSearchResults({
                 <span>${results.length} ${results.length === 1 ? 'note' : 'notes'}</span>
                 <span>↑↓ to navigate · Enter to open</span>
             </div>
-            <div class="search-result-list" role="listbox" aria-label="Search results">${resultRows}</div>`;
+            <div id="search-result-list" class="search-result-list" role="listbox" aria-label="Search results">${resultRows}</div>`;
     }
+
+    setComboboxState({ expanded: true, activeOptionId });
 
     dropdown.onclick = event => {
         const filter = event.target.closest('[data-search-filter]');
@@ -113,6 +136,7 @@ export function clearSearchView(clearInput = true) {
         dropdown.classList.remove('visible');
         dropdown.innerHTML = '';
     }
+    setComboboxState({ expanded: false });
     if (count) count.textContent = '';
 }
 
@@ -124,12 +148,14 @@ export function clearSearchCount() {
 export function closeSearchView() {
     const { dropdown } = elements();
     dropdown?.classList.remove('visible');
+    setComboboxState({ expanded: false });
 }
 
 export function closeSearchWhenOutside(target) {
     const { container, dropdown } = elements();
     if (container && dropdown && !container.contains(target)) {
         dropdown.classList.remove('visible');
+        setComboboxState({ expanded: false });
         return true;
     }
     return false;
@@ -137,10 +163,6 @@ export function closeSearchWhenOutside(target) {
 
 export function currentSearchQuery() {
     return elements().input?.value.trim() || '';
-}
-
-export function blurSearchInput() {
-    elements().input?.blur();
 }
 
 export function isSearchVisible() {

@@ -28,8 +28,9 @@ func TestFindBrowserPrefersChromeBeforeOtherEngines(t *testing.T) {
 	}
 
 	browser, err := FindBrowserWith(context.Background(), FinderOptions{
-		GOOS:   "linux",
-		Getenv: func(string) string { return "" },
+		GOOS:    "linux",
+		Getenv:  func(string) string { return "" },
+		ReadDir: func(string) ([]os.DirEntry, error) { return nil, os.ErrNotExist },
 		LookPath: func(name string) (string, error) {
 			switch name {
 			case "google-chrome":
@@ -67,8 +68,9 @@ func TestFindBrowserSkipsAChromeBinaryThatFailsRealStartupValidation(t *testing.
 	}
 
 	browser, err := FindBrowserWith(context.Background(), FinderOptions{
-		GOOS:   "linux",
-		Getenv: func(string) string { return "" },
+		GOOS:    "linux",
+		Getenv:  func(string) string { return "" },
+		ReadDir: func(string) ([]os.DirEntry, error) { return nil, os.ErrNotExist },
 		LookPath: func(name string) (string, error) {
 			switch name {
 			case "google-chrome":
@@ -100,6 +102,79 @@ func TestFindBrowserSkipsAChromeBinaryThatFailsRealStartupValidation(t *testing.
 	}
 	if browser.Engine != EngineChromium || browser.Executable != chromiumPath {
 		t.Fatalf("expected Chromium fallback, got %+v", browser)
+	}
+}
+
+func TestFindBrowserScansSnapBinForSupportedLinuxBrowsers(t *testing.T) {
+	temporary := t.TempDir()
+	for _, name := range []string{
+		"brave",
+		"chromium.chromedriver",
+		"chromium.custom",
+		"google-chrome-beta",
+		"notes",
+	} {
+		if err := os.WriteFile(filepath.Join(temporary, name), []byte(name), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	browser, err := FindBrowserWith(context.Background(), FinderOptions{
+		GOOS:     "linux",
+		Getenv:   func(string) string { return "" },
+		LookPath: func(string) (string, error) { return "", os.ErrNotExist },
+		ReadDir: func(path string) ([]os.DirEntry, error) {
+			if path != "/snap/bin" {
+				t.Fatalf("unexpected Snap directory: %q", path)
+			}
+			return os.ReadDir(temporary)
+		},
+		Stat: func(path string) (os.FileInfo, error) {
+			name := filepath.Base(path)
+			if _, ok := map[string]bool{
+				"brave":              true,
+				"chromium.custom":    true,
+				"google-chrome-beta": true,
+			}[name]; !ok {
+				return nil, os.ErrNotExist
+			}
+			return os.Stat(filepath.Join(temporary, name))
+		},
+		Validate: func(_ context.Context, candidate Browser) error {
+			if candidate.Engine != EngineChrome || candidate.Executable != "/snap/bin/google-chrome-beta" || candidate.SnapName != "google-chrome-beta" {
+				t.Fatalf("Snap candidates lost browser priority: %+v", candidate)
+			}
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("FindBrowserWith failed: %v", err)
+	}
+	if browser.Engine != EngineChrome || browser.Executable != "/snap/bin/google-chrome-beta" {
+		t.Fatalf("expected Chrome from /snap/bin, got %+v", browser)
+	}
+}
+
+func TestSnapBrowserCandidatesIgnoreHelpersAndPreserveEnginePriority(t *testing.T) {
+	candidates := snapBrowserCandidates([]string{
+		"brave",
+		"chromium.chromedriver",
+		"chromium.custom",
+		"google-chrome-beta",
+		"notes",
+	})
+	want := []candidate{
+		{engine: EngineChrome, path: "/snap/bin/google-chrome-beta"},
+		{engine: EngineChromium, path: "/snap/bin/chromium.custom"},
+		{engine: EngineBrave, path: "/snap/bin/brave"},
+	}
+	if len(candidates) != len(want) {
+		t.Fatalf("unexpected Snap candidates: %#v", candidates)
+	}
+	for index := range want {
+		if candidates[index].engine != want[index].engine || candidates[index].path != want[index].path {
+			t.Fatalf("Snap candidate %d = %#v, want %#v", index, candidates[index], want[index])
+		}
 	}
 }
 
@@ -183,6 +258,7 @@ func TestFindBrowserReturnsActionableNoBrowserError(t *testing.T) {
 		Getenv:   func(string) string { return "" },
 		LookPath: func(string) (string, error) { return "", os.ErrNotExist },
 		Stat:     func(string) (os.FileInfo, error) { return nil, os.ErrNotExist },
+		ReadDir:  func(string) ([]os.DirEntry, error) { return nil, os.ErrNotExist },
 		Validate: func(context.Context, Browser) error { return nil },
 	})
 	if !IsNoBrowserError(err) {
@@ -249,6 +325,33 @@ func TestEngineForUserSelectedExecutable(t *testing.T) {
 	}
 }
 
+func TestSnapBrowserIdentityAndWorkspaceStayInsideUserCommon(t *testing.T) {
+	for path, expected := range map[string]string{
+		"/snap/bin/chromium":                "chromium",
+		"/snap/bin/chromium.custom":         "chromium",
+		"/snap/bin/google-chrome-beta":      "google-chrome-beta",
+		"/usr/bin/chromium":                 "",
+		"/snap/bin/Chromium":                "",
+		"/snap/bin/../../tmp/chromium":      "",
+		"/snap/bin/chromium_unsafe.command": "",
+	} {
+		if got := snapNameForExecutable(path); got != expected {
+			t.Errorf("snapNameForExecutable(%q) = %q, want %q", path, got, expected)
+		}
+	}
+
+	parent, err := browserWorkspaceParent(Browser{SnapName: "chromium"}, "/home/tester")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parent != "/home/tester/snap/chromium/common/figaro" {
+		t.Fatalf("unexpected Snap workspace parent: %q", parent)
+	}
+	if _, err := browserWorkspaceParent(Browser{SnapName: "../escape"}, "/home/tester"); err == nil {
+		t.Fatal("expected an unsafe Snap name to be rejected")
+	}
+}
+
 func TestBrowserForExecutableDoesNotRunASeparateVersionProbe(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "chrome.exe")
 	// A plain test file cannot be executed. Resolution succeeding therefore
@@ -273,8 +376,9 @@ func TestFindBrowserSupportsUngoogledChromiumFlatpak(t *testing.T) {
 	}
 
 	browser, err := FindBrowserWith(context.Background(), FinderOptions{
-		GOOS:   "linux",
-		Getenv: func(string) string { return "" },
+		GOOS:    "linux",
+		Getenv:  func(string) string { return "" },
+		ReadDir: func(string) ([]os.DirEntry, error) { return nil, os.ErrNotExist },
 		LookPath: func(name string) (string, error) {
 			if name == "flatpak" {
 				return flatpakPath, nil
@@ -518,7 +622,17 @@ func TestRenderChromiumPDFAgainstOptInBrowser(t *testing.T) {
 		t.Skipf("requested browser is unavailable: %v", err)
 	}
 
-	temporary := t.TempDir()
+	browser := Browser{
+		Engine:     EngineChromium,
+		Executable: executable,
+		SnapName:   snapNameForExecutable(executable),
+		Arguments:  strings.Fields(os.Getenv("FIGARO_BROWSER_PDF_ARGUMENTS")),
+	}
+	temporary, err := CreateBrowserWorkspace(browser, "figaro-browser-integration-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(temporary) })
 	input := filepath.Join(temporary, "interactive document.html")
 	output := filepath.Join(temporary, "interactive document.pdf")
 	profile := filepath.Join(temporary, "profile")
@@ -529,8 +643,7 @@ func TestRenderChromiumPDFAgainstOptInBrowser(t *testing.T) {
 	if err := os.WriteFile(input, []byte(document), 0600); err != nil {
 		t.Fatal(err)
 	}
-	arguments := strings.Fields(os.Getenv("FIGARO_BROWSER_PDF_ARGUMENTS"))
-	if err := RenderChromiumPDF(context.Background(), Browser{Engine: EngineChromium, Executable: executable, Arguments: arguments}, input, output, profile); err != nil {
+	if err := RenderChromiumPDF(context.Background(), browser, input, output, profile); err != nil {
 		t.Fatalf("RenderChromiumPDF failed: %v", err)
 	}
 	pdf, err := os.ReadFile(output)

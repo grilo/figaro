@@ -23,14 +23,15 @@ export function markdownHeadingSlug(value) {
  * examples as destinations. Repeated headings follow Markdown-It's stable
  * `title`, `title-2`, `title-3` anchor sequence.
  */
-export function markdownHeadingTargets(source) {
+function markdownHeadingReferences(source) {
     const targets = [];
     const duplicates = new Map();
     const lines = String(source || '').split('\n');
     let inFrontmatter = lines[0]?.trim() === '---';
     let fenceCharacter = '';
+    let position = 0;
 
-    const add = text => {
+    const add = (text, from) => {
         const label = String(text || '').trim();
         if (!label) return;
         const baseSlug = markdownHeadingSlug(label);
@@ -39,14 +40,17 @@ export function markdownHeadingTargets(source) {
         targets.push({
             label,
             slug: count === 1 ? baseSlug : `${baseSlug}-${count}`,
+            from,
         });
     };
 
     for (let index = 0; index < lines.length; index++) {
-        const line = lines[index].replace(/\r$/, '');
+        const rawLine = lines[index];
+        const line = rawLine.replace(/\r$/, '');
         const trimmed = line.trim();
         if (inFrontmatter) {
             if (index > 0 && (trimmed === '---' || trimmed === '...')) inFrontmatter = false;
+            position += rawLine.length + 1;
             continue;
         }
         const fenceMatch = line.match(fence);
@@ -54,19 +58,36 @@ export function markdownHeadingTargets(source) {
             const character = fenceMatch[1][0];
             if (!fenceCharacter) fenceCharacter = character;
             else if (fenceCharacter === character) fenceCharacter = '';
+            position += rawLine.length + 1;
             continue;
         }
-        if (fenceCharacter) continue;
+        if (fenceCharacter) {
+            position += rawLine.length + 1;
+            continue;
+        }
 
         const atx = line.match(atxHeading);
         if (atx) {
-            add(atx[2]);
-            continue;
+            add(atx[2], position);
+        } else {
+            const underline = lines[index + 1]?.replace(/\r$/, '').match(setextHeading);
+            if (trimmed && underline) add(trimmed, position);
         }
-        const underline = lines[index + 1]?.replace(/\r$/, '').match(setextHeading);
-        if (trimmed && underline) add(trimmed);
+        position += rawLine.length + 1;
     }
     return targets;
+}
+
+export function markdownHeadingTargets(source) {
+    return markdownHeadingReferences(source).map(({ label, slug }) => ({ label, slug }));
+}
+
+/** Resolve a same-document `#fragment` to its exact heading source offset. */
+export function markdownHeadingPosition(source, fragment) {
+    let slug = String(fragment || '').trim().replace(/^#/, '');
+    try { slug = decodeURIComponent(slug); } catch (_) { /* keep the source spelling */ }
+    if (!slug) return null;
+    return markdownHeadingReferences(source).find(target => target.slug === slug)?.from ?? null;
 }
 
 export function noteLinkCompletion(style, note) {

@@ -29,9 +29,18 @@
 
 /* codemirror-markdown-tables returns this element as its measured block root. */
 .tbl-table-widget {
+    position: relative;
     box-sizing: border-box;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
+    padding-top: 44px !important;
+}
+
+.tbl-delete-table-button {
+    position: absolute;
+    z-index: 2;
+    top: 8px;
+    right: 16px;
 }
 
 .cm-table-source-toggle {

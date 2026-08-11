@@ -31,6 +31,7 @@ import { initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitEnabled } from './automation.js';
 import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
 import { initEditorBreadcrumb } from './editorBreadcrumb.js';
+import { setRightSidebarOpen } from './rightSidebarState.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -204,7 +205,7 @@ export function initTopBar() {
             else if (rightSidebar.dataset.mode === 'history') document.dispatchEvent(new CustomEvent('close-history-panel'));
             else if (rightSidebar.dataset.mode === 'outline') document.dispatchEvent(new CustomEvent('close-outline-panel'));
             else {
-                rightSidebar.classList.remove('open');
+                setRightSidebarOpen(rightSidebar, false);
                 rightSidebar.style.width = '';
                 rightSidebar.style.minWidth = '';
                 document.getElementById('right-sidebar-resizer')?.classList.remove('visible');
