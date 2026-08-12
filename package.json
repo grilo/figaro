@@ -20,7 +20,7 @@
     "vendor:markdown": "node scripts/vendor-markdown-renderer.mjs"
   },
   "devDependencies": {
-    "@babel/core": "^7.23.9",
+    "@babel/core": "^8.0.1",
     "@babel/preset-env": "^7.23.9",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.0",
