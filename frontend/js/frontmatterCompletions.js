@@ -22,6 +22,7 @@ export const frontmatterProperties = [
     { label: 'spellcheck', detail: 'Per-note spellcheck language or false', apply: 'spellcheck: ', type: 'property', boost: 9 },
     { label: 'cover-page', detail: 'Generate a PDF cover page', apply: 'cover-page: true', type: 'property', boost: 8 },
     { label: 'toc-depth', detail: 'PDF table of contents depth (0–6)', apply: 'toc-depth: 2', type: 'property', boost: 8 },
+    { label: 'page-numbers', detail: 'Number PDF pages and contents entries', apply: 'page-numbers: true', type: 'property', boost: 8 },
     {
         label: 'print-stylesheet',
         detail: 'Figaro PDF stylesheet',

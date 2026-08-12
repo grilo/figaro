@@ -1560,6 +1560,7 @@ function renderSettingsTab(panel, _tab) {
     const container = document.createElement('div');
     container.className = 'settings-panel-tab';
     container.innerHTML = `<div class="settings-grid">
+        <div class="settings-column settings-column--writing" data-settings-group="writing">
             <!-- Appearance -->
             <div class="settings-card">
                 <div class="settings-card-title">Appearance</div>
@@ -1784,7 +1785,9 @@ function renderSettingsTab(panel, _tab) {
                     </div>
                 </div>
             </div>
-            <!-- Automation -->
+        </div>
+        <div class="settings-column settings-column--workspace" data-settings-group="workspace">
+            <!-- Kanban -->
             <div class="settings-card">
                 <div class="settings-card-title">Kanban</div>
                 <div class="settings-section">
@@ -1897,6 +1900,7 @@ function renderSettingsTab(panel, _tab) {
                             aria-busy="true" data-state="loading">Loading…</output>
                 </div>
             </div>
+        </div>
         </div>`;
     panel.appendChild(container);
 

@@ -400,14 +400,14 @@
 
 /* ── Settings Tab ── */
 .settings-panel-tab {
-    padding: 32px clamp(20px, 4vw, 48px) 48px;
+    padding: 24px clamp(18px, 3vw, 36px) 36px;
     max-width: none;
     margin: 0;
     overflow-y: auto;
     height: 100%;
 }
 .settings-panel-tab .settings-section {
-    padding: 10px 0;
+    padding: 8px 0;
 }
 .settings-panel-tab .settings-divider {
     height: 1px;
@@ -432,9 +432,6 @@
 @media (max-width: 960px) {
     .settings-grid {
         grid-template-columns: minmax(0, 1fr);
-    }
-    .settings-card:last-child:nth-child(odd) {
-        grid-column: auto;
     }
 }
 @media (max-width: 480px) {

@@ -10,6 +10,28 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.17.0] - 2026-08-12
+
+### Added
+
+- PDF Properties now offers opt-in physical page numbers and matching table-of-contents
+  destination numbers through `page-numbers: true`; cover pages remain visually
+  unnumbered, ordinary exports remain single-pass, and **Upgrade copy** migrates
+  existing print CSS into a separate version-2 starter without overwriting it.
+
+### Changed
+
+- Settings now packs its existing cards into two intrinsic-height groups on
+  wide windows and one logical stack on narrower windows, eliminating the
+  stretched Appearance and PDF boxes while retaining every setting's keyboard
+  order and immediate visibility.
+
+### Fixed
+
+- Markdown and PDF Preview scrolling now follows source-line anchors, retaining
+  its smooth coalesced updates while avoiding accumulated drift around tall code
+  blocks, tables, diagrams, and other differently sized rendered content.
+
 ## [1.16.0] - 2026-08-12
 
 ### Added
@@ -993,7 +1015,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.16.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.17.0...HEAD
+[1.17.0]: https://github.com/grilo/figaro/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/grilo/figaro/compare/v1.15.1...v1.16.0
 [1.15.1]: https://github.com/grilo/figaro/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/grilo/figaro/compare/v1.14.0...v1.15.0

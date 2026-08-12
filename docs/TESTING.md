@@ -357,6 +357,13 @@ Playwright; the unit contract already proves
 manifest-to-file coverage, while one real stylesheet switch proves the browser
 mechanism.
 
+The existing native-theme browser scenario also owns the Settings layout
+boundary: at wide widths its two card groups occupy independent columns and
+short cards retain intrinsic height; below 960px the groups stack at equal
+width without changing logical card order. `tabManager.test.js` owns the exact
+group membership and DOM order, so Playwright keeps only the representative
+geometry assertions.
+
 The same spec contains one direct-`file://` boundary case because browsers
 apply distinct module, fetch, stylesheet, font, and image security rules there.
 It opens the actual `index.html`, proves the catalogue CSS and eager bundle
@@ -423,8 +430,11 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   visible/`aria-hidden`/`inert` focus boundary.
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
-  links remain in the rendered document. High-frequency scroll reports are
-  coalesced before they can cause a matching burst of editor updates. The
+  links remain in the rendered document. Printable block source ranges and the
+  shared 30% marker must keep editor/preview positions aligned across several
+  differently sized code blocks, with percentage fallback for unmapped areas.
+  High-frequency scroll reports are coalesced before they can cause a matching
+  burst of editor updates. The
   real-browser suite also verifies that printable Markdown preparation enters
   the module-worker path before the preview document is applied and that the
   document-side pass adds visible syntax-token colors before it enters the
@@ -605,7 +615,10 @@ the complete portable due-date line directly after the ordinary task row.
 One focused browser workflow in `tests/e2e/editorUX.spec.js` covers the normal
 prose/task distinction, keyboard acceptance, computed caret-relative picker
 position, source-line round trip, Arrow Up/Down, and drag selection. Pure
-parsing and backend mutation branches do not belong in Playwright.
+parsing and backend mutation branches do not belong in Playwright. That test
+waits for the initial Kanban refresh before replacing completion columns and
+uses a two-second `Promise.race` timeout; a stalled setup must fail explicitly
+instead of hanging or allowing startup to overwrite the fixture state.
 
 ## PDF preview page-geometry regressions
 
@@ -621,6 +634,22 @@ npm run test:unit -- --runTestsByPath tests/frontend/unit/pdfPreview.test.js
 npx playwright test tests/e2e/pdfPreviewFrame.spec.js
 ```
 
+## PDF page-number and contents regressions
+
+Keep the opt-in property, legacy unnumbered markup, fixed-width TOC cells,
+source maps, and starter-version hooks in frontend renderer tests. The desktop
+use-case test injects render/resolve/inject/write ports and must prove ordinary
+exports stay one-pass, numbered contents use exactly two passes in the same
+supplied session, and destination drift blocks publication. Root-scoped tests
+prove **Upgrade copy** preserves its source and occupied targets. The pdfcpu
+adapter owns actual internal-link destination resolution.
+
+The opt-in real Chromium test is the one browser-only boundary: it verifies
+CSS page-margin output, an unnumbered cover that still counts as physical page
+1, numbered following pages, and link annotations. Set
+`FIGARO_PDF_TEST_OUTPUT=/tmp/pdfs/figaro-page-number-contract.pdf` to retain the
+otherwise temporary PDF for `pdfinfo`, `pdftotext`, and `pdftoppm` inspection.
+
 ## PDF browser discovery and Snap confinement regressions
 
 Keep Linux browser discovery deterministic by injecting the `/snap/bin`
@@ -633,8 +662,9 @@ must reject traversal and malformed Snap names.
 For a workstation with Snap Chromium installed, run both opt-in boundaries.
 The first exercises automatic discovery plus an actual isolated DevTools
 startup; the second writes printable HTML, its browser profile, and the PDF to
-the confinement-visible workspace and asserts multiple pages plus internal and
-external link annotations:
+the confinement-visible workspace and asserts page-margin support, an
+unnumbered cover, physical destination pages, and internal/external link
+annotations:
 
 ```bash
 go test ./internal/pdfexport \
@@ -642,6 +672,7 @@ go test ./internal/pdfexport \
 FIGARO_BROWSER_PDF_DISCOVERY_INTEGRATION=1 \
   go test -v ./internal/pdfexport -run '^TestFindBrowserAgainstOptInSystem$'
 FIGARO_BROWSER_PDF_EXECUTABLE=/snap/bin/chromium \
+FIGARO_PDF_TEST_OUTPUT=/tmp/pdfs/figaro-page-number-contract.pdf \
   go test -v ./internal/pdfexport -run '^TestRenderChromiumPDFAgainstOptInBrowser$'
 ```
 

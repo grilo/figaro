@@ -157,6 +157,14 @@ export function stripLeadingFrontmatter(source) {
     return frontmatter ? text.slice(frontmatter.to) : text;
 }
 
+/** Number of zero-based source lines before the printable Markdown body. */
+export function printableBodyLineOffset(source) {
+    const text = String(source || '');
+    const frontmatter = parseFrontmatter(text);
+    if (!frontmatter) return 0;
+    return (text.slice(0, frontmatter.to).match(/\n/g) || []).length;
+}
+
 function lineEndingFor(source) {
     return String(source || '').includes('\r\n') ? '\r\n' : '\n';
 }
@@ -285,6 +293,7 @@ export function frontmatterTemplateChange(source, defaults = {}) {
         `date: ${formatFrontmatterScalar(date)}`,
         'cover-page: false',
         'toc-depth: 0',
+        'page-numbers: false',
         '---',
         '',
     ].join(lineEnding);

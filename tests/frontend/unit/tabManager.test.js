@@ -351,6 +351,29 @@ describe('Tab Manager', () => {
             expect(panel.querySelector('#pdf-browser-clear').textContent).toContain('automatic');
         });
 
+        test('groups Settings into intrinsic columns without changing its logical card order', () => {
+            openTab('settings', 'Settings', 'settings');
+            const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
+            const grid = panel.querySelector('.settings-grid');
+            const columns = [...grid.querySelectorAll(':scope > .settings-column')];
+            const titles = root => [...root.querySelectorAll('.settings-card-title')]
+                .map(title => title.textContent.trim());
+
+            expect(columns).toHaveLength(2);
+            expect(columns.map(column => column.dataset.settingsGroup)).toEqual(['writing', 'workspace']);
+            expect(titles(columns[0])).toEqual(['Appearance', 'Editor']);
+            expect(titles(columns[1])).toEqual(['Kanban', 'Automation', 'PDF Export', 'Vault care', 'About']);
+            expect(titles(grid)).toEqual([
+                'Appearance',
+                'Editor',
+                'Kanban',
+                'Automation',
+                'PDF Export',
+                'Vault care',
+                'About',
+            ]);
+        });
+
         test('renders the three enabled-by-default Markdown navigation controls with accessible descriptions', () => {
             openTab('settings', 'Settings', 'settings');
             const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');

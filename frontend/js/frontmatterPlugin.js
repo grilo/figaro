@@ -19,7 +19,7 @@ import { wrapBlockWidget } from './blockWidget.js';
 import { backend } from './backend.js';
 import { startCompletion } from '@codemirror/autocomplete';
 
-const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'print-stylesheet']);
+const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'page-numbers', 'print-stylesheet']);
 const COVER_PROPERTY_KEYS = new Set(['title', 'subtitle', 'description', 'author', 'date', 'created']);
 const SPELLCHECK_PROPERTY_KEYS = new Set(['spellcheck']);
 const spellcheckOptions = [
@@ -352,14 +352,16 @@ export function createFrontmatterField(
     const setMode = StateEffect.define();
     const {
         getActiveFilePath = () => '',
-        promptForStylesheet = suggestedPath => promptDialog(
-            'Create PDF stylesheet',
-            'Create an editable starter stylesheet relative to this note.',
+        promptForStylesheet = (suggestedPath, { upgrade = false } = {}) => promptDialog(
+            upgrade ? 'Create upgraded PDF stylesheet' : 'Create PDF stylesheet',
+            upgrade
+                ? 'Create a current starter copy and preserve the selected stylesheet as later overrides.'
+                : 'Create an editable starter stylesheet relative to this note.',
             suggestedPath,
             {
                 icon: 'file-add',
                 label: 'Stylesheet path',
-                confirmLabel: 'Create stylesheet',
+                confirmLabel: upgrade ? 'Create upgraded copy' : 'Create stylesheet',
                 help: 'Use a vault-relative .css path. Existing files are never overwritten.',
             }
         ),
@@ -376,6 +378,13 @@ export function createFrontmatterField(
                 return { success: false, error: 'Creating a starter PDF stylesheet is unavailable because the backend is not connected.' };
             }
             return app.CreateStarterPrintStylesheet(notePath, stylesheetPath);
+        },
+        createUpgradedStylesheet = async (notePath, currentStylesheetPath, stylesheetPath) => {
+            const app = backend();
+            if (typeof app.CreateUpgradedPrintStylesheet !== 'function') {
+                return { success: false, error: 'Upgrading a PDF stylesheet is unavailable because the backend is not connected.' };
+            }
+            return app.CreateUpgradedPrintStylesheet(notePath, currentStylesheetPath, stylesheetPath);
         },
         onStylesheetReady = async () => {},
         reportStylesheetError = message => errorDialog('Couldn’t create PDF stylesheet', message, 'The PDF stylesheet could not be created.'),
@@ -588,6 +597,17 @@ export function createFrontmatterField(
                 )
             ));
 
+            const pageNumbersInput = document.createElement('input');
+            pageNumbersInput.type = 'checkbox';
+            pageNumbersInput.className = 'cm-frontmatter-panel-toggle';
+            pageNumbersInput.checked = isEnabled(getFrontmatterValue(source, 'page-numbers'));
+            pageNumbersInput.addEventListener('change', () => changeProperty(
+                view,
+                'page-numbers',
+                pageNumbersInput.checked ? 'true' : 'false',
+            ));
+            pdfSection.appendChild(createFieldRow('Page numbers', pageNumbersInput));
+
             const stylesheets = [...new Set((getPrintStylesheets() || []).filter(Boolean))]
                 .sort((a, b) => a.localeCompare(b));
             const stylesheetInput = createStylesheetCombobox(
@@ -599,16 +619,23 @@ export function createFrontmatterField(
             stylesheetControl.className = 'cm-frontmatter-stylesheet-control';
             stylesheetControl.appendChild(stylesheetInput);
 
+            const selectedStylesheet = getFrontmatterValue(source, 'print-stylesheet');
+            const upgradingStylesheet = Boolean(selectedStylesheet);
+            const upgradedPath = value => String(value || 'pdf.css').replace(/\.css$/i, '-v2.css');
             let creatingStylesheet = false;
             const createStarter = makeButton(
                 'ui-button cm-frontmatter-panel-action cm-frontmatter-create-stylesheet',
-                'Create starter',
-                'Create an editable starter PDF stylesheet',
+                upgradingStylesheet ? 'Upgrade copy' : 'Create starter',
+                upgradingStylesheet
+                    ? 'Create a current starter copy without changing the selected stylesheet'
+                    : 'Create an editable starter PDF stylesheet',
                 async () => {
                     if (creatingStylesheet || view.isDestroyed) return;
 
-                    const suggestedPath = getFrontmatterValue(view.state.doc.toString(), 'print-stylesheet') || 'pdf.css';
-                    const stylesheetPath = await promptForStylesheet(suggestedPath);
+                    const currentStylesheet = getFrontmatterValue(view.state.doc.toString(), 'print-stylesheet');
+                    const upgrade = Boolean(currentStylesheet);
+                    const suggestedPath = upgrade ? upgradedPath(currentStylesheet) : 'pdf.css';
+                    const stylesheetPath = await promptForStylesheet(suggestedPath, { upgrade });
                     const normalizedPath = String(stylesheetPath || '').trim();
                     if (!normalizedPath || view.isDestroyed) return;
 
@@ -622,7 +649,9 @@ export function createFrontmatterField(
                     createStarter.disabled = true;
                     createStarter.setAttribute('aria-busy', 'true');
                     try {
-                        const result = await createStarterStylesheet(notePath, normalizedPath);
+                        const result = upgrade
+                            ? await createUpgradedStylesheet(notePath, currentStylesheet, normalizedPath)
+                            : await createStarterStylesheet(notePath, normalizedPath);
                         if (!result?.success) {
                             reportStylesheetError(result?.error || 'Could not create the starter PDF stylesheet.');
                             return;
@@ -644,8 +673,14 @@ export function createFrontmatterField(
             pdfSection.appendChild(createFieldRow('Print stylesheet', stylesheetControl));
             const stylesheetHint = document.createElement('p');
             stylesheetHint.className = 'cm-frontmatter-panel-hint';
-            stylesheetHint.textContent = 'Leave blank for the built-in style or an existing sibling _print.css. Create starter copies an editable example into your vault.';
+            stylesheetHint.textContent = selectedStylesheet
+                ? 'Upgrade copy creates the current starter separately, then preserves every rule from the selected stylesheet as later overrides.'
+                : 'Leave blank for the built-in style or an existing sibling _print.css. Create starter copies an editable example into your vault.';
             pdfSection.appendChild(stylesheetHint);
+            const pageNumberHint = document.createElement('p');
+            pageNumberHint.className = 'cm-frontmatter-panel-hint';
+            pageNumberHint.textContent = 'Page and contents numbers are finalized during Chromium PDF export; the continuous preview reserves their contents column.';
+            pdfSection.appendChild(pageNumberHint);
             panel.appendChild(pdfSection);
 
             const spellcheckSection = document.createElement('section');

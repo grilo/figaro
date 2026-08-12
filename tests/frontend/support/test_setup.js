@@ -52,6 +52,7 @@ window.go = {
         CreateFile: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() / 1000 }),
         CreateInboxNote: jest.fn().mockResolvedValue({ success: true, path: 'Inbox/Quick-note.md', mtime: Date.now() / 1000 }),
         CreateStarterPrintStylesheet: jest.fn().mockResolvedValue({ success: true, path: "pdf.css", created: true }),
+        CreateUpgradedPrintStylesheet: jest.fn().mockResolvedValue({ success: true, path: "pdf-v2.css", created: true }),
         CreateDirectory: jest.fn().mockResolvedValue({ success: true }),
         DeletePath: jest.fn().mockResolvedValue({ success: true }),
         GetRecentlyDeleted: jest.fn().mockResolvedValue([]),

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -634,17 +635,59 @@ func TestRenderChromiumPDFAgainstOptInBrowser(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(temporary) })
 	input := filepath.Join(temporary, "interactive document.html")
+	provisional := filepath.Join(temporary, "provisional document.pdf")
 	output := filepath.Join(temporary, "interactive document.pdf")
 	profile := filepath.Join(temporary, "profile")
 	paragraphs := strings.Repeat("<p>Long body text keeps the document flowing across physical PDF pages.</p>", 120)
-	document := `<!doctype html><html><head><style>@page { size: A4; margin: 18mm; }</style></head><body>
+	document := `<!doctype html><html><head><style>
+@page { size: A4; margin: 18mm; @bottom-center { content: counter(page); } }
+.figaro-print-cover { page: figaro-cover; min-height: 220mm; break-after: page; display: grid; place-items: center; }
+@page figaro-cover { @bottom-center { content: none; } }
+nav a { display: grid; grid-template-columns: 1fr 5ch; }
+</style></head><body>
+<section class="figaro-print-cover"><h1>Unnumbered cover</h1></section>
+<nav>
+<a href="#start"><span>Start page</span><span class="figaro-print-toc-page" data-figaro-toc-index="0" aria-hidden="true">&nbsp;</span></a>
+<a href="#destination"><span>Destination page</span><span class="figaro-print-toc-page" data-figaro-toc-index="1" aria-hidden="true">&nbsp;</span></a>
+</nav>
 <h1 id="start">Interactive PDF</h1><p><a href="#destination">Internal destination</a> and <a href="https://example.com/guide">external guide</a>.</p>` +
 		paragraphs + `<h2 id="destination">Destination</h2><p><a href="#start">Return</a></p></body></html>`
 	if err := os.WriteFile(input, []byte(document), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := RenderChromiumPDF(context.Background(), browser, input, output, profile); err != nil {
+	var provisionalPages []int
+	if err := WithChromiumPDFSession(context.Background(), browser, profile, func(session *ChromiumPDFSession) error {
+		if err := session.RequirePageMarginBoxes(); err != nil {
+			return err
+		}
+		if err := session.Render(input, provisional); err != nil {
+			return err
+		}
+		var err error
+		provisionalPages, err = ResolveTOCPageNumbers(provisional, 2)
+		if err != nil {
+			return err
+		}
+		finalDocument, err := InjectTOCPageNumbers(document, provisionalPages)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(input, []byte(finalDocument), 0600); err != nil {
+			return err
+		}
+		return session.Render(input, output)
+	}); err != nil {
 		t.Fatalf("RenderChromiumPDF failed: %v", err)
+	}
+	pages, err := ResolveTOCPageNumbers(output, 2)
+	if err != nil {
+		t.Fatalf("resolve generated contents destinations: %v", err)
+	}
+	if pages[0] != 2 || pages[1] <= pages[0] {
+		t.Fatalf("unexpected physical destination pages: %v", pages)
+	}
+	if !slices.Equal(provisionalPages, pages) {
+		t.Fatalf("TOC injection changed final pagination: provisional %v, final %v", provisionalPages, pages)
 	}
 	pdf, err := os.ReadFile(output)
 	if err != nil {
@@ -659,6 +702,14 @@ func TestRenderChromiumPDFAgainstOptInBrowser(t *testing.T) {
 	}
 	if pageCount := strings.Count(pdfText, "/Type /Page"); pageCount < 2 {
 		t.Fatalf("expected a multi-page PDF, got %d pages", pageCount)
+	}
+	if retained := strings.TrimSpace(os.Getenv("FIGARO_PDF_TEST_OUTPUT")); retained != "" {
+		if err := os.MkdirAll(filepath.Dir(retained), 0755); err != nil {
+			t.Fatalf("create retained PDF directory: %v", err)
+		}
+		if err := os.WriteFile(retained, pdf, 0600); err != nil {
+			t.Fatalf("retain browser PDF fixture: %v", err)
+		}
 	}
 }
 

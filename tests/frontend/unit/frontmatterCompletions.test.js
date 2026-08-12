@@ -14,7 +14,7 @@ describe('frontmatter completions', () => {
         expect(result).not.toBeNull();
         expect(result.from).toBe(4);
         expect(result.options.map(option => option.label)).toEqual(expect.arrayContaining([
-            'title', 'aliases', 'tags', 'status', 'spellcheck', 'cover-page', 'toc-depth', 'print-stylesheet',
+            'title', 'aliases', 'tags', 'status', 'spellcheck', 'cover-page', 'toc-depth', 'page-numbers', 'print-stylesheet',
         ]));
         expect(result.options.find(option => option.label === 'print-stylesheet')).toMatchObject({
             apply: 'print-stylesheet: ',

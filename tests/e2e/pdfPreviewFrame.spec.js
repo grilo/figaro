@@ -111,6 +111,78 @@ test('coalesces high-frequency scroll reports without slowing the preview frame'
     expect(scrollMessages.at(-1).documentProgress).toBeCloseTo(finalProgress, 3);
 });
 
+test('aligns the preview marker by Markdown source across tall code blocks', async ({ page }) => {
+    await page.goto('/');
+    await page.setContent('<iframe id="preview" title="PDF preview" sandbox="allow-scripts" src="/pdf/preview-frame.html" style="width: 800px; height: 600px; border: 0"></iframe>');
+    await page.evaluate(() => {
+        window.previewBridgeMessages = [];
+        window.addEventListener('message', event => window.previewBridgeMessages.push(event.data));
+    });
+
+    const frameLocator = page.frameLocator('#preview');
+    await expect(frameLocator.locator('script[nonce="figaro-pdf-preview-bridge"]')).toHaveCount(1);
+    const token = 'source-anchor-token';
+    const printable = `<!doctype html><html><head><style>
+        html, body { margin: 0; }
+        p, pre { box-sizing: border-box; margin: 0; }
+        #intro { height: 420px; }
+        #code-one { height: 1200px; }
+        #between { height: 240px; }
+        #code-two { height: 1500px; }
+        #code-three { height: 900px; }
+        #ending { height: 500px; }
+    </style></head><body><main class="figaro-print-document">
+        <p id="intro" data-figaro-source-start="0" data-figaro-source-end="5">Intro</p>
+        <pre id="code-one" data-figaro-source-start="5" data-figaro-source-end="25">Code one</pre>
+        <p id="between" data-figaro-source-start="25" data-figaro-source-end="28">Between</p>
+        <pre id="code-two" data-figaro-source-start="28" data-figaro-source-end="58">Code two</pre>
+        <pre id="code-three" data-figaro-source-start="58" data-figaro-source-end="76">Code three</pre>
+        <p id="ending" data-figaro-source-start="76" data-figaro-source-end="82">Ending</p>
+    </main></body></html>`;
+    await page.evaluate(({ channel, token, printable }) => {
+        document.getElementById('preview').contentWindow.postMessage({
+            channel,
+            type: 'render',
+            token,
+            html: printable,
+            documentProgress: 0,
+        }, '*');
+    }, { channel: bridgeChannel, token, printable });
+    await expect(frameLocator.locator('#code-three')).toBeVisible();
+    await expect.poll(() => page.evaluate(token => window.previewBridgeMessages
+        .some(message => message?.type === 'rendered' && message.token === token), token)).toBe(true);
+
+    await page.evaluate(({ channel, token }) => {
+        window.previewBridgeMessages = [];
+        document.getElementById('preview').contentWindow.postMessage({
+            channel,
+            type: 'set-source-position',
+            token,
+            sourceLine: 43,
+            lineProgress: 0.5,
+            progress: 0.5,
+        }, '*');
+    }, { channel: bridgeChannel, token });
+
+    const iframe = await page.locator('#preview').elementHandle();
+    const frame = await iframe.contentFrame();
+    await expect.poll(() => frame.evaluate(() => document.scrollingElement.scrollTop)).toBeGreaterThan(1500);
+    const markerSource = await frame.evaluate(() => {
+        const markerY = document.scrollingElement.clientHeight * 0.3;
+        const block = document.getElementById('code-two').getBoundingClientRect();
+        return 28 + 30 * ((markerY - block.top) / block.height);
+    });
+    expect(markerSource).toBeCloseTo(43.5, 1);
+
+    await page.waitForTimeout(160);
+    const reports = await page.evaluate(() => window.previewBridgeMessages
+        .filter(message => message?.type === 'scroll'));
+    expect(reports).toContainEqual(expect.objectContaining({
+        sourceLine: 43,
+        programmatic: true,
+    }));
+});
+
 test('caps and centers preview content at the configured PDF page width', async ({ page }) => {
     await page.goto('/');
     const printable = await page.evaluate(async () => {

@@ -1,6 +1,7 @@
 /** Live PDF preview contracts: stylesheet resolution, isolation, and UI flow. */
 
 import { testUtils } from './test_setup.js';
+import { EditorState } from '@codemirror/state';
 
 var mockState = {
     openTabs: [],
@@ -38,6 +39,8 @@ jest.mock('../frontend/js/app.js', () => ({
 import {
     buildPDFPreviewDocument,
     closePDFPreview,
+    editorScrollTopForSourcePosition,
+    editorSourcePositionAtMarker,
     getPDFPreviewFragmentID,
     isPDFPreviewOpen,
     openPDFPreview,
@@ -209,6 +212,38 @@ describe('live PDF preview', () => {
         expect(getPDFPreviewFragmentID('#footnote1')).toBe('footnote1');
         expect(getPDFPreviewFragmentID('#caf%C3%A9-notes')).toBe('café-notes');
         expect(getPDFPreviewFragmentID('notes/other.md#intro')).toBe('');
+    });
+
+    test('maps the shared preview marker through body-relative source lines', () => {
+        const state = EditorState.create({ doc: [
+            '---',
+            'title: Report',
+            '---',
+            '# Heading',
+            'Paragraph zero',
+            'Paragraph one',
+            'Paragraph two',
+        ].join('\n') });
+        const scroller = document.createElement('div');
+        setScrollMetrics(scroller, { scrollTop: 390, scrollHeight: 1000, clientHeight: 300 });
+        scroller.getBoundingClientRect = () => ({ left: 0, top: 20 });
+        const content = document.createElement('div');
+        content.getBoundingClientRect = () => ({ left: 40, top: 20 });
+        const markerPosition = state.doc.line(6).from + 7;
+        const view = {
+            state,
+            scrollDOM: scroller,
+            contentDOM: content,
+            posAtCoords: jest.fn(() => markerPosition),
+            lineBlockAt: jest.fn(position => ({
+                top: state.doc.lineAt(position).number * 80,
+                height: 24,
+            })),
+        };
+
+        expect(editorSourcePositionAtMarker(view, 3)).toEqual({ sourceLine: 2, lineProgress: 0 });
+        expect(view.posAtCoords).toHaveBeenCalledWith({ x: 52, y: 110 });
+        expect(editorScrollTopForSourcePosition(view, 2, 0.5, 3)).toBe(402);
     });
 
     test('synchronizes the active Markdown scroller through the bridge without accessing iframe DOM', async () => {

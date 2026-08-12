@@ -15,7 +15,7 @@ import { getEditorContent } from './editor.js';
 
 const defaultPrintCSS = `
   @page { margin: 18mm; }
-  :root { color-scheme: light; }
+  :root { --figaro-page-number-color: #57606a; --figaro-page-number-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; --figaro-page-number-size: 9pt; color-scheme: light; }
   html { color: #202124; }
   body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; color: inherit; padding: 0; max-width: 820px; margin: 0 auto; }
   .figaro-print-document h1, .figaro-print-document h2 { border-bottom: 1px solid #e6e6e6; padding-bottom: .3em; }
@@ -70,6 +70,10 @@ const defaultPrintCSS = `
   .figaro-print-toc .figaro-toc-level-5 { margin-left: 5em; font-size: .86em; }
   .figaro-print-toc .figaro-toc-level-6 { margin-left: 6.25em; font-size: .84em; }
   .figaro-print-toc a { color: inherit; text-decoration: none; }
+  .figaro-print-toc a.figaro-print-toc-entry { display: grid; grid-template-columns: minmax(0, auto) minmax(1.5em, 1fr) minmax(5ch, auto); align-items: end; gap: .35em; }
+  .figaro-print-toc-label { min-width: 0; }
+  .figaro-print-toc-leader { min-width: 1.5em; border-bottom: 1px dotted currentColor; opacity: .5; transform: translateY(-.28em); }
+  .figaro-print-toc-page { min-width: 5ch; color: var(--figaro-page-number-color); font-family: var(--figaro-page-number-font); font-size: var(--figaro-page-number-size); text-align: right; }
   mark { background: #fff1a8; color: inherit; border-radius: 2px; padding: .05em .12em; }
   .katex-block { margin: 1.25em 0; overflow-x: auto; text-align: center; break-inside: avoid; page-break-inside: avoid; }
   .figaro-print-task-list { list-style: none; margin: 1em 0; padding-left: 0; }
@@ -89,6 +93,19 @@ const defaultPrintCSS = `
   @media print { .figaro-print-page-break { break-after: page !important; page-break-after: always !important; } }
 `;
 
+const pageNumberPrintCSS = `
+  .figaro-print-cover { page: figaro-cover; }
+  @page {
+    @bottom-center {
+      content: counter(page);
+      color: var(--figaro-page-number-color);
+      font-family: var(--figaro-page-number-font);
+      font-size: var(--figaro-page-number-size);
+    }
+  }
+  @page figaro-cover { @bottom-center { content: none; } }
+`;
+
 const printCalloutTypes = Object.freeze({
     note: 'Note',
     warning: 'Warning',
@@ -100,6 +117,10 @@ const printCalloutTypes = Object.freeze({
 
 function frontmatterBoolean(value) {
     return /^(?:true|yes|on|1)$/i.test(String(value || '').trim());
+}
+
+export function pageNumbersEnabled(markdown) {
+    return frontmatterBoolean(getFrontmatterValue(markdown, 'page-numbers'));
 }
 
 function frontmatterTOCDepth(value) {
@@ -190,28 +211,39 @@ function renderCoverPage(markdown, fallbackTitle) {
 </section>`;
 }
 
-function renderTableOfContents(headings, depth) {
+function renderTableOfContents(headings, depth, includePageNumbers = false) {
     if (depth <= 0) return '';
     const entries = headings.filter(heading => heading.level <= depth);
     if (!entries.length) return '';
 
-    const items = entries.map(heading =>
-        `<li class="figaro-toc-level-${heading.level}"><a href="#${escapeHtml(heading.id)}">${escapeHtml(heading.text)}</a></li>`
-    ).join('');
+    const items = entries.map((heading, index) => {
+        const href = `#${escapeHtml(heading.id)}`;
+        if (!includePageNumbers) {
+            return `<li class="figaro-toc-level-${heading.level}"><a href="${href}">${escapeHtml(heading.text)}</a></li>`;
+        }
+        return `<li class="figaro-toc-level-${heading.level}"><a class="figaro-print-toc-entry" href="${href}"><span class="figaro-print-toc-label">${escapeHtml(heading.text)}</span><span class="figaro-print-toc-leader" aria-hidden="true"></span><span class="figaro-print-toc-page" data-figaro-toc-index="${index}" aria-hidden="true">&nbsp;</span></a></li>`;
+    }).join('');
     return `<nav class="figaro-print-toc figaro-print-page-break" aria-label="Table of contents"><h2 class="figaro-print-toc-title">Contents</h2><ol class="figaro-print-toc-list">${items}</ol></nav>`;
 }
 
 export function renderPrintableMarkdownFromRendered(markdown, title = 'Document', rendered = '') {
     const { body, headings } = renderMarkdownBodyFromRendered(rendered);
     const cover = renderCoverPage(markdown, title);
-    const toc = renderTableOfContents(headings, frontmatterTOCDepth(getFrontmatterValue(markdown, 'toc-depth')));
+    const includePageNumbers = pageNumbersEnabled(markdown);
+    const toc = renderTableOfContents(
+        headings,
+        frontmatterTOCDepth(getFrontmatterValue(markdown, 'toc-depth')),
+        includePageNumbers,
+    );
+    const tocCount = includePageNumbers ? (toc.match(/data-figaro-toc-index=/g) || []).length : 0;
     return `<!doctype html>
-<html lang="en">
+<html lang="en"${includePageNumbers ? ` data-figaro-page-numbers="true" data-figaro-toc-count="${tocCount}"` : ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>${defaultPrintCSS}</style>
+${includePageNumbers ? `<style id="figaro-page-number-style">${pageNumberPrintCSS}</style>` : ''}
 </head>
 <body>${cover}${toc}<main class="figaro-print-document">${body}</main></body>
 </html>`;
@@ -238,12 +270,16 @@ function diagramLanguageFromCodeElement(codeElement) {
     return '';
 }
 
-function makePrintableDiagram(printable, language, svg) {
+function makePrintableDiagram(printable, language, svg, sourceElement = null) {
     const figure = printable.createElement('figure');
     figure.className = 'figaro-print-diagram';
     figure.dataset.diagramLanguage = language;
     figure.setAttribute('role', 'img');
     figure.setAttribute('aria-label', language + ' diagram');
+    for (const attribute of ['data-figaro-source-start', 'data-figaro-source-end']) {
+        const value = sourceElement?.getAttribute?.(attribute);
+        if (value !== null && value !== undefined) figure.setAttribute(attribute, value);
+    }
 
     const content = printable.createElement('div');
     content.className = 'figaro-print-diagram-content';
@@ -273,7 +309,7 @@ export async function renderPrintableDiagrams(html) {
         try {
             const svg = await renderDiagramSVG(language, codeElement.textContent.trim(), 'figaro-print-diagram');
             if (typeof svg !== 'string' || !svg.trim()) continue;
-            pre.replaceWith(makePrintableDiagram(printable, language, svg));
+            pre.replaceWith(makePrintableDiagram(printable, language, svg, codeElement));
         } catch (_) {
             // Preserve the original code block. The source remains printable
             // and gives the author a useful recovery path for invalid input.
@@ -298,7 +334,7 @@ export async function exportMarkdownToPDF({ path, title, content }) {
     const documentTitle = title?.replace(/\.md$/i, '') || path.split('/').pop().replace(/\.md$/i, '') || 'Document';
     const html = await renderPrintableMarkdownWithDiagrams(content, documentTitle);
     const printStylesheet = getPrintStylesheet(content);
-    statusBar.set('Preparing interactive PDF…');
+    statusBar.set(pageNumbersEnabled(content) ? 'Paginating interactive PDF…' : 'Preparing interactive PDF…');
     const result = await backend().ExportPDF(documentTitle, html, path, printStylesheet);
     if (!result?.success) {
         const error = new Error(result?.error || 'Could not export the interactive PDF');

@@ -230,7 +230,11 @@ renderer.
 Raw Text Preview shows the exact Markdown source, including frontmatter, while
 PDF Preview adds pagination, cover pages, a depth-limited table of contents,
 footnotes, internal links, fenced-code syntax colors, and optional vault-local
-CSS. Generated PDFs are written beside their source note.
+CSS. Set `page-numbers: true` in Properties to add physical PDF footers and
+matching destination pages to the table of contents; an optional cover stays
+visually unnumbered. Existing custom stylesheets keep working, while
+**Upgrade copy** creates a separate current starter with the old rules retained
+as final overrides. Generated PDFs are written beside their source note.
 See [PDF styling](docs/PDF_STYLING.md) for the supported print contract.
 
 ## Data and privacy

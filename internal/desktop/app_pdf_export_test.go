@@ -3,6 +3,7 @@ package desktop
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -174,9 +175,11 @@ func TestCreateStarterPrintStylesheetCopiesBundledCSSWithoutOverwriting(t *testi
 		".figaro-print-cover-author",
 		".figaro-print-cover-date",
 		".figaro-print-toc-title",
+		".figaro-print-toc-page",
 		".figaro-toc-level-6",
 		".figaro-print-code",
 		"--figaro-code-keyword",
+		"--figaro-page-number-color",
 		".figaro-print-diagram",
 		".footnote-backref",
 	} {
@@ -228,6 +231,170 @@ func TestCreateStarterPrintStylesheetRejectsUnsafeReferences(t *testing.T) {
 		if result.Success || result.Error == "" {
 			t.Errorf("unsafe stylesheet ref %q unexpectedly succeeded: %#v", ref, result)
 		}
+	}
+}
+
+func TestCreateUpgradedPrintStylesheetPreservesSourceAndExistingTargets(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/report.md", "# Report")
+	const userCSS = "/* original */\nbody { color: rebeccapurple; }\n"
+	writeTestFile(t, vaultPath, "notes/report.css", userCSS)
+
+	result, err := app.CreateUpgradedPrintStylesheet("notes/report.md", "report.css", "report-v2.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Success || !result.Created || result.Path != "notes/report-v2.css" {
+		t.Fatalf("unexpected upgrade result: %#v", result)
+	}
+	source, err := os.ReadFile(filepath.Join(vaultPath, "notes", "report.css"))
+	if err != nil || string(source) != userCSS {
+		t.Fatalf("source stylesheet changed: %q, %v", source, err)
+	}
+	upgraded, err := os.ReadFile(filepath.Join(vaultPath, "notes", "report-v2.css"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(upgraded), "figaro-pdf-starter-version: 2") || !strings.HasSuffix(string(upgraded), userCSS) {
+		t.Fatalf("upgraded stylesheet did not preserve current starter plus final overrides: %s", upgraded)
+	}
+
+	const existing = "/* keep this target */\n"
+	if err := os.WriteFile(filepath.Join(vaultPath, "notes", "report-v2.css"), []byte(existing), 0644); err != nil {
+		t.Fatal(err)
+	}
+	repeated, err := app.CreateUpgradedPrintStylesheet("notes/report.md", "report.css", "report-v2.css")
+	if err != nil || !repeated.Success || repeated.Created {
+		t.Fatalf("existing target should be offered unchanged: %#v, %v", repeated, err)
+	}
+	data, _ := os.ReadFile(filepath.Join(vaultPath, "notes", "report-v2.css"))
+	if string(data) != existing {
+		t.Fatalf("existing target was overwritten: %q", data)
+	}
+}
+
+func TestCreateUpgradedPrintStylesheetRejectsDestructiveReferences(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "notes/report.md", "# Report")
+	writeTestFile(t, vaultPath, "notes/report.css", "body {}\n")
+
+	for _, target := range []string{"report.css", "../../outside.css", "report.less"} {
+		result, err := app.CreateUpgradedPrintStylesheet("notes/report.md", "report.css", target)
+		if err != nil {
+			t.Fatalf("upgrade %q returned transport error: %v", target, err)
+		}
+		if result.Success || result.Error == "" {
+			t.Fatalf("unsafe upgrade %q unexpectedly succeeded: %#v", target, result)
+		}
+	}
+}
+
+func TestPrintablePaginationPlan(t *testing.T) {
+	enabled, count, err := printablePaginationPlan(`<!doctype html><html lang="en" data-figaro-page-numbers="true" data-figaro-toc-count="4"><body></body></html>`)
+	if err != nil || !enabled || count != 4 {
+		t.Fatalf("unexpected numbered plan: %v, %d, %v", enabled, count, err)
+	}
+	enabled, count, err = printablePaginationPlan(`<!doctype html><html><body data-figaro-page-numbers="true"></body></html>`)
+	if err != nil || enabled || count != 0 {
+		t.Fatalf("body attributes must not enable pagination: %v, %d, %v", enabled, count, err)
+	}
+	if _, _, err := printablePaginationPlan(`<html data-figaro-page-numbers="true">`); err == nil {
+		t.Fatal("expected a missing TOC count to fail")
+	}
+}
+
+type recordingPDFRenderer struct {
+	calls [][2]string
+	errAt int
+}
+
+func (renderer *recordingPDFRenderer) Render(inputHTMLPath string, outputPDFPath string) error {
+	renderer.calls = append(renderer.calls, [2]string{inputHTMLPath, outputPDFPath})
+	if renderer.errAt > 0 && len(renderer.calls) == renderer.errAt {
+		return os.ErrPermission
+	}
+	return nil
+}
+
+func TestRenderChromiumPDFPassesUsesOneSessionAndVerifiesFinalDestinations(t *testing.T) {
+	workspace := t.TempDir()
+	renderer := &recordingPDFRenderer{}
+	resolved := 0
+	ports := pdfPaginationPorts{
+		resolvePages: func(pdfPath string, expected int) ([]int, error) {
+			resolved++
+			if expected != 2 {
+				t.Fatalf("unexpected TOC count: %d", expected)
+			}
+			if resolved == 1 && pdfPath != filepath.Join(workspace, "provisional.pdf") {
+				t.Fatalf("unexpected provisional path: %s", pdfPath)
+			}
+			return []int{3, 7}, nil
+		},
+		injectPages: func(document string, pages []int) (string, error) {
+			if document != "source document" || !slices.Equal(pages, []int{3, 7}) {
+				t.Fatalf("unexpected injection: %q, %v", document, pages)
+			}
+			return "numbered document", nil
+		},
+		writeHTML: func(gotWorkspace string, document string) (string, error) {
+			if gotWorkspace != workspace || document != "numbered document" {
+				t.Fatalf("unexpected final write: %q, %q", gotWorkspace, document)
+			}
+			return filepath.Join(workspace, "final.html"), nil
+		},
+	}
+	output := filepath.Join(workspace, "export.pdf")
+	if err := renderChromiumPDFPasses(
+		renderer,
+		"source document",
+		filepath.Join(workspace, "document.html"),
+		output,
+		workspace,
+		true,
+		2,
+		ports,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if len(renderer.calls) != 2 {
+		t.Fatalf("expected exactly two render passes in one supplied session, got %v", renderer.calls)
+	}
+	if renderer.calls[0][1] != filepath.Join(workspace, "provisional.pdf") || renderer.calls[1] != [2]string{filepath.Join(workspace, "final.html"), output} {
+		t.Fatalf("unexpected render sequence: %v", renderer.calls)
+	}
+	if resolved != 2 {
+		t.Fatalf("expected provisional and final destination checks, got %d", resolved)
+	}
+}
+
+func TestRenderChromiumPDFPassesKeepsSinglePassAndRejectsPaginationDrift(t *testing.T) {
+	workspace := t.TempDir()
+	renderer := &recordingPDFRenderer{}
+	if err := renderChromiumPDFPasses(renderer, "document", "input.html", "output.pdf", workspace, false, 0, pdfPaginationPorts{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(renderer.calls) != 1 || renderer.calls[0] != [2]string{"input.html", "output.pdf"} {
+		t.Fatalf("ordinary exports must stay single-pass: %v", renderer.calls)
+	}
+
+	renderer.calls = nil
+	resolveCall := 0
+	err := renderChromiumPDFPasses(renderer, "document", "input.html", "output.pdf", workspace, true, 1, pdfPaginationPorts{
+		resolvePages: func(string, int) ([]int, error) {
+			resolveCall++
+			if resolveCall == 1 {
+				return []int{2}, nil
+			}
+			return []int{3}, nil
+		},
+		injectPages: func(document string, pages []int) (string, error) { return document, nil },
+		writeHTML:   func(string, string) (string, error) { return "final.html", nil },
+	})
+	if err == nil || !strings.Contains(err.Error(), "changed during final layout") {
+		t.Fatalf("expected pagination drift error, got %v", err)
 	}
 }
 

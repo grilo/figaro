@@ -149,4 +149,47 @@ describe('PDF preview frame bridge', () => {
             frame.sendToParent.mockRestore();
         }
     });
+
+    test('synchronizes source anchors across differently sized rendered blocks', async () => {
+        const frame = createFrame();
+        try {
+            render(frame, `<!doctype html><html><body><main class="figaro-print-document">
+                <p id="first" data-figaro-source-start="0" data-figaro-source-end="10">First</p>
+                <pre id="tall" data-figaro-source-start="20" data-figaro-source-end="30">Tall code</pre>
+            </main></body></html>`);
+            await waitForFrame();
+
+            const root = frame.window.document.scrollingElement || frame.window.document.documentElement;
+            Object.defineProperties(root, {
+                clientHeight: { configurable: true, value: 400 },
+                scrollHeight: { configurable: true, value: 2000 },
+                scrollTop: { configurable: true, writable: true, value: 0 },
+            });
+            root.getBoundingClientRect = () => ({ top: 0, bottom: 400, height: 400 });
+            const first = frame.window.document.getElementById('first');
+            const tall = frame.window.document.getElementById('tall');
+            first.getBoundingClientRect = () => ({ top: 100 - root.scrollTop, bottom: 200 - root.scrollTop, height: 100 });
+            tall.getBoundingClientRect = () => ({ top: 800 - root.scrollTop, bottom: 1000 - root.scrollTop, height: 200 });
+
+            frame.sendToParent.mockClear();
+            sendBridgeCommand(frame, 'set-source-position', {
+                sourceLine: 22,
+                lineProgress: 0.5,
+                progress: 0.9,
+            });
+            expect(root.scrollTop).toBe(730);
+
+            frame.window.dispatchEvent(new frame.window.Event('scroll'));
+            await waitForFrame();
+            expect(bridgeMessages(frame.sendToParent)).toContainEqual(expect.objectContaining({
+                type: 'scroll',
+                sourceLine: 22,
+                lineProgress: 0.5,
+                programmatic: true,
+            }));
+        } finally {
+            frame.iframe.remove();
+            frame.sendToParent.mockRestore();
+        }
+    });
 });

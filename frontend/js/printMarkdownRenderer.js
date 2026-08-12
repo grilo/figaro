@@ -76,6 +76,38 @@ function wikilinkPlugin(md) {
     });
 }
 
+const sourceMappedBlockTokens = new Set([
+    'blockquote_open',
+    'bullet_list_open',
+    'code_block',
+    'fence',
+    'heading_open',
+    'hr',
+    'list_item_open',
+    'math_block',
+    'ordered_list_open',
+    'paragraph_open',
+    'table_open',
+]);
+
+/**
+ * Preserve Markdown-It block source maps in the printable DOM. The PDF
+ * preview owns different typography and pagination from CodeMirror, so a
+ * source-line bridge is substantially more stable than whole-document scroll
+ * percentages around tall code blocks, tables, and diagrams.
+ */
+function sourceMapPlugin(md) {
+    md.core.ruler.after('inline', 'figaro_source_maps', state => {
+        for (const token of state.tokens) {
+            if (!sourceMappedBlockTokens.has(token.type) || !Array.isArray(token.map)) continue;
+            const [start, end] = token.map;
+            if (!Number.isInteger(start) || !Number.isInteger(end) || end <= start) continue;
+            token.attrSet('data-figaro-source-start', String(start));
+            token.attrSet('data-figaro-source-end', String(end));
+        }
+    });
+}
+
 /**
  * Create a safe renderer used exclusively for interactive PDF export.
  * Source HTML stays disabled; the selected extensions only parse Markdown.
@@ -83,6 +115,7 @@ function wikilinkPlugin(md) {
 export function createPrintMarkdownRenderer() {
     const renderer = MarkdownIt({ html: false, linkify: true, typographer: true })
         .use(wikilinkPlugin)
+        .use(sourceMapPlugin)
         .use(footnote)
         .use(katex, { delimiters: 'dollars' })
         .use(mark)

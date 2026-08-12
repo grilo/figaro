@@ -489,6 +489,58 @@ describe('Interactive PDF export', () => {
         expect(toc.querySelectorAll('.figaro-toc-level-3')).toHaveLength(0);
     });
 
+    test('opts into physical page footers and reserved TOC number cells without changing legacy output', () => {
+        const numbered = parseHTML(renderPrintableMarkdown([
+            '---',
+            'cover-page: true',
+            'toc-depth: 2',
+            'page-numbers: true',
+            '---',
+            '# Introduction',
+            '',
+            'Body',
+            '',
+            '## Details',
+        ].join('\n'), 'Numbered'));
+
+        expect(numbered.documentElement.dataset.figaroPageNumbers).toBe('true');
+        expect(numbered.documentElement.dataset.figaroTocCount).toBe('2');
+        expect(numbered.querySelector('#figaro-page-number-style').textContent).toContain('counter(page)');
+        expect(numbered.querySelector('#figaro-page-number-style').textContent).toContain('@page figaro-cover');
+        expect(numbered.querySelectorAll('.figaro-print-toc-entry')).toHaveLength(2);
+        expect(Array.from(numbered.querySelectorAll('.figaro-print-toc-page')).map(cell => cell.dataset.figaroTocIndex))
+            .toEqual(['0', '1']);
+
+        const legacy = parseHTML(renderPrintableMarkdown('---\ntoc-depth: 1\npage-numbers: false\n---\n# Introduction'));
+        expect(legacy.documentElement.hasAttribute('data-figaro-page-numbers')).toBe(false);
+        expect(legacy.querySelector('#figaro-page-number-style')).toBeNull();
+        expect(legacy.querySelector('.figaro-print-toc-entry')).toBeNull();
+        expect(legacy.querySelector('.figaro-print-toc a').textContent).toBe('Introduction');
+    });
+
+    test('preserves body-relative source ranges for preview scroll synchronization', () => {
+        const printable = parseHTML(renderPrintableMarkdown([
+            '---',
+            'title: Metadata',
+            '---',
+            '# Introduction',
+            '',
+            'A paragraph spanning one source line.',
+            '',
+            fence('javascript', 'const answer = 42;\nconsole.log(answer);'),
+        ].join('\n')));
+
+        expect(printable.querySelector('h1')).toMatchObject({
+            dataset: expect.objectContaining({ figaroSourceStart: '0', figaroSourceEnd: '1' }),
+        });
+        expect(printable.querySelector('p')).toMatchObject({
+            dataset: expect.objectContaining({ figaroSourceStart: '2', figaroSourceEnd: '3' }),
+        });
+        expect(printable.querySelector('pre > code')).toMatchObject({
+            dataset: expect.objectContaining({ figaroSourceStart: '4', figaroSourceEnd: '8' }),
+        });
+    });
+
     test('treats toc-depth zero and invalid values as no table of contents', () => {
         for (const depth of ['0', 'not-a-number', '-3']) {
             const printable = parseHTML(renderPrintableMarkdown([
@@ -536,6 +588,7 @@ describe('Interactive PDF export', () => {
             expect(view.finalize).toHaveBeenCalledTimes(1);
         });
         expect(diagrams.map(diagram => diagram.dataset.diagramLanguage)).toEqual(['mermaid', 'vega', 'vega-lite']);
+        expect(diagrams.every(diagram => diagram.hasAttribute('data-figaro-source-start'))).toBe(true);
         expect(printable.querySelectorAll('.figaro-print-diagram svg')).toHaveLength(3);
         expect(printable.querySelectorAll('pre > code.language-mermaid')).toHaveLength(0);
         expect(printable.querySelectorAll('pre > code.language-vega')).toHaveLength(0);
@@ -616,7 +669,7 @@ describe('Interactive PDF export', () => {
         expect(window.go.desktop.App.ReadFile).toHaveBeenCalledWith('notes/report.md');
         expect(window.go.desktop.App.ExportPDF).toHaveBeenCalledWith(
             'report',
-            expect.stringContaining('<h1 id="hello">Hello</h1>'),
+            expect.stringContaining('id="hello">Hello</h1>'),
             'notes/report.md',
             ''
         );

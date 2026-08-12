@@ -34,6 +34,47 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.settings-card')).toHaveCount(7);
     await expect(page.locator('.settings-card').filter({ hasText: 'Vault care' })).toContainText('Vault health');
+    const wideSettingsLayout = await page.evaluate(() => {
+        const columns = [...document.querySelectorAll('.settings-grid > .settings-column')];
+        const cards = [...document.querySelectorAll('.settings-card')];
+        const box = element => {
+            const rect = element.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, bottom: rect.bottom };
+        };
+        return {
+            columnCount: columns.length,
+            columnBoxes: columns.map(box),
+            titles: columns.map(column => [...column.querySelectorAll('.settings-card-title')]
+                .map(title => title.textContent.trim())),
+            appearance: box(cards[0]),
+            editor: box(cards[1]),
+            kanban: box(cards[2]),
+            automation: box(cards[3]),
+        };
+    });
+    expect(wideSettingsLayout.columnCount).toBe(2);
+    expect(wideSettingsLayout.titles).toEqual([
+        ['Appearance', 'Editor'],
+        ['Kanban', 'Automation', 'PDF Export', 'Vault care', 'About'],
+    ]);
+    expect(wideSettingsLayout.columnBoxes[0].x).toBeLessThan(wideSettingsLayout.columnBoxes[1].x);
+    expect(wideSettingsLayout.appearance.height).toBeLessThan(wideSettingsLayout.editor.height);
+    expect(wideSettingsLayout.kanban.y).toBeCloseTo(wideSettingsLayout.appearance.y, 0);
+    expect(wideSettingsLayout.automation.y).toBeGreaterThan(wideSettingsLayout.kanban.bottom);
+    expect(wideSettingsLayout.automation.y - wideSettingsLayout.kanban.bottom).toBeLessThanOrEqual(16);
+
+    await page.setViewportSize({ width: 900, height: 900 });
+    const narrowSettingsLayout = await page.evaluate(() => {
+        const columns = [...document.querySelectorAll('.settings-grid > .settings-column')];
+        return columns.map(column => {
+            const rect = column.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, bottom: rect.bottom, width: rect.width };
+        });
+    });
+    expect(narrowSettingsLayout[1].x).toBeCloseTo(narrowSettingsLayout[0].x, 0);
+    expect(narrowSettingsLayout[1].width).toBeCloseTo(narrowSettingsLayout[0].width, 0);
+    expect(narrowSettingsLayout[1].y).toBeGreaterThan(narrowSettingsLayout[0].bottom);
+    await page.setViewportSize({ width: 1280, height: 720 });
     await page.evaluate(async () => {
         const tabs = await import('/js/tabManager.js');
         tabs.showWorkspaceHome();

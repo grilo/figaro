@@ -12,6 +12,8 @@ import (
 	pathpkg "path"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 
 	"figaro/internal/pdfexport"
@@ -107,6 +109,84 @@ func (a *App) CreateStarterPrintStylesheet(sourcePath string, stylesheetRef stri
 	return result, nil
 }
 
+// CreateUpgradedPrintStylesheet creates a separate current starter and appends
+// every rule from an existing vault stylesheet as a final override section.
+// The source and any existing target remain byte-for-byte untouched.
+func (a *App) CreateUpgradedPrintStylesheet(sourcePath string, currentRef string, targetRef string) (*StarterPrintStylesheetResult, error) {
+	if !strings.HasSuffix(strings.ToLower(strings.TrimSpace(sourcePath)), ".md") {
+		return &StarterPrintStylesheetResult{Success: false, Error: "PDF stylesheets can only be upgraded for a Markdown note"}, nil
+	}
+
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	sourceRel, err := vaultRelativePath(sourcePath)
+	if err != nil {
+		return &StarterPrintStylesheetResult{Success: false, Error: err.Error()}, nil
+	}
+	sourceDir := filepath.Dir(sourceRel)
+	currentRel, err := a.resolvePrintStylesheet(sourceDir, currentRef)
+	if err != nil {
+		return &StarterPrintStylesheetResult{Success: false, Error: err.Error()}, nil
+	}
+	targetRel, err := a.resolvePrintStylesheet(sourceDir, targetRef)
+	if err != nil {
+		return &StarterPrintStylesheetResult{Success: false, Error: err.Error()}, nil
+	}
+	if currentRel == targetRel {
+		return &StarterPrintStylesheetResult{Success: false, Error: "Choose a different path so the selected stylesheet is not overwritten"}, nil
+	}
+
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+
+	result := &StarterPrintStylesheetResult{Success: true, Path: filepath.ToSlash(targetRel)}
+	if info, statErr := root.Stat(targetRel); statErr == nil {
+		if info.IsDir() {
+			return &StarterPrintStylesheetResult{Success: false, Error: fmt.Sprintf("print stylesheet %q is a directory", strings.TrimSpace(targetRef))}, nil
+		}
+		if _, readErr := readPrintCSS(root, targetRel, fmt.Sprintf("print stylesheet %q", strings.TrimSpace(targetRef)), true); readErr != nil {
+			return &StarterPrintStylesheetResult{Success: false, Error: readErr.Error()}, nil
+		}
+		return result, nil
+	} else if !os.IsNotExist(statErr) {
+		return nil, fmt.Errorf("inspect upgraded print stylesheet: %w", statErr)
+	}
+
+	currentCSS, err := readPrintCSS(root, currentRel, fmt.Sprintf("print stylesheet %q", strings.TrimSpace(currentRef)), true)
+	if err != nil {
+		return &StarterPrintStylesheetResult{Success: false, Error: err.Error()}, nil
+	}
+	starterCSS, err := loadStarterPrintStylesheet()
+	if err != nil {
+		return nil, err
+	}
+	safeRef := strings.ReplaceAll(strings.TrimSpace(currentRef), "*/", "* /")
+	upgraded := string(starterCSS) + fmt.Sprintf("\n\n/* Migrated overrides from %s.\n * These original rules intentionally remain last in the cascade.\n */\n", safeRef) + currentCSS
+	if !strings.HasSuffix(upgraded, "\n") {
+		upgraded += "\n"
+	}
+	if err := createRootFile(root, targetRel, []byte(upgraded), 0644); err != nil {
+		if os.IsExist(err) {
+			if _, readErr := readPrintCSS(root, targetRel, fmt.Sprintf("print stylesheet %q", strings.TrimSpace(targetRef)), true); readErr != nil {
+				return &StarterPrintStylesheetResult{Success: false, Error: readErr.Error()}, nil
+			}
+			return result, nil
+		}
+		return nil, fmt.Errorf("create upgraded print stylesheet: %w", err)
+	}
+	if info, statErr := root.Lstat(targetRel); statErr == nil {
+		a.updateFileTreeCacheFileLocked(targetRel, info)
+	} else {
+		a.invalidateFileTreeCacheLocked()
+	}
+	result.Created = true
+	return result, nil
+}
+
 func loadStarterPrintStylesheet() ([]byte, error) {
 	css, err := assets.ReadFile(starterPrintStylesheetAsset)
 	if err == nil {
@@ -154,6 +234,13 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 	if err != nil {
 		return &PDFExportResult{Success: false, Error: err.Error()}, nil
 	}
+	pageNumbers, tocCount, err := printablePaginationPlan(document)
+	if err != nil {
+		return &PDFExportResult{Success: false, Error: err.Error()}, nil
+	}
+	if pageNumbers && browser.Engine == pdfexport.EngineSafari {
+		return &PDFExportResult{Success: false, Error: "PDF page numbers require Chromium 131 or newer; Safari export cannot render CSS page-margin numbers yet"}, nil
+	}
 
 	outputPath, err := pdfOutputPath(sourceDir, sourcePath)
 	if err != nil {
@@ -190,7 +277,23 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 	} else {
 		profileDir := filepath.Join(workspace, "browser-profile")
 		if err = os.MkdirAll(profileDir, 0700); err == nil {
-			err = pdfexport.RenderChromiumPDF(ctx, browser, inputHTML, temporaryPDF, profileDir)
+			err = pdfexport.WithChromiumPDFSession(ctx, browser, profileDir, func(session *pdfexport.ChromiumPDFSession) error {
+				if pageNumbers {
+					if capabilityErr := session.RequirePageMarginBoxes(); capabilityErr != nil {
+						return capabilityErr
+					}
+				}
+				return renderChromiumPDFPasses(
+					session,
+					document,
+					inputHTML,
+					temporaryPDF,
+					workspace,
+					pageNumbers,
+					tocCount,
+					defaultPDFPaginationPorts(),
+				)
+			})
 		}
 	}
 	if err != nil {
@@ -216,6 +319,93 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 		result.ViewerError = fmt.Sprintf("PDF was exported, but its default viewer could not be started: %v", err)
 	}
 	return result, nil
+}
+
+type pdfPassRenderer interface {
+	Render(inputHTMLPath string, outputPDFPath string) error
+}
+
+type pdfPaginationPorts struct {
+	resolvePages func(pdfPath string, expected int) ([]int, error)
+	injectPages  func(document string, pages []int) (string, error)
+	writeHTML    func(workspace string, document string) (string, error)
+}
+
+func defaultPDFPaginationPorts() pdfPaginationPorts {
+	return pdfPaginationPorts{
+		resolvePages: pdfexport.ResolveTOCPageNumbers,
+		injectPages:  pdfexport.InjectTOCPageNumbers,
+		writeHTML:    writeInteractivePDFWorkspace,
+	}
+}
+
+func renderChromiumPDFPasses(
+	renderer pdfPassRenderer,
+	document string,
+	inputHTML string,
+	outputPDF string,
+	workspace string,
+	pageNumbers bool,
+	tocCount int,
+	ports pdfPaginationPorts,
+) error {
+	if !pageNumbers || tocCount == 0 {
+		return renderer.Render(inputHTML, outputPDF)
+	}
+	provisionalPDF := filepath.Join(workspace, "provisional.pdf")
+	if err := renderer.Render(inputHTML, provisionalPDF); err != nil {
+		return fmt.Errorf("paginate table of contents: %w", err)
+	}
+	pages, err := ports.resolvePages(provisionalPDF, tocCount)
+	if err != nil {
+		return err
+	}
+	finalDocument, err := ports.injectPages(document, pages)
+	if err != nil {
+		return err
+	}
+	finalInput, err := ports.writeHTML(workspace, finalDocument)
+	if err != nil {
+		return err
+	}
+	if err := renderer.Render(finalInput, outputPDF); err != nil {
+		return fmt.Errorf("render numbered table of contents: %w", err)
+	}
+	finalPages, err := ports.resolvePages(outputPDF, tocCount)
+	if err != nil {
+		return err
+	}
+	if !slices.Equal(pages, finalPages) {
+		return errors.New("table-of-contents page numbers changed during final layout; reduce custom TOC spacing and export again")
+	}
+	return nil
+}
+
+var printableTOCCountRE = regexp.MustCompile(`\bdata-figaro-toc-count="([0-9]+)"`)
+
+func printablePaginationPlan(document string) (bool, int, error) {
+	lowerDocument := strings.ToLower(document)
+	openingStart := strings.Index(lowerDocument, "<html")
+	if openingStart < 0 {
+		return false, 0, nil
+	}
+	openingLength := strings.Index(document[openingStart:], ">")
+	if openingLength < 0 {
+		return false, 0, nil
+	}
+	opening := document[openingStart : openingStart+openingLength+1]
+	if !strings.Contains(opening, `data-figaro-page-numbers="true"`) {
+		return false, 0, nil
+	}
+	match := printableTOCCountRE.FindStringSubmatch(opening)
+	if match == nil {
+		return false, 0, errors.New("page-numbered PDF document is missing its table-of-contents count")
+	}
+	count, err := strconv.Atoi(match[1])
+	if err != nil || count < 0 {
+		return false, 0, errors.New("page-numbered PDF document has an invalid table-of-contents count")
+	}
+	return true, count, nil
 }
 
 func (a *App) prepareInteractivePDFDocument(title string, htmlContent string, sourcePath string, printStylesheet string) (string, string, error) {

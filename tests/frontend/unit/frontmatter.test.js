@@ -8,6 +8,7 @@ import {
     hasLeadingFrontmatter,
     parseFrontmatter,
     parseFrontmatterScalar,
+    printableBodyLineOffset,
     stripLeadingFrontmatter,
 } from '../frontend/js/frontmatter.js';
 import { createFrontmatterField } from '../frontend/js/frontmatterPlugin.js';
@@ -27,6 +28,7 @@ describe('frontmatter parsing', () => {
         });
         expect(getPrintStylesheet(source)).toBe('../styles/print.css');
         expect(stripLeadingFrontmatter(source)).toBe('# Report');
+        expect(printableBodyLineOffset(source)).toBe(6);
     });
 
     test('leaves ordinary Markdown and unclosed fences untouched', () => {
@@ -64,10 +66,10 @@ describe('frontmatter parsing', () => {
             author: 'Ada Lovelace',
             date: '2026-07-12',
         })).toMatchObject({
-            insert: '---\ntitle: "Quarterly report"\nsubtitle: ""\nauthor: "Ada Lovelace"\ndate: 2026-07-12\ncover-page: false\ntoc-depth: 0\n---\n\n',
+            insert: '---\ntitle: "Quarterly report"\nsubtitle: ""\nauthor: "Ada Lovelace"\ndate: 2026-07-12\ncover-page: false\ntoc-depth: 0\npage-numbers: false\n---\n\n',
         });
         expect(frontmatterTemplateChange('', { author: 'ada', date: '2026-07-12' })).toMatchObject({
-            insert: '---\ntitle: ""\nsubtitle: ""\nauthor: ada\ndate: 2026-07-12\ncover-page: false\ntoc-depth: 0\n---\n',
+            insert: '---\ntitle: ""\nsubtitle: ""\nauthor: ada\ndate: 2026-07-12\ncover-page: false\ntoc-depth: 0\npage-numbers: false\n---\n',
         });
     });
 });
@@ -179,6 +181,12 @@ describe('frontmatter Properties card', () => {
             .click();
         expect(view.state.doc.toString()).toContain('toc-depth: 2');
 
+        const pageNumbers = view.dom.querySelector('input[aria-label="Page numbers"]');
+        expect(pageNumbers.checked).toBe(false);
+        pageNumbers.checked = true;
+        pageNumbers.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(view.state.doc.toString()).toContain('page-numbers: true');
+
         const cover = view.dom.querySelector('.cm-frontmatter-panel-toggle');
         cover.checked = true;
         cover.dispatchEvent(new Event('change', { bubbles: true }));
@@ -246,6 +254,7 @@ describe('frontmatter Properties card', () => {
         expect(template).toContain('author: "Ada Lovelace"');
         expect(template).toMatch(/date: \d{4}-\d{2}-\d{2}/);
         expect(template).toContain('cover-page: false');
+        expect(template).toContain('page-numbers: false');
         expect(template).toContain('toc-depth: 0');
         expect(template).not.toContain('print-stylesheet:');
         expect(template.endsWith('---\n\n# Body')).toBe(true);
@@ -310,10 +319,58 @@ describe('frontmatter Properties card', () => {
         createStarter.click();
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(promptForStylesheet).toHaveBeenCalledWith('pdf.css');
+        expect(promptForStylesheet).toHaveBeenCalledWith('pdf.css', { upgrade: false });
         expect(createStarterStylesheet).toHaveBeenCalledWith('notes/report.md', 'pdf.css');
         expect(view.state.doc.toString()).toContain('print-stylesheet: pdf.css');
         expect(onStylesheetReady).toHaveBeenCalledWith('notes/pdf.css');
+    });
+
+    test('creates an upgraded stylesheet copy without changing the selected source', async () => {
+        const promptForStylesheet = jest.fn().mockResolvedValue('styles/report-v2.css');
+        const createUpgradedStylesheet = jest.fn().mockResolvedValue({
+            success: true,
+            path: 'notes/styles/report-v2.css',
+            created: true,
+        });
+        const onStylesheetReady = jest.fn().mockResolvedValue(undefined);
+        const field = createFrontmatterField(
+            StateField,
+            StateEffect,
+            EditorView,
+            Decoration,
+            WidgetType,
+            null,
+            () => ['styles/report.css'],
+            () => '',
+            {
+                getActiveFilePath: () => 'notes/report.md',
+                promptForStylesheet,
+                createUpgradedStylesheet,
+                onStylesheetReady,
+            },
+        );
+        view = new EditorView({
+            state: EditorState.create({
+                doc: '---\nprint-stylesheet: styles/report.css\n---\n# Body',
+                extensions: [field],
+            }),
+            parent: document.body,
+        });
+
+        view.dom.querySelector('.cm-frontmatter').click();
+        const upgrade = view.dom.querySelector('.cm-frontmatter-create-stylesheet');
+        expect(upgrade.textContent).toBe('Upgrade copy');
+        upgrade.click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(promptForStylesheet).toHaveBeenCalledWith('styles/report-v2.css', { upgrade: true });
+        expect(createUpgradedStylesheet).toHaveBeenCalledWith(
+            'notes/report.md',
+            'styles/report.css',
+            'styles/report-v2.css',
+        );
+        expect(view.state.doc.toString()).toContain('print-stylesheet: styles/report-v2.css');
+        expect(onStylesheetReady).toHaveBeenCalledWith('notes/styles/report-v2.css');
     });
 
     test('asks before selecting an existing stylesheet', async () => {

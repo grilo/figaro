@@ -1,5 +1,6 @@
 /*
  * Figaro PDF stylesheet
+ * figaro-pdf-starter-version: 2
  *
  * This file is an editable starter copied into your vault when you choose
  * "Create starter" in Properties → PDF layout. It loads after Figaro's built-in
@@ -43,6 +44,9 @@
   --figaro-emphasis: #3d4a54;
   --figaro-mark-background: #fff0ad;
   --figaro-mark-ink: var(--figaro-ink);
+  --figaro-page-number-color: var(--figaro-muted);
+  --figaro-page-number-font: Arial, sans-serif;
+  --figaro-page-number-size: 9pt;
   --figaro-callout-note: #0b7285;
   --figaro-callout-note-soft: #e6f5f7;
   --figaro-callout-warning: #a86919;
@@ -174,6 +178,32 @@ body {
 .figaro-print-toc li {
   margin: .48em 0;
   line-height: 1.35;
+}
+
+/*
+ * When `page-numbers: true`, Figaro reserves these additive hooks and fills
+ * the final number column during export. Existing `.figaro-print-toc a`
+ * customizations continue to apply to the complete clickable entry.
+ */
+.figaro-print-toc-entry {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(1.5em, 1fr) minmax(5ch, auto);
+  align-items: end;
+  gap: .35em;
+}
+
+.figaro-print-toc-leader {
+  border-bottom: 1px dotted var(--figaro-muted);
+  opacity: .65;
+  transform: translateY(-.28em);
+}
+
+.figaro-print-toc-page {
+  min-width: 5ch;
+  color: var(--figaro-page-number-color);
+  font-family: var(--figaro-page-number-font);
+  font-size: var(--figaro-page-number-size);
+  text-align: right;
 }
 
 .figaro-print-toc .figaro-toc-level-1 {

@@ -932,7 +932,7 @@ the existing failed-source recovery behavior.
 
 | Direction | Messages | Purpose |
 | --- | --- | --- |
-| Parent → frame | `render`, `set-content-progress`, `set-document-progress`, `set-scroll-sync-paused`, `scroll-fragment`, `ping` | Supply the printable snapshot, synchronize position, and suspend synchronization during splitter resizing. |
+| Parent → frame | `render`, `set-source-position`, `set-content-progress`, `set-document-progress`, `set-scroll-sync-paused`, `scroll-fragment`, `ping` | Supply the printable snapshot, synchronize a source anchor (with percentage fallback), and suspend synchronization during splitter resizing. |
 | Frame → parent | `ready`, `rendered`, `render-error`, `scroll`, `link`, `reference-missing` | Report lifecycle, navigation requests, and scrolling. |
 
 The frame captures anchor activation itself, before browser navigation:
@@ -945,14 +945,22 @@ The frame captures anchor activation itself, before browser navigation:
 - Unsupported schemes stay in the frame and produce an explanatory status.
 
 Scroll synchronization is deliberately lower-frequency than native scrolling.
-The frame and CodeMirror each scroll locally at the display's normal cadence;
-only the latest document-relative position crosses the bridge, at most about
-30 times per second. Bursts are coalesced and a trailing update preserves the
-final position. Programmatic frame reports are explicitly marked; unmarked
-reader movement always takes precedence, even if an earlier editor update is
-still settling. Do not make scroll events a one-for-one bridge protocol: that
-makes WebKitGTK pay a cross-frame message and a CodeMirror position update for
-every visual frame.
+Markdown-It block maps become `data-figaro-source-start`/`-end` attributes, and
+diagram replacement transfers the fence range to its generated figure. The
+frame and CodeMirror report the source position crossing the same 30% viewport
+marker; nested printable blocks prefer the narrowest matching range. This
+avoids cumulative percentage drift when code, tables, or diagrams have very
+different heights across the two panes. Generated cover/contents gaps and any
+unmapped region retain the document/content-percentage fallback.
+
+Both panes still scroll locally at the display's normal cadence; only the
+latest source position crosses the bridge, at most about 30 times per second.
+Bursts are coalesced and a trailing update preserves the final position.
+Programmatic frame reports are explicitly marked; unmarked reader movement
+always takes precedence, even if an earlier editor update is still settling.
+Do not make scroll events a one-for-one bridge protocol: that makes WebKitGTK
+pay a cross-frame message and a CodeMirror position update for every visual
+frame.
 
 Dragging the PDF splitter temporarily pauses both synchronization directions
 and disables pointer interaction with the frame. This prevents reflow-driven
@@ -994,6 +1002,23 @@ editor highlighter, then emits `.figaro-print-code`, `data-highlight-language`,
 and highlight.js-compatible token classes before diagram fences are replaced.
 The preview adds only screen geometry and a selected stylesheet; the final
 export uses the same body and default print CSS.
+
+`page-numbers: true` adds CSS page-margin counters and numbered-contents cells
+to that shared contract. Chromium 131 is the minimum engine with the required
+margin-box support; Safari and older Chromium fail explicitly instead of
+silently omitting numbers. With no generated contents, the export stays one
+pass. With contents, the desktop use case renders a provisional PDF, resolves
+the first generated internal-link destinations through the pdfcpu adapter,
+injects their physical pages into reserved fixed-width cells, and renders the
+final PDF through the same `ChromiumPDFSession`. It resolves the final
+destinations again and publishes only when they match. The pass coordinator is
+tested through narrow render/resolve/inject/write ports; CDP owns browser I/O,
+and the root-scoped desktop adapter owns stylesheet migration and publication.
+
+The version-2 starter migration is also additive: a root-scoped adapter creates
+a distinct target, writes the current starter first, and appends the selected
+stylesheet as later overrides. It never rewrites either source or an occupied
+target.
 
 Before **Generate PDF**, Figaro saves the exact in-memory Markdown and selected
 stylesheet snapshots used by the preview. This avoids a race where an edit is

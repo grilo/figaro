@@ -24,6 +24,7 @@ Your implementation must accurately transition states for the following elements
 ### Fenced Code (```` ```javascript ````)
 * **Editor preview:** Rendered fences use the bundled local highlighter, the declared language when supported, and automatic detection for an untyped fence. Moving into the block restores its complete editable Markdown source.
 * **Printable parity:** PDF Preview and generated PDFs reuse that highlighter and emit `.figaro-print-code` plus highlight.js-compatible token classes. Unsupported languages remain escaped, printable source text; highlighting never changes the saved fence.
+* **PDF scroll anchors:** Printable block tokens carry body-relative Markdown line ranges. The PDF frame and CodeMirror synchronize the source position at a shared 30% viewport marker, while generated covers/contents and other unmapped regions retain percentage fallback. Diagram SVG replacement inherits its source fence range. This scroll-only bridge never changes the editor selection: Arrow Up/Down, Vim motion, mouse placement, and bidirectional drag selection remain CodeMirror-owned.
 
 ### Links (`[Display Text](https://url.com)`)
 * **Cursor inside node bounds:** Show the entire raw string exactly as written.

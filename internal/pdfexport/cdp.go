@@ -20,6 +20,7 @@ import (
 
 const (
 	browserRenderTimeout     = 45 * time.Second
+	browserSessionTimeout    = 2*browserRenderTimeout + browserStartTimeout
 	browserStartTimeout      = 12 * time.Second
 	browserValidationTimeout = 15 * time.Second
 )
@@ -125,20 +126,36 @@ func browserWorkspaceParent(browser Browser, home string) (string, error) {
 // Page.printToPDF path used by browser automation, which retains PDF link
 // annotations for document links, TOC entries, and footnote return links.
 func RenderChromiumPDF(ctx context.Context, browser Browser, inputHTMLPath string, outputPDFPath string, profileDir string) error {
+	return WithChromiumPDFSession(ctx, browser, profileDir, func(session *ChromiumPDFSession) error {
+		return session.Render(inputHTMLPath, outputPDFPath)
+	})
+}
+
+// ChromiumPDFSession keeps one isolated browser process available for all
+// passes of a single export. Page-numbered contents need a provisional PDF and
+// a final PDF, but must not make the user pay browser startup twice.
+type ChromiumPDFSession struct {
+	ctx    context.Context
+	client *cdpClient
+}
+
+// WithChromiumPDFSession owns the concrete browser process while the caller
+// coordinates one or more rendering passes through the narrow session port.
+func WithChromiumPDFSession(ctx context.Context, browser Browser, profileDir string, use func(*ChromiumPDFSession) error) error {
 	if browser.Engine == EngineSafari {
 		return errors.New("Safari uses the native macOS PDF renderer")
 	}
 	if strings.TrimSpace(browser.Executable) == "" {
 		return errors.New("browser executable is empty")
 	}
-	if strings.TrimSpace(inputHTMLPath) == "" || strings.TrimSpace(outputPDFPath) == "" {
-		return errors.New("browser PDF export received an empty file path")
+	if use == nil {
+		return errors.New("browser PDF export received no render operation")
 	}
 	if err := os.MkdirAll(profileDir, 0700); err != nil {
 		return fmt.Errorf("create browser profile: %w", err)
 	}
 
-	renderCtx, cancel := context.WithTimeout(ctx, browserRenderTimeout)
+	renderCtx, cancel := context.WithTimeout(ctx, browserSessionTimeout)
 	defer cancel()
 
 	process, err := startChromiumProcess(renderCtx, browser, profileDir)
@@ -164,7 +181,7 @@ func RenderChromiumPDF(ctx context.Context, browser Browser, inputHTMLPath strin
 	}
 	defer client.Close()
 
-	if err := renderPDFViaCDP(renderCtx, client, fileURL(inputHTMLPath), outputPDFPath); err != nil {
+	if err := use(&ChromiumPDFSession{ctx: renderCtx, client: client}); err != nil {
 		return err
 	}
 	// Browser.close is intentionally best-effort. Once the PDF has been
@@ -173,6 +190,63 @@ func RenderChromiumPDF(ctx context.Context, browser Browser, inputHTMLPath strin
 	_ = client.notify(renderCtx, "Browser.close", nil, "")
 	completed = true
 	return nil
+}
+
+// Render prints one local HTML document through the already-started browser.
+func (session *ChromiumPDFSession) Render(inputHTMLPath string, outputPDFPath string) error {
+	if session == nil || session.client == nil {
+		return errors.New("browser PDF session is unavailable")
+	}
+	if strings.TrimSpace(inputHTMLPath) == "" || strings.TrimSpace(outputPDFPath) == "" {
+		return errors.New("browser PDF export received an empty file path")
+	}
+	renderCtx, cancel := context.WithTimeout(session.ctx, browserRenderTimeout)
+	defer cancel()
+	return renderPDFViaCDP(renderCtx, session.client, fileURL(inputHTMLPath), outputPDFPath)
+}
+
+// RequirePageMarginBoxes rejects engines that would silently omit the CSS
+// @page footer used for physical page numbers.
+func (session *ChromiumPDFSession) RequirePageMarginBoxes() error {
+	if session == nil || session.client == nil {
+		return errors.New("browser PDF session is unavailable")
+	}
+	versionCtx, cancel := context.WithTimeout(session.ctx, browserValidationTimeout)
+	defer cancel()
+	result, err := session.client.call(versionCtx, "Browser.getVersion", nil, "")
+	if err != nil {
+		return fmt.Errorf("check browser support for PDF page numbers: %w", err)
+	}
+	var version struct {
+		Product string `json:"product"`
+	}
+	if err := json.Unmarshal(result, &version); err != nil {
+		return errors.New("browser returned an invalid version while checking PDF page-number support")
+	}
+	major, err := chromiumMajorVersion(version.Product)
+	if err != nil {
+		return err
+	}
+	if major < 131 {
+		return fmt.Errorf("PDF page numbers require Chromium 131 or newer; this browser reports %s", version.Product)
+	}
+	return nil
+}
+
+func chromiumMajorVersion(product string) (int, error) {
+	separator := strings.LastIndex(strings.TrimSpace(product), "/")
+	if separator < 0 || separator == len(product)-1 {
+		return 0, fmt.Errorf("browser returned an unrecognised version %q", product)
+	}
+	component := product[separator+1:]
+	if dot := strings.Index(component, "."); dot >= 0 {
+		component = component[:dot]
+	}
+	major, err := strconv.Atoi(component)
+	if err != nil || major < 1 {
+		return 0, fmt.Errorf("browser returned an unrecognised version %q", product)
+	}
+	return major, nil
 }
 
 func chromiumLaunchArguments(profileDir string) []string {
@@ -479,6 +553,9 @@ func renderPDFViaCDP(ctx context.Context, client *cdpClient, inputURL string, ou
 	if err := json.Unmarshal(createResult, &target); err != nil || target.TargetID == "" {
 		return errors.New("browser did not create a PDF document target")
 	}
+	defer func() {
+		_, _ = client.call(ctx, "Target.closeTarget", map[string]any{"targetId": target.TargetID}, "")
+	}()
 	attachResult, err := client.call(ctx, "Target.attachToTarget", map[string]any{"targetId": target.TargetID, "flatten": true}, "")
 	if err != nil {
 		return err

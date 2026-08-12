@@ -192,6 +192,11 @@ npx playwright install chromium # first time only
 npm run test:pdf
 ```
 
+For PDF pagination changes, keep one-/two-pass sequencing in the injected Go
+use-case tests and reserve the real engine boundary for the opt-in Chromium
+contract documented in `docs/TESTING.md`. Set `FIGARO_PDF_TEST_OUTPUT` on that
+test when a retained PDF is needed for Poppler rendering and visual review.
+
 Assign every acceptance case to the lowest capable test layer. Add Playwright
 coverage only for a browser-only property, prefer extending an existing focused
 spec, and use one representative browser workflow rather than duplicating

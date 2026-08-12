@@ -27,7 +27,9 @@ unbounded width. Widening the preview pane therefore adds room around the
 paper rather than stretching its contents. Named paper sizes, orientation,
 and explicit CSS lengths are reflected in the preview, with A4 as the
 fallback. The preview preserves its position after a refresh and synchronizes
-relative scrolling with the active source Markdown note. Its own scrolling
+source-line anchors with the active Markdown note. Tall code blocks, tables,
+and diagrams therefore do not accumulate the drift caused by comparing only
+whole-document percentages. Its own scrolling
 stays native and smooth; the companion editor receives coalesced position
 updates rather than a cross-frame update for every display frame, and a new
 reader scroll always overrides a settling programmatic editor update. Table-of-contents,
@@ -77,6 +79,13 @@ file tree, and opens the CSS file for editing.
 If the target already exists, Figaro asks whether to use it and never replaces
 its contents. Startup and PDF export do not create or modify stylesheets.
 
+When a note already selects a stylesheet, the same action becomes **Upgrade
+copy** and proposes a `-v2.css` sibling. Figaro writes the current version-2
+starter there, then appends every rule from the selected stylesheet as the
+last override section. The source stylesheet and any existing target remain
+byte-for-byte untouched. Review the copy, then keep the automatically updated
+`print-stylesheet` value or switch back to the old file.
+
 You can select an existing stylesheet from the same field to share a style
 between notes. Paths are relative to the Markdown note; for example, a note at
 `reports/weekly.md` can use `../styles/report.css`.
@@ -85,6 +94,7 @@ between notes. Paths are relative to the Markdown note; for example, a note at
 ---
 cover-page: true
 toc-depth: 3
+page-numbers: true
 print-stylesheet: "pdf.css"
 ---
 ```
@@ -92,6 +102,20 @@ print-stylesheet: "pdf.css"
 Leave `print-stylesheet` absent or blank to use the built-in style (and an
 optional sibling `_print.css` if you already use that convention). A selected
 stylesheet must exist and be valid UTF-8 CSS when the note is exported.
+
+`page-numbers: true` is opt-in. Chromium places the physical page counter in
+the bottom-center margin and Figaro resolves each generated contents link to
+its final physical destination page. A cover still counts as page 1 so every
+destination remains physically accurate, but its footer is hidden. A numbered
+document without a table of contents uses one browser render; a numbered table
+of contents uses a provisional and final render in the same already-running
+browser session. The status bar says **Paginating interactive PDF…** during
+that work, and only the verified final file replaces the prior export.
+
+Page numbers require Chromium 131 or newer. Figaro reports an explicit error
+for older Chromium builds and Safari instead of silently producing an
+unnumbered file. The live preview reserves the contents number column but can
+only fill its final values during PDF generation.
 
 ## Cascade and page setup
 
@@ -130,6 +154,9 @@ these common customizations do not require selector-order knowledge:
   --figaro-code-comment: #8b949e;
   --figaro-code-type: #7ee787;
   --figaro-code-variable: #ffa657;
+  --figaro-page-number-color: var(--figaro-muted);
+  --figaro-page-number-font: Arial, sans-serif;
+  --figaro-page-number-size: 9pt;
 }
 ```
 
@@ -167,6 +194,7 @@ its semantic HTML, so standard selectors such as `p`, `table`, `blockquote`,
 | Cover content | `.figaro-print-cover-kicker`, `h1.figaro-print-cover-title`, `.figaro-print-cover-subtitle`, `.figaro-print-cover-meta`, `.figaro-print-cover-author`, `.figaro-print-cover-date` |
 | Contents wrapper | `nav.figaro-print-toc`, `h2.figaro-print-toc-title`, `ol.figaro-print-toc-list` |
 | Contents levels | `.figaro-toc-level-1` through `.figaro-toc-level-6` |
+| Numbered contents | `.figaro-print-toc-entry`, `.figaro-print-toc-label`, `.figaro-print-toc-leader`, `.figaro-print-toc-page` |
 | Markdown headings | `.figaro-print-document h1` through `.figaro-print-document h6` |
 | Fenced code | `code.figaro-print-code`, `.hljs-keyword`, `.hljs-string`, `.hljs-number`, `.hljs-title`, `.hljs-function`, `.hljs-comment`, `.hljs-type`, `.hljs-variable`, and the other highlight.js-compatible token classes in the starter stylesheet |
 | Callouts | `blockquote.figaro-print-callout`, `.figaro-print-callout-note`, `.figaro-print-callout-warning`, `.figaro-print-callout-info`, `.figaro-print-callout-tip`, `.figaro-print-callout-danger`, `.figaro-print-callout-example` |
@@ -212,10 +240,11 @@ They remain semantic `blockquote` elements and gain a callout class and
 `data-callout-type` / `data-callout-label` attributes. The bundled starter
 stylesheet exposes a color and soft-background variable for each type.
 
-## Headers are not page headers
+## Running headers and the supported footer
 
-`h1`–`h6` are document headings and are fully stylable. Figaro currently does
-not provide repeated running page headers or footers: the browser export has
-its native header/footer feature disabled, and browser CSS margin boxes are not
-a portable replacement. Do not rely on `@top-*` or `@bottom-*` rules for a
-cross-platform Figaro PDF.
+`h1`–`h6` are document headings and are fully stylable. Figaro does not provide
+repeated running page headers or arbitrary footer content. The supported
+exception is the bottom-center physical number emitted by `page-numbers: true`
+on Chromium 131 or newer. Customize it through the three
+`--figaro-page-number-*` variables above; do not rely on custom `@top-*` or
+`@bottom-*` margin boxes for a cross-platform Figaro PDF.

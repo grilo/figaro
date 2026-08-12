@@ -705,7 +705,15 @@ test('offers due-date actions only for an unfinished task hashtag and keeps edit
 
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
+        const kanban = await import('/js/kanban.js');
         const state = await import('/js/state.js');
+        await Promise.race([
+            kanban.refreshKanbanData(),
+            new Promise((_, reject) => setTimeout(
+                () => reject(new Error('Kanban setup refresh did not finish within 2 seconds')),
+                2000,
+            )),
+        ]);
         state.setState('kanbanCompletionColumns', ['urgent']);
         editor.setEditorContent('A long paragraph ');
         const view = editor.getEditorView();

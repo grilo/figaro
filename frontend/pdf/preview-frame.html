@@ -18,6 +18,7 @@
     // Keep the printable document's own scroll path native. This cap only
     // controls bridge notifications for the companion editor pane.
     const scrollReportIntervalMs = 34;
+    const sourceScrollMarkerRatio = 0.3;
     const bootstrapToken = (() => {
         try {
             return decodeURIComponent(String(window.location.hash || '').slice(1));
@@ -30,6 +31,7 @@
     let delayedScrollReport = null;
     let scheduledProgrammatic = false;
     let programmaticScroll = false;
+    let expectedProgrammaticScrollTop = null;
     let scrollSyncPaused = false;
     let lastScrollReportAt = Number.NEGATIVE_INFINITY;
 
@@ -119,15 +121,86 @@
         return available > 0 ? clampProgress((metrics.scrollTop - start) / available) : 0;
     }
 
+    function sourceAnchors() {
+        return Array.from(document.querySelectorAll(
+            'main.figaro-print-document [data-figaro-source-start][data-figaro-source-end]'
+        )).map(element => {
+            const start = Number(element.dataset.figaroSourceStart);
+            const end = Number(element.dataset.figaroSourceEnd);
+            const rect = element.getBoundingClientRect?.();
+            const height = finiteMetric(rect?.height) || Math.max(0, finiteMetric(rect?.bottom) - finiteMetric(rect?.top));
+            if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || height <= 0) return null;
+            return { element, start, end, rect, height };
+        }).filter(Boolean);
+    }
+
+    function sourcePositionAtMarker(metrics) {
+        if (!metrics) return null;
+        // Element rectangles are viewport-relative. The scrolling element's
+        // own rect can move to -scrollTop in Chromium, so it is not a viewport
+        // origin and must not be added here.
+        const markerY = metrics.clientHeight * sourceScrollMarkerRatio;
+        const anchors = sourceAnchors();
+        if (!anchors.length) return null;
+        anchors.sort((left, right) => {
+            const leftContains = markerY >= finiteMetric(left.rect.top) && markerY <= finiteMetric(left.rect.bottom);
+            const rightContains = markerY >= finiteMetric(right.rect.top) && markerY <= finiteMetric(right.rect.bottom);
+            if (leftContains !== rightContains) return leftContains ? -1 : 1;
+            if (leftContains) return (left.end - left.start) - (right.end - right.start);
+            const leftDistance = Math.min(Math.abs(markerY - finiteMetric(left.rect.top)), Math.abs(markerY - finiteMetric(left.rect.bottom)));
+            const rightDistance = Math.min(Math.abs(markerY - finiteMetric(right.rect.top)), Math.abs(markerY - finiteMetric(right.rect.bottom)));
+            return leftDistance - rightDistance;
+        });
+        const anchor = anchors[0];
+        const fraction = clampProgress((markerY - finiteMetric(anchor.rect.top)) / anchor.height);
+        const value = Math.min(anchor.end - 1e-6, anchor.start + (anchor.end - anchor.start) * fraction);
+        const sourceLine = Math.max(anchor.start, Math.floor(value));
+        return { sourceLine, lineProgress: clampProgress(value - sourceLine) };
+    }
+
+    function setSourcePosition(sourceLine, lineProgress, fallbackProgress) {
+        const metrics = currentMetrics();
+        const value = finiteMetric(sourceLine) + clampProgress(lineProgress);
+        const anchors = sourceAnchors();
+        if (!metrics || !Number.isFinite(Number(sourceLine)) || !anchors.length) {
+            setContentProgress(fallbackProgress);
+            return false;
+        }
+        anchors.sort((left, right) => {
+            const leftContains = value >= left.start && value < left.end;
+            const rightContains = value >= right.start && value < right.end;
+            if (leftContains !== rightContains) return leftContains ? -1 : 1;
+            if (leftContains) return (left.end - left.start) - (right.end - right.start);
+            const leftDistance = Math.min(Math.abs(value - left.start), Math.abs(value - left.end));
+            const rightDistance = Math.min(Math.abs(value - right.start), Math.abs(value - right.end));
+            return leftDistance - rightDistance;
+        });
+        const anchor = anchors[0];
+        const fraction = clampProgress((value - anchor.start) / (anchor.end - anchor.start));
+        const anchorDocumentTop = metrics.scrollTop + finiteMetric(anchor.rect.top);
+        const maximum = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+        const nextTop = Math.max(0, Math.min(
+            maximum,
+            anchorDocumentTop + anchor.height * fraction - metrics.clientHeight * sourceScrollMarkerRatio,
+        ));
+        setScrollTop(nextTop);
+        return true;
+    }
+
     function reportScroll(programmatic = false) {
         if (!sessionToken || scrollSyncPaused) return;
         const metrics = currentMetrics();
         if (!metrics) return;
         lastScrollReportAt = monotonicNow();
+        const sourcePosition = sourcePositionAtMarker(metrics);
+        const matchesExpectedProgrammatic = Number.isFinite(expectedProgrammaticScrollTop) &&
+            Math.abs(metrics.scrollTop - expectedProgrammaticScrollTop) < 0.75;
+        if (Number.isFinite(expectedProgrammaticScrollTop)) expectedProgrammaticScrollTop = null;
         send('scroll', {
             documentProgress: documentProgress(metrics),
             contentProgress: contentProgress(metrics),
-            programmatic: Boolean(programmatic),
+            programmatic: Boolean(programmatic || matchesExpectedProgrammatic),
+            ...(sourcePosition || {}),
         });
     }
 
@@ -149,6 +222,7 @@
         delayedScrollReport = null;
         scheduledProgrammatic = false;
         programmaticScroll = false;
+        expectedProgrammaticScrollTop = null;
     }
 
     function scheduleScrollReport(programmatic = false, immediate = false) {
@@ -177,7 +251,12 @@
         if (!metrics) return;
         if (Math.abs(metrics.scrollTop - nextTop) < 0.5) return;
 
+        // A host command supersedes any report queued for the old position.
+        // Otherwise that stale callback can consume the programmatic marker
+        // before the browser dispatches the scroll event for this assignment.
+        cancelScheduledScrollReports();
         programmaticScroll = reportAsProgrammatic;
+        expectedProgrammaticScrollTop = reportAsProgrammatic ? nextTop : null;
         metrics.root.scrollTop = nextTop;
         nextFrame(() => {
             scheduleScrollReport(reportAsProgrammatic);
@@ -339,6 +418,9 @@
             scrollSyncPaused = Boolean(message.paused);
             if (scrollSyncPaused) cancelScheduledScrollReports();
             return;
+        }
+        if (message.type === 'set-source-position') {
+            setSourcePosition(message.sourceLine, message.lineProgress, message.progress);
         }
         if (message.type === 'set-content-progress') setContentProgress(message.progress);
         if (message.type === 'set-document-progress') setDocumentProgress(message.progress);

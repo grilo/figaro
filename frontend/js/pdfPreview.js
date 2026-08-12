@@ -10,7 +10,7 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { getState } from './state.js';
-import { getPrintStylesheet } from './frontmatter.js';
+import { getPrintStylesheet, printableBodyLineOffset } from './frontmatter.js';
 import {
     exportMarkdownToPDF,
     renderPrintableDiagrams,
@@ -20,7 +20,7 @@ import {
 import { pdfExportErrorDialog, pdfStyleReferenceDialog } from './dialogs.js';
 import { updateRightSidebarEditorLayout } from './historyPanel.js';
 import { handleFileOpen } from './app.js';
-import { getEditorContent } from './editor.js';
+import { getEditorContent, getEditorView } from './editor.js';
 import { saveFileSnapshot } from './tabManager.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
 
@@ -34,6 +34,7 @@ const previewBridgeRecoveryMs = 700;
 // rate and always send the final coalesced position.
 const previewScrollSyncIntervalMs = 34;
 const previewResizeSettleMs = 80;
+const sourceScrollMarkerRatio = 0.3;
 
 let previewTimer = null;
 let previewRequestId = 0;
@@ -77,7 +78,7 @@ const scrollSync = {
     suppressEditor: false,
     editorFrame: null,
     editorSyncTimer: null,
-    pendingEditorProgress: null,
+    pendingEditorPosition: null,
     lastEditorSyncAt: Number.NEGATIVE_INFINITY,
     expectedEditorScroll: null,
     resizing: false,
@@ -350,6 +351,52 @@ export function scrollTopForContentProgress(progress, scrollHeight, clientHeight
     return start + (maximum - start) * clampProgress(progress);
 }
 
+/** Locate the Markdown source position currently crossing the editor marker. */
+export function editorSourcePositionAtMarker(view, bodyLineOffset = 0, markerRatio = sourceScrollMarkerRatio) {
+    const scroller = view?.scrollDOM;
+    const doc = view?.state?.doc;
+    if (!scroller || !doc) return null;
+    const ratio = clampProgress(markerRatio);
+    const rect = scroller.getBoundingClientRect?.() || { left: 0, top: 0 };
+    const contentRect = view.contentDOM?.getBoundingClientRect?.() || rect;
+    const markerY = finiteMetric(rect.top) + finiteMetric(scroller.clientHeight) * ratio;
+    let position = typeof view.posAtCoords === 'function'
+        ? view.posAtCoords({ x: finiteMetric(contentRect.left) + 12, y: markerY })
+        : null;
+    if (!Number.isInteger(position) && typeof view.lineBlockAtHeight === 'function') {
+        position = view.lineBlockAtHeight(
+            finiteMetric(scroller.scrollTop) + finiteMetric(scroller.clientHeight) * ratio,
+        )?.from;
+    }
+    if (!Number.isInteger(position)) return null;
+    const line = doc.lineAt(Math.max(0, Math.min(position, doc.length)));
+    const sourceLine = Math.max(0, line.number - 1 - Math.max(0, Number(bodyLineOffset) || 0));
+    const block = typeof view.lineBlockAt === 'function' ? view.lineBlockAt(position) : null;
+    const markerDocumentY = finiteMetric(scroller.scrollTop) + finiteMetric(scroller.clientHeight) * ratio;
+    const lineProgress = block && finiteMetric(block.height) > 0
+        ? clampProgress((markerDocumentY - finiteMetric(block.top)) / finiteMetric(block.height))
+        : (line.length > 0 ? clampProgress((position - line.from) / line.length) : 0);
+    return { sourceLine, lineProgress };
+}
+
+/** Map a printable source anchor back onto CodeMirror without moving its cursor. */
+export function editorScrollTopForSourcePosition(view, sourceLine, lineProgress = 0, bodyLineOffset = 0, markerRatio = sourceScrollMarkerRatio) {
+    const scroller = view?.scrollDOM;
+    const doc = view?.state?.doc;
+    if (!scroller || !doc || typeof view.lineBlockAt !== 'function') return null;
+    const lineNumber = Math.max(
+        1,
+        Math.min(doc.lines, Math.floor(finiteMetric(sourceLine)) + Math.max(0, Number(bodyLineOffset) || 0) + 1),
+    );
+    const line = doc.line(lineNumber);
+    const block = view.lineBlockAt(line.from);
+    if (!block) return null;
+    const maximum = Math.max(0, finiteMetric(scroller.scrollHeight) - finiteMetric(scroller.clientHeight));
+    const target = finiteMetric(block.top) + finiteMetric(block.height) * clampProgress(lineProgress) -
+        finiteMetric(scroller.clientHeight) * clampProgress(markerRatio);
+    return Math.max(0, Math.min(maximum, target));
+}
+
 /** Return a same-document fragment ID without allowing the iframe base URL to rewrite it. */
 export function getPDFPreviewFragmentID(href) {
     const value = String(href || '').trim();
@@ -558,14 +605,21 @@ function activeEditorScroller() {
     return document.querySelector('#editor-container .cm-scroller');
 }
 
+function activeEditorView() {
+    if (!activePreviewSource()) return null;
+    const view = getEditorView();
+    return view?.scrollDOM === activeEditorScroller() ? view : null;
+}
+
 function scrollProgressForElement(element) {
     if (!element) return 0;
     return scrollProgressForMetrics(element.scrollTop, element.scrollHeight, element.clientHeight);
 }
 
-function setElementScrollProgress(element, progress, suppressKey) {
+function setElementScrollTop(element, nextTop, suppressKey) {
     if (!element) return false;
-    const nextTop = scrollTopForProgress(progress, element.scrollHeight, element.clientHeight);
+    const maximum = Math.max(0, finiteMetric(element.scrollHeight) - finiteMetric(element.clientHeight));
+    nextTop = Math.max(0, Math.min(maximum, finiteMetric(nextTop)));
     if (Math.abs(finiteMetric(element.scrollTop) - nextTop) < 0.5) return false;
     if (suppressKey === 'suppressEditor') {
         // Browser engines are allowed to dispatch a scroll event later than
@@ -576,6 +630,14 @@ function setElementScrollProgress(element, progress, suppressKey) {
     deferSuppression(suppressKey);
     element.scrollTop = nextTop;
     return true;
+}
+
+function setElementScrollProgress(element, progress, suppressKey) {
+    return setElementScrollTop(
+        element,
+        scrollTopForProgress(progress, element?.scrollHeight, element?.clientHeight),
+        suppressKey,
+    );
 }
 
 function consumesExpectedEditorScroll(editor) {
@@ -745,7 +807,11 @@ function handlePreviewBridgeMessage(event) {
     if (message.type === 'scroll') {
         if (scrollSync.resizing) return;
         scrollSync.documentProgress = clampProgress(message.documentProgress);
-        if (!message.programmatic) syncPreviewScrollToEditor(clampProgress(message.contentProgress));
+        if (!message.programmatic) syncPreviewScrollToEditor({
+            progress: clampProgress(message.contentProgress),
+            sourceLine: Number(message.sourceLine),
+            lineProgress: Number(message.lineProgress),
+        });
     }
 }
 
@@ -757,28 +823,40 @@ function clearEditorScrollSync() {
     scrollSync.editor = null;
     scrollSync.editorListener = null;
     scrollSync.editorSyncTimer = null;
-    scrollSync.pendingEditorProgress = null;
+    scrollSync.pendingEditorPosition = null;
     scrollSync.lastEditorSyncAt = Number.NEGATIVE_INFINITY;
     scrollSync.expectedEditorScroll = null;
 }
 
 function flushEditorScrollToPreview() {
-    const progress = scrollSync.pendingEditorProgress;
-    scrollSync.pendingEditorProgress = null;
-    if (!Number.isFinite(progress) || !isPreviewOpen() || !activePreviewSource() || scrollSync.suppressEditor || scrollSync.resizing) return false;
-    if (!postPreviewBridgeMessage({ type: 'set-content-progress', progress })) {
+    const position = scrollSync.pendingEditorPosition;
+    scrollSync.pendingEditorPosition = null;
+    if (!position || !Number.isFinite(position.progress) || !isPreviewOpen() || !activePreviewSource() || scrollSync.suppressEditor || scrollSync.resizing) return false;
+    const message = Number.isFinite(position.sourceLine)
+        ? {
+            type: 'set-source-position',
+            sourceLine: position.sourceLine,
+            lineProgress: position.lineProgress,
+            progress: position.progress,
+        }
+        : { type: 'set-content-progress', progress: position.progress };
+    if (!postPreviewBridgeMessage(message)) {
         // The bridge can briefly be unavailable while its fixed document
         // starts. Keep the latest position for the next editor movement.
-        scrollSync.pendingEditorProgress = progress;
+        scrollSync.pendingEditorPosition = position;
         return false;
     }
     scrollSync.lastEditorSyncAt = monotonicNow();
     return true;
 }
 
-function queueEditorScrollToPreview(progress) {
+function queueEditorScrollToPreview(position) {
     if (scrollSync.resizing) return false;
-    scrollSync.pendingEditorProgress = clampProgress(progress);
+    scrollSync.pendingEditorPosition = {
+        progress: clampProgress(position?.progress),
+        sourceLine: Number(position?.sourceLine),
+        lineProgress: clampProgress(position?.lineProgress),
+    };
     const elapsed = monotonicNow() - scrollSync.lastEditorSyncAt;
     if (elapsed >= previewScrollSyncIntervalMs) {
         if (scrollSync.editorSyncTimer !== null) {
@@ -801,7 +879,11 @@ function syncEditorScrollToPreview() {
     if (!editor) return;
     const progress = scrollProgressForElement(editor);
     scrollSync.lastProgress = progress;
-    queueEditorScrollToPreview(progress);
+    const sourcePosition = editorSourcePositionAtMarker(
+        activeEditorView(),
+        printableBodyLineOffset(preview.content),
+    );
+    queueEditorScrollToPreview({ progress, ...sourcePosition });
 }
 
 function ensureEditorScrollSync() {
@@ -823,7 +905,7 @@ function ensureEditorScrollSync() {
     return editor;
 }
 
-function syncPreviewScrollToEditor(progress) {
+function syncPreviewScrollToEditor(position) {
     // The frame explicitly marks host-initiated reports as programmatic before
     // this function is called. Do not use a parent-side timeout as a second
     // filter: a real preview scroll can arrive before that timer fires on a
@@ -831,8 +913,20 @@ function syncPreviewScrollToEditor(progress) {
     if (!isPreviewOpen() || !activePreviewSource() || scrollSync.resizing) return;
     const editor = ensureEditorScrollSync();
     if (!editor) return;
-    scrollSync.lastProgress = progress;
-    setElementScrollProgress(editor, progress, 'suppressEditor');
+    scrollSync.lastProgress = position.progress;
+    const sourceTop = Number.isFinite(position.sourceLine)
+        ? editorScrollTopForSourcePosition(
+            activeEditorView(),
+            position.sourceLine,
+            position.lineProgress,
+            printableBodyLineOffset(preview.content),
+        )
+        : null;
+    if (Number.isFinite(sourceTop)) {
+        setElementScrollTop(editor, sourceTop, 'suppressEditor');
+    } else {
+        setElementScrollProgress(editor, position.progress, 'suppressEditor');
+    }
 }
 
 function capturePreviewScrollProgress() {
@@ -870,7 +964,7 @@ function suspendScrollSyncForResize(event) {
     scrollSync.editorFrame = null;
     if (scrollSync.editorSyncTimer !== null) clearTimeout(scrollSync.editorSyncTimer);
     scrollSync.editorSyncTimer = null;
-    scrollSync.pendingEditorProgress = null;
+    scrollSync.pendingEditorPosition = null;
     scrollSync.expectedEditorScroll = null;
     postPreviewBridgeMessage({ type: 'set-scroll-sync-paused', paused: true });
 }
