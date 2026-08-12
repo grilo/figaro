@@ -2,12 +2,29 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Markdown cheatsheet', () => {
-    function loadPopup() {
+    function loadDocument() {
         const source = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
         const template = document.createElement('template');
         template.innerHTML = source;
-        return template.content.querySelector('#md-cheatsheet-popup');
+        return template.content;
     }
+
+    function loadPopup() {
+        return loadDocument().querySelector('#md-cheatsheet-popup');
+    }
+
+    test('lives immediately before Settings and starts outside the keyboard order', () => {
+        const content = loadDocument();
+        const trigger = content.querySelector('#md-cheatsheet-trigger');
+        const popup = content.querySelector('#md-cheatsheet-popup');
+        const settings = content.querySelector('#topbar-settings');
+
+        expect(trigger.tagName).toBe('BUTTON');
+        expect(trigger.textContent.trim()).toBe('?');
+        expect(trigger.closest('.top-bar-right')).not.toBeNull();
+        expect(trigger.closest('.md-cheatsheet-wrapper').nextElementSibling).toBe(settings);
+        expect(popup.hidden).toBe(true);
+    });
 
     test('lists every supported admonition marker and its quoted body syntax', () => {
         const popup = loadPopup();

@@ -110,6 +110,7 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ui-document-tab': 2,
         '.ui-editor-fold-control': 1,
         '.ui-editor-block-guide': 2,
+        '.ui-spinner': 1,
     };
     for (const [selector, minimum] of Object.entries(primitiveFamilies)) {
         expect(await page.locator(selector).count()).toBeGreaterThanOrEqual(minimum);

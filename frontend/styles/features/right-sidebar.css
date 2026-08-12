@@ -398,12 +398,27 @@ body.right-sidebar-resizing .pdf-preview-frame {
 
 /* History list items */
 .history-item {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
     padding: 8px 14px;
     cursor: pointer;
+    border: 0;
     border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
     transition: background var(--transition-fast);
 }
 .history-item:hover { background: var(--hover-bg); }
+.history-item:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline-offset: -2px;
+}
 .history-item:last-child { border-bottom: none; }
 .history-item-time {
     font-size: var(--font-size);

@@ -157,8 +157,26 @@ func pathAtOrBelow(path string, root string) bool {
 }
 
 func vaultIndexMatchesMarkdownFiles(root *os.Root, index *vaultIndex) (bool, error) {
+	return vaultIndexMatchesMarkdownFilesExcluding(root, index, "")
+}
+
+// vaultIndexMatchesMarkdownFilesExcluding validates the retained index after
+// a known copy has reached disk. The newly created destination is ignored so
+// every pre-existing Markdown file is still checked at its final metadata;
+// an external change which raced or preceded the copy therefore selects the
+// safe full-rebuild path.
+func vaultIndexMatchesMarkdownFilesExcluding(root *os.Root, index *vaultIndex, excludedRel string) (bool, error) {
 	if index == nil {
 		return false, nil
+	}
+	excludedRel = links.NormalizeVaultPath(excludedRel)
+	expected := len(index.files)
+	if excludedRel != "" && excludedRel != "." {
+		for indexedPath := range index.files {
+			if pathAtOrBelow(indexedPath, excludedRel) {
+				expected--
+			}
+		}
 	}
 	matched := 0
 	matches := true
@@ -167,6 +185,13 @@ func vaultIndexMatchesMarkdownFiles(root *os.Root, index *vaultIndex) (bool, err
 			return fmt.Errorf("walk vault path %q: %w", rel, walkErr)
 		}
 		if rel == "." {
+			return nil
+		}
+		normalizedRel := links.NormalizeVaultPath(rel)
+		if excludedRel != "" && excludedRel != "." && pathAtOrBelow(normalizedRel, excludedRel) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
 			return nil
 		}
 		if entry.Type()&fs.ModeSymlink != 0 {
@@ -201,7 +226,7 @@ func vaultIndexMatchesMarkdownFiles(root *os.Root, index *vaultIndex) (bool, err
 	if err != nil {
 		return false, err
 	}
-	return matches && matched == len(index.files), nil
+	return matches && matched == expected, nil
 }
 
 func applyVaultLinkRewrites(root *os.Root, rewrites []vaultLinkRewrite) ([]vaultLinkRewrite, error) {

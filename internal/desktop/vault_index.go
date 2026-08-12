@@ -757,6 +757,67 @@ func (a *App) refreshVaultIndexAfterMoveLocked(
 	return nil
 }
 
+// refreshVaultStateAfterCopyLocked walks only the newly copied subtree. It
+// retains unrelated file-tree metadata and parses only copied Markdown before
+// publishing the existing index. When indexCurrent is false the same walk is
+// still used to collect exact watcher acknowledgements; the caller then takes
+// the full-rebuild fallback.
+func (a *App) refreshVaultStateAfterCopyLocked(
+	root *os.Root,
+	destination string,
+	indexCurrent bool,
+) ([]string, error) {
+	if indexCurrent && a.vaultIndex == nil {
+		return nil, fmt.Errorf("vault index is unavailable")
+	}
+
+	copiedPaths := make([]string, 0)
+	indexedFiles := make([]vaultIndexedFile, 0)
+	textPool := make(map[string]vaultIndexedText)
+	walkRoot := filepath.ToSlash(filepath.Clean(destination))
+	err := fs.WalkDir(root.FS(), walkRoot, func(rel string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return fmt.Errorf("walk copied vault path %q: %w", rel, walkErr)
+		}
+		cleanRel := filepath.Clean(filepath.FromSlash(rel))
+		copiedPaths = append(copiedPaths, cleanRel)
+		info, err := entry.Info()
+		if err != nil {
+			return fmt.Errorf("inspect copied vault path %q: %w", rel, err)
+		}
+		a.updateFileTreeCacheFileLocked(cleanRel, info)
+
+		_, visible := visibleFileTreeCachePath(rel)
+		if !visible {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !indexCurrent || entry.IsDir() || !info.Mode().IsRegular() ||
+			!strings.EqualFold(filepath.Ext(rel), ".md") {
+			return nil
+		}
+		data, err := root.ReadFile(cleanRel)
+		if err != nil {
+			return fmt.Errorf("read copied Markdown %q: %w", rel, err)
+		}
+		text := pooledVaultIndexedText(textPool, string(data))
+		indexedFiles = append(indexedFiles, indexMarkdownText(filepath.ToSlash(rel), info, text))
+		return nil
+	})
+	if err != nil {
+		return copiedPaths, err
+	}
+	if indexCurrent {
+		for _, file := range indexedFiles {
+			a.vaultIndex.replaceFile(file)
+		}
+		a.publishVaultIndexLocked(a.vaultIndex)
+	}
+	return copiedPaths, nil
+}
+
 func (a *App) invalidateVaultIndexLocked() {
 	a.vaultIndex = nil
 	a.invalidateCalendarIndexLocked()

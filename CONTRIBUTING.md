@@ -317,6 +317,7 @@ internal/desktop/            Wails assembly, bound App capabilities, and adapter
 internal/vault/              Root-scoped filesystem primitives
 internal/links/              Pure Markdown link rewriting
 internal/history/            Local Git history and auto-commit service
+internal/recovery/           Pure recently-deleted registry rules
 frontend/                    Webview, CodeMirror, themes, fonts, and assets
 frontend/design-system/      Shared UI assets, approved registry, catalogue, and audit
 tests/frontend/              Pure, use-case, adapter, and component tests

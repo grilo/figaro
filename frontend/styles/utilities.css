@@ -26,9 +26,14 @@
 
 /* History status in status bar */
 .status-history {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: var(--text-dim);
     text-decoration: none;
     cursor: default;
+    font-family: inherit;
     font-size: 11px;
     transition: color var(--transition-fast);
 }
@@ -37,6 +42,7 @@
     cursor: pointer;
 }
 .status-history.has-history:hover { color: var(--accent-color); }
+.status-history:focus-visible { outline-width: 1px; outline-offset: 2px; }
 
 /* Local-history action only appears when there is work to record. */
 .status-git {

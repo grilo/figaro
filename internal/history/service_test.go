@@ -371,6 +371,70 @@ func TestArchivePathWithVaultLockedDoesNotCreateARedundantRevision(t *testing.T)
 	}
 }
 
+func TestArchiveSnapshotReturnsExactCommitAndReconstructableFiles(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "Drafts", "nested"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, "Drafts", "note.md"), "one\n")
+	writeHistoryFixture(t, filepath.Join(dir, "Drafts", "nested", "two.md"), "two\n")
+
+	hash, err := service.ArchivePathSnapshotWithVaultLocked("Drafts")
+	if err != nil || hash == "" {
+		t.Fatalf("ArchivePathSnapshotWithVaultLocked = %q, %v", hash, err)
+	}
+	files, err := service.GetPathSnapshotWithVaultLocked("Drafts", hash)
+	if err != nil {
+		t.Fatalf("GetPathSnapshotWithVaultLocked: %v", err)
+	}
+	if len(files) != 2 || files[0].Path != "Drafts/nested/two.md" || string(files[0].Data) != "two\n" || files[1].Path != "Drafts/note.md" || string(files[1].Data) != "one\n" {
+		t.Fatalf("snapshot files = %#v", files)
+	}
+
+	unchangedHash, err := service.ArchivePathSnapshotWithVaultLocked("Drafts")
+	if err != nil || unchangedHash != hash {
+		t.Fatalf("unchanged archive = %q, %v; want %q", unchangedHash, err, hash)
+	}
+}
+
+func TestArchiveSnapshotDoesNotResurrectAFileRemovedBeforeDirectoryDeletion(t *testing.T) {
+	dir := t.TempDir()
+	service, err := New(dir)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "Drafts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeHistoryFixture(t, filepath.Join(dir, "Drafts", "keep.md"), "keep\n")
+	writeHistoryFixture(t, filepath.Join(dir, "Drafts", "removed.md"), "old\n")
+	if err := service.CommitFile("Drafts/keep.md"); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.CommitFile("Drafts/removed.md"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(dir, "Drafts", "removed.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	hash, err := service.ArchivePathSnapshotWithVaultLocked("Drafts")
+	if err != nil || hash == "" {
+		t.Fatalf("ArchivePathSnapshotWithVaultLocked = %q, %v", hash, err)
+	}
+	files, err := service.GetPathSnapshotWithVaultLocked("Drafts", hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Path != "Drafts/keep.md" {
+		t.Fatalf("exact snapshot = %#v; removed file was resurrected", files)
+	}
+}
+
 func TestArchivePathWithVaultLockedRefusesUnrelatedStagedChangesWithoutStagingTarget(t *testing.T) {
 	dir := t.TempDir()
 	service, err := New(dir)

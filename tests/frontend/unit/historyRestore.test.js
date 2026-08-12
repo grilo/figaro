@@ -68,6 +68,8 @@ describe('history restore workflow', () => {
         window.go.desktop.App.GetFileHistory.mockImplementation(async () => entries);
         updateHistoryCount('note.md');
         await settle();
+        expect(document.getElementById('history-count').tagName).toBe('BUTTON');
+        expect(document.getElementById('history-count').disabled).toBe(false);
         document.getElementById('history-count').click();
         await settle();
         document.querySelectorAll('.history-item')[1].click();
@@ -120,6 +122,27 @@ describe('history restore workflow', () => {
         expect(document.querySelector('.history-current-notice').textContent).toBe('Restored the selected version as the latest committed version.');
         expect(document.querySelector('.history-item-latest').textContent).toContain('Latest committed');
         expect(mockErrorDialog).not.toHaveBeenCalled();
+    });
+
+    test('uses a roving selection list whose arrow keys select adjacent versions', async () => {
+        updateHistoryCount('note.md');
+        await settle();
+        document.getElementById('history-count').click();
+        await settle();
+
+        const list = document.querySelector('.history-list');
+        const items = [...list.querySelectorAll('.history-item')];
+        expect(list.getAttribute('role')).toBe('listbox');
+        expect(items.map(item => item.getAttribute('role'))).toEqual(['option', 'option']);
+        items[0].focus();
+        items[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        await settle();
+
+        expect(document.activeElement).toBe(items[1]);
+        expect(items[1].getAttribute('aria-selected')).toBe('true');
+        expect(items[1].tabIndex).toBe(0);
+        expect(items[0].tabIndex).toBe(-1);
+        expect(window.go.desktop.App.GetFileVersion).toHaveBeenCalledWith('note.md', 'older1234567');
     });
 
     test('keeps history mode open and reports an error when the current version cannot be preserved', async () => {

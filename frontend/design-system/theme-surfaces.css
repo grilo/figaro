@@ -86,11 +86,6 @@
     font-weight: var(--file-node-selected-weight);
 }
 
-.file-tree-item > .file-tree-node.active-file:not(.selected) {
-    background: var(--file-node-active-surface);
-    box-shadow: var(--file-node-active-shadow);
-}
-
 .file-tree-children {
     background-image:
         linear-gradient(

@@ -10,6 +10,10 @@ async function openWelcomeEditor(page) {
 test('gives the main editor a document-specific accessible name', async ({ page }) => {
     await openWelcomeEditor(page);
 
+    await expect(page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node'))
+        .toHaveClass(/selected/);
+    await expect(page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node'))
+        .toHaveAttribute('aria-current', 'page');
     await expect(page.locator('#editor-container > .cm-editor .cm-content'))
         .toHaveAttribute('aria-label', 'Markdown editor — Welcome.md');
     await expect(page).toHaveTitle('Welcome.md — Figaro');
@@ -1123,17 +1127,19 @@ test('keeps Quick note available in the collapsed rail and gives Inbox its defau
             { name: 'closed.md', path: 'closed.md', type: 'file', mtime: 3 },
         ]);
         state.setState('openTabs', [
-            { id: 'active.md', type: 'file', path: 'active.md' },
-            { id: 'background.md', type: 'file', path: 'background.md' },
+            { id: 'active.md', type: 'file', path: 'active.md', dirty: false },
+            { id: 'background.md', type: 'file', path: 'background.md', dirty: true },
         ]);
         state.setState('selectedFilePath', 'active.md');
         tree.renderFileTree();
     });
 
     await expect(page.locator('[data-path="Inbox"] .default-inbox-icon')).toBeVisible();
-    await expect(page.locator('[data-path="active.md"] > .file-tree-node')).toHaveClass(/active-file/);
-    await expect(page.locator('[data-path="background.md"] > .file-tree-node')).toHaveClass(/open-file/);
-    await expect(page.locator('[data-path="closed.md"] > .file-tree-node')).not.toHaveClass(/open-file|active-file/);
+    await expect(page.locator('[data-path="active.md"] > .file-tree-node')).toHaveClass(/selected/);
+    await expect(page.locator('[data-path="background.md"] > .file-tree-node')).toHaveClass(/dirty-buffer/);
+    await expect(page.locator('[data-path="background.md"] > .file-tree-node'))
+        .toHaveAccessibleName(/background\.md.*Unsaved changes/i);
+    await expect(page.locator('[data-path="closed.md"] > .file-tree-node')).not.toHaveClass(/dirty-buffer|selected/);
 
     await page.locator('[data-path="background.md"] > .file-tree-node').click({ button: 'right' });
     await page.locator('[data-action="customize-style"]').click();
@@ -1142,7 +1148,7 @@ test('keeps Quick note available in the collapsed rail and gives Inbox its defau
     await page.locator('.file-tree-style-modal .custom-modal-btn-cancel').click();
 });
 
-test('patches mounted file-tree tab markers without rebuilding folders during dirty and fast tab transitions', async ({ page }) => {
+test('patches mounted file-tree selection and dirty buffers without rebuilding folders during fast tab transitions', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
 
@@ -1193,10 +1199,10 @@ test('patches mounted file-tree tab markers without rebuilding folders during di
         preservedAfterSwitch: true,
         hiddenMounted: false,
     }));
-    expect(result.activeClasses).toContain('open-file');
-    expect(result.activeClasses).not.toContain('active-file');
-    expect(result.backgroundClasses).toContain('active-file');
-    expect(result.backgroundClasses).not.toContain('open-file');
+    expect(result.activeClasses).toContain('dirty-buffer');
+    expect(result.activeClasses).not.toContain('selected');
+    expect(result.backgroundClasses).toContain('selected');
+    expect(result.backgroundClasses).not.toContain('dirty-buffer');
 });
 
 test('keeps local history quiet until the active file needs recording again', async ({ page }) => {
@@ -1230,13 +1236,22 @@ test('keeps local history quiet until the active file needs recording again', as
     expect(highlighted.bottomBorder).not.toBe('rgba(0, 0, 0, 0)');
     expect(highlighted.cursor).toBe('pointer');
     expect(highlighted.beforeChanges).toBe(true);
-    // Focusing the cheatsheet opens its popup; keyboard users tab through its
-    // close button and then reach the remaining adjacent status control. The
-    // outline launcher now lives at the editor's top-left instead.
-    await page.locator('#md-cheatsheet-trigger').focus();
-    await page.keyboard.press('Tab');
+    // The title-bar help button opens a real keyboard-contained popup and the
+    // closed popup contributes no invisible controls to the Tab order.
+    const cheatsheet = page.locator('#md-cheatsheet-trigger');
+    await expect(cheatsheet).toHaveCSS('cursor', 'pointer');
+    await cheatsheet.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#md-cheatsheet-close')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#md-cheatsheet-popup')).toBeHidden();
+    await expect(cheatsheet).toBeFocused();
+    await page.keyboard.press('Enter');
     await expect(page.locator('#md-cheatsheet-close')).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(page.locator('#md-cheatsheet-popup')).toBeHidden();
+    await expect(page.locator('#topbar-settings')).toBeFocused();
+    await gitStatus.focus();
     await expect(gitStatus).toBeFocused();
     expect(await gitStatus.evaluate(element => getComputedStyle(element).outlineStyle)).toBe('solid');
 
@@ -1348,9 +1363,14 @@ test('restores an old file version as a fresh latest History commit after confir
         history.updateHistoryCount('Welcome.md');
     });
     await expect(page.locator('#history-count')).toHaveClass(/has-history/);
-    await page.locator('#history-count').click();
+    await page.locator('#history-count').focus();
+    await page.keyboard.press('Enter');
     await expect(page.locator('.history-item')).toHaveCount(2);
-    await page.locator('.history-item').nth(1).click();
+    await expect(page.locator('.history-list')).toHaveAttribute('role', 'listbox');
+    await page.locator('.history-item').first().focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('.history-item').nth(1)).toBeFocused();
+    await expect(page.locator('.history-item').nth(1)).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.history-revert-button')).toBeVisible();
     await expect(page.locator('.history-banner .history-restore-button')).toHaveCount(0);
     await expect(page.locator('.history-revert-copy')).toHaveCount(0);
@@ -1403,6 +1423,47 @@ test('restores an old file version as a fresh latest History commit after confir
         commits: ['Welcome.md', 'Welcome.md'],
     });
     await expect(page.locator('.cm-content')).toContainText('Historical version');
+});
+
+test('keeps native status actions link-like and opens them from the keyboard', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.evaluate(async () => {
+        const backend = (await import('/js/backend.js')).backend();
+        const history = await import('/js/historyPanel.js');
+        const relationships = await import('/js/backlinks.js');
+        backend.GetCommitCount = async () => 8;
+        backend.GetFileHistory = async () => [{ hash: 'latest', timestamp: 200, message: 'latest' }];
+        backend.SearchBacklinks = async () => [{
+            path: 'Linked.md', name: 'Linked.md', line_num: 1,
+            context: 'See [Welcome](Welcome.md).', match_text: 'Welcome',
+        }];
+        backend.SearchUnlinkedMentions = async () => [];
+        await history.updateHistoryCount('Welcome.md');
+        await relationships.updateBacklinksForActiveTab();
+    });
+
+    const historyButton = page.locator('#history-count');
+    const backlinksButton = page.locator('#backlinks-status');
+    await expect(historyButton).toHaveText('8 changes');
+    await expect(backlinksButton).toHaveText('1 backlink');
+    for (const button of [historyButton, backlinksButton]) {
+        await expect(button).toBeEnabled();
+        expect(await button.evaluate(element => ({
+            tag: element.tagName,
+            cursor: getComputedStyle(element).cursor,
+            background: getComputedStyle(element).backgroundColor,
+        }))).toEqual({ tag: 'BUTTON', cursor: 'pointer', background: 'rgba(0, 0, 0, 0)' });
+    }
+
+    await historyButton.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#right-sidebar-title')).toHaveText('History');
+    await expect(page.locator('.history-list')).toBeVisible();
+    await page.locator('#right-sidebar-close').click();
+
+    await backlinksButton.focus();
+    await page.keyboard.press('Space');
+    await expect(page.locator('.backlinks-view-wrapper')).toBeVisible();
 });
 
 test('places the complete wikilink syntax immediately after Markdown links in the cheatsheet', async ({ page }) => {

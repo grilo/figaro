@@ -438,6 +438,9 @@ func TestDeletePath_File(t *testing.T) {
 	if !result.Success {
 		t.Fatal("DeletePath returned failure")
 	}
+	if result.DeletedID == "" {
+		t.Fatal("DeletePath did not return a durable recovery identifier")
+	}
 	if _, err := os.Stat(filepath.Join(vaultPath, "test.md")); !os.IsNotExist(err) {
 		t.Error("file should be deleted")
 	}
@@ -448,6 +451,103 @@ func TestDeletePath_File(t *testing.T) {
 	content, err := app.GetFileVersion("test.md", entries[0].Hash)
 	if err != nil || content != "latest content" {
 		t.Fatalf("deleted file archive = %q, %v; want latest content", content, err)
+	}
+}
+
+func TestDeletePathCanBeRestoredFromTheDurableRecentlyDeletedRegistry(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Drafts/note.md", "recover me\n")
+	deleted, err := app.DeletePath("Drafts")
+	if err != nil || !deleted.Success {
+		t.Fatalf("DeletePath = %+v, %v", deleted, err)
+	}
+	// Recreate the application to prove the recovery route survives restart.
+	reopened := NewApp(vaultPath)
+	items, err := reopened.GetRecentlyDeleted()
+	if err != nil || len(items) != 1 {
+		t.Fatalf("GetRecentlyDeleted = %#v, %v", items, err)
+	}
+	if items[0].ID != deleted.DeletedID || items[0].Path != "Drafts" || items[0].Kind != "directory" || items[0].Snapshot == "" {
+		t.Fatalf("recently deleted item = %#v", items[0])
+	}
+
+	restored, err := reopened.RestoreRecentlyDeleted(deleted.DeletedID)
+	if err != nil || !restored.Success {
+		t.Fatalf("RestoreRecentlyDeleted = %+v, %v", restored, err)
+	}
+	if content := readTestFile(t, vaultPath, "Drafts/note.md"); content != "recover me\n" {
+		t.Fatalf("restored content = %q", content)
+	}
+	items, err = reopened.GetRecentlyDeleted()
+	if err != nil || len(items) != 0 {
+		t.Fatalf("recently deleted after restore = %#v, %v", items, err)
+	}
+}
+
+func TestRestoreRecentlyDeletedRefusesToReplaceACurrentPath(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "Draft.md", "archived\n")
+	deleted, err := app.DeletePath("Draft.md")
+	if err != nil || !deleted.Success {
+		t.Fatalf("DeletePath = %+v, %v", deleted, err)
+	}
+	writeTestFile(t, vaultPath, "Draft.md", "new current file\n")
+
+	restored, err := app.RestoreRecentlyDeleted(deleted.DeletedID)
+	if err != nil || restored.Success || !strings.Contains(restored.Error, "already exists") {
+		t.Fatalf("RestoreRecentlyDeleted = %+v, %v; want collision refusal", restored, err)
+	}
+	if content := readTestFile(t, vaultPath, "Draft.md"); content != "new current file\n" {
+		t.Fatalf("collision replaced current content: %q", content)
+	}
+	items, err := app.GetRecentlyDeleted()
+	if err != nil || len(items) != 1 || items[0].ID != deleted.DeletedID {
+		t.Fatalf("recovery record lost after collision: %#v, %v", items, err)
+	}
+}
+
+func TestDeleteAndRestoreEmptyDirectory(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	if err := os.Mkdir(filepath.Join(vaultPath, "Empty"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := app.DeletePath("Empty")
+	if err != nil || !deleted.Success {
+		t.Fatalf("DeletePath = %+v, %v", deleted, err)
+	}
+	restored, err := app.RestoreRecentlyDeleted(deleted.DeletedID)
+	if err != nil || !restored.Success {
+		t.Fatalf("RestoreRecentlyDeleted = %+v, %v", restored, err)
+	}
+	info, err := os.Stat(filepath.Join(vaultPath, "Empty"))
+	if err != nil || !info.IsDir() {
+		t.Fatalf("empty directory was not restored: %v", err)
+	}
+}
+
+func TestDeleteAndRestoreRelativeSymbolicLink(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	writeTestFile(t, vaultPath, "target.md", "target\n")
+	if err := os.Symlink("target.md", filepath.Join(vaultPath, "shortcut.md")); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := app.DeletePath("shortcut.md")
+	if err != nil || !deleted.Success {
+		t.Fatalf("DeletePath = %+v, %v", deleted, err)
+	}
+	restored, err := app.RestoreRecentlyDeleted(deleted.DeletedID)
+	if err != nil || !restored.Success {
+		t.Fatalf("RestoreRecentlyDeleted = %+v, %v", restored, err)
+	}
+	target, err := os.Readlink(filepath.Join(vaultPath, "shortcut.md"))
+	if err != nil || target != "target.md" {
+		t.Fatalf("restored symlink = %q, %v", target, err)
 	}
 }
 
@@ -487,6 +587,24 @@ func TestDeletePathLeavesFileUntouchedWhenHistoryIsUnavailable(t *testing.T) {
 	}
 	if content := readTestFile(t, vaultPath, "test.md"); content != "content" {
 		t.Fatalf("file changed after archive failure: %q", content)
+	}
+}
+
+func TestDeletePathLeavesFileUntouchedWhenRecoveryRegistryCannotBeRead(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "test.md", "content")
+	writeTestFile(t, vaultPath, recentlyDeletedRegistryPath, "not json")
+	result, err := app.DeletePath("test.md")
+	if err != nil {
+		t.Fatalf("DeletePath error: %v", err)
+	}
+	if result.Success || !strings.Contains(result.Error, "Nothing was deleted") {
+		t.Fatalf("DeletePath result = %+v; want non-destructive registry failure", result)
+	}
+	if content := readTestFile(t, vaultPath, "test.md"); content != "content" {
+		t.Fatalf("file changed after registry failure: %q", content)
 	}
 }
 

@@ -54,6 +54,8 @@ window.go = {
         CreateStarterPrintStylesheet: jest.fn().mockResolvedValue({ success: true, path: "pdf.css", created: true }),
         CreateDirectory: jest.fn().mockResolvedValue({ success: true }),
         DeletePath: jest.fn().mockResolvedValue({ success: true }),
+        GetRecentlyDeleted: jest.fn().mockResolvedValue([]),
+        RestoreRecentlyDeleted: jest.fn().mockResolvedValue({ success: true }),
         RenamePath: jest.fn().mockResolvedValue({ success: true }),
         MovePath: jest.fn().mockResolvedValue({ success: true }),
         MergeDirectory: jest.fn().mockResolvedValue({ success: true }),
@@ -149,6 +151,10 @@ function createMockDOM() {
                 </div>
                 <div class="top-bar-center" aria-hidden="true"></div>
                 <div class="top-bar-right">
+                    <span class="md-cheatsheet-wrapper topbar-cheatsheet">
+                        <button id="md-cheatsheet-trigger" aria-expanded="false" aria-controls="md-cheatsheet-popup">?</button>
+                        <div id="md-cheatsheet-popup" role="dialog" hidden><button id="md-cheatsheet-close"></button></div>
+                    </span>
                     <button id="topbar-settings" class="icon-btn titlebar-settings-btn" aria-label="Open Settings"></button>
                     <button id="win-minimize"></button>
                     <button id="win-maximize"></button>
@@ -212,19 +218,17 @@ function createMockDOM() {
                 </aside>
             </div>
             <footer id="status-bar" class="status-bar">
+                <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>
                 <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
+                <button id="status-action" hidden></button>
                 <span id="cursor-position">Ln 1, Col 1</span>
                 <span id="reading-time">0 min read</span>
                 <span id="word-count">0 words</span>
                 <span id="char-count">0 chars</span>
-                <a id="backlinks-status" class="status-backlinks">0 backlinks</a>
+                <button id="backlinks-status" class="status-backlinks" disabled>0 backlinks</button>
                 <button id="git-status" class="status-git" hidden disabled>Save to history</button>
                 <span id="git-status-separator" class="status-separator" hidden>|</span>
-                <a id="history-count" class="status-history">0 changes</a>
-                <span class="md-cheatsheet-wrapper">
-                    <button id="md-cheatsheet-trigger" aria-expanded="false">md cheatsheet</button>
-                    <div id="md-cheatsheet-popup"><button id="md-cheatsheet-close"></button></div>
-                </span>
+                <button id="history-count" class="status-history" disabled>0 changes</button>
             </footer>
             <div id="modals-container"></div>
         </div>

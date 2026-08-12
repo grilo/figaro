@@ -175,6 +175,62 @@ func TestInternalVaultWatcherAcknowledgementSkipsRedundantKanbanRefresh(t *testi
 	}
 }
 
+func TestCopyPathAcknowledgesCreatedWatcherEvents(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "Outside.md", "# Outside\n")
+	writeTestFile(t, vaultPath, "Projects/tasks.md", "- [ ] Existing #todo\n[Outside](../Outside.md)\n")
+	writeTestFile(t, vaultPath, "Projects/stable.md", "stable\n")
+	if result, err := app.CreateDirectory("Archive"); err != nil || !result.Success {
+		t.Fatalf("CreateDirectory: result=%+v err=%v", result, err)
+	}
+	if _, err := app.GetFileTree(); err != nil {
+		t.Fatalf("warm file tree: %v", err)
+	}
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("warm vault index: %v", err)
+	}
+	warmIndex := app.vaultIndex
+
+	result, err := app.CopyPath("Projects", "Archive")
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("CopyPath: result=%+v err=%v", result, err)
+	}
+	if got, want := result.UpdatedLinks, []string{"Archive/Projects/tasks.md"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("rewritten copied links = %#v, want %#v", got, want)
+	}
+	internal := app.applyVaultFilesystemChanges([]vaultWatchChange{
+		{Path: filepath.Join(vaultPath, "Archive", "Projects"), Op: fsnotify.Create},
+		{Path: filepath.Join(vaultPath, "Archive", "Projects", "stable.md"), Op: fsnotify.Create | fsnotify.Write},
+		{Path: filepath.Join(vaultPath, "Archive", "Projects", "tasks.md"), Op: fsnotify.Create | fsnotify.Write},
+	})
+	if internal.treeChanged || internal.kanbanChanged {
+		t.Fatalf("copy watcher acknowledgement = %#v, want no duplicate frontend refresh", internal)
+	}
+	if app.vaultIndex != warmIndex {
+		t.Fatal("copy watcher events replaced the incrementally updated vault index")
+	}
+	rewriteBatch := app.applyVaultFilesystemChanges([]vaultWatchChange{{
+		Path: filepath.Join(vaultPath, "Archive", "Projects", "tasks.md"),
+		Op:   fsnotify.Rename | fsnotify.Write,
+	}})
+	if rewriteBatch.treeChanged || rewriteBatch.kanbanChanged {
+		t.Fatalf("copied-link rewrite acknowledgement = %#v, want no duplicate frontend refresh", rewriteBatch)
+	}
+
+	copyPath := filepath.Join(vaultPath, "Archive", "Projects", "tasks.md")
+	if err := os.WriteFile(copyPath, []byte("- [ ] External #urgent\n"), 0644); err != nil {
+		t.Fatalf("external copied-note edit: %v", err)
+	}
+	external := app.applyVaultFilesystemChanges([]vaultWatchChange{{Path: copyPath, Op: fsnotify.Write}})
+	if external.treeChanged || !external.kanbanChanged {
+		t.Fatalf("later external copied-note edit = %#v, want a Kanban refresh only", external)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["urgent"]) != 1 {
+		t.Fatalf("board after external copied-note edit = %#v, err=%v", board, err)
+	}
+}
+
 func TestVaultIndexKeepsUnchangedDerivedContributionsOnKnownSave(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Replace me #todo\n[Today](2025-02-14.md)\n")

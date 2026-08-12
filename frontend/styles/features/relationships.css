@@ -1,9 +1,14 @@
 /* Backlinks */
 .status-backlinks {
     display: inline;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: var(--text-muted);
     text-decoration: none;
     cursor: default;
+    font-family: inherit;
     font-size: 11px;
     transition: color var(--transition-fast);
 }
@@ -16,6 +21,11 @@
 }
 .status-backlinks.has-backlinks:hover {
     color: var(--accent-hover);
+}
+
+.status-backlinks:focus-visible {
+    outline-width: 1px;
+    outline-offset: 2px;
 }
 
 .backlinks-content {

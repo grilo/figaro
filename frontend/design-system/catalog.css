@@ -745,6 +745,14 @@ a:focus-visible {
     min-width: min(280px, 100%);
 }
 
+.ds-inline-progress {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-muted);
+    font: 600 11px/1.2 var(--font-ui);
+}
+
 .ds-review-table-wrap {
     overflow-x: auto;
     border: 1px solid var(--border-color);
@@ -922,7 +930,8 @@ a:focus-visible {
     }
 
     .drawio-loading-spinner,
-    .drawio-loading-progress > span {
+    .drawio-loading-progress > span,
+    .ui-spinner {
         animation: none;
     }
 }

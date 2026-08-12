@@ -72,6 +72,7 @@ describe('design-system catalogue', () => {
             '.custom-modal',
             '.raw-text-preview-source',
             '.drawio-loading-card',
+            '.ui-spinner',
         ]) {
             expect(catalogue.querySelector(selector)).not.toBeNull();
         }
@@ -166,6 +167,7 @@ describe('design-system catalogue', () => {
             'notice',
             'document-tabs',
             'editor-fold-control',
+            'spinner',
         ]);
         expect(implementedSelectors).toEqual(approvedSelectors);
         expect(featureStyles).not.toMatch(/^\.ui-[a-z0-9-]+(?:\s|:|,|\{)/m);
@@ -245,9 +247,11 @@ describe('design-system catalogue', () => {
             '.ui-document-tab',
             '.ui-editor-fold-control',
             '.ui-editor-block-guide',
+            '.ui-spinner',
         ]) {
             expect(styles).toContain(selector);
         }
+        expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.ui-spinner\s*\{[\s\S]*animation:\s*none/);
         expect(styles).not.toMatch(/\.font-size-control\s*\{[^}]*border:/s);
         expect(styles).not.toMatch(/\.text-width-control\s*\{[^}]*border:/s);
         expect(styles).not.toMatch(/\.settings-picker-btn\s*\{/);
@@ -262,7 +266,7 @@ describe('design-system catalogue', () => {
 
     test('binds remaining approved-family controls to shared primitives', () => {
         const bindings = new Map([
-            ['frontend/index.html', ['ui-icon-button md-cheatsheet-close']],
+            ['frontend/index.html', ['ui-icon-button md-cheatsheet-trigger', 'ui-icon-button md-cheatsheet-close']],
             ['frontend/js/home.js', ['ui-button home-card-action']],
             ['frontend/js/views/searchView.js', ['ui-button search-filter-chip']],
             ['frontend/js/frontmatterPlugin.js', [

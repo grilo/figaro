@@ -88,6 +88,45 @@ func TestFileTreeCacheReusesSnapshotAndRemapsKnownMove(t *testing.T) {
 	}
 }
 
+func TestFileTreeCacheAndVaultIndexStayWarmAcrossKnownCopy(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "Projects/plan.md", "copy marker\n- [ ] Copied task #todo\n")
+	writeTestFile(t, vaultPath, "stable.md", "stable marker\n")
+	if _, err := app.GetFileTree(); err != nil {
+		t.Fatalf("warm file-tree cache: %v", err)
+	}
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatalf("warm vault index: %v", err)
+	}
+	warmIndex := app.vaultIndex
+	stableEntry, found := app.fileTreeEntries["stable.md"]
+	if !found {
+		t.Fatal("warm file-tree cache omitted stable.md")
+	}
+
+	result, err := app.CopyPath("Projects", ".")
+	if err != nil || result == nil || !result.Success || result.Path != "Projects copy" {
+		t.Fatalf("CopyPath: result=%+v err=%v", result, err)
+	}
+	if app.vaultIndex != warmIndex {
+		t.Fatal("known copy discarded and rebuilt the warm vault index")
+	}
+	if app.fileTreeEntries == nil {
+		t.Fatal("known copy discarded the warm file-tree metadata cache")
+	}
+	if got, found := app.fileTreeEntries["stable.md"]; !found || got != stableEntry {
+		t.Fatalf("known copy changed unrelated cached metadata: got=%#v found=%v want=%#v", got, found, stableEntry)
+	}
+	for _, copiedPath := range []string{"Projects copy", "Projects copy/plan.md"} {
+		if _, found := app.fileTreeEntries[copiedPath]; !found {
+			t.Errorf("file-tree cache omitted copied path %q", copiedPath)
+		}
+	}
+	if _, found := app.vaultIndex.files["Projects copy/plan.md"]; !found {
+		t.Fatal("warm vault index omitted copied Markdown")
+	}
+}
+
 func TestFileTreeCacheRefreshesNonMarkdownMtimeWithoutReloadingTheTree(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "assets/data.json", "{}\n")

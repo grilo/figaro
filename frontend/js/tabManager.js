@@ -35,6 +35,7 @@ import {
 } from './core/tabPresentationModel.js';
 import { createDocumentSave } from './usecases/documentSave.js';
 import { loadApplicationVersion } from './usecases/loadApplicationVersion.js';
+import { initRecentlyDeletedSettings } from './recentlyDeleted.js';
 import { fileTabReadTarget } from './core/externalFileModel.js';
 import {
     configureContextMenu,
@@ -1871,6 +1872,18 @@ function renderSettingsTab(panel, _tab) {
                         <button type="button" id="open-vault-health" class="ui-button settings-action-btn">Review…</button>
                     </div>
                 </div>
+                <div class="settings-section recently-deleted-setting">
+                    <div class="recently-deleted-setting-copy">
+                        <div class="settings-section-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>
+                            <span>Recently deleted</span>
+                        </div>
+                        <p class="settings-section-desc">Restore files and folders from the local Git snapshot Figaro records before deletion.</p>
+                    </div>
+                    <div id="recently-deleted-list" class="recently-deleted-list" aria-live="polite" aria-busy="true">
+                        <p class="settings-section-desc recently-deleted-empty">Loading recently deleted items…</p>
+                    </div>
+                </div>
             </div>
             <div class="settings-card application-about-card">
                 <div class="settings-card-title">About</div>
@@ -1889,6 +1902,10 @@ function renderSettingsTab(panel, _tab) {
 
     container.querySelector('#open-vault-health')?.addEventListener('click', () => {
         openTab('vault-health', 'Vault health', 'health');
+    });
+
+    initRecentlyDeletedSettings(container).catch(err => {
+        log.warn('Recently deleted settings init failed:', err);
     });
 
     // The panel is removed when Settings closes, so initialize each new panel

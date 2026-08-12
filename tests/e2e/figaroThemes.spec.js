@@ -59,6 +59,12 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
             onOpen() {},
         });
     });
+    await page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        tabs.switchTab('Welcome.md');
+    });
+    await expect(page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node'))
+        .toHaveClass(/selected/);
 
     for (const theme of nativeThemes) {
         const details = await page.evaluate(async ({ path }) => {

@@ -10,6 +10,48 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.16.0] - 2026-08-12
+
+### Added
+
+- File-tree **Cut**, **Copy**, and **Paste** now provide a conventional
+  keyboard and context-menu move workflow, with subtle shortcut hints and the
+  same collision, dirty-tab, link-rewrite, and delayed-activity protections as
+  drag/drop.
+- Successful file-tree deletion now offers a ten-second status-bar **Undo**;
+  **Settings → Vault care → Recently deleted** keeps every recovery record
+  available afterward and restores its exact local Git snapshot without
+  replacing an occupied path.
+- File-tree copy/import, move/merge, rename, and delete operations now mark the
+  tree busy immediately and show a status-bar spinner only when work lasts at
+  least one second; overlapping operations and reduced-motion preferences are
+  handled without flashing or stale activity.
+- Pressing **F2** on a focused vault file or folder now opens the existing safe
+  rename workflow.
+
+### Changed
+
+- The file tree now uses one selected-document state that follows the active
+  tab. Keyboard focus and Ctrl/Cmd multi-selection remain distinct, clean
+  background tabs no longer add visual dots, and unsaved buffers use the only
+  secondary file marker.
+- The file-tree context menu is shorter: Raw Text and PDF preview remain in the
+  editor context menu and Properties, while the tree menu prioritizes file
+  operations and shows shortcuts for Cut, Copy, Paste, Rename, and Delete.
+
+### Fixed
+
+- Backlink and committed-change counts are now real keyboard-operable buttons
+  without changing their link-like appearance or pointer cursor, and History
+  versions form an arrow-navigable selection list.
+- The Markdown cheatsheet now opens reliably from a `?` help button immediately
+  left of Settings; while closed, its controls no longer remain in the Tab
+  order.
+- Copying a file or folder in a large vault now retains the warm search,
+  planning, relationship, and file-tree projections, indexes only the copied
+  subtree, and suppresses the duplicate native-watcher refresh. Unobserved
+  external Markdown changes still select the complete rebuild fallback.
+
 ## [1.15.1] - 2026-08-12
 
 ### Changed
@@ -951,7 +993,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.15.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.16.0...HEAD
+[1.16.0]: https://github.com/grilo/figaro/compare/v1.15.1...v1.16.0
 [1.15.1]: https://github.com/grilo/figaro/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/grilo/figaro/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/grilo/figaro/compare/v1.13.1...v1.14.0

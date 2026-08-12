@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
@@ -25,6 +26,15 @@ type Entry struct {
 	Hash      string  `json:"hash"`
 	Timestamp float64 `json:"timestamp"`
 	Message   string  `json:"message"`
+}
+
+// SnapshotFile is one regular file or symbolic link stored beneath an
+// archived path at an exact commit.
+type SnapshotFile struct {
+	Path         string
+	Data         []byte
+	Mode         fs.FileMode
+	SymbolicLink bool
 }
 
 // VaultReadLocker lets the host serialize history reads with vault mutations.
@@ -125,44 +135,53 @@ func (h *Service) CommitFile(relPath string) error {
 // must hold the vault's write lock so no Figaro mutation can land between this
 // snapshot and the subsequent deletion.
 func (h *Service) ArchivePathWithVaultLocked(relPath string) error {
+	_, err := h.ArchivePathSnapshotWithVaultLocked(relPath)
+	return err
+}
+
+// ArchivePathSnapshotWithVaultLocked records relPath and returns the exact
+// commit that can reconstruct it. Empty directories have no Git object and
+// therefore return an empty hash; the recently-deleted record retains their
+// directory kind separately.
+func (h *Service) ArchivePathSnapshotWithVaultLocked(relPath string) (string, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.archivePathLocked(relPath)
 }
 
-func (h *Service) archivePathLocked(relPath string) error {
+func (h *Service) archivePathLocked(relPath string) (string, error) {
 	if h.repo == nil {
-		return fmt.Errorf("history service not initialized")
+		return "", fmt.Errorf("history service not initialized")
 	}
 
 	files, err := h.archiveFiles(relPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if len(files) == 0 {
-		return nil
+		return "", nil
 	}
 
 	worktree, err := h.repo.Worktree()
 	if err != nil {
-		return fmt.Errorf("get worktree: %w", err)
+		return "", fmt.Errorf("get worktree: %w", err)
 	}
 	status, err := worktree.Status()
 	if err != nil {
-		return fmt.Errorf("check status: %w", err)
+		return "", fmt.Errorf("check status: %w", err)
 	}
 	for path, statusFile := range status {
 		if archiveContainsPath(relPath, path) {
 			continue
 		}
 		if statusFile.Staging != git.Unmodified && statusFile.Staging != git.Untracked {
-			return fmt.Errorf("cannot archive %s while %s has staged changes", relPath, path)
+			return "", fmt.Errorf("cannot archive %s while %s has staged changes", relPath, path)
 		}
 	}
 
 	originalIndex, err := h.repo.Storer.Index()
 	if err != nil {
-		return fmt.Errorf("read index: %w", err)
+		return "", fmt.Errorf("read index: %w", err)
 	}
 	restoreIndex := func(cause error) error {
 		if restoreErr := h.repo.Storer.SetIndex(originalIndex); restoreErr != nil {
@@ -175,13 +194,24 @@ func (h *Service) archivePathLocked(relPath string) error {
 			Path:       filepath.FromSlash(path),
 			SkipStatus: true,
 		}); err != nil {
-			return restoreIndex(fmt.Errorf("stage file %s: %w", path, err))
+			return "", restoreIndex(fmt.Errorf("stage file %s: %w", path, err))
+		}
+	}
+	// A directory snapshot must match the files that exist now, not merely add
+	// its current children over the previous tree. Stage tracked children that
+	// were removed before the directory itself was deleted as removals too.
+	for path, statusFile := range status {
+		if !archiveContainsPath(relPath, path) || statusFile.Worktree != git.Deleted {
+			continue
+		}
+		if err := worktree.AddWithOptions(&git.AddOptions{Path: filepath.FromSlash(path)}); err != nil {
+			return "", restoreIndex(fmt.Errorf("stage removed archive file %s: %w", path, err))
 		}
 	}
 
 	status, err = worktree.Status()
 	if err != nil {
-		return restoreIndex(fmt.Errorf("check staged archive: %w", err))
+		return "", restoreIndex(fmt.Errorf("check staged archive: %w", err))
 	}
 	hasStaged := false
 	for path, statusFile := range status {
@@ -189,23 +219,84 @@ func (h *Service) archivePathLocked(relPath string) error {
 			continue
 		}
 		if !archiveContainsPath(relPath, path) {
-			return restoreIndex(fmt.Errorf("archive unexpectedly staged %s", path))
+			return "", restoreIndex(fmt.Errorf("archive unexpectedly staged %s", path))
 		}
 		hasStaged = true
 	}
 	if !hasStaged {
-		return nil
+		head, err := h.repo.Head()
+		if err != nil {
+			return "", fmt.Errorf("resolve archived revision: %w", err)
+		}
+		return head.Hash().String(), nil
 	}
 
 	message := fmt.Sprintf("archive before delete: %s — %s", filepath.ToSlash(relPath), time.Now().Format("2006-01-02 15:04:05"))
-	if _, err := worktree.Commit(message, &git.CommitOptions{
+	hash, err := worktree.Commit(message, &git.CommitOptions{
 		Author: &object.Signature{Name: "figaro", Email: "figaro@local", When: time.Now()},
-	}); err != nil {
-		return restoreIndex(fmt.Errorf("commit archive: %w", err))
+	})
+	if err != nil {
+		return "", restoreIndex(fmt.Errorf("commit archive: %w", err))
 	}
 	log.Println("[history] Archived before delete:", relPath)
 	h.notifyCommitLocked()
-	return nil
+	return hash.String(), nil
+}
+
+// GetPathSnapshotWithVaultLocked reads one path from the exact archive commit.
+// The caller holds the vault write lock while it checks for collisions and
+// publishes the reconstructed path.
+func (h *Service) GetPathSnapshotWithVaultLocked(relPath, hash string) ([]SnapshotFile, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.repo == nil {
+		return nil, fmt.Errorf("history service not initialized")
+	}
+	clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(relPath)))
+	if clean == "." || hash == "" {
+		return nil, nil
+	}
+	commit, err := h.repo.CommitObject(plumbing.NewHash(hash))
+	if err != nil {
+		return nil, fmt.Errorf("get archive commit %s: %w", hash, err)
+	}
+	tree, err := commit.Tree()
+	if err != nil {
+		return nil, fmt.Errorf("get archive tree: %w", err)
+	}
+	iterator := tree.Files()
+	defer iterator.Close()
+	var files []SnapshotFile
+	err = iterator.ForEach(func(file *object.File) error {
+		path := filepath.ToSlash(file.Name)
+		if path != clean && !strings.HasPrefix(path, clean+"/") {
+			return nil
+		}
+		contents, err := file.Contents()
+		if err != nil {
+			return fmt.Errorf("read archived file %s: %w", path, err)
+		}
+		mode := fs.FileMode(0644)
+		symlink := false
+		switch file.Mode {
+		case filemode.Executable:
+			mode = 0755
+		case filemode.Symlink:
+			symlink = true
+		case filemode.Regular, filemode.Deprecated:
+		default:
+			return fmt.Errorf("archive contains unsupported file mode for %s", path)
+		}
+		files = append(files, SnapshotFile{
+			Path: path, Data: []byte(contents), Mode: mode, SymbolicLink: symlink,
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	return files, nil
 }
 
 func (h *Service) archiveFiles(relPath string) ([]string, error) {

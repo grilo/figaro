@@ -11,7 +11,6 @@ import (
 	goruntime "runtime"
 	"strings"
 	"sync"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -49,7 +48,7 @@ type App struct {
 	vaultIndex          *vaultIndex
 	fileTreeEntries     map[string]fileTreeCacheEntry
 	fileTreeSnapshot    []*FileTreeItem
-	internalVaultWrites map[string]time.Time
+	internalVaultWrites map[string]internalVaultWriteAck
 	vaultWatcher        *vaultWatcher
 	watcherStopping     bool
 	history             *HistoryService
@@ -167,7 +166,7 @@ func NewApp(vaultPath string) *App {
 		fileVersions:        make(map[string]float64),
 		kanbanColors:        make(map[string]string),
 		kanbanColumns:       append([]string{}, SystemColumns...),
-		internalVaultWrites: make(map[string]time.Time),
+		internalVaultWrites: make(map[string]internalVaultWriteAck),
 		windowState:         defaultWindowState(),
 	}
 	a.loadColors()

@@ -154,6 +154,48 @@
             </div>
             <div class="top-bar-center" aria-hidden="true"></div>
             <div class="top-bar-right">
+                <span class="md-cheatsheet-wrapper topbar-cheatsheet">
+                    <button type="button" class="ui-icon-button md-cheatsheet-trigger" id="md-cheatsheet-trigger" title="Markdown cheatsheet" aria-label="Open Markdown cheatsheet" aria-expanded="false" aria-haspopup="dialog" aria-controls="md-cheatsheet-popup">?</button>
+                    <div class="md-cheatsheet-popup" id="md-cheatsheet-popup" role="dialog" aria-labelledby="md-cheatsheet-title" hidden>
+                        <div class="md-cheatsheet-header">
+                            <div class="md-cheatsheet-title" id="md-cheatsheet-title">Markdown cheatsheet</div>
+                            <button type="button" class="ui-icon-button md-cheatsheet-close" id="md-cheatsheet-close" title="Close" aria-label="Close Markdown cheatsheet">×</button>
+                        </div>
+                        <table>
+                            <tr><td><code># H1</code> <code>## H2</code> <code>### H3</code></td><td>Headings</td></tr>
+                            <tr><td><code>**bold**</code> <code>*italic*</code></td><td>Emphasis</td></tr>
+                            <tr><td><code>~~strike~~</code> <code>==highlight==</code></td><td>Strikethrough &amp; Highlight</td></tr>
+                            <tr><td><code>[text](file.md)</code></td><td>Link to note</td></tr>
+                            <tr><td><code>[[wikilink.md|wikilink]]</code></td><td>Wikilink</td></tr>
+                            <tr><td><code>![alt](image.png)</code></td><td>Image</td></tr>
+                            <tr><td><code>- item</code> <code>1. item</code></td><td>Unordered / Ordered list</td></tr>
+                            <tr><td><code>- [ ] task</code> <code>- [x] done</code></td><td>Task / Checkbox</td></tr>
+                            <tr class="md-cheatsheet-task-due-row"><td><code>- [ ] task #todo [due 2026-08-14](2026-08-14.md)</code></td><td>Task due date</td></tr>
+                            <tr><td><code>&gt; quote</code></td><td>Blockquote</td></tr>
+                            <tr class="md-cheatsheet-admonition-row">
+                                <td>
+                                    <code>&gt; [!note]</code>
+                                    <code>&gt; [!warning]</code>
+                                    <code>&gt; [!info]</code>
+                                    <code>&gt; [!tip]</code>
+                                    <code>&gt; [!danger]</code>
+                                    <code>&gt; [!example]</code>
+                                    <br><code>&gt; Body text</code>
+                                </td>
+                                <td>Admonitions / Callouts</td>
+                            </tr>
+                            <tr><td><code>```lang</code> <code>```</code></td><td>Fenced code block</td></tr>
+                            <tr class="md-cheatsheet-diagram-row"><td><code>```mermaid</code><br><code>flowchart TD; A--&gt;B</code><br><code>```</code></td><td>Mermaid diagram — close with the same fence length</td></tr>
+                            <tr class="md-cheatsheet-diagram-row"><td><code>```vega</code> <code>```vega-lite</code><br><code>{ "mark": "bar", ... }</code><br><code>```</code></td><td>Vega / Vega-Lite JSON chart</td></tr>
+                            <tr class="md-cheatsheet-diagram-row"><td><code>![Diagram](diagram.drawio.svg)</code></td><td>Draw.io SVG — create it from the File Tree, then click its file to edit</td></tr>
+                            <tr><td><code>$x^2$</code> <code>$$...$$</code></td><td>Inline / Block math</td></tr>
+                            <tr><td><code>---</code> <code>***</code> <code>___</code></td><td>Horizontal rule</td></tr>
+                            <tr><td><code>#tag</code></td><td>Hashtag (kanban column)</td></tr>
+                            <tr><td><code>[^1]</code> <code>[^1]: note</code></td><td>Footnote</td></tr>
+                            <tr><td><code>| col | col |</code></td><td>Table</td></tr>
+                        </table>
+                    </div>
+                </span>
                 <button id="topbar-settings" class="icon-btn ui-icon-button titlebar-settings-btn" title="Settings" aria-label="Open Settings">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -309,50 +351,9 @@
             </div>
         <footer id="status-bar" class="status-bar">
             <div class="status-left">
+                <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>
                 <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
-                <span class="status-separator">|</span>
-                <span class="md-cheatsheet-wrapper">
-                    <button type="button" class="md-cheatsheet-trigger" id="md-cheatsheet-trigger" aria-expanded="false" aria-haspopup="dialog">md cheatsheet</button>
-                    <div class="md-cheatsheet-popup" id="md-cheatsheet-popup" role="dialog" aria-labelledby="md-cheatsheet-title">
-                        <div class="md-cheatsheet-header">
-                            <div class="md-cheatsheet-title" id="md-cheatsheet-title">Markdown cheatsheet</div>
-                            <button type="button" class="ui-icon-button md-cheatsheet-close" id="md-cheatsheet-close" title="Close" aria-label="Close Markdown cheatsheet">×</button>
-                        </div>
-                        <table>
-                            <tr><td><code># H1</code> <code>## H2</code> <code>### H3</code></td><td>Headings</td></tr>
-                            <tr><td><code>**bold**</code> <code>*italic*</code></td><td>Emphasis</td></tr>
-                            <tr><td><code>~~strike~~</code> <code>==highlight==</code></td><td>Strikethrough &amp; Highlight</td></tr>
-                            <tr><td><code>[text](file.md)</code></td><td>Link to note</td></tr>
-                            <tr><td><code>[[wikilink.md|wikilink]]</code></td><td>Wikilink</td></tr>
-                            <tr><td><code>![alt](image.png)</code></td><td>Image</td></tr>
-                            <tr><td><code>- item</code> <code>1. item</code></td><td>Unordered / Ordered list</td></tr>
-                            <tr><td><code>- [ ] task</code> <code>- [x] done</code></td><td>Task / Checkbox</td></tr>
-                            <tr class="md-cheatsheet-task-due-row"><td><code>- [ ] task #todo [due 2026-08-14](2026-08-14.md)</code></td><td>Task due date</td></tr>
-                            <tr><td><code>&gt; quote</code></td><td>Blockquote</td></tr>
-                            <tr class="md-cheatsheet-admonition-row">
-                                <td>
-                                    <code>&gt; [!note]</code>
-                                    <code>&gt; [!warning]</code>
-                                    <code>&gt; [!info]</code>
-                                    <code>&gt; [!tip]</code>
-                                    <code>&gt; [!danger]</code>
-                                    <code>&gt; [!example]</code>
-                                    <br><code>&gt; Body text</code>
-                                </td>
-                                <td>Admonitions / Callouts</td>
-                            </tr>
-                            <tr><td><code>```lang</code> <code>```</code></td><td>Fenced code block</td></tr>
-                            <tr class="md-cheatsheet-diagram-row"><td><code>```mermaid</code><br><code>flowchart TD; A--&gt;B</code><br><code>```</code></td><td>Mermaid diagram — close with the same fence length</td></tr>
-                            <tr class="md-cheatsheet-diagram-row"><td><code>```vega</code> <code>```vega-lite</code><br><code>{ "mark": "bar", ... }</code><br><code>```</code></td><td>Vega / Vega-Lite JSON chart</td></tr>
-                            <tr class="md-cheatsheet-diagram-row"><td><code>![Diagram](diagram.drawio.svg)</code></td><td>Draw.io SVG — create it from the File Tree, then click its file to edit</td></tr>
-                            <tr><td><code>$x^2$</code> <code>$$...$$</code></td><td>Inline / Block math</td></tr>
-                            <tr><td><code>---</code> <code>***</code> <code>___</code></td><td>Horizontal rule</td></tr>
-                            <tr><td><code>#tag</code></td><td>Hashtag (kanban column)</td></tr>
-                            <tr><td><code>[^1]</code> <code>[^1]: note</code></td><td>Footnote</td></tr>
-                            <tr><td><code>| col | col |</code></td><td>Table</td></tr>
-                        </table>
-                    </div>
-                </span>
+                <button type="button" id="status-action" class="status-inline-action" hidden></button>
             </div>
             <div class="status-right">
                 <span id="cursor-position">Ln 1, Col 1</span>
@@ -367,11 +368,11 @@
                 <span class="status-separator status-detail-extended">|</span>
                 <span id="file-type" class="status-detail-extended">Standard</span>
                 <span class="status-separator">|</span>
-                <a id="backlinks-status" class="status-backlinks" title="View backlinks">0 backlinks</a>
+                <button type="button" id="backlinks-status" class="status-backlinks" title="No backlinks found" disabled>0 backlinks</button>
                 <span class="status-separator">|</span>
                 <button type="button" id="git-status" class="status-git" title="Save this file to local history" hidden disabled>Save to history</button>
                 <span id="git-status-separator" class="status-separator" hidden>|</span>
-                <a id="history-count" class="status-history" title="View file history">0 changes</a>
+                <button type="button" id="history-count" class="status-history" title="No committed history" disabled>0 changes</button>
 
                 <span id="resize-grip" title="Drag corner to resize">
                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">

@@ -91,6 +91,8 @@ export function updateHistoryCount(filePath) {
         if (countEl) {
             countEl.textContent = '0 changes';
             countEl.classList.remove('has-history');
+            countEl.disabled = true;
+            countEl.title = 'Open a file to see history';
         }
         return;
     }
@@ -107,18 +109,26 @@ export function updateHistoryCount(filePath) {
             if (count > 0) {
                 countEl.textContent = count + ' change' + (count !== 1 ? 's' : '');
                 countEl.classList.add('has-history');
+                countEl.disabled = false;
+                countEl.title = `Open ${count} committed change${count !== 1 ? 's' : ''}`;
             } else {
                 countEl.textContent = '0 changes';
                 countEl.classList.remove('has-history');
+                countEl.disabled = true;
+                countEl.title = 'No committed history';
             }
         }).catch(() => {
             if (filePath !== currentFilePath) return;
             countEl.textContent = '0 changes';
             countEl.classList.remove('has-history');
+            countEl.disabled = true;
+            countEl.title = 'History could not be loaded';
         });
     } catch (_) {
         countEl.textContent = '0 changes';
         countEl.classList.remove('has-history');
+        countEl.disabled = true;
+        countEl.title = 'History could not be loaded';
         return Promise.resolve();
     }
 }
@@ -331,13 +341,13 @@ function renderHistoryList(container, entries) {
     const notice = historyNotice
         ? `<p class="ui-notice ui-notice--info history-current-notice" role="status">${historyNotice}</p>`
         : '';
-    container.innerHTML = notice + `<div class="history-list">${entries.map((entry, i) => {
+    container.innerHTML = notice + `<div class="history-list" role="listbox" aria-label="File versions">${entries.map((entry, i) => {
         const date = new Date(entry.timestamp * 1000);
         const timeStr = date.toLocaleString();
 
-        return `<div class="history-item" data-index="${i}" data-hash="${entry.hash}">
+        return `<button type="button" class="history-item" role="option" aria-selected="false" tabindex="${i === 0 ? '0' : '-1'}" data-index="${i}" data-hash="${entry.hash}">
             <div class="history-item-time">${timeStr}${i === 0 ? '<span class="history-item-latest">Latest committed</span>' : ''}</div>
-        </div>`;
+        </button>`;
     }).join('')}</div>`;
 
     // Click handlers
@@ -345,6 +355,23 @@ function renderHistoryList(container, entries) {
         item.addEventListener('click', async () => {
             const hash = item.dataset.hash;
             await viewHistoryVersion(hash);
+        });
+        item.addEventListener('keydown', event => {
+            const items = [...container.querySelectorAll('.history-item')];
+            const index = items.indexOf(item);
+            let nextIndex = -1;
+            if (event.key === 'ArrowDown') nextIndex = Math.min(items.length - 1, index + 1);
+            else if (event.key === 'ArrowUp') nextIndex = Math.max(0, index - 1);
+            else if (event.key === 'Home') nextIndex = 0;
+            else if (event.key === 'End') nextIndex = items.length - 1;
+            if (nextIndex < 0) return;
+            event.preventDefault();
+            if (nextIndex === index) return;
+            items.forEach((candidate, candidateIndex) => {
+                candidate.tabIndex = candidateIndex === nextIndex ? 0 : -1;
+            });
+            items[nextIndex].focus();
+            items[nextIndex].click();
         });
     });
 }
@@ -409,15 +436,22 @@ async function viewHistoryVersion(hash) {
     const content = document.getElementById('history-content') || document.getElementById('right-sidebar-content');
     
     // Highlight selected and keep version actions in the History pane.
-    content.querySelectorAll('.history-item').forEach(el => el.classList.remove('is-selected'));
+    content.querySelectorAll('.history-item').forEach(el => {
+        el.classList.remove('is-selected');
+        el.setAttribute('aria-selected', 'false');
+    });
     const selected = content.querySelector(`[data-hash="${hash}"]`);
     selected?.classList.add('is-selected');
+    selected?.setAttribute('aria-selected', 'true');
+    content.querySelectorAll('.history-item').forEach(el => { el.tabIndex = el === selected ? 0 : -1; });
     clearHistoryRevertAction();
 
     // If clicking the latest version, exit history mode (no need for read-only)
     const firstItem = content.querySelector('.history-item');
     if (firstItem && firstItem.dataset.hash === hash) {
-        if (viewingHistory) exitHistoryMode();
+        if (viewingHistory) await exitHistoryMode();
+        selected?.classList.add('is-selected');
+        selected?.setAttribute('aria-selected', 'true');
         return;
     }
 
@@ -566,7 +600,10 @@ async function exitHistoryMode() {
     // Remove selection highlight
     const content = document.getElementById('history-content') || document.getElementById('right-sidebar-content');
     if (content) {
-        content.querySelectorAll('.history-item').forEach(el => el.classList.remove('is-selected'));
+        content.querySelectorAll('.history-item').forEach(el => {
+            el.classList.remove('is-selected');
+            el.setAttribute('aria-selected', 'false');
+        });
     }
 }
 

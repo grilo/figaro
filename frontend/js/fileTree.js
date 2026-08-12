@@ -15,10 +15,9 @@ import { renderLucideIcon } from './lucideIcons.js';
 import { confirmExternalTreeImport, importDroppedExternalPaths } from './externalFiles.js';
 import { focusEditor, getEditorView, insertTextAtCursor } from './editor.js';
 import { handleFileOpen } from './app.js';
-import { openPDFPreview } from './pdfPreview.js';
-import { openRawTextPreview } from './rawTextPreview.js';
 import {
     directoryPathsForReveal,
+    dirtyFilePaths,
     fileTreeKeyboardPlan,
     fileTreeWindow,
     isFileTreeEntryPinned,
@@ -35,6 +34,7 @@ import {
     dismissContextMenu,
 } from './contextMenu.js';
 import { isContextMenuInvocationKey } from './core/contextMenuModel.js';
+import { restoreRecentlyDeletedItem } from './recentlyDeleted.js';
 
 
 let dragSourceNode = null;
@@ -47,6 +47,7 @@ let externalCopyInProgress = false;
 let internalClipboard = null;
 let internalCopyInProgress = false;
 let internalMoveInProgress = false;
+let fileTreeActivityCount = 0;
 let fileTreeStyles = { version: 1, entries: {}, recent_icons: [] };
 const fileTreeRenderStates = new WeakMap();
 
@@ -76,6 +77,21 @@ const fileTreeRefresh = createFileTreeRefresh({
 });
 
 const contextMenuViewportMargin = 8;
+
+function beginFileTreeActivity() {
+    fileTreeActivityCount++;
+    const tree = document.getElementById('file-tree');
+    tree?.setAttribute('aria-busy', 'true');
+    const finishSpinner = statusBar.beginDelayedActivity(1000);
+    let finished = false;
+    return () => {
+        if (finished) return;
+        finished = true;
+        finishSpinner();
+        fileTreeActivityCount = Math.max(0, fileTreeActivityCount - 1);
+        if (fileTreeActivityCount === 0) tree?.setAttribute('aria-busy', 'false');
+    };
+}
 
 /**
  * Keep an overlay menu entirely inside the viewport, opening upward or leftward
@@ -112,25 +128,23 @@ const fileTreeContextMenuActions = [
         label: 'Merge Notes',
         icon: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
     },
-    {
-        action: 'preview-raw-text',
-        label: 'Preview Raw Text',
-        icon: '<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/>',
-    },
-    {
-        action: 'preview-pdf',
-        label: 'Preview PDF',
-        icon: '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M8 15h8M8 18h6"/>',
-    },
     { separator: true },
+    {
+        action: 'cut',
+        label: 'Cut',
+        shortcut: 'Ctrl+X',
+        icon: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8.7 8.7 12.6 12.6M8.7 15.3 21.3 2.7"/>',
+    },
     {
         action: 'copy',
         label: 'Copy',
+        shortcut: 'Ctrl+C',
         icon: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
     },
     {
         action: 'paste',
         label: 'Paste',
+        shortcut: 'Ctrl+V',
         icon: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>',
     },
     { separator: true },
@@ -152,6 +166,7 @@ const fileTreeContextMenuActions = [
     {
         action: 'rename',
         label: 'Rename',
+        shortcut: 'F2',
         icon: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
     },
     {
@@ -173,19 +188,26 @@ const fileTreeContextMenuActions = [
     {
         action: 'delete',
         label: 'Delete',
+        shortcut: 'Delete',
         danger: true,
         icon: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
     },
 ];
 
-function fileTreeContextMenuItemHTML({ action, label, icon, danger }, enabled) {
+function platformShortcut(shortcut) {
+    const isMac = /Mac|iPhone|iPad/.test(globalThis.navigator?.platform || '');
+    return isMac ? shortcut.replace(/^Ctrl\+/, '⌘') : shortcut;
+}
+
+function fileTreeContextMenuItemHTML({ action, label, icon, danger, shortcut }, enabled) {
     const classes = ['ui-menu-item', 'context-menu-item'];
     if (danger) classes.push('danger');
     if (!enabled) classes.push('disabled');
     return `
         <button type="button" class="${classes.join(' ')}" data-action="${action}"${enabled ? '' : ' aria-disabled="true" disabled'}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>
-            ${label}
+            <span class="context-menu-item-label">${label}</span>
+            ${shortcut ? `<span class="context-menu-item-shortcut" aria-hidden="true">${platformShortcut(shortcut)}</span>` : ''}
         </button>`;
 }
 
@@ -213,8 +235,7 @@ export function buildFileTreeContextMenuHTML({
     const enabled = {
         'open-new-tab': isOpenableFile || (external && isFile),
         'merge-notes': !external && canMerge,
-        'preview-raw-text': !external && isMarkdownFile,
-        'preview-pdf': !external && isMarkdownFile,
+        cut: !external && isTarget,
         copy: !external && isTarget,
         paste: !external && Boolean(clipboardPath),
         'new-file': !external,
@@ -250,20 +271,24 @@ export function initFileTree() {
     initInboxNoteButton();
     initFileTreeRequestEvents();
 
-    // Keep file-tab markers in sync without changing folder state. Rebuilding
-    // a large tree for a tab switch (or its first dirty transition) is both
+    // Keep current-document selection and unsaved-buffer markers in sync
+    // without changing folder state. Rebuilding a large tree for a tab switch
+    // (or its first dirty transition) is both
     // expensive and needlessly disrupts mounted nodes. Structural changes
-    // still go through renderFileTree(); this path only updates the markers
-    // that can exist on already-mounted file nodes.
+    // still go through renderFileTree(); this path updates only states that
+    // can exist on already-mounted file nodes.
     // expandedDirs belongs to the user: restoring or switching tabs must not
     // reopen ancestors that the user explicitly collapsed.
     subscribe('activeTabId', () => {
         const tabs = getState('openTabs');
         const activeId = getState('activeTabId');
         const activeTab = tabs.find(t => t.id === activeId);
-        if (activeTab && (activeTab.type === 'file' || activeTab.type === 'drawio') && activeTab.path) {
-            setState('selectedFilePath', activeTab.path);
-        }
+        const activePath = activeTab
+            && (activeTab.type === 'file' || activeTab.type === 'drawio')
+            && activeTab.path
+            ? activeTab.path
+            : null;
+        setState('selectedFilePath', activePath);
         syncFileTreeTabMarkers();
     });
     subscribe('openTabs', syncFileTreeTabMarkers);
@@ -300,10 +325,9 @@ function initFileTreeRequestEvents() {
 }
 
 /**
- * Update the active/open file markers on the part of the tree currently
- * mounted in the DOM. Collapsed descendants intentionally have no node to
- * patch; when they are expanded, renderFileTree() derives their correct state
- * from the same store values.
+ * Update current-document selection and dirty-buffer markers on the mounted
+ * part of the tree. Collapsed descendants intentionally have no node to patch;
+ * when expanded, renderFileTree() derives their state from the same store.
  *
  * This must not mutate tab state or emit events: callers such as markTabDirty
  * rely on the one-time tab transition to notify Git status listeners.
@@ -312,17 +336,34 @@ export function syncFileTreeTabMarkers() {
     const container = document.getElementById('file-tree');
     if (!container) return;
 
-    const openFilePaths = new Set((getState('openTabs') || [])
-        .filter(tab => (tab.type === 'file' || tab.type === 'drawio') && tab.path)
-        .map(tab => tab.path));
+    const dirtyPaths = dirtyFilePaths(getState('openTabs'));
     const activeFilePath = getState('selectedFilePath');
+    const multiSelected = new Set(getState('selectedFilePaths') || []);
+    const renderState = fileTreeRenderStates.get(container);
+    if (renderState) {
+        renderState.activeFilePath = activeFilePath;
+        renderState.dirtyPaths = dirtyPaths;
+    }
 
     container.querySelectorAll('.file-tree-item[data-type="file"] > .file-tree-node').forEach(node => {
         const path = node.parentElement?.dataset.path;
         if (!path) return;
         const active = path === activeFilePath;
-        node.classList.toggle('active-file', active);
-        node.classList.toggle('open-file', !active && openFilePaths.has(path));
+        const dirty = dirtyPaths.has(path);
+        node.classList.toggle('selected', active);
+        node.classList.toggle('dirty-buffer', dirty);
+        node.setAttribute('aria-selected', String(active || multiSelected.has(path)));
+        let dirtyStatus = node.querySelector('.node-dirty-status');
+        if (dirty && !dirtyStatus) {
+            dirtyStatus = document.createElement('span');
+            dirtyStatus.className = 'sr-only node-dirty-status';
+            dirtyStatus.textContent = 'Unsaved changes';
+            node.querySelector('.node-name')?.after(dirtyStatus);
+        } else if (!dirty) {
+            dirtyStatus?.remove();
+        }
+        if (active) node.setAttribute('aria-current', 'page');
+        else node.removeAttribute('aria-current');
     });
 }
 
@@ -441,12 +482,16 @@ function adoptTreeNodeFocus(node) {
 
     if (getState('selectedTreePath') !== path) setState('selectedTreePath', path);
     const multiSelected = new Set(getState('selectedFilePaths') || []);
+    const activeFilePath = getState('selectedFilePath');
     for (const candidate of mountedTreeNodes(container)) {
         const candidatePath = treeNodePath(candidate);
-        const selected = candidatePath === path;
-        candidate.classList.toggle('selected', selected);
-        candidate.setAttribute('aria-selected', String(selected || multiSelected.has(candidatePath)));
-        candidate.tabIndex = selected ? 0 : -1;
+        const focused = candidatePath === path;
+        const active = candidatePath === activeFilePath;
+        candidate.classList.toggle('selected', active);
+        candidate.setAttribute('aria-selected', String(active || multiSelected.has(candidatePath)));
+        if (active) candidate.setAttribute('aria-current', 'page');
+        else candidate.removeAttribute('aria-current');
+        candidate.tabIndex = focused ? 0 : -1;
     }
     scheduleSessionSave();
     return true;
@@ -488,9 +533,7 @@ export function renderFileTree() {
     const selectedPath = getState('selectedTreePath');
     const activeFilePath = getState('selectedFilePath');
     const selectedPaths = getState('selectedFilePaths') || [];
-    const openFilePaths = new Set((getState('openTabs') || [])
-        .filter(tab => (tab.type === 'file' || tab.type === 'drawio') && tab.path)
-        .map(tab => tab.path));
+    const dirtyPaths = dirtyFilePaths(getState('openTabs'));
     
     if (!container) return;
     // Structural tree refreshes are intentionally rare, but they should not
@@ -519,7 +562,7 @@ export function renderFileTree() {
         fileTreeRenderStates.set(container, {
             activeFilePath,
             focusProtection: null,
-            openFilePaths,
+            dirtyPaths,
             range: { start: 0, end: 0 },
             restoreFocusPath,
             rows: visibleRows,
@@ -542,7 +585,7 @@ export function renderFileTree() {
     // Keep a real flexing surface after short file lists. Delegated context
     // events then reach #file-tree even when the user clicks below the last
     // file, making an empty/new vault easy to populate.
-    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath, fileTreeStyles.entries, openFilePaths) +
+    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath, fileTreeStyles.entries, dirtyPaths) +
         '<div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
     const focusTarget = synchronizeTreeRovingTabIndex(container, restoreFocusPath);
     container.scrollTop = restoreScrollTop;
@@ -552,16 +595,16 @@ export function renderFileTree() {
 /**
  * Build tree HTML recursively
  */
-export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries, openFilePaths = []) {
+export function buildTreeHTML(items, expandedDirs, focusPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries, dirtyPaths = []) {
     let html = `<ul class="file-tree-list" role="${depth === 0 ? 'group' : 'none'}">`;
     
     for (const item of sortFileTreeItems(items, styles)) {
         const isDir = item.type === 'directory';
         const isExternal = Boolean(item.externalFileId);
         const isExpanded = expandedDirs.has(item.path);
-        const isSelected = item.path === selectedPath;
+        const isFocusTarget = item.path === (focusPath || activeFilePath);
         const isActiveFile = !isDir && item.path === activeFilePath;
-        const isOpenFile = !isDir && !isActiveFile && (openFilePaths instanceof Set ? openFilePaths.has(item.path) : openFilePaths.includes?.(item.path));
+        const isDirtyBuffer = !isDir && (dirtyPaths instanceof Set ? dirtyPaths.has(item.path) : dirtyPaths.includes?.(item.path));
         const isMultiSelected = selectedPaths.includes(item.path);
         const hasChildren = isDir && item.children && item.children.length > 0;
         const isDrawioDiagram = !isDir && isDrawioDiagramPath(item.path);
@@ -582,7 +625,7 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
         
         html += `
             <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" role="none" data-path="${escapeHtml(item.path)}" data-type="${item.type}"${isExternal ? ` data-external-file-id="${escapeHtml(item.externalFileId)}"` : ''}>
-                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isActiveFile ? 'active-file' : ''} ${isOpenFile ? 'open-file' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${isPinned ? 'pinned' : ''} ${isExternal ? 'external-file' : ''} ${appearanceClasses}" role="treeitem" tabindex="${isSelected ? '0' : '-1'}" aria-level="${depth + 1}" aria-selected="${isSelected || isMultiSelected}"${hasChildren ? ` aria-expanded="${isExpanded}"` : ''}${isNonMd ? ' aria-disabled="true"' : ''} draggable="${isExternal ? 'false' : 'true'}"${isExternal ? ` title="Outside vault: ${escapeHtml(item.path)}"` : ''}${appearanceStyle}>
+                <div class="file-tree-node ${isActiveFile ? 'selected' : ''} ${isDirtyBuffer ? 'dirty-buffer' : ''} ${isMultiSelected ? 'multi-selected' : ''} ${isNonMd ? 'non-md' : ''} ${isDrawioDiagram ? 'drawio-diagram' : ''} ${isPinned ? 'pinned' : ''} ${isExternal ? 'external-file' : ''} ${appearanceClasses}" role="treeitem" tabindex="${isFocusTarget ? '0' : '-1'}" aria-level="${depth + 1}" aria-selected="${isActiveFile || isMultiSelected}"${isActiveFile ? ' aria-current="page"' : ''}${hasChildren ? ` aria-expanded="${isExpanded}"` : ''}${isNonMd ? ' aria-disabled="true"' : ''} draggable="${isExternal ? 'false' : 'true'}"${isExternal ? ` title="Outside vault: ${escapeHtml(item.path)}"` : ''}${appearanceStyle}>
                     ${isDir ? `
                         <span class="node-chevron">${hasChildren ? `
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -603,6 +646,7 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
                         </span>
                     `}
                     <span class="node-name">${escapeHtml(item.name)}</span>
+                    ${isDirtyBuffer ? '<span class="sr-only node-dirty-status">Unsaved changes</span>' : ''}
                     ${isExternal ? `<span class="node-external-indicator" title="Outside vault" aria-label="Outside vault">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -616,7 +660,7 @@ export function buildTreeHTML(items, expandedDirs, selectedPath, selectedPaths =
                 </div>
                 ${isDir && hasChildren && isExpanded ? `
                     <div class="file-tree-children" role="group">
-                        ${buildTreeHTML(item.children, expandedDirs, selectedPath, selectedPaths, depth + 1, activeFilePath, styles, openFilePaths)}
+                        ${buildTreeHTML(item.children, expandedDirs, focusPath, selectedPaths, depth + 1, activeFilePath, styles, dirtyPaths)}
                     </div>
                 ` : ''}
             </li>
@@ -642,7 +686,7 @@ function buildFlatTreeRowHTML(row, state) {
         row.depth - 1,
         state.activeFilePath,
         state.styles,
-        state.openFilePaths,
+        state.dirtyPaths,
     );
     let html = wrapper.slice(wrapper.indexOf('>') + 1, wrapper.lastIndexOf('</ul>'));
     html = html.replace(
@@ -793,8 +837,9 @@ function initFileTreeEvents() {
                 renderFileTree();
             } else {
                 if (!isEditable && !isDiagram) return;
-                // Single select and open
-                setState('selectedFilePath', path);
+                // Focus this row, then let the successful tab activation own
+                // the selected document state. A failed read must not make an
+                // unopened file look current.
                 setState('selectedTreePath', path);
                 setState('selectedFilePaths', []);
                 if (externalFileId) {
@@ -862,7 +907,7 @@ export function toggleDirectory(path) {
 }
 
 /**
- * Get selected file path
+ * Get the active document path (the file tree's sole primary selection).
  */
 export function getSelectedFilePath() {
     return getState('selectedFilePath');
@@ -891,8 +936,17 @@ export function clearFileTreeClipboard() {
 export function copyInternalPath(path, type) {
     const normalizedPath = String(path || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
     if (!normalizedPath || (type !== 'file' && type !== 'directory')) return false;
-    internalClipboard = { path: normalizedPath, type };
+    internalClipboard = { path: normalizedPath, type, operation: 'copy' };
     statusBar.set(`Copied “${normalizedPath.split('/').pop()}”`);
+    return true;
+}
+
+/** Store one vault item for a conventional deferred move on Paste. */
+export function cutInternalPath(path, type) {
+    const normalizedPath = String(path || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+    if (!normalizedPath || (type !== 'file' && type !== 'directory')) return false;
+    internalClipboard = { path: normalizedPath, type, operation: 'cut' };
+    statusBar.set(`Cut “${normalizedPath.split('/').pop()}”`);
     return true;
 }
 
@@ -927,16 +981,42 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
     if (!internalClipboard || internalCopyInProgress) return false;
     const source = { ...internalClipboard };
     const targetDirectory = internalPasteTargetDirectory(targetPath, targetType);
+    if (source.operation === 'cut') {
+        if (isInvalidMoveDestination(source.path, targetDirectory)) {
+            await messageDialog('Move not available', 'An item cannot be moved into itself or one of its descendants.', { tone: 'warning' });
+            return false;
+        }
+        const separator = source.path.lastIndexOf('/');
+        const currentParent = separator >= 0 ? source.path.slice(0, separator) : '';
+        if (currentParent === targetDirectory) {
+            internalClipboard = null;
+            const message = `“${source.path.split('/').pop()}” is already in that folder`;
+            statusBar.set(message);
+            statusBar.clearAfter(2500, message);
+            return true;
+        }
+        if (targetDirectory) {
+            const expandedDirs = new Set(getState('expandedDirs'));
+            expandedDirs.add(targetDirectory);
+            setState('expandedDirs', expandedDirs);
+            saveSession();
+        }
+        const moved = await moveInternalPath(source.path, targetDirectory);
+        if (moved) internalClipboard = null;
+        return moved;
+    }
     if (source.type === 'directory' && isInvalidCopyDestination(source.path, targetDirectory)) {
         await showRecursiveCopyRefusal();
         return false;
     }
 
     internalCopyInProgress = true;
+    const finishActivity = beginFileTreeActivity();
     try {
         statusBar.set(`Saving “${source.path.split('/').pop()}” before copying…`);
         const saveState = await prepareTabsForPathCopy(source.path);
         if (!saveState.success) {
+            finishActivity();
             await errorDialog('Couldn’t copy item', saveState.error, 'The source could not be saved before copying.');
             statusBar.set('Copy failed');
             return false;
@@ -944,6 +1024,7 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
         statusBar.set(`Copying “${source.path.split('/').pop()}”…`);
         const result = await backend().CopyPath(source.path, targetDirectory);
         if (!result?.success) {
+            finishActivity();
             if (String(result?.error || '').toLowerCase().includes('recursive copy')) {
                 await showRecursiveCopyRefusal();
             } else {
@@ -961,15 +1042,18 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
         if (result.path) setState('selectedTreePath', result.path);
         await refreshFileTree();
         const copiedName = String(result.path || source.path).replaceAll('\\', '/').split('/').pop();
-        statusBar.set(`Created “${copiedName}”`);
-        setTimeout(() => statusBar.set('Ready'), 2500);
+        const message = `Created “${copiedName}”`;
+        statusBar.set(message);
+        statusBar.clearAfter(2500, message);
         return true;
     } catch (error) {
         log.error('Internal copy failed:', error);
+        finishActivity();
         await errorDialog('Couldn’t copy item', error, 'The item could not be copied.');
         statusBar.set('Copy failed');
         return false;
     } finally {
+        finishActivity();
         internalCopyInProgress = false;
     }
 }
@@ -991,6 +1075,30 @@ function handleFileTreeKeydown(event) {
             clientX: rect ? rect.left + Math.min(24, rect.width / 2) : 16,
             clientY: rect ? rect.bottom : 16,
         }));
+        return;
+    }
+
+    if (event.key === 'F2' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        const currentNode = event.target.closest?.('.file-tree-node[role="treeitem"]');
+        const currentPath = treeNodePath(currentNode) || getState('selectedTreePath');
+        const item = currentPath ? findTreeItem(visibleFileTreeData(), currentPath) : null;
+        if (item && !item.externalFileId && (item.type === 'file' || item.type === 'directory')) {
+            event.preventDefault();
+            event.stopPropagation();
+            renameTreePath(item.path, item.type).catch(error => log.error('Keyboard rename failed:', error));
+        }
+        return;
+    }
+
+    if (event.key === 'Delete' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        const currentNode = event.target.closest?.('.file-tree-node[role="treeitem"]');
+        const currentPath = treeNodePath(currentNode) || getState('selectedTreePath');
+        const item = currentPath ? findTreeItem(visibleFileTreeData(), currentPath) : null;
+        if (item && !item.externalFileId && (item.type === 'file' || item.type === 'directory')) {
+            event.preventDefault();
+            event.stopPropagation();
+            deletePath(item.path, item.type).catch(error => log.error('Keyboard delete failed:', error));
+        }
         return;
     }
 
@@ -1028,7 +1136,10 @@ function handleFileTreeKeydown(event) {
     const treeData = visibleFileTreeData();
     const selectedPath = getState('selectedTreePath');
     const selectedItem = selectedPath ? findTreeItem(treeData, selectedPath) : null;
-    if (key === 'c' && selectedItem && !selectedItem.externalFileId) {
+    if (key === 'x' && selectedItem && !selectedItem.externalFileId) {
+        event.preventDefault();
+        cutInternalPath(selectedItem.path, selectedItem.type);
+    } else if (key === 'c' && selectedItem && !selectedItem.externalFileId) {
         event.preventDefault();
         copyInternalPath(selectedItem.path, selectedItem.type);
     } else if (key === 'v' && internalClipboard) {
@@ -1148,13 +1259,13 @@ async function handleDrop(e) {
 export async function moveInternalPath(sourcePath, targetDir) {
     if (internalMoveInProgress) return false;
     internalMoveInProgress = true;
-    const tree = document.getElementById('file-tree');
-    tree?.setAttribute('aria-busy', 'true');
+    let finishActivity = beginFileTreeActivity();
     const itemName = String(sourcePath || '').replaceAll('\\', '/').split('/').pop() || 'item';
     statusBar.set(`Moving “${itemName}”…`);
     try {
         const saveState = await prepareTabsForPathMove(sourcePath);
         if (!saveState.success) {
+            finishActivity();
             statusBar.set('Move not completed');
             await errorDialog('Couldn’t move item', saveState.error, 'Save open files before moving them.');
             return false;
@@ -1163,6 +1274,8 @@ export async function moveInternalPath(sourcePath, targetDir) {
         let result = await backend().MovePath(sourcePath, targetDir);
         let merged = false;
         if (!result?.success && result?.merge_available) {
+            finishActivity();
+            finishActivity = null;
             const directoryName = String(sourcePath || '').replaceAll('\\', '/').split('/').pop();
             const confirmed = await confirmDialog(
                 'Destination directory already exists',
@@ -1178,10 +1291,12 @@ export async function moveInternalPath(sourcePath, targetDir) {
                 return false;
             }
             statusBar.set(`Merging “${directoryName}”…`);
+            finishActivity = beginFileTreeActivity();
             result = await backend().MergeDirectory(sourcePath, targetDir);
             merged = true;
         }
         if (!result?.success) {
+            finishActivity?.();
             statusBar.set('Move failed');
             await errorDialog('Couldn’t move item', result?.error, 'The item could not be moved.');
             return false;
@@ -1217,12 +1332,13 @@ export async function moveInternalPath(sourcePath, targetDir) {
         return true;
     } catch (err) {
         log.error('Move failed:', err);
+        finishActivity?.();
         statusBar.set('Move failed');
         await errorDialog('Couldn’t move item', err, 'The item could not be moved.');
         return false;
     } finally {
+        finishActivity?.();
         internalMoveInProgress = false;
-        tree?.setAttribute('aria-busy', 'false');
     }
 }
 
@@ -1271,6 +1387,7 @@ export async function copyExternalDrop(paths, targetDirectory, {
 } = {}) {
     if (externalCopyInProgress || !Array.isArray(paths) || paths.length === 0 || targetDirectory === null) return false;
     externalCopyInProgress = true;
+    let finishActivity = null;
     try {
         if (confirmTreeImport) {
             const confirmed = await confirmExternalTreeImport(paths, targetDirectory, {
@@ -1301,10 +1418,13 @@ export async function copyExternalDrop(paths, targetDirectory, {
             openImportedFiles = dropped.action === 'import';
         } else {
             statusBar.set(`Copying ${paths.length} dropped ${paths.length === 1 ? 'item' : 'items'}…`);
+            finishActivity = beginFileTreeActivity();
             result = await backend().CopyExternalPaths(paths, targetDirectory, false);
         }
         const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
         if (!result?.success && conflicts.length > 0) {
+            finishActivity?.();
+            finishActivity = null;
             const directoryConflicts = Array.isArray(result?.directory_conflicts) ? result.directory_conflicts : [];
             const names = conflicts.map(path => String(path).replaceAll('\\', '/').split('/').pop()).filter(Boolean);
             const visibleNames = names.slice(0, 6).map(name => `“${name}”`).join(', ');
@@ -1323,6 +1443,7 @@ export async function copyExternalDrop(paths, targetDirectory, {
                     return false;
                 }
                 statusBar.set(`Merging ${directoryConflicts.length} dropped ${directoryConflicts.length === 1 ? 'directory' : 'directories'}…`);
+                finishActivity = beginFileTreeActivity();
                 result = await backend().MergeExternalPaths(paths, targetDirectory);
             } else {
                 const noun = conflicts.length === 1 ? 'item already exists' : 'items already exist';
@@ -1339,10 +1460,12 @@ export async function copyExternalDrop(paths, targetDirectory, {
                     return false;
                 }
                 statusBar.set(`Replacing ${conflicts.length} existing ${conflicts.length === 1 ? 'item' : 'items'}…`);
+                finishActivity = beginFileTreeActivity();
                 result = await backend().CopyExternalPaths(paths, targetDirectory, true);
             }
         }
         if (!result?.success) {
+            finishActivity?.();
             await errorDialog('Couldn’t copy dropped items', result?.error, 'The dropped items could not be copied.');
             statusBar.set('Copy failed');
             return false;
@@ -1358,15 +1481,18 @@ export async function copyExternalDrop(paths, targetDirectory, {
             openImportedExternalFileTabs(result.paths, getState('fileTreeData'));
         }
         const copied = Array.isArray(result.paths) ? result.paths.length : paths.length;
-        statusBar.set(`Copied ${copied} ${copied === 1 ? 'item' : 'items'} into the vault`);
-        setTimeout(() => statusBar.set('Ready'), 2500);
+        const message = `Copied ${copied} ${copied === 1 ? 'item' : 'items'} into the vault`;
+        statusBar.set(message);
+        statusBar.clearAfter(2500, message);
         return true;
     } catch (error) {
         log.error('External file copy failed:', error);
+        finishActivity?.();
         await errorDialog('Couldn’t copy dropped items', error, 'The dropped items could not be copied.');
         statusBar.set('Copy failed');
         return false;
     } finally {
+        finishActivity?.();
         externalCopyInProgress = false;
     }
 }
@@ -1493,6 +1619,10 @@ function handleContextMenu(e) {
             copyInternalPath(getState('contextTargetPath'), getState('contextTargetType'));
             break;
 
+        case 'cut':
+            cutInternalPath(getState('contextTargetPath'), getState('contextTargetType'));
+            break;
+
         case 'paste':
             await pasteInternalClipboard(getState('contextTargetPath'), getState('contextTargetType'));
             break;
@@ -1535,26 +1665,6 @@ function handleContextMenu(e) {
 
         case 'merge-notes':
             await mergeSelectedNotes();
-            break;
-
-        case 'preview-pdf':
-            try {
-                const targetPath = getState('contextTargetPath');
-                await openPDFPreview({ path: targetPath, title: targetPath.split('/').pop() });
-            } catch (err) {
-                log.error('PDF preview failed:', err);
-                await errorDialog('Couldn’t open PDF preview', err, 'The PDF preview could not be opened.');
-            }
-            break;
-
-        case 'preview-raw-text':
-            try {
-                const targetPath = getState('contextTargetPath');
-                await openRawTextPreview({ path: targetPath, title: targetPath.split('/').pop() });
-            } catch (err) {
-                log.error('Raw text preview failed:', err);
-                await errorDialog('Couldn’t open raw text preview', err, 'The raw text preview could not be opened.');
-            }
             break;
 
         default:
@@ -1816,14 +1926,18 @@ async function renameTreePath(path, type) {
         });
         if (nameReview !== 'proceed') return;
     }
+    statusBar.set(`Renaming “${oldName}”…`);
+    const finishActivity = beginFileTreeActivity();
     try {
         const saveState = await prepareTabsForPathMove(path);
         if (!saveState.success) {
+            finishActivity();
             await errorDialog(`Couldn’t rename ${kind}`, saveState.error, `Save open files before renaming this ${kind}.`);
             return;
         }
         const result = await backend().RenamePath(path, newPath);
         if (!result.success) {
+            finishActivity();
             await errorDialog(`Couldn’t rename ${kind}`, result.error, `The ${kind} could not be renamed.`);
             return;
         }
@@ -1836,12 +1950,21 @@ async function renameTreePath(path, type) {
         await refreshTabsForUpdatedLinks(result.updated_links);
         const linkCount = Array.isArray(result.updated_links) ? result.updated_links.length : 0;
         if (linkCount) {
-            statusBar.set(`Updated links in ${linkCount} ${linkCount === 1 ? 'note' : 'notes'}`);
-            setTimeout(() => statusBar.set('Ready'), 2500);
+            const message = `Updated links in ${linkCount} ${linkCount === 1 ? 'note' : 'notes'}`;
+            statusBar.set(message);
+            statusBar.clearAfter(2500, message);
+        } else {
+            const message = `Renamed “${oldName}” to “${nextName}”`;
+            statusBar.set(message);
+            statusBar.clearAfter(2500, message);
         }
     } catch (err) {
         log.error('Rename failed:', err);
+        finishActivity();
+        statusBar.set('Rename failed');
         await errorDialog(`Couldn’t rename ${kind}`, err, `The ${kind} could not be renamed.`);
+    } finally {
+        finishActivity();
     }
 }
 
@@ -1888,10 +2011,13 @@ export async function deletePath(path, type = 'file') {
     
     if (!confirmed) return;
 
+    statusBar.set(`Deleting “${name}”…`);
+    const finishActivity = beginFileTreeActivity();
     try {
         const kind = type === 'directory' ? 'folder' : 'file';
         const saveState = await prepareTabsForPathDelete(path);
         if (!saveState.success) {
+            finishActivity();
             await errorDialog(`Couldn’t delete ${kind}`, saveState.error, `Save open files before deleting this ${kind}.`);
             return;
         }
@@ -1905,12 +2031,33 @@ export async function deletePath(path, type = 'file') {
             if (selectedTreePath === path || selectedTreePath?.startsWith(path + '/')) {
                 setState('selectedTreePath', null);
             }
+            if (result.deleted_id) {
+                const message = `Deleted “${name}” ·`;
+                const showUndo = () => {
+                    statusBar.setWithAction(message, 'Undo', async () => {
+                        const restored = await restoreRecentlyDeletedItem(result.deleted_id, name);
+                        if (!restored) showUndo();
+                    }, { ariaLabel: `Undo deletion of ${name}` });
+                    statusBar.clearAfter(10000, message);
+                };
+                showUndo();
+            } else {
+                const message = `Deleted “${name}”`;
+                statusBar.set(message);
+                statusBar.clearAfter(2500, message);
+            }
         } else {
+            finishActivity();
+            statusBar.set('Delete failed');
             await errorDialog('Couldn’t delete item', result.error, 'The item could not be deleted.');
         }
     } catch (err) {
         log.error('Delete failed:', err);
+        finishActivity();
+        statusBar.set('Delete failed');
         await errorDialog('Couldn’t delete item', err, 'The item could not be deleted.');
+    } finally {
+        finishActivity();
     }
 }
 

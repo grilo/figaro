@@ -743,6 +743,27 @@
     color: var(--danger-color);
 }
 
+.ui-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-top-color: var(--accent-color);
+    border-radius: 50%;
+    color: var(--text-muted);
+    animation: ui-spinner-turn 720ms linear infinite;
+}
+
+.ui-spinner[hidden] {
+    display: none;
+}
+
+@keyframes ui-spinner-turn {
+    to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .ui-picker-trigger,
     .ui-picker-trigger > svg,
@@ -755,5 +776,9 @@
     .ui-date-picker-day,
     .ui-field {
         transition: none;
+    }
+
+    .ui-spinner {
+        animation: none;
     }
 }

@@ -1,5 +1,6 @@
 import {
     directoryPathsForReveal,
+    dirtyFilePaths,
     fileTreeKeyboardPlan,
     fileTreeWindow,
     isFileTreeEntryPinned,
@@ -38,6 +39,16 @@ describe('file tree model', () => {
         expect([...expanded]).toEqual(['Notes']);
         expect(toggleSelectedPath(['a.md'], 'b.md')).toEqual(['a.md', 'b.md']);
         expect(toggleSelectedPath(['a.md', 'b.md'], 'a.md')).toEqual(['b.md']);
+    });
+
+    test('marks dirty file buffers without treating clean open files as a state', () => {
+        expect([...dirtyFilePaths([
+            { type: 'file', path: 'active.md', dirty: true },
+            { type: 'file', path: 'clean.md', dirty: false },
+            { type: 'file', path: 'draft.md', dirty: true },
+            { type: 'drawio', path: 'diagram.drawio.svg', dirty: true },
+            { type: 'settings', path: 'ignored.md', dirty: true },
+        ])]).toEqual(['active.md', 'draft.md', 'diagram.drawio.svg']);
     });
 
     test('plans every ancestor needed to reveal a nested folder', () => {

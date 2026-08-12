@@ -275,6 +275,32 @@ func TestHugeVaultStress(t *testing.T) {
 	if report.IndexedFiles != manifest.DocumentCount {
 		t.Fatalf("indexed files = %d, want %d", report.IndexedFiles, manifest.DocumentCount)
 	}
+	copyValue := recordHugeVaultMetric(t, &report, "copy_small_note_warm", func() (any, int, error) {
+		result, copyErr := app.CopyPath(manifest.Sources["small"], ".")
+		if copyErr == nil && (result == nil || !result.Success) {
+			return result, 0, fmt.Errorf("copy rejected: %+v", result)
+		}
+		return result, 1, copyErr
+	})
+	copyResult := copyValue.(*SaveFileResult)
+	defer func() {
+		root, openErr := app.openVaultRoot()
+		if openErr != nil {
+			t.Errorf("open stress vault to remove copied note: %v", openErr)
+			return
+		}
+		defer root.Close()
+		if cleanupErr := root.RemoveAll(filepath.FromSlash(copyResult.Path)); cleanupErr != nil {
+			t.Errorf("remove copied stress note %q: %v", copyResult.Path, cleanupErr)
+		}
+	}()
+	copyTreeValue := recordHugeVaultMetric(t, &report, "file_tree_after_small_copy", func() (any, int, error) {
+		tree, treeErr := app.GetFileTree()
+		return tree, treeItemCount(tree), treeErr
+	})
+	if count := treeItemCount(copyTreeValue.([]*FileTreeItem)); count != manifest.DocumentCount+1 {
+		t.Fatalf("file tree after copy documents = %d, want %d", count, manifest.DocumentCount+1)
+	}
 	if reportPath := os.Getenv("FIGARO_STRESS_REPORT"); reportPath != "" {
 		if err := os.MkdirAll(filepath.Dir(reportPath), 0755); err != nil {
 			t.Fatalf("create stress report directory: %v", err)

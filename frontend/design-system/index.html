@@ -191,6 +191,7 @@
                             </div>
                             <div class="top-bar-center"></div>
                             <div class="top-bar-right">
+                                <button class="ui-icon-button md-cheatsheet-trigger" aria-label="Markdown cheatsheet">?</button>
                                 <button class="ui-icon-button icon-btn titlebar-settings-btn" aria-label="Settings">
                                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
                                 </button>
@@ -267,11 +268,11 @@
                 </div>
 
                 <article class="ds-specimen">
-                    <header><h3>Status bar</h3><code class="ds-selector">.status-bar</code><code class="ds-selector">.md-cheatsheet-trigger</code></header>
+                    <header><h3>Status bar</h3><code class="ds-selector">.status-bar</code><code class="ds-selector">.status-backlinks</code></header>
                     <div class="ds-demo ds-demo--flush">
                         <footer class="status-bar ds-status-bar">
-                            <div class="status-left"><span>Ready</span><span class="status-separator">|</span><button class="md-cheatsheet-trigger">md cheatsheet</button></div>
-                            <div class="status-right"><span>Ln 12, Col 8</span><span class="status-separator">|</span><span>2 min read</span><span class="status-separator">|</span><a class="status-backlinks">3 backlinks</a></div>
+                            <div class="status-left"><span>Deleted “Draft.md” ·</span><button class="status-inline-action">Undo</button></div>
+                            <div class="status-right"><span>Ln 12, Col 8</span><span class="status-separator">|</span><span>2 min read</span><span class="status-separator">|</span><button class="status-backlinks has-backlinks">3 backlinks</button><span class="status-separator">|</span><button class="status-history has-history">8 changes</button></div>
                         </footer>
                     </div>
                 </article>
@@ -466,8 +467,9 @@
                         <div class="ds-demo">
                             <div class="ui-menu context-menu">
                                 <div class="ui-menu-label context-menu-label">Note</div>
-                                <button class="ui-menu-item context-menu-item">Open in new tab</button>
-                                <button class="ui-menu-item context-menu-item">Rename</button>
+                                <button class="ui-menu-item context-menu-item"><span class="context-menu-item-label">Cut</span><span class="context-menu-item-shortcut">Ctrl+X</span></button>
+                                <button class="ui-menu-item context-menu-item"><span class="context-menu-item-label">Copy</span><span class="context-menu-item-shortcut">Ctrl+C</span></button>
+                                <button class="ui-menu-item context-menu-item"><span class="context-menu-item-label">Paste</span><span class="context-menu-item-shortcut">Ctrl+V</span></button>
                                 <div class="ui-menu-separator context-menu-separator"></div>
                                 <button class="ui-menu-item context-menu-item disabled">Unavailable</button>
                                 <button class="ui-menu-item context-menu-item danger">Delete</button>
@@ -753,6 +755,10 @@ title: A quiet workspace
                     <article class="ds-specimen">
                         <header><h3>Preview status</h3><code class="ds-selector">.raw-text-preview-status</code><code class="ds-selector">.pdf-preview-status</code></header>
                         <div class="ds-demo ds-form-stack">
+                            <div class="ds-inline-progress" role="status">
+                                <span class="ui-spinner" aria-hidden="true"></span>
+                                <span>Updating vault…</span>
+                            </div>
                             <p class="ui-notice raw-text-preview-status">Loading raw text…</p>
                             <p class="ui-notice ui-notice--danger raw-text-preview-status" data-kind="error">Could not read this note.</p>
                             <p class="ui-notice pdf-preview-status">Generating printable document…</p>

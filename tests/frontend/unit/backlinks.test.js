@@ -28,7 +28,24 @@ describe('empty and failed backlink lookups', () => {
         expect(state.backlinksTargetPath).toBe('target.md');
         expect(document.getElementById('backlinks-status').textContent).toBe('0 backlinks');
         expect(document.getElementById('backlinks-status').title).toBe('No backlinks found');
+        expect(document.getElementById('backlinks-status').tagName).toBe('BUTTON');
+        expect(document.getElementById('backlinks-status').disabled).toBe(true);
         expect(consoleError).not.toHaveBeenCalled();
+    });
+
+    test('enables the native status button when relationships are available', async () => {
+        window.go.desktop.App.SearchBacklinks.mockResolvedValueOnce([{
+            path: 'linked.md', name: 'linked.md', line_num: 4,
+            context: 'See [Target](target.md).', match_text: 'Target',
+        }]);
+
+        await updateBacklinksForActiveTab();
+
+        const button = document.getElementById('backlinks-status');
+        expect(button.tagName).toBe('BUTTON');
+        expect(button.disabled).toBe(false);
+        expect(button.classList.contains('has-backlinks')).toBe(true);
+        expect(button.title).toBe('Open 1 backlink');
     });
 
     test('renders an empty backlinks tab without producing an error log', async () => {

@@ -6,8 +6,9 @@ layout.
 
 ## Live preview
 
-Choose **Preview PDF** from a Markdown note's context menu, editor context
-menu, or **Properties → PDF layout**. The right pane renders the same
+Choose **Preview PDF** from the editor context menu or **Properties → PDF
+layout**. The file-tree context menu deliberately prioritizes file operations.
+The right pane renders the same
 printable document structure used for export inside an isolated preview, so a
 note stylesheet cannot change the application interface. It updates after a
 short delay while you edit the note or its selected stylesheet; changes saved

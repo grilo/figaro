@@ -44,20 +44,3 @@ test('opens exact Markdown source from the editor menu and closes it by keyboard
     await expect(panel).toBeHidden();
     await expect(sidebar).not.toHaveClass(/open/);
 });
-
-test('opens raw text from a Markdown file-tree menu', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForFunction(() => window._appReady === true);
-
-    const file = page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node');
-    await file.click({ button: 'right' });
-    const action = page.locator('.context-menu [data-action="preview-raw-text"]');
-    await expect(action).toBeVisible();
-    await action.click();
-
-    const panel = page.locator('#raw-text-preview-panel');
-    await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'raw-text-preview');
-    await expect(panel).toBeVisible();
-    await expect(panel.locator('.raw-text-preview-document-title')).toHaveText('Welcome');
-    await expect(panel.locator('.raw-text-preview-source')).not.toBeEmpty();
-});

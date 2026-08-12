@@ -35,7 +35,9 @@ the reported timings.
 
 The final 2026-08-12 verification rebuilt the fixture and passed every oracle.
 It measured a 1,215 ms cold index, 647/669 ms indexed move and restore, 0.3 ms
-path-scoped Git status, and a 16.5 ms warm tree projection. Browser renders took
+path-scoped Git status, and a 16.5 ms warm tree projection. A follow-up copy
+profile measured a 234 ms warm small-note copy and 10 ms post-copy tree
+projection, down from 783 ms plus a 220 ms tree rescan. Browser renders took
 102 ms for search, 133 ms for Kanban, 187 ms for the fully expanded tree, and
 119 ms for backlinks while mounting only the documented bounded windows.
 
@@ -51,6 +53,7 @@ path-scoped Git status, and a 16.5 ms warm tree projection. Browser renders took
 | PERF-06 | Resolved | Moving or restoring the top-level `Areas` subtree previously took 2,165–2,762 ms and allocated about 576 MB per direction. Repeated indexed checkpoints completed in 436–687 ms and allocated about 188 MB per direction. | Move planning now validates the warm index against filesystem metadata, checks only Markdown files whose source or internal target intersects the moved tree, remaps affected index entries, and reconstructs derived projections from retained in-memory records. A stale snapshot falls back to the complete root-scoped scan and cold rebuild. | Preserve the sparse supported-syntax oracle, explicit stale-index fallback test, warm-vs-cold projections, rollback behavior, and activity state. |
 | PERF-07 | Resolved | Checking Git status for one note previously took 1,166–1,466 ms and allocated about 205 MB. The path-scoped reference check took 0.2 ms and allocated about 15 KB. | The adapter now compares only the requested path across HEAD, the Git index, and root-scoped worktree metadata/content. Applicable ancestor `.gitignore` rules are evaluated without enumerating unrelated files; submodules retain the complete-status fallback. | Preserve the full-worktree differential matrix for clean, modified, staged, deleted, untracked, root/nested ignored, negated, executable-mode, staged-delete/recreate, and rename states. |
 | PERF-08 | Resolved | File-tree scans previously took 270–365 ms and returned a 2.48 MB JSON payload even after the search index was warm. The cached warm projection took 16 ms; serialization remained 11 ms for the intentionally complete payload. | The backend publishes an immutable tree snapshot, retains flat path metadata, updates known file saves/creates, and remaps known moves in memory. Broad or ambiguous mutations and unscoped watcher events invalidate the cache and retain the complete root-scoped scan fallback. | Preserve snapshot reuse, pure hierarchy projection, known create/move remapping, external-change invalidation, symlink omission, and disk/warm/cold tree equivalence. Consider an incremental bridge payload only if serialization becomes material. |
+| PERF-09 | Resolved | Copying one small note previously took 783 ms because it synchronously rebuilt the complete Markdown index; the following tree request took another 220 ms. The guarded 10,000-note profile now measures 234 ms for the copy and 10 ms for the warm tree projection. | A copy validates pre-existing Markdown metadata, parses and adds only the new subtree to a current index/tree cache, and acknowledges exact copied watcher paths. A stale index retains the complete rebuild fallback. | Preserve warm-vs-cold copied search, backlink, Kanban, calendar, health, and tree equivalence; exact stale-index fallback; cache identity; watcher suppression; link rewriting; and non-destructive collisions. |
 
 Severity uses the audit scale: 3 blocks or substantially impairs a primary
 workflow, 2 causes meaningful friction, and 1 is minor. P1 means fix next; P2
@@ -86,6 +89,7 @@ means schedule soon.
 | Vault health, warm | 549 ms | <1 ms | no issues |
 | Git status, one file | 1,466 ms | <1 ms | one Boolean |
 | Move / restore `Areas` | 2,762 / 2,694 ms | <1 ms | no rewritten links |
+| Copy small note, warm / tree after copy | 234 / 10 ms | <1 / 4 ms | one copied note / 10,001 files |
 
 ### Browser boundaries
 
@@ -114,6 +118,7 @@ means schedule soon.
 | Indexed move rewrite planning and remapping | 2,165–2,762 ms; ~576 MB cumulative allocation per direction | 436–687 ms; ~188 MB cumulative allocation per direction | Full harness passed. Sparse links among decoy notes, every supported link syntax, stale-index fallback, unchanged decoys, and warm-vs-fresh-cold state after the move all remain asserted. |
 | Path-scoped Git status | 1,166–1,466 ms; ~205 MB cumulative allocation | 0.2 ms; ~15 KB cumulative allocation | Full harness and the expanded full-worktree oracle passed across tracked, staged, ignored, mode-change, deletion/recreation, and rename states. |
 | Cached file-tree projection | 227–365 ms backend rediscovery plus 4–13 ms serialization | 16 ms in-memory hierarchy projection plus 11 ms serialization | Full harness passed; focused tests prove immutable reuse and known create/move remapping, while the differential oracle still compares warm paths with both a fresh rebuild and an independent disk walk. |
+| Incremental internal copy | 783 ms copy plus 220 ms post-copy tree rediscovery | 234 ms metadata-guarded copy plus 10 ms in-memory tree projection | Focused tests prove retained cache/index identity, exact copied-path watcher acknowledgement, link correctness, warm-vs-fresh-cold projections, independent disk-tree equality, and a cold fallback after an unobserved external Markdown create. |
 
 Raw JSON reports are written under the ignored `stress-vault/` directory by
 the commands in [`docs/TESTING.md`](TESTING.md). Re-run the profiles on the
@@ -125,7 +130,7 @@ Performance work starts only after behavior is observable independently from
 timing. The harness now provides four complementary safety nets:
 
 1. Warm incremental index state is compared with a fresh rebuild after saves,
-   external watcher events, a directory move, and removal. Search,
+   external watcher events, a directory copy, a directory move, and removal. Search,
    relationships, Kanban, calendar, health, and tree projections must be
    identical and match stage-specific golden paths/dates; the tree is
    additionally checked against an independent disk walk.

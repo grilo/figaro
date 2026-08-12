@@ -67,18 +67,23 @@ export async function updateBacklinksForActiveTab() {
                 statusEl.textContent = count === 1 ? '1 backlink' : `${count} backlinks`;
                 if (count > 0) {
                     statusEl.classList.add('has-backlinks');
-                    statusEl.style.cursor = 'pointer';
-                    statusEl.title = `Click to see ${count} backlink${count !== 1 ? 's' : ''}`;
+                    statusEl.disabled = false;
+                    statusEl.title = `Open ${count} backlink${count !== 1 ? 's' : ''}`;
                 } else {
                     statusEl.classList.remove('has-backlinks');
-                    statusEl.style.cursor = 'default';
+                    statusEl.disabled = true;
                     statusEl.title = 'No backlinks found';
                 }
             }
         } catch (err) {
             if (requestId !== backlinksRequestId || getState('activeTabId') !== activeTab.id) return;
             log.error(`Failed to load backlinks: ${backlinkErrorMessage(err)}`);
-            if (statusEl) statusEl.textContent = '0 backlinks';
+            if (statusEl) {
+                statusEl.textContent = '0 backlinks';
+                statusEl.classList.remove('has-backlinks');
+                statusEl.disabled = true;
+                statusEl.title = 'Backlinks could not be loaded';
+            }
         }
     } else {
         setState('backlinksData', []);
@@ -86,7 +91,8 @@ export async function updateBacklinksForActiveTab() {
         if (statusEl) {
             statusEl.textContent = '0 backlinks';
             statusEl.title = 'Open a file to see backlinks';
-            statusEl.style.cursor = 'default';
+            statusEl.classList.remove('has-backlinks');
+            statusEl.disabled = true;
         }
     }
 }

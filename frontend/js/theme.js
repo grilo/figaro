@@ -845,58 +845,43 @@ function initCheatsheet() {
     if (!cheatsheetTrigger || !cheatsheetPopup || !wrapper || cheatsheetTrigger.dataset.initialized === 'true') return;
 
     cheatsheetTrigger.dataset.initialized = 'true';
-    let closeTimer = null;
-
     const setOpen = (open, { restoreFocus = false } = {}) => {
         const changed = cheatsheetPopup.classList.contains('open') !== open;
         cheatsheetPopup.classList.toggle('open', open);
+        cheatsheetPopup.hidden = !open;
         cheatsheetTrigger.setAttribute('aria-expanded', String(open));
         if (!open && restoreFocus && changed) cheatsheetTrigger.focus();
     };
-    const cancelClose = () => {
-        if (closeTimer) window.clearTimeout(closeTimer);
-        closeTimer = null;
-    };
-    const open = () => {
-        cancelClose();
-        setOpen(true);
-    };
-    const closeAfterPointerLeaves = () => {
-        cancelClose();
-        closeTimer = window.setTimeout(() => {
-            if (!wrapper.matches(':hover') && !wrapper.matches(':focus-within')) setOpen(false);
-        }, 120);
-    };
-
-    wrapper.addEventListener('pointerenter', open);
-    wrapper.addEventListener('pointerleave', closeAfterPointerLeaves);
-    wrapper.addEventListener('focusin', open);
-    wrapper.addEventListener('focusout', closeAfterPointerLeaves);
     cheatsheetTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
-        open();
-        setTimeout(() => cheatsheetClose?.focus(), 0);
+        const open = !cheatsheetPopup.classList.contains('open');
+        setOpen(open);
+        if (open) setTimeout(() => cheatsheetClose?.focus(), 0);
     });
     wrapper.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape' || !cheatsheetPopup.classList.contains('open')) return;
         e.preventDefault();
         e.stopPropagation();
-        cancelClose();
         setOpen(false, { restoreFocus: true });
+    });
+    wrapper.addEventListener('focusout', event => {
+        if (!cheatsheetPopup.classList.contains('open') || wrapper.contains(event.relatedTarget)) return;
+        setOpen(false);
     });
     if (cheatsheetClose) {
         cheatsheetClose.addEventListener('click', (e) => {
             e.stopPropagation();
-            cancelClose();
             setOpen(false, { restoreFocus: true });
         });
     }
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.md-cheatsheet-wrapper')) {
-            cancelClose();
             setOpen(false);
         }
     });
+
+    // The popup starts hidden even in test fixtures that omit the attribute.
+    setOpen(false);
 }
 
 const FONTS = [

@@ -127,9 +127,21 @@ Opening a Markdown file from outside the vault offers two safe choices:
 
 Files and folders can also be copied or dropped into the tree. Figaro asks
 before importing, preserves directory structure, and never silently overwrites
-existing content. A long internal move is announced in the live status bar;
-while it is running, Figaro ignores duplicate drag attempts instead of starting
-the same move twice.
+existing content. An internal copy updates only the new subtree in Figaro's
+warm discovery data, so large vaults do not rediscover every unrelated note
+before showing the result. F2 renames the focused vault item, Delete opens the
+recovery-aware confirmation, and Ctrl/Cmd+X, Ctrl/Cmd+C, and Ctrl/Cmd+V provide
+conventional Cut/Copy/Paste. The tree context menu shows those shortcuts and
+keeps Raw Text/PDF preview in the editor context menu and Properties. Copy/import,
+move/merge, rename, and delete announce their activity immediately and add a
+status-bar spinner if they run for at least one second. While a move is running,
+Figaro ignores duplicate drag attempts instead of starting the same move
+twice.
+
+The tree's selected row is always the document currently being viewed and
+follows tab switches immediately. Arrow-key focus and Ctrl/Cmd multi-selection
+remain independent, while clean background tabs add no marker; a warning dot
+appears only for an unsaved in-memory buffer.
 
 When a new or renamed Markdown note resembles another note in the same folder
 after ignoring spacing, punctuation, and capitalization, Figaro offers to open
@@ -137,6 +149,11 @@ the existing note first. It never merges notes automatically. The on-demand
 **Settings → Vault care** scan lists repeated filenames separately and only
 shows them as informational; it only suggests cross-folder name variants when
 their content also strongly overlaps.
+
+Vault deletion remains directly recoverable: the status bar offers **Undo**
+for ten seconds, and **Settings → Vault care → Recently deleted** keeps the
+Git-backed recovery record afterward. Restore refuses to replace a file or
+folder that now occupies the original path.
 
 The same guard applies when activating a missing conventional Markdown link.
 Choosing **Use existing note** changes only its destination—for example,
@@ -228,7 +245,9 @@ successfully saved, and the **Save to history** action never sweeps unrelated
 staged work into the note's history. Deleting from the file tree bypasses the
 system Trash, but first saves affected open editors and records the file—or
 every file in a folder—in local history. If that archive cannot be recorded,
-Figaro leaves the item untouched. A failed document save keeps the buffer dirty
+Figaro leaves the item untouched. Each successful deletion is registered in
+the vault's durable **Recently deleted** list and can be restored from its exact
+Git snapshot without overwriting new content at the same path. A failed document save keeps the buffer dirty
 and announces its concrete cause in the status bar so the text can be recovered
 or saved again.
 

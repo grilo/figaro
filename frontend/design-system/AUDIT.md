@@ -1,11 +1,11 @@
 # Figaro UI audit
 
-Audit snapshot: 2026-08-07. The approved consolidation is represented by the
+Audit snapshot: 2026-08-12. The approved consolidation is represented by the
 [visual catalogue](index.html) and used by the production interface.
 
 ## Consolidated foundation
 
-Eleven approved families now use shared production
+Twelve approved families now use shared production
 primitives in `frontend/design-system/primitives.css`. Both Figaro and this
 catalogue load that canonical asset, and `approved-components.json` records the
 approved selector set:
@@ -23,6 +23,7 @@ approved selector set:
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
 | Document tabs | `.ui-document-tabs`, `.ui-document-tab`, and state modifiers | Overflow geometry, ordering, drag placement, and tab controller behavior |
 | Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table labels, and CodeMirror gutter behavior |
+| Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
 
 The primitives own the repeated border, radius, surface, typography, focus,
 hover, active, disabled, busy, selected, and semantic-color rules. Existing
@@ -48,6 +49,18 @@ commands; the shared primitives own only their themed interaction states.
 The interactive table's direct delete action reuses the approved danger-ghost
 button; its absolute placement within the measured widget is a table-layout
 hook rather than a new component or visual variant.
+
+The title-bar Markdown `?` reuses the approved icon button, and Recently
+deleted reuses Settings sections plus the approved compact action. Backlink,
+History-count, and status Undo controls are native buttons whose existing
+status typography remains deliberately link-like, including the pointer
+cursor. File-menu shortcut text is a muted content-alignment hook inside the
+approved menu item, not a new menu state or variant.
+
+The file tree reuses its established selected surface for the active document,
+the global focus token for independent roving focus, and `--warning-color` for
+unsaved buffers. Clean background tabs intentionally have no visual state; no
+new component variant or theme token is introduced.
 
 The shared control-size tokens (`--ui-control-height`,
 `--ui-compact-height`, and `--ui-badge-height`) and radius/padding tokens make
@@ -92,7 +105,7 @@ so all 17 theme files now contain token overrides only.
 
 ## Verification
 
-- `tests/frontend/unit/designSystemCatalog.test.js` verifies all eleven
+- `tests/frontend/unit/designSystemCatalog.test.js` verifies all twelve
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, and keeps cards and toggles

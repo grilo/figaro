@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"figaro/internal/mutations"
+	"figaro/internal/recovery"
 )
 
 // CreateDirectory creates a new folder in the vault.
@@ -52,7 +53,8 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 		return nil, err
 	}
 	defer root.Close()
-	if _, err := root.Stat(cleanRel); os.IsNotExist(err) {
+	pathInfo, err := root.Lstat(cleanRel)
+	if os.IsNotExist(err) {
 		return &SaveFileResult{Success: false, Error: "Path not found"}, nil
 	} else if err != nil {
 		return nil, err
@@ -60,11 +62,24 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 	if a.history == nil {
 		return &SaveFileResult{Success: false, Error: "Local history is unavailable. Nothing was deleted."}, nil
 	}
-	if err := a.history.ArchivePathWithVaultLocked(cleanRel); err != nil {
+	snapshot, err := a.history.ArchivePathSnapshotWithVaultLocked(cleanRel)
+	if err != nil {
 		return &SaveFileResult{
 			Success: false,
 			Error:   fmt.Sprintf("Could not record the current contents in local history: %v. Nothing was deleted.", err),
 		}, nil
+	}
+	kind := "file"
+	if pathInfo.IsDir() {
+		kind = "directory"
+	}
+	deleted := newRecentlyDeletedItem(cleanRel, kind, snapshot)
+	items, err := a.readRecentlyDeletedLocked()
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: fmt.Sprintf("Could not read the recovery list: %v. Nothing was deleted.", err)}, nil
+	}
+	if err := a.writeRecentlyDeletedLocked(recovery.Add(items, deleted)); err != nil {
+		return &SaveFileResult{Success: false, Error: fmt.Sprintf("Could not update the recovery list: %v. Nothing was deleted.", err)}, nil
 	}
 	if err := root.RemoveAll(cleanRel); err != nil {
 		return nil, err
@@ -78,7 +93,7 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 	}
 	a.resetFileVersionsLocked()
 	a.syncKanbanColumnsLocked()
-	return &SaveFileResult{Success: true}, nil
+	return &SaveFileResult{Success: true, DeletedID: deleted.ID}, nil
 }
 
 // RenamePath renames/moves a file or folder.
@@ -590,8 +605,28 @@ func (a *App) CopyPath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 		return &SaveFileResult{Success: false, Error: fmt.Sprintf("Could not preserve links in copied item %q: %v", filepath.Base(sourceClean), rewriteErr)}, nil
 	}
 
-	a.invalidateFileTreeCacheLocked()
-	a.syncKanbanColumnsLocked()
+	indexCurrent, validationErr := vaultIndexMatchesMarkdownFilesExcluding(root, a.vaultIndex, destination)
+	if validationErr != nil {
+		log.Printf("[vault-index] Could not validate the warm index after copying %q: %v", filepath.ToSlash(destination), validationErr)
+		indexCurrent = false
+	}
+	copiedPaths, refreshErr := a.refreshVaultStateAfterCopyLocked(root, destination, indexCurrent)
+	if refreshErr != nil {
+		log.Printf("[vault-index] Could not update copied paths incrementally: %v", refreshErr)
+		indexCurrent = false
+	}
+	if !indexCurrent {
+		a.syncKanbanColumnsLocked()
+	}
+	for _, copiedPath := range copiedPaths {
+		a.markInternalVaultWriteLocked(copiedPath)
+	}
+	// A copied Markdown file whose destinations change is first created by the
+	// tree copy and then atomically replaced by the link rewrite. Those events
+	// can settle in separate native batches on a large copy.
+	for _, updatedPath := range updatedLinks {
+		a.markInternalVaultWriteLocked(filepath.Clean(filepath.FromSlash(updatedPath)))
+	}
 	if err := a.rewriteFileTreeStylePathsLocked(sourceClean, destination, true); err != nil {
 		log.Printf("[file-tree] Could not copy styles from %q to %q: %v", filepath.ToSlash(sourceClean), filepath.ToSlash(destination), err)
 	}

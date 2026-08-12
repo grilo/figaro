@@ -31,6 +31,8 @@ function debugAPI() {
         CreateInboxNote: mock({ success: true, path: 'Inbox/Quick-note.md', mtime: 1 }),
         CreateDirectory: mock({ success: true }),
         DeletePath: mock({ success: true }),
+        GetRecentlyDeleted: mock([]),
+        RestoreRecentlyDeleted: mock({ success: true }),
         RenamePath: mock({ success: true }),
         MovePath: mock({ success: true }),
         MergeDirectory: mock({ success: true }),

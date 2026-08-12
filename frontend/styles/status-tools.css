@@ -85,8 +85,6 @@
         padding-left: 0;
     }
 
-    .status-left > .status-separator,
-    .status-left .md-cheatsheet-wrapper,
     .status-detail-extended {
         display: none;
     }
@@ -104,36 +102,22 @@
     position: relative;
 }
 
-.md-cheatsheet-trigger {
+.topbar-cheatsheet {
     display: inline-flex;
-    align-items: center;
-    min-height: 18px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--accent-color);
-    font: inherit;
-    font-weight: 500;
-    cursor: pointer;
+    --wails-draggable: no-drag;
 }
 
-.md-cheatsheet-trigger:hover,
-.md-cheatsheet-trigger:focus-visible {
-    color: var(--accent-hover);
-}
-
-.md-cheatsheet-trigger:focus-visible {
-    outline: 1px solid var(--focus-ring);
-    outline-offset: 2px;
-    border-radius: 2px;
+.md-cheatsheet-trigger {
+    font-size: 13px;
+    font-weight: 650;
 }
 
 .md-cheatsheet-popup {
     display: none;
     position: absolute;
-    bottom: 100%;
-    left: 0;
-    margin-bottom: 10px;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
     background: linear-gradient(180deg, color-mix(in srgb, var(--panel-bg) 97%, var(--surface-highlight-color) 3%), var(--panel-bg));
     border: 1px solid color-mix(in srgb, var(--border-color) 82%, var(--surface-highlight-color) 18%);
     border-radius: 12px;
@@ -143,6 +127,9 @@
     min-width: 380px;
     max-height: 420px;
     overflow-y: auto;
+    user-select: text;
+    -webkit-user-select: text;
+    --wails-draggable: no-drag;
 }
 
 .md-cheatsheet-popup.open {
@@ -235,6 +222,25 @@
     border-radius: 3px;
     font-size: 11px;
     font-family: var(--font-mono);
+}
+
+.status-inline-action {
+    flex: 0 0 auto;
+    margin: 0 0 0 -8px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent-color);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.status-inline-action:hover,
+.status-inline-action:focus-visible {
+    color: var(--accent-hover);
 }
 
 .file-tree-item > .file-tree-node.custom-color .node-icon,

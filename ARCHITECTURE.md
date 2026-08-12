@@ -265,7 +265,11 @@ in the same vault lock. The recursive native watcher sends a debounced set of
 changed paths to the backend: a one-file external edit similarly rereads and
 reprojects only that file, while creates/removes update the tree as needed.
 Recent Figaro-originated write events are recognized so the watcher does not
-repeat the save work. A move first verifies the warm index against a
+repeat the save work. After an internal copy reaches disk, Figaro validates all
+pre-existing Markdown metadata while excluding the known new destination. A
+current index is extended by parsing only the copied subtree, and exact copied
+paths acknowledge the corresponding watcher batch; a stale index falls back
+to one cold rebuild. A move first verifies the warm index against a
 metadata-only Markdown walk, prunes link rewriting to indexed source/target
 candidates, then remaps only affected file records and reconstructs derived
 projections from retained memory. Any stale snapshot falls back to the complete
@@ -292,7 +296,7 @@ and genuinely broad filesystem changes.
 The file tree has a separate metadata projection under the same vault lock.
 Its published hierarchy is immutable and may be returned unchanged across
 no-change refreshes; a flat path map updates known file writes/creates and
-remaps known moves before rebuilding the hierarchy in memory. Broad mutations,
+adds known copied subtrees or remaps known moves before rebuilding the hierarchy in memory. Broad mutations,
 ambiguous watcher batches, and unscoped notifications discard that projection,
 so the next request repeats the established root-scoped scan. The bridge still
 returns the complete hierarchy; this cache removes rediscovery cost without
@@ -362,10 +366,12 @@ projected from the dirty tab buffers on the next animation frame, without an
 RPC; a Figaro save folds its final buffer into the same board snapshot, while
 external changes still request backend data. The file tree still receives the
 complete structural model for correct sorting and session restore, but it
-renders descendants only for explicitly expanded folders. Active/open file
-markers are patched on mounted nodes during tab and dirty-state changes rather
-than rebuilding that structural DOM. This prevents large collapsed or expanded
-trees from imposing a hidden DOM/layout cost on ordinary tab switches.
+renders descendants only for explicitly expanded folders. The active
+document's selected state and dirty-buffer markers are patched on mounted nodes
+during tab and save-state changes rather than rebuilding that structural DOM.
+Clean background tabs have no tree projection because their open state does
+not alter a file operation. This prevents large collapsed or expanded trees
+from imposing a hidden DOM/layout cost on ordinary tab switches.
 
 Keyboard card ordering is a separate presentation projection rather than a
 rewrite of note lines. The pure Go `orderedKanbanCards` transformation and the
@@ -453,12 +459,25 @@ restore history.
 File-tree deletion is a separate, explicit history boundary. The frontend
 first persists dirty affected CodeMirror tabs; the backend then holds the vault
 write lock while the history adapter enumerates the target through `os.Root`,
-stages only that file or the files beneath that directory, and creates one
-`archive before delete` revision when those current bytes are not already
-recorded before `RemoveAll`. The archive path refuses unrelated staged entries
-and restores the prior index if staging or commit fails. Any preparation or
-archive error aborts removal, so the recorded bytes and filesystem deletion
-cannot be reordered by another Figaro mutation.
+stages the exact current target—including tracked children already removed—and
+creates or identifies the commit that reconstructs it. The pure
+`internal/recovery` registry rules order, find, and remove opaque records; the
+desktop coordinator atomically persists those records in ignored
+`.config/recently-deleted.json` before `RemoveAll`. The archive path refuses
+unrelated staged entries and restores the prior index if staging or commit
+fails. Any preparation, archive, or registry error aborts removal, so the
+recorded bytes and filesystem deletion cannot be reordered by another Figaro
+mutation.
+
+Recovery reverses that coordinator without treating Git as a filesystem API.
+The history adapter reads regular-file and symlink blobs from the exact commit;
+the desktop adapter validates the record and destination through `os.Root`,
+builds the complete file/folder beneath a unique sibling staging name, and
+publishes it with one rename only when the original path is absent. Extraction
+failure removes the stage, destination collisions and missing parents change
+nothing, and the durable record is removed only after successful publication.
+The frontend's ten-second Undo and Settings list call the same native restore
+use case and request a normal tree refresh.
 
 History is non-destructive: a revert saves and commits the pre-revert content,
 saves and commits the selected historical content, then reloads the right-pane
@@ -514,10 +533,25 @@ Refreshing a board snapshots its horizontal position and each mounted column's
 scroll position before replacing cards, then restores them after render. The
 file tree applies the same continuity principle to structural refreshes by
 retaining its scroll position and focused row; `selectedTreePath` remains the
-state-owned source of truth for roving focus. The pure `core/fileTreeModel.js`
+state-owned source of truth for roving focus, while `selectedFilePath` is the
+active file/Draw.io tab and exclusively owns the selected surface. The pure `core/fileTreeModel.js`
 flattens only expanded rows and plans Up/Down, Home/End, parent/child,
-expand/collapse, and activation commands. The `fileTree.js` DOM adapter owns
-ARIA tree semantics, focus, scrolling, rendering, and activation effects.
+expand/collapse, and activation commands, and projects dirty tabs without
+treating clean open tabs as a visible state. The `fileTree.js` DOM adapter owns
+ARIA tree semantics, independent roving focus, current-document and
+multi-selection state, scrolling, rendering, and activation effects. F2
+enters the same rename use case as the context menu, so it does not duplicate
+path validation, dirty-tab persistence, or link rewriting.
+
+File-tree mutation feedback is one reference-counted frontend activity scope.
+It marks the tree busy immediately around copy/import, move/merge, rename, and
+delete effects, while the status-bar adapter delays the approved indeterminate
+spinner for one second. Each activity owns an idempotent completion callback;
+fast work cannot flash, one completion cannot hide overlapping work, and modal
+decision time is outside the active effect boundary. The live status text owns
+the accessible announcement, while the spinner is decorative and becomes
+static under reduced motion.
+
 Vault-scoped path presentation records keep
 custom icons, colors, and an optional explicit pin preference together so
 rename, move, copy, merge, and delete remap one path-owned record. The pure

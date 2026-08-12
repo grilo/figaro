@@ -43,7 +43,10 @@ under `frontend/styles/`. Every file under `frontend/themes/` is a token-only
 `:root` override. Both the application and catalogue eagerly load these same
 assets in manifest order. The `.ui-*` classes own repeated presentation and
 interaction states; feature classes remain only for behavior and deliberate
-host layout. The root `frontend/styles.css` remains a synchronized
+host layout. The approved `.ui-spinner` is the shared indeterminate activity
+indicator; feature controllers own its delayed visibility and accessible live
+status instead of cloning its animation or paint. The root
+`frontend/styles.css` remains a synchronized
 compatibility aggregate, not the production entry point.
 
 ## Open the catalogue

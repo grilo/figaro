@@ -229,6 +229,7 @@ type SaveFileResult struct {
 	UpdatedLinks   []string          `json:"updated_links,omitempty"`
 	MergeAvailable bool              `json:"merge_available,omitempty"`
 	MovedPaths     map[string]string `json:"moved_paths,omitempty"`
+	DeletedID      string            `json:"deleted_id,omitempty"`
 }
 
 const maxClipboardImageBytes = 25 << 20

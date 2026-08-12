@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin, deletePath } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, cutInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin, deletePath } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -30,7 +30,12 @@ jest.mock('../frontend/js/app.js', () => ({
 }));
 
 jest.mock('../frontend/js/statusBar.js', () => ({
-    statusBar: { set: jest.fn(), clearAfter: jest.fn() }
+    statusBar: {
+        set: jest.fn(),
+        setWithAction: jest.fn(),
+        clearAfter: jest.fn(),
+        beginDelayedActivity: jest.fn(() => jest.fn()),
+    }
 }));
 
 jest.mock('../frontend/js/dialogs.js', () => ({
@@ -149,17 +154,25 @@ describe('File Tree', () => {
             expect(html).toContain('<svg');
         });
 
-        test('should mark selected file', () => {
+        test('marks the active file selected independently from the focus path', () => {
             const items = [
-                { name: 'note.md', path: 'note.md', type: 'file', mtime: 1000 }
+                { name: 'note.md', path: 'note.md', type: 'file', mtime: 1000 },
+                { name: 'focus.md', path: 'focus.md', type: 'file', mtime: 1001 },
             ];
-            
-            const html = buildTreeHTML(items, new Set(), 'note.md');
-            
-            expect(html).toContain('selected');
+
+            const surface = document.createElement('div');
+            surface.innerHTML = buildTreeHTML(items, new Set(), 'focus.md', [], 0, 'note.md');
+
+            const active = surface.querySelector('[data-path="note.md"] > .file-tree-node');
+            const focused = surface.querySelector('[data-path="focus.md"] > .file-tree-node');
+            expect(active.classList.contains('selected')).toBe(true);
+            expect(active.getAttribute('aria-current')).toBe('page');
+            expect(active.tabIndex).toBe(-1);
+            expect(focused.classList.contains('selected')).toBe(false);
+            expect(focused.tabIndex).toBe(0);
         });
 
-        test('keeps a selected folder distinct from the active file', () => {
+        test('gives the active document the sole selected surface while a folder has focus', () => {
             const items = [{
                 name: 'Projects', path: 'Projects', type: 'directory', children: [
                     { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1000 }
@@ -168,23 +181,29 @@ describe('File Tree', () => {
             const surface = document.createElement('div');
             surface.innerHTML = buildTreeHTML(items, new Set(['Projects']), 'Projects', [], 0, 'Projects/plan.md');
 
-            expect(surface.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').classList.contains('selected')).toBe(true);
-            expect(surface.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('active-file')).toBe(true);
+            const folder = surface.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node');
+            const active = surface.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node');
+            expect(folder.classList.contains('selected')).toBe(false);
+            expect(folder.tabIndex).toBe(0);
+            expect(folder.getAttribute('aria-selected')).toBe('false');
+            expect(active.classList.contains('selected')).toBe(true);
+            expect(active.getAttribute('aria-current')).toBe('page');
         });
 
-        test('marks open background tabs more subtly than the active file', () => {
+        test('marks only dirty background buffers, not clean open files', () => {
             const items = [
                 { name: 'active.md', path: 'active.md', type: 'file', mtime: 1 },
                 { name: 'background.md', path: 'background.md', type: 'file', mtime: 2 },
                 { name: 'closed.md', path: 'closed.md', type: 'file', mtime: 3 },
             ];
             const surface = document.createElement('div');
-            surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, 'active.md', {}, new Set(['active.md', 'background.md']));
+            surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, 'active.md', {}, new Set(['background.md']));
 
-            expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('active-file')).toBe(true);
-            expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('open-file')).toBe(false);
-            expect(surface.querySelector('[data-path="background.md"] > .file-tree-node').classList.contains('open-file')).toBe(true);
-            expect(surface.querySelector('[data-path="closed.md"] > .file-tree-node').classList.contains('open-file')).toBe(false);
+            expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('selected')).toBe(true);
+            expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('dirty-buffer')).toBe(false);
+            expect(surface.querySelector('[data-path="background.md"] > .file-tree-node').classList.contains('dirty-buffer')).toBe(true);
+            expect(surface.querySelector('[data-path="background.md"] .node-dirty-status').textContent).toBe('Unsaved changes');
+            expect(surface.querySelector('[data-path="closed.md"] > .file-tree-node').classList.contains('dirty-buffer')).toBe(false);
         });
 
         test('should render items in given order', () => {
@@ -467,6 +486,7 @@ describe('File Tree', () => {
     });
 
     test('explains recoverable vault deletion and saves open changes before the backend archive', async () => {
+        window.go.desktop.App.DeletePath.mockResolvedValueOnce({ success: true, deleted_id: 'deleted-1' });
         await deletePath('Projects/plan.md', 'file');
 
         expect(confirmDialog).toHaveBeenCalledWith(
@@ -479,8 +499,17 @@ describe('File Tree', () => {
         expect(confirmDialog.mock.calls[0][1]).toContain('record the current contents in local Git history');
         expect(prepareTabsForPathDelete).toHaveBeenCalledWith('Projects/plan.md');
         expect(window.go.desktop.App.DeletePath).toHaveBeenCalledWith('Projects/plan.md');
+        expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
         expect(prepareTabsForPathDelete.mock.invocationCallOrder[0])
             .toBeLessThan(window.go.desktop.App.DeletePath.mock.invocationCallOrder[0]);
+        expect(statusBar.setWithAction).toHaveBeenCalledWith(
+            'Deleted “plan.md” ·',
+            'Undo',
+            expect.any(Function),
+            { ariaLabel: 'Undo deletion of plan.md' },
+        );
+        expect(statusBar.clearAfter).toHaveBeenCalledWith(10000, 'Deleted “plan.md” ·');
     });
 
     test('cancels vault deletion before saving or archiving anything', async () => {
@@ -541,7 +570,7 @@ describe('File Tree', () => {
         );
     });
 
-    test('persists a clicked directory selection while its active note remains visible', () => {
+    test('focuses a clicked directory without replacing the active document selection', () => {
         state.fileTreeData = [{
             name: 'Projects', path: 'Projects', type: 'directory', children: [
                 { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 100 }
@@ -553,8 +582,8 @@ describe('File Tree', () => {
         document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').click();
 
         expect(state.selectedTreePath).toBe('Projects');
-        expect(document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').classList.contains('selected')).toBe(true);
-        expect(document.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('active-file')).toBe(true);
+        expect(document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').classList.contains('selected')).toBe(false);
+        expect(document.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('selected')).toBe(true);
         expect(saveSession).toHaveBeenCalled();
     });
 
@@ -670,6 +699,8 @@ describe('File Tree', () => {
         expect(window.go.desktop.App.MovePath).not.toHaveBeenCalled();
         expect(state.expandedDirs).toContain('Imported');
         expect(saveSession).toHaveBeenCalled();
+        expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
     });
 
     test('registers the Wails native file drop callback for the file tree', async () => {
@@ -830,12 +861,12 @@ describe('File Tree', () => {
         expect(menu.getAttribute('role')).toBe('menu');
         expect(menu.getAttribute('aria-label')).toBe('File actions for vault root');
         expect([...menu.querySelectorAll('[data-action]')].map(item => item.dataset.action)).toEqual([
-            'open-new-tab', 'merge-notes', 'preview-raw-text', 'preview-pdf',
-            'copy', 'paste',
+            'open-new-tab', 'merge-notes',
+            'cut', 'copy', 'paste',
             'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
         ]);
         expect(menu.querySelector('[data-action="new-file"]').classList.contains('disabled')).toBe(false);
-        for (const action of ['open-new-tab', 'merge-notes', 'preview-raw-text', 'preview-pdf', 'copy', 'paste', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete']) {
+        for (const action of ['open-new-tab', 'merge-notes', 'cut', 'copy', 'paste', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete']) {
             expect(menu.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
             expect(menu.querySelector(`[data-action="${action}"]`).getAttribute('role')).toBe('menuitem');
         }
@@ -870,6 +901,52 @@ describe('File Tree', () => {
 
         expect(document.querySelector('.context-menu')).toBeNull();
         expect(document.activeElement).toBe(selectedNode);
+    });
+
+    test('opens rename for the focused file-tree row with F2', async () => {
+        state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 1 }];
+        state.selectedTreePath = 'notes/draft.md';
+        renamePathDialog.mockResolvedValueOnce('final.md');
+        window.go.desktop.App.RenamePath.mockResolvedValueOnce({
+            success: true,
+            old_path: 'notes/draft.md',
+            path: 'notes/final.md',
+            updated_links: [],
+        });
+        initFileTree();
+        renderFileTree();
+
+        const node = document.querySelector('[data-path="notes/draft.md"] > .file-tree-node');
+        node.focus();
+        const event = new KeyboardEvent('keydown', { key: 'F2', bubbles: true, cancelable: true });
+        node.dispatchEvent(event);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(renamePathDialog).toHaveBeenCalledWith('notes/draft.md', 'file');
+        expect(window.go.desktop.App.RenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
+        expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
+    });
+
+    test('runs the confirmed recovery-aware delete workflow from the Delete key', async () => {
+        state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 1 }];
+        state.selectedTreePath = 'notes/draft.md';
+        initFileTree();
+        renderFileTree();
+
+        const node = document.querySelector('[data-path="notes/draft.md"] > .file-tree-node');
+        node.focus();
+        const event = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true });
+        node.dispatchEvent(event);
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(confirmDialog).toHaveBeenCalledWith(
+            'Delete from vault?', expect.stringContaining('local Git history'), true, false,
+            { confirmLabel: 'Delete', cancelLabel: 'Keep' },
+        );
+        expect(window.go.desktop.App.DeletePath).toHaveBeenCalledWith('notes/draft.md');
     });
 
     test('uses one roving treeitem and standard arrows across visible folders and files', () => {
@@ -908,7 +985,7 @@ describe('File Tree', () => {
         press('ArrowDown');
         expect(document.activeElement).toBe(node('Projects/spec.md'));
         expect(state.selectedTreePath).toBe('Projects/spec.md');
-        expect(node('Projects/spec.md').getAttribute('aria-selected')).toBe('true');
+        expect(node('Projects/spec.md').getAttribute('aria-selected')).toBe('false');
 
         press('ArrowLeft');
         expect(document.activeElement).toBe(node('Projects'));
@@ -952,6 +1029,36 @@ describe('File Tree', () => {
         expect(tree.querySelectorAll('.file-tree-node')).toHaveLength(160);
     });
 
+    test('retains a tab switch and dirty state when a virtualized row mounts later', async () => {
+        state.fileTreeData = Array.from({ length: 600 }, (_, index) => ({
+            name: `note-${String(index).padStart(3, '0')}.md`,
+            path: `note-${String(index).padStart(3, '0')}.md`,
+            type: 'file',
+            mtime: index,
+        }));
+        state.selectedFilePath = 'note-000.md';
+        state.openTabs = [
+            { id: 'note-000.md', type: 'file', path: 'note-000.md', dirty: false },
+            { id: 'note-599.md', type: 'file', path: 'note-599.md', dirty: true },
+        ];
+        initFileTree();
+        renderFileTree();
+
+        const tree = document.getElementById('file-tree');
+        state.selectedFilePath = 'note-599.md';
+        syncFileTreeTabMarkers();
+        tree.scrollTop = 599 * 26;
+        tree.dispatchEvent(new Event('scroll'));
+        await testUtils.waitFor(20);
+
+        const current = tree.querySelector('[data-path="note-599.md"] > .file-tree-node');
+        expect(current).not.toBeNull();
+        expect(current.classList.contains('selected')).toBe(true);
+        expect(current.classList.contains('dirty-buffer')).toBe(true);
+        expect(current.getAttribute('aria-current')).toBe('page');
+        expect(current.querySelector('.node-dirty-status').textContent).toBe('Unsaved changes');
+    });
+
     test('keeps the same action order for files, folders, and the vault root', () => {
         const actionsFor = options => {
             const surface = document.createElement('div');
@@ -959,8 +1066,8 @@ describe('File Tree', () => {
             return [...surface.querySelectorAll('[data-action]')].map(item => item.dataset.action);
         };
         const expectedActions = [
-            'open-new-tab', 'merge-notes', 'preview-raw-text', 'preview-pdf',
-            'copy', 'paste',
+            'open-new-tab', 'merge-notes',
+            'cut', 'copy', 'paste',
             'new-file', 'new-drawio', 'new-folder', 'rename', 'customize-style', 'toggle-pin', 'reveal', 'delete',
         ];
 
@@ -980,7 +1087,7 @@ describe('File Tree', () => {
         expect(surface.querySelector('[data-action="delete"]').textContent).toContain('Remove from file tree');
         expect(surface.querySelector('[data-action="delete"]').classList.contains('danger')).toBe(false);
         expect(surface.querySelectorAll('[data-action="delete"]')).toHaveLength(1);
-        for (const action of ['copy', 'rename', 'customize-style', 'toggle-pin', 'reveal']) {
+        for (const action of ['cut', 'copy', 'rename', 'customize-style', 'toggle-pin', 'reveal']) {
             expect(surface.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(true);
         }
     });
@@ -1002,11 +1109,76 @@ describe('File Tree', () => {
 
         expect(prepareTabsForPathCopy).toHaveBeenCalledWith('Projects');
         expect(window.go.desktop.App.CopyPath).toHaveBeenCalledWith('Projects', '');
+        expect(window.go.desktop.App.GetFileTree).toHaveBeenCalledTimes(1);
         expect(prepareTabsForPathCopy.mock.invocationCallOrder[0]).toBeLessThan(
             window.go.desktop.App.CopyPath.mock.invocationCallOrder[0]
         );
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
         expect(state.selectedTreePath).toBe('Projects copy');
         expect(messageDialog).not.toHaveBeenCalled();
+    });
+
+    test('cuts and pastes through the existing safe move workflow, then clears the clipboard', async () => {
+        state.fileTreeData = [
+            { name: 'Draft.md', path: 'Draft.md', type: 'file', mtime: 1 },
+            { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+        ];
+        window.go.desktop.App.MovePath.mockResolvedValueOnce({
+            success: true,
+            old_path: 'Draft.md',
+            path: 'Archive/Draft.md',
+            updated_links: [],
+        });
+
+        expect(cutInternalPath('Draft.md', 'file')).toBe(true);
+        await expect(pasteInternalClipboard('Archive', 'directory')).resolves.toBe(true);
+
+        expect(prepareTabsForPathMove).toHaveBeenCalledWith('Draft.md');
+        expect(window.go.desktop.App.MovePath).toHaveBeenCalledWith('Draft.md', 'Archive');
+        expect(window.go.desktop.App.CopyPath).not.toHaveBeenCalled();
+        expect(state.expandedDirs).toContain('Archive');
+        await expect(pasteInternalClipboard('', 'root')).resolves.toBe(false);
+    });
+
+    test('retains a cut item after a failed move so Paste can be retried', async () => {
+        state.fileTreeData = [
+            { name: 'Draft.md', path: 'Draft.md', type: 'file', mtime: 1 },
+            { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+        ];
+        window.go.desktop.App.MovePath
+            .mockResolvedValueOnce({ success: false, error: 'Destination unavailable' })
+            .mockResolvedValueOnce({ success: true, old_path: 'Draft.md', path: 'Archive/Draft.md', updated_links: [] });
+
+        cutInternalPath('Draft.md', 'file');
+        await expect(pasteInternalClipboard('Archive', 'directory')).resolves.toBe(false);
+        await expect(pasteInternalClipboard('Archive', 'directory')).resolves.toBe(true);
+
+        expect(window.go.desktop.App.MovePath).toHaveBeenCalledTimes(2);
+        expect(errorDialog).toHaveBeenCalledWith(
+            'Couldn’t move item', 'Destination unavailable', 'The item could not be moved.',
+        );
+    });
+
+    test('marks a pending internal copy busy and schedules its spinner for one second', async () => {
+        const copying = deferred();
+        const finishActivity = jest.fn();
+        state.fileTreeData = [{ name: 'note.md', path: 'note.md', type: 'file', mtime: 1 }];
+        window.go.desktop.App.CopyPath.mockReturnValueOnce(copying.promise);
+        statusBar.beginDelayedActivity.mockReturnValueOnce(finishActivity);
+
+        copyInternalPath('note.md', 'file');
+        const pending = pasteInternalClipboard('', 'root');
+        await Promise.resolve();
+
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('true');
+        expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
+
+        window.go.desktop.App.GetFileTree.mockResolvedValueOnce(state.fileTreeData);
+        copying.resolve({ success: true, path: 'note copy.md' });
+        await expect(pending).resolves.toBe(true);
+
+        expect(finishActivity).toHaveBeenCalledTimes(1);
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
     });
 
     test('refuses to paste a folder into itself or a descendant before calling the backend', async () => {
@@ -1040,6 +1212,7 @@ describe('File Tree', () => {
             'Could not save "plan.md" before copying it',
             'The source could not be saved before copying.'
         );
+        expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
     });
 
     test('uses a folder as the paste destination and a file parent as the paste destination', () => {
@@ -1066,6 +1239,27 @@ describe('File Tree', () => {
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(window.go.desktop.App.CopyPath).toHaveBeenCalledWith('note.md', 'Archive');
+    });
+
+    test('supports Ctrl/Cmd+X then Ctrl/Cmd+V as a keyboard move', async () => {
+        state.fileTreeData = [
+            { name: 'note.md', path: 'note.md', type: 'file', mtime: 1 },
+            { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+        ];
+        state.selectedTreePath = 'note.md';
+        window.go.desktop.App.MovePath.mockResolvedValueOnce({
+            success: true, old_path: 'note.md', path: 'Archive/note.md', updated_links: [],
+        });
+        initFileTree();
+
+        const tree = document.getElementById('file-tree');
+        tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true, cancelable: true }));
+        state.selectedTreePath = 'Archive';
+        tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true, cancelable: true }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.go.desktop.App.MovePath).toHaveBeenCalledWith('note.md', 'Archive');
+        expect(window.go.desktop.App.CopyPath).not.toHaveBeenCalled();
     });
 
     test('keeps a root action surface below a short file list', () => {
@@ -1098,7 +1292,7 @@ describe('File Tree', () => {
         expect(saveSession).toHaveBeenCalled();
     });
 
-    test('offers Markdown and PDF previews instead of direct export for Markdown files', () => {
+    test('keeps preview commands out of the compact file-tree menu and shows keyboard hints', () => {
         state.fileTreeData = [{ name: 'report.md', path: 'notes/report.md', type: 'file', mtime: 100 }];
         initFileTree();
         renderFileTree();
@@ -1109,11 +1303,13 @@ describe('File Tree', () => {
         }));
 
         const menu = document.querySelector('.context-menu');
-        expect(menu.textContent).toContain('Preview Raw Text');
-        expect(menu.textContent).toContain('Preview PDF');
-        expect(menu.textContent).not.toContain('Export to PDF');
-        expect(menu.querySelector('[data-action="preview-raw-text"]')).not.toBeNull();
-        expect(menu.querySelector('[data-action="preview-pdf"]')).not.toBeNull();
+        expect(menu.textContent).not.toContain('Preview Raw Text');
+        expect(menu.textContent).not.toContain('Preview PDF');
+        expect(menu.querySelector('[data-action="cut"] .context-menu-item-shortcut').textContent).toMatch(/X$/);
+        expect(menu.querySelector('[data-action="copy"] .context-menu-item-shortcut').textContent).toMatch(/C$/);
+        expect(menu.querySelector('[data-action="paste"] .context-menu-item-shortcut').textContent).toMatch(/V$/);
+        expect(menu.querySelector('[data-action="rename"] .context-menu-item-shortcut').textContent).toBe('F2');
+        expect(menu.querySelector('[data-action="delete"] .context-menu-item-shortcut').textContent).toBe('Delete');
     });
 
     test('creates a non-Markdown file without appending .md or Markdown starter content', async () => {
@@ -1328,6 +1524,7 @@ describe('File Tree', () => {
             await expect(duplicateMove).resolves.toBe(false);
             expect(window.go.desktop.App.MovePath).toHaveBeenCalledTimes(1);
             expect(statusBar.set).toHaveBeenCalledWith('Moving “Archive”…');
+            expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
             expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('true');
 
             window.go.desktop.App.GetFileTree.mockResolvedValueOnce([]);
@@ -1451,11 +1648,12 @@ describe('File Tree', () => {
 
             expect(container.scrollTop).toBe(48);
             expect(document.activeElement).toBe(container.querySelector('[data-path="second.md"] > .file-tree-node'));
-            expect(container.querySelector('[data-path="second.md"] > .file-tree-node').classList.contains('selected')).toBe(true);
+            expect(container.querySelector('[data-path="second.md"] > .file-tree-node').classList.contains('selected')).toBe(false);
+            expect(container.querySelector('[data-path="second.md"] > .file-tree-node').matches(':focus')).toBe(true);
             expect(container.querySelectorAll('[role="treeitem"][tabindex="0"]')).toHaveLength(1);
         });
 
-        test('patches mounted active and open markers without rebuilding the tree after a dirty tab transition', () => {
+        test('patches mounted active selection and dirty-buffer markers without rebuilding the tree', () => {
             state.fileTreeData = [
                 {
                     name: 'Projects', path: 'Projects', type: 'directory', children: [
@@ -1482,29 +1680,76 @@ describe('File Tree', () => {
             const active = tree.querySelector('[data-path="Projects/active.md"] > .file-tree-node');
             const background = tree.querySelector('[data-path="Projects/background.md"] > .file-tree-node');
             expect(tree.querySelector('[data-path="Archive/hidden.md"]')).toBeNull();
-            expect(active.classList.contains('active-file')).toBe(true);
-            expect(background.classList.contains('open-file')).toBe(true);
+            expect(active.classList.contains('selected')).toBe(true);
+            expect(background.classList.contains('dirty-buffer')).toBe(false);
 
             // markTabDirty publishes a new openTabs array. The tree must keep
             // the existing DOM and folder mounting intact while refreshing its
             // markers, so it cannot interfere with the dirty/Git event path.
             state.openTabs = state.openTabs.map(tab => tab.id === 'Projects/active.md'
                 ? { ...tab, dirty: true }
-                : tab);
+                : { ...tab, dirty: true });
             syncFileTreeTabMarkers();
 
             expect(tree.querySelector('[data-path="Projects/active.md"] > .file-tree-node')).toBe(active);
             expect(tree.querySelector('[data-path="Projects/background.md"] > .file-tree-node')).toBe(background);
-            expect(active.classList.contains('active-file')).toBe(true);
-            expect(background.classList.contains('open-file')).toBe(true);
+            expect(active.classList.contains('selected')).toBe(true);
+            expect(active.classList.contains('dirty-buffer')).toBe(true);
+            expect(background.classList.contains('dirty-buffer')).toBe(true);
             expect(tree.querySelector('[data-path="Archive/hidden.md"]')).toBeNull();
 
             state.selectedFilePath = 'Projects/background.md';
             syncFileTreeTabMarkers();
-            expect(active.classList.contains('open-file')).toBe(true);
-            expect(active.classList.contains('active-file')).toBe(false);
-            expect(background.classList.contains('active-file')).toBe(true);
-            expect(background.classList.contains('open-file')).toBe(false);
+            expect(active.classList.contains('selected')).toBe(false);
+            expect(active.classList.contains('dirty-buffer')).toBe(true);
+            expect(background.classList.contains('selected')).toBe(true);
+            expect(background.classList.contains('dirty-buffer')).toBe(true);
+
+            state.openTabs = state.openTabs.map(tab => tab.id === 'Projects/background.md'
+                ? { ...tab, dirty: false }
+                : tab);
+            syncFileTreeTabMarkers();
+            expect(background.classList.contains('selected')).toBe(true);
+            expect(background.classList.contains('dirty-buffer')).toBe(false);
+            expect(background.querySelector('.node-dirty-status')).toBeNull();
+        });
+
+        test('moves the sole selected surface with the active tab while retaining tree focus', () => {
+            state.fileTreeData = [
+                { name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 },
+                { name: 'Notes.md', path: 'Notes.md', type: 'file', mtime: 2 },
+            ];
+            state.openTabs = [
+                { id: 'Welcome.md', type: 'file', path: 'Welcome.md', dirty: false },
+                { id: 'Notes.md', type: 'file', path: 'Notes.md', dirty: false },
+                { id: 'settings', type: 'settings' },
+            ];
+            state.activeTabId = 'Welcome.md';
+            state.selectedFilePath = 'Welcome.md';
+            state.selectedTreePath = 'Welcome.md';
+            initFileTree();
+
+            const tree = document.getElementById('file-tree');
+            const welcome = tree.querySelector('[data-path="Welcome.md"] > .file-tree-node');
+            const notes = tree.querySelector('[data-path="Notes.md"] > .file-tree-node');
+            welcome.focus();
+            const activeTabListener = subscribe.mock.calls
+                .find(([key]) => key === 'activeTabId')?.[1];
+
+            state.activeTabId = 'Notes.md';
+            activeTabListener();
+            expect(state.selectedFilePath).toBe('Notes.md');
+            expect(state.selectedTreePath).toBe('Welcome.md');
+            expect(document.activeElement).toBe(welcome);
+            expect(welcome.classList.contains('selected')).toBe(false);
+            expect(notes.classList.contains('selected')).toBe(true);
+            expect(notes.getAttribute('aria-current')).toBe('page');
+            expect(tree.querySelectorAll('.file-tree-node.selected')).toHaveLength(1);
+
+            state.activeTabId = 'settings';
+            activeTabListener();
+            expect(state.selectedFilePath).toBeNull();
+            expect(tree.querySelectorAll('.file-tree-node.selected')).toHaveLength(0);
         });
 
         test('keeps the newest tree when an earlier refresh resolves late', async () => {

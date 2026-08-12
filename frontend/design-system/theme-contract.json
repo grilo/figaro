@@ -96,8 +96,6 @@
     "--file-node-selected-surface",
     "--file-node-selected-shadow",
     "--file-node-selected-weight",
-    "--file-node-active-surface",
-    "--file-node-active-shadow",
     "--tab-radius",
     "--tab-hover-surface",
     "--tab-active-surface",

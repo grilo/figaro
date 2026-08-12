@@ -167,7 +167,8 @@ VAULT_PATH="$PWD/stress-vault/huge-vault" make dev
 ```
 
 The Go test owns real filesystem discovery, indexing, bridge serialization,
-search, relationships, Git status, health, and a reversible directory move.
+search, relationships, Git status, health, a reversible directory move, and a
+small warm copy followed by its cached file-tree projection.
 The browser test supplies equivalent 10,000-item responses to isolate real DOM,
 layout, CodeMirror virtualization, and keyboard rerender behavior. Opening the
 generated vault through `make dev` remains the native packaged-webview smoke
@@ -196,7 +197,13 @@ timings are compared:
 - `TestBuildFileTreeFromEntriesPreservesHierarchyAndSortOrder` and
   `TestFileTreeCacheReusesSnapshotAndRemapsKnownMove` prove the pure cached-tree
   projection, immutable reuse, known create, new-parent synthesis, and move
-  remapping. Focused watcher/generated-file cases prove that a non-Markdown
+  remapping. `TestFileTreeCacheAndVaultIndexStayWarmAcrossKnownCopy` proves a
+  copy retains unrelated warm metadata and adds its complete subtree.
+  `TestWarmCopyMatchesColdRebuildAcrossVaultProjections` compares copied search,
+  backlinks, Kanban, calendar, health, and tree results with disk and a fresh
+  application; a separate stale-index copy regression proves an unobserved
+  external note selects the cold fallback. Focused watcher/generated-file
+  cases prove that copied create events are acknowledged once, a non-Markdown
   timestamp change, starter stylesheet, and generated PDF remain visible after
   the cache is warm. The warm-vs-cold oracle still compares its paths with an
   independent disk walk after watcher and mutation stages.
@@ -318,7 +325,7 @@ slower CI run.
 ### Design-system catalogue
 
 `tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
-contract: indexed group membership, adoption of the eleven approved families
+contract: indexed group membership, adoption of the twelve approved families
 in catalogue and production markup, exact agreement between
 `approved-components.json` and the selectors implemented by
 `primitives.css`, exact eager style order in the app, catalogue, compatibility
@@ -365,8 +372,9 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Vault path safety, atomic file operations, local-link/unlinked-mention and
   Vault-health scanning including conservative similar-note classification,
   single-file-only Auto-Commit migration and isolation,
-  history comparison/restoration, pre-delete file and recursive-folder archives
-  with non-destructive save/commit failures, Draw.io file handling and
+  history comparison/restoration, exact pre-delete file and recursive-folder
+  archives, durable recently-deleted recovery with collision refusal, and
+  non-destructive save/commit/registry failures, Draw.io file handling and
   export-recovery states, print stylesheet resolution, and printable-document
   preparation.
 - Editor behavior, CodeMirror language modes, current-note heading-fragment
@@ -399,7 +407,7 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   parser reaches a fixed release; the representative PDF browser scenario
   proves rejected source remains printable.
 - The native Figaro Dark and Light theme assets, including their warm reading
-  surfaces, framed navigation, contiguous active tab, selected tree state, tactile
+  surfaces, framed navigation, contiguous active tab, current-document tree selection, tactile
   Settings card, collar stitch, focus token, text/link contrast, and at least
   4.5:1 rendered contrast for Home's small muted instructions.
 - Browser workflows for contextual Relationships, keyboard-triggered mention
@@ -883,7 +891,12 @@ npx playwright test tests/e2e/clipboardImagePaste.spec.js
 Internal file-tree copy/paste is non-destructive: collisions must allocate
 `copy` / `copy 2` sibling names, dirty source tabs must save before the backend
 reads them, copied Markdown links must preserve their resolved vault targets,
-and folder copies must never target the source folder or any descendant.
+and folder copies must never target the source folder or any descendant. A
+known copy must retain the warm vault index and file-tree metadata, add every
+copied projection, and acknowledge its native create events without masking a
+later external edit. An index that misses an external Markdown change must use
+the complete rebuild and match a fresh application plus an independent disk
+walk.
 Changes to tree actions, tab persistence, link rewriting, vault copy helpers,
 path validation, or duplicate naming must retain Go coverage for the filesystem
 and link results plus frontend coverage for commands and refusal dialogs.
@@ -891,7 +904,7 @@ and link results plus frontend coverage for commands and refusal dialogs.
 Run the focused contract before the full suites:
 
 ```bash
-go test . -run 'TestCopyPath'
+go test ./internal/desktop -run 'Test(CopyPath|CopyFalls|WarmCopy|FileTreeCacheAndVaultIndexStayWarmAcrossKnownCopy)'
 go test ./internal/links -run 'Copy'
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/fileTree.test.js \
@@ -1071,11 +1084,43 @@ override a newer menu or dialog that has already taken focus.
 File-tree keyboard coverage is split at the same seam. Pure model tests own the
 visible-row flattening and Up/Down, Home/End, parent/child, expand/collapse, and
 activation plans. Component tests own `tree`/`treeitem`/`group` semantics,
-exactly one row with `tabindex="0"`, selection-following-focus, collapsed-child
-mounting, activation, and focused-row restoration after rerender. One browser
+exactly one row with `tabindex="0"`, focus independent from active-document and
+Ctrl/Cmd multi-selection, collapsed-child mounting, activation, focused-row
+restoration after rerender, and F2 dispatch to the existing rename workflow for
+a focused vault row. Component coverage must also prove that a successful tab
+switch transfers the sole selected/`aria-current` file-tree state without
+moving focus or rebuilding mounted rows, clean background tabs have no marker,
+and dirty buffers alone receive a warning marker plus assistive unsaved text.
+One browser
 scenario owns the irreducible Tab-entry and `:focus-visible` behavior, then
 uses Right/Down/Left against real focused rows. Mouse selection, opening, drag,
 and context-menu behavior must remain unchanged.
+
+Cut/Paste coverage reuses the move seam: component tests must prove Ctrl/Cmd+X
+followed by Ctrl/Cmd+V invokes `MovePath` rather than `CopyPath`, clears the cut
+clipboard only after success, retains it after cancellation/failure, and keeps
+recursive/self moves non-destructive. The stable tree context-menu inventory
+must show Cut, Copy, Paste in order, omit tree-level Raw Text/PDF preview, and
+pair only real keyboard commands with faded shortcut hints; F2 and Delete
+dispatch the same validated workflows as their menu items.
+
+Deletion recovery requires three layers. Pure `internal/recovery` tests own
+newest-first record ordering and identity removal. Root-scoped desktop/history
+tests prove exact commit selection, removal of previously tracked-but-now-absent
+children, durable registry persistence, file/folder/empty-folder restoration,
+collision refusal, symlink preservation, and no overwrite. Frontend tests
+prove the ten-second native status **Undo**, Settings list success/error states,
+and one tree-refresh request. The real browser owns only native Enter/Space
+status-button activation, History roving-option focus/selection, link cursor,
+and the relocated cheatsheet's hidden/focus/Escape behavior.
+
+Slow file-tree mutation feedback stays below the browser layer. Status-bar
+unit tests use fake timers to prove that fast work never flashes, the spinner
+appears at exactly one second, overlapping operations remain visible until all
+settle, and reduced-motion styling removes rotation. File-tree component tests
+prove that copy/import, move/merge, rename, and delete share the busy lifecycle,
+clear it on every outcome, and do not keep it active while a confirmation or
+error dialog waits for input.
 
 Kanban ordering keeps pure JavaScript and Go reconciliation tests, a root-scoped
 config persistence/path-escape test, and one browser sequence: Tab crosses a

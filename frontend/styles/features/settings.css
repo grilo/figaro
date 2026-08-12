@@ -129,6 +129,62 @@
     align-items: start;
 }
 
+.settings-card .recently-deleted-setting {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.recently-deleted-setting-copy .settings-section-desc {
+    margin: 5px 0 0 22px;
+}
+
+.recently-deleted-list {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.recently-deleted-empty {
+    margin: 0;
+}
+
+.recently-deleted-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 8px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--bg-color);
+}
+
+.recently-deleted-item-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.recently-deleted-item-name,
+.recently-deleted-item-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recently-deleted-item-name {
+    color: var(--text-color);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.recently-deleted-item-meta {
+    color: var(--text-dim);
+    font-size: 10px;
+}
+
 /* ── Vault health ── */
 .vault-health-view {
     box-sizing: border-box;

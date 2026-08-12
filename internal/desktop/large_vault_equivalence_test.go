@@ -282,3 +282,56 @@ func TestWarmVaultStateMatchesColdRebuildAcrossMutationSequence(t *testing.T) {
 	assertStringSet(t, "removed Target backlinks", observableBacklinkPaths(afterRemove.Backlinks["Target.md"]), nil)
 	assertStringSet(t, "removed done", observableKanbanPaths(afterRemove.Kanban["done"]), nil)
 }
+
+func TestWarmCopyMatchesColdRebuildAcrossVaultProjections(t *testing.T) {
+	vaultPath := t.TempDir()
+	app := NewApp(vaultPath)
+	writeTestFile(t, vaultPath, "Projects/Target.md", "# Target\n")
+	writeTestFile(t, vaultPath, "Projects/guide.md", "# Guide\n")
+	writeTestFile(t, vaultPath, "Projects/plan.md", strings.Join([]string{
+		"alpha marker",
+		"- [ ] Copy task #todo",
+		"[Target](Target.md)",
+		"[Guide](guide.md)",
+		"[Launch](2026-08-20.md)",
+	}, "\n")+"\n")
+	writeTestFile(t, vaultPath, "stable.md", "CASE-SENSITIVE\n")
+
+	assertWarmVaultMatchesColdRebuild(t, app, vaultPath, "before known copy")
+	result, err := app.CopyPath("Projects", ".")
+	if err != nil || result == nil || !result.Success || result.Path != "Projects copy" {
+		t.Fatalf("CopyPath: result=%+v err=%v", result, err)
+	}
+	afterCopy := assertWarmVaultMatchesColdRebuild(t, app, vaultPath, "known directory copy")
+	assertStringSet(t, "copied alpha search", observableSearchPaths(afterCopy.Searches["alpha-insensitive"]),
+		[]string{"Projects copy/plan.md", "Projects/plan.md"})
+	assertStringSet(t, "copied Target backlinks", observableBacklinkPaths(afterCopy.Backlinks["Target.md"]),
+		[]string{"Projects copy/plan.md", "Projects/plan.md"})
+	assertStringSet(t, "copied todo cards", observableKanbanPaths(afterCopy.Kanban["todo"]),
+		[]string{"Projects copy/plan.md", "Projects/plan.md"})
+	if got, want := afterCopy.Calendar.DaysWithLinks, []int{20}; !reflect.DeepEqual(got, want) {
+		t.Errorf("copied linked days = %v, want %v", got, want)
+	}
+}
+
+func TestCopyFallsBackToColdRebuildWhenWarmIndexMissesExternalChange(t *testing.T) {
+	vaultPath := t.TempDir()
+	app := NewApp(vaultPath)
+	writeTestFile(t, vaultPath, "source.md", "alpha marker\n")
+	assertWarmVaultMatchesColdRebuild(t, app, vaultPath, "before stale copy")
+	warmIndex := app.vaultIndex
+
+	writeTestFile(t, vaultPath, "unseen.md", "beta marker\n- [ ] External #urgent\n")
+	result, err := app.CopyPath("source.md", ".")
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("CopyPath with stale index: result=%+v err=%v", result, err)
+	}
+	if app.vaultIndex == warmIndex {
+		t.Fatal("copy used the warm incremental path despite an unobserved external Markdown change")
+	}
+	afterCopy := assertWarmVaultMatchesColdRebuild(t, app, vaultPath, "stale-index copy fallback")
+	assertStringSet(t, "fallback beta search", observableSearchPaths(afterCopy.Searches["beta-insensitive"]),
+		[]string{"unseen.md"})
+	assertStringSet(t, "fallback urgent cards", observableKanbanPaths(afterCopy.Kanban["urgent"]),
+		[]string{"unseen.md"})
+}

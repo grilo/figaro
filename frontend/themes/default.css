@@ -88,8 +88,6 @@
     --file-node-selected-surface: linear-gradient(90deg, rgba(216, 87, 74, 0.18), rgba(216, 87, 74, 0.055));
     --file-node-selected-shadow: inset 3px 0 var(--accent-color), 0 3px 10px rgba(0, 0, 0, 0.13);
     --file-node-selected-weight: 600;
-    --file-node-active-surface: rgba(209, 162, 105, 0.045);
-    --file-node-active-shadow: inset 2px 0 color-mix(in srgb, var(--accent-color) 76%, var(--hashtag-color));
     --tab-radius: 0;
     --tab-hover-surface: rgba(255, 250, 243, 0.055);
     --tab-active-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.085), rgba(255, 250, 243, 0.035));

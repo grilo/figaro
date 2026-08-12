@@ -902,27 +902,20 @@
     color: var(--text-color);
 }
 
-/* A folder can remain the focused tree item while a different note is open.
-   Keep that active file visible without competing with the full selection. */
-.file-tree-item > .file-tree-node.active-file:not(.selected) {
-    box-shadow: inset 2px 0 0 var(--accent-color);
-    color: var(--text-color);
-}
-
-/* Open background tabs retain a quieter trace than the active file. */
-.file-tree-item > .file-tree-node.open-file:not(.active-file)::after {
+/* Only unsaved in-memory buffers need a secondary file-tree marker. Merely
+   having a clean tab open does not affect any tree action. */
+.file-tree-item > .file-tree-node.dirty-buffer::after {
     content: '';
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
     margin-left: auto;
     border-radius: 50%;
-    background: color-mix(in srgb, var(--accent-color) 48%, var(--text-dim));
-    opacity: .72;
+    background: var(--warning-color);
     flex: 0 0 auto;
 }
 
-.file-tree-item > .file-tree-node.pinned.open-file:not(.active-file)::after,
-.file-tree-item > .file-tree-node.external-file.open-file:not(.active-file)::after {
+.file-tree-item > .file-tree-node.pinned.dirty-buffer::after,
+.file-tree-item > .file-tree-node.external-file.dirty-buffer::after {
     order: 1;
     margin-left: 0;
 }
@@ -1121,6 +1114,23 @@
     height: 14px;
     flex-shrink: 0;
     color: var(--text-muted);
+}
+
+.context-menu-item-label {
+    min-width: 0;
+}
+
+.context-menu-item-shortcut {
+    margin-left: auto;
+    padding-left: 18px;
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.72;
+}
+
+.context-menu-item:disabled .context-menu-item-shortcut {
+    opacity: 0.5;
 }
 
 @keyframes fadeIn {

@@ -135,8 +135,6 @@
     --file-node-selected-surface: var(--active-bg);
     --file-node-selected-shadow: none;
     --file-node-selected-weight: inherit;
-    --file-node-active-surface: transparent;
-    --file-node-active-shadow: inset 2px 0 0 var(--accent-color);
     --tab-radius: 0;
     --tab-hover-surface: var(--hover-bg);
     --tab-active-surface: var(--hover-bg);

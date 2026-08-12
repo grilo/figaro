@@ -48,6 +48,20 @@ export function toggleSelectedPath(selectedPaths, path) {
     return next;
 }
 
+/**
+ * Project tab ownership into the only secondary file marker the tree needs.
+ * Clean open tabs are deliberately absent: whether a clean document has a tab
+ * open does not change any file-tree action. Dirty buffers are different
+ * because their in-memory contents have not necessarily reached disk yet.
+ */
+export function dirtyFilePaths(openTabs) {
+    return new Set((Array.isArray(openTabs) ? openTabs : [])
+        .filter(tab => (tab?.type === 'file' || tab?.type === 'drawio')
+            && tab.path
+            && tab.dirty)
+        .map(tab => tab.path));
+}
+
 /** Flatten only the rows a collapsed/expanded tree currently exposes. */
 export function visibleFileTreeRows(items, expandedDirectories, styles = {}, depth = 1, parentPath = null) {
     const expanded = expandedDirectories instanceof Set
@@ -93,7 +107,8 @@ export function fileTreeWindow(
 
 /**
  * Plan one WAI-ARIA tree keyboard command without touching DOM or state.
- * Selection follows focus; activation and expansion remain adapter effects.
+ * Focus navigation is independent from current-document and multi-selection
+ * state; activation and expansion remain adapter effects.
  */
 export function fileTreeKeyboardPlan(key, rows, currentPath) {
     const supported = ['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End', 'Enter', ' '];

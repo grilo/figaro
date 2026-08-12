@@ -422,7 +422,8 @@ test('preserves keyboard reachability and focus beyond a large collection window
     }, fixture.manifest.sources.small);
     await expect(relationshipsPage.locator('#backlinks-status'))
         .toContainText(`${fixture.manifest.documentCount} backlinks`);
-    await relationshipsPage.locator('#backlinks-status').click();
+    await relationshipsPage.locator('#backlinks-status').focus();
+    await relationshipsPage.keyboard.press('Space');
     const relationshipButtons = relationshipsPage.locator('.relationship-open');
     await expect(relationshipButtons.first()).toBeVisible();
     await relationshipButtons.first().focus();
