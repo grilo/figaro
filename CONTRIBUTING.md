@@ -218,9 +218,10 @@ remain free of machine-dependent pass/fail thresholds. See
 [the huge-vault procedure](docs/TESTING.md#huge-vault-stress-profile) and
 [the reference audit](docs/HUGE_VAULT_STRESS.md).
 
-For changes to Raw Text Preview, sticky headings, Markdown block guides, the
-Mermaid Editor, current-note heading completion, Vim table cells/rendered-block
-navigation, or per-tab cursor persistence, follow the
+For changes to Raw Text Preview, sticky headings, Markdown block guides,
+raw-source Mermaid diagnostics, the Mermaid Editor, current-note heading
+completion, Vim table cells/rendered-block navigation, or per-tab cursor
+persistence, follow the
 focused layer and browser-boundary guidance in
 [`docs/TESTING.md`](docs/TESTING.md).
 

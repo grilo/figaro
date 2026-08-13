@@ -73,9 +73,11 @@ source is still mounted.
 Markdown diagnostics are a separate idle-time editor extension, not a
 live-preview decoration pass. The persistent, on-by-default **Show Markdown
 lint** setting can remove or restore that extension without changing the
-document. Its inline squiggles and hover tooltip must not add block geometry or
-alter text metrics, so normal cursor movement, mouse placement, and drag
-selection keep the same layout contract.
+document. In addition to conservative Markdown structure checks, it sends each
+complete Mermaid fence through the shared parser and maps failures back onto
+the revealed raw source. Its inline squiggles and hover tooltip must not add
+block geometry or alter text metrics, so normal cursor movement, mouse
+placement, and drag selection keep the same layout contract.
 
 Wrapped Markdown bullet, ordered-list, and plain blockquote rows use an inline
 hanging indent. Every continuation display row begins at the item or quote
@@ -148,9 +150,11 @@ or contains only whitespace, and after an explicit template replacement.
 Opening meaningful nonempty source or manually editing the temporary buffer
 protects that source until **Replace with template** is activated. The compact
 comboboxes remain 4 px apart and left-aligned until the narrow single-column
-breakpoint. The preview fits each SVG within both pane dimensions at its reset
-scale. A non-passive wheel handler performs pointer-centered zoom from 25% to
-400%; primary-pointer drag pans, `+`/`-` zoom, arrows pan, and `0` resets. These
+breakpoint. The equal-width source and preview panes grow together with their
+dialog up to 1180 × 780 px and stack vertically below 820 px. The preview fits
+each SVG within both pane dimensions at its reset scale. A non-passive wheel
+handler performs pointer-centered zoom from 25% to 400%; primary-pointer drag
+pans, `+`/`-` zoom, arrows pan, and `0` resets. These
 controls update explicit SVG dimensions at every scale instead of magnifying a
 cached composited layer, while translation is reserved for panning. The initial
 empty-state node is removed after the first successful SVG and cannot obscure

@@ -844,7 +844,10 @@ line numbers off and on.
 The Mermaid Editor extends that matrix without creating a new block widget.
 Pure tests cover the complete 32-type/76-template catalogue, parser-location
 diagnostics, whitespace-only empty-state policy, adaptive render delay, exact
-fence-body replacement, and pointer-centered bounded zoom/pan transforms.
+fence-body replacement, raw Markdown fence discovery/document-offset mapping,
+and pointer-centered bounded zoom/pan transforms. A use-case test injects the
+Mermaid validation boundary and proves valid fences stay quiet while parser
+failures combine with the existing Markdown checks.
 Use-case tests prove debounce, latest-only publication, serialized rendering,
 and last-known-good preservation. The CodeMirror component proves the action is
 present in raw and rendered states, skips non-Mermaid fences, keeps chart
@@ -855,7 +858,8 @@ navigation without source effects, and the shared combobox test proves dynamic
 option refresh. One browser workflow owns the irreducible focus, compact
 left-aligned linked pickers, ordinary disabled cursor, real wheel zoom and drag
 panning, explicit SVG dimension growth without a scaled canvas, two-axis SVG
-fitting, first-success empty-state removal, lint tooltip/SVG, stale-preview,
+fitting, proportional two-pane growth up to the bounded dialog and narrow
+stacking, first-success empty-state removal, lint tooltip/SVG, stale-preview,
 borderless gutter, and undo boundaries; a focused companion verifies inherited Vim mode
 and wrapped display-row motion after the first diagnostics transaction, while
 the parser loop verifies every bundled template.
@@ -868,6 +872,8 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/mermaidEditorGutter.test.js \
   tests/frontend/unit/mermaidEditor.test.js \
   tests/frontend/unit/mermaidPreviewNavigation.test.js \
+  tests/frontend/unit/mermaidLintModel.test.js \
+  tests/frontend/unit/markdownDocumentLint.test.js \
   tests/frontend/unit/selectCombobox.test.js \
   tests/frontend/unit/diagramRenderer.test.js
 npx playwright test \
@@ -1156,9 +1162,10 @@ and Up/Down move one wrapped display row in Vim Normal mode, including inside a
 long wrapped Markdown-link destination, recover to the adjacent source line
 when the engine returns the same position, and reject a backwards result at
 the exact first or last position; operator-pending source-line motions such as
-`dj` stay unchanged. Markdown diagnostics must retain Arrow Up/Down, mouse
-placement, drag selection, themed hover guidance, F8 navigation, and their
-enabled-by-default Settings toggle. Wrapped Markdown bullet, ordered-list, and
+`dj` stay unchanged. Markdown diagnostics, including errors inside revealed
+Mermaid source, must retain Arrow Up/Down, mouse placement, drag selection,
+themed hover guidance, F8 navigation, and their enabled-by-default Settings
+toggle. Wrapped Markdown bullet, ordered-list, and
 plain blockquote lines must keep continuation rows under their item or quoted
 bodies in both active and passive preview states, while retaining Arrow Up/Down,
 mouse placement, and drag-selection behavior.

@@ -726,7 +726,13 @@ the persistent, on-by-default `markdown_lint` setting can reconfigure that
 extension without replacing source, altering block height, or asking the vault
 backend to validate cross-file links. That keeps editing feedback immediate
 while the read-only Vault Health workflow remains responsible for vault-wide
-checks.
+checks. The pure `core/mermaidLintModel.js` scanner identifies complete Mermaid
+fence bodies and maps fence-local parser ranges into document offsets.
+`usecases/markdownDocumentLint.js` combines that policy with the existing pure
+Markdown checks through an injected validator, while the editor composition
+root supplies the same eagerly loaded Mermaid parser adapter used by preview
+and export. CodeMirror's async linter discards a completed result if its source
+document has since changed.
 
 Offline spellcheck is another independent, off-by-default idle-time linter
 compartment. Its

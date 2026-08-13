@@ -10,6 +10,13 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.19.0] - 2026-08-13
+
+### Added
+
+- Revealed Mermaid fences now show debounced syntax-error squiggles and hover
+  explanations directly in the Markdown editor.
+
 ## [1.18.1] - 2026-08-13
 
 ### Fixed
@@ -1058,7 +1065,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.18.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.19.0...HEAD
+[1.19.0]: https://github.com/grilo/figaro/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/grilo/figaro/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/grilo/figaro/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/grilo/figaro/compare/v1.16.0...v1.17.0

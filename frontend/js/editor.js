@@ -89,7 +89,8 @@ import {
 } from '@codemirror/lang-markdown';
 import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
-import { markdownLinter } from './markdownLint.js';
+import { validateMermaidSource } from './diagramRenderer.js';
+import { createMarkdownDocumentLinter } from './usecases/markdownDocumentLint.js';
 import { markdownBlockGuidesExtension } from './markdownBlockGuides.js';
 import { createMermaidEditorGutterExtension } from './mermaidEditorGutter.js';
 import { openMermaidEditor } from './mermaidEditor.js';
@@ -150,6 +151,7 @@ const vimTableCellViews = new WeakMap();
 let tableHistoryRedoBookmark = null;
 let lineNumbersRequested = false;
 let markdownLintRequested = true;
+const markdownDocumentLinter = createMarkdownDocumentLinter(validateMermaidSource);
 let markdownBlockGuidesRequested = true;
 let spellcheckRequested = true;
 let spellcheckLanguageRequested = 'en-US';
@@ -2555,7 +2557,7 @@ function createEditorView() {
         EditorView.lineWrapping,
         stickyHeadingScrollMargins,
         ...mermaidEditorGutterExtension,
-        markdownLintCompartment.of(markdownLintRequested ? [linter(markdownLinter, { delay: 500 })] : []),
+        markdownLintCompartment.of(markdownLintRequested ? [linter(markdownDocumentLinter, { delay: 500 })] : []),
         spellcheckCompartment.of(spellcheckRequested ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })] : []),
         autocompletion({
             interactionDelay: 0,
@@ -2941,7 +2943,7 @@ function setMarkdownLint(enabled) {
     if (!view || !markdownLintCompartment || activeFileLanguage.kind !== 'markdown') return;
     view.dispatch({
         effects: markdownLintCompartment.reconfigure(
-            markdownLintRequested ? [linter(markdownLinter, { delay: 500 })] : []
+            markdownLintRequested ? [linter(markdownDocumentLinter, { delay: 500 })] : []
         ),
     });
 }

@@ -162,3 +162,82 @@ test('lets Settings disable and restore local Markdown diagnostics without chang
     await expect(toggle).toBeChecked();
     await expect.poll(diagnosticCount).toBe(1);
 });
+
+test('underlines invalid Mermaid syntax in revealed Markdown source with a hover explanation', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = [
+        'Before',
+        '```mermaid',
+        'flowchart TD',
+        '  A -->',
+        '```',
+        'After',
+    ].join('\n');
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(text);
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== text) await new Promise(resolve => setTimeout(resolve, 10));
+        view.dispatch({ selection: { anchor: view.state.doc.line(4).from } });
+        view.focus();
+        window.__markdownMermaidLintView = view;
+    }, source);
+
+    await expect.poll(() => page.evaluate(async () => {
+        const { forEachDiagnostic } = await import('@codemirror/lint');
+        const diagnostics = [];
+        forEachDiagnostic(window.__markdownMermaidLintView.state, diagnostic => diagnostics.push({
+            source: diagnostic.source,
+            severity: diagnostic.severity,
+            message: diagnostic.message,
+        }));
+        return diagnostics;
+    })).toEqual([expect.objectContaining({
+        source: 'Mermaid',
+        severity: 'error',
+        message: expect.stringMatching(/Mermaid syntax error/i),
+    })]);
+
+    const content = page.locator('#editor-container > .cm-editor .cm-content');
+    const errorRange = page.locator('#editor-container > .cm-editor .cm-lintRange-error');
+    await expect(errorRange).toBeVisible();
+    await errorRange.hover();
+    await expect(page.locator('.cm-tooltip-lint')).toContainText(/Mermaid syntax error/i);
+
+    await content.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__markdownMermaidLintView.state.doc.lineAt(
+        window.__markdownMermaidLintView.state.selection.main.head,
+    ).number)).toBe(3);
+    await content.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__markdownMermaidLintView.state.doc.lineAt(
+        window.__markdownMermaidLintView.state.selection.main.head,
+    ).number)).toBe(4);
+
+    const points = await page.evaluate(() => {
+        const view = window.__markdownMermaidLintView;
+        const point = position => {
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 2, y: (coords.top + coords.bottom) / 2 };
+        };
+        return {
+            error: point(view.state.doc.line(4).from + 4),
+            before: point(view.state.doc.line(1).from),
+            after: point(view.state.doc.line(6).to),
+        };
+    });
+    await page.mouse.click(points.error.x, points.error.y);
+    await expect.poll(() => page.evaluate(() => window.__markdownMermaidLintView.state.doc.lineAt(
+        window.__markdownMermaidLintView.state.selection.main.head,
+    ).number)).toBe(4);
+    await page.mouse.move(points.before.x, points.before.y);
+    await page.mouse.down();
+    await page.mouse.move(points.after.x, points.after.y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__markdownMermaidLintView;
+        return {
+            from: view.state.doc.lineAt(view.state.selection.main.from).number,
+            to: view.state.doc.lineAt(view.state.selection.main.to).number,
+        };
+    })).toEqual({ from: 1, to: 6 });
+});

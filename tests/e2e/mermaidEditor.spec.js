@@ -123,6 +123,28 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     await expect(previewCanvas).toHaveAttribute('data-pan-x', '0.00');
     expect(await modal.locator('.mermaid-editor-code-host .cm-content').textContent()).toBe(sourceBeforeNavigation);
 
+    const measureModalPanes = () => modal.locator('.mermaid-editor-panes').evaluate(panes => {
+        const modalRect = panes.closest('.mermaid-editor-modal').getBoundingClientRect();
+        const paneRects = Array.from(panes.querySelectorAll('.mermaid-editor-pane'))
+            .map(pane => pane.getBoundingClientRect());
+        return {
+            modal: { width: modalRect.width, height: modalRect.height },
+            panes: paneRects.map(rect => ({ width: rect.width, height: rect.height })),
+        };
+    });
+    await page.setViewportSize({ width: 1000, height: 680 });
+    const mediumLayout = await measureModalPanes();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const largeLayout = await measureModalPanes();
+    expect(largeLayout.modal.width).toBeGreaterThan(mediumLayout.modal.width);
+    expect(largeLayout.modal.height).toBeGreaterThan(mediumLayout.modal.height);
+    expect(largeLayout.panes[0].width).toBeGreaterThan(mediumLayout.panes[0].width);
+    expect(largeLayout.panes[0].height).toBeGreaterThan(mediumLayout.panes[0].height);
+    expect(Math.abs(mediumLayout.panes[0].width - mediumLayout.panes[1].width)).toBeLessThan(2);
+    expect(Math.abs(largeLayout.panes[0].width - largeLayout.panes[1].width)).toBeLessThan(2);
+    expect(largeLayout.modal.width).toBeLessThanOrEqual(1182);
+    expect(largeLayout.modal.height).toBeLessThanOrEqual(782);
+
     await page.setViewportSize({ width: 800, height: 720 });
     const narrowPanes = await modal.locator('.mermaid-editor-pane').evaluateAll(panes => panes.map(pane => ({
         x: pane.getBoundingClientRect().x,

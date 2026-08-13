@@ -171,7 +171,8 @@ that heading whether the link is currently rendered or showing raw source.
 
 ## Writing and planning
 
-Markdown diagnostics identify structural problems without changing source.
+Markdown diagnostics identify structural problems and Mermaid syntax errors
+without changing source.
 Offline spellcheck is disabled by default; choose **Settings → Spellcheck →
 Language** to select English (US), English (UK), Spanish (Spain), or **None**.
 The setting separates the vault default from per-note frontmatter controls, and
@@ -227,7 +228,9 @@ documents. Draw.io editing uses the hosted diagrams.net editor, but the
 resulting `.drawio.svg` file stays in the vault and remains readable offline.
 Mermaid source is checked before parsing; oversized diagrams and unsafe YAML
 ordered maps remain editable source instead of blocking the editor or PDF
-renderer.
+renderer. When Mermaid source is revealed in the main editor, syntax errors are
+marked in place with squiggles and hover explanations after the normal Markdown
+diagnostics pause.
 
 Every Mermaid block has a **Mermaid Editor** action on its right edge. When a
 side pane leaves too little writing width, the action stays with its block in a
