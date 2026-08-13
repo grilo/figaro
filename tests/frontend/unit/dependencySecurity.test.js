@@ -1,6 +1,20 @@
 import fs from 'node:fs';
 
 const readJSON = path => JSON.parse(fs.readFileSync(path, 'utf8'));
+const readText = path => fs.readFileSync(path, 'utf8');
+
+const parseGoVersion = version => version.slice(1).split('.').map(Number);
+
+const isAtLeastGoVersion = (version, minimum) => {
+    const actualParts = parseGoVersion(version);
+    const minimumParts = parseGoVersion(minimum);
+    return minimumParts.every((part, index) => {
+        const precedingPartsMatch = minimumParts
+            .slice(0, index)
+            .every((precedingPart, precedingIndex) => actualParts[precedingIndex] === precedingPart);
+        return !precedingPartsMatch || actualParts[index] >= part;
+    });
+};
 
 const isPatchedBraceExpansion = version => {
     const [major, minor, patch] = version.split('.').map(Number);
@@ -34,4 +48,12 @@ test('keeps every npm dependency above the known denial-of-service advisory rang
     for (const [, dependency] of jsYamlPackages) {
         expect(isPatchedJsYaml(dependency.version)).toBe(true);
     }
+});
+
+test('keeps the reachable WebP decoder above the GO-2026-5061 advisory range', () => {
+    const goMod = readText('go.mod');
+    const match = goMod.match(/^\s*golang\.org\/x\/image\s+(v\d+\.\d+\.\d+)/m);
+
+    expect(match).not.toBeNull();
+    expect(isAtLeastGoVersion(match[1], 'v0.43.0')).toBe(true);
 });

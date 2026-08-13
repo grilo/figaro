@@ -60,6 +60,16 @@ jobs:
       - run: npm run vendor
       - run: npx playwright install --with-deps chromium
       - run: npm run test:pdf
+      - name: Upload Playwright failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-diagnostics-ci-${{ github.run_attempt }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 14
 
   dependency-audit:
     name: Dependency audit

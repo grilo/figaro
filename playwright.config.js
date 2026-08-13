@@ -10,10 +10,18 @@ export default defineConfig({
     testDir: './tests/e2e',
     timeout: 45000,
     fullyParallel: false,
+    reporter: process.env.CI
+        ? [
+            ['dot'],
+            ['html', { outputFolder: 'playwright-report', open: 'never' }],
+        ]
+        : undefined,
     use: {
         baseURL,
         browserName: 'chromium',
         headless: true,
+        screenshot: process.env.CI ? 'only-on-failure' : 'off',
+        trace: process.env.CI ? 'retain-on-failure' : 'off',
     },
     webServer: {
         command: 'go run ./cmd/devserver',

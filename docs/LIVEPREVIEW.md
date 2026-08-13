@@ -157,7 +157,9 @@ empty-state node is removed after the first successful SVG and cannot obscure
 later valid or last-known-good output. Preview navigation affects only the
 temporary SVG surface and survives preview refreshes.
 The temporary view receives the root editor's active Vim adapter and visual-row
-mapping; Escape remains a Vim mode key while that view owns focus. Applying
+mapping; its Normal, Insert, and Visual state is published through a CodeMirror
+attribute compartment, so lint and preview-driven editor updates cannot erase
+the mode cursor styling. Escape remains a Vim mode key while that view owns focus. Applying
 calculates one replacement for the original fence body, leaving the opener and
 closer untouched; cancelling does not dispatch to the note. Both paths destroy
 the temporary view and return focus to the root editor.

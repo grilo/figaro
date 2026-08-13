@@ -223,6 +223,9 @@ test('inherits Vim mode and display-row navigation inside the Mermaid source edi
     const modal = page.getByRole('dialog', { name: 'Mermaid Editor' });
     const modalEditor = modal.locator('.mermaid-editor-code-host .cm-editor');
     const content = modal.locator('.mermaid-editor-code-host .cm-content');
+    // Validation dispatches diagnostics into CodeMirror. The persistent Vim
+    // mode attribute must survive that editor-state reconciliation.
+    await expect(modal.locator('.mermaid-editor-preview-state')).toHaveText('Up to date');
     await expect(modalEditor).toHaveClass(/vim-normal/);
     await expect(page.locator('#file-type')).toHaveText('NORMAL');
 

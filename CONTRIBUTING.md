@@ -192,6 +192,13 @@ npx playwright install chromium # first time only
 npm run test:pdf
 ```
 
+When the browser check fails on GitHub, both the ordinary CI workflow and the
+release-verification workflow upload a `playwright-diagnostics-*` artifact for
+14 days. Download it from the failed run's **Artifacts** section: the HTML
+report is under `playwright-report/`, while `test-results/` contains the
+retained trace, failure screenshot, and test attachments. Successful runs do
+not create this diagnostic artifact.
+
 For PDF pagination changes, keep one-/two-pass sequencing in the injected Go
 use-case tests and reserve the real engine boundary for the opt-in Chromium
 contract documented in `docs/TESTING.md`. Set `FIGARO_PDF_TEST_OUTPUT` on that

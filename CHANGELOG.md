@@ -10,6 +10,17 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.18.1] - 2026-08-13
+
+### Fixed
+
+- Updated the PDF dependency chain to a patched WebP decoder, resolving the
+  reachable GO-2026-5061 dependency-audit finding.
+- Failed browser checks now retain Playwright reports, traces, screenshots,
+  and test attachments in both CI and release verification for 14 days.
+- The Mermaid Editor now keeps its inherited Vim mode and cursor styling after
+  live syntax diagnostics update the temporary CodeMirror document.
+
 ## [1.18.0] - 2026-08-13
 
 ### Added
@@ -1047,7 +1058,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.18.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.18.1...HEAD
+[1.18.1]: https://github.com/grilo/figaro/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/grilo/figaro/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/grilo/figaro/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/grilo/figaro/compare/v1.15.1...v1.16.0

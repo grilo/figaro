@@ -238,7 +238,8 @@ the version-matched Mermaid Live Editor catalogue. Linked **Diagram** and
 or already-template-backed blocks follow each selection immediately for quick
 browsing. Existing or manually edited source is protected until **Replace with
 template** is chosen. The temporary source editor inherits the main editor's
-Vim and visual-row preferences. Oversized diagrams fit the preview pane; use the
+Vim and visual-row preferences and keeps its mode while live diagnostics
+refresh. Oversized diagrams fit the preview pane; use the
 mouse wheel or `+`/`-` to zoom, drag or use the arrow keys to pan, and press `0`
 to reset. Zooming repaints the SVG at its new dimensions so text and lines stay
 sharp. Syntax errors receive underlines and hover explanations while the

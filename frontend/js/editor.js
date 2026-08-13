@@ -156,6 +156,7 @@ let spellcheckLanguageRequested = 'en-US';
 let vimRequestId = 0;
 let vimModeCM = null;
 let vimModeChangeHandler = null;
+const vimModeClassSyncTokens = new WeakMap();
 let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: null };
 let fileModeRequest = 0;
 let markdownModeExtensions = null;
@@ -292,12 +293,30 @@ function vimModeFromEvent(event, cm) {
     return 'visual';
 }
 
-function syncRootVimModeClasses(rootView, mode) {
+function vimModeClassExtension(mode) {
+    const normalizedMode = mode || '';
+    const className = normalizedMode.startsWith('visual') ? 'vim-visual'
+        : normalizedMode === 'normal' ? 'vim-normal'
+            : normalizedMode === 'insert' ? 'vim-insert'
+                : '';
+    return className ? EditorView.editorAttributes.of({ class: className }) : [];
+}
+
+function syncRootVimModeClasses(rootView, mode, compartment = null) {
     if (!rootView || rootView.isDestroyed) return;
     const normalizedMode = mode || 'normal';
-    rootView.dom.classList.toggle('vim-visual', normalizedMode.startsWith('visual'));
-    rootView.dom.classList.toggle('vim-normal', normalizedMode === 'normal');
-    rootView.dom.classList.toggle('vim-insert', normalizedMode === 'insert');
+    if (!compartment) {
+        rootView.dom.classList.toggle('vim-visual', normalizedMode.startsWith('visual'));
+        rootView.dom.classList.toggle('vim-normal', normalizedMode === 'normal');
+        rootView.dom.classList.toggle('vim-insert', normalizedMode === 'insert');
+        return;
+    }
+    const token = {};
+    vimModeClassSyncTokens.set(rootView, token);
+    queueMicrotask(() => {
+        if (rootView.isDestroyed || vimModeClassSyncTokens.get(rootView) !== token) return;
+        rootView.dispatch({ effects: compartment.reconfigure(vimModeClassExtension(mode)) });
+    });
 }
 
 function focusedTableCellVimMode(document) {
@@ -1005,8 +1024,13 @@ function vimSourceBoundaryExtension() {
 
 function mermaidEditorInputProfile(mainView) {
     if (!vimActive) return null;
+    const modeClassCompartment = new Compartment();
     return {
-        extensions: [vim(), vimSourceBoundaryExtension()],
+        extensions: [
+            vim(),
+            vimSourceBoundaryExtension(),
+            modeClassCompartment.of(vimModeClassExtension('normal')),
+        ],
         capturesEscape(modalView, event) {
             return Boolean(modalView?.dom.contains(event.target));
         },
@@ -1015,10 +1039,10 @@ function mermaidEditorInputProfile(mainView) {
             const syncMode = event => {
                 const mode = vimModeFromEvent(event, cm);
                 updateVimStatus(mode);
-                syncRootVimModeClasses(modalView, mode);
+                syncRootVimModeClasses(modalView, mode, modeClassCompartment);
             };
             updateVimStatus('normal');
-            syncRootVimModeClasses(modalView, 'normal');
+            syncRootVimModeClasses(modalView, 'normal', modeClassCompartment);
             cm?.on('vim-mode-change', syncMode);
 
             Vim.defineEx('write', 'w', apply);

@@ -322,6 +322,23 @@ Browser tests that configure preference-backed editor behavior must wait for
 startup preference load can overwrite the test's setting partway through a
 slower CI run.
 
+### Remote browser-failure diagnostics
+
+GitHub's ordinary CI browser job and the release workflow's verification job
+run Playwright with an HTML reporter plus failure-only tracing and screenshots.
+If either job fails, its final workflow step uploads a
+`playwright-diagnostics-*` artifact for 14 days. `playwright-report/` contains
+the browsable report; `test-results/` contains the retained trace, screenshot,
+error context, and other test attachments. The upload step uses
+`if-no-files-found: warn` so a failure before Playwright starts remains the
+original failure instead of being obscured by a second artifact error.
+
+No diagnostic artifact is uploaded for a successful run, and local Playwright
+defaults remain unchanged unless `CI` is set. Keep the focused workflow
+regression in `releaseMetadata.test.js` synchronized with both workflow files
+and `playwright.config.js` whenever paths, retention, reporters, or failure
+capture change.
+
 ### Design-system catalogue
 
 `tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
@@ -840,8 +857,8 @@ left-aligned linked pickers, ordinary disabled cursor, real wheel zoom and drag
 panning, explicit SVG dimension growth without a scaled canvas, two-axis SVG
 fitting, first-success empty-state removal, lint tooltip/SVG, stale-preview,
 borderless gutter, and undo boundaries; a focused companion verifies inherited Vim mode
-and wrapped display-row motion, while the parser loop verifies every bundled
-template.
+and wrapped display-row motion after the first diagnostics transaction, while
+the parser loop verifies every bundled template.
 The existing diagram cursor/drag browser scenario remains the geometry oracle.
 
 ```bash

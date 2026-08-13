@@ -37,6 +37,7 @@ describe('Vim command and visual theming', () => {
     test('draws a visual selection layer and exposes the Vim command panel', async () => {
         const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
+        const { setDiagnostics } = await import('@codemirror/lint');
         await initEditor();
         const view = createEditorView();
         view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'alpha\nbeta' } });
@@ -53,6 +54,15 @@ describe('Vim command and visual theming', () => {
 
         expect(view.dom.classList.contains('vim-visual')).toBe(true);
         expect(view.dom.querySelector('.cm-selectionLayer .cm-selectionBackground')).not.toBeNull();
+
+        view.dispatch(setDiagnostics(view.state, [{
+            from: 0,
+            to: 1,
+            severity: 'error',
+            message: 'Diagnostic update',
+        }]));
+        await Promise.resolve();
+        expect(view.dom.classList.contains('vim-visual')).toBe(true);
 
         Vim.handleKey(cm, '<Esc>', 'user');
         Vim.handleKey(cm, ':', 'user');

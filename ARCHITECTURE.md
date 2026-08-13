@@ -941,7 +941,9 @@ temporary CodeMirror effects, and the final atomic dispatch to the root editor.
 Its template-state policy distinguishes protected user source from live
 template browsing before the dialog performs any CodeMirror transaction. The
 dialog receives the already-configured Vim extension and global visual-row
-mapping as an input profile; cleanup restores root-editor Ex commands and
+mapping as an input profile. Vim cursor-mode classes are owned by a CodeMirror
+editor-attribute compartment rather than an ad-hoc DOM mutation, so diagnostics
+transactions cannot discard them; cleanup restores root-editor Ex commands and
 status ownership. Dynamic Diagram-to-Template option changes reuse the shared
 select-combobox adapter's refresh boundary rather than rebuilding modal UI.
 Whitespace classification and preview transform decisions remain in the pure
@@ -1126,6 +1128,13 @@ use cases use narrow injected fakes; adapters and components exercise one real
 effect boundary. Playwright is reserved for behavior lower layers cannot
 represent, and packaged-native checks cover differences among WebKitGTK,
 WebView2, and WKWebView.
+
+Hosted browser checks keep their diagnostic effect at the workflow boundary.
+Under `CI`, Playwright emits an HTML report and retains traces and screenshots
+only for failures; the ordinary and release workflows then upload the report
+and `test-results` for 14 days. Local browser runs keep Playwright's normal
+lightweight reporter and do not incur failure-capture overhead unless the
+caller explicitly sets `CI`.
 
 For example, jsdom does not enforce real iframe sandbox origins, so it cannot
 be the only test for the PDF preview. Before releasing changes to the preview

@@ -1285,8 +1285,9 @@ Fenced code blocks tagged `mermaid`, `vega`, or `vega-lite` are automatically re
   instead of magnifying a cached layer; pan uses translation only. The initial
   “valid diagram” notice is removed on the first successful render. Preview
   navigation never edits source. Vim Normal, Insert, Visual, and Replace modes
-  plus the visual-row preference match the root editor, with modal `:w`, `:wq`,
-  and `:x` applying and `:q` cancelling.
+  plus the visual-row preference match the root editor and survive asynchronous
+  lint/preview state updates, with modal `:w`, `:wq`, and `:x` applying and `:q`
+  cancelling.
 - Source validation starts 400 ms after the most recent edit and uses
   `mermaid.parse()` through the shared source-security adapter. Parser
   locations become CodeMirror error ranges with hover tooltips plus a live text

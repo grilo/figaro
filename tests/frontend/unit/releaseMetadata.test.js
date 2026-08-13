@@ -63,6 +63,25 @@ describe('release metadata and documentation', () => {
         expect(contributing).toContain('$prepare-figaro-release');
     });
 
+    test('retains Playwright diagnostics when CI or release browser verification fails', () => {
+        const ciWorkflow = read('.github/workflows/test.yml');
+        const releaseWorkflow = read('.github/workflows/release.yml');
+        const playwrightConfig = read('playwright.config.js');
+
+        for (const workflow of [ciWorkflow, releaseWorkflow]) {
+            expect(workflow).toContain('name: Upload Playwright failure diagnostics');
+            expect(workflow).toContain('if: failure()');
+            expect(workflow).toContain('uses: actions/upload-artifact@v7');
+            expect(workflow).toContain('playwright-report');
+            expect(workflow).toContain('test-results');
+            expect(workflow).toContain('if-no-files-found: warn');
+            expect(workflow).toContain('retention-days: 14');
+        }
+        expect(playwrightConfig).toContain("['html', { outputFolder: 'playwright-report', open: 'never' }]");
+        expect(playwrightConfig).toContain("screenshot: process.env.CI ? 'only-on-failure' : 'off'");
+        expect(playwrightConfig).toContain("trace: process.env.CI ? 'retain-on-failure' : 'off'");
+    });
+
     test('requires every affected documentation surface to stay synchronized', () => {
         const instructions = read('AGENTS.md');
         const contributing = read('CONTRIBUTING.md');
