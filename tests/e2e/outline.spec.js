@@ -128,6 +128,108 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     await expect(page.locator('#right-sidebar')).not.toHaveClass(/open/);
 });
 
+test('keeps the Mermaid Editor action aligned when Outline narrows the writing area', async ({ page }) => {
+    await page.setViewportSize({ width: 760, height: 720 });
+    await openWelcomeEditor(page);
+    const source = [
+        '# Project',
+        ...Array.from({ length: 1 }, (_, index) => (
+            `Introductory line ${index + 1} ${Array.from({ length: 12 }, (_word, word) => `context${word + 1}`).join(' ')}`
+        )),
+        '```mermaid',
+        'flowchart LR',
+        '  Start --> Review --> Finish',
+        '```',
+        'Closing text.',
+    ].join('\n');
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown);
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== markdown) await new Promise(resolve => setTimeout(resolve, 10));
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+    }, source);
+
+    const helper = page.getByRole('button', { name: 'Open Mermaid Editor for this diagram' });
+    const diagram = page.locator('.cm-live-diagram');
+    await expect(helper).toBeVisible();
+    await expect(diagram).toBeVisible();
+    const alignment = async () => page.evaluate(() => {
+        const helperRect = document.querySelector('.mermaid-editor-guide').getBoundingClientRect();
+        const diagramRect = document.querySelector('.cm-live-diagram').getBoundingClientRect();
+        const widgetRect = document.querySelector('.cm-block-widget--mermaid').getBoundingClientRect();
+        return {
+            helperTop: helperRect.top,
+            diagramTop: diagramRect.top,
+            horizontalGap: helperRect.left - diagramRect.right,
+            widgetOffset: helperRect.top - widgetRect.top,
+        };
+    });
+    const before = await alignment();
+    const beforeWidgetOffset = before.widgetOffset;
+    expect(before.horizontalGap).toBeGreaterThanOrEqual(0);
+
+    await page.locator('#outline-toggle').click();
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'outline');
+    const transitionLayout = await page.evaluate(async () => {
+        const samples = [];
+        for (let frame = 0; frame < 30; frame++) {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            const helper = document.querySelector('.mermaid-editor-guide');
+            const diagram = document.querySelector('.cm-live-diagram');
+            const widget = document.querySelector('.cm-block-widget--mermaid');
+            if (helper && diagram && widget) {
+                const helperRect = helper.getBoundingClientRect();
+                const diagramRect = diagram.getBoundingClientRect();
+                const widgetRect = widget.getBoundingClientRect();
+                samples.push({
+                    widgetOffset: helperRect.top - widgetRect.top,
+                    horizontalGap: helperRect.left - diagramRect.right,
+                    overlaps: helperRect.left < diagramRect.right
+                        && helperRect.right > diagramRect.left
+                        && helperRect.top < diagramRect.bottom
+                        && helperRect.bottom > diagramRect.top,
+                });
+            }
+        }
+        return samples;
+    });
+    expect(transitionLayout.every(sample => Math.abs(sample.widgetOffset - beforeWidgetOffset) <= 2)).toBe(true);
+    expect(transitionLayout.every(sample => !sample.overlaps)).toBe(true);
+    const after = await alignment();
+    expect(Math.abs(after.widgetOffset - beforeWidgetOffset)).toBeLessThanOrEqual(2);
+    expect(after.helperTop).toBeLessThan(after.diagramTop);
+
+    await page.locator('#right-sidebar-close').click();
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'true');
+    const closingLayout = await page.evaluate(async () => {
+        const samples = [];
+        for (let frame = 0; frame < 30; frame++) {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            const helper = document.querySelector('.mermaid-editor-guide');
+            const diagram = document.querySelector('.cm-live-diagram');
+            const widget = document.querySelector('.cm-block-widget--mermaid');
+            if (helper && diagram && widget) {
+                const helperRect = helper.getBoundingClientRect();
+                const diagramRect = diagram.getBoundingClientRect();
+                const widgetRect = widget.getBoundingClientRect();
+                samples.push({
+                    widgetOffset: helperRect.top - widgetRect.top,
+                    horizontalGap: helperRect.left - diagramRect.right,
+                    overlaps: helperRect.left < diagramRect.right
+                        && helperRect.right > diagramRect.left
+                        && helperRect.top < diagramRect.bottom
+                        && helperRect.bottom > diagramRect.top,
+                });
+            }
+        }
+        return samples;
+    });
+    expect(closingLayout.every(sample => Math.abs(sample.widgetOffset - beforeWidgetOffset) <= 2)).toBe(true);
+    expect(closingLayout.every(sample => !sample.overlaps)).toBe(true);
+});
+
 test('sticks the complete active heading hierarchy and keeps every row navigable', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = [

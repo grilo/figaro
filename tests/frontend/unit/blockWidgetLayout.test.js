@@ -45,6 +45,10 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-frontmatter-panel-section')).toMatch(/display:\s*grid/);
         expect(declarationsFor('.cm-frontmatter-panel-section')).toMatch(/gap:\s*7px/);
         expect(declarationsFor('.cm-block-widget--diagram')).toMatch(/padding:\s*8px 0/);
+        expect(declarationsFor('.cm-block-widget--mermaid')).toMatch(/width:\s*min\(100%, calc\(var\(--mermaid-editor-viewport-width, 100vw\) - 132px\)\)/);
+        expect(declarationsFor('.cm-block-widget--mermaid')).toMatch(/padding-right:\s*112px/);
+        expect(declarationsFor('.cm-scroller.cm-mermaid-editor-stacked .cm-block-widget--mermaid'))
+            .toMatch(/padding:\s*40px 0 8px/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-top:\s*0\s*!important/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-bottom:\s*0\s*!important/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/padding-top:\s*44px\s*!important/);

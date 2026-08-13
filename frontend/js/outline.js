@@ -9,6 +9,7 @@
 import { getEditorContent, getEditorDocumentTabId, getEditorView } from './editor.js';
 import { getState } from './state.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+import { synchronizeMermaidEditorViewportWidth } from './mermaidEditorGutter.js';
 import {
     activeOutlineHeadingHierarchy,
     activeOutlineHeadingIndex,
@@ -33,6 +34,7 @@ const stickyHeadingMeasureKey = {};
 let stickyMeasureView = null;
 let stickyScrollDOM = null;
 let stickyScrollHandler = null;
+let outlineLayoutMeasureRequest = 0;
 let model = {
     tabId: null,
     source: null,
@@ -62,6 +64,27 @@ function outlineElements() {
 function sidebarOwnsOutline() {
     const { sidebar } = outlineElements();
     return Boolean(sidebar?.classList.contains('open') && sidebar.dataset.mode === 'outline');
+}
+
+/** Keep CodeMirror block widgets and gutters in one measurement frame while the pane animates. */
+function synchronizeEditorLayoutDuringOutlineTransition(view = getEditorView()) {
+    if (!view || view.isDestroyed || typeof requestAnimationFrame !== 'function') return;
+    const request = ++outlineLayoutMeasureRequest;
+    let previousWidth = -1;
+    let stableFrames = 0;
+    let frameCount = 0;
+    const measure = () => {
+        if (request !== outlineLayoutMeasureRequest || view.isDestroyed || frameCount >= 30) return;
+        const width = view.dom.getBoundingClientRect().width;
+        stableFrames = Math.abs(width - previousWidth) < 0.5 ? stableFrames + 1 : 0;
+        previousWidth = width;
+        frameCount += 1;
+        synchronizeMermaidEditorViewportWidth(view, width);
+        view.requestMeasure();
+        if (stableFrames < 3) requestAnimationFrame(measure);
+    };
+    view.requestMeasure();
+    requestAnimationFrame(measure);
 }
 
 function setOutlineControlVisible(visible) {
@@ -295,6 +318,7 @@ export function openOutlinePanel() {
     resizer?.classList.add('visible');
     setOutlineOpenState(true);
     renderOutlinePanel();
+    synchronizeEditorLayoutDuringOutlineTransition();
     window.dispatchEvent(new Event('resize'));
     return true;
 }
@@ -314,6 +338,7 @@ export function closeOutlinePanel({ keepSidebarOpen = false } = {}) {
     }
     setOutlineOpenState(false);
     setOutlineControlVisible(model.headings.length > 0);
+    synchronizeEditorLayoutDuringOutlineTransition();
     window.dispatchEvent(new Event('resize'));
 }
 

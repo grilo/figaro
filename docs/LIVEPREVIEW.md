@@ -122,6 +122,46 @@ over 50,000 characters or YAML frontmatter containing an ordered-map tag never
 reaches the vendored parser. The measured widget displays its normal error
 state, and moving the selection into the block reveals the unchanged source.
 
+Every Mermaid fence also contributes one **Mermaid Editor** control to a
+right-side gutter. Its marker is derived from the same retained diagram-block
+state as the replacement widget, so it remains attached to the opening fence
+when cursor movement switches between rendered and raw source. It is an action,
+not a block widget, and does not participate in folding. With at least 360 px
+of visible editor width, the measured Mermaid wrapper reserves a right action
+lane without narrowing prose or non-Mermaid diagrams. Below that threshold it
+reserves a 40 px row immediately above its own diagram, because the text action
+and a useful diagram cannot fit side by side; returning width restores the
+right lane. Primary-pointer activation preserves the note's selection until
+the modal opens; keyboard activation is native.
+While Document Outline animates the available editor width, a bounded
+CodeMirror measurement bridge follows that transition until the width is stable.
+The action and its measured Mermaid wrapper therefore reflow in the same frame,
+stay attached without intersecting, and never jump to the top of the text body.
+
+The focused Mermaid Editor owns a separate CodeMirror state. Parsing is
+debounced and SVG rendering is serialized through an injected preview session;
+only the newest generation may publish. Parser locations become lint
+decorations and hover text. Invalid source leaves the most recently published
+SVG in place with an explicit stale state. Its linked Diagram and Template
+comboboxes update both source and preview immediately while the buffer is empty
+or contains only whitespace, and after an explicit template replacement.
+Opening meaningful nonempty source or manually editing the temporary buffer
+protects that source until **Replace with template** is activated. The compact
+comboboxes remain 4 px apart and left-aligned until the narrow single-column
+breakpoint. The preview fits each SVG within both pane dimensions at its reset
+scale. A non-passive wheel handler performs pointer-centered zoom from 25% to
+400%; primary-pointer drag pans, `+`/`-` zoom, arrows pan, and `0` resets. These
+controls update explicit SVG dimensions at every scale instead of magnifying a
+cached composited layer, while translation is reserved for panning. The initial
+empty-state node is removed after the first successful SVG and cannot obscure
+later valid or last-known-good output. Preview navigation affects only the
+temporary SVG surface and survives preview refreshes.
+The temporary view receives the root editor's active Vim adapter and visual-row
+mapping; Escape remains a Vim mode key while that view owns focus. Applying
+calculates one replacement for the original fence body, leaving the opener and
+closer untouched; cancelling does not dispatch to the note. Both paths destroy
+the temporary view and return focus to the root editor.
+
 The same guard enforces symmetric document boundaries independently of widget
 geometry. Arrow Down at the final position and Arrow Up at the first position
 are consumed without moving; a browser result that crosses in the opposite

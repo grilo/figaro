@@ -91,6 +91,8 @@ import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
 import { markdownLinter } from './markdownLint.js';
 import { markdownBlockGuidesExtension } from './markdownBlockGuides.js';
+import { createMermaidEditorGutterExtension } from './mermaidEditorGutter.js';
+import { openMermaidEditor } from './mermaidEditor.js';
 import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
     unexpectedVerticalMotionTarget,
@@ -1001,6 +1003,37 @@ function vimSourceBoundaryExtension() {
     }));
 }
 
+function mermaidEditorInputProfile(mainView) {
+    if (!vimActive) return null;
+    return {
+        extensions: [vim(), vimSourceBoundaryExtension()],
+        capturesEscape(modalView, event) {
+            return Boolean(modalView?.dom.contains(event.target));
+        },
+        attach(modalView, { apply, cancel }) {
+            const cm = getCM(modalView);
+            const syncMode = event => {
+                const mode = vimModeFromEvent(event, cm);
+                updateVimStatus(mode);
+                syncRootVimModeClasses(modalView, mode);
+            };
+            updateVimStatus('normal');
+            syncRootVimModeClasses(modalView, 'normal');
+            cm?.on('vim-mode-change', syncMode);
+
+            Vim.defineEx('write', 'w', apply);
+            Vim.defineEx('quit', 'q', cancel);
+            Vim.defineEx('wq', 'wq', apply);
+            Vim.defineEx('xit', 'x', apply);
+            return () => {
+                cm?.off('vim-mode-change', syncMode);
+                registerVimExCommands(Vim);
+                syncVimStatusForFocus(mainView);
+            };
+        },
+    };
+}
+
 export function insertTextAtCursor(view, text) {
     if (!view?.state?.selection) return false;
     const selection = view.state.selection.main;
@@ -1899,19 +1932,23 @@ function createEditorView() {
         sync() {
             if (this.view.isDestroyed) return;
             for (const gutters of this.view.dom.querySelectorAll('.cm-gutters')) {
-                const fold = gutters.querySelector('.cm-markdownBlockGutter, .cm-foldGutter');
-                if (!fold) {
+                const interactiveGutters = [...gutters.querySelectorAll(
+                    '.cm-markdownBlockGutter, .cm-mermaidEditorGutter, .cm-foldGutter',
+                )];
+                if (!interactiveGutters.length) {
                     gutters.setAttribute('aria-hidden', 'true');
                     continue;
                 }
                 gutters.removeAttribute('aria-hidden');
                 for (const gutter of gutters.querySelectorAll(':scope > .cm-gutter')) {
-                    if (gutter === fold) {
+                    if (interactiveGutters.includes(gutter)) {
                         gutter.removeAttribute('aria-hidden');
                         gutter.setAttribute('role', 'group');
                         gutter.setAttribute('aria-label', gutter.classList.contains('cm-markdownBlockGutter')
                             ? 'Markdown block guides'
-                            : 'Code folding');
+                            : gutter.classList.contains('cm-mermaidEditorGutter')
+                                ? 'Mermaid diagram actions'
+                                : 'Code folding');
                     } else {
                         gutter.setAttribute('aria-hidden', 'true');
                     }
@@ -1934,6 +1971,12 @@ function createEditorView() {
     if (StateField && EditorView && WidgetType && shouldShowSource && mouseSelectingField) {
         try { diagramField = createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField); } catch(e) { log.warn('[diagram] create failed: ' + (e.message || e)); }
     }
+    const mermaidEditorGutterExtension = Array.isArray(diagramField) ? [] : createMermaidEditorGutterExtension({
+        diagramField,
+        openEditor: (view, block) => openMermaidEditor(view, block, {
+            inputProfile: mermaidEditorInputProfile(view),
+        }),
+    });
 
     // Frontmatter is represented by a single collapsed Properties card until
     // the user activates it or moves the cursor into the YAML source.
@@ -2487,6 +2530,7 @@ function createEditorView() {
         vimRenderedBlockNavigationExtension(),
         EditorView.lineWrapping,
         stickyHeadingScrollMargins,
+        ...mermaidEditorGutterExtension,
         markdownLintCompartment.of(markdownLintRequested ? [linter(markdownLinter, { delay: 500 })] : []),
         spellcheckCompartment.of(spellcheckRequested ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })] : []),
         autocompletion({

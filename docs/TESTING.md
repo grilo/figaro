@@ -824,6 +824,54 @@ fold-state or ARIA-only assertion is not sufficient. In a native WebKitGTK,
 WebView2, and WKWebView build, repeat those cursor and drag checks with both
 line numbers off and on.
 
+The Mermaid Editor extends that matrix without creating a new block widget.
+Pure tests cover the complete 32-type/76-template catalogue, parser-location
+diagnostics, whitespace-only empty-state policy, adaptive render delay, exact
+fence-body replacement, and pointer-centered bounded zoom/pan transforms.
+Use-case tests prove debounce, latest-only publication, serialized rendering,
+and last-known-good preservation. The CodeMirror component proves the action is
+present in raw and rendered states, skips non-Mermaid fences, keeps chart
+browsing live for empty/template-backed buffers while protecting existing or
+manually edited source, and makes Apply one undoable root transaction while
+Cancel dispatches nothing. A DOM-adapter test covers keyboard preview
+navigation without source effects, and the shared combobox test proves dynamic
+option refresh. One browser workflow owns the irreducible focus, compact
+left-aligned linked pickers, ordinary disabled cursor, real wheel zoom and drag
+panning, explicit SVG dimension growth without a scaled canvas, two-axis SVG
+fitting, first-success empty-state removal, lint tooltip/SVG, stale-preview,
+borderless gutter, and undo boundaries; a focused companion verifies inherited Vim mode
+and wrapped display-row motion, while the parser loop verifies every bundled
+template.
+The existing diagram cursor/drag browser scenario remains the geometry oracle.
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/mermaidEditorModel.test.js \
+  tests/frontend/unit/mermaidPreviewSession.test.js \
+  tests/frontend/unit/mermaidEditorGutter.test.js \
+  tests/frontend/unit/mermaidEditor.test.js \
+  tests/frontend/unit/mermaidPreviewNavigation.test.js \
+  tests/frontend/unit/selectCombobox.test.js \
+  tests/frontend/unit/diagramRenderer.test.js
+npx playwright test \
+  tests/e2e/mermaidEditor.spec.js \
+  tests/e2e/editorUX.spec.js --grep "math and diagram previews cursor-safe"
+```
+
+In the packaged WebKitGTK/WebView2/WKWebView smoke, open the Mermaid Editor from
+both a rendered block and revealed source, traverse chart types with arrows,
+hover one invalid range, Cancel, then Apply and undo. With Vim enabled, verify
+Insert/Escape, Visual mode, and the configured wrapped-row `j`/`k` behavior in
+the temporary editor. Repeat Arrow Up/Down plus
+forward/reverse drag selection immediately around the block with line numbers
+off and on; the right gutter must not change any landing position or selection.
+At a narrow window width, place wrapped prose before a visible Mermaid block,
+open and close Document Outline, and sample the helper, measured wrapper, and
+diagram rectangles throughout both width animations. The helper must remain at
+the same wrapper-relative offset and never intersect the diagram on any frame.
+The final sub-360 px state must reserve its action row above the diagram, and
+closing the pane must restore the non-overlapping side lane.
+
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/markdownHeadingFolding.test.js \

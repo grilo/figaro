@@ -777,12 +777,12 @@
 /* Markdown keeps a narrow, borderless disclosure rail when line numbers are
    disabled. The optional number gutter restores its own separator without
    making heading folds feel like a second source-code column. */
-.cm-editor.cm-markdown-file .cm-gutters {
-    border-right-color: transparent !important;
+#editor-container .cm-editor > .cm-scroller > .cm-gutters {
+    border: 0 !important;
     padding: 16px 4px 16px 5px !important;
 }
 
-.cm-editor.cm-markdown-file .cm-lineNumbers {
+#editor-container .cm-editor > .cm-scroller > .cm-gutters .cm-lineNumbers {
     margin-right: 3px;
     padding-left: 7px;
     border-right: 1px solid var(--border-color);

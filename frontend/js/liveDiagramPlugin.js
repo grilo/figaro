@@ -59,11 +59,19 @@ export function scanDiagramFences(doc) {
             for (let lineNumber = open.lineNumber + 1; lineNumber < closeLine.number; lineNumber++) {
                 code.push(doc.line(lineNumber).text);
             }
+            const contentFrom = open.lineNumber < closeLine.number
+                ? doc.line(open.lineNumber + 1).from
+                : closeLine.from;
+            const contentTo = closeLine.from;
             diagrams.push({
                 from: open.from,
                 to: closeLine.to,
+                lineFrom: open.from,
+                contentFrom,
+                contentTo,
                 lang: open.language,
                 code: code.join('\n').trim(),
+                rawCode: doc.sliceString(contentFrom, contentTo).replace(/\r?\n$/u, ''),
                 recoveredFence,
             });
         }
@@ -141,7 +149,9 @@ function createDiagramWidget(WidgetType) {
 
             dom.append(label, content);
             this.renderInto(content);
-            return wrapBlockWidget(dom, 'cm-block-widget--diagram');
+            const wrapper = wrapBlockWidget(dom, 'cm-block-widget--diagram');
+            if (this.lang === 'mermaid') wrapper.classList.add('cm-block-widget--mermaid');
+            return wrapper;
         }
 
         async renderInto(container) {
@@ -184,8 +194,9 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
         const decorations = [];
         const ranges = [];
         const isDragging = state.field(mouseSelectingField, false);
+        const blocks = scanDiagramFences(state.doc);
 
-        for (const block of scanDiagramFences(state.doc)) {
+        for (const block of blocks) {
             ranges.push({ from: block.from, to: block.to });
             if (!block.code || isDragging || shouldShowSource(state, block.from, block.to)) continue;
             decorations.push(Decoration.replace({
@@ -199,6 +210,7 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                 ? Decoration.set(decorations.sort((a, b) => a.from - b.from), true)
                 : Decoration.none,
             ranges,
+            blocks,
         };
     };
 
@@ -225,6 +237,14 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
         ranges: value.ranges.map(range => ({
             from: changes.mapPos(range.from, -1),
             to: changes.mapPos(range.to, 1),
+        })),
+        blocks: value.blocks.map(block => ({
+            ...block,
+            from: changes.mapPos(block.from, -1),
+            to: changes.mapPos(block.to, 1),
+            lineFrom: changes.mapPos(block.lineFrom, -1),
+            contentFrom: changes.mapPos(block.contentFrom, -1),
+            contentTo: changes.mapPos(block.contentTo, 1),
         })),
     });
 

@@ -6,7 +6,7 @@
 export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' } = {}) {
     if (!select || select.dataset.comboboxEnhanced === 'true') return select?._figaroCombobox || null;
 
-    const options = Array.from(select.options || []);
+    let options = Array.from(select.options || []);
     if (!options.length) return null;
     const id = select.id || `figaro-select-${Math.random().toString(36).slice(2)}`;
     const wrapper = document.createElement('div');
@@ -30,11 +30,6 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
     menu.setAttribute('role', 'listbox');
     menu.setAttribute('aria-label', `${trigger.getAttribute('aria-label')} options`);
     menu.hidden = true;
-    menu.innerHTML = options.map((option, index) => `
-        <button type="button" id="${id}-option-${index}" class="ui-menu-item settings-picker-item select-combobox-option" role="option" data-value="${escapeAttribute(option.value)}" aria-selected="false" tabindex="-1">
-            <span>${escapeHTML(option.textContent)}</span>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-        </button>`).join('');
 
     select.parentNode.insertBefore(wrapper, select);
     wrapper.append(trigger, menu, select);
@@ -43,7 +38,7 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
     select.setAttribute('aria-hidden', 'true');
     select.dataset.comboboxEnhanced = 'true';
 
-    const optionButtons = Array.from(menu.querySelectorAll('.select-combobox-option'));
+    let optionButtons = [];
     let activeIndex = Math.max(0, options.findIndex(option => option.value === select.value));
     const sync = () => {
         const selectedIndex = Math.max(0, options.findIndex(option => option.value === select.value));
@@ -56,12 +51,17 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
         });
     };
     const setActive = index => {
+        if (!optionButtons.length) {
+            activeIndex = -1;
+            trigger.removeAttribute('aria-activedescendant');
+            return;
+        }
         activeIndex = (index + optionButtons.length) % optionButtons.length;
         optionButtons.forEach((button, buttonIndex) => button.classList.toggle('active', buttonIndex === activeIndex));
         trigger.setAttribute('aria-activedescendant', optionButtons[activeIndex].id);
     };
     const setOpen = open => {
-        const shouldOpen = Boolean(open && !select.disabled && !trigger.disabled);
+        const shouldOpen = Boolean(open && optionButtons.length && !select.disabled && !trigger.disabled);
         trigger.setAttribute('aria-expanded', String(shouldOpen));
         menu.hidden = !shouldOpen;
         menu.classList.toggle('open', shouldOpen);
@@ -70,6 +70,18 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
             trigger.removeAttribute('aria-activedescendant');
             optionButtons.forEach(button => button.classList.remove('active'));
         }
+    };
+    const refresh = () => {
+        options = Array.from(select.options || []);
+        menu.innerHTML = options.map((option, index) => `
+            <button type="button" id="${id}-option-${index}" class="ui-menu-item settings-picker-item select-combobox-option" role="option" data-value="${escapeAttribute(option.value)}" aria-selected="false" tabindex="-1">
+                <span>${escapeHTML(option.textContent)}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>`).join('');
+        optionButtons = Array.from(menu.querySelectorAll('.select-combobox-option'));
+        activeIndex = Math.max(0, options.findIndex(option => option.value === select.value));
+        setOpen(false);
+        sync();
     };
     const choose = index => {
         if (index < 0 || index >= options.length || select.disabled) return;
@@ -123,6 +135,7 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
         trigger,
         menu,
         sync,
+        refresh,
         setDisabled(disabled, { busy = false } = {}) {
             select.disabled = Boolean(disabled);
             trigger.disabled = Boolean(disabled);
@@ -138,7 +151,7 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
         });
     }
     select._figaroCombobox = api;
-    sync();
+    refresh();
     return api;
 }
 

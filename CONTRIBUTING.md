@@ -211,8 +211,9 @@ remain free of machine-dependent pass/fail thresholds. See
 [the huge-vault procedure](docs/TESTING.md#huge-vault-stress-profile) and
 [the reference audit](docs/HUGE_VAULT_STRESS.md).
 
-For changes to Raw Text Preview, sticky headings or Markdown block guides,
-current-note heading completion, Vim table cells/rendered-block navigation, or per-tab cursor persistence, follow the
+For changes to Raw Text Preview, sticky headings, Markdown block guides, the
+Mermaid Editor, current-note heading completion, Vim table cells/rendered-block
+navigation, or per-tab cursor persistence, follow the
 focused layer and browser-boundary guidance in
 [`docs/TESTING.md`](docs/TESTING.md).
 
@@ -313,6 +314,11 @@ root npm dependency graph and may embed their own packages. After changing a
 vendored bundle, run `tests/frontend/unit/vendoredBrowserSecurity.test.js` as
 well as `npm audit`; the former inventories known embedded versions and proves
 that vulnerable Mermaid YAML releases remain behind Figaro's pre-parse guard.
+The vendor script also pins `@mermaid-js/examples` 1.3.0 and checks its browser
+ES module plus MIT license into `frontend/vendored/mermaid-examples/`. Keep that
+catalogue version aligned with the bundled Mermaid parser and run the Mermaid
+Editor browser contract, which parses every shipped template, before updating
+either side.
 
 ## Repository layout
 

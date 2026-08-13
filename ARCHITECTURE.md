@@ -930,6 +930,35 @@ before YAML frontmatter work and rejects YAML ordered-map tags. Live preview,
 PDF preview, and export therefore share one effect-free security decision and
 the existing failed-source recovery behavior.
 
+The focused Mermaid Editor reuses that adapter without adding another rendering
+path. Its right gutter consumes the diagram blocks already retained by the live
+preview field; the modal keeps edits in a temporary CodeMirror state. Pure
+catalogue normalization, parser-error mapping, adaptive-delay policy, and
+fence-body replacement planning live in `core/mermaidEditorModel.js`. The
+injected `usecases/mermaidPreviewSession.js` coordinates timers, parsing, and a
+single latest-only render queue. `mermaidEditor.js` alone owns dialog DOM,
+temporary CodeMirror effects, and the final atomic dispatch to the root editor.
+Its template-state policy distinguishes protected user source from live
+template browsing before the dialog performs any CodeMirror transaction. The
+dialog receives the already-configured Vim extension and global visual-row
+mapping as an input profile; cleanup restores root-editor Ex commands and
+status ownership. Dynamic Diagram-to-Template option changes reuse the shared
+select-combobox adapter's refresh boundary rather than rebuilding modal UI.
+Whitespace classification and preview transform decisions remain in the pure
+Mermaid editor model. `mermaidPreviewNavigation.js` alone translates wheel,
+pointer, and keyboard events into those transforms, publishes explicit SVG
+dimensions plus pan offsets, and tears down its listeners with the dialog; it
+has no reference to the root document or Apply transaction.
+Document Outline's width transition is coordinated at its existing UI-effect
+boundary. A bounded request-animation-frame loop asks CodeMirror to measure
+while the editor width changes, then stops after three stable frames (or thirty
+frames maximum), keeping block widgets and gutters in one layout generation
+without introducing a persistent observer. The gutter adapter publishes that
+visible width through a feature-scoped CSS property during ordinary CodeMirror
+geometry updates and the bounded transition. The measured Mermaid wrapper uses
+it to reserve a right action lane, switching to a 40 px row above the diagram
+below 360 px; prose and non-Mermaid widgets retain their original width.
+
 | Direction | Messages | Purpose |
 | --- | --- | --- |
 | Parent → frame | `render`, `set-source-position`, `set-content-progress`, `set-document-progress`, `set-scroll-sync-paused`, `scroll-fragment`, `ping` | Supply the printable snapshot, synchronize a source anchor (with percentage fallback), and suspend synchronization during splitter resizing. |

@@ -720,6 +720,17 @@ test('offers due-date actions only for an unfinished task hashtag and keeps edit
         view.dispatch({ selection: { anchor: view.state.doc.length } });
         view.focus();
     });
+    await expect.poll(() => page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const state = await import('/js/state.js');
+        return {
+            source: editor.getEditorView().state.doc.toString(),
+            columns: state.getState('kanbanCompletionColumns'),
+        };
+    }), {
+        timeout: 3000,
+        message: 'Kanban autocomplete fixture did not settle before typing',
+    }).toEqual({ source: 'A long paragraph ', columns: ['urgent'] });
     await page.keyboard.type('#ur');
     await expect(completionLabels).toHaveText(['#urgent']);
     await page.keyboard.press('Escape');

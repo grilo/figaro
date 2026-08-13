@@ -76,7 +76,8 @@ cat > package.json << 'EOF'
     "@marijn/find-cluster-break": "*",
     "crelt": "*",
     "w3c-keyname": "*",
-    "style-mod": "*"
+    "style-mod": "*",
+    "@mermaid-js/examples": "1.3.0"
   }
 }
 EOF
@@ -238,6 +239,11 @@ if [ ! -f "$VENDOR_DIR/codemirror/theme-one-dark/style.min.css" ] || [ ! -s "$VE
 .cm-activeLineGutter { background: #2f3136; }
 CSS_EOF
 fi
+
+echo "Vendoring the Mermaid Live Editor template catalogue..."
+mkdir -p "$VENDOR_DIR/mermaid-examples"
+cp "$TEMP_DIR/node_modules/@mermaid-js/examples/dist/mermaid-examples.esm.mjs" "$VENDOR_DIR/mermaid-examples/index.js"
+cp "$TEMP_DIR/node_modules/@mermaid-js/examples/LICENSE" "$VENDOR_DIR/mermaid-examples/LICENSE"
 
 # Cleanup temp directory
 cd - > /dev/null

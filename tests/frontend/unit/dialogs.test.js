@@ -1,4 +1,4 @@
-import { confirmDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, pdfStyleReferenceDialog, promptDialog, renamePathDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
+import { activateModal, confirmDialog, createDialogShell, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, pdfStyleReferenceDialog, promptDialog, renamePathDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
 
 describe('New note dialog', () => {
     beforeEach(() => {
@@ -164,6 +164,31 @@ describe('New note dialog', () => {
         await expect(result).resolves.toBe(false);
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(document.activeElement).toBe(newerTarget);
+    });
+
+    test('lets a focused editor reserve Escape before the modal dismissal shortcut', () => {
+        const { overlay } = createDialogShell({
+            title: 'Embedded editor',
+            content: '<div><textarea aria-label="Source"></textarea></div>',
+        });
+        const source = overlay.querySelector('textarea');
+        const onDismiss = jest.fn();
+        let editorOwnsEscape = true;
+        activateModal(overlay, {
+            initialFocus: source,
+            onDismiss,
+            shouldDismissOnEscape: () => !editorOwnsEscape,
+        });
+        source.focus();
+
+        source.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        expect(overlay.isConnected).toBe(true);
+        expect(onDismiss).not.toHaveBeenCalled();
+
+        editorOwnsEscape = false;
+        source.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        expect(overlay.isConnected).toBe(false);
+        expect(onDismiss).toHaveBeenCalledTimes(1);
     });
 
     test('keeps text-entry prompts open on backdrop clicks and validates inline', async () => {

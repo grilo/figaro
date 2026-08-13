@@ -60,7 +60,9 @@ There is no account, hosted database, or required cloud service.
   hashtags form a Kanban board, and portable due-date links feed the Today
   dashboard and calendar.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
-  or edit Draw.io diagrams while keeping the saved SVG readable outside Figaro.
+  open Mermaid's 32 chart types and 76 starter templates in a focused live
+  editor, or edit Draw.io diagrams while keeping the saved SVG readable outside
+  Figaro.
 - **Source and publishing tools.** Preview the exact raw Markdown or paginated
   output, preserve fenced-code syntax colors, add cover pages and tables of
   contents, apply vault-local print CSS, and generate linked PDFs.
@@ -226,6 +228,22 @@ resulting `.drawio.svg` file stays in the vault and remains readable offline.
 Mermaid source is checked before parsing; oversized diagrams and unsafe YAML
 ordered maps remain editable source instead of blocking the editor or PDF
 renderer.
+
+Every Mermaid block has a **Mermaid Editor** action on its right edge. When a
+side pane leaves too little writing width, the action stays with its block in a
+short row immediately above the diagram instead of covering it. It opens a
+focused source-and-preview workspace with the chart types and templates from
+the version-matched Mermaid Live Editor catalogue. Linked **Diagram** and
+**Template** pickers sit tightly together at the left and make empty, whitespace-only,
+or already-template-backed blocks follow each selection immediately for quick
+browsing. Existing or manually edited source is protected until **Replace with
+template** is chosen. The temporary source editor inherits the main editor's
+Vim and visual-row preferences. Oversized diagrams fit the preview pane; use the
+mouse wheel or `+`/`-` to zoom, drag or use the arrow keys to pan, and press `0`
+to reset. Zooming repaints the SVG at its new dimensions so text and lines stay
+sharp. Syntax errors receive underlines and hover explanations while the
+preview stays on the last valid result. **Apply** replaces only that fence's
+body as one undoable edit; **Cancel** leaves the note unchanged.
 
 Raw Text Preview shows the exact Markdown source, including frontmatter, while
 PDF Preview adds pagination, cover pages, a depth-limited table of contents,

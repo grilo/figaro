@@ -44,7 +44,7 @@ function iconSVG(name) {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${dialogIcons[name] || dialogIcons.info}</svg>`;
 }
 
-function createDialogShell({ title, description = '', tone = 'neutral', icon = 'info', className = '', content = '', footer = '' }) {
+export function createDialogShell({ title, description = '', tone = 'neutral', icon = 'info', className = '', content = '', footer = '' }) {
     closeActiveModal(false);
     const id = `figaro-dialog-${++dialogSequence}`;
     const overlay = document.createElement('div');
@@ -66,7 +66,13 @@ function createDialogShell({ title, description = '', tone = 'neutral', icon = '
     return { overlay, modal: overlay.querySelector('.custom-modal') };
 }
 
-function activateModal(overlay, { initialFocus, onDismiss, dismissOnBackdrop = true, onKeydown } = {}) {
+export function activateModal(overlay, {
+    initialFocus,
+    onDismiss,
+    dismissOnBackdrop = true,
+    onKeydown,
+    shouldDismissOnEscape,
+} = {}) {
     const modal = overlay.querySelector('.custom-modal');
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const application = document.getElementById('app');
@@ -107,6 +113,7 @@ function activateModal(overlay, { initialFocus, onDismiss, dismissOnBackdrop = t
 
     const handleKeydown = (event) => {
         if (event.key === 'Escape') {
+            if (shouldDismissOnEscape?.(event) === false) return;
             event.preventDefault();
             event.stopImmediatePropagation();
             dismiss();

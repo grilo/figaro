@@ -232,6 +232,13 @@ those workflows, and Figaro never merges notes automatically.
 - **Hex colors**: standalone CSS hex tokens in the 3-, 4-, 6-, or 8-digit forms render with a theme-aware inline swatch and native color picker in Markdown and supported source files. Picker changes replace only the token, preserving an existing alpha channel. The raw token remains plain text in Markdown, PDF preview, and export.
 - **Printable diagrams**: Mermaid, Vega, and Vega-Lite fences are rendered to inline SVG before the print document reaches the native dialog. If a renderer is unavailable, a diagram is invalid, Mermaid source exceeds 50,000 characters, or Mermaid YAML frontmatter uses an ordered-map tag, the source fence stays visible rather than being dropped. The Mermaid size and ordered-map checks run before the vendored YAML parser for both live and printable rendering.
 - **Editor gutters**: a persistent Settings toggle adds CodeMirror line numbers and active-line gutter highlighting to Markdown and source files. It is disabled by default. Independently, the enabled-by-default **Block guides and folding** setting controls Markdown's typed gutter and unfolds it when disabled; source-code regions keep their normal chevron folding. Bracket matching, undo/redo history, and autocompletion remain always available.
+- Opening or closing Document Outline continuously remeasures CodeMirror only
+  for the right pane's bounded width transition. Mermaid Editor actions and
+  other block-aligned gutters remain attached to their blocks at narrow widths
+  throughout the animation, then measurement stops after three stable frames.
+  The Mermaid action uses a reserved right lane while at least 360 px remains;
+  below that width a measured 40 px row places it immediately above its diagram
+  so it cannot cover the rendered result.
 - **Sticky headings and Document outline**: the enabled-by-default sticky hierarchy shows every scrolled-out active ancestor in a flat strip spanning the full editor width and reserves exactly its height as CodeMirror scroll margin. Sticky heading titles use the same `--font-size-editor` value as normal editor text, while their compact `h1`–`h6` marker remains secondary metadata. Each ancestor enters separately when its source row crosses beneath the currently visible stack; scroll timing follows the visible editor edge rather than CodeMirror's batched virtual-viewport boundary. The passive scroll observer schedules one keyed CodeMirror read/write measurement at a time, reuses the cached heading model, and changes the sticky DOM only when the hierarchy changes. The strip is flush with the editor edges rather than a floating card; each full-width typed row navigates to its source heading. A separate enabled-by-default hamburger launcher remains near the editor's top-right beneath the complete visible hierarchy, opens the source-position-based right-pane outline, hides while that pane is open, and returns on close. Both surfaces support nested H1–H6 levels, ignore frontmatter and fenced-code lookalikes, and dispatch a normal CodeMirror selection when activated. The three Navigation settings—sticky headings, block guides and folding, and document outline—persist in the vault settings and may be disabled independently.
 - **Interactive tables**: rendered GFM tables expose a quiet, theme-token **Delete table** action above the grid. It removes the complete table source in one normal history transaction, returns focus to the document editor, and is fully reversible with Undo.
 - Inline rendering of hashtags and markdown links with distinct styling.
@@ -1230,6 +1237,8 @@ Fenced code blocks tagged `mermaid`, `vega`, or `vega-lite` are automatically re
 
 ### 30.2 Libraries
 - **Mermaid.js** v11 — `frontend/vendored/mermaid/mermaid.min.js` (3.4MB)
+- **Mermaid examples** v1.3.0 — `frontend/vendored/mermaid-examples/index.js`
+  (the versioned Mermaid Live Editor chart/template catalogue)
 - **Vega** v5 — `frontend/vendored/vega/vega.min.js` (504KB)
 - **Vega-Lite** v5 — `frontend/vendored/vega/vega-lite.min.js` (247KB)
 - **Vega-Embed** v6 — `frontend/vendored/vega/vega-embed.min.js` (60KB)
@@ -1252,11 +1261,51 @@ Fenced code blocks tagged `mermaid`, `vega`, or `vega-lite` are automatically re
 - Diagram source ranges are retained between transactions; edits and cursor
   movement outside them map or preserve existing decorations rather than
   rescanning every fence.
+- Each Mermaid fence exposes a keyboard-operable **Mermaid Editor** control in
+  a right-side CodeMirror gutter, aligned with the existing left block guide in
+  source and rendered-widget states. The control stays independent of the
+  optional Markdown folding-guide preference. A Mermaid-only measured action
+  lane keeps the control clear of rendered output; below 360 px of visible
+  editor width that lane becomes a short row above the same diagram.
+- The Mermaid Editor uses a temporary CodeMirror document. Side-by-side,
+  keyboard-operable **Diagram** and **Template** comboboxes cover all 32 types
+  and 76 examples from the bundled, version-matched Live Editor catalogue;
+  choosing a diagram selects its first template. Empty or template-backed
+  buffers—and fences containing only whitespace—replace their temporary source
+  and preview immediately as either chooser changes. The two compact choosers
+  are 4 px apart and left-aligned except at the narrow stacked breakpoint. A
+  meaningful nonempty block is protected when opened, and any manual source
+  edit restores that protection; only the explicit **Replace with template**
+  action discards protected temporary source. Its ordinary disabled state uses
+  a default cursor rather than the loading cursor. Each generated SVG initially
+  fits within both preview dimensions. Wheel input zooms around the pointer
+  between 25% and 400%, primary-pointer drag pans, `+`/`-` zoom around the pane
+  center, arrows pan by 24 pixels, and `0` restores the fitted state. Zoom
+  updates explicit SVG width and height so the browser repaints vector content
+  instead of magnifying a cached layer; pan uses translation only. The initial
+  “valid diagram” notice is removed on the first successful render. Preview
+  navigation never edits source. Vim Normal, Insert, Visual, and Replace modes
+  plus the visual-row preference match the root editor, with modal `:w`, `:wq`,
+  and `:x` applying and `:q` cancelling.
+- Source validation starts 400 ms after the most recent edit and uses
+  `mermaid.parse()` through the shared source-security adapter. Parser
+  locations become CodeMirror error ranges with hover tooltips plus a live text
+  summary. A valid result enters one serialized render queue; stale parse and
+  SVG results cannot publish. Renders that previously took over 150 ms wait one
+  second before the next render, and renders over 750 ms wait two seconds.
+- An invalid edit never erases the preview's last valid SVG. The preview is
+  visibly marked stale, Apply remains available for users who intentionally
+  want to keep incomplete Markdown, and Cancel is always non-destructive.
+  Apply replaces only the original fence body in one root-editor transaction,
+  making the complete change undoable; every exit returns focus to the note.
 
 ### 30.4 CSS
 - `.cm-live-diagram` — bordered container with rounded corners, white background
 - `.cm-live-diagram-label` — subtle uppercase language tag header
 - `.cm-live-diagram-view` — centered, scrollable SVG container
+- `.cm-mermaidEditorGutter` — right-side per-block editor action rail
+- `.mermaid-editor-modal` — responsive two-pane editor/preview dialog using the
+  shared Figaro modal, button, field, notice, spinner, and focus-state primitives
 
 ### 30.5 Example Usage
 ````markdown

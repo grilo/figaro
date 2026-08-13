@@ -3,6 +3,7 @@ describe('diagram renderer startup', () => {
         jest.resetModules();
         window.mermaid = {
             initialize: jest.fn(),
+            parse: jest.fn().mockResolvedValue({ diagramType: 'flowchart-v2' }),
             render: jest.fn().mockResolvedValue({ svg: '<svg></svg>' }),
         };
         window.vegaEmbed = jest.fn();
@@ -26,7 +27,7 @@ describe('diagram renderer startup', () => {
     });
 
     test('rejects unsafe Mermaid frontmatter before calling the vendored parser', async () => {
-        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        const { renderDiagramSVG, validateMermaidSource } = await import('../frontend/js/diagramRenderer.js');
         const source = [
             '---',
             'config: !!omap',
@@ -40,6 +41,19 @@ describe('diagram renderer startup', () => {
             code: 'unsafe-yaml-ordered-map',
         });
         expect(window.mermaid.initialize).not.toHaveBeenCalled();
+        expect(window.mermaid.render).not.toHaveBeenCalled();
+        await expect(validateMermaidSource(source)).rejects.toMatchObject({
+            code: 'unsafe-yaml-ordered-map',
+        });
+        expect(window.mermaid.parse).not.toHaveBeenCalled();
+    });
+
+    test('validates source without rendering and returns the detected diagram type', async () => {
+        const { validateMermaidSource } = await import('../frontend/js/diagramRenderer.js');
+
+        await expect(validateMermaidSource('flowchart TD\n  A --> B'))
+            .resolves.toEqual({ diagramType: 'flowchart-v2' });
+        expect(window.mermaid.parse).toHaveBeenCalledWith('flowchart TD\n  A --> B');
         expect(window.mermaid.render).not.toHaveBeenCalled();
     });
 });

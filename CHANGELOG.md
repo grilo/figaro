@@ -10,6 +10,38 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.18.0] - 2026-08-13
+
+### Added
+
+- Mermaid blocks now expose a right-side **Mermaid Editor** with all 32 chart
+  types and 76 version-matched Live Editor templates, an editable source pane,
+  live SVG preview, inline syntax diagnostics, last-known-good error recovery,
+  and atomic, undoable Apply or non-destructive Cancel.
+- Mermaid Editor previews now fit oversized diagrams to the available pane and
+  support pointer-centered wheel zoom, drag panning, arrow-key panning, and
+  keyboard zoom/reset controls while repainting SVGs sharply at each scale.
+
+### Changed
+
+- The Mermaid Editor now uses compact, left-aligned **Diagram** and **Template**
+  pickers with a tighter 4 px gap. Empty, whitespace-only, or template-backed
+  blocks preview each selection immediately, while existing or manually edited
+  source requires an explicit **Replace with template**.
+
+### Fixed
+
+- The Mermaid Editor now inherits Vim and visual-row navigation from the main
+  editor, and its right action gutter no longer paints stray full-height bars.
+- The disabled **Replace with template** action now uses an ordinary cursor
+  instead of incorrectly suggesting that background work is in progress.
+- The Mermaid preview's empty-state notice now disappears permanently after
+  the first successful SVG render.
+- Opening or closing Document Outline at narrow widths now keeps each Mermaid
+  Editor action attached to its diagram without covering it throughout the pane
+  animation; extremely narrow writing areas reserve a compact action row above
+  the diagram until side-by-side space returns.
+
 ## [1.17.0] - 2026-08-12
 
 ### Added
@@ -1015,7 +1047,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.17.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.18.0...HEAD
+[1.18.0]: https://github.com/grilo/figaro/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/grilo/figaro/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/grilo/figaro/compare/v1.15.1...v1.16.0
 [1.15.1]: https://github.com/grilo/figaro/compare/v1.15.0...v1.15.1

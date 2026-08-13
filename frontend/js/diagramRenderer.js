@@ -40,6 +40,33 @@ export function initializeDiagramRenderers() {
     };
 }
 
+function assertMermaidSourceAllowed(source) {
+    const plan = planMermaidSourceRender(String(source || ''));
+    if (plan.action === 'render') return;
+    const error = new Error(plan.reason === 'source-too-large'
+        ? `Mermaid source exceeds the ${plan.maxLength}-character safe rendering limit`
+        : 'Mermaid YAML ordered maps are not rendered');
+    error.code = plan.reason;
+    throw error;
+}
+
+/** Validate Mermaid source without constructing an SVG. */
+export async function validateMermaidSource(source) {
+    const code = String(source || '');
+    assertMermaidSourceAllowed(code);
+    if (!code.trim()) {
+        const error = new Error('Choose a template or enter a Mermaid diagram.');
+        error.code = 'empty-mermaid-source';
+        throw error;
+    }
+    if (!initialiseMermaid() || typeof window.mermaid.parse !== 'function') {
+        const error = new Error('Mermaid renderer is unavailable');
+        error.code = 'mermaid-unavailable';
+        throw error;
+    }
+    return window.mermaid.parse(code);
+}
+
 /**
  * Render a diagram source block to standalone SVG. Unsupported renderers
  * return null; malformed diagram input rejects so callers can keep the
@@ -50,14 +77,7 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
     const code = String(source || '');
 
     if (normalizedLanguage === 'mermaid') {
-        const plan = planMermaidSourceRender(code);
-        if (plan.action !== 'render') {
-            const error = new Error(plan.reason === 'source-too-large'
-                ? `Mermaid source exceeds the ${plan.maxLength}-character safe rendering limit`
-                : 'Mermaid YAML ordered maps are not rendered');
-            error.code = plan.reason;
-            throw error;
-        }
+        assertMermaidSourceAllowed(code);
         if (!initialiseMermaid()) return null;
         renderSequence += 1;
         const id = String(idPrefix || 'figaro-diagram') + '-mermaid-' + renderSequence;
