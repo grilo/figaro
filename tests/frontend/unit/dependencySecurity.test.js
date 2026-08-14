@@ -57,3 +57,15 @@ test('keeps the reachable WebP decoder above the GO-2026-5061 advisory range', (
     expect(match).not.toBeNull();
     expect(isAtLeastGoVersion(match[1], 'v0.43.0')).toBe(true);
 });
+
+test('keeps the Go toolchain above the reachable 2026 standard-library advisory ranges', () => {
+    const goMod = readText('go.mod');
+    const makefile = readText('Makefile');
+    const contributing = readText('CONTRIBUTING.md');
+    const match = goMod.match(/^go\s+(\d+\.\d+\.\d+)$/m);
+
+    expect(match).not.toBeNull();
+    expect(isAtLeastGoVersion(`v${match[1]}`, 'v1.26.6')).toBe(true);
+    expect(makefile).toContain('Go 1.26.6 or newer');
+    expect(contributing).toContain('Go 1.26.6 or newer');
+});

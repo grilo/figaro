@@ -1486,6 +1486,7 @@ browser bundles:
 ```bash
 npm audit
 npm audit --omit=dev
+go run golang.org/x/vuln/cmd/govulncheck@latest .
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/dependencyPolicy.test.js \
   tests/frontend/unit/diagramSecurityModel.test.js \
@@ -1506,3 +1507,8 @@ and proves that every production `window.mermaid.render` call passes through
 the shared guard. If Mermaid updates its embedded parser to `js-yaml` 4.3.1 or
 newer, keep the guard as defense in depth and update the inventory expectation
 only after the actual bundle changes.
+
+The Go vulnerability scan includes reachable standard-library symbols, so
+`go.mod`, `make doctor`, and the documented development prerequisite must stay
+on the same patched Go release. The dependency-security unit contract guards
+that minimum independently of the live advisory scan used by CI.
