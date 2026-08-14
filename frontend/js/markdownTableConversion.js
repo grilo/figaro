@@ -246,6 +246,19 @@ export function parseHTMLTable(html) {
     };
 }
 
+/** Whether clipboard HTML contains one table and no other visible payload. */
+export function htmlClipboardContainsOnlyTable(html) {
+    if (typeof DOMParser === 'undefined') return false;
+    const clipboardDocument = new DOMParser().parseFromString(String(html || ''), 'text/html');
+    const tables = [...clipboardDocument.querySelectorAll('table')];
+    if (tables.length !== 1) return false;
+    const body = clipboardDocument.body.cloneNode(true);
+    body.querySelector('table')?.remove();
+    body.querySelectorAll('script, style, template, noscript').forEach(element => element.remove());
+    if (String(body.textContent || '').trim()) return false;
+    return !body.querySelector('img, video, audio, svg, canvas, iframe, object, embed');
+}
+
 /** Convert only high-confidence clipboard data or safely bound existing GFM. */
 export function markdownTableFromClipboard({ text = '', html = '', mimeType = '' } = {}) {
     if (html) {

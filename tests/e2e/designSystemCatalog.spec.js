@@ -109,7 +109,7 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ui-document-tabs': 1,
         '.ui-document-tab': 2,
         '.ui-editor-fold-control': 1,
-        '.ui-editor-block-guide': 2,
+        '.ui-editor-block-guide': 4,
         '.ui-spinner': 1,
     };
     for (const [selector, minimum] of Object.entries(primitiveFamilies)) {
@@ -143,6 +143,25 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(blockGuide).toHaveText('yaml');
     await expect(blockGuide).toHaveAttribute('aria-label', 'Expand yaml code block');
     expect(await blockGuide.evaluate(control => getComputedStyle(control).cursor)).toBe('pointer');
+
+    const dangerGuide = page.locator('.ui-editor-block-guide--danger');
+    await expect(dangerGuide).toHaveText('delete');
+    const restingDangerPaint = await dangerGuide.evaluate(control => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--danger-color)';
+        document.body.append(probe);
+        const result = {
+            color: getComputedStyle(control).color,
+            danger: getComputedStyle(probe).color,
+        };
+        probe.remove();
+        return result;
+    });
+    expect(restingDangerPaint.color).not.toBe(restingDangerPaint.danger);
+    await dangerGuide.hover();
+    await expect(dangerGuide).toHaveCSS('color', restingDangerPaint.danger);
+    await dangerGuide.focus();
+    await expect(dangerGuide).toHaveCSS('color', restingDangerPaint.danger);
 
     const search = page.getByLabel('Find a component');
     await search.fill('compact action');

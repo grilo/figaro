@@ -34,6 +34,7 @@ describe('shared CodeMirror profiles', () => {
             defaultBindings: ['default'],
             vimExtension: ['vim'],
             indentationExtensions: ['tab-size', 'indent-unit'],
+            clipboardExtensions: ['clipboard'],
             historyBindings: ['undo', 'redo'],
             searchBindings: ['find'],
         });
@@ -42,6 +43,7 @@ describe('shared CodeMirror profiles', () => {
             'registry',
             'tab-size',
             'indent-unit',
+            'clipboard',
             { bindings: ['default'] },
             ['vim'],
         ]);

@@ -37,8 +37,9 @@ There is no account, hosted database, or required cloud service.
   each guide stays aligned to its block and under the pointer while toggling.
   Rendered fences and tables contract to one native fold row, typed fences use
   their language name, and interactive tables have a one-click undoable delete
-  that moves from the right action lane to a row above the grid when space is
-  tight. Mermaid/Vega diagrams, fenced code, display math, and tables retain
+  beneath their left `table` helper; when that margin is too tight, the action
+  moves above the grid without covering it. Mermaid/Vega diagrams, fenced code,
+  display math, and tables retain
   their Markdown source height while rendered, so entering and leaving them
   does not move the surrounding note; graphics fit down, while code and tables
   scroll inside the reserved space. Images, Properties, links, and task
@@ -144,6 +145,17 @@ writing environment. It defaults to four spaces and can be changed from 2 to
 fences, source-code files and their guides, the Mermaid source editor,
 interactive table cells, rendered code, and Raw Text Preview all use that same
 value; the preference never rewrites existing indentation or changes PDFs.
+
+Pasting genuinely rich text from a browser, document editor, or AI chat into a
+Markdown note preserves headings, emphasis, links, lists, quotes, code, tasks,
+highlights, and rectangular tables as ordinary Markdown. Common clipboard-only
+AI code-label, line-break, fence, and math-delimiter defects are repaired
+without rewriting wording, URLs, or unrelated whitespace. Figaro keeps its own
+copied Markdown exact, leaves source-only regions such as frontmatter and code
+literal, and never fetches a remote HTML image while converting it. Use
+Ctrl/Cmd+Shift+V for exact plain text; clipboard images, URL-over-selection,
+spreadsheet tables, Vim Visual selections, table cells, and the editor's Paste
+menu retain their specialized behavior.
 
 Machine-specific settings, such as window geometry and a selected PDF browser,
 are stored in the operating system's per-user application-data directory

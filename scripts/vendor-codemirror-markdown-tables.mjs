@@ -89,8 +89,8 @@ function uf(e, t) {
     };
     const deleteButton = n.ownerDocument.createElement("button");
     deleteButton.type = "button";
-    deleteButton.className = "ui-button ui-button--danger-ghost tbl-delete-table-button";
-    deleteButton.textContent = "Delete table";
+    deleteButton.className = "ui-editor-block-guide ui-editor-block-guide--danger tbl-delete-table-button";
+    deleteButton.textContent = "delete";
     deleteButton.title = "Delete table";
     deleteButton.setAttribute("aria-label", "Delete table");
     deleteButton.addEventListener("pointerdown", (event) => {
@@ -104,7 +104,7 @@ function uf(e, t) {
     });
     n.append(deleteButton);
     const i = ih(() => {`,
-        'direct delete-table control',
+        'responsive delete-table control',
     );
     patched = replaceOnce(
         patched,

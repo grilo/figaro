@@ -80,4 +80,16 @@ describe('locked npm dependency policy', () => {
         expect(rendererPackages.map(name => lock.packages[`node_modules/${name}`].peerDependencies['markdown-it']))
             .toEqual(rendererPackages.map(() => '^14.2.0'));
     });
+
+    test('locks and vendors the reviewed browser-only rich-paste converter', () => {
+        const { manifest, lock } = readPackageGraph();
+        const vendored = fs.readFileSync('frontend/vendored/turndown/index.js', 'utf8');
+
+        expect(manifest.dependencies.turndown).toBe('7.2.4');
+        expect(lock.packages['node_modules/turndown'].version).toBe('7.2.4');
+        expect(vendored).toContain('export { TurndownService as default }');
+        expect(vendored).not.toContain('@mixmark-io/domino');
+        expect(Buffer.byteLength(vendored)).toBeLessThan(35_000);
+        expect(fs.readFileSync('frontend/vendored/turndown/LICENSE', 'utf8')).toContain('MIT License');
+    });
 });

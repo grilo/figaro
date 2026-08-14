@@ -34,7 +34,8 @@ dependency_fingerprint() {
 vendor_fingerprint() {
     cksum package.json package-lock.json scripts/vendor.sh \
         scripts/vendor-codemirror-color.mjs scripts/vendor-codemirror-color-transform.js \
-        scripts/vendor-codemirror-markdown-tables.mjs scripts/vendor-markdown-renderer.mjs
+        scripts/vendor-codemirror-markdown-tables.mjs scripts/vendor-markdown-renderer.mjs \
+        scripts/vendor-turndown.mjs
 }
 
 needs_dependencies=false
@@ -58,6 +59,8 @@ required_vendor_files=(
     frontend/vendored/codemirror/autocomplete/index.js
     frontend/vendored/@uiw/codemirror-extensions-color/index.js
     frontend/vendored/codemirror-markdown-tables/index.js
+    frontend/vendored/turndown/index.js
+    frontend/vendored/turndown/LICENSE
     frontend/vendored/spellcheck/nspell.js
     frontend/vendored/spellcheck/en-US.aff
     frontend/vendored/spellcheck/en-GB.aff

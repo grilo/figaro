@@ -110,6 +110,11 @@ function findLeadingFrontmatter(source) {
     return { from: 0, to: text.length, contentFrom, contentTo: text.length, closed: false };
 }
 
+/** Return the exact leading frontmatter range without parsing or rewriting it. */
+export function getFrontmatterRegion(source) {
+    return findLeadingFrontmatter(String(source || ''));
+}
+
 /** Return a leading frontmatter region only when `position` is in its YAML. */
 export function getFrontmatterRegionAt(source, position) {
     const text = String(source || '');

@@ -991,12 +991,12 @@ borderless gutter, and undo boundaries; a focused companion verifies inherited V
 and wrapped display-row motion after the first diagnostics transaction, while
 the parser loop verifies every bundled template.
 
-The interactive-table browser contract also owns the shared block-action
-placement boundary. It must prove that **Delete table** clears the grid and its
-right resize handle in the wide action lane, remains non-intersecting on every
-sampled frame while Document Outline changes editor width, stacks above the
-grid when narrow, returns to the side lane when width is restored, and still
-deletes and undoes through the original table transaction.
+The interactive-table browser contract also owns the shared helper-rail action
+placement boundary. It must prove that `delete` remains beneath `table`, stays
+outside the grid on every sampled frame while Document Outline changes editor
+width, moves above the grid rather than beneath the sidebar when the measured
+left margin is too narrow, adopts destructive styling only on hover/focus, and
+still deletes and undoes through one normal table transaction.
 The existing diagram cursor/drag browser scenario remains the geometry oracle.
 
 ```bash
@@ -1077,9 +1077,10 @@ exact cursor; redo must not focus the table's last cell. Keep the focused
 automated checks in
 `tests/frontend/unit/markdownTables.test.js` and
 `tests/e2e/markdownTables.spec.js`.
-The same focused browser spec must expose one approved danger-ghost **Delete
-table** action, remove the complete table without leaving a widget, retain root
-editor focus, and restore the byte-exact pre-delete source with one Undo.
+The same focused browser spec must expose one approved destructive-on-interaction
+`delete` guide action, remove the complete table without leaving a widget,
+retain root editor focus, and restore the byte-exact pre-delete source with one
+Undo.
 Jest maps `codemirror-markdown-tables` to Figaro's generated vendored module so
 component coverage cannot silently exercise the unpatched npm entry point.
 
@@ -1100,6 +1101,42 @@ a table row. Keep pure parsing and clipboard coverage in
 `tests/frontend/unit/markdownTableConversion.test.js` and the real completion,
 paste, context-menu, cursor, mouse, preview, and PDF workflow in
 `tests/e2e/markdownTables.spec.js`.
+
+## Smart rich paste regressions
+
+Keep the conversion and priority matrix below the browser layer. Pure tests in
+`richPasteModel.test.js` own semantic-evidence limits, paste precedence, safe
+block insertion, variable-length code fences, and AI math/fence transforms.
+`richPaste.test.js` owns inert parsing, semantic Markdown output, presentation-
+only fallback, inline-only cells, rich tables, AI code shapes, unsafe markup,
+remote-image alt text, and the bounded 100 KB conversion check.
+`clipboardPaste.test.js` owns internal provenance, exact protected/plain
+fallback, image/table precedence, context-menu parity, and one dispatch.
+Conversion has no vault/index dependency, so vault size cannot change its cost;
+profile clipboard HTML size and element count instead of using the huge-vault
+fixture for this feature.
+
+The single browser boundary in `richPaste.spec.js` must use real copy/paste
+`ClipboardEvent` objects and the Async Clipboard menu path. It covers one-Undo
+replacement, Ctrl/Cmd+Shift+V, protected fenced source, Vim Visual mode, a
+nested table cell, Arrow Up/Down, and bidirectional pointer drag selection.
+Do not duplicate the pure failure matrix in Playwright.
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/richPasteModel.test.js \
+  tests/frontend/unit/richPaste.test.js \
+  tests/frontend/unit/clipboardPaste.test.js \
+  tests/frontend/unit/markdownTableConversion.test.js \
+  tests/frontend/unit/editor.test.js
+npx playwright test tests/e2e/richPaste.spec.js
+```
+
+On each native platform, paste from at least one browser/document editor and
+one AI chat into ordinary prose, a Vim Visual selection, fenced code, and an
+interactive table cell. Repeat with the editor Paste menu and plain-text chord,
+then verify one Undo, Arrow Up/Down, mouse placement, and a drag across the
+inserted block in the packaged WebKitGTK, WebView2, or WKWebView runtime.
 
 ## Clipboard image paste regressions
 
@@ -1334,6 +1371,8 @@ Markdown editor, assert the exact source/cursor result, then exercise Arrow
 Up/Down, mouse placement, and a drag across the former list boundary. Smart URL
 paste must use a real browser `ClipboardEvent`, preserve the selected label as
 Markdown, and repeat with the Vim adapter's actual Visual state active. The
+rich-paste browser contract separately repeats semantic HTML replacement with
+the Vim adapter's actual Visual state and verifies literal source contexts. The
 same focused editor workflow asserts the main textbox's document-specific
 accessible name and the active document-first browser title. Pure title-model
 coverage owns the `Document — Figaro`/`Figaro` decision; the native adapter has

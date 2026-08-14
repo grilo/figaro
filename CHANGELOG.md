@@ -10,6 +10,22 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.21.0] - 2026-08-14
+
+### Added
+
+- Smart Paste now converts genuinely rich clipboard content into portable
+  Markdown, including conservative repairs for common AI-chat code and math
+  structure, while preserving literal, internal, image, URL, and table paste
+  behavior; Ctrl/Cmd+Shift+V remains an exact plain-text bypass.
+
+### Changed
+
+- Interactive tables now place a compact **delete** action beneath their
+  left-side **table** helper, using destructive color only on hover or focus;
+  when that rail cannot fit beside the editor, the same action moves above the
+  table instead of overlapping the sidebar or grid.
+
 ## [1.20.1] - 2026-08-14
 
 ### Fixed
@@ -1134,7 +1150,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.20.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.21.0...HEAD
+[1.21.0]: https://github.com/grilo/figaro/compare/v1.20.1...v1.21.0
 [1.20.1]: https://github.com/grilo/figaro/compare/v1.20.0...v1.20.1
 [1.20.0]: https://github.com/grilo/figaro/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/grilo/figaro/compare/v1.18.1...v1.19.0

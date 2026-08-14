@@ -762,6 +762,21 @@ keymap uses the library's configurable continuation command with non-tight-list
 retention disabled; this changes only the deterministic empty-item exit rule
 while leaving CodeMirror's parser, history, and cursor geometry in control.
 
+Smart rich paste keeps deterministic policy separate from clipboard and DOM
+effects. `frontend/js/core/richPasteModel.js` owns priority, size limits, block
+boundaries, safe code fences, and narrowly scoped AI math/fence repairs.
+`frontend/js/richPaste.js` is the inert-DOM/Turndown adapter: it sanitizes the
+clipboard document, recognizes semantic evidence, repairs positively identified
+AI code shapes, and emits Markdown without reading the vault or loading remote
+resources. `frontend/js/clipboardPaste.js` coordinates native events, internal
+source provenance, image/table precedence, exact plain fallback, and the single
+CodeMirror transaction. Its pure preflight resolves internal, plain, image,
+non-Markdown, and protected cases before the adapter parses rich HTML. The root
+Markdown editor and embedded table-cell profile inject that coordinator; the
+editor context menu adapts Async Clipboard items to the same payload.
+Syntax-tree/frontmatter inspection stays in the editor adapter because it
+depends on the live CodeMirror state.
+
 List-marker lines carry an inline hanging-indent decoration that aligns wrapped
 display rows with the visible item body. It is recalculated together with the
 cursor-aware list marker replacement and never adds block height or changes
@@ -1040,11 +1055,12 @@ without introducing a persistent observer. A shared adapter publishes that
 visible width plus the measured gap between CodeMirror's outer left gutter and
 the padded, centered writing edge through block-action CSS properties during
 ordinary geometry updates and the bounded transition. A pure layout model
-bounds that left-rail inset and retains the 360 px side-lane/stacked-row
-decision for the interactive table action. The table's stacked danger action
-participates in normal flow so its actual height reserves space; Mermaid and
-unrelated diagram roots retain the full writing width.
-The left-side layout hook positions both entries in a Mermaid control stack
+bounds that left-rail inset and decides from the measured editor-to-writing-edge
+gap whether a full text action can fit without entering the sidebar. Mermaid
+and table actions normally share the helper stack; a constrained table action
+uses its measured fallback row above the grid instead of overlapping either
+neighboring surface.
+The left-side layout hook positions both entries in each control stack
 toward the writing surface without redefining the shared button primitive. It
 uses the primitive's editor-sized monospace typography, compensates for
 CodeMirror's 16 px gutter padding, and translates the helper rail just outside

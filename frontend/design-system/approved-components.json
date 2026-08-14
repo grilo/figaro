@@ -71,7 +71,11 @@
     },
     {
       "id": "editor-fold-control",
-      "primitives": [".ui-editor-fold-control", ".ui-editor-block-guide"]
+      "primitives": [
+        ".ui-editor-fold-control",
+        ".ui-editor-block-guide",
+        ".ui-editor-block-guide--danger"
+      ]
     },
     {
       "id": "spinner",

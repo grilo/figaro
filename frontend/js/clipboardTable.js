@@ -1,4 +1,8 @@
-import { markdownTableFromClipboard, markdownTableInsertion } from './markdownTableConversion.js';
+import {
+    htmlClipboardContainsOnlyTable,
+    markdownTableFromClipboard,
+    markdownTableInsertion,
+} from './markdownTableConversion.js';
 import { statusBar } from './statusBar.js';
 
 function clipboardText(clipboardData, type) {
@@ -15,10 +19,24 @@ export function clipboardTablePayload(clipboardData) {
     const csv = clipboardText(clipboardData, 'text/csv');
     const tsv = clipboardText(clipboardData, 'text/tab-separated-values');
     const plain = clipboardText(clipboardData, 'text/plain');
-    if (html) return { html, text: plain || tsv || csv, mimeType: 'text/html' };
+    if (html) {
+        return {
+            html,
+            text: tsv || csv || plain,
+            mimeType: 'text/html',
+            tabularMimeType: tsv ? 'text/tab-separated-values' : csv ? 'text/csv' : '',
+        };
+    }
     if (tsv) return { text: tsv, mimeType: 'text/tab-separated-values' };
     if (csv) return { text: csv, mimeType: 'text/csv' };
     return { text: plain, mimeType: 'text/plain' };
+}
+
+/** Rich documents containing prose plus a table belong to Smart Paste. */
+export function clipboardPayloadIsTableOnly(payload) {
+    return Boolean(payload?.tabularMimeType)
+        || !payload?.html
+        || htmlClipboardContainsOnlyTable(payload.html);
 }
 
 /** Replace a selection with one block-separated Markdown table transaction. */
@@ -54,7 +72,9 @@ export function pasteClipboardTable(view, payload) {
  * continues through CodeMirror's native paste path unchanged.
  */
 export function handleClipboardTablePaste(event, view) {
-    const conversion = markdownTableFromClipboard(clipboardTablePayload(event?.clipboardData));
+    const payload = clipboardTablePayload(event?.clipboardData);
+    if (!clipboardPayloadIsTableOnly(payload)) return false;
+    const conversion = markdownTableFromClipboard(payload);
     if (!conversion) return false;
     event.preventDefault();
     return insertClipboardTable(view, conversion);

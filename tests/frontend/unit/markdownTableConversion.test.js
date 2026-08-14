@@ -4,6 +4,7 @@ jest.mock('../frontend/js/statusBar.js', () => ({
 
 import {
     analyzeTabularText,
+    htmlClipboardContainsOnlyTable,
     markdownTableFromClipboard,
     markdownTableFromRows,
     markdownTableInsertion,
@@ -11,6 +12,7 @@ import {
     parseTabularText,
 } from '../frontend/js/markdownTableConversion.js';
 import {
+    clipboardPayloadIsTableOnly,
     clipboardTablePayload,
     handleClipboardTablePaste,
 } from '../frontend/js/clipboardTable.js';
@@ -125,6 +127,17 @@ describe('Markdown table conversion', () => {
             .toBe(false);
     });
 
+    test('reserves mixed rich documents for Smart Paste instead of dropping surrounding prose', () => {
+        expect(htmlClipboardContainsOnlyTable(
+            '<div><table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table></div>'
+        )).toBe(true);
+        expect(htmlClipboardContainsOnlyTable([
+            '<p>Before</p>',
+            '<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>',
+            '<p>After</p>',
+        ].join(''))).toBe(false);
+    });
+
     test('auto-pastes clear CSV while leaving ambiguous two-line comma prose alone', () => {
         expect(markdownTableFromClipboard({
             text: 'Name,Count\nAlpha,2',
@@ -163,6 +176,26 @@ describe('automatic clipboard table paste', () => {
             },
             userEvent: 'input.paste',
         }));
+    });
+
+    test('retains explicit TSV precedence when a source also supplies non-table HTML', () => {
+        const clipboardData = {
+            getData: type => ({
+                'text/html': '<div><span>Spreadsheet selection</span></div>',
+                'text/tab-separated-values': 'Name\tCount\nAlpha\t2',
+                'text/plain': 'Name\tCount\nAlpha\t2',
+            })[type] || '',
+        };
+        const payload = clipboardTablePayload(clipboardData);
+        expect(payload).toMatchObject({
+            mimeType: 'text/html',
+            tabularMimeType: 'text/tab-separated-values',
+        });
+        expect(clipboardPayloadIsTableOnly(payload)).toBe(true);
+        const view = testView();
+        const preventDefault = jest.fn();
+        expect(handleClipboardTablePaste({ clipboardData, preventDefault }, view)).toBe(true);
+        expect(view.dispatch.mock.calls[0][0].changes.insert).toContain('| Name | Count |');
     });
 
     test('does not claim ordinary text or mutate the editor', () => {

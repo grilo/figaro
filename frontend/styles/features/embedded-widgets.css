@@ -101,33 +101,30 @@
 .tbl-table-widget {
     position: relative;
     box-sizing: border-box;
-    width: min(100%, calc(var(--editor-block-action-viewport-width, 100vw) - 132px));
+    width: 100%;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
-    padding: 16px 112px 16px 16px !important;
+    padding: 16px !important;
 }
 
-.tbl-delete-table-button {
-    position: absolute;
-    z-index: 2;
-    top: 8px;
-    right: auto;
-    left: calc(100% - 84px);
+#editor-container .tbl-delete-table-button {
+    display: none;
+}
+
+.cm-scroller.cm-editor-block-actions-stacked .markdown-table-delete-guide {
+    display: none;
 }
 
 .cm-scroller.cm-editor-block-actions-stacked .tbl-table-widget {
     display: flex;
-    width: min(100%, calc(var(--editor-block-action-viewport-width, 100vw) - 20px));
     align-items: flex-start;
-    padding: 16px !important;
     flex-direction: column;
 }
 
-.cm-scroller.cm-editor-block-actions-stacked .tbl-delete-table-button {
-    position: static;
+#editor-container .cm-scroller.cm-editor-block-actions-stacked .tbl-delete-table-button {
+    display: inline-grid;
     order: -1;
-    max-width: 100%;
-    align-self: flex-end;
+    align-self: flex-start;
     margin-bottom: 8px;
 }
 

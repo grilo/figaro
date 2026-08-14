@@ -306,7 +306,8 @@ cat > "$VENDOR_DIR/importmap.json" << 'EOF'
     "w3c-keyname": "./w3c-keyname/index.js",
     "style-mod": "./style-mod/index.js",
     "@uiw/codemirror-extensions-color": "./@uiw/codemirror-extensions-color/index.js",
-    "codemirror-markdown-tables": "./codemirror-markdown-tables/index.js"
+    "codemirror-markdown-tables": "./codemirror-markdown-tables/index.js",
+    "turndown": "./turndown/index.js"
   }
 }
 EOF
@@ -321,6 +322,9 @@ node scripts/vendor-codemirror-markdown-tables.mjs
 echo "Bundling the CodeMirror color-picker theme with its helper dependencies..."
 mkdir -p "$VENDOR_DIR/@uiw/codemirror-extensions-color"
 node scripts/vendor-codemirror-color.mjs
+
+echo "Vendoring the browser-only rich-paste HTML converter..."
+node scripts/vendor-turndown.mjs
 
 echo "Bundling the offline Hunspell spellchecking runtime and dictionaries..."
 mkdir -p "$VENDOR_DIR/spellcheck"

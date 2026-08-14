@@ -531,7 +531,7 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
         view.focus();
     }, focusedGuideSource);
 
-    const focusedGuides = page.locator('.ui-editor-block-guide:visible');
+    const focusedGuides = page.locator('.ui-editor-block-guide[data-fold-from]:visible');
     await expect(focusedGuides).toHaveCount(4);
     await expect(focusedGuides).toHaveText(['h1', 'yaml', 'code', 'table']);
     const yamlGuide = page.getByRole('button', { name: 'Collapse yaml code block' });

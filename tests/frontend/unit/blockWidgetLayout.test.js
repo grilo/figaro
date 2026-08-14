@@ -47,14 +47,15 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-block-widget--diagram')).toMatch(/padding:\s*8px 0/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-top:\s*0\s*!important/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-bottom:\s*0\s*!important/);
-        expect(declarationsFor('.tbl-table-widget')).toMatch(/width:\s*min\(100%, calc\(var\(--editor-block-action-viewport-width, 100vw\) - 132px\)\)/);
-        expect(declarationsFor('.tbl-table-widget')).toMatch(/padding:\s*16px 112px 16px 16px\s*!important/);
+        expect(declarationsFor('.tbl-table-widget')).toMatch(/width:\s*100%/);
+        expect(declarationsFor('.tbl-table-widget')).toMatch(/padding:\s*16px\s*!important/);
+        expect(declarationsFor('#editor-container .tbl-delete-table-button')).toMatch(/display:\s*none/);
+        expect(declarationsFor('.cm-scroller.cm-editor-block-actions-stacked .markdown-table-delete-guide'))
+            .toMatch(/display:\s*none/);
         expect(declarationsFor('.cm-scroller.cm-editor-block-actions-stacked .tbl-table-widget'))
-            .toMatch(/display:\s*flex[\s\S]*padding:\s*16px\s*!important[\s\S]*flex-direction:\s*column/);
-        expect(declarationsFor('.tbl-delete-table-button')).toMatch(/position:\s*absolute/);
-        expect(declarationsFor('.tbl-delete-table-button')).toMatch(/left:\s*calc\(100% - 84px\)/);
-        expect(declarationsFor('.cm-scroller.cm-editor-block-actions-stacked .tbl-delete-table-button'))
-            .toMatch(/position:\s*static[\s\S]*order:\s*-1[\s\S]*align-self:\s*flex-end/);
+            .toMatch(/display:\s*flex[\s\S]*flex-direction:\s*column/);
+        expect(declarationsFor('#editor-container .cm-scroller.cm-editor-block-actions-stacked .tbl-delete-table-button'))
+            .toMatch(/display:\s*inline-grid[\s\S]*order:\s*-1[\s\S]*align-self:\s*flex-start/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/margin:\s*0\s*!important/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/padding-bottom:\s*6px/);
     });

@@ -227,7 +227,7 @@
                     </article>
 
                     <article class="ds-specimen">
-                        <header><h3>Editor folding</h3><code class="ds-selector">.ui-editor-fold-control</code><code class="ds-selector">.ui-editor-block-guide</code></header>
+                        <header><h3>Editor folding</h3><code class="ds-selector">.ui-editor-fold-control</code><code class="ds-selector">.ui-editor-block-guide</code><code class="ds-selector">.ui-editor-block-guide--danger</code></header>
                         <div class="ds-demo ds-form-stack">
                             <div class="ds-flow">
                                 <button type="button" class="ui-editor-fold-control"
@@ -239,8 +239,12 @@
                                         aria-label="Collapse h2 Release scope section" aria-expanded="true">h2</button>
                                 <button type="button" class="ui-editor-block-guide"
                                         aria-label="Expand yaml code block" aria-expanded="false">yaml</button>
-                                <button type="button" class="ui-editor-block-guide"
-                                        aria-label="Collapse table" aria-expanded="true">table</button>
+                                <span class="cm-editor-block-guide-stack">
+                                    <button type="button" class="ui-editor-block-guide"
+                                            aria-label="Collapse table" aria-expanded="true">table</button>
+                                    <button type="button" class="ui-editor-block-guide ui-editor-block-guide--danger"
+                                            aria-label="Delete table">delete</button>
+                                </span>
                                 <span class="ds-editor-sample">Focused Markdown guides</span>
                             </div>
                         </div>

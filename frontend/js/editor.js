@@ -20,14 +20,24 @@ import {
 import { getFootnoteAtPosition, resolveFootnoteNavigation } from './footnotes.js';
 import { getFileLanguage, loadLanguageSupport } from './languageSupport.js';
 import { createFrontmatterField } from './frontmatterPlugin.js';
+import { getFrontmatterRegion } from './frontmatter.js';
 import { FRONTMATTER_UPWARD_REVEAL_USER_EVENT } from './core/frontmatterPresentationModel.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
 import { createTaskDueDateCompletionSource } from './taskDueDateCompletions.js';
 import { openDatePicker } from './datePicker.js';
 import { errorDialog, pdfExportErrorDialog, tableConversionDialog } from './dialogs.js';
-import { handleClipboardImagePaste, pasteClipboardImage } from './clipboardImage.js';
-import { handleClipboardTablePaste, insertMarkdownTable, pasteClipboardTable } from './clipboardTable.js';
+import { insertMarkdownTable } from './clipboardTable.js';
+import {
+    FIGARO_MARKDOWN_CLIPBOARD_TYPE,
+    handleClipboardPaste,
+    handleMarkdownClipboardCopy,
+    handlePlainPasteBypass,
+    handlePlainPasteKeydown,
+    handlePlainPasteKeyup,
+    pasteClipboardItemImage,
+    pasteClipboardPayload,
+} from './clipboardPaste.js';
 import {
     headingLinkCompletionMatch,
     linkedNoteCompletionInsertion,
@@ -931,6 +941,44 @@ function hashtagCompletionContextAllowed(context) {
         if (/(?:Code|Link|URL|HTML)/.test(node.name)) return false;
     }
     return true;
+}
+
+const richPasteProtectedNode = /(?:Code|HTML|Link|URL|Image|Escape|Entity)/i;
+
+/** Whether a rich conversion would be inserted into syntax that must stay literal. */
+export function markdownRichPasteProtectedContext(state) {
+    const ranges = state?.selection?.ranges || [];
+    if (ranges.length !== 1) return true;
+    const range = ranges[0];
+    const source = state.doc.toString();
+    const frontmatter = getFrontmatterRegion(source);
+    if (frontmatter) {
+        const touchesFrontmatter = range.empty
+            ? range.from >= frontmatter.from && range.from < frontmatter.to
+            : range.from < frontmatter.to && range.to > frontmatter.from;
+        if (touchesFrontmatter) return true;
+    }
+
+    const tree = syntaxTree(state);
+    const probes = range.empty
+        ? [range.from]
+        : [range.from, Math.max(range.from, range.to - 1)];
+    for (const probe of probes) {
+        for (let node = tree.resolveInner(probe, -1); node; node = node.parent) {
+            if (richPasteProtectedNode.test(node.name)) return true;
+        }
+    }
+    let protectedRange = false;
+    if (!range.empty) {
+        tree.iterate({
+            from: range.from,
+            to: range.to,
+            enter: node => {
+                if (richPasteProtectedNode.test(node.name)) protectedRange = true;
+            },
+        });
+    }
+    return protectedRange;
 }
 
 function vimTableCells(line) {
@@ -2589,6 +2637,15 @@ function createEditorView() {
             defaultBindings: defaultKeymap,
             vimExtension: vimTableCellExtension,
             indentationExtensions: editorTabSizeExtensions(),
+            clipboardExtensions: [EditorView.domEventHandlers({
+                keydown: handlePlainPasteKeydown,
+                keyup: handlePlainPasteKeyup,
+                copy: handleMarkdownClipboardCopy,
+                paste: (event, view) => handleClipboardPaste(event, view, {
+                    markdown: true,
+                    inlineOnly: true,
+                }),
+            })],
             historyBindings: tableCellHistoryKeymap(),
             searchBindings: searchKeymap,
 	        });
@@ -2658,6 +2715,7 @@ function createEditorView() {
             ],
         }),
         markdownLanguage,
+        EditorView.domEventHandlers({ paste: handlePlainPasteBypass }),
         pasteURLAsLink,
         markdownStylePlugin,
         headingLinkCompletionActivator,
@@ -2684,8 +2742,14 @@ function createEditorView() {
             mousedown: handleMouseDown,
             click: handleClick,
             wheel: handleVerticalBoundaryWheel,
-            paste: (event, view) => handleClipboardImagePaste(event, view)
-                || (activeFileLanguage.kind === 'markdown' && handleClipboardTablePaste(event, view)),
+            keydown: handlePlainPasteKeydown,
+            keyup: handlePlainPasteKeyup,
+            copy: (event, view) => activeFileLanguage.kind === 'markdown'
+                && handleMarkdownClipboardCopy(event, view),
+            paste: (event, view) => handleClipboardPaste(event, view, {
+                markdown: activeFileLanguage.kind === 'markdown',
+                protectedContext: markdownRichPasteProtectedContext(view.state),
+            }),
             drop: handleExternalFileDrop,
         }),
         Prec.high(keymap.of([
@@ -3561,12 +3625,12 @@ async function pasteIntoEditor(view) {
     if (activeFileLanguage.kind === 'markdown' && typeof clipboard?.read === 'function') {
         try {
             const items = await clipboard.read();
+            const internal = items.some(item => Array.from(item?.types || [])
+                .some(type => String(type).toLowerCase() === FIGARO_MARKDOWN_CLIPBOARD_TYPE));
             for (const item of items) {
-                const imageType = Array.from(item?.types || []).find(type =>
+                if (Array.from(item?.types || []).some(type =>
                     String(type).toLowerCase().startsWith('image/')
-                );
-                if (!imageType) continue;
-                return pasteClipboardImage(view, await item.getType(imageType));
+                )) return pasteClipboardItemImage(view, item);
             }
 
             const htmlItem = items.find(item => Array.from(item?.types || []).includes('text/html'));
@@ -3577,18 +3641,16 @@ async function pasteIntoEditor(view) {
             const mimeType = tsvItem ? 'text/tab-separated-values' : csvItem ? 'text/csv' : 'text/plain';
             const html = htmlItem ? await (await htmlItem.getType('text/html')).text() : '';
             const text = textItem ? await (await textItem.getType(mimeType)).text() : '';
-            if (activeFileLanguage.kind === 'markdown'
-                && pasteClipboardTable(view, { html, text, mimeType: html ? 'text/html' : mimeType })) return true;
-            if (text) {
-                const range = view.state.selection.main;
-                view.dispatch({
-                    changes: { from: range.from, to: range.to, insert: text },
-                    selection: { anchor: range.from + text.length },
-                    scrollIntoView: true,
-                    userEvent: 'input.paste',
-                });
-                return true;
-            }
+            if ((html || text) && pasteClipboardPayload(view, {
+                html,
+                text,
+                internal,
+                mimeType: html ? 'text/html' : mimeType,
+                tabularMimeType: html && (tsvItem || csvItem) ? mimeType : '',
+            }, {
+                markdown: true,
+                protectedContext: markdownRichPasteProtectedContext(view.state),
+            })) return true;
         } catch (_) {
             // Keyboard paste events remain the most compatible image path in
             // embedded webviews; continue to text/legacy fallbacks here.
@@ -3597,16 +3659,11 @@ async function pasteIntoEditor(view) {
     if (typeof clipboard?.readText === 'function') {
         try {
             const text = await clipboard.readText();
-            if (activeFileLanguage.kind === 'markdown'
-                && pasteClipboardTable(view, { text, mimeType: 'text/plain' })) return true;
-            const range = view.state.selection.main;
-            view.dispatch({
-                changes: { from: range.from, to: range.to, insert: text },
-                selection: { anchor: range.from + text.length },
-                scrollIntoView: true,
-                userEvent: 'input.paste',
+            return pasteClipboardPayload(view, { text, mimeType: 'text/plain' }, {
+                markdown: activeFileLanguage.kind === 'markdown',
+                protectedContext: activeFileLanguage.kind === 'markdown'
+                    && markdownRichPasteProtectedContext(view.state),
             });
-            return true;
         } catch (_) {
             // Fall back for embedded runtimes that expose only the legacy API.
         }

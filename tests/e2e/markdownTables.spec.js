@@ -65,33 +65,36 @@ async function createMarkdownEditor(page, source) {
 }
 
 test('deletes a whole table from its direct control and restores it with undo', async ({ page }) => {
-    await page.setViewportSize({ width: 760, height: 720 });
+    await page.setViewportSize({ width: 1400, height: 720 });
     await createMarkdownEditor(page, `# Tables\n\n${tableSource}`);
     const widget = page.locator('.tbl-table-widget');
-    const deleteButton = page.getByRole('button', { name: 'Delete table' });
+    const deleteButton = page.locator(
+        '.markdown-table-delete-guide:visible, .tbl-delete-table-button:visible',
+    );
     await expect(widget).toBeVisible();
     await expect(deleteButton).toBeVisible();
-    await expect(deleteButton).toHaveClass(/ui-button--danger-ghost/);
+    await expect(deleteButton).toHaveText('delete');
+    await expect(deleteButton).toHaveClass(/ui-editor-block-guide--danger/);
     const actionLayout = () => page.evaluate(() => {
         const root = document.querySelector('.tbl-table-widget');
         const table = root.querySelector('.tbl-table-wrapper');
-        const rightHandle = root.querySelector('.tbl-handle[data-type="table"][data-location="right"]');
-        const action = root.querySelector('.tbl-delete-table-button');
+        const action = Array.from(document.querySelectorAll(
+            '.markdown-table-delete-guide, .tbl-delete-table-button',
+        )).find(element => element.getClientRects().length > 0);
+        const fold = document.querySelector('[aria-label="Collapse table"]');
         const rootRect = root.getBoundingClientRect();
         const tableRect = table.getBoundingClientRect();
-        const handleRect = rightHandle?.getBoundingClientRect() || tableRect;
         const actionRect = action.getBoundingClientRect();
-        const rootStyle = getComputedStyle(root);
+        const foldRect = fold.getBoundingClientRect();
         const overlaps = actionRect.left < tableRect.right
             && actionRect.right > tableRect.left
             && actionRect.top < tableRect.bottom
             && actionRect.bottom > tableRect.top;
         return {
-            stacked: root.closest('.cm-scroller').classList.contains('cm-editor-block-actions-stacked'),
-            laneLeft: rootRect.right - Number.parseFloat(rootStyle.paddingRight),
+            fallback: action.classList.contains('tbl-delete-table-button'),
             root: { left: rootRect.left, right: rootRect.right, top: rootRect.top },
             table: { left: tableRect.left, right: tableRect.right, top: tableRect.top },
-            handleRight: handleRect.right,
+            fold: { right: foldRect.right, bottom: foldRect.bottom },
             action: {
                 left: actionRect.left,
                 right: actionRect.right,
@@ -102,11 +105,29 @@ test('deletes a whole table from its direct control and restores it with undo', 
         };
     });
     const wide = await actionLayout();
-    expect(wide.stacked).toBe(false);
-    expect(wide.action.left).toBeGreaterThanOrEqual(wide.handleRight);
-    expect(wide.action.left - wide.laneLeft).toBeGreaterThanOrEqual(26);
-    expect(wide.action.left - wide.laneLeft).toBeLessThanOrEqual(30);
+    expect(wide.fallback).toBe(false);
+    expect(wide.action.right).toBeLessThanOrEqual(wide.root.left);
+    expect(wide.root.left - wide.action.right).toBeLessThanOrEqual(12);
+    expect(Math.abs(wide.action.right - wide.fold.right)).toBeLessThanOrEqual(1);
+    expect(wide.action.top).toBeGreaterThanOrEqual(wide.fold.bottom);
     expect(wide.overlaps).toBe(false);
+
+    const restingColors = await deleteButton.evaluate(button => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--danger-color)';
+        document.body.append(probe);
+        const colors = {
+            action: getComputedStyle(button).color,
+            danger: getComputedStyle(probe).color,
+        };
+        probe.remove();
+        return colors;
+    });
+    expect(restingColors.action).not.toBe(restingColors.danger);
+    await deleteButton.hover();
+    await expect(deleteButton).toHaveCSS('color', restingColors.danger);
+    await deleteButton.focus();
+    await expect(deleteButton).toHaveCSS('color', restingColors.danger);
 
     await page.locator('#outline-toggle').click();
     await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'outline');
@@ -116,13 +137,16 @@ test('deletes a whole table from its direct control and restores it with undo', 
             await new Promise(resolve => requestAnimationFrame(resolve));
             const root = document.querySelector('.tbl-table-widget');
             const table = root?.querySelector('.tbl-table-wrapper');
-            const action = root?.querySelector('.tbl-delete-table-button');
+            const action = Array.from(document.querySelectorAll(
+                '.markdown-table-delete-guide, .tbl-delete-table-button',
+            )).find(element => element.getClientRects().length > 0);
             if (!root || !table || !action) continue;
             const tableRect = table.getBoundingClientRect();
             const actionRect = action.getBoundingClientRect();
             samples.push({
-                stacked: root.closest('.cm-scroller').classList.contains('cm-editor-block-actions-stacked'),
+                fallback: action.classList.contains('tbl-delete-table-button'),
                 rootWidth: root.getBoundingClientRect().width,
+                rootLeft: root.getBoundingClientRect().left,
                 tableRight: tableRect.right,
                 tableTop: tableRect.top,
                 actionLeft: actionRect.left,
@@ -138,13 +162,14 @@ test('deletes a whole table from its direct control and restores it with undo', 
     });
     expect(transitionSamples.length).toBeGreaterThan(0);
     expect(transitionSamples.filter(sample => sample.overlaps)).toEqual([]);
-    await expect.poll(actionLayout).toMatchObject({ stacked: true, overlaps: false });
-    const stacked = await actionLayout();
-    expect(stacked.action.bottom).toBeLessThanOrEqual(stacked.table.top);
+    await expect.poll(actionLayout).toMatchObject({ overlaps: false });
+    const narrowed = await actionLayout();
+    expect(narrowed.fallback).toBe(true);
+    expect(narrowed.action.bottom).toBeLessThanOrEqual(narrowed.table.top);
 
     await page.locator('#right-sidebar-close').click();
     await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'true');
-    await expect.poll(actionLayout).toMatchObject({ stacked: false, overlaps: false });
+    await expect.poll(actionLayout).toMatchObject({ fallback: false, overlaps: false });
     const sourceBeforeDelete = await page.evaluate(() => window.__figaroTableTestView.state.doc.toString());
 
     await deleteButton.click();
@@ -156,6 +181,13 @@ test('deletes a whole table from its direct control and restores it with undo', 
     await page.keyboard.press('Control+z');
     await expect(widget).toBeVisible();
     await expect(deleteButton).toBeVisible();
+    expect(await page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).toBe(sourceBeforeDelete);
+
+    await deleteButton.focus();
+    await deleteButton.press('Enter');
+    await expect(widget).toHaveCount(0);
+    await page.keyboard.press('Control+z');
+    await expect(widget).toBeVisible();
     expect(await page.evaluate(() => window.__figaroTableTestView.state.doc.toString())).toBe(sourceBeforeDelete);
 });
 

@@ -75,6 +75,7 @@ describe('design-system catalogue', () => {
             '.drawio-loading-card',
             '.ui-spinner',
             '.ui-progress',
+            '.ui-editor-block-guide--danger',
         ]) {
             expect(catalogue.querySelector(selector)).not.toBeNull();
         }
@@ -226,6 +227,7 @@ describe('design-system catalogue', () => {
             'frontend/js/pdfPreview.js',
             'frontend/js/datePicker.js',
             'frontend/js/editor.js',
+            'frontend/js/markdownBlockGuides.js',
             'frontend/js/selectCombobox.js',
             'frontend/js/tabManager.js',
             'frontend/js/vaultHealth.js',

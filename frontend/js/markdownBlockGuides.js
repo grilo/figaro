@@ -1,4 +1,4 @@
-import { RangeSet, RangeSetBuilder } from '@codemirror/state';
+import { RangeSet, RangeSetBuilder, Transaction } from '@codemirror/state';
 import { GutterMarker, ViewPlugin, gutter, keymap } from '@codemirror/view';
 import {
     codeFolding,
@@ -138,24 +138,41 @@ class MarkdownBlockGuideMarker extends GutterMarker {
 
     toDOM() {
         const foldControl = this.foldControl();
-        if (!this.showMermaidEditor || this.guide.label !== 'mermaid' || this.folded) return foldControl;
+        if (this.folded) return foldControl;
+
+        let actionControl = null;
+        if (this.showMermaidEditor && this.guide.label === 'mermaid') {
+            actionControl = document.createElement('button');
+            actionControl.type = 'button';
+            actionControl.className = 'ui-editor-block-guide mermaid-editor-guide';
+            actionControl.textContent = 'editor';
+            actionControl.setAttribute('aria-label', 'Open Mermaid Editor for this diagram');
+            actionControl.title = 'Open Mermaid Editor';
+            actionControl.dataset.mermaidFrom = String(this.guide.from);
+            actionControl.dataset.mermaidTo = String(this.guide.to);
+        } else if (this.guide.type === 'table') {
+            actionControl = document.createElement('button');
+            actionControl.type = 'button';
+            actionControl.className = [
+                'ui-editor-block-guide',
+                'ui-editor-block-guide--danger',
+                'markdown-table-delete-guide',
+            ].join(' ');
+            actionControl.textContent = 'delete';
+            actionControl.setAttribute('aria-label', 'Delete table');
+            actionControl.title = 'Delete table';
+            actionControl.dataset.tableFrom = String(this.guide.from);
+            actionControl.dataset.tableTo = String(this.guide.to);
+        }
+        if (!actionControl) return foldControl;
 
         const stack = document.createElement('div');
         stack.className = 'cm-editor-block-guide-stack';
-
-        const editorControl = document.createElement('button');
-        editorControl.type = 'button';
-        editorControl.className = 'ui-editor-block-guide mermaid-editor-guide';
-        editorControl.textContent = 'editor';
-        editorControl.setAttribute('aria-label', 'Open Mermaid Editor for this diagram');
-        editorControl.title = 'Open Mermaid Editor';
-        editorControl.dataset.mermaidFrom = String(this.guide.from);
-        editorControl.dataset.mermaidTo = String(this.guide.to);
-        editorControl.addEventListener('mousedown', event => {
+        actionControl.addEventListener('mousedown', event => {
             if (event.button === 0) event.preventDefault();
         });
 
-        stack.append(foldControl, editorControl);
+        stack.append(foldControl, actionControl);
         return stack;
     }
 }
@@ -310,6 +327,24 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor } = {}) {
             },
             domEventHandlers: {
                 click(view, line, event) {
+                    const deleteControl = event.target?.closest?.('.markdown-table-delete-guide');
+                    if (deleteControl) {
+                        const requestedFrom = Number(deleteControl.dataset.tableFrom);
+                        const requestedTo = Number(deleteControl.dataset.tableTo);
+                        const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                            candidate.type === 'table'
+                            && candidate.from === requestedFrom
+                            && candidate.to === requestedTo
+                        )) || guideOnLine(view.state, line.from);
+                        if (guide?.type !== 'table') return true;
+                        view.dispatch({
+                            annotations: Transaction.userEvent.of('table.delete'),
+                            changes: { from: guide.from, to: guide.to },
+                        });
+                        view.focus();
+                        return true;
+                    }
+
                     const editorControl = event.target?.closest?.('.mermaid-editor-guide');
                     if (editorControl) {
                         const requestedFrom = Number(editorControl.dataset.mermaidFrom);

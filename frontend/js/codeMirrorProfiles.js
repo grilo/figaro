@@ -32,6 +32,7 @@ export function createTableCellProfile({
     defaultBindings,
     vimExtension,
     indentationExtensions = [],
+    clipboardExtensions = [],
     historyBindings,
     searchBindings,
 }) {
@@ -39,6 +40,7 @@ export function createTableCellProfile({
         extensions: [
             viewRegistryExtension,
             ...indentationExtensions,
+            ...clipboardExtensions,
             keymapExtension(defaultBindings),
             ...(vimExtension ? [vimExtension] : []),
         ],

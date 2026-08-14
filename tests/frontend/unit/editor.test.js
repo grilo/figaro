@@ -64,6 +64,34 @@ describe('Editor Module - CodeMirror Initialization', () => {
         });
     });
 
+    test('protects literal Markdown contexts from rich-paste conversion', async () => {
+        const { EditorState } = await import('@codemirror/state');
+        const { markdownLanguage } = await import('@codemirror/lang-markdown');
+        const { markdownRichPasteProtectedContext } = await import('../frontend/js/editor.js');
+        const source = [
+            '---',
+            'title: Note',
+            '---',
+            '',
+            'Plain prose with `inline code` and [a link](https://example.com).',
+            '',
+            '```js',
+            'const value = 1;',
+            '```',
+        ].join('\n');
+        const protectedAt = position => markdownRichPasteProtectedContext(EditorState.create({
+            doc: source,
+            selection: { anchor: position },
+            extensions: [markdownLanguage],
+        }));
+
+        expect(protectedAt(source.indexOf('title'))).toBe(true);
+        expect(protectedAt(source.indexOf('inline code') + 2)).toBe(true);
+        expect(protectedAt(source.indexOf('https://'))).toBe(true);
+        expect(protectedAt(source.indexOf('const value'))).toBe(true);
+        expect(protectedAt(source.indexOf('Plain prose') + 2)).toBe(false);
+    });
+
     test('delegates Windows printable and dead-key input to the native editor', async () => {
         const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');

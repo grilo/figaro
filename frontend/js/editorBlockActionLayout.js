@@ -31,9 +31,11 @@ function measureWritingEdges(view) {
     if (!content || !ownerWindow?.getComputedStyle) return {};
 
     const contentRect = content.getBoundingClientRect();
+    const viewportRect = view.dom.getBoundingClientRect();
     const contentStyle = ownerWindow.getComputedStyle(content);
     const before = railMeasurement(beforeRail, ownerWindow);
     return {
+        viewportLeft: viewportRect.left,
         writingLeft: contentRect.left + numericPixels(contentStyle.paddingLeft),
         beforeRailBaseRight: before.baseRight,
         beforeRailWidth: before.width,
@@ -44,7 +46,6 @@ function measureWritingEdges(view) {
 export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getBoundingClientRect?.().width) {
     if (!view || view.isDestroyed || !Number.isFinite(width)) return;
     const layout = editorBlockActionLayout(width, measureWritingEdges(view));
-    view.dom.style.setProperty('--editor-block-action-viewport-width', `${layout.viewportWidth}px`);
     view.dom.style.setProperty('--editor-block-before-rail-offset', `${layout.beforeRailOffset}px`);
     view.dom.style.setProperty('--editor-block-before-rail-width', `${layout.beforeRailWidth}px`);
     view.scrollDOM?.classList.toggle('cm-editor-block-actions-stacked', layout.stacked);

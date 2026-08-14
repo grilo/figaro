@@ -298,6 +298,14 @@ versions of the US English, UK English, and Spanish Hunspell `.aff`/`.dic`
 assets with their individual license files. Do not replace those language
 assets or remove their notices without auditing the upstream dictionary terms.
 
+Smart rich paste uses the exact Turndown version in `package.json` and copies
+its browser ESM plus MIT license through `scripts/vendor-turndown.mjs`. Keep the
+import maps, preparation fingerprint, size/license dependency-policy test, and
+generated browser artifact synchronized when updating it. Paste repairs must be
+based on explicit clipboard structure rather than vendor names or broad prose
+regular expressions; exact plain/internal fallback is part of the behavior
+contract.
+
 The printable Markdown renderer currently targets Markdown-It 14.3.0. All ten
 bundled `@mdit` packages declare `markdown-it ^14.2.0`: the direct anchor,
 footnote, KaTeX, mark, subscript, superscript, and task-list plugins, together
@@ -310,11 +318,12 @@ that runtime.
 The interactive-table bundle is generated through
 `scripts/vendor-codemirror-markdown-tables.mjs`. Its exact-match, in-memory
 transform makes the third-party table decoration yield to Figaro's native fold
-range, adds the direct approved **Delete table** control through the upstream
-history action, marks the returned DOM as a measured table block for shared
-action-lane layout, and records `rowCount + 1` as its stable Markdown source
-footprint. It deliberately fails if a dependency update changes the reviewed
-upstream shape. The vendored `codemirror-live-markdown` fenced-code provider
+range, exposes the upstream delete transaction for its native menu and Figaro's
+constrained-width fallback action, marks the returned DOM as a measured table
+block, and records `rowCount + 1` as its stable Markdown source footprint. The
+normal left helper-rail action dispatches the equivalent root transaction. It
+deliberately fails if a dependency update changes the reviewed upstream shape.
+The vendored `codemirror-live-markdown` fenced-code provider
 has the equivalent fold-aware rebuild and records its opening, content, and
 closing source rows. Preserve and reverify both integrations when refreshing
 either dependency; the focused browser folding and source-footprint geometry

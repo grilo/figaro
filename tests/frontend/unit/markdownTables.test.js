@@ -45,11 +45,18 @@ describe('codemirror-markdown-tables integration', () => {
         expect(widget.dataset.sourceLines).toBe('4');
         expect(widget.style.getPropertyValue('--cm-source-footprint-height'))
             .toBe(`${view.defaultLineHeight * 4}px`);
-        const deleteButton = widget.querySelector('.tbl-delete-table-button');
+        const deleteButton = view.dom.querySelector('.markdown-table-delete-guide');
         expect(deleteButton).not.toBeNull();
-        expect(deleteButton.classList.contains('ui-button')).toBe(true);
-        expect(deleteButton.classList.contains('ui-button--danger-ghost')).toBe(true);
+        expect(widget.contains(deleteButton)).toBe(false);
+        expect(deleteButton.textContent).toBe('delete');
+        expect(deleteButton.classList.contains('ui-editor-block-guide')).toBe(true);
+        expect(deleteButton.classList.contains('ui-editor-block-guide--danger')).toBe(true);
         expect(deleteButton.getAttribute('aria-label')).toBe('Delete table');
+        expect(deleteButton.previousElementSibling.textContent).toBe('table');
+        const responsiveDeleteButton = widget.querySelector('.tbl-delete-table-button');
+        expect(responsiveDeleteButton.textContent).toBe('delete');
+        expect(responsiveDeleteButton.classList.contains('ui-editor-block-guide--danger')).toBe(true);
+        expect(responsiveDeleteButton.getAttribute('aria-label')).toBe('Delete table');
         expect(widget.querySelector('table.tbl-table')).not.toBeNull();
         expect(widget.querySelectorAll('thead .tbl-cell')).toHaveLength(2);
         expect(widget.querySelectorAll('tbody .tbl-table-row')).toHaveLength(2);

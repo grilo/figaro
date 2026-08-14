@@ -15,7 +15,7 @@ Your implementation must accurately transition states for the following elements
 ### Headers (`# Heading`)
 * **Cursor on line:** Show the `#` marks. Apply the corresponding heading typography class to the line block.
 * **Cursor off line:** Hide the `#` marks and any trailing spaces. Keep the typography styling active on the line to prevent layout snapping.
-* **Typed block guides and folding:** Editor-sized monospace gutter labels appear only for top-level headings, fenced code blocks, and tables. Headings use `h1`–`h6`; a typed fence uses the normalized first language token such as `yaml`, while an untyped fence uses `code`; tables use `table`. The left rail is right-aligned just outside the centered writing surface. Mermaid uses a two-button stack in that rail: `mermaid` folds or expands the fence and `editor` opens the focused Mermaid workspace directly beneath it. Both buttons inherit the same helper primitive and remain outside the writing surface. A hidden maximum-length spacer keeps the rail's overlay width stable when folding removes nested labels, so the centered content never shifts. Every guide aligns with the top of its corresponding line or rendered block. Activating a fence or table guide makes its live-preview provider—including the live-diagram field—yield the source range to CodeMirror's native one-row fold; expanding restores the rendered widget whenever the cursor remains outside that source. Activating a heading guide folds its complete section through the last block before the next peer or ancestor, so descendants remain grouped with their parent. The adapter preserves the clicked guide's viewport coordinate and introduces only the trailing scroll reserve needed to prevent end-of-document clamping, so the same pointer coordinate can immediately reverse the action. Frontmatter, prose, lists, quotes, images, math, HTML, rules, and indented code receive no guide. Folding is editor-only and never changes source, Raw Text Preview, or PDF output. Heading-shaped fence content remains part of its code block rather than becoming a heading guide. Source-code modes keep their normal chevron fold gutter.
+* **Typed block guides and folding:** Editor-sized monospace gutter labels appear only for top-level headings, fenced code blocks, and tables. Headings use `h1`–`h6`; a typed fence uses the normalized first language token such as `yaml`, while an untyped fence uses `code`; tables use `table`. The left rail is right-aligned just outside the centered writing surface. Mermaid uses a `mermaid`/`editor` stack; tables use a `table`/`delete` stack. Each secondary action sits directly beneath its fold control, inherits the same helper primitive, and remains outside the writing surface. A hidden maximum-length spacer keeps the rail's overlay width stable when folding removes nested labels, so the centered content never shifts. Every guide aligns with the top of its corresponding line or rendered block. Activating a fence or table guide makes its live-preview provider—including the live-diagram field—yield the source range to CodeMirror's native one-row fold; expanding restores the rendered widget whenever the cursor remains outside that source. Activating a heading guide folds its complete section through the last block before the next peer or ancestor, so descendants remain grouped with their parent. The adapter preserves the clicked guide's viewport coordinate and introduces only the trailing scroll reserve needed to prevent end-of-document clamping, so the same pointer coordinate can immediately reverse the action. Frontmatter, prose, lists, quotes, images, math, HTML, rules, and indented code receive no guide. Folding is editor-only and never changes source, Raw Text Preview, or PDF output. Heading-shaped fence content remains part of its code block rather than becoming a heading guide. Source-code modes keep their normal chevron fold gutter.
 
 ### Inline Styles (Bold `**text**`, Italic `*text*`, Code `` `code` ``)
 * **Cursor inside node bounds:** Show the boundary delimiters (`**`, `*`, `` ` ``). Keep the inner text styled (bolded, italicized, or monospaced).
@@ -36,6 +36,10 @@ Your implementation must accurately transition states for the following elements
 * **Authoring a new target:** Link autocomplete ranks existing notes through the native search index, emphasizing titles and paths while retaining prefix, accent, and conservative typo matching, and may append one explicit **Create note** action. That action creates beside the current note through the normal same-name review, inserts the configured Markdown/Wikilink syntax only after successful creation, and leaves the current buffer active.
 * **URL paste:** Pasting an `http(s)`, `www`, `mailto`, or XMPP URL over selected plain prose wraps that exact label as a Markdown link. The same CodeMirror transaction applies to a normal selection and an active Vim Visual selection; link/code selections retain their normal paste behavior.
 * **Accepted source-reveal reflow:** Revealing the complete raw Markdown for a long destination can wrap the active paragraph and move following lines. This is intentional: the active range shows the exact editable source with stable font metrics, without reserving destination-sized space while rendered or substituting shortened source.
+
+### Rich Clipboard Paste
+* **Source-first conversion:** Semantic external clipboard HTML is converted to ordinary Markdown before insertion, so the normal live-preview, Raw Text Preview, and PDF renderers receive the same portable source. Presentation-only HTML, internal Figaro source, explicit plain paste, and paste inside frontmatter, code/Mermaid, HTML, links, URLs, images, escapes, or entities stay literal.
+* **Cursor contract:** One handled rich paste is one CodeMirror history transaction. Block insertion supplies only the blank-line boundaries needed to keep adjacent prose separate. Arrow Up/Down, mouse placement, and bidirectional drag selection around the inserted source remain native CodeMirror behavior; table cells accept inline conversion without introducing block geometry.
 
 ### Footnotes (`text[^reference]` and `[^reference]: definition`)
 * **Existing definitions:** Clicking a reference selects and reveals its matching definition. Clicking that definition returns to the exact reference that initiated the jump; if no journey is recorded, the first matching reference is the fallback.
@@ -156,13 +160,15 @@ checkboxes, inline math, and other inline replacements must not receive the
 `cm-source-footprint` marker. Raw Text Preview and both printable surfaces keep
 their independent natural layout.
 
-The interactive table widget reserves measured space for its direct **Delete
-table** control. That control dispatches the table extension's normal delete
-transaction, removes the complete source range, returns focus to the root
-editor, and remains undoable through the shared CodeMirror history. It uses a
-reserved right-side lane when the editor is at least 360 px wide, then a
-naturally sized row above the table when narrower. The stacked control
-participates in normal flow, so a wrapped label cannot cover the grid.
+Every interactive table extends its left block guide into a two-button stack.
+`table` remains the fold/expand control; `delete` removes the complete table
+source, returns focus to the root editor, and remains undoable through shared
+CodeMirror history. The secondary action is visually quiet at rest and adopts
+the theme's destructive color on hover or keyboard focus. Both controls remain
+outside the writing surface while the left margin can contain them. If the
+measured editor margin is narrower than the action, `delete` moves into a
+content-sized row above the grid; it never enters the sidebar or covers cells.
+The table retains the full available width in either layout.
 
 The Mermaid block widget also uses the shared pre-parse security policy. Source
 over 50,000 characters or YAML frontmatter containing an ordered-map tag never
@@ -182,9 +188,8 @@ stack without changing source. A folded Mermaid fence keeps only its one-row
 expand control; expanding restores `editor` with the block.
 While Document Outline animates the available editor width, a bounded
 CodeMirror measurement bridge follows that transition until the width is stable.
-The Mermaid stack follows the left writing edge while table actions reflow with
-their measured widgets in the same frame; neither intersects rendered content
-or jumps to the top of the text body.
+The Mermaid and table stacks follow the left writing edge in the same frame;
+neither intersects rendered content or jumps to the top of the text body.
 
 The focused Mermaid Editor owns a separate CodeMirror state. It copies the
 root editor's current tab size and spaces-only indentation unit before receiving
