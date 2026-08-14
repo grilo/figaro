@@ -1,4 +1,8 @@
 const headingPattern = /^(?:ATX|Setext)Heading([1-6])$/;
+export const MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH = 16;
+const fencedCodeGuidePattern = new RegExp(
+    `^[a-z0-9][a-z0-9.+#_-]{0,${MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH - 1}}$`,
+);
 
 export function markdownHeadingLevel(nodeName) {
     const match = headingPattern.exec(String(nodeName || ''));
@@ -10,7 +14,7 @@ export function fencedCodeGuideLabel(info) {
         .replace(/^\{\./, '')
         .replace(/\}$/, '')
         .toLowerCase();
-    return /^[a-z0-9][a-z0-9.+#_-]{0,15}$/.test(firstToken) ? firstToken : 'code';
+    return fencedCodeGuidePattern.test(firstToken) ? firstToken : 'code';
 }
 
 export function markdownBlockGuideKind({ name, info = '' } = {}) {

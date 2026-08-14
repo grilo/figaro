@@ -9,10 +9,18 @@ import { setState, getState, subscribe } from './state.js';
 import { scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { mathField } from './mathPlugin.js';
-import { createDiagramField, diagramLanguages } from './liveDiagramPlugin.js';
+import { createDiagramField, diagramLanguages, scanDiagramFences } from './liveDiagramPlugin.js';
+import { requestSourceFootprintMeasure, sourceFootprintExtension } from './sourceFootprint.js';
+import {
+    defaultTabSize,
+    expandedTabText,
+    normalizeTabSize,
+    tabSizeIndentUnit,
+} from './core/tabSizeModel.js';
 import { getFootnoteAtPosition, resolveFootnoteNavigation } from './footnotes.js';
 import { getFileLanguage, loadLanguageSupport } from './languageSupport.js';
 import { createFrontmatterField } from './frontmatterPlugin.js';
+import { FRONTMATTER_UPWARD_REVEAL_USER_EVENT } from './core/frontmatterPresentationModel.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
 import { createTaskDueDateCompletionSource } from './taskDueDateCompletions.js';
@@ -91,8 +99,7 @@ import { lintKeymap, linter } from '@codemirror/lint';
 import { tags } from '@lezer/highlight';
 import { validateMermaidSource } from './diagramRenderer.js';
 import { createMarkdownDocumentLinter } from './usecases/markdownDocumentLint.js';
-import { markdownBlockGuidesExtension } from './markdownBlockGuides.js';
-import { createMermaidEditorGutterExtension } from './mermaidEditorGutter.js';
+import { createMarkdownBlockGuidesExtension } from './markdownBlockGuides.js';
 import { openMermaidEditor } from './mermaidEditor.js';
 import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
@@ -137,6 +144,7 @@ let foldingCompartment = null;
 let lineNumbersCompartment = null;
 let markdownLintCompartment = null;
 let spellcheckCompartment = null;
+let tabSizeCompartment = null;
 let vimActive = false;
 let vimRequested = false;
 let vimVisualRowsRequested = false;
@@ -162,6 +170,7 @@ const vimModeClassSyncTokens = new WeakMap();
 let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: null };
 let fileModeRequest = 0;
 let markdownModeExtensions = null;
+let editorTabSizeRequested = defaultTabSize;
 
 // Figaro exits an empty list item with one Enter. CodeMirror's default keeps a
 // two-item tight list alive for one extra press, which is surprising in a
@@ -208,10 +217,29 @@ let contextMenuRequestId = 0;
 let vimClipboardMappingsRegistered = false;
 const vimClipboardControllers = new WeakSet();
 
-// CodeMirror's indentUnit is the single source of truth for both Tab / Shift+Tab
-// and the indentation-marker extension. Keep the visual tab width in CSS in
-// lockstep with this value (see .cm-code-file .cm-content).
-const codeIndentUnit = '  ';
+function editorTabSizeExtensions(value = editorTabSizeRequested) {
+    const size = normalizeTabSize(value);
+    return [
+        EditorState.tabSize.of(size),
+        indentUnit.of(tabSizeIndentUnit(size)),
+    ];
+}
+
+/** Apply one indentation width to every editor surface backed by CodeMirror. */
+function setEditorTabSize(value) {
+    editorTabSizeRequested = normalizeTabSize(value, editorTabSizeRequested);
+    document.documentElement?.style.setProperty('--editor-tab-size', String(editorTabSizeRequested));
+
+    if (!editorView || editorView.isDestroyed || !tabSizeCompartment) return editorTabSizeRequested;
+    editorView.dispatch({ effects: tabSizeCompartment.reconfigure(editorTabSizeExtensions()) });
+    if (activeFileLanguage.kind === 'markdown') reconfigureMarkdownTableCells();
+    requestSourceFootprintMeasure(editorView);
+    return editorTabSizeRequested;
+}
+
+function getEditorTabSize() {
+    return editorTabSizeRequested;
+}
 
 function createEditorFoldControl(expanded, regionLabel) {
     const control = document.createElement('button');
@@ -883,7 +911,14 @@ function vimFrontmatterRange(doc) {
     if (doc.lines < 2 || !/^---\s*$/.test(doc.line(1).text)) return null;
     for (let number = 2; number <= doc.lines; number += 1) {
         const line = doc.line(number);
-        if (/^(?:---|\.\.\.)\s*$/.test(line.text)) return { from: 0, to: line.to, kind: 'source' };
+        if (/^(?:---|\.\.\.)\s*$/.test(line.text)) {
+            return {
+                from: 0,
+                to: Math.min(doc.length, line.to + 1),
+                kind: 'source',
+                frontmatter: true,
+            };
+        }
     }
     return null;
 }
@@ -973,8 +1008,20 @@ function enterAdjacentRenderedBlock(view, forward, extendVisual = false, block =
     view.dispatch({
         selection: EditorSelection.range(selection.anchor, selection.head),
         scrollIntoView: true,
-        userEvent: 'select',
+        userEvent: block.frontmatter && !forward
+            ? FRONTMATTER_UPWARD_REVEAL_USER_EVENT
+            : 'select',
     });
+    return true;
+}
+
+/** Reveal hidden Properties source only in response to an upward motion. */
+function revealFrontmatterForUpwardMotion(view) {
+    const frontmatter = vimFrontmatterRange(view?.state?.doc);
+    const selection = view?.state?.selection?.main;
+    if (!frontmatter || !selection || selection.head > frontmatter.to) return false;
+    if (view.dom.querySelector('.cm-frontmatter-source-line')) return false;
+    view.dispatch({ userEvent: FRONTMATTER_UPWARD_REVEAL_USER_EVENT });
     return true;
 }
 
@@ -987,8 +1034,16 @@ function vimRenderedBlockNavigationExtension() {
             if (!vimState || vimState.insertMode || vimState.inputState?.operatorShortcut
                 || (vimState.inputState?.keyBuffer?.length || 0) > 0) return false;
             const forward = event.key === 'j';
+            if (!forward && revealFrontmatterForUpwardMotion(view)) {
+                event.preventDefault();
+                event.stopPropagation();
+                return true;
+            }
             const block = adjacentVimRenderedBlock(view, forward);
-            if (!block || (!vimRevealBlocksRequested && (!vimState.visualMode || block.kind !== 'source'))) return false;
+            const frontmatterEntry = block?.frontmatter && !forward;
+            if (!block || (!frontmatterEntry
+                && !vimRevealBlocksRequested
+                && (!vimState.visualMode || block.kind !== 'source'))) return false;
             if (!enterAdjacentRenderedBlock(view, forward, Boolean(vimState.visualMode), block)) return false;
             event.preventDefault();
             event.stopPropagation();
@@ -1016,6 +1071,12 @@ function vimSourceBoundaryExtension() {
                 || (vimState.inputState?.keyBuffer?.length || 0) > 0) return false;
             const headLine = view.state.doc.lineAt(view.state.selection.main.head).number;
             if ((forward && headLine !== view.state.doc.lines) || (!forward && headLine !== 1)) return false;
+
+            if (!forward && revealFrontmatterForUpwardMotion(view)) {
+                event.preventDefault();
+                event.stopPropagation();
+                return true;
+            }
 
             event.preventDefault();
             event.stopPropagation();
@@ -1059,6 +1120,18 @@ function mermaidEditorInputProfile(mainView) {
         },
     };
 }
+
+const markdownBlockGuidesExtension = createMarkdownBlockGuidesExtension({
+    openMermaidEditor: (view, guide) => {
+        const block = scanDiagramFences(view.state.doc).find(candidate => (
+            candidate.lang === 'mermaid' && candidate.from === guide.from
+        ));
+        if (!block) return;
+        openMermaidEditor(view, block, {
+            inputProfile: mermaidEditorInputProfile(view),
+        });
+    },
+});
 
 export function insertTextAtCursor(view, text) {
     if (!view?.state?.selection) return false;
@@ -1193,6 +1266,7 @@ function visibleFoldBoundaryTarget(state, beforePosition, afterPosition, forward
 export function moveCursorVerticallySafely(view, forward) {
     const before = view.state.selection.main;
     if (!before.empty || view.state.selection.ranges.length !== 1) return false;
+    if (!forward && revealFrontmatterForUpwardMotion(view)) return true;
 
     const sourceLine = view.state.doc.lineAt(before.head);
     const blockedAtBoundary = verticalBoundaryTarget({
@@ -1236,6 +1310,7 @@ export function moveCursorVerticallySafely(view, forward) {
                 scrollIntoView: true,
                 userEvent: 'select',
             });
+            if (!forward) revealFrontmatterForUpwardMotion(view);
             return true;
         }
     }
@@ -1259,6 +1334,7 @@ export function moveCursorVerticallySafely(view, forward) {
             scrollIntoView: true,
             userEvent: 'select',
         });
+        if (!forward) revealFrontmatterForUpwardMotion(view);
         return true;
     }
 
@@ -1281,7 +1357,10 @@ export function moveCursorVerticallySafely(view, forward) {
         after.head,
         forward
     );
-    if (targetPosition === null) return true;
+    if (targetPosition === null) {
+        if (!forward) revealFrontmatterForUpwardMotion(view);
+        return true;
+    }
     view.dispatch({
         selection: EditorSelection.cursor(
             targetPosition,
@@ -1292,6 +1371,7 @@ export function moveCursorVerticallySafely(view, forward) {
         scrollIntoView: true,
         userEvent: 'select',
     });
+    if (!forward) revealFrontmatterForUpwardMotion(view);
     return true;
 }
 
@@ -1407,13 +1487,8 @@ export function markdownListHangingIndentAttributes(lineText, metrics = null) {
     const match = String(lineText ?? '').match(/^([ \t]*)(?:[-*+]|\d+[.)])([ \t]+)/);
     if (!match) return null;
 
-    // A Markdown tab conventionally advances to the next four-column stop.
-    // Keep the same calculation for the CSS ch unit used by this editor.
-    let columns = 0;
-    for (const character of match[1]) {
-        columns = character === '\t' ? columns + (4 - (columns % 4)) : columns + 1;
-    }
-    columns += match[0].length - match[1].length;
+    const tabSize = normalizeTabSize(metrics?.tabSize ?? metrics?.view?.state?.tabSize);
+    const columns = expandedTabText(match[0], tabSize).columns;
     let indent = `${columns}ch`;
     if (metrics?.view && metrics.markerText) {
         const computed = getComputedStyle(metrics.view.contentDOM);
@@ -1425,10 +1500,15 @@ export function markdownListHangingIndentAttributes(lineText, metrics = null) {
             const style = computed.fontStyle || 'normal';
             const sourceFont = `${style} ${computed.fontWeight || '400'} ${size} ${family}`;
             const markerFont = `${style} ${metrics.markerWeight || computed.fontWeight || '400'} ${size} ${family}`;
-            const expandedLeadingWhitespace = match[1].replace(/\t/g, '    ');
+            const expandedLeadingWhitespace = expandedTabText(match[1], tabSize).text;
+            const expandedTrailingWhitespace = expandedTabText(
+                metrics.trailingSourceWhitespace || '',
+                tabSize,
+                columns,
+            ).text;
             context.font = sourceFont;
             const leadingWidth = context.measureText(
-                expandedLeadingWhitespace + (metrics.trailingSourceWhitespace || '')
+                expandedLeadingWhitespace + expandedTrailingWhitespace
             ).width;
             context.font = markerFont;
             const markerWidth = context.measureText(metrics.markerText).width + (metrics.markerMargin || 0);
@@ -1449,25 +1529,16 @@ export function markdownListHangingIndentAttributes(lineText, metrics = null) {
  */
 export function markdownBlockquoteHangingIndentAttributes(
     lineText,
-    { view = null, markerVisible = false } = {}
+    { view = null, markerVisible = false, tabSize = view?.state?.tabSize } = {}
 ) {
     const match = String(lineText ?? '').match(/^([ \t]{0,3})((?:>[ \t]?)+)/);
     if (!match) return null;
 
     const visibleMarkerPrefix = markerVisible ? match[2] : match[2].replace(/>/g, '');
     const visiblePrefix = match[1] + visibleMarkerPrefix;
-    let columns = 0;
-    let expandedPrefix = '';
-    for (const character of visiblePrefix) {
-        if (character === '\t') {
-            const spaces = 4 - (columns % 4);
-            expandedPrefix += ' '.repeat(spaces);
-            columns += spaces;
-        } else {
-            expandedPrefix += character;
-            columns += 1;
-        }
-    }
+    const expanded = expandedTabText(visiblePrefix, tabSize);
+    const { columns } = expanded;
+    const expandedPrefix = expanded.text;
 
     let indent = `${columns}ch`;
     if (view && expandedPrefix) {
@@ -1508,9 +1579,9 @@ async function initEditor() {
 /**
  * Resolve a relative markdown link URL against the current file's directory.
  * Only resolves paths starting with ../ or ./. Other relative paths
- * (e.g. "Projects/file.md") are passed through as vault-relative.
- * E.g. "../../Projects/x.md" + current file "notes/daily/2025.md"
- *   → "Projects/x.md"
+ * (e.g. "Archive/file.md") are passed through as vault-relative.
+ * E.g. "../../Archive/x.md" + current file "notes/daily/2025.md"
+ *   → "Archive/x.md"
  */
 function resolveRelativeUrl(url) {
     if (!url || url.startsWith('/') || /^https?:/.test(url)) return url;
@@ -1942,7 +2013,7 @@ function createEditorView() {
 
     // CodeMirror marks its complete gutter rail aria-hidden because line
     // numbers and ordinary markers are decorative. Fold arrows and Markdown
-    // block guides are real controls, so expose only that interactive gutter.
+    // block controls are real controls, so expose only that interactive gutter.
     const foldGutterAccessibilityPlugin = ViewPlugin.fromClass(class {
         constructor(view) {
             this.view = view;
@@ -1959,7 +2030,7 @@ function createEditorView() {
             if (this.view.isDestroyed) return;
             for (const gutters of this.view.dom.querySelectorAll('.cm-gutters')) {
                 const interactiveGutters = [...gutters.querySelectorAll(
-                    '.cm-markdownBlockGutter, .cm-mermaidEditorGutter, .cm-foldGutter',
+                    '.cm-markdownBlockGutter, .cm-foldGutter',
                 )];
                 if (!interactiveGutters.length) {
                     gutters.setAttribute('aria-hidden', 'true');
@@ -1971,10 +2042,8 @@ function createEditorView() {
                         gutter.removeAttribute('aria-hidden');
                         gutter.setAttribute('role', 'group');
                         gutter.setAttribute('aria-label', gutter.classList.contains('cm-markdownBlockGutter')
-                            ? 'Markdown block guides'
-                            : gutter.classList.contains('cm-mermaidEditorGutter')
-                                ? 'Mermaid diagram actions'
-                                : 'Code folding');
+                            ? 'Markdown block controls'
+                            : 'Code folding');
                     } else {
                         gutter.setAttribute('aria-hidden', 'true');
                     }
@@ -1997,13 +2066,6 @@ function createEditorView() {
     if (StateField && EditorView && WidgetType && shouldShowSource && mouseSelectingField) {
         try { diagramField = createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField); } catch(e) { log.warn('[diagram] create failed: ' + (e.message || e)); }
     }
-    const mermaidEditorGutterExtension = Array.isArray(diagramField) ? [] : createMermaidEditorGutterExtension({
-        diagramField,
-        openEditor: (view, block) => openMermaidEditor(view, block, {
-            inputProfile: mermaidEditorInputProfile(view),
-        }),
-    });
-
     // Frontmatter is represented by a single collapsed Properties card until
     // the user activates it or moves the cursor into the YAML source.
     let frontmatterField = [];
@@ -2093,7 +2155,7 @@ function createEditorView() {
         }
         update(update) {
             const nextSignature = selectionLineSignature(update.state.doc, update.state.selection);
-            if (update.docChanged || update.viewportChanged
+            if (update.docChanged || update.geometryChanged || update.viewportChanged
                 || (update.selectionSet && nextSignature !== this.activeLineSignature)) {
                 this.decorations = this.build(update.view);
                 this.activeLineSignature = nextSignature;
@@ -2193,7 +2255,7 @@ function createEditorView() {
         }
         update(update) {
             const nextSignature = selectionLineSignature(update.state.doc, update.state.selection);
-            if (update.docChanged || update.viewportChanged
+            if (update.docChanged || update.geometryChanged || update.viewportChanged
                 || (update.selectionSet && nextSignature !== this.activeLineSignature)) {
                 this.decorations = this.build(update.view);
                 this.activeLineSignature = nextSignature;
@@ -2354,7 +2416,7 @@ function createEditorView() {
         return { from: rf, options, filter: false };
     };
 
-    const fileLinkCompletions = ctx => {
+    const fileLinkCompletions = async ctx => {
         const pos = ctx.pos, doc = ctx.state.doc;
         const line = doc.lineAt(pos), ls = line.from;
         const before = doc.sliceString(ls, pos);
@@ -2371,18 +2433,41 @@ function createEditorView() {
                 if (item.type === 'directory' && item.children) collect(item.children);
             }
         })(fileTreeData);
-        // Sort by modification time, most recent first
+        // Empty link completions remain recency-based. Once the user types,
+        // use the same native relevance engine as global search so headings,
+        // paths, accents, prefixes, and conservative typo matches agree.
         mdFiles.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
         const rf = ls + match.fromOffset;
-        const options = mdFiles
-            .filter(f => f.name.toLowerCase().startsWith(prefix) || f.path.toLowerCase().startsWith(prefix))
-            .slice(0, 10).map(f => ({
-                label: f.name, detail: f.path,
-                apply: (view, comp, from, to) => {
-                    const rep = noteLinkCompletion(getLinkStylePreference(), f);
-                    view.dispatch({ changes: { from, to, insert: rep }, selection: { anchor: from + rep.length } });
-                }
-            }));
+        let matchedFiles = mdFiles.slice(0, 10);
+        if (rawPrefix) {
+            try {
+                const response = await backend().SearchNotes(rawPrefix, {
+                    case_sensitive: false,
+                    title_only: false,
+                    profile: 'links',
+                    limit: 10,
+                    suggest: false,
+                });
+                matchedFiles = (response?.results || []).map(file => ({
+                    name: String(file.name || file.path?.split('/').pop() || file.path || '')
+                        .replace(/\.md$/i, ''),
+                    path: file.path,
+                    mtime: file.mtime || 0,
+                })).filter(file => file.path);
+            } catch {
+                matchedFiles = mdFiles
+                    .filter(file => file.name.toLowerCase().startsWith(prefix)
+                        || file.path.toLowerCase().startsWith(prefix))
+                    .slice(0, 10);
+            }
+        }
+        const options = matchedFiles.map(f => ({
+            label: f.name, detail: f.path,
+            apply: (view, comp, from, to) => {
+                const rep = noteLinkCompletion(getLinkStylePreference(), f);
+                view.dispatch({ changes: { from, to, insert: rep }, selection: { anchor: from + rep.length } });
+            }
+        }));
         const activeTab = getActiveTab();
         const creationPlan = planLinkedNoteCompletion({
             label: rawPrefix,
@@ -2503,6 +2588,7 @@ function createEditorView() {
             keymapExtension: bindings => keymap.of(bindings),
             defaultBindings: defaultKeymap,
             vimExtension: vimTableCellExtension,
+            indentationExtensions: editorTabSizeExtensions(),
             historyBindings: tableCellHistoryKeymap(),
             searchBindings: searchKeymap,
 	        });
@@ -2546,6 +2632,7 @@ function createEditorView() {
     lineNumbersCompartment = new Compartment();
     markdownLintCompartment = new Compartment();
     spellcheckCompartment = new Compartment();
+    tabSizeCompartment = new Compartment();
 
     const markdownExtensionsForPath = () => [
         collapseOnSelectionFacet.of(true),
@@ -2556,7 +2643,6 @@ function createEditorView() {
         vimRenderedBlockNavigationExtension(),
         EditorView.lineWrapping,
         stickyHeadingScrollMargins,
-        ...mermaidEditorGutterExtension,
         markdownLintCompartment.of(markdownLintRequested ? [linter(markdownDocumentLinter, { delay: 500 })] : []),
         spellcheckCompartment.of(spellcheckRequested ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })] : []),
         autocompletion({
@@ -2588,6 +2674,7 @@ function createEditorView() {
         ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
         markdownTableCompartment.of(createMarkdownTableExtension()),
         mathField,
+        sourceFootprintExtension,
         hexColorExtension,
         hashtagPlugin,
         widgetPlugin,
@@ -2610,8 +2697,6 @@ function createEditorView() {
     ];
     const codeExtensionsForSupport = (support) => [
         ...(support ? [support] : []),
-        ...(EditorState ? [EditorState.tabSize.of(codeIndentUnit.length)] : []),
-        ...(indentUnit ? [indentUnit.of(codeIndentUnit)] : []),
         ...(codeHighlighting ? [codeHighlighting] : []),
         ...(indentationMarkerExtension ? indentationMarkerExtension({
             // Use the same semantic colors as the active theme. The markers
@@ -2640,6 +2725,7 @@ function createEditorView() {
             vimSourceBoundaryExtension(),
             vimCompartment.of([]),
             readOnlyCompartment.of([]),
+            tabSizeCompartment.of(editorTabSizeExtensions()),
             imageBasePathCompartment.of(imageField({ basePath: '/vault/' })),
             fileModeCompartment.of(markdownExtensionsForPath()),
             lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
@@ -3151,19 +3237,24 @@ function handleFootnoteNavigation(event, view, position) {
     if (!navigation) return false;
 
     event.preventDefault();
-    if (navigation.action === 'missing-definition') {
-        statusBar.set(`Footnote definition not found: [^${navigation.label}]`);
-        setTimeout(() => statusBar.clear(), 1800);
-        return true;
-    }
     if (navigation.action === 'missing-return') {
         statusBar.set(`No return location for footnote: [^${navigation.label}]`);
         setTimeout(() => statusBar.clear(), 1800);
         return true;
     }
 
-    if (navigation.action === 'definition') {
+    if (navigation.action === 'definition' || navigation.action === 'create-definition') {
         footnoteReturnPositions.set(key, navigation.returnPosition);
+    }
+    if (navigation.action === 'create-definition') {
+        view.dispatch({
+            changes: { from: navigation.insertAt, insert: navigation.insert },
+            selection: { anchor: navigation.target },
+            scrollIntoView: true,
+            userEvent: 'input',
+        });
+        view.focus();
+        return true;
     }
     view.dispatch({ selection: { anchor: navigation.target }, scrollIntoView: true });
     view.focus();
@@ -4049,4 +4140,4 @@ export { initEditor, createEditorView, getEditorView,
     getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor,
     saveActiveFile, toggleSearchPanel, closeSearchPanel,
     saveCursorState, restoreCursorState, toggleVim, isVimEnabled, setVimVisualRows, setVimRevealBlocks, setImageBasePath, setReadOnly, setLineNumbers, setMarkdownBlockGuides, setMarkdownLint, setSpellcheck,
-    configureEditorForFile, normalizeWebKitShiftTab };
+    configureEditorForFile, getEditorTabSize, normalizeWebKitShiftTab, setEditorTabSize };

@@ -255,6 +255,37 @@ func (a *App) VimSave(enabled bool) (*SaveFileResult, error) {
 	return &SaveFileResult{Success: true}, nil
 }
 
+// TabSizeLoad returns the shared indentation width used by every editor.
+func (a *App) TabSizeLoad() (map[string]int, error) {
+	a.settingsMu.RLock()
+	defer a.settingsMu.RUnlock()
+
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return map[string]int{"size": settingsmodel.DefaultTabSize}, nil
+	}
+	return map[string]int{"size": settingsmodel.TabSize(settings)}, nil
+}
+
+// TabSizeSave persists one bounded whole-space indentation width.
+func (a *App) TabSizeSave(size int) (*SaveFileResult, error) {
+	if size < settingsmodel.MinimumTabSize || size > settingsmodel.MaximumTabSize {
+		return &SaveFileResult{Success: false, Error: "tab size must be between 2 and 8 spaces"}, nil
+	}
+
+	a.settingsMu.Lock()
+	defer a.settingsMu.Unlock()
+	settings, err := a.readSettingsFile()
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	settings["tab_size"] = size
+	if err := a.writeSettingsFile(settings); err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
 // VimVisualRowsLoad loads the preferred Vim Normal/Visual vertical motion.
 // It has no effect until Vim itself is enabled in the editor.
 func (a *App) VimVisualRowsLoad() (map[string]bool, error) {

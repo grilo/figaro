@@ -1,5 +1,6 @@
 import { EditorState, StateField } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
+import { codeFolding, foldEffect, unfoldEffect } from '@codemirror/language';
 import { markdownLanguage } from '@codemirror/lang-markdown';
 import {
     codeBlockField,
@@ -37,6 +38,7 @@ describe('live diagram preview', () => {
         view?.destroy();
         view = null;
         delete window.mermaid;
+        delete window.vegaEmbed;
     });
 
     test('owns diagram fences while the standard code preview renders other fences', async () => {
@@ -90,6 +92,10 @@ describe('live diagram preview', () => {
         expect(diagramDOM.classList.contains('cm-block-widget')).toBe(true);
         expect(diagramDOM.classList.contains('cm-block-widget--diagram')).toBe(true);
         expect(diagramDOM.classList.contains('cm-block-widget--mermaid')).toBe(true);
+        expect(diagramDOM.classList.contains('cm-source-footprint')).toBe(true);
+        expect(diagramDOM.classList.contains('cm-source-footprint--graphic')).toBe(true);
+        expect(diagramDOM.dataset.sourceFootprint).toBe('mermaid');
+        expect(diagramDOM.dataset.sourceLines).toBe('4');
         expect(diagramDOM.querySelectorAll('svg')).toHaveLength(1);
         expect(window.mermaid.render).toHaveBeenCalled();
 
@@ -98,6 +104,53 @@ describe('live diagram preview', () => {
 
         view.dispatch({ selection: { anchor: 0 } });
         expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
+    });
+
+    test('applies the same graphic source footprint to Vega and Vega-Lite fences', async () => {
+        window.vegaEmbed = jest.fn().mockResolvedValue({
+            view: {
+                toSVG: jest.fn().mockResolvedValue('<svg data-diagram="vega"></svg>'),
+                finalize: jest.fn(),
+            },
+        });
+        const fence = '`'.repeat(3);
+        const source = [
+            fence + 'vega',
+            '{}',
+            fence,
+            '',
+            fence + 'vega-lite',
+            '{}',
+            fence,
+            '',
+            'After',
+        ].join('\n');
+        const diagramField = createDiagramField(
+            StateField,
+            EditorView,
+            Decoration,
+            WidgetType,
+            shouldShowSource,
+            mouseSelectingField,
+        );
+        view = new EditorView({
+            state: EditorState.create({
+                doc: source,
+                selection: { anchor: source.length },
+                extensions: [collapseOnSelectionFacet.of(true), mouseSelectingField, diagramField],
+            }),
+            parent: document.body,
+        });
+
+        const roots = decorationsIn(view.state, diagramField).map(item => item.decoration.widget.toDOM(view));
+        roots.forEach(root => document.body.append(root));
+        await flush();
+        await flush();
+
+        expect(roots.map(root => root.dataset.sourceFootprint)).toEqual(['vega', 'vega-lite']);
+        expect(roots.map(root => root.dataset.sourceLines)).toEqual(['3', '3']);
+        expect(roots.every(root => root.classList.contains('cm-source-footprint--graphic'))).toBe(true);
+        expect(roots.every(root => root.querySelector('svg'))).toBe(true);
     });
 
     test('shows a recoverable error without sending unsafe YAML frontmatter to Mermaid', async () => {
@@ -165,6 +218,7 @@ describe('live diagram preview', () => {
         const blocks = scanDiagramFences(rawState.doc);
         expect(blocks).toHaveLength(3);
         expect(blocks.map(block => block.recoveredFence)).toEqual([false, true, false]);
+        expect(blocks.map(block => block.sourceLines)).toEqual([4, 4, 4]);
         expect(blocks[2].code).toContain('C --> D');
 
         const diagramField = createDiagramField(
@@ -237,5 +291,57 @@ describe('live diagram preview', () => {
 
         view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
         expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
+    });
+
+    test('yields a rendered Mermaid replacement to a native fold and restores it on unfold', () => {
+        const fence = '`'.repeat(3);
+        const source = [
+            fence + 'mermaid',
+            'flowchart TD',
+            '  A --> B',
+            fence,
+            'after',
+        ].join('\n');
+        const diagramField = createDiagramField(
+            StateField,
+            EditorView,
+            Decoration,
+            WidgetType,
+            shouldShowSource,
+            mouseSelectingField,
+        );
+        view = new EditorView({
+            state: EditorState.create({
+                doc: source,
+                selection: { anchor: source.length },
+                extensions: [
+                    collapseOnSelectionFacet.of(true),
+                    mouseSelectingField,
+                    codeFolding(),
+                    markdownLanguage,
+                    diagramField,
+                ],
+            }),
+            parent: document.body,
+        });
+        const foldRange = {
+            from: view.state.doc.line(1).to,
+            to: view.state.doc.line(4).to,
+        };
+
+        expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
+        expect(view.dom.querySelector('.cm-live-diagram')).not.toBeNull();
+        view.dispatch({ effects: foldEffect.of(foldRange) });
+
+        expect(decorationsIn(view.state, diagramField)).toHaveLength(0);
+        expect(view.dom.querySelector('.cm-live-diagram')).toBeNull();
+        expect(view.dom.querySelector('.cm-foldPlaceholder')).not.toBeNull();
+        expect(view.state.doc.toString()).toBe(source);
+
+        view.dispatch({ effects: unfoldEffect.of(foldRange) });
+
+        expect(view.dom.querySelector('.cm-foldPlaceholder')).toBeNull();
+        expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
+        expect(view.dom.querySelector('.cm-live-diagram')).not.toBeNull();
     });
 });

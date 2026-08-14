@@ -111,6 +111,7 @@ func createRootFile(root *os.Root, rel string, data []byte, mode os.FileMode) er
 }
 
 type vaultMarkdownVisitor = vault.MarkdownVisitor
+type vaultMarkdownProgress = vault.MarkdownProgress
 
 func (a *App) walkVaultMarkdown(visitor vaultMarkdownVisitor) error {
 	root, err := a.openVaultRoot()
@@ -119,4 +120,13 @@ func (a *App) walkVaultMarkdown(visitor vaultMarkdownVisitor) error {
 	}
 	defer root.Close()
 	return vault.WalkMarkdown(root, visitor)
+}
+
+func (a *App) walkVaultMarkdownWithProgress(visitor vaultMarkdownVisitor, progress vaultMarkdownProgress) error {
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	return vault.WalkMarkdownWithProgress(root, visitor, progress)
 }

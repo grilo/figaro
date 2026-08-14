@@ -320,14 +320,7 @@ node scripts/vendor-codemirror-markdown-tables.mjs
 
 echo "Bundling the CodeMirror color-picker theme with its helper dependencies..."
 mkdir -p "$VENDOR_DIR/@uiw/codemirror-extensions-color"
-./node_modules/.bin/esbuild node_modules/@uiw/codemirror-extensions-color/esm/index.js \
-    --bundle \
-    --format=esm \
-    --target=es2020 \
-    --minify \
-    --external:@codemirror/* \
-    --external:@lezer/* \
-    --outfile="$VENDOR_DIR/@uiw/codemirror-extensions-color/index.js"
+node scripts/vendor-codemirror-color.mjs
 
 echo "Bundling the offline Hunspell spellchecking runtime and dictionaries..."
 mkdir -p "$VENDOR_DIR/spellcheck"

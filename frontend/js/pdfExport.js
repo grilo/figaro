@@ -366,14 +366,6 @@ export async function exportFileToPDF(path, title) {
     return exportMarkdownToPDF({ path, title: title || path.split('/').pop(), content: file.content });
 }
 
-export async function exportActiveMarkdownToPDF() {
-    const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
-    if (!activeTab || activeTab.type !== 'file' || !activeTab.path) {
-        throw new Error('Open a Markdown document before exporting it');
-    }
-    return exportMarkdownToPDF({ path: activeTab.path, title: activeTab.title, content: getEditorContent() });
-}
-
 function escapeHtml(value) {
     const element = document.createElement('div');
     element.textContent = String(value || '');

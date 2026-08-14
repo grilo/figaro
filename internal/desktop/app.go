@@ -41,6 +41,7 @@ type App struct {
 	calendarMu          sync.Mutex
 	watcherMu           sync.Mutex
 	vaultIndexBuildMu   sync.Mutex
+	vaultLoadMu         sync.RWMutex
 	fileVersions        map[string]float64
 	kanbanColumns       []string
 	kanbanColors        map[string]string
@@ -56,6 +57,11 @@ type App struct {
 	windowState         windowState
 	machineSettingsPath string
 	applicationVersion  string
+	runtimeEventsReady  bool
+	vaultLoadStatus     VaultLoadStatus
+	vaultLoadEmitStep   int
+	vaultLoadLastEmit   int
+	eventEmitter        func(name string, data ...any)
 }
 
 // SystemColumns are the three built-in kanban columns always present.
@@ -168,6 +174,7 @@ func NewApp(vaultPath string) *App {
 		kanbanColumns:       append([]string{}, SystemColumns...),
 		internalVaultWrites: make(map[string]internalVaultWriteAck),
 		windowState:         defaultWindowState(),
+		vaultLoadStatus:     VaultLoadStatus{Phase: VaultLoadPending},
 	}
 	a.loadColors()
 
@@ -332,6 +339,7 @@ func (a *App) ensureWelcomeNote() {
 // startup captures the Wails context.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.runtimeEventsReady = true
 	log.Println("[go] App.startup() — Wails context captured")
 	a.migrateLegacyPDFBrowserPreference()
 	a.ensureSettingsDefaults()
@@ -436,10 +444,6 @@ func (a *App) stopVaultWatcher() {
 	if watcher != nil {
 		watcher.Close()
 	}
-}
-
-func (a *App) handleVaultFilesystemChange() {
-	a.handleVaultFilesystemChanges(nil)
 }
 
 type vaultFilesystemChangeResult struct {
@@ -553,7 +557,14 @@ func (a *App) emitRuntimeEvent(name string) {
 }
 
 func (a *App) emitRuntimeEventData(name string, data ...any) {
-	if a.ctx == nil || name == "" {
+	if name == "" {
+		return
+	}
+	if a.eventEmitter != nil {
+		a.eventEmitter(name, data...)
+		return
+	}
+	if a.ctx == nil || !a.runtimeEventsReady {
 		return
 	}
 	runtime.EventsEmit(a.ctx, name, data...)

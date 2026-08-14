@@ -53079,7 +53079,7 @@ var CodeBlockWidget = class extends WidgetType {
   /**
    * Render to DOM element
    */
-  toDOM() {
+  toDOM(view) {
     const { code, language, showLineNumbers, showCopyButton, from, lineStarts } = this.data;
     const widgetData = this.data;
     const container = document.createElement("div");
@@ -53087,6 +53087,19 @@ var CodeBlockWidget = class extends WidgetType {
     container.dataset.from = String(from);
     container.dataset.to = String(this.data.to);
     container.dataset.lineStarts = JSON.stringify(lineStarts);
+    container.classList.add("cm-source-footprint", "cm-source-footprint--scroll");
+    container.dataset.sourceFootprint = "code";
+    container.dataset.sourceFootprintState = "overflow";
+    container.dataset.sourceLines = String(this.data.sourceLines);
+    container.__figaroSourceFootprintText = this.data.sourceText;
+    container.style.setProperty("--cm-source-footprint-lines", container.dataset.sourceLines);
+    container.style.setProperty("--cm-source-footprint-height", `${this.data.sourceLines * view.defaultLineHeight}px`);
+    view.requestMeasure({
+      read: () => container.scrollHeight > container.clientHeight + 1,
+      write: (overflows) => {
+        container.dataset.sourceFootprintState = overflows ? "overflow" : "underflow";
+      }
+    });
     if (showLineNumbers) {
       container.className += " cm-codeblock-line-numbers";
     }
@@ -53338,7 +53351,9 @@ function buildCodeBlockDecorations(state, options) {
             from: node.from,
             to: node.to,
             codeFrom,
-            lineStarts
+            lineStarts,
+            sourceText: state.doc.sliceString(node.from, node.to),
+            sourceLines: state.doc.lineAt(node.to).number - state.doc.lineAt(node.from).number + 1
           });
           decorations.push(
             Decoration.replace({ widget, block: true }).range(node.from, node.to)

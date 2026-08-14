@@ -2,6 +2,7 @@ const mockSetLineNumbers = jest.fn();
 const mockSetMarkdownLint = jest.fn();
 const mockSetSpellcheck = jest.fn();
 const mockSetMarkdownBlockGuides = jest.fn();
+const mockSetEditorTabSize = jest.fn();
 
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn(() => ({ requestMeasure: jest.fn() })),
@@ -10,6 +11,7 @@ jest.mock('../frontend/js/editor.js', () => ({
     setMarkdownLint: mockSetMarkdownLint,
     setSpellcheck: mockSetSpellcheck,
     setMarkdownBlockGuides: mockSetMarkdownBlockGuides,
+    setEditorTabSize: mockSetEditorTabSize,
 }));
 
 import { getAutoCommitEnabled } from '../frontend/js/automation.js';
@@ -27,6 +29,11 @@ function settingsDOM() {
             <button id="font-size-down">−</button>
             <span id="font-size-value">100%</span>
             <button id="font-size-up">+</button>
+        </div>
+        <div class="ui-stepper tab-size-control" role="group">
+            <button type="button" class="ui-stepper-button tab-size-down" aria-label="Decrease tab size">−</button>
+            <input class="ui-stepper-value tab-size-value" type="number" min="2" max="8" step="1" value="4" aria-label="Tab size in spaces">
+            <button type="button" class="ui-stepper-button tab-size-up" aria-label="Increase tab size">+</button>
         </div>
         <select id="auto-save-interval">
             <option value="5">5 seconds</option><option value="300">5 minutes</option><option value="0">Off</option>
@@ -47,6 +54,8 @@ describe('editor settings', () => {
             GetThemeCSS: jest.fn().mockResolvedValue({ css: ':root {}' }),
             GetThemes: jest.fn().mockResolvedValue({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
             VimLoad: jest.fn().mockResolvedValue({ enabled: false }),
+            TabSizeLoad: jest.fn().mockResolvedValue({ size: 4 }),
+            TabSizeSave: jest.fn().mockResolvedValue({ success: true }),
             LineNumbersLoad: jest.fn().mockResolvedValue({ enabled: false }),
             LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
             MarkdownLintLoad: jest.fn().mockResolvedValue({ enabled: true }),
@@ -76,6 +85,8 @@ describe('editor settings', () => {
         expect(document.getElementById('markdown-lint-toggle').checked).toBe(true);
         expect(document.getElementById('editor-breadcrumbs-toggle').checked).toBe(false);
         expect(document.getElementById('font-size-value').textContent).toBe('100%');
+        expect(document.querySelector('.tab-size-value').value).toBe('4');
+        expect(mockSetEditorTabSize).toHaveBeenCalledWith(4);
         expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('16.2px');
 
         const selects = Array.from(document.querySelectorAll('select'));
@@ -87,6 +98,12 @@ describe('editor settings', () => {
         expect(document.getElementById('spellcheck-language')._figaroCombobox.trigger.getAttribute('aria-describedby')).toBe('spellcheck-guidance');
         expect(document.getElementById('spellcheck-language').value).toBe('en-US');
         expect(document.querySelector('#auto-commit-toggle').checked).toBe(true);
+
+        document.querySelector('.tab-size-up').click();
+        await settle();
+        expect(api.TabSizeSave).toHaveBeenCalledWith(5);
+        expect(mockSetEditorTabSize).toHaveBeenLastCalledWith(5);
+        expect(document.querySelector('.tab-size-value').value).toBe('5');
 
         const breadcrumbToggle = document.getElementById('editor-breadcrumbs-toggle');
         breadcrumbToggle.checked = true;

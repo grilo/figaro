@@ -106,7 +106,7 @@
 .cm-table-toggle { border: 1px solid var(--border-color) !important; background-color: var(--panel-bg) !important; color: var(--text-color) !important; }
 
 /* Code block widget styling */
-.cm-codeblock-widget { background-color: var(--hover-bg) !important; border: 1px solid var(--border-color) !important; border-radius: 6px !important; padding: 34px 18px !important; font-family: var(--font-mono) !important; font-size: 13.5px !important; line-height: 1.5 !important; }
+.cm-codeblock-widget { background-color: var(--hover-bg) !important; border: 1px solid var(--border-color) !important; border-radius: 6px !important; padding: 34px 18px !important; font-family: var(--font-mono) !important; font-size: 13.5px !important; line-height: 1.5 !important; tab-size: var(--editor-tab-size, 4); }
 .cm-codeblock-line { padding-left: 4px !important; line-height: 1.5 !important; color: var(--text-color) !important; }
 .cm-codeblock-fence { color: var(--text-dim) !important; }
 .cm-codeblock-copy { background-color: var(--panel-bg) !important; color: var(--text-muted) !important; border-radius: 4px !important; border: 1px solid var(--border-color) !important; padding: 4px 8px !important; cursor: pointer !important; }

@@ -1,6 +1,6 @@
 {
   "name": "figaro",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -79,7 +79,6 @@
     "jsdom": "27.4.0"
   },
   "dependencies": {
-    "@babel/runtime": "8.0.0",
     "@mdit/plugin-anchor": "1.1.1",
     "@mdit/plugin-footnote": "1.0.2",
     "@mdit/plugin-katex": "1.0.1",
@@ -97,7 +96,6 @@
     "katex": "^0.18.4",
     "lucide": "1.27.0",
     "markdown-it": "^14.3.0",
-    "nspell": "2.1.5",
-    "playwright": "^1.61.1"
+    "nspell": "2.1.5"
   }
 }

@@ -5,7 +5,12 @@
  * webviews. Keeping this small adapter free of DOM or platform APIs makes the
  * event path easy to exercise and avoids falling back to timed polling.
  */
-export function registerVaultChangeEvents(runtime, { onVaultChanged, onKanbanIndexed, onHistoryChanged } = {}) {
+export function registerVaultChangeEvents(runtime, {
+    onVaultChanged,
+    onKanbanIndexed,
+    onHistoryChanged,
+    onVaultLoadProgress,
+} = {}) {
     if (typeof runtime?.EventsOn !== 'function') return false;
 
     runtime.EventsOn('vault:changed', (payload) => {
@@ -16,6 +21,9 @@ export function registerVaultChangeEvents(runtime, { onVaultChanged, onKanbanInd
     });
     runtime.EventsOn('vault:history-changed', () => {
         onHistoryChanged?.();
+    });
+    runtime.EventsOn('vault:load-progress', (payload) => {
+        onVaultLoadProgress?.(payload || {});
     });
     return true;
 }

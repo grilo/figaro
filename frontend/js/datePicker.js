@@ -19,7 +19,7 @@ export function closeDatePicker({ restoreFocus = true } = {}) {
     if (restoreFocus && anchor?.isConnected) anchor.focus();
 }
 
-export function openDatePicker({ anchor, anchorRect = null, value = '', onSelect, now = () => new Date(), locale = undefined }) {
+export function openDatePicker({ anchor, anchorRect = null, value = '', onSelect, now = () => new Date(), locale = undefined, ariaLabel = 'Choose due date' }) {
     if (!anchor || typeof onSelect !== 'function') throw new TypeError('Date picker anchor and selection handler are required');
     closeDatePicker({ restoreFocus: false });
 
@@ -29,7 +29,7 @@ export function openDatePicker({ anchor, anchorRect = null, value = '', onSelect
     const picker = document.createElement('section');
     picker.className = 'ui-date-picker ui-menu';
     picker.setAttribute('role', 'dialog');
-    picker.setAttribute('aria-label', 'Choose due date');
+    picker.setAttribute('aria-label', ariaLabel);
 
     const position = () => positionPicker(picker, anchor, anchorRect);
     const render = focusDate => {

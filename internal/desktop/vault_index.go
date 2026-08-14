@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"figaro/internal/links"
+	searchmodel "figaro/internal/search"
 )
 
 const maxIndexedSearchTrigrams = 32768
@@ -25,19 +26,24 @@ var markdownBacklinkRE = regexp.MustCompile(`\[([^\]\r\n]*)\]\(([^)\s\r\n]+)\)`)
 // Kanban and calendar structures make their common queries independent of the
 // number of notes altogether.
 type vaultIndex struct {
-	files                map[string]vaultIndexedFile
-	paths                []string
-	tags                 map[string]struct{}
-	tagCounts            map[string]int
-	cardsByTag           map[string][]KanbanCard
-	dueTasksByDate       map[string][]KanbanCard
-	calendar             *calendarDateIndex
-	dailyNoteCounts      map[string]int
-	linkedDayCounts      map[string]int
-	dueTaskCounts        map[string]int
-	searchTrigrams       map[string][]string
-	searchUnindexedFiles map[string]struct{}
-	backlinksByTarget    map[string][]BacklinkResult
+	files                   map[string]vaultIndexedFile
+	paths                   []string
+	tags                    map[string]struct{}
+	tagCounts               map[string]int
+	cardsByTag              map[string][]KanbanCard
+	dueTasksByDate          map[string][]KanbanCard
+	calendar                *calendarDateIndex
+	dailyNoteCounts         map[string]int
+	linkedDayCounts         map[string]int
+	dueTaskCounts           map[string]int
+	searchTrigrams          map[string][]string
+	searchUnindexedFiles    map[string]struct{}
+	searchTermPostings      map[string][]string
+	searchDocumentFrequency map[string]int
+	searchVocabulary        []string
+	searchVocabularyReady   bool
+	searchFieldLengths      [searchmodel.FieldCount]int
+	backlinksByTarget       map[string][]BacklinkResult
 }
 
 type vaultIndexedFile struct {
@@ -51,6 +57,8 @@ type vaultIndexedFile struct {
 	searchLower    string
 	searchTrigrams []string
 	searchIndexed  bool
+	searchHeadings string
+	searchDocument searchmodel.DocumentStats
 	linkTargets    []string
 	tags           []string
 	cards          []KanbanCard
@@ -66,14 +74,18 @@ type vaultIndexedText struct {
 	searchLower    string
 	searchTrigrams []string
 	searchIndexed  bool
+	searchHeadings string
+	searchDocument searchmodel.DocumentStats
 }
 
 func newVaultIndex() *vaultIndex {
 	return &vaultIndex{
-		files:                make(map[string]vaultIndexedFile),
-		searchTrigrams:       make(map[string][]string),
-		searchUnindexedFiles: make(map[string]struct{}),
-		backlinksByTarget:    make(map[string][]BacklinkResult),
+		files:                   make(map[string]vaultIndexedFile),
+		searchTrigrams:          make(map[string][]string),
+		searchUnindexedFiles:    make(map[string]struct{}),
+		searchTermPostings:      make(map[string][]string),
+		searchDocumentFrequency: make(map[string]int),
+		backlinksByTarget:       make(map[string][]BacklinkResult),
 	}
 }
 
@@ -89,16 +101,22 @@ func indexMarkdownFile(rel string, info fs.FileInfo, data []byte) vaultIndexedFi
 }
 
 func newVaultIndexedText(content string) vaultIndexedText {
-	searchLower := strings.ToLower(content)
+	searchLower := searchmodel.Normalize(content, false)
 	searchTrigrams, searchIndexed := collectSearchTrigrams(
 		searchLower,
 		maxIndexedSearchTrigrams,
 	)
+	searchHeadings := searchmodel.ExtractMarkdownHeadings(content)
+	searchDocument := searchmodel.DocumentStats{}
+	searchDocument.Fields[searchmodel.FieldHeadings] = searchmodel.Analyze(searchHeadings, false)
+	searchDocument.Fields[searchmodel.FieldBody] = searchmodel.AnalyzeNormalized(searchLower)
 	return vaultIndexedText{
 		content:        content,
 		searchLower:    searchLower,
 		searchTrigrams: searchTrigrams,
 		searchIndexed:  searchIndexed,
+		searchHeadings: searchHeadings,
+		searchDocument: searchDocument,
 	}
 }
 
@@ -124,11 +142,18 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 		searchLower:    text.searchLower,
 		searchTrigrams: text.searchTrigrams,
 		searchIndexed:  text.searchIndexed,
+		searchHeadings: text.searchHeadings,
+		searchDocument: text.searchDocument,
 		linked:         make(map[string]LinkedNote),
 		backlinks:      make(map[string]BacklinkResult),
 	}
+	file.searchDocument.Fields[searchmodel.FieldTitle] = searchmodel.Analyze(
+		strings.TrimSuffix(file.name, filepath.Ext(file.name)), false,
+	)
+	file.searchDocument.Fields[searchmodel.FieldPath] = searchmodel.Analyze(
+		strings.TrimSuffix(file.path, filepath.Ext(file.path)), false,
+	)
 	file.linkTargets = links.MarkdownLinkTargets(content, file.path)
-
 	if matches := dailyNoteFilenameRE.FindStringSubmatch(file.name); len(matches) == 2 && isCalendarDate(matches[1]) {
 		file.dailyNote = matches[1]
 	}
@@ -246,6 +271,7 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 		file.linkedDays = append(file.linkedDays, dateStr)
 	}
 	sort.Strings(file.linkedDays)
+	file.searchDocument.Fields[searchmodel.FieldTags] = searchmodel.Analyze(strings.Join(file.tags, " "), false)
 
 	return file
 }
@@ -273,6 +299,117 @@ func collectSearchTrigrams(content string, limit int) ([]string, bool) {
 	return trigrams, true
 }
 
+var indexedSearchFields = []searchmodel.Field{
+	searchmodel.FieldTitle,
+	searchmodel.FieldHeadings,
+	searchmodel.FieldTags,
+	searchmodel.FieldPath,
+	searchmodel.FieldBody,
+}
+
+func (index *vaultIndex) addSearchDocument(file vaultIndexedFile) {
+	for fieldIndex := searchmodel.Field(0); fieldIndex < searchmodel.FieldCount; fieldIndex++ {
+		index.searchFieldLengths[fieldIndex] += file.searchDocument.Fields[fieldIndex].Length
+	}
+	newVocabulary := make([]string, 0)
+	for _, term := range searchmodel.UniqueTerms(file.searchDocument, indexedSearchFields...) {
+		postings, exists := index.searchTermPostings[term]
+		index.searchTermPostings[term] = insertSortedPath(postings, file.path)
+		index.searchDocumentFrequency[term] = len(index.searchTermPostings[term])
+		if !exists && index.searchVocabularyReady {
+			newVocabulary = append(newVocabulary, term)
+		}
+	}
+	index.mergeSearchVocabularyTerms(newVocabulary)
+}
+
+func (index *vaultIndex) removeSearchDocument(file vaultIndexedFile) {
+	for fieldIndex := searchmodel.Field(0); fieldIndex < searchmodel.FieldCount; fieldIndex++ {
+		index.searchFieldLengths[fieldIndex] -= file.searchDocument.Fields[fieldIndex].Length
+		if index.searchFieldLengths[fieldIndex] < 0 {
+			index.searchFieldLengths[fieldIndex] = 0
+		}
+	}
+	removedVocabulary := make([]string, 0)
+	for _, term := range searchmodel.UniqueTerms(file.searchDocument, indexedSearchFields...) {
+		postings := removeSortedPath(index.searchTermPostings[term], file.path)
+		if len(postings) == 0 {
+			delete(index.searchTermPostings, term)
+			delete(index.searchDocumentFrequency, term)
+			if index.searchVocabularyReady {
+				removedVocabulary = append(removedVocabulary, term)
+			}
+			continue
+		}
+		index.searchTermPostings[term] = postings
+		index.searchDocumentFrequency[term] = len(postings)
+	}
+	index.removeSearchVocabularyTerms(removedVocabulary)
+}
+
+func (index *vaultIndex) rebuildSearchVocabulary() {
+	index.searchVocabulary = make([]string, 0, len(index.searchTermPostings))
+	for term := range index.searchTermPostings {
+		index.searchVocabulary = append(index.searchVocabulary, term)
+	}
+	sort.Strings(index.searchVocabulary)
+	index.searchVocabularyReady = true
+}
+
+func (index *vaultIndex) mergeSearchVocabularyTerms(additions []string) {
+	if !index.searchVocabularyReady || len(additions) == 0 {
+		return
+	}
+	merged := make([]string, 0, len(index.searchVocabulary)+len(additions))
+	left, right := 0, 0
+	for left < len(index.searchVocabulary) && right < len(additions) {
+		if index.searchVocabulary[left] < additions[right] {
+			merged = append(merged, index.searchVocabulary[left])
+			left++
+		} else {
+			merged = append(merged, additions[right])
+			right++
+		}
+	}
+	merged = append(merged, index.searchVocabulary[left:]...)
+	merged = append(merged, additions[right:]...)
+	index.searchVocabulary = merged
+}
+
+func (index *vaultIndex) removeSearchVocabularyTerms(removals []string) {
+	if !index.searchVocabularyReady || len(removals) == 0 {
+		return
+	}
+	retained := index.searchVocabulary[:0]
+	removeIndex := 0
+	for _, term := range index.searchVocabulary {
+		for removeIndex < len(removals) && removals[removeIndex] < term {
+			removeIndex++
+		}
+		if removeIndex < len(removals) && removals[removeIndex] == term {
+			removeIndex++
+			continue
+		}
+		retained = append(retained, term)
+	}
+	clear(index.searchVocabulary[len(retained):])
+	index.searchVocabulary = retained
+}
+
+func (index *vaultIndex) searchCorpusStats() searchmodel.CorpusStats {
+	documentCount := len(index.files)
+	stats := searchmodel.CorpusStats{
+		DocumentCount:     documentCount,
+		DocumentFrequency: index.searchDocumentFrequency,
+	}
+	for fieldIndex := searchmodel.Field(0); fieldIndex < searchmodel.FieldCount; fieldIndex++ {
+		if documentCount > 0 {
+			stats.AverageLengths[fieldIndex] = float64(index.searchFieldLengths[fieldIndex]) / float64(documentCount)
+		}
+	}
+	return stats
+}
+
 var regexpListTaskPrefix = regexp.MustCompile(`^[-*+]\s*\[[ x]\]\s*`)
 
 func (index *vaultIndex) rebuildDerived() {
@@ -292,6 +429,11 @@ func (index *vaultIndex) rebuildDerived() {
 	index.dueTaskCounts = make(map[string]int)
 	index.searchTrigrams = make(map[string][]string)
 	index.searchUnindexedFiles = make(map[string]struct{})
+	index.searchTermPostings = make(map[string][]string)
+	index.searchDocumentFrequency = make(map[string]int)
+	index.searchVocabulary = nil
+	index.searchVocabularyReady = false
+	index.searchFieldLengths = [searchmodel.FieldCount]int{}
 	index.backlinksByTarget = make(map[string][]BacklinkResult)
 	for _, path := range index.paths {
 		index.addFileContributions(index.files[path])
@@ -299,6 +441,7 @@ func (index *vaultIndex) rebuildDerived() {
 	index.sortAllCards()
 	index.sortAllLinkedNotes()
 	index.sortAllBacklinks()
+	index.rebuildSearchVocabulary()
 }
 
 func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
@@ -341,6 +484,7 @@ func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
 	} else {
 		index.searchUnindexedFiles[file.path] = struct{}{}
 	}
+	index.addSearchDocument(file)
 	for target, backlink := range file.backlinks {
 		index.backlinksByTarget[target] = append(index.backlinksByTarget[target], backlink)
 	}
@@ -435,6 +579,7 @@ func (index *vaultIndex) removeFileContributions(file vaultIndexedFile) {
 	} else {
 		delete(index.searchUnindexedFiles, file.path)
 	}
+	index.removeSearchDocument(file)
 	for target := range file.backlinks {
 		backlinks := index.backlinksByTarget[target]
 		filtered := backlinks[:0]
@@ -647,19 +792,26 @@ func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
 		return a.vaultIndex, nil
 	}
 
+	generation := a.beginVaultLoad()
 	index := newVaultIndex()
 	textPool := make(map[string]vaultIndexedText)
-	if err := a.walkVaultMarkdown(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
+	if err := a.walkVaultMarkdownWithProgress(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
 		content := string(data)
 		text := pooledVaultIndexedText(textPool, content)
 		file := indexMarkdownText(rel, info, text)
 		index.files[file.path] = file
 		return nil
+	}, func(loaded int, total int) {
+		a.reportVaultLoadProgress(generation, loaded, total)
 	}); err != nil {
-		return nil, fmt.Errorf("index vault Markdown: %w", err)
+		indexErr := fmt.Errorf("index vault Markdown: %w", err)
+		a.failVaultLoad(generation, indexErr)
+		return nil, indexErr
 	}
+	a.setVaultLoadPhase(generation, VaultLoadFinalizing)
 	index.rebuildDerived()
 	a.publishVaultIndexLocked(index)
+	a.setVaultLoadPhase(generation, VaultLoadReady)
 	return index, nil
 }
 
@@ -740,6 +892,8 @@ func (a *App) refreshVaultIndexAfterMoveLocked(
 			searchLower:    file.searchLower,
 			searchTrigrams: file.searchTrigrams,
 			searchIndexed:  file.searchIndexed,
+			searchHeadings: file.searchHeadings,
+			searchDocument: file.searchDocument,
 		}
 		if contentChanged {
 			text = pooledVaultIndexedText(textPool, updatedContent)

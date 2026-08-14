@@ -29,6 +29,7 @@ describe('Workspace navigation', () => {
         expect(settingsButton?.closest('.top-bar-right')).not.toBeNull();
         expect(document.querySelector('.top-bar-center')?.children).toHaveLength(0);
         expect(document.getElementById('kanban-badges')).not.toBeNull();
+        expect(document.getElementById('sidebar-projects')).toBeNull();
     });
 
     test('toggles the Calendar inline without taking ownership of the right pane', () => {

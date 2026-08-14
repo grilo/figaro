@@ -9,6 +9,7 @@ jest.mock('../frontend/js/editor.js', () => ({
     setVimVisualRows: mockSetVimVisualRows,
     setVimRevealBlocks: mockSetVimRevealBlocks,
     setMarkdownBlockGuides: mockSetMarkdownBlockGuides,
+    setEditorTabSize: jest.fn(),
 }));
 
 function settingsDOM() {

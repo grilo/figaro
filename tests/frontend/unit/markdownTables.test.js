@@ -38,6 +38,13 @@ describe('codemirror-markdown-tables integration', () => {
 
         const widget = view.dom.querySelector('.tbl-table-widget');
         expect(widget).not.toBeNull();
+        expect(widget.classList.contains('cm-block-widget')).toBe(true);
+        expect(widget.classList.contains('cm-block-widget--table')).toBe(true);
+        expect(widget.classList.contains('cm-source-footprint--scroll')).toBe(true);
+        expect(widget.dataset.sourceFootprint).toBe('table');
+        expect(widget.dataset.sourceLines).toBe('4');
+        expect(widget.style.getPropertyValue('--cm-source-footprint-height'))
+            .toBe(`${view.defaultLineHeight * 4}px`);
         const deleteButton = widget.querySelector('.tbl-delete-table-button');
         expect(deleteButton).not.toBeNull();
         expect(deleteButton.classList.contains('ui-button')).toBe(true);
@@ -50,6 +57,7 @@ describe('codemirror-markdown-tables integration', () => {
         expect(widget.querySelector('thead .tbl-cell:last-child').getAttribute('align')).toBe('right');
         expect(widget.textContent).toContain('Alpha');
         expect(widget.textContent).toContain('10');
+
         expect(getEditorContent()).toBe([
             'Before',
             '',

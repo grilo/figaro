@@ -57,7 +57,7 @@ export const state = {
     kanbanFocusColumn: null,    // Column to highlight on render
     kanbanDensity: 'comfortable', // Comfortable | compact card density
     kanbanLayout: 'side-by-side', // Side-by-side | stacked board columns
-    
+
     // Backlinks
     backlinksData: [],          // Backlinks for current file
     backlinksTargetPath: null,  // Target file path for backlinks
@@ -78,6 +78,7 @@ export const state = {
     globalSearchQuery: '',      // Global search query
     globalSearchResults: [],    // Global search results
     globalSearchActiveFile: null, // Expanded file in global search
+    searchSuggestion: '',       // Optional low-result query correction
 };
 
 // Reactive subscribers

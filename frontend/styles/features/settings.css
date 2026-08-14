@@ -409,11 +409,6 @@
 .settings-panel-tab .settings-section {
     padding: 8px 0;
 }
-.settings-panel-tab .settings-divider {
-    height: 1px;
-    background: var(--border-light);
-    margin: 4px 0;
-}
 .settings-panel-tab .settings-section-icon {
     display: flex;
     align-items: center;

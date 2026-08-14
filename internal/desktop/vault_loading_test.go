@@ -1,0 +1,101 @@
+package desktop
+
+import (
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func TestColdVaultIndexPublishesMonotonicLoadProgress(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "alpha.md", "alpha")
+	writeTestFile(t, vaultPath, "nested/bravo.md", "bravo")
+	writeTestFile(t, vaultPath, "nested/charlie.md", "charlie")
+
+	var statuses []VaultLoadStatus
+	app.eventEmitter = func(name string, data ...any) {
+		if name != vaultLoadEventName || len(data) != 1 {
+			return
+		}
+		status, ok := data[0].(VaultLoadStatus)
+		if !ok {
+			t.Fatalf("progress payload has type %T, want VaultLoadStatus", data[0])
+		}
+		statuses = append(statuses, status)
+	}
+
+	if _, err := app.SearchNotes("alpha", NoteSearchRequest{}); err != nil {
+		t.Fatalf("build cold vault index: %v", err)
+	}
+
+	wantPhases := []string{
+		VaultLoadDiscovering,
+		VaultLoadLoading,
+		VaultLoadFinalizing,
+		VaultLoadReady,
+	}
+	phaseIndex := 0
+	lastLoaded := 0
+	for _, status := range statuses {
+		if status.Loaded < lastLoaded {
+			t.Fatalf("load progress moved backward: %d after %d", status.Loaded, lastLoaded)
+		}
+		lastLoaded = status.Loaded
+		if phaseIndex < len(wantPhases) && status.Phase == wantPhases[phaseIndex] {
+			phaseIndex++
+		}
+	}
+	if phaseIndex != len(wantPhases) {
+		t.Fatalf("observed phases %v, missing ordered phase %q", statuses, wantPhases[phaseIndex])
+	}
+
+	status := app.GetVaultLoadStatus()
+	if status.Phase != VaultLoadReady || status.Loaded != 3 || status.Total != 3 {
+		t.Fatalf("final load status = %+v, want ready 3/3", status)
+	}
+}
+
+func TestVaultLoadProgressEmissionIsBoundedForLargeVaults(t *testing.T) {
+	if got := vaultLoadEmissionStep(10_000); got != 100 {
+		t.Fatalf("vaultLoadEmissionStep(10000) = %d, want 100", got)
+	}
+	if got := vaultLoadEmissionStep(17); got != 1 {
+		t.Fatalf("vaultLoadEmissionStep(17) = %d, want 1", got)
+	}
+}
+
+func TestColdVaultIndexPublishesLoadError(t *testing.T) {
+	app := NewApp(t.TempDir())
+	app.vaultPath = filepath.Join(t.TempDir(), "missing-vault")
+	var last VaultLoadStatus
+	app.eventEmitter = func(name string, data ...any) {
+		if name == vaultLoadEventName && len(data) == 1 {
+			last, _ = data[0].(VaultLoadStatus)
+		}
+	}
+
+	if _, err := app.SearchNotes("anything", NoteSearchRequest{}); err == nil {
+		t.Fatal("cold index unexpectedly succeeded for a missing vault")
+	}
+	status := app.GetVaultLoadStatus()
+	if status.Phase != VaultLoadError || status.Error == "" {
+		t.Fatalf("error load status = %+v, want a descriptive error", status)
+	}
+	if last != status {
+		t.Fatalf("last emitted status = %+v, want %+v", last, status)
+	}
+}
+
+func TestVaultLoadStatusDoesNotWaitForVaultLock(t *testing.T) {
+	app := NewApp(t.TempDir())
+	app.vaultMu.Lock()
+	defer app.vaultMu.Unlock()
+
+	done := make(chan VaultLoadStatus, 1)
+	go func() { done <- app.GetVaultLoadStatus() }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("GetVaultLoadStatus waited for the main vault lock")
+	}
+}

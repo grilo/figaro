@@ -16,6 +16,7 @@ test('boots through the native Wails binding with the workspace overview, vault 
         const calls = [];
         const responses = {
             GetFileTree: [{ name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 }],
+            GetVaultLoadStatus: { generation: 1, phase: 'ready', loaded: 1, total: 1 },
             GetFileTreeStyles: { version: 1, entries: {}, recent_icons: [] },
             ReadFile: {
                 content: '# Welcome to Figaro\n\nThis text came through the native Wails binding.',
@@ -45,6 +46,7 @@ test('boots through the native Wails binding with the workspace overview, vault 
             GetThemeCSS: { css: '' },
             ThemeLoad: { theme: 'default', font: 'inter', codeFont: 'theme-mono' },
             VimLoad: { enabled: false },
+            TabSizeLoad: { size: 4 },
             AutoSaveLoad: 300,
             GetOSUsername: 'Desktop User',
         };
@@ -130,4 +132,68 @@ test('boots through the native Wails binding with the workspace overview, vault 
         'WindowMaximize',
         'WindowCaptureState',
     ]));
+});
+
+test('shows real vault indexing progress before the initial file tree is available', async ({ page }) => {
+    await page.addInitScript(() => {
+        const handlers = {};
+        let resolveTree;
+        window.runtime = {
+            EventsOn: (name, handler) => { handlers[name] = handler; },
+        };
+        window.__emitVaultLoadProgress = payload => handlers['vault:load-progress']?.(payload);
+        window.__resolveStartupTree = () => resolveTree?.([]);
+
+        const responses = {
+            GetVaultLoadStatus: () => Promise.resolve({
+                generation: 1,
+                phase: 'loading',
+                loaded: 100,
+                total: 2072,
+            }),
+            GetFileTree: () => new Promise(resolve => { resolveTree = resolve; }),
+            GetFileTreeStyles: () => Promise.resolve({ version: 1, entries: {}, recent_icons: [] }),
+            LoadSession: () => Promise.resolve({}),
+            LinkStyleLoad: () => Promise.resolve({ style: 'markdown' }),
+            GetKanbanColumns: () => Promise.resolve({ columns: ['todo', 'wip', 'done'], colors: {} }),
+            GetKanbanBoard: () => Promise.resolve({ todo: [], wip: [], done: [] }),
+            GetHomeTasks: () => Promise.resolve([]),
+            GetCalendarMonthData: () => Promise.resolve({ year: 2026, month: 7, days_with_notes: [], days_with_links: [], days_with_due_tasks: [], calendar: [] }),
+            GetThemes: () => Promise.resolve({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
+            GetThemeCSS: () => Promise.resolve({ css: '' }),
+            ThemeLoad: () => Promise.resolve({ theme: 'default', font: 'inter', codeFont: 'theme-mono' }),
+            TabSizeLoad: () => Promise.resolve({ size: 4 }),
+            AutoSaveLoad: () => Promise.resolve(300),
+        };
+        window.go = {
+            desktop: {
+                App: new Proxy({}, {
+                    get: (_target, method) => method === 'then' ? undefined : (...args) => {
+                        const response = responses[method];
+                        return response ? response(...args) : Promise.resolve({ success: true });
+                    },
+                }),
+            },
+        };
+    });
+
+    await page.goto('/');
+    await expect(page.locator('#vault-loading-panel')).toBeVisible();
+    await expect(page.locator('#vault-loading-title')).toHaveText('Loading vault');
+    await expect(page.locator('#vault-loading-count')).toHaveText('100 / 2072 notes');
+    await expect(page.locator('#vault-loading-progress')).toHaveAttribute('aria-valuenow', '5');
+
+    await page.evaluate(() => window.__emitVaultLoadProgress({
+        generation: 1,
+        phase: 'loading',
+        loaded: 1036,
+        total: 2072,
+    }));
+    await expect(page.locator('#vault-loading-count')).toHaveText('1036 / 2072 notes');
+    await expect(page.locator('#vault-loading-progress')).toHaveAttribute('aria-valuenow', '50');
+
+    await page.evaluate(() => window.__resolveStartupTree());
+    await page.waitForFunction(() => window._appReady === true);
+    await expect(page.locator('#vault-loading-panel')).toHaveCount(0);
+    await expect(page.locator('.workspace-home-panel.active .home-view h1')).toHaveText('Today');
 });

@@ -120,7 +120,3 @@ export function markdownDiagnostics(source) {
 
     return diagnostics;
 }
-
-export function markdownLinter(view) {
-    return markdownDiagnostics(view.state.doc.toString());
-}

@@ -57,6 +57,7 @@ describe('design-system catalogue', () => {
             '.ui-picker .theme-picker-btn',
             '.ui-stepper.font-size-control',
             '.ui-stepper.text-width-control',
+            '.ui-stepper.tab-size-control',
             '.ui-button.settings-action-btn',
             '.ui-button.drawio-edit-button',
             '.ui-menu.context-menu',
@@ -73,6 +74,7 @@ describe('design-system catalogue', () => {
             '.raw-text-preview-source',
             '.drawio-loading-card',
             '.ui-spinner',
+            '.ui-progress',
         ]) {
             expect(catalogue.querySelector(selector)).not.toBeNull();
         }
@@ -168,6 +170,7 @@ describe('design-system catalogue', () => {
             'document-tabs',
             'editor-fold-control',
             'spinner',
+            'progress',
         ]);
         expect(implementedSelectors).toEqual(approvedSelectors);
         expect(featureStyles).not.toMatch(/^\.ui-[a-z0-9-]+(?:\s|:|,|\{)/m);
@@ -248,6 +251,8 @@ describe('design-system catalogue', () => {
             '.ui-editor-fold-control',
             '.ui-editor-block-guide',
             '.ui-spinner',
+            '.ui-progress',
+            '.ui-progress-value',
         ]) {
             expect(styles).toContain(selector);
         }

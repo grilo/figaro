@@ -33,6 +33,7 @@ dependency_fingerprint() {
 
 vendor_fingerprint() {
     cksum package.json package-lock.json scripts/vendor.sh \
+        scripts/vendor-codemirror-color.mjs scripts/vendor-codemirror-color-transform.js \
         scripts/vendor-codemirror-markdown-tables.mjs scripts/vendor-markdown-renderer.mjs
 }
 

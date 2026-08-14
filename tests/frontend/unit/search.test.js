@@ -10,7 +10,12 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 
 import { openTab } from '../frontend/js/tabManager.js';
 import { state, setState } from '../frontend/js/state.js';
-import { performGlobalSearch, handleSearchKeydown, setSearchFilter } from '../frontend/js/search.js';
+import {
+    performGlobalSearch,
+    handleSearchKeydown,
+    initSearch,
+    setSearchFilter,
+} from '../frontend/js/search.js';
 
 function deferred() {
     let resolve;
@@ -20,7 +25,27 @@ function deferred() {
     return { promise, resolve };
 }
 
+function rankedResponse(results, suggestion = '') {
+    return { results, suggestion };
+}
+
+async function settleSearchRender() {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+}
+
+const GLOBAL_SEARCH_REQUEST = {
+    case_sensitive: false,
+    title_only: false,
+    profile: 'global',
+    limit: 0,
+    suggest: true,
+};
+
 describe('workspace search', () => {
+    let disposeSearch = null;
+
     beforeEach(() => {
         testUtils.createMockDOM();
         jest.clearAllMocks();
@@ -32,21 +57,35 @@ describe('workspace search', () => {
         setState('recentFiles', [{ path: 'Projects/Project Alpha.md', title: 'Project Alpha.md' }]);
         setState('searchFilters', { titleOnly: false, recentOnly: false, caseSensitive: false });
         setState('searchResults', []);
-        window.go.desktop.App.SearchFiles.mockResolvedValue([
+        window.go.desktop.App.SearchNotes.mockResolvedValue(rankedResponse([
+            {
+                name: 'Project Alpha.md',
+                path: 'Projects/Project Alpha.md',
+                mtime: 20,
+                title_match: true,
+                score: 12,
+                matches: [],
+            },
             {
                 name: 'Journal.md',
                 path: 'Journal.md',
                 mtime: 10,
+                score: 3,
                 matches: [{ line: 7, text: 'Project plans are ready.' }]
             }
-        ]);
+        ]));
     });
 
-    test('merges filename matches with content excerpts and shows a count', async () => {
+    afterEach(() => {
+        disposeSearch?.();
+        disposeSearch = null;
+    });
+
+    test('preserves native relevance order with title and content excerpts', async () => {
         await performGlobalSearch('project');
 
         const rows = document.querySelectorAll('.search-result-row');
-        expect(window.go.desktop.App.SearchFiles).toHaveBeenCalledWith('project', false);
+        expect(window.go.desktop.App.SearchNotes).toHaveBeenCalledWith('project', GLOBAL_SEARCH_REQUEST);
         expect(rows).toHaveLength(2);
         expect(rows[0].textContent).toContain('Project Alpha.md');
         expect(rows[0].textContent).toContain('Title match');
@@ -56,13 +95,13 @@ describe('workspace search', () => {
 
     test('shows an exact compact backend match count without requiring every matching line', async () => {
         setState('fileTreeData', []);
-        window.go.desktop.App.SearchFiles.mockResolvedValue([{
+        window.go.desktop.App.SearchNotes.mockResolvedValue(rankedResponse([{
             name: 'Large.md',
             path: 'Large.md',
             mtime: 10,
             match_count: 73,
             matches: [{ line: 4, text: 'Project plans are ready.' }],
-        }]);
+        }]));
 
         await performGlobalSearch('project');
 
@@ -73,12 +112,21 @@ describe('workspace search', () => {
         expect(state.searchResults[0].matchCount).toBe(73);
     });
 
-    test('uses the title-only filter without asking the backend to scan note bodies', async () => {
+    test('passes the title-only profile to the native ranking engine', async () => {
         setSearchFilter('titleOnly', true);
+        window.go.desktop.App.SearchNotes.mockResolvedValueOnce(rankedResponse([{
+            name: 'Project Alpha.md',
+            path: 'Projects/Project Alpha.md',
+            title_match: true,
+            matches: [],
+        }]));
 
         await performGlobalSearch('project');
 
-        expect(window.go.desktop.App.SearchFiles).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.SearchNotes).toHaveBeenCalledWith('project', {
+            ...GLOBAL_SEARCH_REQUEST,
+            title_only: true,
+        });
         expect(document.querySelectorAll('.search-result-row')).toHaveLength(1);
         expect(state.searchResults[0].path).toBe('Projects/Project Alpha.md');
     });
@@ -108,11 +156,11 @@ describe('workspace search', () => {
 
     test('bounds mounted rows while keeping distant keyboard results reachable and described', async () => {
         setState('fileTreeData', []);
-        window.go.desktop.App.SearchFiles.mockResolvedValue(Array.from({ length: 300 }, (_, index) => ({
+        window.go.desktop.App.SearchNotes.mockResolvedValue(rankedResponse(Array.from({ length: 300 }, (_, index) => ({
             name: `Result ${String(index).padStart(3, '0')}.md`,
             path: `Archive/Result ${String(index).padStart(3, '0')}.md`,
             matches: [{ line: index + 1, text: 'project result' }],
-        })));
+        }))));
         const input = document.getElementById('global-search-input');
         input.value = 'project';
         input.focus();
@@ -149,10 +197,10 @@ describe('workspace search', () => {
 
     test('shows the parent folder separately so repeated filenames remain distinguishable', async () => {
         setState('fileTreeData', []);
-        window.go.desktop.App.SearchFiles.mockResolvedValue([
+        window.go.desktop.App.SearchNotes.mockResolvedValue(rankedResponse([
             { name: 'Meeting.md', path: 'Clients/Acme/Meeting.md', matches: [{ line: 2, text: 'project review' }] },
             { name: 'Meeting.md', path: 'Clients/Beacon/Meeting.md', matches: [{ line: 4, text: 'project review' }] },
-        ]);
+        ]));
 
         await performGlobalSearch('project');
 
@@ -167,7 +215,7 @@ describe('workspace search', () => {
 
     test('keeps the distinguishing tail visible for repeated filenames under deep common paths', async () => {
         setState('fileTreeData', []);
-        window.go.desktop.App.SearchFiles.mockResolvedValue([
+        window.go.desktop.App.SearchNotes.mockResolvedValue(rankedResponse([
             {
                 name: 'Meeting.md',
                 path: 'Clients/International/Western-Europe/Enterprise/Acme/2026/Planning/Meeting.md',
@@ -178,7 +226,7 @@ describe('workspace search', () => {
                 path: 'Clients/International/Western-Europe/Enterprise/Beacon/2026/Planning/Meeting.md',
                 matches: [{ line: 4, text: 'project review' }],
             },
-        ]);
+        ]));
 
         await performGlobalSearch('project');
 
@@ -198,32 +246,122 @@ describe('workspace search', () => {
         const fast = deferred();
         setState('fileTreeData', []);
         setState('recentFiles', []);
-        window.go.desktop.App.SearchFiles
+        window.go.desktop.App.SearchNotes
             .mockImplementationOnce(() => slow.promise)
             .mockImplementationOnce(() => fast.promise);
 
         const firstSearch = performGlobalSearch('first');
         const secondSearch = performGlobalSearch('second');
 
-        fast.resolve([{
+        fast.resolve(rankedResponse([{
             name: 'Second.md',
             path: 'Second.md',
             mtime: 2,
             matches: [{ line: 1, text: 'second result' }]
-        }]);
+        }]));
         await secondSearch;
 
-        slow.resolve([{
+        slow.resolve(rankedResponse([{
             name: 'First.md',
             path: 'First.md',
             mtime: 1,
             matches: [{ line: 1, text: 'first result' }]
-        }]);
+        }]));
         await firstSearch;
 
         expect(state.searchQuery).toBe('second');
         expect(state.searchResults).toEqual([expect.objectContaining({ path: 'Second.md' })]);
         expect(document.getElementById('global-search-dropdown').textContent).toContain('Second.md');
         expect(document.getElementById('global-search-dropdown').textContent).not.toContain('First.md');
+    });
+
+    test('reruns every filter in the existing open result list as its size changes', async () => {
+        const input = document.getElementById('global-search-input');
+        const dropdown = document.getElementById('global-search-dropdown');
+        input.value = 'project';
+        input.focus();
+        await performGlobalSearch(input.value);
+        disposeSearch = initSearch();
+
+        const list = document.getElementById('search-result-list');
+        const titleFilter = dropdown.querySelector('[data-search-filter="titleOnly"]');
+        const titleRefresh = deferred();
+        window.go.desktop.App.SearchNotes.mockImplementationOnce(() => titleRefresh.promise);
+        titleFilter.focus();
+        titleFilter.click();
+
+        expect(dropdown.classList.contains('visible')).toBe(true);
+        expect(input.getAttribute('aria-expanded')).toBe('true');
+        expect(document.getElementById('search-result-list')).toBe(list);
+        expect(list.querySelectorAll('.search-result-row')).toHaveLength(2);
+
+        titleRefresh.resolve(rankedResponse([{
+            name: 'Project Alpha.md',
+            path: 'Projects/Project Alpha.md',
+            title_match: true,
+            matches: [],
+        }]));
+        await settleSearchRender();
+
+        expect(document.getElementById('search-result-list')).toBe(list);
+        expect(list.querySelectorAll('.search-result-row')).toHaveLength(1);
+        expect(titleFilter.getAttribute('aria-pressed')).toBe('true');
+        expect(document.activeElement).toBe(titleFilter);
+
+        titleFilter.click();
+        await settleSearchRender();
+        expect(list.querySelectorAll('.search-result-row')).toHaveLength(2);
+        expect(titleFilter.getAttribute('aria-pressed')).toBe('false');
+
+        const recentFilter = dropdown.querySelector('[data-search-filter="recentOnly"]');
+        recentFilter.click();
+        await settleSearchRender();
+        expect(recentFilter.getAttribute('aria-pressed')).toBe('true');
+        expect(list.querySelectorAll('.search-result-row')).toHaveLength(1);
+
+        const caseFilter = dropdown.querySelector('[data-search-filter="caseSensitive"]');
+        caseFilter.click();
+        await settleSearchRender();
+        expect(caseFilter.getAttribute('aria-pressed')).toBe('true');
+        expect(window.go.desktop.App.SearchNotes).toHaveBeenLastCalledWith('project', {
+            ...GLOBAL_SEARCH_REQUEST,
+            case_sensitive: true,
+        });
+        expect(dropdown.classList.contains('visible')).toBe(true);
+        expect(input.getAttribute('aria-expanded')).toBe('true');
+
+        document.body.click();
+        expect(dropdown.classList.contains('visible')).toBe(false);
+        expect(input.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    test('offers and applies a low-result spelling suggestion without moving focus', async () => {
+        window.go.desktop.App.SearchNotes
+            .mockResolvedValueOnce(rankedResponse([], 'deployment'))
+            .mockResolvedValueOnce(rankedResponse([{
+                name: 'Deployment.md',
+                path: 'Deployment.md',
+                title_match: true,
+                matched_terms: ['deployment'],
+                matches: [],
+            }]));
+        const input = document.getElementById('global-search-input');
+        input.value = 'deploymnet';
+        input.focus();
+
+        await performGlobalSearch(input.value);
+        const suggestion = document.querySelector('.search-suggestion');
+        expect(suggestion.textContent).toContain('Did you mean “deployment”?');
+        expect(suggestion.getAttribute('aria-label')).toBe('Search for deployment');
+
+        suggestion.click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(input.value).toBe('deployment');
+        expect(document.activeElement).toBe(input);
+        expect(window.go.desktop.App.SearchNotes).toHaveBeenLastCalledWith(
+            'deployment', GLOBAL_SEARCH_REQUEST
+        );
     });
 });

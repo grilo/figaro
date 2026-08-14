@@ -84,6 +84,45 @@ export function findFootnoteReference(text, label, preferredPosition = null) {
     return null;
 }
 
+function paragraphEndAfterPosition(text, position) {
+    let { to } = lineBounds(text, position);
+    while (to < text.length) {
+        const nextFrom = to + 1;
+        const nextNewline = text.indexOf('\n', nextFrom);
+        const nextTo = nextNewline === -1 ? text.length : nextNewline;
+        if (text.slice(nextFrom, nextTo).trim() === '') break;
+        to = nextTo;
+    }
+    return to;
+}
+
+function leadingLineBreakCount(text) {
+    let count = 0;
+    let offset = 0;
+    while (offset < text.length) {
+        while (text[offset] === ' ' || text[offset] === '\t') offset += 1;
+        if (text[offset] !== '\n') break;
+        count += 1;
+        offset += 1;
+    }
+    return count;
+}
+
+/** Plan one undoable definition insertion after the reference's source paragraph. */
+export function planFootnoteDefinitionInsertion(text, token) {
+    if (!token || token.isDefinition) return null;
+    const insertAt = paragraphEndAfterPosition(text, token.to);
+    const definitionPrefix = `\n\n[^${token.label}]: `;
+    const existingLineBreaks = leadingLineBreakCount(text.slice(insertAt));
+    const trailingLineBreaks = '\n'.repeat(Math.max(0, 2 - existingLineBreaks));
+    return {
+        insertAt,
+        insert: definitionPrefix + trailingLineBreaks,
+        target: insertAt + definitionPrefix.length,
+        returnPosition: token.from,
+    };
+}
+
 /**
  * Resolve a footnote click to a selection target. The caller owns persistence
  * of the return position because it is scoped to an editor tab.
@@ -100,7 +139,9 @@ export function resolveFootnoteNavigation(text, position, returnPosition = null)
     }
 
     const target = findFootnoteDefinition(text, token.label);
-    return target === null
-        ? { action: 'missing-definition', label: token.label }
-        : { action: 'definition', label: token.label, target, returnPosition: token.from };
+    if (target !== null) {
+        return { action: 'definition', label: token.label, target, returnPosition: token.from };
+    }
+    const insertion = planFootnoteDefinitionInsertion(text, token);
+    return { action: 'create-definition', label: token.label, ...insertion };
 }

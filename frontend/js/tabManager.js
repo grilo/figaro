@@ -28,6 +28,15 @@ import { isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMess
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
 import { wheelTabNavigationPlan } from './core/tabWheelModel.js';
+import { editorTextScaleWheelPlan } from './core/editorTextScaleModel.js';
+import {
+    applyEditorTextScale,
+    getBufferEditorTextScale,
+    getConfiguredEditorTextScale,
+    renderEditorTextScaleStatus,
+    resetBufferEditorTextScale,
+    setBufferEditorTextScale,
+} from './editorTextScale.js';
 import {
     compactTabTitle,
     tabAccessibleLabel,
@@ -67,6 +76,7 @@ export function showWorkspaceHome() {
     snapshotActiveFileTab(currentTab);
 
     setState('activeTabId', null);
+    synchronizeEditorTextScale(null);
     document.dispatchEvent(new CustomEvent('active-tab-changed', {
         detail: { path: null, type: 'workspace-home' },
     }));
@@ -100,9 +110,75 @@ let tabActivationGeneration = 0;
 let pendingExternalActivationId = 0;
 let tabWheelAccumulatedDeltaY = 0;
 let tabWheelLastEventAt = 0;
+let editorTextScaleWheelAccumulatedDeltaY = 0;
+let editorTextScaleWheelLastEventAt = 0;
 
 const tabDragSelectionGuardClass = 'tab-drag-selection-guard';
 const tabWheelGestureGapMs = 240;
+const editorTextScaleWheelGestureGapMs = 240;
+
+function synchronizeEditorTextScale(tab = getActiveTab(), { anchorEvent = null } = {}) {
+    const configuredScale = getConfiguredEditorTextScale();
+    const scale = tab?.type === 'file'
+        ? getBufferEditorTextScale(tab, configuredScale)
+        : configuredScale;
+    applyEditorTextScale(scale, { view: getEditorView(), anchorEvent });
+    renderEditorTextScaleStatus(tab, { configuredScale });
+    return scale;
+}
+
+function resetActiveEditorTextScale() {
+    const tab = getActiveTab();
+    if (!tab || tab.type !== 'file') return false;
+    resetBufferEditorTextScale(tab, getConfiguredEditorTextScale());
+    editorTextScaleWheelAccumulatedDeltaY = 0;
+    synchronizeEditorTextScale(tab);
+    focusEditor();
+    return true;
+}
+
+function handleEditorTextScaleWheel(event) {
+    const tab = getActiveTab();
+    if (!tab || tab.type !== 'file' || getEditorDocumentTabId() !== tab.id) return;
+
+    const eventTime = Number.isFinite(event.timeStamp) ? event.timeStamp : 0;
+    if (editorTextScaleWheelLastEventAt
+        && eventTime - editorTextScaleWheelLastEventAt > editorTextScaleWheelGestureGapMs) {
+        editorTextScaleWheelAccumulatedDeltaY = 0;
+    }
+    const configuredScale = getConfiguredEditorTextScale();
+    const currentScale = getBufferEditorTextScale(tab, configuredScale);
+    const plan = editorTextScaleWheelPlan({
+        currentScale,
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        deltaMode: event.deltaMode,
+        accumulatedDeltaY: editorTextScaleWheelAccumulatedDeltaY,
+        modified: event.ctrlKey || event.metaKey,
+    });
+    editorTextScaleWheelAccumulatedDeltaY = plan.accumulatedDeltaY;
+    if (!plan.handled) {
+        editorTextScaleWheelLastEventAt = 0;
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    editorTextScaleWheelLastEventAt = eventTime;
+    if (plan.scale !== currentScale) {
+        setBufferEditorTextScale(tab, plan.scale);
+        synchronizeEditorTextScale(tab, { anchorEvent: event });
+    }
+}
+
+function handleConfiguredEditorTextScaleChanged() {
+    for (const tab of getState('openTabs')) {
+        if (tab?.type === 'file') delete tab._editorTextScale;
+    }
+    editorTextScaleWheelAccumulatedDeltaY = 0;
+    editorTextScaleWheelLastEventAt = 0;
+    synchronizeEditorTextScale(getActiveTab());
+}
 
 function preventSelectionDuringTabDrag(event) {
     event.preventDefault();
@@ -511,6 +587,29 @@ export function initTabManager() {
         }
     }
 
+    const editorContainer = document.getElementById('editor-container');
+    if (editorContainer && !editorContainer._figaroTextScaleWheelBound) {
+        editorContainer._figaroTextScaleWheelBound = true;
+        editorContainer.addEventListener('wheel', handleEditorTextScaleWheel, {
+            capture: true,
+            passive: false,
+        });
+    }
+
+    const editorScaleStatus = document.getElementById('editor-scale-status');
+    if (editorScaleStatus && !editorScaleStatus._figaroResetBound) {
+        editorScaleStatus._figaroResetBound = true;
+        editorScaleStatus.addEventListener('click', resetActiveEditorTextScale);
+    }
+    if (!document._figaroTextScaleDefaultBound) {
+        document._figaroTextScaleDefaultBound = true;
+        document.addEventListener(
+            'figaro:editor-text-scale-default-changed',
+            handleConfiguredEditorTextScaleChanged,
+        );
+    }
+    renderEditorTextScaleStatus(getActiveTab());
+
     // Close tab context menu on outside click
     document.addEventListener('click', (e) => {
         if (tabContextMenu && !e.target.closest('.tab-context-menu')) {
@@ -671,6 +770,9 @@ export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
     const cursorState = tab.searchLine ? null : (tab.cursorState ? { ...tab.cursorState } : null);
     
     setState('activeTabId', tabId);
+    editorTextScaleWheelAccumulatedDeltaY = 0;
+    editorTextScaleWheelLastEventAt = 0;
+    synchronizeEditorTextScale(tab);
     saveTabsToStorage();
 
     document.dispatchEvent(new CustomEvent('active-tab-changed', {
@@ -1603,21 +1705,32 @@ function renderSettingsTab(panel, _tab) {
                         <div class="ui-menu ui-picker-menu font-picker-menu" id="code-font-picker-menu"></div>
                     </div>
                 </div>
-                <div class="settings-section">
-                    <div class="settings-section-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 8 12 4 20 8"/><polyline points="4 16 12 20 20 16"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-                        <span>Font Size</span>
-                    </div>
-                    <div class="ui-stepper font-size-control">
-                        <button class="ui-stepper-button font-size-btn" id="font-size-down" title="Decrease">−</button>
-                        <span class="ui-stepper-value font-size-value" id="font-size-value">100%</span>
-                        <button class="ui-stepper-button font-size-btn" id="font-size-up" title="Increase">+</button>
-                    </div>
-                </div>
             </div>
             <!-- Editor -->
             <div class="settings-card">
                 <div class="settings-card-title">Editor</div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 8 12 4 20 8"/><polyline points="4 16 12 20 20 16"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                        <span>Default Text Size</span>
+                    </div>
+                    <div class="ui-stepper font-size-control" role="group" aria-label="Default editor text size">
+                        <button type="button" class="ui-stepper-button font-size-btn" id="font-size-down" title="Decrease default text size" aria-label="Decrease default text size">−</button>
+                        <span class="ui-stepper-value font-size-value" id="font-size-value">100%</span>
+                        <button type="button" class="ui-stepper-button font-size-btn" id="font-size-up" title="Increase default text size" aria-label="Increase default text size">+</button>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h5M4 12h9M4 18h13"/><path d="m17 9 3 3-3 3"/></svg>
+                        <span id="tab-size-label">Tab Size</span>
+                    </div>
+                    <div class="ui-stepper tab-size-control" role="group" aria-labelledby="tab-size-label">
+                        <button type="button" class="ui-stepper-button tab-size-down" aria-label="Decrease tab size" title="Decrease tab size">−</button>
+                        <input class="ui-stepper-value tab-size-value" id="tab-size-value" type="number" inputmode="numeric" min="2" max="8" step="1" value="4" aria-label="Tab size in spaces">
+                        <button type="button" class="ui-stepper-button tab-size-up" aria-label="Increase tab size" title="Increase tab size">+</button>
+                    </div>
+                </div>
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>

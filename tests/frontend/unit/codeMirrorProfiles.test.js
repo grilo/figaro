@@ -33,12 +33,15 @@ describe('shared CodeMirror profiles', () => {
             keymapExtension,
             defaultBindings: ['default'],
             vimExtension: ['vim'],
+            indentationExtensions: ['tab-size', 'indent-unit'],
             historyBindings: ['undo', 'redo'],
             searchBindings: ['find'],
         });
 
         expect(profile.extensions).toEqual([
             'registry',
+            'tab-size',
+            'indent-unit',
             { bindings: ['default'] },
             ['vim'],
         ]);

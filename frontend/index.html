@@ -335,7 +335,25 @@
                 </div>
 
                 <!-- Tab Content Panels (for non-file tabs: calendar, backlinks, kanban) -->
-                <div id="tab-panels" class="tab-panels"></div>
+                <div id="tab-panels" class="tab-panels active">
+                    <div id="vault-loading-panel" class="tab-panel active vault-loading-panel"
+                         role="status" aria-live="polite" aria-atomic="false" aria-busy="true"
+                         data-phase="pending">
+                        <section id="vault-loading-card" class="ui-notice ui-notice--info vault-loading-card"
+                                 aria-labelledby="vault-loading-title">
+                            <p class="vault-loading-kicker">Workspace</p>
+                            <h1 id="vault-loading-title">Loading vault</h1>
+                            <p id="vault-loading-message">Discovering notes…</p>
+                            <span id="vault-loading-progress" class="ui-progress" role="progressbar"
+                                  aria-label="Loading vault" aria-valuemin="0" aria-valuemax="100"
+                                  aria-valuetext="Discovering notes">
+                                <span id="vault-loading-progress-value" class="ui-progress-value"
+                                      style="--ui-progress: 0%"></span>
+                            </span>
+                            <output id="vault-loading-count">Preparing file list…</output>
+                        </section>
+                    </div>
+                </div>
             </main>
 
             <!-- Right Sidebar (used for History, Outline, Raw Text, and PDF preview) -->
@@ -358,6 +376,11 @@
             </div>
             <div class="status-right">
                 <span id="cursor-position">Ln 1, Col 1</span>
+                <span id="editor-scale-separator" class="status-separator" hidden>|</span>
+                <button type="button" id="editor-scale-status"
+                        class="status-history has-history status-scale"
+                        aria-label="Editor scale 100%. Reset to Settings default 100%"
+                        title="Reset editor scale to Settings default (100%)" hidden>Scale 100%</button>
                 <span class="status-separator status-detail-reading">|</span>
                 <span id="reading-time" class="status-detail-reading">0 min read</span>
                 <span class="status-separator status-detail-word">|</span>

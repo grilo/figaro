@@ -163,7 +163,7 @@ body.right-sidebar-resizing .pdf-preview-frame {
     font-size: 12px;
     line-height: 1.55;
     overflow-wrap: anywhere;
-    tab-size: 4;
+    tab-size: var(--editor-tab-size, 4);
     white-space: pre-wrap;
 }
 
@@ -340,7 +340,7 @@ body.right-sidebar-resizing .pdf-preview-frame {
     color: var(--text-muted);
     font: 10px/1.55 var(--font-mono);
     white-space: pre;
-    tab-size: 2;
+    tab-size: var(--editor-tab-size, 4);
 }
 
 .pdf-preview-status {

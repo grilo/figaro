@@ -1,6 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { history, undo } from '@codemirror/commands';
+import { history, indentMore, undo } from '@codemirror/commands';
+import { getIndentUnit, indentUnit } from '@codemirror/language';
 
 import { openMermaidEditor } from '../../../frontend/js/mermaidEditor.js';
 import { scanDiagramFences } from '../../../frontend/js/liveDiagramPlugin.js';
@@ -25,11 +26,18 @@ describe('Mermaid Editor dialog', () => {
         jest.useRealTimers();
     });
 
-    function open(source = 'flowchart TD\n  A --> B') {
+    function open(source = 'flowchart TD\n  A --> B', tabSize = 4) {
         const markdown = `Before\n\`\`\`mermaid\n${source}\n\`\`\`\nAfter`;
         mainView = new EditorView({
             parent: document.getElementById('editor'),
-            state: EditorState.create({ doc: markdown, extensions: [history()] }),
+            state: EditorState.create({
+                doc: markdown,
+                extensions: [
+                    history(),
+                    EditorState.tabSize.of(tabSize),
+                    indentUnit.of(' '.repeat(tabSize)),
+                ],
+            }),
         });
         const block = scanDiagramFences(mainView.state.doc)[0];
         const parse = jest.fn().mockResolvedValue({ diagramType: 'flowchart-v2' });
@@ -100,6 +108,17 @@ describe('Mermaid Editor dialog', () => {
             userEvent: 'input.type',
         });
         expect(templateButton.disabled).toBe(false);
+    });
+
+    test('inherits the global tab size for normal Mermaid source indentation', () => {
+        const { dialog } = open('flowchart TD\nA --> B', 7);
+        const line = dialog.editorView.state.doc.line(2);
+        dialog.editorView.dispatch({ selection: { anchor: line.from } });
+
+        expect(dialog.editorView.state.tabSize).toBe(7);
+        expect(getIndentUnit(dialog.editorView.state)).toBe(7);
+        expect(indentMore(dialog.editorView)).toBe(true);
+        expect(dialog.editorView.state.doc.line(2).text).toBe('       A --> B');
     });
 
     test('Cancel is non-destructive, while Apply is one undoable fence-body change', () => {

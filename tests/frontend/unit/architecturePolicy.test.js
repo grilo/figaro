@@ -17,6 +17,9 @@ function importsIn(source) {
     for (const match of source.matchAll(/\b(?:import|export)\s+(?:[\s\S]*?\s+from\s+)?['"]([^'"]+)['"]/g)) {
         specifiers.push(match[1]);
     }
+    for (const match of source.matchAll(/\bnew\s+Worker\(\s*['"]([^'"]+)['"]/g)) {
+        specifiers.push(match[1]);
+    }
     return specifiers;
 }
 
@@ -68,5 +71,39 @@ describe('frontend architecture policy', () => {
             .map(file => path.relative(JS_ROOT, file));
 
         expect(violations).toEqual([]);
+    });
+
+    test('every first-party module is reachable from an application or renderer-build entry point', () => {
+        const files = sourceFiles(JS_ROOT).map(file => path.resolve(file));
+        const fileSet = new Set(files);
+        const reachable = new Set();
+        const entries = [
+            'bootstrap.js',
+            'printMarkdownRenderer.js',
+            'markdownItRuntime.js',
+            'katexRuntime.js',
+        ].map(file => path.join(JS_ROOT, file));
+
+        const visit = file => {
+            const resolvedFile = path.resolve(file);
+            if (reachable.has(resolvedFile)) return;
+            reachable.add(resolvedFile);
+            const source = fs.readFileSync(resolvedFile, 'utf8');
+            for (const specifier of importsIn(source)) {
+                if (!specifier.startsWith('.') && !specifier.startsWith('/js/')) continue;
+                const imported = specifier.startsWith('/js/')
+                    ? path.join(JS_ROOT, specifier.slice('/js/'.length))
+                    : path.resolve(path.dirname(resolvedFile), specifier);
+                const candidate = path.extname(imported) ? imported : `${imported}.js`;
+                if (fileSet.has(candidate)) visit(candidate);
+            }
+        };
+
+        entries.forEach(visit);
+        expect(files
+            .filter(file => !reachable.has(file))
+            .map(file => path.relative(JS_ROOT, file))
+            .sort())
+            .toEqual([]);
     });
 });

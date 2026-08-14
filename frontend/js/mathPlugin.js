@@ -6,28 +6,57 @@
 import { StateField } from '@codemirror/state';
 import { EditorView, WidgetType, Decoration } from '@codemirror/view';
 import { markBlockWidget } from './blockWidget.js';
+import { sourceLineCount } from './core/sourceFootprintModel.js';
+import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
 
 class MathWidget extends WidgetType {
-    constructor(text, displayMode) {
+    constructor(text, displayMode, sourceLines = 1, sourceText = '') {
         super();
         this.text = text;
         this.displayMode = displayMode;
+        this.sourceLines = sourceLines;
+        this.sourceText = sourceText;
+        this.stopGraphicFit = null;
     }
-    eq(other) { return other.text === this.text && other.displayMode === this.displayMode; }
-    toDOM() {
-        const span = document.createElement('span');
+    eq(other) {
+        return other.text === this.text
+            && other.displayMode === this.displayMode
+            && other.sourceLines === this.sourceLines
+            && other.sourceText === this.sourceText;
+    }
+    toDOM(view) {
+        const span = document.createElement(this.displayMode ? 'div' : 'span');
         span.className = this.displayMode ? 'cm-math-block' : 'cm-math-inline';
-        if (this.displayMode) markBlockWidget(span);
+        const renderTarget = this.displayMode ? document.createElement('div') : span;
+        if (this.displayMode) {
+            markBlockWidget(span);
+            markSourceFootprint(span, {
+                kind: 'math',
+                lineCount: this.sourceLines,
+                lineHeight: view?.defaultLineHeight,
+                sourceText: this.sourceText,
+            });
+            renderTarget.className = 'cm-source-footprint-graphic';
+            span.appendChild(renderTarget);
+        }
         try {
             if (window.katex) {
-                window.katex.render(this.text, span, { displayMode: this.displayMode, throwOnError: false });
+                window.katex.render(this.text, renderTarget, { displayMode: this.displayMode, throwOnError: false });
             } else {
-                span.textContent = '$' + this.text + '$';
+                renderTarget.textContent = '$' + this.text + '$';
             }
         } catch (e) {
-            span.textContent = '[Math Error]';
+            renderTarget.textContent = '[Math Error]';
+        }
+        if (this.displayMode) {
+            this.stopGraphicFit?.();
+            this.stopGraphicFit = fitGraphicToSourceFootprint(span, span, renderTarget);
         }
         return span;
+    }
+
+    destroy() {
+        this.stopGraphicFit?.();
     }
 }
 
@@ -49,7 +78,7 @@ function buildMathState(state) {
         if (m[1].includes('\n') || m[0].includes('\n')) {
             // Multi-line block: use StateField-provided decoration (safe for line breaks)
             decorations.push(Decoration.replace({
-                widget: new MathWidget(m[1], true),
+                widget: new MathWidget(m[1], true, sourceLineCount(doc, start, end), m[0]),
                 block: true
             }).range(start, end));
         } else {

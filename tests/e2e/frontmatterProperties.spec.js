@@ -88,11 +88,88 @@ test('generates rendered Properties first and reuses one disclosure across curso
         view.focus();
     });
     const content = page.locator('.cm-content');
+
+    await content.press('Home');
+    await expect(collapsedCard).toBeVisible();
+    await content.press('Control+Home');
+    await expect.poll(() => page.evaluate(() => (
+        window.__frontmatterView.state.selection.main.head
+    ))).toBe(0);
+    await expect(collapsedCard).toBeVisible();
+
+    // Arrow Up is the deliberate request to enter raw frontmatter, even after
+    // a document-start command left the logical selection behind Properties.
     await content.press('ArrowUp');
     await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(2);
     await expect(collapsedCard).toHaveCount(0);
 
+    await page.evaluate(() => {
+        const view = window.__frontmatterView;
+        const source = view.state.doc.toString();
+        const closing = source.lastIndexOf('\n---\n') + 1;
+        view.dispatch({ selection: { anchor: closing } });
+        view.focus();
+    });
+    await content.press('ArrowDown');
     await content.press('ArrowDown');
     await expect(collapsedCard).toBeVisible();
     await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(0);
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        window.__frontmatterView.focus();
+    });
+    await content.press('g');
+    await content.press('g');
+    await expect.poll(() => page.evaluate(() => (
+        window.__frontmatterView.state.selection.main.head
+    ))).toBe(0);
+    await expect(collapsedCard).toBeVisible();
+
+    await content.press('k');
+    await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(2);
+    await expect(collapsedCard).toHaveCount(0);
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const view = window.__frontmatterView;
+        await editor.toggleVim(false);
+        view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf('# Body') + 2 } });
+        view.focus();
+    });
+    await expect(collapsedCard).toBeVisible();
+
+    // Ordinary pointer placement and drag selection do not imply an Edit YAML
+    // request merely because their range reaches the replaced source.
+    const dragPoints = await page.evaluate(() => {
+        const view = window.__frontmatterView;
+        const body = view.state.doc.toString().indexOf('# Body');
+        const after = view.state.doc.toString().indexOf('After');
+        const point = position => {
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 4, y: (coords.top + coords.bottom) / 2 };
+        };
+        return { body: point(body), after: point(after) };
+    });
+    for (const [start, end] of [
+        [dragPoints.body, dragPoints.after],
+        [dragPoints.after, dragPoints.body],
+    ]) {
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(end.x, end.y, { steps: 8 });
+        await page.mouse.up();
+        await expect(collapsedCard).toBeVisible();
+        expect(await page.evaluate(() => window.__frontmatterView.state.selection.main.empty)).toBe(false);
+    }
+
+    await page.evaluate(() => {
+        const view = window.__frontmatterView;
+        view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf('# Body') } });
+        view.focus();
+    });
+    await content.press('ArrowUp');
+    await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(2);
+    await expect(collapsedCard).toHaveCount(0);
 });

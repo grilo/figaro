@@ -9,8 +9,10 @@
  * them to come from a StateField rather than a ViewPlugin.
  */
 import { log } from './log.js';
+import { foldedRanges } from '@codemirror/language';
 import { diagramLanguages, renderDiagramSVG } from './diagramRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
+import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
 
 export { diagramLanguages };
 
@@ -72,7 +74,9 @@ export function scanDiagramFences(doc) {
                 lang: open.language,
                 code: code.join('\n').trim(),
                 rawCode: doc.sliceString(contentFrom, contentTo).replace(/\r?\n$/u, ''),
+                sourceText: doc.sliceString(open.from, closeLine.to),
                 recoveredFence,
+                sourceLines: closeLine.number - open.lineNumber + 1,
             });
         }
         open = null;
@@ -112,23 +116,28 @@ function setMessage(container, className, text) {
 
 function createDiagramWidget(WidgetType) {
     return class DiagramWidget extends WidgetType {
-        constructor(lang, code, recoveredFence = false) {
+        constructor(lang, code, recoveredFence = false, sourceLines = 1, sourceText = '') {
             super();
             this.lang = lang;
             this.code = code;
             this.recoveredFence = recoveredFence;
+            this.sourceLines = sourceLines;
+            this.sourceText = sourceText;
             this.destroyed = false;
             this.renderVersion = 0;
+            this.stopGraphicFit = null;
         }
 
         eq(other) {
             return other instanceof DiagramWidget &&
                 other.lang === this.lang &&
                 other.code === this.code &&
-                other.recoveredFence === this.recoveredFence;
+                other.recoveredFence === this.recoveredFence &&
+                other.sourceLines === this.sourceLines &&
+                other.sourceText === this.sourceText;
         }
 
-        toDOM() {
+        toDOM(view) {
             const dom = document.createElement('div');
             dom.className = 'cm-live-diagram';
             dom.dataset.lang = this.lang;
@@ -148,13 +157,19 @@ function createDiagramWidget(WidgetType) {
             setMessage(content, 'cm-live-diagram-loading', 'Rendering ' + this.lang + '…');
 
             dom.append(label, content);
-            this.renderInto(content);
             const wrapper = wrapBlockWidget(dom, 'cm-block-widget--diagram');
             if (this.lang === 'mermaid') wrapper.classList.add('cm-block-widget--mermaid');
+            markSourceFootprint(wrapper, {
+                kind: this.lang,
+                lineCount: this.sourceLines,
+                lineHeight: view?.defaultLineHeight,
+                sourceText: this.sourceText,
+            });
+            this.renderInto(content, wrapper);
             return wrapper;
         }
 
-        async renderInto(container) {
+        async renderInto(container, root) {
             const version = ++this.renderVersion;
 
             try {
@@ -163,14 +178,22 @@ function createDiagramWidget(WidgetType) {
 
                 if (typeof svg !== 'string' || !svg) {
                     setMessage(container, 'cm-live-diagram-error', 'Diagram renderer is unavailable');
+                    root.dataset.sourceFootprintState = 'underflow';
                     return;
                 }
 
                 container.innerHTML = svg;
+                const graphic = container.querySelector('svg');
+                if (graphic) {
+                    graphic.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                    this.stopGraphicFit?.();
+                    this.stopGraphicFit = fitGraphicToSourceFootprint(root, container, graphic);
+                }
             } catch (error) {
                 if (this.destroyed || version !== this.renderVersion) return;
                 log.warn('[diagram] ' + this.lang + ' render error: ' + (error.message || error));
                 setMessage(container, 'cm-live-diagram-error', 'Unable to render ' + this.lang + ' diagram');
+                root.dataset.sourceFootprintState = 'underflow';
             }
         }
 
@@ -182,6 +205,7 @@ function createDiagramWidget(WidgetType) {
         destroy() {
             this.destroyed = true;
             this.renderVersion++;
+            this.stopGraphicFit?.();
         }
     };
 }
@@ -189,6 +213,15 @@ function createDiagramWidget(WidgetType) {
 /** Build the live-preview state field for diagram block decorations. */
 export function createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField) {
     const DiagramWidget = createDiagramWidget(WidgetType);
+
+    const sourceRangeIsFolded = (state, block) => {
+        const foldFrom = state.doc.lineAt(block.from).to;
+        let found = false;
+        foldedRanges(state).between(foldFrom, block.to, (from, to) => {
+            if (from === foldFrom && to === block.to) found = true;
+        });
+        return found;
+    };
 
     const buildState = (state) => {
         const decorations = [];
@@ -198,9 +231,18 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
 
         for (const block of blocks) {
             ranges.push({ from: block.from, to: block.to });
-            if (!block.code || isDragging || shouldShowSource(state, block.from, block.to)) continue;
+            if (!block.code
+                || isDragging
+                || shouldShowSource(state, block.from, block.to)
+                || sourceRangeIsFolded(state, block)) continue;
             decorations.push(Decoration.replace({
-                widget: new DiagramWidget(block.lang, block.code, block.recoveredFence),
+                widget: new DiagramWidget(
+                    block.lang,
+                    block.code,
+                    block.recoveredFence,
+                    block.sourceLines,
+                    block.sourceText,
+                ),
                 block: true,
             }).range(block.from, block.to));
         }
@@ -262,6 +304,9 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
             const wasDragging = transaction.startState.field(mouseSelectingField, false);
             if (wasDragging && !isDragging) return buildState(transaction.state);
             if (isDragging) return value;
+            if (foldedRanges(transaction.startState) !== foldedRanges(transaction.state)) {
+                return buildState(transaction.state);
+            }
             if (transaction.selection && (
                 selectionTouchesRanges(transaction.startState.selection, value.ranges)
                 || selectionTouchesRanges(transaction.state.selection, value.ranges)

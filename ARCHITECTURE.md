@@ -63,7 +63,7 @@ state while replacing the host-painted popup with the same themed listbox used
 by Settings. `catalog.css` is limited to the page shell and to containing open
 menus, dialogs, and loaders for inspection.
 
-`approved-components.json` is the architectural gate for the eleven accepted
+`approved-components.json` is the architectural gate for the thirteen accepted
 families. Extending it with a family, primitive, or visual variant requires
 explicit approval before implementation. Focused tests verify that every
 registered selector is implemented in `primitives.css`, that no unregistered
@@ -206,8 +206,10 @@ Asynchronous startup is still allowed: independent initialization may run in
 parallel, and background warming may continue while an explicit startup state
 is shown. It must begin during startup and finish before the application
 advertises the affected feature as ready. A source-level architecture test
-rejects dynamic imports in first-party application modules, and the assembled
-startup check verifies the single static bootstrap path.
+rejects dynamic imports and source modules that are unreachable through static
+imports or explicit worker edges from the application bootstrap or the three
+print-renderer build entries,
+while the assembled startup check verifies the single static bootstrap path.
 
 Demand-driven **work** is distinct from lazy-loaded **application code**.
 Operations that inherently require a user selection or current vault content,
@@ -260,6 +262,18 @@ its hashtags/cards, semantic task due links, date links, and daily-note state; t
 calendar lookups direct and keeps search/backlinks disk-free after the initial
 index build.
 
+The cold-build adapter first discovers the exact ordinary Markdown workload,
+then reads and transforms that retained path list. It publishes discovery,
+loading, finalization, ready, and error snapshots through a progress mutex that
+is independent of the main vault lock; `GetVaultLoadStatus` therefore remains
+responsive while the index owns that lock. Count-based event sampling bounds a
+10,000-note build to about one hundred bridge updates, with phase boundaries
+always delivered. The frontend subscribes before reading the current snapshot,
+and a pure generation/phase reducer rejects delayed or regressive updates. A
+small DOM adapter updates the static loading notice and approved determinate
+progress primitive; startup removes it only after a real editor or overview
+surface is mounted.
+
 Figaro writes known Markdown files atomically and updates that one index entry
 in the same vault lock. The recursive native watcher sends a debounced set of
 changed paths to the backend: a one-file external edit similarly rereads and
@@ -278,20 +292,32 @@ such as merges or an unscoped notification, deliberately invalidate and rebuild
 one coherent snapshot; correctness wins over a speculative partial update.
 
 Each indexed file owns its own tag, Kanban-card, due-task, daily-note, date-link,
-month-grouped Calendar-day, case-folded search, trigram, and Markdown-backlink
+month-grouped Calendar-day, accent-folded search fields, term frequencies,
+trigram, and Markdown-backlink
 contributions. Those projections are derived in one line-oriented document
 walk. A known
 one-file update removes its old contributions before adding its new ones,
 retaining unrelated card slices, Calendar projections, and reverse-link
-entries. Case-insensitive searches intersect compact three-byte substring
-postings before verifying the original note text; exceptionally large or
-high-entropy notes remain in a bounded fallback set so correctness never
-depends on indexing every term. Case-sensitive searches intentionally use the
-original text. Search results retain and transfer only the first matching line
-plus an exact total, because that is all the search UI displays. This keeps the
-common save/watcher path proportional to the changed note and its affected
-derived data; a full derived rebuild remains reserved for the first vault scan
-and genuinely broad filesystem changes.
+entries. The pure `internal/search` package owns Unicode normalization, query
+tokenization, bounded prefix/edit expansion, BM25F field scoring, and
+best-passage selection without filesystem or Wails dependencies. The native
+index incrementally maintains sorted term postings, document frequencies,
+field lengths, and a vocabulary over title, headings, tags, path, and body.
+Exact variants lead prefix and conservative fuzzy variants; field and match
+weights live in explicit global, title-only, and link-completion profiles.
+Case-sensitive search reanalyzes only candidate text against the original
+spelling instead of duplicating the complete index.
+
+The older compact three-byte postings remain the verified substring fallback
+for literal single-term fragments and legacy date lookup. Exceptionally large
+or high-entropy notes remain in that bounded fallback set, so correctness never
+depends on indexing every trigram. Ranked results transfer one strongest source
+line plus the exact matching-line total; one query reuses that passage across
+byte-identical pooled content. Markdown link completion calls the same native
+search use case with a title/path-heavy profile and a ten-result boundary.
+This keeps the common save/watcher path proportional to the changed note and
+its affected derived data; a full derived rebuild remains reserved for the
+first vault scan and genuinely broad filesystem changes.
 
 The file tree has a separate metadata projection under the same vault lock.
 Its published hierarchy is immutable and may be returned unchanged across
@@ -328,7 +354,8 @@ the CodeMirror adapter then dispatches the ordinary dirty editor transaction
 before the existing tab-replacement save guard runs. The same pure link core
 normalizes Markdown reference labels and distinguishes unresolved bracket text
 from defined full, collapsed, and shortcut references. New-link autocomplete
-uses a pure same-folder creation/insertion plan plus an injected coordinator;
+uses the native relevance index's link profile for existing targets, then a
+pure same-folder creation/insertion plan plus an injected coordinator;
 the backend create must succeed before the adapter replaces the typed prefix,
 while cancellation and failure perform no editor transaction. Dot-directories and
 symlinks are excluded; external URLs, mail links, and code fences are not
@@ -359,7 +386,8 @@ coalesced tree refresh. An acknowledgement of a Figaro-originated save has
 both flags false: the frontend already replaces that file's Kanban cards from
 the saved snapshot, so it does not request the complete board again. The
 initial index is still built after the first Wails window is allowed to appear,
-so indexing does not delay startup.
+so indexing does not delay shell creation; the early-painted loading workspace
+owns the interval until the first tree and restored view are ready.
 
 The frontend has two complementary hot paths. An unsaved Kanban change is
 projected from the dirty tab buffers on the next animation frame, without an
@@ -391,45 +419,6 @@ eligibility, existing-date rejection, and portable due-link insertion plans.
 `taskDueDateCompletions.js` translates those plans into CodeMirror completion
 transactions, while `editor.js` supplies syntax-context filtering and anchors
 the existing shared date-picker adapter at `coordsAtPos()`.
-
-Tab overflow follows the same decision/effect split. The pure
-`core/tabOverflowModel.js` calculates overflow directions and the nearest
-scroll offset that reveals an active tab from plain geometry. `tabManager.js`
-alone reads DOM measurements, applies `scrollLeft`, toggles themed edge-fade
-classes, and exposes the approved all-tabs button only when the full-width rail
-cannot fit its content. `core/tabPresentationModel.js` separately derives the
-full accessible path, parent-location copy, and two-ended filename segments;
-the tab DOM adapter and approved menu/tab primitives only render that plan.
-
-The optional editor breadcrumb follows the same direction. The pure
-`core/editorBreadcrumbModel.js` derives vault-relative display segments from
-the active tab and the disabled-by-default local preference; workspace tabs
-and capability-backed external files produce no breadcrumb. The eager
-`editorBreadcrumb.js` coordinator subscribes to tab and preference state and
-owns only DOM rendering, while Settings writes the presentation preference to
-local storage. Document-tab presentation itself is the approved
-`ui-document-tabs` family; `workspace.css` retains rail geometry, overflow, and
-drag placement while the shared primitive owns active, dirty, pinned, hover,
-and focus states. Once the pointer crosses the tab-reorder threshold,
-`tabManager.js` brackets the active gesture with a document-level
-`selectstart` guard and one root state class. `workspace.css` uses that class to
-disable native selection beneath the pointer across the application; drop and
-pointer cancellation remove both effects immediately.
-
-The mounted right sidebar has one state adapter,
-`rightSidebarState.js`, which changes visibility, `aria-hidden`, and `inert`
-together. Each History/Outline/preview owner retains its own content lifecycle,
-but no zero-width closed pane can leave descendants in sequential focus. The
-editor follows the same separation: active tab/language state supplies a
-dynamic CodeMirror accessible name. The pure `core/windowTitleModel.js` derives
-the document-first browser/native title, while `windowChrome.js` subscribes to
-tab state and owns the DOM and Wails title effects. Context-menu key decisions
-likewise live in pure `core/contextMenuModel.js`; `contextMenu.js` owns menu
-semantics, roving focus, dismissal, and focus restoration for the file-tree,
-tab, and editor adapters. Search location compaction stays in
-`core/searchModel.js`: shallow parents remain complete, deep parents preserve
-their root and differentiating final folders, and the view retains the full
-path in its accessible name and tooltip.
 
 ## Git status and history restoration
 
@@ -524,6 +513,25 @@ top-right launcher is hidden while the outline owns the right pane. History,
 Raw Text Preview, and PDF Preview release the outline before taking that shared
 pane.
 
+## Editor text scale ownership
+
+`core/editorTextScaleModel.js` owns the pure 70–150% bounds, ten-percent wheel
+steps, high-resolution delta accumulation, fallback rules, and accessible
+status presentation. `editorTextScale.js` adapts those decisions to the
+webview-local Settings value, root typography tokens, CodeMirror measurements,
+source-footprint remeasurement, and the existing status button. The permanent
+default alone is written to `localStorage`.
+
+Each open file-tab object may carry an in-memory `_editorTextScale` override.
+Tab activation reapplies it to the one shared CodeMirror view; non-file views
+restore the configured baseline. `core/sessionModel.js` selects portable tab
+fields explicitly, so temporary scale cannot enter vault sessions or recovery
+state, and closing the tab naturally destroys it. A permanent Settings change
+clears all open overrides before applying the new baseline. Pointer-triggered
+reflow uses CodeMirror read/write correction passes to retain the source point
+beneath the wheel; the unitless line-height ratio remains constant so font and
+row height are not scaled twice.
+
 ## UI continuity surfaces
 
 Kanban density and column flow are webview-local presentation preferences, not
@@ -573,6 +581,20 @@ visible document region and rebuilt on viewport changes. Cursor movement only
 rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
+Stable block sizing uses the same dependency direction. The pure
+`core/sourceFootprintModel.js` module owns the approved block-kind allowlist,
+source-line counting, and downscale-only graphic plan. The DOM adapter in
+`sourceFootprint.js` writes the already-computed line height to CodeMirror's
+measured root, uses one view-level extension to measure wrapped raw rows at the
+active content width, and observes rendered graphics. Measurements are cached
+per mounted root; ordinary cursor transactions do no work, while document,
+viewport, font, width, or footprint-root changes invalidate only the relevant
+view pass. Diagram and display-math
+widgets use that adapter directly; the vendored code and table integrations
+attach equivalent metadata at widget construction without scanning the
+document. Images, Properties, links, checkboxes, and inline math never enter
+the policy. All selectors are `.cm-*`, so the independent printable renderer
+retains natural diagram, code, math, and table geometry.
 Conventional-link and standalone-hashtag click precedence is decided in the
 pure `core/noteLinks.js` model before the CodeMirror adapter runs effects. A
 complete `[label](#fragment)` therefore remains one link whether it is rendered
@@ -580,6 +602,14 @@ or revealed source; its stable heading slug resolves to an editor offset and
 dispatches an ordinary selection, while only a standalone whitespace-delimited
 hashtag may open Kanban. Missing fragments are consumed locally and cannot fall
 through to vault reads or note creation.
+Footnote interaction has the same pure-decision/effect split. `footnotes.js`
+classifies source tokens, resolves definitions and exact per-tab return
+positions, and plans a missing definition after the reference's complete
+blank-delimited paragraph. Its insertion plan minimally supplies the two line
+breaks needed on each side and places the post-change selection after the
+definition marker. The editor adapter owns the single CodeMirror transaction,
+focus, scrolling, and history effect; no filesystem or note-navigation effect
+participates.
 Markdown block folding follows the same source-first boundary.
 `core/markdownBlockGuideModel.js` classifies deterministic syntax descriptors
 as `h1`–`h6`, fenced-code language names with an untyped `code` fallback, or
@@ -603,17 +633,33 @@ The fenced-code and interactive-table decoration providers observe
 `foldedRanges`: an exact guide-owned fold causes them to omit their replacement
 widget and rebuild, leaving CodeMirror's native fold as the sole visual owner
 of that source range. Unfolding rebuilds the original widget.
+`core/editorBlockActionLayoutModel.js` separately turns the measured writing
+edges and untransformed helper-rail edges into bounded before/after offsets,
+measured rail widths, and the existing stacked-layout decision. Its DOM adapter
+reads CodeMirror's centered content box, padding, and current transforms, then
+publishes CSS properties that move only the interactive helper gutters. The
+left rail's hidden spacer uses the syntax model's maximum permitted label
+length, and an equal negative flex margin makes that stable width an overlay;
+folding a parent can therefore remove a wider child guide without recentering
+the document. The document width, prose layout, and ordinary CodeMirror gutters
+remain unchanged as text width, window width, folding, or side panes change.
 The table bundle receives this narrow integration during vendoring through an
 in-memory, exact-match transform that fails when the pinned upstream source no
-longer has the reviewed shape. The same transform attaches Figaro's approved
-danger-ghost button to the measured widget root and routes it through the
-extension's existing `table.delete` history annotation, so direct deletion and
-the table's internal command remain one undoable action.
+longer has the reviewed shape. The same transform marks the measured root as a
+table block widget, records the table's logical source-row footprint, attaches
+Figaro's approved danger-ghost button, and routes
+it through the extension's existing `table.delete` history annotation, so
+direct deletion and the table's internal command remain one undoable action.
 The Properties field uses the same source-first transition: its disclosure
 generates missing default frontmatter directly into structured-panel mode,
-while a later selection entering that replaced range reveals raw YAML and a
-selection leaving it restores the compact card. Expanded and collapsed states
-share one disclosure control. A stable CodeMirror scrollbar gutter prevents
+while `core/frontmatterPresentationModel.js` permits automatic raw-YAML entry
+only for the explicit upward-motion event emitted by Arrow Up or Vim `k`.
+Home/document-start commands, Vim `gg`, programmatic jumps, and pointer
+selections may place the logical selection at that replacement without
+changing its presentation; an explicit **Edit YAML** action still enters
+source mode, and a selection leaving source restores the compact card.
+Expanded and collapsed states share one disclosure control. A stable
+CodeMirror scrollbar gutter prevents
 the control's viewport position from shifting when the taller panel introduces
 vertical overflow. The measured expanded-widget root establishes a paint layer
 above later positioned editor lines; transient panel transforms can therefore
@@ -659,9 +705,11 @@ When the opt-in Vim rendered-block motion is active, the root editor uses
 those retained source ranges to stop Normal `j`/`k` at the adjacent block.
 Visual `j`/`k` independently preserves its anchor and extends the selection
 into adjacent fenced source, so source-first decoration rebuilding reveals the
-block without exiting Visual mode. Fenced blocks and frontmatter expose their
-portable source; interactive tables retain their widget and focus the first or
-last cell. The root Vim Normal cursor is
+block without exiting Visual mode. Frontmatter is the deliberate boundary
+exception: `gg` keeps Properties rendered and a following `k` reveals its
+portable source even when the broader rendered-block preference is off.
+Fenced blocks expose their portable source; interactive tables retain their
+widget and focus the first or last cell. The root Vim Normal cursor is
 drawn by the adapter's separate fat-cursor layer, so a root-scoped override
 maps that layer to the active theme's cursor background and text tokens instead
 of inheriting the adapter's fixed red. A focused table cell still has a
@@ -719,6 +767,19 @@ display rows with the visible item body. It is recalculated together with the
 cursor-aware list marker replacement and never adds block height or changes
 Markdown source.
 
+Tab width is one portable editor preference rather than a file-mode default.
+The pure `frontend/js/core/tabSizeModel.js` owns the four-space default,
+2–8 bounds, stepping, spaces-only indent unit, and literal-tab expansion.
+`internal/settings` owns the equivalent persisted schema validation, while
+`TabSizeLoad`/`TabSizeSave` are the vault-settings adapter. Startup loads that
+preference before restored tabs can construct CodeMirror. The editor
+composition root installs one compartment containing both `EditorState.tabSize`
+and `indentUnit`; Markdown/code reconfiguration leaves it intact. A live change
+reconfigures the root, rebuilds mounted table-cell editors with the same profile,
+and refreshes source-footprint measurement. The Mermaid dialog copies those
+facets from its root view, and `--editor-tab-size` aligns rendered code and Raw
+Text Preview without entering the isolated printable document.
+
 Markdown diagnostics are an intentionally separate idle-time extension rather
 than a live-preview widget. They scan only the active Markdown document after
 a short pause and add inline marks plus CodeMirror's native hover/F8 surface;
@@ -763,7 +824,7 @@ where possible, avoiding a whole-document tokenization per keypress.
 
 ## Session state is not settings
 
-`settings.json` stores durable preferences such as theme, fonts, Vim visual-row
+`settings.json` stores durable preferences such as theme, fonts, tab size, Vim visual-row
 and rendered-block motions, the Markdown-lint toggle, and the spellcheck enabled
 state plus last selected global language. Open tabs, their ordering, current per-file cursor
 selections, and the active workspace state live in the dedicated session record.
@@ -876,6 +937,13 @@ peer boundary, so a core major upgrade must update and verify both sides of
 that generated seam; changing only the root npm resolution would leave the
 packaged runtime unchanged.
 
+Generated CodeMirror color support has a similarly explicit dependency seam.
+The upstream ESM entry imports one undeclared Babel object-rest helper, so the
+vendor adapter applies a guarded, exact-match source transformation and bundles
+the equivalent local pure function. The adapter fails on an unfamiliar
+upstream shape; production therefore carries neither an unresolved import nor
+the otherwise-unused Babel runtime.
+
 ## Raw text preview: exact Markdown source
 
 `rawTextPreview.js` owns the non-print **Raw Text Preview** right-pane mode. It
@@ -934,11 +1002,17 @@ The shared diagram renderer consults a pure Mermaid source policy before the
 vendored parser is initialized: it applies the parser's 50,000-character limit
 before YAML frontmatter work and rejects YAML ordered-map tags. Live preview,
 PDF preview, and export therefore share one effect-free security decision and
-the existing failed-source recovery behavior.
+the existing failed-source recovery behavior. The live-diagram CodeMirror
+adapter also observes native folded ranges: an exact fence-body fold suppresses
+its replacement decoration so the fold placeholder owns the block, and an
+unfold transaction rebuilds the live decoration under the ordinary
+cursor-reveal rule.
 
 The focused Mermaid Editor reuses that adapter without adding another rendering
-path. Its right gutter consumes the diagram blocks already retained by the live
-preview field; the modal keeps edits in a temporary CodeMirror state. Pure
+path. The configured Markdown-guide extension adds an **editor** action beneath
+the left-side **mermaid** fold guide; the application composition root resolves
+that guide against the current diagram scan before opening the modal. The modal
+keeps edits in a temporary CodeMirror state. Pure
 catalogue normalization, parser-error mapping, adaptive-delay policy, and
 fence-body replacement planning live in `core/mermaidEditorModel.js`. The
 injected `usecases/mermaidPreviewSession.js` coordinates timers, parsing, and a
@@ -947,7 +1021,8 @@ temporary CodeMirror effects, and the final atomic dispatch to the root editor.
 Its template-state policy distinguishes protected user source from live
 template browsing before the dialog performs any CodeMirror transaction. The
 dialog receives the already-configured Vim extension and global visual-row
-mapping as an input profile. Vim cursor-mode classes are owned by a CodeMirror
+mapping as an input profile, and copies the root tab-size and indent-unit facets
+into its temporary state. Vim cursor-mode classes are owned by a CodeMirror
 editor-attribute compartment rather than an ad-hoc DOM mutation, so diagnostics
 transactions cannot discard them; cleanup restores root-editor Ex commands and
 status ownership. Dynamic Diagram-to-Template option changes reuse the shared
@@ -961,11 +1036,19 @@ Document Outline's width transition is coordinated at its existing UI-effect
 boundary. A bounded request-animation-frame loop asks CodeMirror to measure
 while the editor width changes, then stops after three stable frames (or thirty
 frames maximum), keeping block widgets and gutters in one layout generation
-without introducing a persistent observer. The gutter adapter publishes that
-visible width through a feature-scoped CSS property during ordinary CodeMirror
-geometry updates and the bounded transition. The measured Mermaid wrapper uses
-it to reserve a right action lane, switching to a 40 px row above the diagram
-below 360 px; prose and non-Mermaid widgets retain their original width.
+without introducing a persistent observer. A shared adapter publishes that
+visible width plus the measured gap between CodeMirror's outer left gutter and
+the padded, centered writing edge through block-action CSS properties during
+ordinary geometry updates and the bounded transition. A pure layout model
+bounds that left-rail inset and retains the 360 px side-lane/stacked-row
+decision for the interactive table action. The table's stacked danger action
+participates in normal flow so its actual height reserves space; Mermaid and
+unrelated diagram roots retain the full writing width.
+The left-side layout hook positions both entries in a Mermaid control stack
+toward the writing surface without redefining the shared button primitive. It
+uses the primitive's editor-sized monospace typography, compensates for
+CodeMirror's 16 px gutter padding, and translates the helper rail just outside
+the writing edge. Document width and block measurements stay unchanged.
 
 | Direction | Messages | Purpose |
 | --- | --- | --- |

@@ -421,6 +421,10 @@
                                 <span class="settings-section-icon">Text width</span>
                                 <div class="ui-stepper text-width-control"><button class="ui-stepper-button text-width-btn">−</button><span class="ui-stepper-value text-width-value">100%</span><button class="ui-stepper-button text-width-btn">+</button></div>
                             </div>
+                            <div class="settings-section">
+                                <span class="settings-section-icon" id="catalogue-tab-size-label">Tab size</span>
+                                <div class="ui-stepper tab-size-control" role="group" aria-labelledby="catalogue-tab-size-label"><button class="ui-stepper-button tab-size-down" aria-label="Decrease tab size">−</button><input class="ui-stepper-value tab-size-value" type="number" min="2" max="8" step="1" value="4" aria-label="Tab size in spaces"><button class="ui-stepper-button tab-size-up" aria-label="Increase tab size">+</button></div>
+                            </div>
                         </div>
                     </article>
                 </div>
@@ -619,6 +623,10 @@
 
                 <div class="ds-specimen-grid ds-specimen-grid--two">
                     <article class="ds-specimen">
+                        <header><h3>Progress</h3><code class="ds-selector">.ui-progress</code><code class="ds-selector">.ui-progress-value</code></header>
+                        <div class="ds-demo ds-flow"><span class="ui-progress" role="progressbar" aria-label="Example progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="65"><span class="ui-progress-value" style="--ui-progress:65%"></span></span><span>65% complete</span></div>
+                    </article>
+                    <article class="ds-specimen">
                         <header><h3>Kanban counts</h3><code class="ds-selector">.badge</code></header>
                         <div class="ds-demo ds-flow">
                             <span class="ui-badge badge badge-purple">12</span>
@@ -791,6 +799,7 @@ title: A quiet workspace
                             <tr><td>Menus</td><td>Context, tabs, settings, frontmatter</td><td><code>.ui-menu</code> visuals; separate controllers</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Document tabs</td><td>Active, dirty, pinned, hover, and focus</td><td><code>.ui-document-tab</code> + state modifiers</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Editor folding</td><td>Code arrows plus typed Markdown guides in expanded, collapsed, hover, focus, and active states</td><td><code>.ui-editor-fold-control</code>, <code>.ui-editor-block-guide</code></td><td><span class="is-decided">Approved</span></td></tr>
+                            <tr><td>Determinate progress</td><td>Accessible track and value fill</td><td><code>.ui-progress</code> family</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Cards</td><td>Settings, home, Kanban, results, health</td><td>Surface tokens only</td><td><span>Keep layouts</span></td></tr>
                             <tr><td>Form fields</td><td>Dialogs, settings, properties, conversion</td><td><code>.ui-field</code> + context variants</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Notices</td><td>Dialogs, history, health, preview</td><td><code>.ui-notice</code> semantic variants</td><td><span class="is-decided">Merged</span></td></tr>

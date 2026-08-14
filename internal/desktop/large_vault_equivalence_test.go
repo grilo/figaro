@@ -14,13 +14,14 @@ import (
 )
 
 type vaultObservableSnapshot struct {
-	Searches         map[string][]SearchResult   `json:"searches"`
-	Backlinks        map[string][]BacklinkResult `json:"backlinks"`
-	UnlinkedMentions map[string][]BacklinkResult `json:"unlinkedMentions"`
-	Kanban           map[string][]KanbanCard     `json:"kanban"`
-	Calendar         *CalendarMonthData          `json:"calendar"`
-	Health           *VaultHealthReport          `json:"health"`
-	TreePaths        []string                    `json:"treePaths"`
+	Searches         map[string][]SearchResult      `json:"searches"`
+	RankedSearches   map[string]*NoteSearchResponse `json:"rankedSearches"`
+	Backlinks        map[string][]BacklinkResult    `json:"backlinks"`
+	UnlinkedMentions map[string][]BacklinkResult    `json:"unlinkedMentions"`
+	Kanban           map[string][]KanbanCard        `json:"kanban"`
+	Calendar         *CalendarMonthData             `json:"calendar"`
+	Health           *VaultHealthReport             `json:"health"`
+	TreePaths        []string                       `json:"treePaths"`
 }
 
 func flattenObservableTree(items []*FileTreeItem, paths *[]string) {
@@ -78,6 +79,7 @@ func captureVaultObservables(t *testing.T, app *App) vaultObservableSnapshot {
 	t.Helper()
 	snapshot := vaultObservableSnapshot{
 		Searches:         make(map[string][]SearchResult),
+		RankedSearches:   make(map[string]*NoteSearchResponse),
 		Backlinks:        make(map[string][]BacklinkResult),
 		UnlinkedMentions: make(map[string][]BacklinkResult),
 	}
@@ -96,6 +98,15 @@ func captureVaultObservables(t *testing.T, app *App) vaultObservableSnapshot {
 			t.Fatalf("SearchFiles(%s): %v", query.name, err)
 		}
 		snapshot.Searches[query.name] = results
+		ranked, rankedErr := app.SearchNotes(query.value, NoteSearchRequest{
+			CaseSensitive: query.caseSensitive,
+			Profile:       "global",
+			Suggest:       true,
+		})
+		if rankedErr != nil {
+			t.Fatalf("SearchNotes(%s): %v", query.name, rankedErr)
+		}
+		snapshot.RankedSearches[query.name] = ranked
 	}
 	for _, target := range []string{"Target.md", "Destination.md"} {
 		backlinks, err := app.SearchBacklinks(target)
@@ -161,6 +172,13 @@ func observableSearchPaths(results []SearchResult) []string {
 	return paths
 }
 
+func observableRankedSearchPaths(response *NoteSearchResponse) []string {
+	if response == nil {
+		return nil
+	}
+	return observableSearchPaths(response.Results)
+}
+
 func observableBacklinkPaths(results []BacklinkResult) []string {
 	paths := make([]string, 0, len(results))
 	for _, result := range results {
@@ -211,6 +229,12 @@ func TestWarmVaultStateMatchesColdRebuildAcrossMutationSequence(t *testing.T) {
 	initial := assertWarmVaultMatchesColdRebuild(t, app, vaultPath, "initial build")
 	assertStringSet(t, "initial alpha search", observableSearchPaths(initial.Searches["alpha-insensitive"]),
 		[]string{"Archive/stable.md", "alpha.md"})
+	initialRankedAlpha := observableRankedSearchPaths(initial.RankedSearches["alpha-insensitive"])
+	if len(initialRankedAlpha) < 2 {
+		t.Fatalf("initial ranked alpha search = %#v, want both full-term matches first", initialRankedAlpha)
+	}
+	assertStringSet(t, "initial ranked alpha search leaders", initialRankedAlpha[:2],
+		[]string{"Archive/stable.md", "alpha.md"})
 	assertStringSet(t, "initial Target backlinks", observableBacklinkPaths(initial.Backlinks["Target.md"]),
 		[]string{"alpha.md"})
 	assertStringSet(t, "initial Target mentions", observableBacklinkPaths(initial.UnlinkedMentions["Target.md"]),
@@ -237,6 +261,10 @@ func TestWarmVaultStateMatchesColdRebuildAcrossMutationSequence(t *testing.T) {
 		[]string{"Archive/stable.md"})
 	assertStringSet(t, "saved beta search", observableSearchPaths(afterSave.Searches["beta-insensitive"]),
 		[]string{"alpha.md"})
+	savedRankedBeta := observableRankedSearchPaths(afterSave.RankedSearches["beta-insensitive"])
+	if len(savedRankedBeta) == 0 || savedRankedBeta[0] != "alpha.md" {
+		t.Fatalf("saved ranked beta search = %#v, want alpha.md first", savedRankedBeta)
+	}
 	assertStringSet(t, "saved Destination backlinks", observableBacklinkPaths(afterSave.Backlinks["Destination.md"]),
 		[]string{"alpha.md"})
 	assertStringSet(t, "saved wip", observableKanbanPaths(afterSave.Kanban["wip"]), []string{"alpha.md"})

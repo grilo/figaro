@@ -1,8 +1,10 @@
 package vault
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -44,5 +46,49 @@ func TestRootWritesDoNotFollowEscapingSymlink(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(outside, "note.md")); !os.IsNotExist(err) {
 		t.Fatalf("write escaped root: %v", err)
+	}
+}
+
+func TestWalkMarkdownWithProgressReportsDiscoveredAndVisitedFiles(t *testing.T) {
+	rootDir := t.TempDir()
+	for path, content := range map[string]string{
+		"alpha.md":           "alpha",
+		"nested/bravo.MD":    "bravo",
+		"nested/ignored.txt": "ignored",
+		".hidden/secret.md":  "secret",
+	} {
+		absolute := filepath.Join(rootDir, path)
+		if err := os.MkdirAll(filepath.Dir(absolute), 0755); err != nil {
+			t.Fatalf("create test directory: %v", err)
+		}
+		if err := os.WriteFile(absolute, []byte(content), 0644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		t.Fatalf("open root: %v", err)
+	}
+	defer root.Close()
+
+	type progressPoint struct{ visited, total int }
+	var paths []string
+	var progress []progressPoint
+	err = WalkMarkdownWithProgress(root, func(_ *os.Root, rel string, _ fs.FileInfo, _ []byte) error {
+		paths = append(paths, rel)
+		return nil
+	}, func(visited int, total int) {
+		progress = append(progress, progressPoint{visited: visited, total: total})
+	})
+	if err != nil {
+		t.Fatalf("WalkMarkdownWithProgress: %v", err)
+	}
+
+	if want := []string{"alpha.md", "nested/bravo.MD"}; !reflect.DeepEqual(paths, want) {
+		t.Fatalf("visited paths = %v, want %v", paths, want)
+	}
+	if want := []progressPoint{{0, 2}, {1, 2}, {2, 2}}; !reflect.DeepEqual(progress, want) {
+		t.Fatalf("progress = %v, want %v", progress, want)
 	}
 }

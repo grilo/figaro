@@ -25,7 +25,7 @@ const nativeThemes = [
     },
 ];
 
-test('keeps the Figaro native themes calm, legible, and visually related', async ({ page }) => {
+test('keeps the Figaro native themes calm and every search-result theme legible', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 17, 15)');
@@ -131,8 +131,17 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
                 const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
                 return (lighter + 0.05) / (darker + 0.05);
             };
+            const renderedColor = value => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1;
+                canvas.height = 1;
+                const context = canvas.getContext('2d');
+                context.fillStyle = value;
+                context.fillRect(0, 0, 1, 1);
+                return [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+            };
             const rgbLuminance = value => {
-                const channels = value.match(/[\d.]+/g).slice(0, 3).map(channel => Number(channel) / 255)
+                const channels = renderedColor(value).map(channel => channel / 255)
                     .map(channel => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
                 return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
             };
@@ -170,9 +179,6 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
                 homeKickerContrast: renderedContrast('.home-card-kicker', '.home-card'),
                 homeInstructionContrast: renderedContrast('.home-empty', '.home-card'),
                 searchSummaryContrast: renderedContrast('.search-result-summary', '.search-dropdown'),
-                searchPathContrast: renderedContrast('.search-result-path', '.search-dropdown'),
-                searchExcerptContrast: renderedContrast('.search-result-excerpt', '.search-dropdown'),
-                searchMetaContrast: renderedContrast('.search-result-meta', '.search-dropdown'),
             };
         }, theme);
 
@@ -196,8 +202,67 @@ test('keeps the Figaro native themes calm, legible, and visually related', async
         expect(details.homeKickerContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.homeInstructionContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.searchSummaryContrast).toBeGreaterThanOrEqual(4.5);
-        expect(details.searchPathContrast).toBeGreaterThanOrEqual(4.5);
-        expect(details.searchExcerptContrast).toBeGreaterThanOrEqual(4.5);
-        expect(details.searchMetaContrast).toBeGreaterThanOrEqual(4.5);
+    }
+
+    const searchThemeDetails = await page.evaluate(async () => {
+        const manifestResponse = await fetch('/themes/manifest.json');
+        if (!manifestResponse.ok) throw new Error('Could not load the theme manifest');
+        const themes = await manifestResponse.json();
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext('2d');
+        const renderedColor = value => {
+            context.clearRect(0, 0, 1, 1);
+            context.fillStyle = value;
+            context.fillRect(0, 0, 1, 1);
+            return [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        };
+        const luminance = value => renderedColor(value)
+            .map(channel => channel / 255)
+            .map(channel => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+            .reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0);
+        const contrast = (first, second) => {
+            const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+            return (lighter + 0.05) / (darker + 0.05);
+        };
+        const renderedContrast = (textSelector, backgroundSelector) => {
+            const foreground = getComputedStyle(document.querySelector(textSelector)).color;
+            const background = getComputedStyle(document.querySelector(backgroundSelector)).backgroundColor;
+            return contrast(foreground, background);
+        };
+        const results = [];
+
+        for (const theme of themes) {
+            const response = await fetch(`/themes/${theme.id}.css`);
+            if (!response.ok) throw new Error(`Could not load theme ${theme.id}`);
+            document.getElementById('theme-style').textContent = await response.text();
+            await new Promise(resolve => requestAnimationFrame(resolve));
+
+            const rowColor = getComputedStyle(document.querySelector('.search-result-row')).color;
+            results.push({
+                id: theme.id,
+                rowColor,
+                pathColor: getComputedStyle(document.querySelector('.search-result-path')).color,
+                excerptColor: getComputedStyle(document.querySelector('.search-result-excerpt')).color,
+                metaColor: getComputedStyle(document.querySelector('.search-result-meta')).color,
+                pathContrast: renderedContrast('.search-result-path', '.search-result-row'),
+                excerptContrast: renderedContrast('.search-result-excerpt', '.search-result-row'),
+                metaContrast: renderedContrast('.search-result-meta', '.search-result-row'),
+                highlightContrast: renderedContrast('.search-result-excerpt mark', '.search-result-excerpt mark'),
+            });
+        }
+        return results;
+    });
+
+    expect(searchThemeDetails.length).toBeGreaterThan(0);
+    for (const details of searchThemeDetails) {
+        expect(details.pathColor, `${details.id} search path`).toBe(details.rowColor);
+        expect(details.excerptColor, `${details.id} search excerpt`).toBe(details.rowColor);
+        expect(details.metaColor, `${details.id} search metadata`).toBe(details.rowColor);
+        expect(details.pathContrast, `${details.id} search path contrast`).toBeGreaterThanOrEqual(4.5);
+        expect(details.excerptContrast, `${details.id} search excerpt contrast`).toBeGreaterThanOrEqual(4.5);
+        expect(details.metaContrast, `${details.id} search metadata contrast`).toBeGreaterThanOrEqual(4.5);
+        expect(details.highlightContrast, `${details.id} highlighted match contrast`).toBeGreaterThanOrEqual(4.5);
     }
 });

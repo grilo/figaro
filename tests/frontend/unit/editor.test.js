@@ -155,6 +155,10 @@ describe('Editor Module - CodeMirror Initialization', () => {
             class: 'cm-markdown-list-item',
             style: '--cm-list-hanging-indent: 8ch; --cm-list-hanging-outdent: -8ch;',
         });
+        expect(markdownListHangingIndentAttributes('\t- Nested item', { tabSize: 8 })).toEqual({
+            class: 'cm-markdown-list-item',
+            style: '--cm-list-hanging-indent: 10ch; --cm-list-hanging-outdent: -10ch;',
+        });
         expect(markdownListHangingIndentAttributes('Not a list')).toBeNull();
     });
 
@@ -174,6 +178,10 @@ describe('Editor Module - CodeMirror Initialization', () => {
         expect(markdownBlockquoteHangingIndentAttributes('  > > Nested quote')).toEqual({
             class: 'cm-blockquote-line',
             style: '--cm-blockquote-hanging-indent: 4ch; --cm-blockquote-hanging-outdent: -4ch;',
+        });
+        expect(markdownBlockquoteHangingIndentAttributes('\t> Quote', { tabSize: 8 })).toEqual({
+            class: 'cm-blockquote-line',
+            style: '--cm-blockquote-hanging-indent: 9ch; --cm-blockquote-hanging-outdent: -9ch;',
         });
         expect(markdownBlockquoteHangingIndentAttributes('Not a quote')).toBeNull();
     });

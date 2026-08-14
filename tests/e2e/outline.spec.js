@@ -128,7 +128,7 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     await expect(page.locator('#right-sidebar')).not.toHaveClass(/open/);
 });
 
-test('keeps the Mermaid Editor action aligned when Outline narrows the writing area', async ({ page }) => {
+test('keeps the left Mermaid control stack aligned when Outline narrows the writing area', async ({ page }) => {
     await page.setViewportSize({ width: 760, height: 720 });
     await openWelcomeEditor(page);
     const source = [
@@ -157,12 +157,14 @@ test('keeps the Mermaid Editor action aligned when Outline narrows the writing a
     await expect(diagram).toBeVisible();
     const alignment = async () => page.evaluate(() => {
         const helperRect = document.querySelector('.mermaid-editor-guide').getBoundingClientRect();
+        const foldRect = document.querySelector('[aria-label="Collapse mermaid code block"]').getBoundingClientRect();
         const diagramRect = document.querySelector('.cm-live-diagram').getBoundingClientRect();
         const widgetRect = document.querySelector('.cm-block-widget--mermaid').getBoundingClientRect();
         return {
             helperTop: helperRect.top,
             diagramTop: diagramRect.top,
-            horizontalGap: helperRect.left - diagramRect.right,
+            foldGap: helperRect.top - foldRect.bottom,
+            horizontalGap: widgetRect.left - helperRect.right,
             widgetOffset: helperRect.top - widgetRect.top,
         };
     });
@@ -177,15 +179,18 @@ test('keeps the Mermaid Editor action aligned when Outline narrows the writing a
         for (let frame = 0; frame < 30; frame++) {
             await new Promise(resolve => requestAnimationFrame(resolve));
             const helper = document.querySelector('.mermaid-editor-guide');
+            const fold = document.querySelector('[aria-label="Collapse mermaid code block"]');
             const diagram = document.querySelector('.cm-live-diagram');
             const widget = document.querySelector('.cm-block-widget--mermaid');
-            if (helper && diagram && widget) {
+            if (helper && fold && diagram && widget) {
                 const helperRect = helper.getBoundingClientRect();
+                const foldRect = fold.getBoundingClientRect();
                 const diagramRect = diagram.getBoundingClientRect();
                 const widgetRect = widget.getBoundingClientRect();
                 samples.push({
                     widgetOffset: helperRect.top - widgetRect.top,
-                    horizontalGap: helperRect.left - diagramRect.right,
+                    foldGap: helperRect.top - foldRect.bottom,
+                    horizontalGap: widgetRect.left - helperRect.right,
                     overlaps: helperRect.left < diagramRect.right
                         && helperRect.right > diagramRect.left
                         && helperRect.top < diagramRect.bottom
@@ -197,9 +202,11 @@ test('keeps the Mermaid Editor action aligned when Outline narrows the writing a
     });
     expect(transitionLayout.every(sample => Math.abs(sample.widgetOffset - beforeWidgetOffset) <= 2)).toBe(true);
     expect(transitionLayout.every(sample => !sample.overlaps)).toBe(true);
+    expect(transitionLayout.every(sample => Math.abs(sample.foldGap - before.foldGap) <= 1)).toBe(true);
     const after = await alignment();
     expect(Math.abs(after.widgetOffset - beforeWidgetOffset)).toBeLessThanOrEqual(2);
-    expect(after.helperTop).toBeLessThan(after.diagramTop);
+    expect(after.horizontalGap).toBeGreaterThanOrEqual(0);
+    expect(after.helperTop).toBeGreaterThan(after.diagramTop);
 
     await page.locator('#right-sidebar-close').click();
     await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'true');
@@ -208,15 +215,18 @@ test('keeps the Mermaid Editor action aligned when Outline narrows the writing a
         for (let frame = 0; frame < 30; frame++) {
             await new Promise(resolve => requestAnimationFrame(resolve));
             const helper = document.querySelector('.mermaid-editor-guide');
+            const fold = document.querySelector('[aria-label="Collapse mermaid code block"]');
             const diagram = document.querySelector('.cm-live-diagram');
             const widget = document.querySelector('.cm-block-widget--mermaid');
-            if (helper && diagram && widget) {
+            if (helper && fold && diagram && widget) {
                 const helperRect = helper.getBoundingClientRect();
+                const foldRect = fold.getBoundingClientRect();
                 const diagramRect = diagram.getBoundingClientRect();
                 const widgetRect = widget.getBoundingClientRect();
                 samples.push({
                     widgetOffset: helperRect.top - widgetRect.top,
-                    horizontalGap: helperRect.left - diagramRect.right,
+                    foldGap: helperRect.top - foldRect.bottom,
+                    horizontalGap: widgetRect.left - helperRect.right,
                     overlaps: helperRect.left < diagramRect.right
                         && helperRect.right > diagramRect.left
                         && helperRect.top < diagramRect.bottom
@@ -228,6 +238,7 @@ test('keeps the Mermaid Editor action aligned when Outline narrows the writing a
     });
     expect(closingLayout.every(sample => Math.abs(sample.widgetOffset - beforeWidgetOffset) <= 2)).toBe(true);
     expect(closingLayout.every(sample => !sample.overlaps)).toBe(true);
+    expect(closingLayout.every(sample => Math.abs(sample.foldGap - before.foldGap) <= 1)).toBe(true);
 });
 
 test('sticks the complete active heading hierarchy and keeps every row navigable', async ({ page }) => {

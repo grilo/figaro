@@ -23,7 +23,7 @@
     white-space: nowrap;
 }
 
-.status-left, .status-center, .status-right {
+.status-left, .status-right {
     display: flex;
     align-items: center;
     gap: 12px;

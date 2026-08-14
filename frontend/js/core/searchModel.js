@@ -19,40 +19,6 @@ export function updateSearchFilter(filters, name, enabled) {
     };
 }
 
-export function flattenMarkdownFiles(items, files = []) {
-    for (const item of items || []) {
-        if (item?.type === 'directory') {
-            flattenMarkdownFiles(item.children, files);
-        } else if (
-            item?.path
-            && (item.type === 'file' || !item.type)
-            && item.path.toLocaleLowerCase().endsWith('.md')
-        ) {
-            files.push(item);
-        }
-    }
-    return files;
-}
-
-function includesQuery(value, query, caseSensitive) {
-    if (caseSensitive) return value.includes(query);
-    return value.toLocaleLowerCase().includes(query.toLocaleLowerCase());
-}
-
-export function findTitleMatches(items, query, caseSensitive) {
-    return flattenMarkdownFiles(items).filter(file => {
-        const title = file.name || file.path.split('/').pop() || file.path;
-        return includesQuery(title, query, caseSensitive);
-    }).map(file => ({
-        path: file.path,
-        name: file.name || file.path.split('/').pop() || file.path,
-        matches: [],
-        matchCount: 0,
-        mtime: file.mtime || 0,
-        titleMatch: true,
-    }));
-}
-
 export function normalizeSearchResult(file) {
     const matches = Array.isArray(file?.matches) ? file.matches : [];
     const suppliedMatchCount = Number(file?.match_count ?? file?.matchCount);
@@ -62,37 +28,76 @@ export function normalizeSearchResult(file) {
         matches,
         matchCount: Number.isFinite(suppliedMatchCount) ? suppliedMatchCount : matches.length,
         mtime: file?.mtime || 0,
-        titleMatch: Boolean(file?.titleMatch),
+        score: Number(file?.score) || 0,
+        titleMatch: Boolean(file?.title_match ?? file?.titleMatch),
+        matchedTerms: Array.isArray(file?.matched_terms)
+            ? file.matched_terms.map(String)
+            : Array.isArray(file?.matchedTerms)
+                ? file.matchedTerms.map(String)
+                : [],
     };
 }
 
-export function mergeSearchResults(contentResults, titleResults, recentFiles, recentOnly) {
-    const merged = new Map();
-    for (const result of contentResults || []) {
-        if (result?.path) merged.set(result.path, normalizeSearchResult(result));
+function foldedTextMap(value, caseSensitive) {
+    const source = String(value || '');
+    let folded = '';
+    const positions = [];
+    for (let index = 0; index < source.length;) {
+        const codePoint = source.codePointAt(index);
+        const character = String.fromCodePoint(codePoint);
+        const end = index + character.length;
+        let normalized = character.normalize('NFKD').replace(/\p{M}/gu, '');
+        if (!caseSensitive) normalized = normalized.toLocaleLowerCase();
+        folded += normalized;
+        for (let offset = 0; offset < normalized.length; offset += 1) {
+            positions.push({ from: index, to: end });
+        }
+        index = end;
     }
-    for (const titleResult of titleResults || []) {
-        const existing = merged.get(titleResult.path);
-        if (existing) {
-            existing.titleMatch = true;
-        } else {
-            merged.set(titleResult.path, normalizeSearchResult(titleResult));
+    return { folded, positions };
+}
+
+/**
+ * Return source offsets for every visible query/matched term. Keeping offsets
+ * separate from HTML escaping makes accent-insensitive highlighting safe.
+ */
+export function searchHighlightRanges(text, query, matchedTerms = [], caseSensitive = false) {
+    const source = String(text || '');
+    const rawTerms = String(query || '').match(/[\p{L}\p{N}_]+/gu) || [];
+    const terms = [...rawTerms, ...(!caseSensitive ? (matchedTerms || []) : [])]
+        .map(term => {
+            let normalized = String(term).normalize('NFKD').replace(/\p{M}/gu, '');
+            if (!caseSensitive) normalized = normalized.toLocaleLowerCase();
+            return normalized;
+        })
+        .filter(Boolean);
+    const uniqueTerms = [...new Set(terms)];
+    if (!source || !uniqueTerms.length) return [];
+
+    const { folded, positions } = foldedTextMap(source, caseSensitive);
+    const ranges = [];
+    for (const term of uniqueTerms) {
+        let offset = 0;
+        while (offset <= folded.length - term.length) {
+            const found = folded.indexOf(term, offset);
+            if (found < 0) break;
+            const first = positions[found];
+            const last = positions[found + term.length - 1];
+            if (first && last) ranges.push({ from: first.from, to: last.to });
+            offset = found + Math.max(1, term.length);
         }
     }
-
-    let results = [...merged.values()];
-    const recentPaths = (recentFiles || []).map(item => item.path);
-    const recentOrder = new Map(recentPaths.map((path, index) => [path, index]));
-    if (recentOnly) {
-        results = results.filter(result => recentOrder.has(result.path));
-        results.sort((a, b) => recentOrder.get(a.path) - recentOrder.get(b.path));
-    } else {
-        results.sort((a, b) => {
-            if (a.titleMatch !== b.titleMatch) return a.titleMatch ? -1 : 1;
-            return b.mtime - a.mtime;
-        });
+    ranges.sort((left, right) => left.from - right.from || right.to - left.to);
+    const merged = [];
+    for (const range of ranges) {
+        const previous = merged[merged.length - 1];
+        if (previous && range.from <= previous.to) {
+            previous.to = Math.max(previous.to, range.to);
+        } else {
+            merged.push({ ...range });
+        }
     }
-    return results;
+    return merged;
 }
 
 export function nextSearchSelection(currentIndex, resultCount, direction) {

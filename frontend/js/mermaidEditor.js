@@ -1,6 +1,6 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
-import { bracketMatching } from '@codemirror/language';
+import { bracketMatching, indentUnit } from '@codemirror/language';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { lintKeymap, setDiagnostics } from '@codemirror/lint';
 
@@ -17,6 +17,7 @@ import { enhanceSelectCombobox } from './selectCombobox.js';
 import { createMermaidPreviewNavigation } from './mermaidPreviewNavigation.js';
 import { createMermaidPreviewSession } from './usecases/mermaidPreviewSession.js';
 import { diagramData } from '../vendored/mermaid-examples/index.js';
+import { normalizeTabSize, tabSizeIndentUnit } from './core/tabSizeModel.js';
 
 export const mermaidTemplates = mermaidTemplateCatalog(diagramData);
 
@@ -39,6 +40,7 @@ function currentMermaidBlock(mainView, originalBlock) {
 /** Open the focused, transactional editor for one Mermaid fence. */
 export function openMermaidEditor(mainView, originalBlock, options = {}) {
     if (!mainView || !originalBlock) return null;
+    const tabSize = normalizeTabSize(mainView.state.tabSize);
     const catalog = options.catalog || mermaidTemplates;
     const parse = options.parse || validateMermaidSource;
     const render = options.render || (source => renderDiagramSVG('mermaid', source, 'figaro-mermaid-editor'));
@@ -210,6 +212,8 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
         state: EditorState.create({
             doc: initialTemplateState.source,
             extensions: [
+                EditorState.tabSize.of(tabSize),
+                indentUnit.of(tabSizeIndentUnit(tabSize)),
                 lineNumbers(),
                 highlightActiveLineGutter(),
                 history(),

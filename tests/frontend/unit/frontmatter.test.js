@@ -12,6 +12,7 @@ import {
     stripLeadingFrontmatter,
 } from '../frontend/js/frontmatter.js';
 import { createFrontmatterField } from '../frontend/js/frontmatterPlugin.js';
+import { FRONTMATTER_UPWARD_REVEAL_USER_EVENT } from '../frontend/js/core/frontmatterPresentationModel.js';
 
 describe('frontmatter parsing', () => {
     test('reads leading scalar properties without rewriting YAML', () => {
@@ -264,7 +265,7 @@ describe('frontmatter Properties card', () => {
         expect(view.dom.querySelectorAll('.cm-frontmatter-source-line')).toHaveLength(0);
     });
 
-    test('reveals raw YAML when cursor navigation enters the rendered frontmatter and collapses after it leaves', () => {
+    test('keeps Properties rendered for ordinary jumps, reveals for upward entry, and collapses after leaving', () => {
         const field = createFrontmatterField(StateField, StateEffect, EditorView, Decoration, WidgetType, null);
         const source = '---\ntitle: Report\n---\n# Body\n\nAfter';
         view = new EditorView({
@@ -274,7 +275,11 @@ describe('frontmatter Properties card', () => {
 
         view.dispatch({ selection: { anchor: source.indexOf('After') } });
         expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull();
-        view.dispatch({ selection: { anchor: source.indexOf('Report') } });
+        view.dispatch({ selection: { anchor: source.indexOf('Report') }, userEvent: 'select' });
+        expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull();
+        expect(view.dom.querySelectorAll('.cm-frontmatter-source-line')).toHaveLength(0);
+
+        view.dispatch({ userEvent: FRONTMATTER_UPWARD_REVEAL_USER_EVENT });
         expect(view.dom.querySelector('.cm-frontmatter')).toBeNull();
         expect(view.dom.querySelector('.cm-frontmatter-panel')).toBeNull();
         expect(view.dom.querySelectorAll('.cm-frontmatter-source-line')).toHaveLength(2);

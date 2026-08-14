@@ -60,11 +60,6 @@
 }
 
 /* Merge confirmation dialog */
-.merge-confirm {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
 .merge-dest-row {
     display: flex;
     align-items: center;
@@ -98,14 +93,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.merge-sources-label {
-    display: block;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-}
 .merge-file-row {
     display: flex;
     align-items: center;
@@ -125,12 +112,6 @@
     height: 16px;
     cursor: pointer;
     flex-shrink: 0;
-}
-.merge-arrow {
-    color: var(--accent-color);
-    font-size: 13px;
-    flex-shrink: 0;
-    opacity: 0.5;
 }
 .merge-file-icon {
     color: var(--text-muted);
@@ -167,35 +148,6 @@
     overflow: hidden;
 }
 
-.new-note-heading {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 20px 20px 16px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.new-note-icon {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    color: var(--accent-color);
-    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
-    flex: 0 0 auto;
-}
-
-.new-note-icon svg {
-    width: 19px;
-    height: 19px;
-}
-
-.new-note-heading h3 {
-    margin: 1px 0 3px;
-}
-
-.new-note-heading p,
 .new-note-help,
 .new-note-error {
     margin: 0;
@@ -298,40 +250,6 @@
     min-width: 0;
     padding: 0;
     overflow: hidden;
-}
-
-.pdf-export-error-heading {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 20px 20px 16px;
-}
-
-.pdf-export-error-icon {
-    display: grid;
-    width: 34px;
-    height: 34px;
-    flex: 0 0 auto;
-    place-items: center;
-    border-radius: 9px;
-    color: var(--warning-color);
-    background: color-mix(in srgb, var(--warning-color) 14%, transparent);
-}
-
-.pdf-export-error-icon svg {
-    width: 19px;
-    height: 19px;
-}
-
-.pdf-export-error-heading h3 {
-    margin: 1px 0 3px;
-}
-
-.pdf-export-error-heading p {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 12px;
-    line-height: 1.45;
 }
 
 .pdf-export-error-guidance,

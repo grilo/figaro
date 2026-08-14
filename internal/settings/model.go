@@ -11,6 +11,12 @@ import (
 
 const legacyFigaroDarkThemeID = "figaro-dark"
 
+const (
+	DefaultTabSize = 4
+	MinimumTabSize = 2
+	MaximumTabSize = 8
+)
+
 var legacyWorkspaceKeys = []string{
 	"openTabs",
 	"activeTabId",
@@ -30,6 +36,7 @@ func Defaults() map[string]any {
 		"vim":                   false,
 		"vim_visual_rows":       false,
 		"vim_reveal_blocks":     false,
+		"tab_size":              DefaultTabSize,
 		"line_numbers":          false,
 		"markdown_lint":         true,
 		"sticky_headings":       true,
@@ -150,7 +157,11 @@ func Normalize(input map[string]any) (map[string]any, bool) {
 				changed = true
 			}
 		case int:
-			if _, valid := nonNegativeWhole(normalized[key]); !valid {
+			value, valid := nonNegativeWhole(normalized[key])
+			if key == "tab_size" {
+				valid = valid && value >= MinimumTabSize && value <= MaximumTabSize
+			}
+			if !valid {
 				normalized[key] = fallbackValue
 				changed = true
 			}
@@ -193,6 +204,14 @@ func Bool(values map[string]any, key string, fallback bool) bool {
 	value, ok := values[key].(bool)
 	if !ok {
 		return fallback
+	}
+	return value
+}
+
+func TabSize(values map[string]any) int {
+	value, valid := nonNegativeWhole(values["tab_size"])
+	if !valid || value < MinimumTabSize || value > MaximumTabSize {
+		return DefaultTabSize
 	}
 	return value
 }

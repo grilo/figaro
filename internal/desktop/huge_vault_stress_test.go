@@ -30,13 +30,16 @@ type hugeVaultStressMetric struct {
 }
 
 type hugeVaultStressReport struct {
-	Vault          string                  `json:"vault"`
-	GoVersion      string                  `json:"goVersion"`
-	Platform       string                  `json:"platform"`
-	Manifest       hugeVaultManifest       `json:"manifest"`
-	IndexedFiles   int                     `json:"indexedFiles"`
-	SearchTrigrams int                     `json:"searchTrigrams"`
-	Metrics        []hugeVaultStressMetric `json:"metrics"`
+	Vault                   string                  `json:"vault"`
+	GoVersion               string                  `json:"goVersion"`
+	Platform                string                  `json:"platform"`
+	Manifest                hugeVaultManifest       `json:"manifest"`
+	IndexedFiles            int                     `json:"indexedFiles"`
+	SearchTrigrams          int                     `json:"searchTrigrams"`
+	SearchTerms             int                     `json:"searchTerms"`
+	VaultLoadProgressEvents int                     `json:"vaultLoadProgressEvents"`
+	VaultLoadStatus         VaultLoadStatus         `json:"vaultLoadStatus"`
+	Metrics                 []hugeVaultStressMetric `json:"metrics"`
 }
 
 func loadHugeVaultManifest(t *testing.T, vaultPath string) hugeVaultManifest {
@@ -156,6 +159,11 @@ func TestHugeVaultStress(t *testing.T) {
 		t.Fatalf("file tree documents = %d, want %d", count, manifest.DocumentCount)
 	}
 
+	app.eventEmitter = func(name string, _ ...any) {
+		if name == vaultLoadEventName {
+			report.VaultLoadProgressEvents++
+		}
+	}
 	rareValue := recordHugeVaultMetric(t, &report, "search_rare_cold_index", func() (any, int, error) {
 		results, searchErr := app.SearchFiles(manifest.Needles["rare"], false)
 		return results, len(results), searchErr
@@ -165,6 +173,18 @@ func TestHugeVaultStress(t *testing.T) {
 	}
 	report.IndexedFiles = len(app.vaultIndex.files)
 	report.SearchTrigrams = len(app.vaultIndex.searchTrigrams)
+	report.SearchTerms = len(app.vaultIndex.searchVocabulary)
+	report.VaultLoadStatus = app.GetVaultLoadStatus()
+	if report.VaultLoadStatus.Phase != VaultLoadReady ||
+		report.VaultLoadStatus.Loaded != manifest.DocumentCount ||
+		report.VaultLoadStatus.Total != manifest.DocumentCount {
+		t.Fatalf("large-vault load status = %+v, want ready %d/%d",
+			report.VaultLoadStatus, manifest.DocumentCount, manifest.DocumentCount)
+	}
+	if report.VaultLoadProgressEvents > vaultLoadMaxEventCount+4 {
+		t.Fatalf("large-vault progress emitted %d events, want at most %d",
+			report.VaultLoadProgressEvents, vaultLoadMaxEventCount+4)
+	}
 
 	recordHugeVaultMetric(t, &report, "search_rare_warm", func() (any, int, error) {
 		results, searchErr := app.SearchFiles(manifest.Needles["rare"], false)
@@ -176,6 +196,51 @@ func TestHugeVaultStress(t *testing.T) {
 	})
 	if count := len(commonValue.([]SearchResult)); count != manifest.DocumentCount {
 		t.Fatalf("common search results = %d, want %d", count, manifest.DocumentCount)
+	}
+
+	rankedRareValue := recordHugeVaultMetric(t, &report, "ranked_search_rare_warm", func() (any, int, error) {
+		response, searchErr := app.SearchNotes("rare tail", NoteSearchRequest{Profile: "global", Suggest: true})
+		count := 0
+		if response != nil {
+			count = len(response.Results)
+		}
+		return response, count, searchErr
+	})
+	if count := len(rankedRareValue.(*NoteSearchResponse).Results); count != manifest.HugeDocumentCount {
+		t.Fatalf("ranked rare search results = %d, want %d", count, manifest.HugeDocumentCount)
+	}
+	rankedPrefixValue := recordHugeVaultMetric(t, &report, "ranked_search_prefix_warm", func() (any, int, error) {
+		response, searchErr := app.SearchNotes("comm", NoteSearchRequest{Profile: "global"})
+		count := 0
+		if response != nil {
+			count = len(response.Results)
+		}
+		return response, count, searchErr
+	})
+	if count := len(rankedPrefixValue.(*NoteSearchResponse).Results); count != manifest.DocumentCount {
+		t.Fatalf("ranked prefix search results = %d, want %d", count, manifest.DocumentCount)
+	}
+	rankedTypoValue := recordHugeVaultMetric(t, &report, "ranked_search_typo_warm", func() (any, int, error) {
+		response, searchErr := app.SearchNotes("commmon", NoteSearchRequest{Profile: "global", Suggest: true})
+		count := 0
+		if response != nil {
+			count = len(response.Results)
+		}
+		return response, count, searchErr
+	})
+	if count := len(rankedTypoValue.(*NoteSearchResponse).Results); count != manifest.DocumentCount {
+		t.Fatalf("ranked typo search results = %d, want %d", count, manifest.DocumentCount)
+	}
+	rankedLinkValue := recordHugeVaultMetric(t, &report, "ranked_link_completion_warm", func() (any, int, error) {
+		response, searchErr := app.SearchNotes("huge sourc", NoteSearchRequest{Profile: "links", Limit: 10})
+		count := 0
+		if response != nil {
+			count = len(response.Results)
+		}
+		return response, count, searchErr
+	})
+	if count := len(rankedLinkValue.(*NoteSearchResponse).Results); count == 0 || count > 10 {
+		t.Fatalf("ranked link completion results = %d, want 1..10", count)
 	}
 
 	boardValue := recordHugeVaultMetric(t, &report, "kanban_board_warm", func() (any, int, error) {

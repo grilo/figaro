@@ -3,10 +3,14 @@ import { markdownLanguage } from '@codemirror/lang-markdown';
 import {
     fencedCodeGuideLabel,
     leadingFrontmatterEnd,
+    MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH,
     markdownBlockGuideKind,
 } from '../../../frontend/js/core/markdownBlockGuideModel.js';
 import { markdownFoldAnchorPlan } from '../../../frontend/js/core/markdownFoldAnchorModel.js';
-import { buildMarkdownBlockGuides } from '../../../frontend/js/markdownBlockGuides.js';
+import {
+    buildMarkdownBlockGuides,
+    markdownGuideForBlockWidget,
+} from '../../../frontend/js/markdownBlockGuides.js';
 
 function guidePlan(source) {
     const state = EditorState.create({ doc: source, extensions: [markdownLanguage] });
@@ -31,6 +35,9 @@ describe('Markdown block guide model', () => {
         expect(fencedCodeGuideLabel('YAML title="Config"')).toBe('yaml');
         expect(fencedCodeGuideLabel('{.typescript linenos}')).toBe('typescript');
         expect(fencedCodeGuideLabel('language-name-that-is-too-long')).toBe('code');
+        expect(fencedCodeGuideLabel('x'.repeat(MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH)))
+            .toBe('x'.repeat(MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH));
+        expect(fencedCodeGuideLabel('x'.repeat(MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH + 1))).toBe('code');
         expect(fencedCodeGuideLabel('')).toBe('code');
     });
 
@@ -65,6 +72,17 @@ describe('Markdown block guide model', () => {
         );
         expect(state.sliceDoc(guides[1].foldFrom, guides[1].foldTo)).toContain('enabled: true');
         expect(state.sliceDoc(guides[3].foldFrom, guides[3].foldTo)).toContain('| mode | test |');
+    });
+
+    test('matches rendered block ranges without attaching guides to adjacent point widgets', () => {
+        const guides = [
+            { type: 'heading', from: 0, to: 8 },
+            { type: 'code', label: 'mermaid', from: 10, to: 42 },
+        ];
+        expect(markdownGuideForBlockWidget(guides, { from: 10, to: 42 })).toBe(guides[1]);
+        expect(markdownGuideForBlockWidget(guides, { from: 12, to: 40 })).toBe(guides[1]);
+        expect(markdownGuideForBlockWidget(guides, { from: 10, to: 10 })).toBeNull();
+        expect(markdownGuideForBlockWidget(guides, { from: 42, to: 50 })).toBeNull();
     });
 
     test('folds a heading through descendants but stops before its next peer or ancestor', () => {

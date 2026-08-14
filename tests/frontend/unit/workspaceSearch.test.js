@@ -9,12 +9,14 @@ function deferred() {
 }
 
 describe('workspace search use case', () => {
-    test('skips content I/O for a title-only search', async () => {
-        const searchContent = jest.fn();
+    test('delegates title-only ranking to the native search index', async () => {
+        const searchContent = jest.fn().mockResolvedValue({
+            results: [{ path: 'Alpha.md', name: 'Alpha.md', title_match: true }],
+            suggestion: '',
+        });
         const publishResults = jest.fn();
         const search = createWorkspaceSearch({
             searchContent,
-            readFileTree: () => [{ type: 'file', path: 'Alpha.md', name: 'Alpha.md' }],
             readRecentFiles: () => [],
             readFilters: () => ({ titleOnly: true }),
             publishQuery: jest.fn(),
@@ -22,7 +24,10 @@ describe('workspace search use case', () => {
         });
 
         const outcome = await search.execute('alpha');
-        expect(searchContent).not.toHaveBeenCalled();
+        expect(searchContent).toHaveBeenCalledWith('alpha', {
+            caseSensitive: false,
+            titleOnly: true,
+        });
         expect(outcome.results).toEqual([expect.objectContaining({ path: 'Alpha.md' })]);
         expect(publishResults).toHaveBeenCalledWith(outcome.results);
     });
@@ -36,7 +41,6 @@ describe('workspace search use case', () => {
             .mockImplementationOnce(() => fast.promise);
         const search = createWorkspaceSearch({
             searchContent,
-            readFileTree: () => [],
             readRecentFiles: () => [],
             readFilters: () => ({}),
             publishQuery: jest.fn(),
@@ -45,9 +49,9 @@ describe('workspace search use case', () => {
 
         const first = search.execute('first');
         const second = search.execute('second');
-        fast.resolve([{ path: 'Second.md', matches: [] }]);
+        fast.resolve({ results: [{ path: 'Second.md', matches: [] }], suggestion: '' });
         await expect(second).resolves.toEqual(expect.objectContaining({ stale: false }));
-        slow.resolve([{ path: 'First.md', matches: [] }]);
+        slow.resolve({ results: [{ path: 'First.md', matches: [] }], suggestion: '' });
         await expect(first).resolves.toEqual(expect.objectContaining({ stale: true }));
 
         expect(publishResults).toHaveBeenCalledTimes(1);
@@ -62,7 +66,6 @@ describe('workspace search use case', () => {
             searchContent: async () => {
                 throw error;
             },
-            readFileTree: () => [],
             readRecentFiles: () => [],
             readFilters: () => ({}),
             publishQuery: jest.fn(),
@@ -76,5 +79,46 @@ describe('workspace search use case', () => {
         }));
         expect(reportFailure).toHaveBeenCalledWith(error);
         expect(publishResults).not.toHaveBeenCalled();
+    });
+
+    test('publishes a low-result correction separately from ranked results', async () => {
+        const publishSuggestion = jest.fn();
+        const search = createWorkspaceSearch({
+            searchContent: jest.fn().mockResolvedValue({
+                results: [],
+                suggestion: 'deployment',
+            }),
+            readRecentFiles: () => [],
+            readFilters: () => ({}),
+            publishQuery: jest.fn(),
+            publishResults: jest.fn(),
+            publishSuggestion,
+        });
+
+        await expect(search.execute('deploymnet')).resolves.toEqual(expect.objectContaining({
+            results: [],
+            suggestion: 'deployment',
+        }));
+        expect(publishSuggestion).toHaveBeenCalledWith('deployment');
+    });
+
+    test('keeps Recent as a local subset in recent-note order', async () => {
+        const search = createWorkspaceSearch({
+            searchContent: jest.fn().mockResolvedValue({
+                results: [
+                    { path: 'A.md', score: 10 },
+                    { path: 'B.md', score: 8 },
+                    { path: 'C.md', score: 6 },
+                ],
+                suggestion: '',
+            }),
+            readRecentFiles: () => [{ path: 'B.md' }, { path: 'A.md' }],
+            readFilters: () => ({ recentOnly: true }),
+            publishQuery: jest.fn(),
+            publishResults: jest.fn(),
+        });
+
+        const outcome = await search.execute('query');
+        expect(outcome.results.map(result => result.path)).toEqual(['B.md', 'A.md']);
     });
 });

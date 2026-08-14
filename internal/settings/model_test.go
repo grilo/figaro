@@ -45,6 +45,23 @@ func TestNormalizeIsStableForCanonicalSettings(t *testing.T) {
 	}
 }
 
+func TestTabSizeDefaultsAndNormalizationStayWithinEditorContract(t *testing.T) {
+	if got := TabSize(nil); got != DefaultTabSize {
+		t.Fatalf("TabSize(nil) = %d, want %d", got, DefaultTabSize)
+	}
+	for _, size := range []int{MinimumTabSize, 4, MaximumTabSize} {
+		if got := TabSize(map[string]any{"tab_size": float64(size)}); got != size {
+			t.Fatalf("TabSize(%d) = %d", size, got)
+		}
+	}
+	for _, invalid := range []any{float64(1), float64(9), 3.5, "6"} {
+		normalized, changed := Normalize(map[string]any{"tab_size": invalid})
+		if !changed || TabSize(normalized) != DefaultTabSize {
+			t.Fatalf("Normalize(tab_size=%#v) = %#v, changed=%v", invalid, normalized, changed)
+		}
+	}
+}
+
 func TestSettingsSelectorsApplyIndependentFallbacks(t *testing.T) {
 	theme := Theme(map[string]any{"theme": "zenburn"})
 	if theme["theme"] != "zenburn" || theme["font"] != "inter" || theme["codeFont"] != "theme-mono" {

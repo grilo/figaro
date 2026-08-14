@@ -62,4 +62,5 @@ describe('frontmatter completions', () => {
             expect.objectContaining({ label: '../styles/Print CSS.css', apply: '"../styles/Print CSS.css"' }),
         ]));
     });
+
 });

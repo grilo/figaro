@@ -2,6 +2,7 @@ import {
     findFootnoteDefinition,
     findFootnoteReference,
     getFootnoteAtPosition,
+    planFootnoteDefinitionInsertion,
     resolveFootnoteNavigation,
 } from '../frontend/js/footnotes.js';
 
@@ -54,11 +55,42 @@ describe('footnote navigation', () => {
         expect(findFootnoteReference(source, 'likethis', secondReference)).toBe(secondReference);
     });
 
-    test('reports a missing definition instead of navigating to an unrelated note', () => {
-        const text = 'Missing reference[^unknown].';
-        expect(resolveFootnoteNavigation(text, text.indexOf('[^unknown]') + 2)).toEqual({
-            action: 'missing-definition',
-            label: 'unknown',
+    test('plans a missing definition after the complete source paragraph', () => {
+        const text = [
+            'some text with a[^reference] and then',
+            'some more text',
+            '',
+            'unrelated text here',
+        ].join('\n');
+        const token = getFootnoteAtPosition(text, text.indexOf('[^reference]') + 2);
+        const insertion = planFootnoteDefinitionInsertion(text, token);
+        const result = text.slice(0, insertion.insertAt)
+            + insertion.insert
+            + text.slice(insertion.insertAt);
+
+        expect(result).toBe([
+            'some text with a[^reference] and then',
+            'some more text',
+            '',
+            '[^reference]: ',
+            '',
+            'unrelated text here',
+        ].join('\n'));
+        expect(insertion.target).toBe(result.indexOf('[^reference]: ') + '[^reference]: '.length);
+        expect(resolveFootnoteNavigation(text, token.from + 2)).toEqual({
+            action: 'create-definition',
+            label: 'reference',
+            ...insertion,
         });
+    });
+
+    test('leaves a blank line after a new definition at the end of the document', () => {
+        const text = 'Missing reference[^unknown].';
+        const token = getFootnoteAtPosition(text, text.indexOf('[^unknown]') + 2);
+        const insertion = planFootnoteDefinitionInsertion(text, token);
+        const result = text.slice(0, insertion.insertAt) + insertion.insert;
+
+        expect(result).toBe('Missing reference[^unknown].\n\n[^unknown]: \n\n');
+        expect(insertion.target).toBe(result.indexOf('[^unknown]: ') + '[^unknown]: '.length);
     });
 });

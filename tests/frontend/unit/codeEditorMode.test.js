@@ -32,11 +32,11 @@ describe('Code file editor mode', () => {
         expect(view.dom.querySelector('.cm-link-widget')).toBeNull();
         expect(view.dom.querySelector('.cm-indent-markers')).not.toBeNull();
         expect(view.dom.querySelector('.cm-foldGutter')).not.toBeNull();
-        expect(getIndentUnit(view.state)).toBe(2);
-        expect(view.state.tabSize).toBe(2);
+        expect(getIndentUnit(view.state)).toBe(4);
+        expect(view.state.tabSize).toBe(4);
         view.dispatch({ selection: { anchor: view.state.doc.line(2).from } });
         expect(indentMore(view)).toBe(true);
-        expect(view.state.doc.line(2).text).toMatch(/^ {2}\.note/);
+        expect(view.state.doc.line(2).text).toMatch(/^ {4}\.note/);
         await toggleVim(true);
 
         const before = view;
@@ -49,6 +49,48 @@ describe('Code file editor mode', () => {
 
         await expect(configureEditorForFile('notes/example.md')).resolves.toBe(true);
         expect(view.dom.querySelector('.cm-markdownBlockGutter')).not.toBeNull();
+    });
+
+    test('shares a changed tab size between normal indentation, Vim >, Markdown fences, and code files', async () => {
+        const {
+            configureEditorForFile,
+            getEditorView,
+            setEditorTabSize,
+            toggleVim,
+        } = await import('../frontend/js/editor.js');
+        const { indentMore } = await import('@codemirror/commands');
+        const { getIndentUnit } = await import('@codemirror/language');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
+        const view = getEditorView();
+
+        setEditorTabSize(6);
+        await configureEditorForFile('notes/indent.md');
+        const fence = '```js\nconst value = 1;\n```';
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: fence },
+            selection: { anchor: fence.indexOf('const') },
+        });
+        expect(view.state.tabSize).toBe(6);
+        expect(getIndentUnit(view.state)).toBe(6);
+        expect(indentMore(view)).toBe(true);
+        expect(view.state.doc.line(2).text).toBe('      const value = 1;');
+
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: fence },
+            selection: { anchor: fence.indexOf('const') },
+        });
+        await toggleVim(true);
+        Vim.handleKey(getCM(view), '>', 'user');
+        Vim.handleKey(getCM(view), '>', 'user');
+        expect(view.state.doc.line(2).text).toBe('      const value = 1;');
+
+        await configureEditorForFile('main.go');
+        expect(view.state.tabSize).toBe(6);
+        expect(getIndentUnit(view.state)).toBe(6);
+
+        await toggleVim(false);
+        setEditorTabSize(4);
+        await configureEditorForFile('notes/example.md');
     });
 
     test('folds Markdown heading sections from the gutter and exposes an accessible control', async () => {
@@ -73,7 +115,10 @@ describe('Code file editor mode', () => {
         expect(expanded.tagName).toBe('BUTTON');
         expect(expanded.getAttribute('aria-label')).toBe('Collapse h2 Goals section');
         expect(expanded.getAttribute('aria-expanded')).toBe('true');
-        expect(expanded.closest('.cm-markdownBlockGutter').getAttribute('aria-label')).toBe('Markdown block guides');
+        expect(expanded.closest('.cm-markdownBlockGutter').getAttribute('aria-label')).toBe('Markdown block controls');
+        expect(expanded.closest('.cm-markdownBlockGutter').classList.contains('cm-editorHelperRail')).toBe(true);
+        expect(expanded.closest('.cm-markdownBlockGutter').classList.contains('cm-editorHelperRail-before')).toBe(true);
+        expect(view.dom.querySelector('.cm-markdownBlockGuideSpacer').textContent).toHaveLength(16);
         expect(expanded.closest('.cm-gutters').hasAttribute('aria-hidden')).toBe(false);
 
         expanded.click();

@@ -1,42 +1,4 @@
-/* Mermaid Editor right-gutter action and focused two-pane workspace. */
-#editor-container .cm-editor > .cm-scroller > .cm-gutters-after {
-    width: 0;
-    flex: 0 0 0;
-    padding: 16px 0 !important;
-    overflow: visible;
-    border: 0 !important;
-    background: transparent !important;
-}
-
-.cm-mermaidEditorGutter {
-    transform: translateX(-100%);
-}
-
-.cm-block-widget--mermaid {
-    width: min(100%, calc(var(--mermaid-editor-viewport-width, 100vw) - 132px));
-    padding-right: 112px;
-}
-
-.cm-scroller.cm-mermaid-editor-stacked .cm-block-widget--mermaid {
-    width: min(100%, calc(var(--mermaid-editor-viewport-width, 100vw) - 20px));
-    padding: 40px 0 8px;
-}
-
-.cm-mermaidEditorGutter .cm-gutterElement {
-    display: flex;
-    min-width: 112px;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 0 4px !important;
-}
-
-.mermaid-editor-guide.ui-editor-block-guide {
-    width: 104px;
-    min-width: 104px;
-    font-size: 11px;
-    text-transform: none;
-    white-space: nowrap;
-}
+/* Focused Mermaid source-and-preview workspace. */
 
 .custom-modal.mermaid-editor-modal {
     display: flex;
@@ -298,26 +260,6 @@
 }
 
 @media (max-width: 620px) {
-    .cm-block-widget--mermaid {
-        width: min(100%, calc(var(--mermaid-editor-viewport-width, 100vw) - 104px));
-        padding-right: 84px;
-    }
-
-    .cm-scroller.cm-mermaid-editor-stacked .cm-block-widget--mermaid {
-        width: min(100%, calc(var(--mermaid-editor-viewport-width, 100vw) - 20px));
-        padding: 40px 0 8px;
-    }
-
-    .cm-mermaidEditorGutter .cm-gutterElement {
-        min-width: 84px;
-    }
-
-    .mermaid-editor-guide.ui-editor-block-guide {
-        width: 76px;
-        min-width: 76px;
-        font-size: 10px;
-    }
-
     .mermaid-editor-modal .custom-modal-content {
         padding-right: 12px;
         padding-left: 12px;

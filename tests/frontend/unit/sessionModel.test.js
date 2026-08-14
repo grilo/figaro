@@ -35,6 +35,7 @@ describe('portable session model', () => {
                     title: 'Note',
                     path: 'note.md',
                     cursorState: { anchor: 4, head: 9 },
+                    _editorTextScale: 130,
                 },
                 {
                     id: 'external:1',

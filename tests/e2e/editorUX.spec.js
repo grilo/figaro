@@ -19,6 +19,173 @@ test('gives the main editor a document-specific accessible name', async ({ page 
     await expect(page).toHaveTitle('Welcome.md — Figaro');
 });
 
+test('keeps Ctrl+wheel text scale on the open buffer and resets it to the Settings default', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.locator('#topbar-settings').click();
+    await page.locator('#font-size-up').click();
+    await expect(page.locator('#font-size-value')).toHaveText('110%');
+    await page.locator('.tab[data-tab-id="Welcome.md"]').click();
+    await expect(page.locator('#editor-scale-status')).toHaveText('Scale 110%');
+
+    const anchor = await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const lines = Array.from({ length: 90 }, (_, index) => `Line ${index + 1} has enough text to exercise editor reflow.`);
+        const source = lines.join('\n');
+        editor.setEditorContent(source, 'Welcome.md');
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== source) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        const position = view.state.doc.line(45).from + 6;
+        view.dispatch({ selection: { anchor: position }, scrollIntoView: true });
+        view.focus();
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const rectangle = view.coordsAtPos(position);
+        const event = new WheelEvent('wheel', {
+            deltaY: -100,
+            ctrlKey: true,
+            clientX: rectangle.left + 2,
+            clientY: (rectangle.top + rectangle.bottom) / 2,
+            bubbles: true,
+            cancelable: true,
+        });
+        view.contentDOM.dispatchEvent(event);
+        window.__textScaleView = view;
+        window.__textScaleAnchor = position;
+        return { prevented: event.defaultPrevented, top: rectangle.top };
+    });
+    expect(anchor.prevented).toBe(true);
+    await expect(page.locator('#editor-scale-status')).toHaveText('Scale 120%');
+    await expect.poll(() => page.evaluate(() => Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--font-size-editor'),
+    ))).toBe(19.44);
+    await expect.poll(() => page.evaluate(() => (
+        window.__textScaleView.coordsAtPos(window.__textScaleAnchor).top
+    ))).toBeCloseTo(anchor.top, 0);
+
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__textScaleView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(46);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__textScaleView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(45);
+
+    const mousePoint = await page.evaluate(() => {
+        const view = window.__textScaleView;
+        const rectangle = view.coordsAtPos(view.state.doc.line(43).from + 4);
+        return { x: rectangle.left + 2, y: (rectangle.top + rectangle.bottom) / 2 };
+    });
+    await page.mouse.click(mousePoint.x, mousePoint.y);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__textScaleView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(43);
+
+    const dragPoints = await page.evaluate(() => {
+        const view = window.__textScaleView;
+        const point = position => {
+            const rectangle = view.coordsAtPos(position);
+            return { x: rectangle.left + 2, y: (rectangle.top + rectangle.bottom) / 2 };
+        };
+        return {
+            first: point(view.state.doc.line(40).from + 2),
+            last: point(view.state.doc.line(44).to - 2),
+        };
+    });
+    for (const [start, end] of [
+        [dragPoints.first, dragPoints.last],
+        [dragPoints.last, dragPoints.first],
+    ]) {
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(end.x, end.y, { steps: 8 });
+        await page.mouse.up();
+        expect(await page.evaluate(() => {
+            const view = window.__textScaleView;
+            const selection = view.state.selection.main;
+            return {
+                from: view.state.doc.lineAt(selection.from).number,
+                to: view.state.doc.lineAt(selection.to).number,
+            };
+        })).toEqual({ from: 40, to: 44 });
+    }
+
+    await page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        tabs.openTab('Scale-other.md', 'Scale other', 'file', {
+            path: 'Scale-other.md',
+            isNew: true,
+        });
+    });
+    await expect(page.locator('#editor-scale-status')).toHaveText('Scale 110%');
+    await page.locator('.tab[data-tab-id="Welcome.md"]').click();
+    await expect(page.locator('#editor-scale-status')).toHaveText('Scale 120%');
+
+    await page.locator('#editor-scale-status').click();
+    await expect(page.locator('#editor-scale-status')).toHaveText('Scale 110%');
+    await expect.poll(() => page.evaluate(() => Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue('--font-size-editor'),
+    ))).toBe(17.82);
+    await expect(page.locator('.cm-content')).toBeFocused();
+});
+
+test('creates a missing footnote after its paragraph and navigates back from the definition', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = [
+        'some text with a[^reference] and then',
+        'some more text',
+        '',
+        'unrelated text here',
+    ].join('\n');
+    const expected = [
+        'some text with a[^reference] and then',
+        'some more text',
+        '',
+        '[^reference]: ',
+        '',
+        'unrelated text here',
+    ].join('\n');
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        const { Transaction } = await import('/vendored/codemirror/state/index.js');
+        const view = window.__footnoteNavigationView = editor.getEditorView();
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: markdown },
+            selection: { anchor: markdown.length },
+            annotations: Transaction.addToHistory.of(false),
+        });
+        view.focus();
+    }, source);
+
+    const footnotes = page.locator('.cm-footnote');
+    await expect(footnotes).toHaveCount(1);
+    await footnotes.first().click();
+    await expect.poll(() => page.evaluate(() => ({
+        source: window.__footnoteNavigationView.state.doc.toString(),
+        cursor: window.__footnoteNavigationView.state.selection.main.anchor,
+        focused: window.__footnoteNavigationView.hasFocus,
+    }))).toEqual({
+        source: expected,
+        cursor: expected.indexOf('[^reference]: ') + '[^reference]: '.length,
+        focused: true,
+    });
+
+    await expect(footnotes).toHaveCount(2);
+    await footnotes.nth(1).click();
+    await expect.poll(() => page.evaluate(() => (
+        window.__footnoteNavigationView.state.selection.main.anchor
+    ))).toBe(source.indexOf('[^reference]'));
+
+    await page.keyboard.press('Control+z');
+    await expect.poll(() => page.evaluate(() => (
+        window.__footnoteNavigationView.state.doc.toString()
+    ))).toBe(source);
+});
+
 test('opens file, tab, and editor context menus from the keyboard', async ({ page }) => {
     await openWelcomeEditor(page);
 
@@ -173,12 +340,29 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     }));
     expect(guideTypeScale.guide).toBeGreaterThanOrEqual(guideTypeScale.editor);
     const headingGuideAlignment = await collapseControls.first().evaluate(control => {
+        const labelRange = document.createRange();
+        labelRange.selectNodeContents(control);
+        const controlRect = control.getBoundingClientRect();
+        const labelRect = labelRange.getBoundingClientRect();
+        const editorRect = control.closest('.cm-editor').getBoundingClientRect();
+        const lineRect = document.querySelector('.cm-line').getBoundingClientRect();
         return {
-            guideTop: control.getBoundingClientRect().top,
-            lineTop: document.querySelector('.cm-line').getBoundingClientRect().top,
+            guideTop: controlRect.top,
+            lineTop: lineRect.top,
+            justifyItems: getComputedStyle(control).justifyItems,
+            textAlign: getComputedStyle(control).textAlign,
+            inwardGap: controlRect.right - labelRect.right,
+            writingGap: lineRect.left - controlRect.right,
+            editorInset: controlRect.left - editorRect.left,
         };
     });
     expect(Math.abs(headingGuideAlignment.guideTop - headingGuideAlignment.lineTop)).toBeLessThan(2);
+    expect(headingGuideAlignment.justifyItems).toBe('end');
+    expect(headingGuideAlignment.textAlign).toBe('right');
+    expect(headingGuideAlignment.inwardGap).toBeLessThanOrEqual(7);
+    expect(headingGuideAlignment.writingGap).toBeGreaterThanOrEqual(6);
+    expect(headingGuideAlignment.writingGap).toBeLessThanOrEqual(10);
+    expect(headingGuideAlignment.editorInset).toBeGreaterThan(40);
     await collapseControls.nth(1).click();
 
     const expandControl = page.locator(
@@ -272,6 +456,53 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(0);
     await expect(collapseControls).toHaveCount(5);
     expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(source);
+
+    // A folded heading may hide a wider nested helper label. The helper rail
+    // keeps its maximum supported width outside flex layout, so neither that
+    // label disappearing nor returning can move the centered writing column.
+    const stableRailSource = [
+        '# Welcome',
+        'Introduction',
+        '```mermaid',
+        'flowchart TD',
+        '  Start --> Finish',
+        '```',
+        'After the diagram',
+    ].join('\n');
+    await page.evaluate(markdown => {
+        const view = window.__headingFoldView;
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: markdown },
+            selection: { anchor: 0 },
+        });
+        view.focus();
+    }, stableRailSource);
+    await expect(page.getByRole('button', { name: 'Collapse mermaid code block' })).toBeVisible();
+    const stableRailGeometry = () => page.evaluate(() => {
+        const contentRect = document.querySelector('#editor-container .cm-content').getBoundingClientRect();
+        const lineRect = document.querySelector('#editor-container .cm-line').getBoundingClientRect();
+        const guttersRect = document.querySelector('#editor-container .cm-gutters-before').getBoundingClientRect();
+        const railRect = document.querySelector('#editor-container .cm-markdownBlockGutter').getBoundingClientRect();
+        return {
+            contentLeft: contentRect.left,
+            lineLeft: lineRect.left,
+            guttersWidth: guttersRect.width,
+            railWidth: railRect.width,
+        };
+    });
+    const expandedRailGeometry = await stableRailGeometry();
+    await page.getByRole('button', { name: 'Collapse h1 Welcome section' }).click();
+    await expect(page.getByRole('button', { name: 'Collapse mermaid code block' })).toHaveCount(0);
+    const collapsedRailGeometry = await stableRailGeometry();
+    expect(Math.abs(collapsedRailGeometry.contentLeft - expandedRailGeometry.contentLeft)).toBeLessThan(0.5);
+    expect(Math.abs(collapsedRailGeometry.lineLeft - expandedRailGeometry.lineLeft)).toBeLessThan(0.5);
+    expect(Math.abs(collapsedRailGeometry.guttersWidth - expandedRailGeometry.guttersWidth)).toBeLessThan(0.5);
+    expect(Math.abs(collapsedRailGeometry.railWidth - expandedRailGeometry.railWidth)).toBeLessThan(0.5);
+    await page.getByRole('button', { name: 'Expand h1 Welcome section' }).click();
+    await expect(page.getByRole('button', { name: 'Collapse mermaid code block' })).toBeVisible();
+    const restoredRailGeometry = await stableRailGeometry();
+    expect(Math.abs(restoredRailGeometry.contentLeft - expandedRailGeometry.contentLeft)).toBeLessThan(0.5);
+    expect(Math.abs(restoredRailGeometry.lineLeft - expandedRailGeometry.lineLeft)).toBeLessThan(0.5);
 
     // Browser-only boundary: third-party block widgets and their computed
     // layout must visibly yield to CodeMirror's native fold decoration.
@@ -461,7 +692,7 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(bottomGuide).toBeVisible();
     await expect.poll(async () => (await bottomGuide.boundingBox())?.y)
         .toBeCloseTo(bottomGuideBox.y, 0);
-    expect(await page.evaluate(() => Number.parseFloat(
+    await expect.poll(() => page.evaluate(() => Number.parseFloat(
         window.__headingFoldView.contentDOM.style.getPropertyValue('--markdown-fold-anchor-reserve'),
     ))).toBe(0);
     expect(await page.evaluate(() => window.__headingFoldView.state.doc.toString())).toBe(bottomGuideSource);
@@ -696,6 +927,57 @@ test('creates a same-folder note from link autocomplete by keyboard', async ({ p
         const { getState } = await import('/js/state.js');
         return getState('activeTabId');
     })).toBe('notes/current.md');
+});
+
+test('uses ranked native search for typo-tolerant link autocomplete', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const state = await import('/js/state.js');
+        const app = (await import('/js/backend.js')).backend();
+        window.__rankedLinkSearchCalls = [];
+        app.SearchNotes = async (query, request) => {
+            window.__rankedLinkSearchCalls.push({ query, request });
+            return {
+                results: [
+                    { name: 'Deployment Guide.md', path: 'docs/Deployment Guide.md', score: 12 },
+                    { name: 'Old Deployment.md', path: 'archive/Old Deployment.md', score: 4 },
+                ],
+                suggestion: '',
+            };
+        };
+        state.setState('fileTreeData', [{
+            name: 'docs', path: 'docs', type: 'directory', children: [
+                { name: 'Deployment Guide.md', path: 'docs/Deployment Guide.md', type: 'file', mtime: 1 },
+            ],
+        }]);
+        editor.setEditorContent('Link ');
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== 'Link ') {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.length } });
+        view.focus();
+        window.__rankedLinkView = view;
+    });
+
+    await page.keyboard.type('[deploymnet');
+    const labels = page.locator('.cm-tooltip-autocomplete .cm-completionLabel');
+    await expect(labels.first()).toHaveText('Deployment Guide');
+    await expect.poll(() => page.evaluate(() => window.__rankedLinkSearchCalls.at(-1))).toEqual({
+        query: 'deploymnet',
+        request: {
+            case_sensitive: false,
+            title_only: false,
+            profile: 'links',
+            limit: 10,
+            suggest: false,
+        },
+    });
+
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => window.__rankedLinkView.state.doc.toString()))
+        .toBe('Link [Deployment Guide](docs/Deployment%20Guide.md) ');
 });
 
 test('offers due-date actions only for an unfinished task hashtag and keeps editor navigation intact', async ({ page }) => {
@@ -1080,6 +1362,173 @@ test('keeps math and diagram previews cursor-safe during keyboard and mouse sele
         const selection = await page.evaluate(() => window.__previewGeometryView.state.selection.main);
         expect(selection.from).toBeLessThanOrEqual(points.mathFrom);
         expect(selection.to).toBeGreaterThanOrEqual(points.diagramTo);
+    }
+});
+
+test('keeps rendered block source footprints stable while navigating and selecting', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const fence = '`'.repeat(3);
+    const longCodeLine = `const answer = "${'wrapped source '.repeat(10)}";`;
+    const source = [
+        'Before',
+        '',
+        fence + 'javascript',
+        longCodeLine,
+        fence,
+        '',
+        '$$',
+        '\\frac{a}{b} + \\sum_{i=1}^{n} i',
+        '$$',
+        '',
+        fence + 'mermaid',
+        'flowchart TD',
+        '  A --> B',
+        fence,
+        '',
+        '| Name | State |',
+        '| --- | --- |',
+        '| Alpha | Ready |',
+        '',
+        'Inline $z$ remains inline.',
+        '',
+        'After',
+    ].join('\n');
+
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown);
+        const view = editor.getEditorView();
+        window.__sourceFootprintView = view;
+    }, source);
+    await page.waitForFunction(() => window.__sourceFootprintView?.state.doc.toString().endsWith('After'));
+    await page.evaluate(() => {
+        const view = window.__sourceFootprintView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(22).to } });
+        view.focus();
+    });
+
+    await expect(page.locator('.cm-codeblock-widget')).toHaveCount(1);
+    await expect(page.locator('.cm-math-block')).toHaveCount(1);
+    await expect(page.locator('.cm-live-diagram')).toHaveCount(1);
+    await expect(page.locator('.tbl-table-widget')).toHaveCount(1);
+    await expect(page.locator('.cm-math-inline')).toHaveCount(1);
+
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__sourceFootprintView;
+        const code = document.querySelector('.cm-source-footprint[data-source-footprint="code"]');
+        return code.getBoundingClientRect().height > Number(code.dataset.sourceLines) * view.defaultLineHeight + 2;
+    })).toBe(true);
+    const footprints = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('.cm-source-footprint')).map(element => ({
+            kind: element.dataset.sourceFootprint,
+            lines: Number(element.dataset.sourceLines),
+            actualHeight: element.getBoundingClientRect().height,
+            overflowY: getComputedStyle(element).overflowY,
+            state: element.dataset.sourceFootprintState,
+        }));
+    });
+    expect(footprints.map(item => item.kind).sort()).toEqual(['code', 'math', 'mermaid', 'table']);
+    for (const footprint of footprints) {
+        expect(footprint.actualHeight).toBeGreaterThan(0);
+    }
+    expect(footprints.find(item => item.kind === 'code').overflowY).toBe('auto');
+    expect(footprints.find(item => item.kind === 'code').state).toBe('underflow');
+    expect(footprints.find(item => item.kind === 'table').overflowY).toBe('auto');
+    expect(await page.locator('.cm-math-inline').evaluate(element => (
+        element.classList.contains('cm-source-footprint')
+    ))).toBe(false);
+
+    const afterTop = () => page.evaluate(() => {
+        const view = window.__sourceFootprintView;
+        return view.coordsAtPos(view.state.doc.line(22).from).top;
+    });
+    const renderedAfterTop = await afterTop();
+    for (const item of [
+        { line: 4, selector: '.cm-codeblock-widget' },
+        { line: 8, selector: '.cm-math-block' },
+        { line: 12, selector: '.cm-live-diagram' },
+    ]) {
+        await page.evaluate(line => {
+            const view = window.__sourceFootprintView;
+            view.dispatch({ selection: { anchor: view.state.doc.line(line).from } });
+            view.focus();
+        }, item.line);
+        await expect(page.locator(item.selector)).toHaveCount(0);
+        const revealedAfterTop = await afterTop();
+        expect(Math.abs(revealedAfterTop - renderedAfterTop), item.selector).toBeLessThan(2);
+
+        await page.evaluate(() => {
+            const view = window.__sourceFootprintView;
+            view.dispatch({ selection: { anchor: view.state.doc.line(22).to } });
+            view.focus();
+        });
+        await expect(page.locator(item.selector)).toHaveCount(1);
+        expect(Math.abs((await afterTop()) - renderedAfterTop)).toBeLessThan(2);
+    }
+
+    const mathPoints = await page.evaluate(() => {
+        const view = window.__sourceFootprintView;
+        const point = position => {
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 3, y: (coords.top + coords.bottom) / 2 };
+        };
+        return {
+            before: point(view.state.doc.line(6).from),
+            after: point(view.state.doc.line(10).from),
+        };
+    });
+    for (const [point, line] of [[mathPoints.before, 6], [mathPoints.after, 10]]) {
+        await page.mouse.click(point.x, point.y);
+        expect(await page.evaluate(() => {
+            const view = window.__sourceFootprintView;
+            return view.state.doc.lineAt(view.state.selection.main.head).number;
+        })).toBe(line);
+    }
+
+    const content = page.locator('.cm-content');
+    for (const { line, key, min, max } of [
+        { line: 2, key: 'ArrowDown', min: 3, max: 5 },
+        { line: 6, key: 'ArrowUp', min: 3, max: 5 },
+        { line: 6, key: 'ArrowDown', min: 7, max: 9 },
+        { line: 10, key: 'ArrowUp', min: 7, max: 9 },
+        { line: 10, key: 'ArrowDown', min: 11, max: 14 },
+        { line: 15, key: 'ArrowUp', min: 11, max: 14 },
+    ]) {
+        await page.evaluate(currentLine => {
+            const view = window.__sourceFootprintView;
+            view.dispatch({ selection: { anchor: view.state.doc.line(currentLine).from } });
+            view.focus();
+        }, line);
+        await content.press(key);
+        const landed = await page.evaluate(() => {
+            const view = window.__sourceFootprintView;
+            return view.state.doc.lineAt(view.state.selection.main.head).number;
+        });
+        expect(landed).toBeGreaterThanOrEqual(min);
+        expect(landed).toBeLessThanOrEqual(max);
+    }
+
+    const points = await page.evaluate(() => {
+        const view = window.__sourceFootprintView;
+        const point = position => {
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 3, y: (coords.top + coords.bottom) / 2 };
+        };
+        return {
+            before: point(view.state.doc.line(1).from),
+            after: point(view.state.doc.line(15).from),
+            firstBlock: view.state.doc.line(3).from,
+            lastBlock: view.state.doc.line(14).to,
+        };
+    });
+    for (const [start, end] of [[points.before, points.after], [points.after, points.before]]) {
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(end.x, end.y, { steps: 10 });
+        await page.mouse.up();
+        const selection = await page.evaluate(() => window.__sourceFootprintView.state.selection.main);
+        expect(selection.from).toBeLessThanOrEqual(points.firstBlock);
+        expect(selection.to).toBeGreaterThanOrEqual(points.lastBlock);
     }
 });
 

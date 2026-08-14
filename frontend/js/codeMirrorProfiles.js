@@ -31,12 +31,14 @@ export function createTableCellProfile({
     keymapExtension,
     defaultBindings,
     vimExtension,
+    indentationExtensions = [],
     historyBindings,
     searchBindings,
 }) {
     return {
         extensions: [
             viewRegistryExtension,
+            ...indentationExtensions,
             keymapExtension(defaultBindings),
             ...(vimExtension ? [vimExtension] : []),
         ],

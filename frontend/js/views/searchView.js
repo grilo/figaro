@@ -1,5 +1,6 @@
 import {
     compactSearchResultLocation,
+    searchHighlightRanges,
     searchResultWindow,
 } from '../core/searchModel.js';
 
@@ -18,19 +19,60 @@ function escapeHtml(text) {
         .replaceAll('\'', '&#39;');
 }
 
-function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+function highlightMatch(text, query, caseSensitive, matchedTerms = []) {
+    const source = String(text || '');
+    const ranges = searchHighlightRanges(source, query, matchedTerms, caseSensitive);
+    if (!ranges.length) return escapeHtml(source);
 
-function highlightMatch(text, query, caseSensitive) {
-    const escaped = escapeHtml(text);
-    const regex = new RegExp(`(${escapeRegExp(query)})`, caseSensitive ? 'g' : 'gi');
-    return escaped.replace(regex, '<mark>$1</mark>');
+    const pieces = [];
+    let offset = 0;
+    for (const range of ranges) {
+        pieces.push(escapeHtml(source.slice(offset, range.from)));
+        pieces.push(`<mark>${escapeHtml(source.slice(range.from, range.to))}</mark>`);
+        offset = range.to;
+    }
+    pieces.push(escapeHtml(source.slice(offset)));
+    return pieces.join('');
 }
 
 function filterChip(name, label, active, ariaLabel = label) {
     return `<button type="button" class="ui-button search-filter-chip ${active ? 'active' : ''}"
                 data-search-filter="${name}" aria-pressed="${active}" title="${ariaLabel}">${label}</button>`;
+}
+
+function filterControls(filters) {
+    return `
+        <div class="search-filter-row" role="toolbar" aria-label="Search filters">
+            ${filterChip('titleOnly', 'Titles', filters.titleOnly)}
+            ${filterChip('recentOnly', 'Recent', filters.recentOnly)}
+            ${filterChip('caseSensitive', 'Aa', filters.caseSensitive, 'Match case')}
+        </div>`;
+}
+
+function ensureResultShell(dropdown, filters) {
+    let shell = dropdown.querySelector('.search-result-content');
+    if (!shell) {
+        dropdown.innerHTML = `${filterControls(filters)}
+            <div class="search-result-content">
+                <div class="search-suggestion-slot"></div>
+                <div class="search-result-summary" hidden>
+                    <span data-search-result-count></span>
+                    <span>↑↓ to navigate · Enter to open</span>
+                </div>
+                <div class="search-empty" hidden>No notes match this search</div>
+                <div id="search-result-list" class="search-result-list" role="listbox"
+                     aria-label="Search results" hidden></div>
+            </div>`;
+        shell = dropdown.querySelector('.search-result-content');
+    }
+
+    for (const [name, active] of Object.entries(filters)) {
+        const button = dropdown.querySelector(`[data-search-filter="${name}"]`);
+        if (!button) continue;
+        button.classList.toggle('active', Boolean(active));
+        button.setAttribute('aria-pressed', String(Boolean(active)));
+    }
+    return shell;
 }
 
 function elements() {
@@ -83,10 +125,10 @@ function resultRow(file, index, state) {
                 aria-posinset="${index + 1}" aria-setsize="${state.results.length}"
                 title="${escapeHtml(normalizedPath)}">
             <span class="search-result-main">
-                <span class="search-result-name">${highlightMatch(file.name, state.query, state.filters.caseSensitive)}</span>
+                <span class="search-result-name">${highlightMatch(file.name, state.query, state.filters.caseSensitive, file.matchedTerms)}</span>
             </span>
             <span class="search-result-path" title="${escapeHtml(normalizedPath)}">${escapeHtml(parentPath)}</span>
-            <span class="search-result-excerpt">${highlightMatch(excerpt, state.query, state.filters.caseSensitive)}</span>
+            <span class="search-result-excerpt">${highlightMatch(excerpt, state.query, state.filters.caseSensitive, file.matchedTerms)}</span>
             <span class="search-result-meta"><span>${meta}</span>${matchLabel ? `<span>${matchLabel}</span>` : ''}</span>
         </button>`;
 }
@@ -154,8 +196,10 @@ export function renderSearchResults({
     query,
     filters,
     selectedIndex,
+    suggestion = '',
     onFilter,
     onOpen,
+    onSuggest = () => {},
 }) {
     const { dropdown, count } = elements();
     if (!dropdown) return;
@@ -167,27 +211,37 @@ export function renderSearchResults({
         ? selectedIndex
         : -1;
     const activeOptionId = safeSelection >= 0 ? `search-result-option-${safeSelection}` : '';
-    const filterControls = `
-        <div class="search-filter-row" role="toolbar" aria-label="Search filters">
-            ${filterChip('titleOnly', 'Titles', filters.titleOnly)}
-            ${filterChip('recentOnly', 'Recent', filters.recentOnly)}
-            ${filterChip('caseSensitive', 'Aa', filters.caseSensitive, 'Match case')}
-        </div>`;
+    const suggestionControl = suggestion
+        ? `<button type="button" class="ui-button search-suggestion"
+                data-search-suggestion="${escapeHtml(suggestion)}"
+                aria-label="Search for ${escapeHtml(suggestion)}">
+                Did you mean “<strong>${escapeHtml(suggestion)}</strong>”?
+            </button>`
+        : '';
+
+    const shell = ensureResultShell(dropdown, filters);
+    const suggestionSlot = shell.querySelector('.search-suggestion-slot');
+    const summary = shell.querySelector('.search-result-summary');
+    const empty = shell.querySelector('.search-empty');
+    const list = shell.querySelector('#search-result-list');
+    suggestionSlot.innerHTML = suggestionControl;
 
     if (!results.length) {
         searchRenderState = null;
         dropdown.onscroll = null;
-        dropdown.innerHTML = `${filterControls}
-            <div class="search-empty">No notes match this search</div>
-            <div id="search-result-list" role="listbox" aria-label="Search results" hidden></div>`;
+        summary.hidden = true;
+        empty.hidden = false;
+        list.hidden = true;
+        list.innerHTML = '';
+        delete list.dataset.logicalCount;
     } else {
-        dropdown.innerHTML = `${filterControls}
-            <div class="search-result-summary">
-                <span>${results.length} ${results.length === 1 ? 'note' : 'notes'}</span>
-                <span>↑↓ to navigate · Enter to open</span>
-            </div>
-            <div id="search-result-list" class="search-result-list" role="listbox"
-                 aria-label="Search results" data-logical-count="${results.length}"></div>`;
+        summary.querySelector('[data-search-result-count]').textContent =
+            `${results.length} ${results.length === 1 ? 'note' : 'notes'}`;
+        summary.hidden = false;
+        empty.hidden = true;
+        list.hidden = false;
+        list.dataset.logicalCount = String(results.length);
+        dropdown.scrollTop = 0;
         searchRenderState = {
             filters,
             query,
@@ -204,6 +258,11 @@ export function renderSearchResults({
     setComboboxState({ expanded: true, activeOptionId });
 
     dropdown.onclick = event => {
+        const suggested = event.target.closest('[data-search-suggestion]');
+        if (suggested) {
+            onSuggest(suggested.dataset.searchSuggestion);
+            return;
+        }
         const filter = event.target.closest('[data-search-filter]');
         if (filter) {
             onFilter(filter.dataset.searchFilter);
@@ -238,9 +297,12 @@ export function closeSearchView() {
     setComboboxState({ expanded: false });
 }
 
-export function closeSearchWhenOutside(target) {
+export function closeSearchWhenOutside(target, originalPath = []) {
     const { container, dropdown } = elements();
-    if (container && dropdown && !container.contains(target)) {
+    const startedInside = container && (
+        container.contains(target) || originalPath.includes(container)
+    );
+    if (container && dropdown && !startedInside) {
         dropdown.classList.remove('visible');
         setComboboxState({ expanded: false });
         return true;

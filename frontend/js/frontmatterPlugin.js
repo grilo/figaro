@@ -17,6 +17,10 @@ import {
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { backend } from './backend.js';
+import {
+    FRONTMATTER_UPWARD_REVEAL_USER_EVENT,
+    frontmatterModeAfterSelection,
+} from './core/frontmatterPresentationModel.js';
 import { startCompletion } from '@codemirror/autocomplete';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'page-numbers', 'print-stylesheet']);
@@ -845,15 +849,22 @@ export function createFrontmatterField(
                 else if (!value.frontmatter && !explicitMode) mode = 'collapsed';
             }
 
-            if (transaction.selection && !transaction.docChanged && !explicitMode && mode === 'source') {
-                if (!selectionTouchesFrontmatter(frontmatter, transaction.state.selection)) {
-                    mode = 'collapsed';
-                    needsRebuild = true;
-                }
-            }
-            if (transaction.selection && !transaction.docChanged && !explicitMode && mode !== 'source') {
-                if (selectionTouchesFrontmatter(frontmatter, transaction.state.selection)) {
-                    mode = 'source';
+            if (!transaction.docChanged && !explicitMode) {
+                const selectionChanged = Boolean(transaction.selection);
+                const upwardRevealRequested = transaction.isUserEvent?.(
+                    FRONTMATTER_UPWARD_REVEAL_USER_EVENT,
+                ) || false;
+                const nextMode = frontmatterModeAfterSelection({
+                    mode,
+                    selectionChanged,
+                    selectionTouches: selectionTouchesFrontmatter(
+                        frontmatter,
+                        transaction.state.selection,
+                    ),
+                    upwardRevealRequested,
+                });
+                if (nextMode !== mode) {
+                    mode = nextMode;
                     needsRebuild = true;
                 }
             }

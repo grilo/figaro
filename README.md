@@ -22,7 +22,8 @@
 
 Figaro is a desktop knowledge workspace built around ordinary files. It combines
 a source-first Markdown editor with search, backlinks, daily notes, Kanban,
-calendar planning, diagrams, local history, and browser-quality PDF export.
+calendar planning, diagrams, local history, and
+browser-quality PDF export.
 There is no account, hosted database, or required cloud service.
 
 ## Features
@@ -35,11 +36,24 @@ There is no account, hosted database, or required cloud service.
   fold headings, fenced code, and tables without changing the saved source;
   each guide stays aligned to its block and under the pointer while toggling.
   Rendered fences and tables contract to one native fold row, typed fences use
-  their language name, and interactive tables have a one-click undoable delete.
+  their language name, and interactive tables have a one-click undoable delete
+  that moves from the right action lane to a row above the grid when space is
+  tight. Mermaid/Vega diagrams, fenced code, display math, and tables retain
+  their Markdown source height while rendered, so entering and leaving them
+  does not move the surrounding note; graphics fit down, while code and tables
+  scroll inside the reserved space. Images, Properties, links, and task
+  checkboxes keep their normal sizing. Home/document-start navigation and Vim
+  `gg` leave Properties rendered; Arrow Up or Vim `k` deliberately enters its
+  raw YAML. Click a footnote reference to jump to
+  its definition and back; an
+  unresolved reference creates a spaced, undoable definition immediately after
+  its paragraph and places the cursor after the colon.
 - **Fast navigation.** Use compact drag-reorderable document tabs, optional
   path breadcrumbs, full-width editor-sized sticky heading hierarchies that
   add each active ancestor as its source row reaches the visible stack,
-  full-vault search,
+  relevance-ranked full-vault search with natural multi-word queries, prefixes,
+  conservative typo tolerance, accent-insensitive matching, best-match excerpts,
+  and low-result spelling suggestions,
   backlinks, unlinked mentions, a top-right document-outline launcher that
   stays beneath the sticky hierarchy, recent notes, pins, and file-tree
   customization. Long tabs preserve their differentiating filename ending and
@@ -47,7 +61,11 @@ There is no account, hosted database, or required cloud service.
   continue through the tab list.
   Search results expose their selected option to assistive technology and put
   a tail-preserving parent path on its own readable line so even deeply nested
-  repeated filenames remain distinguishable. The active document leads the
+  repeated filenames remain distinguishable. Compact paths, excerpts, and
+  match details retain the normal text color, including inside highlighted
+  matches, across every bundled theme. **Titles**, **Recent**, and **Aa** rerun
+  the current query inside the open popup, resizing that same result list
+  without dismissing it. The active document leads the
   browser and native window title, and custom context menus support Shift+F10,
   arrows, Home/End, and Escape. Tab enters one current file-tree row; standard
   tree arrows then traverse, expand, collapse, and return to parent folders.
@@ -71,7 +89,10 @@ There is no account, hosted database, or required cloud service.
   active-note status check does not scan unrelated vault files.
 - **Configurable workspace.** Choose from seventeen themes, prose and code
   fonts, Vim editing, line numbers, sticky headings, block guides, document
-  outline, diagnostics, and fully local spellcheck dictionaries.
+  outline, diagnostics, and fully local spellcheck dictionaries. Ctrl/Cmd+
+  mouse-wheel temporarily scales the active editor buffer; its status-bar
+  **Scale** control resets to the permanent **Default Text Size** chosen in
+  Settings, and closing the buffer discards the temporary scale.
 
 ## Download
 
@@ -117,9 +138,22 @@ open with language-aware syntax highlighting, folding, completion, and
 indentation guides. Vault-specific settings and workspace state live in
 `.config/` inside the vault.
 
+**Settings → Editor → Tab Size** sets one indentation width for the whole
+writing environment. It defaults to four spaces and can be changed from 2 to
+8 with the `− number +` control. Normal Tab/Shift+Tab, Vim `>`, Markdown code
+fences, source-code files and their guides, the Mermaid source editor,
+interactive table cells, rendered code, and Raw Text Preview all use that same
+value; the preference never rewrites existing indentation or changes PDFs.
+
 Machine-specific settings, such as window geometry and a selected PDF browser,
 are stored in the operating system's per-user application-data directory
 instead of the vault.
+
+When a large vault needs an initial index, Figaro paints the workspace shell
+immediately and shows **Loading vault**. Discovery is followed by a live
+`loaded / total` Markdown-note count and progress bar while notes are read and
+indexed; the restored note or Today dashboard replaces it only when the initial
+workspace data is ready.
 
 Opening a Markdown file from outside the vault offers two safe choices:
 
@@ -162,9 +196,10 @@ Choosing **Use existing note** changes only its destination—for example,
 `[Inner Source](Inner%20Source.md)` becomes
 `[Inner Source](InnerSource.md)`—then opens the existing note. The visible label
 stays intact, while **Create anyway** deliberately keeps the original target.
-While authoring a link, autocomplete also offers **Create note** when there is
-no exact target in the current folder; it creates the note there and inserts
-the configured portable link syntax. A bare `[label]` stays ordinary text
+While authoring a link, autocomplete uses the same relevance engine as global
+search, with note titles and paths weighted most strongly, and also offers
+**Create note** when there is no exact target in the current folder; it creates
+the note there and inserts the configured portable link syntax. A bare `[label]` stays ordinary text
 unless the document contains a matching Markdown reference definition. A
 same-document link such as `[Jump](#writing-and-planning)` moves directly to
 that heading whether the link is currently rendered or showing raw source.
@@ -232,10 +267,14 @@ renderer. When Mermaid source is revealed in the main editor, syntax errors are
 marked in place with squiggles and hover explanations after the normal Markdown
 diagnostics pause.
 
-Every Mermaid block has a **Mermaid Editor** action on its right edge. When a
-side pane leaves too little writing width, the action stays with its block in a
-short row immediately above the diagram instead of covering it. It opens a
-focused source-and-preview workspace with the chart types and templates from
+Editor block helpers face the writing surface: heading, code, and table labels
+are right-aligned in the left rail. Every Mermaid block extends that same guide
+into a two-button stack, with **editor** directly beneath **mermaid**. The stack
+follows the centered writing column, uses the same editor-sized monospace
+helper type, and remains outside the note instead of occupying diagram space.
+Its reserved overlay width stays stable as parent sections fold, so hiding a
+wider nested label cannot move the note horizontally. The **editor** action
+opens a focused source-and-preview workspace with the chart types and templates from
 the version-matched Mermaid Live Editor catalogue. Linked **Diagram** and
 **Template** pickers sit tightly together at the left and make empty, whitespace-only,
 or already-template-backed blocks follow each selection immediately for quick
@@ -245,7 +284,9 @@ Vim and visual-row preferences and keeps its mode while live diagnostics
 refresh. Oversized diagrams fit the preview pane; use the
 mouse wheel or `+`/`-` to zoom, drag or use the arrow keys to pan, and press `0`
 to reset. Zooming repaints the SVG at its new dimensions so text and lines stay
-sharp. Syntax errors receive underlines and hover explanations while the
+sharp. The left-side `mermaid` helper collapses a rendered diagram into one
+native fold row and expands it back to the live preview. Syntax errors receive
+underlines and hover explanations while the
 preview stays on the last valid result. **Apply** replaces only that fence's
 body as one undoable edit; **Cancel** leaves the note unchanged.
 

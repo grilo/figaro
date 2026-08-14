@@ -7,9 +7,9 @@
  */
 
 import { getEditorContent, getEditorDocumentTabId, getEditorView } from './editor.js';
+import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
 import { getState } from './state.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
-import { synchronizeMermaidEditorViewportWidth } from './mermaidEditorGutter.js';
 import {
     activeOutlineHeadingHierarchy,
     activeOutlineHeadingIndex,
@@ -79,7 +79,7 @@ function synchronizeEditorLayoutDuringOutlineTransition(view = getEditorView()) 
         stableFrames = Math.abs(width - previousWidth) < 0.5 ? stableFrames + 1 : 0;
         previousWidth = width;
         frameCount += 1;
-        synchronizeMermaidEditorViewportWidth(view, width);
+        synchronizeEditorBlockActionLayout(view, width);
         view.requestMeasure();
         if (stableFrames < 3) requestAnimationFrame(measure);
     };
@@ -371,6 +371,10 @@ export function initOutlinePanel() {
         setOutlineControlVisible(false);
     });
     document.addEventListener('tab-switched', refreshOpenOutline);
+    document.addEventListener('editor-text-scale-applied', () => {
+        synchronizeStickyHeadingScrollListener();
+        scheduleStickyHeadingMeasure();
+    });
     document.addEventListener('editor-view-updated', event => {
         synchronizeStickyHeadingScrollListener();
         const detail = event.detail || {};

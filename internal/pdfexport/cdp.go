@@ -121,16 +121,6 @@ func browserWorkspaceParent(browser Browser, home string) (string, error) {
 	return filepath.Join(home, "snap", browser.SnapName, "common", "figaro"), nil
 }
 
-// RenderChromiumPDF renders through Chrome DevTools Protocol instead of
-// Chromium's --print-to-pdf shortcut. The protocol exposes the same
-// Page.printToPDF path used by browser automation, which retains PDF link
-// annotations for document links, TOC entries, and footnote return links.
-func RenderChromiumPDF(ctx context.Context, browser Browser, inputHTMLPath string, outputPDFPath string, profileDir string) error {
-	return WithChromiumPDFSession(ctx, browser, profileDir, func(session *ChromiumPDFSession) error {
-		return session.Render(inputHTMLPath, outputPDFPath)
-	})
-}
-
 // ChromiumPDFSession keeps one isolated browser process available for all
 // passes of a single export. Page-numbered contents need a provisional PDF and
 // a final PDF, but must not make the user pay browser startup twice.

@@ -55,6 +55,60 @@ describe('markdown editor interactions', () => {
         expect(view.state.selection.main.anchor).toBe(referencePosition);
     });
 
+    test('creates a missing footnote after its paragraph, focuses its body, returns, and undoes', async () => {
+        const { undo } = await import('@codemirror/commands');
+        const { Transaction } = await import('@codemirror/state');
+        const { createEditorView, initEditor } = await import('../frontend/js/editor.js');
+        await initEditor();
+        view = createEditorView();
+
+        const source = [
+            'some text with a[^reference] and then',
+            'some more text',
+            '',
+            'unrelated text here',
+        ].join('\n');
+        const expected = [
+            'some text with a[^reference] and then',
+            'some more text',
+            '',
+            '[^reference]: ',
+            '',
+            'unrelated text here',
+        ].join('\n');
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: source },
+            annotations: Transaction.addToHistory.of(false),
+        });
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const referencePosition = source.indexOf('[^reference]');
+        view.posAtCoords = jest.fn(() => referencePosition + 2);
+        view.dom.querySelector('.cm-footnote').dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        }));
+
+        expect(view.state.doc.toString()).toBe(expected);
+        expect(view.state.selection.main.anchor)
+            .toBe(expected.indexOf('[^reference]: ') + '[^reference]: '.length);
+        expect(view.hasFocus).toBe(true);
+
+        const definitionPosition = expected.lastIndexOf('[^reference]');
+        const definition = view.dom.querySelectorAll('.cm-footnote')[1];
+        view.posAtCoords = jest.fn(() => definitionPosition + 2);
+        definition.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        }));
+        expect(view.state.selection.main.anchor).toBe(referencePosition);
+
+        expect(undo(view)).toBe(true);
+        expect(view.state.doc.toString()).toBe(source);
+    });
+
     test('navigates rendered and raw fragment links without opening Kanban or creating a note', async () => {
         const { createEditorView, initEditor } = await import('../frontend/js/editor.js');
         const { getState, setState } = await import('../frontend/js/state.js');

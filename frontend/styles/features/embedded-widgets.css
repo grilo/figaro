@@ -3,14 +3,84 @@
     padding: 8px 0;
 }
 
+/* Rendered block replacements occupy the same logical line footprint as their
+   Markdown source. This is editor-only: printable diagrams and tables use
+   their independent .figaro-print-* surfaces. */
+.cm-source-footprint {
+    position: relative;
+    box-sizing: border-box;
+    height: var(--cm-source-footprint-height);
+    min-height: var(--cm-source-footprint-height);
+    max-height: var(--cm-source-footprint-height);
+}
+
+.cm-source-footprint[data-source-footprint-state="underflow"]::before {
+    position: absolute;
+    z-index: 3;
+    top: 3px;
+    right: 7px;
+    padding: 0 4px;
+    color: var(--text-dim);
+    background: var(--bg-color);
+    content: "Markdown footprint";
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+    pointer-events: none;
+}
+
+.cm-source-footprint[data-source-footprint-state="underflow"]::after {
+    position: absolute;
+    z-index: 2;
+    inset: 1px;
+    border: 1px dashed var(--border-light);
+    border-radius: 7px;
+    content: "";
+    pointer-events: none;
+}
+
+.cm-source-footprint--graphic {
+    overflow: hidden;
+}
+
+.cm-source-footprint--scroll {
+    overflow: auto !important;
+    overscroll-behavior: contain;
+}
+
+.cm-source-footprint-sizer {
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.cm-source-footprint-sizer-line {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--cm-source-footprint-measure-line-height, 1lh);
+    margin: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+    white-space: break-spaces;
+}
+
 .cm-live-diagram {
-    display: block;
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
     margin: 0;
     /* Diagram engines target a portable light canvas, independent of chrome. */
     background: #fff;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    overflow-x: auto;
+    overflow: hidden;
 }
 
 /* Block roots supplied by codemirror-live-markdown must follow the same
@@ -31,16 +101,34 @@
 .tbl-table-widget {
     position: relative;
     box-sizing: border-box;
+    width: min(100%, calc(var(--editor-block-action-viewport-width, 100vw) - 132px));
     margin-top: 0 !important;
     margin-bottom: 0 !important;
-    padding-top: 44px !important;
+    padding: 16px 112px 16px 16px !important;
 }
 
 .tbl-delete-table-button {
     position: absolute;
     z-index: 2;
     top: 8px;
-    right: 16px;
+    right: auto;
+    left: calc(100% - 84px);
+}
+
+.cm-scroller.cm-editor-block-actions-stacked .tbl-table-widget {
+    display: flex;
+    width: min(100%, calc(var(--editor-block-action-viewport-width, 100vw) - 20px));
+    align-items: flex-start;
+    padding: 16px !important;
+    flex-direction: column;
+}
+
+.cm-scroller.cm-editor-block-actions-stacked .tbl-delete-table-button {
+    position: static;
+    order: -1;
+    max-width: 100%;
+    align-self: flex-end;
+    margin-bottom: 8px;
 }
 
 .cm-table-source-toggle {
@@ -48,6 +136,7 @@
     margin: 0 !important;
     padding-bottom: 6px;
 }
+
 .cm-live-diagram-label {
     padding: 4px 12px;
     color: var(--text-dim);
@@ -60,14 +149,36 @@
 }
 .cm-live-diagram-view {
     display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    align-items: center;
     justify-content: center;
-    min-height: 48px;
     padding: 12px;
-    overflow-x: auto;
+    overflow: hidden;
 }
 .cm-live-diagram-view svg {
+    flex: none;
     max-width: 100%;
     height: auto;
+}
+
+.cm-math-block.cm-source-footprint {
+    display: grid;
+    overflow: hidden;
+    padding: 4px;
+    place-items: center;
+}
+
+.cm-source-footprint-graphic {
+    width: max-content;
+    max-width: none;
+    height: max-content;
+    max-height: none;
+}
+
+.cm-source-footprint-graphic .katex-display {
+    margin: 0;
 }
 .cm-live-diagram-loading {
     text-align: center;

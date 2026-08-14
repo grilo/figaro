@@ -64,6 +64,21 @@ function uf(e, t) {
         patched,
         '    const o = this.tableDescription, i = ih(() => {',
         `    const o = this.tableDescription;
+    n.classList.add("cm-block-widget", "cm-block-widget--table");
+    const sourceLines = o.table.rowCount + 1;
+    n.classList.add("cm-source-footprint", "cm-source-footprint--scroll");
+    n.dataset.sourceFootprint = "table";
+    n.dataset.sourceFootprintState = "overflow";
+    n.dataset.sourceLines = String(sourceLines);
+    n.__figaroSourceFootprintText = o.table.text.toString();
+    n.style.setProperty("--cm-source-footprint-lines", n.dataset.sourceLines);
+    n.style.setProperty("--cm-source-footprint-height", String(sourceLines * t.defaultLineHeight) + "px");
+    t.requestMeasure({
+      read: () => n.scrollHeight > n.clientHeight + 1,
+      write: (overflows) => {
+        n.dataset.sourceFootprintState = overflows ? "overflow" : "underflow";
+      }
+    });
     const deleteTable = () => {
       t.dispatch({
         annotations: he("table.delete"),

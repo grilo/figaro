@@ -5,7 +5,7 @@ Audit snapshot: 2026-08-12. The approved consolidation is represented by the
 
 ## Consolidated foundation
 
-Twelve approved families now use shared production
+Thirteen approved families now use shared production
 primitives in `frontend/design-system/primitives.css`. Both Figaro and this
 catalogue load that canonical asset, and `approved-components.json` records the
 approved selector set:
@@ -13,7 +13,7 @@ approved selector set:
 | Family | Shared primitive | Feature classes retain |
 | --- | --- | --- |
 | Settings pickers | `.ui-picker`, `.ui-picker-trigger`, `.ui-picker-menu` | Selection policy, values, and controller wiring |
-| Steppers | `.ui-stepper`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size and text-width value policy |
+| Steppers | `.ui-stepper`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size, text-width, and bounded editable tab-size value policy |
 | Compact actions | `.ui-button` and semantic variants | Labels, placement, and feature events |
 | Icon actions | `.ui-icon-button` and size variants | Accessible names, icons, and host-specific dimensions |
 | Badges and counts | `.ui-badge` and semantic variants | Count source and feature color roles |
@@ -24,6 +24,7 @@ approved selector set:
 | Document tabs | `.ui-document-tabs`, `.ui-document-tab`, and state modifiers | Overflow geometry, ordering, drag placement, and tab controller behavior |
 | Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table labels, and CodeMirror gutter behavior |
 | Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
+| Determinate progress | `.ui-progress` and `.ui-progress-value` | Numeric value, label, compact host geometry, and update policy |
 
 The primitives own the repeated border, radius, surface, typography, focus,
 hover, active, disabled, busy, selected, and semantic-color rules. Existing
@@ -47,8 +48,8 @@ approved disclosure control for source-code regions. CodeMirror retains
 ownership of fold ranges, announcements, pointer dispatch, and keyboard
 commands; the shared primitives own only their themed interaction states.
 The interactive table's direct delete action reuses the approved danger-ghost
-button; its absolute placement within the measured widget is a table-layout
-hook rather than a new component or visual variant.
+button; its side-lane placement and narrow-width flow within the measured widget
+are table-layout hooks rather than a new component or visual variant.
 
 The title-bar Markdown `?` reuses the approved icon button, and Recently
 deleted reuses Settings sections plus the approved compact action. Backlink,
@@ -105,7 +106,7 @@ so all 17 theme files now contain token overrides only.
 
 ## Verification
 
-- `tests/frontend/unit/designSystemCatalog.test.js` verifies all twelve
+- `tests/frontend/unit/designSystemCatalog.test.js` verifies all thirteen
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, and keeps cards and toggles

@@ -104,9 +104,23 @@ text cursor and lack of an anchor, keyboard acceptance of **Create note**,
 defined-reference navigation, Arrow Up/Down from both directions, and mouse
 drag selection across the inline replacement.
 
-Architecture guardrails should reject imports that point from the pure core
-back to adapters or composition roots. Add a guard when introducing the first
-module in a new layer rather than relying on naming conventions alone.
+Footnote coverage follows the equivalent source-first split. Pure tests own
+reference/definition classification, repeated-reference return preference,
+paragraph-end insertion, exact blank-line preservation, end-of-document
+spacing, and the post-insert cursor offset. The focused CodeMirror component
+proves the click dispatch, exact source change, focus, return journey, and one
+Undo. One representative editor browser case is retained because mapping a
+real pointer coordinate on the marked token to the inserted definition and
+painted caret is a browser geometry boundary; it repeats return navigation and
+Undo without duplicating the pure spacing matrix.
+
+Architecture guardrails reject imports that point from the pure core back to
+adapters or composition roots. They also walk static imports and explicit
+worker edges from the eager bootstrap and print-renderer build entries so an
+orphaned first-party module fails the suite instead of silently remaining in
+the tree.
+Add a guard when introducing the first module in a new layer rather than
+relying on naming conventions alone.
 
 ### Eager-startup contract
 
@@ -127,13 +141,24 @@ that ordinary post-ready interactions make no local module requests or
 first-use initialization. Do not create a separate end-to-end performance
 scenario for every feature.
 
+Initial vault progress is split across the same boundaries. Root-adapter tests
+prove exact Markdown discovery and monotonically increasing counts; desktop
+tests prove ordered phases, an independently readable final snapshot, and a
+bounded event count. Pure frontend tests cover normalization, percentage/copy,
+and stale-generation rejection, while the DOM test owns accessible progress
+attributes. The one `desktopStartup.spec.js` browser case is retained because
+only a real page can prove that the static loading surface is painted while the
+first file-tree promise is still blocked and is replaced after startup.
+
 ### Huge-vault stress profile
 
 Scale-sensitive changes can use the opt-in deterministic vault profile. The
 generator writes one small source and one 10,000-line source, then creates
 renamed filesystem copies across a deep hierarchy until the vault contains
-10,000 Markdown documents. Generated data and JSON reports live under the
-ignored `stress-vault/` directory; no fixture notes are checked into Git.
+10,000 Markdown documents. By default, 250 of those files form one portable
+project/task set; `--project-tasks` changes that allocation while preserving
+the requested total document count. Generated data and JSON reports live under
+the ignored `stress-vault/` directory; no fixture notes are checked into Git.
 
 Run the complete profile with:
 
@@ -153,7 +178,7 @@ To run or customize the boundaries separately:
 
 ```bash
 node scripts/generate-stress-vault.mjs \
-  --output stress-vault/huge-vault --replace
+  --output stress-vault/huge-vault --project-tasks 250 --replace
 
 FIGARO_STRESS_VAULT="$PWD/stress-vault/huge-vault" \
 FIGARO_STRESS_REPORT="$PWD/stress-vault/backend-report.json" \
@@ -166,13 +191,16 @@ npx playwright test tests/e2e/hugeVaultStress.spec.js --reporter=line
 VAULT_PATH="$PWD/stress-vault/huge-vault" make dev
 ```
 
-The Go test owns real filesystem discovery, indexing, bridge serialization,
+The Go test owns real filesystem discovery, indexing, bounded vault-load
+progress emission and final counts, bridge serialization,
 search, relationships, Git status, health, a reversible directory move, and a
-small warm copy followed by its cached file-tree projection.
+small warm copy followed by its cached file-tree projection. It also records
+ranked rare, prefix, typo, and link-completion searches.
 The browser test supplies equivalent 10,000-item responses to isolate real DOM,
-layout, CodeMirror virtualization, and keyboard rerender behavior. Opening the
-generated vault through `make dev` remains the native packaged-webview smoke
-check. Current reference measurements and prioritized findings live in
+layout, CodeMirror virtualization, keyboard rerender behavior, and bounded
+large-collection rendering. Opening the generated vault through `make dev`
+remains the native packaged-webview smoke check. Current reference measurements
+and prioritized findings live in
 [`docs/HUGE_VAULT_STRESS.md`](HUGE_VAULT_STRESS.md).
 
 Large-scale optimizations must pass the correctness oracles before their
@@ -342,7 +370,7 @@ capture change.
 ### Design-system catalogue
 
 `tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
-contract: indexed group membership, adoption of the twelve approved families
+contract: indexed group membership, adoption of the thirteen approved families
 in catalogue and production markup, exact agreement between
 `approved-components.json` and the selectors implemented by
 `primitives.css`, exact eager style order in the app, catalogue, compatibility
@@ -555,9 +583,10 @@ that its guidance uses the Calendar font family, compact 12px/18px type, muted
 theme color, and deliberate spacing instead of inherited application body text.
 
 Kanban and Settings must open or switch to one de-duplicated workspace tab.
-Clicking an inactive destination focuses its existing tab; clicking the
-already active destination plays `figaro-panel-exit` before closing that tab
-without affecting the other one. The transition must honor the shared
+Clicking an inactive persistent destination focuses its existing destination
+tab; clicking
+the already active destination plays `figaro-panel-exit` before closing that
+destination tab without affecting other workspaces. The transition must honor the shared
 reduced-motion duration, remain safe under repeated close requests, and retain
 any tab opened while the exit is running. Keep the state/action and animation-lifecycle
 checks in `tests/frontend/unit/topBar.test.js` and real layout, visibility,
@@ -766,18 +795,50 @@ npm run test:unit
 npm run test:pdf
 ```
 
-The Properties picker adds a browser-only paint and pointer boundary to that
-contract. `blockWidgetLayout.test.js` owns its explicit widget paint layer and
-the cleared entrance transform; `frontmatterProperties.spec.js` opens a
+Stable source-footprint changes additionally require the pure policy, each
+included widget provider, the exclusion allowlist, and real computed geometry.
+The browser case keeps code, display math, a Mermaid diagram, and an
+interactive table together; it proves a long wrapped fence expands past its
+logical-line fallback, reveals code/math/diagram source, and
+requires the following line to remain fixed, crosses each graphic block with
+Arrow Up/Down, checks mouse placement around display math, and drags across the
+group in both directions. Table-specific Arrow, Tab, Shift+Tab, Enter, mouse,
+drag, and Vim coverage remains in the table matrix below. PDF tests remain
+unchanged because the policy is scoped to `.cm-*` editor roots. The unit policy also
+proves an ordinary selection transaction does not request a document-wide
+remeasure; mounted-root measurements are cached until source or geometry
+changes.
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/sourceFootprintModel.test.js \
+  tests/frontend/unit/liveDiagramPlugin.test.js \
+  tests/frontend/unit/mathPlugin.test.js \
+  tests/frontend/unit/codeBlockInteraction.test.js \
+  tests/frontend/unit/markdownTables.test.js \
+  tests/frontend/unit/blockWidgetLayout.test.js
+npx playwright test tests/e2e/editorUX.spec.js \
+  --grep "keeps rendered block source footprints stable"
+```
+
+The Properties picker adds a browser-only paint, movement-intent, and pointer
+boundary to that contract. `frontmatterPresentationModel.test.js` proves that
+ordinary selection jumps retain the card while upward intent reveals it;
+`blockWidgetLayout.test.js` owns its explicit widget paint layer and the
+cleared entrance transform. `frontmatterProperties.spec.js` opens a
 language option whose center extends below the card, verifies that option is
 the topmost hit target, hovers and activates it, and confirms the document
-selection remains on its original body line. Keep this focused regression when
+selection remains on its original body line. It also proves Home/document
+start and Vim `gg` preserve Properties, Arrow Up and Vim `k` reveal raw YAML,
+Arrow Down exits it, and bidirectional mouse selection leaves the replacement
+rendered. Keep this focused regression when
 changing frontmatter animation, block-widget stacking, picker positioning, or
 CodeMirror line positioning:
 
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/blockWidgetLayout.test.js \
+  tests/frontend/unit/frontmatterPresentationModel.test.js \
   tests/frontend/unit/frontmatter.test.js
 npx playwright test tests/e2e/frontmatterProperties.spec.js
 ```
@@ -819,6 +880,58 @@ navigation change, also put the cursor and viewport at the end and press Arrow
 Down, then put both at the beginning and press Arrow Up; neither action may
 move or wrap, and wheel input must remain at the corresponding scroll limit.
 
+The shared tab-size contract is split across the lowest capable layers.
+`tabSizeModel.test.js` owns the four-space default, whole-number 2–8 bounds,
+stepping, spaces-only indent units, and literal-tab column stops. Go settings
+tests own normalization, invalid-write rejection, and persistence across a
+fresh application instance. `tabSizePreference.test.js` owns the editable
+`− number +` control, boundary states, immediate application, serialized save,
+and failed-save rollback. CodeMirror component tests prove the root Markdown
+and code facets, normal indentation, Vim `>`, Mermaid inheritance, the nested
+table-cell profile, wrapped list/quote alignment, and rendered-code/source-
+footprint CSS. `tabSize.spec.js` is the single browser boundary: it changes the
+real Settings control and checks normal Tab plus Vim `>` in a revealed fence,
+source-code mode, an active table cell, and the focused Mermaid editor. It also
+checks Arrow Up/Down across the changed fence. Existing rendered-block and
+table browser matrices retain mouse placement and bidirectional drag coverage.
+The setting touches only the mounted editor and visible widgets; it never walks
+the vault or adds work to search/index updates.
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/tabSizeModel.test.js \
+  tests/frontend/unit/tabSizePreference.test.js \
+  tests/frontend/unit/codeEditorMode.test.js \
+  tests/frontend/unit/mermaidEditor.test.js \
+  tests/frontend/unit/codeMirrorProfiles.test.js
+go test ./internal/settings ./internal/desktop -run 'Test(TabSize|Normalize)'
+npx playwright test tests/e2e/tabSize.spec.js
+```
+
+Editor text scale uses a separate persistence and geometry contract.
+`editorTextScaleModel.test.js` owns normalization, wheel direction,
+high-resolution accumulation, bounds, and status copy;
+`editorTextScale.test.js` owns the permanent local default, temporary buffer
+override, stable line-height ratio, pointer-anchor adapter, and accessible
+status rendering. Tab-manager tests prove different open files retain different
+temporary values, the reset uses the current Settings default, a permanent
+Settings change clears overrides, closing a buffer discards its scale, and
+session serialization omits it. The focused `editorUX.spec.js` browser case
+changes the real Settings default, performs Ctrl+wheel reflow, verifies the
+wheel's source position remains fixed, moves with Arrow Up/Down, places the
+mouse, drags selections in both directions, switches buffers, and activates
+the status reset. Repeat that geometry check in packaged WebKitGTK, WebView2,
+and WKWebView builds because Chromium cannot prove native webview metrics.
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/editorTextScaleModel.test.js \
+  tests/frontend/unit/editorTextScale.test.js \
+  tests/frontend/unit/tabManager.test.js \
+  tests/frontend/unit/sessionModel.test.js
+npx playwright test tests/e2e/editorUX.spec.js --grep 'Ctrl\+wheel text scale'
+```
+
 Markdown block guides add their own focused matrix. Pure coverage must prove
 that only headings, fenced code, and tables receive guides; typed fences use a
 bounded normalized language label; untyped fences use `code`; frontmatter and
@@ -833,7 +946,20 @@ typed and untyped fence and for an interactive table, it must also prove that
 the rendered widget disappears, one native fold row replaces it, the next
 visible content has no stale widget-sized gap, expansion restores the widget,
 and source stays exact. Measure each guide against the top of its source line
-or block widget. Collapse and expand a middle block by clicking the same fixed
+or block widget. At a viewport wider than the configured writing width, measure
+the source line and the Mermaid control stack: `mermaid` and `editor` must be
+right-aligned just outside the source edge, with `editor` directly beneath the
+fold control. Compare computed font family, size, weight, line height, text
+transformation, control height, and right edge across both controls. Assert that
+there is no right action gutter and that the Mermaid wrapper does not reserve an
+action lane. Fold and expand an H1 containing that wider guide and assert that
+the before-gutter width, helper-rail width, content left edge, and source-line left
+edge remain unchanged. A
+rendered Mermaid block must yield its replacement to
+the native fold placeholder when its left guide is activated, retain Arrow
+Up/Down, mouse placement, and drag selection across that row, and restore the
+live diagram on expansion when the cursor is outside its source. Collapse and
+expand a middle block by clicking the same fixed
 screen coordinate, then repeat with the final block while scrolled to the
 document end; the guide must remain fixed and any trailing anchor reserve must
 disappear once natural content height can support the scroll offset. A
@@ -859,17 +985,26 @@ option refresh. One browser workflow owns the irreducible focus, compact
 left-aligned linked pickers, ordinary disabled cursor, real wheel zoom and drag
 panning, explicit SVG dimension growth without a scaled canvas, two-axis SVG
 fitting, proportional two-pane growth up to the bounded dialog and narrow
-stacking, first-success empty-state removal, lint tooltip/SVG, stale-preview,
+stacking, left-rail control alignment, first-success empty-state
+removal, rendered-diagram collapse/expand, lint tooltip/SVG, stale-preview,
 borderless gutter, and undo boundaries; a focused companion verifies inherited Vim mode
 and wrapped display-row motion after the first diagnostics transaction, while
 the parser loop verifies every bundled template.
+
+The interactive-table browser contract also owns the shared block-action
+placement boundary. It must prove that **Delete table** clears the grid and its
+right resize handle in the wide action lane, remains non-intersecting on every
+sampled frame while Document Outline changes editor width, stacks above the
+grid when narrow, returns to the side lane when width is restored, and still
+deletes and undoes through the original table transaction.
 The existing diagram cursor/drag browser scenario remains the geometry oracle.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/editorBlockActionLayoutModel.test.js \
   tests/frontend/unit/mermaidEditorModel.test.js \
   tests/frontend/unit/mermaidPreviewSession.test.js \
-  tests/frontend/unit/mermaidEditorGutter.test.js \
+  tests/frontend/unit/mermaidEditorGuide.test.js \
   tests/frontend/unit/mermaidEditor.test.js \
   tests/frontend/unit/mermaidPreviewNavigation.test.js \
   tests/frontend/unit/mermaidLintModel.test.js \
@@ -887,18 +1022,18 @@ hover one invalid range, Cancel, then Apply and undo. With Vim enabled, verify
 Insert/Escape, Visual mode, and the configured wrapped-row `j`/`k` behavior in
 the temporary editor. Repeat Arrow Up/Down plus
 forward/reverse drag selection immediately around the block with line numbers
-off and on; the right gutter must not change any landing position or selection.
+off and on; the left control stack must not change any landing position or selection.
 At a narrow window width, place wrapped prose before a visible Mermaid block,
-open and close Document Outline, and sample the helper, measured wrapper, and
-diagram rectangles throughout both width animations. The helper must remain at
-the same wrapper-relative offset and never intersect the diagram on any frame.
-The final sub-360 px state must reserve its action row above the diagram, and
-closing the pane must restore the non-overlapping side lane.
+open and close Document Outline, and sample both helper buttons, the measured
+wrapper, and diagram rectangles throughout both width animations. The stack
+must remain at the same wrapper-relative offset just outside the writing edge
+and never intersect the diagram on any frame.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/markdownHeadingFolding.test.js \
   tests/frontend/unit/markdownBlockGuides.test.js \
+  tests/frontend/unit/editorBlockActionLayoutModel.test.js \
   tests/frontend/unit/codeBlockInteraction.test.js \
   tests/frontend/unit/codeEditorMode.test.js \
   tests/frontend/unit/editor.test.js
@@ -1037,8 +1172,26 @@ its own line with the complete path in its accessible name and tooltip. Pure
 coverage owns parent derivation and the tail-preserving deep-path compaction:
 keep a shallow parent complete, but retain the root and final three folders
 around an ellipsis when depth would otherwise erase distinguishing context.
-The native-theme browser check owns computed 4.5:1 contrast for summary, path,
-excerpt, and line/count metadata.
+The theme browser check owns computed 4.5:1 contrast for the compact summary
+and for result paths, excerpts, line/count metadata, and highlighted matches.
+It also verifies that result-row content keeps the normal text color across
+every theme in `frontend/themes/manifest.json`.
+Filter coverage must click **Titles**, **Recent**, and **Aa**, keep the popup
+expanded and its result-list node mounted during each rerun, retain focus on
+the activated chip, and prove that the same list can shrink and grow before an
+actual outside click dismisses it.
+
+Search relevance is split at the lowest capable layers. `internal/search`
+tests accent folding, natural query terms, BM25F field weighting and coverage,
+prefix/fuzzy thresholds, case filtering, and best-passage selection.
+`app_ranked_search_test.go` exercises those rules through the current native
+index, including a low-result correction and the link-specific profile. The
+warm-vs-cold differential snapshot includes ranked responses across every
+mutation stage. Frontend model/use-case/component tests own native-order
+preservation, accent-safe highlight offsets, suggestion focus/activation, and
+stale-response suppression. One existing CodeMirror browser boundary proves a
+misspelled link query reaches the native link profile and inserts the first
+ranked target with Enter.
 
 Tab activation rerenders the tab DOM, so unit and browser coverage must prove
 two consecutive Left/Right presses keep focus on the newly mounted active tab.
@@ -1051,14 +1204,20 @@ Run the focused contract with:
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/searchModel.test.js \
+  tests/frontend/unit/workspaceSearch.test.js \
   tests/frontend/unit/search.test.js \
   tests/frontend/unit/saveModel.test.js \
   tests/frontend/unit/statusBar.test.js \
   tests/frontend/unit/tabManager.test.js \
   tests/frontend/unit/fileTree.test.js
 npx playwright test \
+  tests/e2e/editorUX.spec.js \
   tests/e2e/figaroThemes.spec.js \
   tests/e2e/workspaceOverview.spec.js
+
+GOCACHE=/tmp/figaro-go-cache go test ./internal/search ./internal/desktop \
+  -run 'Test(SearchNotes|WarmVaultStateMatchesColdRebuildAcrossMutationSequence|NormalizeAndParseQuery|ScoreUsesFieldWeights|BoundedEditDistance|VariantExpansion|BestPassage|AnalyzeMatchingCase)' \
+  -count=1
 ```
 
 ## File-tree pin regressions
@@ -1337,7 +1496,10 @@ npx playwright test tests/e2e/pdfExport.spec.js
 
 The dependency-policy contract also keeps the root Markdown-It runtime within
 the peer range declared by every selected `@mdit` renderer plugin. The vendored
-security contract reads Mermaid's embedded `js-yaml` version, while the
+color-extension regression proves its undeclared Babel helper is replaced by
+the exact local transform and that an unfamiliar upstream artifact fails
+closed. The vendored security contract reads Mermaid's embedded `js-yaml`
+version, while the
 dependency-security contract checks every resolved npm copy of
 `brace-expansion` and test-only `js-yaml`,
 and proves that every production `window.mermaid.render` call passes through

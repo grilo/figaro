@@ -21,6 +21,7 @@ function debugAPI() {
     const mock = (value) => () => Promise.resolve(value);
     return {
         GetFileTree: mock([{ name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 }]),
+        GetVaultLoadStatus: mock({ generation: 1, phase: 'ready', loaded: 1, total: 1 }),
         GetFileTreeStyles: mock({ version: 1, entries: {}, recent_icons: [] }),
         SetFileTreeStyle: mock({ version: 1, entries: {}, recent_icons: [] }),
         SetFileTreePinned: mock({ version: 1, entries: {}, recent_icons: [] }),
@@ -38,6 +39,7 @@ function debugAPI() {
         MergeDirectory: mock({ success: true }),
         MergeExternalPaths: mock({ success: true, paths: [] }),
         SearchFiles: mock([]),
+        SearchNotes: mock({ results: [], suggestion: '' }),
         SearchBacklinks: mock([]),
         SearchUnlinkedMentions: mock([]),
         LinkUnlinkedMention: mock({ success: true }),
@@ -75,6 +77,8 @@ function debugAPI() {
         VimVisualRowsSave: mock({ success: true }),
         VimRevealBlocksLoad: mock({ enabled: false }),
         VimRevealBlocksSave: mock({ success: true }),
+        TabSizeLoad: mock({ size: 4 }),
+        TabSizeSave: mock({ success: true }),
         LineNumbersLoad: mock({ enabled: false }),
         LineNumbersSave: mock({ success: true }),
         MarkdownLintLoad: mock({ enabled: true }),

@@ -24,6 +24,7 @@ const mockEditorView = {
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn(() => mockEditorView),
     toggleVim: jest.fn(() => Promise.resolve(true)),
+    setEditorTabSize: jest.fn(),
 }));
 
 // Mock API

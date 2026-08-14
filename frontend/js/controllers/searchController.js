@@ -37,41 +37,64 @@ function publishResults(results) {
     setState('globalSearchResults', results);
 }
 
+function publishSuggestion(suggestion) {
+    setState('searchSuggestion', String(suggestion || ''));
+}
+
 const workspaceSearch = createWorkspaceSearch({
-    searchContent: (query, caseSensitive) => backend().SearchFiles(query, caseSensitive),
-    readFileTree: () => getState('fileTreeData'),
+    searchContent: (query, options) => backend().SearchNotes(query, {
+        case_sensitive: Boolean(options.caseSensitive),
+        title_only: Boolean(options.titleOnly),
+        profile: 'global',
+        limit: 0,
+        suggest: true,
+    }),
     readRecentFiles: () => getState('recentFiles'),
     readFilters: filters,
     publishQuery,
     publishResults,
+    publishSuggestion,
     reportFailure(error) {
         log.error('Search failed:', error);
     },
 });
 
-function render(results, query) {
+function render(results, query, suggestion = '') {
     renderSearchResults({
         results,
         query,
         filters: filters(),
         selectedIndex: activeSearchIndex,
+        suggestion,
         onFilter(name) {
             const current = filters();
             setSearchFilter(name, !current[name]);
             const activeQuery = currentSearchQuery();
-            if (activeQuery) performGlobalSearch(activeQuery);
+            if (activeQuery) performGlobalSearch(activeQuery, { preserveResults: true });
         },
         onOpen(index) {
             const result = results[index];
             if (result) openSearchResult(result);
         },
+        onSuggest(value) {
+            const input = document.getElementById('global-search-input');
+            if (input) {
+                input.value = value;
+                input.focus();
+            }
+            performGlobalSearch(value);
+        },
     });
 }
 
 export function initSearch() {
-    document.addEventListener('click', event => {
-        if (closeSearchWhenOutside(event.target)) activeSearchIndex = -1;
-    });
+    const closeOnOutsideClick = event => {
+        if (closeSearchWhenOutside(event.target, event.composedPath?.() || [])) {
+            activeSearchIndex = -1;
+        }
+    };
+    document.addEventListener('click', closeOnOutsideClick);
+    return () => document.removeEventListener('click', closeOnOutsideClick);
 }
 
 export function setSearchFilter(name, enabled) {
@@ -86,13 +109,13 @@ export async function performSearch(query, caseSensitive) {
     return outcome.results;
 }
 
-export async function performGlobalSearch(query) {
+export async function performGlobalSearch(query, { preserveResults = false } = {}) {
     const trimmedQuery = String(query || '').trim();
     if (!trimmedQuery) {
         clearGlobalSearch(false);
         return;
     }
-    if (!showSearchLoading()) return;
+    if ((!preserveResults || !isSearchVisible()) && !showSearchLoading()) return;
     activeSearchIndex = -1;
     const outcome = await workspaceSearch.execute(trimmedQuery);
     if (outcome.stale) return;
@@ -100,7 +123,7 @@ export async function performGlobalSearch(query) {
         clearSearchCount();
         return;
     }
-    render(outcome.results, outcome.query);
+    render(outcome.results, outcome.query, outcome.suggestion);
 }
 
 export function clearGlobalSearch(clearInput = true) {
@@ -109,6 +132,7 @@ export function clearGlobalSearch(clearInput = true) {
     clearSearchView(clearInput);
     publishQuery('', filters().caseSensitive);
     publishResults([]);
+    publishSuggestion('');
 }
 
 function openSearchResult(result) {

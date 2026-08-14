@@ -76,6 +76,13 @@
     {
       "id": "spinner",
       "primitives": [".ui-spinner"]
+    },
+    {
+      "id": "progress",
+      "primitives": [
+        ".ui-progress",
+        ".ui-progress-value"
+      ]
     }
   ]
 }

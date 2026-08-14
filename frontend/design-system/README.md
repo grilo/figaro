@@ -45,7 +45,12 @@ assets in manifest order. The `.ui-*` classes own repeated presentation and
 interaction states; feature classes remain only for behavior and deliberate
 host layout. The approved `.ui-spinner` is the shared indeterminate activity
 indicator; feature controllers own its delayed visibility and accessible live
-status instead of cloning its animation or paint. The root
+status instead of cloning its animation or paint. The progress family owns the
+shared determinate track and value fill; hosts supply its value and geometry
+without redefining those states. The approved stepper accepts either a
+read-only value or a bounded numeric `.ui-stepper-value`; the latter suppresses
+native spinner buttons so the shared decrement/increment controls remain the
+only visible step actions while keyboard entry stays available. The root
 `frontend/styles.css` remains a synchronized
 compatibility aggregate, not the production entry point.
 

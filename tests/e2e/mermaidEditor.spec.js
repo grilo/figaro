@@ -38,9 +38,10 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     await expect(page.locator('.cm-live-diagram')).toHaveCount(1);
     const helper = page.getByRole('button', { name: 'Open Mermaid Editor for this diagram' });
     await expect(helper).toBeVisible();
-    await expect(helper).toHaveText('Mermaid Editor');
-    await expect(helper.locator('xpath=ancestor::div[contains(@class,"cm-mermaidEditorGutter")]'))
-        .toHaveAttribute('aria-label', 'Mermaid diagram actions');
+    await expect(helper).toHaveText('editor');
+    await expect(helper.locator('xpath=ancestor::div[contains(@class,"cm-markdownBlockGutter")]'))
+        .toHaveAttribute('aria-label', 'Markdown block controls');
+    await expect(page.locator('#editor-container .cm-gutters-after')).toHaveCount(0);
     expect(await page.evaluate(() => window.__mermaidEditorMainView.scrollDOM.clientWidth))
         .toBe(plainScrollerWidth);
     const gutterBorders = await page.evaluate(() => Array.from(
@@ -58,18 +59,126 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     expect(gutterBorders.length).toBeGreaterThan(0);
     expect(gutterBorders.every(border => border.left === '0px' && border.right === '0px')).toBe(true);
     const gutterAlignment = await page.evaluate(() => {
-        const helperRect = document.querySelector('.mermaid-editor-guide').getBoundingClientRect();
+        const helper = document.querySelector('.mermaid-editor-guide');
+        const blockGuide = document.querySelector(
+            '.cm-markdownBlockGutter [aria-label="Collapse mermaid code block"]',
+        );
+        const helperRect = helper.getBoundingClientRect();
+        const blockGuideRect = blockGuide.getBoundingClientRect();
+        const helperStyle = getComputedStyle(helper);
+        const blockGuideStyle = getComputedStyle(blockGuide);
+        const labelRange = document.createRange();
+        labelRange.selectNodeContents(helper);
+        const labelRect = labelRange.getBoundingClientRect();
         const diagramRect = document.querySelector('.cm-live-diagram').getBoundingClientRect();
-        const editorRect = document.querySelector('#editor-container > .cm-editor').getBoundingClientRect();
+        const widgetRect = document.querySelector('.cm-block-widget--mermaid').getBoundingClientRect();
+        const stack = document.querySelector('.cm-editor-block-guide-stack');
         return {
             helperLeft: helperRect.left,
             helperRight: helperRect.right,
+            helperTop: helperRect.top,
+            helperHeight: helperRect.height,
+            blockGuideTop: blockGuideRect.top,
+            blockGuideBottom: blockGuideRect.bottom,
+            blockGuideRight: blockGuideRect.right,
+            blockGuideHeight: blockGuideRect.height,
+            widgetLeft: widgetRect.left,
             diagramRight: diagramRect.right,
-            editorRight: editorRect.right,
+            widgetRight: widgetRect.right,
+            stackDisplay: getComputedStyle(stack).display,
+            justifyItems: helperStyle.justifyItems,
+            textAlign: helperStyle.textAlign,
+            inwardGap: helperRect.right - labelRect.right,
+            helperTypography: {
+                fontFamily: helperStyle.fontFamily,
+                fontSize: helperStyle.fontSize,
+                fontWeight: helperStyle.fontWeight,
+                lineHeight: helperStyle.lineHeight,
+                textTransform: helperStyle.textTransform,
+            },
+            blockGuideTypography: {
+                fontFamily: blockGuideStyle.fontFamily,
+                fontSize: blockGuideStyle.fontSize,
+                fontWeight: blockGuideStyle.fontWeight,
+                lineHeight: blockGuideStyle.lineHeight,
+                textTransform: blockGuideStyle.textTransform,
+            },
         };
     });
-    expect(gutterAlignment.helperLeft).toBeGreaterThanOrEqual(gutterAlignment.diagramRight);
-    expect(gutterAlignment.helperRight).toBeLessThanOrEqual(gutterAlignment.editorRight);
+    expect(gutterAlignment.helperRight).toBeLessThanOrEqual(gutterAlignment.widgetLeft);
+    expect(gutterAlignment.widgetLeft - gutterAlignment.helperRight).toBeLessThanOrEqual(10);
+    expect(Math.abs(gutterAlignment.helperRight - gutterAlignment.blockGuideRight)).toBeLessThan(1);
+    expect(Math.abs(gutterAlignment.helperTop - gutterAlignment.blockGuideBottom)).toBeLessThan(1);
+    expect(gutterAlignment.helperHeight).toBe(gutterAlignment.blockGuideHeight);
+    expect(gutterAlignment.helperTypography).toEqual(gutterAlignment.blockGuideTypography);
+    expect(gutterAlignment.helperTypography.textTransform).toBe('lowercase');
+    expect(gutterAlignment.stackDisplay).toBe('grid');
+    expect(gutterAlignment.justifyItems).toBe('end');
+    expect(gutterAlignment.textAlign).toBe('right');
+    expect(gutterAlignment.inwardGap).toBeLessThanOrEqual(7);
+
+    const collapseDiagram = page.getByRole('button', { name: 'Collapse mermaid code block' });
+    await expect(collapseDiagram).toBeVisible();
+    await collapseDiagram.click();
+    await expect(page.locator('.cm-live-diagram')).toHaveCount(0);
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Expand mermaid code block' })).toBeVisible();
+    await expect(helper).toHaveCount(0);
+    expect(await page.evaluate(() => window.__mermaidEditorMainView.state.doc.toString())).toBe(source);
+
+    await page.evaluate(() => {
+        const view = window.__mermaidEditorMainView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(2).from } });
+        view.focus();
+    });
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__mermaidEditorMainView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(6);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__mermaidEditorMainView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(2);
+
+    const foldedPoints = await page.evaluate(() => {
+        const view = window.__mermaidEditorMainView;
+        const point = position => {
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 2, y: (coords.top + coords.bottom) / 2 };
+        };
+        return {
+            before: point(view.state.doc.line(1).from),
+            after: point(view.state.doc.line(6).to),
+        };
+    });
+    await page.mouse.click(foldedPoints.after.x, foldedPoints.after.y);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__mermaidEditorMainView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(6);
+    await page.mouse.move(foldedPoints.before.x, foldedPoints.before.y);
+    await page.mouse.down();
+    await page.mouse.move(foldedPoints.after.x, foldedPoints.after.y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__mermaidEditorMainView;
+        return {
+            from: view.state.doc.lineAt(view.state.selection.main.from).number,
+            to: view.state.doc.lineAt(view.state.selection.main.to).number,
+        };
+    })).toEqual({ from: 1, to: 6 });
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
+
+    await page.evaluate(() => {
+        const view = window.__mermaidEditorMainView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+    });
+    await page.getByRole('button', { name: 'Expand mermaid code block' }).click();
+    await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(0);
+    await expect(page.locator('.cm-live-diagram')).toHaveCount(1);
+    await expect(helper).toBeVisible();
     await helper.click();
 
     const modal = page.getByRole('dialog', { name: 'Mermaid Editor' });
@@ -241,7 +350,9 @@ test('inherits Vim mode and display-row navigation inside the Mermaid source edi
         editor.setVimVisualRows(true);
     }, source);
 
-    await page.getByRole('button', { name: 'Open Mermaid Editor for this diagram' }).click();
+    const openEditor = page.getByRole('button', { name: 'Open Mermaid Editor for this diagram' });
+    await expect(openEditor).toHaveCount(1);
+    await openEditor.click();
     const modal = page.getByRole('dialog', { name: 'Mermaid Editor' });
     const modalEditor = modal.locator('.mermaid-editor-code-host .cm-editor');
     const content = modal.locator('.mermaid-editor-code-host .cm-content');

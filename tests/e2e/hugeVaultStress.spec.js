@@ -153,6 +153,7 @@ async function installFixtureBackend(page, fixture) {
         const mock = value => Promise.resolve(value);
         const responses = {
             GetFileTree: () => mock(data.tree),
+            GetVaultLoadStatus: () => mock({ generation: 1, phase: 'ready', loaded: 1, total: 1 }),
             GetFileTreeStyles: () => mock({ version: 1, entries: {}, recent_icons: [] }),
             ReadFile: filePath => mock({
                 content: filePath === data.manifest.sources.huge ? data.hugeContent : data.smallContent,
@@ -162,6 +163,12 @@ async function installFixtureBackend(page, fixture) {
             SearchFiles: query => mock(query === data.manifest.needles.common
                 ? data.commonResults
                 : query === data.manifest.needles.rare ? data.rareResults : []),
+            SearchNotes: query => mock({
+                results: query === data.manifest.needles.common
+                    ? data.commonResults
+                    : query === data.manifest.needles.rare ? data.rareResults : [],
+                suggestion: '',
+            }),
             SearchBacklinks: target => mock(String(target).includes('2026-08-11') ? data.backlinks : []),
             SearchUnlinkedMentions: () => mock([]),
             GetKanbanColumns: () => mock({ columns: ['review', 'todo', 'wip', 'done'], colors: {} }),
@@ -179,6 +186,7 @@ async function installFixtureBackend(page, fixture) {
             VimLoad: () => mock({ enabled: false }),
             VimVisualRowsLoad: () => mock({ enabled: false }),
             VimRevealBlocksLoad: () => mock({ enabled: false }),
+            TabSizeLoad: () => mock({ size: 4 }),
             LineNumbersLoad: () => mock({ enabled: false }),
             MarkdownLintLoad: () => mock({ enabled: false }),
             EditorNavigationLoad: () => mock({ stickyHeadings: true, blockGuides: true, documentOutline: true }),
@@ -574,7 +582,7 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
             const app = await import('/js/app.js');
             await app.handleFileOpen(sourcePath);
         }, fixture.manifest.sources.small);
-        await expect(page.locator('#backlinks-status')).toContainText('10000 backlinks');
+        await expect(page.locator('#backlinks-status')).toContainText(`${fixture.manifest.documentCount} backlinks`);
         await beginMetric(page);
         await page.locator('#backlinks-status').click();
         await expect(page.locator('.relationship-count').first())

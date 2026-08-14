@@ -45,16 +45,37 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-frontmatter-panel-section')).toMatch(/display:\s*grid/);
         expect(declarationsFor('.cm-frontmatter-panel-section')).toMatch(/gap:\s*7px/);
         expect(declarationsFor('.cm-block-widget--diagram')).toMatch(/padding:\s*8px 0/);
-        expect(declarationsFor('.cm-block-widget--mermaid')).toMatch(/width:\s*min\(100%, calc\(var\(--mermaid-editor-viewport-width, 100vw\) - 132px\)\)/);
-        expect(declarationsFor('.cm-block-widget--mermaid')).toMatch(/padding-right:\s*112px/);
-        expect(declarationsFor('.cm-scroller.cm-mermaid-editor-stacked .cm-block-widget--mermaid'))
-            .toMatch(/padding:\s*40px 0 8px/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-top:\s*0\s*!important/);
         expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-bottom:\s*0\s*!important/);
-        expect(declarationsFor('.tbl-table-widget')).toMatch(/padding-top:\s*44px\s*!important/);
+        expect(declarationsFor('.tbl-table-widget')).toMatch(/width:\s*min\(100%, calc\(var\(--editor-block-action-viewport-width, 100vw\) - 132px\)\)/);
+        expect(declarationsFor('.tbl-table-widget')).toMatch(/padding:\s*16px 112px 16px 16px\s*!important/);
+        expect(declarationsFor('.cm-scroller.cm-editor-block-actions-stacked .tbl-table-widget'))
+            .toMatch(/display:\s*flex[\s\S]*padding:\s*16px\s*!important[\s\S]*flex-direction:\s*column/);
         expect(declarationsFor('.tbl-delete-table-button')).toMatch(/position:\s*absolute/);
+        expect(declarationsFor('.tbl-delete-table-button')).toMatch(/left:\s*calc\(100% - 84px\)/);
+        expect(declarationsFor('.cm-scroller.cm-editor-block-actions-stacked .tbl-delete-table-button'))
+            .toMatch(/position:\s*static[\s\S]*order:\s*-1[\s\S]*align-self:\s*flex-end/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/margin:\s*0\s*!important/);
         expect(declarationsFor('.cm-table-source-toggle')).toMatch(/padding-bottom:\s*6px/);
+    });
+
+    test('pins approved rendered blocks to their measured source height', () => {
+        const footprint = declarationsFor('.cm-source-footprint');
+        expect(footprint).toMatch(/height:\s*var\(--cm-source-footprint-height\)/);
+        expect(footprint).toMatch(/min-height:\s*var\(--cm-source-footprint-height\)/);
+        expect(footprint).toMatch(/max-height:\s*var\(--cm-source-footprint-height\)/);
+        expect(declarationsFor('.cm-source-footprint--graphic')).toMatch(/overflow:\s*hidden/);
+        expect(declarationsFor('.cm-source-footprint--scroll')).toMatch(/overflow:\s*auto\s*!important/);
+        expect(declarationsFor('.cm-source-footprint-sizer')).toMatch(/position:\s*absolute/);
+        expect(declarationsFor('.cm-source-footprint-sizer')).toMatch(/visibility:\s*hidden/);
+        expect(declarationsFor('.cm-source-footprint-sizer-line')).toMatch(/white-space:\s*break-spaces/);
+        expect(declarationsFor('.cm-source-footprint-sizer-line')).toMatch(/overflow-wrap:\s*anywhere/);
+        expect(declarationsFor('.cm-source-footprint[data-source-footprint-state="underflow"]::after'))
+            .toMatch(/border:\s*1px dashed var\(--border-light\)/);
+        expect(declarationsFor('.cm-live-diagram')).toMatch(/height:\s*100%/);
+        expect(declarationsFor('.cm-live-diagram-view')).toMatch(/min-height:\s*0/);
+        expect(declarationsFor('.cm-codeblock-widget'))
+            .toMatch(/tab-size:\s*var\(--editor-tab-size, 4\)/);
     });
 
     test('keeps the frontmatter disclosure aligned while its panel changes height', () => {
@@ -65,10 +86,22 @@ describe('CodeMirror block-widget layout contract', () => {
     });
 
     test('top-aligns Markdown block guides and provides fold-anchor scroll space', () => {
-        expect(declarationsFor('.cm-markdownBlockGutter .cm-gutterElement'))
+        expect(declarationsFor('.cm-editorHelperRail .cm-gutterElement'))
             .toMatch(/align-items:\s*flex-start/);
-        expect(declarationsFor('.cm-markdownBlockGutter'))
-            .toMatch(/translateY\(-16px\)/);
+        const leftGuideRail = declarationsFor('.cm-editorHelperRail-before .cm-gutterElement');
+        expect(leftGuideRail).toMatch(/justify-content:\s*flex-end/);
+        expect(declarationsFor('#editor-container .cm-editorHelperRail-before .ui-editor-block-guide'))
+            .toMatch(/justify-items:\s*end/);
+        expect(declarationsFor('#editor-container .cm-editorHelperRail-before .ui-editor-block-guide'))
+            .toMatch(/text-align:\s*right/);
+        expect(declarationsFor('.cm-editorHelperRail-before'))
+            .toMatch(/margin-right:\s*calc\(0px - var\(--editor-block-before-rail-width, 0px\)\)/);
+        expect(declarationsFor('.cm-editorHelperRail-before'))
+            .toMatch(/translate\(var\(--editor-block-before-rail-offset, 0px\), -16px\)/);
+        expect(declarationsFor('.cm-markdownBlockGuideSpacer')).toMatch(/padding:\s*0 6px/);
+        expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/display:\s*grid/);
+        expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/justify-items:\s*end/);
+        expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/gap:\s*0/);
     });
 
     test('keeps expanded frontmatter menus above later editor lines', () => {

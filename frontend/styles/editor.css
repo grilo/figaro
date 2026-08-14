@@ -15,7 +15,6 @@
     line-height: var(--line-height-editor) !important;
 }
 
-.workspace-content,
 .editor-panel {
     display: flex !important;
     flex-direction: column !important;
@@ -78,9 +77,8 @@
     max-width: none !important;
     margin: 0 !important;
     font-family: var(--font-code, var(--font-mono)) !important;
-    /* Matches editor.js' codeIndentUnit, which is also what Tab inserts and
-       what the indentation guides use through CodeMirror's indentUnit facet. */
-    tab-size: 2;
+    /* Matches the shared CodeMirror tab-size facet and indentation unit. */
+    tab-size: var(--editor-tab-size, 4);
 }
 
 .cm-editor.cm-code-file .cm-line {
@@ -796,21 +794,39 @@
     padding: 0 3px !important;
 }
 
-.cm-markdownBlockGutter .cm-gutterElement {
+.cm-editorHelperRail .cm-gutterElement {
     display: flex;
-    min-width: 42px;
     align-items: flex-start;
+    padding: 0 4px !important;
+}
+
+.cm-editorHelperRail-before .cm-gutterElement {
+    min-width: 42px;
     justify-content: flex-end;
     padding: 0 4px 0 1px !important;
 }
 
-.cm-markdownBlockGutter {
-    transform: translateY(-16px);
+#editor-container .cm-editorHelperRail-before .ui-editor-block-guide {
+    justify-items: end;
+    text-align: right;
+}
+
+.cm-editor-block-guide-stack {
+    display: grid;
+    justify-items: end;
+    gap: 0;
+}
+
+.cm-editorHelperRail-before {
+    margin-right: calc(0px - var(--editor-block-before-rail-width, 0px));
+    transform: translate(var(--editor-block-before-rail-offset, 0px), -16px);
 }
 
 .cm-markdownBlockGuideSpacer {
+    box-sizing: content-box;
     visibility: hidden;
     min-width: 34px;
+    padding: 0 6px;
     font: 500 var(--font-size-editor)/1 var(--font-mono);
 }
 

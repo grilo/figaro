@@ -1939,6 +1939,36 @@ func TestVimLoad_Default(t *testing.T) {
 	}
 }
 
+func TestTabSizeSaveLoadDefaultAndBounds(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	loaded, err := app.TabSizeLoad()
+	if err != nil || loaded["size"] != 4 {
+		t.Fatalf("TabSizeLoad default = %#v, %v; want 4", loaded, err)
+	}
+	result, err := app.TabSizeSave(7)
+	if err != nil || !result.Success {
+		t.Fatalf("TabSizeSave(7) = %#v, %v", result, err)
+	}
+	restarted := NewApp(vaultPath)
+	loaded, err = restarted.TabSizeLoad()
+	if err != nil || loaded["size"] != 7 {
+		t.Fatalf("TabSizeLoad after restart = %#v, %v; want 7", loaded, err)
+	}
+
+	for _, invalid := range []int{1, 9} {
+		result, err = restarted.TabSizeSave(invalid)
+		if err != nil || result.Success {
+			t.Fatalf("TabSizeSave(%d) = %#v, %v; want rejected", invalid, result, err)
+		}
+	}
+	loaded, err = restarted.TabSizeLoad()
+	if err != nil || loaded["size"] != 7 {
+		t.Fatalf("invalid save changed tab size: %#v, %v", loaded, err)
+	}
+}
+
 func TestVimVisualRowsSaveLoadAndDefault(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

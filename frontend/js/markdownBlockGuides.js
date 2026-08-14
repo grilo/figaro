@@ -10,8 +10,10 @@ import {
     unfoldEffect,
 } from '@codemirror/language';
 import { markdownHeadingFoldingExtension } from './markdownHeadingFolding.js';
+import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
 import {
     leadingFrontmatterEnd,
+    MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH,
     markdownHeadingLevel,
     markdownBlockGuidePlan,
 } from './core/markdownBlockGuideModel.js';
@@ -93,10 +95,11 @@ function exactFoldExists(state, guide) {
 }
 
 class MarkdownBlockGuideMarker extends GutterMarker {
-    constructor(guide, folded) {
+    constructor(guide, folded, showMermaidEditor = false) {
         super();
         this.guide = guide;
         this.folded = folded;
+        this.showMermaidEditor = showMermaidEditor;
     }
 
     eq(other) {
@@ -105,10 +108,11 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             && this.guide.foldTo === other.guide.foldTo
             && this.guide.title === other.guide.title
             && this.guide.foldable === other.guide.foldable
-            && this.folded === other.folded;
+            && this.folded === other.folded
+            && this.showMermaidEditor === other.showMermaidEditor;
     }
 
-    toDOM() {
+    foldControl() {
         const control = document.createElement('button');
         const action = this.folded ? 'Expand' : 'Collapse';
         let subject = 'table';
@@ -131,13 +135,36 @@ class MarkdownBlockGuideMarker extends GutterMarker {
         });
         return control;
     }
+
+    toDOM() {
+        const foldControl = this.foldControl();
+        if (!this.showMermaidEditor || this.guide.label !== 'mermaid' || this.folded) return foldControl;
+
+        const stack = document.createElement('div');
+        stack.className = 'cm-editor-block-guide-stack';
+
+        const editorControl = document.createElement('button');
+        editorControl.type = 'button';
+        editorControl.className = 'ui-editor-block-guide mermaid-editor-guide';
+        editorControl.textContent = 'editor';
+        editorControl.setAttribute('aria-label', 'Open Mermaid Editor for this diagram');
+        editorControl.title = 'Open Mermaid Editor';
+        editorControl.dataset.mermaidFrom = String(this.guide.from);
+        editorControl.dataset.mermaidTo = String(this.guide.to);
+        editorControl.addEventListener('mousedown', event => {
+            if (event.button === 0) event.preventDefault();
+        });
+
+        stack.append(foldControl, editorControl);
+        return stack;
+    }
 }
 
 class MarkdownBlockGuideSpacer extends GutterMarker {
     toDOM() {
         const spacer = document.createElement('span');
         spacer.className = 'cm-markdownBlockGuideSpacer';
-        spacer.textContent = 'table';
+        spacer.textContent = 'x'.repeat(MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH);
         spacer.setAttribute('aria-hidden', 'true');
         return spacer;
     }
@@ -145,52 +172,17 @@ class MarkdownBlockGuideSpacer extends GutterMarker {
 
 const spacerMarker = new MarkdownBlockGuideSpacer();
 
-const markerPlugin = ViewPlugin.fromClass(class {
-    constructor(view) {
-        this.rebuild(view);
-    }
-
-    update(update) {
-        if (update.docChanged) clearFoldAnchorReserve(update.view);
-        if (update.docChanged
-            || update.viewportChanged
-            || foldedRanges(update.startState) !== foldedRanges(update.state)
-            || update.transactions.some(transaction => transaction.effects.some(effect => (
-                effect.is(foldEffect) || effect.is(unfoldEffect)
-            )))
-            || syntaxTree(update.startState) !== syntaxTree(update.state)) {
-            this.rebuild(update.view);
-        }
-    }
-
-    rebuild(view) {
-        this.guides = buildMarkdownBlockGuides(view.state);
-        const builder = new RangeSetBuilder();
-        for (const guide of this.guides) {
-            if (guide.lineFrom < view.viewport.from || guide.lineFrom > view.viewport.to) continue;
-            builder.add(guide.lineFrom, guide.lineFrom, new MarkdownBlockGuideMarker(
-                guide,
-                exactFoldExists(view.state, guide),
-            ));
-        }
-        this.markers = builder.finish();
-    }
-});
-
-function widgetGuide(view, block) {
-    const guides = view.plugin(markerPlugin)?.guides || [];
-    const guide = guides.find(candidate => candidate.type !== 'heading' && (
-        (candidate.from === block.from && candidate.to === block.to)
-        || (block.from <= candidate.from && block.to >= candidate.to)
-        || (candidate.from <= block.from && candidate.to >= block.to)
-    ));
-    return guide
-        ? new MarkdownBlockGuideMarker(guide, exactFoldExists(view.state, guide))
-        : null;
-}
-
 function guideOnLine(state, lineFrom) {
     return buildMarkdownBlockGuides(state).find(guide => guide.lineFrom === lineFrom) || null;
+}
+
+/** Match only a real overlapping replacement block, never an adjacent point widget. */
+export function markdownGuideForBlockWidget(guides, block) {
+    if (!block || block.to <= block.from) return null;
+    return guides.find(candidate => candidate.type !== 'heading' && (
+        (candidate.from === block.from && candidate.to === block.to)
+        || (block.from < candidate.to && block.to > candidate.from)
+    )) || null;
 }
 
 function guideControl(view, guide) {
@@ -208,7 +200,7 @@ function clearFoldAnchorReserve(view) {
     view.contentDOM.style.removeProperty('padding-bottom');
 }
 
-function applyFoldAnchorPlan(view, guide, targetGuideTop, correctionPass = false) {
+function applyFoldAnchorPlan(view, guide, targetGuideTop, correctionPass = 0) {
     view.requestMeasure({
         read() {
             const control = guideControl(view, guide);
@@ -232,48 +224,126 @@ function applyFoldAnchorPlan(view, guide, targetGuideTop, correctionPass = false
                 'important',
             );
             view.scrollDOM.scrollTop = plan.scrollTop;
-            if (!correctionPass) applyFoldAnchorPlan(view, guide, targetGuideTop, true);
+            if (correctionPass === 0) {
+                applyFoldAnchorPlan(view, guide, targetGuideTop, 1);
+            } else if (correctionPass === 1) {
+                // Restored block widgets can finish their own CodeMirror
+                // measurement after the fold transaction. Re-anchor once on
+                // the next painted layout instead of leaving the guide shifted.
+                requestAnimationFrame(() => {
+                    if (!view.isDestroyed) applyFoldAnchorPlan(view, guide, targetGuideTop, 2);
+                });
+            }
         },
     });
 }
 
-export const markdownBlockGuidesExtension = [
-    codeFolding(),
-    markdownHeadingFoldingExtension,
-    markerPlugin,
-    gutter({
-        class: 'cm-markdownBlockGutter',
-        markers(view) {
-            return view.plugin(markerPlugin)?.markers || RangeSet.empty;
-        },
-        initialSpacer() {
-            return spacerMarker;
-        },
-        widgetMarker(view, _widget, block) {
-            return widgetGuide(view, block);
-        },
-        domEventHandlers: {
-            click(view, line, event) {
-                const control = event.target?.closest?.('.ui-editor-block-guide');
-                if (!control) return false;
-                const requestedFrom = Number(control.dataset.foldFrom);
-                const requestedTo = Number(control.dataset.foldTo);
-                const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
-                    candidate.foldFrom === requestedFrom && candidate.foldTo === requestedTo
-                )) || guideOnLine(view.state, line.from);
-                if (!guide?.foldable) return true;
-                const targetGuideTop = control.getBoundingClientRect().top;
-                const folded = exactFoldExists(view.state, guide);
-                const range = { from: guide.foldFrom, to: guide.foldTo };
-                const effect = folded ? unfoldEffect : foldEffect;
-                view.dispatch({ effects: effect.of(range) });
-                view.contentDOM.focus({ preventScroll: true });
-                applyFoldAnchorPlan(view, guide, targetGuideTop);
-                return true;
-            },
-        },
-    }),
-    keymap.of(foldKeymap),
-];
+/**
+ * Assemble the Markdown helper rail around an injected Mermaid-editor effect.
+ * Guide planning and folding stay source-only; the application composition
+ * root decides how opening the focused editor is handled.
+ */
+export function createMarkdownBlockGuidesExtension({ openMermaidEditor } = {}) {
+    const showMermaidEditor = typeof openMermaidEditor === 'function';
+    const markerPlugin = ViewPlugin.fromClass(class {
+        constructor(view) {
+            synchronizeEditorBlockActionLayout(view);
+            this.rebuild(view);
+        }
 
-export default markdownBlockGuidesExtension;
+        update(update) {
+            if (update.geometryChanged) synchronizeEditorBlockActionLayout(update.view);
+            if (update.docChanged) clearFoldAnchorReserve(update.view);
+            if (update.docChanged
+                || update.viewportChanged
+                || update.transactions.some(transaction => transaction.reconfigured)
+                || foldedRanges(update.startState) !== foldedRanges(update.state)
+                || update.transactions.some(transaction => transaction.effects.some(effect => (
+                    effect.is(foldEffect) || effect.is(unfoldEffect)
+                )))
+                || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+                this.rebuild(update.view);
+            }
+        }
+
+        rebuild(view) {
+            this.guides = buildMarkdownBlockGuides(view.state);
+            const builder = new RangeSetBuilder();
+            for (const guide of this.guides) {
+                if (guide.lineFrom < view.viewport.from || guide.lineFrom > view.viewport.to) continue;
+                builder.add(guide.lineFrom, guide.lineFrom, new MarkdownBlockGuideMarker(
+                    guide,
+                    exactFoldExists(view.state, guide),
+                    showMermaidEditor,
+                ));
+            }
+            this.markers = builder.finish();
+        }
+    });
+
+    const widgetGuide = (view, block) => {
+        const guides = view.plugin(markerPlugin)?.guides || [];
+        const guide = markdownGuideForBlockWidget(guides, block);
+        return guide
+            ? new MarkdownBlockGuideMarker(
+                guide,
+                exactFoldExists(view.state, guide),
+                showMermaidEditor,
+            )
+            : null;
+    };
+
+    return [
+        codeFolding(),
+        markdownHeadingFoldingExtension,
+        markerPlugin,
+        gutter({
+            class: 'cm-editorHelperRail cm-editorHelperRail-before cm-markdownBlockGutter',
+            markers(view) {
+                return view.plugin(markerPlugin)?.markers || RangeSet.empty;
+            },
+            initialSpacer() {
+                return spacerMarker;
+            },
+            widgetMarker(view, _widget, block) {
+                return widgetGuide(view, block);
+            },
+            domEventHandlers: {
+                click(view, line, event) {
+                    const editorControl = event.target?.closest?.('.mermaid-editor-guide');
+                    if (editorControl) {
+                        const requestedFrom = Number(editorControl.dataset.mermaidFrom);
+                        const requestedTo = Number(editorControl.dataset.mermaidTo);
+                        const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                            candidate.label === 'mermaid'
+                            && candidate.from === requestedFrom
+                            && candidate.to === requestedTo
+                        )) || guideOnLine(view.state, line.from);
+                        if (guide?.label === 'mermaid') openMermaidEditor?.(view, guide);
+                        return true;
+                    }
+
+                    const control = event.target?.closest?.('.ui-editor-block-guide[data-fold-from]');
+                    if (!control) return false;
+                    const requestedFrom = Number(control.dataset.foldFrom);
+                    const requestedTo = Number(control.dataset.foldTo);
+                    const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                        candidate.foldFrom === requestedFrom && candidate.foldTo === requestedTo
+                    )) || guideOnLine(view.state, line.from);
+                    if (!guide?.foldable) return true;
+                    const targetGuideTop = control.getBoundingClientRect().top;
+                    const folded = exactFoldExists(view.state, guide);
+                    const range = { from: guide.foldFrom, to: guide.foldTo };
+                    const effect = folded ? unfoldEffect : foldEffect;
+                    view.dispatch({ effects: effect.of(range) });
+                    view.contentDOM.focus({ preventScroll: true });
+                    applyFoldAnchorPlan(view, guide, targetGuideTop);
+                    return true;
+                },
+            },
+        }),
+        keymap.of(foldKeymap),
+    ];
+}
+
+export default createMarkdownBlockGuidesExtension;

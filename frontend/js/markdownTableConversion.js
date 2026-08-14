@@ -284,5 +284,3 @@ export function markdownTableFromClipboard({ text = '', html = '', mimeType = ''
         markdown: markdownTableFromRows(parsed.rows),
     };
 }
-
-export const supportedTableDelimiters = Object.freeze({ ...delimiterLabels });

@@ -21,6 +21,7 @@ import { loadSession, saveSession } from './session.js';
 import { restoredTabOpenArgs } from './sessionTabs.js';
 import { openLaunchExternalFiles } from './externalFiles.js';
 import { initTheme } from './theme.js';
+import { initTabSizePreference } from './tabSizePreference.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
@@ -32,6 +33,8 @@ import { setAutoCommitEnabled } from './automation.js';
 import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
 import { initEditorBreadcrumb } from './editorBreadcrumb.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+import { createVaultLoadingSession } from './usecases/vaultLoading.js';
+import { renderVaultLoading, removeVaultLoading } from './views/vaultLoadingView.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -42,6 +45,11 @@ window.promptDialog = promptDialog;
 
 let autoSaveTimer = null;
 let vaultEventsInitialized = false;
+const vaultLoadingSession = createVaultLoadingSession({
+    readStatus: () => backend().GetVaultLoadStatus(),
+    present: renderVaultLoading,
+    remove: removeVaultLoading,
+});
 
 function configureAutoSave(seconds) {
     if (autoSaveTimer) {
@@ -83,6 +91,9 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
         },
         onHistoryChanged: () => {
             document.dispatchEvent(new CustomEvent('vault-history-changed'));
+        },
+        onVaultLoadProgress: payload => {
+            vaultLoadingSession.update(payload);
         },
     });
     if (registered) vaultEventsInitialized = true;
@@ -450,6 +461,7 @@ export async function initApp() {
     if (window._appInitialized) return;
     window._appInitialized = true;
     window._appReady = false;
+    vaultLoadingSession.start();
     
     statusBar.set('Initializing...');
     const languageSupportReady = preloadLanguageSupport();
@@ -472,6 +484,11 @@ export async function initApp() {
     // Wait until Wails has published the bound Go App object.
     statusBar.set('Connecting to backend...');
     await waitForBackend();
+    // Subscribe before reading the snapshot: generation-aware reconciliation
+    // then closes the small race between those two operations.
+    initVaultChangeNotifications();
+    await vaultLoadingSession.connect();
+    await initTabSizePreference();
     await initLinkStylePreference();
     try {
         setAutoCommitEnabled(await backend().AutoCommitLoad());
@@ -489,11 +506,6 @@ export async function initApp() {
     initTabManager();
     initEditorBreadcrumb();
 
-    // Register before the first vault request. If the background Kanban index
-    // finishes while the initial tree is loading, the ready event is still
-    // observed and the sidebar can refresh its derived data.
-    initVaultChangeNotifications();
-    
     // Initialize file tree
     statusBar.set('Loading file tree...');
     await refreshFileTree();
@@ -543,6 +555,7 @@ export async function initApp() {
     // Persist the repaired workspace so the next launch cannot resurrect
     // removed paths or a legacy synthetic Welcome tab.
     saveSession();
+    vaultLoadingSession.finish();
     
     statusBar.set('Ready');
     window._appReady = true;

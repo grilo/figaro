@@ -10,6 +10,68 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.20.0] - 2026-08-14
+
+### Added
+
+- Ctrl/Cmd+mouse-wheel over the editor now changes text scale only for the
+  current open buffer. A compact status-bar **Scale** button shows that value
+  and resets it to the permanent **Default Text Size** from Settings.
+- Large vaults now show an immediate **Loading vault** workspace with live
+  indexed-note counts and determinate progress until the initial vault is ready.
+- Global note search now supports natural multi-word queries, prefix and
+  conservative typo matching, accent-insensitive terms, relevance-ranked
+  best-match excerpts, and low-result **Did you mean…?** suggestions.
+
+### Changed
+
+- Editor text scaling now keeps a constant line-height ratio, avoiding the
+  previous double increase in vertical spacing above the 100% default.
+- A new global **Tab Size** setting uses a `− number +` control from 2–8
+  spaces (4 by default) and now keeps Tab/Shift+Tab, Vim indentation, code
+  files and fences, Mermaid source, tables, and raw-source display consistent.
+- Rendered Mermaid/Vega diagrams, fenced code, display math, and Markdown
+  tables now keep their Markdown source height in the editor, preventing the
+  surrounding note from jumping when source is revealed. Oversized graphics
+  fit down, while code and tables remain readable through contained scrolling.
+- Markdown/Wikilink completion now reuses global search relevance with stronger
+  title and path weighting, so partial and misspelled targets rank consistently.
+- The experimental Projects workspace, its project/task metadata model, and
+  its Board, Table, and Gantt surfaces have been removed. Existing Markdown
+  files remain ordinary vault content and are not modified or deleted.
+- Obsolete frontend helpers and styles, redundant PDF and watcher wrappers,
+  stale test bindings, an unused Babel runtime, and a redundant production
+  Playwright declaration are no longer carried after their callers were removed.
+- Mermaid's **editor** action now sits directly beneath the left-side
+  **mermaid** fold helper, keeping both controls outside the centered writing
+  column and returning the full block width to the diagram.
+- Footnote references now navigate to their definitions and back; clicking an
+  unresolved reference creates its definition after the current paragraph and
+  places the cursor in its empty body.
+
+### Fixed
+
+- Clicking the global-search **Titles**, **Recent**, or **Aa** filter now reruns
+  the query and resizes the existing open result list instead of closing it.
+- Global search paths, excerpts, line/count details, and highlighted matches
+  now retain readable text contrast across every bundled theme.
+- The editor helper rail now keeps one editor-sized monospace control stack
+  aligned to the writing column. Folding a heading no longer shifts the note
+  when a wider nested guide such as `mermaid` disappears.
+- Mermaid controls no longer duplicate when a fence begins beside the
+  zero-width **Add properties** widget at the start of a note.
+- Home/document-start navigation and Vim `gg` now keep the frontmatter
+  Properties card rendered; only deliberate Arrow Up or Vim `k` entry reveals
+  its raw YAML automatically.
+- Native builds can regenerate the CodeMirror color helper without restoring
+  an otherwise-unused production Babel runtime.
+- Expanding a folded block at the end of a document now keeps its guide under
+  the pointer after the restored preview completes CodeMirror measurement.
+- Clicking the left-side `mermaid` helper now collapses an already-rendered
+  diagram into a native fold row, and expanding restores its live preview.
+- **Delete table** occupies a clear right-side lane when space allows and moves
+  above its table at narrow widths.
+
 ## [1.19.0] - 2026-08-13
 
 ### Added
@@ -1065,7 +1127,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.19.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.20.0...HEAD
+[1.20.0]: https://github.com/grilo/figaro/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/grilo/figaro/compare/v1.18.1...v1.19.0
 [1.18.1]: https://github.com/grilo/figaro/compare/v1.18.0...v1.18.1
 [1.18.0]: https://github.com/grilo/figaro/compare/v1.17.0...v1.18.0

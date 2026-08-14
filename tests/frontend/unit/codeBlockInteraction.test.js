@@ -39,6 +39,12 @@ describe('code block interaction', () => {
 
         const line = view.dom.querySelector('.cm-codeblock-line[data-line-index="0"]');
         expect(line).not.toBeNull();
+        const footprint = view.dom.querySelector('.cm-codeblock-widget');
+        expect(footprint.classList.contains('cm-source-footprint--scroll')).toBe(true);
+        expect(footprint.dataset.sourceFootprint).toBe('code');
+        expect(footprint.dataset.sourceLines).toBe('3');
+        expect(footprint.style.getPropertyValue('--cm-source-footprint-height'))
+            .toBe(`${view.defaultLineHeight * 3}px`);
 
         line.dispatchEvent(new MouseEvent('mousedown', {
             bubbles: true,

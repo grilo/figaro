@@ -134,6 +134,7 @@ describe('Tab Manager', () => {
         mockState.activeTabId = null;
         mockState.pinnedTabs = [];
         mockState.recentFiles = [];
+        localStorage.clear();
         getEditorDocumentTabId.mockReturnValue(null);
         getEditorContent.mockReturnValue('');
         setAutoCommitEnabled(true);
@@ -465,6 +466,82 @@ describe('Tab Manager', () => {
             await testUtils.waitFor(0);
 
             expect(setEditorContent).toHaveBeenLastCalledWith('Latest A content', 'a', { anchor: 0, head: 0 });
+        });
+    });
+
+    describe('temporary editor text scale', () => {
+        test('keeps Ctrl+wheel scale on its open buffer and resets to the Settings default', async () => {
+            localStorage.setItem('editor-font-size', '110');
+            initTabManager();
+            const first = openTab('first.md', 'First', 'file', { path: 'first.md', isNew: true });
+            await testUtils.waitFor(0);
+            getEditorDocumentTabId.mockReturnValue(first.id);
+
+            const scaleUp = new WheelEvent('wheel', {
+                deltaY: -100,
+                ctrlKey: true,
+                bubbles: true,
+                cancelable: true,
+            });
+            document.getElementById('editor-container').dispatchEvent(scaleUp);
+
+            expect(scaleUp.defaultPrevented).toBe(true);
+            expect(first._editorTextScale).toBe(120);
+            expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('19.44px');
+            expect(document.documentElement.style.getPropertyValue('--line-height-editor')).toBe('1.65');
+            expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 120%');
+
+            const ordinaryWheel = new WheelEvent('wheel', {
+                deltaY: -100,
+                bubbles: true,
+                cancelable: true,
+            });
+            document.getElementById('editor-container').dispatchEvent(ordinaryWheel);
+            expect(ordinaryWheel.defaultPrevented).toBe(false);
+            expect(first._editorTextScale).toBe(120);
+
+            const second = openTab('second.md', 'Second', 'file', { path: 'second.md', isNew: true });
+            await testUtils.waitFor(0);
+            expect(second).not.toHaveProperty('_editorTextScale');
+            expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('17.82px');
+            expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 110%');
+
+            await switchTab(first.id);
+            expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('19.44px');
+            expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 120%');
+
+            document.getElementById('editor-scale-status').click();
+            expect(first).not.toHaveProperty('_editorTextScale');
+            expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('17.82px');
+            expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 110%');
+            expect(focusEditor).toHaveBeenCalled();
+        });
+
+        test('discards temporary scale on close and lets a permanent setting replace open overrides', async () => {
+            initTabManager();
+            const tab = openTab('note.md', 'Note', 'file', { path: 'note.md', isNew: true });
+            await testUtils.waitFor(0);
+            getEditorDocumentTabId.mockReturnValue(tab.id);
+            document.getElementById('editor-container').dispatchEvent(new WheelEvent('wheel', {
+                deltaY: -100,
+                ctrlKey: true,
+                bubbles: true,
+                cancelable: true,
+            }));
+            expect(tab._editorTextScale).toBe(110);
+
+            localStorage.setItem('editor-font-size', '120');
+            document.dispatchEvent(new CustomEvent('figaro:editor-text-scale-default-changed', {
+                detail: { scale: 120 },
+            }));
+            expect(tab).not.toHaveProperty('_editorTextScale');
+            expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 120%');
+
+            tab._editorTextScale = 140;
+            await closeTab(tab.id);
+            const reopened = openTab('note.md', 'Note', 'file', { path: 'note.md', isNew: true });
+            expect(reopened).not.toHaveProperty('_editorTextScale');
+            expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 120%');
         });
     });
 

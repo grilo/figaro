@@ -30,6 +30,36 @@ describe('locked npm dependency policy', () => {
         expect(lock.packages['node_modules/katex'].version).toBe('0.18.4');
     });
 
+    test('keeps test-only browser tooling out of production dependencies and omits unused Babel helpers', () => {
+        const { manifest, lock } = readPackageGraph();
+        const colorVendorScript = fs.readFileSync('scripts/vendor-codemirror-color.mjs', 'utf8');
+
+        expect(manifest.dependencies['@babel/runtime']).toBeUndefined();
+        expect(lock.packages['node_modules/@babel/runtime']).toBeUndefined();
+        expect(colorVendorScript).toContain('inlineColorExtensionBabelHelper');
+        expect(manifest.dependencies.playwright).toBeUndefined();
+        expect(manifest.devDependencies['@playwright/test']).toBeDefined();
+        expect(lock.packages['node_modules/@playwright/test'].dependencies.playwright).toBe(
+            lock.packages['node_modules/playwright'].version,
+        );
+    });
+
+    test('inlines the color extension helper and rejects an unknown upstream artifact', async () => {
+        const { inlineColorExtensionBabelHelper } = await import(
+            '../../../scripts/vendor-codemirror-color-transform.js'
+        );
+        const source = [
+            'import _objectWithoutPropertiesLoose from "@babel/runtime/helpers/objectWithoutPropertiesLoose";',
+            'const value = _objectWithoutPropertiesLoose(source, ["hidden"]);',
+        ].join('\n');
+
+        const transformed = inlineColorExtensionBabelHelper(source);
+        expect(transformed).not.toContain('@babel/runtime');
+        expect(transformed).toContain('function _objectWithoutPropertiesLoose');
+        expect(() => inlineColorExtensionBabelHelper('export const changed = true;'))
+            .toThrow('expected one upstream match, found 0');
+    });
+
     test('keeps Markdown-It within every bundled renderer package peer contract', () => {
         const { manifest, lock } = readPackageGraph();
         const rendererPackages = [

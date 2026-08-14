@@ -9,6 +9,17 @@ import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import { initEditorBreadcrumbSetting } from './editorBreadcrumb.js';
 import { initEditorNavigationPreference, initEditorNavigationSettings } from './editorNavigationPreferences.js';
+import { initTabSizeSettings } from './tabSizePreference.js';
+import {
+    EDITOR_TEXT_SCALE_MAX,
+    EDITOR_TEXT_SCALE_MIN,
+    EDITOR_TEXT_SCALE_STEP,
+} from './core/editorTextScaleModel.js';
+import {
+    applyEditorTextScale,
+    getConfiguredEditorTextScale,
+    persistConfiguredEditorTextScale,
+} from './editorTextScale.js';
 import {
     normalizeSpellcheckPreference,
     spellcheckPreferenceFromSetting,
@@ -104,6 +115,7 @@ export async function initTheme() {
     await applyTheme(themeId);
     applyFont(fontId, true);
     applyCodeFont(codeFontId, true);
+    applyEditorTextScale(getConfiguredEditorTextScale(), { view: getEditorView() });
     await initVimPreference();
     await initVimVisualRowsPreference();
     await initVimRevealBlocksPreference();
@@ -134,7 +146,6 @@ export async function applyTheme(themeId) {
 
 export function getCurrentTheme() { return currentTheme; }
 export function getCurrentFont() { return currentFont; }
-export function getCurrentCodeFont() { return currentCodeFont; }
 
 export async function getThemes() {
     try {
@@ -484,8 +495,6 @@ async function applyMarkdownLintPreference(enabled) {
     setMarkdownLint(enabled);
 }
 
-export function getMarkdownLintPreference() { return currentMarkdownLintEnabled; }
-
 export async function initMarkdownLintPreference() {
     if (markdownLintPreferenceLoaded) return currentMarkdownLintEnabled;
     if (markdownLintPreferenceLoadPromise) return markdownLintPreferenceLoadPromise;
@@ -756,6 +765,7 @@ export async function initSettingsPanel(root = document) {
             spellcheckLanguage.addEventListener('change', save);
         }
 
+        await initTabSizeSettings(root);
         initFontSize(root);
         initTextWidth(root);
         initAutoSave(root);
@@ -1092,30 +1102,31 @@ function initFontSize(root) {
     const display = findIn(root, '#font-size-value');
     if (!down || !up || !display) return;
 
-    const KEY = 'editor-font-size';
-    const DEFAULT = 100;
-    const MIN = 70;
-    const MAX = 150;
-    const STEP = 10;
-
-    let current = parseInt(localStorage.getItem(KEY)) || DEFAULT;
-    applyFontSize(current);
+    let current = getConfiguredEditorTextScale();
+    applyFontSize(current, false);
 
     down.addEventListener('click', () => {
-        if (current > MIN) { current -= STEP; applyFontSize(current); localStorage.setItem(KEY, String(current)); }
+        if (current > EDITOR_TEXT_SCALE_MIN) {
+            current -= EDITOR_TEXT_SCALE_STEP;
+            applyFontSize(current, true);
+        }
     });
     up.addEventListener('click', () => {
-        if (current < MAX) { current += STEP; applyFontSize(current); localStorage.setItem(KEY, String(current)); }
+        if (current < EDITOR_TEXT_SCALE_MAX) {
+            current += EDITOR_TEXT_SCALE_STEP;
+            applyFontSize(current, true);
+        }
     });
 
-    function applyFontSize(pct) {
-        display.textContent = pct + '%';
-        const scale = pct / 100;
-        document.documentElement.style.setProperty('--font-size-editor', (16.2 * scale) + 'px');
-        document.documentElement.style.setProperty('--line-height-editor', (1.65 * scale).toFixed(2));
-
-        const view = getEditorView();
-        if (view) view.requestMeasure();
+    function applyFontSize(pct, persist) {
+        current = persist ? persistConfiguredEditorTextScale(pct) : getConfiguredEditorTextScale();
+        display.textContent = current + '%';
+        applyEditorTextScale(current, { view: getEditorView() });
+        if (persist) {
+            document.dispatchEvent(new CustomEvent('figaro:editor-text-scale-default-changed', {
+                detail: { scale: current },
+            }));
+        }
     }
 }
 

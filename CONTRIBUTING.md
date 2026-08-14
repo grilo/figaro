@@ -218,9 +218,9 @@ remain free of machine-dependent pass/fail thresholds. See
 [the huge-vault procedure](docs/TESTING.md#huge-vault-stress-profile) and
 [the reference audit](docs/HUGE_VAULT_STRESS.md).
 
-For changes to Raw Text Preview, sticky headings, Markdown block guides,
+For changes to Raw Text Preview, the global tab-size/indentation policy, sticky headings, Markdown block guides or their writing-column rail geometry,
 raw-source Mermaid diagnostics, the Mermaid Editor, current-note heading
-completion, Vim table cells/rendered-block navigation, or per-tab cursor
+completion, frontmatter Properties navigation, Vim table cells/rendered-block navigation, or per-tab cursor
 persistence, follow the
 focused layer and browser-boundary guidance in
 [`docs/TESTING.md`](docs/TESTING.md).
@@ -311,11 +311,21 @@ The interactive-table bundle is generated through
 `scripts/vendor-codemirror-markdown-tables.mjs`. Its exact-match, in-memory
 transform makes the third-party table decoration yield to Figaro's native fold
 range, adds the direct approved **Delete table** control through the upstream
-history action, and deliberately fails if a dependency update changes the
-reviewed upstream shape. The vendored `codemirror-live-markdown` fenced-code provider
-has the equivalent fold-aware rebuild. Preserve and reverify both integrations
-when refreshing either dependency; the focused browser folding regression must
-pass before accepting the generated bundle.
+history action, marks the returned DOM as a measured table block for shared
+action-lane layout, and records `rowCount + 1` as its stable Markdown source
+footprint. It deliberately fails if a dependency update changes the reviewed
+upstream shape. The vendored `codemirror-live-markdown` fenced-code provider
+has the equivalent fold-aware rebuild and records its opening, content, and
+closing source rows. Preserve and reverify both integrations when refreshing
+either dependency; the focused browser folding and source-footprint geometry
+regressions must pass before accepting the generated bundle.
+
+The CodeMirror color-extension ESM artifact imports one small Babel helper that
+its package does not declare. `scripts/vendor-codemirror-color.mjs` applies an
+exact-match in-memory replacement before bundling, so the generated browser
+asset is self-contained without a production `@babel/runtime` dependency. The
+transform deliberately fails if an upstream release changes that reviewed
+import; update the transform and its dependency-policy regression together.
 
 Some browser libraries, including Mermaid, are checked in separately from the
 root npm dependency graph and may embed their own packages. After changing a
@@ -373,6 +383,10 @@ the assembled webview rather than one JavaScript package in isolation.
   focused cursor-movement coverage (including feature keys), the block-widget
   geometry contract when applicable, and the native-webview checks in
   `docs/TESTING.md`.
+- A tab-size change must keep the pure 2–8/default/step rules, backend restart
+  persistence, Settings rollback and bounds, root Markdown and code facets,
+  Vim `>`, Mermaid, table-cell, rendered-code, Raw Text Preview, Arrow Up/Down,
+  mouse, and drag-selection contracts in sync.
 - Eagerly load bundled feature code during startup. Do not hide dependency
   cycles or postpone feature initialization with interaction-triggered dynamic
   imports.

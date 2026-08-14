@@ -147,9 +147,60 @@ func removeRootFile(root *os.Root, rel string) error {
 // slash-separated so it is stable across platforms.
 type MarkdownVisitor func(root *os.Root, rel string, info fs.FileInfo, data []byte) error
 
+// MarkdownProgress reports how many Markdown files have been visited out of
+// the total discovered beneath the vault root. The first report is always
+// (0, total), including for an empty vault.
+type MarkdownProgress func(visited int, total int)
+
+type markdownFile struct {
+	rel  string
+	info fs.FileInfo
+}
+
 // WalkMarkdown walks ordinary Markdown files below an already-open vault root.
 // It omits dot-directories and symlinks; Root protects all opens from races.
 func WalkMarkdown(root *os.Root, visitor MarkdownVisitor) error {
+	return walkMarkdownFiles(root, func(file markdownFile) error {
+		data, err := root.ReadFile(file.rel)
+		if err != nil {
+			return fmt.Errorf("read vault path %q: %w", file.rel, err)
+		}
+		return visitor(root, filepath.ToSlash(file.rel), file.info, data)
+	})
+}
+
+// WalkMarkdownWithProgress discovers the complete Markdown workload before
+// reading files, then reports determinate progress after each successful
+// visit. The two-phase walk is reserved for user-visible cold vault loading;
+// ordinary one-off vault operations can retain WalkMarkdown's single pass.
+func WalkMarkdownWithProgress(root *os.Root, visitor MarkdownVisitor, progress MarkdownProgress) error {
+	files := make([]markdownFile, 0)
+	if err := walkMarkdownFiles(root, func(file markdownFile) error {
+		files = append(files, file)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if progress != nil {
+		progress(0, len(files))
+	}
+	for index, file := range files {
+		data, err := root.ReadFile(file.rel)
+		if err != nil {
+			return fmt.Errorf("read vault path %q: %w", file.rel, err)
+		}
+		if err := visitor(root, filepath.ToSlash(file.rel), file.info, data); err != nil {
+			return err
+		}
+		if progress != nil {
+			progress(index+1, len(files))
+		}
+	}
+	return nil
+}
+
+func walkMarkdownFiles(root *os.Root, visitor func(markdownFile) error) error {
 	return fs.WalkDir(root.FS(), ".", func(rel string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return fmt.Errorf("walk vault path %q: %w", rel, walkErr)
@@ -176,11 +227,6 @@ func WalkMarkdown(root *os.Root, visitor MarkdownVisitor) error {
 		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
 			return nil
 		}
-
-		data, err := root.ReadFile(rel)
-		if err != nil {
-			return fmt.Errorf("read vault path %q: %w", rel, err)
-		}
-		return visitor(root, filepath.ToSlash(rel), info, data)
+		return visitor(markdownFile{rel: rel, info: info})
 	})
 }

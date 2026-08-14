@@ -25,6 +25,10 @@ if (typeof window.ResizeObserver !== 'function') {
         disconnect() {}
     };
 }
+if (typeof window.CSS === 'undefined') window.CSS = {};
+if (typeof window.CSS.escape !== 'function') {
+    window.CSS.escape = value => String(value).replace(/[^a-zA-Z0-9_-]/g, character => `\\${character}`);
+}
 if (typeof Range.prototype.getClientRects !== 'function') {
     Range.prototype.getClientRects = () => [{
         top: 0, right: 8, bottom: 16, left: 0, width: 8, height: 16,
@@ -41,6 +45,7 @@ window.go = {
     desktop: {
         App: {
         GetFileTree: jest.fn().mockResolvedValue([]),
+        GetVaultLoadStatus: jest.fn().mockResolvedValue({ generation: 1, phase: 'ready', loaded: 0, total: 0 }),
         GetFileTreeStyles: jest.fn().mockResolvedValue({ version: 1, entries: {}, recent_icons: [] }),
         SetFileTreeStyle: jest.fn().mockResolvedValue({ version: 1, entries: {}, recent_icons: [] }),
         SetFileTreePinned: jest.fn().mockResolvedValue({ version: 1, entries: {}, recent_icons: [] }),
@@ -64,6 +69,7 @@ window.go = {
         CopyExternalPaths: jest.fn().mockResolvedValue({ success: true, paths: [] }),
         MergeExternalPaths: jest.fn().mockResolvedValue({ success: true, paths: [] }),
         SearchFiles: jest.fn().mockResolvedValue([]),
+        SearchNotes: jest.fn().mockResolvedValue({ results: [], suggestion: '' }),
         SearchBacklinks: jest.fn().mockResolvedValue([]),
         SearchUnlinkedMentions: jest.fn().mockResolvedValue([]),
         LinkUnlinkedMention: jest.fn().mockResolvedValue({ success: true }),
@@ -73,7 +79,6 @@ window.go = {
         GetFileHistory: jest.fn().mockResolvedValue([]),
         GetFileVersion: jest.fn().mockResolvedValue(''),
         GetKanbanColumns: jest.fn().mockResolvedValue(["todo", "wip", "done"]),
-        AddKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         RenameKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         DeleteKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         GetKanbanBoard: jest.fn().mockResolvedValue({ todo: [], wip: [], done: [] }),
@@ -93,7 +98,6 @@ window.go = {
             days_with_due_tasks: [],
             calendar: []
         }),
-        SearchNotesByDate: jest.fn().mockResolvedValue([]),
         GetTodayLink: jest.fn().mockReturnValue("2024-01-15"),
         GetOSUsername: jest.fn().mockResolvedValue('Test User'),
         GetApplicationVersion: jest.fn().mockResolvedValue('Test build'),
@@ -108,6 +112,8 @@ window.go = {
 		VimVisualRowsSave: jest.fn().mockResolvedValue({ success: true }),
 		VimRevealBlocksLoad: jest.fn().mockResolvedValue({ enabled: false }),
 		VimRevealBlocksSave: jest.fn().mockResolvedValue({ success: true }),
+		TabSizeLoad: jest.fn().mockResolvedValue({ size: 4 }),
+		TabSizeSave: jest.fn().mockResolvedValue({ success: true }),
 		LineNumbersLoad: jest.fn().mockResolvedValue({ enabled: false }),
 		LineNumbersSave: jest.fn().mockResolvedValue({ success: true }),
 		MarkdownLintLoad: jest.fn().mockResolvedValue({ enabled: true }),
@@ -223,6 +229,8 @@ function createMockDOM() {
                 <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
                 <button id="status-action" hidden></button>
                 <span id="cursor-position">Ln 1, Col 1</span>
+                <span id="editor-scale-separator" class="status-separator" hidden>|</span>
+                <button id="editor-scale-status" class="status-history has-history status-scale" hidden>Scale 100%</button>
                 <span id="reading-time">0 min read</span>
                 <span id="word-count">0 words</span>
                 <span id="char-count">0 chars</span>
