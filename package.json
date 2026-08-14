@@ -96,7 +96,7 @@
     "dictionary-es": "4.0.0",
     "katex": "^0.18.4",
     "lucide": "1.27.0",
-    "markdown-it": "^14.3.0",
+    "markdown-it": "^15.0.0",
     "nspell": "2.1.5",
     "turndown": "7.2.4"
   }
