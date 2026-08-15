@@ -143,12 +143,15 @@ scenario for every feature.
 
 Initial vault progress is split across the same boundaries. Root-adapter tests
 prove exact Markdown discovery and monotonically increasing counts; desktop
-tests prove ordered phases, an independently readable final snapshot, and a
-bounded event count. Pure frontend tests cover normalization, percentage/copy,
-and stale-generation rejection, while the DOM test owns accessible progress
-attributes. The one `desktopStartup.spec.js` browser case is retained because
-only a real page can prove that the static loading surface is painted while the
-first file-tree promise is still blocked and is replaced after startup.
+tests prove that work remains pending until the idempotent `StartVaultLoad`
+request, then covers ordered phases, an independently readable final snapshot,
+and a bounded event count. Pure frontend tests cover normalization,
+percentage/copy, and stale-generation rejection, while the DOM test owns the
+hidden-to-present transition and accessible progress attributes. The one
+`desktopStartup.spec.js` browser case is retained because only a real page can
+prove saved theme CSS is applied before the loading surface and start request,
+the fill occupies the complete track height while the first file-tree promise
+is blocked, and the panel is replaced after startup.
 
 ### Huge-vault stress profile
 
@@ -432,9 +435,9 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Editor behavior, CodeMirror language modes, current-note heading-fragment
   completion, typed Markdown block-guide folding, exact Raw Text Preview, persistent Markdown diagnostics
   and their hover/F8 guidance, offline spellcheck's global **None** state and
-  language/frontmatter overrides, the dynamic editor accessible name, one-Enter
-  empty-list exit, smart URL paste for ordinary and Vim Visual selections, and
-  wrapped-list cursor/selection geometry,
+  language/frontmatter overrides, the dynamic editor accessible name,
+  per-buffer undo/redo ownership, one-Enter empty-list exit, smart URL paste
+  for native, Vim Visual `p`, and editor-menu paths, and wrapped-list cursor/selection geometry,
   frontmatter, footnotes, diagrams, tabs, session
   persistence, Kanban presentation/loading and keyboard-order states,
   file-tree actions and roving keyboard-tree states, and
@@ -1334,6 +1337,26 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/tabManager.test.js \
   tests/frontend/unit/fileTree.test.js
 npx playwright test tests/e2e/tabBufferOwnership.spec.js
+```
+
+## Editor buffer undo ownership
+
+`editorDocumentSession.test.js` owns the pure scheduling and ownership rule:
+every real tab-owner change requests a history swap, including when two
+buffers have identical source. `editor.test.js` supplies the real CodeMirror
+component boundary: edit file A, mount file B, verify Undo cannot change B,
+edit and undo within B, repeat the identical-source switch, return to A and
+restore only A's operations, then prove a changed source invalidates its stale
+history. This behavior is fully observable below a browser, so it does not add
+a redundant Playwright scenario; the existing tab-buffer browser spec remains
+responsible only for asynchronous activation and visible owner pairing.
+
+Run the focused regression with:
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/editorDocumentSession.test.js \
+  tests/frontend/unit/editor.test.js
 ```
 
 ## Vim command regressions

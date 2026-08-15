@@ -64,6 +64,31 @@ func TestVaultLoadProgressEmissionIsBoundedForLargeVaults(t *testing.T) {
 	}
 }
 
+func TestVaultLoadStartsOnlyWhenExplicitlyRequested(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	t.Cleanup(app.stopVaultWatcher)
+	writeTestFile(t, vaultPath, "tasks.md", "- requested startup #later\n")
+
+	if status := app.GetVaultLoadStatus(); status.Phase != VaultLoadPending {
+		t.Fatalf("load phase before StartVaultLoad = %q, want %q", status.Phase, VaultLoadPending)
+	}
+	if !app.StartVaultLoad() {
+		t.Fatal("first StartVaultLoad call did not start the vault work")
+	}
+	if app.StartVaultLoad() {
+		t.Fatal("second StartVaultLoad call started duplicate vault work")
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for app.GetVaultLoadStatus().Phase != VaultLoadReady && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	status := app.GetVaultLoadStatus()
+	if status.Phase != VaultLoadReady || status.Loaded != 1 || status.Total != 1 {
+		t.Fatalf("explicit vault load status = %+v, want ready 1/1", status)
+	}
+}
+
 func TestColdVaultIndexPublishesLoadError(t *testing.T) {
 	app := NewApp(t.TempDir())
 	app.vaultPath = filepath.Join(t.TempDir(), "missing-vault")

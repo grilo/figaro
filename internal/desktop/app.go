@@ -41,6 +41,7 @@ type App struct {
 	calendarMu          sync.Mutex
 	watcherMu           sync.Mutex
 	vaultIndexBuildMu   sync.Mutex
+	vaultStartupOnce    sync.Once
 	vaultLoadMu         sync.RWMutex
 	fileVersions        map[string]float64
 	kanbanColumns       []string
@@ -353,19 +354,22 @@ func (a *App) startup(ctx context.Context) {
 	a.watcherMu.Lock()
 	a.watcherStopping = false
 	a.watcherMu.Unlock()
+}
 
-	// Recursively registering native directory watches can touch a large vault.
-	// Do it after startup returns so the first Wails window is never held up by
-	// filesystem enumeration.
-	go a.startVaultWatcher()
-
-	// Scanning a large vault for Kanban tags must not delay the first window.
-	// The frontend starts with the built-in columns and refreshes when this
-	// background index is ready.
-	go func() {
-		a.syncKanbanColumns()
-		a.emitRuntimeEvent("vault:kanban-indexed")
-	}()
+// StartVaultLoad begins the vault watcher and cold index only after the
+// frontend has loaded and applied the persisted shell appearance. It is
+// idempotent because the Wails bridge or a reconnecting frontend may retry.
+func (a *App) StartVaultLoad() bool {
+	started := false
+	a.vaultStartupOnce.Do(func() {
+		started = true
+		go a.startVaultWatcher()
+		go func() {
+			a.syncKanbanColumns()
+			a.emitRuntimeEvent("vault:kanban-indexed")
+		}()
+	})
+	return started
 }
 
 // setLaunchExternalFiles retains the Markdown files supplied by the operating

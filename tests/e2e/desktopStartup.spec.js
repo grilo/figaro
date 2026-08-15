@@ -137,14 +137,23 @@ test('boots through the native Wails binding with the workspace overview, vault 
 test('shows real vault indexing progress before the initial file tree is available', async ({ page }) => {
     await page.addInitScript(() => {
         const handlers = {};
+        const calls = [];
         let resolveTree;
+        let resolveTheme;
         window.runtime = {
             EventsOn: (name, handler) => { handlers[name] = handler; },
         };
+        window.__startupCalls = calls;
         window.__emitVaultLoadProgress = payload => handlers['vault:load-progress']?.(payload);
         window.__resolveStartupTree = () => resolveTree?.([]);
+        window.__resolveStartupTheme = () => resolveTheme?.({
+            theme: 'startup-test',
+            font: 'inter',
+            codeFont: 'theme-mono',
+        });
 
         const responses = {
+            StartVaultLoad: () => Promise.resolve(true),
             GetVaultLoadStatus: () => Promise.resolve({
                 generation: 1,
                 phase: 'loading',
@@ -160,8 +169,10 @@ test('shows real vault indexing progress before the initial file tree is availab
             GetHomeTasks: () => Promise.resolve([]),
             GetCalendarMonthData: () => Promise.resolve({ year: 2026, month: 7, days_with_notes: [], days_with_links: [], days_with_due_tasks: [], calendar: [] }),
             GetThemes: () => Promise.resolve({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
-            GetThemeCSS: () => Promise.resolve({ css: '' }),
-            ThemeLoad: () => Promise.resolve({ theme: 'default', font: 'inter', codeFont: 'theme-mono' }),
+            GetThemeCSS: () => Promise.resolve({
+                css: ':root { --accent-color: rgb(12, 145, 210); --editor-bg: rgb(31, 35, 42); }',
+            }),
+            ThemeLoad: () => new Promise(resolve => { resolveTheme = resolve; }),
             TabSizeLoad: () => Promise.resolve({ size: 4 }),
             AutoSaveLoad: () => Promise.resolve(300),
         };
@@ -169,6 +180,7 @@ test('shows real vault indexing progress before the initial file tree is availab
             desktop: {
                 App: new Proxy({}, {
                     get: (_target, method) => method === 'then' ? undefined : (...args) => {
+                        calls.push(String(method));
                         const response = responses[method];
                         return response ? response(...args) : Promise.resolve({ success: true });
                     },
@@ -178,10 +190,39 @@ test('shows real vault indexing progress before the initial file tree is availab
     });
 
     await page.goto('/');
+    await expect(page.locator('#vault-loading-panel')).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.__startupCalls.includes('ThemeLoad'))).toBe(true);
+    expect(await page.evaluate(() => window.__startupCalls.includes('StartVaultLoad'))).toBe(false);
+
+    await page.evaluate(() => window.__resolveStartupTheme());
     await expect(page.locator('#vault-loading-panel')).toBeVisible();
     await expect(page.locator('#vault-loading-title')).toHaveText('Loading vault');
     await expect(page.locator('#vault-loading-count')).toHaveText('100 / 2072 notes');
     await expect(page.locator('#vault-loading-progress')).toHaveAttribute('aria-valuenow', '5');
+    await expect(page.locator('#vault-loading-progress-value')).toHaveCSS('background-color', 'rgb(12, 145, 210)');
+
+    const startupCalls = await page.evaluate(() => window.__startupCalls);
+    expect(startupCalls.indexOf('ThemeLoad')).toBeLessThan(startupCalls.indexOf('GetThemeCSS'));
+    expect(startupCalls.indexOf('GetThemeCSS')).toBeLessThan(startupCalls.indexOf('StartVaultLoad'));
+    expect(startupCalls.indexOf('StartVaultLoad')).toBeLessThan(startupCalls.indexOf('GetVaultLoadStatus'));
+
+    const progressGeometry = await page.locator('#vault-loading-progress').evaluate(track => {
+        const fill = track.querySelector('.ui-progress-value');
+        const trackRect = track.getBoundingClientRect();
+        const fillRect = fill.getBoundingClientRect();
+        return {
+            trackHeight: trackRect.height,
+            fillTopOffset: fillRect.top - trackRect.top,
+            fillBottomOffset: trackRect.bottom - fillRect.bottom,
+            fillPosition: getComputedStyle(fill).position,
+        };
+    });
+    expect(progressGeometry).toEqual({
+        trackHeight: 8,
+        fillTopOffset: 0,
+        fillBottomOffset: 0,
+        fillPosition: 'absolute',
+    });
 
     await page.evaluate(() => window.__emitVaultLoadProgress({
         generation: 1,

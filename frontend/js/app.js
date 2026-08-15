@@ -20,7 +20,7 @@ import { initBacklinks } from './backlinks.js';
 import { loadSession, saveSession } from './session.js';
 import { restoredTabOpenArgs } from './sessionTabs.js';
 import { openLaunchExternalFiles } from './externalFiles.js';
-import { initTheme } from './theme.js';
+import { initTheme, initThemeAppearance } from './theme.js';
 import { initTabSizePreference } from './tabSizePreference.js';
 import { initSidebarResizer } from './sidebarResizer.js';
 import { initHistoryPanel } from './historyPanel.js';
@@ -461,7 +461,6 @@ export async function initApp() {
     if (window._appInitialized) return;
     window._appInitialized = true;
     window._appReady = false;
-    vaultLoadingSession.start();
     
     statusBar.set('Initializing...');
     const languageSupportReady = preloadLanguageSupport();
@@ -484,9 +483,18 @@ export async function initApp() {
     // Wait until Wails has published the bound Go App object.
     statusBar.set('Connecting to backend...');
     await waitForBackend();
-    // Subscribe before reading the snapshot: generation-aware reconciliation
-    // then closes the small race between those two operations.
+
+    // Apply the persisted shell appearance before exposing or starting vault
+    // discovery. The loading surface therefore never flashes the bundled
+    // default theme while a different saved theme is being read.
+    await initThemeAppearance();
+
+    // Subscribe before explicitly starting the backend work. Snapshot
+    // reconciliation then closes the race between the start call and the
+    // first sampled progress event, without omitting any startup phase.
     initVaultChangeNotifications();
+    vaultLoadingSession.start();
+    await backend().StartVaultLoad();
     await vaultLoadingSession.connect();
     await initTabSizePreference();
     await initLinkStylePreference();

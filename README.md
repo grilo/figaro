@@ -154,18 +154,21 @@ without rewriting wording, URLs, or unrelated whitespace. Figaro keeps its own
 copied Markdown exact, leaves source-only regions such as frontmatter and code
 literal, and never fetches a remote HTML image while converting it. Use
 Ctrl/Cmd+Shift+V for exact plain text; clipboard images, URL-over-selection,
-spreadsheet tables, Vim Visual selections, table cells, and the editor's Paste
-menu retain their specialized behavior.
+spreadsheet tables, Vim Visual `p`/`P`, table cells, and the editor's Paste
+menu retain their specialized behavior. A URL pasted over selected prose
+becomes a Markdown link through the native shortcut, Vim paste commands, or
+the menu.
 
 Machine-specific settings, such as window geometry and a selected PDF browser,
 are stored in the operating system's per-user application-data directory
 instead of the vault.
 
 When a large vault needs an initial index, Figaro paints the workspace shell
-immediately and shows **Loading vault**. Discovery is followed by a live
-`loaded / total` Markdown-note count and progress bar while notes are read and
-indexed; the restored note or Today dashboard replaces it only when the initial
-workspace data is ready.
+immediately, restores the saved theme and fonts, then shows **Loading vault**
+and explicitly starts discovery. A live `loaded / total` Markdown-note count
+and full-height progress bar cover the complete indexed workload; the restored
+note or Today dashboard replaces it only when the initial workspace data is
+ready.
 
 Opening a Markdown file from outside the vault offers two safe choices:
 
@@ -190,6 +193,11 @@ The tree's selected row is always the document currently being viewed and
 follows tab switches immediately. Arrow-key focus and Ctrl/Cmd multi-selection
 remain independent, while clean background tabs add no marker; a warning dot
 appears only for an unsaved in-memory buffer.
+
+Undo and redo are scoped to the active file buffer. Switching to another file
+switches to that open buffer's own history, so Ctrl/Cmd+Z can never replace it
+with a different tab's contents. Returning to an unchanged open buffer restores
+its earlier undo and redo operations; a changed disk snapshot starts fresh.
 
 When a new or renamed Markdown note resembles another note in the same folder
 after ignoring spacing, punctuation, and capitalization, Figaro offers to open

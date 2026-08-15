@@ -10,6 +10,18 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.21.1] - 2026-08-15
+
+### Fixed
+
+- Undo and redo now stay inside their open file buffer across tab switches,
+  instead of allowing Undo to restore another file's complete contents; an
+  externally changed buffer safely starts with fresh history.
+- Pasting a URL over a Vim Visual selection now creates the expected Markdown
+  link through both `p`/`P` and the editor's Paste menu.
+- Startup now applies the saved theme before vault discovery begins or its
+  loading card appears, and the progress track renders at its full height.
+
 ## [1.21.0] - 2026-08-14
 
 ### Added
@@ -1150,7 +1162,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.21.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.21.1...HEAD
+[1.21.1]: https://github.com/grilo/figaro/compare/v1.21.0...v1.21.1
 [1.21.0]: https://github.com/grilo/figaro/compare/v1.20.1...v1.21.0
 [1.20.1]: https://github.com/grilo/figaro/compare/v1.20.0...v1.20.1
 [1.20.0]: https://github.com/grilo/figaro/compare/v1.19.0...v1.20.0

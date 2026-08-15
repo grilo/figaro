@@ -21,6 +21,7 @@ function debugAPI() {
     const mock = (value) => () => Promise.resolve(value);
     return {
         GetFileTree: mock([{ name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 }]),
+        StartVaultLoad: mock(true),
         GetVaultLoadStatus: mock({ generation: 1, phase: 'ready', loaded: 1, total: 1 }),
         GetFileTreeStyles: mock({ version: 1, entries: {}, recent_icons: [] }),
         SetFileTreeStyle: mock({ version: 1, entries: {}, recent_icons: [] }),

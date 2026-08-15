@@ -39,6 +39,7 @@ let currentFont = 'inter';
 let currentCodeFont = 'theme-mono';
 let themeStyleEl = null;
 let themeRequestId = 0;
+let themeAppearanceLoadPromise = null;
 let fontSaveQueue = Promise.resolve();
 let codeFontSaveQueue = Promise.resolve();
 let currentVimEnabled = false;
@@ -105,16 +106,25 @@ function ensureStyleEl() {
     return themeStyleEl;
 }
 
+export function initThemeAppearance() {
+    if (themeAppearanceLoadPromise) return themeAppearanceLoadPromise;
+    themeAppearanceLoadPromise = (async () => {
+        ensureStyleEl();
+        const result = await backend().ThemeLoad();
+        const themeId = (result && result.theme) || 'default';
+        const fontId = (result && result.font) || 'inter';
+        const codeFontId = (result && result.codeFont) || 'theme-mono';
+        await applyTheme(themeId);
+        applyFont(fontId, true);
+        applyCodeFont(codeFontId, true);
+    })();
+    return themeAppearanceLoadPromise;
+}
+
 export async function initTheme() {
+    await initThemeAppearance();
     ensureStyleEl();
     initCheatsheet();
-    const result = await backend().ThemeLoad();
-    const themeId = (result && result.theme) || 'default';
-    const fontId = (result && result.font) || 'inter';
-    const codeFontId = (result && result.codeFont) || 'theme-mono';
-    await applyTheme(themeId);
-    applyFont(fontId, true);
-    applyCodeFont(codeFontId, true);
     applyEditorTextScale(getConfiguredEditorTextScale(), { view: getEditorView() });
     await initVimPreference();
     await initVimVisualRowsPreference();
@@ -1220,7 +1230,7 @@ function initAutoSave(root) {
 }
 
 export default {
-    initTheme, applyTheme, getCurrentTheme, getCurrentFont, getThemes,
+    initTheme, initThemeAppearance, applyTheme, getCurrentTheme, getCurrentFont, getThemes,
     initVimPreference, getVimPreference, setVimPreference,
     initVimVisualRowsPreference, getVimVisualRowsPreference, setVimVisualRowsPreference,
     initVimRevealBlocksPreference, getVimRevealBlocksPreference, setVimRevealBlocksPreference,

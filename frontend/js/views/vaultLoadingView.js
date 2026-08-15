@@ -9,6 +9,7 @@ export function renderVaultLoading(presentation, root = document) {
     const progress = root.getElementById('vault-loading-progress');
     const value = root.getElementById('vault-loading-progress-value');
 
+    panel.hidden = false;
     if (title) title.textContent = presentation.title;
     if (message) message.textContent = presentation.message;
     if (count) count.textContent = presentation.count;

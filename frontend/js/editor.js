@@ -92,7 +92,7 @@ import {
 } from '@codemirror/state';
 import {
     cursorLineDown, cursorLineUp, defaultKeymap, history, historyKeymap,
-    indentLess, indentMore, redo, undo,
+    historyField, indentLess, indentMore, redo, undo,
 } from '@codemirror/commands';
 import {
     HighlightStyle, bracketMatching, foldGutter, foldedRanges, foldKeymap, indentUnit,
@@ -122,6 +122,7 @@ import {
     vimPasteKeys,
     vimPasteReplayKeys,
 } from './core/vimClipboardModel.js';
+import { markdownLinkPastePlan } from './core/markdownLinkPasteModel.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
@@ -155,6 +156,7 @@ let lineNumbersCompartment = null;
 let markdownLintCompartment = null;
 let spellcheckCompartment = null;
 let tabSizeCompartment = null;
+let historyCompartment = null;
 let vimActive = false;
 let vimRequested = false;
 let vimVisualRowsRequested = false;
@@ -226,6 +228,7 @@ let lastMaterializedContent = '';
 let contextMenuRequestId = 0;
 let vimClipboardMappingsRegistered = false;
 const vimClipboardControllers = new WeakSet();
+const editorHistoryByTab = new WeakMap();
 
 function editorTabSizeExtensions(value = editorTabSizeRequested) {
     const size = normalizeTabSize(value);
@@ -944,6 +947,43 @@ function hashtagCompletionContextAllowed(context) {
 }
 
 const richPasteProtectedNode = /(?:Code|HTML|Link|URL|Image|Escape|Entity)/i;
+const markdownLinkPasteProtectedNode = /(?:Code|HorizontalRule|HTML|Link|Comment|Processing|Escape|Entity|Image|Mark|URL)/i;
+
+function markdownURLPasteInsertion(state, clipboardText) {
+    const ranges = state?.selection?.ranges || [];
+    if (activeFileLanguage.kind !== 'markdown' || ranges.length !== 1 || ranges[0].empty) return null;
+    const range = ranges[0];
+    const markdownActive = markdownLanguage.isActiveAt(state, range.from, 1);
+    let plainSelection = true;
+    syntaxTree(state).iterate({
+        from: range.from,
+        to: range.to,
+        enter: node => {
+            if (node.from > range.from || markdownLinkPasteProtectedNode.test(node.name)) {
+                plainSelection = false;
+            }
+        },
+        leave: node => {
+            if (node.to < range.to) plainSelection = false;
+        },
+    });
+    return markdownLinkPastePlan({
+        clipboardText,
+        selectedText: state.sliceDoc(range.from, range.to),
+        markdownActive,
+        plainSelection,
+    })?.insertion || null;
+}
+
+function pasteMarkdownURLAsLink(view, clipboardText) {
+    const insertion = markdownURLPasteInsertion(view?.state, clipboardText);
+    if (!insertion) return false;
+    return pasteClipboardPayload(view, {
+        text: insertion,
+        internal: true,
+        mimeType: 'text/plain',
+    }, { markdown: true });
+}
 
 /** Whether a rich conversion would be inserted into syntax that must stay literal. */
 export function markdownRichPasteProtectedContext(state) {
@@ -2690,6 +2730,7 @@ function createEditorView() {
     markdownLintCompartment = new Compartment();
     spellcheckCompartment = new Compartment();
     tabSizeCompartment = new Compartment();
+    historyCompartment = new Compartment();
 
     const markdownExtensionsForPath = () => [
         collapseOnSelectionFacet.of(true),
@@ -2795,7 +2836,7 @@ function createEditorView() {
             lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
             foldingCompartment.of(editorFoldingExtensions('markdown')),
             foldGutterAccessibilityPlugin,
-            history(), bracketMatching(), drawSelection(),
+            historyCompartment.of(history()), bracketMatching(), drawSelection(),
             searchExtension({ top: false }),
             EditorView.updateListener.of(update => {
                 const replacingDocument = update.docChanged && _programmaticChange;
@@ -2928,6 +2969,50 @@ function getEditorContent() { const v = getEditorView(); return v ? v.state.doc.
 
 let _programmaticChange = false;
 
+function editorHistoryTab(tabId) {
+    if (tabId == null) return null;
+    return (getState('openTabs') || []).find(tab => tab?.id === tabId && tab.type === 'file') || null;
+}
+
+function captureEditorHistory(view, tabId) {
+    const tab = editorHistoryTab(tabId);
+    if (!tab || !view.state.field(historyField, false)) return;
+    editorHistoryByTab.set(tab, view.state.toJSON({ history: historyField }));
+}
+
+function historyExtensionsForDocument(request) {
+    const tab = editorHistoryTab(request.tabId);
+    const saved = tab ? editorHistoryByTab.get(tab) : null;
+    if (!saved || saved.doc !== request.content || !saved.history) {
+        if (tab && saved) editorHistoryByTab.delete(tab);
+        return history();
+    }
+
+    try {
+        const restoredState = EditorState.fromJSON(saved, {
+            extensions: [history()],
+        }, { history: historyField });
+        const restoredHistory = restoredState.field(historyField);
+        return [history(), historyField.init(() => restoredHistory)];
+    } catch (error) {
+        editorHistoryByTab.delete(tab);
+        log.warn('Could not restore editor undo history:', error);
+        return history();
+    }
+}
+
+function dispatchEditorContent(view, request, excludeFromHistory = false) {
+    _programmaticChange = true;
+    const selection = normalizedCursorState(request.cursorState, request.content.length);
+    view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: request.content },
+        ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
+        ...(excludeFromHistory
+            ? { annotations: Transaction.addToHistory.of(false) }
+            : {}),
+    });
+}
+
 const editorDocumentSession = createEditorDocumentSession({
     schedule: callback => setTimeout(callback, 0),
     readEditor: getEditorView,
@@ -2940,13 +3025,28 @@ const editorDocumentSession = createEditorDocumentSession({
         flushPendingContentNotification();
         cancelPendingStatsUpdate();
     },
+    switchDocument(view, request, contentChanged) {
+        captureEditorHistory(view, request.previousTabId);
+        view.dispatch({ effects: historyCompartment.reconfigure([]) });
+        try {
+            if (contentChanged) dispatchEditorContent(view, request, true);
+            view.dispatch({
+                effects: historyCompartment.reconfigure(historyExtensionsForDocument(request)),
+            });
+        } catch (error) {
+            _programmaticChange = false;
+            if (!view.isDestroyed) {
+                try {
+                    view.dispatch({ effects: historyCompartment.reconfigure(history()) });
+                } catch (restoreError) {
+                    log.warn('Could not recover editor undo history:', restoreError);
+                }
+            }
+            throw error;
+        }
+    },
     applyContent(view, request) {
-        _programmaticChange = true;
-        const selection = normalizedCursorState(request.cursorState, request.content.length);
-        view.dispatch({
-            changes: { from: 0, to: view.state.doc.length, insert: request.content },
-            ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
-        });
+        dispatchEditorContent(view, request);
     },
     restoreSelection: restoreCursorState,
     reportFailure(error) {
@@ -2959,7 +3059,8 @@ const editorDocumentSession = createEditorDocumentSession({
  * Replace the shared editor document. When tabId is supplied, the deferred
  * CodeMirror transaction is allowed to land only while that tab is still
  * active. This prevents a rapid A -> B -> A switch from mounting B's delayed
- * document into A's editor.
+ * document into A's editor. A different tab also swaps to that buffer's own
+ * undo history, so document replacement can never be replayed across buffers.
  */
 function setEditorContent(content, tabId = undefined, cursorState = null) {
     editorDocumentSession.mount(content, tabId, cursorState);
@@ -3573,7 +3674,11 @@ async function replayVimClipboardPaste(cm, actionArgs) {
         internalBlockwise: register.blockwise,
     });
     if (!plan.text) return;
-    if (plan.updateRegister) register.setText(plan.text, plan.linewise, plan.blockwise);
+    const linkInsertion = plan.source === 'system' && cm.state?.vim?.visualMode
+        ? markdownURLPasteInsertion(cm.cm6.state, plan.text)
+        : null;
+    if (linkInsertion) register.setText(linkInsertion, false, false);
+    else if (plan.updateRegister) register.setText(plan.text, plan.linewise, plan.blockwise);
 
     for (const key of vimPasteReplayKeys(actionArgs)) {
         vimAPI.handleKey(cm, key, 'mapping');
@@ -3641,6 +3746,7 @@ async function pasteIntoEditor(view) {
             const mimeType = tsvItem ? 'text/tab-separated-values' : csvItem ? 'text/csv' : 'text/plain';
             const html = htmlItem ? await (await htmlItem.getType('text/html')).text() : '';
             const text = textItem ? await (await textItem.getType(mimeType)).text() : '';
+            if (text && pasteMarkdownURLAsLink(view, text)) return true;
             if ((html || text) && pasteClipboardPayload(view, {
                 html,
                 text,
@@ -3659,6 +3765,7 @@ async function pasteIntoEditor(view) {
     if (typeof clipboard?.readText === 'function') {
         try {
             const text = await clipboard.readText();
+            if (text && pasteMarkdownURLAsLink(view, text)) return true;
             return pasteClipboardPayload(view, { text, mimeType: 'text/plain' }, {
                 markdown: activeFileLanguage.kind === 'markdown',
                 protectedContext: activeFileLanguage.kind === 'markdown'
@@ -4024,7 +4131,13 @@ function saveCursorState(_tabId) {
 function restoreCursorState(_tabId, cs) {
     const v = getEditorView(); if (!v || !cs) return;
     const selection = normalizedCursorState(cs, v.state.doc.length);
-    if (selection) v.dispatch({ selection, scrollIntoView: true });
+    if (selection) {
+        v.dispatch({
+            selection,
+            scrollIntoView: true,
+            annotations: Transaction.addToHistory.of(false),
+        });
+    }
 }
 
 function applyVimVisualRowsMapping(enabled) {

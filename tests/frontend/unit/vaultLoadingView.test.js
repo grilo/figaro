@@ -6,7 +6,7 @@ import {
 describe('vault loading view', () => {
     beforeEach(() => {
         document.body.innerHTML = `
-            <div id="vault-loading-panel" aria-busy="true">
+            <div id="vault-loading-panel" aria-busy="true" hidden>
                 <section id="vault-loading-card" class="ui-notice ui-notice--info">
                     <h1 id="vault-loading-title"></h1>
                     <p id="vault-loading-message"></p>
@@ -34,6 +34,7 @@ describe('vault loading view', () => {
         expect(document.getElementById('vault-loading-progress').getAttribute('aria-valuetext')).toBe('100 of 2072 notes loaded');
         expect(document.getElementById('vault-loading-progress-value').style.getPropertyValue('--ui-progress')).toBe('5%');
         expect(document.getElementById('vault-loading-panel').getAttribute('aria-busy')).toBe('true');
+        expect(document.getElementById('vault-loading-panel').hidden).toBe(false);
 
         expect(removeVaultLoading()).toBe(true);
         expect(document.getElementById('vault-loading-panel')).toBeNull();

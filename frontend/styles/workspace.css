@@ -291,6 +291,10 @@ html.tab-drag-selection-guard * {
     background: var(--editor-bg);
 }
 
+.vault-loading-panel[hidden] {
+    display: none;
+}
+
 .vault-loading-card.ui-notice {
     width: min(100%, 480px);
     box-sizing: border-box;
@@ -323,7 +327,16 @@ html.tab-drag-selection-guard * {
 
 .vault-loading-card .ui-progress {
     display: block;
+    position: relative;
+    box-sizing: border-box;
+    flex: 0 0 auto;
     height: 8px;
+}
+
+.vault-loading-card .ui-progress-value {
+    position: absolute;
+    inset: 0 auto 0 0;
+    box-sizing: border-box;
 }
 
 .vault-loading-card output {

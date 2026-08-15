@@ -10,6 +10,7 @@ export function createEditorDocumentSession({
     readActiveTabId,
     readContent,
     beforeReplace,
+    switchDocument,
     applyContent,
     restoreSelection,
     reportFailure = () => {},
@@ -19,10 +20,13 @@ export function createEditorDocumentSession({
 
     function mount(content, requestedTabId = undefined, cursorState = null) {
         if (typeof content !== 'string') return false;
+        const tabId = requestedTabId === undefined ? documentTabId : requestedTabId;
         const request = {
             content,
-            tabId: requestedTabId === undefined ? documentTabId : requestedTabId,
+            tabId,
             cursorState,
+            documentChanged: tabId !== documentTabId,
+            previousTabId: documentTabId,
         };
         pendingRequest = request;
         const editor = readEditor();
@@ -31,15 +35,22 @@ export function createEditorDocumentSession({
         schedule(() => {
             if (editorUnavailable(editor) || pendingRequest !== request) return;
             if (request.tabId != null && readActiveTabId() !== request.tabId) return;
-            if (readContent(editor) === request.content) {
-                documentTabId = request.tabId;
+            const contentChanged = readContent(editor) !== request.content;
+            if (!request.documentChanged && !contentChanged) {
                 if (request.cursorState) restoreSelection(request.tabId, request.cursorState);
                 return;
             }
             try {
                 beforeReplace();
                 documentTabId = request.tabId;
-                applyContent(editor, request);
+                if (request.documentChanged) {
+                    switchDocument(editor, request, contentChanged);
+                    if (!contentChanged && request.cursorState) {
+                        restoreSelection(request.tabId, request.cursorState);
+                    }
+                } else if (contentChanged) {
+                    applyContent(editor, request);
+                }
             } catch (error) {
                 reportFailure(error);
             }

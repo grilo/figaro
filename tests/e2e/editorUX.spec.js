@@ -221,7 +221,7 @@ test('opens file, tab, and editor context menus from the keyboard', async ({ pag
     await expect(editor).toBeFocused();
 });
 
-test('turns a pasted URL into a Markdown link for regular and Vim Visual selections', async ({ page }) => {
+test('turns a pasted URL into a Markdown link for regular and Vim Visual paste paths', async ({ page }) => {
     await openWelcomeEditor(page);
     const pasteURL = async () => page.evaluate(() => {
         const view = window.__figaroSmartPasteView;
@@ -266,6 +266,61 @@ test('turns a pasted URL into a Markdown link for regular and Vim Visual selecti
         prevented: true,
         source: '[Selected words](https://example.com/reference)',
     });
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
+        const view = editor.getEditorView();
+        editor.setEditorContent('Selected words');
+        await editor.toggleVim(false);
+        await editor.toggleVim(true);
+        view.dispatch({ selection: { anchor: 0 } });
+        Vim.handleKey(getCM(view), 'v', 'user');
+        view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+        view.focus();
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                readText: async () => 'https://example.com/reference',
+            },
+        });
+    });
+    await page.keyboard.press('p');
+    await expect.poll(() => page.evaluate(() => window.__figaroSmartPasteView.state.doc.toString()))
+        .toBe('[Selected words](https://example.com/reference)');
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const { Vim, getCM } = await import('@replit/codemirror-vim');
+        const view = editor.getEditorView();
+        editor.setEditorContent('Selected words');
+        await editor.toggleVim(false);
+        await editor.toggleVim(true);
+        view.dispatch({ selection: { anchor: 0 } });
+        Vim.handleKey(getCM(view), 'v', 'user');
+        view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+        view.focus();
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                read: async () => [{
+                    types: ['text/plain'],
+                    getType: async () => new Blob(['https://example.com/reference'], { type: 'text/plain' }),
+                }],
+                readText: async () => 'https://example.com/reference',
+            },
+        });
+        const rectangle = view.coordsAtPos(0);
+        view.contentDOM.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: rectangle.left + 2,
+            clientY: (rectangle.top + rectangle.bottom) / 2,
+        }));
+    });
+    await page.locator('.editor-context-menu [data-action="paste"]').click();
+    await expect.poll(() => page.evaluate(() => window.__figaroSmartPasteView.state.doc.toString()))
+        .toBe('[Selected words](https://example.com/reference)');
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         await editor.toggleVim(false);

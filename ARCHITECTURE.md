@@ -230,7 +230,8 @@ seam before its callers were rewired:
 3. Workspace search was separated into a pure model, use case, controller, and
    DOM view.
 4. Shared CodeMirror document/table-cell profiles and the document-session
-   controller centralized editor policy and stale-mount ownership.
+   controller centralized editor policy, stale-mount ownership, and per-buffer
+   undo boundaries.
 5. Frontend document-save and backend note-save use cases were separated from
    Wails, dialog, status, history, and filesystem adapters.
 6. Move, copy, merge, descendant, and collision decisions moved into pure
@@ -268,10 +269,14 @@ loading, finalization, ready, and error snapshots through a progress mutex that
 is independent of the main vault lock; `GetVaultLoadStatus` therefore remains
 responsive while the index owns that lock. Count-based event sampling bounds a
 10,000-note build to about one hundred bridge updates, with phase boundaries
-always delivered. The frontend subscribes before reading the current snapshot,
-and a pure generation/phase reducer rejects delayed or regressive updates. A
-small DOM adapter updates the static loading notice and approved determinate
-progress primitive; startup removes it only after a real editor or overview
+always delivered. Native startup leaves both the recursive watcher and cold
+index pending. After the frontend reads and applies the persisted appearance,
+it subscribes to progress, reveals the loading surface, and invokes the
+idempotent `StartVaultLoad` port; it then reads the current snapshot. A pure
+generation/phase reducer rejects delayed or regressive updates. A small DOM
+adapter updates the static loading notice and approved determinate progress
+primitive; an explicit feature layout pins the fill to the complete track
+height, and startup removes the panel only after a real editor or overview
 surface is mounted.
 
 Figaro writes known Markdown files atomically and updates that one index entry
@@ -512,6 +517,22 @@ without parsing Markdown or forcing layout from the scroll handler. The small
 top-right launcher is hidden while the outline owns the right pane. History,
 Raw Text Preview, and PDF Preview release the outline before taking that shared
 pane.
+
+## Editor buffer ownership and undo history
+
+File tabs share one CodeMirror `EditorView`, but never its undo state. The pure
+`usecases/editorDocumentSession.js` coordinator decides when a requested mount
+changes document ownership, rejects stale mounts, and requires a history swap
+even when the incoming text is byte-for-byte identical. The editor adapter
+serializes history against the outgoing file-tab object in a `WeakMap`, removes
+the dedicated history compartment while installing the target source, and
+marks that whole-document transaction as excluded from history. It restores
+the target's serialized state only when the saved document exactly matches the
+incoming text; new, closed-and-reopened, or externally changed buffers start
+with empty history. Normal transactions then remain undoable across switches
+for that open buffer alone. This keeps delayed I/O and DOM effects outside the
+ownership decision while making it impossible for Undo or Redo to replay a
+document replacement from another tab.
 
 ## Editor text scale ownership
 
@@ -755,12 +776,17 @@ text differs, and replays the vendored Vim paste action. Clipboard denial or an
 empty system value therefore falls back to Vim state without bypassing the
 adapter's normal Visual, linewise, blockwise, or repeat behavior.
 
-Ordinary URL paste uses CodeMirror Markdown's eager `pasteURLAsLink` extension,
-so a non-empty plain-prose selection is wrapped by one normal editor transaction
-and an active Vim Visual selection reaches the same path. The Markdown Enter
-keymap uses the library's configurable continuation command with non-tight-list
-retention disabled; this changes only the deterministic empty-item exit rule
-while leaving CodeMirror's parser, history, and cursor geometry in control.
+Native URL paste uses CodeMirror Markdown's eager `pasteURLAsLink` extension.
+`frontend/js/core/markdownLinkPasteModel.js` owns the equivalent deterministic
+URL/selection transformation for clipboard paths without a native paste event;
+the editor syntax adapter first proves the selection is plain Markdown prose.
+Vim Visual `p`/`P` places that planned source in the unnamed register before
+replaying the normal Vim action, while the Async Clipboard menu path inserts it
+as one paste transaction. Named registers and protected link/code selections
+retain ordinary Vim/plain paste behavior. The Markdown Enter keymap uses the
+library's configurable continuation command with non-tight-list retention
+disabled; this changes only the deterministic empty-item exit rule while
+leaving CodeMirror's parser, history, and cursor geometry in control.
 
 Smart rich paste keeps deterministic policy separate from clipboard and DOM
 effects. `frontend/js/core/richPasteModel.js` owns priority, size limits, block

@@ -6,6 +6,9 @@ function harness() {
     const applyContent = jest.fn((target, request) => {
         target.content = request.content;
     });
+    const switchDocument = jest.fn((target, request, contentChanged) => {
+        if (contentChanged) target.content = request.content;
+    });
     let activeTabId = 'first.md';
     const session = createEditorDocumentSession({
         schedule: callback => scheduled.push(callback),
@@ -14,6 +17,7 @@ function harness() {
         readActiveTabId: () => activeTabId,
         readContent: target => target.content,
         beforeReplace: jest.fn(),
+        switchDocument,
         applyContent,
         restoreSelection: jest.fn(),
         reportFailure: jest.fn(),
@@ -22,6 +26,7 @@ function harness() {
         scheduled,
         editor,
         applyContent,
+        switchDocument,
         session,
         setActiveTabId(value) {
             activeTabId = value;
@@ -64,6 +69,7 @@ describe('shared editor document session', () => {
             readActiveTabId: () => 'note.md',
             readContent: target => target.content,
             beforeReplace: jest.fn(),
+            switchDocument: jest.fn(),
             applyContent,
             restoreSelection,
         });
@@ -74,5 +80,26 @@ describe('shared editor document session', () => {
         expect(applyContent).not.toHaveBeenCalled();
         expect(restoreSelection).toHaveBeenCalledWith('note.md', { anchor: 2, head: 2 });
         expect(session.documentTabId()).toBe('note.md');
+    });
+
+    test('switches undo history ownership even when the next document text is identical', () => {
+        const { scheduled, editor, switchDocument, session, setActiveTabId } = harness();
+        editor.content = 'same text';
+
+        session.mount('same text', 'first.md');
+        scheduled[0]();
+        switchDocument.mockClear();
+
+        setActiveTabId('second.md');
+        session.mount('same text', 'second.md');
+        scheduled[1]();
+
+        expect(switchDocument).toHaveBeenCalledTimes(1);
+        expect(switchDocument).toHaveBeenCalledWith(editor, expect.objectContaining({
+            tabId: 'second.md',
+            previousTabId: 'first.md',
+            documentChanged: true,
+        }), false);
+        expect(session.documentTabId()).toBe('second.md');
     });
 });
