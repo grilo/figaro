@@ -9,7 +9,7 @@ require (
 	github.com/pdfcpu/pdfcpu v0.12.1
 	github.com/wailsapp/wails/v2 v2.14.0
 	golang.org/x/sys v0.47.0
-	golang.org/x/text v0.40.0
+	golang.org/x/text v0.41.0
 )
 
 // Keep Windows AltGr/dead-key input inside WebView2 instead of reposting it to
