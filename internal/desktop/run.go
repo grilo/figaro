@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 
 	"figaro/internal/appinfo"
@@ -34,6 +35,17 @@ type AssetFS interface {
 // constructed. Keeping this read-only adapter package-scoped avoids threading
 // the same immutable bundle through every existing Wails method.
 var assets AssetFS
+
+const figaroSingleInstanceID = "io.github.figaro.Figaro"
+
+func figaroSingleInstanceLock(app *App) *options.SingleInstanceLock {
+	return &options.SingleInstanceLock{
+		UniqueId: figaroSingleInstanceID,
+		OnSecondInstanceLaunch: func(data options.SecondInstanceData) {
+			app.handleSecondInstanceLaunch(data.Args, data.WorkingDirectory)
+		},
+	}
+}
 
 // Run assembles and starts the native desktop application.
 func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) error {
@@ -97,12 +109,13 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	}
 
 	return wails.Run(&options.App{
-		Title:            "Figaro",
-		Width:            windowState.Width,
-		Height:           windowState.Height,
-		MinWidth:         minimumWindowWidth,
-		MinHeight:        minimumWindowHeight,
-		WindowStartState: windowStartState,
+		Title:              "Figaro",
+		Width:              windowState.Width,
+		Height:             windowState.Height,
+		MinWidth:           minimumWindowWidth,
+		MinHeight:          minimumWindowHeight,
+		WindowStartState:   windowStartState,
+		SingleInstanceLock: figaroSingleInstanceLock(app),
 		// Frameless for native custom title bar.
 		Frameless: true,
 		AssetServer: &assetserver.Options{
@@ -145,13 +158,34 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 // launch arguments. Desktop launchers can add their own flags, which are not
 // documents and must not become editor tabs.
 func markdownLaunchPaths(args []string) []string {
+	workingDirectory, _ := os.Getwd()
+	return markdownLaunchPathsFrom(args, workingDirectory)
+}
+
+// markdownLaunchPathsFrom resolves the second process's relative arguments
+// against its own working directory, not the already-running process's. Wails
+// supplies that directory with every forwarded launch.
+func markdownLaunchPathsFrom(args []string, workingDirectory string) []string {
+	base := strings.TrimSpace(workingDirectory)
+	if base == "" {
+		base, _ = os.Getwd()
+	}
+	if base != "" && !filepath.IsAbs(base) {
+		if absoluteBase, err := filepath.Abs(base); err == nil {
+			base = absoluteBase
+		}
+	}
 	paths := make([]string, 0, len(args))
 	seen := make(map[string]struct{})
 	for _, arg := range args {
 		if arg == "" || strings.HasPrefix(arg, "-") || !strings.EqualFold(filepath.Ext(arg), ".md") {
 			continue
 		}
-		path, err := filepath.Abs(arg)
+		path := arg
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(base, path)
+		}
+		path, err := filepath.Abs(path)
 		if err != nil {
 			continue
 		}
@@ -159,10 +193,14 @@ func markdownLaunchPaths(args []string) []string {
 		if err != nil || !info.Mode().IsRegular() {
 			continue
 		}
-		if _, exists := seen[path]; exists {
+		key := path
+		if goruntime.GOOS == "windows" {
+			key = strings.ToLower(key)
+		}
+		if _, exists := seen[key]; exists {
 			continue
 		}
-		seen[path] = struct{}{}
+		seen[key] = struct{}{}
 		paths = append(paths, path)
 	}
 	return paths

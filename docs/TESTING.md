@@ -145,13 +145,17 @@ Initial vault progress is split across the same boundaries. Root-adapter tests
 prove exact Markdown discovery and monotonically increasing counts; desktop
 tests prove that work remains pending until the idempotent `StartVaultLoad`
 request, then covers ordered phases, an independently readable final snapshot,
-and a bounded event count. Pure frontend tests cover normalization,
-percentage/copy, and stale-generation rejection, while the DOM test owns the
-hidden-to-present transition and accessible progress attributes. The one
-`desktopStartup.spec.js` browser case is retained because only a real page can
-prove saved theme CSS is applied before the loading surface and start request,
-the fill occupies the complete track height while the first file-tree promise
-is blocked, and the panel is replaced after startup.
+a bounded event count, and an initial tree read that can share the vault read
+lock with indexing. Pure frontend tests cover restoration planning, inactive
+metadata-only tabs, progress normalization, settlement, percentage/copy, and
+stale-generation rejection; the DOM test owns the hidden-to-present transition
+and accessible progress attributes. The one `desktopStartup.spec.js` browser
+case is retained because only a real page can prove the mirrored theme paints
+before the bridge resolves, the selected note is mounted and editable before
+`StartVaultLoad`, inactive tabs cause no reads, and compact footer progress
+keeps its full track height while the tree and index remain unfinished. It also
+proves that tree completion alone does not publish `window._appReady` and that
+successful index completion hides progress without replacing the editor.
 
 ### Huge-vault stress profile
 
@@ -1293,11 +1297,17 @@ contract in Playwright.
 
 Native file-association launches are an explicit boundary: retain Go coverage
 that startup accepts only existing `.md` arguments, the opaque launch ID reads
-and saves exactly its original file, and unknown IDs are refused. Frontend
+and saves exactly its original file, and unknown IDs are refused. The Wails
+single-instance callback must resolve relative arguments against the second
+process's working directory, collapse duplicates within that request, register
+new opaque capabilities, restore/focus the existing window even when no valid
+Markdown argument remains, and emit only the registered descriptors. Frontend
 coverage must assert that the import choice occurs before the first tab opens;
 import opens the returned collision-safe vault copy, while declining opens the
 capability-backed original and adds one process-local root shortcut with the
-distinct `FileSymlink` default icon. The existing `delete` action must remain
+distinct `FileSymlink` default icon. A forwarded runtime batch must reuse this
+choice, serialize against other batches, and claim a capability once if both
+the startup snapshot and runtime event expose it. The existing `delete` action must remain
 the single final menu entry and relabel itself **Remove from file tree** for
 that shortcut. External shortcuts must not enter the vault Markdown
 multi-selection; deletion remains a single-target workflow with no mixed
@@ -1317,9 +1327,11 @@ import once for a dropped directory. A successful dropped-file import must
 open that imported file in a new active tab, while a dropped directory keeps
 the current buffer active. The Wails callback must register without the
 CSS-drop-target filter so it reaches CodeMirror on Linux/WebKit. Exercise a
-packaged Windows/WebView2 build manually by opening an associated `.md` file,
-declining import, saving the original, then removing its root shortcut and
-confirming the original still exists unchanged except for that explicit save.
+packaged Windows/WebView2 build manually by starting Figaro, minimizing it,
+and opening an associated `.md` file. Confirm that the existing window is
+restored with no second Figaro window, then decline import, save the original,
+remove its root shortcut, and confirm the original still exists unchanged
+except for that explicit save.
 Repeat by importing into a vault that already contains the same filename; also
 drop a standalone note onto a file-tree folder, cancel once and confirm once,
 then drag a note and folder into an editor buffer, choose path insertion once,
@@ -1328,15 +1340,18 @@ and import once to verify the folder hierarchy.
 Run the focused contract with:
 
 ```bash
-go test ./internal/desktop -run 'Test(LaunchExternalFile|MarkdownLaunchPaths)'
+go test ./internal/desktop -run 'Test(LaunchExternalFile|MarkdownLaunchPaths|SingleInstance)'
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/externalFileModel.test.js \
   tests/frontend/unit/externalFiles.test.js \
+  tests/frontend/unit/vaultEvents.test.js \
   tests/frontend/unit/externalDrop.test.js \
   tests/frontend/unit/importedExternalTabs.test.js \
   tests/frontend/unit/tabManager.test.js \
   tests/frontend/unit/fileTree.test.js
-npx playwright test tests/e2e/tabBufferOwnership.spec.js
+npx playwright test \
+  tests/e2e/desktopStartup.spec.js \
+  tests/e2e/tabBufferOwnership.spec.js
 ```
 
 ## Editor buffer undo ownership

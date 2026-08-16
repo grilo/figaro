@@ -5,5 +5,6 @@
 export {
     restoreSessionTabs,
     restoredTabOpenArgs,
+    restoredWorkspacePlan,
     serializeSessionTabs,
 } from './core/sessionModel.js';

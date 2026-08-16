@@ -44,6 +44,44 @@
     white-space: nowrap;
 }
 
+.status-vault-loading {
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+    gap: 7px;
+    min-width: 0;
+    max-width: min(430px, 45vw);
+    color: var(--text-muted);
+}
+
+.status-vault-loading[hidden] {
+    display: none;
+}
+
+.status-vault-loading-message {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.status-vault-loading .ui-progress {
+    flex: 0 0 72px;
+    width: 72px;
+    min-width: 48px;
+    height: 4px;
+}
+
+.status-vault-loading output {
+    flex: 0 0 auto;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.status-vault-loading[data-phase="error"],
+.status-vault-loading[data-phase="error"] output {
+    color: var(--danger-color);
+}
+
 .status-right {
     flex: 0 1 auto;
     justify-content: flex-end;
@@ -86,6 +124,10 @@
     }
 
     .status-detail-extended {
+        display: none;
+    }
+
+    .status-vault-loading-message {
         display: none;
     }
 }

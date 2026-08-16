@@ -5,7 +5,6 @@ export function renderVaultLoading(presentation, root = document) {
     const title = root.getElementById('vault-loading-title');
     const message = root.getElementById('vault-loading-message');
     const count = root.getElementById('vault-loading-count');
-    const card = root.getElementById('vault-loading-card');
     const progress = root.getElementById('vault-loading-progress');
     const value = root.getElementById('vault-loading-progress-value');
 
@@ -15,8 +14,6 @@ export function renderVaultLoading(presentation, root = document) {
     if (count) count.textContent = presentation.count;
     panel.setAttribute('aria-busy', String(presentation.busy));
     panel.dataset.phase = presentation.phase;
-    card?.classList.toggle('ui-notice--info', presentation.phase !== 'error');
-    card?.classList.toggle('ui-notice--danger', presentation.phase === 'error');
 
     if (progress) {
         progress.setAttribute('aria-valuetext', presentation.ariaText);
@@ -33,7 +30,8 @@ export function renderVaultLoading(presentation, root = document) {
 export function removeVaultLoading(root = document) {
     const panel = root.getElementById?.('vault-loading-panel');
     if (!panel) return false;
-    panel.remove();
+    panel.hidden = true;
+    panel.setAttribute('aria-busy', 'false');
     return true;
 }
 

@@ -2,6 +2,7 @@ import {
     confirmExternalTreeImport,
     importDroppedExternalPaths,
     offerExternalFileImport,
+    openExternalLaunchFiles,
     openLaunchExternalFiles,
 } from '../frontend/js/externalFiles.js';
 import { serializeSessionTabs } from '../frontend/js/sessionTabs.js';
@@ -81,6 +82,35 @@ describe('external Markdown launch files', () => {
             externalFileId: 'external-1',
         });
         expect(onExternalKept).toHaveBeenCalledWith(file);
+    });
+
+    test('reuses the launch prompt for forwarded files and claims duplicate event capabilities once', async () => {
+        const openTab = jest.fn();
+        const confirm = jest.fn().mockResolvedValue(false);
+        const claimed = new Set();
+        const claimExternalFile = jest.fn(file => {
+            if (claimed.has(file.id)) return false;
+            claimed.add(file.id);
+            return true;
+        });
+        const file = { id: 'external-2', path: 'C:\\Notes\\forwarded.md', mtime: 22 };
+        const options = {
+            api: { CopyExternalPaths: jest.fn() },
+            confirm,
+            claimExternalFile,
+        };
+
+        await openExternalLaunchFiles([file], openTab, options);
+        await openExternalLaunchFiles([file], openTab, options);
+
+        expect(claimExternalFile).toHaveBeenCalledTimes(2);
+        expect(confirm).toHaveBeenCalledTimes(1);
+        expect(openTab).toHaveBeenCalledTimes(1);
+        expect(openTab).toHaveBeenCalledWith('external:external-2', 'forwarded.md', 'file', {
+            path: 'C:\\Notes\\forwarded.md',
+            mtime: 22,
+            externalFileId: 'external-2',
+        });
     });
 
     test('keeps the source outside the vault when import is cancelled', async () => {

@@ -7,13 +7,11 @@ describe('vault loading view', () => {
     beforeEach(() => {
         document.body.innerHTML = `
             <div id="vault-loading-panel" aria-busy="true" hidden>
-                <section id="vault-loading-card" class="ui-notice ui-notice--info">
-                    <h1 id="vault-loading-title"></h1>
-                    <p id="vault-loading-message"></p>
-                    <span id="vault-loading-progress" role="progressbar"></span>
-                    <span id="vault-loading-progress-value"></span>
-                    <output id="vault-loading-count"></output>
-                </section>
+                <span id="vault-loading-title"></span>
+                <span id="vault-loading-message"></span>
+                <span id="vault-loading-progress" role="progressbar"></span>
+                <span id="vault-loading-progress-value"></span>
+                <output id="vault-loading-count"></output>
             </div>`;
     });
 
@@ -37,7 +35,7 @@ describe('vault loading view', () => {
         expect(document.getElementById('vault-loading-panel').hidden).toBe(false);
 
         expect(removeVaultLoading()).toBe(true);
-        expect(document.getElementById('vault-loading-panel')).toBeNull();
+        expect(document.getElementById('vault-loading-panel').hidden).toBe(true);
     });
 
     test('uses an indeterminate accessible state while discovering the file count', () => {
@@ -56,7 +54,7 @@ describe('vault loading view', () => {
         expect(progress.getAttribute('aria-valuetext')).toBe('Discovering notes');
     });
 
-    test('uses the approved danger notice treatment for a startup error', () => {
+    test('uses the compact error state without hiding the editor workspace', () => {
         renderVaultLoading({
             phase: 'error',
             title: 'Vault could not load',
@@ -66,9 +64,8 @@ describe('vault loading view', () => {
             ariaText: 'permission denied',
             busy: false,
         });
-        const card = document.getElementById('vault-loading-card');
-        expect(card.classList.contains('ui-notice--danger')).toBe(true);
-        expect(card.classList.contains('ui-notice--info')).toBe(false);
+        expect(document.getElementById('vault-loading-panel').dataset.phase).toBe('error');
+        expect(document.getElementById('vault-loading-message').textContent).toBe('permission denied');
         expect(document.getElementById('vault-loading-panel').getAttribute('aria-busy')).toBe('false');
     });
 });

@@ -30,6 +30,31 @@
     <link rel="stylesheet" href="styles/overrides.css">
     <link rel="stylesheet" href="design-system/primitives.css">
     <link rel="stylesheet" href="design-system/theme-surfaces.css">
+    <script>
+        // Mirror only the last confirmed bundled appearance. The vault-backed
+        // settings remain authoritative once the native bridge is ready, but
+        // this small local hint lets the first shell frame use the same theme
+        // and fonts as the previous session.
+        try {
+            const appearance = JSON.parse(localStorage.getItem('figaro:startup-appearance-v1') || 'null');
+            if (appearance && /^[a-z0-9][a-z0-9-]*$/.test(appearance.theme || '')) {
+                const link = document.createElement('link');
+                link.id = 'startup-theme';
+                link.rel = 'stylesheet';
+                link.href = `/themes/${appearance.theme}.css`;
+                document.head.appendChild(link);
+            }
+            for (const [property, value] of Object.entries({
+                '--font-editor': appearance?.fontEditor,
+                '--font-ui': appearance?.fontUI,
+                '--font-code': appearance?.fontCode,
+            })) {
+                if (typeof value === 'string' && value.length <= 240) {
+                    document.documentElement.style.setProperty(property, value);
+                }
+            }
+        } catch (_) { /* The normal vault-backed appearance will replace it. */ }
+    </script>
     <!-- CodeMirror 6 Theme - Local vendor copy -->
     <link rel="stylesheet" href="/vendored/codemirror/theme-one-dark/style.min.css">
     <link rel="stylesheet" href="/vendored/katex/dist/katex.min.css">
@@ -126,13 +151,13 @@
       }
     }
     </script>
-    <script src="/vendored/markdown-it/index.js"></script>
-    <script src="/vendored/katex/dist/katex.min.js"></script>
-    <script src="/vendored/mermaid/mermaid.min.js"></script>
-    <script src="/vendored/vega/vega.min.js"></script>
-    <script src="/vendored/vega/vega-lite.min.js"></script>
-    <script src="/vendored/vega/vega-embed.min.js"></script>
-    <script src="/vendored/lucide/lucide.min.js"></script>
+    <script defer src="/vendored/markdown-it/index.js"></script>
+    <script defer src="/vendored/katex/dist/katex.min.js"></script>
+    <script defer src="/vendored/mermaid/mermaid.min.js"></script>
+    <script defer src="/vendored/vega/vega.min.js"></script>
+    <script defer src="/vendored/vega/vega-lite.min.js"></script>
+    <script defer src="/vendored/vega/vega-embed.min.js"></script>
+    <script defer src="/vendored/lucide/lucide.min.js"></script>
     <!-- Load the complete application graph during startup. The bootstrap waits
          for Wails' bound Go App object before it initializes the workspace. -->
     <script type="module" src="/js/bootstrap.js"></script>
@@ -336,25 +361,7 @@
                 </div>
 
                 <!-- Tab Content Panels (for non-file tabs: calendar, backlinks, kanban) -->
-                <div id="tab-panels" class="tab-panels active">
-                    <div id="vault-loading-panel" class="tab-panel active vault-loading-panel"
-                         role="status" aria-live="polite" aria-atomic="false" aria-busy="true"
-                         data-phase="pending" hidden>
-                        <section id="vault-loading-card" class="ui-notice ui-notice--info vault-loading-card"
-                                 aria-labelledby="vault-loading-title">
-                            <p class="vault-loading-kicker">Workspace</p>
-                            <h1 id="vault-loading-title">Loading vault</h1>
-                            <p id="vault-loading-message">Discovering notes…</p>
-                            <span id="vault-loading-progress" class="ui-progress" role="progressbar"
-                                  aria-label="Loading vault" aria-valuemin="0" aria-valuemax="100"
-                                  aria-valuetext="Discovering notes">
-                                <span id="vault-loading-progress-value" class="ui-progress-value"
-                                      style="--ui-progress: 0%"></span>
-                            </span>
-                            <output id="vault-loading-count">Preparing file list…</output>
-                        </section>
-                    </div>
-                </div>
+                <div id="tab-panels" class="tab-panels active"></div>
             </main>
 
             <!-- Right Sidebar (used for History, Outline, Raw Text, and PDF preview) -->
@@ -372,6 +379,19 @@
         <footer id="status-bar" class="status-bar">
             <div class="status-left">
                 <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>
+                <div id="vault-loading-panel" class="status-vault-loading"
+                     role="status" aria-live="polite" aria-atomic="false" aria-busy="true"
+                     data-phase="pending" hidden>
+                    <span id="vault-loading-title" class="sr-only">Loading vault</span>
+                    <span id="vault-loading-message" class="status-vault-loading-message">Discovering notes…</span>
+                    <span id="vault-loading-progress" class="ui-progress" role="progressbar"
+                          aria-label="Loading vault" aria-valuemin="0" aria-valuemax="100"
+                          aria-valuetext="Discovering notes">
+                        <span id="vault-loading-progress-value" class="ui-progress-value"
+                              style="--ui-progress: 0%"></span>
+                    </span>
+                    <output id="vault-loading-count">Preparing file list…</output>
+                </div>
                 <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
                 <button type="button" id="status-action" class="status-inline-action" hidden></button>
             </div>

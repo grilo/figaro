@@ -30,11 +30,14 @@ type App struct {
 	vaultPath           string
 	devInspectorAddress string
 	vaultMu             sync.RWMutex
+	fileTreeBuildMu     sync.Mutex
 	sessionMu           sync.RWMutex
 	mu                  sync.RWMutex
+	runtimeMu           sync.RWMutex
 	externalFilesMu     sync.RWMutex
 	launchExternalFiles map[string]string
 	launchExternalIDs   []string
+	launchExternalNext  int
 	settingsMu          sync.RWMutex
 	machineSettingsMu   sync.RWMutex
 	windowStateMu       sync.Mutex
@@ -63,10 +66,14 @@ type App struct {
 	vaultLoadEmitStep   int
 	vaultLoadLastEmit   int
 	eventEmitter        func(name string, data ...any)
+	windowShow          func(context.Context)
+	windowFocusPending  bool
 }
 
 // SystemColumns are the three built-in kanban columns always present.
 var SystemColumns = []string{"todo", "wip", "done"}
+
+const externalLaunchEventName = "launch:external-files"
 
 // hashtagRe matches #tagname (bare, without boundary checks).
 // Use findHashtags() / replaceHashtag() / removeHashtag() for standalone-tag
@@ -173,9 +180,11 @@ func NewApp(vaultPath string) *App {
 		fileVersions:        make(map[string]float64),
 		kanbanColors:        make(map[string]string),
 		kanbanColumns:       append([]string{}, SystemColumns...),
+		launchExternalFiles: make(map[string]string),
 		internalVaultWrites: make(map[string]internalVaultWriteAck),
 		windowState:         defaultWindowState(),
 		vaultLoadStatus:     VaultLoadStatus{Phase: VaultLoadPending},
+		windowShow:          runtime.WindowShow,
 	}
 	a.loadColors()
 
@@ -339,8 +348,16 @@ func (a *App) ensureWelcomeNote() {
 
 // startup captures the Wails context.
 func (a *App) startup(ctx context.Context) {
+	a.runtimeMu.Lock()
 	a.ctx = ctx
 	a.runtimeEventsReady = true
+	focusPending := a.windowFocusPending
+	a.windowFocusPending = false
+	showWindow := a.windowShow
+	a.runtimeMu.Unlock()
+	if focusPending && showWindow != nil {
+		showWindow(ctx)
+	}
 	log.Println("[go] App.startup() — Wails context captured")
 	a.migrateLegacyPDFBrowserPreference()
 	a.ensureSettingsDefaults()
@@ -365,7 +382,7 @@ func (a *App) StartVaultLoad() bool {
 		started = true
 		go a.startVaultWatcher()
 		go func() {
-			a.syncKanbanColumns()
+			a.initializeVaultIndex()
 			a.emitRuntimeEvent("vault:kanban-indexed")
 		}()
 	})
@@ -376,26 +393,88 @@ func (a *App) StartVaultLoad() bool {
 // system at process launch. The frontend receives opaque IDs rather than
 // arbitrary filesystem paths it could use to request unrelated files.
 func (a *App) setLaunchExternalFiles(paths []string) {
-	files := make(map[string]string)
-	ids := make([]string, 0, len(paths))
-	knownPaths := make(map[string]struct{})
+	a.externalFilesMu.Lock()
+	a.launchExternalFiles = make(map[string]string)
+	a.launchExternalIDs = nil
+	a.launchExternalNext = 0
+	a.externalFilesMu.Unlock()
+	a.registerLaunchExternalFiles(paths)
+}
+
+// registerLaunchExternalFiles extends the process-local capability set and
+// returns only the descriptors created for this launch. Repeated paths within
+// one operating-system request share one capability, while a later explicit
+// launch remains a new request and can bring the existing window forward.
+func (a *App) registerLaunchExternalFiles(paths []string) []*ExternalLaunchFile {
+	type candidate struct {
+		path  string
+		mtime float64
+	}
+	candidates := make([]candidate, 0, len(paths))
+	knownPaths := make(map[string]struct{}, len(paths))
 	for _, path := range paths {
-		if path == "" {
+		clean := filepath.Clean(path)
+		if clean == "." || clean == "" {
 			continue
 		}
-		if _, exists := knownPaths[path]; exists {
+		key := clean
+		if goruntime.GOOS == "windows" {
+			key = strings.ToLower(key)
+		}
+		if _, exists := knownPaths[key]; exists {
 			continue
 		}
-		knownPaths[path] = struct{}{}
-		id := fmt.Sprintf("external-%d", len(ids)+1)
-		files[id] = path
-		ids = append(ids, id)
+		info, err := os.Stat(clean)
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		knownPaths[key] = struct{}{}
+		candidates = append(candidates, candidate{path: clean, mtime: externalFileMtime(info)})
 	}
 
 	a.externalFilesMu.Lock()
-	a.launchExternalFiles = files
-	a.launchExternalIDs = ids
-	a.externalFilesMu.Unlock()
+	defer a.externalFilesMu.Unlock()
+	registered := make([]*ExternalLaunchFile, 0, len(candidates))
+	for _, candidate := range candidates {
+		a.launchExternalNext++
+		id := fmt.Sprintf("external-%d", a.launchExternalNext)
+		a.launchExternalFiles[id] = candidate.path
+		a.launchExternalIDs = append(a.launchExternalIDs, id)
+		registered = append(registered, &ExternalLaunchFile{
+			ID:    id,
+			Name:  filepath.Base(candidate.path),
+			Path:  candidate.path,
+			Mtime: candidate.mtime,
+		})
+	}
+	return registered
+}
+
+func (a *App) requestWindowFocus() {
+	a.runtimeMu.Lock()
+	ctx := a.ctx
+	showWindow := a.windowShow
+	if ctx == nil || !a.runtimeEventsReady {
+		a.windowFocusPending = true
+		a.runtimeMu.Unlock()
+		return
+	}
+	a.runtimeMu.Unlock()
+	if showWindow != nil {
+		showWindow(ctx)
+	}
+}
+
+// handleSecondInstanceLaunch receives a validated operating-system launch
+// from Wails, extends the first process's capability set, and asks its frontend
+// to reuse the normal external-file choice. The existing window is focused
+// even when no valid Markdown argument was supplied.
+func (a *App) handleSecondInstanceLaunch(args []string, workingDirectory string) {
+	files := a.registerLaunchExternalFiles(markdownLaunchPathsFrom(args, workingDirectory))
+	if len(files) > 0 {
+		a.emitRuntimeEventData(externalLaunchEventName, files)
+	}
+	a.requestWindowFocus()
 }
 
 func (a *App) launchExternalFilePath(id string) (string, error) {
@@ -568,8 +647,12 @@ func (a *App) emitRuntimeEventData(name string, data ...any) {
 		a.eventEmitter(name, data...)
 		return
 	}
-	if a.ctx == nil || !a.runtimeEventsReady {
+	a.runtimeMu.RLock()
+	ctx := a.ctx
+	ready := a.runtimeEventsReady
+	a.runtimeMu.RUnlock()
+	if ctx == nil || !ready {
 		return
 	}
-	runtime.EventsEmit(a.ctx, name, data...)
+	runtime.EventsEmit(ctx, name, data...)
 }

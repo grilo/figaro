@@ -10,6 +10,7 @@ export function registerVaultChangeEvents(runtime, {
     onKanbanIndexed,
     onHistoryChanged,
     onVaultLoadProgress,
+    onExternalFilesOpened,
 } = {}) {
     if (typeof runtime?.EventsOn !== 'function') return false;
 
@@ -24,6 +25,9 @@ export function registerVaultChangeEvents(runtime, {
     });
     runtime.EventsOn('vault:load-progress', (payload) => {
         onVaultLoadProgress?.(payload || {});
+    });
+    runtime.EventsOn('launch:external-files', (payload) => {
+        onExternalFilesOpened?.(Array.isArray(payload) ? payload : []);
     });
     return true;
 }

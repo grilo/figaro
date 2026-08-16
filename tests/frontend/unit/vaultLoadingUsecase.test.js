@@ -23,4 +23,24 @@ describe('vault loading session', () => {
         expect(remove).toHaveBeenCalledTimes(1);
         expect(session.update({ generation: 2, phase: 'ready' })).toBe(false);
     });
+
+    test('settles only when the current vault generation is ready or failed', async () => {
+        const session = createVaultLoadingSession({
+            readStatus: async () => ({ generation: 1, phase: 'loading', loaded: 1, total: 2 }),
+            present: jest.fn(),
+            remove: jest.fn(),
+        });
+        await session.connect();
+
+        let settled = false;
+        const completion = session.waitUntilSettled().then(status => {
+            settled = true;
+            return status;
+        });
+        await Promise.resolve();
+        expect(settled).toBe(false);
+
+        session.update({ generation: 1, phase: 'ready', loaded: 2, total: 2 });
+        await expect(completion).resolves.toMatchObject({ phase: 'ready', loaded: 2, total: 2 });
+    });
 });

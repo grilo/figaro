@@ -18,8 +18,8 @@ import { confirmDialog, promptDialog } from './dialogs.js';
 import { initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
 import { initBacklinks } from './backlinks.js';
 import { loadSession, saveSession } from './session.js';
-import { restoredTabOpenArgs } from './sessionTabs.js';
-import { openLaunchExternalFiles } from './externalFiles.js';
+import { restoredWorkspacePlan } from './sessionTabs.js';
+import { openExternalLaunchFiles, openLaunchExternalFiles } from './externalFiles.js';
 import { initTheme, initThemeAppearance } from './theme.js';
 import { initTabSizePreference } from './tabSizePreference.js';
 import { initSidebarResizer } from './sidebarResizer.js';
@@ -45,11 +45,61 @@ window.promptDialog = promptDialog;
 
 let autoSaveTimer = null;
 let vaultEventsInitialized = false;
+let externalLaunchHandlingReady = false;
+let externalLaunchQueue = Promise.resolve();
+let pendingExternalLaunchFiles = [];
+const claimedExternalLaunchIDs = new Set();
 const vaultLoadingSession = createVaultLoadingSession({
     readStatus: () => backend().GetVaultLoadStatus(),
     present: renderVaultLoading,
     remove: removeVaultLoading,
 });
+
+function claimExternalLaunchFile(file) {
+    const id = String(file?.id || '');
+    if (!id || claimedExternalLaunchIDs.has(id)) return false;
+    claimedExternalLaunchIDs.add(id);
+    return true;
+}
+
+function externalLaunchOptions() {
+    return {
+        closeTab,
+        onExternalKept: addExternalFileTreeEntry,
+        onImported: () => refreshFileTree(),
+        onImportError: error => {
+            log.warn('Could not import external launch note:', error);
+            statusBar.set('Opened outside vault; import failed');
+        },
+        claimExternalFile: claimExternalLaunchFile,
+    };
+}
+
+function enqueueExternalLaunchFiles(files) {
+    const received = Array.isArray(files) ? files : [];
+    if (!externalLaunchHandlingReady) {
+        pendingExternalLaunchFiles.push(...received);
+        return;
+    }
+    externalLaunchQueue = externalLaunchQueue
+        .catch(() => {})
+        .then(() => openExternalLaunchFiles(received, openTab, externalLaunchOptions()))
+        .catch(error => {
+            log.warn('Could not handle forwarded launch notes:', error);
+            statusBar.set('Could not open forwarded note');
+        });
+}
+
+async function initializeExternalLaunchHandling() {
+    await openLaunchExternalFiles(openTab, externalLaunchOptions());
+    externalLaunchHandlingReady = true;
+    const pending = pendingExternalLaunchFiles;
+    pendingExternalLaunchFiles = [];
+    if (pending.length) {
+        enqueueExternalLaunchFiles(pending);
+        await externalLaunchQueue;
+    }
+}
 
 function configureAutoSave(seconds) {
     if (autoSaveTimer) {
@@ -95,6 +145,7 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
         onVaultLoadProgress: payload => {
             vaultLoadingSession.update(payload);
         },
+        onExternalFilesOpened: enqueueExternalLaunchFiles,
     });
     if (registered) vaultEventsInitialized = true;
     return registered;
@@ -382,52 +433,33 @@ export async function handleFileOpen(filePath) {
 
 /**
  * Restore previously open tabs from saved session
- * @returns {boolean} true if tabs were restored
+ * @returns {Promise<{restored: boolean, deferredActiveTabId: string|null}>}
  */
-function restoreOpenTabs() {
+async function restoreOpenTabs() {
     const restoredTabs = state._restoredTabs;
     const restoredActiveId = state._restoredActiveTabId;
     
-    if (!restoredTabs || !restoredTabs.length) return false;
+    if (!restoredTabs || !restoredTabs.length) {
+        return { restored: false, deferredActiveTabId: null };
+    }
     
     state._restoredTabs = null;
     state._restoredActiveTabId = null;
 
-    const filePaths = new Set();
-    const directoryPaths = new Set();
-    const collectTreePaths = items => {
-        for (const item of items || []) {
-            if (item?.type === 'file' && item.path) filePaths.add(item.path);
-            if (item?.type === 'directory' && item.path) {
-                directoryPaths.add(item.path);
-                collectTreePaths(item.children);
-            }
-        }
-    };
-    collectTreePaths(getState('fileTreeData'));
-    if (state.selectedFilePath && !filePaths.has(state.selectedFilePath)) {
-        setState('selectedFilePath', null);
-    }
-    if (state.selectedTreePath && !filePaths.has(state.selectedTreePath) && !directoryPaths.has(state.selectedTreePath)) {
-        setState('selectedTreePath', null);
-    }
-    if (state.expandedDirs instanceof Set) {
-        state.expandedDirs = new Set([...state.expandedDirs].filter(path => directoryPaths.has(path)));
-    }
-    
+    const plan = restoredWorkspacePlan(restoredTabs, restoredActiveId);
     const openedIDs = new Set();
-    for (const t of restoredTabs) {
-        const restored = restoredTabOpenArgs(t);
-        if (!restored) continue;
-        if ((restored.type === 'file' || restored.type === 'drawio') && !filePaths.has(restored.data.path)) continue;
-        openTab(restored.id, restored.title, restored.type, restored.data);
+    for (const restored of plan.tabs) {
+        openTab(restored.id, restored.title, restored.type, {
+            ...restored.data,
+            activate: false,
+        });
         openedIDs.add(restored.id);
     }
 
     if (!openedIDs.size) {
         setState('pinnedTabs', []);
         state._restoredCursorStates = null;
-        return false;
+        return { restored: false, deferredActiveTabId: null };
     }
     setState('pinnedTabs', (getState('pinnedTabs') || []).filter(id => openedIDs.has(id)));
 
@@ -443,14 +475,13 @@ function restoreOpenTabs() {
         state._restoredCursorStates = null;
     }
 
-    if (restoredActiveId && openedIDs.has(restoredActiveId)) {
-        switchTab(restoredActiveId);
+    const activePlan = plan.tabs.find(tab => tab.id === plan.activeTabId);
+    const deferredActiveTabId = activePlan?.type === 'file' ? null : plan.activeTabId;
+    if (activePlan?.type === 'file' && openedIDs.has(plan.activeTabId)) {
+        await switchTab(plan.activeTabId);
     }
 
-    // Force-save session after restore
-    saveSession();
-    
-    return true;
+    return { restored: true, deferredActiveTabId };
 }
 
 /**
@@ -489,46 +520,29 @@ export async function initApp() {
     // default theme while a different saved theme is being read.
     await initThemeAppearance();
 
-    // Subscribe before explicitly starting the backend work. Snapshot
-    // reconciliation then closes the race between the start call and the
-    // first sampled progress event, without omitting any startup phase.
+    // Subscribe before explicitly starting the backend work, but keep that
+    // work pending until the portable session and its one active buffer have
+    // been restored.
     initVaultChangeNotifications();
-    vaultLoadingSession.start();
-    await backend().StartVaultLoad();
-    await vaultLoadingSession.connect();
     await initTabSizePreference();
-    await initLinkStylePreference();
-    try {
-        setAutoCommitEnabled(await backend().AutoCommitLoad());
-    } catch (_) { /* keep the enabled-on-save default */ }
 
     // Load saved session from vault/.config/session.json
     await loadSession();
     
     // Initialize editor (CodeMirror 6)
     statusBar.set('Loading editor...');
-    await languageSupportReady;
     await initEditor();
     
     // Initialize tab manager
     initTabManager();
     initEditorBreadcrumb();
-
-    // Initialize file tree
-    statusBar.set('Loading file tree...');
-    await refreshFileTree();
     initFileTree();
 
-    // Restore previously open tabs (after file tree is available)
-    const didRestore = restoreOpenTabs();
-    await openLaunchExternalFiles(openTab, {
-        onExternalKept: addExternalFileTreeEntry,
-        onImported: () => refreshFileTree(),
-        onImportError: error => {
-            log.warn('Could not import external launch note:', error);
-            statusBar.set('Opened outside vault; import failed');
-        },
-    });
+    // The backend has already pruned stale portable paths. Recreate inactive
+    // tabs as metadata only, then await the single active file read before any
+    // full-vault discovery can compete with it.
+    const restoration = await restoreOpenTabs();
+    await initializeExternalLaunchHandling();
     
     // Initialize calendar
     initCalendar();
@@ -553,17 +567,44 @@ export async function initApp() {
     initPDFPreview();
     initRawTextPreview();
 
-    await initTheme();
-    
-    if (!didRestore && !getState('activeTabId')) {
+    // The editor or launch document is now visible. Start all remaining eager
+    // work without putting it back on the first-buffer critical path.
+    vaultLoadingSession.start();
+    await backend().StartVaultLoad();
+    await vaultLoadingSession.connect();
+    const vaultReady = vaultLoadingSession.waitUntilSettled();
+
+    if (restoration.deferredActiveTabId) {
+        switchTab(restoration.deferredActiveTabId).catch(error => {
+            log.warn('Could not restore the previous workspace view:', error);
+        });
+    }
+
+    const fileTreeReady = refreshFileTree();
+    const preferencesReady = (async () => {
+        await initLinkStylePreference();
+        try {
+            setAutoCommitEnabled(await backend().AutoCommitLoad());
+        } catch (_) { /* keep the enabled-on-save default */ }
+        await initTheme();
+    })();
+
+    if (!restoration.restored && !getState('activeTabId')) {
         // A missing, empty, or pruned workspace begins at the overview rather
         // than opening an arbitrary note or manufacturing a fake tab.
         showWorkspaceHome();
     }
+
+    const [vaultStatus] = await Promise.all([
+        vaultReady,
+        fileTreeReady,
+        preferencesReady,
+        languageSupportReady,
+    ]);
     // Persist the repaired workspace so the next launch cannot resurrect
     // removed paths or a legacy synthetic Welcome tab.
     saveSession();
-    vaultLoadingSession.finish();
+    if (vaultStatus.phase === 'ready') vaultLoadingSession.finish();
     
     statusBar.set('Ready');
     window._appReady = true;

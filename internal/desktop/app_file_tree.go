@@ -72,8 +72,10 @@ type fileTreeCacheEntry struct {
 
 // GetFileTree returns the complete vault file tree.
 func (a *App) GetFileTree() ([]*FileTreeItem, error) {
-	a.vaultMu.Lock()
-	defer a.vaultMu.Unlock()
+	a.vaultMu.RLock()
+	defer a.vaultMu.RUnlock()
+	a.fileTreeBuildMu.Lock()
+	defer a.fileTreeBuildMu.Unlock()
 	if a.fileTreeSnapshot != nil {
 		return a.fileTreeSnapshot, nil
 	}

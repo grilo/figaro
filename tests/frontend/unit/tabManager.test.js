@@ -153,6 +153,20 @@ describe('Tab Manager', () => {
             expect(getState('activeTabId')).toBe('test.md');
         });
 
+        test('can restore inactive tab metadata without reading or activating it', async () => {
+            openTab('background.md', 'Background', 'file', {
+                path: 'background.md',
+                activate: false,
+            });
+            await testUtils.waitFor(0);
+
+            expect(getState('openTabs')).toEqual([
+                expect.objectContaining({ id: 'background.md', path: 'background.md' }),
+            ]);
+            expect(getState('activeTabId')).toBeNull();
+            expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
+        });
+
         test('mounts a newly created path as an empty document owned by its tab', async () => {
             openTab('fresh.md', 'Fresh', 'file', { path: 'fresh.md', isNew: true });
             await testUtils.waitFor(0);

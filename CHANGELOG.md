@@ -10,6 +10,21 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.22.0] - 2026-08-16
+
+### Changed
+
+- Startup now restores the last confirmed appearance and active note before
+  full-vault indexing begins. Inactive tabs remain metadata-only, the file tree
+  loads alongside the index, and compact bottom-left progress stays visible
+  while the remaining eager workspace data warms in the background.
+
+### Fixed
+
+- Opening Figaro or an associated Markdown file while Figaro is already
+  running now restores and focuses the existing window, forwarding the file to
+  its normal Import/Keep outside flow instead of opening another instance.
+
 ## [1.21.1] - 2026-08-15
 
 ### Fixed
@@ -1162,7 +1177,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.21.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.22.0...HEAD
+[1.22.0]: https://github.com/grilo/figaro/compare/v1.21.1...v1.22.0
 [1.21.1]: https://github.com/grilo/figaro/compare/v1.21.0...v1.21.1
 [1.21.0]: https://github.com/grilo/figaro/compare/v1.20.1...v1.21.0
 [1.20.1]: https://github.com/grilo/figaro/compare/v1.20.0...v1.20.1

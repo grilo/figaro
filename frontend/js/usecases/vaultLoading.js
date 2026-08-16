@@ -10,6 +10,12 @@ import {
 export function createVaultLoadingSession({ readStatus, present, remove }) {
     let active = true;
     let latest = normalizeVaultLoadStatus();
+    let settle = null;
+    const settled = new Promise(resolve => { settle = resolve; });
+
+    const settleIfComplete = () => {
+        if (latest.phase === 'ready' || latest.phase === 'error') settle?.(latest);
+    };
 
     const update = value => {
         if (!active) return false;
@@ -21,6 +27,7 @@ export function createVaultLoadingSession({ readStatus, present, remove }) {
         }
         latest = next;
         present(presentVaultLoadStatus(next));
+        settleIfComplete();
         return true;
     };
 
@@ -36,6 +43,10 @@ export function createVaultLoadingSession({ readStatus, present, remove }) {
                 // The static discovery state remains useful if a development
                 // or older test backend does not expose the snapshot yet.
             }
+        },
+        waitUntilSettled() {
+            settleIfComplete();
+            return settled;
         },
         finish() {
             if (!active) return false;

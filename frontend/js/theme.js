@@ -74,6 +74,18 @@ let spellcheckPreferenceLoaded = false;
 let spellcheckPreferenceLoadPromise = null;
 let spellcheckPreferenceRevision = 0;
 let spellcheckSaveQueue = Promise.resolve();
+const startupAppearanceStorageKey = 'figaro:startup-appearance-v1';
+
+function persistStartupAppearance() {
+    try {
+        localStorage.setItem(startupAppearanceStorageKey, JSON.stringify({
+            theme: currentTheme,
+            fontEditor: document.documentElement.style.getPropertyValue('--font-editor'),
+            fontUI: document.documentElement.style.getPropertyValue('--font-ui'),
+            fontCode: document.documentElement.style.getPropertyValue('--font-code'),
+        }));
+    } catch (_) { /* Appearance persistence is an optional first-frame hint. */ }
+}
 
 function isActivePanel(root) {
     return root === document || (!!root && root.isConnected && !root._settingsPanelDisposed);
@@ -117,6 +129,7 @@ export function initThemeAppearance() {
         await applyTheme(themeId);
         applyFont(fontId, true);
         applyCodeFont(codeFontId, true);
+        persistStartupAppearance();
     })();
     return themeAppearanceLoadPromise;
 }
@@ -146,8 +159,11 @@ export async function applyTheme(themeId) {
         if (requestId !== themeRequestId) return false;
         if (result && result.css) {
             ensureStyleEl().textContent = result.css;
+            document.getElementById('startup-theme')?.remove();
+            persistStartupAppearance();
             return true;
         }
+        document.getElementById('startup-theme')?.remove();
     } catch (e) {
         log.warn('Failed to load theme:', themeId, e);
     }
@@ -1036,6 +1052,7 @@ function applyFont(fontId, initial, root = document) {
         // on the chosen reading font without changing the intentionally
         // separate code-font setting.
         document.documentElement.style.setProperty('--font-ui', family);
+        persistStartupAppearance();
 
         // Inject CSS override — fonts.css handles @font-face declarations
         let style = document.getElementById('dynamic-font-style');
@@ -1071,6 +1088,7 @@ function applyCodeFont(fontId, initial, root = document) {
         const selected = CODE_FONTS.find(font => font.id === fontId) || CODE_FONTS[0];
         currentCodeFont = selected.id;
         document.documentElement.style.setProperty('--font-code', selected.family);
+        persistStartupAppearance();
 
         const nameEl = isActivePanel(root) ? findIn(root, '#code-font-current-name') : null;
         if (nameEl) nameEl.textContent = selected.name;

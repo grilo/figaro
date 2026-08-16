@@ -203,12 +203,15 @@ application code needed by normal workflows is ready, not merely that the
 initial shell is visible.
 
 Asynchronous startup is still allowed: independent initialization may run in
-parallel, and background warming may continue while an explicit startup state
-is shown. It must begin during startup and finish before the application
-advertises the affected feature as ready. A source-level architecture test
-rejects dynamic imports and source modules that are unreachable through static
-imports or explicit worker edges from the application bootstrap or the three
-print-renderer build entries,
+parallel, and background warming may continue after the themed shell and
+restored active buffer are usable. It must begin during startup and finish
+before the application advertises the affected feature as ready. The bundled
+classic renderer scripts remain static startup dependencies but use `defer` so
+they do not block HTML parsing; language parser warming begins immediately and
+settles before `window._appReady`, without delaying the initial Markdown
+buffer. A source-level architecture test rejects dynamic imports and source
+modules that are unreachable through static imports or explicit worker edges
+from the application bootstrap or the three print-renderer build entries,
 while the assembled startup check verifies the single static bootstrap path.
 
 Demand-driven **work** is distinct from lazy-loaded **application code**.
@@ -252,7 +255,7 @@ physical splitting of `editor.js`, `tabManager.js`, or a desktop capability
 file should follow tested ownership seams rather than creating pass-through
 modules.
 
-Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. Go records only the explicit launch documents under process-local opaque IDs; the frontend can read or save an ID but cannot turn it into arbitrary filesystem access. Before opening, the frontend offers a collision-safe vault import. Declining creates a process-local root projection in the file tree and an external tab; that projection is not vault membership and is never persisted or passed to vault mutation APIs. Removing it closes the capability-backed tab after dirty-state protection and mutates only frontend state, so the original file cannot be deleted by that workflow. The pure external-file model distinguishes capability-backed reads from vault-relative reads and describes destination-specific native-drop confirmation without calling a dialog or backend. Tab activation executes that read plan before committing an external tab as selected; failed or superseded reads leave the previous active tab and CodeMirror owner paired. An external tab writes atomically to its original document and does not join the recent-files list, vault index, watcher, session, or Git history. Native drops on the file tree require confirmation before the copy adapter runs. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
+Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. The desktop composition root installs Wails' process-wide single-instance lock. A second launch sends its arguments and working directory to the existing process; launch-path resolution retains only existing Markdown files, and the desktop coordinator registers them before emitting one runtime event and restoring/focusing the existing window. Go records only those explicit launch documents under process-local opaque IDs; the frontend can read or save an ID but cannot turn it into arbitrary filesystem access. The initial capability snapshot closes the race when a second launch arrives before the webview event subscriber is ready, and frontend ID claiming prevents the snapshot and event from prompting twice. Later batches share the same serialized import/keep-outside use case. Before opening, the frontend offers a collision-safe vault import. Declining creates a process-local root projection in the file tree and an external tab; that projection is not vault membership and is never persisted or passed to vault mutation APIs. Removing it closes the capability-backed tab after dirty-state protection and mutates only frontend state, so the original file cannot be deleted by that workflow. The pure external-file model distinguishes capability-backed reads from vault-relative reads and describes destination-specific native-drop confirmation without calling a dialog or backend. Tab activation executes that read plan before committing an external tab as selected; failed or superseded reads leave the previous active tab and CodeMirror owner paired. An external tab writes atomically to its original document and does not join the recent-files list, vault index, watcher, session, or Git history. Native drops on the file tree require confirmation before the copy adapter runs. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
 
 ## Incremental vault index and native changes
 
@@ -270,14 +273,24 @@ is independent of the main vault lock; `GetVaultLoadStatus` therefore remains
 responsive while the index owns that lock. Count-based event sampling bounds a
 10,000-note build to about one hundred bridge updates, with phase boundaries
 always delivered. Native startup leaves both the recursive watcher and cold
-index pending. After the frontend reads and applies the persisted appearance,
-it subscribes to progress, reveals the loading surface, and invokes the
-idempotent `StartVaultLoad` port; it then reads the current snapshot. A pure
-generation/phase reducer rejects delayed or regressive updates. A small DOM
-adapter updates the static loading notice and approved determinate progress
-primitive; an explicit feature layout pins the fill to the complete track
-height, and startup removes the panel only after a real editor or overview
-surface is mounted.
+index pending. A small webview-local mirror paints the last confirmed bundled
+theme and fonts in the first shell frame; vault-backed settings remain
+authoritative. The frontend then loads the repaired portable session,
+recreates inactive tabs as metadata, and reads and mounts only the selected
+file. Once that buffer is usable, it invokes the idempotent `StartVaultLoad`
+port, reconciles the current snapshot, and starts the initial file-tree read
+and remaining preference and parser warming concurrently.
+
+The cold index holds a vault read lock, so the initial `GetFileTree` read can
+run beside it; a dedicated tree-build mutex prevents duplicate cache builds,
+while vault mutations still wait for both readers. The initial index build does
+not invalidate an independently built tree cache. A pure generation/phase
+reducer rejects delayed or regressive updates. A small DOM adapter updates the
+approved determinate progress primitive in the bottom-left status bar, leaving
+the active editor interactive. `window._appReady` is published only after the
+index reaches a terminal phase and the initial tree, preferences, and language
+warming have settled. Successful completion hides the compact progress; an
+index error remains visible.
 
 Figaro writes known Markdown files atomically and updates that one index entry
 in the same vault lock. The recursive native watcher sends a debounced set of
@@ -390,9 +403,10 @@ requesting a new file tree; directory or entry changes schedule the normal
 coalesced tree refresh. An acknowledgement of a Figaro-originated save has
 both flags false: the frontend already replaces that file's Kanban cards from
 the saved snapshot, so it does not request the complete board again. The
-initial index is still built after the first Wails window is allowed to appear,
-so indexing does not delay shell creation; the early-painted loading workspace
-owns the interval until the first tree and restored view are ready.
+initial index is still built after the first Wails window and restored active
+buffer are allowed to appear, so indexing does not delay shell creation or the
+first editable note. Compact status progress owns the remaining warm-up
+interval while the initial tree and index finish concurrently.
 
 The frontend has two complementary hot paths. An unsaved Kanban change is
 projected from the dirty tab buffers on the next animation frame, without an

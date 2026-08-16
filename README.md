@@ -163,18 +163,23 @@ Machine-specific settings, such as window geometry and a selected PDF browser,
 are stored in the operating system's per-user application-data directory
 instead of the vault.
 
-When a large vault needs an initial index, Figaro paints the workspace shell
-immediately, restores the saved theme and fonts, then shows **Loading vault**
-and explicitly starts discovery. A live `loaded / total` Markdown-note count
-and full-height progress bar cover the complete indexed workload; the restored
-note or Today dashboard replaces it only when the initial workspace data is
-ready.
+On launch, Figaro immediately reuses the last confirmed theme and fonts while
+it reads the authoritative vault settings. It restores the previous active
+note with one file read before starting full-vault indexing; other saved tabs
+remain metadata-only until selected. The editor stays usable while the file
+tree, search/planning index, and bundled language support warm concurrently.
+A compact `loaded / total` Markdown-note progress indicator in the bottom-left
+status bar remains visible until the eager vault work is ready.
 
 Opening a Markdown file from outside the vault offers two safe choices:
 
 - **Import** creates a collision-safe vault copy and opens it.
 - **Keep outside vault** edits the original through a temporary file-tree
   shortcut without adding it to search, planning, history, or saved sessions.
+
+Figaro keeps one desktop instance. Opening an associated Markdown file while
+Figaro is already running brings that window forward and presents the same
+Import/Keep outside choice there instead of opening another window.
 
 Files and folders can also be copied or dropped into the tree. Figaro asks
 before importing, preserves directory structure, and never silently overwrites

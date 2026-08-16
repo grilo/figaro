@@ -226,6 +226,13 @@ function createMockDOM() {
             </div>
             <footer id="status-bar" class="status-bar">
                 <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>
+                <div id="vault-loading-panel" class="status-vault-loading" aria-busy="true" hidden>
+                    <span id="vault-loading-title"></span>
+                    <span id="vault-loading-message"></span>
+                    <span id="vault-loading-progress" class="ui-progress" role="progressbar"></span>
+                    <span id="vault-loading-progress-value" class="ui-progress-value"></span>
+                    <output id="vault-loading-count"></output>
+                </div>
                 <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
                 <button id="status-action" hidden></button>
                 <span id="cursor-position">Ln 1, Col 1</span>

@@ -14,6 +14,7 @@ test('boots through the native Wails binding with the workspace overview, vault 
             };
         }
         const calls = [];
+        const handlers = {};
         const responses = {
             GetFileTree: [{ name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 }],
             GetVaultLoadStatus: { generation: 1, phase: 'ready', loaded: 1, total: 1 },
@@ -22,6 +23,12 @@ test('boots through the native Wails binding with the workspace overview, vault 
                 content: '# Welcome to Figaro\n\nThis text came through the native Wails binding.',
                 path: 'Welcome.md',
                 mtime: 1,
+            },
+            GetLaunchExternalFiles: [],
+            ReadLaunchExternalFile: {
+                content: '# Forwarded into existing window\n\nThis file stayed outside the vault.',
+                path: 'C:\\Notes\\forwarded.md',
+                mtime: 2,
             },
             LoadSession: {},
             LinkStyleLoad: { style: 'markdown' },
@@ -52,6 +59,10 @@ test('boots through the native Wails binding with the workspace overview, vault 
         };
 
         window.__desktopBridgeCalls = calls;
+        window.runtime = {
+            EventsOn: (name, handler) => { handlers[name] = handler; },
+        };
+        window.__emitForwardedExternalFiles = files => handlers['launch:external-files']?.(files);
         window.go = {
             desktop: {
                 App: new Proxy({}, {
@@ -132,20 +143,46 @@ test('boots through the native Wails binding with the workspace overview, vault 
         'WindowMaximize',
         'WindowCaptureState',
     ]));
+
+    await page.evaluate(() => window.__emitForwardedExternalFiles([{
+        id: 'external-forwarded-1',
+        name: 'forwarded.md',
+        path: 'C:\\Notes\\forwarded.md',
+        mtime: 2,
+    }]));
+    await expect(page.getByRole('dialog')).toContainText('Import this note into the vault?');
+    await page.getByRole('button', { name: 'Keep outside vault' }).click();
+    await expect(page.locator('.tab[data-tab-id="external:external-forwarded-1"]')).toHaveClass(/active/);
+    await expect(page.locator('.cm-content')).toContainText('Forwarded into existing window');
+    await expect.poll(() => page.evaluate(() => window.__desktopBridgeCalls
+        .filter(call => call.method === 'ReadLaunchExternalFile')
+        .some(call => call.args[0] === 'external-forwarded-1'))).toBe(true);
 });
 
-test('shows real vault indexing progress before the initial file tree is available', async ({ page }) => {
+test('restores the themed active buffer before background vault indexing and tree loading finish', async ({ page }) => {
     await page.addInitScript(() => {
         const handlers = {};
         const calls = [];
         let resolveTree;
         let resolveTheme;
+        let resolveActiveFile;
+        localStorage.setItem('figaro:startup-appearance-v1', JSON.stringify({
+            theme: 'github',
+            fontEditor: "'Inter', sans-serif",
+            fontUI: "'Inter', sans-serif",
+            fontCode: "'SFMono-Regular', monospace",
+        }));
         window.runtime = {
             EventsOn: (name, handler) => { handlers[name] = handler; },
         };
         window.__startupCalls = calls;
         window.__emitVaultLoadProgress = payload => handlers['vault:load-progress']?.(payload);
         window.__resolveStartupTree = () => resolveTree?.([]);
+        window.__resolveActiveFile = () => resolveActiveFile?.({
+            content: '# Restored immediately\n\nThe active buffer is usable.',
+            path: 'active.md',
+            mtime: 1,
+        });
         window.__resolveStartupTheme = () => resolveTheme?.({
             theme: 'startup-test',
             font: 'inter',
@@ -162,7 +199,20 @@ test('shows real vault indexing progress before the initial file tree is availab
             }),
             GetFileTree: () => new Promise(resolve => { resolveTree = resolve; }),
             GetFileTreeStyles: () => Promise.resolve({ version: 1, entries: {}, recent_icons: [] }),
-            LoadSession: () => Promise.resolve({}),
+            LoadSession: () => Promise.resolve({
+                openTabs: [
+                    { id: 'active.md', type: 'file', title: 'Active', path: 'active.md' },
+                    { id: 'inactive.md', type: 'file', title: 'Inactive', path: 'inactive.md' },
+                ],
+                activeTabId: 'active.md',
+                selectedFilePath: 'active.md',
+                selectedTreePath: 'active.md',
+                expandedDirs: [],
+                pinnedTabs: [],
+            }),
+            ReadFile: path => path === 'active.md'
+                ? new Promise(resolve => { resolveActiveFile = resolve; })
+                : Promise.resolve({ content: '# Inactive', path, mtime: 1 }),
             LinkStyleLoad: () => Promise.resolve({ style: 'markdown' }),
             GetKanbanColumns: () => Promise.resolve({ columns: ['todo', 'wip', 'done'], colors: {} }),
             GetKanbanBoard: () => Promise.resolve({ todo: [], wip: [], done: [] }),
@@ -191,20 +241,37 @@ test('shows real vault indexing progress before the initial file tree is availab
 
     await page.goto('/');
     await expect(page.locator('#vault-loading-panel')).toBeHidden();
+    await expect(page.locator('#app')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect.poll(() => page.evaluate(() => window.__startupCalls.includes('ThemeLoad'))).toBe(true);
     expect(await page.evaluate(() => window.__startupCalls.includes('StartVaultLoad'))).toBe(false);
 
     await page.evaluate(() => window.__resolveStartupTheme());
+    await expect.poll(() => page.evaluate(() => window.__startupCalls.includes('ReadFile'))).toBe(true);
+    expect(await page.evaluate(() => window.__startupCalls.includes('StartVaultLoad'))).toBe(false);
+
+    await page.evaluate(() => window.__resolveActiveFile());
+    await expect(page.locator('.cm-content')).toContainText('Restored immediately');
     await expect(page.locator('#vault-loading-panel')).toBeVisible();
     await expect(page.locator('#vault-loading-title')).toHaveText('Loading vault');
     await expect(page.locator('#vault-loading-count')).toHaveText('100 / 2072 notes');
     await expect(page.locator('#vault-loading-progress')).toHaveAttribute('aria-valuenow', '5');
     await expect(page.locator('#vault-loading-progress-value')).toHaveCSS('background-color', 'rgb(12, 145, 210)');
+    await expect(page.locator('#vault-loading-panel')).toHaveCSS('display', 'flex');
+    expect(await page.locator('#vault-loading-panel').evaluate(element => element.closest('footer')?.id)).toBe('status-bar');
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type(' Early edit.');
+    await expect(page.locator('.cm-content')).toContainText('Early edit.');
+    expect(await page.evaluate(() => window._appReady)).toBe(false);
 
     const startupCalls = await page.evaluate(() => window.__startupCalls);
     expect(startupCalls.indexOf('ThemeLoad')).toBeLessThan(startupCalls.indexOf('GetThemeCSS'));
-    expect(startupCalls.indexOf('GetThemeCSS')).toBeLessThan(startupCalls.indexOf('StartVaultLoad'));
+    expect(startupCalls.indexOf('GetThemeCSS')).toBeLessThan(startupCalls.indexOf('ReadFile'));
+    expect(startupCalls.indexOf('ReadFile')).toBeLessThan(startupCalls.indexOf('StartVaultLoad'));
     expect(startupCalls.indexOf('StartVaultLoad')).toBeLessThan(startupCalls.indexOf('GetVaultLoadStatus'));
+    expect(startupCalls.indexOf('GetVaultLoadStatus')).toBeLessThan(startupCalls.indexOf('GetFileTree'));
+    expect(startupCalls.filter(call => call === 'ReadFile')).toEqual(['ReadFile']);
 
     const progressGeometry = await page.locator('#vault-loading-progress').evaluate(track => {
         const fill = track.querySelector('.ui-progress-value');
@@ -218,10 +285,10 @@ test('shows real vault indexing progress before the initial file tree is availab
         };
     });
     expect(progressGeometry).toEqual({
-        trackHeight: 8,
+        trackHeight: 4,
         fillTopOffset: 0,
         fillBottomOffset: 0,
-        fillPosition: 'absolute',
+        fillPosition: 'static',
     });
 
     await page.evaluate(() => window.__emitVaultLoadProgress({
@@ -234,7 +301,14 @@ test('shows real vault indexing progress before the initial file tree is availab
     await expect(page.locator('#vault-loading-progress')).toHaveAttribute('aria-valuenow', '50');
 
     await page.evaluate(() => window.__resolveStartupTree());
+    expect(await page.evaluate(() => window._appReady)).toBe(false);
+    await page.evaluate(() => window.__emitVaultLoadProgress({
+        generation: 1,
+        phase: 'ready',
+        loaded: 2072,
+        total: 2072,
+    }));
     await page.waitForFunction(() => window._appReady === true);
-    await expect(page.locator('#vault-loading-panel')).toHaveCount(0);
-    await expect(page.locator('.workspace-home-panel.active .home-view h1')).toHaveText('Today');
+    await expect(page.locator('#vault-loading-panel')).toBeHidden();
+    await expect(page.locator('.cm-content')).toContainText('Early edit.');
 });

@@ -23,3 +23,22 @@ func TestMarkdownLaunchPathsKeepsOnlyExistingMarkdownDocuments(t *testing.T) {
 		t.Fatalf("markdownLaunchPaths = %#v, want [%q]", got, markdown)
 	}
 }
+
+func TestMarkdownLaunchPathsFromUsesSecondInstanceWorkingDirectory(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	markdown := filepath.Join(root, "opened.md")
+	if err := os.WriteFile(markdown, []byte("# Open"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := markdownLaunchPathsFrom([]string{
+		"opened.md",
+		"opened.md",
+		"missing.md",
+		"ignored.txt",
+	}, root)
+	if len(got) != 1 || got[0] != markdown {
+		t.Fatalf("markdownLaunchPathsFrom = %#v, want [%q]", got, markdown)
+	}
+}

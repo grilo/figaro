@@ -10,16 +10,29 @@ function fileName(path) {
 // an arbitrary path supplied by the webview.
 export async function openLaunchExternalFiles(openTab, {
     api = backend(),
+    ...options
+} = {}) {
+    if (typeof openTab !== 'function' || typeof api?.GetLaunchExternalFiles !== 'function') return [];
+    const files = await api.GetLaunchExternalFiles();
+    return openExternalLaunchFiles(files, openTab, { api, ...options });
+}
+
+// Process descriptors delivered after another operating-system launch. The
+// caller owns ID claiming so the startup snapshot and a simultaneous runtime
+// event cannot show the same prompt twice.
+export async function openExternalLaunchFiles(files, openTab, {
+    api = backend(),
     confirm = window.confirmDialog,
     closeTab,
     onExternalKept = () => {},
     onImported = async () => {},
     onImportError = () => {},
+    claimExternalFile = () => true,
 } = {}) {
-    if (typeof openTab !== 'function' || typeof api?.GetLaunchExternalFiles !== 'function') return [];
-    const files = await api.GetLaunchExternalFiles();
+    if (typeof openTab !== 'function') return [];
     for (const file of Array.isArray(files) ? files : []) {
         if (!file?.id || !file?.path) continue;
+        if (!claimExternalFile(file)) continue;
         const tab = {
             id: `external:${file.id}`,
             title: file.name || fileName(file.path),

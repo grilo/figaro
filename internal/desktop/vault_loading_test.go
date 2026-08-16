@@ -68,6 +68,10 @@ func TestVaultLoadStartsOnlyWhenExplicitlyRequested(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	t.Cleanup(app.stopVaultWatcher)
 	writeTestFile(t, vaultPath, "tasks.md", "- requested startup #later\n")
+	warmTree, err := app.GetFileTree()
+	if err != nil {
+		t.Fatalf("warm file tree before StartVaultLoad: %v", err)
+	}
 
 	if status := app.GetVaultLoadStatus(); status.Phase != VaultLoadPending {
 		t.Fatalf("load phase before StartVaultLoad = %q, want %q", status.Phase, VaultLoadPending)
@@ -86,6 +90,13 @@ func TestVaultLoadStartsOnlyWhenExplicitlyRequested(t *testing.T) {
 	status := app.GetVaultLoadStatus()
 	if status.Phase != VaultLoadReady || status.Loaded != 1 || status.Total != 1 {
 		t.Fatalf("explicit vault load status = %+v, want ready 1/1", status)
+	}
+	reusedTree, err := app.GetFileTree()
+	if err != nil {
+		t.Fatalf("file tree after StartVaultLoad: %v", err)
+	}
+	if len(warmTree) == 0 || &warmTree[0] != &reusedTree[0] {
+		t.Fatal("initial vault indexing invalidated the independently warm file-tree cache")
 	}
 }
 
@@ -123,4 +134,30 @@ func TestVaultLoadStatusDoesNotWaitForVaultLock(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("GetVaultLoadStatus waited for the main vault lock")
 	}
+}
+
+func TestInitialFileTreeReadSharesTheVaultReadLock(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "restored.md", "# Restored\n")
+
+	// The initial index owns this same read lock for its complete cold build.
+	// GetFileTree must therefore remain a fellow reader rather than queueing a
+	// writer which would put the restored workspace behind the index again.
+	app.vaultMu.RLock()
+	done := make(chan error, 1)
+	go func() {
+		_, err := app.GetFileTree()
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("GetFileTree while vault read lock held: %v", err)
+		}
+	case <-time.After(time.Second):
+		app.vaultMu.RUnlock()
+		t.Fatal("GetFileTree waited for the initial index read lock")
+	}
+	app.vaultMu.RUnlock()
 }

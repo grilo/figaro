@@ -2,6 +2,7 @@ import {
     buildSessionSnapshot,
     normalizeSessionPayload,
     restoredTabOpenArgs,
+    restoredWorkspacePlan,
 } from '../frontend/js/core/sessionModel.js';
 
 describe('portable session model', () => {
@@ -74,5 +75,25 @@ describe('portable session model', () => {
             type: 'calendar',
             data: { dateStr: '2026-07-25' },
         });
+    });
+
+    test('plans metadata-only tabs with one explicit active document', () => {
+        expect(restoredWorkspacePlan([
+            { id: 'one.md', type: 'file', title: 'One', path: 'one.md' },
+            { id: 'two.md', type: 'file', title: 'Two', path: 'two.md' },
+        ], 'one.md')).toEqual({
+            tabs: [
+                { id: 'one.md', title: 'One', type: 'file', data: { path: 'one.md' } },
+                { id: 'two.md', title: 'Two', type: 'file', data: { path: 'two.md' } },
+            ],
+            activeTabId: 'one.md',
+        });
+    });
+
+    test('falls back to the last restorable tab when the active id is stale', () => {
+        expect(restoredWorkspacePlan([
+            { id: 'note.md', type: 'file', title: 'Note', path: 'note.md' },
+            { id: 'home', type: 'home', title: 'Legacy home' },
+        ], 'missing.md').activeTabId).toBe('note.md');
     });
 });

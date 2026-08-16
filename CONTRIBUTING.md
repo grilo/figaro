@@ -88,6 +88,9 @@ initialized during startup. Do not introduce interaction-triggered dynamic
 imports or first-use parser/renderer initialization. User-selected work such as
 opening a hosted Draw.io document, scanning Vault health, or generating a PDF
 remains demand-driven, but its application code must already be ready.
+The themed shell and restored active buffer may become interactive while eager
+vault indexing, tree construction, and parser warming continue; preserve that
+short critical path as well as the later `window._appReady` boundary.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete dependency and startup
 decisions.

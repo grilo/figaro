@@ -782,10 +782,6 @@ func (index *vaultIndex) columns() []string {
 // once for concurrent readers. The caller must hold vaultMu for reading or
 // writing, which prevents a published snapshot from changing underneath it.
 func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
-	if a.vaultIndex != nil {
-		return a.vaultIndex, nil
-	}
-
 	a.vaultIndexBuildMu.Lock()
 	defer a.vaultIndexBuildMu.Unlock()
 	if a.vaultIndex != nil {

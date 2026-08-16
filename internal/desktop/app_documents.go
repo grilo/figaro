@@ -28,8 +28,9 @@ type ReadFileResult struct {
 }
 
 // ExternalLaunchFile describes one Markdown document passed to Figaro by the
-// operating system. IDs are process-local capabilities, while Path is shown
-// only so the editor can retain normal language detection and file labeling.
+// operating system at initial or forwarded launch. IDs are process-local
+// capabilities, while Path is shown only so the editor can retain normal
+// language detection and file labeling.
 type ExternalLaunchFile struct {
 	ID    string  `json:"id"`
 	Name  string  `json:"name"`
@@ -61,9 +62,10 @@ func readExternalMarkdownFile(path string) (*ReadFileResult, error) {
 	}, nil
 }
 
-// GetLaunchExternalFiles returns the current launch documents without reading
-// them. A document can disappear before the frontend is ready, in which case
-// it is simply omitted and never becomes an editable tab.
+// GetLaunchExternalFiles returns every document registered by operating-system
+// launches in this process without reading them. A document can disappear
+// before the frontend is ready, in which case it is simply omitted and never
+// becomes an editable tab.
 func (a *App) GetLaunchExternalFiles() ([]*ExternalLaunchFile, error) {
 	a.externalFilesMu.RLock()
 	ids := append([]string(nil), a.launchExternalIDs...)
@@ -90,8 +92,9 @@ func (a *App) GetLaunchExternalFiles() ([]*ExternalLaunchFile, error) {
 	return files, nil
 }
 
-// ReadLaunchExternalFile reads only a Markdown file registered at application
-// launch. It deliberately does not share ReadFile's vault-relative API.
+// ReadLaunchExternalFile reads only a Markdown file registered by an explicit
+// operating-system launch. It deliberately does not share ReadFile's
+// vault-relative API.
 func (a *App) ReadLaunchExternalFile(id string) (*ReadFileResult, error) {
 	path, err := a.launchExternalFilePath(id)
 	if err != nil {

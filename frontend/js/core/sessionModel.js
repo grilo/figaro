@@ -53,6 +53,21 @@ export function restoredTabOpenArgs(tab) {
     return null;
 }
 
+// Build the effect-free restoration plan used by startup. Tabs are recreated
+// as metadata first, then exactly one selected tab is activated and read. A
+// legacy session without a valid active id retains the established fallback
+// of selecting its last restorable tab.
+export function restoredWorkspacePlan(tabs, requestedActiveTabId) {
+    const restoredTabs = restoreSessionTabs(tabs)
+        .map(restoredTabOpenArgs)
+        .filter(Boolean);
+    const restoredIds = new Set(restoredTabs.map(tab => tab.id));
+    const activeTabId = restoredIds.has(requestedActiveTabId)
+        ? requestedActiveTabId
+        : (restoredTabs.at(-1)?.id || null);
+    return { tabs: restoredTabs, activeTabId };
+}
+
 export function normalizeSessionPayload(payload) {
     if (!payload || Array.isArray(payload) || typeof payload !== 'object' || !Object.keys(payload).length) {
         return null;

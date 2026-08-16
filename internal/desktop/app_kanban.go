@@ -20,13 +20,25 @@ func (a *App) extractHashtags(content string) []string {
 
 // syncKanbanColumns rescans all vault files for hashtags and updates the column list.
 func (a *App) syncKanbanColumns() {
-	a.vaultMu.RLock()
-	defer a.vaultMu.RUnlock()
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
 	a.syncKanbanColumnsLocked()
 }
 
-// syncKanbanColumnsLocked requires vaultMu to be held (for reading or
-// writing), so a scan observes a coherent vault snapshot.
+// initializeVaultIndex performs the read-only initial projection without
+// invalidating the independent file-tree cache. It intentionally shares the
+// vault read lock with GetFileTree, so startup discovery cannot prevent the
+// restored workspace tree from becoming available.
+func (a *App) initializeVaultIndex() {
+	a.vaultMu.RLock()
+	defer a.vaultMu.RUnlock()
+	if _, err := a.ensureVaultIndexLocked(); err != nil {
+		log.Printf("[vault-index] Could not index vault: %v", err)
+	}
+}
+
+// syncKanbanColumnsLocked requires vaultMu to be held for writing, so cache
+// invalidation and the replacement scan publish one coherent snapshot.
 func (a *App) syncKanbanColumnsLocked() {
 	// Broad filesystem changes (rename/copy/merge and external tools) may
 	// affect an unknown set of notes. Discard the old snapshot once, then build

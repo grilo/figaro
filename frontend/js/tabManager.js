@@ -638,12 +638,13 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     }
 
     const tabs = getState('openTabs');
+    const shouldActivate = data.activate !== false;
     
     if (!forceNew || data.externalFileId) {
         const existing = tabs.find(t => t.id === id);
         if (existing) {
             if (existing.type === 'file' && data.line) existing.searchLine = data.line;
-            switchTab(existing.id);
+            if (shouldActivate) switchTab(existing.id);
             return existing;
         }
     }
@@ -683,18 +684,18 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     }
     
     const currentActiveId = getState('activeTabId');
-    if (!tab.externalFileId && currentActiveId && currentActiveId !== tab.id && getState('openTabs').some(tabRef => tabRef.id === currentActiveId)) {
+    if (shouldActivate && !tab.externalFileId && currentActiveId && currentActiveId !== tab.id && getState('openTabs').some(tabRef => tabRef.id === currentActiveId)) {
         rememberPreviousActiveTab(currentActiveId);
         snapshotActiveFileTab(tabs.find(tabRef => tabRef.id === currentActiveId));
     }
 
     const newTabs = [...tabs, tab];
     setState('openTabs', newTabs);
-    if (!tab.externalFileId) setState('activeTabId', tab.id);
+    if (shouldActivate && !tab.externalFileId) setState('activeTabId', tab.id);
     saveTabsToStorage();
     
     renderTabBar();
-    switchTab(tab.id);
+    if (shouldActivate) switchTab(tab.id);
     
     return tab;
 }
@@ -787,7 +788,7 @@ export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
         panel.classList.remove('active');
     });
     
-    renderTabContent(tab, cursorState, preparedFile);
+    const contentReady = renderTabContent(tab, cursorState, preparedFile);
     renderTabBar();
 
     closeHistoryPanel();
@@ -799,6 +800,7 @@ export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
     } else if (tab.type === 'file') {
         setTimeout(() => focusEditor(), 0);
     }
+    await contentReady;
     return true;
 }
 
@@ -809,7 +811,7 @@ async function renderTabContent(tab, cursorState = null, preparedFile = null) {
         if (!getEditorView()) {
             createEditorView();
         }
-        renderFileTab(null, tab, cursorState, preparedFile);
+        await renderFileTab(null, tab, cursorState, preparedFile);
     } else {
         setView('panels');
         const panelsContainer = document.getElementById('tab-panels');
@@ -859,7 +861,7 @@ async function renderFileTab(panel, tab, cursorState = null, preparedFile = null
         document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
         return;
     }
-    loadFileContent(tab, cursorState);
+    await loadFileContent(tab, cursorState);
 }
 
 async function loadFileContent(tab, cursorState = null) {
