@@ -455,6 +455,53 @@ test('reconciles keyboard viewport after crossing rendered block widgets', async
     await expectStableLongDocumentViewport(page);
 });
 
+test('reuses Mermaid rendering while scrolling through virtualized diagram blocks', async ({ page }) => {
+    const source = renderedLongMarkdown();
+    await openWelcomeEditor(page);
+    await page.evaluate(() => {
+        const mermaid = window.mermaid;
+        const originalRender = mermaid.render;
+        window.__mermaidScrollRenderProbe = { calls: 0 };
+        mermaid.render = async function (...args) {
+            window.__mermaidScrollRenderProbe.calls += 1;
+            return originalRender.apply(this, args);
+        };
+    });
+    await setEditorSource(page, source);
+
+    const scroller = page.locator('.cm-scroller');
+    const box = await scroller.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    for (let index = 0; index < 80; index += 1) {
+        await page.mouse.wheel(0, 220);
+        await page.waitForTimeout(8);
+    }
+    await page.waitForTimeout(300);
+    await expect.poll(() => page.evaluate(() => window.__mermaidScrollRenderProbe.calls))
+        .toBeGreaterThan(0);
+
+    const bottom = await page.evaluate(() => {
+        const ids = [...document.querySelectorAll('.cm-live-diagram svg [id], .cm-live-diagram svg')]
+            .map(element => element.id)
+            .filter(Boolean);
+        return {
+            calls: window.__mermaidScrollRenderProbe.calls,
+            ids,
+            scrollTop: document.querySelector('.cm-scroller').scrollTop,
+        };
+    });
+    expect(bottom.scrollTop).toBeGreaterThan(0);
+    expect(bottom.calls).toBe(1);
+    expect(new Set(bottom.ids).size).toBe(bottom.ids.length);
+
+    for (let index = 0; index < 80; index += 1) {
+        await page.mouse.wheel(0, -220);
+        await page.waitForTimeout(8);
+    }
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => window.__mermaidScrollRenderProbe.calls)).toBe(1);
+});
+
 test('keeps Vim Visual mode while selecting through a rendered code block from either direction', async ({ page }) => {
     await openWelcomeEditor(page);
     const fence = '`'.repeat(3);

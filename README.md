@@ -305,6 +305,10 @@ renderer. When Mermaid source is revealed in the main editor, syntax errors are
 marked in place with squiggles and hover explanations after the normal Markdown
 diagnostics pause.
 
+Live Mermaid previews reuse rendered SVGs when CodeMirror remounts them during
+scrolling. New diagrams wait for a quiet, idle moment before rendering so
+moving through long notes stays responsive.
+
 Editor block helpers face the writing surface: heading, code, and table labels
 are right-aligned in the left rail. Every Mermaid block extends that same guide
 into a two-button stack, with **editor** directly beneath **mermaid**. The stack

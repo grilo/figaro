@@ -398,6 +398,10 @@ the assembled webview rather than one JavaScript package in isolation.
   normal Arrow Up/Down and Vim `j`/`k` paths. Page Up/Page Down must also
   recover the viewport. The selected line must remain in the primary viewport,
   visible, and free of stale virtual gaps without mouse scrolling.
+- Mermaid rendering changes must cover virtualization explicitly: scroll through
+  a long note with repeated Mermaid source in both directions, prove identical
+  source is rendered once after caching, and verify generated SVG ids remain
+  unique after remounting.
 - A tab-size change must keep the pure 2–8/default/step rules, backend restart
   persistence, Settings rollback and bounds, root Markdown and code facets,
   Vim `>`, Mermaid, rendered GFM tables, rendered-code, Raw Text Preview, Arrow Up/Down,

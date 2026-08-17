@@ -156,6 +156,14 @@ roots use contained scrolling so typography, controls, and pointer targets
 remain readable. Table source height is its header plus the
 separator and body rows.
 
+Mermaid live widgets use a bounded source-keyed SVG cache with in-flight
+deduplication, so CodeMirror virtualization does not rerun the Mermaid engine
+for identical source. Cached SVG ids are rebased for each mounted widget so
+internal references remain local. First-time diagram renders are serialized
+through an injected queue and scheduled after a short scroll-quiet period and
+an idle opportunity; the loading state remains inside the already measured
+source footprint while the editor is moving.
+
 This policy is editor-only. Images, frontmatter/Properties, links, task
 checkboxes, inline math, and other inline replacements must not receive the
 `cm-source-footprint` marker. Raw Text Preview and both printable surfaces keep

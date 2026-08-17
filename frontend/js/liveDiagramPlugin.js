@@ -13,6 +13,7 @@ import { foldedRanges } from '@codemirror/language';
 import { diagramLanguages, renderDiagramSVG } from './diagramRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
+import { createDiagramRenderQueue } from './usecases/diagramRenderQueue.js';
 
 export { diagramLanguages };
 
@@ -114,7 +115,82 @@ function setMessage(container, className, text) {
     container.replaceChildren(message);
 }
 
-function createDiagramWidget(WidgetType) {
+const DIAGRAM_IDLE_TIMEOUT = 500;
+const DIAGRAM_SCROLL_QUIET_PERIOD = 50;
+
+function scheduleDiagramIdle(callback, view) {
+    const win = view?.dom?.ownerDocument?.defaultView || globalThis;
+    if (!view?.scrollDOM) {
+        const handle = win.setTimeout(callback, 0);
+        return { cancel: () => win.clearTimeout(handle) };
+    }
+
+    let cancelled = false;
+    let timer = null;
+    let idleHandle = null;
+    let lastScrollTop = view.scrollDOM.scrollTop;
+    let scrollListener = null;
+
+    const clearSchedule = () => {
+        if (timer !== null) {
+            win.clearTimeout(timer);
+            timer = null;
+        }
+        if (idleHandle !== null) {
+            win.cancelIdleCallback?.(idleHandle);
+            idleHandle = null;
+        }
+        if (scrollListener) {
+            view.scrollDOM.removeEventListener('scroll', scrollListener);
+            scrollListener = null;
+        }
+    };
+
+    const run = () => {
+        if (cancelled) return;
+        clearSchedule();
+        callback();
+    };
+
+    const runWhenQuiet = () => {
+        if (cancelled) return;
+        timer = null;
+        const currentScrollTop = view.scrollDOM.scrollTop;
+        if (currentScrollTop !== lastScrollTop) {
+            lastScrollTop = currentScrollTop;
+            timer = win.setTimeout(runWhenQuiet, DIAGRAM_SCROLL_QUIET_PERIOD);
+            return;
+        }
+
+        if (typeof win.requestIdleCallback === 'function') {
+            idleHandle = win.requestIdleCallback(run, { timeout: DIAGRAM_IDLE_TIMEOUT });
+        } else {
+            timer = win.setTimeout(run, DIAGRAM_SCROLL_QUIET_PERIOD);
+        }
+    };
+
+    scrollListener = () => {
+        if (cancelled) return;
+        lastScrollTop = view.scrollDOM.scrollTop;
+        if (idleHandle !== null) {
+            win.cancelIdleCallback?.(idleHandle);
+            idleHandle = null;
+        }
+        if (timer !== null) win.clearTimeout(timer);
+        timer = win.setTimeout(runWhenQuiet, DIAGRAM_SCROLL_QUIET_PERIOD);
+    };
+    view.scrollDOM.addEventListener('scroll', scrollListener, { passive: true });
+    timer = win.setTimeout(runWhenQuiet, DIAGRAM_SCROLL_QUIET_PERIOD);
+    return {
+        cancel() {
+            if (cancelled) return;
+            cancelled = true;
+            clearSchedule();
+        },
+    };
+}
+
+function createDiagramWidget(WidgetType, renderQueue) {
     return class DiagramWidget extends WidgetType {
         constructor(lang, code, recoveredFence = false, sourceLines = 1, sourceText = '') {
             super();
@@ -125,6 +201,7 @@ function createDiagramWidget(WidgetType) {
             this.sourceText = sourceText;
             this.destroyed = false;
             this.renderVersion = 0;
+            this.renderTask = null;
             this.stopGraphicFit = null;
         }
 
@@ -138,6 +215,8 @@ function createDiagramWidget(WidgetType) {
         }
 
         toDOM(view) {
+            this.destroyed = false;
+            this.renderVersion += 1;
             const dom = document.createElement('div');
             dom.className = 'cm-live-diagram';
             dom.dataset.lang = this.lang;
@@ -165,7 +244,10 @@ function createDiagramWidget(WidgetType) {
                 lineHeight: view?.defaultLineHeight,
                 sourceText: this.sourceText,
             });
-            this.renderInto(content, wrapper);
+            this.renderTask = renderQueue.enqueue(
+                () => this.renderInto(content, wrapper),
+                view,
+            );
             return wrapper;
         }
 
@@ -205,6 +287,7 @@ function createDiagramWidget(WidgetType) {
         destroy() {
             this.destroyed = true;
             this.renderVersion++;
+            this.renderTask?.cancel?.();
             this.stopGraphicFit?.();
         }
     };
@@ -212,7 +295,12 @@ function createDiagramWidget(WidgetType) {
 
 /** Build the live-preview state field for diagram block decorations. */
 export function createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField) {
-    const DiagramWidget = createDiagramWidget(WidgetType);
+    const renderQueue = createDiagramRenderQueue({
+        schedule: scheduleDiagramIdle,
+        cancel: handle => handle?.cancel?.(),
+        onError: error => log.warn('[diagram] queued render error: ' + (error.message || error)),
+    });
+    const DiagramWidget = createDiagramWidget(WidgetType, renderQueue);
 
     const sourceRangeIsFolded = (state, block) => {
         const foldFrom = state.doc.lineAt(block.from).to;

@@ -10,6 +10,14 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.23.2] - 2026-08-17
+
+### Fixed
+
+- Mermaid live previews now reuse cached SVG output and defer first-time diagram
+  renders until scrolling is quiet, reducing pauses when navigating through
+  long rendered notes.
+
 ## [1.23.1] - 2026-08-17
 
 ### Fixed
@@ -1202,7 +1210,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.23.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.23.2...HEAD
+[1.23.2]: https://github.com/grilo/figaro/compare/v1.23.1...v1.23.2
 [1.23.1]: https://github.com/grilo/figaro/compare/v1.23.0...v1.23.1
 [1.23.0]: https://github.com/grilo/figaro/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/grilo/figaro/compare/v1.21.1...v1.22.0

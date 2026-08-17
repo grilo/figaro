@@ -1043,6 +1043,15 @@ its replacement decoration so the fold placeholder owns the block, and an
 unfold transaction rebuilds the live decoration under the ordinary
 cursor-reveal rule.
 
+Mermaid's render-performance seam keeps the cache policy in the pure
+`core/diagramRenderCacheModel.js` module. The shared renderer owns a bounded
+source-keyed LRU and in-flight promise map, and rebases generated SVG ids each
+time cached output is mounted so editor and printable consumers can share the
+result safely. The live-diagram adapter injects
+`usecases/diagramRenderQueue.js`; its browser scheduling port waits for a
+scroll-quiet interval and an idle opportunity, while queue ordering and
+cancellation remain testable without DOM or timers.
+
 The focused Mermaid Editor reuses that adapter without adding another rendering
 path. The configured Markdown-guide extension adds an **editor** action beneath
 the left-side **mermaid** fold guide; the application composition root resolves

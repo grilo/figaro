@@ -827,6 +827,15 @@ proves an ordinary selection transaction does not request a document-wide
 remeasure; mounted-root measurements are cached until source or geometry
 changes.
 
+Mermaid virtualization has a separate performance contract. The pure
+`diagramRenderCacheModel.test.js` suite covers normalized source keys and SVG
+id rebasing, `diagramRenderQueue.test.js` covers serialized work and
+cancellation, and `diagramRenderer.test.js` covers cached and concurrent
+same-source renders. The browser regression in
+`tests/e2e/vimVisualRows.spec.js` scrolls through a long note with repeated
+Mermaid fences in both directions, verifies that the engine renders the
+repeated source once, and checks that mounted SVG ids remain unique.
+
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/sourceFootprintModel.test.js \
@@ -1028,10 +1037,13 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/mermaidLintModel.test.js \
   tests/frontend/unit/markdownDocumentLint.test.js \
   tests/frontend/unit/selectCombobox.test.js \
+  tests/frontend/unit/diagramRenderCacheModel.test.js \
+  tests/frontend/unit/diagramRenderQueue.test.js \
   tests/frontend/unit/diagramRenderer.test.js
 npx playwright test \
   tests/e2e/mermaidEditor.spec.js \
   tests/e2e/editorUX.spec.js --grep "math and diagram previews cursor-safe"
+npx playwright test tests/e2e/vimVisualRows.spec.js --grep "reuses Mermaid rendering"
 ```
 
 In the packaged WebKitGTK/WebView2/WKWebView smoke, open the Mermaid Editor from

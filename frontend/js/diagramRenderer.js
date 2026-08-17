@@ -7,11 +7,18 @@
  */
 
 import { planMermaidSourceRender } from './core/diagramSecurityModel.js';
+import {
+    diagramRenderCacheKey,
+    rebaseDiagramSvgIds,
+} from './core/diagramRenderCacheModel.js';
 
 export const diagramLanguages = ['mermaid', 'vega', 'vega-lite'];
 
 let initializedMermaid = null;
 let renderSequence = 0;
+const DIAGRAM_RENDER_CACHE_LIMIT = 64;
+const diagramRenderCache = new Map();
+const pendingDiagramRenders = new Map();
 
 export function isDiagramLanguage(language) {
     return diagramLanguages.includes(String(language || '').trim().toLowerCase());
@@ -29,8 +36,58 @@ function initialiseMermaid() {
         theme: 'default',
         securityLevel: 'loose',
     });
+    diagramRenderCache.clear();
+    pendingDiagramRenders.clear();
     initializedMermaid = mermaid;
     return true;
+}
+
+function nextMermaidRenderId(idPrefix) {
+    renderSequence += 1;
+    return String(idPrefix || 'figaro-diagram') + '-mermaid-' + renderSequence;
+}
+
+function readCachedDiagram(key) {
+    const entry = diagramRenderCache.get(key);
+    if (!entry) return null;
+    diagramRenderCache.delete(key);
+    diagramRenderCache.set(key, entry);
+    return entry;
+}
+
+function writeCachedDiagram(key, entry) {
+    diagramRenderCache.delete(key);
+    diagramRenderCache.set(key, entry);
+    while (diagramRenderCache.size > DIAGRAM_RENDER_CACHE_LIMIT) {
+        diagramRenderCache.delete(diagramRenderCache.keys().next().value);
+    }
+}
+
+async function renderMermaidSVG(code, idPrefix) {
+    const key = diagramRenderCacheKey('mermaid', code);
+    const targetId = nextMermaidRenderId(idPrefix);
+    const cached = readCachedDiagram(key);
+    if (cached) return rebaseDiagramSvgIds(cached.svg, cached.renderId, targetId);
+
+    let pending = pendingDiagramRenders.get(key);
+    if (!pending) {
+        const renderId = targetId;
+        pending = Promise.resolve(window.mermaid.render(renderId, code))
+            .then(result => {
+                const svg = typeof result?.svg === 'string' && result.svg ? result.svg : null;
+                if (!svg) return null;
+                const entry = { svg, renderId };
+                writeCachedDiagram(key, entry);
+                return entry;
+            })
+            .finally(() => {
+                if (pendingDiagramRenders.get(key) === pending) pendingDiagramRenders.delete(key);
+            });
+        pendingDiagramRenders.set(key, pending);
+    }
+
+    const entry = await pending;
+    return entry ? rebaseDiagramSvgIds(entry.svg, entry.renderId, targetId) : null;
 }
 
 export function initializeDiagramRenderers() {
@@ -79,10 +136,7 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
     if (normalizedLanguage === 'mermaid') {
         assertMermaidSourceAllowed(code);
         if (!initialiseMermaid()) return null;
-        renderSequence += 1;
-        const id = String(idPrefix || 'figaro-diagram') + '-mermaid-' + renderSequence;
-        const result = await window.mermaid.render(id, code);
-        return typeof result?.svg === 'string' && result.svg ? result.svg : null;
+        return renderMermaidSVG(code, idPrefix);
     }
 
     if ((normalizedLanguage === 'vega' || normalizedLanguage === 'vega-lite') &&

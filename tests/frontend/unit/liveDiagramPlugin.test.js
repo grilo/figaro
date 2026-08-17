@@ -10,7 +10,7 @@ import {
 } from '../frontend/vendored/codemirror-live-markdown/index.js';
 import { createDiagramField, diagramLanguages, scanDiagramFences } from '../frontend/js/liveDiagramPlugin.js';
 
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+const flush = () => new Promise(resolve => setTimeout(resolve, 500));
 
 function decorationsIn(state, field) {
     const decorations = [];

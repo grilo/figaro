@@ -56,4 +56,39 @@ describe('diagram renderer startup', () => {
         expect(window.mermaid.parse).toHaveBeenCalledWith('flowchart TD\n  A --> B');
         expect(window.mermaid.render).not.toHaveBeenCalled();
     });
+
+    test('reuses cached Mermaid SVG output while rebasing generated ids per mount', async () => {
+        window.mermaid.render.mockImplementation(async id => ({
+            svg: `<svg id="${id}"><use href="#${id}"/></svg>`,
+        }));
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        const source = 'flowchart TD\n  A --> B';
+
+        const first = await renderDiagramSVG('mermaid', source, 'live');
+        const second = await renderDiagramSVG('mermaid', source, 'print');
+
+        expect(window.mermaid.render).toHaveBeenCalledTimes(1);
+        expect(first).toContain('live-mermaid-1');
+        expect(second).toContain('print-mermaid-2');
+        expect(second).not.toContain('live-mermaid-1');
+    });
+
+    test('deduplicates concurrent renders of identical Mermaid source', async () => {
+        window.mermaid.render.mockImplementation(async id => {
+            await new Promise(resolve => setTimeout(resolve, 5));
+            return { svg: `<svg id="${id}"/>` };
+        });
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        const source = 'flowchart TD\n  A --> B';
+
+        const [first, second] = await Promise.all([
+            renderDiagramSVG('mermaid', source, 'live'),
+            renderDiagramSVG('mermaid', source, 'live'),
+        ]);
+
+        expect(window.mermaid.render).toHaveBeenCalledTimes(1);
+        expect(first).toContain('live-mermaid-1');
+        expect(second).toContain('live-mermaid-2');
+        expect(second).not.toContain('live-mermaid-1');
+    });
 });
