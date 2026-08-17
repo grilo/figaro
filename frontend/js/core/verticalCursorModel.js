@@ -1,4 +1,53 @@
 /**
+ * Identify keyboard motions that can invalidate the editor's vertical
+ * viewport. Keeping this classification pure lets the CodeMirror adapter
+ * apply one reconciliation policy to regular, page, and Vim motions.
+ */
+export function isVerticalMotionKey({
+    key = '',
+    ctrlKey = false,
+    shiftKey = false,
+    altKey = false,
+    metaKey = false,
+    vimActive = false,
+    vimInsertMode = false,
+} = {}) {
+    if (altKey || metaKey) return false;
+    if (key === 'PageUp' || key === 'PageDown') return true;
+    if (key === 'ArrowUp' || key === 'ArrowDown') return true;
+    if (shiftKey) return false;
+    if (ctrlKey && (key === 'p' || key === 'n')) return true;
+    return vimActive && !vimInsertMode && !ctrlKey && (key === 'j' || key === 'k');
+}
+
+/**
+ * Return the pixel correction needed to keep a vertically moving cursor
+ * inside the usable editor viewport. The browser adapter supplies measured
+ * rectangles; this decision remains independent of DOM and CodeMirror.
+ */
+export function verticalViewportScrollDelta({
+    cursorTop = 0,
+    cursorBottom = 0,
+    viewportTop = 0,
+    viewportBottom = 0,
+    topMargin = 0,
+    bottomMargin = 0,
+} = {}) {
+    const values = [cursorTop, cursorBottom, viewportTop, viewportBottom]
+        .map(value => Number(value));
+    if (values.some(value => !Number.isFinite(value))) return 0;
+
+    const safeTopMargin = Math.max(0, Number(topMargin) || 0);
+    const safeBottomMargin = Math.max(0, Number(bottomMargin) || 0);
+    const usableTop = viewportTop + safeTopMargin;
+    const usableBottom = viewportBottom - safeBottomMargin;
+
+    if (cursorTop < usableTop) return cursorTop - usableTop;
+    if (cursorBottom > usableBottom) return cursorBottom - usableBottom;
+    return 0;
+}
+
+/**
  * Return the safe cursor target for a document-edge vertical move, or null
  * when the editor's result remains directionally valid.
  *

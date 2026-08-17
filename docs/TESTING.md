@@ -1390,6 +1390,14 @@ plain blockquote lines must keep continuation rows under their item or quoted
 bodies in both active and passive preview states, while retaining Arrow Up/Down,
 mouse placement, and drag-selection behavior.
 
+The `tests/e2e/vimVisualRows.spec.js` contract covers the long-document
+viewport regression in both forms: a wrapped Markdown note with headings, and a
+note with frontmatter, headings, repeated Mermaid blocks, and long prose. Each
+is navigated down, up, and down again by normal Arrow Up/Down and Vim `j`/`k`;
+the rendered-block case also exercises Page Up/Page Down. The assertions require
+the selected source line to remain in CodeMirror's primary viewport, remain
+visible, and not be replaced by a visible virtual-viewport gap.
+
 The empty-second-item regression must press Enter once in the assembled
 Markdown editor, assert the exact source/cursor result, then exercise Arrow
 Up/Down, mouse placement, and a drag across the former list boundary. Smart URL

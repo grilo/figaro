@@ -113,8 +113,10 @@ import { createMarkdownBlockGuidesExtension } from './markdownBlockGuides.js';
 import { openMermaidEditor } from './mermaidEditor.js';
 import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
+    isVerticalMotionKey,
     unexpectedVerticalMotionTarget,
     verticalBoundaryTarget,
+    verticalViewportScrollDelta,
     verticalViewportBoundaryTarget,
 } from './core/verticalCursorModel.js';
 import {
@@ -281,6 +283,129 @@ const stickyHeadingScrollMargins = EditorView.scrollMargins.of(() => {
     if (!stack || stack.hidden) return null;
     return { top: Math.ceil(stack.getBoundingClientRect().height) };
 });
+
+// A keyboard motion can update the selection and the scroller in the same
+// CodeMirror measure pass. Desktop WebViews occasionally finish that pass
+// with a stale line-gap/widget subtree still painted while the selected line
+// has moved beyond the physical scroller. Keep one keyed measure in the
+// current cycle, then correct the physical scroll offset after CodeMirror has
+// painted and request one more normal measure to reconcile its virtual DOM.
+const verticalViewportMeasureKey = {};
+const pendingVerticalViewportMeasures = new WeakMap();
+
+function editorScrollMargins(view) {
+    let top = 0;
+    let bottom = 0;
+    const sources = view.state?.facet?.(EditorView.scrollMargins) || [];
+    for (const source of sources) {
+        try {
+            const margins = source(view);
+            if (margins) {
+                top = Math.max(top, Number(margins.top) || 0);
+                bottom = Math.max(bottom, Number(margins.bottom) || 0);
+            }
+        } catch (error) {
+            log.warn('Could not read editor scroll margins:', error);
+        }
+    }
+    const cursorMargin = view.state?.facet?.(EditorView.cursorScrollMargin);
+    const cursorVerticalMargin = typeof cursorMargin === 'number'
+        ? cursorMargin
+        : Number(cursorMargin?.y) || 5;
+    return {
+        top: top + Math.max(0, cursorVerticalMargin),
+        bottom: bottom + Math.max(0, cursorVerticalMargin),
+    };
+}
+
+function verticalViewportScrollCorrection(view) {
+    if (!view?.scrollDOM || typeof view.coordsAtPos !== 'function') return 0;
+    const selection = view.state?.selection?.main;
+    if (!selection) return 0;
+
+    let cursor;
+    try {
+        cursor = view.coordsAtPos(selection.head);
+    } catch (error) {
+        log.warn('Could not read the vertical cursor rectangle:', error);
+        return 0;
+    }
+    if (!cursor) return 0;
+    const scroller = view.scrollDOM.getBoundingClientRect();
+    const margins = editorScrollMargins(view);
+    return verticalViewportScrollDelta({
+        cursorTop: cursor.top,
+        cursorBottom: cursor.bottom,
+        viewportTop: scroller.top,
+        viewportBottom: scroller.bottom,
+        topMargin: margins.top,
+        bottomMargin: margins.bottom,
+    });
+}
+
+function verticalViewportMeasureRequest() {
+    return {
+        key: verticalViewportMeasureKey,
+        read: verticalViewportScrollCorrection,
+        write(delta, view) {
+            if (!delta || !view.scrollDOM) return;
+            view.scrollDOM.scrollTop += delta;
+            // The direct scroll repairs WebKit's physical viewport. Let
+            // CodeMirror immediately remount the corresponding source lines
+            // and discard any stale line-gap/widget decoration.
+            view.requestMeasure();
+        },
+    };
+}
+
+function reconcileVerticalViewport(view) {
+    const request = verticalViewportMeasureRequest();
+    const delta = request.read(view);
+    if (delta) request.write(delta, view);
+}
+
+export function requestVerticalViewportMeasure(view) {
+    if (!view || view.isDestroyed || typeof view.requestMeasure !== 'function') return false;
+
+    view.requestMeasure(verticalViewportMeasureRequest());
+    if (pendingVerticalViewportMeasures.has(view)) return true;
+
+    const win = view.win || view.dom?.ownerDocument?.defaultView || globalThis;
+    if (typeof win?.requestAnimationFrame !== 'function') return true;
+    const frame = win.requestAnimationFrame(() => {
+        pendingVerticalViewportMeasures.delete(view);
+        if (view.isDestroyed) return;
+        // This runs after the measure scheduled by the key event, which is
+        // the point at which WebKit may otherwise leave a stale virtual-DOM
+        // gap on screen. A physical correction also emits the normal scroll
+        // signal, and the explicit measure below makes the contract reliable
+        // for engines that coalesce that signal.
+        reconcileVerticalViewport(view);
+        view.requestMeasure(verticalViewportMeasureRequest());
+    });
+    pendingVerticalViewportMeasures.set(view, frame);
+    return true;
+}
+
+function verticalMotionViewportExtension() {
+    return Prec.highest(EditorView.domEventHandlers({
+        keydown: (event, view) => {
+            if (event.isComposing) return false;
+            const vimState = vimActive ? vimStateFor(view) : null;
+            if (!isVerticalMotionKey({
+                key: event.key,
+                ctrlKey: event.ctrlKey,
+                shiftKey: event.shiftKey,
+                altKey: event.altKey,
+                metaKey: event.metaKey,
+                vimActive,
+                vimInsertMode: Boolean(vimState?.insertMode),
+            })) return false;
+            requestVerticalViewportMeasure(view);
+            return false;
+        },
+    }));
+}
 
 const vimVisualRowMappings = [
     ['j', '<FigaroVisualDown>', 'normal'],
@@ -510,6 +635,12 @@ function revealFrontmatterForUpwardMotion(view) {
     if (!frontmatter || !selection || selection.head > frontmatter.to) return false;
     if (view.dom.querySelector('.cm-frontmatter-source-line')) return false;
     view.dispatch({ userEvent: FRONTMATTER_UPWARD_REVEAL_USER_EVENT });
+    return true;
+}
+
+function completeVerticalMotion(view, forward) {
+    if (!forward) revealFrontmatterForUpwardMotion(view);
+    requestVerticalViewportMeasure(view);
     return true;
 }
 
@@ -756,7 +887,7 @@ function visibleFoldBoundaryTarget(state, beforePosition, afterPosition, forward
 export function moveCursorVerticallySafely(view, forward) {
     const before = view.state.selection.main;
     if (!before.empty || view.state.selection.ranges.length !== 1) return false;
-    if (!forward && revealFrontmatterForUpwardMotion(view)) return true;
+    if (!forward && revealFrontmatterForUpwardMotion(view)) return completeVerticalMotion(view, forward);
 
     const sourceLine = view.state.doc.lineAt(before.head);
     const blockedAtBoundary = verticalBoundaryTarget({
@@ -800,8 +931,7 @@ export function moveCursorVerticallySafely(view, forward) {
                 scrollIntoView: true,
                 userEvent: 'select',
             });
-            if (!forward) revealFrontmatterForUpwardMotion(view);
-            return true;
+            return completeVerticalMotion(view, forward);
         }
     }
 
@@ -824,8 +954,7 @@ export function moveCursorVerticallySafely(view, forward) {
             scrollIntoView: true,
             userEvent: 'select',
         });
-        if (!forward) revealFrontmatterForUpwardMotion(view);
-        return true;
+        return completeVerticalMotion(view, forward);
     }
 
     const after = view.state.selection.main;
@@ -848,8 +977,7 @@ export function moveCursorVerticallySafely(view, forward) {
         forward
     );
     if (targetPosition === null) {
-        if (!forward) revealFrontmatterForUpwardMotion(view);
-        return true;
+        return completeVerticalMotion(view, forward);
     }
     view.dispatch({
         selection: EditorSelection.cursor(
@@ -861,8 +989,7 @@ export function moveCursorVerticallySafely(view, forward) {
         scrollIntoView: true,
         userEvent: 'select',
     });
-    if (!forward) revealFrontmatterForUpwardMotion(view);
-    return true;
+    return completeVerticalMotion(view, forward);
 }
 
 /** Vim motion equivalent of gj/gk with the same stalled-height-map repair. */
@@ -923,6 +1050,7 @@ function moveVimByVisualRows(cm, head, motionArgs, vimState) {
 
     const result = cm.posFromIndex(range.head);
     vimState.lastHPos = result.ch;
+    requestVerticalViewportMeasure(view);
     return result;
 }
 
@@ -2132,6 +2260,7 @@ function createEditorView() {
         doc: '',
         extensions: [
             vimSourceBoundaryExtension(),
+            verticalMotionViewportExtension(),
             vimCompartment.of([]),
             readOnlyCompartment.of([]),
             tabSizeCompartment.of(editorTabSizeExtensions()),

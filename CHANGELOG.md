@@ -10,6 +10,16 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.23.1] - 2026-08-17
+
+### Fixed
+
+- Long Markdown documents now keep the selected source line visible when
+  keyboard navigation crosses rendered blocks. Normal and Vim vertical motion
+  applies a post-paint physical viewport correction plus a CodeMirror
+  remeasure, so down/up/down, Page Up, and Page Down no longer leave stale text
+  gaps that only mouse scrolling can repair.
+
 ## [1.23.0] - 2026-08-17
 
 ### Changed
@@ -1192,7 +1202,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.23.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.23.1...HEAD
+[1.23.1]: https://github.com/grilo/figaro/compare/v1.23.0...v1.23.1
 [1.23.0]: https://github.com/grilo/figaro/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/grilo/figaro/compare/v1.21.1...v1.22.0
 [1.21.1]: https://github.com/grilo/figaro/compare/v1.21.0...v1.21.1

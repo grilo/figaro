@@ -250,6 +250,10 @@ spellcheck text never leaves the device.
 Optional Vim editing keeps wrapped-row motion and Visual selections compatible
 with rendered Markdown, and vertical motions stop at the exact first and last
 document positions instead of wrapping on a backwards native geometry result.
+Normal Arrow Up/Down and Vim `j`/`k` also reconcile the physical and virtual
+viewports after keyboard motion, so long notes with rendered blocks keep their
+selected text visible when scrolling direction reverses. Page Up/Page Down
+receive the same repair.
 Vim `p`/`P` use the operating-system clipboard while retaining the unnamed
 register as a fallback, and ordinary yanks and deletes are available to other
 desktop applications. Figaro leaves Windows keyboard-layout and dead-key

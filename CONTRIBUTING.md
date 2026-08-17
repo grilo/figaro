@@ -393,6 +393,11 @@ the assembled webview rather than one JavaScript package in isolation.
   focused cursor-movement coverage (including feature keys), the block-widget
   geometry contract when applicable, and the native-webview checks in
   `docs/TESTING.md`.
+- Keyboard viewport changes must cover a long wrapped note with rendered
+  blocks while moving down, reversing upward, and moving down again in both
+  normal Arrow Up/Down and Vim `j`/`k` paths. Page Up/Page Down must also
+  recover the viewport. The selected line must remain in the primary viewport,
+  visible, and free of stale virtual gaps without mouse scrolling.
 - A tab-size change must keep the pure 2–8/default/step rules, backend restart
   persistence, Settings rollback and bounds, root Markdown and code facets,
   Vim `>`, Mermaid, rendered GFM tables, rendered-code, Raw Text Preview, Arrow Up/Down,

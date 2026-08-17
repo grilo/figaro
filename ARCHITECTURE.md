@@ -717,6 +717,16 @@ edge and pins the scroller to that boundary before WebKitGTK can reinterpret
 the overscroll. These guards are unconditional and do not create a wraparound
 preference.
 
+The adapter also classifies keyboard vertical motions through the pure
+`isVerticalMotionKey` rule. It requests a keyed CodeMirror measurement, then
+compares the selected cursor's measured rectangle with the physical scroller
+after the browser paints; if they diverge, it corrects `scrollTop` and requests
+one final normal measure. This keeps the primary virtual viewport synchronized
+after a down/up/down reversal across rendered blocks in a long note, for normal
+Arrow Up/Down, Page Up/Page Down, and Vim `j`/`k`. The classification and pixel
+delta stay independent from DOM and timer effects; the adapter owns those
+effects and does not alter source text or pointer/wheel scrolling.
+
 Windows keyboard layouts remain owned by the native WebView2 and CodeMirror
 input stack. The editor does not map physical key codes to assumed Spanish
 characters, prevent dead-key events, synthesize accent output, or reconcile

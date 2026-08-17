@@ -19,6 +19,88 @@ async function setEditorSource(page, source, selection = 0) {
     }, { source, selection });
 }
 
+async function expectStableLongDocumentViewport(page) {
+    const state = await page.evaluate(() => {
+        const view = window.__vimVisualRowsView;
+        const scroller = view.scrollDOM;
+        const scrollerRect = scroller.getBoundingClientRect();
+        const selection = view.state.selection.main;
+        const primaryViewport = view.viewport;
+        const cursor = view.coordsAtPos(selection.head);
+        const domPosition = view.domAtPos(selection.head);
+        const domNode = domPosition?.node?.nodeType === Node.TEXT_NODE
+            ? domPosition.node.parentElement
+            : domPosition?.node;
+        const line = domNode?.closest?.('.cm-line');
+        const lineRect = line?.getBoundingClientRect();
+        const visibleGaps = [...view.dom.querySelectorAll('.cm-gap')].filter(element => {
+            const rect = element.getBoundingClientRect();
+            return rect.bottom > scrollerRect.top && rect.top < scrollerRect.bottom && rect.height > 1;
+        });
+        return {
+            lineNumber: view.state.doc.lineAt(selection.head).number,
+            viewportCount: view.viewState.viewports.length,
+            primaryContainsSelection: selection.head >= primaryViewport.from
+                && selection.head <= primaryViewport.to,
+            cursorVisible: Boolean(cursor && cursor.bottom > scrollerRect.top && cursor.top < scrollerRect.bottom),
+            selectedLineVisible: Boolean(lineRect
+                && lineRect.bottom > scrollerRect.top
+                && lineRect.top < scrollerRect.bottom),
+            visibleGapCount: visibleGaps.length,
+        };
+    });
+
+    expect(state.lineNumber).toBeGreaterThan(20);
+    expect(state.viewportCount).toBe(1);
+    expect(state.primaryContainsSelection).toBe(true);
+    expect(state.cursorVisible).toBe(true);
+    expect(state.selectedLineVisible).toBe(true);
+    expect(state.visibleGapCount).toBe(0);
+}
+
+function longWrappedMarkdown() {
+    return Array.from({ length: 180 }, (_, index) => {
+        const heading = index % 30 === 0 ? `# Section ${index}\n` : '';
+        const paragraph = Array.from({ length: 3 }, () => (
+            `Paragraph ${index} contains enough ordinary Markdown prose to wrap across `
+            + 'multiple visual rows while the editor measures and remounts its viewport.'
+        )).join(' ');
+        return `${heading}${paragraph}`;
+    }).join('\n\n');
+}
+
+function renderedLongMarkdown() {
+    const mermaid = [
+        '```mermaid',
+        'flowchart TD',
+        '    A[Start] --> B{Continue}',
+        '    B -->|Yes| C[Render]',
+        '    B -->|No| D[Stop]',
+        '```',
+    ].join('\n');
+    const paragraph = index => Array.from({ length: 3 }, () => (
+        `Section ${index} contains enough wrapped Markdown prose to keep the `
+        + 'CodeMirror viewport moving while rendered block widgets are measured '
+        + 'and mounted around the selected source line.'
+    )).join(' ');
+
+    return [
+        '---',
+        'title: viewport regression',
+        '---',
+        '',
+        '# Viewport regression',
+        ...Array.from({ length: 20 }, (_, index) => [
+            `## Section ${index + 1}`,
+            paragraph(index + 1),
+            '',
+            mermaid,
+            '',
+            paragraph(index + 1),
+        ].join('\n')),
+    ].join('\n\n');
+}
+
 test('uses a 4px line caret while Vim is inserting text', async ({ page }) => {
     await openWelcomeEditor(page);
     await setEditorSource(page, 'alpha');
@@ -282,6 +364,95 @@ test('moves up one visual row within an expanded long Markdown link in Vim Norma
 
     expect(after.position).toBeLessThan(before.position);
     expect(after.coords.top).toBeLessThan(before.coords.top);
+});
+
+test('keeps long documents mounted while reversing line-by-line navigation in normal and Vim modes', async ({ page }) => {
+    const source = longWrappedMarkdown();
+    await openWelcomeEditor(page);
+    await setEditorSource(page, source);
+
+    const content = page.locator('.cm-content');
+    for (let index = 0; index < 260; index += 1) {
+        await content.press('ArrowDown');
+        if (index % 40 === 0) await page.waitForTimeout(6);
+    }
+    await page.waitForTimeout(100);
+    await expectStableLongDocumentViewport(page);
+
+    for (let index = 0; index < 24; index += 1) await content.press('ArrowUp');
+    await page.waitForTimeout(100);
+    await expectStableLongDocumentViewport(page);
+
+    for (let index = 0; index < 140; index += 1) {
+        await content.press('ArrowDown');
+        if (index % 40 === 0) await page.waitForTimeout(6);
+    }
+    await page.waitForTimeout(100);
+    await expectStableLongDocumentViewport(page);
+
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    await setEditorSource(page, source);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        editor.setVimVisualRows(false);
+    });
+
+    for (let index = 0; index < 260; index += 1) {
+        await content.press('j');
+        if (index % 40 === 0) await page.waitForTimeout(6);
+    }
+    await page.waitForTimeout(100);
+    await expectStableLongDocumentViewport(page);
+
+    for (let index = 0; index < 24; index += 1) await content.press('k');
+    await page.waitForTimeout(100);
+    await expectStableLongDocumentViewport(page);
+
+    for (let index = 0; index < 140; index += 1) {
+        await content.press('j');
+        if (index % 40 === 0) await page.waitForTimeout(6);
+    }
+    await page.waitForTimeout(100);
+    await expectStableLongDocumentViewport(page);
+});
+
+test('reconciles keyboard viewport after crossing rendered block widgets', async ({ page }) => {
+    const source = renderedLongMarkdown();
+    await openWelcomeEditor(page);
+    await setEditorSource(page, source);
+
+    const content = page.locator('.cm-content');
+    await expect.poll(() => page.locator('.cm-live-diagram').count()).toBeGreaterThan(0);
+    for (let index = 0; index < 180; index += 1) {
+        await content.press('ArrowDown');
+        if (index % 30 === 0) await page.waitForTimeout(6);
+    }
+    await expectStableLongDocumentViewport(page);
+
+    for (let index = 0; index < 10; index += 1) await content.press('ArrowUp');
+    await expectStableLongDocumentViewport(page);
+    await content.press('PageUp');
+    await expectStableLongDocumentViewport(page);
+    await content.press('PageDown');
+    await expectStableLongDocumentViewport(page);
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        editor.setVimVisualRows(false);
+    });
+    for (let index = 0; index < 180; index += 1) {
+        await content.press('j');
+        if (index % 30 === 0) await page.waitForTimeout(6);
+    }
+    await expectStableLongDocumentViewport(page);
+
+    for (let index = 0; index < 10; index += 1) await content.press('k');
+    await expectStableLongDocumentViewport(page);
 });
 
 test('keeps Vim Visual mode while selecting through a rendered code block from either direction', async ({ page }) => {

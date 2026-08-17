@@ -328,7 +328,7 @@ Typing `@today`, `@tomorrow`, or `@yesterday` opens date-link suggestions. For e
 ## 5. CodeMirror 6 Extensions
 
 ### 5.1 Core Extensions
-`history()`, `bracketMatching()`, and `autocompletion()` are always installed. `lineNumbers()` plus `highlightActiveLineGutter()` live in a compartment controlled by the persistent, off-by-default **Show line numbers** setting. The local Markdown linter uses its own persistent, on-by-default compartment and coordinates conservative synchronous Markdown checks with the shared asynchronous Mermaid parser; offline spellcheck uses an independent, off-by-default compartment, so either setting can remove diagnostics without changing Markdown source or other editor extensions. The spellcheck compartment resolves document frontmatter at lint time and loads only bundled local assets. `lineWrapping` and live-preview extensions are installed only for Markdown. The file-mode folding compartment installs `markdownBlockGuidesExtension` for Markdown when its enabled-by-default preference is on, installs CodeMirror's normal `foldGutter()` and keymap for recognised source files, and stays empty for plain text.
+`history()`, `bracketMatching()`, and `autocompletion()` are always installed. `lineNumbers()` plus `highlightActiveLineGutter()` live in a compartment controlled by the persistent, off-by-default **Show line numbers** setting. The local Markdown linter uses its own persistent, on-by-default compartment and coordinates conservative synchronous Markdown checks with the shared asynchronous Mermaid parser; offline spellcheck uses an independent, off-by-default compartment, so either setting can remove diagnostics without changing Markdown source or other editor extensions. The spellcheck compartment resolves document frontmatter at lint time and loads only bundled local assets. `lineWrapping` and live-preview extensions are installed only for Markdown. The root editor's vertical-motion adapter classifies keyboard vertical motions without intercepting them, requests a keyed CodeMirror measure, then corrects the physical scroller from the selected cursor rectangle after paint and requests a final measure. This keeps long notes with rendered blocks synchronized during reversed Arrow Up/Down, Page Up/Page Down, and Vim `j`/`k` motion. The file-mode folding compartment installs `markdownBlockGuidesExtension` for Markdown when its enabled-by-default preference is on, installs CodeMirror's normal `foldGutter()` and keymap for recognised source files, and stays empty for plain text.
 
 ### 5.2 codemirror-live-markdown Extensions
 | Extension | Purpose |
@@ -514,6 +514,11 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
   `dj`, `yj`, and similar commands retain their source-line behavior. Both the
   default source-line and optional display-row motions stop at the exact first
   and last document positions.
+- Normal Arrow Up/Down, Page Up/Page Down, and Vim `j`/`k` share a
+  viewport-reconciliation pass after keyboard motion. In long wrapped notes,
+  including notes with rendered blocks, moving down, reversing upward, and
+  moving down again keeps the selected line visible and mounted in CodeMirror;
+  this does not change source text or pointer/wheel scrolling.
 
 ### 8.3 Rendered GFM tables
 - CodeMirror parses GFM tables as `Table` syntax nodes and Figaro renders an

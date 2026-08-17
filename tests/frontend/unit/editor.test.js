@@ -535,6 +535,51 @@ describe('Editor Module - CodeMirror Initialization', () => {
             )).toBeNull();
         });
 
+        test('schedules a second CodeMirror measure after keyboard viewport motion', async () => {
+            const { initEditor, requestVerticalViewportMeasure } = await import('../frontend/js/editor.js');
+            await initEditor();
+
+            let deferredMeasure = null;
+            const requestMeasure = jest.fn();
+            const view = {
+                state: {
+                    selection: { main: { head: 10 } },
+                    facet: jest.fn(() => []),
+                },
+                scrollDOM: {
+                    scrollTop: 100,
+                    getBoundingClientRect: () => ({ top: 0, bottom: 200 }),
+                },
+                coordsAtPos: jest.fn(() => ({
+                    top: 180 - (view.scrollDOM.scrollTop - 100),
+                    bottom: 220 - (view.scrollDOM.scrollTop - 100),
+                })),
+                requestMeasure,
+                win: {
+                    requestAnimationFrame: jest.fn(callback => {
+                        deferredMeasure = callback;
+                        return 1;
+                    }),
+                },
+            };
+
+            expect(requestVerticalViewportMeasure(view)).toBe(true);
+            expect(requestMeasure).toHaveBeenCalledTimes(1);
+            expect(requestMeasure.mock.calls[0][0]).toEqual(expect.objectContaining({
+                key: expect.any(Object),
+                read: expect.any(Function),
+                write: expect.any(Function),
+            }));
+
+            const request = requestMeasure.mock.calls[0][0];
+            expect(request.read(view)).toBe(25);
+            request.write(25, view);
+            expect(view.scrollDOM.scrollTop).toBe(125);
+
+            deferredMeasure();
+            expect(requestMeasure).toHaveBeenCalledTimes(3);
+        });
+
         test('repairs a bad engine cursor result after normal vertical movement', async () => {
             const { EditorSelection, EditorState, Transaction } = await import('@codemirror/state');
             const { initEditor, moveCursorVerticallySafely } = await import('../frontend/js/editor.js');

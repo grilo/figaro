@@ -236,6 +236,15 @@ mode. A backwards native geometry result keeps the exact Vim cursor position
 at the first or last row, and viewport scrolling remains at the corresponding
 boundary. Wraparound is never enabled by a preference.
 
+Keyboard vertical motion receives a keyed CodeMirror measurement. After the
+browser paints, the adapter compares the selected cursor rectangle with the
+usable physical scroller, corrects `scrollTop` when a rendered block or line
+gap has left those views out of sync, and requests one final CodeMirror measure.
+This keeps the primary virtual viewport and selected source line synchronized
+when a long wrapped note reverses from down to up and back to down. The repair
+applies to normal Arrow Up/Down, Page Up/Page Down, and Vim `j`/`k`; it leaves
+Markdown source unchanged and does not replace native mouse or wheel scrolling.
+
 The frontmatter Properties replacement keeps one left-edge disclosure control
 across collapsed and expanded states. CodeMirror's scroller reserves a stable
 scrollbar gutter so opening the taller panel cannot shift that control
