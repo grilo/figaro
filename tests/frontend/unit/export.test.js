@@ -188,6 +188,48 @@ describe('Interactive PDF export', () => {
         expect(printable.querySelector('style').textContent).toContain('break-inside: avoid');
     });
 
+    test('renders shared GFM table breaks and caret row merges in printable HTML', () => {
+        const content = [
+            '| Group | Details | Literal |',
+            '| --- | --- | --- |',
+            '| Alpha | first<br/>second | `<br/>` |',
+            '| ^ | continued | plain |',
+            '| ^ | final | plain |',
+        ].join('\n');
+
+        const printable = parseHTML(renderPrintableMarkdown(content, 'Merged table'));
+        const table = printable.querySelector('main.figaro-print-document > table');
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+        expect(rows).toHaveLength(3);
+        expect(table.querySelector('tbody td[rowspan="3"]')).toMatchObject({
+            textContent: 'Alpha',
+        });
+        expect(table.querySelector('tbody td[rowspan="3"]').dataset.figaroTableMerge).toBe('rowspan');
+        expect(rows[1].querySelectorAll('td')).toHaveLength(2);
+        expect(rows[2].querySelectorAll('td')).toHaveLength(2);
+        expect(rows[0].cells[1].querySelector('br')).not.toBeNull();
+        expect(rows[0].cells[1].innerHTML).not.toContain('&lt;br');
+        expect(rows[0].cells[2].querySelector('code').textContent).toBe('<br/>');
+        expect(rows[0].cells[2].querySelector('br')).toBeNull();
+        expect(table.textContent).not.toContain('^');
+    });
+
+    test('keeps a leading caret literal when no data cell can anchor it', () => {
+        const content = [
+            '| Group | Item |',
+            '| --- | --- |',
+            '| ^ | One |',
+            '| Alpha | Two |',
+        ].join('\n');
+
+        const printable = parseHTML(renderPrintableMarkdown(content, 'Literal caret'));
+        const table = printable.querySelector('main.figaro-print-document > table');
+
+        expect(table.querySelector('tbody tr:first-child').textContent).toContain('^');
+        expect(table.querySelector('tbody td[rowspan]')).toBeNull();
+    });
+
     test('renders plugin footnotes into numbered links and endnotes without touching code', () => {
         const content = [
             '# Footnotes',

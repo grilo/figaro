@@ -36,10 +36,11 @@ There is no account, hosted database, or required cloud service.
   fold headings, fenced code, and tables without changing the saved source;
   each guide stays aligned to its block and under the pointer while toggling.
   Rendered fences and tables contract to one native fold row, typed fences use
-  their language name, and interactive tables have a one-click undoable delete
-  beneath their left `table` helper; when that margin is too tight, the action
-  moves above the grid without covering it. Mermaid/Vega diagrams, fenced code,
-  display math, and tables retain
+  their language name, and rendered GFM tables reveal their exact Markdown
+  source whenever the cursor enters them. Tables remain semantic previews with
+  no nested cell editors or source auto-formatting; the existing table guide
+  can still delete the block as one undoable source edit. Mermaid/Vega
+  diagrams, fenced code, display math, and tables retain
   their Markdown source height while rendered, so entering and leaving them
   does not move the surrounding note; graphics fit down, while code and tables
   scroll inside the reserved space. Images, Properties, links, and task
@@ -142,8 +143,8 @@ indentation guides. Vault-specific settings and workspace state live in
 **Settings → Editor → Tab Size** sets one indentation width for the whole
 writing environment. It defaults to four spaces and can be changed from 2 to
 8 with the `− number +` control. Normal Tab/Shift+Tab, Vim `>`, Markdown code
-fences, source-code files and their guides, the Mermaid source editor,
-interactive table cells, rendered code, and Raw Text Preview all use that same
+fences, source-code files and their guides, the Mermaid source editor, rendered
+GFM tables, rendered code, and Raw Text Preview all use that same
 value; the preference never rewrites existing indentation or changes PDFs.
 
 Pasting genuinely rich text from a browser, document editor, or AI chat into a
@@ -154,10 +155,18 @@ without rewriting wording, URLs, or unrelated whitespace. Figaro keeps its own
 copied Markdown exact, leaves source-only regions such as frontmatter and code
 literal, and never fetches a remote HTML image while converting it. Use
 Ctrl/Cmd+Shift+V for exact plain text; clipboard images, URL-over-selection,
-spreadsheet tables, Vim Visual `p`/`P`, table cells, and the editor's Paste
+spreadsheet tables, Vim Visual `p`/`P`, revealed table source, and the editor's Paste
 menu retain their specialized behavior. A URL pasted over selected prose
 becomes a Markdown link through the native shortcut, Vim paste commands, or
 the menu.
+
+GFM tables use CodeMirror's Markdown syntax tree for awareness and a
+source-preserving semantic preview. The preview uses the same Markdown-It
+renderer as PDF Preview and generated PDFs, so emphasis, alignment, links,
+literal code, `<br/>` line-break markers, and Figaro's anchored `^` row-span
+convention stay consistent across editor and printable output. Move the cursor
+into the table to edit the raw Markdown directly; the source is never
+auto-formatted by a table editor.
 
 Machine-specific settings, such as window geometry and a selected PDF browser,
 are stored in the operating system's per-user application-data directory
@@ -324,6 +333,12 @@ visually unnumbered. Existing custom stylesheets keep working, while
 **Upgrade copy** creates a separate current starter with the old rules retained
 as final overrides. Generated PDFs are written beside their source note.
 See [PDF styling](docs/PDF_STYLING.md) for the supported print contract.
+
+Live and printable tables convert portable `<br>` cell markers into real line
+breaks. A bare `^` in a data cell continues the immediately preceding data cell
+in that column as a vertical rowspan; consecutive carets extend it, while an
+unanchored caret remains literal. The saved Markdown stays rectangular GFM and
+is never rewritten by the preview.
 
 ## Data and privacy
 

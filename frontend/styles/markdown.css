@@ -100,11 +100,6 @@
 .hljs-operator, .hljs-punctuation, .cm-codeblock-widget .hljs-operator, .cm-codeblock-widget .hljs-punctuation { color: var(--code-operator-color) !important; }
 .hljs-built_in, .hljs-literal, .hljs-attr, .hljs-attribute, .hljs-meta, .hljs-selector-tag, .hljs-selector-class, .hljs-selector-id, .cm-codeblock-widget .hljs-built_in, .cm-codeblock-widget .hljs-literal, .cm-codeblock-widget .hljs-attr, .cm-codeblock-widget .hljs-attribute, .cm-codeblock-widget .hljs-meta, .cm-codeblock-widget .hljs-selector-tag, .cm-codeblock-widget .hljs-selector-class, .cm-codeblock-widget .hljs-selector-id { color: var(--code-builtin-color) !important; }
 
-/* Table theming */
-.cm-table-widget th, .cm-table-widget td, .cm-table-editor th, .cm-table-editor td { border: 1px solid var(--border-color) !important; padding: 8px 12px; }
-.cm-table-widget th, .cm-table-editor th { background-color: var(--hover-bg) !important; font-weight: 600; }
-.cm-table-toggle { border: 1px solid var(--border-color) !important; background-color: var(--panel-bg) !important; color: var(--text-color) !important; }
-
 /* Code block widget styling */
 .cm-codeblock-widget { background-color: var(--hover-bg) !important; border: 1px solid var(--border-color) !important; border-radius: 6px !important; padding: 34px 18px !important; font-family: var(--font-mono) !important; font-size: 13.5px !important; line-height: 1.5 !important; tab-size: var(--editor-tab-size, 4); }
 .cm-codeblock-line { padding-left: 4px !important; line-height: 1.5 !important; color: var(--text-color) !important; }

@@ -137,15 +137,13 @@ test('uses one persisted tab size for normal and Vim indentation across editor s
         });
         view.focus();
     }, blocks);
-    await expect(page.locator('.tbl-table-widget')).toHaveCount(1);
+    await expect(page.locator('.cm-block-widget--table')).toHaveCount(1);
     await expect(page.locator('.cm-live-diagram')).toHaveCount(1);
 
-    await page.locator('.tbl-cell').first().click();
     await expect.poll(() => page.evaluate(async () => {
         const { getIndentUnit } = await import('@codemirror/language');
-        const contentDOM = document.activeElement?.closest?.('.tbl-cell-editor .cm-content');
-        const nested = contentDOM ? window.__tabSizeView.constructor.findFromDOM(contentDOM) : null;
-        return nested ? { tabSize: nested.state.tabSize, indentUnit: getIndentUnit(nested.state) } : null;
+        const view = window.__tabSizeView;
+        return { tabSize: view.state.tabSize, indentUnit: getIndentUnit(view.state) };
     })).toEqual({ tabSize: 6, indentUnit: 6 });
 
     await page.evaluate(() => {

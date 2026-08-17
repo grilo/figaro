@@ -232,7 +232,7 @@ seam before its callers were rewired:
    injected use cases, and effect adapters.
 3. Workspace search was separated into a pure model, use case, controller, and
    DOM view.
-4. Shared CodeMirror document/table-cell profiles and the document-session
+4. Shared CodeMirror document profiles and the document-session
    controller centralized editor policy, stale-mount ownership, and per-buffer
    undo boundaries.
 5. Frontend document-save and backend note-save use cases were separated from
@@ -743,43 +743,13 @@ into adjacent fenced source, so source-first decoration rebuilding reveals the
 block without exiting Visual mode. Frontmatter is the deliberate boundary
 exception: `gg` keeps Properties rendered and a following `k` reveals its
 portable source even when the broader rendered-block preference is off.
-Fenced blocks expose their portable source; interactive tables retain their
-widget and focus the first or last cell. The root Vim Normal cursor is
-drawn by the adapter's separate fat-cursor layer, so a root-scoped override
-maps that layer to the active theme's cursor background and text tokens instead
-of inheriting the adapter's fixed red. A focused table cell still has a
-root selection for source synchronization, but its root cursor layer is hidden
-so only the nested editor paints a caret. Each nested editor exposes its own
-Vim mode; in Insert mode Figaro re-enables CodeMirror's standard cursor layer,
-which the Vim extension otherwise hides, and styles the resulting line caret at
-the nested selection. WebKitGTK can leave that custom layer empty, so an
-`:empty`/`:has()` fallback restores the native accent caret only for that case;
-engines with a custom cursor retain a transparent native caret and cannot paint
-two. Normal and Replace mode override Vim's inherited unfocused-cursor rule so
-their block/underline cursors remain themed and visible in the focused nested
-editor. Nested mode-change and focus events drive the shared status bar, which
-returns to the root Vim state when cell focus leaves. Because the table widget
-returns focus without causing the Vim adapter to emit another root mode-change
-event, the same focus handoff also reapplies the root's mode classes from its
-live Vim state. This keeps the themed block-cursor selector active after exiting
-either table edge. A Visual table move starts the same Visual subtype in its
-destination editor. Normal `h`/`l` fall through to Vim's character motions and
-stop at the cell's first or final character.
-Visual horizontal `h`/`l` movement uses the
-table library's non-row-creating Arrow path and is intercepted at the current
-row's outer columns, preventing both row wrapping and table-edge insertion. In
-both Normal and Visual modes,
-the nested editor captures `:`, `/`, and `?`, including WebKit's `Unidentified`
-keydown followed by either a `beforeinput` or legacy `textInput` event, before
-table navigation observes them, then invokes the root Vim instance. Prompts
-render in the root document, forward and backward searches operate on the
-whole note, and
-cancellation restores the originating cell without mutating table rows or
-text. A shared history bridge likewise runs Vim and conventional undo/redo
-against the root document, skips selection-only history entries around a Vim
-edit, and reapplies the originating table/cell selection without creating a new
-history entry. The table's reactive rebuild then receives focus at the saved
-caret offset, including redo after the cell editor has been recreated.
+Fenced blocks expose their portable source; rendered GFM tables reveal their
+portable Markdown source when entered. The root Vim Normal cursor is drawn
+by the adapter's separate fat-cursor layer, so a root-scoped override maps
+that layer to the active theme's cursor background and text tokens instead
+of inheriting the adapter's fixed red. Table previews have no nested editor,
+so root history, search, Vim prompts, Arrow Up/Down, mouse placement, and
+drag selection remain ordinary CodeMirror behavior.
 
 Vim clipboard integration separates policy from browser effects. The pure
 `frontend/js/core/vimClipboardModel.js` chooses OS text versus the unnamed
@@ -812,8 +782,8 @@ resources. `frontend/js/clipboardPaste.js` coordinates native events, internal
 source provenance, image/table precedence, exact plain fallback, and the single
 CodeMirror transaction. Its pure preflight resolves internal, plain, image,
 non-Markdown, and protected cases before the adapter parses rich HTML. The root
-Markdown editor and embedded table-cell profile inject that coordinator; the
-editor context menu adapts Async Clipboard items to the same payload.
+Markdown editor injects that coordinator; the editor context menu adapts Async
+Clipboard items to the same payload.
 Syntax-tree/frontmatter inspection stays in the editor adapter because it
 depends on the live CodeMirror state.
 
@@ -830,8 +800,8 @@ The pure `frontend/js/core/tabSizeModel.js` owns the four-space default,
 preference before restored tabs can construct CodeMirror. The editor
 composition root installs one compartment containing both `EditorState.tabSize`
 and `indentUnit`; Markdown/code reconfiguration leaves it intact. A live change
-reconfigures the root, rebuilds mounted table-cell editors with the same profile,
-and refreshes source-footprint measurement. The Mermaid dialog copies those
+reconfigures the root and refreshes source-footprint measurement. The Mermaid
+dialog copies those
 facets from its root view, and `--editor-tab-size` aligns rendered code and Raw
 Text Preview without entering the isolated printable document.
 
@@ -1176,6 +1146,12 @@ highlighter; the printable DOM adapter applies the returned escaped token markup
 after either worker or in-thread Markdown parsing. It reuses the eagerly loaded
 editor highlighter, then emits `.figaro-print-code`, `data-highlight-language`,
 and highlight.js-compatible token classes before diagram fences are replaced.
+`core/printableTableModel.js` separately plans the deterministic, printable-only
+vertical merge convention for anchored `^` data cells. The DOM adapter in
+`markdownTableRenderer.js` applies that same pure plan to the live semantic table
+and converts portable `<br>` cell markers into real break elements while
+skipping code spans. `pdfExport.js` uses the same DOM adapter, so the source
+remains rectangular Markdown and no second table-editing model is required.
 The preview adds only screen geometry and a selected stylesheet; the final
 export uses the same body and default print CSS.
 

@@ -56,6 +56,14 @@ The preview is a screen representation of the printable document; final
 pagination remains the browser engine's responsibility and is most accurately
 checked in the generated PDF.
 
+Printable tables use the same canonical Markdown-It rendering path as the
+editor's source-preserving GFM table preview. Bare `<br>`/`<br/>` cell markers
+become real line breaks, while the same text inside inline code remains
+literal. Figaro also accepts a bare `^` in a data cell as a vertical merge with
+the immediately preceding data cell in that column; consecutive markers extend
+the preceding cell's `rowspan`. A caret without an anchor remains visible. The
+editor and PDF paths never rewrite the rectangular Markdown source.
+
 On Linux, automatic browser discovery includes supported Chromium-family
 commands under `/snap/bin`. Figaro keeps each confined browser's temporary
 profile, printable document, local assets, and generated output in that Snap's
@@ -189,6 +197,7 @@ its semantic HTML, so standard selectors such as `p`, `table`, `blockquote`,
 | Area | Stable hooks |
 | --- | --- |
 | Whole Markdown body | `main.figaro-print-document` |
+| Printable table merges | `td[data-figaro-table-merge="rowspan"]` on the anchor cell |
 | Forced page break | `.figaro-print-page-break` |
 | Cover wrapper | `.figaro-print-cover`, `.figaro-print-cover-inner` |
 | Cover content | `.figaro-print-cover-kicker`, `h1.figaro-print-cover-title`, `.figaro-print-cover-subtitle`, `.figaro-print-cover-meta`, `.figaro-print-cover-author`, `.figaro-print-cover-date` |

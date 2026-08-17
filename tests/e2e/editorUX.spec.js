@@ -595,7 +595,7 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(page.getByRole('button', { name: 'Collapse table' })).toHaveCount(1);
     const yamlWidget = page.locator('.cm-codeblock-widget').filter({ hasText: 'enabled: true' });
     const untypedWidget = page.locator('.cm-codeblock-widget').filter({ hasText: 'untyped' });
-    const tableWidget = page.locator('.tbl-table-widget');
+    const tableWidget = page.locator('.cm-block-widget--table');
     await expect(yamlWidget).toHaveCount(1);
     await expect(untypedWidget).toHaveCount(1);
     await expect(tableWidget).toHaveCount(1);
@@ -1465,7 +1465,7 @@ test('keeps rendered block source footprints stable while navigating and selecti
     await expect(page.locator('.cm-codeblock-widget')).toHaveCount(1);
     await expect(page.locator('.cm-math-block')).toHaveCount(1);
     await expect(page.locator('.cm-live-diagram')).toHaveCount(1);
-    await expect(page.locator('.tbl-table-widget')).toHaveCount(1);
+    await expect(page.locator('.cm-block-widget--table')).toHaveCount(1);
     await expect(page.locator('.cm-math-inline')).toHaveCount(1);
 
     await expect.poll(() => page.evaluate(() => {

@@ -1,7 +1,4 @@
-import {
-    createDocumentKeyBindings,
-    createTableCellProfile,
-} from '../frontend/js/codeMirrorProfiles.js';
+import { createDocumentKeyBindings } from '../frontend/js/codeMirrorProfiles.js';
 
 describe('shared CodeMirror profiles', () => {
     test('keeps document editing, history, completion, and search in one policy', () => {
@@ -24,29 +21,5 @@ describe('shared CodeMirror profiles', () => {
         expect(accept).toHaveBeenCalledWith('view');
         expect(indent).toHaveBeenCalledWith('view');
         expect(bindings[4].shift).toBe(outdent);
-    });
-
-    test('gives table cells local editing plus root history and search', () => {
-        const keymapExtension = jest.fn(bindings => ({ bindings }));
-        const profile = createTableCellProfile({
-            viewRegistryExtension: 'registry',
-            keymapExtension,
-            defaultBindings: ['default'],
-            vimExtension: ['vim'],
-            indentationExtensions: ['tab-size', 'indent-unit'],
-            clipboardExtensions: ['clipboard'],
-            historyBindings: ['undo', 'redo'],
-            searchBindings: ['find'],
-        });
-
-        expect(profile.extensions).toEqual([
-            'registry',
-            'tab-size',
-            'indent-unit',
-            'clipboard',
-            { bindings: ['default'] },
-            ['vim'],
-        ]);
-        expect(profile.globalKeyBindings).toEqual(['undo', 'redo', 'find']);
     });
 });

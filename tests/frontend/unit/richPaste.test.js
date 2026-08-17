@@ -67,7 +67,7 @@ describe('rich clipboard HTML conversion', () => {
         })).toMatchObject({ converted: false, reason: 'html-too-large', markdown: '' });
     });
 
-    test('promotes only semantic inline styles and supports inline-only table cells', () => {
+    test('promotes only semantic inline styles and supports inline-only table content', () => {
         const styled = richMarkdownFromClipboard({
             html: '<span style="font-weight: 700; font-style: italic">Important</span>',
             text: 'Important',

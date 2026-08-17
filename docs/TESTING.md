@@ -459,7 +459,10 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   cycling, the actual flex widths, horizontal scrolling, and computed
   pseudo-element fade opacity that cannot be represented by jsdom.
 - Browser rendering of cover pages, table of contents, fenced-code token colors,
-  Mermaid, Vega, and Vega-Lite in the PDF export pipeline.
+  Mermaid, Vega, and Vega-Lite in the PDF export pipeline; focused printable
+  renderer coverage also proves that CodeMirror table `<br>` markers become
+  real breaks and anchored `^` markers become vertical row spans without
+  rewriting source.
 - Dependency security coverage for patched root lockfile entries and embedded
   packages that `npm audit` cannot see. Mermaid's actual browser bundle remains
   behind a pure pre-parse size and ordered-map policy until its embedded YAML
@@ -563,6 +566,14 @@ editor and printable-renderer tests. Extend the consolidated preview/PDF
 browser contract only when the browser rendering boundary itself changes.
 Assert semantic DOM and important layout—not merely that the source text occurs
 somewhere—and keep exhaustive syntax variants below the browser layer.
+
+Printable table break and merge rules belong below the browser layer: keep the
+pure marker plan in `tests/frontend/unit/printableTableModel.test.js` and the
+shared preview/export DOM contract in `tests/frontend/unit/export.test.js`.
+The tests must cover successful consecutive carets, a non-destructive
+unanchored caret, literal code-spanned `<br>` text, and the unchanged source
+contract. A new browser test is unnecessary unless the browser-only print
+geometry or native pagination boundary changes.
 
 ## Frameless window chrome regressions
 
@@ -804,8 +815,8 @@ npm run test:pdf
 
 Stable source-footprint changes additionally require the pure policy, each
 included widget provider, the exclusion allowlist, and real computed geometry.
-The browser case keeps code, display math, a Mermaid diagram, and an
-interactive table together; it proves a long wrapped fence expands past its
+The browser case keeps code, display math, a Mermaid diagram, and a rendered
+GFM table preview together; it proves a long wrapped fence expands past its
 logical-line fallback, reveals code/math/diagram source, and
 requires the following line to remain fixed, crosses each graphic block with
 Arrow Up/Down, checks mouse placement around display math, and drags across the
@@ -895,10 +906,10 @@ fresh application instance. `tabSizePreference.test.js` owns the editable
 `− number +` control, boundary states, immediate application, serialized save,
 and failed-save rollback. CodeMirror component tests prove the root Markdown
 and code facets, normal indentation, Vim `>`, Mermaid inheritance, the nested
-table-cell profile, wrapped list/quote alignment, and rendered-code/source-
+rendered GFM table source, wrapped list/quote alignment, and rendered-code/source-
 footprint CSS. `tabSize.spec.js` is the single browser boundary: it changes the
 real Settings control and checks normal Tab plus Vim `>` in a revealed fence,
-source-code mode, an active table cell, and the focused Mermaid editor. It also
+source-code mode, revealed table source, and the focused Mermaid editor. It also
 checks Arrow Up/Down across the changed fence. Existing rendered-block and
 table browser matrices retain mouse placement and bidirectional drag coverage.
 The setting touches only the mounted editor and visible widgets; it never walks
@@ -949,7 +960,7 @@ gutter, and show that folding never edits source. The browser boundary must
 compare guide and editor font sizes, click a nested fold, move across it with
 Arrow Up/Down and Vim visual-row `j`/`k`, place the mouse on the adjacent line,
 and drag a selection across the folded source in both directions. For both a
-typed and untyped fence and for an interactive table, it must also prove that
+typed and untyped fence and for a rendered GFM table preview, it must also prove that
 the rendered widget disappears, one native fold row replaces it, the next
 visible content has no stale widget-sized gap, expansion restores the widget,
 and source stays exact. Measure each guide against the top of its source line
@@ -1047,49 +1058,24 @@ npm run test:unit -- --runTestsByPath \
 npx playwright test tests/e2e/editorUX.spec.js --grep "folds nested Markdown block guides"
 ```
 
-Interactive Markdown tables add a stricter cursor matrix. Test Arrow keys
-within and across cells, Tab and Shift+Tab between cells, Enter down a column,
-and Arrow Up/Down from source lines immediately above and below the table.
-Confirm that leaving the first/last cell returns to the adjacent document line
-without skipping, and verify mouse placement plus drag selection at every
-table edge. With Vim enabled, also test Normal and Insert mode in a cell,
-Normal `h`/`l` character positions at the first and final cell characters,
-Normal `j`/`k` row transitions, Visual `h`/`j`/`k`/`l` cell transitions, and
-the transition back to root-editor movement. After leaving both the first and
-last cell, assert that the focused root remains in Normal mode and its visible
-block cursor still matches `--cursor-bg` and `--cursor-text`, never the Vim
-adapter's red fallback. Visual `h`/`l` must stop at each row's first/last column
-without wrapping or changing the table, and neither the absolute first nor last
-cell may create a row; `j` at the final cell must not append a row. While a cell editor
-has focus, assert that every direct root-editor cursor layer is hidden. Enter
-Vim Insert mode before typing and again after a text change; assert that the
-nested standard cursor layer is displayed, the 4 px line caret has nonzero
-height inside the cell, and its rectangle aligns with the browser's collapsed
-DOM selection. Also empty that layer to exercise WebKitGTK's native-caret
-fallback, confirming its caret color becomes nontransparent only when the
-custom cursor is absent. In Normal and Replace modes, assert that the nested
-modal cursor has nontransparent theme colors, remains inside the active cell,
-and changes the status bar to `NORMAL` or `REPLACE`; Insert and each Visual
-subtype must likewise report the focused nested mode. Assert that each Visual
-`h`/`j`/`k`/`l` transition
-remains Visual, and that Normal and Visual `:` and `/` open the root editor's
-bottom Vim prompt without adding a row or raw punctuation. Submit a
-Normal-mode `:wq`, verify `/` finds text outside the table, and confirm
-cancellation restores the originating cell. Exercise `?` through the same root
-prompt, verify it searches backward outside the cell, and cover ordinary
-punctuation plus WebKit's `Unidentified` keydown followed by both `beforeinput`
-and legacy `textInput`. Finally, edit a cell and verify Vim `u`/Ctrl+R plus
-conventional undo/redo change the root document and return to the same cell and
-exact cursor; redo must not focus the table's last cell. Keep the focused
-automated checks in
-`tests/frontend/unit/markdownTables.test.js` and
+Rendered GFM tables add a source-reveal cursor matrix. Unit and CodeMirror
+component tests must prove that CodeMirror's Markdown parser identifies the
+table, that an unfocused range becomes one semantic `.cm-live-table`, and that
+selecting or moving into the range reveals the byte-exact source without a
+nested editor. Exercise Arrow Up/Down, Vim motions, mouse placement, and
+bidirectional drag selection at the source range's edges; ordinary history,
+search, prompts, and paste must remain root-editor behavior. The rendered
+surface must also preserve inline GFM formatting and alignment, convert
+portable `<br>` markers while skipping code spans, apply anchored bare `^`
+cells as vertical row spans, and leave unanchored carets literal. Keep the
+focused checks in
+`tests/frontend/unit/markdownTables.test.js`,
+`tests/frontend/unit/printableTableModel.test.js`, and
 `tests/e2e/markdownTables.spec.js`.
-The same focused browser spec must expose one approved destructive-on-interaction
-`delete` guide action, remove the complete table without leaving a widget,
-retain root editor focus, and restore the byte-exact pre-delete source with one
-Undo.
-Jest maps `codemirror-markdown-tables` to Figaro's generated vendored module so
-component coverage cannot silently exercise the unpatched npm entry point.
+The browser spec must additionally prove that the approved destructive
+`delete` guide action removes the complete table, retains root editor focus,
+and restores the byte-exact pre-delete source with one Undo. There is no
+third-party table-editor module to map or vendor.
 
 For tab or workspace-view work, retain a browser regression that places a
 nonzero file selection, opens and closes Settings, and verifies the exact
@@ -1126,7 +1112,7 @@ fixture for this feature.
 The single browser boundary in `richPaste.spec.js` must use real copy/paste
 `ClipboardEvent` objects and the Async Clipboard menu path. It covers one-Undo
 replacement, Ctrl/Cmd+Shift+V, protected fenced source, Vim Visual mode, a
-nested table cell, Arrow Up/Down, and bidirectional pointer drag selection.
+revealed table source range, Arrow Up/Down, and bidirectional pointer drag selection.
 Do not duplicate the pure failure matrix in Playwright.
 
 ```bash
@@ -1141,7 +1127,7 @@ npx playwright test tests/e2e/richPaste.spec.js
 
 On each native platform, paste from at least one browser/document editor and
 one AI chat into ordinary prose, a Vim Visual selection, fenced code, and an
-interactive table cell. Repeat with the editor Paste menu and plain-text chord,
+revealed table source. Repeat with the editor Paste menu and plain-text chord,
 then verify one Undo, Arrow Up/Down, mouse placement, and a drag across the
 inserted block in the packaged WebKitGTK, WebView2, or WKWebView runtime.
 
@@ -1390,7 +1376,7 @@ the Vim dependency must retain this coverage.
 The focused browser contract also checks that the root Normal block cursor
 uses `--cursor-bg` and `--cursor-text`, never the Vim adapter's fixed fallback
 red, after switching between contrasting light and dark themes and after focus
-returns from either edge of an interactive table. It checks the 4 px Insert
+returns after leaving either edge of a rendered table's source range. It checks the 4 px Insert
 caret plus the optional **Move by visual rows** mapping: `j`, `k`,
 and Up/Down move one wrapped display row in Vim Normal mode, including inside a
 long wrapped Markdown-link destination, recover to the adjacent source line
@@ -1470,7 +1456,7 @@ restores focus in the adjacent column. Closing the right pane must assert both
 The separate, off-by-default **Enter rendered blocks** preference must be
 disabled while Vim is off, persist and roll back through the same Settings
 contract, and let Normal `j`/`k` enter adjacent fenced source and the first/last
-table cell even when visual-row motions would otherwise skip the widget. With
+table source range even when visual-row motions would otherwise skip the widget. With
 that preference explicitly off, Visual `j`/`k` must keep Visual mode and its
 original anchor while selecting into fenced source from above and below;
 subsequent motion must continue through the unrendered block. Operator-pending

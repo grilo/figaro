@@ -306,7 +306,6 @@ cat > "$VENDOR_DIR/importmap.json" << 'EOF'
     "w3c-keyname": "./w3c-keyname/index.js",
     "style-mod": "./style-mod/index.js",
     "@uiw/codemirror-extensions-color": "./@uiw/codemirror-extensions-color/index.js",
-    "codemirror-markdown-tables": "./codemirror-markdown-tables/index.js",
     "turndown": "./turndown/index.js"
   }
 }
@@ -314,10 +313,6 @@ EOF
 
 echo "Bundling locally vendored Markdown-It plugins..."
 node scripts/vendor-markdown-renderer.mjs
-
-echo "Bundling codemirror-markdown-tables with its non-CodeMirror dependencies..."
-mkdir -p "$VENDOR_DIR/codemirror-markdown-tables"
-node scripts/vendor-codemirror-markdown-tables.mjs
 
 echo "Bundling the CodeMirror color-picker theme with its helper dependencies..."
 mkdir -p "$VENDOR_DIR/@uiw/codemirror-extensions-color"

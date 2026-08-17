@@ -47,7 +47,7 @@ Editor folding uses the approved typed block guide for Markdown and the
 approved disclosure control for source-code regions. CodeMirror retains
 ownership of fold ranges, announcements, pointer dispatch, and keyboard
 commands; the shared primitives own only their themed interaction states.
-The interactive table's direct delete action reuses the approved danger-ghost
+The rendered table's direct delete action reuses the approved danger-ghost
 button; its side-lane placement and narrow-width flow within the measured widget
 are table-layout hooks rather than a new component or visual variant.
 

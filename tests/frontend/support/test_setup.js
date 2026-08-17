@@ -4,7 +4,6 @@
  * Run in browser or with jsdom/Jest
  */
 
-// codemirror-markdown-tables follows the editor's light/dark media state.
 // jsdom does not provide matchMedia, while every supported desktop webview does.
 if (typeof window.matchMedia !== 'function') {
     window.matchMedia = jest.fn().mockImplementation(query => ({

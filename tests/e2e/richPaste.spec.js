@@ -204,7 +204,7 @@ test('converts semantic rich clipboard structure while preserving literal paste 
     });
     expect(vimVisual).toEqual({ prevented: true, source: '**Rich replacement**' });
 
-    const tableSource = '| Name | State |\n| --- | --- |\n| Alpha | Ready |';
+    const tableSource = 'Before\n\n| Name | State |\n| --- | --- |\n| Alpha | Ready |\n\nAfter';
     await page.evaluate(async source => {
         const editor = await import('/js/editor.js');
         const view = editor.getEditorView();
@@ -215,13 +215,12 @@ test('converts semantic rich clipboard structure while preserving literal paste 
         view.focus();
         window.__richPasteView = view;
     }, tableSource);
-    await expect(page.locator('.tbl-table-widget')).toBeVisible();
-    await page.locator('.tbl-table-widget tbody .tbl-cell-view').first().click();
-    const cellPaste = await page.evaluate(async () => {
-        const { EditorView } = await import('@codemirror/view');
-        const content = document.activeElement.closest('.tbl-cell-editor .cm-content');
-        const nested = EditorView.findFromDOM(content);
-        nested.dispatch({ selection: { anchor: 0, head: nested.state.doc.length } });
+    await expect(page.locator('.cm-block-widget--table')).toBeVisible();
+    const cellPaste = await page.evaluate(async source => {
+        const view = window.__richPasteView;
+        const from = source.indexOf('Alpha');
+        view.dispatch({ selection: { anchor: from, head: from + 'Alpha'.length } });
+        view.focus();
         const transfer = new DataTransfer();
         transfer.setData('text/html', '<strong>Rich Alpha</strong>');
         transfer.setData('text/plain', 'Rich Alpha');
@@ -230,15 +229,18 @@ test('converts semantic rich clipboard structure while preserving literal paste 
             cancelable: true,
             clipboardData: transfer,
         });
-        nested.contentDOM.dispatchEvent(event);
-        return { prevented: event.defaultPrevented, cell: nested.state.doc.toString() };
-    });
-    expect(cellPaste).toEqual({ prevented: true, cell: '**Rich Alpha**' });
+        view.contentDOM.dispatchEvent(event);
+        return { prevented: event.defaultPrevented, source: view.state.doc.toString() };
+    }, tableSource);
+    expect(cellPaste.prevented).toBe(true);
+    expect(cellPaste.source).toContain('| **Rich Alpha** | Ready |');
     await expect.poll(() => page.evaluate(() => window.__richPasteView.state.doc.toString()))
         .toContain('| **Rich Alpha** | Ready |');
 
-    await page.locator('.tbl-table-widget').click({ position: { x: 2, y: 2 } });
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('ArrowUp');
-    await expect(page.locator('.tbl-table-widget')).toBeVisible();
+    await page.evaluate(() => {
+        const view = window.__richPasteView;
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+    });
+    await expect(page.locator('.cm-block-widget--table')).toBeVisible();
 });

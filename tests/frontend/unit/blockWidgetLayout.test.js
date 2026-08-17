@@ -45,19 +45,11 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-frontmatter-panel-section')).toMatch(/display:\s*grid/);
         expect(declarationsFor('.cm-frontmatter-panel-section')).toMatch(/gap:\s*7px/);
         expect(declarationsFor('.cm-block-widget--diagram')).toMatch(/padding:\s*8px 0/);
-        expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-top:\s*0\s*!important/);
-        expect(declarationsFor('.tbl-table-widget')).toMatch(/margin-bottom:\s*0\s*!important/);
-        expect(declarationsFor('.tbl-table-widget')).toMatch(/width:\s*100%/);
-        expect(declarationsFor('.tbl-table-widget')).toMatch(/padding:\s*16px\s*!important/);
-        expect(declarationsFor('#editor-container .tbl-delete-table-button')).toMatch(/display:\s*none/);
-        expect(declarationsFor('.cm-scroller.cm-editor-block-actions-stacked .markdown-table-delete-guide'))
-            .toMatch(/display:\s*none/);
-        expect(declarationsFor('.cm-scroller.cm-editor-block-actions-stacked .tbl-table-widget'))
-            .toMatch(/display:\s*flex[\s\S]*flex-direction:\s*column/);
-        expect(declarationsFor('#editor-container .cm-scroller.cm-editor-block-actions-stacked .tbl-delete-table-button'))
-            .toMatch(/display:\s*inline-grid[\s\S]*order:\s*-1[\s\S]*align-self:\s*flex-start/);
-        expect(declarationsFor('.cm-table-source-toggle')).toMatch(/margin:\s*0\s*!important/);
-        expect(declarationsFor('.cm-table-source-toggle')).toMatch(/padding-bottom:\s*6px/);
+        expect(declarationsFor('.cm-block-widget--table')).toMatch(/padding:\s*8px 0/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/width:\s*100%/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/height:\s*100%/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/overflow:\s*auto/);
+        expect(declarationsFor('.cm-live-table table')).toMatch(/border-collapse:\s*collapse/);
     });
 
     test('pins approved rendered blocks to their measured source height', () => {

@@ -223,7 +223,7 @@ remain free of machine-dependent pass/fail thresholds. See
 
 For changes to Raw Text Preview, the global tab-size/indentation policy, sticky headings, Markdown block guides or their writing-column rail geometry,
 raw-source Mermaid diagnostics, the Mermaid Editor, current-note heading
-completion, frontmatter Properties navigation, Vim table cells/rendered-block navigation, or per-tab cursor
+completion, frontmatter Properties navigation, Vim rendered-block navigation, or per-tab cursor
 persistence, follow the
 focused layer and browser-boundary guidance in
 [`docs/TESTING.md`](docs/TESTING.md).
@@ -318,19 +318,17 @@ range, then update the separately vendored core runtime and run the complete
 preview/export contract. A root `package.json` bump by itself does not replace
 that runtime.
 
-The interactive-table bundle is generated through
-`scripts/vendor-codemirror-markdown-tables.mjs`. Its exact-match, in-memory
-transform makes the third-party table decoration yield to Figaro's native fold
-range, exposes the upstream delete transaction for its native menu and Figaro's
-constrained-width fallback action, marks the returned DOM as a measured table
-block, and records `rowCount + 1` as its stable Markdown source footprint. The
-normal left helper-rail action dispatches the equivalent root transaction. It
-deliberately fails if a dependency update changes the reviewed upstream shape.
-The vendored `codemirror-live-markdown` fenced-code provider
-has the equivalent fold-aware rebuild and records its opening, content, and
-closing source rows. Preserve and reverify both integrations when refreshing
-either dependency; the focused browser folding and source-footprint geometry
-regressions must pass before accepting the generated bundle.
+Table rendering belongs to Figaro rather than a third-party table editor.
+Keep `liveMarkdownTablePlugin.js` limited to CodeMirror syntax ranges,
+selection state, folding, and measured block replacement. Keep
+`markdownTableRenderer.js` as the DOM boundary that invokes the canonical
+Markdown-It renderer and applies the pure `core/printableTableModel.js` plan
+for `<br/>` line breaks and anchored `^` row spans. The editor and PDF paths
+must leave the rectangular Markdown source unchanged and share focused
+renderer/model tests.
+The vendored `codemirror-live-markdown` package still contains optional
+table helpers, but Figaro does not activate them; do not reintroduce a
+second table decoration provider without an explicit architecture decision.
 
 The CodeMirror color-extension ESM artifact imports one small Babel helper that
 its package does not declare. `scripts/vendor-codemirror-color.mjs` applies an
@@ -397,7 +395,7 @@ the assembled webview rather than one JavaScript package in isolation.
   `docs/TESTING.md`.
 - A tab-size change must keep the pure 2–8/default/step rules, backend restart
   persistence, Settings rollback and bounds, root Markdown and code facets,
-  Vim `>`, Mermaid, table-cell, rendered-code, Raw Text Preview, Arrow Up/Down,
+  Vim `>`, Mermaid, rendered GFM tables, rendered-code, Raw Text Preview, Arrow Up/Down,
   mouse, and drag-selection contracts in sync.
 - Eagerly load bundled feature code during startup. Do not hide dependency
   cycles or postpone feature initialization with interaction-triggered dynamic

@@ -23,8 +23,9 @@ Your implementation must accurately transition states for the following elements
 
 ### Fenced Code (```` ```javascript ````)
 * **Editor preview:** Rendered fences use the bundled local highlighter, the declared language when supported, and automatic detection for an untyped fence. Moving into the block restores its complete editable Markdown source.
-* **Shared indentation:** The vault-persistent Tab Size setting supplies one 2–8-space (four-space default) CodeMirror tab-size/indent unit to ordinary Markdown, revealed fences, source-code files, Vim `>`, the focused Mermaid source editor, and nested table cells. Rendered fences and Raw Text Preview use the matching CSS tab width. Changing the preference does not rewrite existing source or affect printable output.
+* **Shared indentation:** The vault-persistent Tab Size setting supplies one 2–8-space (four-space default) CodeMirror tab-size/indent unit to ordinary Markdown, revealed fences, source-code files, Vim `>`, the focused Mermaid source editor, and rendered GFM table source. Rendered fences and Raw Text Preview use the matching CSS tab width. Changing the preference does not rewrite existing source or affect printable output.
 * **Printable parity:** PDF Preview and generated PDFs reuse that highlighter and emit `.figaro-print-code` plus highlight.js-compatible token classes. Unsupported languages remain escaped, printable source text; highlighting never changes the saved fence.
+* **GFM tables:** CodeMirror's Markdown syntax tree identifies tables, and Figaro replaces an unfocused table range with a read-only `.cm-live-table` semantic preview. Selecting the range reveals the exact source; there are no nested cell editors or table-plugin auto-formatting. The live preview and PDF renderer share the same Markdown-It output, including alignment, inline formatting, literal code, `<br>`/`<br/>` line breaks, and anchored bare `^` data-cell row spans.
 * **PDF scroll anchors:** Printable block tokens carry body-relative Markdown line ranges. The PDF frame and CodeMirror synchronize the source position at a shared 30% viewport marker, while generated covers/contents and other unmapped regions retain percentage fallback. Diagram SVG replacement inherits its source fence range. This scroll-only bridge never changes the editor selection: Arrow Up/Down, Vim motion, mouse placement, and bidirectional drag selection remain CodeMirror-owned.
 
 ### Links (`[Display Text](https://url.com)`)
@@ -39,7 +40,7 @@ Your implementation must accurately transition states for the following elements
 
 ### Rich Clipboard Paste
 * **Source-first conversion:** Semantic external clipboard HTML is converted to ordinary Markdown before insertion, so the normal live-preview, Raw Text Preview, and PDF renderers receive the same portable source. Presentation-only HTML, internal Figaro source, explicit plain paste, and paste inside frontmatter, code/Mermaid, HTML, links, URLs, images, escapes, or entities stay literal.
-* **Cursor contract:** One handled rich paste is one CodeMirror history transaction. Block insertion supplies only the blank-line boundaries needed to keep adjacent prose separate. Arrow Up/Down, mouse placement, and bidirectional drag selection around the inserted source remain native CodeMirror behavior; table cells accept inline conversion without introducing block geometry.
+* **Cursor contract:** One handled rich paste is one CodeMirror history transaction. Block insertion supplies only the blank-line boundaries needed to keep adjacent prose separate. Arrow Up/Down, mouse placement, and bidirectional drag selection around the inserted source remain native CodeMirror behavior; revealed table source accepts inline conversion without introducing block geometry.
 
 ### Footnotes (`text[^reference]` and `[^reference]: definition`)
 * **Existing definitions:** Clicking a reference selects and reveals its matching definition. Clicking that definition returns to the exact reference that initiated the jump; if no journey is recorded, the first matching reference is the fallback.
@@ -109,7 +110,7 @@ Every decoration created with `block: true` must follow these rules:
 
 1. The widget root and its visual surface must have zero top and bottom
    margins. This includes widgets supplied by vendored extensions such as the
-   `.tbl-table-widget` root from `codemirror-markdown-tables`.
+   `.cm-block-widget--table` root and `.cm-live-table` surface supplied by Figaro.
 2. Visual spacing around a widget must be measured. Use the transparent
    wrapper provided by `frontend/js/blockWidget.js` and express spacing as
    wrapper padding. Widgets that need no surrounding spacing must still use
@@ -151,8 +152,8 @@ Graphic content follows the pure fit plan in
 or height, never enlarge, center the result, and show the dashed **Markdown
 footprint** when the result is shorter than its slot. Diagram loading and error
 messages occupy the same root. Code and tables are not scaled; their measured
-roots use contained scrolling so typography, nested editors, buttons, and
-pointer targets remain readable. Table source height is its header plus the
+roots use contained scrolling so typography, controls, and pointer targets
+remain readable. Table source height is its header plus the
 separator and body rows.
 
 This policy is editor-only. Images, frontmatter/Properties, links, task
@@ -160,7 +161,7 @@ checkboxes, inline math, and other inline replacements must not receive the
 `cm-source-footprint` marker. Raw Text Preview and both printable surfaces keep
 their independent natural layout.
 
-Every interactive table extends its left block guide into a two-button stack.
+Every rendered table extends its left block guide into a two-button stack.
 `table` remains the fold/expand control; `delete` removes the complete table
 source, returns focus to the root editor, and remains undoable through shared
 CodeMirror history. The secondary action is visually quiet at rest and adopts
@@ -270,17 +271,7 @@ widget geometry: Normal `j`/`k` place the selection inside an adjacent rendered
 block so its normal source-first replacement logic reveals portable Markdown.
 Visual `j`/`k` always keeps its original anchor, extends the range into an
 adjacent fenced block, and reveals that source even when the option is off;
-crossing a preview can therefore never collapse Visual mode. Tables remain
-interactive widgets and receive their first or last cell. Their nested
-cell editor is the only cursor surface while it has focus; the synchronized
-outer selection must never paint a second full-cell caret. In Vim Insert mode,
-the nested editor's line caret must remain visible and aligned with its actual
-text insertion point. If the desktop engine leaves CodeMirror's custom cursor
-layer empty, the nested editor uses its native accent caret instead, never both.
-Normal mode's full block and Replace mode's underline cursor must also remain
-visible inside the focused cell; the unfocused root editor must not make either
-nested cursor transparent. When focus leaves the first or final table cell, the
-root editor must restore its live Vim mode marker before painting its cursor, so
-the document block cursor remains themed instead of reverting to the adapter's
-red fallback. Undo/redo may rebuild the table widget, but must return focus and
-the caret to the originating cell after that rebuild.
+crossing a preview can therefore never collapse Visual mode. Tables use the
+same source-range reveal as other rendered blocks, so Vim prompts, history,
+Arrow Up/Down, mouse placement, and drag selection stay on the root CodeMirror
+editor without a nested cell focus or cursor bridge.

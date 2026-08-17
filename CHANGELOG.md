@@ -10,6 +10,21 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.23.0] - 2026-08-17
+
+### Changed
+
+- Markdown tables now use CodeMirror's GFM syntax tree plus a read-only,
+  source-preserving preview instead of a nested table editor. Entering a table
+  reveals the exact Markdown, while live preview and PDF output share GFM
+  formatting and Figaro's `<br>` and `^` table conventions.
+
+### Fixed
+
+- Live table previews, PDF Preview, and generated PDFs now turn portable `<br>`
+  cell markers into real line breaks and support anchored `^` data cells as
+  vertical row spans without changing the saved Markdown.
+
 ## [1.22.0] - 2026-08-16
 
 ### Changed
@@ -1177,7 +1192,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.22.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.23.0...HEAD
+[1.23.0]: https://github.com/grilo/figaro/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/grilo/figaro/compare/v1.21.1...v1.22.0
 [1.21.1]: https://github.com/grilo/figaro/compare/v1.21.0...v1.21.1
 [1.21.0]: https://github.com/grilo/figaro/compare/v1.20.1...v1.21.0

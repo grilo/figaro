@@ -4,8 +4,8 @@
 }
 
 /* Rendered block replacements occupy the same logical line footprint as their
-   Markdown source. This is editor-only: printable diagrams and tables use
-   their independent .figaro-print-* surfaces. */
+   Markdown source. Printable output uses its independent .figaro-print-*
+   surfaces. */
 .cm-source-footprint {
     position: relative;
     box-sizing: border-box;
@@ -83,13 +83,9 @@
     overflow: hidden;
 }
 
-/* Block roots supplied by codemirror-live-markdown must follow the same
-   measured-height contract. The source-toggle's former bottom margin becomes
-   measured padding; the other roots intentionally have no outside spacing. */
+/* Block roots supplied by CodeMirror widgets must follow the same measured-
+   height contract. Visual spacing belongs inside the measured root. */
 .cm-codeblock-widget,
-.cm-table-widget,
-.cm-table-editor,
-.tbl-table-widget,
 .cm-image-widget,
 .cm-math-block {
     box-sizing: border-box;
@@ -97,41 +93,42 @@
     margin-bottom: 0 !important;
 }
 
-/* codemirror-markdown-tables returns this element as its measured block root. */
-.tbl-table-widget {
-    position: relative;
+/* Source-preserving GFM table preview. The preview is read-only; selecting
+   its source range reveals the original Markdown for editing. */
+.cm-block-widget--table {
+    padding: 8px 0;
+}
+
+.cm-live-table {
     box-sizing: border-box;
     width: 100%;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    padding: 16px !important;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 12px;
+    overflow: auto;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
 }
 
-#editor-container .tbl-delete-table-button {
-    display: none;
+.cm-live-table table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
 }
 
-.cm-scroller.cm-editor-block-actions-stacked .markdown-table-delete-guide {
-    display: none;
+.cm-live-table th,
+.cm-live-table td {
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    vertical-align: top;
 }
 
-.cm-scroller.cm-editor-block-actions-stacked .tbl-table-widget {
-    display: flex;
-    align-items: flex-start;
-    flex-direction: column;
-}
-
-#editor-container .cm-scroller.cm-editor-block-actions-stacked .tbl-delete-table-button {
-    display: inline-grid;
-    order: -1;
-    align-self: flex-start;
-    margin-bottom: 8px;
-}
-
-.cm-table-source-toggle {
-    box-sizing: border-box;
-    margin: 0 !important;
-    padding-bottom: 6px;
+.cm-live-table th {
+    background: var(--hover-bg);
+    font-weight: 600;
 }
 
 .cm-live-diagram-label {

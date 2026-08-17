@@ -845,14 +845,6 @@
     opacity: .5;
 }
 
-/* Markdown tables keep an outer CodeMirror selection in sync with their
-   focused nested cell editor. Its cursor measures as a whole cell, so never
-   paint that outer cursor while the cell owns focus. */
-.cm-editor.cm-table-cell-focused > .cm-scroller > .cm-cursorLayer,
-.cm-editor.cm-table-cell-focused > .cm-scroller > .cm-vimCursorLayer {
-    visibility: hidden;
-}
-
 /* File Tree */
 .file-tree {
     padding: 2px 0 6px;

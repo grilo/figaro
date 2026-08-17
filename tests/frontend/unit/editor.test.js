@@ -241,7 +241,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
         expect(window.go.desktop.App.ReadFile).toHaveBeenCalledTimes(2);
     });
 
-    test('normalizes WebKitGTK Unidentified Shift+Tab for nested table editors', async () => {
+    test('normalizes WebKitGTK Unidentified Shift+Tab for CodeMirror key handling', async () => {
         const { normalizeWebKitShiftTab } = await import('../frontend/js/editor.js');
         const target = document.createElement('div');
         const normalizedEvents = [];

@@ -10,6 +10,7 @@ import { scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { mathField } from './mathPlugin.js';
 import { createDiagramField, diagramLanguages, scanDiagramFences } from './liveDiagramPlugin.js';
+import { createMarkdownTableField } from './liveMarkdownTablePlugin.js';
 import { requestSourceFootprintMeasure, sourceFootprintExtension } from './sourceFootprint.js';
 import {
     defaultTabSize,
@@ -50,7 +51,7 @@ import {
 } from './linkCompletions.js';
 import { getLinkStylePreference } from './linkStyle.js';
 import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
-import { createDocumentKeyBindings, createTableCellProfile } from './codeMirrorProfiles.js';
+import { createDocumentKeyBindings } from './codeMirrorProfiles.js';
 import { createEditorDocumentSession } from './usecases/editorDocumentSession.js';
 import { createLinkedNoteFromCompletion } from './usecases/createLinkedNoteFromCompletion.js';
 import { reviewMissingLinkedNote, reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
@@ -79,7 +80,6 @@ import {
     configureContextMenu,
     dismissContextMenu,
 } from './contextMenu.js';
-import { markdownTableAutocompleter, markdownTables, TableStyle, TableTheme } from 'codemirror-markdown-tables';
 import { indentationMarkers as indentationMarkerExtension } from '@replit/codemirror-indentation-markers';
 import { getCM, vim, Vim } from '@replit/codemirror-vim';
 import {
@@ -146,8 +146,6 @@ import {
 // Editor instance
 let editorView = null;
 let vimCompartment = null;
-let markdownTableCompartment = null;
-let createMarkdownTableExtension = null;
 let imageBasePathCompartment = null;
 let readOnlyCompartment = null;
 let fileModeCompartment = null;
@@ -165,10 +163,6 @@ let vimVisualRowMotionsRegistered = false;
 let vimRevealBlocksRequested = false;
 let vimAPI = null;
 let vimGetCM = null;
-let vimTableCellExtension = null;
-const vimTablePromptText = new WeakMap();
-const vimTableCellViews = new WeakMap();
-let tableHistoryRedoBookmark = null;
 let lineNumbersRequested = false;
 let markdownLintRequested = true;
 const markdownDocumentLinter = createMarkdownDocumentLinter(validateMermaidSource);
@@ -245,7 +239,6 @@ function setEditorTabSize(value) {
 
     if (!editorView || editorView.isDestroyed || !tabSizeCompartment) return editorTabSizeRequested;
     editorView.dispatch({ effects: tabSizeCompartment.reconfigure(editorTabSizeExtensions()) });
-    if (activeFileLanguage.kind === 'markdown') reconfigureMarkdownTableCells();
     requestSourceFootprintMeasure(editorView);
     return editorTabSizeRequested;
 }
@@ -300,19 +293,6 @@ const vimVisualRowMappings = [
     ['<Up>', '<FigaroVisualUp>', 'visual'],
 ];
 
-const vimTableNavigationKeys = {
-    // Visual-mode arrow navigation never creates rows. h/l additionally stop
-    // at the current row's outer cells instead of wrapping like Tab/Shift+Tab.
-    h: { key: 'ArrowLeft', horizontal: -1 },
-    // Enter creates a row when it leaves the last body cell. ArrowDown uses
-    // the table widget's non-destructive edge behavior instead.
-    j: { key: 'ArrowDown' },
-    k: { key: 'ArrowUp' },
-    l: { key: 'ArrowRight', horizontal: 1 },
-};
-const vimTablePromptKeys = new Set([':', '/', '?']);
-let tableHistoryRestoreId = 0;
-
 function vimStateFor(view) {
     return vimGetCM?.(view)?.state?.vim || null;
 }
@@ -359,564 +339,6 @@ function syncRootVimModeClasses(rootView, mode, compartment = null) {
     queueMicrotask(() => {
         if (rootView.isDestroyed || vimModeClassSyncTokens.get(rootView) !== token) return;
         rootView.dispatch({ effects: compartment.reconfigure(vimModeClassExtension(mode)) });
-    });
-}
-
-function focusedTableCellVimMode(document) {
-    const nestedEditor = document?.activeElement?.closest?.('.tbl-cell-editor .cm-editor');
-    return nestedEditor?.dataset.vimMode || null;
-}
-
-function syncVimStatusForFocus(rootView = editorView) {
-    if (!vimActive || !rootView || rootView.isDestroyed) return;
-    queueMicrotask(() => {
-        if (!vimActive || rootView.isDestroyed) return;
-        const nestedMode = focusedTableCellVimMode(rootView.dom.ownerDocument);
-        const rootMode = vimModeForCM(vimModeCM);
-        // The table widget returns focus to the root editor without asking the
-        // Vim adapter to emit another mode-change event. Reapply the root mode
-        // classes during that handoff so its themed block cursor cannot fall
-        // back to the adapter's red default after leaving a cell.
-        if (!nestedMode) syncRootVimModeClasses(rootView, rootMode);
-        updateVimStatus(nestedMode || rootMode);
-    });
-}
-
-function tableCellViewForContent(content) {
-    if (!content) return null;
-    const nestedEditor = content.closest('.tbl-cell-editor .cm-editor');
-    const isCurrentNestedView = view => view && !view.destroyed && view.dom === nestedEditor;
-    const registered = vimTableCellViews.get(content);
-    if (isCurrentNestedView(registered)) return registered;
-    const discovered = EditorView.findFromDOM(content);
-    return isCurrentNestedView(discovered) ? discovered : null;
-}
-
-function tableCellHistoryBookmark(rootView, nestedView = null) {
-    const document = rootView?.dom?.ownerDocument;
-    const nestedEditor = nestedView?.dom || document?.activeElement?.closest?.('.tbl-cell-editor .cm-editor');
-    const cell = nestedEditor?.closest?.('.tbl-cell');
-    const table = cell?.closest?.('.tbl-table-widget');
-    const content = nestedEditor?.querySelector?.(':scope > .cm-scroller > .cm-content');
-    const view = nestedView || tableCellViewForContent(content);
-    if (!cell || !table || !view) return null;
-
-    const tables = Array.from(rootView.dom.querySelectorAll('.tbl-table-widget'));
-    const tableIndex = tables.indexOf(table);
-    const row = Number.parseInt(cell.dataset.row, 10);
-    const col = Number.parseInt(cell.dataset.col, 10);
-    if (tableIndex < 0 || !Number.isInteger(row) || !Number.isInteger(col)) return null;
-    return {
-        tableIndex,
-        row,
-        col,
-        anchor: view.state.selection.main.anchor,
-        head: view.state.selection.main.head,
-    };
-}
-
-function markdownTableStartLines(doc) {
-    const starts = [];
-    for (let number = 1; number < doc.lines; number += 1) {
-        if (!vimTableCells(doc.line(number).text) || !isVimTableSeparator(doc.line(number + 1).text)) continue;
-        starts.push(number);
-        number += 1;
-        while (number < doc.lines && vimTableCells(doc.line(number + 1).text)) number += 1;
-    }
-    return starts;
-}
-
-function markdownTableCellContentRange(line, col) {
-    const pipes = [];
-    for (let index = 0; index < line.text.length; index += 1) {
-        if (line.text[index] !== '|') continue;
-        let escapes = 0;
-        for (let before = index - 1; before >= 0 && line.text[before] === '\\'; before -= 1) escapes += 1;
-        if (escapes % 2 === 0) pipes.push(index);
-    }
-    if (pipes.length < col + 2) return null;
-    let from = pipes[col] + 1;
-    let to = pipes[col + 1];
-    while (from < to && /\s/.test(line.text[from])) from += 1;
-    while (to > from && /\s/.test(line.text[to - 1])) to -= 1;
-    return { from: line.from + from, to: line.from + to };
-}
-
-function tableCellRootSelection(rootView, bookmark) {
-    const startLine = markdownTableStartLines(rootView.state.doc)[bookmark.tableIndex];
-    if (!startLine) return null;
-    const lineNumber = bookmark.row === 0 ? startLine : startLine + bookmark.row + 1;
-    if (lineNumber > rootView.state.doc.lines) return null;
-    const range = markdownTableCellContentRange(rootView.state.doc.line(lineNumber), bookmark.col);
-    if (!range) return null;
-    const current = rootView.state.selection.main;
-    if (current.anchor >= range.from && current.anchor <= range.to
-        && current.head >= range.from && current.head <= range.to) {
-        return EditorSelection.single(current.anchor, current.head);
-    }
-    const length = range.to - range.from;
-    return EditorSelection.single(
-        range.from + Math.min(bookmark.anchor, length),
-        range.from + Math.min(bookmark.head, length),
-    );
-}
-
-function restoreTableCellHistoryBookmark(rootView, bookmark, restoreId) {
-    if (!bookmark) return;
-    const window = rootView.dom.ownerDocument?.defaultView;
-    let retries = 0;
-    let rootSelectionRestored = false;
-    const restore = () => {
-        if (restoreId !== tableHistoryRestoreId || rootView.isDestroyed) return;
-        if (!rootSelectionRestored) {
-            const selection = tableCellRootSelection(rootView, bookmark);
-            if (selection) {
-                rootView.dispatch({
-                    selection,
-                    annotations: Transaction.addToHistory.of(false),
-                });
-                rootSelectionRestored = true;
-            }
-        }
-        const table = rootView.dom.querySelectorAll('.tbl-table-widget')[bookmark.tableIndex];
-        const cell = table?.querySelector(`.tbl-cell[data-row="${bookmark.row}"][data-col="${bookmark.col}"]`);
-        const content = cell?.querySelector('.tbl-cell-editor .cm-content');
-        const view = tableCellViewForContent(content);
-        if (view?.dom?.isConnected) {
-            view.focus();
-            return;
-        }
-        if (content?.isConnected) {
-            content.focus();
-            return;
-        }
-        // Activating a collapsed cell editor can take one more paint. Retry
-        // only until its nested view exists; repeated focusing after success
-        // causes a table rebuild/focus loop.
-        if (retries < 2) {
-            retries += 1;
-            window?.requestAnimationFrame(restore);
-        }
-    };
-
-    // The document-history transaction rebuilds table cells on the next paint.
-    // Wait for that rebuild to settle, then restore the target exactly once.
-    window?.requestAnimationFrame(() => window.requestAnimationFrame(restore));
-}
-
-function runTableCellHistory(command, rootView, nestedView = null, documentChange = false) {
-    const observedBookmark = tableCellHistoryBookmark(rootView, nestedView);
-    const useSavedRedoPosition = command === redo
-        && tableHistoryRedoBookmark?.rootView === rootView
-        && tableHistoryRedoBookmark.document.eq(rootView.state.doc)
-        && observedBookmark
-        && tableHistoryRedoBookmark.tableIndex === observedBookmark.tableIndex
-        && tableHistoryRedoBookmark.row === observedBookmark.row
-        && tableHistoryRedoBookmark.col === observedBookmark.col;
-    const bookmark = useSavedRedoPosition
-        ? { ...observedBookmark, anchor: tableHistoryRedoBookmark.anchor, head: tableHistoryRedoBookmark.head }
-        : observedBookmark;
-    const startDocument = rootView.state.doc;
-    let handled = false;
-    // A nested Vim edit can add cell-selection events after the text change
-    // (most visibly when Escape returns to Normal mode). Vim u/Ctrl+R and the
-    // ordinary document history shortcuts must skip those selection-only
-    // entries so one command reaches the adjacent document change.
-    for (let attempts = 0; attempts < 64; attempts += 1) {
-        const current = command(rootView);
-        if (!current) break;
-        handled = true;
-        if (!documentChange || !rootView.state.doc.eq(startDocument)) break;
-    }
-    if (handled && command === undo && observedBookmark) {
-        tableHistoryRedoBookmark = { ...observedBookmark, rootView, document: rootView.state.doc };
-    } else if (command === redo) {
-        tableHistoryRedoBookmark = null;
-    }
-    if (handled && bookmark) {
-        const restoreId = ++tableHistoryRestoreId;
-        restoreTableCellHistoryBookmark(rootView, bookmark, restoreId);
-    }
-    return handled;
-}
-
-function tableCellHistoryKeymap() {
-    const wrap = command => command
-        ? rootView => runTableCellHistory(command, rootView, null, command === undo || command === redo)
-        : undefined;
-    return historyKeymap.map(binding => ({
-        ...binding,
-        run: wrap(binding.run),
-        shift: wrap(binding.shift),
-    }));
-}
-
-function tableCellViewRegistryExtension() {
-    return ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.view = view;
-            this.onKeyDown = event => {
-                if (event.defaultPrevented || event.altKey) return;
-                const key = event.key?.toLowerCase();
-                const modifier = event.ctrlKey || event.metaKey;
-                const undoKey = modifier && key === 'z' && !event.shiftKey;
-                const redoKey = (event.ctrlKey && key === 'y' && !event.shiftKey)
-                    || (modifier && key === 'z' && event.shiftKey);
-                if (!undoKey && !redoKey) return;
-                stopVimTableCellEvent(event);
-                const rootView = editorView;
-                if (rootView && !rootView.isDestroyed) {
-                    runTableCellHistory(undoKey ? undo : redo, rootView, view, true);
-                }
-            };
-            vimTableCellViews.set(view.contentDOM, view);
-            view.contentDOM.addEventListener('keydown', this.onKeyDown, true);
-        }
-
-        destroy() {
-            vimTableCellViews.delete(this.view.contentDOM);
-            this.view.contentDOM.removeEventListener('keydown', this.onKeyDown, true);
-        }
-    });
-}
-
-function dispatchVimTableHistory(event, view, vimState) {
-    if (!vimState || vimState.insertMode || vimState.visualMode || event.defaultPrevented) return false;
-    const key = event.key?.toLowerCase();
-    const undoKey = key === 'u' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
-    const redoKey = key === 'r' && event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
-    if (!undoKey && !redoKey) return false;
-
-    stopVimTableCellEvent(event);
-    const rootView = editorView;
-    if (rootView && !rootView.isDestroyed) {
-        runTableCellHistory(undoKey ? undo : redo, rootView, view, true);
-    }
-    return true;
-}
-
-function dispatchTableNavigationKey(event, view, key, shiftKey = false) {
-    const KeyboardEventConstructor = view.dom.ownerDocument?.defaultView?.KeyboardEvent
-        || globalThis.KeyboardEvent;
-    if (typeof KeyboardEventConstructor !== 'function') return false;
-
-    const target = event.target?.dispatchEvent ? event.target : view.contentDOM;
-    return target.dispatchEvent(new KeyboardEventConstructor('keydown', {
-        key,
-        code: key === 'Tab' ? 'Tab' : key,
-        shiftKey,
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-    }));
-}
-
-function isVimTableHorizontalBoundary(event, direction) {
-    if (!direction.horizontal) return false;
-    const target = event.target;
-    if (!(target instanceof Element)) return false;
-    const cell = target.closest('.tbl-cell');
-    const table = cell?.closest('.tbl-table-widget');
-    const column = Number.parseInt(cell?.dataset.col, 10);
-    if (!table || !Number.isInteger(column)) return false;
-
-    const columns = Array.from(table.querySelectorAll('.tbl-cell[data-col]'))
-        .map(candidate => Number.parseInt(candidate.dataset.col, 10))
-        .filter(Number.isInteger);
-    if (!columns.length) return false;
-    const boundary = direction.horizontal < 0 ? Math.min(...columns) : Math.max(...columns);
-    return column === boundary;
-}
-
-function placeTableCellCursorAtHorizontalBoundary(view, direction) {
-    if (!direction.horizontal) return;
-    const anchor = direction.horizontal < 0 ? 0 : view.state.doc.length;
-    if (view.state.selection.main.empty && view.state.selection.main.head === anchor) return;
-    view.dispatch({ selection: { anchor } });
-}
-
-function restoreVimVisualTableCellMode(view, vimState) {
-    const key = vimState.visualLine ? 'V' : 'v';
-    const targetOptions = {
-        key,
-        code: 'KeyV',
-        shiftKey: Boolean(vimState.visualLine),
-        ctrlKey: Boolean(vimState.visualBlock),
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-    };
-    const restore = () => {
-        const target = view.dom.ownerDocument.activeElement;
-        if (!(target instanceof Element) || !target.closest('.tbl-cell-editor')) return;
-        const nestedView = vimTableCellViews.get(target.closest('.cm-content'));
-        if (vimStateFor(nestedView)?.visualMode) return;
-        const KeyboardEventConstructor = target.ownerDocument.defaultView?.KeyboardEvent || globalThis.KeyboardEvent;
-        if (typeof KeyboardEventConstructor === 'function') target.dispatchEvent(new KeyboardEventConstructor('keydown', targetOptions));
-    };
-    // Table navigation selects and focuses its destination synchronously. A
-    // microtask restores Visual mode before a rapid following h/j/k/l can be
-    // treated as an ordinary Normal-mode motion. The timer remains as a safe
-    // fallback for webviews that defer the nested-cell focus change.
-    queueMicrotask(restore);
-    setTimeout(restore, 0);
-}
-
-function stopVimTableCellEvent(event) {
-    event.preventDefault();
-    // The nested CodeMirror handler runs before the table widget's bubbling
-    // listener. WebKit can otherwise let the same physical key continue to
-    // that listener after Vim has opened its prompt.
-    event.stopImmediatePropagation?.();
-    event.stopPropagation();
-}
-
-function queueVimTablePromptText(view, key) {
-    const document = view.dom.ownerDocument;
-    const pending = { key };
-    vimTablePromptText.set(document, pending);
-    // Chromium consumes the key at keydown. WebKit can deliver its matching
-    // text event a moment later, so retain the guard for that short handoff.
-    setTimeout(() => {
-        if (vimTablePromptText.get(document) === pending) vimTablePromptText.delete(document);
-    }, 100);
-}
-
-function vimTablePromptTextFromEvent(event) {
-    if (event.type === 'textInput' || event.type === 'textinput') return event.data;
-    return event.inputType === 'insertText' ? event.data : null;
-}
-
-function guardQueuedVimTablePromptText(target, view, key) {
-    if (!target?.addEventListener) return;
-    const document = view.dom.ownerDocument;
-    const guard = event => {
-        const pending = vimTablePromptText.get(document);
-        if (vimTablePromptTextFromEvent(event) === key && pending?.key === key) {
-            stopVimTableCellEvent(event);
-            vimTablePromptText.delete(document);
-        }
-        removeGuard();
-    };
-    const removeGuard = () => {
-        target.removeEventListener('beforeinput', guard, true);
-        target.removeEventListener('textInput', guard, true);
-        target.removeEventListener('textinput', guard, true);
-    };
-    // Keep this listener on the original key target. A table update can detach
-    // that cell before WebKit delivers its queued text event.
-    target.addEventListener('beforeinput', guard, true);
-    target.addEventListener('textInput', guard, true);
-    target.addEventListener('textinput', guard, true);
-    setTimeout(removeGuard, 100);
-}
-
-/** Restore focus to the originating cell when a root-level Vim prompt is cancelled. */
-function restoreVimTableCellFocusOnPromptCancel(rootView, cellContent) {
-    const input = rootView.dom.querySelector('.cm-vim-panel input');
-    if (!input || !cellContent?.closest?.('.tbl-cell-editor')) return;
-
-    const onKeyDown = event => {
-        const key = event.key?.toLowerCase();
-        const cancelled = key === 'escape'
-            || (event.ctrlKey && (key === 'c' || key === '['))
-            || (key === 'backspace' && input.value === '');
-        if (!cancelled) return;
-        input.removeEventListener('keydown', onKeyDown, true);
-        // codemirror-vim focuses its own editor while closing the dialog.
-        // Run after that handoff so cancelling returns to the same table cell.
-        setTimeout(() => {
-            if (!rootView.isDestroyed && cellContent.isConnected) cellContent.focus();
-        }, 0);
-    };
-    input.addEventListener('keydown', onKeyDown, true);
-}
-
-/**
- * Table-cell editors use a table-owned keydown observer in addition to their
- * Vim extension. Normal- and Visual-mode prompts belong to the root Vim
- * instance: this keeps the panel at the bottom of the document and lets / and
- * ? search the complete note instead of only the embedded cell's short document.
- */
-function dispatchVimTablePrompt(event, view, vimState, key = event.key, queueText = true) {
-    if (!vimState || vimState.insertMode || !vimTablePromptKeys.has(key)) return false;
-    const rootView = editorView;
-    const rootCM = rootView && !rootView.isDestroyed ? vimGetCM?.(rootView) : null;
-    if (!rootCM || typeof vimAPI?.handleKey !== 'function') return false;
-    stopVimTableCellEvent(event);
-    if (queueText) {
-        queueVimTablePromptText(view, key);
-        guardQueuedVimTablePromptText(event.target, view, key);
-    }
-    vimAPI.handleKey(rootCM, key, 'user');
-    restoreVimTableCellFocusOnPromptCancel(rootView, event.target);
-    return true;
-}
-
-/** Cancel a delayed native text event after Vim has claimed a prompt key. */
-function preventVimTablePromptText(event, view) {
-    const target = event.target;
-    if (!(target instanceof Element) || !target.closest('.tbl-table-widget') || target.closest('.cm-vim-panel')) return false;
-    const document = view.dom.ownerDocument;
-    const pending = vimTablePromptText.get(document);
-    if (pending?.key !== vimTablePromptTextFromEvent(event)) return false;
-    stopVimTableCellEvent(event);
-    vimTablePromptText.delete(document);
-    return true;
-}
-
-/**
- * WebKit may report a physical punctuation key as `Unidentified` and provide
- * the actual `:`, `/`, or `?` through beforeinput or its older textInput event.
- * Claim the character before the nested cell's CodeMirror input handler turns
- * it into a cell-local Vim prompt in either Normal or Visual mode.
- */
-function routeVimTablePromptText(event) {
-    const text = vimTablePromptTextFromEvent(event);
-    if (!vimTablePromptKeys.has(text)) return false;
-    const target = event.target;
-    if (!(target instanceof Element) || target.closest('.cm-vim-panel')) return false;
-    const cellContent = target.closest('.cm-content');
-    const cellView = cellContent ? vimTableCellViews.get(cellContent) : null;
-    const vimState = cellView ? vimStateFor(cellView) : null;
-    return Boolean(cellView && dispatchVimTablePrompt(event, cellView, vimState, text, false));
-}
-
-/**
- * Claim Normal- and Visual-mode prompt keys in the capture phase, before
- * CodeMirror's Vim and the table widget attach their bubbling key handlers.
- * This also records the one queued text event that WebKit may emit after the
- * cell has been rebuilt.
- */
-function vimTableCellPromptCaptureExtension() {
-    return ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.view = view;
-            this.onKeyDown = event => {
-                const vimState = vimStateFor(view);
-                if (!vimState || vimState.insertMode) return;
-                if (dispatchVimTableHistory(event, view, vimState)) return;
-                if (event.altKey || event.ctrlKey || event.metaKey || event.defaultPrevented) return;
-                dispatchVimTablePrompt(event, view, vimState);
-            };
-            this.onPromptText = event => {
-                if (event.defaultPrevented) return;
-                const text = vimTablePromptTextFromEvent(event);
-                const vimState = vimStateFor(view);
-                if (!vimTablePromptKeys.has(text) || !vimState || vimState.insertMode) return;
-                dispatchVimTablePrompt(event, view, vimState, text, false);
-            };
-            view.contentDOM.addEventListener('keydown', this.onKeyDown, true);
-            // WebKitGTK can use its legacy textInput event after an
-            // Unidentified keydown. CodeMirror's Vim plugin waits for text in
-            // that case, so claim the character before it reaches the cell.
-            view.contentDOM.addEventListener('beforeinput', this.onPromptText, true);
-            view.contentDOM.addEventListener('textInput', this.onPromptText, true);
-            view.contentDOM.addEventListener('textinput', this.onPromptText, true);
-        }
-
-        destroy() {
-            this.view.contentDOM.removeEventListener('keydown', this.onKeyDown, true);
-            this.view.contentDOM.removeEventListener('beforeinput', this.onPromptText, true);
-            this.view.contentDOM.removeEventListener('textInput', this.onPromptText, true);
-            this.view.contentDOM.removeEventListener('textinput', this.onPromptText, true);
-        }
-    });
-}
-
-/**
- * Some WebKit table-widget events are filtered before a nested CodeMirror
- * view sees them. Capture them from the persistent root document instead so a
- * queued prompt character cannot reach a newly rebuilt table cell.
- */
-function vimTableCellPromptInputGuardExtension() {
-    return ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.view = view;
-            this.onBeforeInput = event => {
-                if (preventVimTablePromptText(event, view)) return;
-                routeVimTablePromptText(event);
-            };
-            view.dom.ownerDocument.addEventListener('beforeinput', this.onBeforeInput, true);
-            view.dom.ownerDocument.addEventListener('textInput', this.onBeforeInput, true);
-            view.dom.ownerDocument.addEventListener('textinput', this.onBeforeInput, true);
-        }
-
-        destroy() {
-            this.view.dom.ownerDocument.removeEventListener('beforeinput', this.onBeforeInput, true);
-            this.view.dom.ownerDocument.removeEventListener('textInput', this.onBeforeInput, true);
-            this.view.dom.ownerDocument.removeEventListener('textinput', this.onBeforeInput, true);
-        }
-    });
-}
-
-/**
- * Table cells are nested CodeMirror editors. Normal-mode h/l remain Vim's
- * character motions; Visual mode uses spreadsheet-style cell movement, while
- * j/k move between rows in either non-Insert mode.
- */
-function vimTableCellNavigationExtension() {
-    return Prec.highest(EditorView.domEventHandlers({
-        keydown: (event, view) => {
-            if (event.defaultPrevented) return false;
-            const vimState = vimStateFor(view);
-            if (!vimState || vimState.insertMode) return false;
-
-            if (dispatchVimTableHistory(event, view, vimState)) return true;
-            if (event.altKey || event.ctrlKey || event.metaKey) return false;
-            if (dispatchVimTablePrompt(event, view, vimState)) return true;
-
-            const direction = vimTableNavigationKeys[event.key];
-            if (!direction) return false;
-            // Normal-mode h/l must retain Vim's ordinary character movement.
-            // In particular, Vim itself keeps them at the beginning or end of
-            // the cell instead of traversing to another table cell.
-            if (direction.horizontal && !vimState.visualMode) return false;
-            const preserveVisualMode = vimState.visualMode;
-
-            // Do not steal an operator-pending motion such as d{motion}; it
-            // must remain a normal Vim edit rather than a table transition.
-            const bufferedKeys = vimState.inputState?.keyBuffer?.join('') || '';
-            if (vimState.inputState?.operatorShortcut || (bufferedKeys && !/^\d+$/.test(bufferedKeys))) return false;
-            if (vimState.inputState?.keyBuffer) vimState.inputState.keyBuffer.length = 0;
-
-            event.preventDefault();
-            event.stopPropagation();
-            if (isVimTableHorizontalBoundary(event, direction)) return true;
-            placeTableCellCursorAtHorizontalBoundary(view, direction);
-            dispatchTableNavigationKey(event, view, direction.key, Boolean(direction.shiftKey));
-            if (preserveVisualMode) restoreVimVisualTableCellMode(view, vimState);
-            return true;
-        },
-    }));
-}
-
-/** Surface an embedded cell's modal state without changing its table selection. */
-function vimTableCellModeExtension() {
-    return ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.view = view;
-            this.cm = vimGetCM?.(view) || null;
-            this.onModeChange = event => {
-                this.mode = vimModeFromEvent(event, this.cm);
-                view.dom.dataset.vimMode = this.mode;
-                if (view.hasFocus) updateVimStatus(this.mode);
-            };
-            this.onFocusIn = () => updateVimStatus(this.mode);
-            this.onFocusOut = () => syncVimStatusForFocus();
-            this.mode = vimModeForCM(this.cm);
-            view.dom.dataset.vimMode = this.mode;
-            this.cm?.on('vim-mode-change', this.onModeChange);
-            view.dom.addEventListener('focusin', this.onFocusIn);
-            view.dom.addEventListener('focusout', this.onFocusOut);
-        }
-
-        destroy() {
-            this.cm?.off('vim-mode-change', this.onModeChange);
-            this.view.dom.removeEventListener('focusin', this.onFocusIn);
-            this.view.dom.removeEventListener('focusout', this.onFocusOut);
-            delete this.view.dom.dataset.vimMode;
-        }
     });
 }
 
@@ -1021,17 +443,6 @@ export function markdownRichPasteProtectedContext(state) {
     return protectedRange;
 }
 
-function vimTableCells(line) {
-    const text = line.trim();
-    if (!text.startsWith('|') || !text.endsWith('|')) return null;
-    return text.slice(1, -1).split('|').map(cell => cell.trim());
-}
-
-function isVimTableSeparator(line) {
-    const cells = vimTableCells(line);
-    return Boolean(cells?.length) && cells.every(cell => /^:?-{3,}:?$/.test(cell));
-}
-
 /** Return rendered block source ranges that Vim's vertical motions can enter. */
 export function vimRenderedBlockRanges(state) {
     const ranges = [];
@@ -1042,22 +453,11 @@ export function vimRenderedBlockRanges(state) {
         enter: node => {
             if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
                 ranges.push({ from: node.from, to: node.to, kind: 'source' });
+            } else if (node.name === 'Table') {
+                ranges.push({ from: node.from, to: node.to, kind: 'table' });
             }
         },
     });
-
-    for (let number = 1; number < state.doc.lines; number += 1) {
-        const header = vimTableCells(state.doc.line(number).text);
-        if (!header?.length || !isVimTableSeparator(state.doc.line(number + 1).text)) continue;
-        let end = number + 1;
-        while (end < state.doc.lines && vimTableCells(state.doc.line(end + 1).text)) end += 1;
-        ranges.push({
-            from: state.doc.line(number).from,
-            to: state.doc.line(end).to,
-            kind: 'table',
-        });
-        number = end;
-    }
 
     return ranges.sort((left, right) => left.from - right.from || right.to - left.to);
 }
@@ -1203,7 +603,9 @@ function mermaidEditorInputProfile(mainView) {
             return () => {
                 cm?.off('vim-mode-change', syncMode);
                 registerVimExCommands(Vim);
-                syncVimStatusForFocus(mainView);
+                const rootMode = vimModeForCM(vimModeCM);
+                syncRootVimModeClasses(mainView, rootMode);
+                updateVimStatus(rootMode);
             };
         },
     };
@@ -1877,9 +1279,8 @@ function linkPreview() {
 
 /**
  * WebKitGTK reports a physical Shift+Tab as key="Unidentified" even though
- * code remains "Tab". Normalize that one event so CodeMirror and the nested
- * Markdown-table editor receive the key binding instead of moving browser
- * focus out of the editor.
+ * code remains "Tab". Normalize that one event so CodeMirror receives the
+ * key binding instead of moving browser focus out of the editor.
  */
 function normalizeWebKitShiftTab(event) {
     if (event?.key !== 'Unidentified' || event.code !== 'Tab' || !event.shiftKey
@@ -2056,48 +1457,6 @@ function createEditorView() {
         destroyEditorView();
     }
     if (!container) return null;
-
-    // The table widget installs its own keydown listener below the outer
-    // CodeMirror handler. Observe the WebKitGTK Shift+Tab quirk in capture
-    // phase so the normalized event reaches that nested listener first.
-    const webKitShiftTabPlugin = ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.dom = view.dom;
-            this.handleKeyDown = event => normalizeWebKitShiftTab(event);
-            this.dom.addEventListener('keydown', this.handleKeyDown, true);
-        }
-
-        destroy() {
-            this.dom.removeEventListener('keydown', this.handleKeyDown, true);
-        }
-    });
-
-    // A table cell has its own CodeMirror editor, but the outer editor keeps
-    // an equivalent source selection. Only the nested editor may draw a
-    // caret while that cell owns focus, otherwise the outer cursor paints as
-    // a full-cell rectangle at the start of the active cell.
-    const tableCellFocusPlugin = ViewPlugin.fromClass(class {
-        constructor(view) {
-            this.view = view;
-            this.sync = () => {
-                queueMicrotask(() => {
-                    if (view.isDestroyed) return;
-                    const active = view.dom.ownerDocument?.activeElement;
-                    view.dom.classList.toggle('cm-table-cell-focused', Boolean(active?.closest?.('.tbl-cell-editor')));
-                    syncVimStatusForFocus(view);
-                });
-            };
-            view.dom.addEventListener('focusin', this.sync);
-            view.dom.addEventListener('focusout', this.sync);
-            this.sync();
-        }
-
-        destroy() {
-            this.view.dom.removeEventListener('focusin', this.sync);
-            this.view.dom.removeEventListener('focusout', this.sync);
-            this.view.dom.classList.remove('cm-table-cell-focused');
-        }
-    });
 
     // CodeMirror marks its complete gutter rail aria-hidden because line
     // numbers and ordinary markers are decorative. Fold arrows and Markdown
@@ -2664,64 +2023,13 @@ function createEditorView() {
         },
     });
 
-    // codemirror-markdown-tables owns both the rendered table and its nested
-    // cell editors. Keep document-wide undo/search bindings global while the
-    // ordinary editing bindings operate inside the active cell.
-    // Table cells are independent, embedded CodeMirror editors. They do not
-    // inherit root-editor extensions, so refresh this compartment when Vim
-    // changes and give cells the same modal commands as the surrounding note.
-    createMarkdownTableExtension = () => {
-        const cellProfile = createTableCellProfile({
-            viewRegistryExtension: tableCellViewRegistryExtension(),
-            keymapExtension: bindings => keymap.of(bindings),
-            defaultBindings: defaultKeymap,
-            vimExtension: vimTableCellExtension,
-            indentationExtensions: editorTabSizeExtensions(),
-            clipboardExtensions: [EditorView.domEventHandlers({
-                keydown: handlePlainPasteKeydown,
-                keyup: handlePlainPasteKeyup,
-                copy: handleMarkdownClipboardCopy,
-                paste: (event, view) => handleClipboardPaste(event, view, {
-                    markdown: true,
-                    inlineOnly: true,
-                }),
-            })],
-            historyBindings: tableCellHistoryKeymap(),
-            searchBindings: searchKeymap,
-	        });
-	        return markdownTables({
-	            theme: TableTheme.dark.with({
-	                '--tbl-theme-row-background': 'var(--bg-color)',
-	                '--tbl-theme-header-row-background': 'var(--hover-bg)',
-	                '--tbl-theme-even-row-background': 'var(--bg-color)',
-	                '--tbl-theme-odd-row-background': 'var(--panel-bg)',
-	                '--tbl-theme-border-color': 'var(--border-color)',
-	                '--tbl-theme-border-hover-color': 'var(--border-light)',
-	                '--tbl-theme-border-active-color': 'var(--accent-color)',
-	                '--tbl-theme-outline-color': 'var(--focus-ring)',
-	                '--tbl-theme-text-color': 'var(--text-color)',
-	                '--tbl-theme-menu-background': 'var(--panel-bg)',
-	                '--tbl-theme-menu-border-color': 'var(--border-color)',
-	                '--tbl-theme-menu-text-color': 'var(--text-color)',
-	                '--tbl-theme-menu-hover-background': 'var(--active-bg)',
-	                '--tbl-theme-menu-hover-text-color': 'var(--text-color)',
-	            }),
-            style: TableStyle.default.with({
-                '--tbl-style-font-family': 'var(--font-editor)',
-                '--tbl-style-font-size': 'inherit',
-                '--tbl-style-menu-font-family': 'var(--font-sans)',
-                '--tbl-style-menu-font-size': '12px',
-            }),
-            selectionType: 'codemirror',
-            handlePosition: 'inside',
-            lineWrapping: 'wrap',
-            extensions: cellProfile.extensions,
-            globalKeyBindings: cellProfile.globalKeyBindings,
-        });
-    };
-
+    // CodeMirror owns GFM syntax awareness; this field only supplies a
+    // source-preserving semantic preview for an unfocused table range.
+    let markdownTableField = [];
+    if (StateField && EditorView && WidgetType && shouldShowSource && mouseSelectingField) {
+        try { markdownTableField = createMarkdownTableField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField); } catch (error) { log.warn('[table] create failed: ' + (error.message || error)); }
+    }
     vimCompartment = new Compartment();
-    markdownTableCompartment = new Compartment();
     imageBasePathCompartment = new Compartment();
     readOnlyCompartment = new Compartment();
     fileModeCompartment = new Compartment();
@@ -2735,9 +2043,6 @@ function createEditorView() {
     const markdownExtensionsForPath = () => [
         collapseOnSelectionFacet.of(true),
         mouseSelectingField,
-        webKitShiftTabPlugin,
-        tableCellFocusPlugin,
-        vimTableCellPromptInputGuardExtension(),
         vimRenderedBlockNavigationExtension(),
         EditorView.lineWrapping,
         stickyHeadingScrollMargins,
@@ -2752,7 +2057,6 @@ function createEditorView() {
                 headingLinkCompletions,
                 fileLinkCompletions,
                 imageCompletions,
-                markdownTableAutocompleter(),
             ],
         }),
         markdownLanguage,
@@ -2771,7 +2075,7 @@ function createEditorView() {
         linkPreview(),
         ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages }),
         ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
-        markdownTableCompartment.of(createMarkdownTableExtension()),
+        ...(Array.isArray(markdownTableField) ? markdownTableField : [markdownTableField]),
         mathField,
         sourceFootprintExtension,
         hexColorExtension,
@@ -2889,11 +2193,6 @@ function createEditorView() {
                 '.hljs-variable, .hljs-params, .cm-codeblock-widget .hljs-variable, .cm-codeblock-widget .hljs-params': { color: 'var(--code-variable-color) !important' },
                 '.hljs-operator, .hljs-punctuation, .cm-codeblock-widget .hljs-operator, .cm-codeblock-widget .hljs-punctuation': { color: 'var(--code-operator-color) !important' },
                 '.hljs-built_in, .hljs-literal, .hljs-attr, .hljs-attribute, .hljs-meta, .hljs-selector-tag, .hljs-selector-class, .hljs-selector-id, .cm-codeblock-widget .hljs-built_in, .cm-codeblock-widget .hljs-literal, .cm-codeblock-widget .hljs-attr, .cm-codeblock-widget .hljs-attribute, .cm-codeblock-widget .hljs-meta, .cm-codeblock-widget .hljs-selector-tag, .cm-codeblock-widget .hljs-selector-class, .cm-codeblock-widget .hljs-selector-id': { color: 'var(--code-builtin-color) !important' },
-                // Table theming
-                '.cm-table-widget th, .cm-table-widget td, .cm-table-editor th, .cm-table-editor td': { border: '1px solid var(--border-color) !important', padding: '8px 12px' },
-                '.cm-table-widget th, .cm-table-editor th': { backgroundColor: 'var(--hover-bg) !important', fontWeight: '600' },
-                '.cm-table-toggle': { border: '1px solid var(--border-color) !important', backgroundColor: 'var(--panel-bg) !important', color: 'var(--text-color) !important', borderRadius: '6px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' },
-                '.cm-table-source': { backgroundColor: 'color-mix(in srgb, var(--accent-color) 10%, transparent) !important' },
                 // Code block widget styling
                 '.cm-codeblock-widget': { backgroundColor: 'var(--hover-bg) !important', border: '1px solid var(--border-color) !important', borderRadius: '8px !important', padding: '12px !important', fontFamily: 'var(--font-mono) !important' },
                 '.cm-codeblock-line': { paddingLeft: '4px !important', lineHeight: '1.5 !important', color: 'var(--text-color) !important' },
@@ -4167,19 +3466,6 @@ function setVimRevealBlocks(enabled) {
     return vimRevealBlocksRequested;
 }
 
-/** Rebuild embedded table-cell editors after their Vim extension changes. */
-function reconfigureMarkdownTableCells() {
-    if (!editorView || !markdownTableCompartment || !createMarkdownTableExtension) return;
-    if (activeFileLanguage.kind !== 'markdown' || !markdownModeExtensions || !fileModeCompartment) return;
-
-    // codemirror-markdown-tables deliberately keeps each embedded cell editor
-    // alive while its table widget is unchanged. Removing and restoring the
-    // Markdown mode makes that lifecycle explicit when the modal editor
-    // changes, so existing cells cannot retain a stale keymap.
-    editorView.dispatch({ effects: fileModeCompartment.reconfigure([]) });
-    editorView.dispatch({ effects: fileModeCompartment.reconfigure(markdownModeExtensions()) });
-}
-
 /** Register the application commands before the newly enabled mode can receive input. */
 function registerVimExCommands(Vim) {
     Vim.defineEx('write', 'w', () => {
@@ -4238,14 +3524,7 @@ async function toggleVim(enable) {
         vimGetCM = getCM;
         registerVimVisualRowMotions(Vim);
         registerVimClipboardBridge(Vim);
-        vimTableCellExtension = [
-            vim(),
-            vimTableCellPromptCaptureExtension(),
-            vimTableCellNavigationExtension(),
-            vimTableCellModeExtension(),
-        ];
         view.dispatch({ effects: vimCompartment.reconfigure(vim()) });
-        reconfigureMarkdownTableCells();
         vimActive = true;
         applyVimVisualRowsMapping(vimVisualRowsRequested);
         registerVimExCommands(Vim);
@@ -4260,7 +3539,7 @@ async function toggleVim(enable) {
             }
             vimModeCM = cm;
             vimModeChangeHandler = (e) => {
-                if (!focusedTableCellVimMode(view.dom.ownerDocument)) updateVimStatus(e.mode);
+                updateVimStatus(e.mode);
                 // Add classes to the root editor for modal cursor and Visual
                 // selection styling.
                 syncRootVimModeClasses(view, e.mode);
@@ -4275,8 +3554,6 @@ async function toggleVim(enable) {
         vimModeCM = null;
         vimModeChangeHandler = null;
         vimGetCM = null;
-        vimTableCellExtension = null;
-        reconfigureMarkdownTableCells();
         editorView.dispatch({ effects: vimCompartment.reconfigure([]) });
         vimActive = false;
         updateVimStatus(null);

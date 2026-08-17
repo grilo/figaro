@@ -11,6 +11,7 @@ import { pdfExportErrorDialog } from './dialogs.js';
 import { createPrintMarkdownRenderer } from '../vendored/markdown-it-plugins/index.js';
 import { highlightCode } from '../vendored/codemirror-live-markdown/index.js';
 import { planPrintableCodeHighlight } from './core/printableCodeHighlight.js';
+import { decorateMarkdownTables } from './markdownTableRenderer.js';
 import { getEditorContent } from './editor.js';
 
 const defaultPrintCSS = `
@@ -179,6 +180,7 @@ function renderMarkdownBodyFromRendered(rendered) {
         code.innerHTML = plan.html;
     }
     decoratePrintCallouts(template.content);
+    decorateMarkdownTables(template.content);
     const headings = [];
     template.content.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(element => {
         const text = element.textContent.trim();
