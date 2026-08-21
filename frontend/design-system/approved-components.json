@@ -1,5 +1,9 @@
 {
   "approvalPolicy": "Adding a component family, primitive, or visual variant requires explicit user approval before implementation.",
+  "featureVariants": [
+    ".file-tree-node.selected",
+    ".file-tree-node.cut-marked"
+  ],
   "families": [
     {
       "id": "picker",
@@ -33,6 +37,10 @@
       "primitives": [".ui-menu", ".ui-menu-item", ".ui-menu-label", ".ui-menu-separator"]
     },
     {
+      "id": "tooltip",
+      "primitives": [".ui-tooltip"]
+    },
+    {
       "id": "field",
       "primitives": [".ui-field"]
     },
@@ -46,7 +54,14 @@
         ".ui-date-picker-grid",
         ".ui-date-picker-header",
         ".ui-date-picker-shortcuts",
-        ".ui-date-picker-weekdays"
+        ".ui-date-picker-weekdays",
+        ".ui-date-picker-day--weekend",
+        ".ui-date-picker-day--note-1",
+        ".ui-date-picker-day--note-2",
+        ".ui-date-picker-day--note-3",
+        ".ui-date-picker-day--note-4",
+        ".ui-date-picker-day--note-5",
+        ".ui-date-picker-day--due"
       ]
     },
     {

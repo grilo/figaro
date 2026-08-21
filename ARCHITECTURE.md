@@ -63,12 +63,22 @@ state while replacing the host-painted popup with the same themed listbox used
 by Settings. `catalog.css` is limited to the page shell and to containing open
 menus, dialogs, and loaders for inspection.
 
-`approved-components.json` is the architectural gate for the thirteen accepted
+`approved-components.json` is the architectural gate for the fourteen accepted
 families. Extending it with a family, primitive, or visual variant requires
 explicit approval before implementation. Focused tests verify that every
 registered selector is implemented in `primitives.css`, that no unregistered
 `.ui-*` selector appears there, and that both production and review surfaces
 load the canonical asset.
+
+The approved tooltip family is split at the same deterministic/effect seam.
+`core/tooltipModel.js` decides below/above placement and viewport clamping from
+plain rectangles. The eagerly initialized `tooltip.js` adapter adopts ordinary
+static and dynamically mounted `title` hints, preserves iframe accessible
+names, owns hover/focus/Escape lifecycle and `aria-describedby`, and renders one
+body-level `.ui-tooltip`. Rich Calendar, managed-file, and Markdown-link hints
+reuse that visual primitive while retaining only feature content and placement
+hooks. CodeMirror diagnostics and autocomplete remain separately themed
+interactive popovers rather than being coerced into hint semantics.
 
 The selector reads `frontend/themes/manifest.json`, so theme membership has one
 source of truth. Manifest normalization, safe stylesheet-path construction,
@@ -384,7 +394,8 @@ The full Kanban board remains available for its workspace, but the Today dashboa
 backend for its bounded unfinished-card projection and due-task summary directly. Due work is
 deduplicated by source line, prioritized ahead of undated work, and stored only as the standard
 `[due YYYY-MM-DD](YYYY-MM-DD.md)` link on that line. Pure Go and JavaScript helpers own parsing,
-date validation, local-day comparison, priority, and calendar-grid decisions; root-scoped task
+date validation, local-day comparison, priority, locale week normalization, month-grid construction,
+note-intensity buckets, and tooltip placement; root-scoped task
 mutation, DOM presentation, and the local-midnight timer remain effect adapters. Its Inbox,
 pinned, recent, and rediscovery collections are pure projections of the
 already-loaded tree, vault appearance settings, local recent-file state, and
@@ -392,10 +403,17 @@ the local calendar date. The open-or-create daily-note use case receives its
 tree, Inbox-directory creation, exclusive file creation, refresh, and navigation
 effects as explicit ports. It prefers `Inbox/YYYY-MM-DD.md`, retains a root-file
 fallback for existing vaults, and opens a same-name creation collision without
-replacing it. Calendar month navigation similarly copies only that month's
-pre-grouped daily-note,
-linked-day, and due-task lists. These narrow methods avoid transferring or filtering the
-rest of a large vault merely to render a small overview.
+replacing it. The Calendar adapter reads the operating-system locale through `Intl`, while its pure
+model accepts the resulting first weekday and weekend set; no holiday source or calendar permission
+enters the application. The shared vault index maintains per-date note-path reference counts and
+matching note rows so a daily note or normally linked Markdown file contributes once to both the
+month count and selected-day results, while a semantic due link remains an independent task signal.
+Calendar month navigation similarly copies only that month's pre-grouped daily-note, linked-day, and
+due-task lists plus compact day summaries containing note counts and due titles. While a Markdown tab
+is dirty, the pure Calendar model replaces that file's saved date associations with its current
+in-memory buffer; editor events schedule this projection on the next frame without scanning or saving
+the vault. These narrow methods avoid per-day requests and avoid transferring or filtering the rest
+of a large vault merely to render a small overview.
 
 The `vault:changed` event includes `tree_changed` and `kanban_changed`.
 Content-only external Markdown changes refresh dependent data without
@@ -576,15 +594,33 @@ Refreshing a board snapshots its horizontal position and each mounted column's
 scroll position before replacing cards, then restores them after render. The
 file tree applies the same continuity principle to structural refreshes by
 retaining its scroll position and focused row; `selectedTreePath` remains the
-state-owned source of truth for roving focus, while `selectedFilePath` is the
-active file/Draw.io tab and exclusively owns the selected surface. The pure `core/fileTreeModel.js`
-flattens only expanded rows and plans Up/Down, Home/End, parent/child,
-expand/collapse, and activation commands, and projects dirty tabs without
-treating clean open tabs as a visible state. The `fileTree.js` DOM adapter owns
-ARIA tree semantics, independent roving focus, current-document and
-multi-selection state, scrolling, rendering, and activation effects. F2
-enters the same rename use case as the context menu, so it does not duplicate
-path validation, dirty-tab persistence, or link rewriting.
+state-owned source of truth for roving focus, `selectedTreePaths` is the
+internal file/folder operation selection that exclusively owns `aria-selected`
+and the shared selected surface, and `selectedFilePath` is the active
+file/Draw.io tab retained as non-visual `aria-current` state. Unsupported files
+remain in the same operable internal-entry domain as editable files, use normal
+row opacity, and expose their managed-only capability without changing the
+active buffer. Ordinary activation remains selection-only; double-click and the
+contextual **Open** action converge on `OpenWithDefaultApplication`, whose
+root-scoped desktop adapter validates an existing regular file, rejects every
+symlinked component, and only then delegates the exact vault path to
+`xdg-open`, macOS `open`, or Windows `ShellExecute`. The pure
+`core/fileTreeModel.js` also maps file paths to semantic
+default icon names independently from editor capability, clamps tooltip
+coordinates to the viewport, flattens only expanded rows, and plans Up/Down,
+Home/End, parent/child, expand/collapse, activation, and Space selection
+commands. `core/fileTreeTransferModel.js` normalizes mixed selections, removes
+redundant descendants, resolves paste targets, and rejects recursive batches
+without effects. The `fileTree.js` DOM adapter owns ARIA tree semantics,
+independent roving focus, operation selection, current-document markers,
+semantic icon rendering, themed managed-only tooltip content and lifecycle on
+the shared tooltip surface,
+derived Cut markers, scrolling, rendering, and activation effects. The injected
+`usecases/fileTreeTransfer.js` sequences dirty-source preparation, one-path
+copy effects, partial-failure refreshes, and stable remaining-source results;
+the adapter supplies the filesystem and tab-manager ports. F2 enters the same
+rename use case as the context menu, so it does not duplicate path validation,
+dirty-tab persistence, or link rewriting.
 
 File-tree mutation feedback is one reference-counted frontend activity scope.
 It marks the tree busy immediately around copy/import, move/merge, rename, and
@@ -992,6 +1028,17 @@ switches so it keeps the current note snapshot without competing with the
 editor's source of truth. It shares the sidebar ownership protocol with
 History, Outline, and PDF Preview; each view dispatches the corresponding close
 event before taking the pane.
+
+For scroll following, `core/rawTextPreviewModel.js` purely clamps a measured
+source anchor or source-progress fallback to the raw pane's scroll range.
+`rawTextPreview.js` owns the DOM effects: it samples the source position at the
+same viewport marker used by the main editor, measures that exact character in
+the raw `pre`, and applies only the latest coalesced editor-scroll update. The
+mapping is one-way, is detached when the pane or source loses ownership, and is
+remeasured after content or sidebar geometry changes. The toolbar's approved
+primary button copies the module's current in-memory snapshot through the
+existing clipboard adapter and reports success or failure through the pane's
+live status.
 
 ## PDF preview: isolated frame and message bridge
 

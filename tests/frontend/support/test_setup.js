@@ -95,6 +95,7 @@ window.go = {
             days_with_notes: [],
             days_with_links: [],
             days_with_due_tasks: [],
+            day_summaries: [],
             calendar: []
         }),
         GetTodayLink: jest.fn().mockReturnValue("2024-01-15"),
@@ -131,6 +132,7 @@ window.go = {
         GetTomorrowLink: jest.fn().mockReturnValue("2024-01-16"),
         GetYesterdayLink: jest.fn().mockReturnValue("2024-01-14"),
         ExportPDF: jest.fn().mockResolvedValue({ success: true, path: '/tmp/document.pdf', engine: 'chromium' }),
+        OpenWithDefaultApplication: jest.fn().mockResolvedValue({ success: true }),
         PDFBrowserLoad: jest.fn().mockResolvedValue({ success: true, path: '' }),
         PDFBrowserChoose: jest.fn().mockResolvedValue({ success: false, cancelled: true }),
         PDFBrowserClear: jest.fn().mockResolvedValue({ success: true }),

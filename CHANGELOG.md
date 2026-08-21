@@ -10,6 +10,49 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.24.0] - 2026-08-21
+
+### Added
+
+- Common text, PDF, image, code, data, archive, media, shell, and Draw.io files
+  now receive semantic file-tree icons, with a generic fallback and preserved
+  custom-icon overrides.
+- Cut file-tree entries now show an accessible scissors marker until Paste,
+  replacement by Copy, or Escape cancellation; partial failures retain the
+  marker only on unresolved sources.
+
+### Changed
+
+- Raw Text Preview now follows the active editor's matching source position
+  with lightly coalesced parallel scrolling and provides a **Copy to
+  Clipboard** action for the complete current Markdown snapshot.
+- Tooltips now use one theme-aware design-system surface throughout Figaro,
+  including document-outline hints, dynamically mounted controls, Calendar
+  activity, managed-file guidance, and Markdown link previews. They appear on
+  hover or keyboard focus, stay inside the viewport, and dismiss with Escape.
+- Calendar now follows the operating-system locale's first weekday and weekend
+  rules, keeps ordinary weekdays legible, shades distinct-note activity through
+  five theme-derived intensity levels, and gives due days a theme-danger outline
+  with every due title available on hover or keyboard focus. Public holidays
+  are intentionally not guessed or requested.
+- Calendar now uses one full theme-accent surface that moves from Today to a
+  selected note/link/due day and restores the previous day's activity intensity,
+  without a persistent accent border. It keeps the month grid stationary while
+  browsing details and reflects accepted date shortcuts from unsaved Markdown
+  immediately. Daily-note counts and selected-day rows now agree.
+- The file tree now uses one selected surface for both single and multiple
+  operation targets. Active buffers retain non-visual current-page semantics
+  without a competing background, while managed-only files use normal opacity,
+  keep the current buffer open on ordinary selection, and explain through a
+  themed hover/focus tooltip that double-click opens them in the operating
+  system's default application. Their context-menu action is now **Open** and
+  performs the same safe native handoff.
+- File-tree Ctrl/Cmd multi-selection now accepts any internal file or folder,
+  and Cut/Copy/Paste transfers the complete selected set with safe batch
+  validation and retryable partial-failure handling.
+- Space now toggles the focused internal file-tree row's operation selection
+  without opening it; Enter remains the activation key.
+
 ## [1.23.2] - 2026-08-17
 
 ### Fixed
@@ -1210,7 +1253,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.23.2...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.24.0...HEAD
+[1.24.0]: https://github.com/grilo/figaro/compare/v1.23.2...v1.24.0
 [1.23.2]: https://github.com/grilo/figaro/compare/v1.23.1...v1.23.2
 [1.23.1]: https://github.com/grilo/figaro/compare/v1.23.0...v1.23.1
 [1.23.0]: https://github.com/grilo/figaro/compare/v1.22.0...v1.23.0

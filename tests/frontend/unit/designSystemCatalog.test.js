@@ -61,10 +61,19 @@ describe('design-system catalogue', () => {
             '.ui-button.settings-action-btn',
             '.ui-button.drawio-edit-button',
             '.ui-menu.context-menu',
+            '.ui-tooltip',
             '.ui-icon-button',
             '.ui-badge',
             '.ui-field',
             '.ui-date-picker',
+            '.ui-date-picker-day--weekend',
+            '.ui-date-picker-day--note-1',
+            '.ui-date-picker-day--note-2',
+            '.ui-date-picker-day--note-3',
+            '.ui-date-picker-day--note-4',
+            '.ui-date-picker-day--note-5',
+            '.ui-date-picker-day--due',
+            '.cal-day-tooltip',
             '.ui-notice',
             '.settings-card',
             '.home-card',
@@ -72,10 +81,13 @@ describe('design-system catalogue', () => {
             '.result-card',
             '.custom-modal',
             '.raw-text-preview-source',
+            '.raw-text-preview-copy.ui-button--primary',
             '.drawio-loading-card',
             '.ui-spinner',
             '.ui-progress',
             '.ui-editor-block-guide--danger',
+            '.file-tree-node.selected',
+            '.file-tree-node.cut-marked',
         ]) {
             expect(catalogue.querySelector(selector)).not.toBeNull();
         }
@@ -165,6 +177,7 @@ describe('design-system catalogue', () => {
             'icon-button',
             'badge',
             'menu',
+            'tooltip',
             'field',
             'date-picker',
             'notice',
@@ -176,6 +189,10 @@ describe('design-system catalogue', () => {
         expect(implementedSelectors).toEqual(approvedSelectors);
         expect(featureStyles).not.toMatch(/^\.ui-[a-z0-9-]+(?:\s|:|,|\{)/m);
         expect(componentRegistry.approvalPolicy).toContain('explicit user approval');
+        expect(componentRegistry.featureVariants).toEqual([
+            '.file-tree-node.selected',
+            '.file-tree-node.cut-marked',
+        ]);
     });
 
     test('keeps all bundled themes on the token-only theme contract', () => {
@@ -230,6 +247,7 @@ describe('design-system catalogue', () => {
             'frontend/js/markdownBlockGuides.js',
             'frontend/js/selectCombobox.js',
             'frontend/js/tabManager.js',
+            'frontend/js/tooltip.js',
             'frontend/js/vaultHealth.js',
         ].map(file => fs.readFileSync(path.resolve(file), 'utf8')).join('\n');
 
@@ -246,7 +264,15 @@ describe('design-system catalogue', () => {
             '.ui-badge',
             '.ui-field',
             '.ui-date-picker',
+            '.ui-date-picker-day--weekend',
+            '.ui-date-picker-day--note-1',
+            '.ui-date-picker-day--note-2',
+            '.ui-date-picker-day--note-3',
+            '.ui-date-picker-day--note-4',
+            '.ui-date-picker-day--note-5',
+            '.ui-date-picker-day--due',
             '.ui-menu',
+            '.ui-tooltip',
             '.ui-notice',
             '.ui-document-tabs',
             '.ui-document-tab',
@@ -263,6 +289,28 @@ describe('design-system catalogue', () => {
         expect(styles).not.toMatch(/\.text-width-control\s*\{[^}]*border:/s);
         expect(styles).not.toMatch(/\.settings-picker-btn\s*\{/);
         expect(styles).not.toMatch(/\.settings-action-btn\s*\{/);
+        expect(styles).toMatch(/\.ui-date-picker-day--note-5\s*\{[^}]*var\(--success-color\)/s);
+        expect(styles).toMatch(/\.ui-date-picker-day--due\s*\{[^}]*var\(--danger-color\)/s);
+
+        const tooltipBindings = new Map([
+            ['frontend/js/calendar.js', "className = 'ui-tooltip cal-day-tooltip'"],
+            ['frontend/js/editor.js', "className = 'ui-tooltip link-hover-preview'"],
+            ['frontend/js/fileTree.js', "className = 'ui-tooltip file-tree-capability-tooltip'"],
+        ]);
+        for (const [file, binding] of tooltipBindings) {
+            expect(fs.readFileSync(path.resolve(file), 'utf8')).toContain(binding);
+        }
+        const linkHoverStyles = fs.readFileSync(
+            path.resolve('frontend/styles/features/link-hover.css'),
+            'utf8',
+        );
+        expect(linkHoverStyles).not.toMatch(/\.link-hover-preview\s*\{[^}]*(?:background|border|box-shadow|font-size|max-width|padding|z-index)\s*:/s);
+
+        const shellStyles = fs.readFileSync(path.resolve('frontend/styles/shell.css'), 'utf8');
+        expect(shellStyles).toMatch(/\.calendar-grid \.cal-day\.selected\s*\{[^}]*background:\s*var\(--accent-color\)[^}]*color:\s*var\(--button-text\)/s);
+        expect(shellStyles).toMatch(/\.calendar-grid \.cal-day\.selected:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
+        expect(shellStyles).not.toMatch(/\.calendar-grid \.cal-day\.selected::after\s*\{/);
+        expect(shellStyles).not.toMatch(/\.calendar-grid \.cal-day\.today\s*\{[^}]*text-decoration:\s*underline/s);
 
         const catalogue = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
         expect(catalogue).toContain('<div class="settings-card');
@@ -287,6 +335,9 @@ describe('design-system catalogue', () => {
             ['frontend/js/tabManager.js', [
                 'class="ui-button" data-kanban-density',
                 'class="ui-button" data-kanban-layout',
+            ]],
+            ['frontend/js/rawTextPreview.js', [
+                'ui-button ui-button--primary raw-text-preview-copy',
             ]],
         ]);
 

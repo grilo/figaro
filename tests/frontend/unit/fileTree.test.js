@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, cutInternalPath, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin, deletePath } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, cutInternalPath, cutInternalPaths, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin, deletePath } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -12,7 +12,7 @@ var mockState = {
     expandedDirs: new Set(),
     selectedFilePath: null,
     selectedTreePath: null,
-    selectedFilePaths: [],
+    selectedTreePaths: [],
     openTabs: [],
     activeTabId: null,
     externalFileTreeEntries: [],
@@ -96,7 +96,7 @@ describe('File Tree', () => {
         state.expandedDirs = new Set();
         state.selectedFilePath = null;
         state.selectedTreePath = null;
-        state.selectedFilePaths = [];
+        state.selectedTreePaths = [];
         state.openTabs = [];
         state.activeTabId = null;
         state.externalFileTreeEntries = [];
@@ -154,39 +154,42 @@ describe('File Tree', () => {
             expect(html).toContain('<svg');
         });
 
-        test('marks the active file selected independently from the focus path', () => {
+        test('marks the active file current without turning it into tree selection', () => {
             const items = [
                 { name: 'note.md', path: 'note.md', type: 'file', mtime: 1000 },
                 { name: 'focus.md', path: 'focus.md', type: 'file', mtime: 1001 },
             ];
 
             const surface = document.createElement('div');
-            surface.innerHTML = buildTreeHTML(items, new Set(), 'focus.md', [], 0, 'note.md');
+            surface.innerHTML = buildTreeHTML(items, new Set(), 'focus.md', ['focus.md'], 0, 'note.md');
 
             const active = surface.querySelector('[data-path="note.md"] > .file-tree-node');
             const focused = surface.querySelector('[data-path="focus.md"] > .file-tree-node');
-            expect(active.classList.contains('selected')).toBe(true);
+            expect(active.classList.contains('selected')).toBe(false);
             expect(active.getAttribute('aria-current')).toBe('page');
+            expect(active.getAttribute('aria-selected')).toBe('false');
             expect(active.tabIndex).toBe(-1);
-            expect(focused.classList.contains('selected')).toBe(false);
+            expect(focused.classList.contains('selected')).toBe(true);
+            expect(focused.getAttribute('aria-selected')).toBe('true');
             expect(focused.tabIndex).toBe(0);
         });
 
-        test('gives the active document the sole selected surface while a folder has focus', () => {
+        test('gives a selected folder the sole selected surface while retaining the current document semantics', () => {
             const items = [{
                 name: 'Projects', path: 'Projects', type: 'directory', children: [
                     { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 1000 }
                 ]
             }];
             const surface = document.createElement('div');
-            surface.innerHTML = buildTreeHTML(items, new Set(['Projects']), 'Projects', [], 0, 'Projects/plan.md');
+            surface.innerHTML = buildTreeHTML(items, new Set(['Projects']), 'Projects', ['Projects'], 0, 'Projects/plan.md');
 
             const folder = surface.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node');
             const active = surface.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node');
-            expect(folder.classList.contains('selected')).toBe(false);
+            expect(folder.classList.contains('selected')).toBe(true);
             expect(folder.tabIndex).toBe(0);
-            expect(folder.getAttribute('aria-selected')).toBe('false');
-            expect(active.classList.contains('selected')).toBe(true);
+            expect(folder.getAttribute('aria-selected')).toBe('true');
+            expect(active.classList.contains('selected')).toBe(false);
+            expect(active.getAttribute('aria-selected')).toBe('false');
             expect(active.getAttribute('aria-current')).toBe('page');
         });
 
@@ -199,11 +202,36 @@ describe('File Tree', () => {
             const surface = document.createElement('div');
             surface.innerHTML = buildTreeHTML(items, new Set(), null, [], 0, 'active.md', {}, new Set(['background.md']));
 
-            expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('selected')).toBe(true);
+            expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('selected')).toBe(false);
             expect(surface.querySelector('[data-path="active.md"] > .file-tree-node').classList.contains('dirty-buffer')).toBe(false);
             expect(surface.querySelector('[data-path="background.md"] > .file-tree-node').classList.contains('dirty-buffer')).toBe(true);
             expect(surface.querySelector('[data-path="background.md"] .node-dirty-status').textContent).toBe('Unsaved changes');
             expect(surface.querySelector('[data-path="closed.md"] > .file-tree-node').classList.contains('dirty-buffer')).toBe(false);
+        });
+
+        test('renders semantic default file icons without automatic type colors', () => {
+            window.lucide = { icons: {
+                FileText: [['path', { d: 'text-icon' }]],
+                FileImage: [['path', { d: 'image-icon' }]],
+                File: [['path', { d: 'generic-icon' }]],
+                Workflow: [['path', { d: 'workflow-icon' }]],
+            } };
+            const items = [
+                { name: 'note.md', path: 'note.md', type: 'file', mtime: 1 },
+                { name: 'logo.svg', path: 'logo.svg', type: 'file', mtime: 2 },
+                { name: 'report.pdf', path: 'report.pdf', type: 'file', mtime: 3 },
+                { name: 'diagram.drawio.svg', path: 'diagram.drawio.svg', type: 'file', mtime: 4 },
+                { name: 'blob.unknown', path: 'blob.unknown', type: 'file', mtime: 5 },
+            ];
+            const surface = document.createElement('div');
+            surface.innerHTML = buildTreeHTML(items, new Set(), null);
+
+            expect(surface.querySelector('[data-path="note.md"] .default-file-icon path').getAttribute('d')).toBe('text-icon');
+            expect(surface.querySelector('[data-path="logo.svg"] .default-file-icon path').getAttribute('d')).toBe('image-icon');
+            expect(surface.querySelector('[data-path="report.pdf"] .default-file-icon path').getAttribute('d')).toBe('text-icon');
+            expect(surface.querySelector('[data-path="diagram.drawio.svg"] .default-file-icon path').getAttribute('d')).toBe('workflow-icon');
+            expect(surface.querySelector('[data-path="blob.unknown"] .default-file-icon path').getAttribute('d')).toBe('generic-icon');
+            expect(surface.querySelectorAll('.non-md, .drawio-diagram')).toHaveLength(0);
         });
 
         test('should render items in given order', () => {
@@ -348,6 +376,20 @@ describe('File Tree', () => {
             expect(window.go.desktop.App.SetFileTreeStyle).toHaveBeenCalledWith('note.md', 'Star', '#3b82f6');
         });
 
+        test('allows a faded unsupported file to receive a tree appearance', async () => {
+            state.fileTreeData = [{ name: 'report.pdf', path: 'report.pdf', type: 'file', mtime: 1000 }];
+            fileTreeStyleDialog.mockResolvedValueOnce({ icon: 'Star', color: '#3b82f6' });
+            window.go.desktop.App.SetFileTreeStyle.mockResolvedValueOnce({
+                version: 1,
+                entries: { 'report.pdf': { icon: 'Star', color: '#3b82f6' } },
+                recent_icons: ['Star'],
+            });
+
+            await expect(customizeTreePath('report.pdf', 'file')).resolves.toBe(true);
+
+            expect(window.go.desktop.App.SetFileTreeStyle).toHaveBeenCalledWith('report.pdf', 'Star', '#3b82f6');
+        });
+
         test('does not write when the appearance dialog is cancelled', async () => {
             fileTreeStyleDialog.mockResolvedValueOnce(null);
 
@@ -435,7 +477,7 @@ describe('File Tree', () => {
             bubbles: true,
             ctrlKey: true,
         }));
-        expect(state.selectedFilePaths).toEqual([]);
+        expect(state.selectedTreePaths).toEqual([]);
         expect(openTab).not.toHaveBeenCalled();
         item.querySelector('.file-tree-node').click();
         expect(openTab).toHaveBeenCalledWith('external:launch-1', 'outside.md', 'file', {
@@ -570,7 +612,7 @@ describe('File Tree', () => {
         );
     });
 
-    test('focuses a clicked directory without replacing the active document selection', () => {
+    test('selects a clicked directory without replacing the active document buffer', () => {
         state.fileTreeData = [{
             name: 'Projects', path: 'Projects', type: 'directory', children: [
                 { name: 'plan.md', path: 'Projects/plan.md', type: 'file', mtime: 100 }
@@ -582,8 +624,10 @@ describe('File Tree', () => {
         document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').click();
 
         expect(state.selectedTreePath).toBe('Projects');
-        expect(document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').classList.contains('selected')).toBe(false);
-        expect(document.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('selected')).toBe(true);
+        expect(state.selectedFilePath).toBe('Projects/plan.md');
+        expect(document.querySelector('.file-tree-item[data-path="Projects"] > .file-tree-node').classList.contains('selected')).toBe(true);
+        expect(document.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').classList.contains('selected')).toBe(false);
+        expect(document.querySelector('.file-tree-item[data-path="Projects/plan.md"] > .file-tree-node').getAttribute('aria-current')).toBe('page');
         expect(saveSession).toHaveBeenCalled();
     });
 
@@ -844,6 +888,202 @@ describe('File Tree', () => {
         expect(handleFileOpen).toHaveBeenCalledWith('themes/_print.css');
     });
 
+    test('selects managed-only vault assets and opens them only on double-click or Open', async () => {
+        state.fileTreeData = [
+            { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
+            { name: 'report.pdf', path: 'report.pdf', type: 'file', mtime: 2 },
+        ];
+        state.selectedFilePath = 'draft.md';
+        initFileTree();
+        renderFileTree();
+
+        const pdf = document.querySelector('[data-path="report.pdf"] > .file-tree-node');
+        expect(pdf.classList.contains('non-md')).toBe(false);
+        expect(pdf.getAttribute('aria-disabled')).toBeNull();
+        expect(pdf.getAttribute('title')).toBeNull();
+        expect(pdf.getAttribute('aria-label')).toBe('report.pdf');
+        const capabilityStatus = document.getElementById(pdf.getAttribute('aria-describedby'));
+        expect(capabilityStatus.getAttribute('role')).toBe('tooltip');
+        expect(capabilityStatus.textContent)
+            .toBe('PDF document. Not editable in Figaro. Double-click to open with the default application.');
+        pdf.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        const tooltip = document.querySelector('.file-tree-capability-tooltip');
+        expect(tooltip.classList.contains('ui-tooltip')).toBe(true);
+        expect(tooltip.getAttribute('aria-hidden')).toBe('true');
+        expect(tooltip.textContent)
+            .toBe('PDF document. Not editable in Figaro. Double-click to open with the default application.');
+        pdf.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+        expect(document.querySelector('.file-tree-capability-tooltip')).toBeNull();
+        pdf.focus();
+        expect(document.querySelector('.file-tree-capability-tooltip')?.textContent)
+            .toBe('PDF document. Not editable in Figaro. Double-click to open with the default application.');
+        pdf.blur();
+        expect(document.querySelector('.file-tree-capability-tooltip')).toBeNull();
+        pdf.click();
+
+        expect(state.selectedTreePaths).toEqual(['report.pdf']);
+        expect(state.selectedFilePath).toBe('draft.md');
+        expect(document.querySelector('[data-path="report.pdf"] > .file-tree-node').classList.contains('selected')).toBe(true);
+        expect(document.querySelector('[data-path="draft.md"] > .file-tree-node').classList.contains('selected')).toBe(false);
+        expect(document.querySelector('[data-path="draft.md"] > .file-tree-node').getAttribute('aria-current')).toBe('page');
+        expect(handleFileOpen).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.OpenWithDefaultApplication).not.toHaveBeenCalled();
+
+        document.querySelector('[data-path="report.pdf"] > .file-tree-node')
+            .dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+        await testUtils.waitFor(0);
+        expect(window.go.desktop.App.OpenWithDefaultApplication).toHaveBeenCalledTimes(1);
+        expect(window.go.desktop.App.OpenWithDefaultApplication).toHaveBeenLastCalledWith('report.pdf');
+        expect(statusBar.set).toHaveBeenCalledWith('Opened “report.pdf” with the default application');
+
+        document.querySelector('[data-path="report.pdf"] > .file-tree-node').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+        const menu = document.querySelector('.context-menu');
+        for (const action of ['cut', 'copy', 'rename', 'customize-style', 'reveal', 'delete']) {
+            expect(menu.querySelector(`[data-action="${action}"]`).classList.contains('disabled')).toBe(false);
+        }
+        const open = menu.querySelector('[data-action="open-new-tab"]');
+        expect(open.classList.contains('disabled')).toBe(false);
+        expect(open.querySelector('.context-menu-item-label').textContent).toBe('Open');
+        open.click();
+        await testUtils.waitFor(0);
+        expect(window.go.desktop.App.OpenWithDefaultApplication).toHaveBeenCalledTimes(2);
+        expect(window.go.desktop.App.OpenWithDefaultApplication).toHaveBeenLastCalledWith('report.pdf');
+    });
+
+    test('reports a default-application failure without changing the current buffer', async () => {
+        state.fileTreeData = [
+            { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
+            { name: 'image.png', path: 'image.png', type: 'file', mtime: 2 },
+        ];
+        state.selectedFilePath = 'draft.md';
+        window.go.desktop.App.OpenWithDefaultApplication.mockResolvedValueOnce({
+            success: false,
+            error: 'No associated application',
+        });
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('[data-path="image.png"] > .file-tree-node')
+            .dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+        await testUtils.waitFor(0);
+
+        expect(errorDialog).toHaveBeenCalledWith(
+            'Couldn’t open file',
+            'No associated application',
+            'The file was not changed.',
+        );
+        expect(state.selectedFilePath).toBe('draft.md');
+        expect(handleFileOpen).not.toHaveBeenCalled();
+    });
+
+    test('multi-selects mixed file types and cuts the complete selection to a folder', async () => {
+        state.fileTreeData = [
+            { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
+            { name: 'report.pdf', path: 'report.pdf', type: 'file', mtime: 2 },
+            { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+        ];
+        window.go.desktop.App.GetFileTree.mockResolvedValue(state.fileTreeData);
+        window.go.desktop.App.MovePath
+            .mockResolvedValueOnce({ success: true, old_path: 'draft.md', path: 'Archive/draft.md', updated_links: [] })
+            .mockResolvedValueOnce({ success: true, old_path: 'report.pdf', path: 'Archive/report.pdf', updated_links: [] });
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('[data-path="draft.md"] > .file-tree-node').click();
+        document.querySelector('[data-path="report.pdf"] > .file-tree-node').dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            ctrlKey: true,
+        }));
+        expect(state.selectedTreePaths).toEqual(['draft.md', 'report.pdf']);
+        expect(document.querySelector('[data-path="draft.md"] > .file-tree-node').classList.contains('selected')).toBe(true);
+        expect(document.querySelector('[data-path="report.pdf"] > .file-tree-node').classList.contains('selected')).toBe(true);
+
+        document.querySelector('[data-path="report.pdf"] > .file-tree-node').dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        const menu = document.querySelector('.context-menu');
+        expect(menu.querySelector('[data-action="cut"]').classList.contains('disabled')).toBe(false);
+        expect(menu.querySelector('[data-action="copy"]').classList.contains('disabled')).toBe(false);
+        expect(menu.querySelector('[data-action="rename"]').classList.contains('disabled')).toBe(true);
+        expect(menu.querySelector('[data-action="delete"]').classList.contains('disabled')).toBe(true);
+        menu.querySelector('[data-action="cut"]').click();
+        for (const path of ['draft.md', 'report.pdf']) {
+            const node = document.querySelector(`[data-path="${path}"] > .file-tree-node`);
+            expect(node.classList.contains('cut-marked')).toBe(true);
+            expect(node.querySelector('.node-cut-indicator')).not.toBeNull();
+            expect(node.querySelector('.node-cut-status').textContent).toBe('Cut; ready to paste');
+        }
+        await expect(pasteInternalClipboard('Archive', 'directory')).resolves.toBe(true);
+
+        expect(window.go.desktop.App.MovePath).toHaveBeenNthCalledWith(1, 'draft.md', 'Archive');
+        expect(window.go.desktop.App.MovePath).toHaveBeenNthCalledWith(2, 'report.pdf', 'Archive');
+        expect(window.go.desktop.App.CopyPath).not.toHaveBeenCalled();
+        expect(document.querySelectorAll('.file-tree-node.cut-marked')).toHaveLength(0);
+        await expect(pasteInternalClipboard('', 'root')).resolves.toBe(false);
+    });
+
+    test('retains only unresolved entries when a multi-cut partially fails', async () => {
+        state.fileTreeData = [
+            { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
+            { name: 'report.pdf', path: 'report.pdf', type: 'file', mtime: 2 },
+            { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+        ];
+        window.go.desktop.App.GetFileTree.mockResolvedValue(state.fileTreeData);
+        window.go.desktop.App.MovePath
+            .mockResolvedValueOnce({ success: true, old_path: 'draft.md', path: 'Archive/draft.md', updated_links: [] })
+            .mockResolvedValueOnce({ success: false, error: 'Destination unavailable' })
+            .mockResolvedValueOnce({ success: true, old_path: 'report.pdf', path: 'Archive/report.pdf', updated_links: [] });
+        initFileTree();
+        renderFileTree();
+
+        expect(cutInternalPaths([
+            { path: 'draft.md', type: 'file' },
+            { path: 'report.pdf', type: 'file' },
+        ])).toBe(true);
+        await expect(pasteInternalClipboard('Archive', 'directory')).resolves.toBe(false);
+        expect(document.querySelector('[data-path="draft.md"] > .file-tree-node').classList.contains('cut-marked')).toBe(false);
+        expect(document.querySelector('[data-path="report.pdf"] > .file-tree-node').classList.contains('cut-marked')).toBe(true);
+        await expect(pasteInternalClipboard('Archive', 'directory')).resolves.toBe(true);
+        expect(document.querySelectorAll('.file-tree-node.cut-marked')).toHaveLength(0);
+
+        expect(window.go.desktop.App.MovePath).toHaveBeenNthCalledWith(1, 'draft.md', 'Archive');
+        expect(window.go.desktop.App.MovePath).toHaveBeenNthCalledWith(2, 'report.pdf', 'Archive');
+        expect(window.go.desktop.App.MovePath).toHaveBeenNthCalledWith(3, 'report.pdf', 'Archive');
+    });
+
+    test('cancels the visible cut clipboard with Escape while the tree is focused', async () => {
+        state.fileTreeData = [{ name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 }];
+        initFileTree();
+        renderFileTree();
+        const node = document.querySelector('[data-path="draft.md"] > .file-tree-node');
+        node.focus();
+
+        expect(cutInternalPath('draft.md', 'file')).toBe(true);
+        expect(node.classList.contains('cut-marked')).toBe(true);
+        const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+        node.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(node.classList.contains('cut-marked')).toBe(false);
+        expect(statusBar.set).toHaveBeenCalledWith('Cut cancelled');
+        await expect(pasteInternalClipboard('', 'root')).resolves.toBe(false);
+    });
+
+    test('replacing Cut with Copy removes every cut marker', () => {
+        state.fileTreeData = [
+            { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
+            { name: 'report.pdf', path: 'report.pdf', type: 'file', mtime: 2 },
+        ];
+        initFileTree();
+        renderFileTree();
+
+        cutInternalPath('draft.md', 'file');
+        expect(document.querySelector('[data-path="draft.md"] > .file-tree-node').classList.contains('cut-marked')).toBe(true);
+        copyInternalPath('report.pdf', 'file');
+        expect(document.querySelectorAll('.file-tree-node.cut-marked')).toHaveLength(0);
+    });
+
     test('opens a root context menu when right-clicking empty file-tree space', () => {
         state.fileTreeData = [];
         initFileTree();
@@ -913,10 +1153,15 @@ describe('File Tree', () => {
             path: 'notes/final.md',
             updated_links: [],
         });
+        window.go.desktop.App.GetFileTree.mockResolvedValueOnce([
+            { name: 'final.md', path: 'notes/final.md', type: 'file', mtime: 2 },
+        ]);
         initFileTree();
         renderFileTree();
 
         const node = document.querySelector('[data-path="notes/draft.md"] > .file-tree-node');
+        cutInternalPath('notes/draft.md', 'file');
+        expect(node.classList.contains('cut-marked')).toBe(true);
         node.focus();
         const event = new KeyboardEvent('keydown', { key: 'F2', bubbles: true, cancelable: true });
         node.dispatchEvent(event);
@@ -927,6 +1172,7 @@ describe('File Tree', () => {
         expect(window.go.desktop.App.RenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
         expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
         expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
+        expect(document.querySelector('[data-path="notes/final.md"] > .file-tree-node').classList.contains('cut-marked')).toBe(true);
     });
 
     test('runs the confirmed recovery-aware delete workflow from the Delete key', async () => {
@@ -986,6 +1232,11 @@ describe('File Tree', () => {
         expect(document.activeElement).toBe(node('Projects/spec.md'));
         expect(state.selectedTreePath).toBe('Projects/spec.md');
         expect(node('Projects/spec.md').getAttribute('aria-selected')).toBe('false');
+        press(' ');
+        expect(state.selectedTreePaths).toEqual(['Projects/spec.md']);
+        expect(node('Projects/spec.md').getAttribute('aria-selected')).toBe('true');
+        expect(node('Projects/spec.md').classList.contains('selected')).toBe(true);
+        expect(handleFileOpen).not.toHaveBeenCalledWith('Projects/spec.md');
 
         press('ArrowLeft');
         expect(document.activeElement).toBe(node('Projects'));
@@ -1047,16 +1298,20 @@ describe('File Tree', () => {
         const tree = document.getElementById('file-tree');
         state.selectedFilePath = 'note-599.md';
         syncFileTreeTabMarkers();
+        cutInternalPath('note-599.md', 'file');
         tree.scrollTop = 599 * 26;
         tree.dispatchEvent(new Event('scroll'));
         await testUtils.waitFor(20);
 
         const current = tree.querySelector('[data-path="note-599.md"] > .file-tree-node');
         expect(current).not.toBeNull();
-        expect(current.classList.contains('selected')).toBe(true);
+        expect(current.classList.contains('selected')).toBe(false);
         expect(current.classList.contains('dirty-buffer')).toBe(true);
+        expect(current.classList.contains('cut-marked')).toBe(true);
         expect(current.getAttribute('aria-current')).toBe('page');
+        expect(current.getAttribute('aria-selected')).toBe('false');
         expect(current.querySelector('.node-dirty-status').textContent).toBe('Unsaved changes');
+        expect(current.querySelector('.node-cut-status').textContent).toBe('Cut; ready to paste');
     });
 
     test('keeps the same action order for files, folders, and the vault root', () => {
@@ -1359,7 +1614,7 @@ describe('File Tree', () => {
     test('renames a tree item and refreshes tabs whose backlinks were rewritten', async () => {
         state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 100 }];
         state.selectedFilePath = 'notes/draft.md';
-        state.selectedFilePaths = ['notes/draft.md'];
+        state.selectedTreePaths = ['notes/draft.md'];
         renamePathDialog.mockResolvedValueOnce('final.md');
         window.go.desktop.App.RenamePath.mockResolvedValueOnce({
             success: true,
@@ -1367,6 +1622,9 @@ describe('File Tree', () => {
             path: 'notes/final.md',
             updated_links: ['notes/references.md'],
         });
+        window.go.desktop.App.GetFileTree.mockResolvedValueOnce([{
+            name: 'final.md', path: 'notes/final.md', type: 'file', mtime: 100,
+        }]);
         initFileTree();
         renderFileTree();
 
@@ -1383,7 +1641,7 @@ describe('File Tree', () => {
         expect(updateTabsForMovedPath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
         expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith(['notes/references.md']);
         expect(state.selectedFilePath).toBe('notes/final.md');
-        expect(state.selectedFilePaths).toEqual(['notes/final.md']);
+        expect(state.selectedTreePaths).toEqual(['notes/final.md']);
     });
 
     test('requires an explicit choice before renaming to a same-folder punctuation variant', async () => {
@@ -1653,7 +1911,7 @@ describe('File Tree', () => {
             expect(container.querySelectorAll('[role="treeitem"][tabindex="0"]')).toHaveLength(1);
         });
 
-        test('patches mounted active selection and dirty-buffer markers without rebuilding the tree', () => {
+        test('patches mounted current, operation-selection, and dirty-buffer markers without rebuilding the tree', () => {
             state.fileTreeData = [
                 {
                     name: 'Projects', path: 'Projects', type: 'directory', children: [
@@ -1669,6 +1927,7 @@ describe('File Tree', () => {
             ];
             state.expandedDirs = new Set(['Projects']);
             state.selectedFilePath = 'Projects/active.md';
+            state.selectedTreePaths = ['Projects/active.md'];
             state.openTabs = [
                 { id: 'Projects/active.md', type: 'file', path: 'Projects/active.md', dirty: false },
                 { id: 'Projects/background.md', type: 'file', path: 'Projects/background.md', dirty: false },
@@ -1700,10 +1959,17 @@ describe('File Tree', () => {
 
             state.selectedFilePath = 'Projects/background.md';
             syncFileTreeTabMarkers();
-            expect(active.classList.contains('selected')).toBe(false);
+            expect(active.classList.contains('selected')).toBe(true);
+            expect(active.getAttribute('aria-current')).toBeNull();
             expect(active.classList.contains('dirty-buffer')).toBe(true);
-            expect(background.classList.contains('selected')).toBe(true);
+            expect(background.classList.contains('selected')).toBe(false);
+            expect(background.getAttribute('aria-current')).toBe('page');
             expect(background.classList.contains('dirty-buffer')).toBe(true);
+
+            state.selectedTreePaths = ['Projects/background.md'];
+            syncFileTreeTabMarkers();
+            expect(active.classList.contains('selected')).toBe(false);
+            expect(background.classList.contains('selected')).toBe(true);
 
             state.openTabs = state.openTabs.map(tab => tab.id === 'Projects/background.md'
                 ? { ...tab, dirty: false }
@@ -1714,7 +1980,7 @@ describe('File Tree', () => {
             expect(background.querySelector('.node-dirty-status')).toBeNull();
         });
 
-        test('moves the sole selected surface with the active tab while retaining tree focus', () => {
+        test('moves aria-current with the active tab without changing tree selection or focus', () => {
             state.fileTreeData = [
                 { name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 },
                 { name: 'Notes.md', path: 'Notes.md', type: 'file', mtime: 2 },
@@ -1727,6 +1993,7 @@ describe('File Tree', () => {
             state.activeTabId = 'Welcome.md';
             state.selectedFilePath = 'Welcome.md';
             state.selectedTreePath = 'Welcome.md';
+            state.selectedTreePaths = ['Welcome.md'];
             initFileTree();
 
             const tree = document.getElementById('file-tree');
@@ -1741,15 +2008,18 @@ describe('File Tree', () => {
             expect(state.selectedFilePath).toBe('Notes.md');
             expect(state.selectedTreePath).toBe('Welcome.md');
             expect(document.activeElement).toBe(welcome);
-            expect(welcome.classList.contains('selected')).toBe(false);
-            expect(notes.classList.contains('selected')).toBe(true);
+            expect(welcome.classList.contains('selected')).toBe(true);
+            expect(welcome.getAttribute('aria-current')).toBeNull();
+            expect(notes.classList.contains('selected')).toBe(false);
             expect(notes.getAttribute('aria-current')).toBe('page');
             expect(tree.querySelectorAll('.file-tree-node.selected')).toHaveLength(1);
 
             state.activeTabId = 'settings';
             activeTabListener();
             expect(state.selectedFilePath).toBeNull();
-            expect(tree.querySelectorAll('.file-tree-node.selected')).toHaveLength(0);
+            expect(tree.querySelectorAll('.file-tree-node.selected')).toHaveLength(1);
+            expect(welcome.classList.contains('selected')).toBe(true);
+            expect(tree.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
         });
 
         test('keeps the newest tree when an earlier refresh resolves late', async () => {
@@ -1905,7 +2175,7 @@ describe('File Tree', () => {
 
         test('merge modal should create checkboxes for each source file', async () => {
             // Simulate multi-select + open file
-            state.selectedFilePaths = ['b.md'];
+            state.selectedTreePaths = ['b.md'];
             state.selectedFilePath = 'a.md';
             state.contextTargetPath = 'a.md';
 
@@ -1952,7 +2222,7 @@ describe('File Tree', () => {
         });
 
         test('mergePaths should include master + checked sources only', () => {
-            state.selectedFilePaths = ['b.md', 'c.md'];
+            state.selectedTreePaths = ['b.md', 'c.md'];
             state.selectedFilePath = 'a.md';
             state.contextTargetPath = 'a.md';
 

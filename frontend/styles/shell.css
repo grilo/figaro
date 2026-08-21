@@ -123,7 +123,10 @@
 /* ── Left Sidebar Calendar ── */
 .sidebar-calendar-panel {
     flex: 0 0 auto;
+    display: flex;
+    height: 0;
     max-height: 0;
+    flex-direction: column;
     overflow: hidden;
     visibility: hidden;
     opacity: 0;
@@ -131,6 +134,7 @@
     background: var(--sidebar-bg);
     transform: translateY(6px);
     transition:
+        height var(--motion-layout-duration) var(--motion-ease-out),
         max-height var(--motion-layout-duration) var(--motion-ease-out),
         opacity var(--motion-content-duration) ease,
         transform var(--motion-content-duration) var(--motion-ease-out),
@@ -141,8 +145,9 @@
     /* Three persistent workspace destinations leave a shorter content column
        than the former two-button footer. Reserve enough of that column for a
        complete six-week calendar; result lists keep the panel scrollable. */
-    max-height: min(440px, 64%);
-    overflow-y: auto;
+    height: min(400px, 64%);
+    max-height: min(400px, 64%);
+    overflow: hidden;
     visibility: visible;
     opacity: 1;
     border-top-color: var(--border-color);
@@ -165,6 +170,9 @@
 }
 
 .sidebar-calendar-panel .cal-linked-notes {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
     border-top: 1px solid var(--border-color);
     padding: 8px 12px 10px;
 }
@@ -894,7 +902,7 @@
     margin: 1px 6px;
     border-radius: 4px;
     cursor: pointer;
-    transition: background 0.1s ease;
+    transition: background 0.1s ease, box-shadow 0.1s ease;
     user-select: none;
 }
 
@@ -903,7 +911,8 @@
 }
 
 .file-tree-item > .file-tree-node.selected {
-    background: var(--active-bg);
+    background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-color) 30%, transparent);
     color: var(--text-color);
 }
 
@@ -923,22 +932,6 @@
 .file-tree-item > .file-tree-node.external-file.dirty-buffer::after {
     order: 1;
     margin-left: 0;
-}
-
-.file-tree-item > .file-tree-node.multi-selected {
-    background: color-mix(in srgb, var(--accent-color) 15%, transparent);
-    outline: 1px solid color-mix(in srgb, var(--accent-color) 30%, transparent);
-    border-radius: 4px;
-}
-
-.file-tree-item > .file-tree-node.non-md {
-    color: var(--text-dim);
-    opacity: 0.55;
-    cursor: default;
-}
-
-.file-tree-item > .file-tree-node.drawio-diagram .node-icon {
-    color: var(--accent-color);
 }
 
 /* Merge animation */
@@ -983,11 +976,7 @@
 }
 
 .file-tree-node.selected .node-chevron:has(svg) {
-    background: var(--active-bg);
-}
-
-.file-tree-node.multi-selected .node-chevron:has(svg) {
-    background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+    background: var(--file-node-selected-surface);
 }
 
 .file-tree-node .node-icon {
@@ -1012,7 +1001,8 @@
 }
 
 .file-tree-node .node-pin-indicator,
-.file-tree-node .node-external-indicator {
+.file-tree-node .node-external-indicator,
+.file-tree-node .node-cut-indicator {
     display: inline-flex;
     flex: 0 0 auto;
     order: 2;
@@ -1027,13 +1017,18 @@
     color: color-mix(in srgb, var(--accent-color) 72%, var(--text-muted));
 }
 
+.file-tree-node .node-cut-indicator {
+    color: color-mix(in srgb, var(--accent-color) 78%, var(--text-muted));
+}
+
 .file-tree-node.external-file .node-icon,
 .file-tree-node.external-file .node-external-indicator {
     color: var(--text-dim);
 }
 
 .file-tree-node.selected .node-pin-indicator,
-.file-tree-node.selected .node-external-indicator {
+.file-tree-node.selected .node-external-indicator,
+.file-tree-node.selected .node-cut-indicator {
     color: currentColor;
 }
 
@@ -1172,92 +1167,71 @@
     padding: 4px 0;
 }
 
-.cal-day {
+.calendar-grid .cal-day {
     aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    box-sizing: border-box;
+    place-items: center;
     font-size: 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background var(--transition-fast);
     position: relative;
 }
 
-.cal-day:hover {
-    background: var(--hover-bg);
+.calendar-grid span.cal-day {
+    cursor: default;
 }
 
-.cal-day.no-notes {
-    color: var(--text-dim);
-    opacity: 0.35;
-    pointer-events: none;
+.calendar-grid span.cal-day:hover {
+    border-color: transparent;
+    background: var(--ui-date-picker-day-state-bg, transparent);
 }
 
 .cal-day.cal-empty {
     pointer-events: none;
 }
 
-.cal-day.today {
+.calendar-grid .cal-day.selected {
+    border-color: var(--ui-date-picker-day-state-border, transparent);
     background: var(--accent-color);
     color: var(--button-text);
-    font-weight: 600;
-}
-
-.cal-day.today.has-note::after,
-.cal-day.today.has-link::after {
-    background: color-mix(in srgb, var(--button-text) 80%, transparent);
-    border-color: color-mix(in srgb, var(--button-text) 80%, transparent);
-}
-
-.cal-day.has-due-task::before {
-    content: '';
-    position: absolute;
-    right: 4px;
-    top: 4px;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--warning-color);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning-color) 18%, transparent);
-}
-
-.cal-day.today.has-due-task::before {
-    background: var(--button-text);
+    font-weight: 700;
     box-shadow: none;
 }
 
-.cal-day.selected {
-    background: var(--active-bg);
-    color: var(--accent-color);
+.calendar-grid .cal-day.selected:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.calendar-grid .cal-day.selected.has-due-task {
+    border-color: var(--danger-color);
+}
+
+.cal-day-tooltip {
+    display: grid;
+    gap: 4px;
+}
+
+.cal-day-tooltip strong {
+    color: var(--text-color);
     font-weight: 600;
-    box-shadow: inset 0 0 0 2px var(--accent-color);
 }
 
-.cal-day.has-note::after {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--accent-color);
+.cal-day-tooltip-note-count {
+    color: color-mix(in srgb, var(--success-color) 82%, var(--text-color));
 }
 
-.cal-day.has-link::after {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    border: 2px solid var(--success-color);
-    background: transparent;
-    box-sizing: border-box;
+.cal-day-tooltip-due-label {
+    margin-top: 2px;
+    color: var(--danger-color);
+}
+
+.cal-day-tooltip ul {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding-left: 16px;
 }
 
 .cal-linked-notes {

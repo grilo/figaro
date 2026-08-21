@@ -112,6 +112,7 @@ test('keeps the Calendar grid visible when a large vault competes for sidebar he
     await page.evaluate(async () => {
         const app = window.__figaroDebugBackend;
         const days = Array.from({ length: 31 }, (_, index) => index + 1);
+        const activityDays = days.filter(day => day !== 21);
         app.GetFileTree = async () => Array.from({ length: 180 }, (_, index) => ({
             name: `Note-${String(index + 1).padStart(3, '0')}.md`,
             path: `Projects/Note-${String(index + 1).padStart(3, '0')}.md`,
@@ -121,9 +122,18 @@ test('keeps the Calendar grid visible when a large vault competes for sidebar he
         app.GetCalendarMonthData = async () => ({
             year: 2026,
             month: 8,
-            days_with_notes: days,
-            days_with_links: days,
-            days_with_due_tasks: days,
+            days_with_notes: activityDays,
+            days_with_links: activityDays,
+            days_with_due_tasks: activityDays,
+            day_summaries: days.map(day => ({
+                day,
+                note_count: day === 21 ? 0 : Math.min(day, 10),
+                due_titles: day === 21
+                    ? []
+                    : day === 6
+                        ? ['Production task 1', 'Production task 2']
+                        : [`Production task ${day}`],
+            })),
             calendar: [
                 [0, 0, 0, 0, 0, 0, 1],
                 [2, 3, 4, 5, 6, 7, 8],
@@ -133,18 +143,18 @@ test('keeps the Calendar grid visible when a large vault competes for sidebar he
                 [30, 31, 0, 0, 0, 0, 0],
             ],
         });
-        app.GetTasksDueOnDate = async () => Array.from({ length: 18 }, (_, index) => ({
+        app.GetTasksDueOnDate = async date => date === '2026-08-06' ? Array.from({ length: 18 }, (_, index) => ({
             file: `Projects/Plan-${index + 1}.md`,
             file_name: `Plan-${index + 1}.md`,
             line: index + 2,
             text: `Production task ${index + 1}`,
             due_date: '2026-08-06',
-        }));
-        app.GetLinkedNotesForDate = async () => Array.from({ length: 12 }, (_, index) => ({
+        })) : [];
+        app.GetLinkedNotesForDate = async date => date === '2026-08-06' ? Array.from({ length: 12 }, (_, index) => ({
             path: `Notes/Linked-${index + 1}.md`,
             name: `Linked-${index + 1}.md`,
             line_num: index + 1,
-        }));
+        })) : [];
 
         const { setState } = await import('/js/state.js');
         const { invalidateCalendarCache } = await import('/js/calendar.js');
@@ -164,11 +174,12 @@ test('keeps the Calendar grid visible when a large vault competes for sidebar he
         const panel = document.getElementById('sidebar-calendar-panel');
         const grid = document.getElementById('calendar-grid');
         const fileTree = document.getElementById('file-tree');
+        const results = document.getElementById('cal-linked-notes');
         const panelRect = panel.getBoundingClientRect();
         const gridRect = grid.getBoundingClientRect();
         return {
             fileTreeScrolls: fileTree.scrollHeight > fileTree.clientHeight,
-            calendarResultsScroll: panel.scrollHeight > panel.clientHeight,
+            calendarResultsScroll: results.scrollHeight > results.clientHeight,
             gridFullyVisible: gridRect.top >= panelRect.top && gridRect.bottom <= panelRect.bottom + 1,
         };
     })).toEqual({
@@ -176,6 +187,35 @@ test('keeps the Calendar grid visible when a large vault competes for sidebar he
         calendarResultsScroll: true,
         gridFullyVisible: true,
     });
+
+    const dueDay = page.locator('#calendar-grid [data-date="2026-08-06"]');
+    await dueDay.hover();
+    const tooltip = page.locator('#calendar-day-tooltip');
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText('Production task 1');
+    await expect(tooltip).toContainText('Production task 2');
+    await expect.poll(async () => {
+        const box = await tooltip.boundingBox();
+        const viewport = page.viewportSize();
+        return box && viewport
+            ? box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width && box.y + box.height <= viewport.height
+            : false;
+    }).toBe(true);
+
+    const initialGeometry = await page.locator('#calendar-grid').evaluate(grid => ({
+        top: grid.getBoundingClientRect().top,
+        panelHeight: document.getElementById('sidebar-calendar-panel').getBoundingClientRect().height,
+    }));
+    await page.locator('#calendar-grid [data-date="2026-08-21"]').click();
+    await expect(page.locator('#cal-linked-notes .cal-no-notes')).toHaveText('No tasks or notes for this date');
+    await expect.poll(() => page.locator('#calendar-grid').evaluate((grid, initial) => {
+        const current = {
+            top: grid.getBoundingClientRect().top,
+            panelHeight: document.getElementById('sidebar-calendar-panel').getBoundingClientRect().height,
+        };
+        return Math.abs(current.top - initial.top) <= 1
+            && Math.abs(current.panelHeight - initial.panelHeight) <= 1;
+    }, initialGeometry)).toBe(true);
 });
 
 test('uses compact calendar typography for an empty selected date', async ({ page }) => {
@@ -189,6 +229,7 @@ test('uses compact calendar typography for an empty selected date', async ({ pag
             days_with_notes: [6],
             days_with_links: [],
             days_with_due_tasks: [],
+            day_summaries: [{ day: 6, note_count: 1, due_titles: [] }],
             calendar: [
                 [0, 0, 0, 0, 0, 0, 1],
                 [2, 3, 4, 5, 6, 7, 8],
@@ -204,7 +245,7 @@ test('uses compact calendar typography for an empty selected date', async ({ pag
         const { setState } = await import('/js/state.js');
         const { invalidateCalendarCache } = await import('/js/calendar.js');
         setState('currentCalDate', new Date(2026, 7, 6));
-        setState('selectedCalDateStr', '2026-08-06');
+        setState('selectedCalDateStr', '2026-08-21');
         invalidateCalendarCache();
     });
 

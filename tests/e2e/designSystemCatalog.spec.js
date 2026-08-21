@@ -14,11 +14,60 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(page.locator('#theme-status')).toHaveText('17 themes · Figaro Dark');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#d8574a');
 
+    const tooltipTrigger = page.getByRole('button', { name: 'Show document outline' });
+    await expect(tooltipTrigger).not.toHaveAttribute('title', /.+/);
+    await tooltipTrigger.scrollIntoViewIfNeeded();
+    await tooltipTrigger.hover();
+    const tooltip = page.locator('#ui-tooltip');
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveText('Show document outline');
+    await expect(tooltipTrigger).toHaveAttribute('aria-describedby', /ui-tooltip/);
+    const darkTooltip = await tooltip.evaluate(surface => {
+        const resolveColor = value => {
+            const probe = document.createElement('span');
+            probe.style.color = value;
+            document.body.appendChild(probe);
+            const color = getComputedStyle(probe).color;
+            probe.remove();
+            return color;
+        };
+        const style = getComputedStyle(surface);
+        return {
+            background: style.backgroundColor,
+            panel: resolveColor('var(--panel-bg)'),
+            color: style.color,
+            text: resolveColor('var(--text-color)'),
+            border: style.borderTopColor,
+            borderToken: resolveColor('var(--border-color)'),
+        };
+    });
+    expect(darkTooltip).toEqual({
+        background: darkTooltip.panel,
+        panel: darkTooltip.panel,
+        color: darkTooltip.text,
+        text: darkTooltip.text,
+        border: darkTooltip.borderToken,
+        borderToken: darkTooltip.borderToken,
+    });
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toBeHidden();
+    await page.mouse.move(0, 0);
+
     await themeSelect.selectOption('figaro-light');
     await expect(page.locator('#catalog-theme')).toHaveAttribute('href', '../themes/figaro-light.css');
     await expect(page.locator('#theme-status')).toHaveText('17 themes · Figaro Light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'figaro-light');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#b94a3e');
+    await tooltipTrigger.focus();
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveCSS('background-color', await tooltip.evaluate(surface => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--panel-bg)';
+        document.body.appendChild(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+    }));
 
     const autoSaveSource = page.locator('#catalog-auto-save');
     const autoSavePicker = page.locator('#form-controls .select-combobox').filter({ has: autoSaveSource });
@@ -105,6 +154,7 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ui-badge': 6,
         '.ui-field': 4,
         '.ui-menu': 3,
+        '.ui-tooltip': 3,
         '.ui-notice': 8,
         '.ui-document-tabs': 1,
         '.ui-document-tab': 2,

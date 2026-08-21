@@ -4,6 +4,12 @@ package desktop
 
 import "golang.org/x/sys/windows"
 
+func openFileInDefaultApplication(path string) error {
+	// ShellExecute applies the user's file association without routing the path
+	// through a command shell.
+	return windows.ShellExecute(0, nil, windows.StringToUTF16Ptr(path), nil, nil, windows.SW_SHOWNORMAL)
+}
+
 func openPDFInDefaultViewer(path string) error {
 	// ShellExecute uses Windows' file association for .pdf instead of treating
 	// it as a URL for the default browser.

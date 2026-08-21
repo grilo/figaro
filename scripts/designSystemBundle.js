@@ -7,6 +7,8 @@ const DESIGN_SYSTEM_SOURCE_FILES = [
     'frontend/design-system/catalog.js',
     'frontend/design-system/themeCatalogModel.js',
     'frontend/js/selectCombobox.js',
+    'frontend/js/tooltip.js',
+    'frontend/js/core/tooltipModel.js',
     'frontend/themes/manifest.json',
 ];
 

@@ -377,7 +377,7 @@ capture change.
 ### Design-system catalogue
 
 `tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
-contract: indexed group membership, adoption of the thirteen approved families
+contract: indexed group membership, adoption of the fourteen approved families
 in catalogue and production markup, exact agreement between
 `approved-components.json` and the selectors implemented by
 `primitives.css`, exact eager style order in the app, catalogue, compatibility
@@ -393,7 +393,10 @@ resolution, and synchronization of the checked-in classic bundle with its
 module sources. These rules do not need a browser matrix. Feature component
 tests continue to own controller behavior; for example, the frontmatter test
 proves that embedded-editor menus expose the shared open state while retaining
-their own selection policy.
+their own selection policy. `tests/frontend/unit/tooltip.test.js` owns native-title
+adoption, dynamic updates, iframe-name preservation, hover/focus/Escape and
+`aria-describedby` lifecycle, disabled-toggle label delegation, and pure
+viewport placement.
 
 `tests/e2e/designSystemCatalog.spec.js` is the single representative browser
 boundary. It proves that the real manifest populates the selector, a light
@@ -404,7 +407,9 @@ combobox and compares its popup surface, text, and border with the active theme
 tokens; computed popup styling cannot be proven in jsdom. It also compares both
 settings steppers' computed button and value backgrounds, because cascade
 equality cannot be proven in jsdom, and confirms that every shared primitive
-family is present in the rendered catalogue. Do not loop all 17 themes through
+family is present in the rendered catalogue. The tooltip specimen additionally
+proves hover delay completion, immediate keyboard-focus exposure, Escape
+dismissal, and dark/light computed paint from the canonical tokens. Do not loop all 17 themes through
 Playwright; the unit contract already proves
 manifest-to-file coverage, while one real stylesheet switch proves the browser
 mechanism.
@@ -595,8 +600,10 @@ ownership of History/Document outline/Raw Text Preview/PDF preview on the right.
 tool rail, close any expanded Calendar content, and reopen both the normal
 sidebar and Calendar when its rail icon is selected. Populate a representative
 large tree plus overflowing due-task and linked-note results, then assert that
-the file tree and Calendar results scroll without flex-shrinking the monthly
-grid out of the open panel. Select a date with no results separately and verify
+the file tree and Calendar detail region scroll independently without
+flex-shrinking the monthly grid out of the open panel. Switching that populated
+date to an empty one must leave the panel height and grid position unchanged.
+Select a date with no results separately and verify
 that its guidance uses the Calendar font family, compact 12px/18px type, muted
 theme color, and deliberate spacing instead of inherited application body text.
 
@@ -662,12 +669,15 @@ that setting, replacing, and clearing a due date changes only the requested
 task line and immediately updates the shared Kanban/Calendar index. Component
 tests own picker focus and Arrow-key movement, card controls, warning states,
 Today reminders, the column header's neutral-icon/selected-color indicator,
-Calendar task results, cache invalidation, prose hashtag completion, and
+Calendar task results, cache invalidation, locale weekday/weekend rendering,
+movable Today/selection precedence with restored note intensity, accepted-shortcut dirty-buffer projection,
+count-to-selected-row agreement, due-title hover/focus content, prose hashtag completion, and
 frontmatter/code suppression. The live Kanban component must also prove that a
 dirty new tag appears on the board without entering the saved completion
 vocabulary until save. Keep these in
 `kanban_due_test.go`, `app_test.go`, `calendar_index_test.go`,
 `tests/frontend/unit/dueDateModel.test.js`,
+`tests/frontend/unit/calendarModel.test.js`,
 `tests/frontend/unit/taskDueDateCompletionModel.test.js`,
 `tests/frontend/unit/taskDueDateCompletions.test.js`,
 `tests/frontend/unit/datePicker.test.js`,
@@ -683,6 +693,13 @@ parsing and backend mutation branches do not belong in Playwright. That test
 waits for the initial Kanban refresh before replacing completion columns and
 uses a two-second `Promise.race` timeout; a stalled setup must fail explicitly
 instead of hanging or allowing startup to overwrite the fixture state.
+The Calendar's browser-only boundaries are its body-level shared activity tooltip and
+computed flex geometry: `tests/e2e/sidebarNavigation.spec.js` hovers a day with
+multiple due items, asserts that the themed tooltip remains inside the real
+viewport, then switches from a long result list to an empty day and proves the
+month grid does not move. Locale week rules, grid offsets, buffer association
+replacement, note-count buckets, accessible labels, and tooltip content remain
+lower-layer tests.
 
 ## PDF preview page-geometry regressions
 
@@ -744,15 +761,19 @@ FIGARO_PDF_TEST_OUTPUT=/tmp/pdfs/figaro-page-number-contract.pdf \
 
 Raw Text Preview is an exact source surface, not a renderer or print-preview
 shortcut. Keep unit coverage for frontmatter, HTML, fences, an explicitly empty
-document, active/saved document refresh, and closing. The browser workflow must
-open it from a Markdown context menu, assert exact text plus deliberate source
-geometry, and close it by keyboard. Current-note heading completion must ignore frontmatter and fenced
+document, active/saved document refresh, clipboard success/failure, pure
+source-anchor clamping, delayed editor-to-raw scroll following, listener
+cleanup, and closing. The browser workflow must open it from a Markdown context
+menu, assert exact text plus deliberate source geometry, copy the complete live
+snapshot through the visible action, follow main-editor scrolling down and back
+up, and close it by keyboard. Current-note heading completion must ignore frontmatter and fenced
 examples, preserve duplicate anchor suffixes, and accept a keyboard selection
 after typing `](#`.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/rawTextPreview.test.js \
+  tests/frontend/unit/rawTextPreviewModel.test.js \
   tests/frontend/unit/linkCompletions.test.js
 npx playwright test \
   tests/e2e/rawTextPreview.spec.js \
@@ -1168,14 +1189,17 @@ npx playwright test tests/e2e/clipboardImagePaste.spec.js
 ## File-tree copy regressions
 
 Internal file-tree copy/paste is non-destructive: collisions must allocate
-`copy` / `copy 2` sibling names, dirty source tabs must save before the backend
-reads them, copied Markdown links must preserve their resolved vault targets,
-and folder copies must never target the source folder or any descendant. A
-known copy must retain the warm vault index and file-tree metadata, add every
-copied projection, and acknowledge its native create events without masking a
-later external edit. An index that misses an external Markdown change must use
-the complete rebuild and match a fresh application plus an independent disk
-walk.
+`copy` / `copy 2` sibling names, every dirty source tab must save before the
+backend reads it, copied Markdown links must preserve their resolved vault
+targets, and folder copies must never target the source folder or any
+descendant. Mixed selections may include managed-only files and folders;
+the pure transfer plan deduplicates sources and removes children covered by a
+selected directory. A multi-copy refreshes once after the batch, while a
+partial failure retains only unresolved sources for retry. A known copy must
+retain the warm vault index and file-tree metadata, add every copied
+projection, and acknowledge its native create events without masking a later
+external edit. An index that misses an external Markdown change must use the
+complete rebuild and match a fresh application plus an independent disk walk.
 Changes to tree actions, tab persistence, link rewriting, vault copy helpers,
 path validation, or duplicate naming must retain Go coverage for the filesystem
 and link results plus frontend coverage for commands and refusal dialogs.
@@ -1186,6 +1210,8 @@ Run the focused contract before the full suites:
 go test ./internal/desktop -run 'Test(CopyPath|CopyFalls|WarmCopy|FileTreeCacheAndVaultIndexStayWarmAcrossKnownCopy)'
 go test ./internal/links -run 'Copy'
 npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/fileTreeModel.test.js \
+  tests/frontend/unit/fileTreeTransfer.test.js \
   tests/frontend/unit/fileTree.test.js \
   tests/frontend/unit/dialogs.test.js \
   tests/frontend/unit/tabManager.test.js
@@ -1307,8 +1333,8 @@ distinct `FileSymlink` default icon. A forwarded runtime batch must reuse this
 choice, serialize against other batches, and claim a capability once if both
 the startup snapshot and runtime event expose it. The existing `delete` action must remain
 the single final menu entry and relabel itself **Remove from file tree** for
-that shortcut. External shortcuts must not enter the vault Markdown
-multi-selection; deletion remains a single-target workflow with no mixed
+that shortcut. External shortcuts must not enter the internal file-tree
+operation selection; deletion remains a single-target workflow with no mixed
 bulk-delete dialog. External tabs must use the external save binding, never
 Auto-Commit or enter the vault session or recent-notes list, and removing the
 root shortcut must show the non-deletion warning, close through normal dirty-state protection,
@@ -1427,27 +1453,44 @@ Modal coverage must also prove that a deferred return-focus step does not
 override a newer menu or dialog that has already taken focus.
 
 File-tree keyboard coverage is split at the same seam. Pure model tests own the
-visible-row flattening and Up/Down, Home/End, parent/child, expand/collapse, and
-activation plans. Component tests own `tree`/`treeitem`/`group` semantics,
-exactly one row with `tabindex="0"`, focus independent from active-document and
-Ctrl/Cmd multi-selection, collapsed-child mounting, activation, focused-row
-restoration after rerender, and F2 dispatch to the existing rename workflow for
-a focused vault row. Component coverage must also prove that a successful tab
-switch transfers the sole selected/`aria-current` file-tree state without
-moving focus or rebuilding mounted rows, clean background tabs have no marker,
-and dirty buffers alone receive a warning marker plus assistive unsaved text.
-One browser
-scenario owns the irreducible Tab-entry and `:focus-visible` behavior, then
-uses Right/Down/Left against real focused rows. Mouse selection, opening, drag,
-and context-menu behavior must remain unchanged.
+visible-row flattening and Up/Down, Home/End, parent/child, expand/collapse,
+Enter activation, Space selection, semantic file-icon mapping with generic
+fallback, viewport-clamped tooltip placement, action-target reduction, and
+mixed-transfer plans. Component tests
+own `tree`/`treeitem`/`group` semantics, exactly one row with `tabindex="0"`,
+focus independent from active-document and internal file/folder selection,
+collapsed-child mounting, themed hover/focus tooltip semantics for a
+normal-opacity managed-only row, ordinary activation without an open attempt or
+active-buffer replacement, double-click and contextual **Open** convergence on
+the default-application backend, visible launcher failure, focused-row restoration
+after rerender, and F2 dispatch to the
+existing rename workflow for a focused vault row. Component coverage must also
+prove that a successful tab switch moves only `aria-current` without changing
+the selected surface, focus, or mounted rows; `aria-selected` belongs only to
+the operation selection, clean open buffers have no visual marker, and dirty
+buffers alone receive a warning marker plus assistive unsaved text.
+One browser scenario owns the irreducible Tab-entry and `:focus-visible`
+behavior, then uses Right/Down/Left against real focused rows. That focused
+boundary also proves the managed-only tooltip reuses the approved themed
+tooltip surface, advertises double-click, and remains inside the
+viewport. The same representative mouse boundary proves that double-click and
+the contextual **Open** action dispatch the identical vault path. Root-scoped
+desktop tests own exact-path launch, missing/directory/symlink/traversal refusal,
+and launcher failure; editable-file opening, drag, and remaining context-menu
+behavior must remain unchanged.
 
 Cut/Paste coverage reuses the move seam: component tests must prove Ctrl/Cmd+X
-followed by Ctrl/Cmd+V invokes `MovePath` rather than `CopyPath`, clears the cut
-clipboard only after success, retains it after cancellation/failure, and keeps
-recursive/self moves non-destructive. The stable tree context-menu inventory
-must show Cut, Copy, Paste in order, omit tree-level Raw Text/PDF preview, and
-pair only real keyboard commands with faded shortcut hints; F2 and Delete
-dispatch the same validated workflows as their menu items.
+followed by Ctrl/Cmd+V invokes `MovePath` rather than `CopyPath`, carries a
+mixed selected set including an unsupported file, clears the cut clipboard only
+after every move succeeds, retains unresolved entries after cancellation or
+failure, derives visible and assistive scissors markers for mounted and
+virtualized rows, clears them when Copy replaces Cut or Escape cancels it, and
+keeps recursive/self moves non-destructive. The stable tree
+context-menu inventory must show Cut, Copy, Paste in order, enable operations
+for a single managed-only internal file, disable single-target actions for a group,
+omit tree-level Raw Text/PDF preview, and pair only real keyboard commands
+with faded shortcut hints; F2 and Delete dispatch the same validated workflows
+as their menu items.
 
 Deletion recovery requires three layers. Pure `internal/recovery` tests own
 newest-first record ordering and identity removal. Root-scoped desktop/history

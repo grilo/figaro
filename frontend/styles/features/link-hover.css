@@ -1,16 +1,4 @@
-/* ── Link Hover Preview Tooltip ── */
-.link-hover-preview {
-	pointer-events: none;
-    padding: 8px 12px;
-    background: var(--panel-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    box-shadow: var(--shadow-lg);
-    font-size: 12px;
-    line-height: 1.5;
-    max-width: 320px;
-    z-index: 1000;
-}
+/* Rich link-preview content; .ui-tooltip owns the shared surface. */
 .lh-type {
     display: block;
     font-size: 10px;

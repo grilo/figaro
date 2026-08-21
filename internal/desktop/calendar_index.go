@@ -20,6 +20,7 @@ type calendarDateIndex struct {
 	linkedDays        map[string]struct{}
 	dueTaskDays       map[string]struct{}
 	linkedNotes       map[string][]LinkedNote
+	notePathCounts    map[string]map[string]int
 	dailyDaysByMonth  map[string][]int
 	linkedDaysByMonth map[string][]int
 	dueDaysByMonth    map[string][]int
@@ -31,10 +32,70 @@ func newCalendarDateIndex() *calendarDateIndex {
 		linkedDays:        make(map[string]struct{}),
 		dueTaskDays:       make(map[string]struct{}),
 		linkedNotes:       make(map[string][]LinkedNote),
+		notePathCounts:    make(map[string]map[string]int),
 		dailyDaysByMonth:  make(map[string][]int),
 		linkedDaysByMonth: make(map[string][]int),
 		dueDaysByMonth:    make(map[string][]int),
 	}
+}
+
+func (index *calendarDateIndex) addNotePath(dateStr, path string) {
+	if !isCalendarDate(dateStr) || path == "" {
+		return
+	}
+	paths := index.notePathCounts[dateStr]
+	if paths == nil {
+		paths = make(map[string]int)
+		index.notePathCounts[dateStr] = paths
+	}
+	paths[path]++
+}
+
+func (index *calendarDateIndex) removeNotePath(dateStr, path string) {
+	paths := index.notePathCounts[dateStr]
+	if paths == nil {
+		return
+	}
+	if paths[path] <= 1 {
+		delete(paths, path)
+	} else {
+		paths[path]--
+	}
+	if len(paths) == 0 {
+		delete(index.notePathCounts, dateStr)
+	}
+}
+
+func (index *calendarDateIndex) noteCount(dateStr string) int {
+	return len(index.notePathCounts[dateStr])
+}
+
+func (index *calendarDateIndex) addLinkedNote(dateStr string, note LinkedNote) {
+	if !isCalendarDate(dateStr) || note.Path == "" {
+		return
+	}
+	for _, existing := range index.linkedNotes[dateStr] {
+		if existing.Path == note.Path {
+			return
+		}
+	}
+	index.linkedNotes[dateStr] = append(index.linkedNotes[dateStr], note)
+	sortLinkedNotes(index.linkedNotes[dateStr])
+}
+
+func (index *calendarDateIndex) removeLinkedNote(dateStr, path string) {
+	notes := index.linkedNotes[dateStr]
+	filtered := notes[:0]
+	for _, note := range notes {
+		if note.Path != path {
+			filtered = append(filtered, note)
+		}
+	}
+	if len(filtered) == 0 {
+		delete(index.linkedNotes, dateStr)
+		return
+	}
+	index.linkedNotes[dateStr] = filtered
 }
 
 // calendarIndexLocked returns the calendar projection from the unified vault

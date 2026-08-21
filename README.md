@@ -197,16 +197,34 @@ warm discovery data, so large vaults do not rediscover every unrelated note
 before showing the result. F2 renames the focused vault item, Delete opens the
 recovery-aware confirmation, and Ctrl/Cmd+X, Ctrl/Cmd+C, and Ctrl/Cmd+V provide
 conventional Cut/Copy/Paste. The tree context menu shows those shortcuts and
-keeps Raw Text/PDF preview in the editor context menu and Properties. Copy/import,
+unsupported vault files remain selectable, renameable, revealable, pinnable,
+stylable, and deletable without replacing the current editor buffer. A themed
+row tooltip explains that they are not editable in Figaro and can be
+double-clicked to open in the operating system's default application. Their
+context menu presents the same action as **Open** rather than **Open in New
+Tab**. Common text, image, code, data, archive, media, and PDF extensions receive
+semantic Lucide icons;
+unrecognized files keep the generic file icon, and an explicit custom icon
+still wins. Ctrl/Cmd+Click or keyboard Space can select any internal file or
+folder; Cut and Copy operate on the selected set, while external shortcuts
+remain single-target. Cut rows show a persistent scissors marker until Paste,
+replacement by Copy, or Escape cancellation. The tree context menu keeps Raw
+Text/PDF preview in the editor context menu and Properties. Copy/import,
 move/merge, rename, and delete announce their activity immediately and add a
 status-bar spinner if they run for at least one second. While a move is running,
-Figaro ignores duplicate drag attempts instead of starting the same move
-twice.
+Figaro ignores duplicate drag attempts instead of starting the same move twice.
 
-The tree's selected row is always the document currently being viewed and
-follows tab switches immediately. Arrow-key focus and Ctrl/Cmd multi-selection
-remain independent, while clean background tabs add no marker; a warning dot
-appears only for an unsaved in-memory buffer.
+Concise interface hints use one theme-aware tooltip throughout Figaro. A hint
+appears after a short hover or immediately on keyboard focus, remains inside the
+window, and closes with Escape. Calendar activity, managed-file guidance, and
+Markdown link previews share that surface while retaining their richer content.
+
+Every selected tree row uses the same accent-tinted surface, whether the
+selection contains one entry or many. The active document remains available to
+assistive technology as the current page but receives no competing tree
+background; the active tab identifies the open buffer. Arrow-key focus remains
+an independent outline, and a warning dot appears only for an unsaved in-memory
+buffer.
 
 Undo and redo are scoped to the active file buffer. Switching to another file
 switches to that open buffer's own history, so Ctrl/Cmd+Z can never replace it
@@ -291,8 +309,18 @@ reminders inside the application and does not request operating-system
 notification access. A Kanban column with a chosen color shows that color as a
 small header swatch; an uncolored column keeps the neutral palette icon. At
 normal window heights, the calendar keeps its monthly grid visible when large
-vaults make the neighboring file tree scroll, and empty dates use compact,
-muted guidance below the grid.
+vaults make the neighboring file tree scroll. Its first weekday and weekends
+follow the operating-system locale; weekends are muted, while ordinary weekdays
+remain fully legible. Days with associated notes use five contribution-style
+intensity levels derived from the active theme, and due days keep an independent
+theme-danger outline whose hover or keyboard-focus tooltip lists every due task.
+The full theme-accent selection starts on Today and moves to a selected note or
+due day; the day it leaves immediately recovers its underlying activity
+intensity. Empty days other than Today are not interactive. Accepted date
+shortcuts and other date links update the open calendar from the unsaved editor
+buffer, and selecting a day always shows the same daily/linked notes counted by
+its square. The month grid stays in place while the detail region changes or
+scrolls. Figaro does not guess or download public holidays.
 
 ## Diagrams and PDFs
 
@@ -332,7 +360,9 @@ underlines and hover explanations while the
 preview stays on the last valid result. **Apply** replaces only that fence's
 body as one undoable edit; **Cancel** leaves the note unchanged.
 
-Raw Text Preview shows the exact Markdown source, including frontmatter, while
+Raw Text Preview shows the exact Markdown source, including frontmatter. It
+follows the main editor's matching source position with a small smoothing delay
+and can copy the complete current Markdown snapshot directly to the clipboard.
 PDF Preview adds pagination, cover pages, a depth-limited table of contents,
 footnotes, internal links, fenced-code syntax colors, and optional vault-local
 CSS. Set `page-numbers: true` in Properties to add physical PDF footers and

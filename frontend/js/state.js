@@ -34,9 +34,9 @@ export const state = {
     // File Tree
     fileTreeData: null,         // Cached file tree structure
     expandedDirs: new Set(),    // Set of expanded directory paths
-    selectedFilePath: null,     // Active file/Draw.io tab; owns tree selection
+    selectedFilePath: null,     // Active file/Draw.io tab; owns non-visual tree aria-current
     selectedTreePath: null,     // Independent roving-focus path (file or directory)
-    selectedFilePaths: [],      // Multi-selected file paths (for merge)
+    selectedTreePaths: [],      // Selected internal file-tree paths (for actions/merge)
     externalFileTreeEntries: [], // Process-local launch documents kept outside the vault
     
     // Search

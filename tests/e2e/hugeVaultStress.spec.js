@@ -364,7 +364,7 @@ test('preserves keyboard reachability and focus beyond a large collection window
         dropdown.scrollTop = dropdown.scrollHeight;
         dropdown.dispatchEvent(new Event('scroll'));
     });
-    await expect.poll(() => searchPage.locator('.search-result-row').last().getAttribute('title'))
+    await expect.poll(() => searchPage.locator('.search-result-row').last().getAttribute('data-ui-tooltip'))
         .toBe(lastSearchPath);
     await pressRepeatedly(searchPage, 'ArrowDown', searchSteps);
     await expect.poll(() => searchPage.evaluate(() => {
@@ -374,7 +374,7 @@ test('preserves keyboard reachability and focus beyond a large collection window
             inputFocused: document.activeElement === input,
             activeMounted: Boolean(active),
             selected: active?.getAttribute('aria-selected'),
-            path: active?.getAttribute('title'),
+            path: active?.getAttribute('data-ui-tooltip'),
         };
     })).toEqual({
         inputFocused: true,

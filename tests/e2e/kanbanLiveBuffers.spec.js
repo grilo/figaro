@@ -51,7 +51,7 @@ test('renders unsaved hashtags immediately and keeps long Kanban cards compact',
     const urgent = page.locator('.kanban-column[data-column="urgent"]');
     await expect(urgent).toBeVisible();
     const cardText = urgent.locator('.kanban-card-text');
-    await expect(cardText).toHaveAttribute('title', fullText);
+    await expect(cardText).toHaveAttribute('data-ui-tooltip', fullText);
     expect(Array.from(await cardText.textContent())).toHaveLength(120);
     await expect(cardText).toContainText(/…$/);
 

@@ -251,6 +251,16 @@ containment of normally positioned overlays. Feature classes may retain
 behavior or narrow layout requirements, but must not recreate a primitive's
 hover, focus, open, selected, disabled, validation, or semantic styling.
 
+Use `data-ui-tooltip` for a new concise hint, or `setTooltip()` when its text is
+updated programmatically. The eager tooltip controller also adopts ordinary
+`title` attributes for existing and dynamically mounted controls, but new code
+should prefer the explicit design-system attribute. Keep `title` on iframes
+when it names the embedded document rather than providing a hint. Rich hover
+content may add a feature class beside `.ui-tooltip`; it must not repaint the
+shared background, border, radius, shadow, typography, or text color. CodeMirror
+autocomplete and diagnostic panels are interactive popovers and retain their
+separate library semantics.
+
 Before implementing a component family, primitive, or visual variant that is
 not present in `frontend/design-system/approved-components.json`, obtain
 explicit user approval. A broader feature request is not implicit component
@@ -382,8 +392,8 @@ the assembled webview rather than one JavaScript package in isolation.
 - Prefer root-scoped vault filesystem operations over absolute-path checks.
 - Preserve unsaved editor content during asynchronous or filesystem-driven
   changes.
-- Add a regression test for a bug fix, especially for file moves, sessions,
-  rendering, or concurrency.
+- Add a regression test for a bug fix, especially for file-tree selection and
+  multi-item moves, sessions, rendering, or concurrency.
 - Test each acceptance case at the lowest capable layer: pure logic first,
   use-case fakes for sequencing and failure, real adapters/components for their
   boundary, and a minimal browser scenario only for behavior lower layers

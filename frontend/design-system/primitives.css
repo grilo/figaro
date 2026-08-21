@@ -158,6 +158,28 @@
     background: var(--border-color);
 }
 
+.ui-tooltip {
+    position: fixed;
+    z-index: 1400;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: min(320px, calc(100vw - 16px));
+    padding: 7px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--ui-item-radius);
+    background: var(--panel-bg);
+    box-shadow: var(--shadow-md);
+    color: var(--text-color);
+    font: 500 11px/1.4 var(--font-ui);
+    overflow-wrap: anywhere;
+    pointer-events: none;
+    white-space: normal;
+}
+
+.ui-tooltip[hidden] {
+    display: none;
+}
+
 .ui-stepper {
     display: inline-flex;
     height: 30px;
@@ -707,7 +729,7 @@ input.ui-stepper-value:invalid {
     border: 1px solid transparent;
     border-radius: 5px;
     outline: none;
-    background: transparent;
+    background: var(--ui-date-picker-day-state-bg, transparent);
     color: var(--text-color);
     font: 550 11px/1 var(--font-sans);
     cursor: pointer;
@@ -721,8 +743,8 @@ input.ui-stepper-value:invalid {
 
 .ui-date-picker-day:hover,
 .ui-date-picker-day:focus-visible {
-    border-color: var(--border-color);
-    background: var(--hover-bg);
+    border-color: var(--ui-date-picker-day-state-border, var(--border-color));
+    background: var(--ui-date-picker-day-state-bg, var(--hover-bg));
 }
 
 .ui-date-picker-day:focus-visible {
@@ -738,6 +760,46 @@ input.ui-stepper-value:invalid {
     border-color: var(--accent-color);
     background: var(--accent-color);
     color: var(--button-text);
+}
+
+.ui-date-picker-day--weekend {
+    --ui-date-picker-day-state-bg: color-mix(in srgb, var(--text-muted) 10%, var(--calendar-surface));
+    background: var(--ui-date-picker-day-state-bg);
+    color: color-mix(in srgb, var(--text-muted) 84%, var(--text-color));
+}
+
+.ui-date-picker-day--note-1 {
+    --ui-date-picker-day-state-bg: color-mix(in srgb, var(--success-color) 10%, var(--calendar-surface));
+}
+
+.ui-date-picker-day--note-2 {
+    --ui-date-picker-day-state-bg: color-mix(in srgb, var(--success-color) 22%, var(--calendar-surface));
+}
+
+.ui-date-picker-day--note-3 {
+    --ui-date-picker-day-state-bg: color-mix(in srgb, var(--success-color) 34%, var(--calendar-surface));
+}
+
+.ui-date-picker-day--note-4 {
+    --ui-date-picker-day-state-bg: color-mix(in srgb, var(--success-color) 46%, var(--calendar-surface));
+}
+
+.ui-date-picker-day--note-5 {
+    --ui-date-picker-day-state-bg: color-mix(in srgb, var(--success-color) 58%, var(--calendar-surface));
+}
+
+.ui-date-picker-day--note-1,
+.ui-date-picker-day--note-2,
+.ui-date-picker-day--note-3,
+.ui-date-picker-day--note-4,
+.ui-date-picker-day--note-5 {
+    background: var(--ui-date-picker-day-state-bg);
+    color: var(--text-color);
+}
+
+.ui-date-picker-day--due {
+    --ui-date-picker-day-state-border: var(--danger-color);
+    border-color: var(--ui-date-picker-day-state-border);
 }
 
 .ui-date-picker-footer {

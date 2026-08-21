@@ -207,12 +207,12 @@ test('persists a keyboard-operable visual-row preference that is unavailable wit
     const revealBlocksSlider = revealBlocksToggle.locator('xpath=following-sibling::*[1]');
     const vimToggle = page.locator('#vim-toggle');
     await expect(visualRowsToggle).toBeDisabled();
-    await expect(visualRowsToggle).toHaveAttribute('title', /Enable Vim Mode/i);
+    await expect(visualRowsToggle).toHaveAttribute('data-ui-tooltip', /Enable Vim Mode/i);
     await expect(visualRowsSlider).toHaveCSS('cursor', 'not-allowed');
     await expect(visualRowsSlider).toHaveCSS('opacity', '0.5');
     await expect(visualRowsSlider).toHaveCSS('border-radius', '20px');
     await expect(revealBlocksToggle).toBeDisabled();
-    await expect(revealBlocksToggle).toHaveAttribute('title', /Enable Vim Mode/i);
+    await expect(revealBlocksToggle).toHaveAttribute('data-ui-tooltip', /Enable Vim Mode/i);
     await expect(revealBlocksSlider).toHaveCSS('cursor', 'not-allowed');
     await expect(revealBlocksSlider).toHaveCSS('opacity', '0.5');
     await expect(revealBlocksSlider).toHaveCSS('border-radius', '20px');

@@ -20,7 +20,8 @@ type LinkedNote struct {
 	Mtime   float64 `json:"mtime"`
 }
 
-// GetLinkedNotesForDate returns notes that link to a date-specific daily note.
+// GetLinkedNotesForDate returns the distinct daily/ordinarily-linked note rows
+// that contribute to a date's activity count. Semantic due links are tasks.
 func (a *App) GetLinkedNotesForDate(dateStr string) ([]LinkedNote, error) {
 	a.vaultMu.RLock()
 	defer a.vaultMu.RUnlock()
@@ -35,23 +36,60 @@ func (a *App) GetLinkedNotesForDate(dateStr string) ([]LinkedNote, error) {
 
 // CalendarMonthData returns calendar information for a month.
 type CalendarMonthData struct {
-	Year             int     `json:"year"`
-	Month            int     `json:"month"`
-	DaysWithNotes    []int   `json:"days_with_notes"`
-	DaysWithLinks    []int   `json:"days_with_links"`
-	DaysWithDueTasks []int   `json:"days_with_due_tasks"`
-	Calendar         [][]int `json:"calendar"`
+	Year             int                  `json:"year"`
+	Month            int                  `json:"month"`
+	DaysWithNotes    []int                `json:"days_with_notes"`
+	DaysWithLinks    []int                `json:"days_with_links"`
+	DaysWithDueTasks []int                `json:"days_with_due_tasks"`
+	DaySummaries     []CalendarDaySummary `json:"day_summaries"`
+	Calendar         [][]int              `json:"calendar"`
 }
 
-// GetCalendarMonthData returns which days have notes/links in a given month.
+// CalendarDaySummary is the bounded activity projection needed to style and
+// describe one populated day without loading every task or linked-note row.
+type CalendarDaySummary struct {
+	Day       int      `json:"day"`
+	NoteCount int      `json:"note_count"`
+	DueTitles []string `json:"due_titles"`
+}
+
+func calendarMonthDaySummaries(index *vaultIndex, year, month int) []CalendarDaySummary {
+	daysInMonth := time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC).Day()
+	summaries := make([]CalendarDaySummary, 0)
+	for day := 1; day <= daysInMonth; day++ {
+		dateStr := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC).Format("2006-01-02")
+		noteCount := index.calendar.noteCount(dateStr)
+		tasks := index.dueTasksByDate[dateStr]
+		if noteCount == 0 && len(tasks) == 0 {
+			continue
+		}
+		dueTitles := make([]string, 0, len(tasks))
+		for _, task := range tasks {
+			title := strings.TrimSpace(task.Text)
+			if title == "" {
+				title = "Untitled task"
+			}
+			dueTitles = append(dueTitles, title)
+		}
+		summaries = append(summaries, CalendarDaySummary{
+			Day:       day,
+			NoteCount: noteCount,
+			DueTitles: dueTitles,
+		})
+	}
+	return summaries
+}
+
+// GetCalendarMonthData returns the bounded activity projection for one month.
 func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, error) {
 	a.vaultMu.RLock()
 	defer a.vaultMu.RUnlock()
 
-	index, err := a.calendarIndexLocked()
+	index, err := a.ensureVaultIndexLocked()
 	if err != nil {
 		return nil, err
 	}
+	calendarIndex := index.calendar
 
 	// Build calendar grid
 	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
@@ -82,9 +120,10 @@ func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, err
 	return &CalendarMonthData{
 		Year:             year,
 		Month:            month,
-		DaysWithNotes:    calendarMonthDays(index.dailyDaysByMonth, year, month),
-		DaysWithLinks:    calendarMonthDays(index.linkedDaysByMonth, year, month),
-		DaysWithDueTasks: calendarMonthDays(index.dueDaysByMonth, year, month),
+		DaysWithNotes:    calendarMonthDays(calendarIndex.dailyDaysByMonth, year, month),
+		DaysWithLinks:    calendarMonthDays(calendarIndex.linkedDaysByMonth, year, month),
+		DaysWithDueTasks: calendarMonthDays(calendarIndex.dueDaysByMonth, year, month),
+		DaySummaries:     calendarMonthDaySummaries(index, year, month),
 		Calendar:         cal,
 	}, nil
 }

@@ -48,6 +48,119 @@ export function toggleSelectedPath(selectedPaths, path) {
     return next;
 }
 
+const fileTreeCodeExtensions = new Set([
+    'astro', 'c', 'cc', 'cfg', 'conf', 'cpp', 'cs', 'css', 'go', 'h', 'hpp',
+    'htm', 'html', 'ini', 'java', 'js', 'jsx', 'kt', 'kts', 'less', 'mjs',
+    'php', 'py', 'rb', 'rs', 'sass', 'scss', 'sql', 'svelte', 'toml', 'ts',
+    'tsx', 'vue', 'xml', 'yaml', 'yml',
+]);
+const fileTreeImageExtensions = new Set([
+    'avif', 'bmp', 'gif', 'ico', 'jpeg', 'jpg', 'png', 'svg', 'tif', 'tiff', 'webp',
+]);
+const fileTreeSpreadsheetExtensions = new Set(['csv', 'ods', 'tsv', 'xls', 'xlsx']);
+const fileTreeArchiveExtensions = new Set(['7z', 'bz2', 'gz', 'rar', 'tar', 'tgz', 'xz', 'zip']);
+const fileTreeAudioExtensions = new Set(['aac', 'flac', 'm4a', 'mp3', 'oga', 'ogg', 'wav']);
+const fileTreeVideoExtensions = new Set(['avi', 'mkv', 'mov', 'mp4', 'mpeg', 'webm']);
+const fileTreeTerminalExtensions = new Set(['bash', 'bat', 'cmd', 'fish', 'ps1', 'sh', 'zsh']);
+const fileTreeCodeBasenames = new Set(['dockerfile', 'gemfile', 'makefile', 'procfile']);
+
+/**
+ * Choose one semantic default icon without coupling file identity to editor
+ * capability. The DOM adapter may still decide whether activation can open a
+ * file, while every vault entry receives a normal, recognizable presentation.
+ */
+export function fileTreeFilePresentation(path) {
+    const normalized = String(path || '').replaceAll('\\', '/');
+    const filename = normalized.slice(normalized.lastIndexOf('/') + 1);
+    const lowerName = filename.toLowerCase();
+    if (lowerName.endsWith('.drawio.svg')) return { icon: 'Workflow', label: 'Draw.io diagram' };
+
+    const dot = lowerName.lastIndexOf('.');
+    const extension = dot >= 0 ? lowerName.slice(dot + 1) : '';
+    if (['md', 'markdown', 'mdx'].includes(extension)) {
+        return { icon: 'FileText', label: 'Markdown document' };
+    }
+    if (['log', 'rst', 'rtf', 'txt'].includes(extension)) {
+        return { icon: 'FileText', label: 'Text document' };
+    }
+    if (extension === 'pdf') return { icon: 'FileText', label: 'PDF document' };
+    if (fileTreeImageExtensions.has(extension)) return { icon: 'FileImage', label: 'Image file' };
+    if (['json', 'jsonc'].includes(extension)) return { icon: 'FileJson', label: 'JSON file' };
+    if (fileTreeSpreadsheetExtensions.has(extension)) {
+        return { icon: 'FileSpreadsheet', label: 'Spreadsheet file' };
+    }
+    if (fileTreeArchiveExtensions.has(extension)) return { icon: 'FileArchive', label: 'Archive file' };
+    if (fileTreeAudioExtensions.has(extension)) return { icon: 'FileAudio', label: 'Audio file' };
+    if (fileTreeVideoExtensions.has(extension)) return { icon: 'FileVideo', label: 'Video file' };
+    if (fileTreeTerminalExtensions.has(extension)) return { icon: 'FileTerminal', label: 'Script file' };
+    if (fileTreeCodeExtensions.has(extension) || fileTreeCodeBasenames.has(lowerName)) {
+        return { icon: 'FileCode2', label: 'Source file' };
+    }
+    return {
+        icon: 'File',
+        label: extension ? `${extension.toUpperCase()} file` : 'File',
+    };
+}
+
+/**
+ * Place a file-tree tooltip beside its row while keeping the complete surface
+ * inside the viewport. The DOM adapter owns measurement and applies this pure
+ * positioning decision to its fixed overlay.
+ */
+export function fileTreeTooltipPosition(anchorRect, tooltipRect, viewport = {}) {
+    const margin = 8;
+    const gap = 6;
+    const viewportWidth = Math.max(0, Number(viewport.width ?? viewport.innerWidth) || 0);
+    const viewportHeight = Math.max(0, Number(viewport.height ?? viewport.innerHeight) || 0);
+    const tooltipWidth = Math.max(0, Number(tooltipRect?.width) || 0);
+    const tooltipHeight = Math.max(0, Number(tooltipRect?.height) || 0);
+    const anchorLeft = Number(anchorRect?.left) || 0;
+    const anchorRight = Number(anchorRect?.right) || anchorLeft;
+    const anchorTop = Number(anchorRect?.top) || 0;
+    const anchorHeight = Math.max(0, Number(anchorRect?.height) || 0);
+    const maximumLeft = Math.max(margin, viewportWidth - tooltipWidth - margin);
+    const maximumTop = Math.max(margin, viewportHeight - tooltipHeight - margin);
+    const preferredRight = anchorRight + gap;
+    const preferredLeft = anchorLeft - tooltipWidth - gap;
+    const left = preferredRight + tooltipWidth <= viewportWidth - margin
+        ? preferredRight
+        : preferredLeft;
+    const top = anchorTop + ((anchorHeight - tooltipHeight) / 2);
+
+    return {
+        left: Math.max(margin, Math.min(left, maximumLeft)),
+        top: Math.max(margin, Math.min(top, maximumTop)),
+    };
+}
+
+/**
+ * Resolve the vault entries affected by an item action. A context action on
+ * one member of a multi-selection applies to the whole selection; an action
+ * on any other row intentionally falls back to that row alone.
+ */
+export function fileTreeActionPaths(targetPath, selectedPaths = []) {
+    const target = String(targetPath || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
+    if (!target) return [];
+    const selected = [...new Set((Array.isArray(selectedPaths) ? selectedPaths : [])
+        .map(path => String(path || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, ''))
+        .filter(Boolean))];
+    return selected.includes(target) ? selected : [target];
+}
+
+/** Keep operation selection path-based and drop entries removed by refresh. */
+export function reconcileSelectedTreePaths(selectedPaths, items) {
+    const available = new Set();
+    const visit = entries => {
+        for (const item of Array.isArray(entries) ? entries : []) {
+            if (item?.path) available.add(item.path);
+            if (Array.isArray(item?.children)) visit(item.children);
+        }
+    };
+    visit(items);
+    return [...new Set(Array.isArray(selectedPaths) ? selectedPaths : [])]
+        .filter(path => available.has(path));
+}
+
 /**
  * Project tab ownership into the only secondary file marker the tree needs.
  * Clean open tabs are deliberately absent: whether a clean document has a tab
@@ -124,7 +237,8 @@ export function fileTreeKeyboardPlan(key, rows, currentPath) {
     if (key === 'End') return focus(rows.length - 1);
     if (key === 'ArrowDown') return focus(foundIndex < 0 ? 0 : Math.min(rows.length - 1, currentIndex + 1));
     if (key === 'ArrowUp') return focus(foundIndex < 0 ? 0 : Math.max(0, currentIndex - 1));
-    if (key === 'Enter' || key === ' ') return { action: 'activate', path: current.path };
+    if (key === 'Enter') return { action: 'activate', path: current.path };
+    if (key === ' ') return { action: 'toggle-selection', path: current.path };
 
     if (key === 'ArrowRight') {
         if (current.type !== 'directory' || !current.hasChildren) return { action: 'none' };

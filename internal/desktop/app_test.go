@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -2331,6 +2332,110 @@ func TestRevealInExplorer(t *testing.T) {
 	}
 	if len(launched.Args) != 2 || launched.Args[1] != vaultPath {
 		t.Fatalf("expected the note's parent directory, got %q", launched.Args)
+	}
+}
+
+func TestOpenWithDefaultApplicationLaunchesExactVaultFile(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	originalLaunch := launchFileWithDefaultApplication
+	defer func() { launchFileWithDefaultApplication = originalLaunch }()
+
+	writeTestFile(t, vaultPath, "Attachments/Quarterly review.pdf", "PDF")
+	var launchedPath string
+	launchFileWithDefaultApplication = func(path string) error {
+		launchedPath = path
+		return nil
+	}
+
+	result, err := app.OpenWithDefaultApplication("Attachments/Quarterly review.pdf")
+	if err != nil {
+		t.Fatalf("OpenWithDefaultApplication error: %v", err)
+	}
+	if result == nil || !result.Success {
+		t.Fatalf("expected successful launch, got %+v", result)
+	}
+	want := filepath.Join(vaultPath, "Attachments", "Quarterly review.pdf")
+	if launchedPath != want {
+		t.Fatalf("launched path = %q, want %q", launchedPath, want)
+	}
+}
+
+func TestOpenWithDefaultApplicationReportsLauncherFailure(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	originalLaunch := launchFileWithDefaultApplication
+	defer func() { launchFileWithDefaultApplication = originalLaunch }()
+
+	writeTestFile(t, vaultPath, "image.png", "PNG")
+	launchFileWithDefaultApplication = func(string) error {
+		return fmt.Errorf("no associated application")
+	}
+
+	result, err := app.OpenWithDefaultApplication("image.png")
+	if err != nil {
+		t.Fatalf("OpenWithDefaultApplication error: %v", err)
+	}
+	if result == nil || result.Success || !strings.Contains(result.Error, "no associated application") {
+		t.Fatalf("expected a visible launcher failure, got %+v", result)
+	}
+}
+
+func TestOpenWithDefaultApplicationRejectsUnsafeAndNonFileTargets(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	originalLaunch := launchFileWithDefaultApplication
+	defer func() { launchFileWithDefaultApplication = originalLaunch }()
+
+	launches := 0
+	launchFileWithDefaultApplication = func(string) error {
+		launches++
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Join(vaultPath, "Attachments"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, target := range []string{"Attachments", "missing.pdf"} {
+		result, err := app.OpenWithDefaultApplication(target)
+		if err != nil {
+			t.Fatalf("OpenWithDefaultApplication(%q) error: %v", target, err)
+		}
+		if result == nil || result.Success {
+			t.Fatalf("expected %q to be rejected, got %+v", target, result)
+		}
+	}
+	if result, err := app.OpenWithDefaultApplication("../outside.pdf"); err == nil || result != nil {
+		t.Fatalf("expected traversal to fail before launch, got result=%+v err=%v", result, err)
+	}
+
+	outsideDir := t.TempDir()
+	outside := filepath.Join(outsideDir, "outside.pdf")
+	if err := os.WriteFile(outside, []byte("PDF"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(vaultPath, "linked.pdf")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	result, err := app.OpenWithDefaultApplication("linked.pdf")
+	if err != nil {
+		t.Fatalf("OpenWithDefaultApplication symlink error: %v", err)
+	}
+	if result == nil || result.Success || !strings.Contains(result.Error, "symbolic links") {
+		t.Fatalf("expected symlink rejection, got %+v", result)
+	}
+	if err := os.Symlink(outsideDir, filepath.Join(vaultPath, "linked-directory")); err != nil {
+		t.Fatal(err)
+	}
+	result, err = app.OpenWithDefaultApplication("linked-directory/outside.pdf")
+	if err != nil {
+		t.Fatalf("OpenWithDefaultApplication parent symlink error: %v", err)
+	}
+	if result == nil || result.Success || !strings.Contains(result.Error, "symbolic links") {
+		t.Fatalf("expected parent symlink rejection, got %+v", result)
+	}
+	if launches != 0 {
+		t.Fatalf("unsafe targets launched %d applications", launches)
 	}
 }
 

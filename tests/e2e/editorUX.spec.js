@@ -1658,7 +1658,9 @@ test('keeps Quick note available in the collapsed rail and gives Inbox its defau
     });
 
     await expect(page.locator('[data-path="Inbox"] .default-inbox-icon')).toBeVisible();
-    await expect(page.locator('[data-path="active.md"] > .file-tree-node')).toHaveClass(/selected/);
+    await expect(page.locator('[data-path="active.md"] > .file-tree-node')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('[data-path="active.md"] > .file-tree-node')).toHaveAttribute('aria-selected', 'false');
+    await expect(page.locator('[data-path="active.md"] > .file-tree-node')).not.toHaveClass(/selected/);
     await expect(page.locator('[data-path="background.md"] > .file-tree-node')).toHaveClass(/dirty-buffer/);
     await expect(page.locator('[data-path="background.md"] > .file-tree-node'))
         .toHaveAccessibleName(/background\.md.*Unsaved changes/i);
@@ -1671,7 +1673,7 @@ test('keeps Quick note available in the collapsed rail and gives Inbox its defau
     await page.locator('.file-tree-style-modal .custom-modal-btn-cancel').click();
 });
 
-test('patches mounted file-tree selection and dirty buffers without rebuilding folders during fast tab transitions', async ({ page }) => {
+test('patches mounted file-tree current-document and dirty markers without rebuilding folders during fast tab transitions', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
 
@@ -1713,6 +1715,10 @@ test('patches mounted file-tree selection and dirty buffers without rebuilding f
                 background === document.querySelector('[data-path="Projects/background.md"] > .file-tree-node'),
             activeClasses: [...active.classList],
             backgroundClasses: [...background.classList],
+            activeCurrent: active.getAttribute('aria-current'),
+            backgroundCurrent: background.getAttribute('aria-current'),
+            activeSelected: active.getAttribute('aria-selected'),
+            backgroundSelected: background.getAttribute('aria-selected'),
             hiddenMounted: Boolean(document.querySelector('[data-path="Archive/hidden.md"]')),
         };
     });
@@ -1724,8 +1730,12 @@ test('patches mounted file-tree selection and dirty buffers without rebuilding f
     }));
     expect(result.activeClasses).toContain('dirty-buffer');
     expect(result.activeClasses).not.toContain('selected');
-    expect(result.backgroundClasses).toContain('selected');
+    expect(result.activeCurrent).toBeNull();
+    expect(result.activeSelected).toBe('false');
+    expect(result.backgroundClasses).not.toContain('selected');
     expect(result.backgroundClasses).not.toContain('dirty-buffer');
+    expect(result.backgroundCurrent).toBe('page');
+    expect(result.backgroundSelected).toBe('false');
 });
 
 test('keeps local history quiet until the active file needs recording again', async ({ page }) => {

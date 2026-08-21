@@ -65,7 +65,9 @@ type vaultIndexedFile struct {
 	dueTasks       []KanbanCard
 	dailyNote      string
 	linkedDays     []string
+	noteDays       []string
 	linked         map[string]LinkedNote
+	noteLinks      map[string]LinkedNote
 	backlinks      map[string]BacklinkResult
 }
 
@@ -145,6 +147,7 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 		searchHeadings: text.searchHeadings,
 		searchDocument: text.searchDocument,
 		linked:         make(map[string]LinkedNote),
+		noteLinks:      make(map[string]LinkedNote),
 		backlinks:      make(map[string]BacklinkResult),
 	}
 	file.searchDocument.Fields[searchmodel.FieldTitle] = searchmodel.Analyze(
@@ -159,6 +162,7 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 	}
 
 	seenLinkedDays := make(map[string]struct{})
+	seenNoteDays := make(map[string]struct{})
 	seenTags := make(map[string]struct{})
 	// One line walk feeds every document-derived projection. Indexing runs on
 	// initial vault discovery and on each Markdown save, so avoiding separate
@@ -184,6 +188,18 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 					LineNum: lineNumber,
 					Snippet: strings.TrimSpace(line),
 					Mtime:   file.mtime,
+				}
+			}
+			if !taskDueLinkRE.MatchString(match[0]) {
+				seenNoteDays[dateStr] = struct{}{}
+				if _, seen := file.noteLinks[dateStr]; !seen {
+					file.noteLinks[dateStr] = LinkedNote{
+						Path:    file.path,
+						Name:    file.name,
+						LineNum: lineNumber,
+						Snippet: strings.TrimSpace(line),
+						Mtime:   file.mtime,
+					}
 				}
 			}
 		}
@@ -271,6 +287,11 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 		file.linkedDays = append(file.linkedDays, dateStr)
 	}
 	sort.Strings(file.linkedDays)
+	file.noteDays = make([]string, 0, len(seenNoteDays))
+	for dateStr := range seenNoteDays {
+		file.noteDays = append(file.noteDays, dateStr)
+	}
+	sort.Strings(file.noteDays)
 	file.searchDocument.Fields[searchmodel.FieldTags] = searchmodel.Analyze(strings.Join(file.tags, " "), false)
 
 	return file
@@ -460,6 +481,15 @@ func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
 		index.dueTasksByDate[task.DueDate] = append(index.dueTasksByDate[task.DueDate], task)
 	}
 	if file.dailyNote != "" {
+		index.calendar.addNotePath(file.dailyNote, file.path)
+		snippet := file.content
+		if lineEnd := strings.IndexByte(snippet, '\n'); lineEnd >= 0 {
+			snippet = snippet[:lineEnd]
+		}
+		index.calendar.addLinkedNote(file.dailyNote, LinkedNote{
+			Path: file.path, Name: file.name, LineNum: 1,
+			Snippet: strings.TrimSpace(snippet), Mtime: file.mtime,
+		})
 		if index.dailyNoteCounts[file.dailyNote] == 0 {
 			index.calendar.addDailyNote(file.dailyNote)
 		}
@@ -471,8 +501,11 @@ func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
 		}
 		index.linkedDayCounts[dateStr]++
 	}
-	for dateStr, note := range file.linked {
-		index.calendar.linkedNotes[dateStr] = append(index.calendar.linkedNotes[dateStr], note)
+	for _, dateStr := range file.noteDays {
+		index.calendar.addNotePath(dateStr, file.path)
+	}
+	for dateStr, note := range file.noteLinks {
+		index.calendar.addLinkedNote(dateStr, note)
 	}
 	if file.searchIndexed {
 		for _, trigram := range file.searchTrigrams {
@@ -537,6 +570,8 @@ func (index *vaultIndex) removeFileContributions(file vaultIndexedFile) {
 		}
 	}
 	if file.dailyNote != "" {
+		index.calendar.removeNotePath(file.dailyNote, file.path)
+		index.calendar.removeLinkedNote(file.dailyNote, file.path)
 		if index.dailyNoteCounts[file.dailyNote] <= 1 {
 			delete(index.dailyNoteCounts, file.dailyNote)
 			index.calendar.removeDailyNote(file.dailyNote)
@@ -552,19 +587,11 @@ func (index *vaultIndex) removeFileContributions(file vaultIndexedFile) {
 			index.linkedDayCounts[dateStr]--
 		}
 	}
-	for dateStr := range file.linked {
-		notes := index.calendar.linkedNotes[dateStr]
-		filtered := notes[:0]
-		for _, note := range notes {
-			if note.Path != file.path {
-				filtered = append(filtered, note)
-			}
-		}
-		if len(filtered) == 0 {
-			delete(index.calendar.linkedNotes, dateStr)
-		} else {
-			index.calendar.linkedNotes[dateStr] = filtered
-		}
+	for _, dateStr := range file.noteDays {
+		index.calendar.removeNotePath(dateStr, file.path)
+	}
+	for dateStr := range file.noteLinks {
+		index.calendar.removeLinkedNote(dateStr, file.path)
 	}
 	if file.searchIndexed {
 		for _, trigram := range file.searchTrigrams {
@@ -655,7 +682,7 @@ func (index *vaultIndex) replaceFile(file vaultIndexedFile) {
 	for _, task := range file.dueTasks {
 		sortKanbanCards(index.dueTasksByDate[task.DueDate])
 	}
-	for dateStr := range file.linked {
+	for dateStr := range file.noteLinks {
 		sortLinkedNotes(index.calendar.linkedNotes[dateStr])
 	}
 	for target := range file.backlinks {

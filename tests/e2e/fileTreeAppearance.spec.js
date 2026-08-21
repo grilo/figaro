@@ -119,6 +119,10 @@ test('enters a semantic file-tree row and traverses visible hierarchy by keyboar
     await expect(plan).toBeFocused();
     await page.keyboard.press('ArrowDown');
     await expect(spec).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(spec).toHaveAttribute('aria-selected', 'true');
+    await expect(spec).toHaveClass(/selected/);
+    await expect(spec).toHaveCSS('outline-style', 'solid');
     await page.keyboard.press('ArrowLeft');
     await expect(projects).toBeFocused();
     await page.keyboard.press('ArrowLeft');
@@ -169,4 +173,115 @@ test('keeps pinned entries first with a right-edge marker and lets Inbox be unpi
 
     await expect(inbox.locator('.node-pin-indicator')).toHaveCount(0);
     await expect(rootItems.first()).toHaveAttribute('data-path', 'Archive');
+});
+
+test('uses semantic icons, managed-file default-app opening, one selection surface, and visible Cut state', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true && window.lucide?.icons?.FileText && window.lucide?.icons?.Scissors);
+
+    await page.evaluate(async () => {
+        const app = (await import('/js/backend.js')).backend();
+        const tree = [
+            { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
+            { name: 'report.pdf', path: 'report.pdf', type: 'file', mtime: 2 },
+            { name: 'Archive', path: 'Archive', type: 'directory', children: [] },
+        ];
+        window.__fileTreeMoveCalls = [];
+        window.__fileTreeOpenCalls = [];
+        app.GetFileTree = async () => tree;
+        app.GetFileTreeStyles = async () => ({ version: 1, entries: {}, recent_icons: [] });
+        app.OpenWithDefaultApplication = async path => {
+            window.__fileTreeOpenCalls.push(path);
+            return { success: true };
+        };
+        app.MovePath = async (source, target) => {
+            window.__fileTreeMoveCalls.push({ source, target });
+            return { success: true, old_path: source, path: `${target}/${source}`, updated_links: [] };
+        };
+        const state = await import('/js/state.js');
+        state.setState('selectedTreePaths', []);
+        state.setState('selectedTreePath', null);
+        state.setState('selectedFilePath', 'draft.md');
+        state.setState('expandedDirs', new Set());
+        const { refreshFileTree } = await import('/js/fileTree.js');
+        await refreshFileTree();
+    });
+
+    const pdf = page.locator('[data-path="report.pdf"] > .file-tree-node');
+    const draft = page.locator('[data-path="draft.md"] > .file-tree-node');
+    await expect(pdf).toHaveCSS('opacity', '1');
+    await expect(pdf.locator('.default-file-icon')).toBeVisible();
+    await expect(pdf).not.toHaveAttribute('title', /.+/);
+    await expect(pdf).toHaveAttribute('aria-describedby', /file-tree-capability-/);
+    await expect(pdf).not.toHaveAttribute('aria-disabled', 'true');
+    await pdf.hover();
+    const capabilityTooltip = page.locator('.file-tree-capability-tooltip');
+    await expect(capabilityTooltip).toBeVisible();
+    await expect(capabilityTooltip).toHaveClass(/ui-tooltip/);
+    await expect(capabilityTooltip).toHaveText('PDF document. Not editable in Figaro. Double-click to open with the default application.');
+    const tooltipPresentation = await capabilityTooltip.evaluate(element => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+            background: style.backgroundColor,
+            borderStyle: style.borderStyle,
+            color: style.color,
+            shadow: style.boxShadow,
+            rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom },
+            viewport: { width: innerWidth, height: innerHeight },
+        };
+    });
+    expect(tooltipPresentation.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(tooltipPresentation.borderStyle).toBe('solid');
+    expect(tooltipPresentation.color).not.toBe('rgb(0, 0, 0)');
+    expect(tooltipPresentation.shadow).not.toBe('none');
+    expect(tooltipPresentation.rect.left).toBeGreaterThanOrEqual(8);
+    expect(tooltipPresentation.rect.top).toBeGreaterThanOrEqual(8);
+    expect(tooltipPresentation.rect.right).toBeLessThanOrEqual(tooltipPresentation.viewport.width - 8);
+    expect(tooltipPresentation.rect.bottom).toBeLessThanOrEqual(tooltipPresentation.viewport.height - 8);
+    await pdf.click();
+    await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).getState('selectedTreePaths')))
+        .toEqual(['report.pdf']);
+    await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).getState('selectedFilePath')))
+        .toBe('draft.md');
+    await expect(pdf).toHaveAttribute('aria-selected', 'true');
+    await expect(draft).toHaveAttribute('aria-current', 'page');
+    await expect(draft).not.toHaveClass(/selected/);
+
+    await pdf.dblclick();
+    await expect.poll(() => page.evaluate(() => window.__fileTreeOpenCalls)).toEqual(['report.pdf']);
+
+    await pdf.click({ button: 'right' });
+    await expect(page.locator('.context-menu-item[data-action="cut"]')).toBeEnabled();
+    await expect(page.locator('.context-menu-item[data-action="customize-style"]')).toBeEnabled();
+    const open = page.locator('.context-menu-item[data-action="open-new-tab"]');
+    await expect(open).toBeEnabled();
+    await expect(open.locator('.context-menu-item-label')).toHaveText('Open');
+    await open.click();
+    await expect.poll(() => page.evaluate(() => window.__fileTreeOpenCalls)).toEqual(['report.pdf', 'report.pdf']);
+
+    await draft.click({ modifiers: ['Control'] });
+    await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).getState('selectedTreePaths')))
+        .toEqual(['report.pdf', 'draft.md']);
+    const selectedSurfaces = await Promise.all([pdf, draft].map(row => row.evaluate(element => ({
+        background: getComputedStyle(element).backgroundColor,
+        boxShadow: getComputedStyle(element).boxShadow,
+    }))));
+    expect(selectedSurfaces[0]).toEqual(selectedSurfaces[1]);
+    await pdf.click({ button: 'right' });
+    await expect(page.locator('.context-menu-item[data-action="cut"]')).toBeEnabled();
+    await expect(page.locator('.context-menu-item[data-action="rename"]')).toBeDisabled();
+    await page.locator('.context-menu-item[data-action="cut"]').click();
+    await expect(pdf).toHaveClass(/cut-marked/);
+    await expect(draft).toHaveClass(/cut-marked/);
+    await expect(pdf.locator('.node-cut-indicator')).toBeVisible();
+
+    await page.locator('[data-path="Archive"] > .file-tree-node').click({ button: 'right' });
+    await expect(page.locator('.context-menu-item[data-action="paste"]')).toBeEnabled();
+    await page.locator('.context-menu-item[data-action="paste"]').click();
+    await expect.poll(() => page.evaluate(() => window.__fileTreeMoveCalls)).toEqual([
+        { source: 'report.pdf', target: 'Archive' },
+        { source: 'draft.md', target: 'Archive' },
+    ]);
+    await expect(page.locator('.file-tree-node.cut-marked')).toHaveCount(0);
 });

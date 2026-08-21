@@ -7,7 +7,19 @@ import { log } from './log.js';
 import { setState, getState } from './state.js';
 import { fileIcon } from './icons.js';
 import { openTab } from './tabManager.js';
-import { localISODate } from './core/dueDateModel.js';
+import { dateFromISO, localISODate } from './core/dueDateModel.js';
+import {
+    calendarDayState,
+    calendarMonthGrid,
+    calendarMonthSummaryMap,
+    calendarNoteAssociations,
+    isoWeekday,
+    localeWeekInfo,
+    localeWeekdays,
+    overlayCalendarLinkedNotes,
+    overlayCalendarMonthNotes,
+    tooltipPosition,
+} from './core/calendarModel.js';
 
 let calendarRequestId = 0;
 let linkedNotesRequestId = 0;
@@ -16,6 +28,39 @@ const calendarResultsRequestIds = new Map();
 const calendarMonthCache = new Map();
 const linkedNotesCache = new Map();
 const dueTasksCache = new Map();
+const calendarDayTooltipId = 'calendar-day-tooltip';
+const calendarNoteBaselines = new Map();
+let liveCalendarRefreshFrame = null;
+
+function currentCalendarLocale() {
+    const candidates = [
+        ...(Array.isArray(navigator.languages) ? navigator.languages : []),
+        navigator.language,
+        Intl.DateTimeFormat().resolvedOptions().locale,
+    ];
+    for (const candidate of candidates) {
+        if (!candidate) continue;
+        try {
+            new Intl.DateTimeFormat(candidate).format();
+            return candidate;
+        } catch (_) {
+            // Some WebKitGTK builds expose C/POSIX as a navigator language.
+        }
+    }
+    return 'en-US';
+}
+
+function formatCalendarMonth(year, month, locale) {
+    return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' })
+        .format(new Date(year, month, 1, 12));
+}
+
+function formatCalendarDate(dateStr, locale) {
+    const date = dateFromISO(dateStr);
+    return date
+        ? new Intl.DateTimeFormat(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(date)
+        : dateStr;
+}
 
 /**
  * Drop cached calendar data after a vault mutation or filesystem event.
@@ -37,6 +82,48 @@ export function refreshCalendarIfVisible() {
     return false;
 }
 
+function dirtyCalendarNoteAssociations() {
+    const associations = new Map();
+    for (const tab of getState('openTabs') || []) {
+        if (tab?.type !== 'file' || tab.externalFileId || !tab.dirty || !tab.path || typeof tab._content !== 'string') continue;
+        associations.set(tab.path, calendarNoteAssociations(tab.path, tab._content));
+    }
+    return associations;
+}
+
+function rememberCalendarNoteBaseline(path) {
+    const tab = (getState('openTabs') || []).find(candidate => (
+        candidate?.type === 'file' && !candidate.externalFileId && candidate.path === path
+    ));
+    if (!tab || typeof tab._content !== 'string') return;
+    calendarNoteBaselines.set(path, calendarNoteAssociations(path, tab._content));
+}
+
+function updateCalendarNoteBaselineAfterSave(path, content) {
+    if (!path || typeof content !== 'string') return;
+    const remainsDirty = (getState('openTabs') || []).some(tab => (
+        tab?.type === 'file' && !tab.externalFileId && tab.path === path && tab.dirty
+    ));
+    if (remainsDirty) {
+        calendarNoteBaselines.set(path, calendarNoteAssociations(path, content));
+    } else {
+        calendarNoteBaselines.delete(path);
+    }
+}
+
+function scheduleLiveCalendarRefresh() {
+    if (liveCalendarRefreshFrame !== null) return;
+    const refresh = () => {
+        liveCalendarRefreshFrame = null;
+        // The saved month remains cached; only the small dirty-buffer overlay
+        // is recomputed while typing.
+        refreshCalendarIfVisible();
+    };
+    liveCalendarRefreshFrame = typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame(refresh)
+        : setTimeout(refresh, 0);
+}
+
 /**
  * Initialize calendar module
  */
@@ -53,6 +140,13 @@ export function initCalendar() {
         invalidateCalendarCache();
         refreshCalendarIfVisible();
     });
+    document.addEventListener('active-file-dirty', event => {
+        rememberCalendarNoteBaseline(event.detail?.path);
+    });
+    document.addEventListener('file-content-changed', scheduleLiveCalendarRefresh);
+    document.addEventListener('vault-file-saved', event => {
+        updateCalendarNoteBaselineAfterSave(event.detail?.path, event.detail?.content);
+    });
 }
 
 /**
@@ -68,23 +162,35 @@ export function renderCalendar() {
     const requestId = ++calendarRequestId;
     
     const currentDate = getState('currentCalDate');
-    const selectedDateStr = getState('selectedCalDateStr');
-    
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
+    const storedSelectedDateStr = getState('selectedCalDateStr');
+    const todayStr = localISODate();
+    const selectedDateStr = storedSelectedDateStr || (
+        todayStr.startsWith(`${year}-${String(month + 1).padStart(2, '0')}-`) ? todayStr : null
+    );
+    const locale = currentCalendarLocale();
     
     // Update month/year display
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'];
-    monthYearEl.textContent = `${monthNames[month]} ${year}`;
+    const monthLabel = formatCalendarMonth(year, month, locale);
+    monthYearEl.textContent = monthLabel;
     container.setAttribute('aria-busy', 'true');
+    container.setAttribute('aria-label', monthLabel);
+    container.setAttribute('role', 'grid');
     
     // Get calendar data from backend (backend expects month 1-12, JS getMonth returns 0-11)
     loadCalendarData(year, month + 1).then(data => {
         if (requestId !== calendarRequestId || !container.isConnected) return;
+        const visibleData = overlayCalendarMonthNotes(
+            data,
+            year,
+            month + 1,
+            calendarNoteBaselines,
+            dirtyCalendarNoteAssociations(),
+        );
         container.setAttribute('aria-busy', 'false');
-        renderCalendarGrid(container, year, month, data, selectedDateStr);
-        renderLinkedNotes(linkedNotesContainer, data, selectedDateStr, requestId);
+        renderCalendarGrid(container, year, month, visibleData, selectedDateStr, locale);
+        renderLinkedNotes(linkedNotesContainer, visibleData, selectedDateStr, requestId);
     }).catch(err => {
         if (requestId !== calendarRequestId || !container.isConnected) return;
         log.error('Failed to load calendar data:', err);
@@ -116,6 +222,7 @@ async function loadCalendarData(year, month) {
                 days_with_notes: [],
                 days_with_links: [],
                 days_with_due_tasks: [],
+                day_summaries: [],
                 calendar: []
             };
         }
@@ -127,58 +234,165 @@ async function loadCalendarData(year, month) {
 /**
  * Render calendar grid
  */
-function renderCalendarGrid(container, year, month, data, selectedDateStr) {
-    const calendar = Array.isArray(data?.calendar) ? data.calendar : [];
-    const days_with_notes = Array.isArray(data?.days_with_notes) ? data.days_with_notes : [];
-    const days_with_links = Array.isArray(data?.days_with_links) ? data.days_with_links : [];
-    const days_with_due_tasks = Array.isArray(data?.days_with_due_tasks) ? data.days_with_due_tasks : [];
+function renderCalendarGrid(container, year, month, data, selectedDateStr, locale = currentCalendarLocale()) {
+    const weekInfo = localeWeekInfo(locale);
+    const calendar = calendarMonthGrid(year, month, weekInfo.firstDay);
+    const weekdays = localeWeekdays(locale, weekInfo.firstDay);
+    const daysWithLinks = new Set(Array.isArray(data?.days_with_links) ? data.days_with_links.map(Number) : []);
+    const hasStructuredSummaries = Array.isArray(data?.day_summaries);
+    const summaries = calendarMonthSummaryMap(data);
     const todayStr = localISODate();
-    
+    const visualSelectedDateStr = selectedDateStr || todayStr;
+
     let html = '';
-    
+
     // Day headers
-    const dayHeaders = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-    for (const day of dayHeaders) {
-        html += `<div class="cal-day-header">${day}</div>`;
+    for (const weekday of weekdays) {
+        html += `<div class="cal-day-header" role="columnheader" aria-label="${escapeAttr(weekday.long)}">${escapeHtml(weekday.short)}</div>`;
     }
-    
+
     // Days
     for (const week of calendar) {
         for (const day of week) {
             if (day === 0) {
-                html += '<div class="cal-day cal-empty"></div>';
+                html += '<span class="cal-day cal-empty" aria-hidden="true"></span>';
                 continue;
             }
-            
+
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isToday = dateStr === todayStr;
-            const isSelected = dateStr === selectedDateStr;
-            const hasNote = days_with_notes.includes(day);
-            const hasLink = days_with_links.includes(day);
-            const hasDueTask = days_with_due_tasks.includes(day);
-            
-            let classes = 'cal-day';
-            if (isToday) classes += ' today';
-            if (isSelected) classes += ' selected';
-            if (hasNote) classes += ' has-note';
-            if (hasLink) classes += ' has-link';
-            if (hasDueTask) classes += ' has-due-task';
-            if (!hasNote && !hasLink && !hasDueTask && !isToday) classes += ' no-notes';
+            const isSelected = dateStr === visualSelectedDateStr;
+            const hasLink = !hasStructuredSummaries && daysWithLinks.has(day);
+            const summary = summaries.get(day) || { noteCount: 0, dueTitles: [], hasDue: false };
+            const state = calendarDayState({
+                isoDay: isoWeekday(year, month, day),
+                weekend: weekInfo.weekend,
+                noteCount: summary.noteCount,
+                dueTitles: summary.dueTitles,
+                hasDue: summary.hasDue,
+                hasLink,
+                isToday,
+            });
 
-            const clickable = hasNote || hasLink || hasDueTask || isToday;
-            const clickHandler = clickable ? `onclick="window.calendarDayClick('${dateStr}')"` : '';
-            
-            html += `<div class="${classes}" data-date="${dateStr}" ${clickHandler}>${day}</div>`;
+            let classes = 'ui-date-picker-day cal-day';
+            if (isSelected) classes += ' selected';
+            if (state.isWeekend) classes += ' is-weekend ui-date-picker-day--weekend';
+            if (state.noteLevel) classes += ` has-note ui-date-picker-day--note-${state.noteLevel}`;
+            if (hasLink) classes += ' has-link';
+            if (state.hasDue) classes += ' has-due-task ui-date-picker-day--due';
+
+            const labelParts = [formatCalendarDate(dateStr, locale)];
+            if (state.isWeekend) labelParts.push('Weekend');
+            if (summary.noteCount) labelParts.push(`${summary.noteCount} ${summary.noteCount === 1 ? 'note' : 'notes'}`);
+            if (state.hasDue) {
+                labelParts.push(summary.dueTitles.length
+                    ? `${summary.dueTitles.length} due ${summary.dueTitles.length === 1 ? 'item' : 'items'}: ${summary.dueTitles.join('; ')}`
+                    : 'Due item');
+            }
+            if (isToday) labelParts.push('Today');
+
+            const commonAttributes = `class="${classes}" data-date="${dateStr}" aria-label="${escapeAttr(labelParts.join('. '))}"`;
+            html += state.clickable
+                ? `<button type="button" ${commonAttributes} aria-pressed="${isSelected}"${isToday ? ' aria-current="date"' : ''}>${day}</button>`
+                : `<span ${commonAttributes} role="gridcell">${day}</span>`;
         }
     }
-    
+
+    hideCalendarDayTooltip();
     container.innerHTML = html;
-    
+
     // Make calendarDayClick globally accessible
     window.calendarDayClick = (dateStr) => {
         setState('selectedCalDateStr', dateStr);
         renderCalendar();
     };
+
+    container.querySelectorAll('button.cal-day[data-date]').forEach(day => {
+        day.addEventListener('click', () => window.calendarDayClick(day.dataset.date));
+    });
+    wireCalendarDayTooltips(container, summaries, locale);
+}
+
+function ensureCalendarDayTooltip() {
+    let tooltip = document.getElementById(calendarDayTooltipId);
+    if (tooltip) return tooltip;
+    tooltip = document.createElement('div');
+    tooltip.id = calendarDayTooltipId;
+    tooltip.className = 'ui-tooltip cal-day-tooltip';
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.hidden = true;
+    document.body.appendChild(tooltip);
+    return tooltip;
+}
+
+function hideCalendarDayTooltip(anchor = null) {
+    const tooltip = document.getElementById(calendarDayTooltipId);
+    if (tooltip) tooltip.hidden = true;
+    anchor?.removeAttribute('aria-describedby');
+}
+
+function showCalendarDayTooltip(anchor, summary, locale) {
+    const tooltip = ensureCalendarDayTooltip();
+    tooltip.replaceChildren();
+
+    const heading = document.createElement('strong');
+    heading.textContent = formatCalendarDate(anchor.dataset.date, locale);
+    tooltip.appendChild(heading);
+    if (summary.noteCount) {
+        const noteCount = document.createElement('span');
+        noteCount.className = 'cal-day-tooltip-note-count';
+        noteCount.textContent = `${summary.noteCount} ${summary.noteCount === 1 ? 'note' : 'notes'}`;
+        tooltip.appendChild(noteCount);
+    }
+    if (summary.dueTitles.length) {
+        const dueLabel = document.createElement('span');
+        dueLabel.className = 'cal-day-tooltip-due-label';
+        dueLabel.textContent = summary.dueTitles.length === 1 ? 'Due item' : 'Due items';
+        tooltip.appendChild(dueLabel);
+        const list = document.createElement('ul');
+        for (const title of summary.dueTitles) {
+            const item = document.createElement('li');
+            item.textContent = title;
+            list.appendChild(item);
+        }
+        tooltip.appendChild(list);
+    }
+
+    tooltip.hidden = false;
+    anchor.setAttribute('aria-describedby', calendarDayTooltipId);
+    const position = tooltipPosition(
+        anchor.getBoundingClientRect(),
+        tooltip.getBoundingClientRect(),
+        { width: window.innerWidth, height: window.innerHeight },
+    );
+    tooltip.style.left = `${position.left}px`;
+    tooltip.style.top = `${position.top}px`;
+}
+
+function wireCalendarDayTooltips(container, summaries, locale) {
+    let hoveredDay = null;
+    let focusedDay = null;
+    container.querySelectorAll('button.cal-day[data-date]').forEach(day => {
+        const dayNumber = Number(day.dataset.date.slice(-2));
+        const summary = summaries.get(dayNumber);
+        if (!summary || (!summary.noteCount && summary.dueTitles.length === 0)) return;
+        day.addEventListener('pointerenter', () => {
+            hoveredDay = day;
+            showCalendarDayTooltip(day, summary, locale);
+        });
+        day.addEventListener('pointerleave', () => {
+            hoveredDay = null;
+            if (focusedDay !== day) hideCalendarDayTooltip(day);
+        });
+        day.addEventListener('focus', () => {
+            focusedDay = day;
+            showCalendarDayTooltip(day, summary, locale);
+        });
+        day.addEventListener('blur', () => {
+            focusedDay = null;
+            if (hoveredDay !== day) hideCalendarDayTooltip(day);
+        });
+    });
 }
 
 /**
@@ -193,8 +407,9 @@ function renderLinkedNotes(container, data, selectedDateStr, renderId) {
         return;
     }
     
-    Promise.all([loadDueTasks(selectedDateStr), loadLinkedNotes(selectedDateStr)]).then(([tasks, notes]) => {
-        if (requestId !== linkedNotesRequestId || renderId !== calendarRequestId || !container.isConnected || getState('selectedCalDateStr') !== selectedDateStr) return;
+    Promise.all([loadDueTasks(selectedDateStr), loadLinkedNotes(selectedDateStr)]).then(([tasks, savedNotes]) => {
+        if (requestId !== linkedNotesRequestId || renderId !== calendarRequestId || !container.isConnected) return;
+        const notes = overlayCalendarLinkedNotes(savedNotes, selectedDateStr, dirtyCalendarNoteAssociations());
         const taskLocations = new Set(tasks.map(task => `${task.file}:${task.line}`));
         const remainingNotes = notes.filter(note => !taskLocations.has(`${note.path}:${note.line_num}`));
         if (tasks.length === 0 && remainingNotes.length === 0) {
@@ -232,7 +447,7 @@ function renderLinkedNotes(container, data, selectedDateStr, renderId) {
             item.addEventListener('click', () => openTab(item.dataset.path, item.dataset.path.split('/').pop(), 'file', { path: item.dataset.path }));
         });
     }).catch(err => {
-        if (requestId !== linkedNotesRequestId || renderId !== calendarRequestId || !container.isConnected || getState('selectedCalDateStr') !== selectedDateStr) return;
+        if (requestId !== linkedNotesRequestId || renderId !== calendarRequestId || !container.isConnected) return;
         log.error('Failed to load date details:', err);
         container.innerHTML = '<p class="cal-error">Failed to load date details</p>';
     });

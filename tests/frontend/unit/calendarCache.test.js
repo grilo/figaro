@@ -5,7 +5,7 @@ jest.mock('../frontend/js/app.js', () => ({
 }));
 
 import { setState } from '../frontend/js/state.js';
-import { invalidateCalendarCache, refreshCalendarIfVisible, renderCalendar } from '../frontend/js/calendar.js';
+import { initCalendar, invalidateCalendarCache, refreshCalendarIfVisible, renderCalendar } from '../frontend/js/calendar.js';
 
 const monthData = {
     year: 2025,
@@ -13,6 +13,10 @@ const monthData = {
     days_with_notes: [15],
     days_with_links: [20],
     days_with_due_tasks: [],
+    day_summaries: [
+        { day: 15, note_count: 1, due_titles: [] },
+        { day: 20, note_count: 1, due_titles: [] },
+    ],
     calendar: [[0, 0, 0, 15, 0, 0, 0]],
 };
 
@@ -24,10 +28,14 @@ async function flushCalendar() {
 describe('Calendar cache', () => {
     beforeEach(() => {
         testUtils.createMockDOM();
+        Object.defineProperty(navigator, 'languages', { value: ['en-US'], configurable: true });
+        Object.defineProperty(navigator, 'language', { value: 'en-US', configurable: true });
         jest.clearAllMocks();
         invalidateCalendarCache();
+        initCalendar();
         setState('currentCalDate', new Date(2025, 0, 15));
         setState('selectedCalDateStr', null);
+        setState('openTabs', []);
         window.go.desktop.App.GetCalendarMonthData.mockResolvedValue(monthData);
         window.go.desktop.App.GetLinkedNotesForDate.mockResolvedValue([]);
         window.go.desktop.App.GetTasksDueOnDate.mockResolvedValue([]);
@@ -87,6 +95,10 @@ describe('Calendar cache', () => {
         window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
             ...monthData,
             days_with_due_tasks: [15],
+            day_summaries: [
+                { day: 15, note_count: 1, due_titles: ['Submit report'] },
+                { day: 20, note_count: 1, due_titles: [] },
+            ],
         });
         window.go.desktop.App.GetTasksDueOnDate.mockResolvedValue([
             { file: 'tasks.md', file_name: 'tasks.md', line: 3, text: 'Submit report', due_date: '2025-01-15' },
@@ -108,6 +120,166 @@ describe('Calendar cache', () => {
         expect(details.textContent).toContain('Submit report');
         expect(details.textContent).toContain('Linked notes');
         expect(details.querySelectorAll('.cal-linked-note-item')).toHaveLength(1);
+    });
+
+    test('uses the OS locale week order and marks locale weekends without fading normal days', async () => {
+        Object.defineProperty(navigator, 'languages', { value: ['es-ES'], configurable: true });
+        Object.defineProperty(navigator, 'language', { value: 'es-ES', configurable: true });
+        setState('currentCalDate', new Date(2026, 4, 1));
+        window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
+            year: 2026,
+            month: 5,
+            days_with_notes: [],
+            days_with_links: [],
+            days_with_due_tasks: [],
+            day_summaries: [],
+            calendar: [],
+        });
+
+        renderCalendar();
+        await flushCalendar();
+
+        const headers = [...document.querySelectorAll('#calendar-grid .cal-day-header')];
+        expect(headers[0].getAttribute('aria-label').toLocaleLowerCase('es-ES')).toBe('lunes');
+        const cells = [...document.getElementById('calendar-grid').children].slice(7);
+        const mayFirst = cells.findIndex(cell => cell.dataset.date === '2026-05-01');
+        expect(mayFirst % 7).toBe(4);
+        expect(document.querySelector('[data-date="2026-05-02"]').classList.contains('ui-date-picker-day--weekend')).toBe(true);
+        expect(document.querySelector('[data-date="2026-05-03"]').classList.contains('ui-date-picker-day--weekend')).toBe(true);
+        expect(document.querySelector('[data-date="2026-05-04"]').classList.contains('no-notes')).toBe(false);
+        expect(document.querySelector('[data-date="2026-05-04"].ui-date-picker-day--weekend')).toBeNull();
+    });
+
+    test('renders note-density levels and exposes every due title on hover and focus', async () => {
+        window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
+            ...monthData,
+            days_with_notes: [12, 13, 14, 15, 16],
+            days_with_links: [],
+            days_with_due_tasks: [15],
+            day_summaries: [
+                { day: 12, note_count: 1, due_titles: [] },
+                { day: 13, note_count: 3, due_titles: [] },
+                { day: 14, note_count: 6, due_titles: [] },
+                { day: 15, note_count: 9, due_titles: ['Publish release notes', 'Review migration guide'] },
+                { day: 16, note_count: 10, due_titles: [] },
+            ],
+        });
+
+        renderCalendar();
+        await flushCalendar();
+
+        expect(document.querySelector('[data-date="2025-01-12"]').classList.contains('ui-date-picker-day--note-1')).toBe(true);
+        expect(document.querySelector('[data-date="2025-01-13"]').classList.contains('ui-date-picker-day--note-2')).toBe(true);
+        expect(document.querySelector('[data-date="2025-01-14"]').classList.contains('ui-date-picker-day--note-3')).toBe(true);
+        const dueDay = document.querySelector('[data-date="2025-01-15"]');
+        expect(dueDay.classList.contains('ui-date-picker-day--note-4')).toBe(true);
+        expect(dueDay.classList.contains('ui-date-picker-day--due')).toBe(true);
+        expect(document.querySelector('[data-date="2025-01-16"]').classList.contains('ui-date-picker-day--note-5')).toBe(true);
+        expect(dueDay.getAttribute('aria-label')).toContain('Publish release notes; Review migration guide');
+
+        dueDay.dispatchEvent(new Event('pointerenter'));
+        const tooltip = document.getElementById('calendar-day-tooltip');
+        expect(tooltip.hidden).toBe(false);
+        expect(tooltip.textContent).toContain('9 notes');
+        expect(tooltip.textContent).toContain('Publish release notes');
+        expect(tooltip.textContent).toContain('Review migration guide');
+        expect(dueDay.getAttribute('aria-describedby')).toBe('calendar-day-tooltip');
+
+        dueDay.dispatchEvent(new Event('pointerleave'));
+        expect(tooltip.hidden).toBe(true);
+        dueDay.focus();
+        expect(tooltip.hidden).toBe(false);
+        dueDay.blur();
+        expect(tooltip.hidden).toBe(true);
+    });
+
+    test('moves the full Today selection only among actionable days and restores note intensity', async () => {
+        const now = new Date();
+        const day = now.getDate();
+        const noteDay = day === 1 ? 2 : 1;
+        const inactiveLinkedDay = [1, 2, 3, 4].find(candidate => candidate !== day && candidate !== noteDay);
+        setState('currentCalDate', new Date(now.getFullYear(), now.getMonth(), day));
+        window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
+            year: now.getFullYear(),
+            month: now.getMonth() + 1,
+            days_with_notes: [day, noteDay],
+            // Structured summaries are authoritative: a legacy link-only day
+            // can be a completed semantic due link and is not actionable.
+            days_with_links: [inactiveLinkedDay],
+            days_with_due_tasks: [],
+            day_summaries: [
+                { day, note_count: 6, due_titles: [] },
+                { day: noteDay, note_count: 1, due_titles: [] },
+            ],
+            calendar: [],
+        });
+
+        renderCalendar();
+        await flushCalendar();
+
+        let today = document.querySelector('.cal-day[aria-current="date"]');
+        expect(today.tagName).toBe('BUTTON');
+        expect(today.classList.contains('ui-date-picker-day--note-3')).toBe(true);
+        expect(today.classList.contains('selected')).toBe(true);
+        const inactiveDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(inactiveLinkedDay).padStart(2, '0')}`;
+        const emptyDay = document.querySelector(`[data-date="${inactiveDate}"]`);
+        expect(emptyDay.tagName).toBe('SPAN');
+
+        const noteDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(noteDay).padStart(2, '0')}`;
+        document.querySelector(`[data-date="${noteDate}"]`).click();
+        await flushCalendar();
+        today = document.querySelector('.cal-day[aria-current="date"]');
+        let note = document.querySelector(`[data-date="${noteDate}"]`);
+        expect(today.classList.contains('selected')).toBe(false);
+        expect(today.classList.contains('ui-date-picker-day--note-3')).toBe(true);
+        expect(note.classList.contains('selected')).toBe(true);
+
+        today.click();
+        await flushCalendar();
+        today = document.querySelector('.cal-day[aria-current="date"]');
+        note = document.querySelector(`[data-date="${noteDate}"]`);
+        expect(today.classList.contains('selected')).toBe(true);
+        expect(note.classList.contains('selected')).toBe(false);
+        expect(note.classList.contains('ui-date-picker-day--note-1')).toBe(true);
+    });
+
+    test('reprojects an accepted date shortcut from the dirty editor without waiting for save', async () => {
+        const panel = document.getElementById('sidebar-calendar-panel');
+        panel.classList.add('open');
+        panel.setAttribute('aria-hidden', 'false');
+        setState('currentCalDate', new Date(2025, 0, 15));
+        window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
+            year: 2025,
+            month: 1,
+            days_with_notes: [],
+            days_with_links: [],
+            days_with_due_tasks: [],
+            day_summaries: [],
+            calendar: [],
+        });
+        renderCalendar();
+        await flushCalendar();
+        const tab = {
+            id: 'tab-plan', type: 'file', path: 'notes/plan.md', title: 'plan.md',
+            dirty: true, _content: 'No date yet',
+        };
+        setState('openTabs', [tab]);
+        document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: tab.path } }));
+        tab._content = '[2025-01-16](2025-01-16.md)';
+        document.dispatchEvent(new CustomEvent('file-content-changed', {
+            detail: { path: tab.path, content: tab._content },
+        }));
+        await new Promise(resolve => setTimeout(resolve, 25));
+        await flushCalendar();
+
+        const tomorrow = document.querySelector('[data-date="2025-01-16"]');
+        expect(tomorrow.classList.contains('ui-date-picker-day--note-1')).toBe(true);
+        tomorrow.click();
+        await flushCalendar();
+        const details = document.getElementById('cal-linked-notes');
+        expect(details.textContent).toContain('Linked notes');
+        expect(details.textContent).toContain('plan.md');
+        expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
     });
 
     test('renders compact empty-date guidance when a selected date has no tasks or linked notes', async () => {

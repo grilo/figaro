@@ -121,6 +121,13 @@ body.right-sidebar-resizing .pdf-preview-frame {
     white-space: nowrap;
 }
 
+.raw-text-preview-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+}
+
 .raw-text-preview-format {
     flex: 0 0 auto;
     padding: 2px 5px;
@@ -129,6 +136,16 @@ body.right-sidebar-resizing .pdf-preview-frame {
     color: var(--accent-color);
     background: color-mix(in srgb, var(--accent-color) 8%, transparent);
     font: 10px/1.2 var(--font-mono);
+}
+
+.raw-text-preview-copy {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.raw-text-preview-copy svg {
+    width: 13px;
+    height: 13px;
 }
 
 .raw-text-preview-status {

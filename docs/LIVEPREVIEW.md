@@ -167,7 +167,12 @@ source footprint while the editor is moving.
 This policy is editor-only. Images, frontmatter/Properties, links, task
 checkboxes, inline math, and other inline replacements must not receive the
 `cm-source-footprint` marker. Raw Text Preview and both printable surfaces keep
-their independent natural layout.
+their independent natural layout. Raw Text Preview nevertheless follows the
+main editor one way by sampling the source offset at a shared viewport marker
+and measuring that exact character in its plain `pre`; a short coalescing
+interval smooths scroll events without deriving its position from rendered
+widget heights. Its **Copy to Clipboard** action copies the complete current
+source snapshot and does not depend on editor or DOM selection.
 
 Every rendered table extends its left block guide into a two-button stack.
 `table` remains the fold/expand control; `delete` removes the complete table

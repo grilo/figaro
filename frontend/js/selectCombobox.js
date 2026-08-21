@@ -1,3 +1,5 @@
+import { setTooltip } from './tooltip.js';
+
 /**
  * Replace a native select's host-controlled popup with Figaro's themed,
  * keyboard-accessible select-only combobox while retaining the select as the
@@ -140,7 +142,7 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
             select.disabled = Boolean(disabled);
             trigger.disabled = Boolean(disabled);
             trigger.dataset.busy = String(Boolean(disabled && busy));
-            trigger.title = select.title || '';
+            setTooltip(trigger, select.getAttribute('data-ui-tooltip') || select.title || '');
             if (disabled) setOpen(false);
         },
     };

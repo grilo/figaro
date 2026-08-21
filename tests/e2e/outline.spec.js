@@ -38,6 +38,32 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     await expect(page.locator('#right-sidebar')).toHaveAttribute('inert', '');
     await expect(toggle).toBeVisible();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).not.toHaveAttribute('title', /.+/);
+    await expect(toggle).toHaveAttribute('data-ui-tooltip', 'Show document outline');
+    await toggle.hover();
+    const tooltip = page.locator('#ui-tooltip');
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toHaveText('Show document outline');
+    const tooltipTheme = await tooltip.evaluate(surface => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--panel-bg)';
+        document.body.appendChild(probe);
+        const result = {
+            background: getComputedStyle(surface).backgroundColor,
+            panel: getComputedStyle(probe).color,
+            radius: Number.parseFloat(getComputedStyle(surface).borderRadius),
+        };
+        probe.remove();
+        return result;
+    });
+    expect(tooltipTheme.background).toBe(tooltipTheme.panel);
+    expect(tooltipTheme.radius).toBeGreaterThanOrEqual(4);
+    await page.keyboard.press('Escape');
+    await expect(tooltip).toBeHidden();
+    await page.mouse.move(0, 0);
+    await toggle.focus();
+    await expect(tooltip).toBeVisible();
+    await page.keyboard.press('Escape');
     await page.evaluate(async () => {
         const outline = await import('/js/outline.js');
         outline.setDocumentOutlineEnabled(false);

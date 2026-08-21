@@ -417,6 +417,35 @@ a:focus-visible {
     gap: 10px;
 }
 
+.ds-calendar-demo {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+}
+
+.ds-calendar-demo .calendar-grid {
+    width: min(100%, 280px);
+    padding: 0;
+}
+
+.ds-calendar-demo .ds-calendar-tooltip {
+    position: relative;
+    inset: auto;
+    width: min(100%, 260px);
+    box-sizing: border-box;
+}
+
+.ds-tooltip-demo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ds-tooltip-demo .ds-tooltip-specimen {
+    position: relative;
+    inset: auto;
+}
+
 .ds-labeled-control {
     display: grid;
     justify-items: start;

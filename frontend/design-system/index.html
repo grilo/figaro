@@ -270,6 +270,74 @@
                             </nav>
                         </div>
                     </article>
+
+                    <article class="ds-specimen">
+                        <header><h3>Calendar activity days</h3><code class="ds-selector">.ui-date-picker-day--weekend</code><code class="ds-selector">.ui-date-picker-day--note-1…5</code><code class="ds-selector">.selected</code><code class="ds-selector">.ui-date-picker-day--due</code></header>
+                        <div class="ds-demo ds-calendar-demo">
+                            <div class="calendar-grid" role="grid" aria-label="Example calendar activity states">
+                                <div class="cal-day-header" role="columnheader">Mo</div>
+                                <div class="cal-day-header" role="columnheader">Tu</div>
+                                <div class="cal-day-header" role="columnheader">We</div>
+                                <div class="cal-day-header" role="columnheader">Th</div>
+                                <div class="cal-day-header" role="columnheader">Fr</div>
+                                <div class="cal-day-header" role="columnheader">Sa</div>
+                                <div class="cal-day-header" role="columnheader">Su</div>
+                                <span class="ui-date-picker-day cal-day" role="gridcell" aria-label="Normal day">4</span>
+                                <button type="button" class="ui-date-picker-day cal-day ui-date-picker-day--note-1" aria-label="One note">5</button>
+                                <button type="button" class="ui-date-picker-day cal-day ui-date-picker-day--note-2" aria-label="Three notes">6</button>
+                                <button type="button" class="ui-date-picker-day cal-day ui-date-picker-day--note-3" aria-label="Six notes">7</button>
+                                <button type="button" class="ui-date-picker-day cal-day ui-date-picker-day--note-5 ui-date-picker-day--due" aria-label="Ten notes and one due item">8</button>
+                                <span class="ui-date-picker-day cal-day ui-date-picker-day--weekend" role="gridcell" aria-label="Weekend">9</span>
+                                <button type="button" class="ui-date-picker-day cal-day ui-date-picker-day--weekend ui-date-picker-day--due" aria-label="Weekend with one due item">10</button>
+                                <button type="button" class="ui-date-picker-day cal-day selected" aria-current="date" aria-label="Today, selected">11</button>
+                                <button type="button" class="ui-date-picker-day cal-day ui-date-picker-day--note-4" aria-label="Nine notes">12</button>
+                                <span class="cal-day cal-empty" aria-hidden="true"></span>
+                                <span class="cal-day cal-empty" aria-hidden="true"></span>
+                                <span class="cal-day cal-empty" aria-hidden="true"></span>
+                                <span class="cal-day cal-empty" aria-hidden="true"></span>
+                                <span class="cal-day cal-empty" aria-hidden="true"></span>
+                            </div>
+                            <div class="ui-tooltip cal-day-tooltip ds-calendar-tooltip" role="tooltip">
+                                <strong>Friday, May 8, 2026</strong>
+                                <span class="cal-day-tooltip-note-count">10 notes</span>
+                                <span class="cal-day-tooltip-due-label">Due item</span>
+                                <ul><li>Publish release notes</li></ul>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="ds-specimen">
+                        <header><h3>File-tree states</h3><code class="ds-selector">.file-tree-node.selected</code><code class="ds-selector">.file-tree-node.cut-marked</code></header>
+                        <div class="ds-demo ds-demo--flush">
+                            <div class="file-tree" role="tree" aria-label="Example vault file tree" aria-multiselectable="true">
+                                <ul class="file-tree-list" role="group">
+                                    <li class="file-tree-item" role="none">
+                                        <div class="file-tree-node selected" role="treeitem" tabindex="0" aria-level="1" aria-selected="true">
+                                            <span class="node-chevron"></span>
+                                            <span class="node-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M8 13h8M8 17h6"></path></svg></span>
+                                            <span class="node-name">Selected note.md</span>
+                                        </div>
+                                    </li>
+                                    <li class="file-tree-item" role="none">
+                                        <div class="file-tree-node cut-marked" role="treeitem" tabindex="-1" aria-level="1" aria-selected="false">
+                                            <span class="node-chevron"></span>
+                                            <span class="node-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg></span>
+                                            <span class="node-name">report.pdf</span>
+                                            <span class="node-cut-indicator" data-ui-tooltip="Cut — ready to paste" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="m8.7 8.7 12.6 12.6M8.7 15.3 21.3 2.7"></path></svg></span>
+                                            <span class="sr-only node-cut-status">Cut; ready to paste</span>
+                                        </div>
+                                    </li>
+                                    <li class="file-tree-item" role="none">
+                                        <div class="file-tree-node" role="treeitem" tabindex="-1" aria-level="1" aria-selected="false" aria-current="page">
+                                            <span class="node-chevron"></span>
+                                            <span class="node-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg></span>
+                                            <span class="node-name">Current buffer.md</span>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </article>
                 </div>
 
                 <article class="ds-specimen">
@@ -461,13 +529,13 @@
             </section>
 
             <section id="menus-popovers" class="catalog-section" data-catalog-section
-                     data-catalog-terms="menus popovers dropdown listbox context tabs picker autocomplete selected danger">
+                     data-catalog-terms="menus popovers tooltip tooltips hints hover focus dropdown listbox context tabs picker autocomplete selected danger">
                 <header class="catalog-section-header">
                     <div>
                         <p>05 · Overlays</p>
                         <h2>Menus &amp; popovers</h2>
                     </div>
-                    <p>Shared menu surfaces and item states, with separate behavior for each feature.</p>
+                    <p>Shared menu and tooltip surfaces, with behavior kept appropriate to each feature.</p>
                 </header>
 
                 <div class="ds-specimen-grid ds-specimen-grid--three ds-menu-grid">
@@ -524,6 +592,14 @@
                                 </div>
                                 <div class="ui-date-picker-footer"><button class="ui-button ui-date-picker-clear">Clear due date</button></div>
                             </section>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
+                        <header><h3>Tooltip</h3><code class="ds-selector">.ui-tooltip</code></header>
+                        <div class="ds-demo ds-tooltip-demo">
+                            <button type="button" class="ui-icon-button" aria-label="Show document outline"
+                                    data-ui-tooltip="Show document outline">≡</button>
+                            <div class="ui-tooltip ds-tooltip-specimen" role="tooltip">Show document outline</div>
                         </div>
                     </article>
                 </div>
@@ -730,8 +806,18 @@
                 </header>
 
                 <article class="ds-specimen">
-                    <header><h3>Source document</h3><code class="ds-selector">.raw-text-preview-source</code></header>
+                    <header><h3>Source document</h3><code class="ds-selector">.raw-text-preview-source</code><code class="ds-selector">.raw-text-preview-copy</code></header>
                     <div class="ds-demo ds-markdown-stage">
+                        <div class="raw-text-preview-toolbar">
+                            <span class="raw-text-preview-document-title">roadmap</span>
+                            <div class="raw-text-preview-actions">
+                                <span class="raw-text-preview-format">Raw</span>
+                                <button type="button" class="ui-button ui-button--primary raw-text-preview-copy">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>
+                                    <span>Copy to Clipboard</span>
+                                </button>
+                            </div>
+                        </div>
                         <pre class="raw-text-preview-source" tabindex="0" aria-label="Exact Markdown source">---
 title: A quiet workspace
 ---
@@ -801,6 +887,7 @@ title: A quiet workspace
                             <tr><td>Icon actions</td><td>Title bar, tabs, properties, sidebars</td><td><code>.ui-icon-button</code> sizes</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Badges</td><td>Kanban, search, relationships, Vault health</td><td><code>.ui-badge</code> roles</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Menus</td><td>Context, tabs, settings, frontmatter</td><td><code>.ui-menu</code> visuals; separate controllers</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Tooltips</td><td>Control hints, Calendar, managed files, Markdown links</td><td><code>.ui-tooltip</code> surface; feature content and placement hooks</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Document tabs</td><td>Active, dirty, pinned, hover, and focus</td><td><code>.ui-document-tab</code> + state modifiers</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Editor folding</td><td>Code arrows plus typed Markdown guides in expanded, collapsed, hover, focus, and active states</td><td><code>.ui-editor-fold-control</code>, <code>.ui-editor-block-guide</code></td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Determinate progress</td><td>Accessible track and value fill</td><td><code>.ui-progress</code> family</td><td><span class="is-decided">Approved</span></td></tr>

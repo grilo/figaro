@@ -17,7 +17,7 @@ function resetPortableWorkspaceState() {
     setState('expandedDirs', new Set());
     setState('selectedFilePath', null);
     setState('selectedTreePath', null);
-    setState('selectedFilePaths', []);
+    setState('selectedTreePaths', []);
     setState('pinnedTabs', []);
     setState('activeTabId', null);
     setState('openTabs', []);

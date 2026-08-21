@@ -5,6 +5,7 @@ import {
     themeStylesheetPath,
 } from './themeCatalogModel.js';
 import { enhanceSelectCombobox } from '../js/selectCombobox.js';
+import { initTooltips } from '../js/tooltip.js';
 
 function sectionRecords(root) {
     return Array.from(root.querySelectorAll('[data-catalog-section]'), section => ({
@@ -116,6 +117,7 @@ export async function initDesignSystemCatalog({
     fetchImpl = globalThis.fetch,
     themeManifest,
 } = {}) {
+    initTooltips({ root });
     const sections = sectionRecords(root);
     const comboboxes = enhanceCatalogueComboboxes(root);
     renderIndex(root, sections);

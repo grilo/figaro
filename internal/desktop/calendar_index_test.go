@@ -11,6 +11,62 @@ func cachedCalendarIndex(app *App) *calendarDateIndex {
 	return app.calendarIndex
 }
 
+func calendarSummaryForDay(summaries []CalendarDaySummary, day int) (CalendarDaySummary, bool) {
+	for _, summary := range summaries {
+		if summary.Day == day {
+			return summary, true
+		}
+	}
+	return CalendarDaySummary{}, false
+}
+
+func TestCalendarMonthSummariesCountDistinctNotesAndExposeDueTitles(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "2025-01-15.md", "# Daily note\n")
+	writeTestFile(t, vaultPath, "notes/alpha.md", "[Planning](2025-01-15.md)\n")
+	writeTestFile(t, vaultPath, "notes/bravo.md", "[First](2025-01-15.md)\n[Second](2025-01-15.md)\n")
+	writeTestFile(t, vaultPath, "notes/mixed.md", "- [ ] Review launch #todo [due 2025-01-15](2025-01-15.md)\n[Context](2025-01-15.md)\n")
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Ship release #todo [due 2025-01-15](2025-01-15.md)\n")
+
+	month, err := app.GetCalendarMonthData(2025, 1)
+	if err != nil {
+		t.Fatalf("GetCalendarMonthData: %v", err)
+	}
+	summary, found := calendarSummaryForDay(month.DaySummaries, 15)
+	if !found {
+		t.Fatalf("day 15 summary missing from %#v", month.DaySummaries)
+	}
+	if got, want := summary.NoteCount, 4; got != want {
+		t.Fatalf("NoteCount = %d, want %d distinct daily/linked note files", got, want)
+	}
+	if got, want := summary.DueTitles, []string{"Review launch", "Ship release"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("DueTitles = %#v, want %#v", got, want)
+	}
+
+	notes, err := app.GetLinkedNotesForDate("2025-01-15")
+	if err != nil {
+		t.Fatalf("GetLinkedNotesForDate: %v", err)
+	}
+	paths := make(map[string]LinkedNote, len(notes))
+	for _, note := range notes {
+		paths[note.Path] = note
+	}
+	if got, want := len(paths), summary.NoteCount; got != want {
+		t.Fatalf("selected-day notes = %d, want summary count %d: %#v", got, want, notes)
+	}
+	for _, path := range []string{"2025-01-15.md", "notes/alpha.md", "notes/bravo.md", "notes/mixed.md"} {
+		if _, found := paths[path]; !found {
+			t.Fatalf("selected-day notes missing %q: %#v", path, notes)
+		}
+	}
+	if _, found := paths["tasks.md"]; found {
+		t.Fatalf("due-only task file was returned as a note: %#v", notes)
+	}
+	if got := paths["notes/mixed.md"].LineNum; got != 2 {
+		t.Fatalf("mixed note row points to line %d, want ordinary date link on line 2", got)
+	}
+}
+
 func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "2025-01-15.md", "# Daily note")
@@ -29,6 +85,9 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	}
 	if got, want := month.DaysWithDueTasks, []int{22}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithDueTasks = %v, want %v", got, want)
+	}
+	if summary, found := calendarSummaryForDay(month.DaySummaries, 22); !found || summary.NoteCount != 0 || !reflect.DeepEqual(summary.DueTitles, []string{"Due work"}) {
+		t.Fatalf("due-only day summary = %#v, found=%v", summary, found)
 	}
 	dueTasks, err := app.GetTasksDueOnDate("2025-01-22")
 	if err != nil || len(dueTasks) != 1 || dueTasks[0].Text != "Due work" {
@@ -75,6 +134,9 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	if got, want := month.DaysWithLinks, []int{20, 21, 22, 23}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithLinks after mutation = %v, want %v", got, want)
 	}
+	if summary, found := calendarSummaryForDay(month.DaySummaries, 21); !found || summary.NoteCount != 1 {
+		t.Fatalf("incremental linked-note summary = %#v, found=%v", summary, found)
+	}
 	if got := cachedCalendarIndex(app); got != firstIndex {
 		t.Fatal("incremental mutation replaced the unaffected calendar projection instead of updating it in place")
 	}
@@ -96,6 +158,12 @@ func TestCalendarMonthDataReadsTheRequestedMonthProjection(t *testing.T) {
 	if got, want := month.DaysWithLinks, []int{20}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("January link days = %v, want %v", got, want)
 	}
+	if summary, found := calendarSummaryForDay(month.DaySummaries, 15); !found || summary.NoteCount != 1 {
+		t.Fatalf("January daily-note summary = %#v, found=%v", summary, found)
+	}
+	if summary, found := calendarSummaryForDay(month.DaySummaries, 20); !found || summary.NoteCount != 1 {
+		t.Fatalf("January linked-note summary = %#v, found=%v", summary, found)
+	}
 
 	index := app.vaultIndex.calendar
 	if got, want := index.dailyDaysByMonth["2025-02"], []int{16}; !reflect.DeepEqual(got, want) {
@@ -106,9 +174,13 @@ func TestCalendarMonthDataReadsTheRequestedMonthProjection(t *testing.T) {
 	}
 
 	month.DaysWithNotes[0] = 99
+	month.DaySummaries[0].NoteCount = 99
 	reloaded, err := app.GetCalendarMonthData(2025, 1)
 	if err != nil || !reflect.DeepEqual(reloaded.DaysWithNotes, []int{15}) {
 		t.Fatalf("calendar response mutated its cached month projection: %#v, err=%v", reloaded, err)
+	}
+	if summary, found := calendarSummaryForDay(reloaded.DaySummaries, 15); !found || summary.NoteCount != 1 {
+		t.Fatalf("calendar summary response retained caller mutation: %#v, found=%v", summary, found)
 	}
 }
 

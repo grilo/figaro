@@ -1349,7 +1349,7 @@ function linkPreview() {
             this.hideTooltip();
 
             const dom = document.createElement('div');
-            dom.className = 'link-hover-preview';
+            dom.className = 'ui-tooltip link-hover-preview';
             dom.addEventListener('mouseleave', () => this.hideTooltip());
 
             if (isExternal) {

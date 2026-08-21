@@ -6,10 +6,28 @@ test('opens exact Markdown source from the editor menu and closes it by keyboard
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
     await expect(page.locator('.cm-editor')).toBeVisible();
 
-    const exactSource = '---\ntitle: Visible metadata\n---\n# Raw source\n\n<script>not rendered</script>';
+    const exactSource = [
+        '---',
+        'title: Visible metadata',
+        '---',
+        '# Raw source',
+        '',
+        '<script>not rendered</script>',
+        '',
+        ...Array.from({ length: 160 }, (_, index) => (
+            `## Section ${index + 1}\n\nExact Markdown line ${index + 1} remains available for copying and parallel scrolling.`
+        )),
+    ].join('\n');
     await page.evaluate(async source => {
         const editor = await import('/js/editor.js');
         editor.setEditorContent(source);
+        window.__rawPreviewClipboard = [];
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                writeText: async text => { window.__rawPreviewClipboard.push(text); },
+            },
+        });
         const view = editor.getEditorView();
         const coords = view.coordsAtPos(0);
         view.contentDOM.dispatchEvent(new MouseEvent('contextmenu', {
@@ -37,6 +55,28 @@ test('opens exact Markdown source from the editor menu and closes it by keyboard
     });
     expect(geometry.family).toBeTruthy();
     expect(geometry.padding).toBeGreaterThan(10);
+
+    const copy = panel.getByRole('button', { name: 'Copy to Clipboard' });
+    await expect(copy).toHaveClass(/ui-button--primary/);
+    await copy.click();
+    await expect.poll(() => page.evaluate(() => window.__rawPreviewClipboard)).toEqual([exactSource]);
+    await expect(panel.locator('.raw-text-preview-status')).toContainText('Copied the complete Markdown source');
+
+    const stage = panel.locator('.raw-text-preview-stage');
+    await page.evaluate(() => {
+        const editor = document.querySelector('#editor-container .cm-scroller');
+        editor.scrollTop = editor.scrollHeight;
+        editor.dispatchEvent(new Event('scroll'));
+    });
+    await expect.poll(() => stage.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+    const followedBottom = await stage.evaluate(element => element.scrollTop);
+
+    await page.evaluate(() => {
+        const editor = document.querySelector('#editor-container .cm-scroller');
+        editor.scrollTop = 0;
+        editor.dispatchEvent(new Event('scroll'));
+    });
+    await expect.poll(() => stage.evaluate(element => element.scrollTop)).toBeLessThan(followedBottom);
 
     const close = page.locator('#right-sidebar-close');
     await close.focus();

@@ -1,9 +1,12 @@
 import { hasBackend, installDebugBackend } from './backend.js';
 import { initApp } from './app.js';
 import { startupBackendDecision } from './core/bootstrapModel.js';
+import { initTooltips } from './tooltip.js';
 
 let bootTries = 0;
 let bootStarted = false;
+
+initTooltips();
 
 function startApp() {
     if (bootStarted) return;
@@ -57,7 +60,7 @@ function debugAPI() {
         UpdateTaskTag: mock({ success: true }),
         RemoveTagFromTask: mock({ success: true }),
         SetTaskDueDate: mock({ success: true }),
-        GetCalendarMonthData: mock({ year: 2026, month: 7, days_with_notes: [], days_with_links: [], days_with_due_tasks: [], calendar: [] }),
+        GetCalendarMonthData: mock({ year: 2026, month: 7, days_with_notes: [], days_with_links: [], days_with_due_tasks: [], day_summaries: [], calendar: [] }),
         GetLinkedNotesForDate: mock([]),
         GetTodayLink: mock('2026-07-09'),
         GetOSUsername: mock('Test User'),
@@ -68,6 +71,7 @@ function debugAPI() {
         LoadSession: mock({}),
         MergeNotes: mock({ success: true }),
         RevealInExplorer: mock({ success: true }),
+        OpenWithDefaultApplication: mock({ success: true }),
         GetThemes: mock({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
         GetThemeCSS: mock({ css: '' }),
         ThemeLoad: mock({ theme: 'default' }),
