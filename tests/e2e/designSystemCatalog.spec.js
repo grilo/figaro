@@ -161,10 +161,26 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ui-editor-fold-control': 1,
         '.ui-editor-block-guide': 4,
         '.ui-spinner': 1,
+        '.ui-skeleton': 6,
     };
     for (const [selector, minimum] of Object.entries(primitiveFamilies)) {
         expect(await page.locator(selector).count()).toBeGreaterThanOrEqual(minimum);
     }
+
+    const skeletonPaint = await page.locator('.ui-skeleton').first().evaluate(element => {
+        const style = getComputedStyle(element);
+        const shimmer = getComputedStyle(element, '::after');
+        return {
+            background: style.backgroundColor,
+            radius: style.borderRadius,
+            overflow: style.overflow,
+            animationName: shimmer.animationName,
+        };
+    });
+    expect(skeletonPaint.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(skeletonPaint.radius).not.toBe('0px');
+    expect(skeletonPaint.overflow).toBe('hidden');
+    expect(skeletonPaint.animationName).toBe('ui-skeleton-shimmer');
 
     const foldControl = page.locator('.ui-editor-fold-control[aria-expanded="true"]').first();
     await expect(foldControl).toHaveAttribute('aria-label', 'Collapse code region');

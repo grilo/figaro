@@ -10,6 +10,14 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.24.1] - 2026-08-21
+
+### Changed
+
+- Calendar and Kanban now show immediate theme-aware shimmer skeletons while
+  uncached month or board data loads, with stable view-shaped placeholders and
+  a static reduced-motion fallback instead of an apparently empty surface.
+
 ## [1.24.0] - 2026-08-21
 
 ### Added
@@ -1253,7 +1261,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.24.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.24.1...HEAD
+[1.24.1]: https://github.com/grilo/figaro/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/grilo/figaro/compare/v1.23.2...v1.24.0
 [1.23.2]: https://github.com/grilo/figaro/compare/v1.23.1...v1.23.2
 [1.23.1]: https://github.com/grilo/figaro/compare/v1.23.0...v1.23.1

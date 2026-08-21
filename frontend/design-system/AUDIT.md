@@ -5,7 +5,7 @@ Audit snapshot: 2026-08-21. The approved consolidation is represented by the
 
 ## Consolidated foundation
 
-Fourteen approved families now use shared production
+Fifteen approved families now use shared production
 primitives in `frontend/design-system/primitives.css`. Both Figaro and this
 catalogue load that canonical asset, and `approved-components.json` records the
 approved selector set:
@@ -25,6 +25,7 @@ approved selector set:
 | Document tabs | `.ui-document-tabs`, `.ui-document-tab`, and state modifiers | Overflow geometry, ordering, drag placement, and tab controller behavior |
 | Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table labels, and CodeMirror gutter behavior |
 | Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
+| Content skeletons | `.ui-skeleton` | Calendar grid and Kanban column/card geometry, loading ownership, and replacement lifecycle |
 | Determinate progress | `.ui-progress` and `.ui-progress-value` | Numeric value, label, compact host geometry, and update policy |
 
 The primitives own the repeated border, radius, surface, typography, focus,
@@ -63,6 +64,12 @@ Raw Text Preview's **Copy to Clipboard** action reuses the approved primary
 `.ui-button`; its toolbar grouping, exact-source scroll following, clipboard
 lifecycle, and live status are feature behavior rather than a new component or
 button variant.
+
+Calendar and Kanban reuse the approved `.ui-skeleton` surface while their
+feature classes retain only the dimensions that foreshadow the month grid,
+columns, and cards. The primitive owns the theme-derived fill and moving
+highlight, becomes static under reduced motion, and stays hidden from the
+accessibility tree behind each view's explicit busy/status announcement.
 
 The file tree reuses its established selected surface exclusively for single
 and multiple operation selection, the global focus token for independent

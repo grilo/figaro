@@ -173,10 +173,14 @@ export function renderCalendar() {
     
     // Update month/year display
     const monthLabel = formatCalendarMonth(year, month, locale);
+    const cacheKey = calendarMonthCacheKey(year, month + 1);
     monthYearEl.textContent = monthLabel;
     container.setAttribute('aria-busy', 'true');
     container.setAttribute('aria-label', monthLabel);
     container.setAttribute('role', 'grid');
+    if (!calendarMonthCache.has(cacheKey) || container.dataset.loadingMonth) {
+        renderCalendarLoadingSkeleton(container, year, month, locale, monthLabel, cacheKey);
+    }
     
     // Get calendar data from backend (backend expects month 1-12, JS getMonth returns 0-11)
     loadCalendarData(year, month + 1).then(data => {
@@ -195,15 +199,34 @@ export function renderCalendar() {
         if (requestId !== calendarRequestId || !container.isConnected) return;
         log.error('Failed to load calendar data:', err);
         container.setAttribute('aria-busy', 'false');
+        delete container.dataset.loadingMonth;
         container.innerHTML = '<div class="cal-error">Failed to load calendar</div>';
     });
+}
+
+function calendarMonthCacheKey(year, month) {
+    return `${year}-${month}`;
+}
+
+function renderCalendarLoadingSkeleton(container, year, month, locale, monthLabel, cacheKey) {
+    const weekInfo = localeWeekInfo(locale);
+    const dayCellCount = calendarMonthGrid(year, month, weekInfo.firstDay).length * 7;
+    const headers = Array.from({ length: 7 }, () => (
+        '<div class="cal-day-header" aria-hidden="true"><span class="ui-skeleton calendar-skeleton-weekday"></span></div>'
+    )).join('');
+    const days = Array.from({ length: dayCellCount }, () => (
+        '<span class="ui-skeleton calendar-skeleton-day" aria-hidden="true"></span>'
+    )).join('');
+    hideCalendarDayTooltip();
+    container.dataset.loadingMonth = cacheKey;
+    container.innerHTML = `<span class="sr-only" role="status">Loading ${escapeHtml(monthLabel)} calendar…</span>${headers}${days}`;
 }
 
 /**
  * Load calendar data from backend
  */
 async function loadCalendarData(year, month) {
-    const cacheKey = `${year}-${month}`;
+    const cacheKey = calendarMonthCacheKey(year, month);
     const cached = calendarMonthCache.get(cacheKey);
     if (cached) return cached;
 
@@ -299,6 +322,7 @@ function renderCalendarGrid(container, year, month, data, selectedDateStr, local
     }
 
     hideCalendarDayTooltip();
+    delete container.dataset.loadingMonth;
     container.innerHTML = html;
 
     // Make calendarDayClick globally accessible

@@ -97,6 +97,10 @@
       "primitives": [".ui-spinner"]
     },
     {
+      "id": "skeleton",
+      "primitives": [".ui-skeleton"]
+    },
+    {
       "id": "progress",
       "primitives": [
         ".ui-progress",

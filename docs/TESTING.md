@@ -377,7 +377,7 @@ capture change.
 ### Design-system catalogue
 
 `tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
-contract: indexed group membership, adoption of the fourteen approved families
+contract: indexed group membership, adoption of the fifteen approved families
 in catalogue and production markup, exact agreement between
 `approved-components.json` and the selectors implemented by
 `primitives.css`, exact eager style order in the app, catalogue, compatibility
@@ -398,6 +398,12 @@ adoption, dynamic updates, iframe-name preservation, hover/focus/Escape and
 `aria-describedby` lifecycle, disabled-toggle label delegation, and pure
 viewport placement.
 
+The Calendar cache component test holds the month port unresolved to prove that
+the shared skeleton appears synchronously with locale-shaped row geometry,
+accessible busy status, successful response replacement, and no same-month cache
+flash. The Kanban component test similarly holds both board ports unresolved
+and proves its three columns adopt `.ui-skeleton` before resolving into cards.
+
 `tests/e2e/designSystemCatalog.spec.js` is the single representative browser
 boundary. It proves that the real manifest populates the selector, a light
 theme stylesheet changes computed token values, filtering updates visible
@@ -407,7 +413,9 @@ combobox and compares its popup surface, text, and border with the active theme
 tokens; computed popup styling cannot be proven in jsdom. It also compares both
 settings steppers' computed button and value backgrounds, because cascade
 equality cannot be proven in jsdom, and confirms that every shared primitive
-family is present in the rendered catalogue. The tooltip specimen additionally
+family is present in the rendered catalogue. The same boundary checks the
+skeleton's theme-derived fill, radius, clipping, and active shimmer; the unit
+contract owns its reduced-motion rule. The tooltip specimen additionally
 proves hover delay completion, immediate keyboard-focus exposure, Escape
 dismissal, and dark/light computed paint from the canonical tokens. Do not loop all 17 themes through
 Playwright; the unit contract already proves

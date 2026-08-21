@@ -48,6 +48,35 @@ describe('live Kanban buffers and compact cards', () => {
         expect(truncateKanbanCardText('short task')).toBe('short task');
     });
 
+    test('shows the shared three-column skeleton before a slow board request resolves', async () => {
+        let resolveColumns;
+        let resolveBoard;
+        window.go.desktop.App.GetKanbanColumns.mockImplementationOnce(() => (
+            new Promise(resolve => { resolveColumns = resolve; })
+        ));
+        window.go.desktop.App.GetKanbanBoard.mockImplementationOnce(() => (
+            new Promise(resolve => { resolveBoard = resolve; })
+        ));
+
+        const rendering = renderKanbanBoard('kanban-board-main');
+        const loading = document.querySelector('.kanban-loading');
+
+        expect(loading).not.toBeNull();
+        expect(loading.getAttribute('role')).toBe('status');
+        expect(loading.getAttribute('aria-label')).toBe('Loading Kanban board');
+        expect(loading.querySelectorAll('.kanban-skeleton-column')).toHaveLength(3);
+        expect(loading.querySelectorAll('.ui-skeleton')).toHaveLength(11);
+        expect([...loading.querySelectorAll('.kanban-skeleton-column')]
+            .every(column => column.getAttribute('aria-hidden') === 'true')).toBe(true);
+
+        resolveColumns({ columns: ['todo', 'wip', 'done'], colors: {} });
+        resolveBoard({ todo: [], wip: [], done: [] });
+        await rendering;
+
+        expect(document.querySelector('.kanban-loading')).toBeNull();
+        expect(document.querySelectorAll('.kanban-column')).toHaveLength(3);
+    });
+
     test('dirty buffer hashtags replace stale saved cards without saving the note', () => {
         const saved = {
             todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Old task', tag: 'todo' }],

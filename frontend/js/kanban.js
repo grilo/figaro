@@ -444,9 +444,9 @@ export async function renderKanbanBoard(containerId, focusCol = null) {
     const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = `<div class="kanban-loading" role="status" aria-live="polite" aria-label="Loading Kanban board">
-        <div class="kanban-skeleton-column"><span></span><i></i><i></i><i></i></div>
-        <div class="kanban-skeleton-column"><span></span><i></i><i></i></div>
-        <div class="kanban-skeleton-column"><span></span><i></i><i></i><i></i></div>
+        <div class="kanban-skeleton-column" aria-hidden="true"><span class="ui-skeleton kanban-skeleton-heading"></span><span class="ui-skeleton kanban-skeleton-card"></span><span class="ui-skeleton kanban-skeleton-card"></span><span class="ui-skeleton kanban-skeleton-card"></span></div>
+        <div class="kanban-skeleton-column" aria-hidden="true"><span class="ui-skeleton kanban-skeleton-heading"></span><span class="ui-skeleton kanban-skeleton-card"></span><span class="ui-skeleton kanban-skeleton-card"></span></div>
+        <div class="kanban-skeleton-column" aria-hidden="true"><span class="ui-skeleton kanban-skeleton-heading"></span><span class="ui-skeleton kanban-skeleton-card"></span><span class="ui-skeleton kanban-skeleton-card"></span><span class="ui-skeleton kanban-skeleton-card"></span></div>
     </div>`;
     const refreshed = await refreshKanbanData({ focusCol, container });
     if (!container.isConnected) return;

@@ -63,12 +63,19 @@ state while replacing the host-painted popup with the same themed listbox used
 by Settings. `catalog.css` is limited to the page shell and to containing open
 menus, dialogs, and loaders for inspection.
 
-`approved-components.json` is the architectural gate for the fourteen accepted
+`approved-components.json` is the architectural gate for the fifteen accepted
 families. Extending it with a family, primitive, or visual variant requires
 explicit approval before implementation. Focused tests verify that every
 registered selector is implemented in `primitives.css`, that no unregistered
 `.ui-*` selector appears there, and that both production and review surfaces
 load the canonical asset.
+
+The approved `.ui-skeleton` primitive owns one theme-derived shimmer and its
+reduced-motion fallback. Calendar synchronously projects locale-shaped weekday
+and day placeholders only when its month cache misses; Kanban mounts the same
+primitive in its existing three-column loading structure before awaiting the
+board ports. Their adapters retain request ownership and replace placeholders
+only with the latest data, while feature CSS owns only grid/card dimensions.
 
 The approved tooltip family is split at the same deterministic/effect seam.
 `core/tooltipModel.js` decides below/above placement and viewport clamping from

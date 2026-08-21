@@ -78,7 +78,9 @@ There is no account, hosted database, or required cloud service.
   available without creating tens of thousands of DOM elements.
 - **Capture and planning.** Quick notes and daily notes live in a real `Inbox`;
   hashtags form a Kanban board, and portable due-date links feed the Today
-  dashboard and calendar.
+  dashboard and calendar. Calendar months and the Kanban board show
+  theme-aware, reduced-motion-safe skeletons instead of an empty surface while
+  their indexed data is loading.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
   open Mermaid's 32 chart types and 76 starter templates in a focused live
   editor, or edit Draw.io diagrams while keeping the saved SVG readable outside

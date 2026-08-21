@@ -261,6 +261,12 @@ shared background, border, radius, shadow, typography, or text color. CodeMirror
 autocomplete and diagnostic panels are interactive popovers and retain their
 separate library semantics.
 
+Use the approved `.ui-skeleton` primitive for content-shaped loading
+placeholders. Keep month-grid, row, column, and card dimensions in the owning
+feature, hide decorative placeholder blocks from assistive technology, and put
+the loading announcement plus busy lifecycle on the containing view. Do not
+recreate the shimmer or its reduced-motion fallback in feature CSS.
+
 Before implementing a component family, primitive, or visual variant that is
 not present in `frontend/design-system/approved-components.json`, obtain
 explicit user approval. A broader feature request is not implicit component

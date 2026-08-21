@@ -84,6 +84,7 @@ describe('design-system catalogue', () => {
             '.raw-text-preview-copy.ui-button--primary',
             '.drawio-loading-card',
             '.ui-spinner',
+            '.ui-skeleton',
             '.ui-progress',
             '.ui-editor-block-guide--danger',
             '.file-tree-node.selected',
@@ -184,6 +185,7 @@ describe('design-system catalogue', () => {
             'document-tabs',
             'editor-fold-control',
             'spinner',
+            'skeleton',
             'progress',
         ]);
         expect(implementedSelectors).toEqual(approvedSelectors);
@@ -279,12 +281,14 @@ describe('design-system catalogue', () => {
             '.ui-editor-fold-control',
             '.ui-editor-block-guide',
             '.ui-spinner',
+            '.ui-skeleton',
             '.ui-progress',
             '.ui-progress-value',
         ]) {
             expect(styles).toContain(selector);
         }
         expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.ui-spinner\s*\{[\s\S]*animation:\s*none/);
+        expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.ui-skeleton::after\s*\{[\s\S]*animation:\s*none/);
         expect(styles).not.toMatch(/\.font-size-control\s*\{[^}]*border:/s);
         expect(styles).not.toMatch(/\.text-width-control\s*\{[^}]*border:/s);
         expect(styles).not.toMatch(/\.settings-picker-btn\s*\{/);

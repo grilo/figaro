@@ -41,6 +41,34 @@ describe('Calendar cache', () => {
         window.go.desktop.App.GetTasksDueOnDate.mockResolvedValue([]);
     });
 
+    test('shows a shared month-shaped skeleton immediately on a slow cache miss', async () => {
+        let resolveMonth;
+        window.go.desktop.App.GetCalendarMonthData.mockImplementationOnce(() => (
+            new Promise(resolve => { resolveMonth = resolve; })
+        ));
+
+        renderCalendar();
+
+        const grid = document.getElementById('calendar-grid');
+        expect(grid.getAttribute('aria-busy')).toBe('true');
+        expect(grid.dataset.loadingMonth).toBe('2025-1');
+        expect(grid.querySelector('[role="status"]').textContent).toBe('Loading January 2025 calendar…');
+        expect(grid.querySelectorAll('.calendar-skeleton-weekday.ui-skeleton')).toHaveLength(7);
+        expect(grid.querySelectorAll('.calendar-skeleton-day.ui-skeleton')).toHaveLength(35);
+
+        resolveMonth(monthData);
+        await flushCalendar();
+
+        expect(grid.getAttribute('aria-busy')).toBe('false');
+        expect(grid.dataset.loadingMonth).toBeUndefined();
+        expect(grid.querySelector('.ui-skeleton')).toBeNull();
+        expect(grid.querySelectorAll('.cal-day-header')).toHaveLength(7);
+
+        renderCalendar();
+        expect(grid.querySelector('.ui-skeleton')).toBeNull();
+        await flushCalendar();
+    });
+
     test('reuses a month response when selecting a day instead of rescanning the vault', async () => {
         renderCalendar();
         await flushCalendar();

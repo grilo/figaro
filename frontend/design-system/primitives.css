@@ -880,8 +880,36 @@ input.ui-stepper-value:invalid {
     display: none;
 }
 
+.ui-skeleton {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: var(--ui-item-radius);
+    background: color-mix(in srgb, var(--hover-bg) 78%, var(--border-light));
+    color: transparent;
+    pointer-events: none;
+}
+
+.ui-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+        105deg,
+        transparent 28%,
+        color-mix(in srgb, var(--surface-highlight-color) 13%, transparent) 50%,
+        transparent 72%
+    );
+    animation: ui-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
 @keyframes ui-spinner-turn {
     to { transform: rotate(360deg); }
+}
+
+@keyframes ui-skeleton-shimmer {
+    to { transform: translateX(100%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -904,5 +932,10 @@ input.ui-stepper-value:invalid {
 
     .ui-spinner {
         animation: none;
+    }
+
+    .ui-skeleton::after {
+        animation: none;
+        opacity: 0;
     }
 }

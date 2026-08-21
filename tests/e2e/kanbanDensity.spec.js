@@ -16,12 +16,19 @@ test('shows a themed Kanban loading state and applies presentation preferences f
     const loading = page.locator('.kanban-loading');
     await expect(loading).toBeVisible();
     await expect(loading.locator('.kanban-skeleton-column')).toHaveCount(3);
-    const skeletonStyle = await loading.locator('.kanban-skeleton-column').first().evaluate(element => {
+    await expect(loading.locator('.ui-skeleton')).toHaveCount(11);
+    const skeletonStyle = await loading.locator('.ui-skeleton').first().evaluate(element => {
         const style = getComputedStyle(element);
-        return { borderRadius: style.borderRadius, background: style.backgroundColor };
+        const shimmer = getComputedStyle(element, '::after');
+        return {
+            borderRadius: style.borderRadius,
+            background: style.backgroundColor,
+            animationName: shimmer.animationName,
+        };
     });
     expect(skeletonStyle.borderRadius).not.toBe('0px');
     expect(skeletonStyle.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(skeletonStyle.animationName).toBe('ui-skeleton-shimmer');
 
     const boardData = {
         todo: [{ file: 'Ideas.md', file_name: 'Ideas.md', line: 1, text: 'Ship density control', tag: 'todo' }],

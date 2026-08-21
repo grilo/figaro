@@ -946,6 +946,37 @@ a:focus-visible {
     }
 }
 
+.ds-skeleton-preview {
+    display: grid;
+    width: 100%;
+    gap: 10px;
+}
+
+.ds-skeleton-heading {
+    width: 38%;
+    height: 12px;
+}
+
+.ds-skeleton-line {
+    width: 100%;
+    height: 9px;
+}
+
+.ds-skeleton-line--short {
+    width: 68%;
+}
+
+.ds-skeleton-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.ds-skeleton-cards > .ui-skeleton {
+    height: 52px;
+}
+
 @media (prefers-reduced-motion: reduce) {
     html,
     body {
