@@ -1,8 +1,12 @@
 import {
+    calendarDayClassName,
+    calendarDayLabelParts,
     calendarDayState,
     calendarMonthGrid,
+    calendarMonthPresentation,
     calendarMonthSummaryMap,
     calendarNoteAssociations,
+    calendarSessionSelectionPlan,
     localeWeekInfo,
     localeWeekdays,
     noteIntensityLevel,
@@ -12,6 +16,21 @@ import {
 } from '../../../frontend/js/core/calendarModel.js';
 
 describe('calendar model', () => {
+    test('plans Today only for a fresh Calendar session and preserves a valid session selection', () => {
+        expect(calendarSessionSelectionPlan(null, '2026-08-23')).toEqual({
+            selectedDateStr: '2026-08-23',
+            initializeFromToday: true,
+        });
+        expect(calendarSessionSelectionPlan('2026-08-21', '2026-08-23')).toEqual({
+            selectedDateStr: '2026-08-21',
+            initializeFromToday: false,
+        });
+        expect(calendarSessionSelectionPlan('not-a-date', 'not-a-date')).toEqual({
+            selectedDateStr: null,
+            initializeFromToday: false,
+        });
+    });
+
     test('reads method and legacy-property week information with a safe world fallback', () => {
         class MethodLocale {
             getWeekInfo() {
@@ -75,6 +94,39 @@ describe('calendar model', () => {
             dueTitles: [],
             isToday: true,
         }).clickable).toBe(true);
+    });
+
+    test('builds one shared day presentation for sidebar and popup calendars', () => {
+        const presentation = calendarMonthPresentation({
+            year: 2026,
+            month: 7,
+            data: {
+                day_summaries: [
+                    { day: 4, note_count: 6, due_titles: [] },
+                    { day: 8, note_count: 1, due_titles: ['Ship release'] },
+                ],
+            },
+            selectedDateStr: '2026-08-04',
+            todayStr: '2026-08-04',
+            firstDay: 1,
+            weekend: [6, 7],
+        });
+        const days = presentation.weeks.flat().filter(day => !day.empty);
+        const today = days.find(day => day.dateStr === '2026-08-04');
+        const weekendDue = days.find(day => day.dateStr === '2026-08-08');
+
+        expect(calendarDayClassName(today)).toBe(
+            'ui-date-picker-day cal-day selected has-note ui-date-picker-day--note-3',
+        );
+        expect(calendarDayClassName(weekendDue)).toBe(
+            'ui-date-picker-day cal-day is-weekend ui-date-picker-day--weekend has-note ui-date-picker-day--note-1 has-due-task ui-date-picker-day--due',
+        );
+        expect(calendarDayLabelParts(weekendDue, 'Saturday, August 8, 2026')).toEqual([
+            'Saturday, August 8, 2026',
+            'Weekend',
+            '1 note',
+            '1 due item: Ship release',
+        ]);
     });
 
     test('prefers structured note counts so due links do not inflate note intensity', () => {

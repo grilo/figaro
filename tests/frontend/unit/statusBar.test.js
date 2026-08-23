@@ -13,6 +13,7 @@ describe('status bar', () => {
 
     test('announces complete messages and does not let an old clear hide newer activity', () => {
         const status = document.getElementById('status-text');
+        const applicationRegion = document.querySelector('.status-left');
         statusBar.set('Saved');
         statusBar.clearAfter(1000, 'Saved');
         statusBar.set('Moving “Archive”…');
@@ -24,10 +25,14 @@ describe('status bar', () => {
         expect(status.getAttribute('role')).toBe('status');
         expect(status.getAttribute('aria-live')).toBe('polite');
         expect(status.getAttribute('aria-atomic')).toBe('true');
+        expect(applicationRegion.dataset.applicationActive).toBe('true');
+        expect(applicationRegion.title).toBe('Moving “Archive”…');
 
         statusBar.clearAfter(1000, 'Moving “Archive”…');
         jest.advanceTimersByTime(1000);
         expect(status.textContent).toBe('Ready');
+        expect(applicationRegion.dataset.applicationActive).toBe('false');
+        expect(applicationRegion.title).toBe('Ready');
     });
 
     test('shows delayed activity after one second and never flashes for fast work', () => {
@@ -57,12 +62,14 @@ describe('status bar', () => {
         expect(action.hidden).toBe(false);
         expect(action.textContent).toBe('Undo');
         expect(action.getAttribute('aria-label')).toBe('Undo deletion of Draft.md');
+        expect(document.querySelector('.status-left').dataset.hasAction).toBe('true');
         action.click();
         expect(undo).toHaveBeenCalledTimes(1);
 
         statusBar.set('Ready');
         expect(action.hidden).toBe(true);
         expect(action.onclick).toBeNull();
+        expect(document.querySelector('.status-left').dataset.hasAction).toBe('false');
     });
 
     test('keeps the spinner visible until every overlapping slow activity settles', () => {

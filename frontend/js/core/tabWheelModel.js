@@ -1,3 +1,5 @@
+import { boundedAdjacentTabId } from './tabNavigationModel.js';
+
 const pixelStepThreshold = 40;
 
 function finiteNumber(value) {
@@ -42,13 +44,13 @@ export function wheelTabNavigationPlan({
     }
 
     const direction = accumulated > 0 ? 1 : -1;
-    const activeIndex = ids.indexOf(activeTabId);
-    const targetIndex = activeIndex < 0
-        ? (direction > 0 ? 0 : ids.length - 1)
-        : (activeIndex + direction + ids.length) % ids.length;
     return {
         handled: true,
         accumulatedDeltaY: 0,
-        targetTabId: ids[targetIndex],
+        targetTabId: boundedAdjacentTabId({
+            tabIds: ids,
+            activeTabId,
+            direction,
+        }),
     };
 }

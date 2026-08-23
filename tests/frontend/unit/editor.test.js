@@ -388,6 +388,34 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(content).toBe('# Hello World\n\nType something here.');
         });
 
+        test('mounts a requested Properties body selection in the real CodeMirror document', async () => {
+            const { setState } = await import('../frontend/js/state.js');
+            const { initEditor, createEditorView, setEditorContent } = await import('../frontend/js/editor.js');
+            const source = '---\ntitle: Report\n---\n# Body';
+            const bodyStart = source.indexOf('# Body');
+            const tab = {
+                id: 'properties-body.md',
+                path: 'properties-body.md',
+                title: 'Properties body',
+                type: 'file',
+            };
+
+            setState('openTabs', [tab]);
+            setState('activeTabId', tab.id);
+            await initEditor();
+            const view = createEditorView();
+            setEditorContent(source, tab.id, { anchor: bodyStart, head: bodyStart });
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            expect(view.state.doc.toString()).toBe(source);
+            expect(view.state.selection.main.anchor).toBe(bodyStart);
+            expect(view.state.selection.main.head).toBe(bodyStart);
+            expect(view.dom.querySelector('.cm-frontmatter')).not.toBeNull();
+
+            setState('openTabs', []);
+            setState('activeTabId', null);
+        });
+
         test('keeps undo history inside the active file buffer', async () => {
             const { redo, redoDepth, undo, undoDepth } = await import('@codemirror/commands');
             const { setState } = await import('../frontend/js/state.js');

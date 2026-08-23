@@ -9,9 +9,9 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(page.locator('[data-catalog-section]')).toHaveCount(12);
 
     const themeSelect = page.getByLabel('Theme');
-    await expect(themeSelect.locator('option')).toHaveCount(17);
+    await expect(themeSelect.locator('option')).toHaveCount(18);
     await expect(themeSelect).toHaveValue('default');
-    await expect(page.locator('#theme-status')).toHaveText('17 themes · Figaro Dark');
+    await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#d8574a');
 
     const tooltipTrigger = page.getByRole('button', { name: 'Show document outline' });
@@ -55,7 +55,7 @@ test('catalogues current elements with themed combobox geometry and seamless ste
 
     await themeSelect.selectOption('figaro-light');
     await expect(page.locator('#catalog-theme')).toHaveAttribute('href', '../themes/figaro-light.css');
-    await expect(page.locator('#theme-status')).toHaveText('17 themes · Figaro Light');
+    await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'figaro-light');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#b94a3e');
     await tooltipTrigger.focus();
@@ -167,6 +167,26 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         expect(await page.locator(selector).count()).toBeGreaterThanOrEqual(minimum);
     }
 
+    const connectedTabPaint = await page.locator(
+        '.ds-tab-bar .ui-document-tab--connected.ui-document-tab--active',
+    ).evaluate(tab => {
+        const style = getComputedStyle(tab);
+        return {
+            topLeftRadius: style.borderTopLeftRadius,
+            topRightRadius: style.borderTopRightRadius,
+            bottomLeftRadius: style.borderBottomLeftRadius,
+            bottomRightRadius: style.borderBottomRightRadius,
+            bottomBorderWidth: style.borderBottomWidth,
+            dragRegion: style.getPropertyValue('--wails-draggable').trim(),
+        };
+    });
+    expect(parseFloat(connectedTabPaint.topLeftRadius)).toBeGreaterThan(0);
+    expect(parseFloat(connectedTabPaint.topRightRadius)).toBeGreaterThan(0);
+    expect(connectedTabPaint.bottomLeftRadius).toBe('0px');
+    expect(connectedTabPaint.bottomRightRadius).toBe('0px');
+    expect(connectedTabPaint.bottomBorderWidth).toBe('0px');
+    expect(connectedTabPaint.dragRegion).toBe('no-drag');
+
     const skeletonPaint = await page.locator('.ui-skeleton').first().evaluate(element => {
         const style = getComputedStyle(element);
         const shimmer = getComputedStyle(element, '::after');
@@ -254,8 +274,8 @@ test('opens directly from the filesystem with its styles and eager catalogue beh
     await expect(page.locator('[data-catalog-section]')).toHaveCount(12);
 
     const themeSelect = page.getByLabel('Theme');
-    await expect(themeSelect.locator('option')).toHaveCount(17);
-    await expect(page.locator('#theme-status')).toHaveText('17 themes · Figaro Dark');
+    await expect(themeSelect.locator('option')).toHaveCount(18);
+    await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
     await themeSelect.selectOption('figaro-light');
     await expect(page.locator('#catalog-theme')).toHaveAttribute('href', '../themes/figaro-light.css');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'figaro-light');

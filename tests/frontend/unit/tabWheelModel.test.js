@@ -3,17 +3,27 @@ import { wheelTabNavigationPlan } from '../frontend/js/core/tabWheelModel.js';
 describe('tab wheel navigation model', () => {
     const tabIds = ['one', 'two', 'three'];
 
-    test('cycles in wheel direction and wraps at both ends', () => {
+    test('cycles in wheel direction and stops at both ends', () => {
         expect(wheelTabNavigationPlan({
             tabIds,
             activeTabId: 'three',
             deltaY: 100,
-        }).targetTabId).toBe('one');
+        }).targetTabId).toBeNull();
         expect(wheelTabNavigationPlan({
             tabIds,
             activeTabId: 'one',
             deltaY: -100,
+        }).targetTabId).toBeNull();
+        expect(wheelTabNavigationPlan({
+            tabIds,
+            activeTabId: 'two',
+            deltaY: 100,
         }).targetTabId).toBe('three');
+        expect(wheelTabNavigationPlan({
+            tabIds,
+            activeTabId: 'two',
+            deltaY: -100,
+        }).targetTabId).toBe('one');
     });
 
     test('accumulates small pixel deltas and resets when direction changes', () => {

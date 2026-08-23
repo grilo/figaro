@@ -69,6 +69,7 @@ html, body {
 }
 
 #app {
+    --shell-sidebar-width: var(--sidebar-width);
     display: flex;
     flex-direction: column;
     position: relative;

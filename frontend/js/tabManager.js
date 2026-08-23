@@ -27,6 +27,7 @@ import { initSettingsPanel } from './theme.js';
 import { isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
+import { boundedAdjacentTabId } from './core/tabNavigationModel.js';
 import { wheelTabNavigationPlan } from './core/tabWheelModel.js';
 import { editorTextScaleWheelPlan } from './core/editorTextScaleModel.js';
 import {
@@ -46,6 +47,8 @@ import { createDocumentSave } from './usecases/documentSave.js';
 import { loadApplicationVersion } from './usecases/loadApplicationVersion.js';
 import { initRecentlyDeletedSettings } from './recentlyDeleted.js';
 import { fileTabReadTarget } from './core/externalFileModel.js';
+import { initialFrontmatterBodySelection } from './frontmatter.js';
+import { isMarkdownFilePath } from './languageSupport.js';
 import {
     configureContextMenu,
     contextMenuAnchorPoint,
@@ -361,9 +364,10 @@ function revealActiveTab(tabStrip) {
 
     const viewport = tabStrip.getBoundingClientRect();
     const tab = activeTab.getBoundingClientRect();
+    const leadingInset = Number.parseFloat(getComputedStyle(tabStrip).paddingLeft) || 0;
     const target = activeTabScrollTarget({
         currentScroll: tabStrip.scrollLeft,
-        viewportStart: viewport.left,
+        viewportStart: viewport.left + leadingInset,
         viewportEnd: viewport.right,
         tabStart: tab.left,
         tabEnd: tab.right,
@@ -380,7 +384,10 @@ function refreshTabOverflowLayout(tabStrip, { revealActive = true } = {}) {
     if (!tabStrip || !tabBar || !button) return;
 
     // Measure the rail at its full width. Otherwise the button can make itself
-    // permanently necessary by consuming the last available tab space.
+    // permanently necessary by consuming the last available tab space. Keep
+    // the prior offset because widening the viewport temporarily clamps
+    // scrollLeft near its end in real browsers.
+    const retainedScrollOffset = tabStrip.scrollLeft;
     button.hidden = true;
     const naturalState = tabOverflowState({
         scrollSize: tabStrip.scrollWidth,
@@ -390,11 +397,44 @@ function refreshTabOverflowLayout(tabStrip, { revealActive = true } = {}) {
     button.hidden = !naturalState.overflow;
     tabBar.classList.toggle('tabs-overflow', naturalState.overflow);
 
+    if (naturalState.overflow) {
+        tabStrip.scrollLeft = Math.min(
+            retainedScrollOffset,
+            Math.max(0, tabStrip.scrollWidth - tabStrip.clientWidth),
+        );
+    } else {
+        tabStrip.scrollLeft = 0;
+    }
+
     if (!naturalState.overflow) {
         setAllTabsDropdownOpen(false);
     }
     if (revealActive) revealActiveTab(tabStrip);
     updateTabScrollAffordances(tabStrip);
+}
+
+function handleBoundedTabShortcut(event) {
+    if (
+        !event.ctrlKey
+        || event.metaKey
+        || event.altKey
+        || event.shiftKey
+        || !['PageUp', 'PageDown'].includes(event.key)
+    ) return;
+
+    const tabStrip = document.getElementById('tab-strip');
+    const tabIds = [...(tabStrip?.querySelectorAll('.tab') || [])]
+        .map(tab => tab.dataset.tabId)
+        .filter(Boolean);
+    if (!tabIds.length) return;
+
+    event.preventDefault();
+    const targetTabId = boundedAdjacentTabId({
+        tabIds,
+        activeTabId: getState('activeTabId'),
+        direction: event.key === 'PageDown' ? 1 : -1,
+    });
+    if (targetTabId) switchTab(targetTabId);
 }
 
 /**
@@ -607,6 +647,10 @@ export function initTabManager() {
             'figaro:editor-text-scale-default-changed',
             handleConfiguredEditorTextScaleChanged,
         );
+    }
+    if (!document._figaroBoundedTabShortcutBound) {
+        document._figaroBoundedTabShortcutBound = true;
+        document.addEventListener('keydown', handleBoundedTabShortcut, true);
     }
     renderEditorTextScaleStatus(getActiveTab());
 
@@ -843,7 +887,11 @@ async function renderTabContent(tab, cursorState = null, preparedFile = null) {
 async function renderFileTab(panel, tab, cursorState = null, preparedFile = null) {
     if (!tab.path) return;
     if (preparedFile) {
-        setEditorContent(preparedFile.content, tab.id, cursorState);
+        setEditorContent(
+            preparedFile.content,
+            tab.id,
+            fileMountSelection(tab, preparedFile.content, cursorState),
+        );
         tab._content = preparedFile.content;
         tab.mtime = preparedFile.mtime;
         tab.dirty = false;
@@ -857,11 +905,20 @@ async function renderFileTab(panel, tab, cursorState = null, preparedFile = null
         const configured = await configureEditorForFile(tab.path);
         if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
         if (tab._content == null) tab._content = '';
-        setEditorContent(tab._content, tab.id, cursorState);
+        setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
         document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
         return;
     }
     await loadFileContent(tab, cursorState);
+}
+
+function fileMountSelection(tab, content, rememberedSelection = null) {
+    if (!isMarkdownFilePath(tab.path)) return rememberedSelection;
+    const lineNumber = Number(tab.searchLine);
+    return initialFrontmatterBodySelection(content, {
+        rememberedSelection,
+        hasLineTarget: Number.isInteger(lineNumber) && lineNumber >= 1,
+    });
 }
 
 async function loadFileContent(tab, cursorState = null) {
@@ -874,7 +931,7 @@ async function loadFileContent(tab, cursorState = null) {
         if (tab._content != null && tab.dirty) {
             const configured = await configureEditorForFile(tab.path);
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
-            setEditorContent(tab._content, tab.id, cursorState);
+            setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
             focusSearchLine(tab);
             return;
@@ -889,7 +946,7 @@ async function loadFileContent(tab, cursorState = null) {
             if (tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
             const configured = await configureEditorForFile(tab.path);
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
-            setEditorContent(result.content, tab.id, cursorState);
+            setEditorContent(result.content, tab.id, fileMountSelection(tab, result.content, cursorState));
             tab._content = result.content;
             tab.mtime = result.mtime;
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
@@ -1366,12 +1423,13 @@ export function renderTabBar() {
     
     // Sort: pinned first, then unpinned.
     const sorted = sortTabsForDisplay(tabs, pinned);
-    
+
     tabStrip.innerHTML = sorted.map(tab => {
         const isPinned = pinned.includes(tab.id);
         const isActive = tab.id === activeId;
         const tabClasses = [
             'ui-document-tab',
+            'ui-document-tab--connected',
             'tab',
             isActive ? 'ui-document-tab--active active' : '',
             tab.dirty ? 'ui-document-tab--dirty dirty' : '',

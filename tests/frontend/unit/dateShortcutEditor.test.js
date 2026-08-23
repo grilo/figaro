@@ -52,7 +52,7 @@ describe('date shortcuts in the Markdown editor', () => {
         }
     });
 
-    test('hashtag completion keeps prose quiet and offers the shared due-date picker for an unchecked task', async () => {
+    test('Space after any tagged line offers the shared due-date picker', async () => {
         document.body.innerHTML = `
             <div id="editor-container"></div>
             <span id="status-text"></span>
@@ -76,16 +76,16 @@ describe('date shortcuts in the Markdown editor', () => {
             expect(currentCompletions(view.state).map(option => option.label)).toEqual(['#urgent']);
 
             closeCompletion(view);
-            const inlineCode = '`example #ur `';
+            const inlineCode = '`example #todo `';
             view.dispatch({
                 changes: { from: 0, to: view.state.doc.length, insert: inlineCode },
-                selection: { anchor: inlineCode.indexOf(' ') + 4 },
+                selection: { anchor: inlineCode.length - 1 },
                 userEvent: 'input.type',
             });
             await new Promise(resolve => setTimeout(resolve, 100));
             expect(currentCompletions(view.state)).toEqual([]);
 
-            const frontmatter = '---\ntags: #ur\n---';
+            const frontmatter = '---\ntags: #todo \n---';
             view.dispatch({
                 changes: { from: 0, to: view.state.doc.length, insert: frontmatter },
                 selection: { anchor: frontmatter.indexOf('\n---') },
@@ -94,7 +94,7 @@ describe('date shortcuts in the Markdown editor', () => {
             await new Promise(resolve => setTimeout(resolve, 100));
             expect(currentCompletions(view.state)).toEqual([]);
 
-            const task = '- [ ] Prepare release #todo';
+            const task = 'Prepare release #follow-up ';
             view.dispatch({
                 changes: { from: 0, to: view.state.doc.length, insert: task },
                 selection: { anchor: task.length },
@@ -102,12 +102,9 @@ describe('date shortcuts in the Markdown editor', () => {
             });
             await new Promise(resolve => setTimeout(resolve, 100));
             expect(currentCompletions(view.state).map(option => option.label)).toEqual([
-                '#todo', 'Add due date…', 'Due today', 'Due tomorrow',
+                'Add due date…', 'Due today', 'Due tomorrow',
             ]);
 
-            view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
-                key: 'ArrowDown', bubbles: true, cancelable: true,
-            }));
             view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
                 key: 'Enter', bubbles: true, cancelable: true,
             }));
@@ -117,7 +114,7 @@ describe('date shortcuts in the Markdown editor', () => {
             picker.querySelector('[data-date-picker-value]').click();
             await Promise.resolve();
             expect(view.state.doc.toString()).toMatch(
-                /^- \[ \] Prepare release #todo \[due \d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)$/
+                /^Prepare release #follow-up \[due \d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)$/
             );
         } finally {
             view.destroy();

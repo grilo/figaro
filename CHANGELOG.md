@@ -10,6 +10,68 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.25.0] - 2026-08-23
+
+### Added
+
+- Added the **Figaro CRT Phosphor** theme with an accessible phosphor palette,
+  locally bundled monospace typography, a subtle vignette and screen
+  perspective, plus one faint scan-line pass about every five minutes that is
+  disabled by reduced-motion preferences.
+
+### Changed
+
+- The due-date picker opened after a tagged-line Space now mirrors the sidebar
+  Calendar: Today starts selected, the operating-system locale controls weekday
+  order and weekends, and the same live note-intensity fills, due outlines,
+  theme colors, and activity tooltips appear in both calendars.
+- Pressing Space after any valid standalone Kanban hashtag now offers **Add due
+  date…**, **Due today**, and **Due tomorrow** for that tagged line, including
+  prose and unsaved custom columns; `#done` and already dated lines stay quiet.
+- The title-bar `?` help now separates supported **Markdown** syntax from
+  Figaro-specific **Macros**. Relative-date shortcuts, Calendar date links,
+  Kanban system/custom hashtags, semantic task due dates, and their completion
+  actions now live together in the keyboard-accessible Macros topic. The help
+  surface is also wider and taller, with stable geometry when switching topics.
+- Vertical wheel navigation over document tabs and the new
+  Ctrl+PageUp/PageDown buffer shortcuts now stop at the first and last open tab
+  instead of wrapping around.
+- Document tabs now use the approved connected rounded design-system variant
+  inside the title bar, aligned to the live sidebar edge through collapse and
+  resize while preserving overflow controls, reordering, and native window
+  dragging.
+- Figaro Dark and Figaro Light now use flat connected workspace surfaces:
+  titlebar and file tree share one color while active tab and editor share
+  another; incidental sidebar and tab borders are removed, and the few
+  remaining tools/status separators are deliberately subtle.
+- The footer now has a file-tree-width application-status region for startup
+  progress, activity, messages, and Undo, plus a remaining buffer-status region
+  for editor telemetry and file actions. Both follow sidebar resize/collapse;
+  every Figaro theme continues its file-tree palette into the application
+  region, while Dark and Light continue the editor color into the buffer region.
+
+### Fixed
+
+- Newly opened Markdown buffers with complete Properties now place the cursor
+  on the first body line instead of on the frontmatter card; remembered cursor
+  selections and explicit line targets still take precedence.
+- Overflowing tab rails now preserve their horizontal offset while measuring
+  the all-tabs control, keeping short and crowded rails consistently flush with
+  the buffer at their leading edge.
+- Bordered themes now paint the file-tree rail and leading tab outline on one
+  shared boundary pixel instead of adjacent lines; CRT Phosphor also drops its
+  redundant inset sidebar rule while retaining the outer glow.
+- Title-bar divider ownership now remains stable through startup and final-tab
+  closure, eliminating empty-rail and right-controls kinks; themes that expose
+  the divider keep it continuous and let the selected tab cover only its own
+  segment.
+- Figaro Dark and Figaro Light no longer show a differently colored CodeMirror
+  gutter strip between the file tree and editor; the gutter now continues the
+  native reading surface.
+- Calendar now selects Today on its first opening in each app session and
+  restores the last day selected when reopened during that session, without
+  carrying a stale selection into the next launch.
+
 ## [1.24.1] - 2026-08-21
 
 ### Changed
@@ -1261,7 +1323,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.24.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.25.0...HEAD
+[1.25.0]: https://github.com/grilo/figaro/compare/v1.24.1...v1.25.0
 [1.24.1]: https://github.com/grilo/figaro/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/grilo/figaro/compare/v1.23.2...v1.24.0
 [1.23.2]: https://github.com/grilo/figaro/compare/v1.23.1...v1.23.2

@@ -401,7 +401,9 @@ viewport placement.
 The Calendar cache component test holds the month port unresolved to prove that
 the shared skeleton appears synchronously with locale-shaped row geometry,
 accessible busy status, successful response replacement, and no same-month cache
-flash. The Kanban component test similarly holds both board ports unresolved
+flash. It also owns the session-selection contract: the first panel opening
+chooses local Today, a selected actionable day survives close/reopen, and the
+legacy cross-session storage key is discarded. The Kanban component test similarly holds both board ports unresolved
 and proves its three columns adopt `.ui-skeleton` before resolving into cards.
 
 `tests/e2e/designSystemCatalog.spec.js` is the single representative browser
@@ -417,13 +419,16 @@ family is present in the rendered catalogue. The same boundary checks the
 skeleton's theme-derived fill, radius, clipping, and active shimmer; the unit
 contract owns its reduced-motion rule. The tooltip specimen additionally
 proves hover delay completion, immediate keyboard-focus exposure, Escape
-dismissal, and dark/light computed paint from the canonical tokens. Do not loop all 17 themes through
-Playwright; the unit contract already proves
+dismissal, and dark/light computed paint from the canonical tokens. Do not loop
+all 18 themes through Playwright; the unit contract already proves
 manifest-to-file coverage, while one real stylesheet switch proves the browser
 mechanism.
 
-The existing native-theme browser scenario also owns the Settings layout
-boundary: at wide widths its two card groups occupy independent columns and
+The existing Figaro-theme browser scenario also owns CRT Phosphor's exact
+palette, vignette and scan-line layers, five-minute animation duration,
+non-interactive overlay, subtle content transform, and reduced-motion
+suppression while retaining the vignette. It continues to own the Settings
+layout boundary: at wide widths its two card groups occupy independent columns and
 short cards retain intrinsic height; below 960px the groups stack at equal
 width without changing logical card order. `tabManager.test.js` owns the exact
 group membership and DOM order, so Playwright keeps only the representative
@@ -462,15 +467,18 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - Pure and component coverage for tab-reorder planning and drag thresholds,
   application-wide selection suppression during the active gesture, cleanup
   after drop and cancellation, pin-group boundaries, tab-overflow direction,
-  nearest active-tab reveal, vertical-wheel direction/wrapping/high-resolution
-  accumulation, preservation of horizontal wheel scrolling, two-ended
+  nearest active-tab reveal, bounded vertical-wheel and Ctrl+PageUp/PageDown
+  direction, high-resolution accumulation, preservation of horizontal wheel
+  scrolling, two-ended
   filename/path presentation, conditional all-tabs visibility, keyboard menu
   selection, and the disabled-by-default vault-relative editor breadcrumb.
   The focused browser scenario drags a real primary pointer from the tab rail
   into the file tree and back, retaining no selected text while asserting the
-  temporary computed `user-select` guard. It also owns real vertical wheel tab
-  cycling, the actual flex widths, horizontal scrolling, and computed
-  pseudo-element fade opacity that cannot be represented by jsdom.
+  temporary computed `user-select` guard. It also owns real vertical-wheel and
+  Ctrl+PageUp/PageDown tab switching, first/last clamping, preservation of the
+  flush leading-tab alignment across overflow-button measurement, the actual
+  flex widths, horizontal scrolling, and computed pseudo-element fade opacity
+  that cannot be represented by jsdom.
 - Browser rendering of cover pages, table of contents, fenced-code token colors,
   Mermaid, Vega, and Vega-Lite in the PDF export pipeline; focused printable
   renderer coverage also proves that CodeMirror table `<br>` markers become
@@ -481,10 +489,16 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   behind a pure pre-parse size and ordered-map policy until its embedded YAML
   parser reaches a fixed release; the representative PDF browser scenario
   proves rejected source remains printable.
-- The native Figaro Dark and Light theme assets, including their warm reading
-  surfaces, framed navigation, contiguous active tab, current-document tree selection, tactile
-  Settings card, collar stitch, focus token, text/link contrast, and at least
-  4.5:1 rendered contrast for Home's small muted instructions.
+- The Figaro Dark, Light, and CRT Phosphor theme assets, including their warm or
+  phosphor reading surfaces, contiguous active tab, shared single-pixel
+  file-tree/tab boundary, current-document tree selection, tactile Settings
+  card, focus token, text/link contrast, and at
+  least 4.5:1 rendered contrast for Home's small muted instructions. Native
+  Dark/Light coverage additionally compares computed titlebar/file-tree and
+  editor/gutter/buffer-status colors, proves the internal sidebar, tab, workspace, and
+  status borders are transparent, and keeps only the subtle tools divider and
+  status separators. CRT coverage checks its restrained glow plus the ambient
+  overlay and reduced-motion contract.
 - Browser workflows for contextual Relationships, keyboard-triggered mention
   linking, the themed Vault-health Settings entry and finding navigation, and
   the full-width, non-overlapping History source comparison before restoration,
@@ -602,15 +616,20 @@ packaged application on each affected desktop platform.
 
 Calendar and Kanban are persistent destinations, not title-bar toggles.
 Retain focused coverage that they remain in the footer below the file tree,
-Settings remains beside the window controls, and the title-bar center remains
-clear for native window dragging. Calendar must expand inside the left sidebar without closing or taking
+Settings remains beside the window controls, and the approved connected rounded
+tab rail occupies the title-bar center. Real-browser geometry must prove that
+the title-bar/sidebar boundary stays aligned at the restored width, after
+collapse/expand, and after a pointer resize. The application-status region must
+end at that same boundary while the buffer-status region starts there; active tabs meet the workspace with
+rounded top corners and no bottom border. Tabs remain no-drag targets while
+unused title-bar space retains native dragging. Calendar must expand inside the left sidebar without closing or taking
 ownership of History/Document outline/Raw Text Preview/PDF preview on the right. Collapsing must leave a 44px
 tool rail, close any expanded Calendar content, and reopen both the normal
 sidebar and Calendar when its rail icon is selected. Populate a representative
 large tree plus overflowing due-task and linked-note results, then assert that
 the file tree and Calendar detail region scroll independently without
 flex-shrinking the monthly grid out of the open panel. Switching that populated
-date to an empty one must leave the panel height and grid position unchanged.
+date to a compact one-result date must leave the panel height and grid position unchanged.
 Select a date with no results separately and verify
 that its guidance uses the Calendar font family, compact 12px/18px type, muted
 theme color, and deliberate spacing instead of inherited application body text.
@@ -635,7 +654,14 @@ npx playwright test tests/e2e/sidebarNavigation.spec.js
 
 The Today dashboard is an un-tabbed empty state, not a synthetic **Welcome**
 tab. Closing the final tab, deleting the final open file, and clicking the
-Figaro name must leave it centered with an empty tab strip. Pure coverage owns
+Figaro name must leave it centered with an empty tab strip. The initial markup
+and every tab render leave the rail free of special empty-state paint. The
+focused browser workflow must verify that the rail never owns a computed baseline, the title
+bar's divider ownership survives closing the final tab unchanged, and a
+bottom-aligned opaque active tab stacks above that structural seam with no lower
+border. Theme coverage separately proves whether that divider is visible or,
+for Figaro Dark and Figaro Light, transparent.
+Pure coverage owns
 the local-date presentation, Inbox/pin/rediscovery projections, and daily-note
 Inbox preference, legacy-root fallback, and directory/create/collision plan.
 Component coverage owns task/pin stale-response guards, quick-capture reuse,
@@ -668,19 +694,21 @@ go test ./internal/desktop -run 'Test(CreateDirectory|CreateInboxNote|LoadSessio
 
 Due dates remain Markdown data, not configuration state. Pure tests cover the
 matching `[due YYYY-MM-DD](YYYY-MM-DD.md)` contract, invalid and mismatched
-dates, local-day presentation, unique summary counts, Home priority, picker
-months, the next-midnight refresh plan, hashtag-column normalization, and the
-task/prose/completed/already-dated eligibility matrix. Completion-source tests
-own atomic Today/Tomorrow insertion, picker handoff, and the one-time restart
-after accepting a task tag. Root-scoped backend tests prove
+dates, local-day presentation, unique summary counts, Home priority, shared
+sidebar/picker month presentation, the next-midnight refresh plan,
+hashtag-column normalization, and the
+post-Space valid/custom/done/already-dated eligibility matrix. Completion-source
+tests own atomic Today/Tomorrow insertion and picker handoff without requiring
+checkbox syntax. Root-scoped backend tests prove
 that setting, replacing, and clearing a due date changes only the requested
 task line and immediately updates the shared Kanban/Calendar index. Component
-tests own picker focus and Arrow-key movement, card controls, warning states,
+tests own the picker's default Today selection, injected live month activity,
+focus and Arrow-key movement, card controls, warning states,
 Today reminders, the column header's neutral-icon/selected-color indicator,
 Calendar task results, cache invalidation, locale weekday/weekend rendering,
-movable Today/selection precedence with restored note intensity, accepted-shortcut dirty-buffer projection,
-count-to-selected-row agreement, due-title hover/focus content, prose hashtag completion, and
-frontmatter/code suppression. The live Kanban component must also prove that a
+first-open Today and same-session reopen selection, movable Today/selection precedence with restored note intensity, accepted-shortcut dirty-buffer projection,
+count-to-selected-row agreement, due-title hover/focus content, prose hashtag completion,
+post-Space tagged-line scheduling, and frontmatter/code suppression. The live Kanban component must also prove that a
 dirty new tag appears on the board without entering the saved completion
 vocabulary until save. Keep these in
 `kanban_due_test.go`, `app_test.go`, `calendar_index_test.go`,
@@ -693,10 +721,14 @@ vocabulary until save. Keep these in
 `tests/frontend/unit/home.test.js`, and
 `tests/frontend/unit/calendarCache.test.js`. The static discoverability
 contract belongs in `tests/frontend/unit/markdownCheatsheet.test.js`: it keeps
-the complete portable due-date line directly after the ordinary task row.
+ordinary Markdown free of Figaro semantic rows, inventories every supported
+relative-date, Calendar-link, Kanban-column, and due-date macro, and proves the
+two-topic tablist's selected/tabbable/panel state plus click, arrow, and Escape
+behavior.
 One focused browser workflow in `tests/e2e/editorUX.spec.js` covers the normal
 prose/task distinction, keyboard acceptance, computed caret-relative picker
-position, source-line round trip, Arrow Up/Down, and drag selection. Pure
+position, exact computed weekday/surface/day-state parity between the picker
+and sidebar Calendar, source-line round trip, Arrow Up/Down, and drag selection. Pure
 parsing and backend mutation branches do not belong in Playwright. That test
 waits for the initial Kanban refresh before replacing completion columns and
 uses a two-second `Promise.race` timeout; a stalled setup must fail explicitly
@@ -881,7 +913,14 @@ The Properties picker adds a browser-only paint, movement-intent, and pointer
 boundary to that contract. `frontmatterPresentationModel.test.js` proves that
 ordinary selection jumps retain the card while upward intent reveals it;
 `blockWidgetLayout.test.js` owns its explicit widget paint layer and the
-cleared entrance transform. `frontmatterProperties.spec.js` opens a
+cleared entrance transform. `frontmatter.test.js` proves that the pure initial
+selection plan uses the exact closed-frontmatter body boundary, including BOM
+and CRLF input, while rejecting incomplete or non-leading blocks.
+`tabManager.test.js` proves that an unpositioned Markdown mount receives that
+selection, remembered and explicit line positions win, and non-Markdown modes
+bypass the policy; `editor.test.js` verifies that the resolved offset becomes
+the real CodeMirror anchor/head while the Properties card stays rendered.
+`frontmatterProperties.spec.js` opens a
 language option whose center extends below the card, verifies that option is
 the topmost hit target, hovers and activates it, and confirms the document
 selection remains on its original body line. It also proves Home/document
@@ -895,7 +934,9 @@ CodeMirror line positioning:
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/blockWidgetLayout.test.js \
   tests/frontend/unit/frontmatterPresentationModel.test.js \
-  tests/frontend/unit/frontmatter.test.js
+  tests/frontend/unit/frontmatter.test.js \
+  tests/frontend/unit/tabManager.test.js \
+  tests/frontend/unit/editor.test.js
 npx playwright test tests/e2e/frontmatterProperties.spec.js
 ```
 
@@ -1271,9 +1312,13 @@ ranked target with Enter.
 
 Tab activation rerenders the tab DOM, so unit and browser coverage must prove
 two consecutive Left/Right presses keep focus on the newly mounted active tab.
-The real narrow viewport also owns the status bar's 24px fixed-height contract;
-save-model and tab-manager units own failure-cause formatting, dirty-buffer
-retention, and the live status semantics.
+The real narrow viewport also owns the status bar's 24px fixed-height contract,
+the file-tree/buffer region boundary, and the collapsed 44px application-status
+presentation: full live text and tooltip remain available, its compact activity
+state stays inside the rail, and **Undo** remains visible and operable. Theme
+coverage compares the native application-status surface with the file tree and
+the buffer-status surface with the editor. Save-model and tab-manager units own
+failure-cause formatting, dirty-buffer retention, and the live status semantics.
 
 Run the focused contract with:
 
@@ -1508,7 +1553,11 @@ collision refusal, symlink preservation, and no overwrite. Frontend tests
 prove the ten-second native status **Undo**, Settings list success/error states,
 and one tree-refresh request. The real browser owns only native Enter/Space
 status-button activation, History roving-option focus/selection, link cursor,
-and the relocated cheatsheet's hidden/focus/Escape behavior.
+and the relocated help popup's hidden/focus/Escape behavior plus real
+Markdown/Macros tab focus and panel visibility. That browser contract also
+measures the expanded help surface before and after a topic switch to prove its
+outer geometry remains unchanged; unit coverage owns the responsive target
+dimensions, contained scrolling, and stable scrollbar gutter.
 
 Slow file-tree mutation feedback stays below the browser layer. Status-bar
 unit tests use fake timers to prove that fast work never flashes, the spinner

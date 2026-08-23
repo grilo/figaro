@@ -73,6 +73,16 @@ export function calendarMonthGrid(year, monthIndex, firstDay) {
     return weeks;
 }
 
+export function calendarSessionSelectionPlan(selectedDateStr, todayStr) {
+    if (isISODate(selectedDateStr)) {
+        return { selectedDateStr, initializeFromToday: false };
+    }
+    if (isISODate(todayStr)) {
+        return { selectedDateStr: todayStr, initializeFromToday: true };
+    }
+    return { selectedDateStr: null, initializeFromToday: false };
+}
+
 export function noteIntensityLevel(noteCount) {
     const count = Math.max(0, Math.floor(Number(noteCount) || 0));
     if (count === 0) return 0;
@@ -235,6 +245,74 @@ export function calendarDayState({ isoDay, weekend, noteCount, dueTitles, hasDue
     };
 }
 
+export function calendarMonthPresentation({
+    year,
+    month,
+    data,
+    selectedDateStr = '',
+    todayStr = '',
+    firstDay = DEFAULT_WEEK_INFO.firstDay,
+    weekend = DEFAULT_WEEK_INFO.weekend,
+} = {}) {
+    const daysWithLinks = new Set(Array.isArray(data?.days_with_links)
+        ? data.days_with_links.map(Number)
+        : []);
+    const hasStructuredSummaries = Array.isArray(data?.day_summaries);
+    const summaries = calendarMonthSummaryMap(data);
+    const weeks = calendarMonthGrid(year, month, firstDay).map(week => week.map(day => {
+        if (day === 0) return { empty: true };
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const summary = summaries.get(day) || { noteCount: 0, dueTitles: [], hasDue: false };
+        const hasLink = !hasStructuredSummaries && daysWithLinks.has(day);
+        const isToday = dateStr === todayStr;
+        const state = calendarDayState({
+            isoDay: isoWeekday(year, month, day),
+            weekend,
+            noteCount: summary.noteCount,
+            dueTitles: summary.dueTitles,
+            hasDue: summary.hasDue,
+            hasLink,
+            isToday,
+        });
+        return {
+            empty: false,
+            day,
+            dateStr,
+            hasLink,
+            isSelected: dateStr === selectedDateStr,
+            isToday,
+            state,
+            summary,
+        };
+    }));
+    return { weeks, summaries };
+}
+
+export function calendarDayClassName(day) {
+    let classes = 'ui-date-picker-day cal-day';
+    if (day?.isSelected) classes += ' selected';
+    if (day?.state?.isWeekend) classes += ' is-weekend ui-date-picker-day--weekend';
+    if (day?.state?.noteLevel) classes += ` has-note ui-date-picker-day--note-${day.state.noteLevel}`;
+    if (day?.hasLink) classes += ' has-link';
+    if (day?.state?.hasDue) classes += ' has-due-task ui-date-picker-day--due';
+    return classes;
+}
+
+export function calendarDayLabelParts(day, formattedDate) {
+    const labelParts = [formattedDate];
+    if (day?.state?.isWeekend) labelParts.push('Weekend');
+    if (day?.summary?.noteCount) {
+        labelParts.push(`${day.summary.noteCount} ${day.summary.noteCount === 1 ? 'note' : 'notes'}`);
+    }
+    if (day?.state?.hasDue) {
+        labelParts.push(day.summary.dueTitles.length
+            ? `${day.summary.dueTitles.length} due ${day.summary.dueTitles.length === 1 ? 'item' : 'items'}: ${day.summary.dueTitles.join('; ')}`
+            : 'Due item');
+    }
+    if (day?.isToday) labelParts.push('Today');
+    return labelParts;
+}
+
 export function tooltipPosition(anchorRect, tooltipRect, viewport, gap = 6, margin = 8) {
     const width = Math.max(0, Number(tooltipRect?.width) || 0);
     const height = Math.max(0, Number(tooltipRect?.height) || 0);
@@ -256,10 +334,14 @@ export function tooltipPosition(anchorRect, tooltipRect, viewport, gap = 6, marg
 }
 
 export default {
+    calendarDayClassName,
+    calendarDayLabelParts,
     calendarDayState,
     calendarMonthGrid,
+    calendarMonthPresentation,
     calendarMonthSummaryMap,
     calendarNoteAssociations,
+    calendarSessionSelectionPlan,
     isoWeekday,
     localeWeekInfo,
     localeWeekdays,

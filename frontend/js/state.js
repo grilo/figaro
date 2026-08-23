@@ -24,7 +24,7 @@ export const state = {
     
     // Calendar
     currentCalDate: new Date(), // Current calendar month view
-    selectedCalDateStr: null,   // Selected date string (YYYY-MM-DD)
+    selectedCalDateStr: null,   // Current-session selected date (YYYY-MM-DD)
     
     // Tabs
     openTabs: [],               // Array of tab objects: { id, type, path, title, dirty, data }
@@ -203,11 +203,9 @@ export function initState() {
         }
     }
     
-    // Restore last selected date
-    const savedDate = stateStorage.read('selectedCalDate');
-    if (savedDate) {
-        state.selectedCalDateStr = savedDate;
-    }
+    // Calendar selection is intentionally process-local. Remove the legacy
+    // cross-session value so every new app session begins on Today.
+    stateStorage.remove('selectedCalDate');
 
     // Restore pinned tabs. Stale pins are pruned after the tab snapshot is
     // normalized below.
@@ -294,9 +292,7 @@ export function persistState() {
     } else {
         stateStorage.remove('activeTabId');
     }
-    if (state.selectedCalDateStr) {
-        stateStorage.write('selectedCalDate', state.selectedCalDateStr);
-    }
+    stateStorage.remove('selectedCalDate');
     if (state.selectedTreePath) {
         stateStorage.write('selectedTreePath', state.selectedTreePath);
     } else {
@@ -312,13 +308,6 @@ subscribe('showEditorBreadcrumbs', () => {
 });
 subscribe('expandedDirs', () => {
     try { stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs])); } catch (e) { /* noop */ }
-});
-subscribe('selectedCalDateStr', () => {
-    try {
-        if (state.selectedCalDateStr) {
-            stateStorage.write('selectedCalDate', state.selectedCalDateStr);
-        }
-    } catch (e) { /* noop */ }
 });
 subscribe('pinnedTabs', () => {
     try {

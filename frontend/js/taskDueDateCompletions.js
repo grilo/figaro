@@ -1,7 +1,7 @@
 import {
-    hashtagTaskCompletionPlan,
-    planTaskDueDateInsertion,
-    taskDueDateCompletionText,
+    hashtagCompletionPlan,
+    planTaggedLineDueDateInsertion,
+    taggedLineDueDateActionPlan,
 } from './core/taskDueDateCompletionModel.js';
 import { localISODate, shiftISODate } from './core/dueDateModel.js';
 
@@ -9,15 +9,52 @@ export function createTaskDueDateCompletionSource({
     getColumns = () => [],
     now = () => new Date(),
     openPicker = null,
-    restartCompletion = null,
     contextAllowed = () => true,
 } = {}) {
     return context => {
         if (!contextAllowed(context)) return null;
         const line = context.state.doc.lineAt(context.pos);
-        const plan = hashtagTaskCompletionPlan(
+        const cursorOffset = context.pos - line.from;
+        const duePlan = taggedLineDueDateActionPlan(line.text, cursorOffset);
+        if (duePlan) {
+            const position = line.from + duePlan.fromOffset;
+            const today = localISODate(now());
+            const tomorrow = shiftISODate(today, 1);
+            return {
+                from: position,
+                filter: false,
+                options: [
+                    {
+                        label: 'Add due date…',
+                        detail: `for #${duePlan.column}`,
+                        type: 'keyword',
+                        apply: view => {
+                            if (typeof openPicker !== 'function') return;
+                            queueMicrotask(() => {
+                                if (view.isDestroyed) return;
+                                openPicker({
+                                    view,
+                                    position,
+                                    now,
+                                    onSelect: date => insertPickedDueDate(
+                                        view,
+                                        position,
+                                        duePlan.column,
+                                        date,
+                                    ),
+                                });
+                            });
+                        },
+                    },
+                    dueShortcutOption('Due today', duePlan.column, today, position),
+                    dueShortcutOption('Due tomorrow', duePlan.column, tomorrow, position),
+                ],
+            };
+        }
+
+        const plan = hashtagCompletionPlan(
             line.text,
-            context.pos - line.from,
+            cursorOffset,
             getColumns(),
         );
         if (!plan) return null;
@@ -33,70 +70,27 @@ export function createTaskDueDateCompletionSource({
                     changes: { from: applyFrom, to: applyTo, insert: replacement },
                     selection: { anchor: applyFrom + replacement.length },
                 });
-                if (plan.canSchedule && typeof restartCompletion === 'function') {
-                    queueMicrotask(() => {
-                        if (!view.isDestroyed) restartCompletion(view);
-                    });
-                }
             },
         }));
-
-        if (plan.dueColumn) {
-            const today = localISODate(now());
-            const tomorrow = shiftISODate(today, 1);
-            options.push(
-                {
-                    label: 'Add due date…',
-                    detail: `for #${plan.dueColumn}`,
-                    type: 'keyword',
-                    apply: (view, _completion, applyFrom, applyTo) => {
-                        const replacement = `#${plan.dueColumn}`;
-                        const tagEnd = applyFrom + replacement.length;
-                        view.dispatch({
-                            changes: { from: applyFrom, to: applyTo, insert: replacement },
-                            selection: { anchor: tagEnd },
-                        });
-                        if (typeof openPicker !== 'function') return;
-                        queueMicrotask(() => {
-                            if (view.isDestroyed) return;
-                            openPicker({
-                                view,
-                                position: tagEnd,
-                                now,
-                                onSelect: date => insertPickedDueDate(view, tagEnd, plan.dueColumn, date),
-                            });
-                        });
-                    },
-                },
-                dueShortcutOption('Due today', plan.dueColumn, today),
-                dueShortcutOption('Due tomorrow', plan.dueColumn, tomorrow),
-            );
-        }
 
         return { from, options, filter: false };
     };
 }
 
-function dueShortcutOption(label, column, date) {
+function dueShortcutOption(label, column, date, position) {
     return {
         label,
         detail: date,
         type: 'keyword',
-        apply: (view, _completion, from, to) => {
-            const replacement = taskDueDateCompletionText(column, date);
-            view.dispatch({
-                changes: { from, to, insert: replacement },
-                selection: { anchor: from + replacement.length },
-            });
-        },
+        apply: view => insertPickedDueDate(view, position, column, date),
     };
 }
 
-function insertPickedDueDate(view, absoluteTagEnd, column, date) {
+function insertPickedDueDate(view, absoluteCursor, column, date) {
     if (!date || view.isDestroyed) return false;
-    const bounded = Math.max(0, Math.min(absoluteTagEnd, view.state.doc.length));
+    const bounded = Math.max(0, Math.min(absoluteCursor, view.state.doc.length));
     const line = view.state.doc.lineAt(bounded);
-    const change = planTaskDueDateInsertion(line.text, bounded - line.from, column, date);
+    const change = planTaggedLineDueDateInsertion(line.text, bounded - line.from, column, date);
     if (!change) return false;
     const from = line.from + change.from;
     view.dispatch({

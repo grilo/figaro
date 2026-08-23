@@ -4,33 +4,40 @@
  * Uses clientX directly since sidebar is flush-left.
  */
 
-import { state } from './state.js';
+import { getState, setState } from './state.js';
+import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
+
+/**
+ * Apply an already-decided sidebar layout to the native shell boundary.
+ */
+export function applySidebarLayout(sidebar, plan) {
+    if (!sidebar || !plan) return;
+
+    sidebar.style.width = `${plan.visibleWidth}px`;
+    sidebar.style.minWidth = `${plan.minimumVisibleWidth}px`;
+    document.documentElement.style.setProperty('--sidebar-width', `${plan.expandedWidth}px`);
+    const app = document.getElementById('app');
+    app?.style.setProperty('--shell-sidebar-width', `${plan.visibleWidth}px`);
+    app?.classList.toggle('sidebar-collapsed', plan.collapsed);
+}
 
 export function initSidebarResizer() {
     const sidebar = document.getElementById('sidebar');
     const resizer = document.getElementById('sidebar-resizer');
     if (!sidebar || !resizer) return;
 
-    const MIN_WIDTH = 225;
-    const MAX_WIDTH = 500;
-
     resizer.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        if (state.sidebarCollapsed) return;
+        if (getState('sidebarCollapsed')) return;
 
         resizer.classList.add('is-dragging');
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
 
         function onMouseMove(moveEvent) {
-            let w = moveEvent.clientX;
-            if (w < MIN_WIDTH) w = MIN_WIDTH;
-            if (w > MAX_WIDTH) w = MAX_WIDTH;
-
-            state.sidebarWidth = w;
-            sidebar.style.width = `${w}px`;
-            sidebar.style.minWidth = `${w}px`;
-            document.documentElement.style.setProperty('--sidebar-width', `${w}px`);
+            const plan = sidebarLayoutPlan({ expandedWidth: moveEvent.clientX });
+            setState('sidebarWidth', plan.expandedWidth);
+            applySidebarLayout(sidebar, plan);
         }
 
         function onMouseUp() {

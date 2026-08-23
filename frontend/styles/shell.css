@@ -2,11 +2,11 @@
    Top Bar
    ========================================================================== */
 .top-bar {
-    display: flex;
+    display: grid;
+    grid-template-columns: var(--shell-sidebar-width) minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
     height: var(--top-bar-height);
-    padding: 0 12px;
+    padding: 0;
     background: var(--sidebar-bg);
     flex-shrink: 0;
     z-index: 100;
@@ -14,10 +14,12 @@
     user-select: none;
     -webkit-user-select: none;
     border-radius: 8px 8px 0 0;
+    transition: grid-template-columns var(--motion-layout-duration) var(--motion-ease-out);
 }
 
 .top-bar button,
-.top-bar input {
+.top-bar input,
+.top-bar [role="tab"] {
     --wails-draggable: no-drag;
 }
 
@@ -56,22 +58,31 @@
 .top-bar-left, .top-bar-center, .top-bar-right {
     display: flex;
     align-items: center;
-    gap: 8px;
+    min-width: 0;
+    height: 100%;
 }
 
-
-
-
 .top-bar-center {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
+    align-items: stretch;
+    overflow: visible;
+}
+
+.top-bar-left {
+    gap: 8px;
+    padding: 0 12px;
+}
+
+#app.sidebar-collapsed .top-bar-left {
+    padding-inline: 8px;
+}
+
+#app.sidebar-collapsed .top-bar-left .app-home-btn {
+    display: none;
 }
 
 .top-bar-right {
     gap: 4px;
+    padding: 0 12px 0 8px;
 }
 
 .titlebar-settings-btn.active {
@@ -498,7 +509,8 @@
 .sidebar::after {
     content: '';
     position: absolute;
-    inset: 0 0 0 auto;
+    inset: 0 -1px 0 auto;
+    z-index: 1;
     width: 1px;
     background: var(--border-color);
     opacity: 1;

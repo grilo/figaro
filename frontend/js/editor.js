@@ -26,6 +26,7 @@ import { FRONTMATTER_UPWARD_REVEAL_USER_EVENT } from './core/frontmatterPresenta
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
 import { createTaskDueDateCompletionSource } from './taskDueDateCompletions.js';
+import { isHashtagCompletionTrigger } from './core/taskDueDateCompletionModel.js';
 import { openDatePicker } from './datePicker.js';
 import { errorDialog, pdfExportErrorDialog, tableConversionDialog } from './dialogs.js';
 import { insertMarkdownTable } from './clipboardTable.js';
@@ -2124,7 +2125,7 @@ function createEditorView() {
             if (!typed) return;
             const head = update.state.selection.main.head;
             const line = update.state.doc.lineAt(head);
-            if (!/\s#[a-zA-Z0-9_-]*$/.test(update.state.doc.sliceString(line.from, head))) return;
+            if (!isHashtagCompletionTrigger(update.state.doc.sliceString(line.from, head))) return;
             queueMicrotask(() => {
                 if (!update.view.isDestroyed) startCompletion(update.view);
             });
@@ -2138,7 +2139,6 @@ function createEditorView() {
     const dateShortcutCompletions = createDateShortcutCompletionSource();
     const taskDueDateCompletions = createTaskDueDateCompletionSource({
         getColumns: () => getState('kanbanCompletionColumns') || [],
-        restartCompletion: startCompletion,
         contextAllowed: hashtagCompletionContextAllowed,
         openPicker: ({ view, position, now, onSelect }) => {
             const anchorRect = view.coordsAtPos(position) || view.contentDOM.getBoundingClientRect();

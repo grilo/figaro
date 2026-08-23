@@ -116,10 +116,11 @@ describe('State Management', () => {
             expect(getState('expandedDirs')).toEqual(new Set(['folder1', 'folder2']));
         });
 
-        test('should restore selectedCalDateStr from localStorage', () => {
+        test('should discard the legacy cross-session Calendar selection', () => {
             localStorage.setItem('selectedCalDate', '2024-01-15');
             initState();
-            expect(getState('selectedCalDateStr')).toBe('2024-01-15');
+            expect(getState('selectedCalDateStr')).toBeNull();
+            expect(localStorage.getItem('selectedCalDate')).toBeNull();
         });
 
         test('should restore pinnedTabs from localStorage', () => {
@@ -227,10 +228,11 @@ describe('State Management', () => {
             expect(saved).toEqual(['tab1', 'tab2']);
         });
 
-        test('should save selectedCalDateStr to localStorage', () => {
+        test('should keep selectedCalDateStr out of persisted state', () => {
+            localStorage.setItem('selectedCalDate', '2023-12-31');
             setState('selectedCalDateStr', '2024-01-15');
             persistState();
-            expect(localStorage.getItem('selectedCalDate')).toBe('2024-01-15');
+            expect(localStorage.getItem('selectedCalDate')).toBeNull();
         });
 
         test('should save selectedTreePath to localStorage', () => {

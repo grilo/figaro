@@ -61,6 +61,8 @@ describe('design-system catalogue', () => {
             '.ui-button.settings-action-btn',
             '.ui-button.drawio-edit-button',
             '.ui-menu.context-menu',
+            '.ds-help-popup',
+            '.md-cheatsheet-tab.ui-button--accent',
             '.ui-tooltip',
             '.ui-icon-button',
             '.ui-badge',
@@ -75,6 +77,8 @@ describe('design-system catalogue', () => {
             '.ui-date-picker-day--due',
             '.cal-day-tooltip',
             '.ui-notice',
+            '.ui-document-tabs--titlebar',
+            '.ui-document-tab--connected',
             '.settings-card',
             '.home-card',
             '.kanban-card',
@@ -104,6 +108,8 @@ describe('design-system catalogue', () => {
         }
         expect(catalogue.querySelector('script[src]').getAttribute('src')).toBe('./catalog.bundle.js');
         expect(catalogue.querySelector('.catalog-audit-note').textContent).toContain('Shared foundations');
+        expect(catalogue.querySelector('.ds-help-popup').textContent)
+            .toMatch(/#tag.*Press Space for due-date actions/);
         expect(Array.from(
             catalogue.querySelectorAll('#review-map tbody tr td:last-child'),
             cell => cell.textContent.trim(),
@@ -131,6 +137,14 @@ describe('design-system catalogue', () => {
             && button.getAttribute('aria-expanded') === 'false'
         ))).toBe(true);
         expect(catalogue.querySelector('.ds-tab-bar').classList.contains('tabs-can-scroll-end')).toBe(true);
+        expect(catalogue.querySelector('.top-bar-center .ui-document-tabs--titlebar')).not.toBeNull();
+        expect(catalogue.querySelector('.ds-tab-bar .ui-document-tab--connected.ui-document-tab--active')).not.toBeNull();
+        expect([...catalogue.querySelectorAll('.ds-tab-state .ds-tab-bar')]
+            .at(-1)?.querySelector('.tab-strip')?.children).toHaveLength(0);
+        expect(catalogue.querySelector('.ds-status-bar .status-left').getAttribute('aria-label'))
+            .toBe('Application status');
+        expect(catalogue.querySelector('.ds-status-bar .status-right').getAttribute('aria-label'))
+            .toBe('Active buffer status');
     });
 
     test('loads the canonical approved primitives in Figaro and the catalogue', () => {
@@ -233,6 +247,63 @@ describe('design-system catalogue', () => {
         }
     });
 
+    test('keeps CRT Phosphor ambient effects theme-owned and reduced-motion safe', () => {
+        const theme = normalizeThemeManifest(manifest).find(item => (
+            item.id === 'figaro-crt-phosphor'
+        ));
+        const source = fs.readFileSync(
+            path.resolve('frontend/themes/figaro-crt-phosphor.css'),
+            'utf8',
+        );
+        const surfaces = fs.readFileSync(
+            path.resolve('frontend/design-system/theme-surfaces.css'),
+            'utf8',
+        );
+
+        expect(theme).toEqual({
+            id: 'figaro-crt-phosphor',
+            name: 'Figaro CRT Phosphor',
+        });
+        expect(source).toContain('--bg-color: #04110b;');
+        expect(source).toContain('--accent-color: #39ff7a;');
+        expect(source).toContain('--font-sans: \'JetBrains Mono\'');
+        expect(source).toContain('--screen-vignette:');
+        expect(source).toContain('--screen-scan-animation: figaro-crt-scan;');
+        expect(source).toContain('--screen-scan-duration: 300s;');
+        expect(source).toContain('--screen-content-transform: perspective(2200px)');
+        expect(source).toContain('--application-status-surface: #000503;');
+        expect(surfaces).toContain('@keyframes figaro-crt-scan');
+        expect(surfaces).toMatch(
+            /@media \(prefers-reduced-motion: reduce\)[\s\S]*?#app::before[\s\S]*?animation-name: none !important;/,
+        );
+    });
+
+    test('keeps both native Figaro palettes on the same flat connected-surface contract', () => {
+        for (const [themeId, editorSurface] of [
+            ['default', '#1d1a17'],
+            ['figaro-light', '#fffdf8'],
+        ]) {
+            const source = fs.readFileSync(
+                path.resolve(`frontend/themes/${themeId}.css`),
+                'utf8',
+            );
+            expect(source).toContain('--navigation-surface: var(--sidebar-bg);');
+            expect(source).toContain('--file-tree-surface: var(--sidebar-bg);');
+            expect(source).toContain(`--editor-surface: ${editorSurface};`);
+            expect(source).toContain('--editor-gutter-surface: var(--editor-surface);');
+            expect(source).toContain('--workspace-surface: var(--editor-surface);');
+            expect(source).toContain('--application-status-surface: var(--file-tree-surface);');
+            expect(source).toContain('--status-bar-surface: var(--editor-surface);');
+            expect(source).toContain('--titlebar-divider-color: transparent;');
+            expect(source).toContain('--sidebar-rail-surface: transparent;');
+            expect(source).toContain('--sidebar-resizer-color: transparent;');
+            expect(source).toContain('--tab-active-border: transparent;');
+            expect(source).toContain('--status-bar-border: transparent;');
+            expect(source).toMatch(/--sidebar-tools-border-color: rgba\([^)]+\);/);
+            expect(source).toMatch(/--status-separator-color: rgba\([^)]+\);/);
+        }
+    });
+
     test('uses the approved shared primitives in production without merging distinct card or toggle semantics', () => {
         const sources = [
             'frontend/index.html',
@@ -277,7 +348,9 @@ describe('design-system catalogue', () => {
             '.ui-tooltip',
             '.ui-notice',
             '.ui-document-tabs',
+            '.ui-document-tabs--titlebar',
             '.ui-document-tab',
+            '.ui-document-tab--connected',
             '.ui-editor-fold-control',
             '.ui-editor-block-guide',
             '.ui-spinner',
@@ -287,6 +360,13 @@ describe('design-system catalogue', () => {
         ]) {
             expect(styles).toContain(selector);
         }
+        expect(styles).toMatch(/\.ui-document-tabs--titlebar\s*\{[^}]*box-shadow:\s*none/s);
+        expect(styles).not.toMatch(/\.ui-document-tabs--titlebar\[data-empty="true"\]/);
+        const themeSurfaces = fs.readFileSync(
+            path.resolve('frontend/design-system/theme-surfaces.css'),
+            'utf8',
+        );
+        expect(themeSurfaces).toMatch(/\.top-bar\s*\{[^}]*box-shadow:\s*inset 0 -1px 0 var\(--titlebar-divider-color\)/s);
         expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.ui-spinner\s*\{[\s\S]*animation:\s*none/);
         expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.ui-skeleton::after\s*\{[\s\S]*animation:\s*none/);
         expect(styles).not.toMatch(/\.font-size-control\s*\{[^}]*border:/s);
@@ -295,9 +375,10 @@ describe('design-system catalogue', () => {
         expect(styles).not.toMatch(/\.settings-action-btn\s*\{/);
         expect(styles).toMatch(/\.ui-date-picker-day--note-5\s*\{[^}]*var\(--success-color\)/s);
         expect(styles).toMatch(/\.ui-date-picker-day--due\s*\{[^}]*var\(--danger-color\)/s);
+        expect(styles).toMatch(/\.ui-date-picker\s*\{[^}]*background:\s*var\(--calendar-surface\)/s);
 
         const tooltipBindings = new Map([
-            ['frontend/js/calendar.js', "className = 'ui-tooltip cal-day-tooltip'"],
+            ['frontend/js/calendarDayTooltip.js', "className = 'ui-tooltip cal-day-tooltip'"],
             ['frontend/js/editor.js', "className = 'ui-tooltip link-hover-preview'"],
             ['frontend/js/fileTree.js', "className = 'ui-tooltip file-tree-capability-tooltip'"],
         ]);
@@ -316,16 +397,29 @@ describe('design-system catalogue', () => {
         expect(shellStyles).not.toMatch(/\.calendar-grid \.cal-day\.selected::after\s*\{/);
         expect(shellStyles).not.toMatch(/\.calendar-grid \.cal-day\.today\s*\{[^}]*text-decoration:\s*underline/s);
 
+        const datePickerSource = fs.readFileSync(path.resolve('frontend/js/datePicker.js'), 'utf8');
+        expect(datePickerSource).toContain('selected: isISODate(value) ? value : today');
+        expect(datePickerSource).toContain('class="ui-date-picker-grid calendar-grid"');
+        expect(datePickerSource).toContain('calendarMonthPresentation({');
+        expect(fs.readFileSync(path.resolve('frontend/js/calendar.js'), 'utf8'))
+            .toContain('calendarMonthPresentation({');
+
         const catalogue = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
         expect(catalogue).toContain('<div class="settings-card');
         expect(catalogue).toContain('class="toggle-switch"');
         expect(catalogue).not.toContain('class="ui-card');
         expect(catalogue).not.toContain('class="ui-toggle');
+        expect(catalogue).toMatch(/ui-date-picker-grid calendar-grid[\s\S]*cal-day selected has-note ui-date-picker-day--note-3[^>]*aria-current="date"/);
     });
 
     test('binds remaining approved-family controls to shared primitives', () => {
         const bindings = new Map([
-            ['frontend/index.html', ['ui-icon-button md-cheatsheet-trigger', 'ui-icon-button md-cheatsheet-close']],
+            ['frontend/index.html', [
+                'ui-icon-button md-cheatsheet-trigger',
+                'ui-icon-button md-cheatsheet-close',
+                'ui-button ui-button--accent md-cheatsheet-tab',
+                'ui-button md-cheatsheet-tab',
+            ]],
             ['frontend/js/home.js', ['ui-button home-card-action']],
             ['frontend/js/views/searchView.js', ['ui-button search-filter-chip']],
             ['frontend/js/frontmatterPlugin.js', [
@@ -360,8 +454,12 @@ describe('design-system catalogue', () => {
 
     test('normalizes every bundled theme and maps it to an existing stylesheet', () => {
         const themes = normalizeThemeManifest(manifest);
-        expect(themes).toHaveLength(17);
+        expect(themes).toHaveLength(18);
         expect(themes[0]).toEqual({ id: 'default', name: 'Figaro Dark' });
+        expect(themes).toContainEqual({
+            id: 'figaro-crt-phosphor',
+            name: 'Figaro CRT Phosphor',
+        });
 
         for (const theme of themes) {
             const stylesheet = themeStylesheetPath(theme.id);
@@ -444,12 +542,12 @@ describe('design-system catalogue', () => {
         });
 
         const select = document.querySelector('#theme-select');
-        expect(result.themes).toHaveLength(17);
+        expect(result.themes).toHaveLength(18);
         expect(select.disabled).toBe(false);
-        expect(select.options).toHaveLength(17);
+        expect(select.options).toHaveLength(18);
         expect(select.value).toBe('default');
         expect(document.querySelectorAll('#catalog-index a')).toHaveLength(2);
-        expect(document.querySelector('#theme-status').textContent).toBe('17 themes · Figaro Dark');
+        expect(document.querySelector('#theme-status').textContent).toBe('18 themes · Figaro Dark');
         expect(result.comboboxes).toHaveLength(2);
 
         const source = document.querySelector('#catalog-test-combobox');
@@ -488,7 +586,7 @@ describe('design-system catalogue', () => {
 
         document.querySelector('#catalog-theme').dispatchEvent(new Event('load'));
         expect(document.documentElement.dataset.theme).toBe('figaro-light');
-        expect(document.querySelector('#theme-status').textContent).toBe('17 themes · Figaro Light');
+        expect(document.querySelector('#theme-status').textContent).toBe('18 themes · Figaro Light');
 
         const search = document.querySelector('#catalog-search');
         search.value = 'button';

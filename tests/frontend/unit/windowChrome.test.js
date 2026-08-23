@@ -7,7 +7,10 @@ describe('native window chrome', () => {
         setState('openTabs', []);
         setState('activeTabId', null);
         document.body.innerHTML = `
-            <header class="top-bar"><button id="topbar-action"></button></header>
+            <header class="top-bar">
+                <button id="topbar-action"></button>
+                <div id="document-tab" role="tab" tabindex="0">Document</div>
+            </header>
             <button id="win-minimize"></button><button id="win-maximize"></button><button id="win-close"></button>
             <span id="resize-grip"></span>
         `;
@@ -37,6 +40,7 @@ describe('native window chrome', () => {
 
         document.getElementById('win-minimize').click();
         document.getElementById('win-maximize').click();
+        document.getElementById('document-tab').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
         document.querySelector('.top-bar').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
         expect(window.go.desktop.App.WindowMinimize).toHaveBeenCalledTimes(1);
         expect(window.go.desktop.App.WindowMaximize).toHaveBeenCalledTimes(2);

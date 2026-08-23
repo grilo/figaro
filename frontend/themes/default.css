@@ -65,34 +65,35 @@
         radial-gradient(64rem 38rem at -12% -16%, rgba(216, 87, 74, 0.075), transparent 56%),
         radial-gradient(48rem 34rem at 108% 110%, rgba(255, 250, 243, 0.035), transparent 64%),
         var(--bg-color);
-    --navigation-surface: linear-gradient(180deg, #171511 0%, #11100e 100%);
-    --tab-bar-surface: linear-gradient(180deg, #1a1713 0%, #14120f 100%);
-    --tab-bar-shadow: inset 0 -1px 0 rgba(209, 162, 105, 0.16);
-    --top-bar-divider: linear-gradient(90deg, transparent, rgba(209, 162, 105, 0.19) 28%, rgba(216, 87, 74, 0.50) 50%, rgba(209, 162, 105, 0.19) 72%, transparent);
-    --editor-surface:
-        radial-gradient(46rem 30rem at 4% -12%, rgba(216, 87, 74, 0.04), transparent 56%),
-        linear-gradient(180deg, rgba(255, 250, 243, 0.018), transparent 15rem),
-        #1d1a17;
-    --editor-surface-shadow: inset 0 1px rgba(255, 250, 243, 0.055);
-    --workspace-surface: #181613;
-    --workspace-shadow: inset 1px 0 rgba(255, 250, 243, 0.035);
-    --sidebar-shadow: inset -1px 0 rgba(209, 162, 105, 0.12), 9px 0 24px rgba(0, 0, 0, 0.10);
-    --sidebar-rail-surface: linear-gradient(180deg, rgba(209, 162, 105, 0.32), rgba(216, 87, 74, 0.28) 40%, rgba(209, 162, 105, 0.14));
-    --sidebar-search-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.018), transparent);
-    --sidebar-tools-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.018), transparent);
-    --calendar-surface: #171511;
-    --file-tree-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.014), transparent 14rem);
+    --navigation-surface: var(--sidebar-bg);
+    --tab-bar-surface: var(--sidebar-bg);
+    --tab-bar-shadow: none;
+    --titlebar-divider-color: transparent;
+    --top-bar-divider: transparent;
+    --editor-surface: #1d1a17;
+    --editor-gutter-surface: var(--editor-surface);
+    --editor-surface-shadow: none;
+    --workspace-surface: var(--editor-surface);
+    --workspace-shadow: none;
+    --sidebar-shadow: none;
+    --sidebar-rail-surface: transparent;
+    --sidebar-search-surface: var(--sidebar-bg);
+    --sidebar-tools-surface: var(--sidebar-bg);
+    --sidebar-tools-border-color: rgba(245, 238, 228, 0.07);
+    --sidebar-resizer-color: transparent;
+    --calendar-surface: var(--sidebar-bg);
+    --file-tree-surface: var(--sidebar-bg);
     --file-tree-guide-color: rgba(209, 162, 105, 0.13);
     --file-node-radius: 6px;
     --file-node-hover-surface: rgba(255, 250, 243, 0.055);
     --file-node-selected-surface: linear-gradient(90deg, rgba(216, 87, 74, 0.18), rgba(216, 87, 74, 0.055));
     --file-node-selected-shadow: inset 3px 0 var(--accent-color), 0 3px 10px rgba(0, 0, 0, 0.13);
     --file-node-selected-weight: 600;
-    --tab-radius: 0;
+    --tab-radius: 8px 8px 0 0;
     --tab-hover-surface: rgba(255, 250, 243, 0.055);
     --tab-active-surface: linear-gradient(180deg, rgba(255, 250, 243, 0.085), rgba(255, 250, 243, 0.035));
-    --tab-active-border: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
-    --tab-active-shadow: inset 0 2px 0 var(--accent-color);
+    --tab-active-border: transparent;
+    --tab-active-shadow: none;
     --tab-active-transform: none;
     --settings-card-surface: linear-gradient(145deg, rgba(255, 250, 243, 0.045), rgba(255, 250, 243, 0.018));
     --settings-card-border: color-mix(in srgb, var(--border-color) 82%, var(--hashtag-color));
@@ -101,8 +102,8 @@
     --settings-title-letter-spacing: 0.11em;
     --settings-control-surface: #1b1916;
     --settings-control-shadow: inset 0 1px rgba(255, 250, 243, 0.035);
-    --status-bar-surface:
-        linear-gradient(90deg, transparent, rgba(209, 162, 105, 0.17) 28%, rgba(216, 87, 74, 0.38) 50%, rgba(209, 162, 105, 0.17) 72%, transparent) top / calc(100% - 36px) 1px no-repeat,
-        linear-gradient(180deg, #15130f, #11100e);
-    --status-bar-border: rgba(209, 162, 105, 0.18);
+    --application-status-surface: var(--file-tree-surface);
+    --status-bar-surface: var(--editor-surface);
+    --status-bar-border: transparent;
+    --status-separator-color: rgba(245, 238, 228, 0.14);
 }

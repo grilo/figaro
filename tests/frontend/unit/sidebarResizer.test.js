@@ -1,0 +1,39 @@
+import { initSidebarResizer } from '../../../frontend/js/sidebarResizer.js';
+import { getState, setState } from '../../../frontend/js/state.js';
+import { testUtils } from '../support/test_setup.js';
+
+describe('sidebar resize alignment', () => {
+    beforeEach(() => {
+        testUtils.createMockDOM();
+        setState('sidebarCollapsed', false);
+        setState('sidebarWidth', 280);
+        initSidebarResizer();
+    });
+
+    test('moves the sidebar and title-bar tab boundary together', () => {
+        const sidebar = document.getElementById('sidebar');
+        const resizer = document.getElementById('sidebar-resizer');
+
+        resizer.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 280 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 362 }));
+
+        expect(getState('sidebarWidth')).toBe(362);
+        expect(sidebar.style.width).toBe('362px');
+        expect(sidebar.style.minWidth).toBe('225px');
+        expect(document.documentElement.style.getPropertyValue('--sidebar-width')).toBe('362px');
+        expect(document.getElementById('app').style.getPropertyValue('--shell-sidebar-width')).toBe('362px');
+
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        expect(resizer.classList.contains('is-dragging')).toBe(false);
+    });
+
+    test('ignores resize gestures while the sidebar is collapsed', () => {
+        setState('sidebarCollapsed', true);
+        const resizer = document.getElementById('sidebar-resizer');
+        resizer.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 280 }));
+        document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 390 }));
+
+        expect(getState('sidebarWidth')).toBe(280);
+        expect(resizer.classList.contains('is-dragging')).toBe(false);
+    });
+});

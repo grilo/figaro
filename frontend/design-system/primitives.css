@@ -424,6 +424,11 @@ input.ui-stepper-value:invalid {
     box-shadow: var(--tab-bar-shadow);
 }
 
+.ui-document-tabs--titlebar {
+    background: transparent;
+    box-shadow: none;
+}
+
 .ui-document-tab {
     border: 0;
     border-right: 1px solid var(--border-color);
@@ -450,6 +455,21 @@ input.ui-stepper-value:invalid {
     background: var(--tab-active-surface);
     box-shadow: var(--tab-active-shadow);
     color: var(--text-color);
+}
+
+.ui-document-tab--connected {
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: var(--tab-radius);
+}
+
+.ui-document-tab--connected.ui-document-tab--active {
+    position: relative;
+    z-index: 3;
+    border-color: var(--tab-active-border);
+    border-bottom-color: transparent;
+    background: var(--editor-surface);
+    box-shadow: none;
 }
 
 .ui-document-tab:focus-visible {
@@ -676,6 +696,7 @@ input.ui-stepper-value:invalid {
     width: 280px;
     box-sizing: border-box;
     padding: 10px;
+    background: var(--calendar-surface);
 }
 
 .ui-date-picker-shortcuts {
@@ -701,7 +722,7 @@ input.ui-stepper-value:invalid {
 
 .ui-date-picker-header strong {
     color: var(--text-color);
-    font: 650 12px/1.2 var(--font-ui);
+    font: 600 var(--font-size)/1.2 var(--font-ui);
     text-align: center;
 }
 
@@ -713,9 +734,9 @@ input.ui-stepper-value:invalid {
 }
 
 .ui-date-picker-weekdays span {
-    padding: 3px 0 5px;
+    padding: 4px 0;
     color: var(--text-dim);
-    font: 650 9px/1 var(--font-ui);
+    font: 600 11px/1 var(--font-ui);
     text-align: center;
     text-transform: uppercase;
 }

@@ -32,7 +32,7 @@ export function setWindowCloseRequestHandler(handler) {
 }
 
 function isInteractiveTitlebarTarget(target) {
-    return Boolean(target?.closest?.('button, input, textarea, select, a, [contenteditable="true"]'));
+    return Boolean(target?.closest?.('button, input, textarea, select, a, [role="tab"], [contenteditable="true"]'));
 }
 
 function installResizeGrip() {

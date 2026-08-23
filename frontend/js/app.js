@@ -11,8 +11,9 @@ import { preloadLanguageSupport } from './languageSupport.js';
 import { initializeDiagramRenderers } from './diagramRenderer.js';
 import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot, showWorkspaceHome } from './tabManager.js';
 import { addExternalFileTreeEntry, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
-import { initCalendar, renderCalendar, invalidateCalendarCache, refreshCalendarIfVisible } from './calendar.js';
+import { initCalendar, prepareCalendarOpen, renderCalendar, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
 import { initKanban, refreshKanbanData } from './kanban.js';
+import { configureDatePickerCalendarSource } from './datePicker.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, promptDialog } from './dialogs.js';
 import { initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
@@ -22,7 +23,8 @@ import { restoredWorkspacePlan } from './sessionTabs.js';
 import { openExternalLaunchFiles, openLaunchExternalFiles } from './externalFiles.js';
 import { initTheme, initThemeAppearance } from './theme.js';
 import { initTabSizePreference } from './tabSizePreference.js';
-import { initSidebarResizer } from './sidebarResizer.js';
+import { applySidebarLayout, initSidebarResizer } from './sidebarResizer.js';
+import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
 import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
 import { closeRawTextPreview, initRawTextPreview } from './rawTextPreview.js';
@@ -187,14 +189,17 @@ export function initTopBar() {
     const setSidebarCollapsed = (collapsed) => {
         if (!sidebar) return;
 
+        const requestedWidth = getState('sidebarWidth');
+        const layout = sidebarLayoutPlan({
+            collapsed,
+            expandedWidth: requestedWidth,
+        });
+        if (requestedWidth !== layout.expandedWidth) {
+            setState('sidebarWidth', layout.expandedWidth);
+        }
         setState('sidebarCollapsed', collapsed);
         sidebar.classList.toggle('collapsed', collapsed);
-        sidebar.style.width = collapsed
-            ? 'var(--sidebar-rail-width, 44px)'
-            : 'var(--sidebar-width, 300px)';
-        sidebar.style.minWidth = collapsed
-            ? 'var(--sidebar-rail-width, 44px)'
-            : '225px';
+        applySidebarLayout(sidebar, layout);
         toggleBtn?.setAttribute('aria-expanded', String(!collapsed));
         document.getElementById('sidebar-resizer')?.classList.toggle('sidebar-resizer-hidden', collapsed);
 
@@ -248,6 +253,7 @@ export function initTopBar() {
         calBtn?.classList.add('active');
         calBtn?.setAttribute('aria-expanded', 'true');
         sidebar?.classList.add('calendar-open');
+        prepareCalendarOpen();
         renderCalendar();
         window.dispatchEvent(new Event('resize'));
     };
@@ -492,6 +498,7 @@ export async function initApp() {
     if (window._appInitialized) return;
     window._appInitialized = true;
     window._appReady = false;
+    configureDatePickerCalendarSource({ loadMonthData: loadCalendarMonthAppearance });
     
     statusBar.set('Initializing...');
     const languageSupportReady = preloadLanguageSupport();

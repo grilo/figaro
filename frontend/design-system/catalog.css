@@ -559,8 +559,14 @@ a:focus-visible {
 }
 
 .ds-shell-surface .top-bar {
+    --shell-sidebar-width: 148px;
     width: 100%;
     border-radius: 0;
+}
+
+.ds-titlebar-tabs {
+    width: 100%;
+    min-width: 0;
 }
 
 .ds-shell-surface svg,
@@ -579,6 +585,7 @@ a:focus-visible {
 .ds-tab-bar {
     position: relative;
     width: 100%;
+    height: var(--top-bar-height);
     border-radius: 0;
 }
 
@@ -590,13 +597,33 @@ a:focus-visible {
     min-width: 0;
 }
 
+.ds-tab-state-stack {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+}
+
+.ds-tab-state {
+    min-width: 0;
+}
+
+.ds-tab-state-label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
 .ds-sidebar-demo .sidebar-tools {
     position: relative;
     width: 100%;
-    border: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
 }
 
 .ds-status-bar {
+    --shell-sidebar-width: min(260px, 42%);
     width: 100%;
     min-width: 0;
     border-radius: 0;
@@ -667,7 +694,8 @@ a:focus-visible {
 .ds-demo .theme-picker-menu,
 .ds-demo .font-picker-menu,
 .ds-demo .settings-picker-menu.open,
-.ds-demo .cm-frontmatter-combobox-menu {
+.ds-demo .cm-frontmatter-combobox-menu,
+.ds-demo .md-cheatsheet-popup {
     position: relative;
     inset: auto;
     top: auto;
@@ -679,6 +707,14 @@ a:focus-visible {
     max-width: none;
     max-height: none;
     animation: none;
+}
+
+.ds-demo .md-cheatsheet-popup {
+    display: flex;
+    flex-direction: column;
+    height: 360px;
+    min-width: 0;
+    padding-bottom: 12px;
 }
 
 .ds-open-picker {

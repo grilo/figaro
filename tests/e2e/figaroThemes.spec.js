@@ -4,6 +4,7 @@ const nativeThemes = [
     {
         path: '/themes/default.css',
         name: 'Figaro Dark',
+        flat: true,
         values: {
             background: '#1a1816',
             sidebar: '#12110f',
@@ -15,6 +16,7 @@ const nativeThemes = [
     {
         path: '/themes/figaro-light.css',
         name: 'Figaro Light',
+        flat: true,
         values: {
             background: '#fcf8f1',
             sidebar: '#f1e7d9',
@@ -23,9 +25,21 @@ const nativeThemes = [
             hashtag: '#8c5b21',
         },
     },
+    {
+        path: '/themes/figaro-crt-phosphor.css',
+        name: 'Figaro CRT Phosphor',
+        crt: true,
+        values: {
+            background: '#04110b',
+            sidebar: '#000503',
+            text: '#c8ffd9',
+            accent: '#39ff7a',
+            hashtag: '#ffb84a',
+        },
+    },
 ];
 
-test('keeps the Figaro native themes calm and every search-result theme legible', async ({ page }) => {
+test('keeps native Figaro surfaces flat and gives CRT Phosphor subtle ambient effects', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 17, 15)');
@@ -118,7 +132,7 @@ test('keeps the Figaro native themes calm and every search-result theme legible'
                 document.head.appendChild(style);
             }
             style.textContent = await response.text();
-            await new Promise(resolve => requestAnimationFrame(resolve));
+            await new Promise(resolve => setTimeout(resolve, 220));
 
             const computed = getComputedStyle(document.documentElement);
             const color = name => computed.getPropertyValue(name).trim().toLowerCase();
@@ -152,11 +166,33 @@ test('keeps the Figaro native themes calm and every search-result theme legible'
                 return (lighter + 0.05) / (darker + 0.05);
             };
             const activeTab = document.querySelector('.tab.active');
-            const app = getComputedStyle(document.getElementById('app'));
-            const topBar = getComputedStyle(document.querySelector('.top-bar'));
+            const inactiveTab = document.querySelector('.tab:not(.active)');
+            const appElement = document.getElementById('app');
+            const app = getComputedStyle(appElement);
+            const screen = getComputedStyle(appElement, '::before');
+            const topBarElement = document.querySelector('.top-bar');
+            const topBar = getComputedStyle(topBarElement);
+            const topBarDecoration = getComputedStyle(topBarElement, '::after');
+            const sidebarElement = document.querySelector('.sidebar');
+            const sidebar = getComputedStyle(sidebarElement);
+            const sidebarEdge = getComputedStyle(sidebarElement, '::after');
+            const sidebarBounds = sidebarElement.getBoundingClientRect();
+            const sidebarTools = getComputedStyle(document.querySelector('.sidebar-tools'));
+            const sidebarResizer = getComputedStyle(document.querySelector('#sidebar-resizer'));
+            const fileTree = getComputedStyle(document.querySelector('#file-tree'));
+            const mainContent = getComputedStyle(document.querySelector('#main-content'));
+            const mainContentBounds = document.querySelector('#main-content').getBoundingClientRect();
+            const editor = getComputedStyle(document.querySelector('.editor-panel'));
+            const editorGutter = getComputedStyle(document.querySelector('#editor-container .cm-gutters'));
             const statusBar = getComputedStyle(document.querySelector('.status-bar'));
+            const applicationStatus = getComputedStyle(document.querySelector('.status-left'));
+            const bufferStatus = getComputedStyle(document.querySelector('.status-right'));
+            const statusSeparator = getComputedStyle(document.querySelector('.status-separator'));
             const settingsCard = getComputedStyle(document.querySelector('.settings-card'));
             const selectedTreeNode = getComputedStyle(document.querySelector('.file-tree-item[data-path="Welcome.md"] > .file-tree-node'));
+            const activeTabStyle = activeTab ? getComputedStyle(activeTab) : null;
+            const activeTabBounds = activeTab?.getBoundingClientRect() || null;
+            const inactiveTabStyle = inactiveTab ? getComputedStyle(inactiveTab) : null;
 
             return {
                 background: color('--bg-color'),
@@ -169,12 +205,47 @@ test('keeps the Figaro native themes calm and every search-result theme legible'
                 linkContrast: contrast(color('--link-color'), color('--bg-color')),
                 appBackground: app.backgroundImage,
                 topBarBackground: topBar.backgroundImage,
-                activeTabShadow: activeTab ? getComputedStyle(activeTab).boxShadow : '',
-                activeTabTransform: activeTab ? getComputedStyle(activeTab).transform : '',
+                topBarBackgroundColor: topBar.backgroundColor,
+                topBarDivider: color('--titlebar-divider-color'),
+                topBarDecoration: topBarDecoration.backgroundImage,
+                fileTreeBackgroundColor: fileTree.backgroundColor,
+                sidebarEdge: sidebarEdge.backgroundColor,
+                sidebarEdgeRight: sidebarEdge.right,
+                sidebarEdgeStack: sidebarEdge.zIndex,
+                sidebarShadow: sidebar.boxShadow,
+                sidebarToolsBorder: sidebarTools.borderTopColor,
+                sidebarToolsBorderToken: color('--sidebar-tools-border-color'),
+                sidebarResizer: sidebarResizer.backgroundColor,
+                mainContentShadow: mainContent.boxShadow,
+                shellBoundaryAligned: Math.abs(sidebarBounds.right - mainContentBounds.left) <= 0.5,
+                activeTabBoundaryAligned: activeTabBounds
+                    ? Math.abs(activeTabBounds.left - mainContentBounds.left) <= 0.5
+                    : false,
+                activeTabShadow: activeTabStyle?.boxShadow || '',
+                activeTabBackground: activeTabStyle?.backgroundImage || '',
+                activeTabBackgroundColor: activeTabStyle?.backgroundColor || '',
+                activeTabBorder: activeTabStyle?.borderTopColor || '',
+                inactiveTabBackgroundColor: inactiveTabStyle?.backgroundColor || '',
+                editorBackground: editor.backgroundImage,
+                editorBackgroundColor: editor.backgroundColor,
+                editorGutterBackgroundColor: editorGutter.backgroundColor,
+                activeTabTransform: activeTabStyle?.transform || '',
                 statusBarBackground: statusBar.backgroundImage,
+                statusBarBackgroundColor: statusBar.backgroundColor,
+                applicationStatusBackgroundColor: applicationStatus.backgroundColor,
+                bufferStatusBackgroundColor: bufferStatus.backgroundColor,
+                statusBarBorder: statusBar.borderTopColor,
+                statusSeparator: statusSeparator.color,
+                statusSeparatorToken: color('--status-separator-color'),
                 settingsCardBackground: settingsCard.backgroundImage,
                 settingsCardShadow: settingsCard.boxShadow,
                 selectedTreeShadow: selectedTreeNode.boxShadow,
+                screenBackground: screen.backgroundImage,
+                screenOpacity: screen.opacity,
+                screenPointerEvents: screen.pointerEvents,
+                screenAnimationName: screen.animationName,
+                screenAnimationDuration: screen.animationDuration,
+                screenTransform: app.transform,
                 homeEyebrowContrast: renderedContrast('.home-eyebrow', '.home-view'),
                 homeKickerContrast: renderedContrast('.home-card-kicker', '.home-card'),
                 homeInstructionContrast: renderedContrast('.home-empty', '.home-card'),
@@ -191,18 +262,93 @@ test('keeps the Figaro native themes calm and every search-result theme legible'
         expect(details.linkContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.focusRing).toContain('rgba(');
         expect(details.appBackground).toContain('radial-gradient');
-        expect(details.topBarBackground).toContain('linear-gradient');
-        expect(details.activeTabShadow).toContain('rgb');
+        expect(details.activeTabShadow).toBe('none');
+        expect(details.activeTabBackground).toBe(details.editorBackground);
+        expect(details.activeTabBackgroundColor).toBe(details.editorBackgroundColor);
         expect(details.activeTabTransform).toBe('none');
-        expect(details.statusBarBackground).toContain('linear-gradient');
+        expect(details.sidebarEdgeRight).toBe('-1px');
+        expect(details.sidebarEdgeStack).toBe('1');
+        expect(details.shellBoundaryAligned).toBe(true);
+        expect(details.activeTabBoundaryAligned).toBe(true);
         expect(details.settingsCardBackground).toContain('linear-gradient');
         expect(details.settingsCardShadow).toContain('rgb');
         expect(details.selectedTreeShadow).toContain('rgb');
+        expect(details.screenPointerEvents).toBe('none');
+        if (theme.flat) {
+            expect(details.topBarBackground).toBe('none');
+            expect(details.topBarBackgroundColor).toBe(details.fileTreeBackgroundColor);
+            expect(details.topBarBackgroundColor).not.toBe(details.editorBackgroundColor);
+            expect(details.topBarDivider).toBe('transparent');
+            expect(details.topBarDecoration).toBe('none');
+            expect(details.sidebarEdge).toBe('rgba(0, 0, 0, 0)');
+            expect(details.sidebarShadow).toBe('none');
+            expect(details.sidebarResizer).toBe('rgba(0, 0, 0, 0)');
+            expect(details.mainContentShadow).toBe('none');
+            expect(details.editorGutterBackgroundColor).toBe(details.editorBackgroundColor);
+            expect(details.sidebarToolsBorder).toBe(details.sidebarToolsBorderToken);
+            expect(details.sidebarToolsBorder).not.toBe('rgba(0, 0, 0, 0)');
+            expect(details.activeTabBorder).toBe('rgba(0, 0, 0, 0)');
+            expect(details.inactiveTabBackgroundColor).toBe('rgba(0, 0, 0, 0)');
+            expect(details.statusBarBackground).toBe('none');
+            expect(details.statusBarBackgroundColor).toBe(details.editorBackgroundColor);
+            expect(details.applicationStatusBackgroundColor).toBe(details.fileTreeBackgroundColor);
+            expect(details.bufferStatusBackgroundColor).toBe(details.editorBackgroundColor);
+            expect(details.statusBarBorder).toBe('rgba(0, 0, 0, 0)');
+            expect(details.statusSeparator).toBe(details.statusSeparatorToken);
+            expect(details.statusSeparator).not.toBe('rgba(0, 0, 0, 0)');
+        } else {
+            expect(details.topBarBackground).toContain('linear-gradient');
+            expect(details.statusBarBackground).toContain('linear-gradient');
+        }
+        if (theme.crt) {
+            expect(details.applicationStatusBackgroundColor).toBe('rgb(0, 5, 3)');
+            expect(details.sidebarShadow).not.toContain('inset');
+            expect(details.sidebarShadow).not.toBe('none');
+            expect(details.screenBackground).toContain('radial-gradient');
+            expect(details.screenBackground).toContain('linear-gradient');
+            expect(details.screenOpacity).toBe('1');
+            expect(details.screenAnimationName).toBe('figaro-crt-scan');
+            expect(details.screenAnimationDuration).toBe('300s');
+            expect(details.screenTransform).not.toBe('none');
+        } else {
+            expect(details.screenOpacity).toBe('0');
+            expect(details.screenAnimationName).toBe('none');
+            expect(details.screenTransform).toBe('none');
+        }
         expect(details.homeEyebrowContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.homeKickerContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.homeInstructionContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.searchSummaryContrast).toBeGreaterThanOrEqual(4.5);
     }
+
+    const conventionalThemeSeam = await page.evaluate(async () => {
+        const response = await fetch('/themes/github.css');
+        if (!response.ok) throw new Error('Could not load the GitHub Light theme');
+        document.getElementById('theme-style').textContent = await response.text();
+        await new Promise(resolve => setTimeout(resolve, 220));
+
+        const sidebar = document.getElementById('sidebar');
+        const main = document.getElementById('main-content');
+        const activeTab = document.querySelector('#tab-strip .tab.active');
+        const sidebarBounds = sidebar.getBoundingClientRect();
+        const mainBounds = main.getBoundingClientRect();
+        const tabBounds = activeTab.getBoundingClientRect();
+        const edge = getComputedStyle(sidebar, '::after');
+        return {
+            edgeRight: edge.right,
+            edgeStack: edge.zIndex,
+            edgeBackground: edge.backgroundColor,
+            shellBoundaryAligned: Math.abs(sidebarBounds.right - mainBounds.left) <= 0.5,
+            activeTabBoundaryAligned: Math.abs(tabBounds.left - mainBounds.left) <= 0.5,
+        };
+    });
+    expect(conventionalThemeSeam).toEqual({
+        edgeRight: '-1px',
+        edgeStack: '1',
+        edgeBackground: 'rgb(208, 215, 222)',
+        shellBoundaryAligned: true,
+        activeTabBoundaryAligned: true,
+    });
 
     const searchThemeDetails = await page.evaluate(async () => {
         const manifestResponse = await fetch('/themes/manifest.json');
@@ -265,4 +411,21 @@ test('keeps the Figaro native themes calm and every search-result theme legible'
         expect(details.metaContrast, `${details.id} search metadata contrast`).toBeGreaterThanOrEqual(4.5);
         expect(details.highlightContrast, `${details.id} highlighted match contrast`).toBeGreaterThanOrEqual(4.5);
     }
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const reducedMotionCRT = await page.evaluate(async () => {
+        const response = await fetch('/themes/figaro-crt-phosphor.css');
+        if (!response.ok) throw new Error('Could not load the CRT Phosphor theme');
+        document.getElementById('theme-style').textContent = await response.text();
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const screen = getComputedStyle(document.getElementById('app'), '::before');
+        return {
+            animationName: screen.animationName,
+            backgroundImage: screen.backgroundImage,
+            opacity: screen.opacity,
+        };
+    });
+    expect(reducedMotionCRT.animationName).toBe('none');
+    expect(reducedMotionCRT.backgroundImage).toContain('radial-gradient');
+    expect(reducedMotionCRT.opacity).toBe('1');
 });

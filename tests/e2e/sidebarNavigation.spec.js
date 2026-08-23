@@ -16,7 +16,7 @@ test('keeps workspace destinations in the sidebar and expands Calendar inline', 
     const kanbanButton = page.locator('#sidebar-kanban');
     const settingsButton = page.locator('#topbar-settings');
 
-    await expect(page.locator('.top-bar-center')).toBeEmpty();
+    await expect(page.locator('.top-bar-center #tab-bar')).toHaveClass(/ui-document-tabs--titlebar/);
     await expect(settingsButton.locator('xpath=..')).toHaveClass(/top-bar-right/);
     await expect(calendarButton).toBeVisible();
     await expect(kanbanButton).toBeVisible();
@@ -25,11 +25,15 @@ test('keeps workspace destinations in the sidebar and expands Calendar inline', 
         const sidebar = document.getElementById('sidebar').getBoundingClientRect();
         const tools = document.querySelector('.sidebar-tools').getBoundingClientRect();
         const fileTree = document.getElementById('file-tree').getBoundingClientRect();
+        const applicationStatus = document.querySelector('.status-left').getBoundingClientRect();
+        const bufferStatus = document.querySelector('.status-right').getBoundingClientRect();
         return {
             toolsBelowTree: tools.top >= fileTree.bottom - 1,
             toolsAtBottom: Math.abs(sidebar.bottom - tools.bottom) <= 1,
             calendarInLeftSidebar: document.getElementById('sidebar').contains(document.getElementById('sidebar-calendar-panel')),
             calendarInRightSidebar: document.getElementById('right-sidebar').contains(document.getElementById('sidebar-calendar-panel')),
+            applicationStatusAligned: Math.abs(applicationStatus.right - sidebar.right) <= 1,
+            bufferStatusAligned: Math.abs(bufferStatus.left - sidebar.right) <= 1,
         };
     });
     expect(placement).toEqual({
@@ -37,6 +41,8 @@ test('keeps workspace destinations in the sidebar and expands Calendar inline', 
         toolsAtBottom: true,
         calendarInLeftSidebar: true,
         calendarInRightSidebar: false,
+        applicationStatusAligned: true,
+        bufferStatusAligned: true,
     });
 
     await calendarButton.click();
@@ -54,6 +60,17 @@ test('keeps workspace destinations in the sidebar and expands Calendar inline', 
     await expect(calendarPanel).not.toHaveClass(/open/);
     await expect(calendarButton).toBeVisible();
     await expect.poll(async () => sidebar.evaluate(element => Math.round(element.getBoundingClientRect().width))).toBe(44);
+    await expect.poll(() => page.evaluate(() => {
+        const sidebarBounds = document.getElementById('sidebar').getBoundingClientRect();
+        const leftBounds = document.querySelector('.top-bar-left').getBoundingClientRect();
+        const statusBounds = document.querySelector('.status-left').getBoundingClientRect();
+        return {
+            aligned: Math.abs(sidebarBounds.right - leftBounds.right) <= 1,
+            statusAligned: Math.abs(sidebarBounds.right - statusBounds.right) <= 1,
+            statusWidth: Math.round(statusBounds.width),
+            homeHidden: getComputedStyle(document.getElementById('topbar-home')).display === 'none',
+        };
+    })).toEqual({ aligned: true, statusAligned: true, statusWidth: 44, homeHidden: true });
 
     // Calendar selected from the rail expands the sidebar and opens inline.
     await calendarButton.click();
@@ -77,6 +94,61 @@ test('keeps workspace destinations in the sidebar and expands Calendar inline', 
     expect(tabs).toEqual({ active: 'kanban', kanban: 1, settings: 1 });
     await expect(kanbanButton).toHaveClass(/active/);
     await expect(settingsButton).not.toHaveClass(/active/);
+
+    const titlebarGeometry = await page.evaluate(() => {
+        const sidebarBounds = document.getElementById('sidebar').getBoundingClientRect();
+        const topBarBounds = document.querySelector('.top-bar').getBoundingClientRect();
+        const leftBounds = document.querySelector('.top-bar-left').getBoundingClientRect();
+        const statusBounds = document.querySelector('.status-left').getBoundingClientRect();
+        const tabBarBounds = document.getElementById('tab-bar').getBoundingClientRect();
+        const activeTab = document.querySelector('#tab-strip [role="tab"][aria-selected="true"]');
+        const activeBounds = activeTab.getBoundingClientRect();
+        const activeStyle = getComputedStyle(activeTab);
+        return {
+            sidebarAligned: Math.abs(sidebarBounds.right - leftBounds.right) <= 1,
+            statusAligned: Math.abs(sidebarBounds.right - statusBounds.right) <= 1,
+            railMeetsWorkspace: Math.abs(sidebarBounds.top - topBarBounds.bottom) <= 1,
+            tabsMeetWorkspace: Math.abs(tabBarBounds.bottom - sidebarBounds.top) <= 1,
+            activeMeetsWorkspace: Math.abs(activeBounds.bottom - sidebarBounds.top) <= 1,
+            roundedTop: parseFloat(activeStyle.borderTopLeftRadius) > 0
+                && parseFloat(activeStyle.borderTopRightRadius) > 0,
+            connectedBottom: activeStyle.borderBottomLeftRadius === '0px'
+                && activeStyle.borderBottomRightRadius === '0px'
+                && activeStyle.borderBottomWidth === '0px',
+            titlebarDrag: getComputedStyle(document.querySelector('.top-bar'))
+                .getPropertyValue('--wails-draggable').trim(),
+            tabDrag: activeStyle.getPropertyValue('--wails-draggable').trim(),
+        };
+    });
+    expect(titlebarGeometry).toEqual({
+        sidebarAligned: true,
+        statusAligned: true,
+        railMeetsWorkspace: true,
+        tabsMeetWorkspace: true,
+        activeMeetsWorkspace: true,
+        roundedTop: true,
+        connectedBottom: true,
+        titlebarDrag: 'drag',
+        tabDrag: 'no-drag',
+    });
+
+    const resizeHandle = await page.locator('#sidebar-resizer').boundingBox();
+    expect(resizeHandle).not.toBeNull();
+    await page.mouse.move(resizeHandle.x + resizeHandle.width / 2, resizeHandle.y + 20);
+    await page.mouse.down();
+    await page.mouse.move(360, resizeHandle.y + 20);
+    await page.mouse.up();
+    await expect.poll(async () => page.evaluate(() => {
+        const sidebarBounds = document.getElementById('sidebar').getBoundingClientRect();
+        const leftBounds = document.querySelector('.top-bar-left').getBoundingClientRect();
+        const statusBounds = document.querySelector('.status-left').getBoundingClientRect();
+        return {
+            width: Math.round(sidebarBounds.width),
+            aligned: Math.abs(sidebarBounds.right - leftBounds.right) <= 1,
+            statusAligned: Math.abs(sidebarBounds.right - statusBounds.right) <= 1,
+            statusWidth: Math.round(statusBounds.width),
+        };
+    })).toEqual({ width: 360, aligned: true, statusAligned: true, statusWidth: 360 });
 
     await page.locator('.tab-panel[data-tab-id="kanban"]').evaluate(panel => {
         window.__figaroKanbanExitAnimations = [];
@@ -150,11 +222,19 @@ test('keeps the Calendar grid visible when a large vault competes for sidebar he
             text: `Production task ${index + 1}`,
             due_date: '2026-08-06',
         })) : [];
-        app.GetLinkedNotesForDate = async date => date === '2026-08-06' ? Array.from({ length: 12 }, (_, index) => ({
-            path: `Notes/Linked-${index + 1}.md`,
-            name: `Linked-${index + 1}.md`,
-            line_num: index + 1,
-        })) : [];
+        app.GetLinkedNotesForDate = async date => {
+            if (date === '2026-08-06') {
+                return Array.from({ length: 12 }, (_, index) => ({
+                    path: `Notes/Linked-${index + 1}.md`,
+                    name: `Linked-${index + 1}.md`,
+                    line_num: index + 1,
+                }));
+            }
+            if (date === '2026-08-04') {
+                return [{ path: 'Notes/Linked-compact.md', name: 'Linked-compact.md', line_num: 1 }];
+            }
+            return [];
+        };
 
         const { setState } = await import('/js/state.js');
         const { invalidateCalendarCache } = await import('/js/calendar.js');
@@ -206,8 +286,8 @@ test('keeps the Calendar grid visible when a large vault competes for sidebar he
         top: grid.getBoundingClientRect().top,
         panelHeight: document.getElementById('sidebar-calendar-panel').getBoundingClientRect().height,
     }));
-    await page.locator('#calendar-grid [data-date="2026-08-21"]').click();
-    await expect(page.locator('#cal-linked-notes .cal-no-notes')).toHaveText('No tasks or notes for this date');
+    await page.locator('#calendar-grid [data-date="2026-08-04"]').click();
+    await expect(page.locator('#cal-linked-notes .cal-linked-note-item')).toHaveCount(1);
     await expect.poll(() => page.locator('#calendar-grid').evaluate((grid, initial) => {
         const current = {
             top: grid.getBoundingClientRect().top,

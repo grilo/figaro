@@ -6,6 +6,51 @@
  */
 #app {
     background: var(--app-surface);
+    transform: var(--screen-content-transform);
+    transform-origin: center;
+}
+
+#app::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2147483646;
+    border-radius: inherit;
+    background-image: var(--screen-vignette), var(--screen-scanline);
+    background-repeat: no-repeat, no-repeat;
+    background-position:
+        center,
+        0 calc(0px - var(--screen-scan-height));
+    background-size:
+        100% 100%,
+        100% var(--screen-scan-height);
+    opacity: var(--screen-effect-opacity);
+    pointer-events: none;
+    animation-name: var(--screen-scan-animation);
+    animation-duration: var(--screen-scan-duration);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
+@keyframes figaro-crt-scan {
+    0%,
+    98.4% {
+        background-position:
+            center,
+            0 calc(0px - var(--screen-scan-height));
+    }
+
+    100% {
+        background-position:
+            center,
+            0 calc(100vh + var(--screen-scan-height));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #app::before {
+        animation-name: none !important;
+    }
 }
 
 .top-bar,
@@ -18,8 +63,14 @@
     box-shadow: var(--tab-bar-shadow);
 }
 
+.ui-document-tabs--titlebar {
+    background: transparent !important;
+    box-shadow: none;
+}
+
 .top-bar {
     position: relative;
+    box-shadow: inset 0 -1px 0 var(--titlebar-divider-color);
 }
 
 .top-bar::after {
@@ -37,6 +88,10 @@
 .cm-editor {
     background: var(--editor-surface) !important;
     box-shadow: var(--editor-surface-shadow);
+}
+
+.cm-gutters {
+    background: var(--editor-gutter-surface) !important;
 }
 
 #main-content {
@@ -58,6 +113,11 @@
 
 .sidebar-tools {
     background: var(--sidebar-tools-surface);
+    border-top-color: var(--sidebar-tools-border-color);
+}
+
+.sidebar-resizer {
+    background-color: var(--sidebar-resizer-color) !important;
 }
 
 .sidebar-calendar-panel {
@@ -117,6 +177,13 @@
     box-shadow: var(--tab-active-shadow);
 }
 
+.ui-document-tab--connected.ui-document-tab--active {
+    background: var(--editor-surface) !important;
+    border-color: var(--tab-active-border) !important;
+    border-bottom-color: transparent !important;
+    box-shadow: none;
+}
+
 .settings-card {
     background: var(--settings-card-surface);
     border-color: var(--settings-card-border);
@@ -138,4 +205,16 @@
 .status-bar {
     background: var(--status-bar-surface) !important;
     border-top-color: var(--status-bar-border);
+}
+
+.status-left {
+    background: var(--application-status-surface);
+}
+
+.status-right {
+    background: var(--status-bar-surface);
+}
+
+.status-separator {
+    color: var(--status-separator-color);
 }

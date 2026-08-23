@@ -4,8 +4,14 @@ jest.mock('../frontend/js/app.js', () => ({
     openTab: jest.fn(),
 }));
 
-import { setState } from '../frontend/js/state.js';
-import { initCalendar, invalidateCalendarCache, refreshCalendarIfVisible, renderCalendar } from '../frontend/js/calendar.js';
+import { getState, setState } from '../frontend/js/state.js';
+import {
+    initCalendar,
+    invalidateCalendarCache,
+    prepareCalendarOpen,
+    refreshCalendarIfVisible,
+    renderCalendar,
+} from '../frontend/js/calendar.js';
 
 const monthData = {
     year: 2025,
@@ -34,11 +40,55 @@ describe('Calendar cache', () => {
         invalidateCalendarCache();
         initCalendar();
         setState('currentCalDate', new Date(2025, 0, 15));
-        setState('selectedCalDateStr', null);
+        setState('selectedCalDateStr', '2025-01-15');
         setState('openTabs', []);
         window.go.desktop.App.GetCalendarMonthData.mockResolvedValue(monthData);
         window.go.desktop.App.GetLinkedNotesForDate.mockResolvedValue([]);
         window.go.desktop.App.GetTasksDueOnDate.mockResolvedValue([]);
+    });
+
+    test('selects Today on the first opening and restores the last selected day on later openings', async () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const day = now.getDate();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const noteDay = day === daysInMonth ? day - 1 : day + 1;
+        const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const noteDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(noteDay).padStart(2, '0')}`;
+        setState('currentCalDate', new Date(2001, 0, 1));
+        setState('selectedCalDateStr', null);
+        window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
+            year,
+            month: month + 1,
+            days_with_notes: [noteDay],
+            days_with_links: [],
+            days_with_due_tasks: [],
+            day_summaries: [{ day: noteDay, note_count: 1, due_titles: [] }],
+            calendar: [],
+        });
+
+        expect(prepareCalendarOpen()).toBe(todayStr);
+        expect(getState('selectedCalDateStr')).toBe(todayStr);
+        expect(getState('currentCalDate').getFullYear()).toBe(year);
+        expect(getState('currentCalDate').getMonth()).toBe(month);
+        renderCalendar();
+        await flushCalendar();
+        expect(document.querySelector(`[data-date="${todayStr}"]`).classList.contains('selected')).toBe(true);
+
+        document.querySelector(`[data-date="${noteDateStr}"]`).click();
+        await flushCalendar();
+        expect(getState('selectedCalDateStr')).toBe(noteDateStr);
+
+        // Looking elsewhere does not replace the session selection. Reopening
+        // returns the visible month and selection to the last chosen day.
+        setState('currentCalDate', new Date(year, month + 1, 1));
+        expect(prepareCalendarOpen()).toBe(noteDateStr);
+        expect(getState('selectedCalDateStr')).toBe(noteDateStr);
+        expect(getState('currentCalDate').getMonth()).toBe(month);
+        renderCalendar();
+        await flushCalendar();
+        expect(document.querySelector(`[data-date="${noteDateStr}"]`).classList.contains('selected')).toBe(true);
     });
 
     test('shows a shared month-shaped skeleton immediately on a slow cache miss', async () => {
@@ -227,6 +277,7 @@ describe('Calendar cache', () => {
         const noteDay = day === 1 ? 2 : 1;
         const inactiveLinkedDay = [1, 2, 3, 4].find(candidate => candidate !== day && candidate !== noteDay);
         setState('currentCalDate', new Date(now.getFullYear(), now.getMonth(), day));
+        setState('selectedCalDateStr', null);
         window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
             year: now.getFullYear(),
             month: now.getMonth() + 1,

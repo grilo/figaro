@@ -28,7 +28,7 @@ describe('calendar async lifecycle', () => {
     beforeEach(() => {
         testUtils.createMockDOM();
         jest.clearAllMocks();
-        setState('selectedCalDateStr', null);
+        setState('selectedCalDateStr', '2025-01-01');
     });
 
     test('does not render a stale month after rapid month navigation', async () => {

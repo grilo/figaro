@@ -141,6 +141,22 @@ export function parseFrontmatter(source) {
     };
 }
 
+/**
+ * Choose the initial CodeMirror selection for a Markdown buffer with rendered
+ * Properties. Remembered selections and explicit line navigation retain
+ * precedence; otherwise a complete leading frontmatter block yields the start
+ * of the first line after its closing boundary.
+ */
+export function initialFrontmatterBodySelection(source, {
+    rememberedSelection = null,
+    hasLineTarget = false,
+} = {}) {
+    if (rememberedSelection || hasLineTarget) return rememberedSelection;
+    const frontmatter = parseFrontmatter(source);
+    if (!frontmatter) return null;
+    return { anchor: frontmatter.to, head: frontmatter.to };
+}
+
 /** Whether the document starts with a complete or currently-being-edited YAML block. */
 export function hasLeadingFrontmatter(source) {
     return Boolean(findLeadingFrontmatter(source));

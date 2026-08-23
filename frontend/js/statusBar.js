@@ -4,8 +4,18 @@
 
 const delayedActivities = new Set();
 
+function updateApplicationStatusPresentation(text) {
+    const region = document.querySelector('.status-left');
+    if (!region) return;
+    const message = String(text || 'Ready');
+    region.dataset.applicationActive = String(message !== 'Ready');
+    region.title = message;
+}
+
 function clearStatusAction() {
     const action = document.getElementById('status-action');
+    const region = document.querySelector('.status-left');
+    if (region) region.dataset.hasAction = 'false';
     if (!action) return;
     action.hidden = true;
     action.disabled = false;
@@ -37,6 +47,7 @@ const statusBar = {
             el.setAttribute('aria-live', 'polite');
             el.setAttribute('aria-atomic', 'true');
         }
+        updateApplicationStatusPresentation(text);
     },
 
     /** Set a status message with one adjacent keyboard-operable action. */
@@ -48,6 +59,8 @@ const statusBar = {
         if (ariaLabel) action.setAttribute('aria-label', ariaLabel);
         action.onclick = event => onActivate(event);
         action.hidden = false;
+        const region = document.querySelector('.status-left');
+        if (region) region.dataset.hasAction = 'true';
     },
     /**
      * Clear status (set to Ready)

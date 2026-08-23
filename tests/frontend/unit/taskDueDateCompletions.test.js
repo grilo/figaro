@@ -5,62 +5,61 @@ function completionContext(source, pos = source.length) {
     return { state: EditorState.create({ doc: source }), pos, explicit: true };
 }
 
-describe('task due-date completions', () => {
+describe('tagged-line due-date completions', () => {
     const now = () => new Date(2026, 7, 14, 12);
 
-    test('suggests known hashtags in prose but keeps due-date actions out', () => {
+    test('suggests saved hashtags while typing without mixing in due actions', () => {
         const complete = createTaskDueDateCompletionSource({ getColumns: () => ['urgent'], now });
-        const result = complete(completionContext('Long paragraph #ur'));
-        expect(result.options.map(option => option.label)).toEqual(['#urgent']);
-        expect(result.filter).toBe(false);
+        expect(complete(completionContext('Long paragraph #ur')).options.map(option => option.label))
+            .toEqual(['#urgent']);
+        expect(complete(completionContext('Long paragraph #todo')).options.map(option => option.label))
+            .toEqual(['#todo']);
     });
 
-    test('adds calendar, today, and tomorrow actions only for an eligible exact task tag', () => {
+    test('offers due-date actions after Space for any valid standalone tag', () => {
         const complete = createTaskDueDateCompletionSource({ getColumns: () => ['urgent'], now });
-        expect(complete(completionContext('- [ ] Ship #to')).options.map(option => option.label)).toEqual(['#todo']);
-        expect(complete(completionContext('- [ ] Ship #todo')).options.map(option => option.label)).toEqual([
-            '#todo', 'Add due date…', 'Due today', 'Due tomorrow',
-        ]);
-        expect(complete(completionContext('- [x] Ship #todo')).options.map(option => option.label)).toEqual(['#todo']);
-        expect(complete(completionContext('Paragraph #todo')).options.map(option => option.label)).toEqual(['#todo']);
+        expect(complete(completionContext('Ordinary prose #new-column ')).options.map(option => option.label))
+            .toEqual(['Add due date…', 'Due today', 'Due tomorrow']);
+        expect(complete(completionContext('- [ ] Task #todo ')).options.map(option => option.label))
+            .toEqual(['Add due date…', 'Due today', 'Due tomorrow']);
+        expect(complete(completionContext('Finished #done '))).toBeNull();
+        expect(complete(completionContext('Dated #todo [due 2026-08-14](2026-08-14.md) #urgent ')))
+            .toBeNull();
     });
 
-    test('inserts a shortcut date atomically', () => {
+    test('inserts a shortcut date atomically after the tag whitespace', () => {
         const complete = createTaskDueDateCompletionSource({ now });
-        const result = complete(completionContext('- [ ] Ship #todo'));
+        const source = 'Plan the launch #roadmap ';
+        const result = complete(completionContext(source));
         const dueToday = result.options.find(option => option.label === 'Due today');
         const dispatch = jest.fn();
-        dueToday.apply({ dispatch }, null, result.from, '- [ ] Ship #todo'.length);
-        const replacement = '#todo [due 2026-08-14](2026-08-14.md)';
+        dueToday.apply({ dispatch, state: EditorState.create({ doc: source }), isDestroyed: false });
+        const insertion = ' [due 2026-08-14](2026-08-14.md)';
         expect(dispatch).toHaveBeenCalledWith({
-            changes: { from: 11, to: 16, insert: replacement },
-            selection: { anchor: 11 + replacement.length },
+            changes: { from: source.length - 1, to: source.length, insert: insertion },
+            selection: { anchor: source.length - 1 + insertion.length },
         });
     });
 
-    test('opens the existing picker and restarts completion only after task-tag acceptance', async () => {
+    test('opens the existing picker without changing the tagged line until a date is chosen', async () => {
         const openPicker = jest.fn();
-        const restartCompletion = jest.fn();
-        const complete = createTaskDueDateCompletionSource({ now, openPicker, restartCompletion });
-        const result = complete(completionContext('- [ ] Ship #todo'));
-        const view = { dispatch: jest.fn(), isDestroyed: false };
-        result.options[0].apply(view, null, result.from, 16);
-        await Promise.resolve();
-        expect(restartCompletion).toHaveBeenCalledWith(view);
+        const complete = createTaskDueDateCompletionSource({ now, openPicker });
+        const source = 'Paragraph #follow-up ';
+        const result = complete(completionContext(source));
+        const view = {
+            dispatch: jest.fn(),
+            state: EditorState.create({ doc: source }),
+            isDestroyed: false,
+        };
 
-        result.options.find(option => option.label === 'Add due date…').apply(view, null, result.from, 16);
+        result.options.find(option => option.label === 'Add due date…').apply(view);
         await Promise.resolve();
+        expect(view.dispatch).not.toHaveBeenCalled();
         expect(openPicker).toHaveBeenCalledWith(expect.objectContaining({
             view,
-            position: 16,
+            position: source.length,
             now,
             onSelect: expect.any(Function),
         }));
-
-        const prose = complete(completionContext('Paragraph #todo'));
-        restartCompletion.mockClear();
-        prose.options[0].apply(view, null, prose.from, 'Paragraph #todo'.length);
-        await Promise.resolve();
-        expect(restartCompletion).not.toHaveBeenCalled();
     });
 });

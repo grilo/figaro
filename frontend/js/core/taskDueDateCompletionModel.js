@@ -2,6 +2,7 @@ import { isISODate, parseDueDateLink } from './dueDateModel.js';
 
 const systemColumns = ['todo', 'wip', 'done'];
 const validColumn = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+const hexColorColumn = /^(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 export function normalizedKanbanColumns(columns = []) {
     const result = [];
@@ -15,11 +16,7 @@ export function normalizedKanbanColumns(columns = []) {
     return result;
 }
 
-export function isExplicitUnfinishedTaskLine(line) {
-    return /^\s*(?:[-+*]|\d+[.)])\s+\[\s\](?:\s+|$)/.test(String(line || ''));
-}
-
-export function hashtagTaskCompletionPlan(line, cursorOffset, columns = []) {
+export function hashtagCompletionPlan(line, cursorOffset, columns = []) {
     const source = String(line || '');
     const cursor = Number(cursorOffset);
     if (!Number.isInteger(cursor) || cursor < 0 || cursor > source.length) return null;
@@ -37,13 +34,35 @@ export function hashtagTaskCompletionPlan(line, cursorOffset, columns = []) {
         .filter(column => column.startsWith(prefix));
     if (matchingColumns.length === 0) return null;
 
-    const canSchedule = isExplicitUnfinishedTaskLine(source) && !parseDueDateLink(source);
     return {
         fromOffset: cursor - token.length,
         prefix,
         columns: matchingColumns,
-        dueColumn: canSchedule && matchingColumns.includes(prefix) ? prefix : '',
-        canSchedule,
+    };
+}
+
+export function isHashtagCompletionTrigger(textBeforeCursor) {
+    const source = String(textBeforeCursor || '');
+    return /\s#[a-zA-Z0-9_-]*$/.test(source)
+        || /\s#[a-zA-Z][a-zA-Z0-9_-]*[ \t]+$/.test(source);
+}
+
+export function taggedLineDueDateActionPlan(line, cursorOffset) {
+    const source = String(line || '');
+    const cursor = Number(cursorOffset);
+    if (!Number.isInteger(cursor) || cursor < 0 || cursor > source.length) return null;
+    const before = source.slice(0, cursor);
+    const match = before.match(/\s#([a-zA-Z][a-zA-Z0-9_-]*)([ \t]+)$/);
+    if (!match || parseDueDateLink(source)) return null;
+
+    const column = match[1].toLowerCase();
+    if (column === 'done' || hexColorColumn.test(column)) return null;
+    if (/(?:^|\s)#done(?=\s|$)/i.test(source)) return null;
+
+    return {
+        column,
+        fromOffset: cursor,
+        tagEndOffset: cursor - match[2].length,
     };
 }
 
@@ -51,20 +70,16 @@ export function semanticDueDateLink(date) {
     return isISODate(date) ? `[due ${date}](${date}.md)` : '';
 }
 
-export function taskDueDateCompletionText(column, date) {
-    const link = semanticDueDateLink(date);
-    return validColumn.test(String(column || '')) && link ? `#${column} ${link}` : '';
-}
-
-export function planTaskDueDateInsertion(line, tagEndOffset, column, date) {
+export function planTaggedLineDueDateInsertion(line, cursorOffset, column, date) {
     const source = String(line || '');
-    const tagEnd = Number(tagEndOffset);
-    const tag = `#${String(column || '').toLowerCase()}`;
+    const cursor = Number(cursorOffset);
     const link = semanticDueDateLink(date);
-    if (!link || !validColumn.test(tag.slice(1)) || !Number.isInteger(tagEnd)) return null;
-    if (tagEnd < tag.length || tagEnd > source.length) return null;
-    if (source.slice(tagEnd - tag.length, tagEnd).toLowerCase() !== tag) return null;
-    const next = source.slice(tagEnd, tagEnd + 1);
-    if ((next && !/\s/.test(next)) || !isExplicitUnfinishedTaskLine(source) || parseDueDateLink(source)) return null;
-    return { from: tagEnd, to: tagEnd, insert: ` ${link}` };
+    const action = taggedLineDueDateActionPlan(source, cursor);
+    if (!link || !action || action.column !== String(column || '').toLowerCase()) return null;
+    const next = source.slice(cursor, cursor + 1);
+    return {
+        from: action.tagEndOffset,
+        to: cursor,
+        insert: ` ${link}${next && !/\s/.test(next) ? ' ' : ''}`,
+    };
 }

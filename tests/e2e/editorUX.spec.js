@@ -1035,7 +1035,7 @@ test('uses ranked native search for typo-tolerant link autocomplete', async ({ p
         .toBe('Link [Deployment Guide](docs/Deployment%20Guide.md) ');
 });
 
-test('offers due-date actions only for an unfinished task hashtag and keeps editor navigation intact', async ({ page }) => {
+test('offers due-date actions after Space on any tagged line and keeps editor navigation intact', async ({ page }) => {
     await openWelcomeEditor(page);
     const content = page.locator('.cm-content');
     const completionLabels = page.locator('.cm-tooltip-autocomplete .cm-completionLabel');
@@ -1043,6 +1043,9 @@ test('offers due-date actions only for an unfinished task hashtag and keeps edit
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         const kanban = await import('/js/kanban.js');
+        const calendar = await import('/js/calendar.js');
+        const dueDates = await import('/js/core/dueDateModel.js');
+        const app = (await import('/js/backend.js')).backend();
         const state = await import('/js/state.js');
         await Promise.race([
             kanban.refreshKanbanData(),
@@ -1051,6 +1054,33 @@ test('offers due-date actions only for an unfinished task hashtag and keeps edit
                 2000,
             )),
         ]);
+        const today = dueDates.localISODate();
+        const current = dueDates.dateFromISO(today);
+        const daysInMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+        const todayDay = current.getDate();
+        const activityDay = todayDay === 1 ? 2 : 1;
+        const dueDay = [1, 2, 3].find(day => day !== todayDay && day !== activityDay && day <= daysInMonth);
+        const iso = day => `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        app.GetCalendarMonthData = async () => ({
+            year: current.getFullYear(),
+            month: current.getMonth() + 1,
+            days_with_notes: [activityDay, dueDay],
+            days_with_links: [],
+            days_with_due_tasks: [dueDay],
+            day_summaries: [
+                { day: activityDay, note_count: 6, due_titles: [] },
+                { day: dueDay, note_count: 1, due_titles: ['Existing deadline'] },
+            ],
+            calendar: [],
+        });
+        state.setState('currentCalDate', current);
+        state.setState('selectedCalDateStr', today);
+        calendar.invalidateCalendarCache();
+        window.__pickerCalendarParity = {
+            today,
+            activityDate: iso(activityDay),
+            dueDate: iso(dueDay),
+        };
         state.setState('kanbanCompletionColumns', ['urgent']);
         editor.setEditorContent('A long paragraph ');
         const view = editor.getEditorView();
@@ -1068,41 +1098,99 @@ test('offers due-date actions only for an unfinished task hashtag and keeps edit
         timeout: 3000,
         message: 'Kanban autocomplete fixture did not settle before typing',
     }).toEqual({ source: 'A long paragraph ', columns: ['urgent'] });
+    await page.locator('#sidebar-calendar').click();
+    await expect(page.locator('#calendar-grid')).toHaveAttribute('aria-busy', 'false');
+    await content.focus();
     await page.keyboard.type('#ur');
     await expect(completionLabels).toHaveText(['#urgent']);
     await page.keyboard.press('Escape');
 
-    const source = 'Before\n- [ ] Prepare release \nAfter';
+    const source = 'Before\nPrepare release \nAfter';
     await page.evaluate(async markdown => {
         const editor = await import('/js/editor.js');
-        const view = window.__taskDueView = editor.getEditorView();
-        const taskEnd = markdown.indexOf('\nAfter');
+        const view = window.__tagDueView = editor.getEditorView();
+        const taggedLineEnd = markdown.indexOf('\nAfter');
         view.dispatch({
             changes: { from: 0, to: view.state.doc.length, insert: markdown },
-            selection: { anchor: taskEnd },
+            selection: { anchor: taggedLineEnd },
         });
         view.focus();
     }, source);
-    await page.keyboard.type('#todo');
+    await page.keyboard.type('#todo ');
     await expect(completionLabels).toHaveText([
-        '#todo', 'Add due date…', 'Due today', 'Due tomorrow',
+        'Add due date…', 'Due today', 'Due tomorrow',
     ]);
     await page.evaluate(() => {
-        const view = window.__taskDueView;
+        const view = window.__tagDueView;
         const rect = view.coordsAtPos(view.state.selection.main.head);
-        window.__taskDueCursorRect = {
+        window.__tagDueCursorRect = {
             left: rect.left,
             top: rect.top,
             bottom: rect.bottom,
         };
     });
-    await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
 
     const picker = page.locator('.ui-date-picker[aria-label="Choose due date"]');
     await expect(picker).toBeVisible();
+    await expect(picker.locator('.ui-date-picker-grid')).toHaveAttribute('aria-busy', 'false');
+    const calendarParity = await page.evaluate(() => {
+        const dates = window.__pickerCalendarParity;
+        const sidebarGrid = document.getElementById('calendar-grid');
+        const pickerGrid = document.querySelector('.ui-date-picker-grid');
+        const sharedState = element => [...element.classList]
+            .filter(name => name === 'selected'
+                || name === 'is-weekend'
+                || name === 'has-note'
+                || name === 'has-due-task'
+                || name.startsWith('ui-date-picker-day'))
+            .sort();
+        const visual = element => {
+            const style = getComputedStyle(element);
+            return {
+                background: style.backgroundColor,
+                border: style.borderColor,
+                color: style.color,
+                radius: style.borderRadius,
+                fontSize: style.fontSize,
+                fontWeight: style.fontWeight,
+            };
+        };
+        const compareDate = date => {
+            const sidebar = sidebarGrid.querySelector(`[data-date="${date}"]`);
+            const popup = pickerGrid.querySelector(`[data-date="${date}"]`);
+            return {
+                sidebarState: sharedState(sidebar),
+                popupState: sharedState(popup),
+                sidebarVisual: visual(sidebar),
+                popupVisual: visual(popup),
+            };
+        };
+        const weekend = sidebarGrid.querySelector('[data-date].ui-date-picker-day--weekend').dataset.date;
+        return {
+            weekdays: [...sidebarGrid.querySelectorAll('.cal-day-header')].map(day => day.textContent.trim()),
+            popupWeekdays: [...document.querySelectorAll('.ui-date-picker-weekdays .cal-day-header')]
+                .map(day => day.textContent.trim()),
+            surface: getComputedStyle(document.getElementById('sidebar-calendar-panel')).backgroundColor,
+            popupSurface: getComputedStyle(document.querySelector('.ui-date-picker')).backgroundColor,
+            todaySelected: pickerGrid.querySelector(`[data-date="${dates.today}"]`).classList.contains('selected'),
+            todayCurrent: pickerGrid.querySelector(`[data-date="${dates.today}"]`).getAttribute('aria-current'),
+            today: compareDate(dates.today),
+            activity: compareDate(dates.activityDate),
+            due: compareDate(dates.dueDate),
+            weekend: compareDate(weekend),
+        };
+    });
+    expect(calendarParity.popupWeekdays).toEqual(calendarParity.weekdays);
+    expect(calendarParity.popupSurface).toBe(calendarParity.surface);
+    expect(calendarParity.todaySelected).toBe(true);
+    expect(calendarParity.todayCurrent).toBe('date');
+    for (const state of ['today', 'activity', 'due', 'weekend']) {
+        expect(calendarParity[state].popupState).toEqual(calendarParity[state].sidebarState);
+        expect(calendarParity[state].popupVisual).toEqual(calendarParity[state].sidebarVisual);
+    }
     const placement = await page.evaluate(() => {
-        const cursor = window.__taskDueCursorRect;
+        const cursor = window.__tagDueCursorRect;
         const element = document.querySelector('.ui-date-picker');
         const rect = element.getBoundingClientRect();
         const expectedLeft = Math.max(8, Math.min(cursor.left, window.innerWidth - rect.width - 8));
@@ -1121,19 +1209,19 @@ test('offers due-date actions only for an unfinished task hashtag and keeps edit
     expect(placement.focusedInside).toBe(true);
 
     await picker.getByRole('button', { name: 'Today', exact: true }).click();
-    await expect.poll(() => page.evaluate(() => window.__taskDueView.state.doc.toString()))
-        .toMatch(/^Before\n- \[ \] Prepare release #todo \[due \d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)\nAfter$/);
+    await expect.poll(() => page.evaluate(() => window.__tagDueView.state.doc.toString()))
+        .toMatch(/^Before\nPrepare release #todo \[due \d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)\nAfter$/);
     await content.press('ArrowDown');
-    expect(await page.evaluate(() => window.__taskDueView.state.doc.lineAt(
-        window.__taskDueView.state.selection.main.head,
+    expect(await page.evaluate(() => window.__tagDueView.state.doc.lineAt(
+        window.__tagDueView.state.selection.main.head,
     ).number)).toBe(3);
     await content.press('ArrowUp');
-    expect(await page.evaluate(() => window.__taskDueView.state.doc.lineAt(
-        window.__taskDueView.state.selection.main.head,
+    expect(await page.evaluate(() => window.__tagDueView.state.doc.lineAt(
+        window.__tagDueView.state.selection.main.head,
     ).number)).toBe(2);
 
     const drag = await page.evaluate(() => {
-        const view = window.__taskDueView;
+        const view = window.__tagDueView;
         const point = position => {
             const rect = view.coordsAtPos(position);
             return { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
@@ -1148,7 +1236,7 @@ test('offers due-date actions only for an unfinished task hashtag and keeps edit
     await page.mouse.move(drag.end.x, drag.end.y, { steps: 8 });
     await page.mouse.up();
     expect(await page.evaluate(() => {
-        const view = window.__taskDueView;
+        const view = window.__tagDueView;
         return {
             fromLine: view.state.doc.lineAt(view.state.selection.main.from).number,
             toLine: view.state.doc.lineAt(view.state.selection.main.to).number,
@@ -1769,17 +1857,35 @@ test('keeps local history quiet until the active file needs recording again', as
     expect(highlighted.bottomBorder).not.toBe('rgba(0, 0, 0, 0)');
     expect(highlighted.cursor).toBe('pointer');
     expect(highlighted.beforeChanges).toBe(true);
-    // The title-bar help button opens a real keyboard-contained popup and the
-    // closed popup contributes no invisible controls to the Tab order.
+    // The title-bar help button opens a real keyboard-contained popup whose
+    // Markdown/Macros topics use the normal accessible tab pattern; the closed
+    // popup contributes no invisible controls to the Tab order.
     const cheatsheet = page.locator('#md-cheatsheet-trigger');
     await expect(cheatsheet).toHaveCSS('cursor', 'pointer');
     await cheatsheet.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('#md-cheatsheet-close')).toBeFocused();
+    await expect(page.locator('#md-help-markdown-tab')).toBeFocused();
+    const helpPopup = page.locator('#md-cheatsheet-popup');
+    await helpPopup.evaluate(async element => {
+        await Promise.all(element.getAnimations().map(animation => animation.finished));
+    });
+    const markdownHelpGeometry = await helpPopup.boundingBox();
+    expect(markdownHelpGeometry.width).toBeGreaterThanOrEqual(600);
+    expect(markdownHelpGeometry.height).toBeGreaterThanOrEqual(500);
+    await page.locator('#md-help-macros-tab').click();
+    await expect(page.locator('#md-help-macros-tab')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#md-help-macros-panel')).toBeVisible();
+    await expect(page.locator('#md-help-markdown-panel')).toBeHidden();
+    expect(await helpPopup.boundingBox()).toEqual(markdownHelpGeometry);
+    await page.locator('#md-help-macros-tab').press('ArrowLeft');
+    await expect(page.locator('#md-help-markdown-tab')).toBeFocused();
+    await expect(page.locator('#md-help-markdown-panel')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('#md-cheatsheet-popup')).toBeHidden();
     await expect(cheatsheet).toBeFocused();
     await page.keyboard.press('Enter');
+    await expect(page.locator('#md-help-markdown-tab')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(page.locator('#md-cheatsheet-close')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.locator('#md-cheatsheet-popup')).toBeHidden();
@@ -1999,11 +2105,17 @@ test('keeps native status actions link-like and opens them from the keyboard', a
     await expect(page.locator('.backlinks-view-wrapper')).toBeVisible();
 });
 
-test('places the complete wikilink syntax immediately after Markdown links in the cheatsheet', async ({ page }) => {
+test('keeps Markdown link syntax together and Figaro macros in their own help topic', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.locator('#md-cheatsheet-trigger').click();
-    const rows = await page.locator('#md-cheatsheet-popup tr').allTextContents();
+    const rows = await page.locator('#md-help-markdown-panel tr').allTextContents();
     const markdownIndex = rows.findIndex(row => row.includes('[text](file.md)'));
     const wikiIndex = rows.findIndex(row => row.includes('[[wikilink.md|wikilink]]'));
     expect(wikiIndex).toBe(markdownIndex + 1);
+    await expect(page.locator('#md-help-markdown-panel')).not.toContainText('@today');
+
+    await page.locator('#md-help-macros-tab').click();
+    await expect(page.locator('#md-help-macros-panel')).toContainText('@today');
+    await expect(page.locator('#md-help-macros-panel')).toContainText('#custom-column');
+    await expect(page.locator('#md-help-macros-panel')).toContainText('[due YYYY-MM-DD](YYYY-MM-DD.md)');
 });

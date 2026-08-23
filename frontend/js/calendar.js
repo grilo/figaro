@@ -9,17 +9,23 @@ import { fileIcon } from './icons.js';
 import { openTab } from './tabManager.js';
 import { dateFromISO, localISODate } from './core/dueDateModel.js';
 import {
-    calendarDayState,
+    calendarDayClassName,
+    calendarDayLabelParts,
     calendarMonthGrid,
-    calendarMonthSummaryMap,
+    calendarMonthPresentation,
     calendarNoteAssociations,
-    isoWeekday,
+    calendarSessionSelectionPlan,
     localeWeekInfo,
     localeWeekdays,
     overlayCalendarLinkedNotes,
     overlayCalendarMonthNotes,
-    tooltipPosition,
 } from './core/calendarModel.js';
+import {
+    currentCalendarLocale,
+    formatCalendarDate,
+    formatCalendarMonth,
+} from './calendarLocale.js';
+import { hideCalendarDayTooltip, wireCalendarDayTooltips } from './calendarDayTooltip.js';
 
 let calendarRequestId = 0;
 let linkedNotesRequestId = 0;
@@ -28,39 +34,8 @@ const calendarResultsRequestIds = new Map();
 const calendarMonthCache = new Map();
 const linkedNotesCache = new Map();
 const dueTasksCache = new Map();
-const calendarDayTooltipId = 'calendar-day-tooltip';
 const calendarNoteBaselines = new Map();
 let liveCalendarRefreshFrame = null;
-
-function currentCalendarLocale() {
-    const candidates = [
-        ...(Array.isArray(navigator.languages) ? navigator.languages : []),
-        navigator.language,
-        Intl.DateTimeFormat().resolvedOptions().locale,
-    ];
-    for (const candidate of candidates) {
-        if (!candidate) continue;
-        try {
-            new Intl.DateTimeFormat(candidate).format();
-            return candidate;
-        } catch (_) {
-            // Some WebKitGTK builds expose C/POSIX as a navigator language.
-        }
-    }
-    return 'en-US';
-}
-
-function formatCalendarMonth(year, month, locale) {
-    return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' })
-        .format(new Date(year, month, 1, 12));
-}
-
-function formatCalendarDate(dateStr, locale) {
-    const date = dateFromISO(dateStr);
-    return date
-        ? new Intl.DateTimeFormat(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(date)
-        : dateStr;
-}
 
 /**
  * Drop cached calendar data after a vault mutation or filesystem event.
@@ -150,6 +125,31 @@ export function initCalendar() {
 }
 
 /**
+ * Prepare the in-memory selection whenever the sidebar Calendar opens.
+ * A fresh app session starts on Today; later openings return to the last day
+ * selected during that same session, even after browsing another month.
+ */
+export function prepareCalendarOpen() {
+    const plan = calendarSessionSelectionPlan(getState('selectedCalDateStr'), localISODate());
+    if (!plan.selectedDateStr) return null;
+
+    if (plan.initializeFromToday) {
+        setState('selectedCalDateStr', plan.selectedDateStr);
+    }
+    const selectedDate = dateFromISO(plan.selectedDateStr);
+    const currentDate = getState('currentCalDate');
+    if (selectedDate && (
+        !(currentDate instanceof Date)
+        || Number.isNaN(currentDate.getTime())
+        || currentDate.getFullYear() !== selectedDate.getFullYear()
+        || currentDate.getMonth() !== selectedDate.getMonth()
+    )) {
+        setState('currentCalDate', selectedDate);
+    }
+    return plan.selectedDateStr;
+}
+
+/**
  * Render calendar widget in sidebar
  */
 export function renderCalendar() {
@@ -183,15 +183,8 @@ export function renderCalendar() {
     }
     
     // Get calendar data from backend (backend expects month 1-12, JS getMonth returns 0-11)
-    loadCalendarData(year, month + 1).then(data => {
+    loadCalendarMonthAppearance(year, month).then(visibleData => {
         if (requestId !== calendarRequestId || !container.isConnected) return;
-        const visibleData = overlayCalendarMonthNotes(
-            data,
-            year,
-            month + 1,
-            calendarNoteBaselines,
-            dirtyCalendarNoteAssociations(),
-        );
         container.setAttribute('aria-busy', 'false');
         renderCalendarGrid(container, year, month, visibleData, selectedDateStr, locale);
         renderLinkedNotes(linkedNotesContainer, visibleData, selectedDateStr, requestId);
@@ -254,18 +247,34 @@ async function loadCalendarData(year, month) {
     return request;
 }
 
+export async function loadCalendarMonthAppearance(year, month) {
+    const data = await loadCalendarData(year, month + 1);
+    return overlayCalendarMonthNotes(
+        data,
+        year,
+        month + 1,
+        calendarNoteBaselines,
+        dirtyCalendarNoteAssociations(),
+    );
+}
+
 /**
  * Render calendar grid
  */
 function renderCalendarGrid(container, year, month, data, selectedDateStr, locale = currentCalendarLocale()) {
     const weekInfo = localeWeekInfo(locale);
-    const calendar = calendarMonthGrid(year, month, weekInfo.firstDay);
     const weekdays = localeWeekdays(locale, weekInfo.firstDay);
-    const daysWithLinks = new Set(Array.isArray(data?.days_with_links) ? data.days_with_links.map(Number) : []);
-    const hasStructuredSummaries = Array.isArray(data?.day_summaries);
-    const summaries = calendarMonthSummaryMap(data);
     const todayStr = localISODate();
     const visualSelectedDateStr = selectedDateStr || todayStr;
+    const { weeks, summaries } = calendarMonthPresentation({
+        year,
+        month,
+        data,
+        selectedDateStr: visualSelectedDateStr,
+        todayStr,
+        firstDay: weekInfo.firstDay,
+        weekend: weekInfo.weekend,
+    });
 
     let html = '';
 
@@ -275,49 +284,19 @@ function renderCalendarGrid(container, year, month, data, selectedDateStr, local
     }
 
     // Days
-    for (const week of calendar) {
+    for (const week of weeks) {
         for (const day of week) {
-            if (day === 0) {
+            if (day.empty) {
                 html += '<span class="cal-day cal-empty" aria-hidden="true"></span>';
                 continue;
             }
 
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isToday = dateStr === todayStr;
-            const isSelected = dateStr === visualSelectedDateStr;
-            const hasLink = !hasStructuredSummaries && daysWithLinks.has(day);
-            const summary = summaries.get(day) || { noteCount: 0, dueTitles: [], hasDue: false };
-            const state = calendarDayState({
-                isoDay: isoWeekday(year, month, day),
-                weekend: weekInfo.weekend,
-                noteCount: summary.noteCount,
-                dueTitles: summary.dueTitles,
-                hasDue: summary.hasDue,
-                hasLink,
-                isToday,
-            });
-
-            let classes = 'ui-date-picker-day cal-day';
-            if (isSelected) classes += ' selected';
-            if (state.isWeekend) classes += ' is-weekend ui-date-picker-day--weekend';
-            if (state.noteLevel) classes += ` has-note ui-date-picker-day--note-${state.noteLevel}`;
-            if (hasLink) classes += ' has-link';
-            if (state.hasDue) classes += ' has-due-task ui-date-picker-day--due';
-
-            const labelParts = [formatCalendarDate(dateStr, locale)];
-            if (state.isWeekend) labelParts.push('Weekend');
-            if (summary.noteCount) labelParts.push(`${summary.noteCount} ${summary.noteCount === 1 ? 'note' : 'notes'}`);
-            if (state.hasDue) {
-                labelParts.push(summary.dueTitles.length
-                    ? `${summary.dueTitles.length} due ${summary.dueTitles.length === 1 ? 'item' : 'items'}: ${summary.dueTitles.join('; ')}`
-                    : 'Due item');
-            }
-            if (isToday) labelParts.push('Today');
-
-            const commonAttributes = `class="${classes}" data-date="${dateStr}" aria-label="${escapeAttr(labelParts.join('. '))}"`;
-            html += state.clickable
-                ? `<button type="button" ${commonAttributes} aria-pressed="${isSelected}"${isToday ? ' aria-current="date"' : ''}>${day}</button>`
-                : `<span ${commonAttributes} role="gridcell">${day}</span>`;
+            const classes = calendarDayClassName(day);
+            const labelParts = calendarDayLabelParts(day, formatCalendarDate(day.dateStr, locale));
+            const commonAttributes = `class="${classes}" data-date="${day.dateStr}" aria-label="${escapeAttr(labelParts.join('. '))}"`;
+            html += day.state.clickable
+                ? `<button type="button" ${commonAttributes} aria-pressed="${day.isSelected}"${day.isToday ? ' aria-current="date"' : ''}>${day.day}</button>`
+                : `<span ${commonAttributes} role="gridcell">${day.day}</span>`;
         }
     }
 
@@ -335,88 +314,6 @@ function renderCalendarGrid(container, year, month, data, selectedDateStr, local
         day.addEventListener('click', () => window.calendarDayClick(day.dataset.date));
     });
     wireCalendarDayTooltips(container, summaries, locale);
-}
-
-function ensureCalendarDayTooltip() {
-    let tooltip = document.getElementById(calendarDayTooltipId);
-    if (tooltip) return tooltip;
-    tooltip = document.createElement('div');
-    tooltip.id = calendarDayTooltipId;
-    tooltip.className = 'ui-tooltip cal-day-tooltip';
-    tooltip.setAttribute('role', 'tooltip');
-    tooltip.hidden = true;
-    document.body.appendChild(tooltip);
-    return tooltip;
-}
-
-function hideCalendarDayTooltip(anchor = null) {
-    const tooltip = document.getElementById(calendarDayTooltipId);
-    if (tooltip) tooltip.hidden = true;
-    anchor?.removeAttribute('aria-describedby');
-}
-
-function showCalendarDayTooltip(anchor, summary, locale) {
-    const tooltip = ensureCalendarDayTooltip();
-    tooltip.replaceChildren();
-
-    const heading = document.createElement('strong');
-    heading.textContent = formatCalendarDate(anchor.dataset.date, locale);
-    tooltip.appendChild(heading);
-    if (summary.noteCount) {
-        const noteCount = document.createElement('span');
-        noteCount.className = 'cal-day-tooltip-note-count';
-        noteCount.textContent = `${summary.noteCount} ${summary.noteCount === 1 ? 'note' : 'notes'}`;
-        tooltip.appendChild(noteCount);
-    }
-    if (summary.dueTitles.length) {
-        const dueLabel = document.createElement('span');
-        dueLabel.className = 'cal-day-tooltip-due-label';
-        dueLabel.textContent = summary.dueTitles.length === 1 ? 'Due item' : 'Due items';
-        tooltip.appendChild(dueLabel);
-        const list = document.createElement('ul');
-        for (const title of summary.dueTitles) {
-            const item = document.createElement('li');
-            item.textContent = title;
-            list.appendChild(item);
-        }
-        tooltip.appendChild(list);
-    }
-
-    tooltip.hidden = false;
-    anchor.setAttribute('aria-describedby', calendarDayTooltipId);
-    const position = tooltipPosition(
-        anchor.getBoundingClientRect(),
-        tooltip.getBoundingClientRect(),
-        { width: window.innerWidth, height: window.innerHeight },
-    );
-    tooltip.style.left = `${position.left}px`;
-    tooltip.style.top = `${position.top}px`;
-}
-
-function wireCalendarDayTooltips(container, summaries, locale) {
-    let hoveredDay = null;
-    let focusedDay = null;
-    container.querySelectorAll('button.cal-day[data-date]').forEach(day => {
-        const dayNumber = Number(day.dataset.date.slice(-2));
-        const summary = summaries.get(dayNumber);
-        if (!summary || (!summary.noteCount && summary.dueTitles.length === 0)) return;
-        day.addEventListener('pointerenter', () => {
-            hoveredDay = day;
-            showCalendarDayTooltip(day, summary, locale);
-        });
-        day.addEventListener('pointerleave', () => {
-            hoveredDay = null;
-            if (focusedDay !== day) hideCalendarDayTooltip(day);
-        });
-        day.addEventListener('focus', () => {
-            focusedDay = day;
-            showCalendarDayTooltip(day, summary, locale);
-        });
-        day.addEventListener('blur', () => {
-            focusedDay = null;
-            if (hoveredDay !== day) hideCalendarDayTooltip(day);
-        });
-    });
 }
 
 /**

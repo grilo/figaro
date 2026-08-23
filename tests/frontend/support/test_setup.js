@@ -157,11 +157,25 @@ function createMockDOM() {
                     <button id="toggle-sidebar"></button>
                     <button id="topbar-home" class="app-home-btn"><span class="app-title">figaro</span></button>
                 </div>
-                <div class="top-bar-center" aria-hidden="true"></div>
+                <div class="top-bar-center">
+                    <div id="tab-bar" class="ui-document-tabs ui-document-tabs--titlebar tab-bar">
+                        <div id="tab-strip" class="tab-strip" role="tablist" aria-label="Open notes"></div>
+                        <button id="all-tabs-btn" aria-label="Show all open tabs" aria-controls="all-tabs-dropdown" aria-haspopup="menu" aria-expanded="false" hidden></button>
+                        <div id="all-tabs-dropdown" class="all-tabs-dropdown hidden" role="menu" aria-label="All open tabs"></div>
+                    </div>
+                </div>
                 <div class="top-bar-right">
                     <span class="md-cheatsheet-wrapper topbar-cheatsheet">
-                        <button id="md-cheatsheet-trigger" aria-expanded="false" aria-controls="md-cheatsheet-popup">?</button>
-                        <div id="md-cheatsheet-popup" role="dialog" hidden><button id="md-cheatsheet-close"></button></div>
+                        <button id="md-cheatsheet-trigger" aria-label="Open Markdown and macros help" aria-expanded="false" aria-controls="md-cheatsheet-popup">?</button>
+                        <div id="md-cheatsheet-popup" role="dialog" aria-label="Markdown and macros help" hidden>
+                            <div role="tablist" aria-label="Help topics">
+                                <button id="md-help-markdown-tab" role="tab" aria-selected="true" aria-controls="md-help-markdown-panel">Markdown</button>
+                                <button id="md-help-macros-tab" role="tab" aria-selected="false" aria-controls="md-help-macros-panel" tabindex="-1">Macros</button>
+                            </div>
+                            <button id="md-cheatsheet-close"></button>
+                            <div id="md-help-markdown-panel" role="tabpanel" aria-labelledby="md-help-markdown-tab" tabindex="-1"></div>
+                            <div id="md-help-macros-panel" role="tabpanel" aria-labelledby="md-help-macros-tab" tabindex="-1" hidden></div>
+                        </div>
                     </span>
                     <button id="topbar-settings" class="icon-btn titlebar-settings-btn" aria-label="Open Settings"></button>
                     <button id="win-minimize"></button>
@@ -204,7 +218,6 @@ function createMockDOM() {
                     <div id="sidebar-resizer"></div>
                 </aside>
                 <main id="main-content" class="main-content">
-                    <div id="tab-bar" class="ui-document-tabs tab-bar"><div id="tab-strip" class="tab-strip" role="tablist"></div><button id="all-tabs-btn" aria-label="Show all open tabs" aria-controls="all-tabs-dropdown" aria-haspopup="menu" aria-expanded="false" hidden></button><div id="all-tabs-dropdown" class="all-tabs-dropdown hidden" role="menu" aria-label="All open tabs"></div></div>
                     <nav id="editor-breadcrumb" class="editor-breadcrumb" aria-label="Current document path" hidden></nav>
                     <div id="tab-panels" class="tab-panels"></div>
                     <div id="editor-container">
@@ -226,26 +239,33 @@ function createMockDOM() {
                 </aside>
             </div>
             <footer id="status-bar" class="status-bar">
-                <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>
-                <div id="vault-loading-panel" class="status-vault-loading" aria-busy="true" hidden>
-                    <span id="vault-loading-title"></span>
-                    <span id="vault-loading-message"></span>
-                    <span id="vault-loading-progress" class="ui-progress" role="progressbar"></span>
-                    <span id="vault-loading-progress-value" class="ui-progress-value"></span>
-                    <output id="vault-loading-count"></output>
+                <div class="status-left" role="group" aria-label="Application status"
+                     data-application-active="false" data-has-action="false" title="Ready">
+                    <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>
+                    <div id="vault-loading-panel" class="status-vault-loading" aria-busy="true" hidden>
+                        <span id="vault-loading-title"></span>
+                        <span id="vault-loading-message"></span>
+                        <span id="vault-loading-progress" class="ui-progress" role="progressbar"></span>
+                        <span id="vault-loading-progress-value" class="ui-progress-value"></span>
+                        <output id="vault-loading-count"></output>
+                    </div>
+                    <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
+                    <button id="status-action" hidden></button>
                 </div>
-                <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
-                <button id="status-action" hidden></button>
-                <span id="cursor-position">Ln 1, Col 1</span>
-                <span id="editor-scale-separator" class="status-separator" hidden>|</span>
-                <button id="editor-scale-status" class="status-history has-history status-scale" hidden>Scale 100%</button>
-                <span id="reading-time">0 min read</span>
-                <span id="word-count">0 words</span>
-                <span id="char-count">0 chars</span>
-                <button id="backlinks-status" class="status-backlinks" disabled>0 backlinks</button>
-                <button id="git-status" class="status-git" hidden disabled>Save to history</button>
-                <span id="git-status-separator" class="status-separator" hidden>|</span>
-                <button id="history-count" class="status-history" disabled>0 changes</button>
+                <div class="status-right" role="group" aria-label="Active buffer status">
+                    <span id="cursor-position">Ln 1, Col 1</span>
+                    <span id="editor-scale-separator" class="status-separator" hidden>|</span>
+                    <button id="editor-scale-status" class="status-history has-history status-scale" hidden>Scale 100%</button>
+                    <span id="reading-time">0 min read</span>
+                    <span id="word-count">0 words</span>
+                    <span id="char-count">0 chars</span>
+                    <span id="file-encoding">UTF-8</span>
+                    <span id="file-type">Standard</span>
+                    <button id="backlinks-status" class="status-backlinks" disabled>0 backlinks</button>
+                    <button id="git-status" class="status-git" hidden disabled>Save to history</button>
+                    <span id="git-status-separator" class="status-separator" hidden>|</span>
+                    <button id="history-count" class="status-history" disabled>0 changes</button>
+                </div>
             </footer>
             <div id="modals-container"></div>
         </div>

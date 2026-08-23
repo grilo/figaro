@@ -32,7 +32,10 @@ The catalogue is deliberately not a second component implementation:
 - `tokens.css` defines shared semantic defaults, component dimensions, and
   optional theme art-direction values.
 - `theme-surfaces.css` maps those art-direction values to stable production
-  selectors; individual themes never own selectors.
+  selectors; this includes structural divider/resizer and split-status-surface
+  hooks and inert-by-default
+  ambient vignette, scan-line, and screen-transform hooks, so individual themes
+  never own selectors or timers.
 - `theme-contract.json` lists the required palette plus optional semantic and
   art-direction tokens, while `style-manifest.json` records the eager cascade
   shared by the application and catalogue.

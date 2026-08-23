@@ -4,6 +4,7 @@
 
 import { initTopBar } from '../../../frontend/js/app.js';
 import { getState, setState } from '../../../frontend/js/state.js';
+import { localISODate } from '../../../frontend/js/core/dueDateModel.js';
 import { testUtils } from '../support/test_setup.js';
 
 describe('Workspace navigation', () => {
@@ -12,6 +13,9 @@ describe('Workspace navigation', () => {
         setState('openTabs', []);
         setState('activeTabId', null);
         setState('sidebarCollapsed', false);
+        setState('sidebarWidth', 280);
+        setState('currentCalDate', new Date(2001, 0, 1));
+        setState('selectedCalDateStr', null);
         initTopBar();
     });
 
@@ -27,7 +31,9 @@ describe('Workspace navigation', () => {
         expect(document.querySelector('.sidebar-content')?.contains(calendarPanel)).toBe(true);
         expect(document.getElementById('right-sidebar')?.contains(calendarPanel)).toBe(false);
         expect(settingsButton?.closest('.top-bar-right')).not.toBeNull();
-        expect(document.querySelector('.top-bar-center')?.children).toHaveLength(0);
+        expect(document.querySelector('.top-bar-center')?.contains(document.getElementById('tab-bar'))).toBe(true);
+        expect(document.getElementById('main-content')?.contains(document.getElementById('tab-bar'))).toBe(false);
+        expect(document.getElementById('tab-bar')?.classList.contains('ui-document-tabs--titlebar')).toBe(true);
         expect(document.getElementById('kanban-badges')).not.toBeNull();
         expect(document.getElementById('sidebar-projects')).toBeNull();
     });
@@ -53,6 +59,26 @@ describe('Workspace navigation', () => {
         expect(button.getAttribute('aria-expanded')).toBe('false');
     });
 
+    test('starts Calendar on Today and restores the in-session selection when reopened', () => {
+        const button = document.getElementById('sidebar-calendar');
+        const todayStr = localISODate();
+
+        button.click();
+
+        expect(getState('selectedCalDateStr')).toBe(todayStr);
+        expect(getState('currentCalDate').getFullYear()).toBe(new Date().getFullYear());
+        expect(getState('currentCalDate').getMonth()).toBe(new Date().getMonth());
+
+        button.click();
+        setState('selectedCalDateStr', '2024-06-15');
+        setState('currentCalDate', new Date(2025, 0, 1));
+        button.click();
+
+        expect(getState('selectedCalDateStr')).toBe('2024-06-15');
+        expect(getState('currentCalDate').getFullYear()).toBe(2024);
+        expect(getState('currentCalDate').getMonth()).toBe(5);
+    });
+
     test('collapses to a tool rail and expands it when Calendar is selected', () => {
         const sidebar = document.getElementById('sidebar');
         const toggle = document.getElementById('toggle-sidebar');
@@ -66,6 +92,8 @@ describe('Workspace navigation', () => {
         expect(sidebar.classList.contains('collapsed')).toBe(true);
         expect(toggle.getAttribute('aria-expanded')).toBe('false');
         expect(document.getElementById('sidebar-resizer').classList.contains('sidebar-resizer-hidden')).toBe(true);
+        expect(document.getElementById('app').style.getPropertyValue('--shell-sidebar-width')).toBe('44px');
+        expect(document.getElementById('app').classList.contains('sidebar-collapsed')).toBe(true);
         expect(document.querySelector('.sidebar-tools')?.closest('.sidebar-content')).toBeNull();
         expect(panel.classList.contains('open')).toBe(false);
 
@@ -74,6 +102,8 @@ describe('Workspace navigation', () => {
         expect(getState('sidebarCollapsed')).toBe(false);
         expect(sidebar.classList.contains('collapsed')).toBe(false);
         expect(toggle.getAttribute('aria-expanded')).toBe('true');
+        expect(document.getElementById('app').style.getPropertyValue('--shell-sidebar-width')).toBe('280px');
+        expect(document.getElementById('app').classList.contains('sidebar-collapsed')).toBe(false);
         expect(panel.classList.contains('open')).toBe(true);
     });
 

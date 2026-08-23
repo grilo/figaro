@@ -175,6 +175,65 @@ describe('Tab Manager', () => {
             expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
         });
 
+        test('opens an unpositioned Markdown buffer on the first line after Properties', async () => {
+            const source = '---\ntitle: Report\n---\n# Body\n\nClosing paragraph';
+            const bodyStart = source.indexOf('# Body');
+            window.go.desktop.App.ReadFile.mockResolvedValueOnce({
+                content: source,
+                mtime: 2,
+                path: 'report.md',
+            });
+
+            openTab('report.md', 'Report', 'file', { path: 'report.md' });
+            await testUtils.waitFor(0);
+
+            expect(setEditorContent).toHaveBeenLastCalledWith(source, 'report.md', {
+                anchor: bodyStart,
+                head: bodyStart,
+            });
+        });
+
+        test('keeps remembered and explicit line positions ahead of the Properties default', async () => {
+            const source = '---\ntitle: Report\n---\n# Body';
+            window.go.desktop.App.ReadFile
+                .mockResolvedValueOnce({ content: source, mtime: 2, path: 'remembered.md' })
+                .mockResolvedValueOnce({ content: source, mtime: 2, path: 'targeted.md' });
+            const remembered = openTab('remembered.md', 'Remembered', 'file', {
+                path: 'remembered.md',
+                activate: false,
+            });
+            remembered.cursorState = { anchor: 0, head: 0 };
+
+            await switchTab(remembered.id);
+            expect(setEditorContent).toHaveBeenLastCalledWith(
+                source,
+                remembered.id,
+                remembered.cursorState,
+            );
+
+            const targeted = openTab('targeted.md', 'Targeted', 'file', {
+                path: 'targeted.md',
+                line: 4,
+                activate: false,
+            });
+            await switchTab(targeted.id);
+            expect(setEditorContent).toHaveBeenLastCalledWith(source, targeted.id, null);
+        });
+
+        test('does not apply the Markdown Properties cursor policy to other file modes', async () => {
+            const source = '---\ntitle: Report\n---\nbody';
+            window.go.desktop.App.ReadFile.mockResolvedValueOnce({
+                content: source,
+                mtime: 2,
+                path: 'report.yaml',
+            });
+
+            openTab('report.yaml', 'Report', 'file', { path: 'report.yaml' });
+            await testUtils.waitFor(0);
+
+            expect(setEditorContent).toHaveBeenLastCalledWith(source, 'report.yaml', null);
+        });
+
         test('should create new calendar tab', () => {
             const tab = openTab('calendar-2024-01-15', 'Date', 'calendar', { dateStr: '2024-01-15' });
             
@@ -1141,6 +1200,7 @@ describe('Tab Manager', () => {
             const activeTab = tabStrip.querySelector('.tab.active');
             expect(activeTab.dataset.tabId).toBe('tab2');
             expect(activeTab.classList.contains('ui-document-tab')).toBe(true);
+            expect(activeTab.classList.contains('ui-document-tab--connected')).toBe(true);
             expect(activeTab.classList.contains('ui-document-tab--active')).toBe(true);
             expect(activeTab.querySelector('.tab-close').getAttribute('aria-label')).toBe('Close Tab 2');
         });
@@ -1496,10 +1556,44 @@ describe('Tab Manager', () => {
             expect(document.activeElement.dataset.tabId).toBe('tab1');
             expect(document.activeElement.getAttribute('role')).toBe('tab');
         });
+
+        test('switches buffers with Ctrl+PageUp/PageDown and stops at the boundaries', () => {
+            initTabManager();
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md', isNew: true });
+            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md', isNew: true });
+            openTab('tab3', 'Tab 3', 'file', { path: 'tab3.md', isNew: true });
+
+            const atLast = new KeyboardEvent('keydown', {
+                key: 'PageDown', ctrlKey: true, bubbles: true, cancelable: true,
+            });
+            document.dispatchEvent(atLast);
+            expect(atLast.defaultPrevented).toBe(true);
+            expect(getState('activeTabId')).toBe('tab3');
+
+            document.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'PageUp', ctrlKey: true, bubbles: true, cancelable: true,
+            }));
+            expect(getState('activeTabId')).toBe('tab2');
+
+            switchTab('tab1');
+            const atFirst = new KeyboardEvent('keydown', {
+                key: 'PageUp', ctrlKey: true, bubbles: true, cancelable: true,
+            });
+            document.dispatchEvent(atFirst);
+            expect(atFirst.defaultPrevented).toBe(true);
+            expect(getState('activeTabId')).toBe('tab1');
+
+            const unmodified = new KeyboardEvent('keydown', {
+                key: 'PageDown', bubbles: true, cancelable: true,
+            });
+            document.dispatchEvent(unmodified);
+            expect(unmodified.defaultPrevented).toBe(false);
+            expect(getState('activeTabId')).toBe('tab1');
+        });
     });
 
     describe('tab-list wheel navigation', () => {
-        test('cycles active tabs with vertical wheel input and preserves horizontal scrolling', () => {
+        test('cycles active tabs within its boundaries and preserves horizontal scrolling', () => {
             initTabManager();
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md', isNew: true });
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md', isNew: true });
@@ -1513,7 +1607,7 @@ describe('Tab Manager', () => {
             });
             tabStrip.dispatchEvent(forward);
             expect(forward.defaultPrevented).toBe(true);
-            expect(getState('activeTabId')).toBe('tab1');
+            expect(getState('activeTabId')).toBe('tab3');
 
             const backward = new WheelEvent('wheel', {
                 deltaY: -100,
@@ -1522,7 +1616,7 @@ describe('Tab Manager', () => {
             });
             tabStrip.dispatchEvent(backward);
             expect(backward.defaultPrevented).toBe(true);
-            expect(getState('activeTabId')).toBe('tab3');
+            expect(getState('activeTabId')).toBe('tab2');
 
             const horizontal = new WheelEvent('wheel', {
                 deltaX: 100,
@@ -1532,7 +1626,7 @@ describe('Tab Manager', () => {
             });
             tabStrip.dispatchEvent(horizontal);
             expect(horizontal.defaultPrevented).toBe(false);
-            expect(getState('activeTabId')).toBe('tab3');
+            expect(getState('activeTabId')).toBe('tab2');
         });
     });
 

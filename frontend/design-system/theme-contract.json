@@ -79,8 +79,10 @@
     "--navigation-surface",
     "--tab-bar-surface",
     "--tab-bar-shadow",
+    "--titlebar-divider-color",
     "--top-bar-divider",
     "--editor-surface",
+    "--editor-gutter-surface",
     "--editor-surface-shadow",
     "--workspace-surface",
     "--workspace-shadow",
@@ -88,6 +90,8 @@
     "--sidebar-rail-surface",
     "--sidebar-search-surface",
     "--sidebar-tools-surface",
+    "--sidebar-tools-border-color",
+    "--sidebar-resizer-color",
     "--calendar-surface",
     "--file-tree-surface",
     "--file-tree-guide-color",
@@ -109,8 +113,17 @@
     "--settings-title-letter-spacing",
     "--settings-control-surface",
     "--settings-control-shadow",
+    "--application-status-surface",
     "--status-bar-surface",
-    "--status-bar-border"
+    "--status-bar-border",
+    "--status-separator-color",
+    "--screen-vignette",
+    "--screen-scanline",
+    "--screen-effect-opacity",
+    "--screen-scan-animation",
+    "--screen-scan-duration",
+    "--screen-scan-height",
+    "--screen-content-transform"
   ],
   "policy": "Theme files may contain one :root rule with custom-property declarations only. Stable component selectors live in the shared style stack."
 }

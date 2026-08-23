@@ -2117,6 +2117,7 @@ func TestGetThemes(t *testing.T) {
 	foundGitHubDark := false
 	foundFigaroLight := false
 	foundFigaroDark := false
+	foundFigaroCRTPhosphor := false
 	for _, theme := range themeList {
 		if theme.ID == "github" && theme.Name == "GitHub Light" {
 			foundGitHubLight = true
@@ -2129,6 +2130,9 @@ func TestGetThemes(t *testing.T) {
 		}
 		if theme.ID == "default" && theme.Name == "Figaro Dark" {
 			foundFigaroDark = true
+		}
+		if theme.ID == "figaro-crt-phosphor" && theme.Name == "Figaro CRT Phosphor" {
+			foundFigaroCRTPhosphor = true
 		}
 	}
 	if !foundGitHubLight {
@@ -2143,10 +2147,13 @@ func TestGetThemes(t *testing.T) {
 	if !foundFigaroDark {
 		t.Error("expected Figaro Dark in the available themes")
 	}
+	if !foundFigaroCRTPhosphor {
+		t.Error("expected Figaro CRT Phosphor in the available themes")
+	}
 }
 
 func TestEmbeddedThemeAssetPath(t *testing.T) {
-	for _, name := range []string{"manifest.json", "default.css", "github-dark.css"} {
+	for _, name := range []string{"manifest.json", "default.css", "figaro-crt-phosphor.css", "github-dark.css"} {
 		got := embeddedThemeAssetPath(name)
 		want := "frontend/themes/" + name
 		if got != want {

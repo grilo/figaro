@@ -9,6 +9,7 @@ import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import { initEditorBreadcrumbSetting } from './editorBreadcrumb.js';
 import { initEditorNavigationPreference, initEditorNavigationSettings } from './editorNavigationPreferences.js';
+import { initHelpPopup } from './helpPopup.js';
 import { initTabSizeSettings } from './tabSizePreference.js';
 import {
     EDITOR_TEXT_SCALE_MAX,
@@ -137,7 +138,7 @@ export function initThemeAppearance() {
 export async function initTheme() {
     await initThemeAppearance();
     ensureStyleEl();
-    initCheatsheet();
+    initHelpPopup();
     applyEditorTextScale(getConfiguredEditorTextScale(), { view: getEditorView() });
     await initVimPreference();
     await initVimVisualRowsPreference();
@@ -871,53 +872,6 @@ export async function initPDFBrowserSetting(root = document) {
             if (isActivePanel(root)) clear.disabled = false;
         }
     });
-}
-
-function initCheatsheet() {
-    const cheatsheetTrigger = document.getElementById('md-cheatsheet-trigger');
-    const cheatsheetPopup = document.getElementById('md-cheatsheet-popup');
-    const cheatsheetClose = document.getElementById('md-cheatsheet-close');
-    const wrapper = cheatsheetTrigger?.closest('.md-cheatsheet-wrapper');
-    if (!cheatsheetTrigger || !cheatsheetPopup || !wrapper || cheatsheetTrigger.dataset.initialized === 'true') return;
-
-    cheatsheetTrigger.dataset.initialized = 'true';
-    const setOpen = (open, { restoreFocus = false } = {}) => {
-        const changed = cheatsheetPopup.classList.contains('open') !== open;
-        cheatsheetPopup.classList.toggle('open', open);
-        cheatsheetPopup.hidden = !open;
-        cheatsheetTrigger.setAttribute('aria-expanded', String(open));
-        if (!open && restoreFocus && changed) cheatsheetTrigger.focus();
-    };
-    cheatsheetTrigger.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const open = !cheatsheetPopup.classList.contains('open');
-        setOpen(open);
-        if (open) setTimeout(() => cheatsheetClose?.focus(), 0);
-    });
-    wrapper.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape' || !cheatsheetPopup.classList.contains('open')) return;
-        e.preventDefault();
-        e.stopPropagation();
-        setOpen(false, { restoreFocus: true });
-    });
-    wrapper.addEventListener('focusout', event => {
-        if (!cheatsheetPopup.classList.contains('open') || wrapper.contains(event.relatedTarget)) return;
-        setOpen(false);
-    });
-    if (cheatsheetClose) {
-        cheatsheetClose.addEventListener('click', (e) => {
-            e.stopPropagation();
-            setOpen(false, { restoreFocus: true });
-        });
-    }
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.md-cheatsheet-wrapper')) {
-            setOpen(false);
-        }
-    });
-
-    // The popup starts hidden even in test fixtures that omit the attribute.
-    setOpen(false);
 }
 
 const FONTS = [

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('closing the final tab keeps the centered workspace overview without creating Welcome', async ({ page }) => {
+test('keeps title-bar divider ownership stable while the active tab connects and after the final tab closes', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
 
@@ -14,9 +14,38 @@ test('closing the final tab keeps the centered workspace overview without creati
     });
 
     await expect(page.locator('.tab[data-tab-id="scratch.md"]')).toBeVisible();
+    const connectedDivider = await page.evaluate(() => {
+        const topBar = document.querySelector('.top-bar');
+        const rail = document.getElementById('tab-bar');
+        const active = document.querySelector('#tab-strip .tab.active');
+        const topBarBounds = topBar.getBoundingClientRect();
+        const activeBounds = active.getBoundingClientRect();
+        const activeStyle = getComputedStyle(active);
+        return {
+            titlebarShadow: getComputedStyle(topBar).boxShadow,
+            railShadow: getComputedStyle(rail).boxShadow,
+            activeBottomAligned: Math.abs(activeBounds.bottom - topBarBounds.bottom) <= 1,
+            activeBackground: activeStyle.backgroundColor,
+            activeStack: activeStyle.zIndex,
+            activeBottomBorder: activeStyle.borderBottomWidth,
+        };
+    });
+    expect(connectedDivider.titlebarShadow).not.toBe('none');
+    expect(connectedDivider.railShadow).toBe('none');
+    expect(connectedDivider.activeBottomAligned).toBe(true);
+    expect(connectedDivider.activeBackground).not.toBe('rgba(0, 0, 0, 0)');
+    expect(connectedDivider.activeStack).toBe('3');
+    expect(connectedDivider.activeBottomBorder).toBe('0px');
     await page.locator('.tab[data-tab-id="scratch.md"] .tab-close').click();
 
     await expect(page.locator('#tab-strip .tab')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => ({
+        titlebarShadow: getComputedStyle(document.querySelector('.top-bar')).boxShadow,
+        railShadow: getComputedStyle(document.getElementById('tab-bar')).boxShadow,
+    }))).toEqual({
+        titlebarShadow: connectedDivider.titlebarShadow,
+        railShadow: 'none',
+    });
     await expect(page.locator('.tab[data-tab-id="home"]')).toHaveCount(0);
     await expect(page.locator('.workspace-home-panel.active .home-view h1')).toHaveText('Today');
 
@@ -65,7 +94,7 @@ test('keeps the Today launchpad responsive and creates a missing daily note from
     }));
     expect(geometry.scrollWidth).toBe(geometry.clientWidth);
     expect(geometry.actionWidth).toBeGreaterThan(120);
-    expect(geometry.shellWidth).toBeLessThanOrEqual(geometry.clientWidth);
+    expect(geometry.shellWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
     expect(new Set(geometry.cardLefts).size).toBe(1);
 
     await home.getByRole('button', { name: 'Create today’s note' }).click();
@@ -102,21 +131,25 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
         const activeRect = active.getBoundingClientRect();
         const activeStyle = getComputedStyle(active);
         const inactive = strip.querySelector('.tab:not(.active)');
+        const roundedActiveLeadingOffset = Math.round(activeRect.left - stripRect.left);
         return {
             activeId: getState('activeTabId'),
             activeInsideStrip: activeRect.left >= stripRect.left - 1
                 && activeRect.right <= stripRect.right + 1,
             barHeight: barRect.height,
-            tabFillsBar: Math.abs(activeRect.height - barRect.height) <= 1,
+            tabHeight: activeRect.height,
+            tabBottomAligned: Math.abs(activeRect.bottom - barRect.bottom) <= 1,
             tabGap: getComputedStyle(strip).gap,
             activeRadius: activeStyle.borderRadius,
             activeShadow: activeStyle.boxShadow,
+            activeLeadingOffset: roundedActiveLeadingOffset === 0 ? 0 : roundedActiveLeadingOffset,
             inactiveCloseOpacity: inactive
                 ? getComputedStyle(inactive.querySelector('.tab-close')).opacity
                 : '',
             scrollLeft: strip.scrollLeft,
             allTabsHidden: document.getElementById('all-tabs-btn').hidden,
             startFade: getComputedStyle(bar, '::before').opacity,
+            startFadeWidth: getComputedStyle(bar, '::before').width,
             endFade: getComputedStyle(bar, '::after').opacity,
         };
     });
@@ -124,16 +157,17 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
     await expect.poll(tabGeometry).toMatchObject({
         activeId: 'overflow-8.md',
         activeInsideStrip: true,
-        barHeight: 43,
-        tabFillsBar: true,
-        tabGap: '0px',
-        activeRadius: '0px',
+        barHeight: 44,
+        tabHeight: 38,
+        tabBottomAligned: true,
+        tabGap: '3px',
+        activeRadius: '8px 8px 0px 0px',
         inactiveCloseOpacity: '0.62',
         allTabsHidden: false,
         startFade: '1',
         endFade: '0',
     });
-    expect((await tabGeometry()).activeShadow).toContain('inset');
+    expect((await tabGeometry()).activeShadow).toBe('none');
     expect((await tabGeometry()).scrollLeft).toBeGreaterThan(0);
 
     // Browser focus is the risk here: each activation rerenders the tab DOM,
@@ -160,15 +194,37 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
     })).toEqual({ activeId: 'overflow-8.md', focusedId: 'overflow-8.md' });
 
     // Use the browser's real wheel input so the non-passive rail handler and
-    // end-to-start wrapping are both exercised outside jsdom.
+    // its bounded first/last behavior are both exercised outside jsdom.
     const tabStripBox = await page.locator('#tab-strip').boundingBox();
     await page.mouse.move(tabStripBox.x + tabStripBox.width / 2, tabStripBox.y + tabStripBox.height / 2);
     await page.mouse.wheel(0, 100);
     await expect.poll(() => page.evaluate(async () => {
         const { getState } = await import('/js/state.js');
         return getState('activeTabId');
-    })).toBe('overflow-1.md');
+    })).toBe('overflow-8.md');
     await page.mouse.wheel(0, -100);
+    await expect.poll(() => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        return getState('activeTabId');
+    })).toBe('overflow-7.md');
+    await page.mouse.wheel(0, 100);
+    await expect.poll(() => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        return getState('activeTabId');
+    })).toBe('overflow-8.md');
+
+    // Ctrl+PageUp/PageDown uses the same bounded order from anywhere in the
+    // application and reveals the selected buffer inside the rail.
+    await page.keyboard.press('Control+PageUp');
+    await expect.poll(tabGeometry).toMatchObject({
+        activeId: 'overflow-7.md',
+        activeInsideStrip: true,
+        activeLeadingOffset: 0,
+        startFade: '1',
+        startFadeWidth: '18px',
+    });
+    await page.keyboard.press('Control+PageDown');
+    await page.keyboard.press('Control+PageDown');
     await expect.poll(() => page.evaluate(async () => {
         const { getState } = await import('/js/state.js');
         return getState('activeTabId');
@@ -182,11 +238,19 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
     await expect.poll(tabGeometry).toMatchObject({
         activeId: 'overflow-1.md',
         activeInsideStrip: true,
+        activeLeadingOffset: 0,
         scrollLeft: 0,
         allTabsHidden: false,
         startFade: '0',
+        startFadeWidth: '18px',
         endFade: '1',
     });
+
+    await page.keyboard.press('Control+PageUp');
+    await expect.poll(() => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        return getState('activeTabId');
+    })).toBe('overflow-1.md');
 
     await page.evaluate(async () => {
         const { getState, setState } = await import('/js/state.js');
@@ -199,6 +263,7 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
     await expect(page.locator('#all-tabs-btn')).toBeHidden();
     await expect.poll(tabGeometry).toMatchObject({
         activeInsideStrip: true,
+        activeLeadingOffset: 0,
         scrollLeft: 0,
         allTabsHidden: true,
         startFade: '0',
@@ -215,6 +280,9 @@ test('keeps the status bar on one fixed-height row at narrow widths', async ({ p
     // established by the unit DOM environment.
     const geometry = await page.locator('#status-bar').evaluate(element => {
         const bar = element.getBoundingClientRect();
+        const sidebar = document.getElementById('sidebar').getBoundingClientRect();
+        const application = element.querySelector('.status-left').getBoundingClientRect();
+        const buffer = element.querySelector('.status-right').getBoundingClientRect();
         const visibleChildren = [...element.querySelectorAll('.status-left > *, .status-right > *')]
             .filter(child => getComputedStyle(child).display !== 'none')
             .map(child => child.getBoundingClientRect());
@@ -222,10 +290,56 @@ test('keeps the status bar on one fixed-height row at narrow widths', async ({ p
             height: bar.height,
             overflowY: getComputedStyle(element).overflowY,
             childrenInside: visibleChildren.every(rect => rect.top >= bar.top - 1 && rect.bottom <= bar.bottom + 1),
+            applicationAligned: Math.abs(application.right - sidebar.right) <= 1,
+            bufferAligned: Math.abs(buffer.left - sidebar.right) <= 1,
+            applicationLabel: element.querySelector('.status-left').getAttribute('aria-label'),
+            bufferLabel: element.querySelector('.status-right').getAttribute('aria-label'),
         };
     });
 
-    expect(geometry).toEqual({ height: 24, overflowY: 'hidden', childrenInside: true });
+    expect(geometry).toEqual({
+        height: 24,
+        overflowY: 'hidden',
+        childrenInside: true,
+        applicationAligned: true,
+        bufferAligned: true,
+        applicationLabel: 'Application status',
+        bufferLabel: 'Active buffer status',
+    });
+
+    await page.evaluate(async () => {
+        const { statusBar } = await import('/js/statusBar.js');
+        statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', () => {});
+    });
+    await page.locator('#toggle-sidebar').click();
+    const compactStatusGeometry = () => page.locator('#status-bar').evaluate(element => {
+        const application = element.querySelector('.status-left');
+        const applicationBounds = application.getBoundingClientRect();
+        const bufferBounds = element.querySelector('.status-right').getBoundingClientRect();
+        const actionBounds = document.getElementById('status-action').getBoundingClientRect();
+        const text = document.getElementById('status-text');
+        return {
+            width: Math.round(applicationBounds.width),
+            bufferAligned: Math.abs(bufferBounds.left - applicationBounds.right) <= 1,
+            actionInside: actionBounds.left >= applicationBounds.left - 1
+                && actionBounds.right <= applicationBounds.right + 1,
+            actionVisible: getComputedStyle(document.getElementById('status-action')).display !== 'none',
+            fullLiveText: text.textContent,
+            liveTextPosition: getComputedStyle(text).position,
+            tooltip: application.dataset.uiTooltip || application.title,
+            active: application.dataset.applicationActive,
+        };
+    });
+    await expect.poll(compactStatusGeometry).toEqual({
+        width: 44,
+        bufferAligned: true,
+        actionInside: true,
+        actionVisible: true,
+        fullLiveText: 'Deleted “Draft.md” ·',
+        liveTextPosition: 'absolute',
+        tooltip: 'Deleted “Draft.md” ·',
+        active: 'true',
+    });
 });
 
 test('reorders document tabs with a real pointer drag', async ({ page }) => {

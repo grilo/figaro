@@ -78,7 +78,9 @@
       "id": "document-tabs",
       "primitives": [
         ".ui-document-tabs",
+        ".ui-document-tabs--titlebar",
         ".ui-document-tab",
+        ".ui-document-tab--connected",
         ".ui-document-tab--active",
         ".ui-document-tab--dirty",
         ".ui-document-tab--pinned"

@@ -1,0 +1,132 @@
+:root {
+    /* Figaro CRT Phosphor. Palette adapted from Joaquin Bozzalla's MIT-licensed
+       Phosphor Design System: https://joaquinbozzalla.github.io/phosphor-design-system/ */
+    --bg-color: #04110b;
+    --sidebar-bg: #000503;
+    --panel-bg: #06180f;
+    --text-color: #c8ffd9;
+    --text-muted: #6fff9c;
+    --text-dim: #3ddc7a;
+    --accent-color: #39ff7a;
+    --accent-hover: #6fff9c;
+    --active-bg: #0a2418;
+    --hover-bg: #081f14;
+    --border-color: rgba(57, 255, 122, 0.32);
+    --border-light: rgba(57, 255, 122, 0.55);
+    --danger-color: #ff4d4d;
+    --danger-hover: #ff7373;
+    --success-color: #39ff7a;
+    --warning-color: #ffb84a;
+    --scrollbar-track: #020a06;
+    --scrollbar-thumb: #0d4a29;
+    --scrollbar-thumb-hover: #1f8a4d;
+    --selection-bg: rgba(57, 255, 122, 0.28);
+    --focus-ring: rgba(57, 255, 122, 0.48);
+    --shadow-sm: 0 0 6px rgba(57, 255, 122, 0.14);
+    --shadow-md: 0 0 14px rgba(57, 255, 122, 0.17), 0 7px 20px rgba(0, 0, 0, 0.56);
+    --shadow-lg: 0 0 28px rgba(57, 255, 122, 0.19), 0 18px 44px rgba(0, 0, 0, 0.72);
+    --font-sans: 'JetBrains Mono', 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+    --font-size: 16px;
+    --font-size-sm: 14px;
+    --line-height: 1.6;
+
+    --cursor-color: #c8ffd9;
+    --cursor-bg: #c8ffd9;
+    --cursor-text: #021107;
+    --heading-color: #c8ffd9;
+    --bold-color: #c8ffd9;
+    --italic-color: #6fff9c;
+    --link-color: #39ff7a;
+    --link-hover-color: #6fff9c;
+    --url-color: #4dd0ff;
+    --hashtag-color: #ffb84a;
+    --code-bg: rgba(57, 255, 122, 0.055);
+    --quote-color: #6fff9c;
+    --quote-border: rgba(57, 255, 122, 0.55);
+    --highlight-bg: rgba(255, 184, 74, 0.24);
+    --callout-note-color: #4dd0ff;
+    --callout-warning-color: #ffb84a;
+    --callout-info-color: #4dd0ff;
+    --callout-tip-color: #39ff7a;
+    --callout-danger-color: #ff4d4d;
+    --callout-example-color: #c8a5ff;
+    --code-keyword-color: #ffb84a;
+    --code-string-color: #6fff9c;
+    --code-number-color: #4dd0ff;
+    --code-function-color: #c8ffd9;
+    --code-comment-color: #3ddc7a;
+    --code-type-color: #ffcf78;
+    --code-variable-color: #c8ffd9;
+    --code-operator-color: #39ff7a;
+    --code-builtin-color: #4dd0ff;
+
+    --window-border-color: rgba(57, 255, 122, 0.28);
+    --window-border-highlight: rgba(111, 255, 156, 0.46);
+    --overlay-background: rgba(0, 5, 3, 0.82);
+    --surface-highlight-color: #c8ffd9;
+    --shadow-color: #000503;
+    --button-text: #021107;
+    --on-warning-color: #021107;
+    --on-success-color: #021107;
+    --badge-purple: #c8a5ff;
+    --badge-red: #ff4d4d;
+    --badge-amber: #ffb84a;
+    --badge-green: #39ff7a;
+
+    --app-surface:
+        radial-gradient(64rem 38rem at -12% -16%, rgba(57, 255, 122, 0.045), transparent 58%),
+        radial-gradient(52rem 36rem at 108% 112%, rgba(77, 208, 255, 0.025), transparent 66%),
+        var(--bg-color);
+    --navigation-surface: linear-gradient(180deg, #020a06 0%, #000503 100%);
+    --tab-bar-surface: linear-gradient(180deg, #06180f 0%, #020a06 100%);
+    --tab-bar-shadow: inset 0 -1px 0 rgba(57, 255, 122, 0.23);
+    --top-bar-divider: linear-gradient(90deg, transparent, rgba(57, 255, 122, 0.16) 30%, rgba(111, 255, 156, 0.42) 50%, rgba(57, 255, 122, 0.16) 70%, transparent);
+    --editor-surface:
+        radial-gradient(48rem 31rem at 4% -13%, rgba(57, 255, 122, 0.035), transparent 58%),
+        linear-gradient(180deg, rgba(200, 255, 217, 0.012), transparent 15rem),
+        #04110b;
+    --editor-surface-shadow: inset 0 1px rgba(111, 255, 156, 0.055);
+    --workspace-surface: #020a06;
+    --workspace-shadow: inset 1px 0 rgba(57, 255, 122, 0.055);
+    --sidebar-shadow: 8px 0 22px rgba(0, 0, 0, 0.18);
+    --sidebar-rail-surface: linear-gradient(180deg, rgba(111, 255, 156, 0.30), rgba(57, 255, 122, 0.22) 42%, rgba(31, 138, 77, 0.12));
+    --sidebar-search-surface: linear-gradient(180deg, rgba(57, 255, 122, 0.018), transparent);
+    --sidebar-tools-surface: linear-gradient(180deg, rgba(57, 255, 122, 0.018), transparent);
+    --calendar-surface: #020a06;
+    --file-tree-surface: linear-gradient(180deg, rgba(57, 255, 122, 0.014), transparent 14rem);
+    --file-tree-guide-color: rgba(57, 255, 122, 0.15);
+    --file-node-radius: 4px;
+    --file-node-hover-surface: rgba(57, 255, 122, 0.07);
+    --file-node-selected-surface: linear-gradient(90deg, rgba(57, 255, 122, 0.18), rgba(57, 255, 122, 0.045));
+    --file-node-selected-shadow: inset 3px 0 var(--accent-color), 0 0 8px rgba(57, 255, 122, 0.11);
+    --file-node-selected-weight: 600;
+    --tab-radius: 8px 8px 0 0;
+    --tab-hover-surface: rgba(57, 255, 122, 0.07);
+    --tab-active-surface: linear-gradient(180deg, rgba(57, 255, 122, 0.13), rgba(57, 255, 122, 0.04));
+    --tab-active-border: rgba(57, 255, 122, 0.48);
+    --tab-active-shadow: inset 0 2px 0 var(--accent-color), 0 0 7px rgba(57, 255, 122, 0.10);
+    --tab-active-transform: none;
+    --settings-card-surface: linear-gradient(145deg, rgba(57, 255, 122, 0.045), rgba(57, 255, 122, 0.014));
+    --settings-card-border: rgba(57, 255, 122, 0.27);
+    --settings-card-shadow: 0 0 13px rgba(57, 255, 122, 0.07), inset 0 1px rgba(111, 255, 156, 0.045);
+    --settings-title-color: #6fff9c;
+    --settings-title-letter-spacing: 0.11em;
+    --settings-control-surface: #020a06;
+    --settings-control-shadow: inset 0 1px rgba(111, 255, 156, 0.04);
+    --application-status-surface: #000503;
+    --status-bar-surface:
+        linear-gradient(90deg, transparent, rgba(57, 255, 122, 0.14) 28%, rgba(111, 255, 156, 0.32) 50%, rgba(57, 255, 122, 0.14) 72%, transparent) top / calc(100% - 36px) 1px no-repeat,
+        linear-gradient(180deg, #020a06, #000503);
+    --status-bar-border: rgba(57, 255, 122, 0.20);
+
+    --screen-vignette:
+        radial-gradient(ellipse at center, transparent 58%, rgba(0, 5, 3, 0.07) 82%, rgba(0, 0, 0, 0.17) 100%);
+    --screen-scanline:
+        linear-gradient(to bottom, transparent, rgba(111, 255, 156, 0.018) 24%, rgba(200, 255, 217, 0.065) 50%, rgba(57, 255, 122, 0.018) 76%, transparent);
+    --screen-effect-opacity: 1;
+    --screen-scan-animation: figaro-crt-scan;
+    --screen-scan-duration: 300s;
+    --screen-scan-height: 14px;
+    --screen-content-transform: perspective(2200px) rotateX(0.04deg) scaleX(0.999) scaleY(0.9985);
+}

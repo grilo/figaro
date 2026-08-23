@@ -76,9 +76,9 @@
     --code-builtin-color: #f07178;
     --sidebar-width: 300px;
     --sidebar-rail-width: 44px;
-    --top-bar-height: 36px;
+    --top-bar-height: 44px;
     --status-bar-height: 24px;
-    --tab-height: 43px;
+    --tab-height: 38px;
     --transition-fast: 0.14s ease;
     --transition-normal: 0.18s ease;
     --transition-slow: 0.18s ease;
@@ -96,8 +96,10 @@
     --navigation-surface: var(--sidebar-bg);
     --tab-bar-surface: var(--sidebar-bg);
     --tab-bar-shadow: inset 0 -1px 0 var(--border-color);
+    --titlebar-divider-color: var(--border-color);
     --top-bar-divider: transparent;
     --editor-surface: var(--bg-color);
+    --editor-gutter-surface: var(--bg-color);
     --editor-surface-shadow: none;
     --workspace-surface: var(--bg-color);
     --workspace-shadow: none;
@@ -105,6 +107,8 @@
     --sidebar-rail-surface: var(--border-color);
     --sidebar-search-surface: transparent;
     --sidebar-tools-surface: var(--sidebar-bg);
+    --sidebar-tools-border-color: var(--border-color);
+    --sidebar-resizer-color: color-mix(in srgb, var(--shadow-color) 1%, transparent);
     --calendar-surface: var(--sidebar-bg);
     --file-tree-surface: transparent;
     --file-tree-guide-color: color-mix(in srgb, var(--text-muted) 18%, transparent);
@@ -113,7 +117,7 @@
     --file-node-selected-surface: var(--active-bg);
     --file-node-selected-shadow: none;
     --file-node-selected-weight: inherit;
-    --tab-radius: 0;
+    --tab-radius: 8px 8px 0 0;
     --tab-hover-surface: var(--hover-bg);
     --tab-active-surface: var(--hover-bg);
     --tab-active-border: var(--border-color);
@@ -126,8 +130,17 @@
     --settings-title-letter-spacing: 0.8px;
     --settings-control-surface: var(--bg-color);
     --settings-control-shadow: none;
+    --application-status-surface: var(--status-bar-surface);
     --status-bar-surface: var(--sidebar-bg);
     --status-bar-border: var(--border-color);
+    --status-separator-color: var(--border-color);
+    --screen-vignette: none;
+    --screen-scanline: none;
+    --screen-effect-opacity: 0;
+    --screen-scan-animation: none;
+    --screen-scan-duration: 300s;
+    --screen-scan-height: 14px;
+    --screen-content-transform: none;
     /* Feature semantic colors */
     --badge-purple: #7c3aed;
     --badge-red: var(--danger-color);

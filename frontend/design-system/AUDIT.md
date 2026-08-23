@@ -22,7 +22,7 @@ approved selector set:
 | Form fields | `.ui-field` | Context density, input type, validation policy, and value handling |
 | Calendar days | `.ui-date-picker` and its grid/day primitives, including approved weekend, five-level note-density, selected-surface, and due-outline states | Anchor position, locale week policy, activity data, effective selection, and task mutation |
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
-| Document tabs | `.ui-document-tabs`, `.ui-document-tab`, and state modifiers | Overflow geometry, ordering, drag placement, and tab controller behavior |
+| Document tabs | `.ui-document-tabs--titlebar`, `.ui-document-tab--connected`, and state modifiers | Title-bar placement, overflow geometry, ordering, drag placement, and tab controller behavior |
 | Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table labels, and CodeMirror gutter behavior |
 | Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
 | Content skeletons | `.ui-skeleton` | Calendar grid and Kanban column/card geometry, loading ownership, and replacement lifecycle |
@@ -33,17 +33,29 @@ hover, active, disabled, busy, selected, and semantic-color rules. Existing
 feature classes remain as behavior selectors and deliberate layout hooks; they
 must not recreate the primitive's state language.
 
-The tab rail combines its document-tab family with the approved
+The connected rounded title-bar rail combines its document-tab family with the approved
 `.ui-icon-button`, `.ui-menu`, and `.ui-menu-item` primitives. Its
-overflow-only visibility, scroll geometry, and theme-token edge fades remain
-narrow tab-layout behavior rather than another button or menu variant. The
-two-ended filename treatment and muted parent-path copy are content/layout
-hooks within that same approved tab and menu family.
+shell alignment, overflow-only visibility, offset-preserving overflow
+measurement, bounded navigation, scroll geometry, and theme-token edge fades
+remain narrow tab-layout behavior rather than another button or menu variant.
+The first tab is flush with the buffer boundary in both short and overflowing
+rails. The shared sidebar rail paints outward onto that same boundary pixel,
+so bordered themes do not show adjacent file-tree and tab rules; borderless
+themes remain transparent. The two-ended filename treatment and muted
+parent-path copy are content/layout hooks within that same approved tab and
+menu family. Empty rail content needs no special visual-state marker: the
+title bar—not the rail—owns the
+lower-divider token, while an opaque active connected tab can stack above and
+cover only its segment of a visible line. Empty and inactive rail space
+therefore cannot produce a startup, final-tab, or right-controls kink. Figaro
+Dark and Figaro Light deliberately make that divider and the tab outline
+transparent, using the shared editor surface as their only selected-tab fill.
+CRT Phosphor keeps its outer navigation glow without a redundant inset rule.
 
 Kanban keyboard focus reuses the existing card surface and global focus token;
 it does not introduce a new component state. Home's small instructional copy
-uses the established `--text-muted` semantic token so both native themes meet
-contrast without a feature-specific color.
+uses the established `--text-muted` semantic token so all three Figaro themes
+meet contrast without a feature-specific color.
 
 Editor folding uses the approved typed block guide for Markdown and the
 approved disclosure control for source-code regions. CodeMirror retains
@@ -53,12 +65,22 @@ The rendered table's direct delete action reuses the approved danger-ghost
 button; its side-lane placement and narrow-width flow within the measured widget
 are table-layout hooks rather than a new component or visual variant.
 
-The title-bar Markdown `?` reuses the approved icon button, and Recently
-deleted reuses Settings sections plus the approved compact action. Backlink,
-History-count, and status Undo controls are native buttons whose existing
-status typography remains deliberately link-like, including the pointer
-cursor. File-menu shortcut text is a muted content-alignment hook inside the
-approved menu item, not a new menu state or variant.
+The title-bar `?` help trigger reuses the approved icon button. Its Markdown
+and Macros topic tabs use the approved compact button and accent variant; the
+tablist layout, spacious viewport-bounded popover geometry, contained topic
+scrolling, and content switching add no new component family or visual state.
+Recently deleted reuses Settings sections plus the approved compact
+action. Backlink, History-count, and status Undo controls are native buttons
+whose existing status typography remains deliberately link-like, including the
+pointer cursor. File-menu shortcut text is a muted content-alignment hook
+inside the approved menu item, not a new menu state or variant.
+
+The two-region footer is a shell-layout correction, not a new component family
+or visual variant. Its application-status region reuses the approved progress,
+spinner, tooltip, and native inline action while following the shared sidebar
+width plan; its buffer-status region retains the existing telemetry and native
+history/backlink actions. `--application-status-surface` lets themes join the
+left region to navigation without duplicating status selectors.
 
 Raw Text Preview's **Copy to Clipboard** action reuses the approved primary
 `.ui-button`; its toolbar grouping, exact-source scroll following, clipboard
@@ -83,17 +105,20 @@ state. Their hover/focus explanation reuses the approved `.ui-tooltip` surface
 in a viewport-positioned overlay; the file-tree hook owns only its placement,
 content, and lifecycle.
 
-The sidebar Calendar reuses the approved date-picker day primitive at its
-narrow grid dimensions. Its explicitly approved modifiers derive weekend
+The sidebar Calendar and due-date popup both reuse the approved date-picker day
+primitive and one shared presentation plan at their narrow grid dimensions.
+Its explicitly approved modifiers derive weekend
 muting from neutral theme tokens, five note-density levels from
 `--success-color`, the movable selected surface from `--accent-color`, and the
 independent due outline from `--danger-color`. Calendar's narrow layout hook
 applies the established selected state to Today until another actionable day is
 chosen, then reveals the unselected day's activity surface; the normal focus
 ring remains reserved for keyboard focus.
-The activity tooltip reuses the approved `.ui-tooltip` surface; Calendar owns only
-its compact content, viewport placement, and hover/focus lifecycle. No bundled
-theme receives a calendar-specific hue or selector.
+The activity tooltip reuses the approved `.ui-tooltip` surface; the shared
+calendar adapter owns only its compact content, viewport placement, and
+hover/focus lifecycle. The popup retains only overlay positioning plus its
+shortcut and footer layout, so this parity change adds no component family or
+visual variant. No bundled theme receives a calendar-specific hue or selector.
 
 The eager tooltip controller converts ordinary static and dynamically mounted
 `title` hints into one body-level `.ui-tooltip`, opens it after a short hover or
@@ -112,7 +137,18 @@ future density changes coherent without adding another feature-specific rule.
 All primitive dependencies remain eagerly available in the ordered style
 manifest. Shared defaults and optional art-direction values live in
 `tokens.css`; `theme-surfaces.css` applies the latter through stable selectors,
-so all 17 theme files now contain token overrides only.
+so all 18 theme files now contain token overrides only. Figaro CRT Phosphor's
+vignette, very small perspective/scale distortion, and infrequent scan line
+reuse that art-direction contract: the shared overlay is pointer-transparent,
+the motion is removed for reduced-motion users, and no new component family or
+feature-local visual state was introduced.
+
+The native Dark/Light flattening uses this same approved surface contract, not
+a new component or variant. Optional titlebar-divider, sidebar-tools-divider,
+sidebar-resizer, editor-gutter, application-status, and status-separator tokens
+let both palettes share the titlebar/file-tree/application-status and
+active-tab/gutter/editor/buffer-status planes, remove incidental
+seams, and preserve the two separators that still communicate grouping.
 
 ## Intentional differences
 
@@ -149,7 +185,7 @@ so all 17 theme files now contain token overrides only.
 
 ## Verification
 
-- `tests/frontend/unit/designSystemCatalog.test.js` verifies all fourteen
+- `tests/frontend/unit/designSystemCatalog.test.js` verifies all fifteen
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, verifies theme-derived

@@ -177,6 +177,7 @@
                         <h3>Title bar</h3>
                         <code class="ds-selector">.top-bar</code>
                         <code class="ds-selector">.app-home-btn</code>
+                        <code class="ds-selector">.ui-document-tabs--titlebar</code>
                         <code class="ds-selector">.icon-btn</code>
                     </header>
                     <div class="ds-demo ds-demo--flush ds-shell-surface">
@@ -190,9 +191,22 @@
                                     <span class="app-title">figaro</span>
                                 </button>
                             </div>
-                            <div class="top-bar-center"></div>
+                            <div class="top-bar-center">
+                                <div class="ui-document-tabs ui-document-tabs--titlebar tab-bar ds-titlebar-tabs">
+                                    <div class="tab-strip" role="tablist" aria-label="Example title-bar tabs">
+                                        <div class="ui-document-tab ui-document-tab--connected ui-document-tab--active tab active" role="tab" aria-selected="true">
+                                            <span class="tab-icon">◆</span><span class="tab-title">Welcome.md</span>
+                                            <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Welcome.md">×</button>
+                                        </div>
+                                        <div class="ui-document-tab ui-document-tab--connected tab" role="tab" aria-selected="false">
+                                            <span class="tab-icon">◇</span><span class="tab-title">Roadmap.md</span>
+                                            <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Roadmap.md">×</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="top-bar-right">
-                                <button class="ui-icon-button md-cheatsheet-trigger" aria-label="Markdown cheatsheet">?</button>
+                                <button class="ui-icon-button md-cheatsheet-trigger" aria-label="Markdown and macros help">?</button>
                                 <button class="ui-icon-button icon-btn titlebar-settings-btn" aria-label="Settings">
                                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
                                 </button>
@@ -206,22 +220,31 @@
 
                 <div class="ds-specimen-grid ds-specimen-grid--two">
                     <article class="ds-specimen">
-                        <header><h3>Document tabs</h3><code class="ds-selector">.ui-document-tabs</code><code class="ds-selector">.ui-document-tab</code><code class="ds-selector">.all-tabs-btn</code></header>
-                        <div class="ds-demo ds-demo--flush">
-                            <div class="ui-document-tabs tab-bar ds-tab-bar tabs-overflow tabs-can-scroll-end">
-                                <div class="tab-strip" role="tablist" aria-label="Example document tabs">
-                                    <div class="ui-document-tab ui-document-tab--active tab active" role="tab" aria-selected="true">
-                                        <span class="tab-icon">◆</span><span class="tab-title">Welcome.md</span>
-                                        <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Welcome.md">×</button>
+                        <header><h3>Document tabs</h3><code class="ds-selector">.ui-document-tabs--titlebar</code><code class="ds-selector">.ui-document-tab--connected</code><code class="ds-selector">.all-tabs-btn</code></header>
+                        <div class="ds-demo ds-demo--flush ds-tab-state-stack">
+                            <div class="ds-tab-state">
+                                <span class="ds-tab-state-label">Open documents</span>
+                                <div class="ui-document-tabs ui-document-tabs--titlebar tab-bar ds-tab-bar tabs-overflow tabs-can-scroll-end">
+                                    <div class="tab-strip" role="tablist" aria-label="Example document tabs">
+                                        <div class="ui-document-tab ui-document-tab--connected ui-document-tab--active tab active" role="tab" aria-selected="true">
+                                            <span class="tab-icon">◆</span><span class="tab-title">Welcome.md</span>
+                                            <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Welcome.md">×</button>
+                                        </div>
+                                        <div class="ui-document-tab ui-document-tab--connected ui-document-tab--dirty ui-document-tab--pinned tab dirty pinned" role="tab" aria-selected="false">
+                                            <span class="tab-icon">◇</span><span class="tab-title">Roadmap.md</span>
+                                            <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Roadmap.md">×</button>
+                                        </div>
                                     </div>
-                                    <div class="ui-document-tab ui-document-tab--dirty ui-document-tab--pinned tab dirty pinned" role="tab" aria-selected="false">
-                                        <span class="tab-icon">◇</span><span class="tab-title">Roadmap.md</span>
-                                        <button class="ui-icon-button ui-icon-button--small tab-close" aria-label="Close Roadmap.md">×</button>
-                                    </div>
+                                    <button class="ui-icon-button all-tabs-btn" type="button"
+                                            aria-label="Show all open tabs" aria-haspopup="menu"
+                                            aria-expanded="false">⌄</button>
                                 </div>
-                                <button class="ui-icon-button all-tabs-btn" type="button"
-                                        aria-label="Show all open tabs" aria-haspopup="menu"
-                                        aria-expanded="false">⌄</button>
+                            </div>
+                            <div class="ds-tab-state">
+                                <span class="ds-tab-state-label">No open documents</span>
+                                <div class="ui-document-tabs ui-document-tabs--titlebar tab-bar ds-tab-bar">
+                                    <div class="tab-strip" role="tablist" aria-label="Empty document tabs"></div>
+                                </div>
                             </div>
                         </div>
                     </article>
@@ -344,8 +367,8 @@
                     <header><h3>Status bar</h3><code class="ds-selector">.status-bar</code><code class="ds-selector">.status-backlinks</code></header>
                     <div class="ds-demo ds-demo--flush">
                         <footer class="status-bar ds-status-bar">
-                            <div class="status-left"><span>Deleted “Draft.md” ·</span><button class="status-inline-action">Undo</button></div>
-                            <div class="status-right"><span>Ln 12, Col 8</span><span class="status-separator">|</span><span>2 min read</span><span class="status-separator">|</span><button class="status-backlinks has-backlinks">3 backlinks</button><span class="status-separator">|</span><button class="status-history has-history">8 changes</button></div>
+                            <div class="status-left" role="group" aria-label="Application status" data-application-active="true" data-has-action="true" title="Deleted Draft.md; Undo available"><span role="status" aria-live="polite">Deleted “Draft.md” ·</span><button class="status-inline-action">Undo</button></div>
+                            <div class="status-right" role="group" aria-label="Active buffer status"><span>Ln 12, Col 8</span><span class="status-separator">|</span><span>2 min read</span><span class="status-separator">|</span><button class="status-backlinks has-backlinks">3 backlinks</button><span class="status-separator">|</span><button class="status-history has-history">8 changes</button></div>
                         </footer>
                     </div>
                 </article>
@@ -529,7 +552,7 @@
             </section>
 
             <section id="menus-popovers" class="catalog-section" data-catalog-section
-                     data-catalog-terms="menus popovers tooltip tooltips hints hover focus dropdown listbox context tabs picker autocomplete selected danger">
+                     data-catalog-terms="menus popovers help markdown macros tooltip tooltips hints hover focus dropdown listbox context tabs picker autocomplete selected danger">
                 <header class="catalog-section-header">
                     <div>
                         <p>05 · Overlays</p>
@@ -564,6 +587,29 @@
                         </div>
                     </article>
                     <article class="ds-specimen">
+                        <header><h3>Markdown &amp; macros help</h3><code class="ds-selector">.md-cheatsheet-popup</code><code class="ds-selector">.ui-button</code></header>
+                        <div class="ds-demo">
+                            <div class="md-cheatsheet-popup open ds-help-popup" role="dialog" aria-label="Markdown and macros help">
+                                <div class="md-cheatsheet-header">
+                                    <div class="md-cheatsheet-tabs" role="tablist" aria-label="Help topics">
+                                        <button type="button" class="ui-button md-cheatsheet-tab" id="catalog-help-markdown-tab" role="tab" aria-selected="false" aria-controls="catalog-help-markdown-panel" tabindex="-1">Markdown</button>
+                                        <button type="button" class="ui-button ui-button--accent md-cheatsheet-tab" id="catalog-help-macros-tab" role="tab" aria-selected="true" aria-controls="catalog-help-macros-panel">Macros</button>
+                                    </div>
+                                    <button type="button" class="ui-icon-button md-cheatsheet-close" aria-label="Close Markdown and macros help">×</button>
+                                </div>
+                                <div class="md-cheatsheet-panel" id="catalog-help-markdown-panel" role="tabpanel" aria-labelledby="catalog-help-markdown-tab" tabindex="-1" hidden></div>
+                                <div class="md-cheatsheet-panel" id="catalog-help-macros-panel" role="tabpanel" aria-labelledby="catalog-help-macros-tab" tabindex="-1">
+                                    <table>
+                                        <tr><td><code>@today</code> <code>@tomorrow</code></td><td>Date links</td></tr>
+                                        <tr><td><code>#todo</code> <code>#custom-column</code></td><td>Kanban columns</td></tr>
+                                        <tr><td><code>Text #tag [due YYYY-MM-DD](YYYY-MM-DD.md)</code></td><td>Tagged-line due date</td></tr>
+                                        <tr><td><code>#tag</code></td><td>Press Space for due-date actions</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                    <article class="ds-specimen">
                         <header><h3>Settings listbox</h3><code class="ds-selector">.settings-picker-menu</code></header>
                         <div class="ds-demo">
                             <div class="ui-picker settings-picker ds-open-picker">
@@ -585,12 +631,12 @@
                                 <div class="ui-date-picker-header">
                                     <button class="ui-icon-button ui-icon-button--small" aria-label="Previous month">‹</button><strong>August 2026</strong><button class="ui-icon-button ui-icon-button--small" aria-label="Next month">›</button>
                                 </div>
-                                <div class="ui-date-picker-weekdays" aria-hidden="true"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
-                                <div class="ui-date-picker-grid" role="grid" aria-label="August 2026">
-                                    <button class="ui-date-picker-day outside-month">26</button><button class="ui-date-picker-day outside-month">27</button><button class="ui-date-picker-day outside-month">28</button><button class="ui-date-picker-day outside-month">29</button><button class="ui-date-picker-day outside-month">30</button><button class="ui-date-picker-day outside-month">31</button><button class="ui-date-picker-day">1</button>
-                                    <button class="ui-date-picker-day">2</button><button class="ui-date-picker-day">3</button><button class="ui-date-picker-day today">4</button><button class="ui-date-picker-day">5</button><button class="ui-date-picker-day">6</button><button class="ui-date-picker-day selected">7</button><button class="ui-date-picker-day">8</button>
+                                <div class="ui-date-picker-weekdays" aria-hidden="true"><span class="cal-day-header">Mon</span><span class="cal-day-header">Tue</span><span class="cal-day-header">Wed</span><span class="cal-day-header">Thu</span><span class="cal-day-header">Fri</span><span class="cal-day-header">Sat</span><span class="cal-day-header">Sun</span></div>
+                                <div class="ui-date-picker-grid calendar-grid" role="grid" aria-label="August 2026">
+                                    <span class="cal-day cal-empty" aria-hidden="true"></span><span class="cal-day cal-empty" aria-hidden="true"></span><span class="cal-day cal-empty" aria-hidden="true"></span><span class="cal-day cal-empty" aria-hidden="true"></span><span class="cal-day cal-empty" aria-hidden="true"></span><button class="ui-date-picker-day cal-day is-weekend ui-date-picker-day--weekend">1</button><button class="ui-date-picker-day cal-day is-weekend ui-date-picker-day--weekend">2</button>
+                                    <button class="ui-date-picker-day cal-day">3</button><button class="ui-date-picker-day cal-day selected has-note ui-date-picker-day--note-3" aria-current="date" aria-selected="true">4</button><button class="ui-date-picker-day cal-day has-note ui-date-picker-day--note-1">5</button><button class="ui-date-picker-day cal-day has-due-task ui-date-picker-day--due">6</button><button class="ui-date-picker-day cal-day">7</button><button class="ui-date-picker-day cal-day is-weekend ui-date-picker-day--weekend">8</button><button class="ui-date-picker-day cal-day is-weekend ui-date-picker-day--weekend has-note ui-date-picker-day--note-1 has-due-task ui-date-picker-day--due">9</button>
                                 </div>
-                                <div class="ui-date-picker-footer"><button class="ui-button ui-date-picker-clear">Clear due date</button></div>
+                                <div class="ui-date-picker-footer"><button class="ui-button ui-date-picker-clear" disabled>Clear due date</button></div>
                             </section>
                         </div>
                     </article>

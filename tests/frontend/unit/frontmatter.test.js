@@ -6,6 +6,7 @@ import {
     frontmatterPropertyRemovalChange,
     getPrintStylesheet,
     hasLeadingFrontmatter,
+    initialFrontmatterBodySelection,
     parseFrontmatter,
     parseFrontmatterScalar,
     printableBodyLineOffset,
@@ -40,6 +41,22 @@ describe('frontmatter parsing', () => {
         const quote = String.fromCharCode(39);
         expect(parseFrontmatterScalar(quote + 'it' + quote + quote + 's local.css' + quote))
             .toBe('it' + quote + 's local.css');
+    });
+
+    test('plans an unpositioned buffer cursor at the first line after complete frontmatter', () => {
+        const source = '\uFEFF---\r\ntitle: Report\r\n...\r\n# Body';
+        const bodyStart = source.indexOf('# Body');
+
+        expect(initialFrontmatterBodySelection(source)).toEqual({
+            anchor: bodyStart,
+            head: bodyStart,
+        });
+        expect(initialFrontmatterBodySelection(source, {
+            rememberedSelection: { anchor: 0, head: 0 },
+        })).toEqual({ anchor: 0, head: 0 });
+        expect(initialFrontmatterBodySelection(source, { hasLineTarget: true })).toBeNull();
+        expect(initialFrontmatterBodySelection('---\ntitle: unfinished')).toBeNull();
+        expect(initialFrontmatterBodySelection('# Body\n\n---')).toBeNull();
     });
 
     test('updates one scalar or creates a PDF-properties template without rewriting unrelated YAML', () => {

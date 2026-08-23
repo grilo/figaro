@@ -52,7 +52,7 @@ Your implementation must accurately transition states for the following elements
 
 ### Hashtags (`#todo`, `#urgent`)
 * **Completion context:** A whitespace-delimited partial hashtag may open the normal CodeMirror completion list in ordinary Markdown prose. A line-leading `#` remains heading syntax, and completion stays disabled in frontmatter, code, links, URLs, and HTML.
-* **Task due actions:** Only an exact known tag in an explicit unchecked Markdown task without an existing semantic due link may add **Add due date…**, **Due today**, and **Due tomorrow**. The shared picker is anchored at the caret, returns focus to the editor, and inserts ordinary Markdown rather than a replacement widget.
+* **Tagged-line due actions:** Pressing Space after any valid standalone hashtag, including an unsaved custom column, exposes **Add due date…**, **Due today**, and **Due tomorrow** without requiring checkbox syntax. Lines containing `#done`, lines with an existing semantic due link, CSS color tokens, headings, and excluded Markdown syntax remain quiet. The shared picker is anchored at the caret, returns focus to the editor, and inserts ordinary Markdown rather than a replacement widget. Its month grid uses the sidebar Calendar's operating-system locale, starts with Today selected when adding a date, and shares its theme-derived weekend, note-intensity, due-outline, and activity-tooltip states.
 * **Cursor contract:** Accepting a tag or due-date action leaves the selection at the end of the inserted source. Arrow Up/Down, mouse placement, and bidirectional drag selection around that line must continue to use CodeMirror's normal source geometry.
 
 ### Images (`![Alt Text](image.png)`)
@@ -261,8 +261,11 @@ Markdown source unchanged and does not replace native mouse or wheel scrolling.
 The frontmatter Properties replacement keeps one left-edge disclosure control
 across collapsed and expanded states. CodeMirror's scroller reserves a stable
 scrollbar gutter so opening the taller panel cannot shift that control
-horizontally. Expanding a note without frontmatter inserts the default YAML in
-panel mode. Home/document-start commands, Vim `gg`, programmatic selection,
+horizontally. On the first mount of a Markdown buffer, complete leading
+frontmatter supplies the initial selection at the start of its following body
+line only when neither a remembered selection nor an explicit line target is
+present. Expanding a note without frontmatter inserts the default YAML in panel
+mode. Home/document-start commands, Vim `gg`, programmatic selection,
 mouse placement, and drag selection keep that replacement rendered even when
 their logical selection reaches its hidden range. Arrow Up or Vim `k` supplies
 the explicit upward-entry event that reveals raw source; **Edit YAML** remains

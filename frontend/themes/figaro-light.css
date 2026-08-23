@@ -65,35 +65,35 @@
         radial-gradient(58rem 34rem at -14% -18%, rgba(185, 74, 62, 0.05), transparent 57%),
         radial-gradient(46rem 30rem at 108% 112%, rgba(164, 119, 65, 0.06), transparent 66%),
         var(--bg-color);
-    --navigation-surface: linear-gradient(180deg, #f6eee5 0%, #eee3d5 100%);
-    --tab-bar-surface: linear-gradient(180deg, #f8f2e9 0%, #f0e6d8 100%);
-    --tab-bar-shadow: inset 0 -1px 0 rgba(140, 91, 33, 0.20);
-    --top-bar-divider: linear-gradient(90deg, transparent, rgba(140, 91, 33, 0.17) 28%, rgba(185, 74, 62, 0.43) 50%, rgba(140, 91, 33, 0.17) 72%, transparent);
-    --editor-surface:
-        radial-gradient(48rem 31rem at 5% -14%, rgba(185, 74, 62, 0.032), transparent 58%),
-        radial-gradient(34rem 25rem at 104% 108%, rgba(164, 119, 65, 0.045), transparent 68%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.48), transparent 15rem),
-        #fffdf8;
-    --editor-surface-shadow: inset 0 1px rgba(255, 255, 255, 0.82);
-    --workspace-surface: #f9f4ec;
-    --workspace-shadow: inset 1px 0 rgba(83, 64, 46, 0.08);
-    --sidebar-shadow: inset -1px 0 rgba(140, 91, 33, 0.15), 9px 0 24px rgba(83, 64, 46, 0.07);
-    --sidebar-rail-surface: linear-gradient(180deg, rgba(140, 91, 33, 0.30), rgba(185, 74, 62, 0.25) 40%, rgba(140, 91, 33, 0.12));
-    --sidebar-search-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent);
-    --sidebar-tools-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent);
-    --calendar-surface: #f4ece1;
-    --file-tree-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.20), transparent 14rem);
+    --navigation-surface: var(--sidebar-bg);
+    --tab-bar-surface: var(--sidebar-bg);
+    --tab-bar-shadow: none;
+    --titlebar-divider-color: transparent;
+    --top-bar-divider: transparent;
+    --editor-surface: #fffdf8;
+    --editor-gutter-surface: var(--editor-surface);
+    --editor-surface-shadow: none;
+    --workspace-surface: var(--editor-surface);
+    --workspace-shadow: none;
+    --sidebar-shadow: none;
+    --sidebar-rail-surface: transparent;
+    --sidebar-search-surface: var(--sidebar-bg);
+    --sidebar-tools-surface: var(--sidebar-bg);
+    --sidebar-tools-border-color: rgba(43, 36, 29, 0.09);
+    --sidebar-resizer-color: transparent;
+    --calendar-surface: var(--sidebar-bg);
+    --file-tree-surface: var(--sidebar-bg);
     --file-tree-guide-color: rgba(140, 91, 33, 0.15);
     --file-node-radius: 6px;
     --file-node-hover-surface: rgba(255, 255, 255, 0.52);
     --file-node-selected-surface: linear-gradient(90deg, rgba(185, 74, 62, 0.16), rgba(185, 74, 62, 0.045));
     --file-node-selected-shadow: inset 3px 0 var(--accent-color), 0 3px 10px rgba(83, 64, 46, 0.08);
     --file-node-selected-weight: 600;
-    --tab-radius: 0;
+    --tab-radius: 8px 8px 0 0;
     --tab-hover-surface: rgba(255, 255, 255, 0.52);
     --tab-active-surface: linear-gradient(180deg, rgba(255, 253, 248, 0.92), rgba(248, 238, 226, 0.84));
-    --tab-active-border: color-mix(in srgb, var(--accent-color) 35%, var(--border-color));
-    --tab-active-shadow: inset 0 2px 0 var(--accent-color);
+    --tab-active-border: transparent;
+    --tab-active-shadow: none;
     --tab-active-transform: none;
     --settings-card-surface: linear-gradient(145deg, rgba(255, 255, 255, 0.76), rgba(255, 252, 247, 0.46));
     --settings-card-border: color-mix(in srgb, var(--border-color) 82%, var(--hashtag-color));
@@ -102,8 +102,8 @@
     --settings-title-letter-spacing: 0.11em;
     --settings-control-surface: #fffdf8;
     --settings-control-shadow: inset 0 1px rgba(255, 255, 255, 0.90);
-    --status-bar-surface:
-        linear-gradient(90deg, transparent, rgba(140, 91, 33, 0.16) 28%, rgba(185, 74, 62, 0.32) 50%, rgba(140, 91, 33, 0.16) 72%, transparent) top / calc(100% - 36px) 1px no-repeat,
-        linear-gradient(180deg, #f6eee5, #eee3d5);
-    --status-bar-border: rgba(140, 91, 33, 0.18);
+    --application-status-surface: var(--file-tree-surface);
+    --status-bar-surface: var(--editor-surface);
+    --status-bar-border: transparent;
+    --status-separator-color: rgba(43, 36, 29, 0.16);
 }

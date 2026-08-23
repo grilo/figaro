@@ -46,11 +46,15 @@ There is no account, hosted database, or required cloud service.
   scroll inside the reserved space. Images, Properties, links, and task
   checkboxes keep their normal sizing. Home/document-start navigation and Vim
   `gg` leave Properties rendered; Arrow Up or Vim `k` deliberately enters its
-  raw YAML. Click a footnote reference to jump to
+  raw YAML. Opening a Markdown note with complete Properties and no remembered
+  or requested position starts the cursor on its first body line. Click a
+  footnote reference to jump to
   its definition and back; an
   unresolved reference creates a spaced, undoable definition immediately after
   its paragraph and places the cursor after the colon.
-- **Fast navigation.** Use compact drag-reorderable document tabs, optional
+- **Fast navigation.** Use connected rounded, drag-reorderable document tabs
+  in the title bar, whose lower edge meets the workspace and whose leading edge
+  sits flush with the buffer at the live sidebar boundary, plus optional
   path breadcrumbs, full-width editor-sized sticky heading hierarchies that
   add each active ancestor as its source row reaches the visible stack,
   relevance-ranked full-vault search with natural multi-word queries, prefixes,
@@ -59,8 +63,13 @@ There is no account, hosted database, or required cloud service.
   backlinks, unlinked mentions, a top-right document-outline launcher that
   stays beneath the sticky hierarchy, recent notes, pins, and file-tree
   customization. Long tabs preserve their differentiating filename ending and
-  show their parent path; repeated arrow presses and vertical mouse-wheel input
-  continue through the tab list.
+  show their parent path; repeated arrow presses continue through the tab list,
+  while vertical mouse-wheel input and Ctrl+PageUp/PageDown switch buffers and
+  stop at the first or last tab. Divider ownership remains stable with or
+  without documents, so themes that draw one cannot leave startup or final-tab
+  seams; Figaro Dark and Figaro Light instead use a borderless active tab whose
+  editor-matched surface opens directly into the buffer. Themes with a visible
+  file-tree rail paint it on the same boundary pixel as the leading tab edge.
   Search results expose their selected option to assistive technology and put
   a tail-preserving parent path on its own readable line so even deeply nested
   repeated filenames remain distinguishable. Compact paths, excerpts, and
@@ -91,9 +100,17 @@ There is no account, hosted database, or required cloud service.
 - **Local history.** Optional per-file Auto-Commit, explicit history saves,
   comparisons, and restoration keep unrelated vault changes separate; the
   active-note status check does not scan unrelated vault files.
-- **Configurable workspace.** Choose from seventeen themes, prose and code
-  fonts, Vim editing, line numbers, sticky headings, block guides, document
-  outline, diagnostics, and fully local spellcheck dictionaries. Ctrl/Cmd+
+- **Configurable workspace.** Choose from eighteen themes, including Figaro
+  CRT Phosphor with its phosphor-green palette, faint vignette, near-imperceptible
+  screen perspective, and one soft scan-line pass about every five minutes.
+  Figaro Dark and Figaro Light use one flat titlebar/file-tree surface and one
+  flat active-tab/editor/buffer-status surface—including the editor gutter—with
+  quiet inactive tabs and only subtle separators where status or sidebar tools
+  still need grouping.
+  The scan animation stays off when the operating system requests reduced
+  motion. Prose and code fonts, Vim editing, line numbers, sticky headings,
+  block guides, document outline, diagnostics, and fully local spellcheck
+  dictionaries remain independently configurable. Ctrl/Cmd+
   mouse-wheel temporarily scales the active editor buffer; its status-bar
   **Scale** control resets to the permanent **Default Text Size** chosen in
   Settings, and closing the buffer discards the temporary scale.
@@ -180,7 +197,12 @@ note with one file read before starting full-vault indexing; other saved tabs
 remain metadata-only until selected. The editor stays usable while the file
 tree, search/planning index, and bundled language support warm concurrently.
 A compact `loaded / total` Markdown-note progress indicator in the bottom-left
-status bar remains visible until the eager vault work is ready.
+application-status cell remains visible until the eager vault work is ready.
+That cell follows the file-tree width through resize and collapse, while the
+remaining footer is reserved for active-buffer position, scale, counts,
+backlinks, and local-history actions. Every Figaro theme continues its
+file-tree palette into the application cell; Figaro Dark and Figaro Light also
+continue the editor color through the complete buffer cell.
 
 Opening a Markdown file from outside the vault offers two safe choices:
 
@@ -289,17 +311,25 @@ action creates the dated note in the same folder and continues to open legacy
 root daily notes. A top-level Inbox is pinned by default but can be unpinned or
 restyled like any other folder.
 
-Kanban cards are ordinary Markdown task lines. Hashtags define columns, and due
-dates remain portable links:
+Kanban cards are ordinary Markdown lines with standalone hashtags; checkbox
+task syntax is optional. Hashtags define columns, and due dates remain portable
+links:
 
 ```markdown
 - [ ] Submit report #todo [due 2026-08-14](2026-08-14.md)
 ```
 
 Typing a standalone hashtag suggests saved Kanban columns even at the end of
-ordinary prose. On an unfinished checkbox task with no existing due date, an
-exact tag also offers **Add due date…**, **Due today**, and **Due tomorrow**;
-paragraphs, completed tasks, and already dated tasks remain tag-only.
+ordinary prose. After any valid tag except `#done`, press Space to choose
+**Add due date…**, **Due today**, or **Due tomorrow** for that tagged line.
+The actions also work for unsaved custom tags; lines containing `#done` and
+already dated lines remain quiet. **Add due date…** opens the same localized
+month view as the sidebar Calendar, with Today selected initially and the same
+theme-aware weekends, note-intensity fills, due outlines, and activity details.
+The title-bar `?` guide keeps general Markdown syntax under **Markdown** and
+collects these Figaro-specific date, Kanban, and due-date forms under
+**Macros**. Its spacious, viewport-bounded surface keeps the same dimensions
+when you switch topics; longer topic content scrolls inside that surface.
 
 The board is fully keyboard-operable. Tab advances through every card in
 column order; Up/Down persists a card's vertical position, Left/Right moves it
@@ -318,7 +348,10 @@ intensity levels derived from the active theme, and due days keep an independent
 theme-danger outline whose hover or keyboard-focus tooltip lists every due task.
 The full theme-accent selection starts on Today and moves to a selected note or
 due day; the day it leaves immediately recovers its underlying activity
-intensity. Empty days other than Today are not interactive. Accepted date
+intensity. The first Calendar opening in each app session selects Today;
+closing and reopening it during that session restores the last selected day,
+while a new launch starts fresh on the current local date. Empty days other
+than Today are not interactive. Accepted date
 shortcuts and other date links update the open calendar from the unsaved editor
 buffer, and selecting a day always shows the same daily/linked notes counted by
 its square. The month grid stays in place while the detail region changes or
@@ -426,3 +459,6 @@ are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
 Figaro is free software distributed under the
 [GNU General Public License version 3 or later](LICENSE). You may use, study,
 share, and modify it under those terms.
+
+The Phosphor Design System attribution used by the CRT theme is recorded in
+[Third-party notices](THIRD_PARTY_NOTICES.md).
