@@ -4,7 +4,7 @@ import { dateShortcuts } from '../frontend/js/dateShortcutCompletions.js';
 import { initHelpPopup } from '../frontend/js/helpPopup.js';
 import { normalizedKanbanColumns } from '../frontend/js/core/taskDueDateCompletionModel.js';
 
-describe('Markdown and macros help', () => {
+describe('Figaro help', () => {
     function loadDocument() {
         const source = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
         const template = document.createElement('template');
@@ -24,29 +24,29 @@ describe('Markdown and macros help', () => {
 
         expect(trigger.tagName).toBe('BUTTON');
         expect(trigger.textContent.trim()).toBe('?');
-        expect(trigger.title).toBe('Markdown and macros');
-        expect(trigger.getAttribute('aria-label')).toBe('Open Markdown and macros help');
+        expect(trigger.title).toBe('Figaro help (F1)');
+        expect(trigger.getAttribute('aria-label')).toBe('Open Figaro help');
         expect(trigger.closest('.top-bar-right')).not.toBeNull();
         expect(trigger.closest('.md-cheatsheet-wrapper').nextElementSibling).toBe(settings);
         expect(popup.hidden).toBe(true);
     });
 
-    test('starts on a labelled Markdown pseudo-tab with Macros out of the tab order', () => {
+    test('starts on Markdown with Macros and Shortcuts out of the tab order', () => {
         const popup = loadPopup();
         const tabs = [...popup.querySelectorAll('[role="tab"]')];
         const panels = [...popup.querySelectorAll('[role="tabpanel"]')];
 
-        expect(popup.getAttribute('aria-label')).toBe('Markdown and macros help');
-        expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Markdown', 'Macros']);
-        expect(tabs.map(tab => tab.getAttribute('aria-selected'))).toEqual(['true', 'false']);
-        expect(tabs.map(tab => tab.tabIndex)).toEqual([0, -1]);
-        expect(panels.map(panel => panel.hidden)).toEqual([false, true]);
-        expect(panels.map(panel => panel.tabIndex)).toEqual([-1, -1]);
+        expect(popup.getAttribute('aria-label')).toBe('Figaro help');
+        expect(tabs.map(tab => tab.textContent.trim())).toEqual(['Markdown', 'Macros', 'Shortcuts']);
+        expect(tabs.map(tab => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
+        expect(tabs.map(tab => tab.tabIndex)).toEqual([0, -1, -1]);
+        expect(panels.map(panel => panel.hidden)).toEqual([false, true, true]);
+        expect(panels.map(panel => panel.tabIndex)).toEqual([-1, -1, -1]);
         expect(tabs.every(tab => tab.classList.contains('ui-button'))).toBe(true);
         expect(tabs[0].classList.contains('ui-button--accent')).toBe(true);
     });
 
-    test('uses one spacious, scroll-contained viewport for both help topics', () => {
+    test('uses one spacious, scroll-contained viewport for every help topic', () => {
         const styles = fs.readFileSync(path.resolve('frontend/styles/status-tools.css'), 'utf8');
 
         expect(styles).toMatch(/\.md-cheatsheet-popup\s*\{[^}]*width:\s*min\(620px, calc\(100vw - 24px\)\)/s);
@@ -97,6 +97,25 @@ describe('Markdown and macros help', () => {
             .toMatch(/#tag.*Press Space.*Add due date….*Due today.*Due tomorrow/);
     });
 
+    test('lists the global and editor shortcuts, including the F1 toggle', () => {
+        const shortcuts = loadPopup().querySelector('#md-help-shortcuts-panel');
+        const rows = [...shortcuts.querySelectorAll('tr')].map(row => [
+            row.cells[0].textContent.replace(/\s+/g, ' ').trim(),
+            row.cells[1].textContent.trim(),
+        ]);
+
+        expect(rows).toEqual(expect.arrayContaining([
+            ['F1', 'Toggle Figaro help'],
+            ['Ctrl/Cmd+Shift+N', 'New daily note'],
+            ['Ctrl/Cmd+Shift+F', 'Focus global search'],
+            ['Ctrl/Cmd+B', 'Toggle sidebar'],
+            ['Ctrl+PageUp Ctrl+PageDown', 'Previous / next open buffer'],
+            ['Ctrl/Cmd+F', 'Find and replace in current file'],
+            ['Ctrl/Cmd+S', 'Save current file'],
+            ['Ctrl/Cmd+W', 'Close current buffer'],
+        ]));
+    });
+
     test('switches topics by click and arrow key while preserving popup focus behavior', async () => {
         const wrapper = loadDocument().querySelector('.md-cheatsheet-wrapper');
         document.body.innerHTML = wrapper.outerHTML;
@@ -106,8 +125,10 @@ describe('Markdown and macros help', () => {
         const popup = document.getElementById('md-cheatsheet-popup');
         const markdownTab = document.getElementById('md-help-markdown-tab');
         const macrosTab = document.getElementById('md-help-macros-tab');
+        const shortcutsTab = document.getElementById('md-help-shortcuts-tab');
         const markdownPanel = document.getElementById('md-help-markdown-panel');
         const macrosPanel = document.getElementById('md-help-macros-panel');
+        const shortcutsPanel = document.getElementById('md-help-shortcuts-panel');
 
         trigger.click();
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -131,8 +152,8 @@ describe('Markdown and macros help', () => {
         markdownTab.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'End', bubbles: true, cancelable: true,
         }));
-        expect(document.activeElement).toBe(macrosTab);
-        macrosTab.dispatchEvent(new KeyboardEvent('keydown', {
+        expect(document.activeElement).toBe(shortcutsTab);
+        shortcutsTab.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'Home', bubbles: true, cancelable: true,
         }));
         expect(document.activeElement).toBe(markdownTab);
@@ -140,7 +161,8 @@ describe('Markdown and macros help', () => {
         markdownTab.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'End', bubbles: true, cancelable: true,
         }));
-        macrosTab.dispatchEvent(new KeyboardEvent('keydown', {
+        expect(shortcutsPanel.hidden).toBe(false);
+        shortcutsTab.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'Escape', bubbles: true, cancelable: true,
         }));
         expect(popup.hidden).toBe(true);
@@ -148,7 +170,26 @@ describe('Markdown and macros help', () => {
 
         trigger.click();
         await new Promise(resolve => setTimeout(resolve, 0));
-        expect(document.activeElement).toBe(macrosTab);
-        expect(macrosPanel.hidden).toBe(false);
+        expect(document.activeElement).toBe(shortcutsTab);
+        expect(shortcutsPanel.hidden).toBe(false);
+
+        const invoker = document.createElement('button');
+        invoker.textContent = 'Editor surrogate';
+        document.body.appendChild(invoker);
+        invoker.focus();
+        expect(popup.hidden).toBe(true);
+        expect(document.activeElement).toBe(invoker);
+
+        invoker.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'F1', bubbles: true, cancelable: true,
+        }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(popup.hidden).toBe(false);
+        expect(document.activeElement).toBe(shortcutsTab);
+        shortcutsTab.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'F1', bubbles: true, cancelable: true,
+        }));
+        expect(popup.hidden).toBe(true);
+        expect(document.activeElement).toBe(invoker);
     });
 });

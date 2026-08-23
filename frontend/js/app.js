@@ -427,7 +427,8 @@ export async function handleFileOpen(filePath) {
             }
             openTab(filePath, result.path.split('/').pop() || filePath, 'file', {
                 path: filePath,
-                mtime: result.mtime
+                mtime: result.mtime,
+                preparedFile: result,
             });
         }
     } catch (err) {

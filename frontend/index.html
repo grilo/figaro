@@ -62,10 +62,10 @@
         /* Anti-flash: match the Figaro Dark native window canvas. */
         html, body { background: #12110f !important; }
         .cm-cursor {
-            border-left: none !important;
-            background: white !important;
-            color: #1e1e1e !important;
-            width: 0.65em !important;
+            border-left: 2px solid white !important;
+            background: transparent !important;
+            color: inherit !important;
+            width: 0 !important;
         }
     </style>
     <script>
@@ -166,8 +166,8 @@
         <!-- Top Bar -->
         <header class="top-bar">
             <div class="top-bar-left">
-                <button id="toggle-sidebar" class="icon-btn ui-icon-button" title="Toggle Sidebar (Ctrl+B)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button id="toggle-sidebar" class="icon-btn ui-icon-button" title="Toggle Sidebar (Ctrl+B)" aria-label="Toggle sidebar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
                         <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -198,14 +198,15 @@
             </div>
             <div class="top-bar-right">
                 <span class="md-cheatsheet-wrapper topbar-cheatsheet">
-                    <button type="button" class="ui-icon-button md-cheatsheet-trigger" id="md-cheatsheet-trigger" title="Markdown and macros" aria-label="Open Markdown and macros help" aria-expanded="false" aria-haspopup="dialog" aria-controls="md-cheatsheet-popup">?</button>
-                    <div class="md-cheatsheet-popup" id="md-cheatsheet-popup" role="dialog" aria-label="Markdown and macros help" hidden>
+                    <button type="button" class="ui-icon-button md-cheatsheet-trigger" id="md-cheatsheet-trigger" title="Figaro help (F1)" aria-label="Open Figaro help" aria-expanded="false" aria-haspopup="dialog" aria-controls="md-cheatsheet-popup">?</button>
+                    <div class="md-cheatsheet-popup" id="md-cheatsheet-popup" role="dialog" aria-label="Figaro help" hidden>
                         <div class="md-cheatsheet-header">
                             <div class="md-cheatsheet-tabs" role="tablist" aria-label="Help topics">
                                 <button type="button" class="ui-button ui-button--accent md-cheatsheet-tab" id="md-help-markdown-tab" role="tab" aria-selected="true" aria-controls="md-help-markdown-panel">Markdown</button>
                                 <button type="button" class="ui-button md-cheatsheet-tab" id="md-help-macros-tab" role="tab" aria-selected="false" aria-controls="md-help-macros-panel" tabindex="-1">Macros</button>
+                                <button type="button" class="ui-button md-cheatsheet-tab" id="md-help-shortcuts-tab" role="tab" aria-selected="false" aria-controls="md-help-shortcuts-panel" tabindex="-1">Shortcuts</button>
                             </div>
-                            <button type="button" class="ui-icon-button md-cheatsheet-close" id="md-cheatsheet-close" title="Close" aria-label="Close Markdown and macros help">×</button>
+                            <button type="button" class="ui-icon-button md-cheatsheet-close" id="md-cheatsheet-close" title="Close" aria-label="Close Figaro help">×</button>
                         </div>
                         <div class="md-cheatsheet-panel" id="md-help-markdown-panel" role="tabpanel" aria-labelledby="md-help-markdown-tab" tabindex="-1">
                             <table>
@@ -249,6 +250,27 @@
                                 <tr class="md-macro-due-actions-row"><td><code>#tag</code></td><td>Press Space to choose Add due date…, Due today, or Due tomorrow</td></tr>
                             </table>
                         </div>
+                        <div class="md-cheatsheet-panel" id="md-help-shortcuts-panel" role="tabpanel" aria-labelledby="md-help-shortcuts-tab" tabindex="-1" hidden>
+                            <table>
+                                <tr><td><code>F1</code></td><td>Toggle Figaro help</td></tr>
+                                <tr><td><code>Ctrl/Cmd+Shift+N</code></td><td>New daily note</td></tr>
+                                <tr><td><code>Ctrl/Cmd+Shift+F</code></td><td>Focus global search</td></tr>
+                                <tr><td><code>Ctrl/Cmd+B</code></td><td>Toggle sidebar</td></tr>
+                                <tr><td><code>Ctrl+PageUp</code> <code>Ctrl+PageDown</code></td><td>Previous / next open buffer</td></tr>
+                                <tr><td><code>Ctrl/Cmd+W</code></td><td>Close current buffer</td></tr>
+                                <tr><td><code>Ctrl/Cmd+S</code></td><td>Save current file</td></tr>
+                                <tr><td><code>Ctrl/Cmd+F</code></td><td>Find and replace in current file</td></tr>
+                                <tr><td><code>F3</code> <code>Ctrl/Cmd+G</code></td><td>Next match</td></tr>
+                                <tr><td><code>Shift+F3</code> <code>Shift+Ctrl/Cmd+G</code></td><td>Previous match</td></tr>
+                                <tr><td><code>Ctrl/Cmd+Shift+V</code></td><td>Paste exact plain text</td></tr>
+                                <tr><td><code>F8</code></td><td>Next Markdown diagnostic</td></tr>
+                                <tr><td><code>Shift+F10</code> <code>Menu</code></td><td>Open context menu</td></tr>
+                                <tr><td><code>F2</code></td><td>Rename focused vault entry</td></tr>
+                                <tr><td><code>Delete</code></td><td>Delete focused vault entry</td></tr>
+                                <tr><td><code>Ctrl+Shift+[</code> <code>Ctrl+Shift+]</code><br><code>Cmd+Alt+[</code> <code>Cmd+Alt+]</code></td><td>Collapse / expand current block</td></tr>
+                                <tr><td><code>Ctrl+Alt+[</code> <code>Ctrl+Alt+]</code></td><td>Collapse / expand all blocks</td></tr>
+                            </table>
+                        </div>
                     </div>
                 </span>
                 <button id="topbar-settings" class="icon-btn ui-icon-button titlebar-settings-btn" title="Settings" aria-label="Open Settings">
@@ -258,18 +280,18 @@
                     </svg>
                 </button>
                 <span class="window-controls-separator" aria-hidden="true"></span>
-                <button id="win-minimize" class="icon-btn ui-icon-button window-ctrl" title="Minimize">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button id="win-minimize" class="icon-btn ui-icon-button window-ctrl" title="Minimize" aria-label="Minimize window">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                 </button>
-                <button id="win-maximize" class="icon-btn ui-icon-button window-ctrl" title="Maximize">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button id="win-maximize" class="icon-btn ui-icon-button window-ctrl" title="Maximize" aria-label="Maximize or restore window">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <rect x="4" y="4" width="16" height="16" rx="2"></rect>
                     </svg>
                 </button>
-                <button id="win-close" class="icon-btn ui-icon-button ui-icon-button--danger window-ctrl window-ctrl-close" title="Close">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button id="win-close" class="icon-btn ui-icon-button ui-icon-button--danger window-ctrl window-ctrl-close" title="Close" aria-label="Close window">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -379,7 +401,7 @@
                 <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
                 <div class="right-sidebar-header">
                     <span id="right-sidebar-title" class="right-sidebar-title">Details</span>
-                    <button id="right-sidebar-close" class="right-sidebar-close ui-icon-button" title="Close">×</button>
+                    <button id="right-sidebar-close" class="right-sidebar-close ui-icon-button" title="Close" aria-label="Close details pane">×</button>
                 </div>
                 <div id="right-sidebar-content" class="right-sidebar-content">
                     <div id="history-content" style="display:none"></div>

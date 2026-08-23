@@ -166,15 +166,17 @@ function createMockDOM() {
                 </div>
                 <div class="top-bar-right">
                     <span class="md-cheatsheet-wrapper topbar-cheatsheet">
-                        <button id="md-cheatsheet-trigger" aria-label="Open Markdown and macros help" aria-expanded="false" aria-controls="md-cheatsheet-popup">?</button>
-                        <div id="md-cheatsheet-popup" role="dialog" aria-label="Markdown and macros help" hidden>
+                        <button id="md-cheatsheet-trigger" title="Figaro help (F1)" aria-label="Open Figaro help" aria-expanded="false" aria-controls="md-cheatsheet-popup">?</button>
+                        <div id="md-cheatsheet-popup" role="dialog" aria-label="Figaro help" hidden>
                             <div role="tablist" aria-label="Help topics">
                                 <button id="md-help-markdown-tab" role="tab" aria-selected="true" aria-controls="md-help-markdown-panel">Markdown</button>
                                 <button id="md-help-macros-tab" role="tab" aria-selected="false" aria-controls="md-help-macros-panel" tabindex="-1">Macros</button>
+                                <button id="md-help-shortcuts-tab" role="tab" aria-selected="false" aria-controls="md-help-shortcuts-panel" tabindex="-1">Shortcuts</button>
                             </div>
-                            <button id="md-cheatsheet-close"></button>
+                            <button id="md-cheatsheet-close" aria-label="Close Figaro help"></button>
                             <div id="md-help-markdown-panel" role="tabpanel" aria-labelledby="md-help-markdown-tab" tabindex="-1"></div>
                             <div id="md-help-macros-panel" role="tabpanel" aria-labelledby="md-help-macros-tab" tabindex="-1" hidden></div>
+                            <div id="md-help-shortcuts-panel" role="tabpanel" aria-labelledby="md-help-shortcuts-tab" tabindex="-1" hidden></div>
                         </div>
                     </span>
                     <button id="topbar-settings" class="icon-btn titlebar-settings-btn" aria-label="Open Settings"></button>

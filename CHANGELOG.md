@@ -10,6 +10,36 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.25.1] - 2026-08-24
+
+### Added
+
+- Figaro help now includes a third **Shortcuts** topic covering global and
+  editor commands, and unmodified F1 toggles the help surface from anywhere
+  while returning focus to its invoker when closed.
+
+### Changed
+
+- Find and Replace now uses three stable compact bands for search/navigation,
+  matching options, and replacement actions instead of wrapping controls into
+  an unpredictable panel height.
+- Standard editing now uses a thin theme-colored insertion caret; the
+  contrasting block cursor is reserved for Vim Normal mode.
+- Under tab-width pressure, document tabs now preserve the filename before
+  yielding space from the muted parent path.
+
+### Fixed
+
+- Empty blockquotes now exit one quote level with a single Enter, matching the
+  existing empty-list behavior while preserving nested quote levels.
+- Opening a note from the file tree now reuses that activation's file snapshot
+  instead of reading the same file twice.
+- Missing-image loading and error states now use semantic theme colors and a
+  stable one-source-line footprint, so revealing their Markdown does not move
+  adjacent content.
+- Icon-only shell controls now expose explicit assistive names for sidebar,
+  window, and details-pane actions.
+
 ## [1.25.0] - 2026-08-23
 
 ### Added
@@ -1323,7 +1353,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.25.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.25.1...HEAD
+[1.25.1]: https://github.com/grilo/figaro/compare/v1.25.0...v1.25.1
 [1.25.0]: https://github.com/grilo/figaro/compare/v1.24.1...v1.25.0
 [1.24.1]: https://github.com/grilo/figaro/compare/v1.24.0...v1.24.1
 [1.24.0]: https://github.com/grilo/figaro/compare/v1.23.2...v1.24.0

@@ -1,8 +1,8 @@
 /**
- * Title-bar Markdown and Figaro-macro help.
+ * Title-bar Markdown, Figaro-macro, and keyboard-shortcut help.
  *
  * This DOM adapter owns popup disclosure, focus return, and the accessible
- * two-topic tablist. The help content remains ordinary static HTML so it is
+ * three-topic tablist. The help content remains ordinary static HTML so it is
  * available immediately at startup and easy to audit against editor syntax.
  */
 
@@ -16,6 +16,7 @@ export function initHelpPopup(root = document) {
     trigger.dataset.initialized = 'true';
     const tabs = [...popup.querySelectorAll('[role="tab"]')];
     const panels = [...popup.querySelectorAll('[role="tabpanel"]')];
+    let returnFocusTarget = trigger;
 
     const activateTab = (target, { focus = false } = {}) => {
         if (!target || !tabs.includes(target)) return;
@@ -59,24 +60,32 @@ export function initHelpPopup(root = document) {
         activateTab(tabs[nextIndex], { focus: true });
     });
 
-    const setOpen = (open, { restoreFocus = false } = {}) => {
+    const focusSelectedTab = () => {
+        setTimeout(() => {
+            const activeTab = tabs.find(tab => tab.getAttribute('aria-selected') === 'true');
+            (activeTab || close)?.focus();
+        }, 0);
+    };
+
+    const setOpen = (open, { restoreFocus = false, openedFrom = null } = {}) => {
         const changed = popup.classList.contains('open') !== open;
+        if (open && changed) {
+            returnFocusTarget = openedFrom?.isConnected ? openedFrom : trigger;
+        }
         popup.classList.toggle('open', open);
         popup.hidden = !open;
         trigger.setAttribute('aria-expanded', String(open));
-        if (!open && restoreFocus && changed) trigger.focus();
+        if (!open && restoreFocus && changed) {
+            const target = returnFocusTarget?.isConnected ? returnFocusTarget : trigger;
+            target.focus();
+        }
     };
 
     trigger.addEventListener('click', event => {
         event.stopPropagation();
         const open = !popup.classList.contains('open');
-        setOpen(open);
-        if (open) {
-            setTimeout(() => {
-                const activeTab = tabs.find(tab => tab.getAttribute('aria-selected') === 'true');
-                (activeTab || close)?.focus();
-            }, 0);
-        }
+        setOpen(open, { openedFrom: trigger });
+        if (open) focusSelectedTab();
     });
     wrapper.addEventListener('keydown', event => {
         if (event.key !== 'Escape' || !popup.classList.contains('open')) return;
@@ -95,6 +104,18 @@ export function initHelpPopup(root = document) {
     root.addEventListener('click', event => {
         if (!event.target.closest('.md-cheatsheet-wrapper')) setOpen(false);
     });
+    root.addEventListener('keydown', event => {
+        if (event.key !== 'F1' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const open = !popup.classList.contains('open');
+        if (open) {
+            setOpen(true, { openedFrom: root.activeElement });
+            focusSelectedTab();
+        } else {
+            setOpen(false, { restoreFocus: true });
+        }
+    }, true);
 
     // The popup starts hidden even in test fixtures that omit the attribute.
     setOpen(false);

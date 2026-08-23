@@ -88,12 +88,20 @@ hooks. CodeMirror diagnostics and autocomplete remain separately themed
 interactive popovers rather than being coerced into hint semantics.
 
 Title-bar authoring help is another eager, local DOM boundary.
-`helpPopup.js` owns disclosure, focus return, and the accessible Markdown/Macros
-tab state over static startup HTML; it performs no backend request and loads no
-feature code on first use. The topic buttons reuse approved button primitives,
-while Markdown syntax and the complete Figaro macro inventory remain separate
-labelled tabpanels that can be audited directly against the editor completion
+`helpPopup.js` owns pointer/F1 disclosure, invoker-specific focus return, and
+the accessible Markdown/Macros/Shortcuts tab state over static startup HTML; it
+performs no backend request and loads no feature code on first use. The topic
+buttons reuse approved button primitives, while Markdown syntax, the complete
+Figaro macro inventory, and the global/editor shortcut inventory remain
+separate labelled tabpanels that can be audited directly against their command
 sources.
+
+Find and Replace keeps CodeMirror's native query state, commands, fields, and
+keyboard scopes. Figaro changes only presentation: `editor.css` assigns the
+existing direct children to three explicit 28px grid rows for query/navigation,
+matching options, and replacement actions. The upstream panel adapter therefore
+continues to own searching and mutation while the application stylesheet owns
+stable themed geometry.
 
 The selector reads `frontend/themes/manifest.json`, so theme membership has one
 source of truth. Manifest normalization, safe stylesheet-path construction,
@@ -712,6 +720,15 @@ the adapter supplies the filesystem and tab-manager ports. F2 enters the same
 rename use case as the context menu, so it does not duplicate path validation,
 dirty-tab persistence, or link rewriting.
 
+Editable file-tree activation has a single-read handoff. `app.js` uses the
+native `ReadFile` result to reject binary content, then passes that prepared
+snapshot into `tabManager.js`; tab mounting configures the editor mode and
+installs the supplied content without another filesystem call. The transient
+snapshot is never persisted in tab/session state. Generation, active-tab, and
+dirty-buffer guards remain at the mount boundary, so a superseded activation
+cannot overtake a newer one and an existing dirty buffer cannot be replaced by
+the prepared disk copy.
+
 File-tree mutation feedback is one reference-counted frontend activity scope.
 It marks the tree busy immediately around copy/import, move/merge, rename, and
 delete effects, while the application-status adapter delays the approved indeterminate
@@ -753,8 +770,11 @@ viewport, font, width, or footprint-root changes invalidate only the relevant
 view pass. Diagram and display-math
 widgets use that adapter directly; the vendored code and table integrations
 attach equivalent metadata at widget construction without scanning the
-document. Images, Properties, links, checkboxes, and inline math never enter
-the policy. All selectors are `.cm-*`, so the independent printable renderer
+document. Successfully loaded images, Properties, links, checkboxes, and inline
+math never enter the policy. The image adapter instead gives only loading and
+error placeholders a fixed one-source-line measured root, using semantic theme
+tokens, so source reveal remains locally stable without admitting images to the
+general footprint allowlist. All selectors are `.cm-*`, so the independent printable renderer
 retains natural diagram, code, math, and table geometry.
 Conventional-link and standalone-hashtag click precedence is decided in the
 pure `core/noteLinks.js` model before the CodeMirror adapter runs effects. A
@@ -908,10 +928,12 @@ the editor syntax adapter first proves the selection is plain Markdown prose.
 Vim Visual `p`/`P` places that planned source in the unnamed register before
 replaying the normal Vim action, while the Async Clipboard menu path inserts it
 as one paste transaction. Named registers and protected link/code selections
-retain ordinary Vim/plain paste behavior. The Markdown Enter keymap uses the
-library's configurable continuation command with non-tight-list retention
-disabled; this changes only the deterministic empty-item exit rule while
-leaving CodeMirror's parser, history, and cursor geometry in control.
+retain ordinary Vim/plain paste behavior. The Markdown Enter keymap asks the
+pure `core/markdownStructuralEditing.js` plan to remove one otherwise-empty
+blockquote marker, then falls through to the library's configurable
+continuation command with non-tight-list retention disabled. This changes only
+the deterministic empty-structure exit rules while leaving CodeMirror's parser,
+history, and cursor geometry in control.
 
 Smart rich paste keeps deterministic policy separate from clipboard and DOM
 effects. `frontend/js/core/richPasteModel.js` owns priority, size limits, block

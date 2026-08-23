@@ -494,6 +494,13 @@ describe('Editor Module - CodeMirror Initialization', () => {
             const panel = view.dom.querySelector('.cm-panel.cm-search');
             expect(panel).not.toBeNull();
             expect(panel.querySelector('input[name="search"]')).not.toBeNull();
+            expect(panel.querySelector('input[name="replace"]')).not.toBeNull();
+            expect([...panel.querySelectorAll(':scope > button[name]')]
+                .map(button => button.name)).toEqual([
+                'next', 'prev', 'select', 'replace', 'replaceAll', 'close',
+            ]);
+            expect([...panel.querySelectorAll(':scope > label input[name]')]
+                .map(input => input.name)).toEqual(['case', 're', 'word']);
 
             expect(closeSearchPanel()).toBe(true);
             expect(view.dom.querySelector('.cm-panel.cm-search')).toBeNull();

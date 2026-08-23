@@ -71,6 +71,24 @@ describe('CodeMirror block-widget layout contract', () => {
             .toMatch(/tab-size:\s*var\(--editor-tab-size, 4\)/);
     });
 
+    test('themes missing-image feedback and keeps it to one source-line footprint', () => {
+        const error = declarationsFor('.cm-editor .cm-image-error');
+        const errorStates = [...stylesheet.matchAll(/\.cm-editor \.cm-image-error\s*\{([^}]*)\}/g)];
+        const errorState = errorStates.at(-1)?.[1] || '';
+        const spinnerStates = [...stylesheet.matchAll(/\.cm-editor \.cm-image-spinner\s*\{([^}]*)\}/g)];
+        const reducedMotionSpinner = spinnerStates.at(-1)?.[1] || '';
+        const loading = declarationsFor('.cm-editor .cm-image-loading');
+        expect(error).toMatch(/height:\s*1\.65em\s*!important/);
+        expect(error).toMatch(/min-height:\s*1\.65em\s*!important/);
+        expect(errorState).toMatch(/var\(--danger-color\)/);
+        expect(errorState).toMatch(/var\(--panel-bg\)/);
+        expect(loading).toMatch(/background:\s*var\(--panel-bg\)\s*!important/);
+        expect(stylesheet).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+        expect(reducedMotionSpinner).toMatch(/animation:\s*none\s*!important/);
+        expect(declarationsFor('.cm-editor .cm-image-source'))
+            .toMatch(/var\(--accent-color\)/);
+    });
+
     test('keeps the frontmatter disclosure aligned while its panel changes height', () => {
         expect(declarationsFor('.cm-scroller')).toMatch(/scrollbar-gutter:\s*stable/);
         expect(declarationsFor('.cm-frontmatter-disclosure')).toMatch(/width:\s*16px/);

@@ -101,7 +101,9 @@ describe('Vim command and visual theming', () => {
         expect(stylesheet).toMatch(/\.cm-editor \.cm-vim-panel input\s*\{[^}]*color:\s*var\(--text-color\)/s);
         expect(stylesheet).toMatch(/\.cm-editor\.vim-visual \.cm-selectionLayer \.cm-selectionBackground/);
         expect(stylesheet).toMatch(/\.vim-insert \.cm-cursor\s*\{[^}]*border-left:\s*4px solid var\(--accent-color\)/s);
+        expect(stylesheet).toMatch(/\.cm-focused \.cm-cursor\s*\{[^}]*border-left:\s*2px solid var\(--cursor-color\)[^}]*background:\s*transparent\s*!important[^}]*width:\s*0\s*!important/s);
         expect(stylesheet).toMatch(/\.cm-editor\.vim-normal\.cm-focused[\s\S]*?\.cm-fat-cursor\s*\{[^}]*background:\s*var\(--cursor-bg\)[^}]*color:\s*var\(--cursor-text\)/s);
+        expect(editor).toMatch(/'\.cm-cursor':\s*\{[^}]*borderLeft:\s*'2px solid var\(--cursor-color\) !important'[^}]*background:\s*'transparent !important'[^}]*width:\s*'0 !important'/s);
         expect(editor).not.toContain('applyBlockCursor');
     });
 });

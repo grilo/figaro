@@ -19,6 +19,91 @@ test('gives the main editor a document-specific accessible name', async ({ page 
     await expect(page).toHaveTitle('Welcome.md — Figaro');
 });
 
+test('toggles three-topic Figaro help with F1 and restores editor focus', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const editor = page.locator('.cm-content');
+    const popup = page.locator('#md-cheatsheet-popup');
+    await editor.focus();
+
+    await page.keyboard.press('F1');
+    await expect(popup).toBeVisible();
+    await expect(page.locator('#md-help-markdown-tab')).toBeFocused();
+    await popup.evaluate(async element => {
+        await Promise.all(element.getAnimations().map(animation => animation.finished));
+    });
+    const openGeometry = await popup.boundingBox();
+    await page.locator('#md-help-shortcuts-tab').click();
+    await expect(page.locator('#md-help-shortcuts-panel')).toBeVisible();
+    await expect(page.locator('#md-help-shortcuts-panel')).toContainText('Focus global search');
+    expect(await popup.boundingBox()).toEqual(openGeometry);
+    await page.keyboard.press('F1');
+    await expect(popup).toBeHidden();
+    await expect(editor).toBeFocused();
+
+    await page.keyboard.press('F1');
+    await expect(page.locator('#md-help-shortcuts-tab')).toBeFocused();
+    await popup.evaluate(async element => {
+        await Promise.all(element.getAnimations().map(animation => animation.finished));
+    });
+    const reopenedGeometry = await popup.boundingBox();
+    expect(reopenedGeometry.width).toBeCloseTo(openGeometry.width, 1);
+    expect(reopenedGeometry.height).toBeCloseTo(openGeometry.height, 1);
+    await page.keyboard.press('Escape');
+    await expect(popup).toBeHidden();
+    await expect(editor).toBeFocused();
+});
+
+test('keeps Find and Replace on three compact, non-overlapping bands', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.locator('.cm-content').press('Control+f');
+
+    const panel = page.locator('.cm-panel.cm-search');
+    await expect(panel).toBeVisible();
+    const geometry = await panel.evaluate(element => {
+        const box = selector => {
+            const rect = element.querySelector(selector).getBoundingClientRect();
+            return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right };
+        };
+        const rect = element.getBoundingClientRect();
+        return {
+            display: getComputedStyle(element).display,
+            height: rect.height,
+            search: box('input[name="search"]'),
+            previous: box('button[name="prev"]'),
+            next: box('button[name="next"]'),
+            all: box('button[name="select"]'),
+            caseOption: box('label:has(input[name="case"])'),
+            regexpOption: box('label:has(input[name="re"])'),
+            wordOption: box('label:has(input[name="word"])'),
+            replace: box('input[name="replace"]'),
+            replaceOne: box('button[name="replace"]'),
+            replaceAll: box('button[name="replaceAll"]'),
+        };
+    });
+
+    expect(geometry.display).toBe('grid');
+    expect(geometry.height).toBeGreaterThanOrEqual(102);
+    expect(geometry.height).toBeLessThanOrEqual(108);
+    for (const control of [geometry.previous, geometry.next, geometry.all]) {
+        expect(Math.abs(control.top - geometry.search.top)).toBeLessThanOrEqual(1);
+    }
+    for (const control of [geometry.regexpOption, geometry.wordOption]) {
+        expect(Math.abs(control.top - geometry.caseOption.top)).toBeLessThanOrEqual(1);
+    }
+    for (const control of [geometry.replaceOne, geometry.replaceAll]) {
+        expect(Math.abs(control.top - geometry.replace.top)).toBeLessThanOrEqual(1);
+    }
+    expect(geometry.search.bottom).toBeLessThanOrEqual(geometry.caseOption.top);
+    expect(geometry.caseOption.bottom).toBeLessThanOrEqual(geometry.replace.top);
+
+    await page.locator('input[name="search"]').fill('Welcome');
+    await page.locator('input[name="replace"]').fill('WELCOME');
+    await page.locator('button[name="replaceAll"]').click();
+    await expect.poll(() => page.evaluate(async () => (
+        (await import('/js/editor.js')).getEditorContent()
+    ))).toContain('# WELCOME');
+});
+
 test('keeps Ctrl+wheel text scale on the open buffer and resets it to the Settings default', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.locator('#topbar-settings').click();
@@ -1858,7 +1943,7 @@ test('keeps local history quiet until the active file needs recording again', as
     expect(highlighted.cursor).toBe('pointer');
     expect(highlighted.beforeChanges).toBe(true);
     // The title-bar help button opens a real keyboard-contained popup whose
-    // Markdown/Macros topics use the normal accessible tab pattern; the closed
+    // Markdown/Macros/Shortcuts topics use the normal accessible tab pattern; the closed
     // popup contributes no invisible controls to the Tab order.
     const cheatsheet = page.locator('#md-cheatsheet-trigger');
     await expect(cheatsheet).toHaveCSS('cursor', 'pointer');

@@ -175,6 +175,30 @@ describe('Tab Manager', () => {
             expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
         });
 
+        test('mounts the file-tree read without reading the same file again', async () => {
+            const preparedFile = {
+                content: '# Prepared once\n',
+                mtime: 42,
+                path: 'notes/prepared.md',
+            };
+
+            const tab = openTab('notes/prepared.md', 'prepared.md', 'file', {
+                path: 'notes/prepared.md',
+                mtime: preparedFile.mtime,
+                preparedFile,
+            });
+            await testUtils.waitFor(0);
+
+            expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
+            expect(setEditorContent).toHaveBeenLastCalledWith(
+                preparedFile.content,
+                tab.id,
+                null,
+            );
+            expect(tab._content).toBe(preparedFile.content);
+            expect(tab.mtime).toBe(preparedFile.mtime);
+        });
+
         test('opens an unpositioned Markdown buffer on the first line after Properties', async () => {
             const source = '---\ntitle: Report\n---\n# Body\n\nClosing paragraph';
             const bodyStart = source.indexOf('# Body');

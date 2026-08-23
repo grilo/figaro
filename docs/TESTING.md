@@ -155,7 +155,11 @@ before the bridge resolves, the selected note is mounted and editable before
 `StartVaultLoad`, inactive tabs cause no reads, and compact footer progress
 keeps its full track height while the tree and index remain unfinished. It also
 proves that tree completion alone does not publish `window._appReady` and that
-successful index completion hides progress without replacing the editor.
+successful index completion hides progress without replacing the editor. Its
+representative post-ready tree activation also counts native `ReadFile` calls:
+the activation read is handed directly to tab mounting and no second request is
+issued. `tabManager.test.js` owns the lower-layer prepared-snapshot handoff and
+dirty-buffer authority.
 
 ### Huge-vault stress profile
 
@@ -458,7 +462,7 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   completion, typed Markdown block-guide folding, exact Raw Text Preview, persistent Markdown diagnostics
   and their hover/F8 guidance, offline spellcheck's global **None** state and
   language/frontmatter overrides, the dynamic editor accessible name,
-  per-buffer undo/redo ownership, one-Enter empty-list exit, smart URL paste
+  per-buffer undo/redo ownership, one-Enter empty-list and empty-blockquote exit, smart URL paste
   for native, Vim Visual `p`, and editor-menu paths, and wrapped-list cursor/selection geometry,
   frontmatter, footnotes, diagrams, tabs, session
   persistence, Kanban presentation/loading and keyboard-order states,
@@ -470,7 +474,7 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   nearest active-tab reveal, bounded vertical-wheel and Ctrl+PageUp/PageDown
   direction, high-resolution accumulation, preservation of horizontal wheel
   scrolling, two-ended
-  filename/path presentation, conditional all-tabs visibility, keyboard menu
+  filename/path presentation with filename-priority compression, conditional all-tabs visibility, keyboard menu
   selection, and the disabled-by-default vault-relative editor breadcrumb.
   The focused browser scenario drags a real primary pointer from the tab rail
   into the file tree and back, retaining no selected text while asserting the
@@ -722,9 +726,10 @@ vocabulary until save. Keep these in
 `tests/frontend/unit/calendarCache.test.js`. The static discoverability
 contract belongs in `tests/frontend/unit/markdownCheatsheet.test.js`: it keeps
 ordinary Markdown free of Figaro semantic rows, inventories every supported
-relative-date, Calendar-link, Kanban-column, and due-date macro, and proves the
-two-topic tablist's selected/tabbable/panel state plus click, arrow, and Escape
-behavior.
+relative-date, Calendar-link, Kanban-column, and due-date macro, inventories
+the application shortcuts, and proves the three-topic tablist's
+selected/tabbable/panel state plus click, arrow, F1, and Escape behavior with
+invoker-focus restoration.
 One focused browser workflow in `tests/e2e/editorUX.spec.js` covers the normal
 prose/task distinction, keyboard acceptance, computed caret-relative picker
 position, exact computed weekday/surface/day-state parity between the picker
@@ -887,6 +892,14 @@ unchanged because the policy is scoped to `.cm-*` editor roots. The unit policy 
 proves an ordinary selection transaction does not request a document-wide
 remeasure; mounted-root measurements are cached until source or geometry
 changes.
+
+Missing images have a narrower continuity contract outside the generalized
+source-footprint allowlist. `blockWidgetLayout.test.js` proves their semantic
+theme tokens, reduced-motion spinner rule, and one-line measured height;
+`clipboardImagePaste.spec.js` forces an actual image 404, compares its computed
+error treatment across contrasting themes, enters and leaves the source while
+measuring the following line, crosses the widget with Arrow Up/Down, and drags
+a selection across its Markdown range.
 
 Mermaid virtualization has a separate performance contract. The pure
 `diagramRenderCacheModel.test.js` suite covers normalized source keys and SVG
@@ -1222,7 +1235,10 @@ bytes, note-relative placement, sequential collision names, invalid/oversized
 refusal without a document edit, and plain-text paste fallthrough. The browser
 test must dispatch a real `ClipboardEvent` through CodeMirror, load the saved
 relative image, verify the cursor remains on adjacent source lines, and render
-the same image through PDF preview and a generated PDF.
+the same image through PDF preview and a generated PDF. The same spec also owns
+the missing-image 404 geometry/theme matrix described in the block-widget
+contract above; this is a computed-style and pointer-selection boundary rather
+than a second persistence workflow.
 
 Run the focused contract with:
 
@@ -1282,6 +1298,9 @@ not require a browser or a second filesystem matrix.
 
 ## Search and shell accessibility regressions
 
+`topBar.test.js` parses the assembled shell markup and requires explicit
+accessible names on icon-only sidebar, native-window, and details-pane
+controls; their decorative SVGs must not become part of those names.
 Global-search component coverage must keep focus on the combobox, synchronize
 `aria-expanded`, `aria-activedescendant`, and option `aria-selected`, clear the
 active descendant on Escape, and put a repeated filename's parent location on
@@ -1464,7 +1483,9 @@ rollback, reopened Settings, and backend persistence across fresh application
 instances. Changes to editor keymaps, save queuing, tab closing, Settings, or
 the Vim dependency must retain this coverage.
 
-The focused browser contract also checks that the root Normal block cursor
+The focused browser contract first checks that Standard mode keeps a thin
+theme-colored caret across prose, headings, and rendered Properties while
+Arrow Up/Down retain their normal movement. It then checks that the root Vim Normal block cursor
 uses `--cursor-bg` and `--cursor-text`, never the Vim adapter's fixed fallback
 red, after switching between contrasting light and dark themes and after focus
 returns after leaving either edge of a rendered table's source range. It checks the 4 px Insert
@@ -1489,9 +1510,12 @@ the rendered-block case also exercises Page Up/Page Down. The assertions require
 the selected source line to remain in CodeMirror's primary viewport, remain
 visible, and not be replaced by a visible virtual-viewport gap.
 
-The empty-second-item regression must press Enter once in the assembled
-Markdown editor, assert the exact source/cursor result, then exercise Arrow
-Up/Down, mouse placement, and a drag across the former list boundary. Smart URL
+The empty-second-item and empty-blockquote regressions must press Enter once in
+the assembled Markdown editor, assert the exact source/cursor result (including
+one-level-at-a-time nested quote exit), then exercise Arrow Up/Down, mouse
+placement, and a drag across the former structural boundary. The pure
+`markdownStructuralEditing.test.js` matrix owns eligibility and exact plans for
+outer and nested quote levels. Smart URL
 paste must use a real browser `ClipboardEvent`, preserve the selected label as
 Markdown, and repeat with the Vim adapter's actual Visual state active. The
 rich-paste browser contract separately repeats semantic HTML replacement with
@@ -1554,10 +1578,19 @@ prove the ten-second native status **Undo**, Settings list success/error states,
 and one tree-refresh request. The real browser owns only native Enter/Space
 status-button activation, History roving-option focus/selection, link cursor,
 and the relocated help popup's hidden/focus/Escape behavior plus real
-Markdown/Macros tab focus and panel visibility. That browser contract also
-measures the expanded help surface before and after a topic switch to prove its
-outer geometry remains unchanged; unit coverage owns the responsive target
-dimensions, contained scrolling, and stable scrollbar gutter.
+Markdown/Macros/Shortcuts tab focus and panel visibility. The focused F1 case
+opens help from the editor, switches to Shortcuts, toggles it closed and open,
+and proves focus returns to the invoking editor while the selected topic and
+outer geometry remain stable. Unit coverage owns the complete shortcut rows,
+three-topic roving tab state, responsive target dimensions, contained
+scrolling, and stable scrollbar gutter.
+
+Find and Replace keeps behavioral coverage in `editor.test.js`, which opens
+the native panel and requires its query, replacement, navigation, matching, and
+close controls. `editorSearchLayout.test.js` owns the three-row CSS assignment.
+The focused browser case measures the computed 104px panel, requires three
+ordered non-overlapping control bands, and performs a real Replace all action;
+these computed grid coordinates cannot be established in jsdom.
 
 Slow file-tree mutation feedback stays below the browser layer. Status-bar
 unit tests use fake timers to prove that fast work never flashes, the spinner

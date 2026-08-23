@@ -427,4 +427,27 @@ test('keeps differentiating filename endings and parent paths visible on long ta
     await expect(europe).toHaveAttribute('aria-label', /Clients\/Acme\/Quarterly/);
     expect(await europe.locator('.tab-location').evaluate(element => element.getBoundingClientRect().width))
         .toBeGreaterThan(20);
+
+    await page.setViewportSize({ width: 720, height: 600 });
+    await page.evaluate(async () => {
+        const { openTab } = await import('/js/tabManager.js');
+        for (let index = 1; index <= 8; index += 1) {
+            const path = `Workspace/Folder-${index}/A very long planning document ${index}.md`;
+            openTab(path, `A very long planning document ${index}.md`, 'file', {
+                path,
+                isNew: true,
+            });
+        }
+    });
+    const narrowActive = page.locator('.tab.active');
+    const narrowGeometry = await narrowActive.evaluate(element => ({
+        titleWidth: element.querySelector('.tab-title').getBoundingClientRect().width,
+        locationWidth: element.querySelector('.tab-location').getBoundingClientRect().width,
+        titleText: element.querySelector('.tab-title').textContent.trim(),
+        locationText: element.querySelector('.tab-location').textContent.replace(/\s+/g, ' ').trim(),
+    }));
+    expect(narrowGeometry.titleText).toContain('planning document 8.md');
+    expect(narrowGeometry.locationText).toContain('Folder-8');
+    expect(narrowGeometry.titleWidth).toBeGreaterThanOrEqual(53);
+    expect(narrowGeometry.titleWidth).toBeGreaterThan(narrowGeometry.locationWidth);
 });

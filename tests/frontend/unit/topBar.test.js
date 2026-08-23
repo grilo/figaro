@@ -2,6 +2,7 @@
  * Regression coverage for the title-bar and sidebar navigation contract.
  */
 
+import { readFileSync } from 'node:fs';
 import { initTopBar } from '../../../frontend/js/app.js';
 import { getState, setState } from '../../../frontend/js/state.js';
 import { localISODate } from '../../../frontend/js/core/dueDateModel.js';
@@ -36,6 +37,26 @@ describe('Workspace navigation', () => {
         expect(document.getElementById('tab-bar')?.classList.contains('ui-document-tabs--titlebar')).toBe(true);
         expect(document.getElementById('kanban-badges')).not.toBeNull();
         expect(document.getElementById('sidebar-projects')).toBeNull();
+    });
+
+    test('gives every icon-only shell control an explicit accessible name', () => {
+        const source = readFileSync('frontend/index.html', 'utf8');
+        const content = new DOMParser().parseFromString(source, 'text/html');
+        const expectedNames = {
+            'toggle-sidebar': 'Toggle sidebar',
+            'win-minimize': 'Minimize window',
+            'win-maximize': 'Maximize or restore window',
+            'win-close': 'Close window',
+            'right-sidebar-close': 'Close details pane',
+        };
+
+        for (const [id, name] of Object.entries(expectedNames)) {
+            const control = content.getElementById(id);
+            expect(control?.getAttribute('aria-label')).toBe(name);
+            control?.querySelectorAll('svg').forEach(icon => {
+                expect(icon.getAttribute('aria-hidden')).toBe('true');
+            });
+        }
     });
 
     test('toggles the Calendar inline without taking ownership of the right pane', () => {

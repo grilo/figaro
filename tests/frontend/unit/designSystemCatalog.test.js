@@ -111,6 +111,12 @@ describe('design-system catalogue', () => {
         expect(catalogue.querySelector('.ds-help-popup').textContent)
             .toMatch(/#tag.*Press Space for due-date actions/);
         expect(Array.from(
+            catalogue.querySelectorAll('.ds-help-popup [role="tab"]'),
+            tab => tab.textContent.trim(),
+        )).toEqual(['Markdown', 'Macros', 'Shortcuts']);
+        expect(catalogue.querySelector('.ds-help-popup').textContent)
+            .toMatch(/F1.*Toggle Figaro help/);
+        expect(Array.from(
             catalogue.querySelectorAll('#review-map tbody tr td:last-child'),
             cell => cell.textContent.trim(),
         )).not.toContain('Review');

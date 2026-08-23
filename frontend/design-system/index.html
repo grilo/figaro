@@ -206,7 +206,7 @@
                                 </div>
                             </div>
                             <div class="top-bar-right">
-                                <button class="ui-icon-button md-cheatsheet-trigger" aria-label="Markdown and macros help">?</button>
+                                <button class="ui-icon-button md-cheatsheet-trigger" title="Figaro help (F1)" aria-label="Open Figaro help">?</button>
                                 <button class="ui-icon-button icon-btn titlebar-settings-btn" aria-label="Settings">
                                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
                                 </button>
@@ -587,23 +587,34 @@
                         </div>
                     </article>
                     <article class="ds-specimen">
-                        <header><h3>Markdown &amp; macros help</h3><code class="ds-selector">.md-cheatsheet-popup</code><code class="ds-selector">.ui-button</code></header>
+                        <header><h3>Figaro help</h3><code class="ds-selector">.md-cheatsheet-popup</code><code class="ds-selector">.ui-button</code></header>
                         <div class="ds-demo">
-                            <div class="md-cheatsheet-popup open ds-help-popup" role="dialog" aria-label="Markdown and macros help">
+                            <div class="md-cheatsheet-popup open ds-help-popup" role="dialog" aria-label="Figaro help">
                                 <div class="md-cheatsheet-header">
                                     <div class="md-cheatsheet-tabs" role="tablist" aria-label="Help topics">
                                         <button type="button" class="ui-button md-cheatsheet-tab" id="catalog-help-markdown-tab" role="tab" aria-selected="false" aria-controls="catalog-help-markdown-panel" tabindex="-1">Markdown</button>
-                                        <button type="button" class="ui-button ui-button--accent md-cheatsheet-tab" id="catalog-help-macros-tab" role="tab" aria-selected="true" aria-controls="catalog-help-macros-panel">Macros</button>
+                                        <button type="button" class="ui-button md-cheatsheet-tab" id="catalog-help-macros-tab" role="tab" aria-selected="false" aria-controls="catalog-help-macros-panel" tabindex="-1">Macros</button>
+                                        <button type="button" class="ui-button ui-button--accent md-cheatsheet-tab" id="catalog-help-shortcuts-tab" role="tab" aria-selected="true" aria-controls="catalog-help-shortcuts-panel">Shortcuts</button>
                                     </div>
-                                    <button type="button" class="ui-icon-button md-cheatsheet-close" aria-label="Close Markdown and macros help">×</button>
+                                    <button type="button" class="ui-icon-button md-cheatsheet-close" aria-label="Close Figaro help">×</button>
                                 </div>
                                 <div class="md-cheatsheet-panel" id="catalog-help-markdown-panel" role="tabpanel" aria-labelledby="catalog-help-markdown-tab" tabindex="-1" hidden></div>
-                                <div class="md-cheatsheet-panel" id="catalog-help-macros-panel" role="tabpanel" aria-labelledby="catalog-help-macros-tab" tabindex="-1">
+                                <div class="md-cheatsheet-panel" id="catalog-help-macros-panel" role="tabpanel" aria-labelledby="catalog-help-macros-tab" tabindex="-1" hidden>
                                     <table>
                                         <tr><td><code>@today</code> <code>@tomorrow</code></td><td>Date links</td></tr>
                                         <tr><td><code>#todo</code> <code>#custom-column</code></td><td>Kanban columns</td></tr>
                                         <tr><td><code>Text #tag [due YYYY-MM-DD](YYYY-MM-DD.md)</code></td><td>Tagged-line due date</td></tr>
                                         <tr><td><code>#tag</code></td><td>Press Space for due-date actions</td></tr>
+                                    </table>
+                                </div>
+                                <div class="md-cheatsheet-panel" id="catalog-help-shortcuts-panel" role="tabpanel" aria-labelledby="catalog-help-shortcuts-tab" tabindex="-1">
+                                    <table>
+                                        <tr><td><code>F1</code></td><td>Toggle Figaro help</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+Shift+N</code></td><td>New daily note</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+Shift+F</code></td><td>Focus global search</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+B</code></td><td>Toggle sidebar</td></tr>
+                                        <tr><td><code>Ctrl+PageUp</code> <code>Ctrl+PageDown</code></td><td>Previous / next open buffer</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+F</code></td><td>Find and replace in current file</td></tr>
                                     </table>
                                 </div>
                             </div>

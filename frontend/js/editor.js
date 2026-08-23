@@ -126,6 +126,7 @@ import {
     vimPasteReplayKeys,
 } from './core/vimClipboardModel.js';
 import { markdownLinkPastePlan } from './core/markdownLinkPasteModel.js';
+import { emptyBlockquoteExitPlan } from './core/markdownStructuralEditing.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
@@ -181,11 +182,36 @@ let fileModeRequest = 0;
 let markdownModeExtensions = null;
 let editorTabSizeRequested = defaultTabSize;
 
-// Figaro exits an empty list item with one Enter. CodeMirror's default keeps a
-// two-item tight list alive for one extra press, which is surprising in a
-// prose editor. Backspace retains the library's Markdown-aware behavior.
+function exitEmptyBlockquote(view) {
+    const selection = view.state.selection.main;
+    const line = view.state.doc.lineAt(selection.head);
+    const plan = emptyBlockquoteExitPlan({
+        lineText: line.text,
+        lineFrom: line.from,
+        selectionFrom: selection.from,
+        selectionTo: selection.to,
+    });
+    if (!plan) return false;
+
+    view.dispatch({
+        changes: plan.changes,
+        selection: plan.selection,
+        userEvent: 'input.type',
+    });
+    return true;
+}
+
+function insertNewlineOrExitMarkdownMarkup(view) {
+    return exitEmptyBlockquote(view)
+        || insertNewlineContinueMarkupCommand({ nonTightLists: false })(view);
+}
+
+// Figaro exits an empty list item or quote level with one Enter. CodeMirror's
+// default keeps either structure alive for one extra press, which is
+// surprising in a prose editor. Backspace retains the library's
+// Markdown-aware behavior.
 const figaroMarkdownKeymap = [
-    { key: 'Enter', run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },
+    { key: 'Enter', run: insertNewlineOrExitMarkdownMarkup },
     { key: 'Backspace', run: deleteMarkupBackward },
 ];
 
@@ -2297,7 +2323,7 @@ function createEditorView() {
             EditorView.theme({
                 '&': { caretColor: 'var(--cursor-color) !important' },
                 '.cm-content': { caretColor: 'var(--cursor-color) !important', fontFamily: 'var(--font-editor) !important' },
-                '.cm-cursor': { borderLeft: 'none !important', background: 'var(--cursor-bg) !important', color: 'var(--cursor-text) !important', width: '0.65em' },
+                '.cm-cursor': { borderLeft: '2px solid var(--cursor-color) !important', background: 'transparent !important', color: 'inherit !important', width: '0 !important' },
                 // Override editorTheme colors from theme variables
                 '.cm-header-1, .cm-header-2, .cm-header-3, .cm-header-4, .cm-header-5, .cm-header-6': {
                     color: 'var(--heading-color) !important',

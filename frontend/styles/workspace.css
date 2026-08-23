@@ -155,7 +155,7 @@ html.tab-drag-selection-guard * {
     flex: 1;
     display: flex;
     align-items: baseline;
-    min-width: 0;
+    min-width: clamp(36px, 7.5vw, 54px);
     overflow: hidden;
     white-space: nowrap;
 }
@@ -183,7 +183,7 @@ html.tab-drag-selection-guard * {
 
 .tab-location {
     display: flex;
-    flex: 0 1 62px;
+    flex: 0 20 62px;
     min-width: 0;
     align-items: baseline;
     gap: 3px;

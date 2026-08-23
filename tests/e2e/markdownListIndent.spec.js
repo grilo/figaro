@@ -65,6 +65,82 @@ test('exits an empty second list item with one Enter and preserves cursor geomet
     })).toBe(true);
 });
 
+test('exits one empty blockquote level with one Enter', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = 'Above\n> Quoted text\n> \nBelow';
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(text);
+        const view = editor.getEditorView();
+        await new Promise(resolve => setTimeout(resolve, 80));
+        view.dispatch({ selection: { anchor: view.state.doc.line(3).to } });
+        view.focus();
+        window.__figaroBlockquoteExitView = view;
+    }, source);
+
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => ({
+        source: window.__figaroBlockquoteExitView.state.doc.toString(),
+        line: window.__figaroBlockquoteExitView.state.doc.lineAt(
+            window.__figaroBlockquoteExitView.state.selection.main.head,
+        ).number,
+    }))).toEqual({ source: 'Above\n> Quoted text\n\nBelow', line: 3 });
+
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__figaroBlockquoteExitView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(2);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__figaroBlockquoteExitView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(3);
+
+    const blankLinePoint = await page.evaluate(() => {
+        const view = window.__figaroBlockquoteExitView;
+        const rect = view.coordsAtPos(view.state.doc.line(3).from);
+        return { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+    });
+    await page.mouse.click(blankLinePoint.x, blankLinePoint.y);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__figaroBlockquoteExitView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(3);
+
+    const drag = await page.evaluate(() => {
+        const view = window.__figaroBlockquoteExitView;
+        const start = view.coordsAtPos(view.state.doc.line(2).from + 1);
+        const end = view.coordsAtPos(view.state.doc.line(4).to);
+        return {
+            start: { x: start.left + 1, y: (start.top + start.bottom) / 2 },
+            end: { x: end.left - 1, y: (end.top + end.bottom) / 2 },
+        };
+    });
+    await page.mouse.move(drag.start.x, drag.start.y);
+    await page.mouse.down();
+    await page.mouse.move(drag.end.x, drag.end.y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__figaroBlockquoteExitView;
+        const selection = view.state.selection.main;
+        return selection.from <= view.state.doc.line(3).from
+            && selection.to >= view.state.doc.line(3).to;
+    })).toBe(true);
+
+    await page.evaluate(() => {
+        const view = window.__figaroBlockquoteExitView;
+        view.dispatch({
+            changes: { from: view.state.doc.line(3).from, to: view.state.doc.line(3).to, insert: '> > ' },
+            selection: { anchor: view.state.doc.line(3).from + 4 },
+        });
+        view.focus();
+    });
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => window.__figaroBlockquoteExitView.state.doc.line(3).text))
+        .toBe('> ');
+});
+
 test('keeps wrapped list and blockquote bodies hanging beneath their markers', async ({ page }) => {
     await openWelcomeEditor(page);
     const words = Array.from({ length: 96 }, (_, index) => `word${index}`).join(' ');

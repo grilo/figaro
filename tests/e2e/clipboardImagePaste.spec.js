@@ -104,6 +104,131 @@ test('pastes a clipboard screenshot beside the note, renders it, and preserves a
     expect(pdf.byteLength).toBeGreaterThan(4000);
 });
 
+test('themes a missing-image state and preserves its source-line geometry', async ({ page }) => {
+    await page.route('**/vault/notes/missing.png', route => route.fulfill({
+        status: 404,
+        contentType: 'text/plain',
+        body: 'missing',
+    }));
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    const source = 'Before\n![Missing](missing.png)\nAfter';
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        const tabs = await import('/js/tabManager.js');
+        await editor.initEditor();
+        const view = editor.getEditorView() || editor.createEditorView();
+        tabs.openTab('missing-image', 'Missing image', 'file', {
+            path: 'notes/missing-image.md',
+            isNew: true,
+        });
+        while (editor.getEditorDocumentTabId() !== 'missing-image') {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        editor.setEditorContent(text, 'missing-image');
+        while (view.state.doc.toString() !== text) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        view.focus();
+        window.__missingImageView = view;
+    }, source);
+
+    const error = page.locator('.cm-image-error');
+    await expect(error).toBeVisible();
+    const renderedAfterY = await page.evaluate(() => {
+        const view = window.__missingImageView;
+        return view.coordsAtPos(view.state.doc.line(3).from).top;
+    });
+
+    const themeStates = [];
+    for (const theme of ['default', 'figaro-light', 'figaro-crt-phosphor']) {
+        themeStates.push(await page.evaluate(async themeID => {
+            const css = await (await fetch(`/themes/${themeID}.css`)).text();
+            document.getElementById('theme-style').textContent = css;
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            const element = document.querySelector('.cm-image-error');
+            const style = getComputedStyle(element);
+            const probe = document.createElement('span');
+            probe.style.color = 'var(--danger-color)';
+            document.body.appendChild(probe);
+            const danger = getComputedStyle(probe).color;
+            probe.remove();
+            return {
+                background: style.backgroundColor,
+                color: style.color,
+                danger,
+                height: element.getBoundingClientRect().height,
+            };
+        }, theme));
+    }
+    for (const state of themeStates) {
+        expect(state.background).not.toBe('rgb(253, 232, 232)');
+        expect(state.color.toLowerCase()).toBe(state.danger.toLowerCase());
+        expect(state.height).toBeGreaterThan(20);
+        expect(state.height).toBeLessThan(30);
+    }
+    expect(new Set(themeStates.map(state => state.background)).size).toBe(3);
+
+    const errorBox = await error.boundingBox();
+    await page.mouse.click(errorBox.x + errorBox.width / 2, errorBox.y + errorBox.height / 2);
+    await expect(error).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__missingImageView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(2);
+    const sourceAfterY = await page.evaluate(() => {
+        const view = window.__missingImageView;
+        return view.coordsAtPos(view.state.doc.line(3).from).top;
+    });
+    expect(Math.abs(sourceAfterY - renderedAfterY)).toBeLessThanOrEqual(2);
+
+    await page.evaluate(() => {
+        const view = window.__missingImageView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        view.focus();
+    });
+    await expect(error).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__missingImageView.state.doc.lineAt(
+        window.__missingImageView.state.selection.main.head,
+    ).number)).toBe(2);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__missingImageView.state.doc.lineAt(
+        window.__missingImageView.state.selection.main.head,
+    ).number)).toBe(3);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__missingImageView.state.doc.lineAt(
+        window.__missingImageView.state.selection.main.head,
+    ).number)).toBe(2);
+
+    await page.evaluate(() => {
+        const view = window.__missingImageView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+    });
+    await expect(error).toBeVisible();
+    const dragPoints = await page.evaluate(() => {
+        const view = window.__missingImageView;
+        const start = view.coordsAtPos(view.state.doc.line(1).from + 1);
+        const end = view.coordsAtPos(view.state.doc.line(3).to);
+        return {
+            start: { x: start.left + 1, y: (start.top + start.bottom) / 2 },
+            end: { x: end.left - 1, y: (end.top + end.bottom) / 2 },
+        };
+    });
+    await page.mouse.move(dragPoints.start.x, dragPoints.start.y);
+    await page.mouse.down();
+    await page.mouse.move(dragPoints.end.x, dragPoints.end.y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__missingImageView;
+        const selection = view.state.selection.main;
+        return selection.from <= view.state.doc.line(2).from
+            && selection.to >= view.state.doc.line(2).to;
+    })).toBe(true);
+});
+
 test('uses Async Clipboard bytes when a Linux-style paste event exposes no image File', async ({ page }) => {
     await page.goto('/');
 	await page.waitForFunction(() => window._appReady === true);

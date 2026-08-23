@@ -101,6 +101,57 @@ function renderedLongMarkdown() {
     ].join('\n\n');
 }
 
+test('uses a thin themed caret in Standard mode across prose, headings, and Properties', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = [
+        '---',
+        'title: Cursor regression',
+        'tags: [editor]',
+        '---',
+        '# Heading',
+        '',
+        'Body text',
+    ].join('\n');
+    await setEditorSource(page, source, source.indexOf('Body text') + 2);
+
+    const positions = [
+        source.indexOf('Body text') + 2,
+        source.indexOf('# Heading') + 2,
+        0,
+    ];
+    const cursors = [];
+    for (const position of positions) {
+        cursors.push(await page.evaluate(async nextPosition => {
+            const view = window.__vimVisualRowsView;
+            view.dispatch({ selection: { anchor: nextPosition } });
+            view.focus();
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            const cursor = view.dom.querySelector('.cm-cursor-primary');
+            const style = getComputedStyle(cursor);
+            const rect = cursor.getBoundingClientRect();
+            return {
+                width: rect.width,
+                background: style.backgroundColor,
+                borderWidth: style.borderLeftWidth,
+                borderStyle: style.borderLeftStyle,
+                borderColor: style.borderLeftColor,
+            };
+        }, position));
+    }
+
+    for (const cursor of cursors) {
+        expect(cursor.width).toBeLessThanOrEqual(2.1);
+        expect(cursor.background).toBe('rgba(0, 0, 0, 0)');
+        expect(cursor.borderWidth).toBe('2px');
+        expect(cursor.borderStyle).toBe('solid');
+        expect(cursor.borderColor).not.toBe('rgba(0, 0, 0, 0)');
+    }
+
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowUp');
+    expect(await page.evaluate(() => window.__vimVisualRowsView.state.doc.toString())).toBe(source);
+});
+
 test('uses a 4px line caret while Vim is inserting text', async ({ page }) => {
     await openWelcomeEditor(page);
     await setEditorSource(page, 'alpha');

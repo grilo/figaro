@@ -43,8 +43,10 @@ There is no account, hosted database, or required cloud service.
   diagrams, fenced code, display math, and tables retain
   their Markdown source height while rendered, so entering and leaving them
   does not move the surrounding note; graphics fit down, while code and tables
-  scroll inside the reserved space. Images, Properties, links, and task
-  checkboxes keep their normal sizing. Home/document-start navigation and Vim
+  scroll inside the reserved space. Successfully loaded images, Properties,
+  links, and task checkboxes keep their normal sizing; an image that is still
+  loading or cannot be found instead uses a themed one-source-line placeholder,
+  so revealing its Markdown does not move nearby text. Home/document-start navigation and Vim
   `gg` leave Properties rendered; Arrow Up or Vim `k` deliberately enters its
   raw YAML. Opening a Markdown note with complete Properties and no remembered
   or requested position starts the cursor on its first body line. Click a
@@ -63,7 +65,8 @@ There is no account, hosted database, or required cloud service.
   backlinks, unlinked mentions, a top-right document-outline launcher that
   stays beneath the sticky hierarchy, recent notes, pins, and file-tree
   customization. Long tabs preserve their differentiating filename ending and
-  show their parent path; repeated arrow presses continue through the tab list,
+  show their parent path; at narrow widths the parent path yields space before
+  the filename does. Repeated arrow presses continue through the tab list,
   while vertical mouse-wheel input and Ctrl+PageUp/PageDown switch buffers and
   stop at the first or last tab. Divider ownership remains stable with or
   without documents, so themes that draw one cannot leave startup or final-tab
@@ -97,6 +100,10 @@ There is no account, hosted database, or required cloud service.
 - **Source and publishing tools.** Preview the exact raw Markdown or paginated
   output, preserve fenced-code syntax colors, add cover pages and tables of
   contents, apply vault-local print CSS, and generate linked PDFs.
+- **Built-in reference.** Press F1 or use the title-bar `?` to open stable
+  Markdown, Macros, and Shortcuts topics; closing the reference returns focus
+  to the control or editor that invoked it. Find and Replace keeps its search,
+  matching options, and replacement actions in three compact predictable rows.
 - **Local history.** Optional per-file Auto-Commit, explicit history saves,
   comparisons, and restoration keep unrelated vault changes separate; the
   active-note status check does not scan unrelated vault files.
@@ -196,6 +203,8 @@ it reads the authoritative vault settings. It restores the previous active
 note with one file read before starting full-vault indexing; other saved tabs
 remain metadata-only until selected. The editor stays usable while the file
 tree, search/planning index, and bundled language support warm concurrently.
+Opening a note from the file tree likewise mounts the snapshot already read for
+that activation instead of issuing a second read.
 A compact `loaded / total` Markdown-note progress indicator in the bottom-left
 application-status cell remains visible until the eager vault work is ready.
 That cell follows the file-tree width through resize and collapse, while the
@@ -284,6 +293,8 @@ that heading whether the link is currently rendered or showing raw source.
 
 Markdown diagnostics identify structural problems and Mermaid syntax errors
 without changing source.
+Pressing Enter on an empty list item or blockquote exits one structural level
+immediately; nested quotes step outward one level at a time.
 Offline spellcheck is disabled by default; choose **Settings → Spellcheck →
 Language** to select English (US), English (UK), Spanish (Spain), or **None**.
 The setting separates the vault default from per-note frontmatter controls, and
@@ -292,6 +303,8 @@ spellcheck text never leaves the device.
 Optional Vim editing keeps wrapped-row motion and Visual selections compatible
 with rendered Markdown, and vertical motions stop at the exact first and last
 document positions instead of wrapping on a backwards native geometry result.
+Standard editing uses a thin theme-colored insertion caret; only Vim Normal
+mode uses the contrasting block cursor.
 Normal Arrow Up/Down and Vim `j`/`k` also reconcile the physical and virtual
 viewports after keyboard motion, so long notes with rendered blocks keep their
 selected text visible when scrolling direction reverses. Page Up/Page Down

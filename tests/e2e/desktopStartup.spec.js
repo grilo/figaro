@@ -97,9 +97,14 @@ test('boots through the native Wails binding with the workspace overview, vault 
     await expect(page.locator('.workspace-home-panel.active .home-view')).toContainText('Recent notes');
     await expect(page.locator('.workspace-home-panel.active [data-home-action="today"]')).toBeVisible();
 
+    const readsBeforeTreeOpen = await page.evaluate(() => window.__desktopBridgeCalls
+        .filter(call => call.method === 'ReadFile' && call.args[0] === 'Welcome.md').length);
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
     await expect(page.locator('.cm-content')).toContainText('Welcome to Figaro');
     await expect(page.locator('.cm-content')).toContainText('This text came through the native Wails binding.');
+    await expect.poll(() => page.evaluate(() => window.__desktopBridgeCalls
+        .filter(call => call.method === 'ReadFile' && call.args[0] === 'Welcome.md').length))
+        .toBe(readsBeforeTreeOpen + 1);
 
     await page.locator('#sidebar-calendar').click();
     await expect(page.locator('#sidebar-calendar-panel')).toHaveClass(/open/);

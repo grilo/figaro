@@ -683,12 +683,17 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
 
     const tabs = getState('openTabs');
     const shouldActivate = data.activate !== false;
+    const preparedFile = data.preparedFile || null;
     
     if (!forceNew || data.externalFileId) {
         const existing = tabs.find(t => t.id === id);
         if (existing) {
             if (existing.type === 'file' && data.line) existing.searchLine = data.line;
-            if (shouldActivate) switchTab(existing.id);
+            if (shouldActivate) switchTab(existing.id, {
+                // A dirty buffer remains authoritative over any disk snapshot
+                // read while activating it from the file tree.
+                preparedFile: existing.dirty ? null : preparedFile,
+            });
             return existing;
         }
     }
@@ -739,12 +744,16 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     saveTabsToStorage();
     
     renderTabBar();
-    if (shouldActivate) switchTab(tab.id);
+    if (shouldActivate) switchTab(tab.id, { preparedFile });
     
     return tab;
 }
 
-export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
+export async function switchTab(tabId, {
+    preserveTabFocus = false,
+    preparedFile: suppliedPreparedFile = null,
+    preparedFileConfigured = false,
+} = {}) {
     const activationId = ++tabActivationGeneration;
     const tabs = getState('openTabs');
     const tab = tabs.find(t => t.id === tabId);
@@ -758,7 +767,8 @@ export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
     // External paths are display metadata, not vault-relative paths. Read the
     // capability-backed document before changing the selected tab so a failed
     // read can never leave the previous document under an external tab title.
-    let preparedFile = null;
+    let preparedFile = suppliedPreparedFile;
+    let hasPreparedEditorConfiguration = preparedFileConfigured;
     if (tab.type === 'file' && tab.externalFileId) {
         pendingExternalActivationId = activationId;
         statusBar.set(`Opening “${tab.title}”…`);
@@ -781,6 +791,7 @@ export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
             const configured = await configureEditorForFile(tab.path);
             if (activationId !== tabActivationGeneration) return false;
             if (!configured) throw new Error('The editor is unavailable for this external note.');
+            hasPreparedEditorConfiguration = true;
         } catch (error) {
             if (activationId !== tabActivationGeneration) return false;
             pendingExternalActivationId = 0;
@@ -832,7 +843,12 @@ export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
         panel.classList.remove('active');
     });
     
-    const contentReady = renderTabContent(tab, cursorState, preparedFile);
+    const contentReady = renderTabContent(
+        tab,
+        cursorState,
+        preparedFile,
+        hasPreparedEditorConfiguration,
+    );
     renderTabBar();
 
     closeHistoryPanel();
@@ -848,14 +864,19 @@ export async function switchTab(tabId, { preserveTabFocus = false } = {}) {
     return true;
 }
 
-async function renderTabContent(tab, cursorState = null, preparedFile = null) {
+async function renderTabContent(
+    tab,
+    cursorState = null,
+    preparedFile = null,
+    preparedFileConfigured = false,
+) {
     if (tab.type === 'file') {
         setView('editor');
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         if (!getEditorView()) {
             createEditorView();
         }
-        await renderFileTab(null, tab, cursorState, preparedFile);
+        await renderFileTab(null, tab, cursorState, preparedFile, preparedFileConfigured);
     } else {
         setView('panels');
         const panelsContainer = document.getElementById('tab-panels');
@@ -884,9 +905,22 @@ async function renderTabContent(tab, cursorState = null, preparedFile = null) {
     }
 }
 
-async function renderFileTab(panel, tab, cursorState = null, preparedFile = null) {
+async function renderFileTab(
+    panel,
+    tab,
+    cursorState = null,
+    preparedFile = null,
+    preparedFileConfigured = false,
+) {
     if (!tab.path) return;
     if (preparedFile) {
+        const loadId = (tab._loadGeneration || 0) + 1;
+        tab._loadGeneration = loadId;
+        if (!preparedFileConfigured) {
+            const configured = await configureEditorForFile(tab.path);
+            if (!configured || tab.id !== getState('activeTabId')
+                || tab._loadGeneration !== loadId || tab.dirty) return;
+        }
         setEditorContent(
             preparedFile.content,
             tab.id,

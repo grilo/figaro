@@ -58,6 +58,7 @@ Your implementation must accurately transition states for the following elements
 ### Images (`![Alt Text](image.png)`)
 * **Cursor inside node bounds:** Display the plain text markdown markup exactly. Do not show the image preview.
 * **Cursor outside node bounds:** Completely hide the plain text markup string. Instantiate and inject an inline block widget immediately after the node containing a functional HTML `<img>` tag pointing to the parsed URL.
+* **Loading/error continuity:** A pending or missing image uses Figaro's semantic panel, muted-text, border, accent, and danger tokens, with animation disabled for reduced motion. Its complete measured placeholder remains exactly one source line high, so moving the cursor into the source does not shift the next line.
 
 ### Task Checkboxes (`- [ ] Task` or `- [x] Task`)
 * **Cursor on line:** Show the raw `- [ ]` or `- [x]` string for standard text editing.
@@ -96,6 +97,9 @@ body. For blockquotes, the indent accounts for the visible `>` while the line
 is active and only its remaining separator whitespace while it is passive.
 The indent is recalculated with that line's preview state and must not change
 source, introduce a block widget, or alter vertical geometry.
+At the end of an otherwise empty blockquote line, Enter removes exactly one
+quote marker in one transaction. An outer quote becomes a blank line; a nested
+quote retains its outer markers and can be exited one level at a time.
 
 ## 4. Block Widget Geometry Contract
 
@@ -164,9 +168,11 @@ through an injected queue and scheduled after a short scroll-quiet period and
 an idle opportunity; the loading state remains inside the already measured
 source footprint while the editor is moving.
 
-This policy is editor-only. Images, frontmatter/Properties, links, task
-checkboxes, inline math, and other inline replacements must not receive the
-`cm-source-footprint` marker. Raw Text Preview and both printable surfaces keep
+This policy is editor-only. Successfully loaded images, frontmatter/Properties,
+links, task checkboxes, inline math, and other inline replacements must not
+receive the `cm-source-footprint` marker. Loading and missing-image placeholders
+use their own one-source-line continuity rule without joining the generalized
+footprint allowlist. Raw Text Preview and both printable surfaces keep
 their independent natural layout. Raw Text Preview nevertheless follows the
 main editor one way by sampling the source offset at a shared viewport marker
 and measuring that exact character in its plain `pre`; a short coalescing
@@ -290,6 +296,11 @@ must also be exercised in the packaged desktop webview. At minimum, open the
 Welcome note, place the cursor on `### Text formatting` (line 36), and verify
 that Arrow Up moves to line 35 and Arrow Down returns to line 36 without a
 larger jump.
+
+Standard editing must retain a thin theme-colored insertion caret. The wider
+line caret belongs only to Vim Insert mode, and the theme-derived block cursor
+belongs only to Vim Normal mode; live-preview replacements may not leak that
+block treatment into Standard mode.
 
 The optional Vim **Enter rendered blocks** motion changes selection state, not
 widget geometry: Normal `j`/`k` place the selection inside an adjacent rendered

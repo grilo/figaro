@@ -93,6 +93,77 @@
     margin-bottom: 0 !important;
 }
 
+/* The bundled image widget ships palette-specific demo colors and tall
+   loading/error placeholders. Figaro owns those visible states here: they use
+   semantic theme tokens and keep a missing image at exactly one source-line
+   footprint so revealing its Markdown does not move the surrounding note. */
+.cm-editor .cm-image-widget {
+    width: 100%;
+    color: var(--text-color);
+}
+
+.cm-editor .cm-image-loading,
+.cm-editor .cm-image-error {
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    height: 1.65em !important;
+    min-height: 1.65em !important;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-size: inherit !important;
+    line-height: 1;
+}
+
+.cm-editor .cm-image-loading {
+    background: var(--panel-bg) !important;
+    color: var(--text-muted) !important;
+}
+
+.cm-editor .cm-image-error {
+    border-color: color-mix(in srgb, var(--danger-color) 48%, var(--border-color));
+    background: color-mix(in srgb, var(--danger-color) 12%, var(--panel-bg)) !important;
+    color: var(--danger-color) !important;
+}
+
+.cm-editor .cm-image-loading > span:last-child,
+.cm-editor .cm-image-error > span:last-child {
+    font-size: .75em;
+    font-weight: 600;
+}
+
+.cm-editor .cm-image-error-icon {
+    font-size: .9em !important;
+}
+
+.cm-editor .cm-image-spinner {
+    box-sizing: border-box;
+    width: 12px !important;
+    height: 12px !important;
+    border-color: color-mix(in srgb, var(--text-muted) 32%, transparent) !important;
+    border-top-color: var(--text-muted) !important;
+}
+
+.cm-editor .cm-image-alt {
+    color: var(--text-muted) !important;
+    font-family: var(--font-sans);
+}
+
+.cm-editor .cm-image-source {
+    background: color-mix(in srgb, var(--accent-color) 9%, transparent) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cm-editor .cm-image-spinner {
+        animation: none !important;
+    }
+}
+
 /* Source-preserving GFM table preview. The preview is read-only; selecting
    its source range reveals the original Markdown for editing. */
 .cm-block-widget--table {
