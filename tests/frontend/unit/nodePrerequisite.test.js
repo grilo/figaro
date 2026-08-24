@@ -6,18 +6,19 @@ import {
 import fs from 'node:fs';
 
 test('accepts only the Node release lines supported by the lint toolchain', () => {
-    expect(NODE_VERSION_REQUIREMENT).toBe('^20.19.0 || ^22.13.0 || >=24.0.0');
-    expect(NODE_VERSION_DESCRIPTION).toBe('Node.js 20.19+ (20.x), 22.13+ (22.x), or 24+');
+    expect(NODE_VERSION_REQUIREMENT).toBe('^22.18.0 || >=24.11.0');
+    expect(NODE_VERSION_DESCRIPTION).toBe('Node.js 22.18+ (22.x) or 24.11+');
 
-    for (const version of ['20.19.0', '20.99.0', 'v22.13.0', '22.99.0', '24.0.0', '25.0.0']) {
+    for (const version of ['v22.18.0', '22.99.0', '24.11.0', '24.99.0', '25.0.0']) {
         expect(isSupportedNodeVersion(version)).toBe(true);
     }
     for (const version of [
-        '20.18.9',
-        '20.19.0-prerelease',
+        '20.99.0',
         '21.7.3',
-        '22.12.9',
+        '22.17.9',
+        '22.18.0-prerelease',
         '23.11.1',
+        '24.10.9',
         'invalid',
     ]) {
         expect(isSupportedNodeVersion(version)).toBe(false);

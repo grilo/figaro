@@ -1,11 +1,11 @@
 {
   "name": "figaro",
-  "version": "1.25.2",
+  "version": "1.26.0",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "engines": {
-    "node": "^20.19.0 || ^22.13.0 || >=24.0.0"
+    "node": "^22.18.0 || >=24.11.0"
   },
   "scripts": {
     "build:design-system": "node scripts/build-design-system.mjs",
@@ -20,10 +20,11 @@
     "vendor:markdown": "node scripts/vendor-markdown-renderer.mjs"
   },
   "devDependencies": {
-    "@babel/core": "^7.23.9",
-    "@babel/preset-env": "^7.23.9",
+    "@babel/core": "^8.0.1",
+    "@babel/preset-env": "^8.0.2",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.0",
+    "babel-preset-current-node-syntax": "file:tools/babel-preset-current-node-syntax",
     "esbuild": "0.28.1",
     "eslint": "^10.8.0",
     "globals": "^17.7.0",
@@ -79,13 +80,13 @@
     "jsdom": "27.4.0"
   },
   "dependencies": {
-    "@mdit/plugin-anchor": "1.1.1",
-    "@mdit/plugin-footnote": "1.0.2",
-    "@mdit/plugin-katex": "1.0.1",
-    "@mdit/plugin-mark": "2.0.0",
-    "@mdit/plugin-sub": "1.0.2",
-    "@mdit/plugin-sup": "1.0.2",
-    "@mdit/plugin-tasklist": "1.0.1",
+    "@mdit/plugin-anchor": "2.1.0",
+    "@mdit/plugin-footnote": "1.1.0",
+    "@mdit/plugin-katex": "1.1.0",
+    "@mdit/plugin-mark": "2.1.0",
+    "@mdit/plugin-sub": "1.1.0",
+    "@mdit/plugin-sup": "1.1.0",
+    "@mdit/plugin-tasklist": "1.1.0",
     "@replit/codemirror-vim": "^6.3.0",
     "@uiw/codemirror-extensions-color": "4.25.11",
     "codemirror-live-markdown": "^0.5.1-alpha.1",
@@ -94,7 +95,7 @@
     "dictionary-es": "4.0.0",
     "katex": "^0.18.4",
     "lucide": "1.27.0",
-    "markdown-it": "^14.3.0",
+    "markdown-it": "^15.0.0",
     "nspell": "2.1.5",
     "turndown": "7.2.4"
   }

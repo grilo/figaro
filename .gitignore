@@ -6,6 +6,7 @@ Thumbs.db
 
 # Dependency installs and generated browser assets.
 /node_modules/
+/tools/babel-preset-current-node-syntax/node_modules/
 /frontend/vendored/@marijn/
 /frontend/vendored/@uiw/
 /frontend/vendored/codemirror/

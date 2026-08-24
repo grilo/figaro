@@ -18,13 +18,16 @@
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
-![Figaro editing a featured Markdown document with a populated vault and live preview](docs/images/figaro-editor.jpg)
+![Figaro Dark showing a Markdown roadmap, populated vault, activity calendar, due task, document outline, and buffer status](docs/images/figaro-editor.jpg)
 
 Figaro is a desktop knowledge workspace built around ordinary files. It combines
 a source-first Markdown editor with search, backlinks, daily notes, Kanban,
 calendar planning, diagrams, local history, and
 browser-quality PDF export.
 There is no account, hosted database, or required cloud service.
+The writing surface stays central while the styled vault tree, activity
+calendar, due tasks, document outline, and buffer telemetry remain close at
+hand without changing the underlying Markdown.
 
 ## Features
 
@@ -95,7 +98,9 @@ There is no account, hosted database, or required cloud service.
   hashtags form a Kanban board, and portable due-date links feed the Today
   dashboard and calendar. Calendar months and the Kanban board show
   theme-aware, reduced-motion-safe skeletons instead of an empty surface while
-  their indexed data is loading.
+  their indexed data is loading. The selected day's due tasks and linked notes
+  remain visible above the fixed workspace tools and scroll independently when
+  the result set is long.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
   open Mermaid's 32 chart types and 76 starter templates in a focused live
   editor, or edit Draw.io diagrams while keeping the saved SVG readable outside
@@ -374,7 +379,8 @@ than Today are not interactive. Accepted date
 shortcuts and other date links update the open calendar from the unsaved editor
 buffer, and selecting a day always shows the same daily/linked notes counted by
 its square. The month grid stays in place while the detail region changes or
-scrolls. Figaro does not guess or download public holidays.
+scrolls, and the common one-task/one-note state remains fully visible above the
+fixed workspace tools. Figaro does not guess or download public holidays.
 
 ## Diagrams and PDFs
 

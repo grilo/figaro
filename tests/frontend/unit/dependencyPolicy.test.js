@@ -21,13 +21,51 @@ describe('locked npm dependency policy', () => {
         expect(punycode.every(version => Number.parseInt(version, 10) >= 2)).toBe(true);
     });
 
-    test('locks the reviewed footnote and KaTeX renderer upgrades', () => {
+    test('locks the reviewed Markdown-It 15 footnote and KaTeX renderer upgrades', () => {
         const { manifest, lock } = readPackageGraph();
 
-        expect(manifest.dependencies['@mdit/plugin-footnote']).toBe('1.0.2');
-        expect(lock.packages['node_modules/@mdit/plugin-footnote'].version).toBe('1.0.2');
+        expect(manifest.dependencies['@mdit/plugin-footnote']).toBe('1.1.0');
+        expect(lock.packages['node_modules/@mdit/plugin-footnote'].version).toBe('1.1.0');
         expect(manifest.dependencies.katex).toBe('^0.18.4');
         expect(lock.packages['node_modules/katex'].version).toBe('0.18.4');
+    });
+
+    test('locks Babel 8 and matches its exact Node prerequisite', () => {
+        const { manifest, lock } = readPackageGraph();
+        const babelCore = lock.packages['node_modules/@babel/core'];
+        const babelPresetEnv = lock.packages['node_modules/@babel/preset-env'];
+        const jestSyntaxPreset = lock.packages['tools/babel-preset-current-node-syntax'];
+
+        expect(manifest.engines.node).toBe('^22.18.0 || >=24.11.0');
+        expect(lock.packages[''].engines.node).toBe(manifest.engines.node);
+        expect(manifest.devDependencies['@babel/core']).toBe('^8.0.1');
+        expect(manifest.devDependencies['@babel/preset-env']).toBe('^8.0.2');
+        expect(manifest.devDependencies['babel-preset-current-node-syntax'])
+            .toBe('file:tools/babel-preset-current-node-syntax');
+        expect(babelCore.version).toBe('8.0.1');
+        expect(babelPresetEnv.version).toBe('8.0.2');
+        expect(babelCore.engines.node).toBe(manifest.engines.node);
+        expect(babelPresetEnv.engines.node).toBe(manifest.engines.node);
+        expect(babelPresetEnv.peerDependencies['@babel/core']).toBe('^8.0.0');
+        expect(lock.packages['node_modules/babel-preset-current-node-syntax']).toEqual({
+            resolved: 'tools/babel-preset-current-node-syntax',
+            link: true,
+        });
+        expect(jestSyntaxPreset.version).toBe('1.2.0');
+        expect(jestSyntaxPreset.dependencies['@babel/core']).toBe('7.29.7');
+        expect(lock.packages['tools/babel-preset-current-node-syntax/node_modules/@babel/core'].version)
+            .toBe('7.29.7');
+        expect(fs.readFileSync('tools/babel-preset-current-node-syntax/LICENSE', 'utf8'))
+            .toContain('MIT License');
+    });
+
+    test('keeps the Jest syntax compatibility preset inert when Babel 8 loads it', async () => {
+        const { default: currentNodeSyntax } = await import(
+            '../../../tools/babel-preset-current-node-syntax/src/index.js'
+        );
+
+        expect(currentNodeSyntax({ version: '8.0.1' })).toEqual({ plugins: [] });
+        expect(currentNodeSyntax({ version: '7.29.7' }).plugins.length).toBeGreaterThan(0);
     });
 
     test('keeps test-only browser tooling out of production dependencies and omits unused Babel helpers', () => {
@@ -62,6 +100,7 @@ describe('locked npm dependency policy', () => {
 
     test('keeps Markdown-It within every bundled renderer package peer contract', () => {
         const { manifest, lock } = readPackageGraph();
+        const browserRuntime = fs.readFileSync('frontend/vendored/markdown-it/index.js', 'utf8');
         const rendererPackages = [
             '@mdit/helper',
             '@mdit/plugin-anchor',
@@ -75,10 +114,12 @@ describe('locked npm dependency policy', () => {
             '@mdit/plugin-tex',
         ];
 
-        expect(manifest.dependencies['markdown-it']).toBe('^14.3.0');
-        expect(lock.packages['node_modules/markdown-it'].version).toBe('14.3.0');
+        expect(manifest.dependencies['markdown-it']).toBe('^15.0.0');
+        expect(lock.packages['node_modules/markdown-it'].version).toBe('15.0.0');
+        expect(browserRuntime).toContain('Figaro vendored markdown-it 15.0.0 browser runtime');
+        expect(browserRuntime).not.toContain('markdown-it 14.3.0');
         expect(rendererPackages.map(name => lock.packages[`node_modules/${name}`].peerDependencies['markdown-it']))
-            .toEqual(rendererPackages.map(() => '^14.2.0'));
+            .toEqual(rendererPackages.map(() => '^15.0.0'));
     });
 
     test('locks and vendors the reviewed browser-only rich-paste converter', () => {

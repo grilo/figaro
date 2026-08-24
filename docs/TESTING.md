@@ -322,9 +322,9 @@ small.
 
 ## Commands
 
-The JavaScript toolchain requires Node.js 20.19+ on the 20.x line, 22.13+ on
-the 22.x line, or Node.js 24+. `make bootstrap` checks this exact supported
-range before installing dependencies.
+The JavaScript toolchain requires Node.js 22.18+ on the 22.x line, or Node.js
+24.11+. `make bootstrap` checks this exact Babel 8-compatible range before
+installing dependencies.
 
 ```bash
 # Prepare dependencies and generate ignored browser modules first.
@@ -635,6 +635,9 @@ large tree plus overflowing due-task and linked-note results, then assert that
 the file tree and Calendar detail region scroll independently without
 flex-shrinking the monthly grid out of the open panel. Switching that populated
 date to a compact one-result date must leave the panel height and grid position unchanged.
+At a 1440x900 workspace, also populate one due task and one linked note and
+assert that both headings and rows remain fully visible above the fixed sidebar
+tools; this is the browser-only geometry behind the README capture.
 Select a date with no results separately and verify
 that its guidance uses the Calendar font family, compact 12px/18px type, muted
 theme color, and deliberate spacing instead of inherited application body text.
@@ -742,8 +745,9 @@ instead of hanging or allowing startup to overwrite the fixture state.
 The Calendar's browser-only boundaries are its body-level shared activity tooltip and
 computed flex geometry: `tests/e2e/sidebarNavigation.spec.js` hovers a day with
 multiple due items, asserts that the themed tooltip remains inside the real
-viewport, then switches from a long result list to an empty day and proves the
-month grid does not move. Locale week rules, grid offsets, buffer association
+viewport, proves the common due-task/linked-note details fit above the tool
+footer at 1440x900, then switches from a long result list to an empty day and
+proves the month grid does not move. Locale week rules, grid offsets, buffer association
 replacement, note-count buckets, accessible labels, and tooltip content remain
 lower-layer tests.
 
@@ -1723,8 +1727,13 @@ npm run test:unit -- --runTestsByPath \
 npx playwright test tests/e2e/pdfExport.spec.js
 ```
 
-The dependency-policy contract also keeps the root Markdown-It runtime within
-the peer range declared by every selected `@mdit` renderer plugin. The vendored
+The dependency-policy contract also locks Babel 8 to its exact Node engine
+floor, proves the Jest 30 syntax-preset compatibility copy is inert under Babel
+8 while its Babel 7 plugins resolve a nested core, and keeps the root
+Markdown-It 15 runtime within the `^15.0.0` peer range declared by every
+selected `@mdit` renderer plugin. It also reads the generated
+browser core's version banner, preventing a package-only upgrade from leaving
+the desktop runtime on the previous major. The vendored
 color-extension regression proves its undeclared Babel helper is replaced by
 the exact local transform and that an unfamiliar upstream artifact fails
 closed. The vendored security contract reads Mermaid's embedded `js-yaml`

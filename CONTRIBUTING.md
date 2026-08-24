@@ -9,7 +9,7 @@ cloud service, and avoid silently discarding a user's edits.
 Install the following before working on the project:
 
 - Go 1.26.6 or newer
-- Node.js 20.19+ (20.x), 22.13+ (22.x), or 24+
+- Node.js 22.18+ on the 22.x line, or 24.11+
 - Wails v2 CLI
 - The native build dependencies required by Wails for your platform
 
@@ -325,14 +325,25 @@ based on explicit clipboard structure rather than vendor names or broad prose
 regular expressions; exact plain/internal fallback is part of the behavior
 contract.
 
-The printable Markdown renderer currently targets Markdown-It 14.3.0. All ten
-bundled `@mdit` packages declare `markdown-it ^14.2.0`: the direct anchor,
+The printable Markdown renderer currently targets Markdown-It 15.0.0. All ten
+bundled `@mdit` packages declare `markdown-it ^15.0.0`: the direct anchor,
 footnote, KaTeX, mark, subscript, superscript, and task-list plugins, together
 with the transitive helper, inline-rule, and TeX packages. Treat a Markdown-It
 major upgrade as a coordinated renderer migration: first verify every peer
 range, then update the separately vendored core runtime and run the complete
 preview/export contract. A root `package.json` bump by itself does not replace
-that runtime.
+that runtime. Markdown-It 15 no longer publishes Figaro's browser-global input,
+so `scripts/vendor-markdown-renderer.mjs` builds the locked ESM core into that
+adapter alongside the plugin bundle. The Jest transform toolchain uses Babel 8
+and therefore sets the repository's exact Node minimum; Jest may retain its own
+isolated Babel 7 copy for internal syntax handling without changing that
+application toolchain. Jest 30's published current-Node syntax preset does not
+isolate those Babel 7-only plugin peers, so the behavior-equivalent,
+MIT-licensed compatibility copy under
+`tools/babel-preset-current-node-syntax/` adds an exact nested Babel 7
+dependency. Remove that copy only after the upstream preset provides the same
+clean Babel 8 peer graph, then update the dependency-policy regression and
+notices together.
 
 Table rendering belongs to Figaro rather than a third-party table editor.
 Keep `liveMarkdownTablePlugin.js` limited to CodeMirror syntax ranges,
@@ -368,6 +379,7 @@ either side.
 
 ```text
 main.go, go.mod, wails.json  Thin executable/embed boundary and project configuration
+tools/                       Reviewed development-tool compatibility sources
 internal/desktop/            Wails assembly, bound App capabilities, and adapter tests
 internal/vault/              Root-scoped filesystem primitives
 internal/links/              Pure Markdown link rewriting

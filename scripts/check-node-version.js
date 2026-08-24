@@ -1,7 +1,7 @@
 import path from 'node:path';
 
-export const NODE_VERSION_REQUIREMENT = '^20.19.0 || ^22.13.0 || >=24.0.0';
-export const NODE_VERSION_DESCRIPTION = 'Node.js 20.19+ (20.x), 22.13+ (22.x), or 24+';
+export const NODE_VERSION_REQUIREMENT = '^22.18.0 || >=24.11.0';
+export const NODE_VERSION_DESCRIPTION = 'Node.js 22.18+ (22.x) or 24.11+';
 
 export function isSupportedNodeVersion(version) {
     const match = String(version).replace(/^v/, '').match(/^(\d+)\.(\d+)\.(\d+)$/);
@@ -11,13 +11,13 @@ export function isSupportedNodeVersion(version) {
 
     const major = Number(match[1]);
     const minor = Number(match[2]);
-    if (major === 20) {
-        return minor >= 19;
-    }
     if (major === 22) {
-        return minor >= 13;
+        return minor >= 18;
     }
-    return major >= 24;
+    if (major === 24) {
+        return minor >= 11;
+    }
+    return major > 24;
 }
 
 function checkCurrentNodeVersion() {

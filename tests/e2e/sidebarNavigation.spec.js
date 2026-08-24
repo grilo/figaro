@@ -298,6 +298,73 @@ test('keeps the Calendar grid visible when a large vault competes for sidebar he
     }, initialGeometry)).toBe(true);
 });
 
+test('keeps the common due-task and linked-note details visible above the sidebar tools', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(async () => {
+        const app = window.__figaroDebugBackend;
+        app.GetCalendarMonthData = async () => ({
+            year: 2026,
+            month: 8,
+            days_with_notes: [24],
+            days_with_links: [24],
+            days_with_due_tasks: [24],
+            day_summaries: [{ day: 24, note_count: 1, due_titles: ['Polish the release guide'] }],
+            calendar: [
+                [0, 0, 0, 0, 0, 0, 1],
+                [2, 3, 4, 5, 6, 7, 8],
+                [9, 10, 11, 12, 13, 14, 15],
+                [16, 17, 18, 19, 20, 21, 22],
+                [23, 24, 25, 26, 27, 28, 29],
+                [30, 31, 0, 0, 0, 0, 0],
+            ],
+        });
+        app.GetTasksDueOnDate = async date => date === '2026-08-24' ? [{
+            file: 'Projects/Product roadmap.md',
+            file_name: 'Product roadmap.md',
+            line: 14,
+            text: 'Polish the release guide',
+            due_date: '2026-08-24',
+        }] : [];
+        app.GetLinkedNotesForDate = async date => date === '2026-08-24' ? [{
+            path: 'Inbox/2026-08-24.md',
+            name: '2026-08-24.md',
+            line_num: 1,
+        }] : [];
+
+        const { setState } = await import('/js/state.js');
+        const { invalidateCalendarCache } = await import('/js/calendar.js');
+        setState('currentCalDate', new Date(2026, 7, 24));
+        setState('selectedCalDateStr', '2026-08-24');
+        invalidateCalendarCache();
+    });
+
+    await page.locator('#sidebar-calendar').click();
+    await expect(page.locator('#cal-linked-notes .cal-due-task-item')).toHaveCount(1);
+    await expect(page.locator('#cal-linked-notes .cal-linked-note-item')).toHaveCount(1);
+    await expect(page.locator('#cal-linked-notes h4')).toHaveText(['Due tasks', 'Linked notes']);
+
+    await expect.poll(() => page.evaluate(() => {
+        const results = document.getElementById('cal-linked-notes').getBoundingClientRect();
+        const tools = document.querySelector('.sidebar-tools').getBoundingClientRect();
+        const visible = [...document.querySelectorAll('#cal-linked-notes h4, #cal-linked-notes button')]
+            .every(element => {
+                const rect = element.getBoundingClientRect();
+                return rect.top >= results.top - 1
+                    && rect.bottom <= results.bottom + 1
+                    && rect.bottom <= tools.top + 1;
+            });
+        return {
+            detailsAboveTools: results.bottom <= tools.top + 1,
+            commonDetailsFullyVisible: visible,
+        };
+    })).toEqual({
+        detailsAboveTools: true,
+        commonDetailsFullyVisible: true,
+    });
+});
+
 test('uses compact calendar typography for an empty selected date', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);

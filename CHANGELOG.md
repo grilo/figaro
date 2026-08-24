@@ -10,6 +10,28 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.26.0] - 2026-08-24
+
+### Changed
+
+- Figaro's development and test toolchain now uses Babel 8 and requires Node.js
+  22.18+ on the 22.x line or Node.js 24.11+; Jest's internal Babel 7 syntax
+  helpers remain isolated behind a clean local compatibility package.
+- Live Markdown, print preview, and PDF generation now share a coordinated
+  Markdown-It 15 renderer and matching plugin set while preserving the existing
+  syntax and output contract.
+- Unicode processing and PDF destination resolution now use the current
+  `x/text` 0.41 and pdfcpu 0.15 dependency lines.
+- The README now features a current Figaro Dark workspace showing connected
+  title-bar tabs, the styled vault tree, activity and due-date Calendar states,
+  live Markdown, document Outline, and split status bar.
+
+### Fixed
+
+- Calendar details now reserve enough room at normal window heights to show a
+  due task and linked note above the fixed workspace tools, while longer result
+  lists continue to scroll independently.
+
 ## [1.25.2] - 2026-08-24
 
 ### Changed
@@ -1370,7 +1392,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.25.2...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.26.0...HEAD
+[1.26.0]: https://github.com/grilo/figaro/compare/v1.25.2...v1.26.0
 [1.25.2]: https://github.com/grilo/figaro/compare/v1.25.1...v1.25.2
 [1.25.1]: https://github.com/grilo/figaro/compare/v1.25.0...v1.25.1
 [1.25.0]: https://github.com/grilo/figaro/compare/v1.24.1...v1.25.0

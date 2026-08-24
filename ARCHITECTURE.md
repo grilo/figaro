@@ -191,6 +191,13 @@ same coordinate instead of adjacent pixels. Borderless themes keep that rail
 transparent. CRT Phosphor retains its outer sidebar glow but does not add a
 second inset rule beside the canonical rail.
 
+The shell also owns the sidebar's vertical allocation. The fixed workspace
+tools sit outside the clipping `.sidebar-content` flex column; inside it, the
+file tree and Calendar details each own their overflow. An open Calendar takes
+a capped 480px/72% share, which preserves a complete month plus the common
+due-task/linked-note state at normal heights while still yielding a separately
+scrollable tree and a separately scrollable long-results region.
+
 The same theme-surface boundary owns optional ambient screen treatment. Neutral
 defaults leave `#app` untransformed and its non-interactive `::before` overlay
 transparent; Figaro CRT Phosphor supplies only vignette, scan-line, cadence,
@@ -1135,10 +1142,19 @@ self-contained.
 
 The printable Markdown bundle aliases its selected `@mdit` plugins to Figaro's
 separately vendored Markdown-It core. Its seven direct plugins and three
-transitive implementation packages currently share the `markdown-it ^14.2.0`
-peer boundary, so a core major upgrade must update and verify both sides of
-that generated seam; changing only the root npm resolution would leave the
-packaged runtime unchanged.
+transitive implementation packages share the `markdown-it ^15.0.0` peer
+boundary, so a core major upgrade must update and verify both sides of that
+generated seam; changing only the root npm resolution would leave the packaged
+runtime unchanged. Because Markdown-It 15 no longer distributes a browser UMD
+file, the vendor adapter bundles its locked ESM default export into the
+`globalThis.markdownit` compatibility boundary used by both the classic page
+script and print worker. The repository's Babel 8 transform configuration is a
+development-only boundary; the generated desktop browser assets do not ship
+Babel, and Jest's isolated internal Babel 7 copy is not part of that runtime.
+Jest 30's current-Node syntax preset is linked to the reviewed compatibility
+copy under `tools/`, which preserves the upstream behavior while anchoring its
+Babel 7-only plugin peers to an exact nested core. This keeps the root Babel 8
+graph valid without disabling npm peer enforcement globally.
 
 Generated CodeMirror color support has a similarly explicit dependency seam.
 The upstream ESM entry imports one undeclared Babel object-rest helper, so the

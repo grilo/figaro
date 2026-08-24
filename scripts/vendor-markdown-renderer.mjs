@@ -76,12 +76,43 @@ async function syncKatexRuntime(katex) {
     await writeFile(resolve(targetDirectory, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 }
 
+async function syncMarkdownItRuntime(markdownIt) {
+    const targetDirectory = resolve(root, 'frontend/vendored/markdown-it');
+    await mkdir(targetDirectory, { recursive: true });
+
+    // Markdown-It 15 no longer publishes the browser-global UMD artifact used
+    // by Figaro's classic-script and worker entry points. Build that narrow
+    // adapter from the locked ESM package so the core and plugins can only move
+    // majors together.
+    await build({
+        stdin: {
+            contents: "import MarkdownIt from 'markdown-it'; globalThis.markdownit = MarkdownIt;",
+            resolveDir: root,
+            sourcefile: 'figaro-markdown-it-runtime.js',
+        },
+        outfile: resolve(targetDirectory, 'index.js'),
+        bundle: true,
+        format: 'iife',
+        platform: 'browser',
+        target: 'es2020',
+        minify: true,
+        legalComments: 'inline',
+        banner: {
+            js: `/*! Figaro vendored markdown-it ${markdownIt.version} browser runtime. @license ${markdownIt.license} */`,
+        },
+    });
+}
+
 await mkdir(outputDirectory, { recursive: true });
-const [metadata, katexMetadata] = await Promise.all([
+const [metadata, katexMetadata, markdownItMetadata] = await Promise.all([
     Promise.all(packages.map(packageMetadata)),
     packageMetadata('katex'),
+    packageMetadata('markdown-it'),
 ]);
-await syncKatexRuntime(katexMetadata);
+await Promise.all([
+    syncKatexRuntime(katexMetadata),
+    syncMarkdownItRuntime(markdownItMetadata),
+]);
 
 await build({
     entryPoints: [resolve(root, 'frontend/js/printMarkdownRenderer.js')],
@@ -104,7 +135,11 @@ await build({
 const manifest = {
     generatedBy: 'scripts/vendor-markdown-renderer.mjs',
     runtimeDependencies: {
-        'markdown-it': 'frontend/vendored/markdown-it/index.js',
+        'markdown-it': {
+            path: 'frontend/vendored/markdown-it/index.js',
+            version: markdownItMetadata.version,
+            integrity: markdownItMetadata.integrity,
+        },
         katex: 'frontend/vendored/katex/dist/katex.min.js',
     },
     packages: metadata.map(({ packageDirectory, ...entry }) => entry),
@@ -121,4 +156,5 @@ for (const entry of metadata) {
 await writeFile(resolve(outputDirectory, 'LICENSES.md'), licenseText.join('\n') + '\n');
 
 console.log(`Vendored ${metadata.length} Markdown-It plugin packages to ${outputDirectory}`);
+console.log(`Vendored Markdown-It ${markdownItMetadata.version} browser runtime`);
 console.log(`Vendored KaTeX ${katexMetadata.version} browser runtime assets`);

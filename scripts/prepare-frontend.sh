@@ -65,6 +65,7 @@ required_vendor_files=(
     frontend/vendored/spellcheck/en-GB.aff
     frontend/vendored/spellcheck/es.aff
     frontend/vendored/importmap.json
+    frontend/vendored/markdown-it/index.js
     frontend/vendored/markdown-it-plugins/index.js
     frontend/vendored/katex/dist/katex.min.js
     frontend/vendored/lucide/lucide.min.js

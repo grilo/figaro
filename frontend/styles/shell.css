@@ -153,11 +153,11 @@
 }
 
 .sidebar-calendar-panel.open {
-    /* Three persistent workspace destinations leave a shorter content column
-       than the former two-button footer. Reserve enough of that column for a
-       complete six-week calendar; result lists keep the panel scrollable. */
-    height: min(400px, 64%);
-    max-height: min(400px, 64%);
+    /* Keep a complete six-week month plus a useful selected-day viewport at
+       normal window heights. The proportional cap still yields space to the
+       independently scrolling tree on shorter windows. */
+    height: min(480px, 72%);
+    max-height: min(480px, 72%);
     overflow: hidden;
     visibility: visible;
     opacity: 1;
