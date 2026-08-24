@@ -167,7 +167,14 @@
 /* Source-preserving GFM table preview. The preview is read-only; selecting
    its source range reveals the original Markdown for editing. */
 .cm-block-widget--table {
-    padding: 8px 0;
+    padding: 4px 0;
+}
+
+/* The visual surface is the table's only scroll owner. Keeping the measured
+   wrapper out of the scroll chain gives its native bars a stable hit target. */
+.cm-source-footprint--scroll.cm-block-widget--table {
+    overflow: hidden !important;
+    overscroll-behavior: auto;
 }
 
 .cm-live-table {
@@ -176,12 +183,15 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    padding: 12px;
+    padding: 6px;
     overflow: auto;
     background: var(--panel-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: var(--text-color);
+    font-size: .9em;
+    line-height: 1.4;
+    scrollbar-gutter: stable;
 }
 
 .cm-live-table table {
@@ -193,7 +203,7 @@
 .cm-live-table th,
 .cm-live-table td {
     border: 1px solid var(--border-color);
-    padding: 8px 12px;
+    padding: 3px 7px;
     vertical-align: top;
 }
 

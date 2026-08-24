@@ -1652,6 +1652,9 @@ test('keeps rendered block source footprints stable while navigating and selecti
             lines: Number(element.dataset.sourceLines),
             actualHeight: element.getBoundingClientRect().height,
             overflowY: getComputedStyle(element).overflowY,
+            surfaceOverflowY: element.dataset.sourceFootprint === 'table'
+                ? getComputedStyle(element.querySelector('.cm-live-table')).overflowY
+                : null,
             state: element.dataset.sourceFootprintState,
         }));
     });
@@ -1661,7 +1664,8 @@ test('keeps rendered block source footprints stable while navigating and selecti
     }
     expect(footprints.find(item => item.kind === 'code').overflowY).toBe('auto');
     expect(footprints.find(item => item.kind === 'code').state).toBe('underflow');
-    expect(footprints.find(item => item.kind === 'table').overflowY).toBe('auto');
+    expect(footprints.find(item => item.kind === 'table').overflowY).toBe('hidden');
+    expect(footprints.find(item => item.kind === 'table').surfaceOverflowY).toBe('auto');
     expect(await page.locator('.cm-math-inline').evaluate(element => (
         element.classList.contains('cm-source-footprint')
     ))).toBe(false);

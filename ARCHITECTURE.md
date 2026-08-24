@@ -176,7 +176,9 @@ The same optional surface-token seam lets the native Dark/Light pair flatten
 the application without feature-local exceptions. Their titlebar, file tree,
 sidebar tools, Calendar/Kanban host, and application-status region share the
 navigation surface; their active tab, CodeMirror gutter, editor, and
-buffer-status region share the reading surface. Independent
+buffer-status region share the reading surface. Figaro Dark assigns that
+reading token a modestly higher luminance than its navigation token so the two
+planes remain distinguishable without restoring a structural seam. Independent
 tokens suppress the titlebar, sidebar-resizer, workspace, active-tab, and
 status-bar borders while retaining a deliberately faint sidebar-tools divider
 and status separator. Other bundled themes inherit the neutral structural
@@ -910,7 +912,17 @@ by the adapter's separate fat-cursor layer, so a root-scoped override maps
 that layer to the active theme's cursor background and text tokens instead
 of inheriting the adapter's fixed red. Table previews have no nested editor,
 so root history, search, Vim prompts, Arrow Up/Down, mouse placement, and
-drag selection remain ordinary CodeMirror behavior.
+drag selection remain ordinary CodeMirror behavior. The table widget adapter
+separates scrolling from source entry before events reach that root: wheel and
+touch gestures over an overflowing grid, its background, and computed native
+scrollbar hit strips remain owned by the single `.cm-live-table` overflow
+surface. A fitting table lets wheel input continue through the document, while
+a pointer press on
+actual cell content continues through CodeMirror's normal source-reveal path.
+The pure `core/tablePreviewInteractionModel.js` decides that ownership from
+plain target/geometry inputs; the widget adapter supplies DOM measurements and
+stops owned events. Native overflow geometry and retained selection are
+asserted in the focused browser contract.
 
 Vim clipboard integration separates policy from browser effects. The pure
 `frontend/js/core/vimClipboardModel.js` chooses OS text versus the unnamed
@@ -1111,7 +1123,8 @@ collar red is the interactive accent, brass is metadata/highlight color, and
 fur/paper neutrals establish flat navigation and reading planes. Their source
 CSS remains the single place that defines those visual identities, including
 the matched titlebar/file-tree/application-status surface, matched
-active-tab/gutter/editor/buffer-status surface, quiet structural seams, and
+active-tab/gutter/editor/buffer-status surface, Figaro Dark's brighter reading
+plane, quiet structural seams, and
 tactile Settings cards.
 
 Browser modules, KaTeX assets, icon derivatives, and Wails bindings are

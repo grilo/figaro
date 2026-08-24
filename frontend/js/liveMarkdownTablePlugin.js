@@ -9,9 +9,48 @@ import { ensureSyntaxTree, foldedRanges, syntaxTree } from '@codemirror/language
 import { renderMarkdownTable } from './markdownTableRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { markSourceFootprint } from './sourceFootprint.js';
+import { tablePreviewOwnsInteraction } from './core/tablePreviewInteractionModel.js';
 
 function tableSourceLines(state, from, to) {
     return state.doc.lineAt(to).number - state.doc.lineAt(from).number + 1;
+}
+
+/**
+ * Keep scrolling gestures and the native scrollbar owned by the rendered
+ * preview. Pointer events on actual table content still fall through to
+ * CodeMirror so a deliberate cell click reveals the Markdown source.
+ */
+export function tablePreviewOwnsEvent(event) {
+    const target = event?.target;
+    const root = target?.closest?.('.cm-block-widget--table');
+    const surface = root?.querySelector?.('.cm-live-table');
+    if (!root || !surface) return false;
+    const rect = surface.getBoundingClientRect?.();
+    return tablePreviewOwnsInteraction({
+        type: String(event.type || ''),
+        pointerType: event.pointerType,
+        targetKind: target === root ? 'root' : target === surface ? 'surface' : 'content',
+        clientX: event.clientX,
+        clientY: event.clientY,
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        rect,
+        clientWidth: surface.clientWidth,
+        clientHeight: surface.clientHeight,
+        scrollWidth: surface.scrollWidth,
+        scrollHeight: surface.scrollHeight,
+    });
+}
+
+function protectTablePreviewScrolling(root) {
+    const stopScrollEventAtWidget = event => {
+        if (!tablePreviewOwnsEvent(event)) return;
+        event.stopPropagation();
+        if (event.type === 'selectstart') event.preventDefault();
+    };
+    for (const type of ['pointerdown', 'mousedown', 'click', 'wheel', 'touchstart', 'touchmove', 'selectstart']) {
+        root.addEventListener(type, stopScrollEventAtWidget);
+    }
 }
 
 /** Return top-level GFM table ranges from CodeMirror's Markdown syntax tree. */
@@ -51,6 +90,7 @@ function createMarkdownTableWidget(WidgetType) {
             surface.setAttribute('aria-label', 'Rendered Markdown table');
 
             const wrapper = wrapBlockWidget(surface, 'cm-block-widget--table');
+            protectTablePreviewScrolling(wrapper);
             markSourceFootprint(wrapper, {
                 kind: 'table',
                 lineCount: this.sourceLines,
@@ -74,10 +114,10 @@ function createMarkdownTableWidget(WidgetType) {
             return wrapper;
         }
 
-        // A click on the preview should be able to move the selection back to
-        // the source range, just like Mermaid and other live block previews.
-        ignoreEvent() {
-            return false;
+        // Cell content remains an edit affordance, while the scroll surface
+        // and its native scrollbars must not move the editor selection.
+        ignoreEvent(event) {
+            return tablePreviewOwnsEvent(event);
         }
     };
 }

@@ -501,7 +501,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   Dark/Light coverage additionally compares computed titlebar/file-tree and
   editor/gutter/buffer-status colors, proves the internal sidebar, tab, workspace, and
   status borders are transparent, and keeps only the subtle tools divider and
-  status separators. CRT coverage checks its restrained glow plus the ambient
+  status separators. Figaro Dark also asserts that its editor plane has a
+  deliberate luminance lift over the navigation plane. CRT coverage checks its restrained glow plus the ambient
   overlay and reduced-motion contract.
 - Browser workflows for contextual Relationships, keyboard-triggered mention
   linking, the themed Vault-health Settings entry and finding navigation, and
@@ -1160,13 +1161,24 @@ selecting or moving into the range reveals the byte-exact source without a
 nested editor. Exercise Arrow Up/Down, Vim motions, mouse placement, and
 bidirectional drag selection at the source range's edges; ordinary history,
 search, prompts, and paste must remain root-editor behavior. The rendered
-surface must also preserve inline GFM formatting and alignment, convert
+surface must also preserve inline GFM formatting and alignment, use the compact
+full-width table density, convert
 portable `<br>` markers while skipping code spans, apply anchored bare `^`
 cells as vertical row spans, and leave unanchored carets literal. Keep the
 focused checks in
 `tests/frontend/unit/markdownTables.test.js`,
 `tests/frontend/unit/printableTableModel.test.js`, and
 `tests/e2e/markdownTables.spec.js`.
+The pure `tablePreviewInteractionModel.test.js` event-policy matrix
+distinguishes wheel/touch, surface/scrollbar, and cell-content pointer
+ownership, including wheel passthrough when neither axis overflows, while
+`markdownTables.test.js` covers the DOM adapter and semantic
+renderer. The browser workflow creates a grid taller
+than its measured source slot, proves real wheel scrolling changes only the
+preview's `scrollTop`, presses the computed native scrollbar strip without
+unmounting the table or moving the root caret, and finally clicks a cell to
+prove source reveal remains available. Native track paging itself is
+platform-owned and may not advance from a synthetic Chromium track click.
 The browser spec must additionally prove that the approved destructive
 `delete` guide action removes the complete table, retains root editor focus,
 and restores the byte-exact pre-delete source with one Undo. There is no

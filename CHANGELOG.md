@@ -10,6 +10,23 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.25.2] - 2026-08-24
+
+### Changed
+
+- Figaro Dark now uses a subtly brighter reading surface across the active tab,
+  editor, gutter, and buffer status, making it easier to distinguish from the
+  titlebar and file tree without adding a border.
+- Rendered Markdown tables now use denser typography and spacing, allowing
+  common tables to fit their source-height preview without unnecessary
+  clipping while retaining full editor width.
+
+### Fixed
+
+- Clicking or dragging a rendered table's scrollbar, or scrolling over its
+  cells, now keeps the preview rendered and the editor caret unchanged; cell
+  clicks still reveal the table's Markdown source for editing.
+
 ## [1.25.1] - 2026-08-24
 
 ### Added
@@ -1353,7 +1370,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.25.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.25.2...HEAD
+[1.25.2]: https://github.com/grilo/figaro/compare/v1.25.1...v1.25.2
 [1.25.1]: https://github.com/grilo/figaro/compare/v1.25.0...v1.25.1
 [1.25.0]: https://github.com/grilo/figaro/compare/v1.24.1...v1.25.0
 [1.24.1]: https://github.com/grilo/figaro/compare/v1.24.0...v1.24.1

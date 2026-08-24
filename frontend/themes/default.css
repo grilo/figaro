@@ -70,7 +70,7 @@
     --tab-bar-shadow: none;
     --titlebar-divider-color: transparent;
     --top-bar-divider: transparent;
-    --editor-surface: #1d1a17;
+    --editor-surface: #211e1a;
     --editor-gutter-surface: var(--editor-surface);
     --editor-surface-shadow: none;
     --workspace-surface: var(--editor-surface);

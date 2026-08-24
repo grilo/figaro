@@ -39,7 +39,10 @@ There is no account, hosted database, or required cloud service.
   their language name, and rendered GFM tables reveal their exact Markdown
   source whenever the cursor enters them. Tables remain semantic previews with
   no nested cell editors or source auto-formatting; the existing table guide
-  can still delete the block as one undoable source edit. Mermaid/Vega
+  can still delete the block as one undoable source edit. Their compact
+  typography and spacing fit common grids inside the source-height slot, while
+  genuinely larger grids keep their own scrollbar; wheel, touch, and scrollbar
+  interaction never reveal source or move the editor caret. Mermaid/Vega
   diagrams, fenced code, display math, and tables retain
   their Markdown source height while rendered, so entering and leaving them
   does not move the surrounding note; graphics fit down, while code and tables
@@ -113,7 +116,8 @@ There is no account, hosted database, or required cloud service.
   Figaro Dark and Figaro Light use one flat titlebar/file-tree surface and one
   flat active-tab/editor/buffer-status surface—including the editor gutter—with
   quiet inactive tabs and only subtle separators where status or sidebar tools
-  still need grouping.
+  still need grouping. Figaro Dark lifts that uninterrupted reading plane
+  slightly above its darker navigation plane for clearer workspace orientation.
   The scan animation stays off when the operating system requests reduced
   motion. Prose and code fonts, Vim editing, line numbers, sticky headings,
   block guides, document outline, diagnostics, and fully local spellcheck
@@ -192,7 +196,9 @@ renderer as PDF Preview and generated PDFs, so emphasis, alignment, links,
 literal code, `<br/>` line-break markers, and Figaro's anchored `^` row-span
 convention stay consistent across editor and printable output. Move the cursor
 into the table to edit the raw Markdown directly; the source is never
-auto-formatted by a table editor.
+auto-formatted by a table editor. Clicking a cell is another deliberate way to
+reveal that source, while scrolling or manipulating either preview scrollbar
+keeps the semantic table rendered.
 
 Machine-specific settings, such as window geometry and a selected PDF browser,
 are stored in the operating system's per-user application-data directory

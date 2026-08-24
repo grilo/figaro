@@ -45,10 +45,17 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-frontmatter-panel-section')).toMatch(/display:\s*grid/);
         expect(declarationsFor('.cm-frontmatter-panel-section')).toMatch(/gap:\s*7px/);
         expect(declarationsFor('.cm-block-widget--diagram')).toMatch(/padding:\s*8px 0/);
-        expect(declarationsFor('.cm-block-widget--table')).toMatch(/padding:\s*8px 0/);
+        expect(declarationsFor('.cm-block-widget--table')).toMatch(/padding:\s*4px 0/);
         expect(declarationsFor('.cm-live-table')).toMatch(/width:\s*100%/);
         expect(declarationsFor('.cm-live-table')).toMatch(/height:\s*100%/);
         expect(declarationsFor('.cm-live-table')).toMatch(/overflow:\s*auto/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/font-size:\s*\.9em/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/line-height:\s*1\.4/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/padding:\s*6px/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/scrollbar-gutter:\s*stable/);
+        expect(declarationsFor('.cm-source-footprint--scroll.cm-block-widget--table'))
+            .toMatch(/overflow:\s*hidden\s*!important/);
+        expect(declarationsFor('.cm-live-table th,\n.cm-live-table td')).toMatch(/padding:\s*3px 7px/);
         expect(declarationsFor('.cm-live-table table')).toMatch(/border-collapse:\s*collapse/);
     });
 

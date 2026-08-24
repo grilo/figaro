@@ -1,5 +1,7 @@
 import MarkdownIt from 'markdown-it';
 
+import { tablePreviewOwnsEvent } from '../frontend/js/liveMarkdownTablePlugin.js';
+
 import {
     createEditorView,
     getEditorContent,
@@ -91,5 +93,36 @@ describe('source-preserving GFM table preview', () => {
         expect(table.querySelector('tbody tr:first-child td:nth-child(3)').textContent).toBe('<br/>');
         expect(table.textContent).not.toContain('^');
         expect(getEditorContent()).toBe(mergeDocumentSource);
+    });
+
+    test('keeps scroll gestures and scrollbar presses inside the rendered preview', () => {
+        const surface = document.createElement('div');
+        surface.className = 'cm-live-table';
+        const table = document.createElement('table');
+        const cell = document.createElement('td');
+        table.append(cell);
+        surface.append(table);
+        const root = document.createElement('div');
+        root.className = 'cm-block-widget--table';
+        root.append(surface);
+        Object.defineProperties(surface, {
+            clientHeight: { configurable: true, value: 80 },
+            clientWidth: { configurable: true, value: 120 },
+            scrollHeight: { configurable: true, value: 220 },
+            scrollWidth: { configurable: true, value: 120 },
+        });
+        surface.getBoundingClientRect = () => ({
+            top: 0, left: 0, right: 130, bottom: 90, width: 130, height: 90,
+        });
+
+        expect(tablePreviewOwnsEvent({ type: 'wheel', target: cell })).toBe(true);
+        expect(tablePreviewOwnsEvent({ type: 'touchstart', target: cell })).toBe(true);
+        expect(tablePreviewOwnsEvent({ type: 'pointerdown', pointerType: 'touch', target: cell })).toBe(true);
+        expect(tablePreviewOwnsEvent({ type: 'mousedown', target: surface })).toBe(true);
+        expect(tablePreviewOwnsEvent({ type: 'mousedown', target: root })).toBe(true);
+        expect(tablePreviewOwnsEvent({ type: 'mousedown', target: cell, clientX: 127, clientY: 30 })).toBe(true);
+        expect(tablePreviewOwnsEvent({ type: 'mousedown', target: cell, clientX: 60, clientY: 30 })).toBe(false);
+        expect(tablePreviewOwnsEvent({ type: 'mousedown', target: cell })).toBe(false);
+        expect(tablePreviewOwnsEvent({ type: 'mousedown', target: document.body })).toBe(false);
     });
 });

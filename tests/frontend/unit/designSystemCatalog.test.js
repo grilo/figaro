@@ -284,9 +284,9 @@ describe('design-system catalogue', () => {
         );
     });
 
-    test('keeps both native Figaro palettes on the same flat connected-surface contract', () => {
+    test('keeps native Figaro surfaces connected and gives Dark a brighter reading plane', () => {
         for (const [themeId, editorSurface] of [
-            ['default', '#1d1a17'],
+            ['default', '#211e1a'],
             ['figaro-light', '#fffdf8'],
         ]) {
             const source = fs.readFileSync(

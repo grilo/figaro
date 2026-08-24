@@ -8,6 +8,7 @@ const nativeThemes = [
         values: {
             background: '#1a1816',
             sidebar: '#12110f',
+            editor: '#211e1a',
             text: '#f5eee4',
             accent: '#d8574a',
             hashtag: '#d1a269',
@@ -39,7 +40,7 @@ const nativeThemes = [
     },
 ];
 
-test('keeps native Figaro surfaces flat and gives CRT Phosphor subtle ambient effects', async ({ page }) => {
+test('brightens the connected Dark reading plane and keeps CRT ambient effects subtle', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 17, 15)');
@@ -228,6 +229,10 @@ test('keeps native Figaro surfaces flat and gives CRT Phosphor subtle ambient ef
                 inactiveTabBackgroundColor: inactiveTabStyle?.backgroundColor || '',
                 editorBackground: editor.backgroundImage,
                 editorBackgroundColor: editor.backgroundColor,
+                editorSurface: color('--editor-surface'),
+                editorLuminance: rgbLuminance(editor.backgroundColor),
+                navigationLuminance: rgbLuminance(fileTree.backgroundColor),
+                editorTextContrast: renderedContrast('#editor-container .cm-content', '.editor-panel'),
                 editorGutterBackgroundColor: editorGutter.backgroundColor,
                 activeTabTransform: activeTabStyle?.transform || '',
                 statusBarBackground: statusBar.backgroundImage,
@@ -258,6 +263,9 @@ test('keeps native Figaro surfaces flat and gives CRT Phosphor subtle ambient ef
         expect(details.text).toBe(theme.values.text);
         expect(details.accent).toBe(theme.values.accent);
         expect(details.hashtag).toBe(theme.values.hashtag);
+        if (theme.values.editor) {
+            expect(details.editorSurface).toBe(theme.values.editor);
+        }
         expect(details.textContrast).toBeGreaterThanOrEqual(7);
         expect(details.linkContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.focusRing).toContain('rgba(');
@@ -296,6 +304,11 @@ test('keeps native Figaro surfaces flat and gives CRT Phosphor subtle ambient ef
             expect(details.statusBarBorder).toBe('rgba(0, 0, 0, 0)');
             expect(details.statusSeparator).toBe(details.statusSeparatorToken);
             expect(details.statusSeparator).not.toBe('rgba(0, 0, 0, 0)');
+            if (theme.name === 'Figaro Dark') {
+                expect(details.editorLuminance - details.navigationLuminance)
+                    .toBeGreaterThanOrEqual(0.007);
+                expect(details.editorTextContrast).toBeGreaterThanOrEqual(7);
+            }
         } else {
             expect(details.topBarBackground).toContain('linear-gradient');
             expect(details.statusBarBackground).toContain('linear-gradient');

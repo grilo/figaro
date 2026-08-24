@@ -149,6 +149,9 @@ sidebar-resizer, editor-gutter, application-status, and status-separator tokens
 let both palettes share the titlebar/file-tree/application-status and
 active-tab/gutter/editor/buffer-status planes, remove incidental
 seams, and preserve the two separators that still communicate grouping.
+Figaro Dark now gives the shared reading-plane token a modest luminance lift;
+the same approved token continues to style the active tab and buffer together,
+so the improvement adds neither a seam nor a component-local override.
 
 ## Intentional differences
 

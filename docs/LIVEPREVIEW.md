@@ -25,7 +25,7 @@ Your implementation must accurately transition states for the following elements
 * **Editor preview:** Rendered fences use the bundled local highlighter, the declared language when supported, and automatic detection for an untyped fence. Moving into the block restores its complete editable Markdown source.
 * **Shared indentation:** The vault-persistent Tab Size setting supplies one 2–8-space (four-space default) CodeMirror tab-size/indent unit to ordinary Markdown, revealed fences, source-code files, Vim `>`, the focused Mermaid source editor, and rendered GFM table source. Rendered fences and Raw Text Preview use the matching CSS tab width. Changing the preference does not rewrite existing source or affect printable output.
 * **Printable parity:** PDF Preview and generated PDFs reuse that highlighter and emit `.figaro-print-code` plus highlight.js-compatible token classes. Unsupported languages remain escaped, printable source text; highlighting never changes the saved fence.
-* **GFM tables:** CodeMirror's Markdown syntax tree identifies tables, and Figaro replaces an unfocused table range with a read-only `.cm-live-table` semantic preview. Selecting the range reveals the exact source; there are no nested cell editors or table-plugin auto-formatting. The live preview and PDF renderer share the same Markdown-It output, including alignment, inline formatting, literal code, `<br>`/`<br/>` line breaks, and anchored bare `^` data-cell row spans.
+* **GFM tables:** CodeMirror's Markdown syntax tree identifies tables, and Figaro replaces an unfocused table range with a read-only `.cm-live-table` semantic preview. Selecting the range or clicking real cell content reveals the exact source; there are no nested cell editors or table-plugin auto-formatting. The table keeps the full writing-column width but uses compact 90% typography, a 1.4 line height, and reduced outer/cell padding so common grids fit the source-height slot. Its visual surface is the sole overflow owner: wheel/touch gestures over an overflowing grid and native scrollbar presses or drags do not reach CodeMirror, reveal source, or change the root selection; wheel input over a table that fits continues through the document normally. The live preview and PDF renderer share the same Markdown-It output, including alignment, inline formatting, literal code, `<br>`/`<br/>` line breaks, and anchored bare `^` data-cell row spans.
 * **PDF scroll anchors:** Printable block tokens carry body-relative Markdown line ranges. The PDF frame and CodeMirror synchronize the source position at a shared 30% viewport marker, while generated covers/contents and other unmapped regions retain percentage fallback. Diagram SVG replacement inherits its source fence range. This scroll-only bridge never changes the editor selection: Arrow Up/Down, Vim motion, mouse placement, and bidirectional drag selection remain CodeMirror-owned.
 
 ### Links (`[Display Text](https://url.com)`)
@@ -155,9 +155,11 @@ Graphic content follows the pure fit plan in
 `frontend/js/core/sourceFootprintModel.js`: scale down to the available width
 or height, never enlarge, center the result, and show the dashed **Markdown
 footprint** when the result is shorter than its slot. Diagram loading and error
-messages occupy the same root. Code and tables are not scaled; their measured
-roots use contained scrolling so typography, controls, and pointer targets
-remain readable. Table source height is its header plus the
+messages occupy the same root. Code and tables are not scaled. Code uses
+contained scrolling at its normal typography; tables use a denser full-width
+surface so typical rows fit and keep that surface as their only scroll owner.
+Scrollbar, wheel, and touch interaction stays inside the widget rather than
+moving CodeMirror's selection. Table source height is its header plus the
 separator and body rows.
 
 Mermaid live widgets use a bounded source-keyed SVG cache with in-flight
