@@ -48,6 +48,7 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
     await expect(page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node')).toHaveClass(/selected/);
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.settings-card')).toHaveCount(7);
+    await expect(page.locator('#theme-picker-menu .theme-picker-item')).toHaveCount(18);
     await expect(page.locator('.settings-card').filter({ hasText: 'Vault care' })).toContainText('Vault health');
     const wideSettingsLayout = await page.evaluate(() => {
         const columns = [...document.querySelectorAll('.settings-grid > .settings-column')];
@@ -166,6 +167,13 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
                 const [lighter, darker] = [rgbLuminance(foreground), rgbLuminance(background)].sort((a, b) => b - a);
                 return (lighter + 0.05) / (darker + 0.05);
             };
+            const tokenContrast = (foregroundToken, backgroundToken) => {
+                const [lighter, darker] = [
+                    rgbLuminance(color(foregroundToken)),
+                    rgbLuminance(color(backgroundToken)),
+                ].sort((a, b) => b - a);
+                return (lighter + 0.05) / (darker + 0.05);
+            };
             const activeTab = document.querySelector('.tab.active');
             const inactiveTab = document.querySelector('.tab:not(.active)');
             const appElement = document.getElementById('app');
@@ -199,6 +207,7 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
                 background: color('--bg-color'),
                 sidebar: color('--sidebar-bg'),
                 text: color('--text-color'),
+                textDim: color('--text-dim'),
                 accent: color('--accent-color'),
                 hashtag: color('--hashtag-color'),
                 focusRing: color('--focus-ring'),
@@ -233,6 +242,9 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
                 editorLuminance: rgbLuminance(editor.backgroundColor),
                 navigationLuminance: rgbLuminance(fileTree.backgroundColor),
                 editorTextContrast: renderedContrast('#editor-container .cm-content', '.editor-panel'),
+                dimOnHoverContrast: tokenContrast('--text-dim', '--hover-bg'),
+                mutedOnHoverContrast: tokenContrast('--text-muted', '--hover-bg'),
+                applicationStatusContrast: renderedContrast('#status-text', '.status-left'),
                 editorGutterBackgroundColor: editorGutter.backgroundColor,
                 activeTabTransform: activeTabStyle?.transform || '',
                 statusBarBackground: statusBar.backgroundImage,
@@ -305,9 +317,13 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
             expect(details.statusSeparator).toBe(details.statusSeparatorToken);
             expect(details.statusSeparator).not.toBe('rgba(0, 0, 0, 0)');
             if (theme.name === 'Figaro Dark') {
+                expect(details.textDim).toBe('#9a8d7f');
                 expect(details.editorLuminance - details.navigationLuminance)
                     .toBeGreaterThanOrEqual(0.007);
                 expect(details.editorTextContrast).toBeGreaterThanOrEqual(7);
+                expect(details.dimOnHoverContrast).toBeGreaterThanOrEqual(4.5);
+                expect(details.mutedOnHoverContrast).toBeGreaterThanOrEqual(4.5);
+                expect(details.applicationStatusContrast).toBeGreaterThanOrEqual(4.5);
             }
         } else {
             expect(details.topBarBackground).toContain('linear-gradient');

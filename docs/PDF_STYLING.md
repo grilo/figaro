@@ -62,7 +62,11 @@ become real line breaks, while the same text inside inline code remains
 literal. Figaro also accepts a bare `^` in a data cell as a vertical merge with
 the immediately preceding data cell in that column; consecutive markers extend
 the preceding cell's `rowspan`. A caret without an anchor remains visible. The
-editor and PDF paths never rewrite the rectangular Markdown source.
+table editor can also author rectangular spans as adjacent
+`<!-- figaro:table-merge A2:C3 -->` metadata. Figaro removes that private
+comment from visible output and applies the matching `rowspan`/`colspan` in
+both PDF Preview and generated PDFs. Rendering never rewrites the Markdown
+source.
 
 On Linux, automatic browser discovery includes supported Chromium-family
 commands under `/snap/bin`. Figaro keeps each confined browser's temporary
@@ -198,7 +202,7 @@ its semantic HTML, so standard selectors such as `p`, `table`, `blockquote`,
 | --- | --- |
 | Whole Markdown body | `main.figaro-print-document` |
 | Printable table merges | `td[data-figaro-table-merge="rowspan"]` on the anchor cell |
-| Forced page break | `.figaro-print-page-break` |
+| Forced page break | `.figaro-print-page-break`; authored Markdown breaks also use `hr.figaro-print-authored-page-break` |
 | Cover wrapper | `.figaro-print-cover`, `.figaro-print-cover-inner` |
 | Cover content | `.figaro-print-cover-kicker`, `h1.figaro-print-cover-title`, `.figaro-print-cover-subtitle`, `.figaro-print-cover-meta`, `.figaro-print-cover-author`, `.figaro-print-cover-date` |
 | Contents wrapper | `nav.figaro-print-toc`, `h2.figaro-print-toc-title`, `ol.figaro-print-toc-list` |
@@ -238,6 +242,11 @@ element so the cover title and contents title can have independent designs:
 ```
 
 Cover and contents sections receive `.figaro-print-page-break` when present.
+A standalone `---` parsed as a thematic break in the Markdown body emits an
+invisible `hr.figaro-print-authored-page-break.figaro-print-page-break`, making
+it the source-level page-break notation for PDF Preview and generated PDFs.
+Leading frontmatter delimiters never reach the body renderer, a `---` Setext
+underline remains a heading, and `***` / `___` remain visible thematic rules.
 For other authored content, CSS can use `break-before`, `break-after`,
 `break-inside`, and their `page-break-*` fallbacks where appropriate.
 

@@ -2,6 +2,7 @@ import { hasBackend, installDebugBackend } from './backend.js';
 import { initApp } from './app.js';
 import { startupBackendDecision } from './core/bootstrapModel.js';
 import { initTooltips } from './tooltip.js';
+import { createDebugThemeAssets } from './debugThemeAssets.js';
 
 let bootTries = 0;
 let bootStarted = false;
@@ -22,6 +23,7 @@ function startApp() {
 
 function debugAPI() {
     const mock = (value) => () => Promise.resolve(value);
+    const themeAssets = createDebugThemeAssets();
     return {
         GetFileTree: mock([{ name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 }]),
         StartVaultLoad: mock(true),
@@ -30,6 +32,7 @@ function debugAPI() {
         SetFileTreeStyle: mock({ version: 1, entries: {}, recent_icons: [] }),
         SetFileTreePinned: mock({ version: 1, entries: {}, recent_icons: [] }),
         ReadFile: mock({ content: '# Welcome\n\nStart writing.', path: 'Welcome.md', mtime: 1 }),
+        ReadDiagram: mock(null),
         SaveFile: mock({ success: true }),
         SaveClipboardImage: mock({ success: true, path: 'image1.png', markdown: '![Image1](image1.png)' }),
         CreateFile: mock({ success: true }),
@@ -72,8 +75,8 @@ function debugAPI() {
         MergeNotes: mock({ success: true }),
         RevealInExplorer: mock({ success: true }),
         OpenWithDefaultApplication: mock({ success: true }),
-        GetThemes: mock({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
-        GetThemeCSS: mock({ css: '' }),
+        GetThemes: () => themeAssets.getThemes(),
+        GetThemeCSS: id => themeAssets.getThemeCSS(id),
         ThemeLoad: mock({ theme: 'default' }),
         ThemeSave: mock({ success: true }),
         VimLoad: mock({ enabled: false }),

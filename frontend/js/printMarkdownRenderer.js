@@ -141,5 +141,14 @@ export function createPrintMarkdownRenderer() {
     // Keep repeated references compact (1, 2, 1) while the plugin still owns
     // definition parsing, destination IDs, and one backlink per occurrence.
     renderer.renderer.rules.footnote_caption = (tokens, index) => String(tokens[index].meta.id + 1);
+    const renderHorizontalRule = renderer.renderer.rules.hr
+        || ((tokens, index, options, _env, self) => self.renderToken(tokens, index, options));
+    renderer.renderer.rules.hr = (tokens, index, options, env, self) => {
+        const token = tokens[index];
+        if (token.markup === '---') {
+            token.attrJoin('class', 'figaro-print-page-break figaro-print-authored-page-break');
+        }
+        return renderHorizontalRule(tokens, index, options, env, self);
+    };
     return renderer;
 }

@@ -528,6 +528,8 @@ describe('File Tree', () => {
     });
 
     test('explains recoverable vault deletion and saves open changes before the backend archive', async () => {
+        const deleted = jest.fn();
+        document.addEventListener('vault-path-deleted', deleted, { once: true });
         window.go.desktop.App.DeletePath.mockResolvedValueOnce({ success: true, deleted_id: 'deleted-1' });
         await deletePath('Projects/plan.md', 'file');
 
@@ -541,6 +543,9 @@ describe('File Tree', () => {
         expect(confirmDialog.mock.calls[0][1]).toContain('record the current contents in local Git history');
         expect(prepareTabsForPathDelete).toHaveBeenCalledWith('Projects/plan.md');
         expect(window.go.desktop.App.DeletePath).toHaveBeenCalledWith('Projects/plan.md');
+        expect(deleted).toHaveBeenCalledWith(expect.objectContaining({
+            detail: { path: 'Projects/plan.md', type: 'file' },
+        }));
         expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
         expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
         expect(prepareTabsForPathDelete.mock.invocationCallOrder[0])
@@ -1329,6 +1334,38 @@ describe('File Tree', () => {
         expect(actionsFor({ type: 'root' })).toEqual(expectedActions);
         expect(actionsFor({ type: 'directory', path: 'notes' })).toEqual(expectedActions);
         expect(actionsFor({ type: 'file', path: 'notes/report.md', selectedPaths: ['notes/other.md'] })).toEqual(expectedActions);
+    });
+
+    test('enables Merge Notes only when at least two Markdown notes are selected', () => {
+        const mergeAction = options => {
+            const surface = document.createElement('div');
+            surface.innerHTML = buildFileTreeContextMenuHTML(options);
+            return surface.querySelector('[data-action="merge-notes"]');
+        };
+
+        const oneSelected = mergeAction({
+            type: 'file',
+            path: 'notes/report.md',
+            selectedPaths: ['notes/report.md'],
+            openPath: 'notes/other.md',
+        });
+        expect(oneSelected.disabled).toBe(true);
+        expect(oneSelected.getAttribute('aria-disabled')).toBe('true');
+
+        const twoSelected = mergeAction({
+            type: 'file',
+            path: 'notes/report.md',
+            selectedPaths: ['notes/report.md', 'notes/other.md'],
+        });
+        expect(twoSelected.disabled).toBe(false);
+        expect(twoSelected.hasAttribute('aria-disabled')).toBe(false);
+
+        const noteAndFolder = mergeAction({
+            type: 'file',
+            path: 'notes/report.md',
+            selectedPaths: ['notes/report.md', 'notes/archive'],
+        });
+        expect(noteAndFolder.disabled).toBe(true);
     });
 
     test('names external removal honestly and disables vault-only mutations', () => {

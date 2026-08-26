@@ -149,7 +149,8 @@
         max-height var(--motion-layout-duration) var(--motion-ease-out),
         opacity var(--motion-content-duration) ease,
         transform var(--motion-content-duration) var(--motion-ease-out),
-        border-color var(--motion-content-duration) ease;
+        border-color var(--motion-content-duration) ease,
+        visibility 0s linear var(--motion-layout-duration);
 }
 
 .sidebar-calendar-panel.open {
@@ -163,6 +164,9 @@
     opacity: 1;
     border-top-color: var(--border-color);
     transform: translateY(0);
+    /* Opening must become visible immediately; when this class is removed,
+       the base visibility delay keeps the downward close motion paintable. */
+    transition-delay: 0s;
 }
 
 .sidebar-calendar-panel .calendar-toolbar {
@@ -221,7 +225,7 @@
     text-transform: uppercase;
     letter-spacing: 0.8px;
     color: var(--text-dim);
-    margin-bottom: 10px;
+    margin: 0 0 10px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border-color);
 }

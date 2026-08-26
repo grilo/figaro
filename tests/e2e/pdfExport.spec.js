@@ -23,6 +23,10 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
         '---',
         '# Introduction',
         '',
+        '---',
+        '',
+        'Second printable page.',
+        '',
         fence('mermaid', 'flowchart TD\n  Start --> Finish'),
         '',
         fence('mermaid', '---\nconfig: !!omap\n- dangerous: value\n---\nflowchart TD\n  Hidden --> Parser'),
@@ -43,6 +47,7 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
             coverTitle: printable.querySelector('.figaro-print-cover h1')?.textContent,
             coverMetadata: printable.querySelector('.figaro-print-cover-meta')?.textContent,
             pageBreaks: printable.querySelectorAll('.figaro-print-page-break').length,
+            authoredPageBreaks: printable.querySelectorAll('.figaro-print-authored-page-break').length,
             tocHrefs: Array.from(printable.querySelectorAll('.figaro-print-toc a')).map(link => link.getAttribute('href')),
             diagramLanguages: Array.from(printable.querySelectorAll('.figaro-print-diagram')).map(element => element.dataset.diagramLanguage),
             renderedSVGs: printable.querySelectorAll('.figaro-print-diagram svg').length,
@@ -55,7 +60,8 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
     expect(result.coverTitle).toBe('Browser PDF export');
     expect(result.coverMetadata).toContain('Figaro test suite');
     expect(result.coverMetadata).toContain('2026-07-12');
-    expect(result.pageBreaks).toBe(2);
+    expect(result.pageBreaks).toBe(3);
+    expect(result.authoredPageBreaks).toBe(1);
     expect(result.tocHrefs).toEqual(['#introduction', '#charts']);
     expect(result.diagramLanguages).toEqual(['mermaid', 'vega', 'vega-lite']);
     expect(result.renderedSVGs).toBe(3);

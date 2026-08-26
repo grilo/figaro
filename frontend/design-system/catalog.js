@@ -5,6 +5,7 @@ import {
     themeStylesheetPath,
 } from './themeCatalogModel.js';
 import { enhanceSelectCombobox } from '../js/selectCombobox.js';
+import { enhanceSettingsPicker } from '../js/settingsPicker.js';
 import { initTooltips } from '../js/tooltip.js';
 
 function sectionRecords(root) {
@@ -112,6 +113,43 @@ function enhanceCatalogueComboboxes(root) {
     }).filter(Boolean);
 }
 
+function enhanceCatalogueSettingsPickers(root) {
+    const examples = {
+        theme: {
+            value: 'default',
+            label: 'Theme',
+            options: [
+                { id: 'default', name: 'Figaro Dark' },
+                { id: 'figaro-light', name: 'Figaro Light' },
+                { id: 'figaro-crt-phosphor', name: 'Figaro CRT Phosphor' },
+            ],
+            optionClass: 'theme-picker-item',
+        },
+        font: {
+            value: 'inter',
+            label: 'Font',
+            options: [
+                { id: 'inter', name: 'Inter' },
+                { id: 'figtree', name: 'Figtree' },
+                { id: 'atkinson', name: 'Atkinson Hyperlegible' },
+            ],
+            optionClass: 'font-picker-item',
+        },
+    };
+    return Array.from(root.querySelectorAll('[data-catalog-settings-picker]'), picker => {
+        const example = examples[picker.dataset.catalogSettingsPicker];
+        if (!example) return null;
+        return enhanceSettingsPicker({
+            trigger: picker.querySelector('.ui-picker-trigger'),
+            menu: picker.querySelector('.ui-picker-menu'),
+            options: example.options,
+            value: example.value,
+            ariaLabel: example.label,
+            optionClass: example.optionClass,
+        });
+    }).filter(Boolean);
+}
+
 export async function initDesignSystemCatalog({
     root = document,
     fetchImpl = globalThis.fetch,
@@ -120,6 +158,7 @@ export async function initDesignSystemCatalog({
     initTooltips({ root });
     const sections = sectionRecords(root);
     const comboboxes = enhanceCatalogueComboboxes(root);
+    const settingsPickers = enhanceCatalogueSettingsPickers(root);
     renderIndex(root, sections);
     applySectionFilter(root, sections, '');
     refreshTokenValues(root);
@@ -131,7 +170,7 @@ export async function initDesignSystemCatalog({
 
     const select = root.querySelector('#theme-select');
     const stylesheet = root.querySelector('#catalog-theme');
-    if (!select || !stylesheet) return { sections, themes: [], comboboxes };
+    if (!select || !stylesheet) return { sections, themes: [], comboboxes, settingsPickers };
 
     try {
         const themes = normalizeThemeManifest(await loadThemeManifest(themeManifest, fetchImpl));
@@ -159,11 +198,11 @@ export async function initDesignSystemCatalog({
             stylesheet.href = themeStylesheetPath(select.value);
         });
 
-        return { sections, themes, comboboxes };
+        return { sections, themes, comboboxes, settingsPickers };
     } catch (error) {
         select.disabled = true;
         setThemeStatus(root, 'Theme list unavailable; showing Figaro Dark', 'error');
         console.error('Could not initialize the design-system theme selector:', error);
-        return { sections, themes: [], comboboxes, error };
+        return { sections, themes: [], comboboxes, settingsPickers, error };
     }
 }

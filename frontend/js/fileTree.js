@@ -303,7 +303,6 @@ export function buildFileTreeContextMenuHTML({
     type = 'root',
     path = '',
     selectedPaths = [],
-    openPath = '',
     clipboardPath = '',
     external = false,
     pinned = false,
@@ -319,9 +318,12 @@ export function buildFileTreeContextMenuHTML({
         ? (targetPath ? [targetPath] : [])
         : fileTreeActionPaths(targetPath, selectedPaths);
     const isSingleTarget = actionPaths.length <= 1;
-    const mergePaths = [...new Set([...actionPaths, openPath]
-        .filter(path => String(path || '').toLowerCase().endsWith('.md')))];
-    const canMerge = isMarkdownFile && mergePaths.length >= 2;
+    const selectedNotePaths = [...new Set(selectedPaths
+        .map(selectedPath => String(selectedPath || ''))
+        .filter(selectedPath => selectedPath.toLowerCase().endsWith('.md')))];
+    const canMerge = isMarkdownFile
+        && selectedNotePaths.includes(targetPath)
+        && selectedNotePaths.length >= 2;
     const enabled = {
         'open-new-tab': isSingleTarget && isFile,
         'merge-notes': !external && canMerge,
@@ -1930,7 +1932,6 @@ function handleContextMenu(e) {
         type,
         path,
         selectedPaths: getState('selectedTreePaths') || [],
-        openPath: getState('selectedFilePath'),
         clipboardPath: internalClipboard?.path || '',
         external: Boolean(externalFileId),
         pinned: item?.querySelector('.file-tree-node')?.classList.contains('pinned') || false,
@@ -2429,6 +2430,9 @@ export async function deletePath(path, type = 'file') {
         }
         const result = await backend().DeletePath(path);
         if (result.success) {
+            document.dispatchEvent(new CustomEvent('vault-path-deleted', {
+                detail: { path, type },
+            }));
             await refreshFileTree();
             
             // Close any tabs for deleted files

@@ -106,13 +106,19 @@ describe('Figaro help', () => {
 
         expect(rows).toEqual(expect.arrayContaining([
             ['F1', 'Toggle Figaro help'],
+            ['Ctrl/Cmd+N', 'Quick note in Inbox'],
             ['Ctrl/Cmd+Shift+N', 'New daily note'],
             ['Ctrl/Cmd+Shift+F', 'Focus global search'],
-            ['Ctrl/Cmd+B', 'Toggle sidebar'],
+            ['Ctrl/Cmd+Shift+B', 'Toggle sidebar'],
             ['Ctrl+PageUp Ctrl+PageDown', 'Previous / next open buffer'],
             ['Ctrl/Cmd+F', 'Find and replace in current file'],
             ['Ctrl/Cmd+S', 'Save current file'],
             ['Ctrl/Cmd+W', 'Close current buffer'],
+            ['Ctrl/Cmd+B', 'Bold'],
+            ['Ctrl/Cmd+I', 'Italic'],
+            ['Ctrl/Cmd+K', 'Link'],
+            ['Ctrl/Cmd+Shift+X', 'Strikethrough'],
+            ['Ctrl/Cmd+`', 'Inline code'],
         ]));
     });
 

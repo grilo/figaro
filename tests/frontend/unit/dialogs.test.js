@@ -262,6 +262,8 @@ describe('New note dialog', () => {
 
         expect(dialog.querySelector('.table-conversion-combobox [role="combobox"]')).not.toBeNull();
         expect(dialog.querySelector('.table-conversion-select').classList.contains('select-combobox-native')).toBe(true);
+        expect([...dialog.querySelector('.table-conversion-select').options].map(option => option.value))
+            .toEqual(['auto', 'tab', 'comma', 'semicolon', 'pipe']);
         expect(dialog.querySelector('.table-conversion-summary').textContent).toContain('Tab detected');
         expect(preview.textContent).toContain('| Alpha | 2 |');
         header.checked = false;
@@ -281,13 +283,33 @@ describe('New note dialog', () => {
     test('cancels conversion without returning replacement text and explains invalid selections', async () => {
         const result = tableConversionDialog('This is ordinary prose.');
         const dialog = document.querySelector('.table-conversion-modal');
+        const confirm = dialog.querySelector('.custom-modal-btn-confirm');
 
         expect(dialog.querySelector('.table-conversion-error').textContent).toContain('CSV, TSV, or pipe-delimited');
-        expect(dialog.querySelector('.custom-modal-btn-confirm').disabled).toBe(true);
+        expect(confirm.disabled).toBe(true);
+        expect(confirm.getAttribute('aria-busy')).toBeNull();
+        expect(confirm.getAttribute('aria-describedby')).toBe(dialog.querySelector('.table-conversion-error').id);
+        confirm.click();
+        expect(document.querySelector('.table-conversion-modal')).toBe(dialog);
         dialog.querySelector('.custom-modal-btn-cancel').click();
 
         await expect(result).resolves.toBeNull();
         expect(document.querySelector('.custom-modal-overlay')).toBeNull();
+    });
+
+    test('previews semicolon CSV through the explicit delimiter choice', async () => {
+        const result = tableConversionDialog('Product;Price\nCoffee;1,25');
+        const dialog = document.querySelector('.table-conversion-modal');
+        const delimiter = dialog.querySelector('.table-conversion-select');
+
+        delimiter.value = 'semicolon';
+        delimiter.dispatchEvent(new Event('change'));
+        expect(dialog.querySelector('.table-conversion-summary').textContent).toContain('Semicolon detected');
+        expect(dialog.querySelector('.table-conversion-preview').textContent).toContain('| Coffee | 1,25 |');
+        expect(dialog.querySelector('.custom-modal-btn-confirm').disabled).toBe(false);
+        dialog.querySelector('.custom-modal-btn-cancel').click();
+
+        await expect(result).resolves.toBeNull();
     });
 });
 

@@ -54,6 +54,36 @@ test('keeps workspace destinations in the sidebar and expands Calendar inline', 
     await expect(page.locator('#calendar-grid .cal-day-header')).toHaveCount(7);
     await expect(page.locator('#right-sidebar')).not.toHaveClass(/open/);
 
+    // Closing mirrors the opening displacement instead of disappearing before
+    // the downward transition can paint.
+    await calendarButton.click();
+    await expect(calendarPanel).not.toHaveClass(/open/);
+    await expect(calendarPanel).toHaveAttribute('aria-hidden', 'true');
+    const closingMotion = await calendarPanel.evaluate(panel => {
+        const transition = panel.getAnimations().find(animation => animation.transitionProperty === 'transform');
+        if (!transition) return null;
+        transition.pause();
+        const duration = Number(transition.effect.getTiming().duration);
+        transition.currentTime = duration / 2;
+        const matrix = new DOMMatrixReadOnly(getComputedStyle(panel).transform);
+        return {
+            duration,
+            translateY: matrix.m42,
+            visibility: getComputedStyle(panel).visibility,
+        };
+    });
+    expect(closingMotion).not.toBeNull();
+    expect(closingMotion.duration).toBeGreaterThan(0);
+    expect(closingMotion.translateY).toBeGreaterThan(0);
+    expect(closingMotion.translateY).toBeLessThan(6);
+    expect(closingMotion.visibility).toBe('visible');
+    await calendarPanel.evaluate(panel => panel.getAnimations().forEach(animation => animation.finish()));
+    await expect(calendarPanel).toBeHidden();
+
+    await calendarButton.click();
+    await expect(calendarPanel).toHaveClass(/open/);
+    await expect(calendarPanel).toBeVisible();
+
     // Collapsing closes the panel but leaves a usable destination rail.
     await page.locator('#toggle-sidebar').click();
     await expect(sidebar).toHaveClass(/collapsed/);

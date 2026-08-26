@@ -18,7 +18,7 @@ function guidePlan(source) {
 }
 
 describe('Markdown block guide model', () => {
-    test('classifies only headings, fenced code languages, and tables', () => {
+    test('classifies headings, fenced code, tables, and standalone local Draw.io images', () => {
         expect(markdownBlockGuideKind({ name: 'ATXHeading3' })).toBe('h3');
         expect(markdownBlockGuideKind({ name: 'Paragraph', source: 'plain prose' })).toBeNull();
         expect(markdownBlockGuideKind({ name: 'BulletList', source: '- [ ] task' })).toBeNull();
@@ -29,6 +29,14 @@ describe('Markdown block guide model', () => {
         expect(markdownBlockGuideKind({ name: 'FencedCode', info: 'mermaid' })).toBe('mermaid');
         expect(markdownBlockGuideKind({ name: 'FencedCode', info: 'vega-lite options' })).toBe('vega-lite');
         expect(markdownBlockGuideKind({ name: 'Table' })).toBe('table');
+        expect(markdownBlockGuideKind({
+            name: 'Paragraph',
+            source: '![Flow](Diagrams/flow.drawio.svg)',
+        })).toBe('drawio');
+        expect(markdownBlockGuideKind({
+            name: 'Paragraph',
+            source: 'Text ![Flow](Diagrams/flow.drawio.svg)',
+        })).toBeNull();
     });
 
     test('normalizes a concise first code-fence language token', () => {
@@ -72,6 +80,22 @@ describe('Markdown block guide model', () => {
         );
         expect(state.sliceDoc(guides[1].foldFrom, guides[1].foldTo)).toContain('enabled: true');
         expect(state.sliceDoc(guides[3].foldFrom, guides[3].foldTo)).toContain('| mode | test |');
+    });
+
+    test('gives a standalone Draw.io image a whole-source fold range', () => {
+        const source = 'Before\n![Flow](Diagrams/flow.drawio.svg)\nAfter';
+        const { guides } = guidePlan(source);
+        const guide = guides.find(candidate => candidate.type === 'drawio');
+        const from = source.indexOf('![Flow]');
+        expect(guide).toMatchObject({
+            label: 'drawio',
+            type: 'drawio',
+            from,
+            to: from + '![Flow](Diagrams/flow.drawio.svg)'.length,
+            foldFrom: from,
+            foldTo: from + '![Flow](Diagrams/flow.drawio.svg)'.length,
+            foldable: true,
+        });
     });
 
     test('matches rendered block ranges without attaching guides to adjacent point widgets', () => {

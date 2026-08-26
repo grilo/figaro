@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="../styles/features/settings.css">
     <link rel="stylesheet" href="../styles/features/link-hover.css">
     <link rel="stylesheet" href="../styles/features/embedded-widgets.css">
+    <link rel="stylesheet" href="../styles/features/markdown-table-editor.css">
     <link rel="stylesheet" href="../styles/features/mermaid-editor.css">
     <link rel="stylesheet" href="../styles/overrides.css">
     <link rel="stylesheet" href="./primitives.css">
@@ -389,6 +390,8 @@
                     <div class="ds-demo ds-flow">
                         <span class="ds-labeled-control"><button class="ui-button settings-action-btn">Choose…</button><code class="ds-selector">.settings-action-btn</code></span>
                         <span class="ds-labeled-control"><button class="ui-button ui-button--accent drawio-edit-button">Edit diagram</button><code class="ds-selector">.drawio-edit-button</code></span>
+                        <span class="ds-labeled-control"><button class="ui-button ui-button--accent cm-drawio-action-button" aria-label="Create Draw.io diagram flow.drawio.svg">Create Draw.io diagram</button><code class="ds-selector">.cm-drawio-action-button</code></span>
+                        <span class="ds-labeled-control"><button class="ui-button ui-button--accent cm-drawio-action-button" aria-label="Open Draw.io diagram flow.drawio.svg">Open Draw.io diagram</button><code class="ds-selector">.cm-drawio-action-button</code></span>
                         <span class="ds-labeled-control"><button class="ui-button history-diff-toggle">Show changes</button><code class="ds-selector">.history-diff-toggle</code></span>
                         <span class="ds-labeled-control"><button class="ui-button ui-button--accent relationship-link-action">Link mention</button><code class="ds-selector">.relationship-link-action</code></span>
                         <span class="ds-labeled-control"><button class="ui-button ui-button--warning history-revert-button">Restore version</button><code class="ds-selector">.history-revert-button</code></span>
@@ -404,7 +407,7 @@
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
                                 Generate PDF
                             </button>
-                            <button class="ui-button ui-button--primary vault-health-scan" disabled>Scanning…</button>
+                            <button class="ui-button ui-button--primary vault-health-scan" aria-busy="true" disabled>Scanning…</button>
                         </div>
                     </article>
                     <article class="ds-specimen">
@@ -428,7 +431,8 @@
                         <button class="ui-button ui-button--warning custom-modal-btn custom-modal-btn-extra">Keep existing</button>
                         <button class="ui-button ui-button--danger-ghost custom-modal-btn custom-modal-btn-danger-ghost">Discard</button>
                         <button class="ui-button ui-button--danger custom-modal-btn custom-modal-btn-delete">Delete</button>
-                        <button class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm" disabled>Saving…</button>
+                        <button class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm" disabled>Convert</button>
+                        <button class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm" aria-busy="true" disabled>Saving…</button>
                     </div>
                 </article>
             </section>
@@ -497,11 +501,17 @@
                         <div class="ds-demo settings-card ds-inline-settings-card">
                             <div class="settings-section">
                                 <span class="settings-section-icon">Theme</span>
-                                <div class="ui-picker theme-picker"><button class="ui-picker-trigger theme-picker-btn"><span>Figaro Dark</span><span>⌄</span></button></div>
+                                <div class="ui-picker theme-picker" data-catalog-settings-picker="theme">
+                                    <button type="button" class="ui-picker-trigger theme-picker-btn"><span data-picker-value>Figaro Dark</span><span aria-hidden="true">⌄</span></button>
+                                    <div class="ui-menu ui-picker-menu theme-picker-menu" hidden></div>
+                                </div>
                             </div>
                             <div class="settings-section">
                                 <span class="settings-section-icon">Font</span>
-                                <div class="ui-picker font-picker"><button class="ui-picker-trigger font-picker-btn"><span>Inter</span><span>⌄</span></button></div>
+                                <div class="ui-picker font-picker" data-catalog-settings-picker="font">
+                                    <button type="button" class="ui-picker-trigger font-picker-btn"><span data-picker-value>Inter</span><span aria-hidden="true">⌄</span></button>
+                                    <div class="ui-menu ui-picker-menu font-picker-menu" hidden></div>
+                                </div>
                             </div>
                         </div>
                     </article>
@@ -566,7 +576,7 @@
                         <header><h3>Context menu</h3><code class="ds-selector">.context-menu</code></header>
                         <div class="ds-demo">
                             <div class="ui-menu context-menu">
-                                <div class="ui-menu-label context-menu-label">Note</div>
+                                <div class="ui-menu-label context-menu-label">Editor</div>
                                 <button class="ui-menu-item context-menu-item"><span class="context-menu-item-label">Cut</span><span class="context-menu-item-shortcut">Ctrl+X</span></button>
                                 <button class="ui-menu-item context-menu-item"><span class="context-menu-item-label">Copy</span><span class="context-menu-item-shortcut">Ctrl+C</span></button>
                                 <button class="ui-menu-item context-menu-item"><span class="context-menu-item-label">Paste</span><span class="context-menu-item-shortcut">Ctrl+V</span></button>
@@ -610,11 +620,17 @@
                                 <div class="md-cheatsheet-panel" id="catalog-help-shortcuts-panel" role="tabpanel" aria-labelledby="catalog-help-shortcuts-tab" tabindex="-1">
                                     <table>
                                         <tr><td><code>F1</code></td><td>Toggle Figaro help</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+N</code></td><td>Quick note in Inbox</td></tr>
                                         <tr><td><code>Ctrl/Cmd+Shift+N</code></td><td>New daily note</td></tr>
                                         <tr><td><code>Ctrl/Cmd+Shift+F</code></td><td>Focus global search</td></tr>
-                                        <tr><td><code>Ctrl/Cmd+B</code></td><td>Toggle sidebar</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+Shift+B</code></td><td>Toggle sidebar</td></tr>
                                         <tr><td><code>Ctrl+PageUp</code> <code>Ctrl+PageDown</code></td><td>Previous / next open buffer</td></tr>
                                         <tr><td><code>Ctrl/Cmd+F</code></td><td>Find and replace in current file</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+B</code></td><td>Bold</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+I</code></td><td>Italic</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+K</code></td><td>Link</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+Shift+X</code></td><td>Strikethrough</td></tr>
+                                        <tr><td><code>Ctrl/Cmd+`</code></td><td>Inline code</td></tr>
                                     </table>
                                 </div>
                             </div>
@@ -918,7 +934,7 @@ title: A quiet workspace
                             <p class="ui-notice raw-text-preview-status">Loading raw text…</p>
                             <p class="ui-notice ui-notice--danger raw-text-preview-status" data-kind="error">Could not read this note.</p>
                             <p class="ui-notice pdf-preview-status">Generating printable document…</p>
-                            <button class="ui-button settings-action-btn" disabled>Working…</button>
+                            <button class="ui-button settings-action-btn" aria-busy="true" disabled>Working…</button>
                         </div>
                     </article>
                     <article class="ds-specimen">

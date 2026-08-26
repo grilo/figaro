@@ -10,7 +10,8 @@ import { scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
 import { mathField } from './mathPlugin.js';
 import { createDiagramField, diagramLanguages, scanDiagramFences } from './liveDiagramPlugin.js';
-import { createMarkdownTableField } from './liveMarkdownTablePlugin.js';
+import { createMarkdownTableField, scanMarkdownTables } from './liveMarkdownTablePlugin.js';
+import { createMarkdownImageField } from './markdownImagePlugin.js';
 import { requestSourceFootprintMeasure, sourceFootprintExtension } from './sourceFootprint.js';
 import {
     defaultTabSize,
@@ -23,6 +24,7 @@ import { getFileLanguage, loadLanguageSupport } from './languageSupport.js';
 import { createFrontmatterField } from './frontmatterPlugin.js';
 import { getFrontmatterRegion } from './frontmatter.js';
 import { FRONTMATTER_UPWARD_REVEAL_USER_EVENT } from './core/frontmatterPresentationModel.js';
+import { taskCheckboxLabel, taskCheckboxReplacement } from './core/taskCheckboxModel.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
 import { createTaskDueDateCompletionSource } from './taskDueDateCompletions.js';
@@ -53,8 +55,15 @@ import {
 import { getLinkStylePreference } from './linkStyle.js';
 import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
 import { createDocumentKeyBindings } from './codeMirrorProfiles.js';
+import { markdownInlineFormatPlan } from './core/markdownInlineFormatting.js';
 import { createEditorDocumentSession } from './usecases/editorDocumentSession.js';
 import { createLinkedNoteFromCompletion } from './usecases/createLinkedNoteFromCompletion.js';
+import { createDrawioImage } from './usecases/createDrawioImage.js';
+import {
+    drawioImageCreationTarget,
+    drawioImageStateForRead,
+    parseMarkdownImageSyntax,
+} from './core/drawioImageCreationModel.js';
 import { reviewMissingLinkedNote, reviewSameDirectoryNoteName } from './usecases/similarNoteReview.js';
 import {
     markdownEditorNavigationAtPosition,
@@ -74,6 +83,7 @@ import {
     replaceActiveFileTab,
     saveActiveFile as saveActiveTabFile,
     saveFileSnapshot,
+    switchTab,
 } from './tabManager.js';
 import { openRawTextPreview } from './rawTextPreview.js';
 import { openPDFPreview } from './pdfPreview.js';
@@ -93,7 +103,7 @@ import {
 } from '@codemirror/state';
 import {
     cursorLineDown, cursorLineUp, defaultKeymap, history, historyKeymap,
-    historyField, indentLess, indentMore, redo, undo,
+    historyField, indentLess, indentMore,
 } from '@codemirror/commands';
 import {
     HighlightStyle, bracketMatching, foldGutter, foldedRanges, foldKeymap, indentUnit,
@@ -112,6 +122,7 @@ import { validateMermaidSource } from './diagramRenderer.js';
 import { createMarkdownDocumentLinter } from './usecases/markdownDocumentLint.js';
 import { createMarkdownBlockGuidesExtension } from './markdownBlockGuides.js';
 import { openMermaidEditor } from './mermaidEditor.js';
+import { openMarkdownTableEditor } from './markdownTableEditor.js';
 import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
     isVerticalMotionKey,
@@ -140,7 +151,6 @@ import {
     editorTheme,
     linkPlugin,
     codeBlockField,
-    imageField,
     collapseOnSelectionFacet,
     mouseSelectingField,
     setMouseSelecting,
@@ -206,11 +216,44 @@ function insertNewlineOrExitMarkdownMarkup(view) {
         || insertNewlineContinueMarkupCommand({ nonTightLists: false })(view);
 }
 
+/** Apply one conventional inline format as one source-preserving transaction. */
+export function applyMarkdownInlineFormat(view, format) {
+    if (!view || view.isDestroyed || activeFileLanguage.kind !== 'markdown') return false;
+    const source = view.state.doc.toString();
+    let applied = false;
+    const changes = view.state.changeByRange(range => {
+        const plan = markdownInlineFormatPlan({
+            source,
+            from: range.from,
+            to: range.to,
+            format,
+        });
+        if (!plan) return { range };
+        applied = true;
+        return {
+            changes: { from: plan.from, to: plan.to, insert: plan.insert },
+            range: EditorSelection.range(plan.anchor, plan.head),
+        };
+    });
+    if (!applied) return false;
+    view.dispatch({
+        ...changes,
+        scrollIntoView: true,
+        annotations: Transaction.userEvent.of('input.format'),
+    });
+    return true;
+}
+
 // Figaro exits an empty list item or quote level with one Enter. CodeMirror's
 // default keeps either structure alive for one extra press, which is
 // surprising in a prose editor. Backspace retains the library's
 // Markdown-aware behavior.
 const figaroMarkdownKeymap = [
+    { key: 'Mod-b', run: view => applyMarkdownInlineFormat(view, 'bold'), preventDefault: true },
+    { key: 'Mod-i', run: view => applyMarkdownInlineFormat(view, 'italic'), preventDefault: true },
+    { key: 'Mod-k', run: view => applyMarkdownInlineFormat(view, 'link'), preventDefault: true },
+    { key: 'Mod-Shift-x', run: view => applyMarkdownInlineFormat(view, 'strikethrough'), preventDefault: true },
+    { key: 'Mod-`', run: view => applyMarkdownInlineFormat(view, 'code'), preventDefault: true },
     { key: 'Enter', run: insertNewlineOrExitMarkdownMarkup },
     { key: 'Backspace', run: deleteMarkupBackward },
 ];
@@ -779,6 +822,38 @@ const markdownBlockGuidesExtension = createMarkdownBlockGuidesExtension({
             inputProfile: mermaidEditorInputProfile(view),
         });
     },
+    openDrawioEditor: (view, guide) => openDrawioImageFromGuide(view, guide),
+    openTableEditor: (view, guide, returnFocusTarget) => {
+        const block = scanMarkdownTables(view.state).find(candidate => (
+            candidate.from === guide.from && candidate.to === guide.to
+        ));
+        if (!block) return;
+        openMarkdownTableEditor(view, block, { returnFocus: returnFocusTarget });
+    },
+});
+
+const imageVaultRefreshExtension = ViewPlugin.fromClass(class {
+    constructor(view) {
+        this.view = view;
+        this.onVaultRefresh = () => {
+            const tab = getActiveTab();
+            if (tab?.type !== 'file'
+                || activeFileLanguage.kind !== 'markdown'
+                || getEditorDocumentTabId() !== tab.id
+                || !imageBasePathCompartment
+                || this.view.isDestroyed) return;
+            this.view.dispatch({
+                effects: imageBasePathCompartment.reconfigure(imageFieldForPath(tab.path)),
+            });
+        };
+        document.addEventListener('vault-file-tree-refreshed', this.onVaultRefresh);
+        document.addEventListener('vault-path-deleted', this.onVaultRefresh);
+    }
+
+    destroy() {
+        document.removeEventListener('vault-file-tree-refreshed', this.onVaultRefresh);
+        document.removeEventListener('vault-path-deleted', this.onVaultRefresh);
+    }
 });
 
 export function insertTextAtCursor(view, text) {
@@ -1732,22 +1807,47 @@ function createEditorView() {
     const bulletW = (char) => new (class extends WidgetType {
         toDOM() { const s = document.createElement('span'); s.className = 'cm-bullet'; s.textContent = char; return s; }
     })();
-    const checkboxW = (checked, view, from) => new (class extends WidgetType {
+    const checkboxW = (checked, view, from, label) => new (class extends WidgetType {
+        constructor() {
+            super();
+            this.checked = checked;
+            this.from = from;
+            this.label = label;
+        }
+
         toDOM() {
+            const hitbox = document.createElement('span');
+            hitbox.className = 'cm-task-checkbox-hitbox';
             const input = document.createElement('input');
             input.type = 'checkbox';
             input.className = 'cm-task-checkbox';
             input.checked = checked;
-            input.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                const newChar = checked ? ' ' : 'x';
-                view.dispatch({
-                    changes: { from: from + 1, to: from + 2, insert: newChar }
-                });
+            input.setAttribute('aria-label', label);
+            input.dataset.taskFrom = String(from);
+
+            hitbox.addEventListener('mousedown', (event) => {
+                if (event.detail > 0) event.preventDefault();
             });
-            return input;
+            hitbox.addEventListener('click', (event) => {
+                event.preventDefault();
+                view.dispatch({
+                    changes: {
+                        from: from + 1,
+                        to: from + 2,
+                        insert: taskCheckboxReplacement(checked),
+                    },
+                    userEvent: 'input.task-checkbox',
+                });
+                if (event.detail === 0) {
+                    requestAnimationFrame(() => {
+                        view.dom.querySelector(`.cm-task-checkbox[data-task-from="${from}"]`)?.focus();
+                    });
+                }
+            });
+            hitbox.append(input);
+            return hitbox;
         }
-        eq(other) { return other.checked === checked; }
+        eq(other) { return other.checked === checked && other.label === label && other.from === from; }
     })();
 
     const widgetPlugin = ViewPlugin.fromClass(class {
@@ -1836,8 +1936,14 @@ function createEditorView() {
                             if (m) {
                                 const start = ref.from + m.index;
                                 if (!isActive) {
+                                    const line = view.state.doc.lineAt(start);
                                     decos.push(Decoration.replace({
-                                        widget: checkboxW(m[1] !== ' ', view, start)
+                                        widget: checkboxW(
+                                            m[1] !== ' ',
+                                            view,
+                                            start,
+                                            taskCheckboxLabel(line.text, m[1] !== ' '),
+                                        )
                                     }).range(start, start + m[0].length));
                                 }
                             }
@@ -2181,7 +2287,7 @@ function createEditorView() {
     // source-preserving semantic preview for an unfocused table range.
     let markdownTableField = [];
     if (StateField && EditorView && WidgetType && shouldShowSource && mouseSelectingField) {
-        try { markdownTableField = createMarkdownTableField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField); } catch (error) { log.warn('[table] create failed: ' + (error.message || error)); }
+        try { markdownTableField = createMarkdownTableField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField, EditorSelection); } catch (error) { log.warn('[table] create failed: ' + (error.message || error)); }
     }
     vimCompartment = new Compartment();
     imageBasePathCompartment = new Compartment();
@@ -2290,7 +2396,8 @@ function createEditorView() {
             vimCompartment.of([]),
             readOnlyCompartment.of([]),
             tabSizeCompartment.of(editorTabSizeExtensions()),
-            imageBasePathCompartment.of(imageField({ basePath: '/vault/' })),
+            imageBasePathCompartment.of(imageFieldForPath('')),
+            imageVaultRefreshExtension,
             fileModeCompartment.of(markdownExtensionsForPath()),
             lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
             foldingCompartment.of(editorFoldingExtensions('markdown')),
@@ -2522,9 +2629,94 @@ function setEditorContent(content, tabId = undefined, cursorState = null) {
 
 function getEditorDocumentTabId() { return editorDocumentSession.documentTabId(); }
 
+async function activateDrawioImageTarget(target) {
+    const tab = openTab(target.path, target.title, 'drawio', {
+        path: target.path,
+        mtime: target.mtime,
+        activate: false,
+    });
+    if (!tab || !await switchTab(tab.id)) {
+        throw new Error('The Draw.io tab could not be activated');
+    }
+}
+
+async function createAndOpenDrawioImageTarget(target) {
+    const result = await createDrawioImage({
+        target,
+        createFile: (path, content) => backend().CreateFile(path, content),
+        refreshTree: refreshFileTree,
+        openDiagram: activateDrawioImageTarget,
+        reportRefreshFailure: error => log.warn(
+            'Created Draw.io diagram but could not refresh the file tree:',
+            error,
+        ),
+    });
+    if (result.kind === 'failed') {
+        await errorDialog('Couldn’t create diagram', result.error, 'The diagram could not be created.');
+        return false;
+    }
+    if (result.kind === 'created-open-failed') {
+        await errorDialog('Diagram created but not opened', result.error, `The diagram was created at ${result.path}.`);
+        return false;
+    }
+    return result.kind === 'created';
+}
+
+async function openDrawioImageFromGuide(view, guide) {
+    const tab = getActiveTab();
+    if (tab?.type !== 'file' || getEditorDocumentTabId() !== tab.id) return false;
+    const image = parseMarkdownImageSyntax(view.state.sliceDoc(guide.from, guide.to));
+    const target = drawioImageCreationTarget({
+        imageSource: image?.src,
+        notePath: tab.path,
+    });
+    if (!target) {
+        await errorDialog('Couldn’t open diagram', null, 'The Draw.io image does not resolve to a safe vault file.');
+        return false;
+    }
+
+    let existing;
+    try {
+        existing = await backend().ReadDiagram(target.path);
+    } catch (error) {
+        await errorDialog('Couldn’t open diagram', error, 'The Draw.io diagram could not be read.');
+        return false;
+    }
+    if (!existing) return createAndOpenDrawioImageTarget(target);
+
+    try {
+        await activateDrawioImageTarget({ ...target, mtime: existing.mtime });
+        return true;
+    } catch (error) {
+        await errorDialog('Couldn’t open diagram', error, 'The Draw.io diagram could not be opened.');
+        return false;
+    }
+}
+
 function imageFieldForPath(docPath) {
     const dir = docPath ? docPath.substring(0, docPath.lastIndexOf('/') + 1) : '';
-    return imageField({ basePath: '/vault/' + dir });
+    return createMarkdownImageField({
+        basePath: '/vault/' + dir,
+        drawioTarget: imageSource => drawioImageCreationTarget({ imageSource, notePath: docPath }),
+        resolveDrawioState: async target => {
+            try {
+                return drawioImageStateForRead(await backend().ReadDiagram(target.path));
+            } catch (error) {
+                log.warn('Could not inspect Draw.io image target:', error);
+                return drawioImageStateForRead(null, error);
+            }
+        },
+        onCreateDrawio: createAndOpenDrawioImageTarget,
+        onOpenDrawio: async target => {
+            try {
+                await activateDrawioImageTarget(target);
+                return true;
+            } catch (error) {
+                await errorDialog('Couldn’t open diagram', error, 'The Draw.io diagram could not be opened.');
+                return false;
+            }
+        },
+    });
 }
 
 function updateFileLanguageStatus() {
@@ -3238,15 +3430,19 @@ function handleContextMenu(event, view) {
     event.preventDefault();
 
     const keyboardInvocation = !event.clientX && !event.clientY;
+    const widget = event.target?.closest?.('.cm-block-widget--table');
+    const widgetFrom = Number(widget?.dataset.tableFrom);
     const pos = keyboardInvocation
         ? view.state.selection.main.head
-        : view.posAtCoords({ x: event.clientX, y: event.clientY });
+        : (Number.isInteger(widgetFrom)
+            ? widgetFrom
+            : view.posAtCoords({ x: event.clientX, y: event.clientY }));
     const caret = keyboardInvocation ? view.coordsAtPos(pos) : null;
     const menuEvent = keyboardInvocation ? {
         clientX: caret?.left || view.dom.getBoundingClientRect().left + 16,
         clientY: caret?.bottom || view.dom.getBoundingClientRect().top + 24,
     } : event;
-    if (pos !== null && !shouldPreserveSelectionForContextMenu(view.state.selection, pos)) {
+    if (!widget && pos !== null && !shouldPreserveSelectionForContextMenu(view.state.selection, pos)) {
         view.dispatch({ selection: { anchor: pos, head: pos } });
     }
 

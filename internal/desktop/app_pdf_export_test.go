@@ -170,7 +170,9 @@ func TestCreateStarterPrintStylesheetCopiesBundledCSSWithoutOverwriting(t *testi
 		t.Fatal(err)
 	}
 	for _, hook := range []string{
+		"figaro-pdf-starter-version: 3",
 		".figaro-print-document",
+		".figaro-print-authored-page-break",
 		".figaro-print-cover-title",
 		".figaro-print-cover-author",
 		".figaro-print-cover-date",
@@ -256,7 +258,7 @@ func TestCreateUpgradedPrintStylesheetPreservesSourceAndExistingTargets(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(upgraded), "figaro-pdf-starter-version: 2") || !strings.HasSuffix(string(upgraded), userCSS) {
+	if !strings.Contains(string(upgraded), "figaro-pdf-starter-version: 3") || !strings.HasSuffix(string(upgraded), userCSS) {
 		t.Fatalf("upgraded stylesheet did not preserve current starter plus final overrides: %s", upgraded)
 	}
 

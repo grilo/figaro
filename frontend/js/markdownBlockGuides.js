@@ -18,6 +18,7 @@ import {
     markdownBlockGuidePlan,
 } from './core/markdownBlockGuideModel.js';
 import { markdownFoldAnchorPlan } from './core/markdownFoldAnchorModel.js';
+import { markdownTableMetadataEnd } from './core/markdownTableEditorModel.js';
 
 const foldAnchorReserveProperty = '--markdown-fold-anchor-reserve';
 
@@ -36,11 +37,12 @@ function topLevelBlocks(state) {
     const tree = ensureSyntaxTree(state, state.doc.length) || syntaxTree(state);
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
         if (node.from < frontmatterEnd) continue;
+        const to = node.name === 'Table' ? markdownTableMetadataEnd(source, node.to) : node.to;
         blocks.push({
             name: node.name,
             from: node.from,
-            to: node.to,
-            source: state.sliceDoc(node.from, node.to),
+            to,
+            source: state.sliceDoc(node.from, to),
             info: node.name === 'FencedCode' ? codeInfo(node, state) : '',
         });
     }
@@ -67,6 +69,8 @@ export function buildMarkdownBlockGuides(state) {
             };
         } else if (plan.rangeStrategy === 'block-after-first-line') {
             range = { from: state.doc.lineAt(block.from).to, to: block.to };
+        } else if (plan.rangeStrategy === 'whole-block') {
+            range = { from: block.from, to: block.to };
         }
         const line = state.doc.lineAt(block.from);
         const headingTitle = plan.level
@@ -83,7 +87,39 @@ export function buildMarkdownBlockGuides(state) {
             foldable: range.to > range.from,
         });
     });
-    return guides;
+
+    // Markdown permits a visually standalone image line inside a larger
+    // Paragraph node. Build its guide from the exact Image node rather than
+    // requiring blank lines around the authored image.
+    const frontmatterEnd = leadingFrontmatterEnd(state.doc.toString());
+    const tree = ensureSyntaxTree(state, state.doc.length) || syntaxTree(state);
+    tree.iterate({
+        enter(node) {
+            if (node.name !== 'Image' || node.from < frontmatterEnd) return;
+            const line = state.doc.lineAt(node.from);
+            if (node.to > line.to) return;
+            const imageSource = state.sliceDoc(node.from, node.to);
+            if (line.text.trim() !== imageSource || guides.some(guide => (
+                guide.type === 'drawio' && guide.from === node.from && guide.to === node.to
+            ))) return;
+            const plan = markdownBlockGuidePlan({
+                name: 'Paragraph',
+                source: imageSource,
+            });
+            if (plan?.type !== 'drawio') return;
+            guides.push({
+                ...plan,
+                from: node.from,
+                to: node.to,
+                lineFrom: line.from,
+                foldFrom: node.from,
+                foldTo: node.to,
+                title: '',
+                foldable: node.to > node.from,
+            });
+        },
+    });
+    return guides.sort((left, right) => left.from - right.from || left.to - right.to);
 }
 
 function exactFoldExists(state, guide) {
@@ -95,11 +131,13 @@ function exactFoldExists(state, guide) {
 }
 
 class MarkdownBlockGuideMarker extends GutterMarker {
-    constructor(guide, folded, showMermaidEditor = false) {
+    constructor(guide, folded, showMermaidEditor = false, showDrawioEditor = false, showTableEditor = false) {
         super();
         this.guide = guide;
         this.folded = folded;
         this.showMermaidEditor = showMermaidEditor;
+        this.showDrawioEditor = showDrawioEditor;
+        this.showTableEditor = showTableEditor;
     }
 
     eq(other) {
@@ -109,7 +147,9 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             && this.guide.title === other.guide.title
             && this.guide.foldable === other.guide.foldable
             && this.folded === other.folded
-            && this.showMermaidEditor === other.showMermaidEditor;
+            && this.showMermaidEditor === other.showMermaidEditor
+            && this.showDrawioEditor === other.showDrawioEditor
+            && this.showTableEditor === other.showTableEditor;
     }
 
     foldControl() {
@@ -120,6 +160,8 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             subject = `${this.guide.label} ${this.guide.title} section`;
         } else if (this.guide.type === 'code') {
             subject = this.guide.label === 'code' ? 'code block' : `${this.guide.label} code block`;
+        } else if (this.guide.type === 'drawio') {
+            subject = 'Draw.io image';
         }
         control.type = 'button';
         control.className = 'ui-editor-block-guide';
@@ -140,9 +182,9 @@ class MarkdownBlockGuideMarker extends GutterMarker {
         const foldControl = this.foldControl();
         if (this.folded) return foldControl;
 
-        let actionControl = null;
+        const actionControls = [];
         if (this.showMermaidEditor && this.guide.label === 'mermaid') {
-            actionControl = document.createElement('button');
+            const actionControl = document.createElement('button');
             actionControl.type = 'button';
             actionControl.className = 'ui-editor-block-guide mermaid-editor-guide';
             actionControl.textContent = 'editor';
@@ -150,29 +192,52 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             actionControl.title = 'Open Mermaid Editor';
             actionControl.dataset.mermaidFrom = String(this.guide.from);
             actionControl.dataset.mermaidTo = String(this.guide.to);
-        } else if (this.guide.type === 'table') {
-            actionControl = document.createElement('button');
+            actionControls.push(actionControl);
+        } else if (this.showDrawioEditor && this.guide.type === 'drawio') {
+            const actionControl = document.createElement('button');
             actionControl.type = 'button';
-            actionControl.className = [
+            actionControl.className = 'ui-editor-block-guide drawio-editor-guide';
+            actionControl.textContent = 'editor';
+            actionControl.setAttribute('aria-label', 'Open Draw.io editor for this diagram');
+            actionControl.title = 'Open Draw.io editor';
+            actionControl.dataset.drawioFrom = String(this.guide.from);
+            actionControl.dataset.drawioTo = String(this.guide.to);
+            actionControls.push(actionControl);
+        } else if (this.guide.type === 'table') {
+            if (this.showTableEditor) {
+                const editorControl = document.createElement('button');
+                editorControl.type = 'button';
+                editorControl.className = 'ui-editor-block-guide markdown-table-editor-guide';
+                editorControl.textContent = 'editor';
+                editorControl.setAttribute('aria-label', 'Open table editor for this table');
+                editorControl.title = 'Open table editor';
+                editorControl.dataset.tableFrom = String(this.guide.from);
+                editorControl.dataset.tableTo = String(this.guide.to);
+                actionControls.push(editorControl);
+            }
+            const deleteControl = document.createElement('button');
+            deleteControl.type = 'button';
+            deleteControl.className = [
                 'ui-editor-block-guide',
                 'ui-editor-block-guide--danger',
                 'markdown-table-delete-guide',
             ].join(' ');
-            actionControl.textContent = 'delete';
-            actionControl.setAttribute('aria-label', 'Delete table');
-            actionControl.title = 'Delete table';
-            actionControl.dataset.tableFrom = String(this.guide.from);
-            actionControl.dataset.tableTo = String(this.guide.to);
+            deleteControl.textContent = 'delete';
+            deleteControl.setAttribute('aria-label', 'Delete table');
+            deleteControl.title = 'Delete table';
+            deleteControl.dataset.tableFrom = String(this.guide.from);
+            deleteControl.dataset.tableTo = String(this.guide.to);
+            actionControls.push(deleteControl);
         }
-        if (!actionControl) return foldControl;
+        if (!actionControls.length) return foldControl;
 
         const stack = document.createElement('div');
         stack.className = 'cm-editor-block-guide-stack';
-        actionControl.addEventListener('mousedown', event => {
+        actionControls.forEach(actionControl => actionControl.addEventListener('mousedown', event => {
             if (event.button === 0) event.preventDefault();
-        });
+        }));
 
-        stack.append(foldControl, actionControl);
+        stack.append(foldControl, ...actionControls);
         return stack;
     }
 }
@@ -260,8 +325,10 @@ function applyFoldAnchorPlan(view, guide, targetGuideTop, correctionPass = 0) {
  * Guide planning and folding stay source-only; the application composition
  * root decides how opening the focused editor is handled.
  */
-export function createMarkdownBlockGuidesExtension({ openMermaidEditor } = {}) {
+export function createMarkdownBlockGuidesExtension({ openMermaidEditor, openDrawioEditor, openTableEditor } = {}) {
     const showMermaidEditor = typeof openMermaidEditor === 'function';
+    const showDrawioEditor = typeof openDrawioEditor === 'function';
+    const showTableEditor = typeof openTableEditor === 'function';
     const markerPlugin = ViewPlugin.fromClass(class {
         constructor(view) {
             synchronizeEditorBlockActionLayout(view);
@@ -292,6 +359,8 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor } = {}) {
                     guide,
                     exactFoldExists(view.state, guide),
                     showMermaidEditor,
+                    showDrawioEditor,
+                    showTableEditor,
                 ));
             }
             this.markers = builder.finish();
@@ -306,6 +375,8 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor } = {}) {
                 guide,
                 exactFoldExists(view.state, guide),
                 showMermaidEditor,
+                showDrawioEditor,
+                showTableEditor,
             )
             : null;
     };
@@ -327,6 +398,19 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor } = {}) {
             },
             domEventHandlers: {
                 click(view, line, event) {
+                    const tableEditorControl = event.target?.closest?.('.markdown-table-editor-guide');
+                    if (tableEditorControl) {
+                        const requestedFrom = Number(tableEditorControl.dataset.tableFrom);
+                        const requestedTo = Number(tableEditorControl.dataset.tableTo);
+                        const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                            candidate.type === 'table'
+                            && candidate.from === requestedFrom
+                            && candidate.to === requestedTo
+                        )) || guideOnLine(view.state, line.from);
+                        if (guide?.type === 'table') openTableEditor?.(view, guide, tableEditorControl);
+                        return true;
+                    }
+
                     const deleteControl = event.target?.closest?.('.markdown-table-delete-guide');
                     if (deleteControl) {
                         const requestedFrom = Number(deleteControl.dataset.tableFrom);
@@ -355,6 +439,26 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor } = {}) {
                             && candidate.to === requestedTo
                         )) || guideOnLine(view.state, line.from);
                         if (guide?.label === 'mermaid') openMermaidEditor?.(view, guide);
+                        return true;
+                    }
+
+                    const drawioControl = event.target?.closest?.('.drawio-editor-guide');
+                    if (drawioControl) {
+                        const requestedFrom = Number(drawioControl.dataset.drawioFrom);
+                        const requestedTo = Number(drawioControl.dataset.drawioTo);
+                        const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                            candidate.type === 'drawio'
+                            && candidate.from === requestedFrom
+                            && candidate.to === requestedTo
+                        )) || guideOnLine(view.state, line.from);
+                        if (guide?.type !== 'drawio') return true;
+                        drawioControl.disabled = true;
+                        drawioControl.setAttribute('aria-busy', 'true');
+                        Promise.resolve(openDrawioEditor?.(view, guide)).catch(() => {}).finally(() => {
+                            if (!drawioControl.isConnected) return;
+                            drawioControl.disabled = false;
+                            drawioControl.removeAttribute('aria-busy');
+                        });
                         return true;
                     }
 

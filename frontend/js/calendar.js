@@ -26,6 +26,7 @@ import {
     formatCalendarMonth,
 } from './calendarLocale.js';
 import { hideCalendarDayTooltip, wireCalendarDayTooltips } from './calendarDayTooltip.js';
+import { calendarWheelNavigationPlan } from './core/calendarWheelModel.js';
 
 let calendarRequestId = 0;
 let linkedNotesRequestId = 0;
@@ -36,6 +37,9 @@ const linkedNotesCache = new Map();
 const dueTasksCache = new Map();
 const calendarNoteBaselines = new Map();
 let liveCalendarRefreshFrame = null;
+let calendarWheelAccumulatedDeltaY = 0;
+let calendarWheelLastEventAt = 0;
+const calendarWheelGestureGapMs = 240;
 
 /**
  * Drop cached calendar data after a vault mutation or filesystem event.
@@ -122,6 +126,45 @@ export function initCalendar() {
     document.addEventListener('vault-file-saved', event => {
         updateCalendarNoteBaselineAfterSave(event.detail?.path, event.detail?.content);
     });
+    // Delegate from the document because tests and workspace restoration can
+    // replace the grid element after this module has initialized.
+    document.addEventListener('wheel', event => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target?.closest('#calendar-grid')) return;
+
+        const eventTime = Number.isFinite(event.timeStamp) ? event.timeStamp : 0;
+        if (calendarWheelLastEventAt && eventTime - calendarWheelLastEventAt > calendarWheelGestureGapMs) {
+            calendarWheelAccumulatedDeltaY = 0;
+        }
+        const plan = calendarWheelNavigationPlan({
+            deltaX: event.deltaX,
+            deltaY: event.deltaY,
+            deltaMode: event.deltaMode,
+            accumulatedDeltaY: calendarWheelAccumulatedDeltaY,
+            modified: event.ctrlKey || event.metaKey || event.altKey || event.shiftKey,
+        });
+        calendarWheelAccumulatedDeltaY = plan.accumulatedDeltaY;
+        if (!plan.handled) {
+            calendarWheelLastEventAt = 0;
+            return;
+        }
+
+        event.preventDefault();
+        calendarWheelLastEventAt = eventTime;
+        if (plan.monthOffset) navigateCalendarMonth(plan.monthOffset);
+    }, { passive: false });
+}
+
+/** Move the visible Calendar by whole months without mutating stored state. */
+export function navigateCalendarMonth(monthOffset) {
+    const current = getState('currentCalDate');
+    if (!(current instanceof Date) || Number.isNaN(current.getTime())) return false;
+    const offset = Math.sign(Number(monthOffset) || 0);
+    if (!offset) return false;
+
+    setState('currentCalDate', new Date(current.getFullYear(), current.getMonth() + offset, 1));
+    renderCalendar();
+    return true;
 }
 
 /**

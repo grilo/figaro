@@ -11,9 +11,10 @@ The catalogue is deliberately not a second component implementation:
 - `index.html` contains mostly static specimens using the production classes
   from `primitives.css` and feature hooks from the responsibility modules under
   `frontend/styles/`. Controls
-  whose open state is meaningful reuse
-  their production controller; the themed select-only combobox is enhanced by
-  `frontend/js/selectCombobox.js` rather than copied into the catalogue.
+  whose open state is meaningful reuse their production controller;
+  native-select comboboxes use `frontend/js/selectCombobox.js`, while
+  Theme/Font appearance specimens use `frontend/js/settingsPicker.js`, rather
+  than copying either behavior into the catalogue.
 - `catalog.css` styles only the catalogue shell and constrains normally
   positioned overlays so their open states can be inspected.
 - `themeCatalogModel.js` owns pure theme-manifest validation, stylesheet-path
@@ -48,7 +49,16 @@ assets in manifest order. The `.ui-*` classes own repeated presentation and
 interaction states; feature classes remain only for behavior and deliberate
 host layout. The approved `.ui-spinner` is the shared indeterminate activity
 indicator; feature controllers own its delayed visibility and accessible live
-status instead of cloning its animation or paint. The progress family owns the
+status instead of cloning its animation or paint. An ordinary disabled
+`.ui-button` represents an unavailable action and uses no busy cursor; a
+genuinely pending button also declares `aria-busy="true"` (or the equivalent
+internal busy hook) so its wait treatment has explicit operation ownership.
+The missing-Draw.io Markdown Create/Open action is one such compact accent
+button: its feature hook fits the existing image footprint, while the shared
+button and spinner primitives own every interaction and busy state.
+Its left-side `drawio` / `editor` controls reuse the approved editor block-guide
+stack and busy state without adding another guide variant.
+The progress family owns the
 shared determinate track and value fill; hosts supply its value and geometry
 without redefining those states. The approved stepper accepts either a
 read-only value or a bounded numeric `.ui-stepper-value`; the latter suppresses
@@ -80,8 +90,9 @@ for native packaging.
 The theme selector is populated from `frontend/themes/manifest.json`; it does
 not maintain another theme list. Selecting a theme replaces the catalogue's
 theme stylesheet and refreshes the displayed token values without reloading
-the page. Select-only Settings specimens use Figaro's button/listbox
-enhancement, because a native host popup cannot reliably inherit application
+the page. Select-only Settings specimens use Figaro's labelled button/listbox
+enhancement with the same arrow, Home/End, Enter/Space, Escape, and Tab contract
+as production, because a native host popup cannot reliably inherit application
 theme tokens.
 
 ## Maintain the inventory

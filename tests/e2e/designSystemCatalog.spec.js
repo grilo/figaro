@@ -8,7 +8,7 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(page.getByRole('heading', { name: 'Every visible pattern, in one place.' })).toBeVisible();
     await expect(page.locator('[data-catalog-section]')).toHaveCount(12);
 
-    const themeSelect = page.getByLabel('Theme');
+    const themeSelect = page.locator('#theme-select');
     await expect(themeSelect.locator('option')).toHaveCount(18);
     await expect(themeSelect).toHaveValue('default');
     await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
@@ -111,6 +111,24 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(autoSaveMenu).toBeHidden();
     await expect(autoSaveTrigger).toBeFocused();
 
+    const appearancePicker = page.locator('[data-catalog-settings-picker="theme"]');
+    const appearanceTrigger = appearancePicker.getByRole('combobox', { name: 'Theme' });
+    const appearanceMenu = appearancePicker.locator('.ui-picker-menu');
+    await expect(appearanceMenu).toHaveAttribute('aria-label', 'Theme options');
+    await appearanceTrigger.focus();
+    await appearanceTrigger.press('ArrowDown');
+    await expect(appearanceMenu).toBeVisible();
+    await expect(appearanceTrigger).toHaveAttribute('aria-activedescendant', /option-0/);
+    await appearanceTrigger.press('ArrowDown');
+    await appearanceTrigger.press('Enter');
+    await expect(appearanceTrigger).toContainText('Figaro Light');
+    await expect(appearanceMenu.locator('[role="option"][data-value="figaro-light"]'))
+        .toHaveAttribute('aria-selected', 'true');
+    await expect(appearanceMenu).toBeHidden();
+    await appearanceTrigger.press('ArrowDown');
+    await appearanceTrigger.press('Tab');
+    await expect(appearanceMenu).toBeHidden();
+
     const disabledTrigger = page.locator('#catalog-unavailable-combobox')
         .locator('xpath=..')
         .locator('.select-combobox-trigger');
@@ -166,6 +184,18 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     for (const [selector, minimum] of Object.entries(primitiveFamilies)) {
         expect(await page.locator(selector).count()).toBeGreaterThanOrEqual(minimum);
     }
+
+    const disabledButtonCursors = await page.locator('.ds-specimen', {
+        has: page.locator('h3', { hasText: 'Dialog actions' }),
+    }).evaluate(specimen => {
+        const ordinary = specimen.querySelector('.ui-button:disabled:not([aria-busy="true"])');
+        const busy = specimen.querySelector('.ui-button:disabled[aria-busy="true"]');
+        return {
+            ordinary: getComputedStyle(ordinary).cursor,
+            busy: getComputedStyle(busy).cursor,
+        };
+    });
+    expect(disabledButtonCursors).toEqual({ ordinary: 'not-allowed', busy: 'wait' });
 
     const connectedTabPaint = await page.locator(
         '.ds-tab-bar .ui-document-tab--connected.ui-document-tab--active',
@@ -273,7 +303,7 @@ test('opens directly from the filesystem with its styles and eager catalogue beh
     await expect(page.locator('.catalog-layout')).toHaveCSS('display', 'grid');
     await expect(page.locator('[data-catalog-section]')).toHaveCount(12);
 
-    const themeSelect = page.getByLabel('Theme');
+    const themeSelect = page.locator('#theme-select');
     await expect(themeSelect.locator('option')).toHaveCount(18);
     await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
     await themeSelect.selectOption('figaro-light');

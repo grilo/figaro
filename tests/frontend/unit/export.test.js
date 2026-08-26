@@ -152,6 +152,40 @@ describe('Interactive PDF export', () => {
             .toContain('.figaro-print-code .hljs-keyword');
     });
 
+    test('turns standalone triple-dash thematic breaks into PDF page breaks only', () => {
+        const content = [
+            '---',
+            'title: Metadata',
+            '---',
+            '# First page',
+            '',
+            '---',
+            '',
+            '# Second page',
+            '',
+            '***',
+            '',
+            '___',
+            '',
+            'Setext heading',
+            '---',
+        ].join('\n');
+
+        const printable = parseHTML(renderPrintableMarkdown(content, 'Page breaks'));
+        const authoredBreaks = printable.querySelectorAll('main .figaro-print-authored-page-break');
+        const ordinaryRules = printable.querySelectorAll('main hr:not(.figaro-print-authored-page-break)');
+
+        expect(authoredBreaks).toHaveLength(1);
+        expect(authoredBreaks[0].classList.contains('figaro-print-page-break')).toBe(true);
+        expect(authoredBreaks[0].dataset.figaroSourceStart).toBe('2');
+        expect(ordinaryRules).toHaveLength(2);
+        expect(printable.querySelectorAll('main h2')).toHaveLength(1);
+        expect(printable.querySelector('main h2').textContent).toBe('Setext heading');
+        expect(printable.body.textContent).not.toContain('title: Metadata');
+        expect(printable.querySelector('style').textContent)
+            .toContain('hr.figaro-print-authored-page-break');
+    });
+
 	test('renders conventional wikilinks in printable preview and export HTML without parsing code', () => {
 		const content = 'See [[docs/Guide Note.md#start|Readable guide]] and `[[literal.md|code]]`.';
 		const printable = parseHTML(renderPrintableMarkdown(content, 'Wikilinks'));
@@ -213,6 +247,24 @@ describe('Interactive PDF export', () => {
         expect(rows[0].cells[2].querySelector('code').textContent).toBe('<br/>');
         expect(rows[0].cells[2].querySelector('br')).toBeNull();
         expect(table.textContent).not.toContain('^');
+    });
+
+    test('preserves table-editor range merges in printable HTML without printing metadata', () => {
+        const content = [
+            '| Region | Q1 | Q2 |',
+            '| --- | ---: | ---: |',
+            '| North<br>10<br>12 | | |',
+            '| South | 8 | 9 |',
+            '<!-- figaro:table-merge A2:C2 -->',
+        ].join('\n');
+        const printable = parseHTML(renderPrintableMarkdown(content, 'Range merge'));
+        const table = printable.querySelector('main.figaro-print-document > table');
+        const anchor = table.querySelector('tbody tr:first-child td');
+
+        expect(anchor.colSpan).toBe(3);
+        expect(anchor.dataset.figaroTableMerge).toBe('range');
+        expect(table.querySelector('tbody tr:first-child').cells).toHaveLength(1);
+        expect(printable.body.textContent).not.toContain('figaro:table-merge');
     });
 
     test('keeps a leading caret literal when no data cell can anchor it', () => {

@@ -60,6 +60,7 @@ describe('design-system catalogue', () => {
             '.ui-stepper.tab-size-control',
             '.ui-button.settings-action-btn',
             '.ui-button.drawio-edit-button',
+            '.ui-button.cm-drawio-action-button',
             '.ui-menu.context-menu',
             '.ds-help-popup',
             '.md-cheatsheet-tab.ui-button--accent',
@@ -116,6 +117,9 @@ describe('design-system catalogue', () => {
         )).toEqual(['Markdown', 'Macros', 'Shortcuts']);
         expect(catalogue.querySelector('.ds-help-popup').textContent)
             .toMatch(/F1.*Toggle Figaro help/);
+        expect(catalogue.querySelector('.context-menu').textContent)
+            .toMatch(/Editor.*Cut.*Copy.*Paste/s);
+        expect(catalogue.querySelector('.context-menu').textContent).not.toContain('Add row above');
         expect(Array.from(
             catalogue.querySelectorAll('#review-map tbody tr td:last-child'),
             cell => cell.textContent.trim(),
@@ -324,7 +328,9 @@ describe('design-system catalogue', () => {
             'frontend/js/datePicker.js',
             'frontend/js/editor.js',
             'frontend/js/markdownBlockGuides.js',
+            'frontend/js/markdownImagePlugin.js',
             'frontend/js/selectCombobox.js',
+            'frontend/js/settingsPicker.js',
             'frontend/js/tabManager.js',
             'frontend/js/tooltip.js',
             'frontend/js/vaultHealth.js',
@@ -443,6 +449,10 @@ describe('design-system catalogue', () => {
             ['frontend/js/rawTextPreview.js', [
                 'ui-button ui-button--primary raw-text-preview-copy',
             ]],
+            ['frontend/js/markdownImagePlugin.js', [
+                'ui-button ui-button--accent cm-drawio-action-button',
+                'ui-spinner',
+            ]],
         ]);
 
         for (const [file, expectedBindings] of bindings) {
@@ -531,6 +541,10 @@ describe('design-system catalogue', () => {
                     <option>Loading…</option>
                 </select>
             </label>
+            <div class="ui-picker theme-picker" data-catalog-settings-picker="theme">
+                <button class="ui-picker-trigger"><span data-picker-value>Figaro Dark</span></button>
+                <div class="ui-menu ui-picker-menu" hidden></div>
+            </div>
             <section id="buttons-actions" data-catalog-section data-catalog-terms="compact actions">
                 <h2>Buttons</h2><code class="ds-selector">.settings-action-btn</code>
             </section>
@@ -555,6 +569,13 @@ describe('design-system catalogue', () => {
         expect(document.querySelectorAll('#catalog-index a')).toHaveLength(2);
         expect(document.querySelector('#theme-status').textContent).toBe('18 themes · Figaro Dark');
         expect(result.comboboxes).toHaveLength(2);
+        expect(result.settingsPickers).toHaveLength(1);
+        const appearanceTrigger = document.querySelector('[data-catalog-settings-picker="theme"] .ui-picker-trigger');
+        appearanceTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        expect(appearanceTrigger.getAttribute('aria-expanded')).toBe('true');
+        expect(appearanceTrigger.getAttribute('aria-label')).toBe('Theme');
+        expect(document.querySelectorAll('[data-catalog-settings-picker="theme"] [role="option"]'))
+            .toHaveLength(3);
 
         const source = document.querySelector('#catalog-test-combobox');
         const picker = source.closest('.select-combobox');

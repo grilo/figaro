@@ -1,6 +1,6 @@
 /*
  * Figaro PDF stylesheet
- * figaro-pdf-starter-version: 2
+ * figaro-pdf-starter-version: 3
  *
  * This file is an editable starter copied into your vault when you choose
  * "Create starter" in Properties → PDF layout. It loads after Figaro's built-in
@@ -562,6 +562,13 @@ body {
 .figaro-print-page-break {
   break-after: page;
   page-break-after: always;
+}
+
+/* A standalone Markdown `---` is an invisible authored page break in PDFs. */
+hr.figaro-print-authored-page-break {
+  height: 0;
+  margin: 0;
+  border: 0;
 }
 
 @media print {

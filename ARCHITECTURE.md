@@ -164,10 +164,15 @@ selector layer that consumes the art-direction tokens. Every file in
 palette and optional surface keys are machine-readable in
 `theme-contract.json`, including optional contrast and semantic-role values, so
 a theme can change a whole workspace treatment without owning component
-selectors. Component tokens and shared `.ui-*`
+selectors. The browser-development adapter reads the same manifest and CSS
+through the injected asset-fetch port in `debugThemeAssets.js`, rather than
+auditing fallback tokens under the Figaro Dark name. Component tokens and shared `.ui-*`
 primitives live in `primitives.css`. Pickers, steppers, compact and icon
 actions, badges, menu presentation, fields, and notices use that canonical
-asset. Feature classes retain behavior and narrow host-layout differences, but
+asset. `settingsPicker.js` binds Theme, Font, and Code Font to one select-only
+combobox adapter whose deterministic key decisions live in
+`core/pickerModel.js`; native-select enhancements retain their separate state
+source. Feature classes retain behavior and narrow host-layout differences, but
 do not restate shared hover, focus, open, selected, disabled, validation, or
 semantic rules. Card layouts and switch-versus-checkbox semantics remain
 deliberately distinct.
@@ -196,7 +201,11 @@ tools sit outside the clipping `.sidebar-content` flex column; inside it, the
 file tree and Calendar details each own their overflow. An open Calendar takes
 a capped 480px/72% share, which preserves a complete month plus the common
 due-task/linked-note state at normal heights while still yielding a separately
-scrollable tree and a separately scrollable long-results region.
+scrollable tree and a separately scrollable long-results region. Its base
+state delays only `visibility: hidden` through the layout duration, allowing
+the opacity, height, and downward transform to paint when `.open` is removed;
+the open state cancels that delay so upward entry is visible immediately.
+Reduced-motion tokens collapse both directions to one millisecond.
 
 The same theme-surface boundary owns optional ambient screen treatment. Neutral
 defaults leave `#app` untransformed and its non-interactive `::before` overlay
@@ -220,6 +229,38 @@ frontend gives that handoff a 30-second deadline. A protocol error or missing
 export clears the iframe spinner, reports a retryable failure, and never starts
 a filesystem write, so a service-side interruption cannot leave a diagram tab
 permanently locked in Saving state.
+
+Markdown can also initiate this workflow from a not-yet-created local
+`.drawio.svg` image. `core/drawioImageCreationModel.js` resolves and validates
+the authored destination without I/O, including note-relative, vault-root,
+encoded, and escape-rejection rules, and classifies a backend read as Create,
+Open, recovered SVG preview, or inspection error without conflating an empty
+file with absence. A recovered preview uses the already-read SVG as a data URL,
+so browser caching of the earlier failed blank-file request cannot hide a later
+successful Draw.io save. Each deliberate image-field reconfiguration carries a
+new render token: CodeMirror may reuse widgets during normal selection changes,
+but returning to a file tab remounts them so that fallback state is re-read.
+The token also versions Draw.io's local `/vault/` preview URL, bypassing the
+image loader's successful cache after a mutation. File-tree deletion publishes
+`vault-path-deleted` immediately after backend success, before discovery
+refresh; the mounted editor reconfigures its image field on that signal and on
+ordinary tree publication, so a removed SVG cannot survive as a cached image.
+`usecases/createDrawioImage.js` coordinates the injected create, tab-opening,
+and tree-refresh ports. It activates the new blank diagram before starting a
+non-blocking discovery refresh, so a slow or failed refresh cannot strand the
+originating widget. `markdownImagePlugin.js` owns only the CodeMirror widget
+and approved button interaction, including the mounted Create-to-Open state
+transition, while `editor.js` composes those pieces with the Wails backend,
+file tree, dialog, and tab adapters.
+
+`core/markdownBlockGuideModel.js` classifies a complete local Draw.io image
+line as a `drawio` whole-source fold. The CodeMirror guide adapter also scans
+exact Image nodes because Markdown may keep a standalone-looking line inside a
+larger Paragraph node. It reuses the approved block-guide stack for `drawio`
+and `editor`; the injected editor composition resolves the current note path,
+reads or creates the target through existing ports, and activates its Draw.io
+tab. Fold state stays editor-only and makes the image field yield its
+replacement for the native CodeMirror fold placeholder.
 
 `frontend/js/backend.js` is the frontend's sole backend entry point. It calls
 the native Wails binding at `window.go.desktop.App` using its generated PascalCase
@@ -508,7 +549,10 @@ Calendar month navigation similarly copies only that month's pre-grouped daily-n
 due-task lists plus compact day summaries containing note counts and due titles. While a Markdown tab
 is dirty, the pure Calendar model replaces that file's saved date associations with its current
 in-memory buffer; editor events schedule this projection on the next frame without scanning or saving
-the vault. These narrow methods avoid per-day requests and avoid transferring or filtering the rest
+the vault. Vertical wheel policy is isolated in `core/calendarWheelModel.js`: it rejects modified and
+horizontal gestures, accumulates high-resolution deltas, and returns only a month offset. The Calendar
+DOM adapter claims wheel input from the month grid, while the distinct selected-day overflow region
+keeps native scrolling. These narrow methods avoid per-day requests and avoid transferring or filtering the rest
 of a large vault merely to render a small overview.
 
 The sidebar Calendar and the date picker both consume the pure
@@ -727,7 +771,10 @@ derived Cut markers, scrolling, rendering, and activation effects. The injected
 copy effects, partial-failure refreshes, and stable remaining-source results;
 the adapter supplies the filesystem and tab-manager ports. F2 enters the same
 rename use case as the context menu, so it does not duplicate path validation,
-dirty-tab persistence, or link rewriting.
+dirty-tab persistence, or link rewriting. The stable context-menu policy enables
+**Merge Notes** only when the contextual Markdown row belongs to an operation
+selection containing at least two distinct Markdown paths; active-buffer state
+cannot substitute for a second selected note.
 
 Editable file-tree activation has a single-read handoff. `app.js` uses the
 native `ReadFile` result to reject binary content, then passes that prepared
@@ -780,10 +827,16 @@ view pass. Diagram and display-math
 widgets use that adapter directly; the vendored code and table integrations
 attach equivalent metadata at widget construction without scanning the
 document. Successfully loaded images, Properties, links, checkboxes, and inline
-math never enter the policy. The image adapter instead gives only loading and
-error placeholders a fixed one-source-line measured root, using semantic theme
-tokens, so source reveal remains locally stable without admitting images to the
-general footprint allowlist. All selectors are `.cm-*`, so the independent printable renderer
+math never enter the policy. Rendered task checkboxes instead derive their
+source replacement and action-oriented accessible name in the pure
+`core/taskCheckboxModel.js`; the CodeMirror widget adapter owns the 24px DOM
+target, one source transaction, and keyboard-focus handoff after remounting.
+The image adapter instead gives only loading,
+error, and missing-Draw.io Create/Open placeholders a fixed one-source-line measured
+root, using semantic theme tokens and the approved accent button. Its Draw.io
+action consumes only its own activation; ordinary failed-image pointer
+placement still reveals source. This keeps local reflow stable without
+admitting images to the general footprint allowlist. All selectors are `.cm-*`, so the independent printable renderer
 retains natural diagram, code, math, and table geometry.
 Conventional-link and standalone-hashtag click precedence is decided in the
 pure `core/noteLinks.js` model before the CodeMirror adapter runs effects. A
@@ -833,13 +886,17 @@ length, and an equal negative flex margin makes that stable width an overlay;
 folding a parent can therefore remove a wider child guide without recentering
 the document. The document width, prose layout, and ordinary CodeMirror gutters
 remain unchanged as text width, window width, folding, or side panes change.
-The table bundle receives this narrow integration during vendoring through an
-in-memory, exact-match transform that fails when the pinned upstream source no
-longer has the reviewed shape. The same transform marks the measured root as a
-table block widget, records the table's logical source-row footprint, attaches
-Figaro's approved danger-ghost button, and routes
-it through the extension's existing `table.delete` history annotation, so
-direct deletion and the table's internal command remain one undoable action.
+The table provider remains first-party and eager. `markdownBlockGuides.js`
+stacks fold, editor, and delete controls for the same source range;
+`liveMarkdownTablePlugin.js` owns only the measured read-only replacement and
+rendered-cell-to-source pointer adaptation. The guide-launched
+`markdownTableEditor.js` is an isolated modal adapter over the pure
+`core/markdownTableEditorModel.js` draft model. Its row/column/span decisions,
+source serialization, merge-coordinate shifting, and disabled reasons do not
+read CodeMirror or the DOM. The modal owns temporary Undo/Redo and performs no
+root change until Apply revalidates the original source and dispatches one
+replacement transaction. Direct guide deletion removes that same table range,
+including adjacent merge metadata, as one history action.
 The Properties field uses the same source-first transition: its disclosure
 generates missing default frontmatter directly into structured-panel mode,
 while `core/frontmatterPresentationModel.js` permits automatic raw-YAML entry
@@ -918,8 +975,9 @@ portable Markdown source when entered. The root Vim Normal cursor is drawn
 by the adapter's separate fat-cursor layer, so a root-scoped override maps
 that layer to the active theme's cursor background and text tokens instead
 of inheriting the adapter's fixed red. Table previews have no nested editor,
-so root history, search, Vim prompts, Arrow Up/Down, mouse placement, and
-drag selection remain ordinary CodeMirror behavior. The table widget adapter
+so root history, search, Vim prompts, Arrow Up/Down, mouse placement, and drag
+selection remain ordinary CodeMirror behavior. The optional table modal is a
+separate focus-trapped draft surface, not a replacement-widget editor. The table widget adapter
 separates scrolling from source entry before events reach that root: wheel and
 touch gestures over an overflowing grid, its background, and computed native
 scrollbar hit strips remain owned by the single `.cm-live-table` overflow
@@ -930,6 +988,36 @@ The pure `core/tablePreviewInteractionModel.js` decides that ownership from
 plain target/geometry inputs; the widget adapter supplies DOM measurements and
 stops owned events. Native overflow geometry and retained selection are
 asserted in the focused browser contract.
+
+Table structural editing keeps the same dependency direction.
+`core/markdownTableEditing.js` parses exact row/cell boundaries and maps a
+rendered row/column pair to the first authored content offset.
+`core/markdownTableEditorModel.js` builds the modal draft, preserves untouched
+cell bytes, guards the header/final column, disables operations that cut a
+merged span, shifts coordinates for changes outside spans, and serializes
+rectangular merges as adjacent `<!-- figaro:table-merge A2:C3 -->` metadata.
+The DOM modal renders native textareas, starts range selection only for
+Shift-click, Shift-drag, or Alt+Shift+Arrow, and explains model-provided
+disabled reasons through shared tooltips. Its two-row icon toolbar reuses the
+approved button and danger-ghost primitives; the drag adapter translates only
+Shift-held cell traversal into the model's rectangular selection while leaving
+unmodified textarea selection native. `markdownTableRenderer.js` annotates live cells before
+applying vertical or rectangular spans; `liveMarkdownTablePlugin.js` records
+the extended source range and adapts CodeMirror's mouse-selection facet so
+ordinary click and drag begin at the pure source offset. The ordinary editor
+context menu therefore remains free of table-specific commands.
+
+Conventional inline formatting follows the same source-first split.
+`core/markdownInlineFormatting.js` plans marker toggles, portable backtick
+delimiters, link insertion, and the post-edit selection from plain source
+ranges. The Markdown-only keymap in `editor.js` applies each plan as one
+CodeMirror transaction. `core/globalShortcutModel.js` keeps the application
+sidebar on Ctrl/Cmd+Shift+B so the global adapter cannot intercept the
+Markdown Bold chord. The same case-normalized resolver distinguishes
+Ctrl/Cmd+F document Find, Ctrl/Cmd+Shift+F global search, Ctrl/Cmd+N Quick
+Note, and Ctrl/Cmd+Shift+N daily note. `app.js` consumes those application
+commands in the capture phase before a focused CodeMirror control can perform
+a competing default action.
 
 Vim clipboard integration separates policy from browser effects. The pure
 `frontend/js/core/vimClipboardModel.js` chooses OS text versus the unnamed
@@ -1148,7 +1236,10 @@ generated seam; changing only the root npm resolution would leave the packaged
 runtime unchanged. Because Markdown-It 15 no longer distributes a browser UMD
 file, the vendor adapter bundles its locked ESM default export into the
 `globalThis.markdownit` compatibility boundary used by both the classic page
-script and print worker. The repository's Babel 8 transform configuration is a
+script and print worker. The canonical renderer also owns the print-only
+horizontal-rule policy: a parsed body `---` token receives the authored
+page-break hooks, while frontmatter stripping and Markdown-It's Setext parsing
+keep metadata delimiters and heading underlines out of that rule. The repository's Babel 8 transform configuration is a
 development-only boundary; the generated desktop browser assets do not ship
 Babel, and Jest's isolated internal Babel 7 copy is not part of that runtime.
 Jest 30's current-Node syntax preset is linked to the reviewed compatibility
@@ -1354,18 +1445,24 @@ link interaction.
 `pdfExport.js` builds one semantic printable HTML contract used by both the
 preview and the final browser export. It owns generated cover pages, tables of
 contents, callouts, footnotes, task lists, code highlighting, and diagram
-replacement. `core/printableCodeHighlight.js` makes the effect-free decision
+replacement. The canonical Markdown-It configuration marks only a parsed body
+`---` horizontal-rule token with the invisible authored page-break hooks;
+frontmatter stripping and Setext parsing occur before that renderer rule, and
+the other thematic-rule spellings remain ordinary `hr` elements.
+`core/printableCodeHighlight.js` makes the effect-free decision
 about an explicit fence language versus automatic detection through an injected
 highlighter; the printable DOM adapter applies the returned escaped token markup
 after either worker or in-thread Markdown parsing. It reuses the eagerly loaded
 editor highlighter, then emits `.figaro-print-code`, `data-highlight-language`,
 and highlight.js-compatible token classes before diagram fences are replaced.
-`core/printableTableModel.js` separately plans the deterministic, printable-only
-vertical merge convention for anchored `^` data cells. The DOM adapter in
-`markdownTableRenderer.js` applies that same pure plan to the live semantic table
-and converts portable `<br>` cell markers into real break elements while
-skipping code spans. `pdfExport.js` uses the same DOM adapter, so the source
-remains rectangular Markdown and no second table-editing model is required.
+`core/printableTableModel.js` separately plans the deterministic anchored `^`
+vertical-merge convention. `core/markdownTableEditorModel.js` parses and strips
+Figaro's adjacent rectangular-merge comments before visible Markdown rendering.
+The DOM adapter in `markdownTableRenderer.js` applies both plans to the live
+semantic table and converts portable `<br>` cell markers into real break
+elements while skipping code spans. `pdfExport.js` uses the same adapter and
+merge plan, so PDF Preview and generated PDFs preserve modal-authored spans
+without displaying private metadata.
 The preview adds only screen geometry and a selected stylesheet; the final
 export uses the same body and default print CSS.
 

@@ -104,6 +104,28 @@ test('keeps Find and Replace on three compact, non-overlapping bands', async ({ 
     ))).toContain('# WELCOME');
 });
 
+test('routes real Find, global search, and Quick Note key events to distinct application actions', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const editor = page.locator('.cm-content');
+    const globalSearch = page.locator('#global-search-input');
+
+    await editor.focus();
+    await page.keyboard.press('Control+Shift+F');
+    await expect(globalSearch).toBeFocused();
+    await expect(page.locator('.cm-panel.cm-search')).toHaveCount(0);
+
+    await editor.focus();
+    await page.keyboard.press('Control+F');
+    await expect(page.locator('.cm-panel.cm-search')).toBeVisible();
+    await expect(globalSearch).not.toBeFocused();
+    await page.keyboard.press('Escape');
+
+    await editor.focus();
+    await page.keyboard.press('Control+N');
+    await expect(page.locator('.tab[data-tab-id="Inbox/Quick-note.md"]')).toBeVisible();
+    await expect(page.locator('.cm-content')).toBeFocused();
+});
+
 test('keeps Ctrl+wheel text scale on the open buffer and resets it to the Settings default', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.locator('#topbar-settings').click();
@@ -430,6 +452,23 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
 
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.settings-panel-tab')).toBeVisible();
+    await expect(page.locator('.settings-view-title')).toBeFocused();
+    await expect(page.locator('.settings-card > h2.settings-card-title')).toHaveCount(7);
+
+    const codeFont = page.locator('#code-font-picker-btn');
+    await codeFont.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(codeFont).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#code-font-picker-menu')).toHaveAttribute('role', 'listbox');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#code-font-current-name')).toHaveText('JetBrains Mono');
+    await expect(codeFont).toHaveAttribute('aria-expanded', 'false');
+    await codeFont.press('ArrowDown');
+    await codeFont.press('Tab');
+    await expect(codeFont).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('#font-size-down')).toBeFocused();
+
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.cm-editor')).toBeVisible();
 
@@ -442,6 +481,94 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
         const state = await import('/js/state.js');
         return state.getState('openTabs').find(tab => tab.id === 'Welcome.md').cursorState;
     })).toEqual(expectedCursor);
+});
+
+test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and drag selection', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = 'Above\n- [ ] Review **release** notes\nBelow';
+    await page.evaluate(async value => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(value, 'Welcome.md');
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== value) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+        window.__taskCheckboxView = view;
+    }, source);
+
+    let checkbox = page.locator('.cm-task-checkbox');
+    const hitbox = page.locator('.cm-task-checkbox-hitbox');
+    await expect(checkbox).toHaveAttribute('aria-label', 'Mark “Review release notes” complete');
+    const hitboxSize = await hitbox.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+    });
+    expect(hitboxSize.width).toBeGreaterThanOrEqual(24);
+    expect(hitboxSize.height).toBeGreaterThanOrEqual(24);
+
+    await checkbox.focus();
+    await page.keyboard.press('Space');
+    await expect.poll(() => page.evaluate(() => window.__taskCheckboxView.state.doc.toString()))
+        .toBe('Above\n- [x] Review **release** notes\nBelow');
+    checkbox = page.locator('.cm-task-checkbox');
+    await expect(checkbox).toBeFocused();
+    await expect(checkbox).toHaveAttribute('aria-label', 'Mark “Review release notes” incomplete');
+
+    const paddingPoint = await page.locator('.cm-task-checkbox-hitbox').evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return { x: rect.left + 2, y: rect.top + rect.height / 2 };
+    });
+    await page.mouse.click(paddingPoint.x, paddingPoint.y);
+    await expect.poll(() => page.evaluate(() => window.__taskCheckboxView.state.doc.toString())).toBe(source);
+
+    await page.evaluate(() => {
+        const view = window.__taskCheckboxView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+        view.focus();
+    });
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => (
+        window.__taskCheckboxView.state.doc.lineAt(window.__taskCheckboxView.state.selection.main.head).number
+    ))).toBe(2);
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => (
+        window.__taskCheckboxView.state.doc.lineAt(window.__taskCheckboxView.state.selection.main.head).number
+    ))).toBe(3);
+    await page.evaluate(() => {
+        const view = window.__taskCheckboxView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        view.focus();
+    });
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => (
+        window.__taskCheckboxView.state.doc.lineAt(window.__taskCheckboxView.state.selection.main.head).number
+    ))).toBe(2);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => (
+        window.__taskCheckboxView.state.doc.lineAt(window.__taskCheckboxView.state.selection.main.head).number
+    ))).toBe(1);
+
+    const drag = await page.evaluate(() => {
+        const view = window.__taskCheckboxView;
+        view.dispatch({ selection: { anchor: view.state.doc.line(3).to } });
+        const point = position => {
+            const rect = view.coordsAtPos(position);
+            return { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+        };
+        return {
+            start: point(view.state.doc.line(1).from + 1),
+            end: point(view.state.doc.line(3).to - 1),
+            finalLineStart: view.state.doc.line(3).from,
+        };
+    });
+    await page.mouse.move(drag.start.x, drag.start.y);
+    await page.mouse.down();
+    await page.mouse.move(drag.end.x, drag.end.y, { steps: 8 });
+    await page.mouse.up();
+    const selection = await page.evaluate(() => window.__taskCheckboxView.state.selection.main);
+    expect(selection.from).toBeLessThanOrEqual(1);
+    expect(selection.to).toBeGreaterThanOrEqual(drag.finalLineStart);
 });
 
 test('folds nested Markdown block guides without breaking cursor or drag-selection geometry', async ({ page }) => {

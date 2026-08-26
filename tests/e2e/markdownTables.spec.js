@@ -75,13 +75,12 @@ test('renders GFM tables as source-preserving semantic previews', async ({ page 
     expect(await page.evaluate(() => window.__markdownTableTestView.state.doc.toString()))
         .toBe(tableSource);
 
-    await page.evaluate(source => {
-        const view = window.__markdownTableTestView;
-        view.dispatch({ selection: { anchor: source.indexOf('Alpha') } });
-        view.focus();
-    }, tableSource);
+    await widget.locator('tbody tr:first-child td:nth-child(2)').click();
     await expect(widget).toHaveCount(0);
     await expect(page.locator('.cm-content')).toContainText('| **Alpha** | first<br/>second | `<br/>` |');
+    expect(await page.evaluate(source => window.__markdownTableTestView.state.selection.main.head === (
+        source.indexOf('first<br/>second')
+    ), tableSource)).toBe(true);
 
     const sourceLine = await page.evaluate(() => {
         const view = window.__markdownTableTestView;
@@ -167,6 +166,67 @@ test('renders GFM tables as source-preserving semantic previews', async ({ page 
     await surface.locator('thead th').first().click();
     await expect(widget).toHaveCount(0);
     await expect(page.locator('.cm-content')).toContainText('| Alpha | one<br/>two');
+});
+
+test('edits a table transactionally without turning an ordinary cell click into a range', async ({ page }) => {
+    await createMarkdownEditor(page, compactTableSource);
+    const original = compactTableSource;
+    await page.locator('.markdown-table-editor-guide').click();
+
+    const modal = page.locator('.markdown-table-editor-modal');
+    await expect(modal).toBeVisible();
+    const toolbarRows = modal.locator('.markdown-table-editor-toolbar-row');
+    await expect(toolbarRows).toHaveCount(2);
+    await expect(modal.locator('.markdown-table-editor-undo svg')).toHaveCount(1);
+    await expect(modal.locator('.markdown-table-editor-danger-group .ui-button--danger-ghost')).toHaveCount(2);
+    const toolbarGeometry = await toolbarRows.evaluateAll(rows => rows.map(row => row.getBoundingClientRect().top));
+    expect(toolbarGeometry[1]).toBeGreaterThan(toolbarGeometry[0]);
+    const firstBodyCell = modal.locator('[aria-label="Cell A2"]');
+    await firstBodyCell.click({ position: { x: 34, y: 12 } });
+    await expect(modal.locator('.markdown-table-editor-status')).toHaveText('Editing A2');
+    expect(await firstBodyCell.evaluate(cell => cell.selectionStart)).toBeGreaterThan(0);
+    await expect(modal.locator('.markdown-table-editor-merge')).toBeDisabled();
+
+    await page.keyboard.down('Shift');
+    await firstBodyCell.hover();
+    await page.mouse.down();
+    await modal.locator('[aria-label="Cell B2"]').hover();
+    await page.mouse.up();
+    await page.keyboard.up('Shift');
+    await expect(modal.locator('.markdown-table-editor-status')).toHaveText('2 cells selected');
+    await expect(modal.locator('.markdown-table-editor-merge')).toBeEnabled();
+    await modal.locator('.markdown-table-editor-merge').click();
+    await expect(modal.locator('.markdown-table-editor-split')).toBeEnabled();
+    await modal.locator('.markdown-table-editor-source-toggle').click();
+    const markdown = modal.locator('.markdown-table-editor-source');
+    await expect(markdown).toHaveJSProperty('readOnly', true);
+    await expect(markdown).toHaveValue(/figaro:table-merge A2:B2/);
+    await modal.locator('.markdown-table-editor-split').click();
+
+    await modal.locator('[aria-label="Cell A2"]').fill('Changed');
+    await modal.locator('.markdown-table-editor-apply').click();
+    await expect(modal).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => window.__markdownTableTestView.state.doc.toString()))
+        .toContain('| Changed | 2 |');
+
+    expect(await page.evaluate(async () => {
+        const { undo } = await import('/vendored/codemirror/commands/index.js');
+        return undo(window.__markdownTableTestView);
+    })).toBe(true);
+    await expect.poll(() => page.evaluate(() => window.__markdownTableTestView.state.doc.toString()))
+        .toBe(original);
+
+    await page.evaluate(() => {
+        const view = window.__markdownTableTestView;
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+    });
+    await page.locator('.markdown-table-editor-guide').click();
+    const reopened = page.locator('.markdown-table-editor-modal');
+    const headerColor = await reopened.locator('th').first().evaluate(cell => getComputedStyle(cell).backgroundColor);
+    const bodyColor = await reopened.locator('td').first().evaluate(cell => getComputedStyle(cell).backgroundColor);
+    expect(headerColor).not.toBe(bodyColor);
+    await reopened.locator('.markdown-table-editor-cancel').click();
 });
 
 test('keeps the same GFM table semantics in PDF preview and generated PDF layout', async ({ page }) => {

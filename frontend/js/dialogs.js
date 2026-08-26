@@ -329,6 +329,7 @@ export function tableConversionDialog(sourceText) {
                                 <option value="auto">Detect automatically</option>
                                 <option value="tab">Tab</option>
                                 <option value="comma">Comma</option>
+                                <option value="semicolon">Semicolon</option>
                                 <option value="pipe">Pipe</option>
                             </select>
                         </label>
@@ -339,12 +340,12 @@ export function tableConversionDialog(sourceText) {
                     </div>
                     <p class="table-conversion-summary" aria-live="polite"></p>
                     <pre class="table-conversion-preview" tabindex="0" aria-label="Markdown table preview"></pre>
-                    <p class="custom-modal-error table-conversion-error" role="alert" hidden></p>
+                    <p id="${id}-validation" class="custom-modal-error table-conversion-error" role="alert" hidden></p>
                 </form>
             `,
             footer: `
                 <button type="button" class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                <button type="submit" form="${id}-form" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Convert</button>
+                <button type="submit" form="${id}-form" class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm" aria-describedby="${id}-validation" disabled>Convert</button>
             `,
         });
         const form = overlay.querySelector('form');

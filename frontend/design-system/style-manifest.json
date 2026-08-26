@@ -18,6 +18,7 @@
     "styles/features/settings.css",
     "styles/features/link-hover.css",
     "styles/features/embedded-widgets.css",
+    "styles/features/markdown-table-editor.css",
     "styles/features/mermaid-editor.css",
     "styles/overrides.css",
     "design-system/primitives.css",

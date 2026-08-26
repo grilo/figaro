@@ -470,6 +470,21 @@ describe('Tab Manager', () => {
                 'Vault care',
                 'About',
             ]);
+            expect([...grid.querySelectorAll('.settings-card-title')]
+                .every(title => title.tagName === 'H2')).toBe(true);
+        });
+
+        test('moves focus into the semantic Settings view when activated', async () => {
+            openTab('settings', 'Settings', 'settings');
+            await testUtils.waitFor(0);
+
+            const heading = document.querySelector('.settings-view-title');
+            expect(heading).toBeInstanceOf(HTMLHeadingElement);
+            expect(heading.textContent).toBe('Settings');
+            expect(heading.tabIndex).toBe(-1);
+            expect(document.activeElement).toBe(heading);
+            expect(document.querySelector('.settings-grid').getAttribute('aria-labelledby'))
+                .toBe(heading.id);
         });
 
         test('renders the three enabled-by-default Markdown navigation controls with accessible descriptions', () => {

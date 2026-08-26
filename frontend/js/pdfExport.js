@@ -12,6 +12,10 @@ import { createPrintMarkdownRenderer } from '../vendored/markdown-it-plugins/ind
 import { highlightCode } from '../vendored/codemirror-live-markdown/index.js';
 import { planPrintableCodeHighlight } from './core/printableCodeHighlight.js';
 import { decorateMarkdownTables } from './markdownTableRenderer.js';
+import {
+    markdownTableMergePlans,
+    stripMarkdownTableMergeMetadata,
+} from './core/markdownTableEditorModel.js';
 import { getEditorContent } from './editor.js';
 
 const defaultPrintCSS = `
@@ -54,6 +58,7 @@ const defaultPrintCSS = `
   a { color: #0969da; }
   hr { border: 0; border-top: 1px solid #d0d7de; margin: 1.5em 0; }
   .figaro-print-page-break { break-after: page; page-break-after: always; }
+  hr.figaro-print-authored-page-break { height: 0; margin: 0; border: 0; }
   .figaro-print-cover { min-height: 70vh; display: grid; place-items: center; box-sizing: border-box; padding: 24mm 12mm; text-align: center; }
   .figaro-print-cover-inner { max-width: 680px; }
   .figaro-print-cover-kicker { margin: 0 0 1.2em; color: #57606a; font-size: .72em; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
@@ -161,7 +166,7 @@ function decoratePrintCallouts(container) {
     }
 }
 
-function renderMarkdownBodyFromRendered(rendered) {
+function renderMarkdownBodyFromRendered(rendered, markdown = '') {
     if (typeof document === 'undefined') return { body: rendered, headings: [] };
 
     const template = document.createElement('template');
@@ -180,7 +185,7 @@ function renderMarkdownBodyFromRendered(rendered) {
         code.innerHTML = plan.html;
     }
     decoratePrintCallouts(template.content);
-    decorateMarkdownTables(template.content);
+    decorateMarkdownTables(template.content, { mergePlans: markdownTableMergePlans(markdown) });
     const headings = [];
     template.content.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(element => {
         const text = element.textContent.trim();
@@ -229,7 +234,7 @@ function renderTableOfContents(headings, depth, includePageNumbers = false) {
 }
 
 export function renderPrintableMarkdownFromRendered(markdown, title = 'Document', rendered = '') {
-    const { body, headings } = renderMarkdownBodyFromRendered(rendered);
+    const { body, headings } = renderMarkdownBodyFromRendered(rendered, markdown);
     const cover = renderCoverPage(markdown, title);
     const includePageNumbers = pageNumbersEnabled(markdown);
     const toc = renderTableOfContents(
@@ -260,7 +265,11 @@ export function renderPrintableMarkdown(markdown, title = 'Document') {
     // Properties are editor metadata rather than document body content. Keep
     // them out of the PDF while still using them to configure the stylesheet.
     const markdownBody = stripLeadingFrontmatter(markdown);
-    return renderPrintableMarkdownFromRendered(markdown, title, renderer.render(markdownBody));
+    return renderPrintableMarkdownFromRendered(
+        markdown,
+        title,
+        renderer.render(stripMarkdownTableMergeMetadata(markdownBody)),
+    );
 }
 
 function diagramLanguageFromCodeElement(codeElement) {

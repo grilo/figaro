@@ -110,7 +110,27 @@
 
 /* Live Preview widgets (bullets, checkboxes) */
 .cm-bullet { color: var(--text-muted); font-weight: 700; margin-right: 2px; user-select: none; }
-.cm-task-checkbox { accent-color: var(--accent-color); cursor: pointer; margin-right: 4px; vertical-align: middle; }
+.cm-task-checkbox-hitbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 24px;
+    block-size: 24px;
+    margin-inline-end: 2px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+.cm-task-checkbox {
+    inline-size: 15px;
+    block-size: 15px;
+    margin: 0;
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+.cm-task-checkbox:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
 
 /* Live Preview formatting mark hiding (used by codemirror-live-markdown) */
 .cm-formatting-inline {

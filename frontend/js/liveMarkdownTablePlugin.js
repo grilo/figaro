@@ -10,6 +10,8 @@ import { renderMarkdownTable } from './markdownTableRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { markSourceFootprint } from './sourceFootprint.js';
 import { tablePreviewOwnsInteraction } from './core/tablePreviewInteractionModel.js';
+import { markdownTableCellCursorOffset } from './core/markdownTableEditing.js';
+import { markdownTableMetadataEnd } from './core/markdownTableEditorModel.js';
 
 function tableSourceLines(state, from, to) {
     return state.doc.lineAt(to).number - state.doc.lineAt(from).number + 1;
@@ -53,17 +55,61 @@ function protectTablePreviewScrolling(root) {
     }
 }
 
+/** Map primary clicks and drags that start in a rendered cell back to source. */
+export function renderedTableCellMouseSelection(view, event, EditorSelection) {
+    if (event?.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return null;
+    const cell = event.target?.closest?.('th[data-figaro-source-row], td[data-figaro-source-row]');
+    const root = cell?.closest?.('.cm-block-widget--table');
+    const from = Number(root?.dataset.tableFrom);
+    const to = Number(root?.dataset.tableTo);
+    if (!cell || !Number.isInteger(from) || !Number.isInteger(to) || to < from) return null;
+
+    const source = view.state.sliceDoc(from, to);
+    const offset = markdownTableCellCursorOffset(
+        source,
+        Number(cell.dataset.figaroSourceRow),
+        Number(cell.dataset.figaroSourceColumn),
+    );
+    if (!Number.isInteger(offset)) return null;
+
+    let anchor = from + offset;
+    const originX = Number(event.clientX) || 0;
+    const originY = Number(event.clientY) || 0;
+    return {
+        get(currentEvent) {
+            let head = anchor;
+            const moved = currentEvent !== event && (
+                Math.abs((Number(currentEvent?.clientX) || 0) - originX) > 2
+                || Math.abs((Number(currentEvent?.clientY) || 0) - originY) > 2
+            );
+            if (moved) {
+                const position = view.posAtCoords({
+                    x: Number(currentEvent.clientX) || 0,
+                    y: Number(currentEvent.clientY) || 0,
+                });
+                if (Number.isInteger(position)) head = position;
+            }
+            return EditorSelection.single(anchor, head);
+        },
+        update(update) {
+            if (update.docChanged) anchor = update.changes.mapPos(anchor);
+        },
+    };
+}
+
 /** Return top-level GFM table ranges from CodeMirror's Markdown syntax tree. */
 export function scanMarkdownTables(state) {
     const tree = ensureSyntaxTree(state, state.doc.length) || syntaxTree(state);
     const tables = [];
+    const documentSource = state.doc.toString();
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
         if (node.name !== 'Table') continue;
+        const to = markdownTableMetadataEnd(documentSource, node.to);
         tables.push({
             from: node.from,
-            to: node.to,
-            source: state.sliceDoc(node.from, node.to),
-            sourceLines: tableSourceLines(state, node.from, node.to),
+            to,
+            source: state.sliceDoc(node.from, to),
+            sourceLines: tableSourceLines(state, node.from, to),
         });
     }
     return tables;
@@ -71,16 +117,20 @@ export function scanMarkdownTables(state) {
 
 function createMarkdownTableWidget(WidgetType) {
     return class MarkdownTableWidget extends WidgetType {
-        constructor(source, sourceLines) {
+        constructor(source, sourceLines, from, to) {
             super();
             this.source = source;
             this.sourceLines = sourceLines;
+            this.from = from;
+            this.to = to;
         }
 
         eq(other) {
             return other instanceof MarkdownTableWidget
                 && other.source === this.source
-                && other.sourceLines === this.sourceLines;
+                && other.sourceLines === this.sourceLines
+                && other.from === this.from
+                && other.to === this.to;
         }
 
         toDOM(view) {
@@ -90,6 +140,8 @@ function createMarkdownTableWidget(WidgetType) {
             surface.setAttribute('aria-label', 'Rendered Markdown table');
 
             const wrapper = wrapBlockWidget(surface, 'cm-block-widget--table');
+            wrapper.dataset.tableFrom = String(this.from);
+            wrapper.dataset.tableTo = String(this.to);
             protectTablePreviewScrolling(wrapper);
             markSourceFootprint(wrapper, {
                 kind: 'table',
@@ -145,6 +197,7 @@ export function createMarkdownTableField(
     WidgetType,
     shouldShowSource,
     mouseSelectingField,
+    EditorSelection,
 ) {
     const MarkdownTableWidget = createMarkdownTableWidget(WidgetType);
 
@@ -160,7 +213,7 @@ export function createMarkdownTableField(
                 || shouldShowSource(state, block.from, block.to)
                 || sourceRangeIsFolded(state, block)) continue;
             decorations.push(Decoration.replace({
-                widget: new MarkdownTableWidget(block.source, block.sourceLines),
+                widget: new MarkdownTableWidget(block.source, block.sourceLines, block.from, block.to),
                 block: true,
             }).range(block.from, block.to));
         }
@@ -173,7 +226,7 @@ export function createMarkdownTableField(
         };
     };
 
-    return StateField.define({
+    const field = StateField.define({
         create: buildState,
         update(value, transaction) {
             if (transaction.docChanged || transaction.reconfigured) {
@@ -195,4 +248,8 @@ export function createMarkdownTableField(
         },
         provide: field => EditorView.decorations.from(field, value => value.decorations),
     });
+    const cellSelection = EditorView.mouseSelectionStyle.of((view, event) => (
+        renderedTableCellMouseSelection(view, event, EditorSelection)
+    ));
+    return [field, cellSelection];
 }

@@ -402,7 +402,10 @@ adoption, dynamic updates, iframe-name preservation, hover/focus/Escape and
 `aria-describedby` lifecycle, disabled-toggle label delegation, and pure
 viewport placement.
 
-The Calendar cache component test holds the month port unresolved to prove that
+The Calendar wheel model owns vertical-direction, high-resolution accumulation,
+direction-reset, modifier, and horizontal-gesture policy. The Calendar cache
+component test proves that grid wheel input changes the visible month and is
+prevented, while selected-day result wheel input remains native. It also holds the month port unresolved to prove that
 the shared skeleton appears synchronously with locale-shaped row geometry,
 accessible busy status, successful response replacement, and no same-month cache
 flash. It also owns the session-selection contract: the first panel opening
@@ -427,6 +430,15 @@ dismissal, and dark/light computed paint from the canonical tokens. Do not loop
 all 18 themes through Playwright; the unit contract already proves
 manifest-to-file coverage, while one real stylesheet switch proves the browser
 mechanism.
+
+The Theme, Font, and Code Font controls reuse the approved picker paint but
+have their own shared controller. `pickerModel.test.js` owns the deterministic
+arrow/Home/End/Enter/Space/Escape/Tab plan; `settingsPicker.test.js` owns the
+labelled combobox/listbox DOM, active descendant, announced selection, pointer
+choice, and close behavior. The catalogue component test proves its Appearance
+specimen is wired to that production controller. `editorUX.spec.js` keeps one
+actual Settings path for focus entry, semantic headings, keyboard selection,
+and normal Tab continuation.
 
 The existing Figaro-theme browser scenario also owns CRT Phosphor's exact
 palette, vignette and scan-line layers, five-minute animation duration,
@@ -468,6 +480,11 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   persistence, Kanban presentation/loading and keyboard-order states,
   file-tree actions and roving keyboard-tree states, and
   stale-response guards.
+- Application shortcut coverage splits the case-normalized decision from the
+  capture-phase DOM effects: the pure model distinguishes local Find, global
+  search, Quick Note, daily note, and sidebar commands; one browser scenario
+  sends real shifted and unshifted key events and observes each user-visible
+  destination without synthetic lowercase-key assumptions.
 - Pure and component coverage for tab-reorder planning and drag thresholds,
   application-wide selection suppression during the active gesture, cleanup
   after drop and cancellation, pin-group boundaries, tab-overflow direction,
@@ -487,7 +504,11 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   Mermaid, Vega, and Vega-Lite in the PDF export pipeline; focused printable
   renderer coverage also proves that CodeMirror table `<br>` markers become
   real breaks and anchored `^` markers become vertical row spans without
-  rewriting source.
+  rewriting source. The same renderer coverage proves that only a parsed body
+  `---` thematic break becomes an authored PDF page break: frontmatter and
+  Setext headings remain structural, and `***` / `___` remain visible rules.
+  The consolidated browser case carries one authored break through the real
+  vendored renderer used by preview/export.
 - Dependency security coverage for patched root lockfile entries and embedded
   packages that `npm audit` cannot see. Mermaid's actual browser bundle remains
   behind a pure pre-parse size and ordered-map policy until its embedded YAML
@@ -497,7 +518,10 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   phosphor reading surfaces, contiguous active tab, shared single-pixel
   file-tree/tab boundary, current-document tree selection, tactile Settings
   card, focus token, text/link contrast, and at
-  least 4.5:1 rendered contrast for Home's small muted instructions. Native
+  least 4.5:1 rendered contrast for Home's small muted instructions. Figaro
+  Dark additionally holds dim and muted tokens against the conservative hover
+  surface plus the application-status text at 4.5:1 or above. The debug shell
+  must load the real manifest and theme CSS before these computed checks. Native
   Dark/Light coverage additionally compares computed titlebar/file-tree and
   editor/gutter/buffer-status colors, proves the internal sidebar, tab, workspace, and
   status borders are transparent, and keeps only the subtle tools divider and
@@ -638,6 +662,10 @@ date to a compact one-result date must leave the panel height and grid position 
 At a 1440x900 workspace, also populate one due task and one linked note and
 assert that both headings and rows remain fully visible above the fixed sidebar
 tools; this is the browser-only geometry behind the README capture.
+The same assembled sidebar workflow must close Calendar, pause its real CSS
+transform halfway, and prove that the visible panel has moved downward before
+the delayed visibility transition hides it; reduced-motion duration remains
+owned by the shared motion tokens.
 Select a date with no results separately and verify
 that its guidance uses the Calendar font family, compact 12px/18px type, muted
 theme color, and deliberate spacing instead of inherited application body text.
@@ -1048,7 +1076,7 @@ npx playwright test tests/e2e/editorUX.spec.js --grep 'Ctrl\+wheel text scale'
 ```
 
 Markdown block guides add their own focused matrix. Pure coverage must prove
-that only headings, fenced code, and tables receive guides; typed fences use a
+that only headings, fenced code, tables, and standalone local Draw.io images receive guides; typed fences use a
 bounded normalized language label; untyped fences use `code`; frontmatter and
 every omitted block stay quiet; and parent/child/peer heading plus fence/table
 ranges remain exact. The real CodeMirror component must exercise editor-sized,
@@ -1070,6 +1098,12 @@ there is no right action gutter and that the Mermaid wrapper does not reserve an
 action lane. Fold and expand an H1 containing that wider guide and assert that
 the before-gutter width, helper-rail width, content left edge, and source-line left
 edge remain unchanged. A
+Draw.io component case must exercise the `drawio` / `editor` stack, direct
+editor callback, whole-image folding and expansion, unchanged Markdown, and
+Arrow Up/Down traversal in both directions. The browser image boundary must
+also open the actual Draw.io tab from `editor`, then delete the referenced path
+signal and prove that the preview disappears despite a previous successful
+image load.
 rendered Mermaid block must yield its replacement to
 the native fold placeholder when its left guide is activated, retain Arrow
 Up/Down, mouse placement, and drag selection across that row, and restore the
@@ -1107,7 +1141,7 @@ and wrapped display-row motion after the first diagnostics transaction, while
 the parser loop verifies every bundled template.
 
 The interactive-table browser contract also owns the shared helper-rail action
-placement boundary. It must prove that `delete` remains beneath `table`, stays
+placement boundary. It must prove that `editor` and `delete` remain beneath `table`, stay
 outside the grid on every sampled frame while Document Outline changes editor
 width, moves above the grid rather than beneath the sidebar when the measured
 left margin is too narrow, adopts destructive styling only on hover/focus, and
@@ -1161,50 +1195,74 @@ npx playwright test tests/e2e/editorUX.spec.js --grep "folds nested Markdown blo
 Rendered GFM tables add a source-reveal cursor matrix. Unit and CodeMirror
 component tests must prove that CodeMirror's Markdown parser identifies the
 table, that an unfocused range becomes one semantic `.cm-live-table`, and that
-selecting or moving into the range reveals the byte-exact source without a
-nested editor. Exercise Arrow Up/Down, Vim motions, mouse placement, and
-bidirectional drag selection at the source range's edges; ordinary history,
-search, prompts, and paste must remain root-editor behavior. The rendered
-surface must also preserve inline GFM formatting and alignment, use the compact
-full-width table density, convert
-portable `<br>` markers while skipping code spans, apply anchored bare `^`
-cells as vertical row spans, and leave unanchored carets literal. Keep the
-focused checks in
-`tests/frontend/unit/markdownTables.test.js`,
-`tests/frontend/unit/printableTableModel.test.js`, and
-`tests/e2e/markdownTables.spec.js`.
-The pure `tablePreviewInteractionModel.test.js` event-policy matrix
-distinguishes wheel/touch, surface/scrollbar, and cell-content pointer
-ownership, including wheel passthrough when neither axis overflows, while
-`markdownTables.test.js` covers the DOM adapter and semantic
-renderer. The browser workflow creates a grid taller
-than its measured source slot, proves real wheel scrolling changes only the
-preview's `scrollTop`, presses the computed native scrollbar strip without
-unmounting the table or moving the root caret, and finally clicks a cell to
-prove source reveal remains available. Native track paging itself is
-platform-owned and may not advance from a synthetic Chromium track click.
-The browser spec must additionally prove that the approved destructive
-`delete` guide action removes the complete table, retains root editor focus,
-and restores the byte-exact pre-delete source with one Undo. There is no
-third-party table-editor module to map or vendor.
+selecting or moving into the range reveals byte-exact source without a nested
+replacement-widget editor. Exercise Arrow Up/Down, Vim motions, mouse
+placement, and bidirectional drag selection at the source range's edges;
+ordinary history, search, prompts, and paste remain root-editor behavior. The
+rendered surface must preserve inline GFM formatting and alignment, compact
+full-width density, `<br>` outside code spans, anchored bare `^` vertical
+merges, and editor-authored rectangular merges in both live and printable
+output.
+
+The pure `tablePreviewInteractionModel.test.js` event-policy matrix owns
+wheel/touch, surface/scrollbar, and cell-content pointer ownership.
+`markdownTableEditing.test.js` owns exact row/cell parsing, escaped-pipe
+preservation, and rendered-cell-to-source offsets.
+`markdownTableEditorModel.test.js` owns draft serialization, ordinary focus
+versus held range selection, merge/split caching, metadata stripping, and
+span-aware row/column guards. `markdownTableEditor.test.js` owns the two-row
+labelled-icon toolbar, grouped danger actions, accessible cell names, ordinary
+native pointer ownership, Shift-click/Shift-drag selection, contextual
+disabled tooltips, read-only source, local history, one Apply dispatch, and
+dirty Escape confirmation.
+`markdownTableEditorGuide.test.js` owns the three-action guide and complete
+table-plus-metadata deletion. `markdownTables.test.js` covers the semantic DOM
+adapter, exact source reveal, rectangular rendering, and the absence of legacy
+table commands from the ordinary right-click menu.
+
+The browser workflow creates an overflowing grid, proves real wheel and native
+scrollbar interaction leave the root selection intact, clicks a rendered cell,
+and exercises Arrow Down/Up around revealed source. It also opens the modal,
+proves an ordinary click retains native textarea caret placement without a
+cell-range announcement, uses a real Shift-drag for Merge/Split, checks the header
+tint and read-only source, applies one transaction, and undoes it once through
+root CodeMirror history. Native track paging is platform-owned and may not
+advance from synthetic Chromium input. Packaged WebKitGTK, WebView2, and
+WKWebView checks remain required after changes to table/source cursor geometry.
+There is no third-party table-editor module to map or vendor.
+
+Conventional formatting belongs below the browser boundary.
+`markdownInlineFormatting.test.js` owns marker toggle, inline-code delimiter,
+link-caret, and empty-selection plans; `markdownFormattingEditor.test.js`
+dispatches all five real CodeMirror chords, proves one Undo, and repeats Arrow
+Up/Down plus selection across the formatted line. The pure global-shortcut
+test proves unshifted Ctrl/Cmd+B remains available to Bold while
+Ctrl/Cmd+Shift+B owns the sidebar. The help-popup component test must list the
+same bindings. No Playwright scenario is needed for these deterministic keymap
+transactions.
 
 For tab or workspace-view work, retain a browser regression that places a
 nonzero file selection, opens and closes Settings, and verifies the exact
 anchor/head pair plus the file tab's saved cursor state. Unit coverage must
 also assert that the portable session serializes the current per-file range.
 
-Table creation and conversion share that contract. Retain focused coverage
-that `|` on an otherwise empty line offers the supported sizes and accepts the
-choice, selection conversion previews delimiter/header changes and cancels
-without editing, and one confirmation produces one undoable transaction.
+Table conversion retains focused component coverage: selection conversion
+previews delimiter/header changes and cancels without editing, invalid input
+exposes its validation message with an ordinary disabled (not busy)
+confirmation, and one valid confirmation produces one undoable transaction.
 Keyboard paste and the editor's existing Paste menu must convert clear
-spreadsheet HTML, TSV, pipe-delimited text, and unambiguous CSV while ordinary
-text passes through unchanged. Existing GFM must retain its separator and
+Excel/LibreOffice HTML tables, explicit TSV, and explicit comma- or
+semicolon-separated CSV. Plain tab, pipe, comma, or semicolon text must pass
+through with fewer than three rows and convert only when at least three rows
+have the same rectangular shape. Quoted delimiters, escaped quotes, European
+decimal commas, ragged rows, and equally plausible comma/semicolon dialects
+belong to the pure parser matrix. Existing GFM must retain its separator and
 alignment while gaining safe block boundaries so adjacent prose cannot become
-a table row. Keep pure parsing and clipboard coverage in
-`tests/frontend/unit/markdownTableConversion.test.js` and the real completion,
-paste, context-menu, cursor, mouse, preview, and PDF workflow in
-`tests/e2e/markdownTables.spec.js`.
+a table row. Keep pure parsing and clipboard-event coverage in
+`tests/frontend/unit/markdownTableConversion.test.js`, dialog behavior in
+`tests/frontend/unit/dialogs.test.js`, editor menu/cursor/mouse behavior in
+`tests/frontend/unit/markdownTables.test.js`, and only real layout plus
+printable-browser boundaries in `tests/e2e/markdownTables.spec.js`.
 
 ## Smart rich paste regressions
 
@@ -1253,8 +1311,9 @@ test must dispatch a real `ClipboardEvent` through CodeMirror, load the saved
 relative image, verify the cursor remains on adjacent source lines, and render
 the same image through PDF preview and a generated PDF. The same spec also owns
 the missing-image 404 geometry/theme matrix described in the block-widget
-contract above; this is a computed-style and pointer-selection boundary rather
-than a second persistence workflow.
+contract above, plus the missing-Draw.io action's real pointer-to-tab boundary;
+these are computed-style and pointer-selection checks rather than duplicate
+persistence workflows.
 
 Run the focused contract with:
 
@@ -1262,8 +1321,14 @@ Run the focused contract with:
 go test . -run 'TestSaveClipboardImage'
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/clipboardImage.test.js \
+  tests/frontend/unit/createDrawioImage.test.js \
+  tests/frontend/unit/drawioImageCreationModel.test.js \
+  tests/frontend/unit/drawioImageGuide.test.js \
   tests/frontend/unit/editor.test.js \
-  tests/frontend/unit/imageSystem.test.js
+  tests/frontend/unit/fileTree.test.js \
+  tests/frontend/unit/imageSystem.test.js \
+  tests/frontend/unit/markdownBlockGuides.test.js \
+  tests/frontend/unit/markdownImagePlugin.test.js
 npx playwright test tests/e2e/clipboardImagePaste.spec.js
 ```
 
@@ -1312,6 +1377,19 @@ move while that promise is pending, then clear busy state and report the final
 path. Keep this sequencing in `tests/frontend/unit/fileTree.test.js`; it does
 not require a browser or a second filesystem matrix.
 
+## Rendered task checkbox regressions
+
+`taskCheckboxModel.test.js` owns source-character toggling and the cleaned,
+action-oriented accessible name. The focused editor component test mounts a
+real CodeMirror checkbox replacement, verifies its named control and hitbox,
+and proves both keyboard-style and pointer clicks mutate Markdown rather than
+only native checkbox state. The browser case owns the irreducible boundaries:
+24px computed hit geometry, Space activation with focus restored after widget
+remount, pointer activation in the padded target, Arrow Up/Down across the task
+from both directions, and drag selection across the replacement. Repeat those
+cursor and focus checks in the packaged WebKitGTK/WebView2/WKWebView smoke run
+after changing this widget; Chromium cannot establish native-webview geometry.
+
 ## Search and shell accessibility regressions
 
 `topBar.test.js` parses the assembled shell markup and requires explicit
@@ -1324,6 +1402,11 @@ its own line with the complete path in its accessible name and tooltip. Pure
 coverage owns parent derivation and the tail-preserving deep-path compaction:
 keep a shallow parent complete, but retain the root and final three folders
 around an ellipsis when depth would otherwise erase distinguishing context.
+`globalShortcutModel.test.js` must keep Ctrl/Cmd+F distinct from the uppercase
+key value emitted by Ctrl/Cmd+Shift+F, leave repeated capture commands inert,
+and preserve Ctrl/Cmd+N versus Ctrl/Cmd+Shift+N. The browser shortcut case is
+the owner of capture ordering against a focused CodeMirror editor and the
+Quick Note focus handoff.
 The theme browser check owns computed 4.5:1 contrast for the compact summary
 and for result paths, excerpts, line/count metadata, and highlighted matches.
 It also verifies that result-row content keeps the normal text color across
@@ -1581,6 +1664,8 @@ virtualized rows, clears them when Copy replaces Cut or Escape cancels it, and
 keeps recursive/self moves non-destructive. The stable tree
 context-menu inventory must show Cut, Copy, Paste in order, enable operations
 for a single managed-only internal file, disable single-target actions for a group,
+enable **Merge Notes** only for an operation selection containing at least two
+Markdown notes (never one selected note plus another open buffer),
 omit tree-level Raw Text/PDF preview, and pair only real keyboard commands
 with faded shortcut hints; F2 and Delete dispatch the same validated workflows
 as their menu items.
@@ -1674,6 +1759,28 @@ cannot be reached, and it complements rather than replaces the native
 WebKitGTK manual smoke check. When diagnosing a native failure, opt into the
 metadata-only trace with `window.__figaroDrawioDebug = true` in the WebKit
 inspector before saving; it must never log diagram XML or SVG contents.
+
+Missing Draw.io Markdown-image creation is covered at three boundaries. Pure
+tests resolve same-folder, parent-folder, vault-root, encoded, remote, malformed,
+and vault-escaping destinations, plus saved-preview, absent, existing-empty,
+and inspection-error classification. The injected use-case tests prove create → open → background
+refresh ordering, stop after creation failure, return before a pending refresh
+settles, and report refresh failure without revoking successful creation.
+CodeMirror component coverage asserts the accessible approved Create/Open
+actions, busy/disabled lifecycle, mounted Create-to-Open transition, file-return
+remount from Open to saved preview, unchanged source, ordinary-error fallback,
+and Arrow Up/Down traversal from both directions. The
+existing focused image browser scenario owns the irreducible `<img>` failure
+and pointer boundary: a real click creates the exact file and opens its Draw.io
+tab, closes it unchanged while tree refresh is still pending, verifies the
+source action is ready to Open rather than permanently Creating, and reopens it
+without another create. It then simulates a valid saved SVG while the original
+image route still fails and verifies that returning to the note restores the
+actual image preview. Ordinary missing-image click, adjacent cursor motion, and
+bidirectional drag selection retain their previous behavior. The same browser
+case folds and expands the Draw.io image, opens its editor from the left guide,
+and publishes the exact file-tree deletion signal; the versioned preview must
+disappear and the safe Create action must return.
 
 Run the focused contract with:
 

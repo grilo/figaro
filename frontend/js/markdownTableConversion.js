@@ -1,14 +1,18 @@
 const delimiterCharacters = {
     tab: '\t',
     comma: ',',
+    semicolon: ';',
     pipe: '|',
 };
 
 const delimiterLabels = {
     tab: 'Tab',
     comma: 'Comma',
+    semicolon: 'Semicolon',
     pipe: 'Pipe',
 };
+
+const automaticDelimiters = ['tab', 'pipe', 'comma', 'semicolon'];
 
 function isBlankRow(row) {
     return row.every(cell => !String(cell || '').trim());
@@ -141,7 +145,9 @@ export function analyzeTabularText(source, options = {}) {
 
     const text = String(source ?? '');
     const candidates = [];
-    for (const delimiter of ['tab', 'pipe', 'comma']) {
+    const delimiters = options.delimiters || automaticDelimiters;
+    for (const delimiter of delimiters) {
+        if (!delimiterCharacters[delimiter]) continue;
         if (!text.includes(delimiterCharacters[delimiter])) continue;
         const parsed = parseTabularText(text, delimiter);
         if (!parsed.ok) continue;
@@ -153,6 +159,9 @@ export function analyzeTabularText(source, options = {}) {
         return { ok: false, error: 'Select at least two consistent CSV, TSV, or pipe-delimited rows.' };
     }
     candidates.sort((left, right) => right.confidence - left.confidence);
+    if (candidates[1]?.confidence === candidates[0].confidence) {
+        return { ok: false, error: 'More than one delimiter fits this text. Choose the delimiter explicitly.' };
+    }
     return candidates[0];
 }
 
@@ -260,7 +269,7 @@ export function htmlClipboardContainsOnlyTable(html) {
 }
 
 /** Convert only high-confidence clipboard data or safely bound existing GFM. */
-export function markdownTableFromClipboard({ text = '', html = '', mimeType = '' } = {}) {
+export function markdownTableFromClipboard({ text = '', html = '', mimeType = '', tabularMimeType = '' } = {}) {
     if (html) {
         const parsedHTML = parseHTMLTable(html);
         if (parsedHTML.ok) {
@@ -275,7 +284,12 @@ export function markdownTableFromClipboard({ text = '', html = '', mimeType = ''
         }
     }
 
-    const parsed = analyzeTabularText(text);
+    const normalizedMime = String(tabularMimeType || mimeType || '').toLowerCase();
+    const explicitTSV = normalizedMime.includes('tab-separated-values');
+    const explicitCSV = normalizedMime.includes('csv');
+    const parsed = explicitTSV
+        ? parseTabularText(text, 'tab')
+        : analyzeTabularText(text, explicitCSV ? { delimiters: ['comma', 'semicolon'] } : {});
     if (!parsed.ok) return null;
     if (parsed.alreadyMarkdown) {
         return {
@@ -286,11 +300,9 @@ export function markdownTableFromClipboard({ text = '', html = '', mimeType = ''
             markdown: String(text || '').replaceAll('\r\n', '\n').replaceAll('\r', '\n').trim(),
         };
     }
-    const normalizedMime = String(mimeType || '').toLowerCase();
-    const explicitCSV = normalizedMime.includes('csv');
-    // Two lines of comma-containing prose are too easy to misclassify. CSV
-    // clipboard MIME is explicit; otherwise require at least three rows.
-    if (parsed.delimiter === 'comma' && !explicitCSV && parsed.rows.length < 3) return null;
+    // Clipboard MIME and HTML structure are explicit. Untyped text is not, so
+    // require three consistent rows regardless of its apparent delimiter.
+    if (!explicitCSV && !explicitTSV && parsed.rows.length < 3) return null;
     return {
         ...parsed,
         firstRowIsHeader: true,

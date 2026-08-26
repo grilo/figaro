@@ -229,6 +229,147 @@ test('themes a missing-image state and preserves its source-line geometry', asyn
     })).toBe(true);
 });
 
+test('guides Draw.io images and invalidates their preview after file-tree deletion', async ({ page }) => {
+    await page.route('**/vault/notes/flow.drawio.svg*', route => route.fulfill({
+        status: 404,
+        contentType: 'text/plain',
+        body: 'missing',
+    }));
+    await page.route('https://embed.diagrams.net/**', route => route.abort());
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    const source = 'Before\n![Flow](flow.drawio.svg)\nAfter';
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        const tabs = await import('/js/tabManager.js');
+        const app = (await import('/js/backend.js')).backend();
+        window.__drawioImageCreateCalls = [];
+        window.__drawioImageExists = false;
+        window.__drawioImageContent = '';
+        app.CreateFile = async (path, content) => {
+            window.__drawioImageCreateCalls.push({ path, content });
+            window.__drawioImageExists = true;
+            return { success: true, path, mtime: 37 };
+        };
+        app.GetFileTree = () => new Promise(resolve => {
+            window.__releaseDrawioImageTreeRefresh = () => resolve([{
+                name: 'flow.drawio.svg',
+                path: 'notes/flow.drawio.svg',
+                type: 'file',
+                mtime: 37,
+            }]);
+        });
+        app.ReadDiagram = async path => window.__drawioImageExists
+            ? { path, content: window.__drawioImageContent, mtime: 37 }
+            : null;
+
+        await editor.initEditor();
+        const view = editor.getEditorView() || editor.createEditorView();
+        tabs.openTab('drawio-image-note', 'Draw.io image', 'file', {
+            path: 'notes/drawio-image.md',
+            isNew: true,
+        });
+        while (editor.getEditorDocumentTabId() !== 'drawio-image-note') {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        editor.setEditorContent(text, 'drawio-image-note');
+        while (view.state.doc.toString() !== text) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        view.focus();
+        window.__drawioImageCreateView = view;
+    }, source);
+
+    const action = page.getByRole('button', { name: 'Create Draw.io diagram flow.drawio.svg' });
+    await expect(action).toBeVisible();
+    await expect(action).toHaveClass(/ui-button--accent/);
+    await action.click();
+
+    await expect.poll(() => page.evaluate(() => window.__drawioImageCreateCalls))
+        .toEqual([{ path: 'notes/flow.drawio.svg', content: '' }]);
+    await expect.poll(() => page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        const active = tabs.getActiveTab();
+        return active && { type: active.type, path: active.path, title: active.title };
+    })).toEqual({
+        type: 'drawio',
+        path: 'notes/flow.drawio.svg',
+        title: 'flow.drawio.svg',
+    });
+    expect(await page.evaluate(() => window.__drawioImageCreateView.state.doc.toString())).toBe(source);
+
+    await page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        await tabs.closeTab(tabs.getActiveTab().id);
+    });
+    await expect.poll(() => page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        const active = tabs.getActiveTab();
+        return active && { type: active.type, path: active.path };
+    })).toEqual({ type: 'file', path: 'notes/drawio-image.md' });
+
+    const reopen = page.getByRole('button', { name: 'Open Draw.io diagram flow.drawio.svg' });
+    await expect(reopen).toBeVisible();
+    await expect(page.getByText('Creating diagram…')).toHaveCount(0);
+    await reopen.click();
+    await expect.poll(() => page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        const active = tabs.getActiveTab();
+        return active && { type: active.type, path: active.path };
+    })).toEqual({ type: 'drawio', path: 'notes/flow.drawio.svg' });
+    expect(await page.evaluate(() => window.__drawioImageCreateCalls)).toEqual([
+        { path: 'notes/flow.drawio.svg', content: '' },
+    ]);
+
+    await page.evaluate(async () => {
+        window.__drawioImageContent = [
+            '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40" viewBox="0 0 80 40">',
+            '<rect width="80" height="40" fill="#4f8"/>',
+            '</svg>',
+        ].join('');
+        const tabs = await import('/js/tabManager.js');
+        await tabs.closeTab(tabs.getActiveTab().id);
+    });
+    await expect(page.locator('.cm-image-widget img[alt="Flow"]')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Draw\.io diagram flow\.drawio\.svg/ }))
+        .toHaveCount(0);
+
+    const foldDiagram = page.getByRole('button', { name: 'Collapse Draw.io image' });
+    const editDiagram = page.getByRole('button', { name: 'Open Draw.io editor for this diagram' });
+    await expect(foldDiagram).toBeVisible();
+    await expect(editDiagram).toBeVisible();
+    await foldDiagram.click();
+    await expect(page.locator('.cm-image-widget')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Expand Draw.io image' }).click();
+    await expect(page.locator('.cm-image-widget img[alt="Flow"]')).toBeVisible();
+
+    await editDiagram.click();
+    await expect.poll(() => page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        const active = tabs.getActiveTab();
+        return active && { type: active.type, path: active.path };
+    })).toEqual({ type: 'drawio', path: 'notes/flow.drawio.svg' });
+    await page.evaluate(async () => {
+        const tabs = await import('/js/tabManager.js');
+        await tabs.closeTab(tabs.getActiveTab().id);
+    });
+    await expect(page.locator('.cm-image-widget img[alt="Flow"]')).toBeVisible();
+
+    await page.evaluate(() => {
+        window.__drawioImageExists = false;
+        window.__drawioImageContent = '';
+        document.dispatchEvent(new CustomEvent('vault-path-deleted', {
+            detail: { path: 'notes/flow.drawio.svg', type: 'file' },
+        }));
+    });
+    await expect(page.locator('.cm-image-widget img[alt="Flow"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Create Draw.io diagram flow.drawio.svg' }))
+        .toBeVisible();
+    await page.evaluate(() => window.__releaseDrawioImageTreeRefresh());
+});
+
 test('uses Async Clipboard bytes when a Linux-style paste event exposes no image File', async ({ page }) => {
     await page.goto('/');
 	await page.waitForFunction(() => window._appReady === true);

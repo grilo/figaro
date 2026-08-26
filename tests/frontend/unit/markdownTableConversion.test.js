@@ -58,6 +58,46 @@ describe('Markdown table conversion', () => {
         expect(markdownTableFromRows(analysis.rows)).toContain('Line one<br>Line two with "quotes"');
     });
 
+    test('detects semicolon CSV outside quoted cells and preserves decimal commas', () => {
+        const analysis = analyzeTabularText([
+            'Product;Price;Description',
+            'Coffee;1,25;"Dark; intense"',
+            'Tea;2,10;"Light; floral"',
+        ].join('\n'));
+
+        expect(analysis).toMatchObject({
+            ok: true,
+            delimiter: 'semicolon',
+            rows: [
+                ['Product', 'Price', 'Description'],
+                ['Coffee', '1,25', 'Dark; intense'],
+                ['Tea', '2,10', 'Light; floral'],
+            ],
+        });
+        expect(parseTabularText('Name;Note\nAlpha;"one; two"', 'semicolon')).toMatchObject({
+            ok: true,
+            delimiterLabel: 'Semicolon',
+            rows: [['Name', 'Note'], ['Alpha', 'one; two']],
+        });
+    });
+
+    test('uses comma for explicit CSV when semicolons occur only inside quoted cells', () => {
+        expect(markdownTableFromClipboard({
+            text: 'Name,Description\nAlpha,"One; two"',
+            mimeType: 'text/csv',
+        })).toMatchObject({
+            delimiter: 'comma',
+            rows: [['Name', 'Description'], ['Alpha', 'One; two']],
+        });
+    });
+
+    test('refuses an equally plausible comma and semicolon dialect', () => {
+        expect(markdownTableFromClipboard({
+            text: 'Left,Middle;Right\n1,2;3',
+            mimeType: 'text/csv',
+        })).toBeNull();
+    });
+
     test('converts simple boundary-pipe text but preserves an existing GFM separator', () => {
         const simple = analyzeTabularText('| Name | Note |\n| Alpha | one \\| two |');
         expect(simple).toMatchObject({
@@ -138,7 +178,7 @@ describe('Markdown table conversion', () => {
         ].join(''))).toBe(false);
     });
 
-    test('auto-pastes clear CSV while leaving ambiguous two-line comma prose alone', () => {
+    test('accepts explicit CSV while requiring three rectangular rows for plain text', () => {
         expect(markdownTableFromClipboard({
             text: 'Name,Count\nAlpha,2',
             mimeType: 'text/plain',
@@ -151,18 +191,38 @@ describe('Markdown table conversion', () => {
             text: 'Name,Count\nAlpha,2\nBeta,3',
             mimeType: 'text/plain',
         })).toMatchObject({ delimiter: 'comma' });
+        expect(markdownTableFromClipboard({
+            text: 'Name;Price\nCoffee;1,25',
+            mimeType: 'text/plain',
+        })).toBeNull();
+        expect(markdownTableFromClipboard({
+            text: 'Name;Price\nCoffee;1,25\nTea;2,10',
+            mimeType: 'text/plain',
+        })).toMatchObject({ delimiter: 'semicolon' });
+        expect(markdownTableFromClipboard({
+            text: 'Name;Price\nCoffee;1,25\nTea;2,10;extra',
+            mimeType: 'text/plain',
+        })).toBeNull();
+        expect(markdownTableFromClipboard({
+            text: 'Name\tCount\nAlpha\t2',
+            mimeType: 'text/plain',
+        })).toBeNull();
     });
 });
 
 describe('automatic clipboard table paste', () => {
-    test('prefers HTML table clipboard data and claims a clear keyboard paste', () => {
+    test('prefers Excel or LibreOffice HTML table data and claims a clear keyboard paste', () => {
         const clipboardData = {
             getData: type => ({
                 'text/html': '<table><tr><th>Name</th><th>Count</th></tr><tr><td>Alpha</td><td>2</td></tr></table>',
+                'text/csv': 'Wrong;Fallback\nNo;Thanks',
                 'text/plain': 'Name\tCount\nAlpha\t2',
             })[type] || '',
         };
-        expect(clipboardTablePayload(clipboardData)).toMatchObject({ mimeType: 'text/html' });
+        expect(clipboardTablePayload(clipboardData)).toMatchObject({
+            mimeType: 'text/html',
+            tabularMimeType: 'text/csv',
+        });
 
         const view = testView();
         const preventDefault = jest.fn();
@@ -176,6 +236,7 @@ describe('automatic clipboard table paste', () => {
             },
             userEvent: 'input.paste',
         }));
+        expect(view.dispatch.mock.calls[0][0].changes.insert).not.toContain('Wrong');
     });
 
     test('retains explicit TSV precedence when a source also supplies non-table HTML', () => {
@@ -196,6 +257,30 @@ describe('automatic clipboard table paste', () => {
         const preventDefault = jest.fn();
         expect(handleClipboardTablePaste({ clipboardData, preventDefault }, view)).toBe(true);
         expect(view.dispatch.mock.calls[0][0].changes.insert).toContain('| Name | Count |');
+    });
+
+    test('detects semicolon dialect for explicit CSV even beside non-table HTML', () => {
+        const formats = {
+            'text/html': '<div><span>Spreadsheet selection</span></div>',
+            'text/csv;charset=utf-8': 'Product;Price\nCoffee;1,25',
+            'text/plain': 'Product;Price\nCoffee;1,25',
+        };
+        const clipboardData = {
+            types: Object.keys(formats),
+            getData: type => formats[type] || '',
+        };
+        const payload = clipboardTablePayload(clipboardData);
+        expect(payload).toMatchObject({
+            mimeType: 'text/html',
+            tabularMimeType: 'text/csv',
+        });
+        expect(clipboardPayloadIsTableOnly(payload)).toBe(true);
+
+        const view = testView();
+        const preventDefault = jest.fn();
+        expect(handleClipboardTablePaste({ clipboardData, preventDefault }, view)).toBe(true);
+        expect(preventDefault).toHaveBeenCalledTimes(1);
+        expect(view.dispatch.mock.calls[0][0].changes.insert).toContain('| Coffee | 1,25 |');
     });
 
     test('does not claim ordinary text or mutate the editor', () => {

@@ -8,6 +8,10 @@ import {
     isVerticalTableMergeMarker,
     planVerticalTableMerges,
 } from './core/printableTableModel.js';
+import {
+    markdownTableMergePlans,
+    stripMarkdownTableMergeMetadata,
+} from './core/markdownTableEditorModel.js';
 
 let renderer = null;
 
@@ -50,14 +54,15 @@ function tableMergeMarker(cell) {
 }
 
 /** Apply Figaro's shared printable/live table extensions to rendered HTML. */
-export function decorateMarkdownTables(container) {
-    for (const table of container.querySelectorAll('table')) {
+export function decorateMarkdownTables(container, options = {}) {
+    const explicitPlans = options.mergePlans || [];
+    Array.from(container.querySelectorAll('table')).forEach((table, tableIndex) => {
         const rows = [
             ...(table.tHead ? Array.from(table.tHead.rows) : []),
             ...Array.from(table.tBodies).flatMap(body => Array.from(body.rows)),
         ];
         const cellsByRow = rows.map(row => Array.from(row.cells));
-        if (!cellsByRow.length) continue;
+        if (!cellsByRow.length) return;
 
         for (const row of cellsByRow) {
             for (const cell of row) renderTableBreaks(cell);
@@ -66,24 +71,58 @@ export function decorateMarkdownTables(container) {
         const markerMatrix = cellsByRow.map(row => row.map(cell => (
             tableMergeMarker(cell) ? '^' : ''
         )));
-        const { merges, covered } = planVerticalTableMerges(markerMatrix);
-        for (const merge of merges) {
-            const anchor = cellsByRow[merge.row]?.[merge.col];
+        const vertical = planVerticalTableMerges(markerMatrix);
+        const occupied = new Set();
+        const anchors = new Set();
+        const mergePlans = vertical.merges.map(merge => ({
+            fromRow: merge.row,
+            toRow: merge.row + merge.rowSpan - 1,
+            fromCol: merge.col,
+            toCol: merge.col,
+            kind: 'rowspan',
+        }));
+        mergePlans.push(...(explicitPlans[tableIndex] || []).map(merge => ({ ...merge, kind: 'range' })));
+        for (const merge of mergePlans) {
+            const anchor = cellsByRow[merge.fromRow]?.[merge.fromCol];
             if (!anchor) continue;
-            anchor.rowSpan = merge.rowSpan;
-            anchor.dataset.figaroTableMerge = 'rowspan';
+            const keys = [];
+            for (let row = merge.fromRow; row <= merge.toRow; row += 1) {
+                for (let col = merge.fromCol; col <= merge.toCol; col += 1) keys.push(`${row}:${col}`);
+            }
+            if (keys.some(key => occupied.has(key))) continue;
+            keys.forEach(key => occupied.add(key));
+            anchors.add(`${merge.fromRow}:${merge.fromCol}`);
+            anchor.rowSpan = merge.toRow - merge.fromRow + 1;
+            anchor.colSpan = merge.toCol - merge.fromCol + 1;
+            anchor.dataset.figaroTableMerge = merge.kind;
         }
-        for (const marker of covered) {
-            cellsByRow[marker.row]?.[marker.col]?.remove();
+        for (const key of occupied) {
+            const [row, col] = key.split(':').map(Number);
+            if (!anchors.has(key)) cellsByRow[row]?.[col]?.remove();
         }
-    }
+    });
 }
 
 /** Render one GFM table into the supplied document without changing source. */
 export function renderMarkdownTable(source, ownerDocument = globalThis.document) {
     if (!ownerDocument?.createElement) return null;
     const template = ownerDocument.createElement('template');
-    template.innerHTML = markdownRenderer().render(String(source ?? ''));
-    decorateMarkdownTables(template.content);
-    return template.content.querySelector('table');
+    const exactSource = String(source ?? '');
+    template.innerHTML = markdownRenderer().render(stripMarkdownTableMergeMetadata(exactSource));
+    const table = template.content.querySelector('table');
+    if (table) {
+        const headerRows = table.tHead ? Array.from(table.tHead.rows) : [];
+        const bodyRows = Array.from(table.tBodies).flatMap(body => Array.from(body.rows));
+        headerRows.forEach((row, rowIndex) => Array.from(row.cells).forEach((cell, columnIndex) => {
+            cell.dataset.figaroSourceRow = String(rowIndex);
+            cell.dataset.figaroSourceColumn = String(columnIndex);
+        }));
+        bodyRows.forEach((row, rowIndex) => Array.from(row.cells).forEach((cell, columnIndex) => {
+            // GFM's delimiter row is source row 1 but has no rendered DOM row.
+            cell.dataset.figaroSourceRow = String(headerRows.length + rowIndex + 1);
+            cell.dataset.figaroSourceColumn = String(columnIndex);
+        }));
+    }
+    decorateMarkdownTables(template.content, { mergePlans: markdownTableMergePlans(exactSource) });
+    return table;
 }

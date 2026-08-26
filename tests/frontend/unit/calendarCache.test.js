@@ -119,6 +119,35 @@ describe('Calendar cache', () => {
         await flushCalendar();
     });
 
+    test('uses vertical wheel gestures over the month grid to browse months without capturing details scrolling', () => {
+        const grid = document.getElementById('calendar-grid');
+        const details = document.getElementById('cal-linked-notes');
+        setState('currentCalDate', new Date(2025, 0, 31));
+        const nextMonth = new WheelEvent('wheel', {
+            bubbles: true,
+            cancelable: true,
+            deltaY: 1,
+            deltaMode: WheelEvent.DOM_DELTA_LINE,
+        });
+
+        grid.dispatchEvent(nextMonth);
+
+        expect(nextMonth.defaultPrevented).toBe(true);
+        expect(getState('currentCalDate').getFullYear()).toBe(2025);
+        expect(getState('currentCalDate').getMonth()).toBe(1);
+
+        const detailsScroll = new WheelEvent('wheel', {
+            bubbles: true,
+            cancelable: true,
+            deltaY: -1,
+            deltaMode: WheelEvent.DOM_DELTA_LINE,
+        });
+        details.dispatchEvent(detailsScroll);
+
+        expect(detailsScroll.defaultPrevented).toBe(false);
+        expect(getState('currentCalDate').getMonth()).toBe(1);
+    });
+
     test('reuses a month response when selecting a day instead of rescanning the vault', async () => {
         renderCalendar();
         await flushCalendar();

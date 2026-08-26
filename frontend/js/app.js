@@ -10,8 +10,8 @@ import { initEditor, getEditorContent, openEditorSearch } from './editor.js';
 import { preloadLanguageSupport } from './languageSupport.js';
 import { initializeDiagramRenderers } from './diagramRenderer.js';
 import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot, showWorkspaceHome } from './tabManager.js';
-import { addExternalFileTreeEntry, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
-import { initCalendar, prepareCalendarOpen, renderCalendar, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
+import { addExternalFileTreeEntry, createInboxNote, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
+import { initCalendar, navigateCalendarMonth, prepareCalendarOpen, renderCalendar, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
 import { initKanban, refreshKanbanData } from './kanban.js';
 import { configureDatePickerCalendarSource } from './datePicker.js';
 import { statusBar } from './statusBar.js';
@@ -25,6 +25,8 @@ import { initTheme, initThemeAppearance } from './theme.js';
 import { initTabSizePreference } from './tabSizePreference.js';
 import { applySidebarLayout, initSidebarResizer } from './sidebarResizer.js';
 import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
+import { globalShortcutAction } from './core/globalShortcutModel.js';
+import { localISODate } from './core/dueDateModel.js';
 import { initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
 import { closeRawTextPreview, initRawTextPreview } from './rawTextPreview.js';
@@ -161,21 +163,11 @@ function initCalendarNav() {
     const nextBtn = document.getElementById('cal-next-month');
     
     if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-            const current = getState('currentCalDate');
-            current.setMonth(current.getMonth() - 1);
-            setState('currentCalDate', new Date(current));
-            renderCalendar();
-        });
+        prevBtn.addEventListener('click', () => navigateCalendarMonth(-1));
     }
     
     if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-            const current = getState('currentCalDate');
-            current.setMonth(current.getMonth() + 1);
-            setState('currentCalDate', new Date(current));
-            renderCalendar();
-        });
+        nextBtn.addEventListener('click', () => navigateCalendarMonth(1));
     }
 }
 
@@ -357,38 +349,26 @@ export function initTopBar() {
  */
 function initKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-        
-        // Ctrl/Cmd + Shift + N: New daily note
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'n') {
+        const shortcut = globalShortcutAction(e);
+        if (shortcut) {
+            if (shortcut === 'document-find' && getActiveTab()?.type !== 'file') return;
             e.preventDefault();
-            const today = new Date().toISOString().split('T')[0];
-            const path = `${today}.md`;
-            openTab(path, today, 'file', { path });
-        }
-        
-        // Ctrl/Cmd + B: Toggle sidebar
-        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-            e.preventDefault();
-            const toggleSidebar = document.getElementById('toggle-sidebar');
-            if (toggleSidebar) toggleSidebar.click();
-        }
-        
-        // Ctrl/Cmd + Shift + F: Focus global search
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'f') {
-            e.preventDefault();
-            const input = document.getElementById('global-search-input');
-            if (input) input.focus();
-        }
+            e.stopPropagation();
 
-        // Ctrl/Cmd + F: Find in the active document. Register this at the app
-        // level as well as in CodeMirror so it remains reliable when focus is
-        // briefly on a tab, rendered widget, or other editor-adjacent control.
-        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'f') {
-            const activeTab = getActiveTab();
-            if (activeTab?.type === 'file') {
-                e.preventDefault();
+            if (shortcut === 'quick-note') {
+                void createInboxNote();
+            } else if (shortcut === 'daily-note') {
+                const today = localISODate();
+                const path = `${today}.md`;
+                openTab(path, today, 'file', { path });
+            } else if (shortcut === 'toggle-sidebar') {
+                document.getElementById('toggle-sidebar')?.click();
+            } else if (shortcut === 'global-search') {
+                document.getElementById('global-search-input')?.focus();
+            } else if (shortcut === 'document-find') {
                 openEditorSearch();
             }
+            return;
         }
         
         // Ctrl/Cmd + S: Save current file
@@ -411,7 +391,7 @@ function initKeyboardShortcuts() {
             // Close search suggestions
             document.querySelectorAll('.cm-tooltip-autocomplete').forEach(t => t.remove());
         }
-    });
+    }, true);
 }
 
 /**

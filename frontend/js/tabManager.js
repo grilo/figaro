@@ -861,6 +861,9 @@ export async function switchTab(tabId, {
         setTimeout(() => focusEditor(), 0);
     }
     await contentReady;
+    if (!preserveTabFocus && tab.type === 'settings' && activationId === tabActivationGeneration) {
+        document.querySelector('.tab-panel.active .settings-view-title')?.focus({ preventScroll: true });
+    }
     return true;
 }
 
@@ -1755,22 +1758,23 @@ function renderSettingsTab(panel, _tab) {
     
     const container = document.createElement('div');
     container.className = 'settings-panel-tab';
-    container.innerHTML = `<div class="settings-grid">
+    container.innerHTML = `<h1 id="settings-view-title" class="sr-only settings-view-title" tabindex="-1">Settings</h1>
+        <div class="settings-grid" role="region" aria-labelledby="settings-view-title">
         <div class="settings-column settings-column--writing" data-settings-group="writing">
             <!-- Appearance -->
             <div class="settings-card">
-                <div class="settings-card-title">Appearance</div>
+                <h2 class="settings-card-title">Appearance</h2>
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/><path d="M2 12h20"/></svg>
                         <span>Theme</span>
                     </div>
                     <div class="ui-picker theme-picker">
-                        <button class="ui-picker-trigger theme-picker-btn" id="theme-picker-btn">
-                            <span id="theme-current-name">Loading…</span>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        <button type="button" class="ui-picker-trigger theme-picker-btn" id="theme-picker-btn" role="combobox" aria-label="Theme" aria-haspopup="listbox" aria-controls="theme-picker-menu" aria-expanded="false">
+                            <span id="theme-current-name" data-picker-value>Loading…</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
-                        <div class="ui-menu ui-picker-menu theme-picker-menu" id="theme-picker-menu"></div>
+                        <div class="ui-menu ui-picker-menu theme-picker-menu" id="theme-picker-menu" role="listbox" aria-label="Theme options" hidden></div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1779,11 +1783,11 @@ function renderSettingsTab(panel, _tab) {
                         <span>Font</span>
                     </div>
                     <div class="ui-picker font-picker">
-                        <button class="ui-picker-trigger font-picker-btn" id="font-picker-btn">
-                            <span id="font-current-name">Inter</span>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        <button type="button" class="ui-picker-trigger font-picker-btn" id="font-picker-btn" role="combobox" aria-label="Font" aria-haspopup="listbox" aria-controls="font-picker-menu" aria-expanded="false">
+                            <span id="font-current-name" data-picker-value>Inter</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
-                        <div class="ui-menu ui-picker-menu font-picker-menu" id="font-picker-menu"></div>
+                        <div class="ui-menu ui-picker-menu font-picker-menu" id="font-picker-menu" role="listbox" aria-label="Font options" hidden></div>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1792,17 +1796,17 @@ function renderSettingsTab(panel, _tab) {
                         <span>Code Font</span>
                     </div>
                     <div class="ui-picker font-picker">
-                        <button class="ui-picker-trigger font-picker-btn" id="code-font-picker-btn" title="Used only for code files">
-                            <span id="code-font-current-name">Theme default</span>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        <button type="button" class="ui-picker-trigger font-picker-btn" id="code-font-picker-btn" title="Used only for code files" role="combobox" aria-label="Code font" aria-haspopup="listbox" aria-controls="code-font-picker-menu" aria-expanded="false">
+                            <span id="code-font-current-name" data-picker-value>Theme default</span>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
-                        <div class="ui-menu ui-picker-menu font-picker-menu" id="code-font-picker-menu"></div>
+                        <div class="ui-menu ui-picker-menu font-picker-menu" id="code-font-picker-menu" role="listbox" aria-label="Code font options" hidden></div>
                     </div>
                 </div>
             </div>
             <!-- Editor -->
             <div class="settings-card">
-                <div class="settings-card-title">Editor</div>
+                <h2 class="settings-card-title">Editor</h2>
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 8 12 4 20 8"/><polyline points="4 16 12 20 20 16"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
@@ -1996,7 +2000,7 @@ function renderSettingsTab(panel, _tab) {
         <div class="settings-column settings-column--workspace" data-settings-group="workspace">
             <!-- Kanban -->
             <div class="settings-card">
-                <div class="settings-card-title">Kanban</div>
+                <h2 class="settings-card-title">Kanban</h2>
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="16" rx="1"/><rect x="14" y="4" width="6" height="16" rx="1"/></svg>
@@ -2021,7 +2025,7 @@ function renderSettingsTab(panel, _tab) {
             </div>
             <!-- Automation -->
             <div class="settings-card">
-                <div class="settings-card-title">Automation</div>
+                <h2 class="settings-card-title">Automation</h2>
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -2053,7 +2057,7 @@ function renderSettingsTab(panel, _tab) {
             </div>
             <!-- PDF Export -->
             <div class="settings-card">
-                <div class="settings-card-title">PDF Export</div>
+                <h2 class="settings-card-title">PDF Export</h2>
                 <div class="settings-section pdf-browser-setting">
                     <div class="pdf-browser-setting-copy">
                         <div class="settings-section-icon">
@@ -2069,7 +2073,7 @@ function renderSettingsTab(panel, _tab) {
                 </div>
             </div>
             <div class="settings-card">
-                <div class="settings-card-title">Vault care</div>
+                <h2 class="settings-card-title">Vault care</h2>
                 <div class="settings-section vault-health-setting">
                     <div class="pdf-browser-setting-copy">
                         <div class="settings-section-icon">
@@ -2096,7 +2100,7 @@ function renderSettingsTab(panel, _tab) {
                 </div>
             </div>
             <div class="settings-card application-about-card">
-                <div class="settings-card-title">About</div>
+                <h2 class="settings-card-title">About</h2>
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>

@@ -57,14 +57,22 @@ async function loadThemeModule() {
     return await import('../frontend/js/theme.js');
 }
 
+function chooseFont(fontId) {
+    const items = [...document.querySelectorAll('.font-picker-item')];
+    const target = items.find(item => item.dataset.id === fontId);
+    if (target?.getAttribute('aria-selected') === 'true') {
+        items.find(item => item !== target)?.click();
+    }
+    target?.click();
+    return target;
+}
+
 describe('Font Rendering', () => {
     test('Injected style element contains correct font-family', async () => {
         const { initSettingsPanel } = await loadThemeModule();
         await initSettingsPanel();
 
-        const items = document.querySelectorAll('.font-picker-item');
-        const figtree = Array.from(items).find(i => i.dataset.id === 'figtree');
-        figtree.click();
+        chooseFont('figtree');
 
         await new Promise(r => setTimeout(r, 300));
         const style = document.getElementById('dynamic-font-style');
@@ -77,9 +85,7 @@ describe('Font Rendering', () => {
         const { initSettingsPanel } = await loadThemeModule();
         await initSettingsPanel();
 
-        const items = document.querySelectorAll('.font-picker-item');
-        const figtree = Array.from(items).find(i => i.dataset.id === 'figtree');
-        figtree.click();
+        chooseFont('figtree');
 
         await new Promise(r => setTimeout(r, 300));
         // Check that the DOM elements have inline style set
@@ -92,9 +98,7 @@ describe('Font Rendering', () => {
         const { initSettingsPanel } = await loadThemeModule();
         await initSettingsPanel();
 
-        const items = document.querySelectorAll('.font-picker-item');
-        const ibm = Array.from(items).find(i => i.dataset.id === 'ibm-plex-sans');
-        ibm.click();
+        chooseFont('ibm-plex-sans');
 
         await new Promise(r => setTimeout(r, 300));
         expect(mockEditorView.requestMeasure).toHaveBeenCalled();
@@ -104,9 +108,7 @@ describe('Font Rendering', () => {
         const { initSettingsPanel } = await loadThemeModule();
         await initSettingsPanel();
 
-        const items = document.querySelectorAll('.font-picker-item');
-        const figtree = Array.from(items).find(i => i.dataset.id === 'figtree');
-        figtree.click();
+        chooseFont('figtree');
 
         await new Promise(r => setTimeout(r, 300));
         expect(document.documentElement.style.getPropertyValue('--font-editor')).toContain('Figtree');
@@ -116,8 +118,7 @@ describe('Font Rendering', () => {
         const { initSettingsPanel } = await loadThemeModule();
         await initSettingsPanel();
 
-        const items = document.querySelectorAll('.font-picker-item');
-        Array.from(items).find(i => i.dataset.id === 'figtree').click();
+        chooseFont('figtree');
         await new Promise(r => setTimeout(r, 300));
 
         expect(document.documentElement.style.getPropertyValue('--font-ui')).toContain('Figtree');
@@ -134,9 +135,7 @@ describe('Font Rendering', () => {
         const { initSettingsPanel } = await loadThemeModule();
         await initSettingsPanel();
 
-        const items = document.querySelectorAll('.font-picker-item');
-        const figtree = Array.from(items).find(i => i.dataset.id === 'figtree');
-        figtree.click();
+        chooseFont('figtree');
 
         await new Promise(r => setTimeout(r, 300));
         const value = document.documentElement.style.getPropertyValue('--font-editor');

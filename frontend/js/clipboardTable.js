@@ -7,7 +7,11 @@ import { statusBar } from './statusBar.js';
 
 function clipboardText(clipboardData, type) {
     try {
-        return String(clipboardData?.getData?.(type) || '');
+        const normalizedType = String(type || '').toLowerCase();
+        const exposedType = Array.from(clipboardData?.types || clipboardData?.items || [])
+            .map(value => String(value?.type || value || ''))
+            .find(value => value.toLowerCase().split(';', 1)[0].trim() === normalizedType);
+        return String(clipboardData?.getData?.(exposedType || type) || '');
     } catch (_) {
         return '';
     }

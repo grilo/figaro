@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="styles/features/settings.css">
     <link rel="stylesheet" href="styles/features/link-hover.css">
     <link rel="stylesheet" href="styles/features/embedded-widgets.css">
+    <link rel="stylesheet" href="styles/features/markdown-table-editor.css">
     <link rel="stylesheet" href="styles/features/mermaid-editor.css">
     <link rel="stylesheet" href="styles/overrides.css">
     <link rel="stylesheet" href="design-system/primitives.css">
@@ -166,7 +167,7 @@
         <!-- Top Bar -->
         <header class="top-bar">
             <div class="top-bar-left">
-                <button id="toggle-sidebar" class="icon-btn ui-icon-button" title="Toggle Sidebar (Ctrl+B)" aria-label="Toggle sidebar">
+                <button id="toggle-sidebar" class="icon-btn ui-icon-button" title="Toggle Sidebar (Ctrl/Cmd+Shift+B)" aria-label="Toggle sidebar">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -253,9 +254,10 @@
                         <div class="md-cheatsheet-panel" id="md-help-shortcuts-panel" role="tabpanel" aria-labelledby="md-help-shortcuts-tab" tabindex="-1" hidden>
                             <table>
                                 <tr><td><code>F1</code></td><td>Toggle Figaro help</td></tr>
+                                <tr><td><code>Ctrl/Cmd+N</code></td><td>Quick note in Inbox</td></tr>
                                 <tr><td><code>Ctrl/Cmd+Shift+N</code></td><td>New daily note</td></tr>
                                 <tr><td><code>Ctrl/Cmd+Shift+F</code></td><td>Focus global search</td></tr>
-                                <tr><td><code>Ctrl/Cmd+B</code></td><td>Toggle sidebar</td></tr>
+                                <tr><td><code>Ctrl/Cmd+Shift+B</code></td><td>Toggle sidebar</td></tr>
                                 <tr><td><code>Ctrl+PageUp</code> <code>Ctrl+PageDown</code></td><td>Previous / next open buffer</td></tr>
                                 <tr><td><code>Ctrl/Cmd+W</code></td><td>Close current buffer</td></tr>
                                 <tr><td><code>Ctrl/Cmd+S</code></td><td>Save current file</td></tr>
@@ -263,6 +265,11 @@
                                 <tr><td><code>F3</code> <code>Ctrl/Cmd+G</code></td><td>Next match</td></tr>
                                 <tr><td><code>Shift+F3</code> <code>Shift+Ctrl/Cmd+G</code></td><td>Previous match</td></tr>
                                 <tr><td><code>Ctrl/Cmd+Shift+V</code></td><td>Paste exact plain text</td></tr>
+                                <tr><td><code>Ctrl/Cmd+B</code></td><td>Bold</td></tr>
+                                <tr><td><code>Ctrl/Cmd+I</code></td><td>Italic</td></tr>
+                                <tr><td><code>Ctrl/Cmd+K</code></td><td>Link</td></tr>
+                                <tr><td><code>Ctrl/Cmd+Shift+X</code></td><td>Strikethrough</td></tr>
+                                <tr><td><code>Ctrl/Cmd+`</code></td><td>Inline code</td></tr>
                                 <tr><td><code>F8</code></td><td>Next Markdown diagnostic</td></tr>
                                 <tr><td><code>Shift+F10</code> <code>Menu</code></td><td>Open context menu</td></tr>
                                 <tr><td><code>F2</code></td><td>Rename focused vault entry</td></tr>

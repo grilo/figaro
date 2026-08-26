@@ -10,6 +10,87 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.27.0] - 2026-08-27
+
+### Added
+
+- Ctrl/Cmd+N now creates and focuses a collision-safe Quick Note in Inbox;
+  Ctrl/Cmd+Shift+N remains the daily-note command.
+- A failed local `.drawio.svg` image in Markdown now offers an accessible
+  **Create Draw.io diagram** action when absent and **Open Draw.io diagram**
+  when an empty file already exists, without changing the note source.
+- Standalone local Draw.io images now use a left-side `drawio` / `editor`
+  guide stack for collapsing the preview or opening its editable diagram
+  directly from the note.
+- Vertical wheel input over the Calendar month grid now browses the previous
+  or next month, with deliberate trackpad accumulation and native scrolling
+  preserved for the selected-day details.
+- Markdown selections now support conventional one-step-undo formatting
+  shortcuts for Bold, Italic, Link, Strikethrough, and Inline Code.
+- Markdown tables now have a themed grid editor opened from their left-side
+  **editor** guide, with editable auto-growing cells, guarded row/column
+  controls, local Undo/Redo, read-only Markdown inspection, and one-transaction
+  Apply/Cancel behavior.
+- Holding Shift while clicking or dragging across cells, or using
+  Alt+Shift+Arrow, now selects a rectangular table range for Merge; Split
+  restores the original cells while the editor stays open, and merged cells
+  render consistently in live preview, PDF Preview, and generated PDFs.
+- Spreadsheet paste and **Convert selection to table…** now recognize
+  semicolon-separated CSV, including quoted semicolons and European decimal
+  commas.
+
+### Changed
+
+- Rendered task checkboxes now expose the task and intended action to assistive
+  technology, provide a 24px pointer target, and update Markdown identically
+  from click or keyboard Space while retaining keyboard focus.
+- Opening Settings now focuses its semantic page heading, and the Theme, Font,
+  and Code Font pickers share one arrow/Home/End/Enter/Space/Escape/Tab
+  combobox contract with announced selection state.
+- Clicking a rendered Markdown table cell now reveals the source with the
+  caret at the beginning of that exact cell's content instead of at a generic
+  table boundary.
+- Table structural commands now live in the dedicated table editor instead of
+  changing the ordinary editor right-click menu. A normal cell click edits
+  text without entering range-selection mode, while contextual disabled
+  controls explain which selection or split is required.
+- Table-editor controls now use labelled icons in two task-oriented rows;
+  row and column insertion remain grouped by target, while the adjacent
+  Delete Row and Delete Column actions use the theme's danger treatment.
+- Automatic table paste now prioritizes Excel/LibreOffice HTML, explicit TSV,
+  and explicit comma-or-semicolon CSV; untyped delimited text needs at least
+  three consistently rectangular rows before Figaro converts it.
+- A standalone Markdown `---` in the document body now creates an invisible
+  page break in PDF Preview and generated PDFs; frontmatter, Setext headings,
+  and the `***` / `___` thematic separators keep their existing meanings.
+- Toggle Sidebar now uses Ctrl/Cmd+Shift+B, leaving conventional Ctrl/Cmd+B
+  available for Markdown Bold.
+
+### Fixed
+
+- Real shifted key events now route Ctrl/Cmd+Shift+F to global search without
+  opening in-document Find; Ctrl/Cmd+F remains local to the active file.
+- Figaro Dark's dim secondary text now meets 4.5:1 contrast on its darker
+  interactive surfaces, and the browser-development shell loads the real
+  bundled theme palette and complete theme list for faithful visual checks.
+- Creating a missing Draw.io image now activates its new blank diagram before
+  refreshing the file tree, so a slow or stalled vault refresh cannot leave
+  the Markdown action stuck on **Creating diagram…**. Closing the unchanged
+  blank diagram now restores an **Open Draw.io diagram** action instead of the
+  same permanent spinner, and returning after an SVG save restores the rendered
+  diagram preview even if the original image request had already failed.
+- Deleting a referenced Draw.io file from the file tree now immediately
+  invalidates its cached buffer preview and restores the missing-file action.
+- Invalid **Convert selection to table** input now leaves **Convert** visibly
+  disabled with its validation message instead of showing the operating
+  system's busy cursor.
+- Closing the sidebar Calendar now mirrors its opening movement with a visible
+  downward transition before the panel becomes hidden, while reduced-motion
+  preferences retain their near-instant behavior.
+- **Merge Notes** in the file-tree context menu is now enabled only when at
+  least two Markdown notes are selected; an unrelated open note no longer
+  makes the action available for a single selection.
+
 ## [1.26.0] - 2026-08-24
 
 ### Changed
@@ -1392,7 +1473,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.27.0...HEAD
+[1.27.0]: https://github.com/grilo/figaro/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/grilo/figaro/compare/v1.25.2...v1.26.0
 [1.25.2]: https://github.com/grilo/figaro/compare/v1.25.1...v1.25.2
 [1.25.1]: https://github.com/grilo/figaro/compare/v1.25.0...v1.25.1

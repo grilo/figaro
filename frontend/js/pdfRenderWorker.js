@@ -8,6 +8,7 @@ import '/vendored/markdown-it/index.js';
 import '/vendored/katex/dist/katex.min.js';
 import { createPrintMarkdownRenderer } from '/vendored/markdown-it-plugins/index.js';
 import { stripLeadingFrontmatter } from './frontmatter.js';
+import { stripMarkdownTableMergeMetadata } from './core/markdownTableEditorModel.js';
 
 function errorMessage(error) {
     return error instanceof Error ? error.message : String(error || 'Printable Markdown rendering failed');
@@ -19,7 +20,9 @@ self.addEventListener('message', event => {
 
     try {
         const renderer = createPrintMarkdownRenderer();
-        const body = renderer.render(stripLeadingFrontmatter(String(markdown || '')));
+        const body = renderer.render(stripMarkdownTableMergeMetadata(
+            stripLeadingFrontmatter(String(markdown || '')),
+        ));
         self.postMessage({ id, body });
     } catch (error) {
         self.postMessage({ id, error: errorMessage(error) });

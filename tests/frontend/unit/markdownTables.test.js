@@ -1,6 +1,10 @@
 import MarkdownIt from 'markdown-it';
+import { EditorSelection } from '@codemirror/state';
 
-import { tablePreviewOwnsEvent } from '../frontend/js/liveMarkdownTablePlugin.js';
+import {
+    renderedTableCellMouseSelection,
+    tablePreviewOwnsEvent,
+} from '../frontend/js/liveMarkdownTablePlugin.js';
 
 import {
     createEditorView,
@@ -28,6 +32,17 @@ const mergeSource = [
     '| ^ | final | plain |',
 ].join('\n');
 const mergeDocumentSource = mergeSource + '\n\nAfter';
+const rangeMergeSource = [
+    'Before',
+    '',
+    '| Group | Q1 | Q2 |',
+    '| --- | ---: | ---: |',
+    '| North<br>10<br>12 | | |',
+    '| South | 8 | 9 |',
+    '<!-- figaro:table-merge A2:C2 -->',
+    '',
+    'After',
+].join('\n');
 
 function waitForEditorUpdate() {
     return new Promise(resolve => setTimeout(resolve, 40));
@@ -42,6 +57,7 @@ describe('source-preserving GFM table preview', () => {
     });
 
     afterEach(() => {
+        document.querySelector('.editor-context-menu')?.remove();
         view?.destroy();
         view = null;
     });
@@ -78,6 +94,54 @@ describe('source-preserving GFM table preview', () => {
         expect(getEditorContent()).toBe(tableSource);
     });
 
+    test('places a primary rendered-cell click at that cell source position', async () => {
+        view = createEditorView();
+        setEditorContent(tableSource);
+        await waitForEditorUpdate();
+
+        const cell = view.dom.querySelector('.cm-live-table tbody tr:last-child td:last-child');
+        expect(cell.dataset.figaroSourceRow).toBe('3');
+        expect(cell.dataset.figaroSourceColumn).toBe('1');
+        cell.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 90,
+            clientY: 90,
+        }));
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
+        await waitForEditorUpdate();
+
+        expect(view.state.selection.main.anchor).toBe(tableSource.indexOf('10'));
+        expect(view.state.selection.main.head).toBe(tableSource.indexOf('10'));
+        expect(view.dom.querySelector('.cm-block-widget--table')).toBeNull();
+        expect(getEditorContent()).toBe(tableSource);
+    });
+
+    test('extends a drag that starts in a rendered cell from that source position', async () => {
+        view = createEditorView();
+        setEditorContent(tableSource);
+        await waitForEditorUpdate();
+
+        const cell = view.dom.querySelector('.cm-live-table tbody tr:last-child td:last-child');
+        const origin = { button: 0, target: cell, clientX: 90, clientY: 90 };
+        const fakeView = {
+            state: { sliceDoc: (from, to) => tableSource.slice(from, to) },
+            posAtCoords: jest.fn(() => tableSource.indexOf('After')),
+        };
+        const style = renderedTableCellMouseSelection(fakeView, origin, EditorSelection);
+        const initial = style.get(origin).main;
+        const dragged = style.get({ clientX: 180, clientY: 180 }).main;
+
+        expect(initial.anchor).toBe(tableSource.indexOf('10'));
+        expect(initial.head).toBe(tableSource.indexOf('10'));
+        expect(dragged.anchor).toBe(tableSource.indexOf('10'));
+        expect(dragged.head).toBe(tableSource.indexOf('After'));
+        expect(fakeView.posAtCoords).toHaveBeenCalledWith({ x: 180, y: 180 });
+        expect(renderedTableCellMouseSelection(fakeView, { ...origin, shiftKey: true }, EditorSelection))
+            .toBeNull();
+    });
+
     test('uses the shared GFM output for line breaks and vertical caret merges', async () => {
         view = createEditorView();
         setEditorContent(mergeDocumentSource);
@@ -93,6 +157,33 @@ describe('source-preserving GFM table preview', () => {
         expect(table.querySelector('tbody tr:first-child td:nth-child(3)').textContent).toBe('<br/>');
         expect(table.textContent).not.toContain('^');
         expect(getEditorContent()).toBe(mergeDocumentSource);
+    });
+
+    test('renders editor-created rectangular merges without exposing private metadata', async () => {
+        view = createEditorView();
+        setEditorContent(rangeMergeSource);
+        await waitForEditorUpdate();
+
+        const widget = view.dom.querySelector('.cm-block-widget--table');
+        const anchor = widget.querySelector('tbody tr:first-child td');
+        expect(anchor.rowSpan).toBe(1);
+        expect(anchor.colSpan).toBe(3);
+        expect(anchor.dataset.figaroTableMerge).toBe('range');
+        expect(widget.querySelector('tbody tr:first-child').cells).toHaveLength(1);
+        expect(widget.textContent).not.toContain('figaro:table-merge');
+        expect(getEditorContent()).toBe(rangeMergeSource);
+
+        anchor.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 60,
+            clientY: 60,
+        }));
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 }));
+        await waitForEditorUpdate();
+        expect(view.dom.querySelector('.cm-block-widget--table')).toBeNull();
+        expect(view.state.selection.main.head).toBe(rangeMergeSource.indexOf('North'));
     });
 
     test('keeps scroll gestures and scrollbar presses inside the rendered preview', () => {
@@ -124,5 +215,28 @@ describe('source-preserving GFM table preview', () => {
         expect(tablePreviewOwnsEvent({ type: 'mousedown', target: cell, clientX: 60, clientY: 30 })).toBe(false);
         expect(tablePreviewOwnsEvent({ type: 'mousedown', target: cell })).toBe(false);
         expect(tablePreviewOwnsEvent({ type: 'mousedown', target: document.body })).toBe(false);
+    });
+
+    test('keeps the ordinary editor menu on table content without structural table commands', async () => {
+        view = createEditorView();
+        setEditorContent(tableSource);
+        await waitForEditorUpdate();
+
+        const cell = view.dom.querySelector('.cm-live-table tbody td:first-child');
+        expect(cell.dataset.figaroSourceRow).toBe('2');
+        expect(cell.dataset.figaroSourceColumn).toBe('0');
+        cell.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 80,
+            clientY: 80,
+        }));
+        await waitForEditorUpdate();
+
+        const menu = document.querySelector('.editor-context-menu');
+        expect(menu).not.toBeNull();
+        expect(menu.getAttribute('aria-label')).toBe('Editor actions');
+        expect(menu.querySelector('[data-action^="table-"]')).toBeNull();
+        expect(getEditorContent()).toBe(tableSource);
     });
 });

@@ -94,6 +94,9 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(reducedMotionSpinner).toMatch(/animation:\s*none\s*!important/);
         expect(declarationsFor('.cm-editor .cm-image-source'))
             .toMatch(/var\(--accent-color\)/);
+        const drawioAction = declarationsFor('.cm-editor .cm-drawio-action-button');
+        expect(drawioAction).toMatch(/height:\s*1\.65em/);
+        expect(drawioAction).toMatch(/width:\s*100%/);
     });
 
     test('keeps the frontmatter disclosure aligned while its panel changes height', () => {

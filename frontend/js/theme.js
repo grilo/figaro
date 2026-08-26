@@ -7,6 +7,7 @@ import { log } from './log.js';
 import { initLinkStyleSetting } from './linkStyle.js';
 import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
+import { enhanceSettingsPicker } from './settingsPicker.js';
 import { initEditorBreadcrumbSetting } from './editorBreadcrumb.js';
 import { initEditorNavigationPreference, initEditorNavigationSettings } from './editorNavigationPreferences.js';
 import { initHelpPopup } from './helpPopup.js';
@@ -94,17 +95,6 @@ function isActivePanel(root) {
 
 function findIn(root, selector) {
     return root && root.querySelector ? root.querySelector(selector) : null;
-}
-
-function closeMenuOnOutsideClick(root, menu) {
-    const closeMenu = () => {
-        if (!isActivePanel(root)) {
-            document.removeEventListener('click', closeMenu);
-            return;
-        }
-        menu.classList.remove('open');
-    };
-    document.addEventListener('click', closeMenu);
 }
 
 function ensureStyleEl() {
@@ -654,36 +644,28 @@ export async function initSettingsPanel(root = document) {
 
         const btn = findIn(root, '#theme-picker-btn');
         const menu = findIn(root, '#theme-picker-menu');
-        const nameEl = findIn(root, '#theme-current-name');
-        if (!btn || !menu || !nameEl) {
+        if (!btn || !menu) {
             log.warn('[settings] Theme picker DOM elements not found — panel not open yet, skipping');
             return;
         }
 
         const current = getCurrentTheme();
-        const currentTheme = themes.find(t => t.id === current) || themes[0];
-        nameEl.textContent = currentTheme.name;
-
-        menu.innerHTML = themes.map(t =>
-            `<div class="ui-menu-item theme-picker-item ${t.id === current ? 'active' : ''}" data-id="${t.id}">${t.name}</div>`
-        ).join('');
-
-        btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('open'); });
-        menu.addEventListener('click', (e) => {
-            const item = e.target.closest('.theme-picker-item');
-            if (!item) return;
-            const id = item.dataset.id;
-            const theme = themes.find(t => t.id === id);
-            if (theme) nameEl.textContent = theme.name;
-            menu.querySelectorAll('.theme-picker-item').forEach(el => el.classList.remove('active'));
-            item.classList.add('active');
-            menu.classList.remove('open');
-            applyTheme(id).then(applied => {
-                if (!applied || getCurrentTheme() !== id) return;
-                try { backend().ThemeSave(id).catch(() => {}); } catch (_) { /* noop */ }
-            });
+        const themePicker = enhanceSettingsPicker({
+            trigger: btn,
+            menu,
+            options: themes,
+            value: current,
+            ariaLabel: 'Theme',
+            optionClass: 'theme-picker-item',
+            onChange: id => {
+                const previousTheme = getCurrentTheme();
+                applyTheme(id).then(applied => {
+                    if (!applied) themePicker?.setValue(previousTheme);
+                    if (!applied || getCurrentTheme() !== id) return;
+                    try { backend().ThemeSave(id).catch(() => {}); } catch (_) { /* noop */ }
+                });
+            },
         });
-        closeMenuOnOutsideClick(root, menu);
 
         // Vim toggle
         const vimToggle = findIn(root, '#vim-toggle');
@@ -906,8 +888,7 @@ const CODE_FONTS = [
 function initFontPicker(root) {
     const btn = findIn(root, '#font-picker-btn');
     const menu = findIn(root, '#font-picker-menu');
-    const nameEl = findIn(root, '#font-current-name');
-    if (!btn || !menu || !nameEl) {
+    if (!btn || !menu) {
         log.warn('[font] Missing DOM elements for font picker');
         return;
     }
@@ -923,53 +904,32 @@ function initFontPicker(root) {
         if (list.length === 0) list.push(...FONTS); // graceful degradation
         log.debug('[font] ' + list.length + ' of ' + FONTS.length + ' fonts available');
 
-        menu.innerHTML = list.map(f =>
-            `<div class="ui-menu-item font-picker-item ${f.id === currentFont ? 'active' : ''}" data-id="${f.id}">${f.name}</div>`
-        ).join('');
-
-        const current = FONTS.find(f => f.id === currentFont) || FONTS[0];
-        nameEl.textContent = current.name;
-
-        btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('open'); });
-        menu.addEventListener('click', (e) => {
-            const item = e.target.closest('.font-picker-item');
-            if (!item) return;
-            const id = item.dataset.id;
-            const font = FONTS.find(f => f.id === id);
-            if (font) {
-                menu.querySelectorAll('.font-picker-item').forEach(el => el.classList.remove('active'));
-                item.classList.add('active');
-                applyFont(id, false, root);
-            }
-            menu.classList.remove('open');
+        enhanceSettingsPicker({
+            trigger: btn,
+            menu,
+            options: list,
+            value: currentFont,
+            ariaLabel: 'Font',
+            optionClass: 'font-picker-item',
+            onChange: id => applyFont(id, false, root),
         });
-        closeMenuOnOutsideClick(root, menu);
     });
 }
 
 function initCodeFontPicker(root) {
     const btn = findIn(root, '#code-font-picker-btn');
     const menu = findIn(root, '#code-font-picker-menu');
-    const nameEl = findIn(root, '#code-font-current-name');
-    if (!btn || !menu || !nameEl) return;
+    if (!btn || !menu) return;
 
-    const current = CODE_FONTS.find(font => font.id === currentCodeFont) || CODE_FONTS[0];
-    nameEl.textContent = current.name;
-    menu.innerHTML = CODE_FONTS.map(font =>
-        `<div class="ui-menu-item code-font-picker-item ${font.id === currentCodeFont ? 'active' : ''}" data-id="${font.id}">${font.name}</div>`
-    ).join('');
-
-    btn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        menu.classList.toggle('open');
+    enhanceSettingsPicker({
+        trigger: btn,
+        menu,
+        options: CODE_FONTS,
+        value: currentCodeFont,
+        ariaLabel: 'Code font',
+        optionClass: 'code-font-picker-item',
+        onChange: id => applyCodeFont(id, false, root),
     });
-    menu.addEventListener('click', (event) => {
-        const item = event.target.closest('.code-font-picker-item');
-        if (!item) return;
-        applyCodeFont(item.dataset.id, false, root);
-        menu.classList.remove('open');
-    });
-    closeMenuOnOutsideClick(root, menu);
 }
 
 function applyFont(fontId, initial, root = document) {

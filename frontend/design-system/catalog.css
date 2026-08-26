@@ -691,8 +691,8 @@ a:focus-visible {
 
 .ds-demo .context-menu,
 .ds-demo .all-tabs-dropdown,
-.ds-demo .theme-picker-menu,
-.ds-demo .font-picker-menu,
+.ds-demo .theme-picker-menu.open,
+.ds-demo .font-picker-menu.open,
 .ds-demo .settings-picker-menu.open,
 .ds-demo .cm-frontmatter-combobox-menu,
 .ds-demo .md-cheatsheet-popup {

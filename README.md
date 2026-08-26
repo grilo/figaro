@@ -36,13 +36,16 @@ hand without changing the underlying Markdown.
 - **Source-first Markdown editing.** The active line stays editable Markdown
   while surrounding content renders headings, tables, tasks, callouts,
   footnotes, math, images, links, and fenced code. Editor-sized gutter guides
-  fold headings, fenced code, and tables without changing the saved source;
+  fold headings, fenced code, tables, and standalone local Draw.io images
+  without changing the saved source;
   each guide stays aligned to its block and under the pointer while toggling.
   Rendered fences and tables contract to one native fold row, typed fences use
   their language name, and rendered GFM tables reveal their exact Markdown
-  source whenever the cursor enters them. Tables remain semantic previews with
-  no nested cell editors or source auto-formatting; the existing table guide
-  can still delete the block as one undoable source edit. Their compact
+  source whenever the cursor enters them. Tables remain semantic previews;
+  their left-side `editor` guide opens a focused grid for cell edits,
+  row/column commands, local Undo/Redo, and Shift-held rectangular Merge/Split.
+  Applying the modal is one document undo step, while an ordinary table click
+  still reveals bare Markdown and the `delete` guide remains direct. Their compact
   typography and spacing fit common grids inside the source-height slot, while
   genuinely larger grids keep their own scrollbar; wheel, touch, and scrollbar
   interaction never reveal source or move the editor caret. Mermaid/Vega
@@ -50,9 +53,18 @@ hand without changing the underlying Markdown.
   their Markdown source height while rendered, so entering and leaving them
   does not move the surrounding note; graphics fit down, while code and tables
   scroll inside the reserved space. Successfully loaded images, Properties,
-  links, and task checkboxes keep their normal sizing; an image that is still
+  links, and task checkboxes keep their normal sizing. A rendered task checkbox
+  has a named 24px target and changes the underlying Markdown from either a
+  click or keyboard Space; an image that is still
   loading or cannot be found instead uses a themed one-source-line placeholder,
-  so revealing its Markdown does not move nearby text. Home/document-start navigation and Vim
+  so revealing its Markdown does not move nearby text. When that missing local
+  image ends in `.drawio.svg`, the placeholder instead offers **Create Draw.io
+  diagram**; it creates the referenced file relative to the note and opens the
+  normal Draw.io editor without rewriting the Markdown. If that file already
+  exists but has not yet been saved as renderable SVG, the action becomes
+  **Open Draw.io diagram**. A standalone Draw.io image also gets a left-side
+  `drawio` / `editor` stack: collapse its preview or open the editable diagram
+  without finding the asset in the file tree. Home/document-start navigation and Vim
   `gg` leave Properties rendered; Arrow Up or Vim `k` deliberately enters its
   raw YAML. Opening a Markdown note with complete Properties and no remembered
   or requested position starts the cursor on its first body line. Click a
@@ -94,11 +106,14 @@ hand without changing the underlying Markdown.
   columns, and backlink sets retain their complete logical content while
   mounting bounded windows, so keyboard and assistive navigation remain
   available without creating tens of thousands of DOM elements.
-- **Capture and planning.** Quick notes and daily notes live in a real `Inbox`;
+- **Capture and planning.** Ctrl/Cmd+N captures a Quick Note in the real
+  `Inbox`, while Ctrl/Cmd+Shift+N opens the daily note;
   hashtags form a Kanban board, and portable due-date links feed the Today
   dashboard and calendar. Calendar months and the Kanban board show
   theme-aware, reduced-motion-safe skeletons instead of an empty surface while
-  their indexed data is loading. The selected day's due tasks and linked notes
+  their indexed data is loading. Scroll vertically over the month grid to move
+  through months; the selected-day results retain their own native scrolling.
+  The selected day's due tasks and linked notes
   remain visible above the fixed workspace tools and scroll independently when
   the result set is long.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
@@ -107,7 +122,8 @@ hand without changing the underlying Markdown.
   Figaro.
 - **Source and publishing tools.** Preview the exact raw Markdown or paginated
   output, preserve fenced-code syntax colors, add cover pages and tables of
-  contents, apply vault-local print CSS, and generate linked PDFs.
+  contents, use a standalone `---` as a PDF page break, apply vault-local print
+  CSS, and generate linked PDFs.
 - **Built-in reference.** Press F1 or use the title-bar `?` to open stable
   Markdown, Macros, and Shortcuts topics; closing the reference returns focus
   to the control or editor that invoked it. Find and Replace keeps its search,
@@ -193,17 +209,40 @@ Ctrl/Cmd+Shift+V for exact plain text; clipboard images, URL-over-selection,
 spreadsheet tables, Vim Visual `p`/`P`, revealed table source, and the editor's Paste
 menu retain their specialized behavior. A URL pasted over selected prose
 becomes a Markdown link through the native shortcut, Vim paste commands, or
-the menu.
+the menu. Spreadsheet paste prioritizes an Excel/LibreOffice HTML table, then
+explicit TSV, then explicit CSV with comma-or-semicolon dialect detection.
+Untyped delimited text is converted only when at least three rows form the same
+rectangular shape, keeping shorter prose untouched.
+
+Conventional Markdown editing shortcuts operate on the selected source as one
+undoable edit: Ctrl/Cmd+B for bold, Ctrl/Cmd+I for italic, Ctrl/Cmd+K for a
+link, Ctrl/Cmd+Shift+X for strikethrough, and Ctrl/Cmd plus backtick for inline
+code. Repeating a formatting shortcut around its matching markers removes that
+format. The sidebar toggle consequently uses Ctrl/Cmd+Shift+B.
 
 GFM tables use CodeMirror's Markdown syntax tree for awareness and a
 source-preserving semantic preview. The preview uses the same Markdown-It
 renderer as PDF Preview and generated PDFs, so emphasis, alignment, links,
-literal code, `<br/>` line-break markers, and Figaro's anchored `^` row-span
-convention stay consistent across editor and printable output. Move the cursor
-into the table to edit the raw Markdown directly; the source is never
-auto-formatted by a table editor. Clicking a cell is another deliberate way to
-reveal that source, while scrolling or manipulating either preview scrollbar
-keeps the semantic table rendered.
+literal code, `<br/>` line-break markers, anchored `^` row spans, and
+editor-created rectangular merges stay consistent across editor and printable
+output. Move the cursor into the table—or click a rendered cell—to edit the raw
+Markdown directly; scrolling or manipulating either preview scrollbar keeps
+the semantic table rendered.
+
+Use the table's left-side **editor** guide for a grid view. A normal cell click
+places the native text caret without selecting the cell. Hold Shift while
+clicking or dragging across cells, or use Alt+Shift+Arrow, to select a
+rectangular body-cell range for Merge; Split is available only on a merged
+cell. Header cells use a distinct theme tint. Labelled icon controls use one
+row for history/cell/view actions and another for row/column structure, with
+the two Delete actions grouped at the end in the theme's danger tint.
+Row/column commands disable with an explanation when they would cut through a
+merge, and the final column and header remain protected. Undo/Redo in the
+window affects only its temporary draft; **Apply** writes one undoable
+CodeMirror transaction, while **Cancel** writes nothing and confirms before
+discarding changes. **Show Markdown** exposes a read-only source view. Figaro
+stores rectangular spans as adjacent `<!-- figaro:table-merge A2:C3 -->`
+metadata, which the live and printable renderers consume without displaying.
 
 Machine-specific settings, such as window geometry and a selected PDF browser,
 are stored in the operating system's per-user application-data directory
@@ -246,7 +285,9 @@ stylable, and deletable without replacing the current editor buffer. A themed
 row tooltip explains that they are not editable in Figaro and can be
 double-clicked to open in the operating system's default application. Their
 context menu presents the same action as **Open** rather than **Open in New
-Tab**. Common text, image, code, data, archive, media, and PDF extensions receive
+Tab**. **Merge Notes** becomes available only when at least two Markdown notes
+are selected in the tree; merely having another note open does not enable it.
+Common text, image, code, data, archive, media, and PDF extensions receive
 semantic Lucide icons;
 unrecognized files keep the generic file icon, and an explicit custom icon
 still wins. Ctrl/Cmd+Click or keyboard Space can select any internal file or
@@ -330,7 +371,8 @@ with a following character such as `a` → `ã`. The desktop dependency is Wails
 v2.14 with a pinned Windows-host fix that prevents AltGr input from being
 reposted to the native window before WebView2 processes it.
 
-Quick notes create collision-safe timestamped files in `Inbox`. The Today
+Quick notes create collision-safe timestamped files in `Inbox`; press
+Ctrl/Cmd+N from anywhere in Figaro to capture one directly. The Today
 action creates the dated note in the same folder and continues to open legacy
 root daily notes. A top-level Inbox is pinned by default but can be unpinned or
 restyled like any other folder.
@@ -374,7 +416,9 @@ The full theme-accent selection starts on Today and moves to a selected note or
 due day; the day it leaves immediately recovers its underlying activity
 intensity. The first Calendar opening in each app session selects Today;
 closing and reopening it during that session restores the last selected day,
-while a new launch starts fresh on the current local date. Empty days other
+while a new launch starts fresh on the current local date. Opening moves the
+panel upward into place and closing mirrors that displacement downward, using
+the shared reduced-motion timing. Empty days other
 than Today are not interactive. Accepted date
 shortcuts and other date links update the open calendar from the unsaved editor
 buffer, and selecting a day always shows the same daily/linked notes counted by
@@ -387,6 +431,16 @@ fixed workspace tools. Figaro does not guess or download public holidays.
 Mermaid, Vega, and Vega-Lite blocks render directly in notes and printable
 documents. Draw.io editing uses the hosted diagrams.net editor, but the
 resulting `.drawio.svg` file stays in the vault and remains readable offline.
+You can write an image reference such as `![Flow](flow.drawio.svg)` before the
+asset exists, then choose **Create Draw.io diagram** directly from its rendered
+placeholder. Relative paths resolve from the note, while
+`/Diagrams/flow.drawio.svg` resolves from the vault root. Closing a newly opened
+blank diagram without saving leaves that normal empty file in the vault, so the
+same placeholder offers **Open Draw.io diagram** the next time it is shown.
+Once Draw.io saves valid SVG, returning to the note restores the rendered
+diagram even when that image's earlier blank-file request had failed. Deleting
+the asset from the file tree immediately removes that cached preview and
+returns its note to the missing-diagram action.
 Mermaid source is checked before parsing; oversized diagrams and unsafe YAML
 ordered maps remain editable source instead of blocking the editor or PDF
 renderer. When Mermaid source is revealed in the main editor, syntax errors are
@@ -425,7 +479,10 @@ follows the main editor's matching source position with a small smoothing delay
 and can copy the complete current Markdown snapshot directly to the clipboard.
 PDF Preview adds pagination, cover pages, a depth-limited table of contents,
 footnotes, internal links, fenced-code syntax colors, and optional vault-local
-CSS. Set `page-numbers: true` in Properties to add physical PDF footers and
+CSS. In the Markdown body, a standalone `---` becomes an invisible page break
+in PDF Preview and generated output; it remains a normal thematic separator in
+the editor, while `***` and `___` remain visible thematic separators everywhere.
+Set `page-numbers: true` in Properties to add physical PDF footers and
 matching destination pages to the table of contents; an optional cover stays
 visually unnumbered. Existing custom stylesheets keep working, while
 **Upgrade copy** creates a separate current starter with the old rules retained
@@ -436,7 +493,12 @@ Live and printable tables convert portable `<br>` cell markers into real line
 breaks. A bare `^` in a data cell continues the immediately preceding data cell
 in that column as a vertical rowspan; consecutive carets extend it, while an
 unanchored caret remains literal. The saved Markdown stays rectangular GFM and
-is never rewritten by the preview.
+is never rewritten by the preview. To turn existing delimited text into a
+table, select it and choose **Convert selection to table…** from the editor's
+right-click menu. The review dialog previews valid comma- or
+semicolon-separated CSV, TSV, or pipe-delimited rows and lets the delimiter be
+chosen explicitly; an invalid selection explains the problem and keeps
+**Convert** disabled.
 
 ## Data and privacy
 

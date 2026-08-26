@@ -388,6 +388,39 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(content).toBe('# Hello World\n\nType something here.');
         });
 
+        test('renders task checkboxes as named source-backed controls for pointer and keyboard clicks', async () => {
+            const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+
+            await initEditor();
+            const view = createEditorView();
+            const source = 'Above\n- [ ] Review **release** notes\nBelow';
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: source },
+                selection: { anchor: source.length },
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            let checkbox = view.dom.querySelector('.cm-task-checkbox');
+            expect(checkbox).not.toBeNull();
+            expect(checkbox.getAttribute('aria-label')).toBe('Mark “Review release notes” complete');
+            expect(checkbox.closest('.cm-task-checkbox-hitbox')).not.toBeNull();
+
+            checkbox.focus();
+            checkbox.click();
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            expect(view.state.doc.toString()).toBe('Above\n- [x] Review **release** notes\nBelow');
+            checkbox = view.dom.querySelector('.cm-task-checkbox');
+            expect(checkbox.getAttribute('aria-label')).toBe('Mark “Review release notes” incomplete');
+            expect(document.activeElement).toBe(checkbox);
+
+            checkbox.closest('.cm-task-checkbox-hitbox').dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                detail: 1,
+            }));
+            expect(view.state.doc.toString()).toBe(source);
+        });
+
         test('mounts a requested Properties body selection in the real CodeMirror document', async () => {
             const { setState } = await import('../frontend/js/state.js');
             const { initEditor, createEditorView, setEditorContent } = await import('../frontend/js/editor.js');

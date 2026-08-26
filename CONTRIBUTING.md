@@ -88,6 +88,18 @@ initialized during startup. Do not introduce interaction-triggered dynamic
 imports or first-use parser/renderer initialization. User-selected work such as
 opening a hosted Draw.io document, scanning Vault health, or generating a PDF
 remains demand-driven, but its application code must already be ready.
+For missing `.drawio.svg` Markdown images, keep vault-path resolution in the
+pure creation model, including missing-versus-existing action classification;
+valid SVG fallback classification and data-URL construction remain pure as
+well, so a failed browser image request can recover without another effect;
+keep create/open/background-refresh sequencing in the injected use case and
+mounted CodeMirror/button state in the image adapter. Do not add filesystem or
+tab effects to the widget or weaken the backend's vault containment checks.
+Standalone Draw.io guide recognition and fold ranges belong in the pure block
+guide model; direct editor activation remains an injected guide callback. Keep
+the file-tree's post-delete path signal ahead of discovery refresh and retain a
+fresh Draw.io preview URL per image-field generation so successful loader
+caches cannot outlive deletion.
 The themed shell and restored active buffer may become interactive while eager
 vault indexing, tree construction, and parser warming continue; preserve that
 short critical path as well as the later `window._appReady` boundary.
@@ -345,14 +357,26 @@ dependency. Remove that copy only after the upstream preset provides the same
 clean Babel 8 peer graph, then update the dependency-policy regression and
 notices together.
 
+Print-only Markdown token policies belong in
+`frontend/js/printMarkdownRenderer.js`, followed by `npm run vendor:markdown`;
+do not reinterpret the editor syntax to achieve printable behavior. The
+standalone-body-`---` page-break rule must retain focused cases for frontmatter,
+Setext headings, and the visible `***` / `___` alternatives.
+
 Table rendering belongs to Figaro rather than a third-party table editor.
 Keep `liveMarkdownTablePlugin.js` limited to CodeMirror syntax ranges,
-selection state, folding, and measured block replacement. Keep
+selection state, rendered-cell pointer adaptation, folding, and measured block
+replacement. Source row/column parsing and caret offsets belong in the pure
+`core/markdownTableEditing.js` parser. Modal draft operations, merge-coordinate
+rules, contextual disabled reasons, and source serialization belong in pure
+`core/markdownTableEditorModel.js`; `markdownTableEditor.js` may own only modal
+DOM, focus, temporary history, and the single revalidated Apply transaction. Keep
 `markdownTableRenderer.js` as the DOM boundary that invokes the canonical
 Markdown-It renderer and applies the pure `core/printableTableModel.js` plan
-for `<br/>` line breaks and anchored `^` row spans. The editor and PDF paths
-must leave the rectangular Markdown source unchanged and share focused
-renderer/model tests.
+for `<br/>` line breaks and anchored `^` row spans plus the editor model's
+adjacent rectangular-merge metadata. Live preview, PDF Preview, and generated
+PDFs must share focused renderer/model tests. Do not put table structural
+commands back into the ordinary editor context menu.
 The vendored `codemirror-live-markdown` package still contains optional
 table helpers, but Figaro does not activate them; do not reintroduce a
 second table decoration provider without an explicit architecture decision.
@@ -421,6 +445,9 @@ the assembled webview rather than one JavaScript package in isolation.
   focused cursor-movement coverage (including feature keys), the block-widget
   geometry contract when applicable, and the native-webview checks in
   `docs/TESTING.md`.
+- Interactive replacement widgets must also prove an accessible action name,
+  keyboard/pointer parity against authoritative source, focus continuity after
+  remounting, and their effective pointer-target geometry.
 - Keyboard viewport changes must cover a long wrapped note with rendered
   blocks while moving down, reversing upward, and moving down again in both
   normal Arrow Up/Down and Vim `j`/`k` paths. Page Up/Page Down must also

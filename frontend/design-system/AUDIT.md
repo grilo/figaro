@@ -12,7 +12,7 @@ approved selector set:
 
 | Family | Shared primitive | Feature classes retain |
 | --- | --- | --- |
-| Settings pickers | `.ui-picker`, `.ui-picker-trigger`, `.ui-picker-menu` | Selection policy, values, and controller wiring |
+| Settings pickers | `.ui-picker`, `.ui-picker-trigger`, `.ui-picker-menu` | Values, persistence, and shared `settingsPicker.js` combobox wiring |
 | Steppers | `.ui-stepper`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size, text-width, and bounded editable tab-size value policy |
 | Compact actions | `.ui-button` and semantic variants | Labels, placement, and feature events |
 | Icon actions | `.ui-icon-button` and size variants | Accessible names, icons, and host-specific dimensions |
@@ -23,7 +23,7 @@ approved selector set:
 | Calendar days | `.ui-date-picker` and its grid/day primitives, including approved weekend, five-level note-density, selected-surface, and due-outline states | Anchor position, locale week policy, activity data, effective selection, and task mutation |
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
 | Document tabs | `.ui-document-tabs--titlebar`, `.ui-document-tab--connected`, and state modifiers | Title-bar placement, overflow geometry, ordering, drag placement, and tab controller behavior |
-| Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table labels, and CodeMirror gutter behavior |
+| Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table/Draw.io labels, and CodeMirror gutter behavior |
 | Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
 | Content skeletons | `.ui-skeleton` | Calendar grid and Kanban column/card geometry, loading ownership, and replacement lifecycle |
 | Determinate progress | `.ui-progress` and `.ui-progress-value` | Numeric value, label, compact host geometry, and update policy |
@@ -32,6 +32,12 @@ The primitives own the repeated border, radius, surface, typography, focus,
 hover, active, disabled, busy, selected, and semantic-color rules. Existing
 feature classes remain as behavior selectors and deliberate layout hooks; they
 must not recreate the primitive's state language.
+
+Compact buttons distinguish unavailable input from active work: native
+`disabled` uses the ordinary unavailable cursor and opacity, while a disabled
+button marked `aria-busy="true"` (or the equivalent behavior hook) retains the
+wait cursor. Validation failures therefore never masquerade as background
+activity.
 
 The connected rounded title-bar rail combines its document-tab family with the approved
 `.ui-icon-button`, `.ui-menu`, and `.ui-menu-item` primitives. Its
@@ -63,10 +69,16 @@ ownership of fold ranges, announcements, pointer dispatch, and keyboard
 commands; the shared primitives own only their themed interaction states.
 The rendered table's direct delete action reuses the approved danger-ghost
 button; its side-lane placement and narrow-width flow within the measured widget
-are table-layout hooks rather than a new component or visual variant.
+are table-layout hooks rather than a new component or visual variant. Its
+cell-local row and column commands reuse the approved menu, label, separator,
+disabled, focus, and hover states without adding a table-menu variant.
+Standalone Draw.io images reuse the same approved two-guide stack as Mermaid:
+`drawio` owns the whole-image fold and `editor` opens the editable target. The
+feature hook carries only source coordinates and busy ownership; it adds no
+primitive, state, or visual variant.
 
-The title-bar `?` help trigger reuses the approved icon button. Its Markdown
-and Macros topic tabs use the approved compact button and accent variant; the
+The title-bar `?` help trigger reuses the approved icon button. Its Markdown,
+Macros, and Shortcuts topic tabs use the approved compact button and accent variant; the
 tablist layout, spacious viewport-bounded popover geometry, contained topic
 scrolling, and content switching add no new component family or visual state.
 Recently deleted reuses Settings sections plus the approved compact
@@ -86,6 +98,13 @@ Raw Text Preview's **Copy to Clipboard** action reuses the approved primary
 `.ui-button`; its toolbar grouping, exact-source scroll following, clipboard
 lifecycle, and live status are feature behavior rather than a new component or
 button variant.
+
+A failed local Draw.io image reuses the approved accent `.ui-button` for both
+its Create and Open actions and the
+approved `.ui-spinner` inside the image widget's existing one-source-line
+footprint. The `.cm-drawio-action-button` hook owns only that host geometry;
+canonical primitives continue to own hover, focus, disabled, busy, and theme
+paint, so these action states add no component family or visual variant.
 
 Calendar and Kanban reuse the approved `.ui-skeleton` surface while their
 feature classes retain only the dimensions that foreshadow the month grid,
@@ -196,6 +215,10 @@ so the improvement adds neither a seam nor a component-local override.
   distinct.
 - Existing component tests retain ownership of dialog, Settings, frontmatter,
   tabs, and feature behavior.
+- `pickerModel.test.js` and `settingsPicker.test.js` own the shared appearance
+  picker's arrow/Home/End/Enter/Space/Escape/Tab policy, labelled combobox and
+  listbox semantics, active descendant, selection, and pointer choice. The
+  catalogue specimen runs that production controller rather than a static copy.
 - `tests/e2e/designSystemCatalog.spec.js` is the single computed-style
   boundary: it checks themed picker and tooltip paint, tooltip hover/focus and
   Escape behavior, shared stepper backgrounds, the primitive inventory, theme
@@ -205,8 +228,6 @@ so the improvement adds neither a seam nor a component-local override.
 
 - Evaluate shared surface/elevation tokens for cards without merging their
   layouts.
-- Revisit whether theme and font picker controllers can share more behavior
-  only after their keyboard and persistence policies have a common contract.
 - Continue reducing literal spacing and radius values when a changed feature
   provides a clean, tested seam; do not perform a mechanical whole-file
   rewrite.

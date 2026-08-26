@@ -1,3 +1,5 @@
+import { isLocalDrawioMarkdownImage } from './drawioImageCreationModel.js';
+
 const headingPattern = /^(?:ATX|Setext)Heading([1-6])$/;
 export const MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH = 16;
 const fencedCodeGuidePattern = new RegExp(
@@ -17,7 +19,7 @@ export function fencedCodeGuideLabel(info) {
     return fencedCodeGuidePattern.test(firstToken) ? firstToken : 'code';
 }
 
-export function markdownBlockGuideKind({ name, info = '' } = {}) {
+export function markdownBlockGuideKind({ name, info = '', source = '' } = {}) {
     const headingLevel = markdownHeadingLevel(name);
     if (headingLevel) return `h${headingLevel}`;
 
@@ -27,7 +29,9 @@ export function markdownBlockGuideKind({ name, info = '' } = {}) {
     case 'Table':
         return 'table';
     default:
-        return null;
+        return name === 'Paragraph' && isLocalDrawioMarkdownImage(source)
+            ? 'drawio'
+            : null;
     }
 }
 
@@ -35,11 +39,12 @@ export function markdownBlockGuidePlan(descriptor) {
     const level = markdownHeadingLevel(descriptor?.name);
     const label = markdownBlockGuideKind(descriptor);
     if (!label) return null;
+    const drawio = label === 'drawio';
     return {
         label,
         level,
-        type: level ? 'heading' : descriptor.name === 'FencedCode' ? 'code' : 'table',
-        rangeStrategy: level ? 'heading-section' : 'block-after-first-line',
+        type: level ? 'heading' : descriptor.name === 'FencedCode' ? 'code' : drawio ? 'drawio' : 'table',
+        rangeStrategy: level ? 'heading-section' : drawio ? 'whole-block' : 'block-after-first-line',
     };
 }
 
