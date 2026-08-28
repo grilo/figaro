@@ -25,6 +25,11 @@ go install github.com/wailsapp/wails/v2/cmd/wails@v2.14.0
 make bootstrap
 ```
 
+The tracked `.npmrc` installs Figaro's reviewed local test-tool package as a
+regular dependency instead of a symlink. Keep `install-links=true` enabled when
+refreshing `package-lock.json`; this gives npm 9 and newer the same clean-install
+layout.
+
 Start the desktop app with:
 
 ```bash
@@ -101,7 +106,10 @@ the file-tree's post-delete path signal ahead of discovery refresh and retain a
 fresh Draw.io preview URL per image-field generation so successful loader
 caches cannot outlive deletion.
 The themed shell and restored active buffer may become interactive while eager
-vault indexing, tree construction, and parser warming continue; preserve that
+vault indexing, tree construction, and parser warming continue. Saved
+interaction and geometry preferences are different: start their independent
+reads concurrently and keep them behind the startup-hydration barrier so the
+restored editor's first visible frame is already authoritative. Preserve that
 short critical path as well as the later `window._appReady` boundary.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete dependency and startup
@@ -262,6 +270,14 @@ states, and keep catalogue-only CSS limited to the review shell and
 containment of normally positioned overlays. Feature classes may retain
 behavior or narrow layout requirements, but must not recreate a primitive's
 hover, focus, open, selected, disabled, validation, or semantic styling.
+
+Apply the writing-surface border budget before adding an outline: inactive
+rendered content and compact metadata should prefer spacing, typography, and a
+tonal surface. Keep borders when they communicate structure (for example a
+table grid or expanded form), keyboard focus, validation/error state, risk, or
+a selection state that has no independent tonal, typographic, or semantic cue.
+Review both resting and relevant/interactive states in the catalogue; removing
+a decorative border must not alter control or measured CodeMirror geometry.
 
 Use `data-ui-tooltip` for a new concise hint, or `setTooltip()` when its text is
 updated programmatically. The eager tooltip controller also adopts ordinary
@@ -460,7 +476,7 @@ the assembled webview rather than one JavaScript package in isolation.
 - A tab-size change must keep the pure 2–8/default/step rules, backend restart
   persistence, Settings rollback and bounds, root Markdown and code facets,
   Vim `>`, Mermaid, rendered GFM tables, rendered-code, Raw Text Preview, Arrow Up/Down,
-  mouse, and drag-selection contracts in sync.
+  mouse, drag-selection, and native rendered-code scrollbar contracts in sync.
 - Eagerly load bundled feature code during startup. Do not hide dependency
   cycles or postpone feature initialization with interaction-triggered dynamic
   imports.

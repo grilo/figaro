@@ -59,6 +59,7 @@ describe('design-system catalogue', () => {
             '.ui-stepper.text-width-control',
             '.ui-stepper.tab-size-control',
             '.ui-button.settings-action-btn',
+            '.ui-button.ui-button--quiet.cm-frontmatter-panel-action',
             '.ui-button.drawio-edit-button',
             '.ui-button.cm-drawio-action-button',
             '.ui-menu.context-menu',
@@ -68,6 +69,8 @@ describe('design-system catalogue', () => {
             '.ui-icon-button',
             '.ui-badge',
             '.ui-field',
+            '.ui-field--quiet',
+            '.ui-checkbox',
             '.ui-date-picker',
             '.ui-date-picker-day--weekend',
             '.ui-date-picker-day--note-1',
@@ -92,6 +95,7 @@ describe('design-system catalogue', () => {
             '.ui-skeleton',
             '.ui-progress',
             '.ui-editor-block-guide--danger',
+            '.create-inbox-note',
             '.file-tree-node.selected',
             '.file-tree-node.cut-marked',
         ]) {
@@ -155,6 +159,10 @@ describe('design-system catalogue', () => {
             .toBe('Application status');
         expect(catalogue.querySelector('.ds-status-bar .status-right').getAttribute('aria-label'))
             .toBe('Active buffer status');
+        expect(catalogue.querySelector('.ds-status-bar .status-buffer-left').getAttribute('aria-label'))
+            .toBe('History, relationships, and editor state');
+        expect(catalogue.querySelector('.ds-status-bar .status-buffer-right').getAttribute('aria-label'))
+            .toBe('Document metrics');
     });
 
     test('loads the canonical approved primitives in Figaro and the catalogue', () => {
@@ -204,6 +212,7 @@ describe('design-system catalogue', () => {
             'menu',
             'tooltip',
             'field',
+            'checkbox',
             'date-picker',
             'notice',
             'document-tabs',
@@ -219,6 +228,108 @@ describe('design-system catalogue', () => {
             '.file-tree-node.selected',
             '.file-tree-node.cut-marked',
         ]);
+    });
+
+    test('keeps Search notes, Quick note, and selected file surfaces within the sidebar border budget', () => {
+        const appSource = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
+        const appTemplate = document.createElement('template');
+        appTemplate.innerHTML = appSource;
+        expect(appTemplate.content.querySelector('#global-search-input').classList
+            .contains('ui-field--quiet')).toBe(true);
+
+        const catalogueSource = fs.readFileSync(
+            path.resolve('frontend/design-system/index.html'),
+            'utf8',
+        );
+        const catalogueTemplate = document.createElement('template');
+        catalogueTemplate.innerHTML = catalogueSource;
+        expect(catalogueTemplate.content.querySelector('#global-search-input').classList
+            .contains('ui-field--quiet')).toBe(true);
+        expect(catalogueTemplate.content.querySelector('.create-inbox-note')).not.toBeNull();
+
+        const primitives = fs.readFileSync(
+            path.resolve('frontend/design-system/primitives.css'),
+            'utf8',
+        );
+        expect(primitives).toMatch(
+            /\.ui-field\.ui-field--quiet,[\s\S]*?border-color:\s*transparent;/,
+        );
+        expect(primitives).toMatch(
+            /\.ui-field\.ui-field--quiet:focus-visible:not\(\[aria-invalid="true"\]\)[\s\S]*?border-color:\s*transparent;/,
+        );
+        expect(primitives).toMatch(
+            /\.ui-field:focus-visible\s*\{[^}]*box-shadow:\s*0 0 0 3px[^}]*var\(--accent-color\)/s,
+        );
+        expect(primitives).toMatch(
+            /\.ui-field\[aria-invalid="true"\]:hover:not\(:disabled\)\s*\{[^}]*border-color:\s*var\(--danger-color\)/s,
+        );
+
+        const shell = fs.readFileSync(path.resolve('frontend/styles/shell.css'), 'utf8');
+        expect(shell).toMatch(
+            /\.create-inbox-note\s*\{[^}]*border:\s*1px solid transparent/s,
+        );
+        expect(shell).toMatch(
+            /\.create-inbox-note:focus-visible\s*\{[^}]*box-shadow:\s*0 0 0 2px var\(--focus-ring\)/s,
+        );
+        expect(shell).toMatch(
+            /\.create-inbox-note\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--text-color\) 3%, var\(--sidebar-bg\)\)/s,
+        );
+        expect(shell).toMatch(
+            /\.create-inbox-note:hover:not\(:disabled\),[\s\S]*?\.create-inbox-note:focus-visible\s*\{[^}]*background:\s*var\(--hover-bg\)/s,
+        );
+        expect(shell).toMatch(
+            /\.create-inbox-note small\s*\{[^}]*color:\s*var\(--text-dim\)/s,
+        );
+        expect(shell).toMatch(
+            /\.file-tree-node \.node-icon\s*\{[^}]*color:\s*var\(--text-muted\)/s,
+        );
+        expect(shell).not.toContain('--inbox-capture-color');
+        expect(shell).toMatch(
+            /\.file-tree-item > \.file-tree-node\.selected\s*\{[^}]*box-shadow:\s*none/s,
+        );
+        expect(shell).toMatch(
+            /\.file-tree-node:focus-visible\s*\{[^}]*outline:\s*1px solid/s,
+        );
+        expect(shell).toMatch(
+            /\.search-input-wrapper \.search-count\[hidden\]\s*\{[^}]*display:\s*none/s,
+        );
+
+        for (const theme of ['default', 'figaro-light', 'figaro-crt-phosphor']) {
+            const source = fs.readFileSync(path.resolve(`frontend/themes/${theme}.css`), 'utf8');
+            expect(source).toContain('--file-node-selected-shadow: none;');
+            expect(source).toMatch(/--file-node-selected-surface:\s*linear-gradient/);
+            expect(source).toContain('--file-node-selected-weight: 600;');
+        }
+    });
+
+    test('distinguishes the workspace sidebar and document outline icon geometries', () => {
+        const parse = source => {
+            const template = document.createElement('template');
+            template.innerHTML = source;
+            return template.content;
+        };
+        const iconPaths = control => [...control.querySelectorAll('path')]
+            .map(pathElement => pathElement.getAttribute('d'));
+        const assertPair = root => {
+            const sidebar = root.querySelector('[aria-label="Toggle sidebar"]');
+            const outline = root.querySelector('[aria-label="Show document outline"]');
+            expect(sidebar.querySelector('rect')).not.toBeNull();
+            expect(iconPaths(sidebar)).toEqual(['M9 3v18']);
+            expect(iconPaths(outline)).toEqual([
+                'M8 5h13',
+                'M13 12h8',
+                'M13 19h8',
+                'M3 10a2 2 0 0 0 2 2h3',
+                'M3 5v12a2 2 0 0 0 2 2h3',
+            ]);
+            expect(iconPaths(sidebar)).not.toEqual(iconPaths(outline));
+        };
+
+        assertPair(parse(fs.readFileSync(path.resolve('frontend/index.html'), 'utf8')));
+        assertPair(parse(fs.readFileSync(
+            path.resolve('frontend/design-system/index.html'),
+            'utf8',
+        )));
     });
 
     test('keeps all bundled themes on the token-only theme contract', () => {
@@ -345,9 +456,12 @@ describe('design-system catalogue', () => {
             '.ui-picker',
             '.ui-stepper',
             '.ui-button',
+            '.ui-button--quiet',
             '.ui-icon-button',
             '.ui-badge',
             '.ui-field',
+            '.ui-field--quiet',
+            '.ui-checkbox',
             '.ui-date-picker',
             '.ui-date-picker-day--weekend',
             '.ui-date-picker-day--note-1',
@@ -388,6 +502,10 @@ describe('design-system catalogue', () => {
         expect(styles).toMatch(/\.ui-date-picker-day--note-5\s*\{[^}]*var\(--success-color\)/s);
         expect(styles).toMatch(/\.ui-date-picker-day--due\s*\{[^}]*var\(--danger-color\)/s);
         expect(styles).toMatch(/\.ui-date-picker\s*\{[^}]*background:\s*var\(--calendar-surface\)/s);
+        expect(styles).toMatch(/\.ui-checkbox\s*\{[^}]*appearance:\s*none[^}]*border:\s*1px solid var\(--border-color\)/s);
+        expect(styles).toMatch(/\.ui-checkbox:checked\s*\{[^}]*background:\s*var\(--accent-color\)/s);
+        expect(styles).toMatch(/\.ui-checkbox:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
+        expect(styles).toMatch(/\.ui-checkbox:disabled\s*\{[^}]*cursor:\s*not-allowed/s);
 
         const tooltipBindings = new Map([
             ['frontend/js/calendarDayTooltip.js', "className = 'ui-tooltip cal-day-tooltip'"],
@@ -435,9 +553,11 @@ describe('design-system catalogue', () => {
             ['frontend/js/home.js', ['ui-button home-card-action']],
             ['frontend/js/views/searchView.js', ['ui-button search-filter-chip']],
             ['frontend/js/frontmatterPlugin.js', [
-                'ui-button cm-frontmatter-panel-action',
+                'ui-button ui-button--quiet cm-frontmatter-panel-action',
                 'ui-button cm-frontmatter-panel-add',
+                'ui-checkbox cm-frontmatter-panel-toggle',
             ]],
+            ['frontend/js/dialogs.js', ['class="ui-checkbox"', 'ui-checkbox merge-checkbox']],
             ['frontend/js/kanban.js', [
                 'ui-icon-button ui-icon-button--small kanban-column-btn',
                 'ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-card-delete',

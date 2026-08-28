@@ -10,6 +10,100 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.28.0] - 2026-08-28
+
+### Added
+
+- New vaults now receive a Mermaid flowchart example in `Welcome.md`, alongside
+  current Quick Note, sidebar, and PDF-export guidance.
+- **Pure editing chrome**, enabled by default with a Settings opt-out, now lets a file editor fill the
+  window when the sidebar is collapsed. The left rail remains, while title-bar
+  controls return as a non-shifting edge overlay on hover or keyboard focus;
+  only the live word count remains at bottom-right, while the rest of the
+  status bar and Document outline stay absent. Workspace views and an open
+  details pane restore the normal shell.
+  Its enabled state, collapsed rail, and active buffer now return together
+  across restarts without flashing the expanded sidebar.
+
+### Changed
+
+- **Edit YAML** in expanded Properties is now a quiet, borderless source action
+  with a small file-code icon, muted resting text, tonal hover paint, and the
+  standard keyboard-focus halo.
+- Pure editing chrome now opens its hidden title bar from a 28px top
+  approach zone, so the controls appear sooner as the pointer moves upward.
+- The editor now follows a writing-surface border budget: rounded rendered code,
+  collapsed and expanded Properties, metadata chips, and unused rendered-block
+  footprint space are borderless, while tables, fields, focus, errors, and
+  internal structure retain purposeful boundaries. Both Properties states now
+  keep the same rounded tonal surface.
+- Independent-selection checkboxes now use a shared theme-aware control with
+  deliberate rest, checked, hover, keyboard-focus, and disabled states instead
+  of the browser's native paint.
+- The sidebar now drops decorative borders from Search notes and Quick note,
+  and selected files no longer show a leading accent stripe or shadow. Filled
+  surfaces, hover paint, label weight, keyboard focus, and accessible selection
+  state continue to identify each control.
+- Quick Note now uses each theme's quiet neutral writing-surface treatment—a
+  subtle primary-text wash at rest and the standard hover surface when
+  relevant—instead of a red accent wash; its red action icon, muted `INBOX`
+  label, and ordinary Inbox Mail icon remain unchanged.
+- The top-bar sidebar toggle now uses a panel icon, while Document outline uses
+  a distinct nested-list icon for the current note's heading hierarchy.
+- Search notes now keeps its count circle hidden until matching results appear,
+  then hides it again when the search is empty, dismissed, cleared, or a result
+  is opened.
+- Expanded block controls now stay quiet until the pointer approaches their
+  rendered block or left rail, the caret enters their source, or keyboard focus
+  reaches them; the reveal path remains continuous and folded controls stay
+  visible.
+- During ordinary focused writing, the fixed-height status bar now clears all
+  of its content until hover or keyboard focus restores it. In Pure editing
+  chrome, the footer never reveals on hover or focus: only the live word count
+  remains at bottom-right, even while application status changes.
+- The active-buffer status bar now left-aligns changes, backlinks, editing
+  mode, scale, and encoding while right-aligning line/column, word and
+  character counts, and reading time.
+- Rendered fenced code now shows numbered code lines without displaying its
+  backtick fence or language tag, and its borderless tonal surface now has 8px
+  rounded corners; entering the block still reveals the complete portable
+  Markdown source.
+- Stable rendered blocks no longer display the **Markdown footprint** label.
+
+### Fixed
+
+- Vim's physical arrow keys now use the same Normal and Visual motions as
+  `h`/`j`/`k`/`l`, including Properties and rendered-block boundaries, instead
+  of letting Figaro's ordinary Up/Down handler intercept them.
+- Pure editing chrome now keeps the floating Document outline launcher hidden
+  even while its top chrome is revealed.
+- Pure editing chrome no longer leaves the tab rail visible merely because the
+  collapsed-sidebar toggle retains pointer or keyboard focus; only the top
+  document edge and the tab/window groups reveal that chrome.
+- Existing collapsed-sidebar profiles without a saved Pure-chrome preference
+  now enter the intended edge-to-edge editor automatically instead of retaining
+  the ordinary title-bar row.
+- During ordinary writing, the lower-left application-status region now keeps
+  the sidebar's solid surface while its **Ready** content recedes, removing
+  the editor-colored strip beneath the sidebar.
+- Quiet block-control stacks no longer intercept the pointer before their
+  controls reveal, and browser workflows now approach receded block and status
+  controls through the same hover path as a user.
+- Startup now hydrates saved editor interaction and layout preferences before
+  the restored buffer becomes visible or interactive, preventing transient
+  sticky headings, outline controls, diagnostics, pre-Vim input, and late
+  line-number gutter shifts. The first shell frame also uses the saved sidebar
+  width and an accurate **Starting Figaro…** status.
+- Vertical wheel input over rendered code now scrolls an overflowing preview
+  first, then resumes document scrolling when the preview reaches its top or
+  bottom; a code block with only a horizontal scrollbar no longer traps the
+  vertical gesture.
+- Clean frontend dependency installs now use one portable local-package lock
+  layout across supported npm versions instead of failing with a misleading
+  package/lockfile mismatch.
+- Pressing a rendered code block's native scrollbar no longer reveals the raw
+  fence or moves the editor caret.
+
 ## [1.27.0] - 2026-08-27
 
 ### Added
@@ -1473,7 +1567,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.27.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.28.0...HEAD
+[1.28.0]: https://github.com/grilo/figaro/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/grilo/figaro/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/grilo/figaro/compare/v1.25.2...v1.26.0
 [1.25.2]: https://github.com/grilo/figaro/compare/v1.25.1...v1.25.2

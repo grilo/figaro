@@ -138,6 +138,8 @@ import {
 } from './core/vimClipboardModel.js';
 import { markdownLinkPastePlan } from './core/markdownLinkPasteModel.js';
 import { emptyBlockquoteExitPlan } from './core/markdownStructuralEditing.js';
+import { codeBlockScrollbarGuardExtension } from './codeBlockInteraction.js';
+import { createBlockControlVisibilityExtension } from './blockControlVisibility.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
@@ -181,7 +183,7 @@ let lineNumbersRequested = false;
 let markdownLintRequested = true;
 const markdownDocumentLinter = createMarkdownDocumentLinter(validateMermaidSource);
 let markdownBlockGuidesRequested = true;
-let spellcheckRequested = true;
+let spellcheckRequested = false;
 let spellcheckLanguageRequested = 'en-US';
 let vimRequestId = 0;
 let vimModeCM = null;
@@ -680,7 +682,7 @@ export function vimRenderedBlockSelection(selection, block, forward, extendVisua
 }
 
 /**
- * Let optional Vim j/k entry reveal a replacement block's portable source.
+ * Let optional Vim vertical entry reveal a replacement block's portable source.
  * Tables are deliberately special: their own selection filter turns the
  * boundary into the first or last interactive cell instead of raw pipes.
  */
@@ -718,11 +720,12 @@ function vimRenderedBlockNavigationExtension() {
     return Prec.highest(EditorView.domEventHandlers({
         keydown: (event, view) => {
             if (!vimActive || event.altKey || event.ctrlKey || event.metaKey
-                || event.defaultPrevented || (event.key !== 'j' && event.key !== 'k')) return false;
+                || event.defaultPrevented
+                || !['j', 'k', 'ArrowDown', 'ArrowUp'].includes(event.key)) return false;
             const vimState = vimStateFor(view);
             if (!vimState || vimState.insertMode || vimState.inputState?.operatorShortcut
                 || (vimState.inputState?.keyBuffer?.length || 0) > 0) return false;
-            const forward = event.key === 'j';
+            const forward = event.key === 'j' || event.key === 'ArrowDown';
             if (!forward && revealFrontmatterForUpwardMotion(view)) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -739,6 +742,16 @@ function vimRenderedBlockNavigationExtension() {
             return true;
         },
     }));
+}
+
+/**
+ * Preserve Figaro's guarded visual-row movement outside Vim and while Vim is
+ * inserting. Normal, Visual, and operator-pending Vim must receive the native
+ * arrow event so the adapter can apply the same motion as h/j/k/l.
+ */
+function moveCursorVerticallyFromArrow(view, forward) {
+    if (vimActive && !vimStateFor(view)?.insertMode) return false;
+    return moveCursorVerticallySafely(view, forward);
 }
 
 /**
@@ -831,6 +844,8 @@ const markdownBlockGuidesExtension = createMarkdownBlockGuidesExtension({
         openMarkdownTableEditor(view, block, { returnFocus: returnFocusTarget });
     },
 });
+
+const blockControlVisibilityExtension = createBlockControlVisibilityExtension(ViewPlugin);
 
 const imageVaultRefreshExtension = ViewPlugin.fromClass(class {
     constructor(view) {
@@ -2334,6 +2349,7 @@ function createEditorView() {
         referenceLinkPlugin(),
         linkPreview(),
         ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages }),
+        codeBlockScrollbarGuardExtension,
         ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
         ...(Array.isArray(markdownTableField) ? markdownTableField : [markdownTableField]),
         mathField,
@@ -2358,8 +2374,8 @@ function createEditorView() {
             drop: handleExternalFileDrop,
         }),
         Prec.high(keymap.of([
-            { key: 'ArrowUp', run: view => moveCursorVerticallySafely(view, false), preventDefault: true },
-            { key: 'ArrowDown', run: view => moveCursorVerticallySafely(view, true), preventDefault: true },
+            { key: 'ArrowUp', run: view => moveCursorVerticallyFromArrow(view, false) },
+            { key: 'ArrowDown', run: view => moveCursorVerticallyFromArrow(view, true) },
         ])),
         keymap.of(lintKeymap),
         keymap.of(figaroMarkdownKeymap),
@@ -2402,6 +2418,7 @@ function createEditorView() {
             lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
             foldingCompartment.of(editorFoldingExtensions('markdown')),
             foldGutterAccessibilityPlugin,
+            blockControlVisibilityExtension,
             historyCompartment.of(history()), bracketMatching(), drawSelection(),
             searchExtension({ top: false }),
             EditorView.updateListener.of(update => {
@@ -2456,10 +2473,10 @@ function createEditorView() {
                 '.hljs-operator, .hljs-punctuation, .cm-codeblock-widget .hljs-operator, .cm-codeblock-widget .hljs-punctuation': { color: 'var(--code-operator-color) !important' },
                 '.hljs-built_in, .hljs-literal, .hljs-attr, .hljs-attribute, .hljs-meta, .hljs-selector-tag, .hljs-selector-class, .hljs-selector-id, .cm-codeblock-widget .hljs-built_in, .cm-codeblock-widget .hljs-literal, .cm-codeblock-widget .hljs-attr, .cm-codeblock-widget .hljs-attribute, .cm-codeblock-widget .hljs-meta, .cm-codeblock-widget .hljs-selector-tag, .cm-codeblock-widget .hljs-selector-class, .cm-codeblock-widget .hljs-selector-id': { color: 'var(--code-builtin-color) !important' },
                 // Code block widget styling
-                '.cm-codeblock-widget': { backgroundColor: 'var(--hover-bg) !important', border: '1px solid var(--border-color) !important', borderRadius: '8px !important', padding: '12px !important', fontFamily: 'var(--font-mono) !important' },
+                '.cm-codeblock-widget': { backgroundColor: 'var(--hover-bg) !important', border: '0 !important', borderRadius: '8px !important', padding: '12px !important', fontFamily: 'var(--font-mono) !important' },
                 '.cm-codeblock-line': { paddingLeft: '4px !important', lineHeight: '1.5 !important', color: 'var(--text-color) !important' },
                 '.cm-codeblock-fence': { color: 'var(--text-dim) !important' },
-                '.cm-codeblock-copy': { backgroundColor: 'var(--panel-bg) !important', color: 'var(--text-muted) !important', borderRadius: '4px !important', border: '1px solid var(--border-color) !important', padding: '4px 8px !important', cursor: 'pointer !important' },
+                '.cm-codeblock-copy': { backgroundColor: 'transparent !important', color: 'var(--text-muted) !important', borderRadius: '4px !important', border: '1px solid transparent !important', padding: '4px 8px !important', cursor: 'pointer !important' },
                 '.cm-codeblock-copy:hover': { backgroundColor: 'var(--active-bg) !important', color: 'var(--text-color) !important' },
                 '.cm-codeblock-source': { backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, transparent) !important' },
                 '.cm-link, .cm-wikilink': { color: 'var(--link-color) !important' },
@@ -2981,6 +2998,7 @@ function updateStats(text) {
     if (we) we.textContent = `${w} words`;
     if (ce) ce.textContent = `${c} chars`;
     if (re) re.textContent = `${rt} min read`;
+    statusBar.setWritingSummary(`${w} words`);
 }
 
 async function saveActiveFile() {

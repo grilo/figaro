@@ -185,7 +185,7 @@
                         <div class="top-bar">
                             <div class="top-bar-left">
                                 <button class="ui-icon-button icon-btn" aria-label="Toggle sidebar">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+                                    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
                                 </button>
                                 <button class="app-home-btn active">
                                     <img src="../icon-32.png" class="app-icon" alt="" width="22" height="22">
@@ -254,29 +254,42 @@
                         <header><h3>Editor folding</h3><code class="ds-selector">.ui-editor-fold-control</code><code class="ds-selector">.ui-editor-block-guide</code><code class="ds-selector">.ui-editor-block-guide--danger</code></header>
                         <div class="ds-demo ds-form-stack">
                             <div class="ds-flow">
-                                <button type="button" class="ui-editor-fold-control"
-                                        aria-label="Collapse code region" aria-expanded="true"></button>
-                                <span class="ds-editor-sample">Source-code region</span>
+                                <span class="cm-gutterElement">
+                                    <button type="button" class="ui-editor-fold-control"
+                                            aria-label="Collapse code region" aria-expanded="true"></button>
+                                </span>
+                                <span class="ds-editor-sample">Resting code fold (hover its rail)</span>
                             </div>
                             <div class="ds-flow">
-                                <button type="button" class="ui-editor-block-guide"
-                                        aria-label="Collapse h2 Release scope section" aria-expanded="true">h2</button>
-                                <button type="button" class="ui-editor-block-guide"
-                                        aria-label="Expand yaml code block" aria-expanded="false">yaml</button>
-                                <span class="cm-editor-block-guide-stack">
+                                <span class="cm-gutterElement is-block-control-relevant">
                                     <button type="button" class="ui-editor-block-guide"
-                                            aria-label="Collapse table" aria-expanded="true">table</button>
-                                    <button type="button" class="ui-editor-block-guide ui-editor-block-guide--danger"
-                                            aria-label="Delete table">delete</button>
+                                            aria-label="Collapse h2 Release scope section" aria-expanded="true">h2</button>
                                 </span>
-                                <span class="ds-editor-sample">Focused Markdown guides</span>
+                                <span class="cm-gutterElement">
+                                    <button type="button" class="ui-editor-block-guide"
+                                            aria-label="Expand yaml code block" aria-expanded="false">yaml</button>
+                                </span>
+                                <span class="cm-gutterElement is-block-control-relevant">
+                                    <span class="cm-editor-block-guide-stack">
+                                        <button type="button" class="ui-editor-block-guide"
+                                                aria-label="Collapse table" aria-expanded="true">table</button>
+                                        <button type="button" class="ui-editor-block-guide ui-editor-block-guide--danger"
+                                                aria-label="Delete table">delete</button>
+                                    </span>
+                                </span>
+                                <span class="ds-editor-sample">Nearby, folded, and relevant guides</span>
                             </div>
                         </div>
                     </article>
 
                     <article class="ds-specimen">
-                        <header><h3>Sidebar tools</h3><code class="ds-selector">.sidebar-tool-btn</code></header>
+                        <header><h3>Sidebar tools</h3><code class="ds-selector">.create-inbox-note</code><code class="ds-selector">.sidebar-tool-btn</code></header>
                         <div class="ds-demo ds-demo--flush ds-sidebar-demo">
+                            <button type="button" class="create-inbox-note quick-note-action" aria-label="Quick note in Inbox">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8zM14 2v6h6M12 12v6M9 15h6"/></svg>
+                                <span>Quick note</span>
+                                <small>Inbox</small>
+                            </button>
                             <nav class="sidebar-tools" aria-label="Example workspace tools">
                                 <button class="sidebar-tool-btn">
                                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16h16V8zM14 2v6h6M12 12v6M9 15h6"/></svg>
@@ -367,9 +380,12 @@
                 <article class="ds-specimen">
                     <header><h3>Status bar</h3><code class="ds-selector">.status-bar</code><code class="ds-selector">.status-backlinks</code></header>
                     <div class="ds-demo ds-demo--flush">
-                        <footer class="status-bar ds-status-bar">
-                            <div class="status-left" role="group" aria-label="Application status" data-application-active="true" data-has-action="true" title="Deleted Draft.md; Undo available"><span role="status" aria-live="polite">Deleted “Draft.md” ·</span><button class="status-inline-action">Undo</button></div>
-                            <div class="status-right" role="group" aria-label="Active buffer status"><span>Ln 12, Col 8</span><span class="status-separator">|</span><span>2 min read</span><span class="status-separator">|</span><button class="status-backlinks has-backlinks">3 backlinks</button><span class="status-separator">|</span><button class="status-history has-history">8 changes</button></div>
+                        <footer class="status-bar ds-status-bar" data-writing-rest="true">
+                            <div class="status-left" role="group" aria-label="Application status" data-application-active="false" data-has-action="false" title="Ready"><span role="status" aria-live="polite">Ready</span></div>
+                            <div class="status-right" role="group" aria-label="Active buffer status" data-writing-summary="286 words">
+                                <div class="status-buffer-left" role="group" aria-label="History, relationships, and editor state"><button class="status-history has-history">8 changes</button><span class="status-separator">|</span><button class="status-backlinks has-backlinks">3 backlinks</button><span class="status-separator">|</span><span>NORMAL</span><span class="status-separator">|</span><button class="status-history has-history status-scale">Scale 110%</button><span class="status-separator">|</span><span>UTF-8</span></div>
+                                <div class="status-buffer-right" role="group" aria-label="Document metrics"><span>Ln 12, Col 8</span><span class="status-separator">|</span><span>286 words</span><span class="status-separator">|</span><span>1,742 chars</span><span class="status-separator">|</span><span>2 min read</span></div>
+                            </div>
                         </footer>
                     </div>
                 </article>
@@ -389,6 +405,7 @@
                     <header><h3>Compact actions</h3><span class="ds-review-tag is-decided">Merged</span><code class="ds-selector">.ui-button</code></header>
                     <div class="ds-demo ds-flow">
                         <span class="ds-labeled-control"><button class="ui-button settings-action-btn">Choose…</button><code class="ds-selector">.settings-action-btn</code></span>
+                        <span class="ds-labeled-control"><button class="ui-button ui-button--quiet cm-frontmatter-panel-action" aria-label="Edit raw YAML frontmatter"><svg class="cm-frontmatter-panel-action-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.15V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2h-3.35"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="m5 16-3 3 3 3"></path><path d="m9 22 3-3-3-3"></path></svg>Edit YAML</button><code class="ds-selector">.ui-button--quiet</code></span>
                         <span class="ds-labeled-control"><button class="ui-button ui-button--accent drawio-edit-button">Edit diagram</button><code class="ds-selector">.drawio-edit-button</code></span>
                         <span class="ds-labeled-control"><button class="ui-button ui-button--accent cm-drawio-action-button" aria-label="Create Draw.io diagram flow.drawio.svg">Create Draw.io diagram</button><code class="ds-selector">.cm-drawio-action-button</code></span>
                         <span class="ds-labeled-control"><button class="ui-button ui-button--accent cm-drawio-action-button" aria-label="Open Draw.io diagram flow.drawio.svg">Open Draw.io diagram</button><code class="ds-selector">.cm-drawio-action-button</code></span>
@@ -449,11 +466,11 @@
 
                 <div class="ds-specimen-grid ds-specimen-grid--two">
                     <article class="ds-specimen">
-                        <header><h3>Text fields</h3><code class="ds-selector">.search-input-wrapper</code><code class="ds-selector">.custom-modal-input</code></header>
+                        <header><h3>Text fields</h3><code class="ds-selector">.ui-field--quiet</code><code class="ds-selector">.custom-modal-input</code></header>
                         <div class="ds-demo ds-form-stack">
                             <div class="search-input-wrapper">
                                 <span class="search-icon" aria-hidden="true">⌕</span>
-                                <input class="ui-field" type="search" id="global-search-input" placeholder="Search notes…">
+                                <input class="ui-field ui-field--quiet" type="search" id="global-search-input" placeholder="Search notes…">
                                 <span class="ui-badge ui-badge--muted search-count">12</span>
                             </div>
                             <label class="custom-modal-field" for="catalog-valid-name">Note name</label>
@@ -536,13 +553,14 @@
 
                 <div class="ds-specimen-grid ds-specimen-grid--two">
                     <article class="ds-specimen">
-                        <header><h3>Switches &amp; checkboxes</h3><code class="ds-selector">.toggle-switch</code><code class="ds-selector">.table-conversion-checkbox</code></header>
+                        <header><h3>Switches &amp; checkboxes</h3><code class="ds-selector">.toggle-switch</code><code class="ds-selector">.ui-checkbox</code></header>
                         <div class="ds-demo ds-form-stack">
                             <label class="ds-toggle-row"><span>Unchecked</span><span class="toggle-switch"><input type="checkbox" aria-label="Unchecked"><span class="toggle-slider"></span></span></label>
                             <label class="ds-toggle-row"><span>Checked</span><span class="toggle-switch"><input type="checkbox" checked aria-label="Checked"><span class="toggle-slider"></span></span></label>
                             <label class="ds-toggle-row"><span>Disabled</span><span class="toggle-switch"><input type="checkbox" disabled aria-label="Disabled"><span class="toggle-slider"></span></span></label>
-                            <label class="table-conversion-checkbox"><input type="checkbox" checked> First row is a header</label>
-                            <label class="ds-native-check"><input class="cm-frontmatter-panel-toggle" type="checkbox" checked> Frontmatter boolean</label>
+                            <label class="ds-native-check"><input class="ui-checkbox" type="checkbox"> Unchecked selection</label>
+                            <label class="ds-native-check"><input class="ui-checkbox cm-frontmatter-panel-toggle" type="checkbox" checked> Frontmatter boolean</label>
+                            <label class="ds-native-check"><input class="ui-checkbox" type="checkbox" disabled> Disabled selection</label>
                         </div>
                     </article>
                     <article class="ds-specimen">
@@ -671,7 +689,7 @@
                         <header><h3>Tooltip</h3><code class="ds-selector">.ui-tooltip</code></header>
                         <div class="ds-demo ds-tooltip-demo">
                             <button type="button" class="ui-icon-button" aria-label="Show document outline"
-                                    data-ui-tooltip="Show document outline">≡</button>
+                                    data-ui-tooltip="Show document outline"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h13"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="M3 10a2 2 0 0 0 2 2h3"/><path d="M3 5v12a2 2 0 0 0 2 2h3"/></svg></button>
                             <div class="ui-tooltip ds-tooltip-specimen" role="tooltip">Show document outline</div>
                         </div>
                     </article>
@@ -751,12 +769,12 @@
                         <header><h3>Editor properties</h3><code class="ds-selector">.cm-frontmatter-panel</code></header>
                         <div class="ds-demo">
                             <div class="cm-frontmatter-panel">
-                                <div class="cm-frontmatter-panel-header"><strong class="cm-frontmatter-panel-title">Properties</strong><div class="cm-frontmatter-panel-actions"><button class="cm-frontmatter-panel-action">Raw</button><button class="ui-icon-button ui-icon-button--small cm-frontmatter-panel-close" aria-label="Close">×</button></div></div>
+                                <div class="cm-frontmatter-panel-header"><strong class="cm-frontmatter-panel-title">Properties</strong><div class="cm-frontmatter-panel-actions"><button class="ui-button ui-button--quiet cm-frontmatter-panel-action" aria-label="Edit raw YAML frontmatter"><svg class="cm-frontmatter-panel-action-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.15V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2h-3.35"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="m5 16-3 3 3 3"></path><path d="m9 22 3-3-3-3"></path></svg>Edit YAML</button></div></div>
                                 <div class="cm-frontmatter-panel-section">
                                     <h3>Core</h3>
                                     <label class="cm-frontmatter-panel-row"><span class="cm-frontmatter-panel-row-label">Title</span><input class="ui-field cm-frontmatter-panel-input" value="Design system"></label>
                                     <label class="cm-frontmatter-panel-row"><span class="cm-frontmatter-panel-row-label">Status</span><select class="ui-field cm-frontmatter-panel-select"><option>In progress</option></select></label>
-                                    <button class="cm-frontmatter-panel-add">+ Add property</button>
+                                    <button class="ui-button cm-frontmatter-panel-add">+ Add property</button>
                                 </div>
                             </div>
                         </div>
@@ -971,7 +989,7 @@ title: A quiet workspace
                         <tbody>
                             <tr><td>Settings pickers</td><td><code>.theme-picker*</code>, <code>.font-picker*</code>, <code>.settings-picker*</code></td><td><code>.ui-picker</code> structure</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Steppers</td><td><code>.font-size-*</code>, <code>.text-width-*</code></td><td><code>.ui-stepper</code> structure</td><td><span class="is-decided">Merged</span></td></tr>
-                            <tr><td>Compact actions</td><td>Settings, history, relationships, Draw.io</td><td><code>.ui-button</code> + semantic variants</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Compact actions</td><td>Settings, history, relationships, Draw.io, Properties</td><td><code>.ui-button</code> + quiet/semantic variants</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Icon actions</td><td>Title bar, tabs, properties, sidebars</td><td><code>.ui-icon-button</code> sizes</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Badges</td><td>Kanban, search, relationships, Vault health</td><td><code>.ui-badge</code> roles</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Menus</td><td>Context, tabs, settings, frontmatter</td><td><code>.ui-menu</code> visuals; separate controllers</td><td><span class="is-decided">Merged</span></td></tr>
@@ -981,7 +999,7 @@ title: A quiet workspace
                             <tr><td>Content skeletons</td><td>Calendar month cells and Kanban columns/cards</td><td><code>.ui-skeleton</code> shimmer; feature-owned geometry</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Determinate progress</td><td>Accessible track and value fill</td><td><code>.ui-progress</code> family</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Cards</td><td>Settings, home, Kanban, results, health</td><td>Surface tokens only</td><td><span>Keep layouts</span></td></tr>
-                            <tr><td>Form fields</td><td>Dialogs, settings, properties, conversion</td><td><code>.ui-field</code> + context variants</td><td><span class="is-decided">Merged</span></td></tr>
+                            <tr><td>Form fields</td><td>Dialogs, settings, properties, conversion</td><td><code>.ui-field</code> + approved quiet/context variants</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Notices</td><td>Dialogs, history, health, preview</td><td><code>.ui-notice</code> semantic variants</td><td><span class="is-decided">Merged</span></td></tr>
                             <tr><td>Switch vs checkbox</td><td>Settings toggles, task and form checks</td><td>Keep separate semantics</td><td><span class="is-decided">Do not merge</span></td></tr>
                         </tbody>

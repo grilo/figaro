@@ -2864,3 +2864,16 @@ func TestWelcomeContentEndsWithCurrentTechnologyAttribution(t *testing.T) {
 		t.Fatal("Welcome.md must end with the current technology attribution only")
 	}
 }
+
+func TestWelcomeContentDemonstratesMermaidAndCurrentWorkflows(t *testing.T) {
+	for _, expected := range []string{
+		"### Mermaid diagrams\n\n```mermaid\nflowchart LR\n",
+		"| File tree | ✅ | Ctrl+Shift+B |",
+		"**Capture a quick note** — Press Ctrl+N",
+		"**Export** — Right-click the editor → Preview PDF → Generate PDF",
+	} {
+		if !strings.Contains(welcomeContent, expected) {
+			t.Fatalf("Welcome.md is missing current example %q", expected)
+		}
+	}
+}

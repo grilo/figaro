@@ -93,6 +93,52 @@ describe('workspace search', () => {
         expect(document.getElementById('search-results-count').textContent).toBe('2 notes');
     });
 
+    test('shows the count only while matching search results are in use', async () => {
+        const input = document.getElementById('global-search-input');
+        const count = document.getElementById('search-results-count');
+        const dropdown = document.getElementById('global-search-dropdown');
+        const pending = deferred();
+        window.go.desktop.App.SearchNotes.mockImplementationOnce(() => pending.promise);
+
+        expect(count.hidden).toBe(true);
+        expect(count.textContent).toBe('');
+        input.value = 'project';
+        input.focus();
+        const search = performGlobalSearch(input.value);
+
+        expect(dropdown.classList.contains('visible')).toBe(true);
+        expect(count.hidden).toBe(true);
+        expect(count.textContent).toBe('');
+
+        pending.resolve(rankedResponse([{
+            name: 'Project Alpha.md',
+            path: 'Projects/Project Alpha.md',
+            title_match: true,
+            matches: [],
+        }]));
+        await search;
+
+        expect(count.hidden).toBe(false);
+        expect(count.textContent).toBe('1 note');
+
+        disposeSearch = initSearch();
+        document.body.click();
+        expect(dropdown.classList.contains('visible')).toBe(false);
+        expect(count.hidden).toBe(true);
+
+        await performGlobalSearch(input.value);
+        expect(count.hidden).toBe(false);
+        handleSearchKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+        expect(count.hidden).toBe(true);
+        expect(count.textContent).toBe('');
+
+        input.value = 'missing';
+        window.go.desktop.App.SearchNotes.mockResolvedValueOnce(rankedResponse([]));
+        await performGlobalSearch(input.value);
+        expect(count.hidden).toBe(true);
+        expect(count.textContent).toBe('');
+    });
+
     test('shows an exact compact backend match count without requiring every matching line', async () => {
         setState('fileTreeData', []);
         window.go.desktop.App.SearchNotes.mockResolvedValue(rankedResponse([{

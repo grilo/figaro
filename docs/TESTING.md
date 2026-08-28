@@ -141,6 +141,13 @@ that ordinary post-ready interactions make no local module requests or
 first-use initialization. Do not create a separate end-to-end performance
 scenario for every feature.
 
+Saved input and layout state has an earlier correctness boundary than
+`window._appReady`. The startup-hydration use-case test must prove every
+independent session/preference port begins in the same turn, the shared promise
+does not settle early, and repeated callers do not duplicate the reads. The DOM
+presentation test owns the two-frame conceal/reveal scheduler. Keep failures
+and concurrency below the browser layer; they do not need geometry.
+
 Initial vault progress is split across the same boundaries. Root-adapter tests
 prove exact Markdown discovery and monotonically increasing counts; desktop
 tests prove that work remains pending until the idempotent `StartVaultLoad`
@@ -153,7 +160,14 @@ and accessible progress attributes. The one `desktopStartup.spec.js` browser
 case is retained because only a real page can prove the mirrored theme paints
 before the bridge resolves, the selected note is mounted and editable before
 `StartVaultLoad`, inactive tabs cause no reads, and compact footer progress
-keeps its full track height while the tree and index remain unfinished. It also
+keeps its full track height while the tree and index remain unfinished. Its
+startup-hydration scenario deliberately holds every preference response and
+records intermediate animation frames. That browser-only harness proves the
+first shell uses the saved sidebar width and an accurate starting status, no
+editor is exposed before the barrier, the first visible buffer already has its
+saved Vim mode and line-number gutter, pre-Vim keys cannot enter source,
+disabled sticky/outline/diagnostic surfaces never flash, and the first
+non-empty content geometry is stable. It also
 proves that tree completion alone does not publish `window._appReady` and that
 successful index completion hides progress without replacing the editor. Its
 representative post-ready tree activation also counts native `ReadFile` calls:
@@ -356,10 +370,12 @@ FIGARO_PLAYWRIGHT_PORT=34116 npm run test:pdf
 that contract so catalogue and browser checks cannot silently reuse stale
 assets after a source edit.
 
-Browser tests that configure preference-backed editor behavior must wait for
-`window._appReady === true` before changing that behavior. Otherwise the normal
-startup preference load can overwrite the test's setting partway through a
-slower CI run.
+Browser tests that configure preference-backed editor behavior after startup
+must wait for `window._appReady === true` before changing it. Otherwise the
+normal startup hydration can overwrite the test's setting partway through a
+slower CI run. A test of startup itself should instead install held preference
+ports before navigation, assert the editor remains concealed, then release the
+ports and inspect only frames painted after `data-startup-hydrating` is removed.
 
 ### Remote browser-failure diagnostics
 
@@ -516,7 +532,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   proves rejected source remains printable.
 - The Figaro Dark, Light, and CRT Phosphor theme assets, including their warm or
   phosphor reading surfaces, contiguous active tab, shared single-pixel
-  file-tree/tab boundary, current-document tree selection, tactile Settings
+  file-tree/tab boundary, borderless but filled Search/Quick Note controls,
+  stripe-free operation-selection surface and weight, tactile Settings
   card, focus token, text/link contrast, and at
   least 4.5:1 rendered contrast for Home's small muted instructions. Figaro
   Dark additionally holds dim and muted tokens against the conservative hover
@@ -640,6 +657,49 @@ the browser build and packaged webview do not drift back to separate border
 implementations. After changing the outline, title bar, drag region, or window
 controls, also exercise native edge resizing and maximize/restore in the
 packaged application on each affected desktop platform.
+
+## Pure editing chrome regressions
+
+Keep eligibility below browser layout in
+`tests/frontend/unit/pureEditingChrome.test.js`: the pure model must require an
+enabled preference, a collapsed left rail, an active file tab, and a closed
+details pane. The DOM adapter test owns reactive class application, right-pane
+observation, accessible Settings binding, local persistence, keyboard reveal
+selectors, and use of the existing theme surface token. State and Settings-tab
+tests separately prove the enabled-by-default migration, explicit opt-out, and
+labelled control.
+
+One representative case in `tests/e2e/editorUX.spec.js` owns the irreducible
+computed geometry. With the setting enabled and a file open, collapse the
+sidebar, focus the editor, and assert that the main container reaches both
+physical window edges while the 28px top approach strip and status bar are
+absolute overlays; crossing into that strip must restore the complete 44px row
+while the adjacent document area remains inactive as a reveal target.
+Move away to prove the tab rail recedes, approach the top and bottom edges to
+reveal the existing controls, and compare the editor rectangle before and after
+both transitions. The collapse click must leave pointer and focus on the
+persistent sidebar toggle without pinning the tab rail open, while an idle
+footer must already expose only the bottom-right real word-count node before
+focus enters the document. Pointer movement over the bottom edge and both empty
+`.cm-content` margins, keyboard focus, and a meaningful status with an action
+must not reveal any other footer item. Its surface remains transparent and
+pointer-transparent, its application live region remains clipped for assistive
+announcements, and invisible actions cannot receive focus. Programmatic
+keyboard focus inside the tab/window groups must reveal the hidden titlebar
+group. Document outline must remain absent after both pointer and keyboard
+title-bar reveals. Expanding the
+sidebar must restore the ordinary 44px/24px shell allocation.
+Retain the computed `--wails-draggable` assertion and, after changes to this
+overlay or its pointer geometry, exercise native drag, edge resizing, and
+maximize/restore in the packaged application on each affected desktop platform.
+
+`tests/e2e/desktopStartup.spec.js` owns the restart composition: seed the saved
+Pure preference and collapsed rail alongside a portable active-file session,
+record every first shell/editor frame, and require a constant 44px sidebar plus
+the remembered active file and Pure class in every visible editor frame. The
+final session write must retain that active file. This complements the pure
+model and session-persistence units without duplicating their normalization or
+write-queue matrices in the browser.
 
 ## Sidebar navigation regressions
 
@@ -919,12 +979,36 @@ GFM table preview together; it proves a long wrapped fence expands past its
 logical-line fallback, reveals code/math/diagram source, and
 requires the following line to remain fixed, crosses each graphic block with
 Arrow Up/Down, checks mouse placement around display math, and drags across the
-group in both directions. Table-specific Arrow, Tab, Shift+Tab, Enter, mouse,
+group in both directions. It also proves rendered code has visible line numbers
+but no visible fence rows, and that a native scrollbar track press leaves the
+preview mounted with the root caret unchanged. The same browser boundary sends
+vertical wheel input over a real horizontal-only scrollbar, then a deliberately
+constrained vertical preview: the document moves immediately in the first case;
+the preview moves first in the second; and continued input at both vertical
+limits moves the document without changing the root selection. Table-specific Arrow, Tab, Shift+Tab, Enter, mouse,
 drag, and Vim coverage remains in the table matrix below. PDF tests remain
 unchanged because the policy is scoped to `.cm-*` editor roots. The unit policy also
 proves an ordinary selection transaction does not request a document-wide
 remeasure; mounted-root measurements are cached until source or geometry
 changes.
+
+The border-budget regression stays at the lowest meaningful boundaries:
+`blockWidgetLayout.test.js` asserts borderless 8px-rounded code plus the shared
+borderless, rounded Properties surface in collapsed and expanded states while
+preserving table, field, and internal section structure. The existing folding
+browser scenario checks computed code borders, rounded corners, line-number
+separators, and quiet/revealed copy states; the Properties scenario compares
+both panel states with the code-surface token and checks the approved checkbox's
+rest, checked, focus, and source-update behavior. `designSystemCatalog.test.js` separately registers
+the quiet field modifier and proves the sidebar's borderless Search, Quick Note,
+and selected-row rules retain focus, validation, tonal surface, weight, and
+semantic state cues. It also compares the production and catalogue `PanelLeft`
+sidebar glyphs with the distinct `ListTree` document-outline glyphs.
+`search.test.js` proves the result-count badge is hidden initially, through
+loading and zero matches, and after outside dismissal or Escape, while a
+non-empty open result set reveals the exact count. The existing Quick Note browser scenario checks Search and
+capture rest/hover/focus paint, while `figaroThemes.spec.js` checks the computed
+borderless controls and stripe-free selected row in Dark, Light, and CRT.
 
 Missing images have a narrower continuity contract outside the generalized
 source-footprint allowlist. `blockWidgetLayout.test.js` proves their semantic
@@ -969,8 +1053,11 @@ the real CodeMirror anchor/head while the Properties card stays rendered.
 `frontmatterProperties.spec.js` opens a
 language option whose center extends below the card, verifies that option is
 the topmost hit target, hovers and activates it, and confirms the document
-selection remains on its original body line. It also proves Home/document
-start and Vim `gg` preserve Properties, Arrow Up and Vim `k` reveal raw YAML,
+selection remains on its original body line. It verifies that **Edit YAML**
+uses the approved quiet button and file-code glyph, has transparent border and
+surface plus muted text at rest, and restores tonal hover paint and the shared
+keyboard-focus halo. It also proves Home/document
+start and Vim `gg` preserve Properties, Arrow Up / Vim `k` reveal raw YAML,
 Arrow Down exits it, and bidirectional mouse selection leaves the replacement
 rendered. Keep this focused regression when
 changing frontmatter animation, block-widget stacking, picker positioning, or
@@ -1016,8 +1103,8 @@ layout change. Run the packaged application on every affected desktop engine:
 - macOS: WKWebView when the change is intended for macOS distribution.
 
 Use the Welcome note as the minimum native regression: put the cursor on line
-36, `### Text formatting`; Arrow Up must move to line 35, and Arrow Down must
-return to line 36. Also navigate across each newly added widget from above and
+23, `### Text formatting`; Arrow Up must move to line 22, and Arrow Down must
+return to line 23. Also navigate across each newly added widget from above and
 below, and verify mouse placement and drag selection around it. For a vertical
 navigation change, also put the cursor and viewport at the end and press Arrow
 Down, then put both at the beginning and press Arrow Up; neither action may
@@ -1079,10 +1166,15 @@ Markdown block guides add their own focused matrix. Pure coverage must prove
 that only headings, fenced code, tables, and standalone local Draw.io images receive guides; typed fences use a
 bounded normalized language label; untyped fences use `code`; frontmatter and
 every omitted block stay quiet; and parent/child/peer heading plus fence/table
-ranges remain exact. The real CodeMirror component must exercise editor-sized,
+ranges remain exact. `blockControlVisibilityModel.test.js` separately proves
+the rendered-block-to-rail activation rectangle, the narrower heading lane,
+and folded/focus/caret overrides. The real CodeMirror component must exercise editor-sized,
 typed, accessible collapse/expand controls, disabling and re-enabling the
 gutter, and show that folding never edits source. The browser boundary must
-compare guide and editor font sizes, click a nested fold, move across it with
+compare guide and editor font sizes; prove an expanded non-heading guide is
+transparent and non-hit-testable at rest; hover its rendered block, cross the
+complete approach corridor in pointer steps, and activate the still-visible
+control; prove the folded replacement remains visible and operable; click a nested fold; move across it with
 Arrow Up/Down and Vim visual-row `j`/`k`, place the mouse on the adjacent line,
 and drag a selection across the folded source in both directions. For both a
 typed and untyped fence and for a rendered GFM table preview, it must also prove that
@@ -1431,12 +1523,17 @@ ranked target with Enter.
 Tab activation rerenders the tab DOM, so unit and browser coverage must prove
 two consecutive Left/Right presses keep focus on the newly mounted active tab.
 The real narrow viewport also owns the status bar's 24px fixed-height contract,
-the file-tree/buffer region boundary, and the collapsed 44px application-status
+the file-tree/buffer region boundary, the left/right anchoring and DOM order of
+the two active-buffer groups, its ordinary-writing rest state, bottom-edge
+hover restoration, urgent-status override, and the collapsed 44px application-status
 presentation: full live text and tooltip remain available, its compact activity
 state stays inside the rail, and **Undo** remains visible and operable. Theme
 coverage compares the native application-status surface with the file tree and
 the buffer-status surface with the editor. Save-model and tab-manager units own
 failure-cause formatting, dirty-buffer retention, and the live status semantics.
+The ordinary-writing browser assertion must compare the application-status
+background with the sidebar while its text is transparent, proving that content
+opacity cannot expose the editor-coloured parent surface beneath that region.
 
 Run the focused contract with:
 
@@ -1447,6 +1544,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/search.test.js \
   tests/frontend/unit/saveModel.test.js \
   tests/frontend/unit/statusBar.test.js \
+  tests/frontend/unit/statusBarPresentationModel.test.js \
   tests/frontend/unit/tabManager.test.js \
   tests/frontend/unit/fileTree.test.js
 npx playwright test \
@@ -1468,7 +1566,12 @@ rename/move/copy/merge/delete mappings, and an explicit unpin that overrides
 the top-level `Inbox` default without discarding appearance. Keep the
 representative browser case in `tests/e2e/fileTreeAppearance.spec.js` focused
 on computed marker position and the Pin/Unpin menu transition; sibling ordering
-and persistence belong below the browser.
+and persistence belong below the browser. The existing sidebar browser
+contract separately proves that Quick Note's resting surface derives from a 3%
+primary-text/sidebar mix and its relevant state from the standard hover token,
+while its muted `INBOX` label, accent action icon, and ordinary Mail glyph
+retain their established colors. The bundled-theme browser loop proves the
+resting capture surface resolves from every theme's text and sidebar tokens.
 
 Run the focused contract with:
 
@@ -1584,7 +1687,9 @@ the Vim dependency must retain this coverage.
 
 The focused browser contract first checks that Standard mode keeps a thin
 theme-colored caret across prose, headings, and rendered Properties while
-Arrow Up/Down retain their normal movement. It then checks that the root Vim Normal block cursor
+Arrow Up/Down retain their normal movement. It then compares Left/Down/Up/Right
+with `h`/`j`/`k`/`l` from the same cursor in both Vim Normal and Visual modes,
+including Properties and rendered-fence boundaries. It also checks that the root Vim Normal block cursor
 uses `--cursor-bg` and `--cursor-text`, never the Vim adapter's fixed fallback
 red, after switching between contrasting light and dark themes and after focus
 returns after leaving either edge of a rendered table's source range. It checks the 4 px Insert
@@ -1709,9 +1814,9 @@ restores focus in the adjacent column. Closing the right pane must assert both
 
 The separate, off-by-default **Enter rendered blocks** preference must be
 disabled while Vim is off, persist and roll back through the same Settings
-contract, and let Normal `j`/`k` enter adjacent fenced source and the first/last
+contract, and let Normal `j`/Down and `k`/Up enter adjacent fenced source and the first/last
 table source range even when visual-row motions would otherwise skip the widget. With
-that preference explicitly off, Visual `j`/`k` must keep Visual mode and its
+that preference explicitly off, Visual `j`/Down and `k`/Up must keep Visual mode and its
 original anchor while selecting into fenced source from above and below;
 subsequent motion must continue through the unrendered block. Operator-pending
 motions remain untouched.
@@ -1836,7 +1941,9 @@ npx playwright test tests/e2e/pdfExport.spec.js
 
 The dependency-policy contract also locks Babel 8 to its exact Node engine
 floor, proves the Jest 30 syntax-preset compatibility copy is inert under Babel
-8 while its Babel 7 plugins resolve a nested core, and keeps the root
+8 while its Babel 7 plugins resolve a nested core, and verifies that the tracked
+`install-links=true` npm policy gives clean installs a portable local-package
+layout. It keeps the root
 Markdown-It 15 runtime within the `^15.0.0` peer range declared by every
 selected `@mdit` renderer plugin. It also reads the generated
 browser core's version banner, preventing a package-only upgrade from leaving

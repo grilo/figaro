@@ -20,7 +20,70 @@
     flex-shrink: 0;
     border-radius: 0 0 8px 8px;
     white-space: nowrap;
-    transition: grid-template-columns var(--motion-layout-duration) var(--motion-ease-out);
+    transition:
+        grid-template-columns var(--motion-layout-duration) var(--motion-ease-out),
+        border-color var(--motion-content-duration) ease;
+}
+
+/* Pure editing chrome keeps the footer out of document flow and exposes only
+   the real live word-count node. Application announcements remain mounted,
+   while actions and buffer controls cannot become invisible focus targets. */
+#app.pure-editing-chrome .status-bar {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 250;
+    grid-template-columns: 1fr;
+    border-top-color: transparent;
+    pointer-events: none;
+}
+
+#app.pure-editing-chrome .status-left {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+#app.pure-editing-chrome #status-action {
+    display: none;
+}
+
+#app.pure-editing-chrome .status-right {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 16px;
+    overflow: visible;
+}
+
+#app.pure-editing-chrome .status-right::after,
+#app.pure-editing-chrome .status-buffer-left {
+    display: none;
+}
+
+#app.pure-editing-chrome .status-buffer-right {
+    display: flex;
+    width: auto;
+    height: 100%;
+    margin: 0;
+    opacity: 1;
+    pointer-events: none;
+    transform: none;
+}
+
+#app.pure-editing-chrome .status-buffer-right > * {
+    display: none !important;
+}
+
+#app.pure-editing-chrome .status-buffer-right > #word-count {
+    display: inline !important;
+    color: var(--text-muted);
+    opacity: .62;
 }
 
 .status-left, .status-right {
@@ -36,6 +99,10 @@
     height: 100%;
     padding: 0 12px;
     overflow: hidden;
+}
+
+.status-left > * {
+    transition: opacity var(--motion-content-duration) ease;
 }
 
 #status-text {
@@ -84,14 +151,79 @@
 }
 
 .status-right {
+    position: relative;
     width: 100%;
     height: 100%;
     padding: 0 2px 0 12px;
-    justify-content: flex-end;
+    justify-content: space-between;
+    gap: 24px;
     overflow: hidden;
 }
 
-.status-right > * {
+.status-right::after {
+    position: absolute;
+    right: 16px;
+    color: var(--text-muted);
+    content: attr(data-writing-summary);
+    font-variant-numeric: tabular-nums;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(3px);
+    transition:
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out);
+}
+
+.status-buffer-left,
+.status-buffer-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    height: 100%;
+    white-space: nowrap;
+    transition:
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out);
+}
+
+/* Ordinary writing keeps the footer's fixed layout footprint but lets its
+   nonessential controls recede. Hovering the bottom edge or tabbing into a
+   control restores the complete status bar without moving the document. */
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) {
+    border-top-color: transparent;
+}
+
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) .status-left > * {
+    opacity: 0;
+}
+
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-left,
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-right {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(3px);
+}
+
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) .status-right::after {
+    opacity: 0;
+    transform: translateY(0);
+}
+
+.status-buffer-left {
+    flex: 0 1 auto;
+    justify-content: flex-start;
+    overflow: hidden;
+}
+
+.status-buffer-right {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
+.status-buffer-left > *,
+.status-buffer-right > * {
     flex: 0 0 auto;
 }
 
@@ -169,8 +301,13 @@
 
 @media (max-width: 720px) {
     .status-left,
-    .status-right {
+    .status-buffer-left,
+    .status-buffer-right {
         gap: 8px;
+    }
+
+    .status-right {
+        gap: 12px;
     }
 
     .status-left {

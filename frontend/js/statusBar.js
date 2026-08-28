@@ -2,7 +2,59 @@
  * Status Bar - Simple status text display
  */
 
+import { statusBarPresentationModel } from './core/statusBarPresentationModel.js';
+
 const delayedActivities = new Set();
+let presentationInitialized = false;
+let observedVaultPanel = null;
+let vaultLoadingObserver = null;
+
+function editorOwnsFocus() {
+    return Boolean(document.activeElement?.closest?.('#editor-container .cm-content'));
+}
+
+function syncWritingRestPresentation() {
+    const footer = document.getElementById('status-bar');
+    if (!footer) return;
+    const presentation = statusBarPresentationModel({
+        editorFocused: editorOwnsFocus(),
+        statusText: document.getElementById('status-text')?.textContent || '',
+        hasAction: document.querySelector('.status-left')?.dataset.hasAction === 'true',
+        activityVisible: !document.getElementById('status-activity-spinner')?.hidden,
+        vaultLoading: !document.getElementById('vault-loading-panel')?.hidden,
+    });
+    footer.dataset.applicationIdle = String(presentation.applicationIdle);
+    footer.dataset.writingRest = String(presentation.writingRest);
+}
+
+function syncEditorSideReveal(event) {
+    const footer = document.getElementById('status-bar');
+    if (!footer) return;
+    const scroller = event.target?.closest?.('#editor-container .cm-scroller');
+    const reveal = Boolean(scroller && !event.target?.closest?.('.cm-content'));
+    const value = String(reveal);
+    if (footer.dataset.editorSideReveal !== value) footer.dataset.editorSideReveal = value;
+}
+
+function initStatusBarPresentation() {
+    if (!presentationInitialized) {
+        document.addEventListener('focusin', syncWritingRestPresentation);
+        document.addEventListener('focusout', () => Promise.resolve().then(syncWritingRestPresentation));
+        document.addEventListener('pointermove', syncEditorSideReveal, { passive: true });
+        presentationInitialized = true;
+    }
+    const vaultPanel = document.getElementById('vault-loading-panel');
+    if (vaultPanel !== observedVaultPanel && typeof MutationObserver === 'function') {
+        vaultLoadingObserver?.disconnect();
+        observedVaultPanel = vaultPanel;
+        vaultLoadingObserver = vaultPanel ? new MutationObserver(syncWritingRestPresentation) : null;
+        vaultLoadingObserver?.observe(vaultPanel, {
+            attributes: true,
+            attributeFilter: ['hidden'],
+        });
+    }
+    syncWritingRestPresentation();
+}
 
 function updateApplicationStatusPresentation(text) {
     const region = document.querySelector('.status-left');
@@ -10,6 +62,7 @@ function updateApplicationStatusPresentation(text) {
     const message = String(text || 'Ready');
     region.dataset.applicationActive = String(message !== 'Ready');
     region.title = message;
+    syncWritingRestPresentation();
 }
 
 function clearStatusAction() {
@@ -22,6 +75,7 @@ function clearStatusAction() {
     action.textContent = '';
     action.removeAttribute('aria-label');
     action.onclick = null;
+    syncWritingRestPresentation();
 }
 
 function updateActivitySpinner() {
@@ -30,6 +84,7 @@ function updateActivitySpinner() {
     const revealed = [...delayedActivities].some(activity => activity.visible);
     const continuing = !spinner.hidden && delayedActivities.size > 0;
     spinner.hidden = !(revealed || continuing);
+    syncWritingRestPresentation();
 }
 
 const statusBar = {
@@ -61,6 +116,13 @@ const statusBar = {
         action.hidden = false;
         const region = document.querySelector('.status-left');
         if (region) region.dataset.hasAction = 'true';
+        syncWritingRestPresentation();
+    },
+
+    /** Keep the quiet footer's one essential document metric current. */
+    setWritingSummary(text) {
+        const region = document.querySelector('.status-right');
+        if (region) region.dataset.writingSummary = String(text || '0 words');
     },
     /**
      * Clear status (set to Ready)
@@ -102,5 +164,5 @@ const statusBar = {
     }
 };
 
-export { statusBar };
+export { initStatusBarPresentation, statusBar };
 export default statusBar;

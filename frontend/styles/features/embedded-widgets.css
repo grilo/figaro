@@ -14,31 +14,8 @@
     max-height: var(--cm-source-footprint-height);
 }
 
-.cm-source-footprint[data-source-footprint-state="underflow"]::before {
-    position: absolute;
-    z-index: 3;
-    top: 3px;
-    right: 7px;
-    padding: 0 4px;
-    color: var(--text-dim);
-    background: var(--bg-color);
-    content: "Markdown footprint";
-    font-family: var(--font-sans);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    line-height: 1.4;
-    pointer-events: none;
-}
-
 .cm-source-footprint[data-source-footprint-state="underflow"]::after {
-    position: absolute;
-    z-index: 2;
-    inset: 1px;
-    border: 1px dashed var(--border-light);
-    border-radius: 7px;
-    content: "";
-    pointer-events: none;
+    content: none;
 }
 
 .cm-source-footprint--graphic {
@@ -47,7 +24,7 @@
 
 .cm-source-footprint--scroll {
     overflow: auto !important;
-    overscroll-behavior: contain;
+    overscroll-behavior: auto;
 }
 
 .cm-source-footprint-sizer {

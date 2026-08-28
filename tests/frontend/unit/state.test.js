@@ -22,7 +22,9 @@ Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
 const DEFAULTS = {
     sidebarWidth: 280,
     rightSidebarWidth: 320,
+    sidebarCollapsed: false,
     showEditorBreadcrumbs: false,
+    pureEditingChromeEnabled: true,
     activeTabId: null,
     openTabs: [],
     pinnedTabs: [],
@@ -110,6 +112,15 @@ describe('State Management', () => {
             expect(getState('sidebarWidth')).toBe(350);
         });
 
+        test('restores and persists the collapsed sidebar across restarts', () => {
+            localStorage.setItem('sidebarCollapsed', 'true');
+            initState();
+            expect(getState('sidebarCollapsed')).toBe(true);
+
+            setState('sidebarCollapsed', false);
+            expect(localStorage.getItem('sidebarCollapsed')).toBe('false');
+        });
+
         test('should restore expandedDirs from localStorage', () => {
             localStorage.setItem('expandedDirs', JSON.stringify(['folder1', 'folder2']));
             initState();
@@ -173,6 +184,15 @@ describe('State Management', () => {
             expect(getState('showEditorBreadcrumbs')).toBe(true);
         });
 
+        test('enables pure editing chrome by default and restores an explicit opt-out', () => {
+            initState();
+            expect(getState('pureEditingChromeEnabled')).toBe(true);
+
+            localStorage.setItem('pureEditingChromeEnabled', 'false');
+            initState();
+            expect(getState('pureEditingChromeEnabled')).toBe(false);
+        });
+
         test('should restore openTabs to _restoredTabs', () => {
             const tabs = [{ id: 'hello.md', type: 'file', title: 'hello', path: 'hello.md' }];
             localStorage.setItem('openTabs', JSON.stringify(tabs));
@@ -215,6 +235,11 @@ describe('State Management', () => {
             persistState();
             const saved = JSON.parse(localStorage.getItem('expandedDirs'));
             expect(saved.sort()).toEqual(['folder1', 'folder2'].sort());
+        });
+
+        test('persists the pure editing chrome opt-out', () => {
+            setState('pureEditingChromeEnabled', false);
+            expect(localStorage.getItem('pureEditingChromeEnabled')).toBe('false');
         });
 
         test('should save pinnedTabs to localStorage', () => {

@@ -17,6 +17,7 @@
       "id": "button",
       "primitives": [
         ".ui-button",
+        ".ui-button--quiet",
         ".ui-button--accent",
         ".ui-button--primary",
         ".ui-button--warning",
@@ -42,7 +43,11 @@
     },
     {
       "id": "field",
-      "primitives": [".ui-field"]
+      "primitives": [".ui-field", ".ui-field--quiet"]
+    },
+    {
+      "id": "checkbox",
+      "primitives": [".ui-checkbox"]
     },
     {
       "id": "date-picker",

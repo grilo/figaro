@@ -100,12 +100,61 @@
 .hljs-operator, .hljs-punctuation, .cm-codeblock-widget .hljs-operator, .cm-codeblock-widget .hljs-punctuation { color: var(--code-operator-color) !important; }
 .hljs-built_in, .hljs-literal, .hljs-attr, .hljs-attribute, .hljs-meta, .hljs-selector-tag, .hljs-selector-class, .hljs-selector-id, .cm-codeblock-widget .hljs-built_in, .cm-codeblock-widget .hljs-literal, .cm-codeblock-widget .hljs-attr, .cm-codeblock-widget .hljs-attribute, .cm-codeblock-widget .hljs-meta, .cm-codeblock-widget .hljs-selector-tag, .cm-codeblock-widget .hljs-selector-class, .cm-codeblock-widget .hljs-selector-id { color: var(--code-builtin-color) !important; }
 
-/* Code block widget styling */
-.cm-codeblock-widget { background-color: var(--hover-bg) !important; border: 1px solid var(--border-color) !important; border-radius: 6px !important; padding: 34px 18px !important; font-family: var(--font-mono) !important; font-size: 13.5px !important; line-height: 1.5 !important; tab-size: var(--editor-tab-size, 4); }
+/* Code block widget styling. The tonal surface is sufficient separation in
+   ordinary writing; focus and controls provide boundaries when relevant. */
+.cm-codeblock-widget { background-color: var(--hover-bg) !important; border: 0 !important; border-radius: 8px !important; padding: 34px 18px !important; font-family: var(--font-mono) !important; font-size: 13.5px !important; line-height: 1.5 !important; scrollbar-gutter: stable; tab-size: var(--editor-tab-size, 4); }
+.cm-codeblock-widget pre { overflow: visible !important; }
 .cm-codeblock-line { padding-left: 4px !important; line-height: 1.5 !important; color: var(--text-color) !important; }
 .cm-codeblock-fence { color: var(--text-dim) !important; }
-.cm-codeblock-copy { background-color: var(--panel-bg) !important; color: var(--text-muted) !important; border-radius: 4px !important; border: 1px solid var(--border-color) !important; padding: 4px 8px !important; cursor: pointer !important; }
-.cm-codeblock-copy:hover { background-color: var(--active-bg) !important; color: var(--text-color) !important; }
+.cm-codeblock-widget .cm-codeblock-fence { display: none !important; }
+.cm-codeblock-line-numbers { counter-reset: code-block-line; }
+.cm-codeblock-line-numbers .cm-codeblock-line:not(.cm-codeblock-fence) {
+    counter-increment: code-block-line;
+}
+.cm-codeblock-line-numbers .cm-codeblock-line:not(.cm-codeblock-fence)::before {
+    display: inline-block;
+    min-width: 3ch;
+    margin-right: 1.25ch;
+    padding-right: 1ch;
+    border-right: 0;
+    color: var(--text-dim);
+    content: counter(code-block-line);
+    text-align: right;
+    user-select: none;
+}
+.cm-codeblock-copy {
+    background-color: transparent !important;
+    color: var(--text-muted) !important;
+    border-radius: 4px !important;
+    border: 1px solid transparent !important;
+    padding: 4px 8px !important;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-3px);
+    cursor: pointer !important;
+    transition:
+        background var(--motion-content-duration) ease,
+        border-color var(--motion-content-duration) ease,
+        color var(--motion-content-duration) ease,
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out);
+}
+.cm-codeblock-widget:hover .cm-codeblock-copy,
+.cm-codeblock-widget:focus-within .cm-codeblock-copy,
+.cm-codeblock-widget .cm-codeblock-copy:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+.cm-codeblock-copy:hover {
+    background-color: var(--active-bg) !important;
+    color: var(--text-color) !important;
+}
+.cm-codeblock-copy:focus-visible {
+    border-color: var(--accent-color) !important;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
 .cm-codeblock-source { background-color: color-mix(in srgb, var(--accent-color) 8%, transparent) !important; }
 
 /* Live Preview widgets (bullets, checkboxes) */

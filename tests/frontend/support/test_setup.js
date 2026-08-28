@@ -192,7 +192,7 @@ function createMockDOM() {
                         <div id="sidebar-search" class="sidebar-search">
                             <div class="search-input-wrapper">
                                 <input id="global-search-input" role="combobox" aria-label="Search notes" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="search-result-list" aria-expanded="false" />
-                                <span id="search-results-count" aria-live="polite" aria-atomic="true"></span>
+                                <span id="search-results-count" aria-live="polite" aria-atomic="true" hidden></span>
                             </div>
                             <div id="global-search-dropdown" class="search-dropdown"></div>
                         </div>
@@ -241,7 +241,8 @@ function createMockDOM() {
                     </div>
                 </aside>
             </div>
-            <footer id="status-bar" class="status-bar">
+            <footer id="status-bar" class="status-bar" data-writing-rest="false"
+                    data-application-idle="false" data-editor-side-reveal="false">
                 <div class="status-left" role="group" aria-label="Application status"
                      data-application-active="false" data-has-action="false" title="Ready">
                     <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>
@@ -255,19 +256,29 @@ function createMockDOM() {
                     <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
                     <button id="status-action" hidden></button>
                 </div>
-                <div class="status-right" role="group" aria-label="Active buffer status">
-                    <span id="cursor-position">Ln 1, Col 1</span>
-                    <span id="editor-scale-separator" class="status-separator" hidden>|</span>
-                    <button id="editor-scale-status" class="status-history has-history status-scale" hidden>Scale 100%</button>
-                    <span id="reading-time">0 min read</span>
-                    <span id="word-count">0 words</span>
-                    <span id="char-count">0 chars</span>
-                    <span id="file-encoding">UTF-8</span>
-                    <span id="file-type">Standard</span>
-                    <button id="backlinks-status" class="status-backlinks" disabled>0 backlinks</button>
-                    <button id="git-status" class="status-git" hidden disabled>Save to history</button>
-                    <span id="git-status-separator" class="status-separator" hidden>|</span>
-                    <button id="history-count" class="status-history" disabled>0 changes</button>
+                <div class="status-right" role="group" aria-label="Active buffer status" data-writing-summary="0 words">
+                    <div class="status-buffer-left" role="group" aria-label="History, relationships, and editor state">
+                        <button id="history-count" class="status-history" disabled>0 changes</button>
+                        <span id="git-status-separator" class="status-separator" hidden>|</span>
+                        <button id="git-status" class="status-git" hidden disabled>Save to history</button>
+                        <span class="status-separator">|</span>
+                        <button id="backlinks-status" class="status-backlinks" disabled>0 backlinks</button>
+                        <span class="status-separator status-detail-extended">|</span>
+                        <span id="file-type" class="status-detail-extended">Standard</span>
+                        <span id="editor-scale-separator" class="status-separator" hidden>|</span>
+                        <button id="editor-scale-status" class="status-history has-history status-scale" hidden>Scale 100%</button>
+                        <span class="status-separator status-detail-extended">|</span>
+                        <span id="file-encoding" class="status-detail-extended">UTF-8</span>
+                    </div>
+                    <div class="status-buffer-right" role="group" aria-label="Document metrics">
+                        <span id="cursor-position">Ln 1, Col 1</span>
+                        <span class="status-separator status-detail-word">|</span>
+                        <span id="word-count" class="status-detail-word">0 words</span>
+                        <span class="status-separator status-detail-extended">|</span>
+                        <span id="char-count" class="status-detail-extended">0 chars</span>
+                        <span class="status-separator status-detail-reading">|</span>
+                        <span id="reading-time" class="status-detail-reading">0 min read</span>
+                    </div>
                 </div>
             </footer>
             <div id="modals-container"></div>

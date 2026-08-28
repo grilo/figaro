@@ -171,6 +171,9 @@ class MarkdownBlockGuideMarker extends GutterMarker {
         control.title = `${action} ${subject}`;
         control.dataset.foldFrom = String(this.guide.foldFrom);
         control.dataset.foldTo = String(this.guide.foldTo);
+        control.dataset.relevanceFrom = String(this.guide.from);
+        control.dataset.relevanceTo = String(this.guide.to);
+        control.dataset.guideType = this.guide.type;
         control.disabled = !this.guide.foldable;
         control.addEventListener('mousedown', event => {
             if (event.button === 0) event.preventDefault();

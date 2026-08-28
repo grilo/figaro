@@ -28,7 +28,7 @@ dependency_stamp="node_modules/.figaro-npm-ci.stamp"
 vendor_stamp="node_modules/.figaro-vendor.stamp"
 
 dependency_fingerprint() {
-    cksum package.json package-lock.json
+    cksum .npmrc package.json package-lock.json
 }
 
 vendor_fingerprint() {

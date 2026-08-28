@@ -180,6 +180,59 @@ test('uses a 4px line caret while Vim is inserting text', async ({ page }) => {
     expect(insertCursor.borderColor).not.toBe('rgba(0, 0, 0, 0)');
 });
 
+test('gives Vim arrow keys the same Normal and Visual motions as h/j/k/l', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = [
+        'alpha beta gamma',
+        'delta epsilon zeta',
+        'eta theta iota',
+    ].join('\n');
+    const start = source.indexOf('epsilon') + 3;
+    await setEditorSource(page, source, start);
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        await editor.toggleVim(true);
+        editor.setVimVisualRows(false);
+    });
+
+    const content = page.locator('.cm-content');
+    const snapshotAfter = async (key, visual) => {
+        await content.press('Escape');
+        await page.evaluate(position => {
+            const view = window.__vimVisualRowsView;
+            view.dispatch({ selection: { anchor: position } });
+            view.focus();
+        }, start);
+        if (visual) await content.press('v');
+        await content.press(key);
+        return page.evaluate(async () => {
+            const { getCM } = await import('@replit/codemirror-vim');
+            const view = window.__vimVisualRowsView;
+            const selection = view.state.selection.main;
+            const vimState = getCM(view).state.vim;
+            return {
+                anchor: selection.anchor,
+                head: selection.head,
+                from: selection.from,
+                to: selection.to,
+                visualMode: Boolean(vimState?.visualMode),
+                insertMode: Boolean(vimState?.insertMode),
+            };
+        });
+    };
+
+    for (const [motion, arrow] of [
+        ['h', 'ArrowLeft'],
+        ['j', 'ArrowDown'],
+        ['k', 'ArrowUp'],
+        ['l', 'ArrowRight'],
+    ]) {
+        expect(await snapshotAfter(arrow, false)).toEqual(await snapshotAfter(motion, false));
+        expect(await snapshotAfter(arrow, true)).toEqual(await snapshotAfter(motion, true));
+    }
+});
+
 test('themes the root Vim Normal block cursor instead of using the adapter fallback red', async ({ page }) => {
     await openWelcomeEditor(page);
     await setEditorSource(page, 'alpha');
@@ -553,7 +606,7 @@ test('reuses Mermaid rendering while scrolling through virtualized diagram block
     expect(await page.evaluate(() => window.__mermaidScrollRenderProbe.calls)).toBe(1);
 });
 
-test('keeps Vim Visual mode while selecting through a rendered code block from either direction', async ({ page }) => {
+test('uses j/k-equivalent arrows at Normal and Visual rendered-block boundaries', async ({ page }) => {
     await openWelcomeEditor(page);
     const fence = '`'.repeat(3);
     const source = [
@@ -568,13 +621,29 @@ test('keeps Vim Visual mode while selecting through a rendered code block from e
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         await editor.toggleVim(true);
-        editor.setVimRevealBlocks(false);
+        editor.setVimRevealBlocks(true);
     });
 
     const content = page.locator('.cm-content');
     await expect(page.locator('.cm-codeblock-widget')).toHaveCount(1);
+    await content.press('ArrowDown');
+    await expect(page.locator('.cm-codeblock-widget')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__vimVisualRowsView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(2);
+
+    await page.evaluate(async position => {
+        const editor = await import('/js/editor.js');
+        const view = window.__vimVisualRowsView;
+        editor.setVimRevealBlocks(false);
+        view.dispatch({ selection: { anchor: position } });
+        view.focus();
+    }, 2);
+    await expect(page.locator('.cm-codeblock-widget')).toHaveCount(1);
+
     await content.press('v');
-    await content.press('j');
+    await content.press('ArrowDown');
 
     const downward = await page.evaluate(async () => {
         const { getCM } = await import('@replit/codemirror-vim');
@@ -614,7 +683,7 @@ test('keeps Vim Visual mode while selecting through a rendered code block from e
     await expect(page.locator('.cm-codeblock-widget')).toHaveCount(1);
 
     await content.press('v');
-    await content.press('k');
+    await content.press('ArrowUp');
     const upward = await page.evaluate(async () => {
         const { getCM } = await import('@replit/codemirror-vim');
         const view = window.__vimVisualRowsView;

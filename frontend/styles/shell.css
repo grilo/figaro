@@ -85,6 +85,49 @@
     padding: 0 12px 0 8px;
 }
 
+/* Pure editing chrome leaves the physical top edge to the document while the
+   titlebar remains an invisible native drag target. Its existing controls
+   return in place when the pointer approaches the edge or focus enters them;
+   because the row is overlaid, that reveal never shifts the buffer. */
+#app.pure-editing-chrome .top-bar {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 300;
+    height: 28px;
+}
+
+#app.pure-editing-chrome .top-bar:hover:not(:has(.top-bar-left:hover)),
+#app.pure-editing-chrome .top-bar:has(.top-bar-center:focus-within),
+#app.pure-editing-chrome .top-bar:has(.top-bar-right:focus-within) {
+    height: var(--top-bar-height);
+}
+
+#app.pure-editing-chrome .top-bar-left {
+    align-self: start;
+    height: var(--top-bar-height);
+}
+
+#app.pure-editing-chrome .top-bar-center,
+#app.pure-editing-chrome .top-bar-right {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition:
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out);
+}
+
+#app.pure-editing-chrome .top-bar:hover:not(:has(.top-bar-left:hover)) .top-bar-center,
+#app.pure-editing-chrome .top-bar:hover:not(:has(.top-bar-left:hover)) .top-bar-right,
+#app.pure-editing-chrome .top-bar:has(.top-bar-center:focus-within) .top-bar-center,
+#app.pure-editing-chrome .top-bar:has(.top-bar-center:focus-within) .top-bar-right,
+#app.pure-editing-chrome .top-bar:has(.top-bar-right:focus-within) .top-bar-center,
+#app.pure-editing-chrome .top-bar:has(.top-bar-right:focus-within) .top-bar-right {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
 .titlebar-settings-btn.active {
     color: var(--accent-color);
     background: var(--hover-bg);
@@ -129,6 +172,10 @@
 .search-input-wrapper .search-count {
     position: absolute;
     right: 8px;
+}
+
+.search-input-wrapper .search-count[hidden] {
+    display: none;
 }
 
 /* ── Left Sidebar Calendar ── */
@@ -299,14 +346,14 @@
     min-height: 32px;
     margin: 2px 10px 6px;
     padding: 6px 9px;
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: 7px;
-    background: color-mix(in srgb, var(--accent-color) 7%, var(--sidebar-bg));
+    background: color-mix(in srgb, var(--text-color) 3%, var(--sidebar-bg));
     color: var(--text-color);
     font: 600 12px/1.2 var(--font-ui);
     text-align: left;
     cursor: pointer;
-    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .create-inbox-note svg { color: var(--accent-color); }
@@ -319,8 +366,8 @@
 }
 .create-inbox-note:hover:not(:disabled),
 .create-inbox-note:focus-visible {
-    border-color: color-mix(in srgb, var(--accent-color) 70%, var(--border-color));
-    background: color-mix(in srgb, var(--accent-color) 13%, var(--sidebar-bg));
+    border-color: transparent;
+    background: var(--hover-bg);
     outline: none;
 }
 .create-inbox-note:focus-visible {
@@ -647,6 +694,21 @@
     padding: 7px 5px 8px;
 }
 
+/* The rail itself remains a stable spatial anchor in pure editing mode. Its
+   secondary destinations recede until the rail is relevant to pointer or
+   keyboard users; the titlebar sidebar toggle remains continuously visible. */
+#app.pure-editing-chrome .sidebar.collapsed .sidebar-tools {
+    transition:
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out);
+}
+
+#app.pure-editing-chrome .sidebar.collapsed:not(:hover):not(:focus-within) .sidebar-tools {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(4px);
+}
+
 .sidebar.collapsed .sidebar-quick-note {
     display: flex;
     color: var(--accent-color);
@@ -928,7 +990,7 @@
 
 .file-tree-item > .file-tree-node.selected {
     background: color-mix(in srgb, var(--accent-color) 15%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-color) 30%, transparent);
+    box-shadow: none;
     color: var(--text-color);
 }
 

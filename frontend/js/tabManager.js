@@ -1803,6 +1803,19 @@ function renderSettingsTab(panel, _tab) {
                         <div class="ui-menu ui-picker-menu font-picker-menu" id="code-font-picker-menu" role="listbox" aria-label="Code font options" hidden></div>
                     </div>
                 </div>
+                <div class="settings-section">
+                    <div class="settings-section-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16M4 19h16"/><path d="M8 9h8M8 15h8"/></svg>
+                        <span>Writing chrome</span>
+                    </div>
+                    <div class="settings-row">
+                        <span id="pure-editing-chrome-description" class="settings-row-label">Merge chrome into the editor when the sidebar is collapsed</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pure-editing-chrome-toggle" aria-label="Use pure editing chrome" aria-describedby="pure-editing-chrome-description" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
             </div>
             <!-- Editor -->
             <div class="settings-card">

@@ -338,6 +338,7 @@ test('guides Draw.io images and invalidates their preview after file-tree deleti
 
     const foldDiagram = page.getByRole('button', { name: 'Collapse Draw.io image' });
     const editDiagram = page.getByRole('button', { name: 'Open Draw.io editor for this diagram' });
+    await page.locator('.cm-image-widget img[alt="Flow"]').hover();
     await expect(foldDiagram).toBeVisible();
     await expect(editDiagram).toBeVisible();
     await foldDiagram.click();
@@ -345,6 +346,7 @@ test('guides Draw.io images and invalidates their preview after file-tree deleti
     await page.getByRole('button', { name: 'Expand Draw.io image' }).click();
     await expect(page.locator('.cm-image-widget img[alt="Flow"]')).toBeVisible();
 
+    await page.locator('.cm-image-widget img[alt="Flow"]').hover();
     await editDiagram.click();
     await expect.poll(() => page.evaluate(async () => {
         const tabs = await import('/js/tabManager.js');

@@ -20,12 +20,127 @@ test('generates rendered Properties first and reuses one disclosure across curso
     const panel = page.locator('.cm-frontmatter-panel');
     const expandedDisclosure = page.locator('.cm-frontmatter-disclosure-button');
     await expect(panel).toBeVisible();
+    const expandedSurface = await panel.evaluate(element => {
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--hover-bg)';
+        document.body.appendChild(probe);
+        const codeSurface = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        const style = getComputedStyle(element);
+        return {
+            background: style.backgroundColor,
+            codeSurface,
+            borderWidth: style.borderTopWidth,
+            radius: style.borderRadius,
+            shadow: style.boxShadow,
+        };
+    });
+    expect(expandedSurface).toEqual({
+        background: expandedSurface.codeSurface,
+        codeSurface: expandedSurface.codeSurface,
+        borderWidth: '0px',
+        radius: '8px',
+        shadow: 'none',
+    });
+    const editYAML = panel.getByRole('button', { name: 'Edit raw YAML frontmatter' });
+    await expect(editYAML).toHaveClass(/ui-button--quiet/);
+    await expect(editYAML.locator('.cm-frontmatter-panel-action-icon[aria-hidden="true"]')).toHaveCount(1);
+    await page.mouse.move(2, 2);
+    const quietRest = await editYAML.evaluate(button => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--text-muted)';
+        document.body.appendChild(probe);
+        const style = getComputedStyle(button);
+        const result = {
+            background: style.backgroundColor,
+            border: style.borderTopColor,
+            color: style.color,
+            muted: getComputedStyle(probe).color,
+        };
+        probe.remove();
+        return result;
+    });
+    expect(quietRest).toEqual({
+        background: 'rgba(0, 0, 0, 0)',
+        border: 'rgba(0, 0, 0, 0)',
+        color: quietRest.muted,
+        muted: quietRest.muted,
+    });
+    await editYAML.hover();
+    const quietHoverToken = await editYAML.evaluate(button => {
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--active-bg)';
+        document.body.appendChild(probe);
+        const result = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return result;
+    });
+    await expect.poll(() => editYAML.evaluate(button => getComputedStyle(button).backgroundColor))
+        .toBe(quietHoverToken);
+    await editYAML.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(editYAML).toBeFocused();
+    expect(await editYAML.evaluate(button => getComputedStyle(button).boxShadow)).not.toBe('none');
     await expect(expandedDisclosure).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(0);
     await expect(panel.getByRole('button', { name: /Preview Raw Text/i })).toHaveCount(0);
     await expect(panel.getByRole('button', { name: /Preview PDF/i })).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => window.__frontmatterView.state.doc.toString()))
         .toMatch(/^---\ntitle: Body\n/);
+
+    const coverCheckbox = page.getByRole('checkbox', { name: 'Cover page' });
+    await expect(coverCheckbox).toHaveClass(/ui-checkbox/);
+    const uncheckedCheckbox = await coverCheckbox.evaluate(element => {
+        const style = getComputedStyle(element);
+        return {
+            appearance: style.appearance,
+            background: style.backgroundColor,
+            borderStyle: style.borderTopStyle,
+            radius: style.borderRadius,
+            beforeTransform: getComputedStyle(element, '::before').transform,
+        };
+    });
+    expect(uncheckedCheckbox).toMatchObject({
+        appearance: 'none',
+        borderStyle: 'solid',
+        radius: '4px',
+    });
+    expect(uncheckedCheckbox.background).not.toBe('rgba(0, 0, 0, 0)');
+    await coverCheckbox.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(coverCheckbox).toBeFocused();
+    expect(await coverCheckbox.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none');
+    await coverCheckbox.check();
+    await expect.poll(() => page.evaluate(() => window.__frontmatterView.state.doc.toString()))
+        .toContain('cover-page: true');
+    await page.mouse.move(2, 2);
+    await expect.poll(() => page.getByRole('checkbox', { name: 'Cover page' }).evaluate(element => {
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--accent-color)';
+        document.body.appendChild(probe);
+        const accent = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return getComputedStyle(element).backgroundColor === accent;
+    })).toBe(true);
+    const checkedCheckbox = await page.getByRole('checkbox', { name: 'Cover page' }).evaluate(element => {
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--accent-color)';
+        document.body.appendChild(probe);
+        const accent = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return {
+            accent,
+            background: getComputedStyle(element).backgroundColor,
+            beforeTransform: getComputedStyle(element, '::before').transform,
+        };
+    });
+    expect(checkedCheckbox.background).toBe(checkedCheckbox.accent);
+    expect(checkedCheckbox.beforeTransform).not.toBe(uncheckedCheckbox.beforeTransform);
+    await page.getByRole('checkbox', { name: 'Cover page' }).uncheck();
+    await expect.poll(() => page.evaluate(() => window.__frontmatterView.state.doc.toString()))
+        .toContain('cover-page: false');
 
     const selectedLine = () => page.evaluate(() => {
         const view = window.__frontmatterView;
@@ -62,6 +177,35 @@ test('generates rendered Properties first and reuses one disclosure across curso
     await expandedDisclosure.click();
     const collapsedCard = page.locator('.cm-frontmatter');
     await expect(collapsedCard).toBeVisible();
+    await page.mouse.move(2, 2);
+    const quietProperties = await collapsedCard.evaluate(card => {
+        const style = getComputedStyle(card);
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--hover-bg)';
+        document.body.appendChild(probe);
+        const codeSurface = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        const chip = card.querySelector('.cm-frontmatter-chip, .cm-frontmatter-more');
+        const chipStyle = chip ? getComputedStyle(chip) : null;
+        return {
+            borderWidth: style.borderTopWidth,
+            background: style.backgroundColor,
+            codeSurface,
+            radius: style.borderRadius,
+            shadow: style.boxShadow,
+            chipBackground: chipStyle?.backgroundColor || 'none',
+            chipRadius: chipStyle?.borderRadius || 'none',
+        };
+    });
+    expect(quietProperties).toEqual({
+        borderWidth: '0px',
+        background: quietProperties.codeSurface,
+        codeSurface: quietProperties.codeSurface,
+        radius: '8px',
+        shadow: 'none',
+        chipBackground: 'rgba(0, 0, 0, 0)',
+        chipRadius: '0px',
+    });
     const collapsedCenter = await collapsedCard.locator('.cm-frontmatter-disclosure').evaluate(element => {
         const box = element.getBoundingClientRect();
         return box.left + box.width / 2;
@@ -128,6 +272,20 @@ test('generates rendered Properties first and reuses one disclosure across curso
     await expect(collapsedCard).toBeVisible();
 
     await content.press('k');
+    await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(2);
+    await expect(collapsedCard).toHaveCount(0);
+
+    // Vim's physical Up arrow is the same motion as k, including Figaro's
+    // deliberate Properties-to-source boundary behavior.
+    await page.evaluate(() => {
+        const view = window.__frontmatterView;
+        view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf('# Body') + 2 } });
+        view.focus();
+    });
+    await expect(collapsedCard).toBeVisible();
+    await content.press('g');
+    await content.press('g');
+    await content.press('ArrowUp');
     await expect(page.locator('.cm-frontmatter-source-line')).toHaveCount(2);
     await expect(collapsedCard).toHaveCount(0);
 

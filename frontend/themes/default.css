@@ -87,7 +87,7 @@
     --file-node-radius: 6px;
     --file-node-hover-surface: rgba(255, 250, 243, 0.055);
     --file-node-selected-surface: linear-gradient(90deg, rgba(216, 87, 74, 0.18), rgba(216, 87, 74, 0.055));
-    --file-node-selected-shadow: inset 3px 0 var(--accent-color), 0 3px 10px rgba(0, 0, 0, 0.13);
+    --file-node-selected-shadow: none;
     --file-node-selected-weight: 600;
     --tab-radius: 8px 8px 0 0;
     --tab-hover-surface: rgba(255, 250, 243, 0.055);

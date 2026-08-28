@@ -51,8 +51,18 @@ hand without changing the underlying Markdown.
   interaction never reveal source or move the editor caret. Mermaid/Vega
   diagrams, fenced code, display math, and tables retain
   their Markdown source height while rendered, so entering and leaving them
-  does not move the surrounding note; graphics fit down, while code and tables
-  scroll inside the reserved space. Successfully loaded images, Properties,
+  does not move the surrounding note. Graphics fit down; rendered code shows
+  numbered code lines without its fence markers; and code/table scrollbars stay
+  interactive inside the reserved space. Vertical wheel input scrolls an
+  overflowing preview while it can move, then continues through the document
+  at either edge; a horizontal-only scrollbar does not trap vertical scrolling.
+  Decorative outlines stay off rendered code, both collapsed and expanded
+  Properties, and unused source-footprint space. Properties keeps the same
+  rounded tonal surface in either state, with theme-aware checkboxes inside;
+  expanded Properties presents **Edit YAML** as a quiet file-code action that
+  gains tonal paint only on hover or keyboard focus;
+  tables, individual fields, focus, errors, and structural dividers retain their
+  meaningful boundaries. Successfully loaded images, Properties,
   links, and task checkboxes keep their normal sizing. A rendered task checkbox
   has a named 24px target and changes the underlying Markdown from either a
   click or keyboard Space; an image that is still
@@ -64,8 +74,11 @@ hand without changing the underlying Markdown.
   exists but has not yet been saved as renderable SVG, the action becomes
   **Open Draw.io diagram**. A standalone Draw.io image also gets a left-side
   `drawio` / `editor` stack: collapse its preview or open the editable diagram
-  without finding the asset in the file tree. Home/document-start navigation and Vim
-  `gg` leave Properties rendered; Arrow Up or Vim `k` deliberately enters its
+  without finding the asset in the file tree. Expanded block controls stay
+  transparent until the pointer approaches their block/left rail, the caret
+  enters their source, or keyboard focus reaches them; the approach lane has no
+  dead gap, and folded controls remain visible. Home/document-start navigation and Vim
+  `gg` leave Properties rendered; Arrow Up (equivalent to Vim `k`) deliberately enters its
   raw YAML. Opening a Markdown note with complete Properties and no remembered
   or requested position starts the cursor on its first body line. Click a
   footnote reference to jump to
@@ -119,7 +132,7 @@ hand without changing the underlying Markdown.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
   open Mermaid's 32 chart types and 76 starter templates in a focused live
   editor, or edit Draw.io diagrams while keeping the saved SVG readable outside
-  Figaro.
+  Figaro. A new vault's `Welcome.md` includes a ready-to-render Mermaid example.
 - **Source and publishing tools.** Preview the exact raw Markdown or paginated
   output, preserve fenced-code syntax colors, add cover pages and tables of
   contents, use a standalone `---` as a PDF page break, apply vault-local print
@@ -142,10 +155,25 @@ hand without changing the underlying Markdown.
   The scan animation stays off when the operating system requests reduced
   motion. Prose and code fonts, Vim editing, line numbers, sticky headings,
   block guides, document outline, diagnostics, and fully local spellcheck
-  dictionaries remain independently configurable. Ctrl/Cmd+
+  dictionaries remain independently configurable. On launch, Figaro applies
+  those saved interaction and layout choices before revealing the restored
+  editor, while the first shell frame already uses the saved sidebar width.
+  Ctrl/Cmd+
   mouse-wheel temporarily scales the active editor buffer; its status-bar
   **Scale** control resets to the permanent **Default Text Size** chosen in
   Settings, and closing the buffer discards the temporary scale.
+
+For an iA Writer-like writing view, collapse the sidebar; **Settings →
+Appearance → Writing chrome** can opt out. The active file expands to the physical
+top and bottom of the window while the 44px rail and sidebar toggle remain.
+Enter the upper 28px approach band to reveal tabs and window controls, or the
+bottom-right word count remains as the only footer content. The status bar does
+not reveal on hover, and Document outline stays hidden. Keyboard focus reveals
+the top group without moving the document. Expanding the sidebar, opening the details pane, or
+switching to Settings or another workspace view restores the normal shell.
+Figaro remembers the Pure chrome preference, the expanded/collapsed sidebar
+state, and the active buffer, so the same writing view returns on the next
+launch.
 
 ## Download
 
@@ -258,8 +286,14 @@ that activation instead of issuing a second read.
 A compact `loaded / total` Markdown-note progress indicator in the bottom-left
 application-status cell remains visible until the eager vault work is ready.
 That cell follows the file-tree width through resize and collapse, while the
-remaining footer is reserved for active-buffer position, scale, counts,
-backlinks, and local-history actions. Every Figaro theme continues its
+remaining footer keeps changes, backlinks, editing mode, scale, and encoding
+left-aligned, with line/column, word/character counts, and reading time
+right-aligned. While the editor is focused and no operation needs attention,
+all content in that fixed 24px footer gently recedes; hovering the row, entering
+an empty editor side margin, or focusing a footer control restores it. In Pure
+editing chrome, all footer chrome remains absent regardless of hover, focus, or
+application activity; only the live word count remains at bottom-right.
+Progress, errors, activity, and **Undo** never collapse. Every Figaro theme continues its
 file-tree palette into the application cell; Figaro Dark and Figaro Light also
 continue the editor color through the complete buffer cell.
 
@@ -355,6 +389,9 @@ spellcheck text never leaves the device.
 Optional Vim editing keeps wrapped-row motion and Visual selections compatible
 with rendered Markdown, and vertical motions stop at the exact first and last
 document positions instead of wrapping on a backwards native geometry result.
+In Vim Normal and Visual modes, the physical arrow keys follow the same
+motions as `h`/`j`/`k`/`l`, including entry into Properties and rendered
+blocks; Insert mode retains ordinary editing arrows.
 Standard editing uses a thin theme-colored insertion caret; only Vim Normal
 mode uses the contrasting block cursor.
 Normal Arrow Up/Down and Vim `j`/`k` also reconcile the physical and virtual
@@ -376,6 +413,17 @@ Ctrl/Cmd+N from anywhere in Figaro to capture one directly. The Today
 action creates the dated note in the same folder and continues to open legacy
 root daily notes. A top-level Inbox is pinned by default but can be unpinned or
 restyled like any other folder.
+
+The expanded sidebar uses quiet surfaces instead of repeated outlines: Search
+notes and Quick note remain borderless while their existing focus halo appears,
+and selected files use a tinted surface plus a heavier label without a leading
+accent stripe. Search and capture icons, hover paint, keyboard focus, and
+accessible selection state remain intact. Quick Note's resting surface uses a
+3% primary-text wash over the current sidebar and its relevant state uses the
+theme's standard hover surface instead of a red wash; its red action icon,
+muted `INBOX` label, and ordinary Inbox Mail icon keep their existing roles. The search-count circle appears only
+while matching results are open. A panel-shaped top-bar icon now toggles the
+workspace sidebar, while a nested-list icon opens the current note's outline.
 
 Kanban cards are ordinary Markdown lines with standalone hashtags; checkbox
 task syntax is optional. Hashtags define columns, and due dates remain portable

@@ -14,6 +14,35 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#d8574a');
 
+    const themedCheckbox = page.getByRole('checkbox', { name: 'Frontmatter boolean' });
+    const readCheckboxPaint = locator => locator.evaluate(element => {
+        const resolveColor = value => {
+            const probe = document.createElement('span');
+            probe.style.backgroundColor = value;
+            document.body.appendChild(probe);
+            const color = getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            return color;
+        };
+        const style = getComputedStyle(element);
+        const mark = getComputedStyle(element, '::before');
+        return {
+            accent: resolveColor('var(--accent-color)'),
+            background: style.backgroundColor,
+            radius: style.borderRadius,
+            appearance: style.appearance,
+            markBackground: mark.backgroundColor,
+            markTransform: mark.transform,
+        };
+    });
+    const darkCheckbox = await readCheckboxPaint(themedCheckbox);
+    expect(darkCheckbox).toMatchObject({
+        background: darkCheckbox.accent,
+        radius: '4px',
+        appearance: 'none',
+    });
+    expect(darkCheckbox.markTransform).not.toBe('none');
+
     const tooltipTrigger = page.getByRole('button', { name: 'Show document outline' });
     await expect(tooltipTrigger).not.toHaveAttribute('title', /.+/);
     await tooltipTrigger.scrollIntoViewIfNeeded();
@@ -58,6 +87,16 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Light');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'figaro-light');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#b94a3e');
+    await expect.poll(async () => (await readCheckboxPaint(themedCheckbox)).background)
+        .toBe((await readCheckboxPaint(themedCheckbox)).accent);
+    const lightCheckbox = await readCheckboxPaint(themedCheckbox);
+    expect(lightCheckbox.background).toBe(lightCheckbox.accent);
+    expect(lightCheckbox.background).not.toBe(darkCheckbox.background);
+    await themedCheckbox.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(themedCheckbox).toBeFocused();
+    expect(await themedCheckbox.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none');
     await tooltipTrigger.focus();
     await expect(tooltip).toBeVisible();
     await expect(tooltip).toHaveCSS('background-color', await tooltip.evaluate(surface => {
@@ -168,6 +207,7 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ui-picker': 3,
         '.ui-stepper': 2,
         '.ui-button': 12,
+        '.ui-button--quiet': 2,
         '.ui-icon-button': 8,
         '.ui-badge': 6,
         '.ui-field': 4,
@@ -184,6 +224,45 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     for (const [selector, minimum] of Object.entries(primitiveFamilies)) {
         expect(await page.locator(selector).count()).toBeGreaterThanOrEqual(minimum);
     }
+
+    const quietAction = page.locator('#buttons-actions .ds-specimen', {
+        has: page.getByRole('heading', { name: 'Compact actions' }),
+    }).locator('.ui-button--quiet');
+    await expect(quietAction).toContainText('Edit YAML');
+    await expect(quietAction.locator('svg[aria-hidden="true"]')).toHaveCount(1);
+    const quietRest = await quietAction.evaluate(button => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--text-muted)';
+        document.body.appendChild(probe);
+        const style = getComputedStyle(button);
+        const result = {
+            background: style.backgroundColor,
+            border: style.borderTopColor,
+            color: style.color,
+            muted: getComputedStyle(probe).color,
+        };
+        probe.remove();
+        return result;
+    });
+    expect(quietRest).toEqual({
+        background: 'rgba(0, 0, 0, 0)',
+        border: 'rgba(0, 0, 0, 0)',
+        color: quietRest.muted,
+        muted: quietRest.muted,
+    });
+    await quietAction.hover();
+    const quietHoverToken = await quietAction.evaluate(button => {
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--active-bg)';
+        document.body.appendChild(probe);
+        const result = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return result;
+    });
+    await expect.poll(() => quietAction.evaluate(button => getComputedStyle(button).backgroundColor))
+        .toBe(quietHoverToken);
+    await quietAction.focus();
+    expect(await quietAction.evaluate(button => getComputedStyle(button).boxShadow)).not.toBe('none');
 
     const disabledButtonCursors = await page.locator('.ds-specimen', {
         has: page.locator('h3', { hasText: 'Dialog actions' }),

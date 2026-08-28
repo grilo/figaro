@@ -171,6 +171,7 @@ test('renders GFM tables as source-preserving semantic previews', async ({ page 
 test('edits a table transactionally without turning an ordinary cell click into a range', async ({ page }) => {
     await createMarkdownEditor(page, compactTableSource);
     const original = compactTableSource;
+    await page.locator('.cm-live-table').hover();
     await page.locator('.markdown-table-editor-guide').click();
 
     const modal = page.locator('.markdown-table-editor-modal');
@@ -221,6 +222,7 @@ test('edits a table transactionally without turning an ordinary cell click into 
         view.dispatch({ selection: { anchor: 0 } });
         view.focus();
     });
+    await page.locator('.cm-live-table').hover();
     await page.locator('.markdown-table-editor-guide').click();
     const reopened = page.locator('.markdown-table-editor-modal');
     const headerColor = await reopened.locator('th').first().evaluate(cell => getComputedStyle(cell).backgroundColor);

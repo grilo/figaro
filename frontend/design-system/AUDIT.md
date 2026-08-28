@@ -1,11 +1,11 @@
 # Figaro UI audit
 
-Audit snapshot: 2026-08-21. The approved consolidation is represented by the
+Audit snapshot: 2026-08-28. The approved consolidation is represented by the
 [visual catalogue](index.html) and used by the production interface.
 
 ## Consolidated foundation
 
-Fifteen approved families now use shared production
+Sixteen approved families now use shared production
 primitives in `frontend/design-system/primitives.css`. Both Figaro and this
 catalogue load that canonical asset, and `approved-components.json` records the
 approved selector set:
@@ -14,12 +14,13 @@ approved selector set:
 | --- | --- | --- |
 | Settings pickers | `.ui-picker`, `.ui-picker-trigger`, `.ui-picker-menu` | Values, persistence, and shared `settingsPicker.js` combobox wiring |
 | Steppers | `.ui-stepper`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size, text-width, and bounded editable tab-size value policy |
-| Compact actions | `.ui-button` and semantic variants | Labels, placement, and feature events |
+| Compact actions | `.ui-button`, its quiet variant, and semantic variants | Labels, placement, and feature events |
 | Icon actions | `.ui-icon-button` and size variants | Accessible names, icons, and host-specific dimensions |
 | Badges and counts | `.ui-badge` and semantic variants | Count source and feature color roles |
 | Menus and popovers | `.ui-menu`, `.ui-menu-item`, labels, and separators | Positioning and separate context, tabs, picker, and properties controllers |
 | Tooltips | `.ui-tooltip` | Hint text, rich feature content, anchor selection, and lifecycle |
-| Form fields | `.ui-field` | Context density, input type, validation policy, and value handling |
+| Form fields | `.ui-field`, `.ui-field--quiet` | Context density, input type, validation policy, and value handling |
+| Independent checkboxes | `.ui-checkbox` | Labels, semantic checked state, and feature-owned value mutation |
 | Calendar days | `.ui-date-picker` and its grid/day primitives, including approved weekend, five-level note-density, selected-surface, and due-outline states | Anchor position, locale week policy, activity data, effective selection, and task mutation |
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
 | Document tabs | `.ui-document-tabs--titlebar`, `.ui-document-tab--connected`, and state modifiers | Title-bar placement, overflow geometry, ordering, drag placement, and tab controller behavior |
@@ -38,6 +39,13 @@ Compact buttons distinguish unavailable input from active work: native
 button marked `aria-busy="true"` (or the equivalent behavior hook) retains the
 wait cursor. Validation failures therefore never masquerade as background
 activity.
+
+The approved `.ui-button--quiet` variant supports low-emphasis source and
+disclosure-adjacent actions. It removes resting border and surface paint, uses
+muted text, and restores the standard tonal surface, normal text, and focus
+halo when relevant. Expanded Properties applies it to **Edit YAML** with the
+existing `FileCode2` glyph; the frontmatter hook owns only header density and
+the source-reveal event.
 
 The connected rounded title-bar rail combines its document-tab family with the approved
 `.ui-icon-button`, `.ui-menu`, and `.ui-menu-item` primitives. Its
@@ -67,6 +75,10 @@ Editor folding uses the approved typed block guide for Markdown and the
 approved disclosure control for source-code regions. CodeMirror retains
 ownership of fold ranges, announcements, pointer dispatch, and keyboard
 commands; the shared primitives own only their themed interaction states.
+Expanded controls now use the approved primitive's quiet rest state and reveal
+through a measured proximity class, gutter hover, caret relevance, or keyboard
+focus. A folded control stays visible. This is a visibility policy within the
+existing component contract, not a new visual variant.
 The rendered table's direct delete action reuses the approved danger-ghost
 button; its side-lane placement and narrow-width flow within the measured widget
 are table-layout hooks rather than a new component or visual variant. Its
@@ -91,8 +103,63 @@ The two-region footer is a shell-layout correction, not a new component family
 or visual variant. Its application-status region reuses the approved progress,
 spinner, tooltip, and native inline action while following the shared sidebar
 width plan; its buffer-status region retains the existing telemetry and native
-history/backlink actions. `--application-status-surface` lets themes join the
-left region to navigation without duplicating status selectors.
+history/backlink actions, arranged as a left-anchored state group and a
+right-anchored document-metrics group. `--application-status-surface` lets
+themes join the left region to navigation without duplicating status selectors.
+The ordinary-writing rest treatment preserves that same 24px shell and content:
+it clears every item while hover, focus, progress, activity, errors, and actions
+restore the full presentation. Only the application-status contents change
+opacity; its region remains fully
+opaque so `--application-status-surface` continues the sidebar plane rather
+than blending with the buffer surface. It therefore adds no compact-footer
+component family.
+
+Pure editing chrome is likewise a shell composition state, not a new component
+or visual variant. It repositions the approved titlebar tabs, icon buttons, and
+two-region footer as edge overlays and lets the existing collapsed rail remain
+the spatial anchor. At
+rest, `theme-surfaces.css` resolves the titlebar to transparent and derives its
+hover/focus reveal from `--editor-surface`; the footer retains its existing
+theme surfaces. The 28px resting approach band gives the transparent title bar
+a deliberate pointer target without occupying its full revealed height.
+Pointer proximity and `:focus-within` expose the complete title-bar controls.
+Document outline remains omitted, and the transparent non-interactive footer
+exposes only its real word-count node at bottom-right; neither pointer/focus nor
+meaningful status restores the other controls. The application live region
+remains assistive-only and hidden actions cannot receive focus. The shared
+reduced-motion tokens make the title-bar transition immediate when requested.
+
+The editor's border budget is a surface policy rather than a component family.
+Rendered code and both Properties states use the same `--hover-bg`, 8px radius,
+and borderless unelevated surface; collapsed metadata and unused
+source-footprint space also drop decorative outlines. Table grids, individual
+fields, internal dividers, errors, focus, and semantic interaction states retain
+their existing boundaries. Quiet code-copy paint is likewise an interaction
+state within the rendered code surface.
+
+The explicitly approved `.ui-checkbox` family replaces native webview paint for
+independent selections in Properties and dialogs. The primitive owns its theme-
+token rest, checked, hover, focus, disabled, checkmark, and reduced-motion
+states; feature classes retain only behavior and layout. Settings switches and
+source-coupled Markdown task checkboxes remain deliberately distinct.
+
+The sidebar extends that budget through the explicitly approved quiet field
+variant: Search notes keeps the shared filled field, focus halo, disabled, and
+validation states while its resting and hover border is transparent. Quick
+Note keeps its accent icon and focus halo with an invisible
+geometry-preserving border; its resting surface uses a 3% primary-text/sidebar
+mix and its relevant state reuses the standard hover token rather than another
+red accent surface. Its
+muted `INBOX` destination and the file tree's ordinary Inbox Mail glyph remain
+unchanged. File-tree operation selection keeps its
+accent-tinted surface, heavier label, `aria-selected`, and independent keyboard
+outline without the former leading stripe or selected-row shadow.
+Its compact result-count badge is conditional result feedback rather than
+permanent field decoration: the badge remains hidden until matching results are
+open and leaves with that result interaction. The existing icon-button family
+also now carries distinct semantics without a new variant: `PanelLeft` toggles
+workspace navigation and `ListTree` opens the active document hierarchy. Both
+production mappings are repeated in the catalogue.
 
 Raw Text Preview's **Copy to Clipboard** action reuses the approved primary
 `.ui-button`; its toolbar grouping, exact-source scroll following, clipboard
@@ -114,7 +181,8 @@ accessibility tree behind each view's explicit busy/status announcement.
 
 The file tree reuses its established selected surface exclusively for single
 and multiple operation selection, the global focus token for independent
-roving focus, and `--warning-color` for unsaved buffers. The active document
+roving focus, and `--warning-color` for unsaved buffers. Selection deliberately
+uses surface and weight instead of a leading stripe or shadow. The active document
 retains non-visual `aria-current` semantics while the active tab carries its
 visible state. The explicitly approved `cut-marked` feature variant adds only a
 compact scissors indicator through the established trailing-status geometry;
@@ -177,7 +245,7 @@ so the improvement adds neither a seam nor a component-local override.
 | Family | Decision | Reason |
 | --- | --- | --- |
 | Cards and panels | Keep layouts distinct; share theme tokens only | Settings, Home, Kanban, results, Vault health, and Properties have different hierarchy and interaction |
-| Switches and checkboxes | Keep separate semantics; share focus tokens only | Persistent binary settings are switches; independent selections remain checkboxes |
+| Switches, independent checkboxes, and task checkboxes | Keep separate semantics; independent selections share `.ui-checkbox` | Persistent settings are switches, while Markdown tasks mutate source and keep editor-specific hit geometry |
 | Menu controllers | Keep separate behavior | Context commands, tab selection, select-only pickers, and editable Properties fields have different state and keyboard policy |
 | Feature layout hooks | Keep narrowly scoped | A tab close control, dialog action, or Properties field may need a different host dimension without owning another visual system |
 
@@ -207,7 +275,7 @@ so the improvement adds neither a seam nor a component-local override.
 
 ## Verification
 
-- `tests/frontend/unit/designSystemCatalog.test.js` verifies all fifteen
+- `tests/frontend/unit/designSystemCatalog.test.js` verifies all sixteen
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, verifies theme-derived

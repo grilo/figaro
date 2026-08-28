@@ -232,6 +232,7 @@ test('keeps Ctrl+wheel text scale on the open buffer and resets it to the Settin
     await page.locator('.tab[data-tab-id="Welcome.md"]').click();
     await expect(page.locator('#editor-scale-status')).toHaveText('Scale 120%');
 
+    await page.locator('#status-bar').hover();
     await page.locator('#editor-scale-status').click();
     await expect(page.locator('#editor-scale-status')).toHaveText('Scale 110%');
     await expect.poll(() => page.evaluate(() => Number.parseFloat(
@@ -467,7 +468,7 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
     await codeFont.press('ArrowDown');
     await codeFont.press('Tab');
     await expect(codeFont).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.locator('#font-size-down')).toBeFocused();
+    await expect(page.locator('#pure-editing-chrome-toggle')).toBeFocused();
 
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.cm-editor')).toBeVisible();
@@ -481,6 +482,147 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
         const state = await import('/js/state.js');
         return state.getState('openTabs').find(tab => tab.id === 'Welcome.md').cursorState;
     })).toEqual(expectedCursor);
+});
+
+test('lets Pure editing fill the window with only word count and no outline', async ({ page }) => {
+    await openWelcomeEditor(page);
+
+    await page.locator('#toggle-sidebar').click();
+    await expect(page.locator('#toggle-sidebar')).toBeFocused();
+    await expect(page.locator('#app')).toHaveClass(/pure-editing-chrome/);
+    await expect.poll(() => page.locator('.top-bar-center').evaluate(element => (
+        Number.parseFloat(getComputedStyle(element).opacity)
+    ))).toBe(0);
+    await expect(page.locator('#outline-toggle')).toBeHidden();
+
+    const readPureFooter = () => page.locator('#status-bar').evaluate(element => {
+        const visibleBufferIds = [...element.querySelectorAll('.status-buffer-right > [id]')]
+            .filter(child => getComputedStyle(child).display !== 'none')
+            .map(child => child.id);
+        const word = document.getElementById('word-count');
+        const wordBounds = word.getBoundingClientRect();
+        const appBounds = document.getElementById('app').getBoundingClientRect();
+        const left = document.querySelector('.status-left');
+        const leftStyle = getComputedStyle(left);
+        return {
+            background: getComputedStyle(element).backgroundColor,
+            pointerEvents: getComputedStyle(element).pointerEvents,
+            applicationStatusClipped: leftStyle.clipPath === 'inset(50%)'
+                && leftStyle.overflow === 'hidden'
+                && left.getBoundingClientRect().width <= 8,
+            actionDisplay: getComputedStyle(document.getElementById('status-action')).display,
+            bufferLeftDisplay: getComputedStyle(document.querySelector('.status-buffer-left')).display,
+            visibleBufferIds,
+            wordOpacity: getComputedStyle(word).opacity,
+            wordText: word.textContent,
+            wordRightInset: Math.round(appBounds.right - wordBounds.right),
+            wordBottomAligned: appBounds.bottom - wordBounds.bottom >= 0
+                && appBounds.bottom - wordBounds.bottom <= 8,
+        };
+    });
+    const expectedPureFooter = {
+        background: 'rgba(0, 0, 0, 0)',
+        pointerEvents: 'none',
+        applicationStatusClipped: true,
+        actionDisplay: 'none',
+        bufferLeftDisplay: 'none',
+        visibleBufferIds: ['word-count'],
+        wordOpacity: '0.62',
+        wordText: '4 words',
+        wordRightInset: 16,
+        wordBottomAligned: true,
+    };
+    await expect.poll(readPureFooter).toEqual(expectedPureFooter);
+
+    await page.locator('.cm-content').focus();
+    const resting = await page.evaluate(() => {
+        const bounds = selector => document.querySelector(selector).getBoundingClientRect();
+        const app = bounds('#app');
+        const main = bounds('.main-container');
+        const editor = bounds('#editor-container');
+        const status = bounds('#status-bar');
+        const top = bounds('.top-bar');
+        const topStyle = getComputedStyle(document.querySelector('.top-bar'));
+        return {
+            app: { top: app.top, bottom: app.bottom, width: app.width },
+            main: { top: main.top, bottom: main.bottom },
+            editor: { top: editor.top, bottom: editor.bottom, height: editor.height },
+            statusTop: status.top,
+            top: { top: top.top, bottom: top.bottom, height: top.height },
+            topPosition: topStyle.position,
+            topBackground: topStyle.backgroundImage,
+            topDrag: topStyle.getPropertyValue('--wails-draggable').trim(),
+        };
+    });
+    expect(resting.topPosition).toBe('absolute');
+    expect(resting.top.height).toBe(28);
+    expect(resting.topBackground).toBe('none');
+    expect(resting.topDrag).toBe('drag');
+    expect(Math.abs(resting.main.top - resting.app.top)).toBeLessThanOrEqual(1);
+    expect(Math.abs(resting.main.bottom - resting.app.bottom)).toBeLessThanOrEqual(1);
+    expect(Math.abs(resting.statusTop - (resting.app.bottom - 24))).toBeLessThanOrEqual(1);
+
+    const pointerTargets = await page.evaluate(() => {
+        const scroller = document.querySelector('#editor-container .cm-scroller').getBoundingClientRect();
+        const content = document.querySelector('#editor-container .cm-content').getBoundingClientRect();
+        return {
+            left: [(scroller.left + content.left) / 2, content.top + 120],
+            right: [(content.right + scroller.right) / 2, content.top + 120],
+            bottom: [content.left + content.width / 2, document.getElementById('app').getBoundingClientRect().bottom - 1],
+        };
+    });
+    for (const [x, y] of Object.values(pointerTargets)) {
+        await page.mouse.move(x, y);
+        await expect.poll(readPureFooter).toEqual(expectedPureFooter);
+    }
+
+    await page.evaluate(async () => {
+        const { statusBar } = await import('/js/statusBar.js');
+        statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', () => {});
+    });
+    await expect.poll(readPureFooter).toEqual(expectedPureFooter);
+    await page.evaluate(async () => {
+        const { statusBar } = await import('/js/statusBar.js');
+        statusBar.clear();
+    });
+
+    await page.mouse.move(resting.app.width / 2, resting.top.bottom + 1);
+    await expect.poll(() => page.locator('.top-bar-center').evaluate(element => (
+        Number.parseFloat(getComputedStyle(element).opacity)
+    ))).toBe(0);
+    await page.mouse.move(resting.app.width / 2, resting.top.bottom - 1);
+    await expect.poll(() => page.locator('.top-bar-center').evaluate(element => (
+        Number.parseFloat(getComputedStyle(element).opacity)
+    ))).toBe(1);
+    await expect(page.locator('#outline-toggle')).toBeHidden();
+    const topReveal = await page.evaluate(() => {
+        const editor = document.querySelector('#editor-container').getBoundingClientRect();
+        return {
+            editor: { top: editor.top, bottom: editor.bottom, height: editor.height },
+            height: document.querySelector('.top-bar').getBoundingClientRect().height,
+            background: getComputedStyle(document.querySelector('.top-bar')).backgroundImage,
+        };
+    });
+    expect(topReveal.height).toBe(44);
+    expect(topReveal.background).toContain('linear-gradient');
+    expect(topReveal.editor).toEqual(resting.editor);
+
+    await page.locator('#topbar-settings').focus();
+    await expect.poll(() => page.locator('.top-bar-right').evaluate(element => (
+        Number.parseFloat(getComputedStyle(element).opacity)
+    ))).toBe(1);
+    await expect(page.locator('#outline-toggle')).toBeHidden();
+
+    await page.locator('#toggle-sidebar').click();
+    await expect(page.locator('#app')).not.toHaveClass(/pure-editing-chrome/);
+    await expect(page.locator('#outline-toggle')).toBeVisible();
+    const restored = await page.evaluate(() => {
+        const app = document.querySelector('#app').getBoundingClientRect();
+        const main = document.querySelector('.main-container').getBoundingClientRect();
+        return { appTop: app.top, appBottom: app.bottom, mainTop: main.top, mainBottom: main.bottom };
+    });
+    expect(Math.abs(restored.mainTop - (restored.appTop + 44))).toBeLessThanOrEqual(1);
+    expect(Math.abs(restored.mainBottom - (restored.appBottom - 24))).toBeLessThanOrEqual(1);
 });
 
 test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and drag selection', async ({ page }) => {
@@ -601,6 +743,9 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(collapseControls).toHaveCount(5);
     await expect(page.getByRole('button', { name: 'Collapse h2 Goals section' })).toHaveCount(1);
     await expect(collapseControls.first()).toHaveAttribute('aria-label', 'Collapse h1 Product roadmap section');
+    await collapseControls.first().evaluate(async control => {
+        await Promise.all(control.getAnimations().map(animation => animation.finished));
+    });
     const guideTypeScale = await collapseControls.first().evaluate(control => ({
         guide: Number.parseFloat(getComputedStyle(control).fontSize),
         editor: Number.parseFloat(getComputedStyle(control.closest('.cm-editor')).fontSize),
@@ -630,7 +775,8 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     expect(headingGuideAlignment.writingGap).toBeGreaterThanOrEqual(6);
     expect(headingGuideAlignment.writingGap).toBeLessThanOrEqual(10);
     expect(headingGuideAlignment.editorInset).toBeGreaterThan(40);
-    await collapseControls.nth(1).click();
+    await collapseControls.nth(1).focus();
+    await page.keyboard.press('Space');
 
     const expandControl = page.locator(
         '.ui-editor-block-guide[aria-expanded="false"][aria-label="Expand h2 Goals section"]:visible',
@@ -811,6 +957,14 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect(yamlWidget).toHaveCount(1);
     await expect(untypedWidget).toHaveCount(1);
     await expect(tableWidget).toHaveCount(1);
+    const yamlCopy = yamlWidget.locator('.cm-codeblock-copy');
+    const yamlBodyLine = yamlWidget.locator('.cm-codeblock-line:not(.cm-codeblock-fence)').first();
+    await expect(yamlWidget).toHaveCSS('border-top-width', '0px');
+    await expect(yamlWidget).toHaveCSS('border-radius', '8px');
+    await expect(yamlCopy).toHaveCSS('opacity', '0');
+    await expect(yamlCopy).toHaveCSS('pointer-events', 'none');
+    expect(await yamlBodyLine.evaluate(line => getComputedStyle(line, '::before').borderRightWidth))
+        .toBe('0px');
     const expandedWidgetHeights = {
         yaml: await yamlWidget.evaluate(widget => widget.getBoundingClientRect().height),
         code: await untypedWidget.evaluate(widget => widget.getBoundingClientRect().height),
@@ -820,12 +974,28 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     const expandedYamlGuideBox = await yamlGuide.boundingBox();
     const expandedYamlWidgetBox = await yamlWidget.boundingBox();
     expect(Math.abs(expandedYamlGuideBox.y - expandedYamlWidgetBox.y)).toBeLessThan(2);
+    await expect.poll(() => yamlGuide.evaluate(control => ({
+        opacity: getComputedStyle(control).opacity,
+        pointerEvents: getComputedStyle(control).pointerEvents,
+    }))).toEqual({ opacity: '0', pointerEvents: 'none' });
+    await yamlWidget.hover();
+    await expect.poll(() => yamlGuide.evaluate(control => ({
+        opacity: getComputedStyle(control).opacity,
+        pointerEvents: getComputedStyle(control).pointerEvents,
+    }))).toEqual({ opacity: '1', pointerEvents: 'auto' });
+    await expect(yamlCopy).toHaveCSS('opacity', '1');
+    await expect(yamlCopy).toHaveCSS('pointer-events', 'auto');
     const fixedYamlGuidePoint = {
         x: expandedYamlGuideBox.x + expandedYamlGuideBox.width / 2,
         y: expandedYamlGuideBox.y + expandedYamlGuideBox.height / 2,
     };
+    await page.mouse.move(fixedYamlGuidePoint.x, fixedYamlGuidePoint.y, { steps: 8 });
+    await expect(yamlGuide).toHaveCSS('opacity', '1');
     await page.mouse.click(fixedYamlGuidePoint.x, fixedYamlGuidePoint.y);
-    await expect(page.getByRole('button', { name: 'Expand yaml code block' })).toHaveCount(1);
+    const foldedYamlGuide = page.getByRole('button', { name: 'Expand yaml code block' });
+    await expect(foldedYamlGuide).toHaveCount(1);
+    await expect(foldedYamlGuide).toHaveCSS('opacity', '1');
+    await expect(foldedYamlGuide).toHaveCSS('pointer-events', 'auto');
     await expect.poll(async () => {
         const box = await page.getByRole('button', { name: 'Expand yaml code block' }).boundingBox();
         return box?.y;
@@ -873,6 +1043,7 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     await expect.poll(() => yamlWidget.evaluate(widget => widget.getBoundingClientRect().height))
         .toBeGreaterThanOrEqual(expandedWidgetHeights.yaml);
 
+    await untypedWidget.hover();
     await page.getByRole('button', { name: 'Collapse code block' }).click();
     await expect(page.getByRole('button', { name: 'Expand code block' })).toHaveCount(1);
     await expect(untypedWidget).toHaveCount(0);
@@ -887,6 +1058,7 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
         .toBeGreaterThanOrEqual(expandedWidgetHeights.code);
 
     const sourceBeforeTableFold = await page.evaluate(() => window.__headingFoldView.state.doc.toString());
+    await tableWidget.hover();
     await page.getByRole('button', { name: 'Collapse table' }).click();
     await expect(page.getByRole('button', { name: 'Expand table' })).toHaveCount(1);
     await expect(tableWidget).toHaveCount(0);
@@ -942,11 +1114,14 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
     }, bottomGuideSource);
     const bottomGuide = page.getByRole('button', { name: 'Collapse yaml code block' });
     await expect(bottomGuide).toBeVisible();
+    await page.locator('.cm-codeblock-widget').hover();
+    await expect(bottomGuide).toHaveCSS('opacity', '1');
     const bottomGuideBox = await bottomGuide.boundingBox();
     const fixedBottomGuidePoint = {
         x: bottomGuideBox.x + bottomGuideBox.width / 2,
         y: bottomGuideBox.y + bottomGuideBox.height / 2,
     };
+    await page.mouse.move(fixedBottomGuidePoint.x, fixedBottomGuidePoint.y, { steps: 8 });
     await page.mouse.click(fixedBottomGuidePoint.x, fixedBottomGuidePoint.y);
     const expandedBottomGuide = page.getByRole('button', { name: 'Expand yaml code block' });
     await expect(expandedBottomGuide).toBeVisible();
@@ -1720,7 +1895,7 @@ test('keeps math and diagram previews cursor-safe during keyboard and mouse sele
     }
 });
 
-test('keeps rendered block source footprints stable while navigating and selecting', async ({ page }) => {
+test('keeps rendered block source footprints stable and chains code wheel input at scroll limits', async ({ page }) => {
     await openWelcomeEditor(page);
     const fence = '`'.repeat(3);
     const longCodeLine = `const answer = "${'wrapped source '.repeat(10)}";`;
@@ -1767,6 +1942,16 @@ test('keeps rendered block source footprints stable while navigating and selecti
     await expect(page.locator('.cm-live-diagram')).toHaveCount(1);
     await expect(page.locator('.cm-block-widget--table')).toHaveCount(1);
     await expect(page.locator('.cm-math-inline')).toHaveCount(1);
+
+    const renderedCode = page.locator('.cm-codeblock-widget');
+    await expect(renderedCode.locator('.cm-codeblock-line:not(.cm-codeblock-fence)')).toHaveCount(1);
+    expect(await renderedCode.locator('.cm-codeblock-fence').evaluateAll(elements => (
+        elements.every(element => getComputedStyle(element).display === 'none')
+    ))).toBe(true);
+    expect(await renderedCode.locator('.cm-codeblock-line:not(.cm-codeblock-fence)').evaluate(element => ({
+        content: getComputedStyle(element, '::before').content,
+        increment: getComputedStyle(element).counterIncrement,
+    }))).toEqual({ content: 'counter(code-block-line)', increment: 'code-block-line 1' });
 
     await expect.poll(() => page.evaluate(() => {
         const view = window.__sourceFootprintView;
@@ -1889,6 +2074,171 @@ test('keeps rendered block source footprints stable while navigating and selecti
         expect(selection.from).toBeLessThanOrEqual(points.firstBlock);
         expect(selection.to).toBeGreaterThanOrEqual(points.lastBlock);
     }
+
+    // A scrollbar press is a native browser boundary. Keep the rendered code
+    // mounted and the root selection unchanged while the track owns the input.
+    const scrollbarSource = [
+        'Before',
+        '',
+        fence + 'javascript',
+        longCodeLine,
+        fence,
+        '',
+        'After',
+    ].join('\n');
+    await page.evaluate(markdown => {
+        const view = window.__sourceFootprintView;
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: markdown },
+            selection: { anchor: markdown.length },
+        });
+        view.focus();
+    }, scrollbarSource);
+    await expect(renderedCode).toHaveCount(1);
+    const scrollbarDimensions = await renderedCode.evaluate(element => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+    }));
+    expect(scrollbarDimensions.scrollWidth).toBeGreaterThan(scrollbarDimensions.clientWidth + 1);
+    const selectionBeforeScrollbar = await page.evaluate(() => (
+        window.__sourceFootprintView.state.selection.main.head
+    ));
+    expect(await page.evaluate(async () => {
+        const { codeBlockScrollbarGuardExtension } = await import('/js/codeBlockInteraction.js');
+        return Boolean(window.__sourceFootprintView.plugin(codeBlockScrollbarGuardExtension));
+    })).toBe(true);
+    const codeBox = await renderedCode.boundingBox();
+    await page.evaluate(() => {
+        window.__codeScrollbarDefaultPrevented = null;
+        document.addEventListener('mousedown', event => {
+            const widget = event.target?.closest?.('.cm-codeblock-widget');
+            if (!widget) return;
+            const style = getComputedStyle(widget);
+            window.__codeScrollbarPress = {
+                viewContainsWidget: window.__sourceFootprintView.dom.contains(widget),
+                pathContainsView: event.composedPath().includes(window.__sourceFootprintView.dom),
+                clientX: event.clientX,
+                clientY: event.clientY,
+                rect: widget.getBoundingClientRect().toJSON(),
+                clientWidth: widget.clientWidth,
+                clientHeight: widget.clientHeight,
+                offsetWidth: widget.offsetWidth,
+                offsetHeight: widget.offsetHeight,
+                scrollWidth: widget.scrollWidth,
+                scrollHeight: widget.scrollHeight,
+                borderTop: Number.parseFloat(style.borderTopWidth) || 0,
+                borderRight: Number.parseFloat(style.borderRightWidth) || 0,
+                borderBottom: Number.parseFloat(style.borderBottomWidth) || 0,
+                borderLeft: Number.parseFloat(style.borderLeftWidth) || 0,
+            };
+        }, { capture: true, once: true });
+        document.addEventListener('mousedown', event => {
+            window.__codeScrollbarDefaultPrevented = event.defaultPrevented;
+        }, { once: true });
+    });
+    await page.mouse.move(codeBox.x + codeBox.width * 0.65, codeBox.y + codeBox.height - 3);
+    await page.mouse.down();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(renderedCode).toHaveCount(1);
+    await page.mouse.up();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    // Chromium does not consistently page an overlay scrollbar from a
+    // synthetic track press; the event must still remain native and must not
+    // reveal source or leave the root caret at the temporary pointer position.
+    expect(await page.evaluate(async () => {
+        const { codeBlockScrollbarAxis } = await import('/js/core/codeBlockInteractionModel.js');
+        return codeBlockScrollbarAxis(window.__codeScrollbarPress);
+    })).toBe('horizontal');
+    expect(await page.evaluate(() => ({
+        defaultPrevented: window.__codeScrollbarDefaultPrevented,
+        viewContainsWidget: window.__codeScrollbarPress.viewContainsWidget,
+        pathContainsView: window.__codeScrollbarPress.pathContainsView,
+    }))).toEqual({
+        defaultPrevented: false,
+        viewContainsWidget: true,
+        pathContainsView: true,
+    });
+    await expect(renderedCode).toHaveCount(1);
+    expect(await page.evaluate(() => window.__sourceFootprintView.state.selection.main.head))
+        .toBe(selectionBeforeScrollbar);
+
+    // Native wheel chaining is also a browser boundary. A vertically
+    // overflowing preview scrolls first; after it reaches either edge,
+    // continued wheel input resumes scrolling the CodeMirror document.
+    const wheelChainSource = [
+        ...Array.from({ length: 32 }, (_, index) => `Before wheel ${index + 1}`),
+        fence + 'javascript',
+        longCodeLine,
+        fence,
+        ...Array.from({ length: 32 }, (_, index) => `After wheel ${index + 1}`),
+    ].join('\n');
+    await page.evaluate(markdown => {
+        const view = window.__sourceFootprintView;
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: markdown },
+            selection: { anchor: markdown.length },
+        });
+        const widget = view.dom.querySelector('.cm-codeblock-widget');
+        widget.scrollIntoView({ block: 'center' });
+        widget.scrollTop = 0;
+        view.focus();
+    }, wheelChainSource);
+    await expect(renderedCode).toHaveCount(1);
+    const normalWheelDimensions = await renderedCode.evaluate(element => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        overscrollBehavior: getComputedStyle(element).overscrollBehavior,
+    }));
+    expect(normalWheelDimensions.scrollWidth).toBeGreaterThan(normalWheelDimensions.clientWidth + 1);
+    expect(normalWheelDimensions.scrollHeight).toBeLessThanOrEqual(normalWheelDimensions.clientHeight + 1);
+    expect(normalWheelDimensions.overscrollBehavior).toBe('auto');
+    const selectionBeforeWheel = await page.evaluate(() => (
+        window.__sourceFootprintView.state.selection.main.head
+    ));
+    await renderedCode.hover({ position: { x: 20, y: 20 } });
+    const documentBeforeUnscrollableWheel = await page.evaluate(() => (
+        window.__sourceFootprintView.scrollDOM.scrollTop
+    ));
+    await page.mouse.wheel(0, 60);
+    await expect.poll(() => page.evaluate(() => window.__sourceFootprintView.scrollDOM.scrollTop))
+        .toBeGreaterThan(documentBeforeUnscrollableWheel);
+    expect(await renderedCode.evaluate(element => element.scrollTop)).toBe(0);
+
+    const verticalDimensions = await renderedCode.evaluate(element => {
+        for (const property of ['height', 'min-height', 'max-height']) {
+            element.style.setProperty(property, '44px', 'important');
+        }
+        element.scrollIntoView({ block: 'center' });
+        element.scrollTop = 0;
+        return {
+            clientHeight: element.clientHeight,
+            scrollHeight: element.scrollHeight,
+        };
+    });
+    expect(verticalDimensions.scrollHeight).toBeGreaterThan(verticalDimensions.clientHeight + 1);
+    await renderedCode.hover({ position: { x: 20, y: 20 } });
+    const documentBeforeInnerWheel = await page.evaluate(() => window.__sourceFootprintView.scrollDOM.scrollTop);
+    await page.mouse.wheel(0, 60);
+    await expect.poll(() => renderedCode.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.__sourceFootprintView.scrollDOM.scrollTop))
+        .toBe(documentBeforeInnerWheel);
+
+    await renderedCode.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    const documentBeforeBottomChain = await page.evaluate(() => window.__sourceFootprintView.scrollDOM.scrollTop);
+    await page.mouse.wheel(0, 180);
+    await expect.poll(() => page.evaluate(() => window.__sourceFootprintView.scrollDOM.scrollTop))
+        .toBeGreaterThan(documentBeforeBottomChain);
+
+    await renderedCode.evaluate(element => { element.scrollTop = 0; });
+    const documentBeforeTopChain = await page.evaluate(() => window.__sourceFootprintView.scrollDOM.scrollTop);
+    await page.mouse.wheel(0, -180);
+    await expect.poll(() => page.evaluate(() => window.__sourceFootprintView.scrollDOM.scrollTop))
+        .toBeLessThan(documentBeforeTopChain);
+    await expect(renderedCode).toHaveCount(1);
+    expect(await page.evaluate(() => window.__sourceFootprintView.state.selection.main.head))
+        .toBe(selectionBeforeWheel);
 });
 
 test('coalesces rapid editor observer updates without losing the dirty buffer', async ({ page }) => {
@@ -1922,14 +2272,96 @@ test('coalesces rapid editor observer updates without losing the dirty buffer', 
     }))).toEqual({ content: 'one two three', dirty: true, words: '3 words' });
 });
 
-test('keeps Quick note available in the collapsed rail and gives Inbox its default Mail icon', async ({ page }) => {
+test('keeps borderless sidebar search, its conditional count, and Quick note focused before collapse', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true && window.lucide?.icons?.Star && window.lucide?.icons?.Mail);
 
+    const search = page.locator('#global-search-input');
+    const searchCount = page.locator('#search-results-count');
     const quickNote = page.locator('#create-inbox-note');
+    const controlPaint = locator => locator.evaluate(element => {
+        const style = getComputedStyle(element);
+        return {
+            border: style.borderTopColor,
+            background: style.backgroundColor,
+            shadow: style.boxShadow,
+        };
+    });
+
+    expect(await controlPaint(search)).toMatchObject({
+        border: 'rgba(0, 0, 0, 0)',
+    });
+    expect((await controlPaint(search)).background).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(searchCount).toBeHidden();
+    await page.evaluate(async () => {
+        const { renderSearchResults } = await import('/js/views/searchView.js');
+        renderSearchResults({
+            results: [{
+                name: 'Welcome.md',
+                path: 'Welcome.md',
+                matches: [{ line: 1, text: 'Welcome to Figaro' }],
+                matchCount: 1,
+            }],
+            query: 'welcome',
+            filters: { titleOnly: false, recentOnly: false, caseSensitive: false },
+            selectedIndex: -1,
+            onFilter() {},
+            onOpen() {},
+        });
+    });
+    await expect(searchCount).toBeVisible();
+    await expect(searchCount).toHaveText('1 note');
+    await page.evaluate(async () => {
+        const { clearGlobalSearch } = await import('/js/controllers/searchController.js');
+        clearGlobalSearch(false);
+    });
+    await expect(searchCount).toBeHidden();
+    await search.hover();
+    expect((await controlPaint(search)).border).toBe('rgba(0, 0, 0, 0)');
+    await search.focus();
+    expect(await controlPaint(search)).toMatchObject({
+        border: 'rgba(0, 0, 0, 0)',
+    });
+    expect((await controlPaint(search)).shadow).not.toBe('none');
+
     await expect(quickNote).toContainText('Quick note');
+    const quickNotePalette = await page.evaluate(() => {
+        const probe = document.createElement('span');
+        document.body.append(probe);
+        probe.style.color = 'var(--text-dim)';
+        const destination = getComputedStyle(probe).color;
+        probe.style.color = 'var(--accent-color)';
+        const accent = getComputedStyle(probe).color;
+        probe.style.color = 'var(--text-muted)';
+        const muted = getComputedStyle(probe).color;
+        probe.style.backgroundColor = 'color-mix(in srgb, var(--text-color) 3%, var(--sidebar-bg))';
+        const rest = getComputedStyle(probe).backgroundColor;
+        probe.style.backgroundColor = 'var(--hover-bg)';
+        const hover = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return {
+            accent,
+            destination,
+            muted,
+            rest,
+            hover,
+            label: getComputedStyle(document.querySelector('#create-inbox-note small')).color,
+            actionIcon: getComputedStyle(document.querySelector('#create-inbox-note svg')).color,
+        };
+    });
+    expect(quickNotePalette.label).toBe(quickNotePalette.destination);
+    expect(quickNotePalette.actionIcon).toBe(quickNotePalette.accent);
+    expect((await controlPaint(quickNote)).border).toBe('rgba(0, 0, 0, 0)');
+    await expect.poll(async () => (await controlPaint(quickNote)).background)
+        .toBe(quickNotePalette.rest);
+    await quickNote.hover();
+    expect((await controlPaint(quickNote)).border).toBe('rgba(0, 0, 0, 0)');
+    await expect(quickNote).toHaveCSS('background-color', quickNotePalette.hover);
     await quickNote.focus();
-    expect(await quickNote.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none');
+    expect(await controlPaint(quickNote)).toMatchObject({
+        border: 'rgba(0, 0, 0, 0)',
+    });
+    expect((await controlPaint(quickNote)).shadow).not.toBe('none');
 
     await page.locator('#toggle-sidebar').click();
     await expect(page.locator('#sidebar')).toHaveClass(/collapsed/);
@@ -1961,7 +2393,9 @@ test('keeps Quick note available in the collapsed rail and gives Inbox its defau
         tree.renderFileTree();
     });
 
-    await expect(page.locator('[data-path="Inbox"] .default-inbox-icon')).toBeVisible();
+    const inboxIcon = page.locator('[data-path="Inbox"] .default-inbox-icon');
+    await expect(inboxIcon).toBeVisible();
+    await expect(inboxIcon).toHaveCSS('color', quickNotePalette.muted);
     await expect(page.locator('[data-path="active.md"] > .file-tree-node')).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('[data-path="active.md"] > .file-tree-node')).toHaveAttribute('aria-selected', 'false');
     await expect(page.locator('[data-path="active.md"] > .file-tree-node')).not.toHaveClass(/selected/);
@@ -2066,13 +2500,13 @@ test('keeps local history quiet until the active file needs recording again', as
             background: style.backgroundColor,
             bottomBorder: style.borderBottomColor,
             cursor: style.cursor,
-            beforeChanges: Boolean(element.compareDocumentPosition(document.getElementById('history-count')) & Node.DOCUMENT_POSITION_FOLLOWING),
+            changesBeforeAction: Boolean(document.getElementById('history-count').compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING),
         };
     });
     expect(highlighted.background).toBe('rgba(0, 0, 0, 0)');
     expect(highlighted.bottomBorder).not.toBe('rgba(0, 0, 0, 0)');
     expect(highlighted.cursor).toBe('pointer');
-    expect(highlighted.beforeChanges).toBe(true);
+    expect(highlighted.changesBeforeAction).toBe(true);
     // The title-bar help button opens a real keyboard-contained popup whose
     // Markdown/Macros/Shortcuts topics use the normal accessible tab pattern; the closed
     // popup contributes no invisible controls to the Tab order.

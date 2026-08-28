@@ -334,7 +334,7 @@ export function tableConversionDialog(sourceText) {
                             </select>
                         </label>
                         <label class="table-conversion-checkbox">
-                            <input type="checkbox" checked>
+                            <input type="checkbox" class="ui-checkbox" checked>
                             <span>First row is header</span>
                         </label>
                     </div>
@@ -581,7 +581,7 @@ export function mergeNotesDialog(destinationPath, sourcePaths) {
             const normalized = String(path || '').replaceAll('\\', '/');
             const name = normalized.split('/').pop();
             return `<label class="merge-file-row" title="${escapeHtml(normalized)}">
-                <input type="checkbox" class="merge-checkbox" data-index="${index}" checked>
+                <input type="checkbox" class="ui-checkbox merge-checkbox" data-index="${index}" checked>
                 <span class="merge-file-icon" aria-hidden="true">${iconSVG('file')}</span>
                 <span class="merge-file-name">${escapeHtml(name)}</span>
             </label>`;

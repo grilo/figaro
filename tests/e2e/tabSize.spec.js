@@ -151,6 +151,7 @@ test('uses one persisted tab size for normal and Vim indentation across editor s
         view.dispatch({ selection: { anchor: 0 } });
         view.focus();
     });
+    await page.locator('.cm-live-diagram').hover();
     await page.getByRole('button', { name: 'Open Mermaid Editor for this diagram' }).click();
     const modalContent = page.locator('.mermaid-editor-code-host .cm-content');
     await expect(modalContent).toBeFocused();
@@ -175,6 +176,7 @@ test('uses one persisted tab size for normal and Vim indentation across editor s
         view.dispatch({ selection: { anchor: 0 } });
         view.focus();
     });
+    await page.locator('.cm-live-diagram').hover();
     await page.getByRole('button', { name: 'Open Mermaid Editor for this diagram' }).click();
     await page.evaluate(async () => {
         const { EditorView } = await import('@codemirror/view');

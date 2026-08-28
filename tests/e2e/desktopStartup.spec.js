@@ -164,6 +164,102 @@ test('boots through the native Wails binding with the workspace overview, vault 
         .some(call => call.args[0] === 'external-forwarded-1'))).toBe(true);
 });
 
+test('restores the saved active buffer directly into persistent pure editing chrome', async ({ page }) => {
+    await page.addInitScript(() => {
+        localStorage.setItem('sidebarCollapsed', 'true');
+        localStorage.setItem('pureEditingChromeEnabled', 'true');
+        const calls = [];
+        const observations = { sidebarWidths: [], visibleEditorFrames: [] };
+        window.__pureRestartCalls = calls;
+        window.__pureRestartObservations = observations;
+
+        const recordFrame = () => {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                const width = Math.round(sidebar.getBoundingClientRect().width * 10) / 10;
+                if (observations.sidebarWidths.at(-1) !== width) observations.sidebarWidths.push(width);
+            }
+            const app = document.getElementById('app');
+            const content = document.querySelector('.cm-content');
+            if (content && app?.dataset.startupHydrating !== 'true') {
+                observations.visibleEditorFrames.push({
+                    pure: app.classList.contains('pure-editing-chrome'),
+                    activeTab: document.querySelector('.tab.active')?.dataset.tabId || '',
+                    text: content.textContent,
+                });
+            }
+            if (!window._appReady || performance.now() < 1600) requestAnimationFrame(recordFrame);
+        };
+        requestAnimationFrame(recordFrame);
+
+        window.runtime = { EventsOn: () => {} };
+        const responses = {
+            LoadSession: {
+                openTabs: [{ id: 'remembered.md', type: 'file', title: 'Remembered', path: 'remembered.md' }],
+                activeTabId: 'remembered.md',
+                selectedFilePath: 'remembered.md',
+                selectedTreePath: 'remembered.md',
+                expandedDirs: [],
+                pinnedTabs: [],
+            },
+            ReadFile: { content: '# Remembered buffer\n\nContinue writing here.', path: 'remembered.md', mtime: 1 },
+            GetFileTree: [{ name: 'remembered.md', path: 'remembered.md', type: 'file', mtime: 1 }],
+            GetFileTreeStyles: { version: 1, entries: {}, recent_icons: [] },
+            GetVaultLoadStatus: { generation: 1, phase: 'ready', loaded: 1, total: 1 },
+            GetLaunchExternalFiles: [],
+            ThemeLoad: { theme: 'default', font: 'inter', codeFont: 'theme-mono' },
+            GetThemes: { themes: [{ id: 'default', name: 'Figaro Dark' }] },
+            GetThemeCSS: { css: '' },
+            TabSizeLoad: { size: 4 },
+            LinkStyleLoad: { style: 'markdown' },
+            VimLoad: { enabled: false },
+            VimVisualRowsLoad: { enabled: false },
+            VimRevealBlocksLoad: { enabled: false },
+            LineNumbersLoad: { enabled: false },
+            MarkdownLintLoad: { enabled: true },
+            SpellcheckLoad: { enabled: false, language: 'en-US' },
+            EditorNavigationLoad: { stickyHeadings: true, blockGuides: true, documentOutline: true },
+            AutoCommitLoad: true,
+            AutoSaveLoad: 300,
+            GetKanbanColumns: { columns: ['todo', 'wip', 'done'], colors: {} },
+            GetKanbanBoard: { todo: [], wip: [], done: [] },
+            GetHomeTasks: [],
+            GetCalendarMonthData: { year: 2026, month: 7, days_with_notes: [], days_with_links: [], calendar: [] },
+        };
+        window.go = {
+            desktop: {
+                App: new Proxy({}, {
+                    get: (_target, method) => method === 'then' ? undefined : (...args) => {
+                        calls.push({ method: String(method), args });
+                        return Promise.resolve(Object.prototype.hasOwnProperty.call(responses, method)
+                            ? responses[method]
+                            : { success: true });
+                    },
+                }),
+            },
+        };
+    });
+
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await expect(page.locator('#sidebar')).toHaveClass(/collapsed/);
+    await expect(page.locator('#app')).toHaveClass(/pure-editing-chrome/);
+    await expect(page.locator('.tab[data-tab-id="remembered.md"]')).toHaveClass(/active/);
+    await expect(page.locator('.cm-content')).toContainText('Continue writing here.');
+
+    await page.waitForTimeout(250);
+    const result = await page.evaluate(() => ({
+        observations: window.__pureRestartObservations,
+        saves: window.__pureRestartCalls.filter(call => call.method === 'SaveSession'),
+    }));
+    expect([...new Set(result.observations.sidebarWidths)]).toEqual([44]);
+    expect(result.observations.visibleEditorFrames.length).toBeGreaterThan(0);
+    expect(result.observations.visibleEditorFrames.every(frame => (
+        frame.pure && frame.activeTab === 'remembered.md' && frame.text.includes('Continue writing here.')
+    ))).toBe(true);
+    expect(result.saves.at(-1).args[0].activeTabId).toBe('remembered.md');
+});
+
 test('restores the themed active buffer before background vault indexing and tree loading finish', async ({ page }) => {
     await page.addInitScript(() => {
         const handlers = {};
@@ -316,4 +412,179 @@ test('restores the themed active buffer before background vault indexing and tre
     await page.waitForFunction(() => window._appReady === true);
     await expect(page.locator('#vault-loading-panel')).toBeHidden();
     await expect(page.locator('.cm-content')).toContainText('Early edit.');
+});
+
+test('hydrates input and layout preferences before the first restored editor frame', async ({ page }) => {
+    await page.addInitScript(() => {
+        localStorage.setItem('sidebarWidth', '420');
+        const source = [
+            '# Project',
+            '### Skipped heading level',
+            'This sentnce has a misspeled wurd.   ',
+            ...Array.from({ length: 90 }, (_, index) => `Paragraph ${index + 1}`),
+            '## Decisions',
+            ...Array.from({ length: 90 }, (_, index) => `Decision ${index + 1}`),
+        ].join('\n');
+        const calls = [];
+        const resolvers = {};
+        const observations = {
+            statuses: [],
+            sidebarWidths: [],
+            contentFrames: [],
+            stickyEverVisible: false,
+            outlineEverVisible: false,
+            lintEverVisible: false,
+        };
+        window.__hydrationCalls = calls;
+        window.__startupObservations = observations;
+        window.__releaseStartupHydration = () => {
+            const values = {
+                TabSizeLoad: { size: 4 },
+                LinkStyleLoad: { style: 'markdown' },
+                AutoCommitLoad: false,
+                VimLoad: { enabled: true },
+                VimVisualRowsLoad: { enabled: true },
+                VimRevealBlocksLoad: { enabled: true },
+                LineNumbersLoad: { enabled: true },
+                MarkdownLintLoad: { enabled: false },
+                SpellcheckLoad: { enabled: false, language: 'en-US' },
+                EditorNavigationLoad: {
+                    stickyHeadings: false,
+                    blockGuides: false,
+                    documentOutline: false,
+                },
+            };
+            Object.entries(values).forEach(([method, value]) => resolvers[method]?.(value));
+        };
+
+        const recordFrame = () => {
+            const status = document.getElementById('status-text')?.textContent || '';
+            if (status && observations.statuses.at(-1) !== status) observations.statuses.push(status);
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                const width = Math.round(sidebar.getBoundingClientRect().width * 10) / 10;
+                if (observations.sidebarWidths.at(-1) !== width) observations.sidebarWidths.push(width);
+            }
+            const sticky = document.getElementById('sticky-heading-stack');
+            observations.stickyEverVisible ||= Boolean(sticky && !sticky.hidden && sticky.getBoundingClientRect().height > 0);
+            const outline = document.getElementById('outline-toggle');
+            observations.outlineEverVisible ||= Boolean(outline && !outline.hidden);
+            observations.lintEverVisible ||= Boolean(document.querySelector('.cm-lintRange'));
+            const content = document.querySelector('.cm-content');
+            const editorVisible = document.getElementById('app')?.dataset.startupHydrating !== 'true';
+            if (content && editorVisible) {
+                observations.contentFrames.push({
+                    left: Math.round(content.getBoundingClientRect().left * 10) / 10,
+                    hasText: content.textContent.length > 0,
+                    lineNumbers: Boolean(document.querySelector('.cm-lineNumbers')),
+                    mode: document.getElementById('file-type')?.textContent || '',
+                });
+            }
+            if (!window._appReady || performance.now() < 2000) requestAnimationFrame(recordFrame);
+        };
+        requestAnimationFrame(recordFrame);
+
+        window.runtime = { EventsOn: () => {} };
+        const held = method => new Promise(resolve => { resolvers[method] = resolve; });
+        const responses = {
+            ThemeLoad: () => Promise.resolve({ theme: 'default', font: 'inter', codeFont: 'theme-mono' }),
+            GetThemes: () => Promise.resolve({ themes: [{ id: 'default', name: 'Figaro Dark' }] }),
+            GetThemeCSS: () => Promise.resolve({ css: '' }),
+            LoadSession: () => Promise.resolve({
+                openTabs: [{ id: 'active.md', type: 'file', title: 'Active', path: 'active.md' }],
+                activeTabId: 'active.md',
+                selectedFilePath: 'active.md',
+                selectedTreePath: 'active.md',
+                expandedDirs: [],
+                pinnedTabs: [],
+                cursorStates: { 'active.md': { anchor: source.length - 1, head: source.length - 1 } },
+            }),
+            ReadFile: () => Promise.resolve({ content: source, path: 'active.md', mtime: 1 }),
+            GetLaunchExternalFiles: () => Promise.resolve([]),
+            StartVaultLoad: () => Promise.resolve(true),
+            GetVaultLoadStatus: () => Promise.resolve({ generation: 1, phase: 'ready', loaded: 1, total: 1 }),
+            GetFileTree: () => Promise.resolve([{ name: 'active.md', path: 'active.md', type: 'file', mtime: 1 }]),
+            GetFileTreeStyles: () => Promise.resolve({ version: 1, entries: {}, recent_icons: [] }),
+            GetKanbanColumns: () => Promise.resolve({ columns: ['todo', 'wip', 'done'], colors: {} }),
+            GetKanbanBoard: () => Promise.resolve({ todo: [], wip: [], done: [] }),
+            GetHomeTasks: () => Promise.resolve([]),
+            GetCalendarMonthData: () => Promise.resolve({ year: 2026, month: 7, days_with_notes: [], days_with_links: [], days_with_due_tasks: [], calendar: [] }),
+            TabSizeLoad: () => held('TabSizeLoad'),
+            LinkStyleLoad: () => held('LinkStyleLoad'),
+            AutoCommitLoad: () => held('AutoCommitLoad'),
+            VimLoad: () => held('VimLoad'),
+            VimVisualRowsLoad: () => held('VimVisualRowsLoad'),
+            VimRevealBlocksLoad: () => held('VimRevealBlocksLoad'),
+            LineNumbersLoad: () => held('LineNumbersLoad'),
+            MarkdownLintLoad: () => held('MarkdownLintLoad'),
+            SpellcheckLoad: () => held('SpellcheckLoad'),
+            EditorNavigationLoad: () => held('EditorNavigationLoad'),
+            AutoSaveLoad: () => Promise.resolve(300),
+        };
+        window.go = {
+            desktop: {
+                App: new Proxy({}, {
+                    get: (_target, method) => method === 'then' ? undefined : (...args) => {
+                        calls.push({ method: String(method), args });
+                        const response = responses[method];
+                        return response ? response(...args) : Promise.resolve({ success: true });
+                    },
+                }),
+            },
+        };
+    });
+
+    await page.goto('/');
+    const hydrationMethods = [
+        'TabSizeLoad',
+        'LinkStyleLoad',
+        'AutoCommitLoad',
+        'VimLoad',
+        'VimVisualRowsLoad',
+        'VimRevealBlocksLoad',
+        'LineNumbersLoad',
+        'MarkdownLintLoad',
+        'SpellcheckLoad',
+        'EditorNavigationLoad',
+    ];
+    await expect.poll(() => page.evaluate(() => window.__hydrationCalls.map(call => call.method)))
+        .toEqual(expect.arrayContaining(hydrationMethods));
+    const callsBeforeRelease = await page.evaluate(() => window.__hydrationCalls.map(call => call.method));
+    expect(callsBeforeRelease).not.toContain('ReadFile');
+    expect(callsBeforeRelease).not.toContain('StartVaultLoad');
+    await expect(page.locator('.cm-content')).toHaveCount(0);
+    await expect(page.locator('#status-text')).toHaveText('Restoring workspace...');
+    await expect(page.locator('#sidebar')).toHaveCSS('width', '420px');
+
+    await page.evaluate(() => window.__releaseStartupHydration());
+    await page.waitForFunction(async () => (await import('/js/editor.js')).getEditorContent().startsWith('# Project'));
+    await expect(page.locator('#file-type')).toHaveText('NORMAL');
+    await expect(page.locator('.cm-lineNumbers')).toBeVisible();
+
+    const sourceBeforeCommand = await page.evaluate(async () => (await import('/js/editor.js')).getEditorContent());
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('j');
+    const sourceAfterCommand = await page.evaluate(async () => (await import('/js/editor.js')).getEditorContent());
+    expect(sourceAfterCommand).toBe(sourceBeforeCommand);
+
+    await page.waitForFunction(() => window._appReady === true);
+    await page.waitForTimeout(800);
+    const result = await page.evaluate(() => ({
+        observations: window.__startupObservations,
+        calls: window.__hydrationCalls.map(call => call.method),
+    }));
+    expect(result.observations.statuses[0]).toBe('Starting Figaro…');
+    expect([...new Set(result.observations.sidebarWidths)]).toEqual([420]);
+    expect(result.observations.contentFrames.length).toBeGreaterThan(0);
+    expect(result.observations.contentFrames.every(frame => frame.lineNumbers)).toBe(true);
+    expect(result.observations.contentFrames.every(frame => frame.mode === 'NORMAL')).toBe(true);
+    const contentLefts = [...new Set(result.observations.contentFrames
+        .filter(frame => frame.hasText)
+        .map(frame => frame.left))];
+    expect(contentLefts).toEqual([contentLefts[0]]);
+    expect(result.observations.stickyEverVisible).toBe(false);
+    expect(result.observations.outlineEverVisible).toBe(false);
+    expect(result.observations.lintEverVisible).toBe(false);
+    expect(result.calls.indexOf('EditorNavigationLoad')).toBeLessThan(result.calls.indexOf('ReadFile'));
+    expect(result.calls.indexOf('ReadFile')).toBeLessThan(result.calls.indexOf('StartVaultLoad'));
 });

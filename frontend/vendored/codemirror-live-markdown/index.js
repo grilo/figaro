@@ -53110,6 +53110,15 @@ var CodeBlockWidget = class extends WidgetType {
         if (target.closest(".cm-codeblock-copy")) {
           return;
         }
+        const pointerIntent = new CustomEvent("codeblock-pointer-intent", {
+          bubbles: true,
+          cancelable: true,
+          detail: { clientX: event.clientX, clientY: event.clientY }
+        });
+        container.dispatchEvent(pointerIntent);
+        if (pointerIntent.defaultPrevented) {
+          return;
+        }
         event.stopPropagation();
         event.preventDefault();
         const lineEl = target.closest(".cm-codeblock-line");

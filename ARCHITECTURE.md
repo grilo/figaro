@@ -70,6 +70,23 @@ registered selector is implemented in `primitives.css`, that no unregistered
 `.ui-*` selector appears there, and that both production and review surfaces
 load the canonical asset.
 
+The approved `.ui-field--quiet` modifier is the sidebar-search expression of
+the border budget. It changes only the field's decorative border to transparent
+while the base field continues to own its dimensions, filled surface, focus
+halo, disabled state, and semantic validation boundary. Quick Note keeps its
+existing feature geometry and an invisible border that preserves layout; its
+rest paint mixes 3% `--text-color` into `--sidebar-bg`, hover/focus uses
+`--hover-bg`, and its action icon remains `--accent-color`. File-tree operation selection remains theme-token-owned:
+the selected surface, font weight, `aria-selected`, and independent focus
+outline carry the state while bundled themes set the decorative selected-row
+shadow, including the former leading accent stripe, to `none`.
+
+The two approved icon-button hosts retain one interaction primitive but use
+purpose-specific content: the top bar's `PanelLeft` geometry denotes the
+workspace-navigation surface, while the editor launcher's `ListTree` geometry
+denotes the active document's heading hierarchy. The static catalogue carries
+the same pair so icon review cannot drift from production.
+
 The approved `.ui-skeleton` primitive owns one theme-derived shimmer and its
 reduced-motion fallback. Calendar synchronously projects locale-shaped weekday
 and day placeholders only when its month cache misses; Kanban mounts the same
@@ -151,11 +168,50 @@ maintaining parallel geometry rules.
 The fixed-height footer consumes that same `--shell-sidebar-width` plan as a
 two-column grid. Its application-status adapter owns only the left live region,
 startup progress, delayed activity, and optional Undo action; its buffer region
-contains non-live editor telemetry and file-specific history/relationship
-actions. Collapsing retains the complete live sentence offscreen for assistive
-technology, exposes it through the shared tooltip, reduces vault progress to a
+separates non-live state into a left-anchored history/relationship/editor-state
+group and a right-anchored document-metrics group. Collapsing retains the
+complete live sentence offscreen for assistive technology, exposes it through
+the shared tooltip, reduces vault progress to a
 20px track, and preserves the action target. No second footer, resize observer,
-or duplicate sidebar-width calculation is introduced.
+or duplicate sidebar-width calculation is introduced. The pure
+`core/statusBarPresentationModel.js` decision separates an idle application
+state—exact **Ready** status with no action, spinner, or vault progress—from the
+focused ordinary-writing rest state. `statusBar.js` owns focus and activity
+observation, and its DOM adapter treats passive pointer targets inside the
+CodeMirror scroller but outside `.cm-content` as equivalent left/right reveal
+lanes. It publishes those states to the existing footer without measuring
+layout or intercepting input. CSS
+removes every item during focused ordinary writing without changing the 24px
+geometry; the application-status surface remains opaque and continues the
+sidebar plane. In Pure chrome, CSS makes the footer surface transparent and
+non-interactive, clips but retains the application live region for assistive
+technology, removes invisible actions from focus, and exposes only the real
+`#word-count` node at bottom-right. No hover, focus, side-lane, or application
+state restores the other footer contents.
+
+Pure editing chrome composes those existing shell decisions without creating a
+second title bar, tab rail, footer, or editor. The deterministic
+`core/pureEditingChromeModel.js` rule admits only an opted-in active file with
+the left sidebar collapsed and the right details pane closed.
+`pureEditingChrome.js` adapts reactive tab/sidebar/preference state and observes
+only the existing right-pane class boundary, then publishes one class on
+`#app`. Shell CSS takes the existing title bar and footer out of flex flow as
+top and bottom overlays; the editor therefore owns the full physical height,
+while `--wails-draggable: drag` stays on the transparent title-bar hit region.
+That resting hit region reaches 28px down from the window edge, deep enough for
+a natural upward pointer approach but short of the full overlay so ordinary
+document interaction does not become a title-bar trigger.
+Hover/focus reveal the same approved title-bar tabs and icon buttons without a
+CodeMirror document or measurement change. The existing Document outline
+launcher is omitted throughout Pure mode rather than joining that reveal. The
+preference and collapsed-sidebar state use local state storage and are restored
+synchronously before the shell is initialized. A tiny inline startup mirror
+applies the 44px rail before the application graph runs; `initTopBar()` then
+replaces that hint with the normalized sidebar plan. The portable vault session
+remains authoritative for the open tabs and active buffer, and the pure
+controller activates before the restored CodeMirror frame is revealed once
+that active file returns. Eligibility continues to change synchronously as
+tabs or sidebar state move.
 
 Default semantic values and optional art-direction surfaces live in
 `frontend/design-system/tokens.css`; `theme-surfaces.css` is the only shared
@@ -168,14 +224,18 @@ selectors. The browser-development adapter reads the same manifest and CSS
 through the injected asset-fetch port in `debugThemeAssets.js`, rather than
 auditing fallback tokens under the Figaro Dark name. Component tokens and shared `.ui-*`
 primitives live in `primitives.css`. Pickers, steppers, compact and icon
-actions, badges, menu presentation, fields, and notices use that canonical
+actions, badges, menu presentation, fields, independent-selection checkboxes,
+and notices use that canonical
 asset. `settingsPicker.js` binds Theme, Font, and Code Font to one select-only
 combobox adapter whose deterministic key decisions live in
 `core/pickerModel.js`; native-select enhancements retain their separate state
 source. Feature classes retain behavior and narrow host-layout differences, but
 do not restate shared hover, focus, open, selected, disabled, validation, or
-semantic rules. Card layouts and switch-versus-checkbox semantics remain
-deliberately distinct.
+semantic rules. The approved `.ui-checkbox` owns independent-selection paint
+for Properties and dialogs, including checked, hover, focus, and disabled
+states; persistent binary Settings remain semantically distinct switches, and
+rendered Markdown tasks keep their source-coupled editor widget. Card layouts
+remain deliberately distinct.
 
 The same optional surface-token seam lets the native Dark/Light pair flatten
 the application without feature-local exceptions. Their titlebar, file tree,
@@ -347,9 +407,12 @@ application code needed by normal workflows is ready, not merely that the
 initial shell is visible.
 
 Asynchronous startup is still allowed: independent initialization may run in
-parallel, and background warming may continue after the themed shell and
-restored active buffer are usable. It must begin during startup and finish
-before the application advertises the affected feature as ready. The bundled
+parallel, and non-interactive background work such as vault indexing, tree
+construction, and parser warming may continue after the themed shell and
+restored active buffer are usable. Interaction- or geometry-affecting saved
+preferences instead settle behind the startup hydration barrier before the
+editor is mounted or exposed. All eager work must begin during startup and
+finish before the application advertises the affected feature as ready. The bundled
 classic renderer scripts remain static startup dependencies but use `defer` so
 they do not block HTML parsing; language parser warming begins immediately and
 settles before `window._appReady`, without delaying the initial Markdown
@@ -418,12 +481,18 @@ responsive while the index owns that lock. Count-based event sampling bounds a
 10,000-note build to about one hundred bridge updates, with phase boundaries
 always delivered. Native startup leaves both the recursive watcher and cold
 index pending. A small webview-local mirror paints the last confirmed bundled
-theme and fonts in the first shell frame; vault-backed settings remain
-authoritative. The frontend then loads the repaired portable session,
-recreates inactive tabs as metadata, and reads and mounts only the selected
-file. Once that buffer is usable, it invokes the idempotent `StartVaultLoad`
-port, reconciles the current snapshot, and starts the initial file-tree read
-and remaining preference and parser warming concurrently.
+theme, fonts, and normalized sidebar width in the first shell frame;
+vault-backed settings remain authoritative. The injected
+`startupHydration` use case begins the repaired portable session plus tab-size,
+link-style, automation, and complete editor-preference ports in the same turn
+and exposes one promise as their correctness barrier. Only after it settles
+does the composition root create CodeMirror, recreate inactive tabs as
+metadata, and read and mount the selected file. A presentation adapter keeps
+that mounted editor concealed for two animation frames so document-dependent
+line-number and scroll measurements settle without an intermediate paint.
+Once that authoritative buffer is visible and usable, the frontend invokes
+the idempotent `StartVaultLoad` port, reconciles the current snapshot, and
+starts the initial file-tree read while remaining parser warming continues.
 
 The cold index holds a vault read lock, so the initial `GetFileTree` read can
 run beside it; a dedicated tree-build mutex prevents duplicate cache builds,
@@ -432,7 +501,7 @@ not invalidate an independently built tree cache. A pure generation/phase
 reducer rejects delayed or regressive updates. A small DOM adapter updates the
 approved determinate progress primitive in the file-tree-aligned
 application-status region, leaving the active editor interactive. `window._appReady` is published only after the
-index reaches a terminal phase and the initial tree, preferences, and language
+index reaches a terminal phase and the initial tree and language
 warming have settled. Successful completion hides the compact progress; an
 index error remains visible.
 
@@ -858,6 +927,15 @@ Markdown block folding follows the same source-first boundary.
 as `h1`–`h6`, fenced-code language names with an untyped `code` fallback, or
 `table`; every other Markdown block is deliberately omitted. The pure model
 bounds and normalizes the first fence-info token before it becomes a label.
+The separate pure `core/blockControlVisibilityModel.js` joins a rendered block
+to its left control with one activation rectangle, narrows heading sections to
+the approach lane, and gives folded, caret, and keyboard-focus states explicit
+precedence. The `blockControlVisibility.js` ViewPlugin measures source,
+control, and content coordinates, tracks pointer/focus input, and writes only a
+relevance class; the approved primitive owns opacity, hit testing, and
+reduced-motion behavior. A control's visual relevance range is distinct from
+its fold range, so a heading-line caret reveals the guide without changing the
+folded source.
 `markdownBlockGuides.js` is the CodeMirror adapter: it reads Lezer's top-level
 blocks, maps a heading through its descendants until the next peer or ancestor,
 maps fenced code and tables to their own block, and dispatches standard fold
@@ -876,6 +954,19 @@ The fenced-code and interactive-table decoration providers observe
 `foldedRanges`: an exact guide-owned fold causes them to omit their replacement
 widget and rebuild, leaving CodeMirror's native fold as the sole visual owner
 of that source range. Unfolding rebuilds the original widget.
+Rendered fenced code keeps the vendored provider's source-range replacement but
+uses Figaro-owned presentation to hide inactive fence rows and number only the
+code body. The pure `core/codeBlockInteractionModel.js` classifies vertical and
+horizontal scrollbar hit regions, including overlay-scrollbar edge geometry;
+`codeBlockInteraction.js` adapts that decision through a narrow DOM bridge so
+the original root selection is retained. The reviewed vendored widget emits a
+cancelable pointer-intent event before its source handler; the adapter cancels
+only that intent for a scrollbar hit and restores any browser-projected caret
+after mouseup, leaving the native pointer event untouched for scrolling.
+The scrollable footprint uses native `overscroll-behavior: auto`: vertical
+wheel/touch input is owned by the preview only while that axis can move, then
+the browser chains it to CodeMirror at either boundary. No wheel listener,
+synthetic delta forwarding, or selection transaction participates.
 `core/editorBlockActionLayoutModel.js` separately turns the measured writing
 edges and untransformed helper-rail edges into bounded before/after offsets,
 measured rail widths, and the existing stacked-layout decision. Its DOM adapter
@@ -900,7 +991,12 @@ including adjacent merge metadata, as one history action.
 The Properties field uses the same source-first transition: its disclosure
 generates missing default frontmatter directly into structured-panel mode,
 while `core/frontmatterPresentationModel.js` permits automatic raw-YAML entry
-only for the explicit upward-motion event emitted by Arrow Up or Vim `k`.
+only for the explicit upward-motion event emitted by Arrow Up / Vim `k`.
+Its collapsed and expanded DOM adapters deliberately share one `--hover-bg`,
+8px-rounded, borderless, unelevated outer surface; individual fields, the
+header divider, and focus states retain structural boundaries. Boolean fields
+bind the shared `.ui-checkbox` primitive without changing their source-update
+transactions.
 The pure `initialFrontmatterBodySelection()` parser policy separately plans a
 new Markdown buffer's body-first selection. The tab coordinator applies that
 plan only when no session cursor or explicit result-line target exists, then
@@ -909,7 +1005,9 @@ code modes bypass the policy.
 Home/document-start commands, Vim `gg`, programmatic jumps, and pointer
 selections may place the logical selection at that replacement without
 changing its presentation; an explicit **Edit YAML** action still enters
-source mode, and a selection leaving source restores the compact card.
+source mode. That action composes the canonical `.ui-button--quiet` primitive
+with a `FileCode2` glyph, leaving only compact header geometry to the feature
+hook. A selection leaving source restores the compact card.
 Expanded and collapsed states share one disclosure control. A stable
 CodeMirror scrollbar gutter prevents
 the control's viewport position from shifting when the taller panel introduces
@@ -963,12 +1061,15 @@ selection, maps a hidden fold endpoint back to the visible heading. The same
 normalization is used by ordinary Arrow motion and Vim display-row motion, so
 entering hidden source cannot accidentally expand a section.
 
-When the opt-in Vim rendered-block motion is active, the root editor uses
-those retained source ranges to stop Normal `j`/`k` at the adjacent block.
-Visual `j`/`k` independently preserves its anchor and extends the selection
+Figaro's high-priority ordinary vertical-arrow keymap explicitly defers while
+Vim is outside Insert mode, leaving the adapter's Left/Down/Up/Right mappings
+equivalent to `h`/`j`/`k`/`l`. When the opt-in Vim rendered-block motion is
+active, the root editor recognizes both physical Up/Down events and their
+`k`/`j` counterparts, then uses those retained source ranges to stop Normal
+motion at the adjacent block. Visual vertical motion independently preserves its anchor and extends the selection
 into adjacent fenced source, so source-first decoration rebuilding reveals the
 block without exiting Visual mode. Frontmatter is the deliberate boundary
-exception: `gg` keeps Properties rendered and a following `k` reveals its
+exception: `gg` keeps Properties rendered and a following `k` or Up reveals its
 portable source even when the broader rendered-block preference is off.
 Fenced blocks expose their portable source; rendered GFM tables reveal their
 portable Markdown source when entered. The root Vim Normal cursor is drawn
@@ -1018,6 +1119,13 @@ Ctrl/Cmd+F document Find, Ctrl/Cmd+Shift+F global search, Ctrl/Cmd+N Quick
 Note, and Ctrl/Cmd+Shift+N daily note. `app.js` consumes those application
 commands in the capture phase before a focused CodeMirror control can perform
 a competing default action.
+
+Global search keeps its query/result policy in `workspaceSearch.js`, its state
+coordination in `searchController.js`, and its DOM lifecycle in `searchView.js`.
+The view adapter treats the compact count badge as part of the open-result
+presentation rather than permanent input chrome: loading, empty, cleared,
+dismissed, and result-open transitions hide it, while a rendered non-empty
+result list publishes and reveals the exact note count.
 
 Vim clipboard integration separates policy from browser effects. The pure
 `frontend/js/core/vimClipboardModel.js` chooses OS text versus the unnamed
@@ -1242,10 +1350,12 @@ page-break hooks, while frontmatter stripping and Markdown-It's Setext parsing
 keep metadata delimiters and heading underlines out of that rule. The repository's Babel 8 transform configuration is a
 development-only boundary; the generated desktop browser assets do not ship
 Babel, and Jest's isolated internal Babel 7 copy is not part of that runtime.
-Jest 30's current-Node syntax preset is linked to the reviewed compatibility
-copy under `tools/`, which preserves the upstream behavior while anchoring its
-Babel 7-only plugin peers to an exact nested core. This keeps the root Babel 8
-graph valid without disabling npm peer enforcement globally.
+Jest 30's current-Node syntax preset comes from the reviewed compatibility copy
+under `tools/`, which preserves the upstream behavior while anchoring its Babel
+7-only plugin peers to an exact nested core. The tracked npm configuration packs
+that local source into the install graph instead of linking it, so npm 9 and
+newer validate the same lockfile layout. This keeps the root Babel 8 graph valid
+without disabling npm peer enforcement globally.
 
 Generated CodeMirror color support has a similarly explicit dependency seam.
 The upstream ESM entry imports one undeclared Babel object-rest helper, so the

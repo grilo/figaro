@@ -1,11 +1,14 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { markBlockWidget, wrapBlockWidget } from '../frontend/js/blockWidget.js';
 import { readApplicationStyles } from '../support/styleSources.js';
 
 const stylesheet = readApplicationStyles();
+const editorSource = fs.readFileSync(path.resolve('frontend/js/editor.js'), 'utf8');
 
 function declarationsFor(selector) {
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const match = stylesheet.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`));
+    const match = stylesheet.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`));
     if (!match) throw new Error(`Missing CSS rule for ${selector}`);
     return match[1];
 }
@@ -70,12 +73,33 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-source-footprint-sizer')).toMatch(/visibility:\s*hidden/);
         expect(declarationsFor('.cm-source-footprint-sizer-line')).toMatch(/white-space:\s*break-spaces/);
         expect(declarationsFor('.cm-source-footprint-sizer-line')).toMatch(/overflow-wrap:\s*anywhere/);
+        expect(stylesheet).not.toContain('Markdown footprint');
         expect(declarationsFor('.cm-source-footprint[data-source-footprint-state="underflow"]::after'))
-            .toMatch(/border:\s*1px dashed var\(--border-light\)/);
+            .toMatch(/content:\s*none/);
         expect(declarationsFor('.cm-live-diagram')).toMatch(/height:\s*100%/);
         expect(declarationsFor('.cm-live-diagram-view')).toMatch(/min-height:\s*0/);
         expect(declarationsFor('.cm-codeblock-widget'))
             .toMatch(/tab-size:\s*var\(--editor-tab-size, 4\)/);
+        expect(declarationsFor('.cm-codeblock-widget')).toMatch(/border:\s*0\s*!important/);
+        expect(declarationsFor('.cm-codeblock-widget')).toMatch(/border-radius:\s*8px\s*!important/);
+        expect(editorSource).toMatch(/'\.cm-codeblock-widget':\s*\{[^}]*borderRadius:\s*'8px !important'/);
+        expect(editorSource).not.toMatch(/'\.cm-codeblock-widget':\s*\{[^}]*borderRadius:\s*'0 !important'/);
+        expect(declarationsFor('.cm-codeblock-widget pre'))
+            .toMatch(/overflow:\s*visible\s*!important/);
+        expect(declarationsFor('.cm-codeblock-widget .cm-codeblock-fence'))
+            .toMatch(/display:\s*none\s*!important/);
+        expect(declarationsFor('.cm-codeblock-line-numbers .cm-codeblock-line:not(.cm-codeblock-fence)::before'))
+            .toMatch(/content:\s*counter\(code-block-line\)/);
+        expect(declarationsFor('.cm-codeblock-line-numbers .cm-codeblock-line:not(.cm-codeblock-fence)::before'))
+            .toMatch(/border-right:\s*0/);
+        expect(declarationsFor('.cm-codeblock-copy')).toMatch(/opacity:\s*0/);
+        expect(declarationsFor('.cm-codeblock-copy')).toMatch(/pointer-events:\s*none/);
+    });
+
+    test('allows scrollable code footprints to chain vertical wheel input at their limits', () => {
+        const scrollSurface = declarationsFor('.cm-source-footprint--scroll');
+        expect(scrollSurface).toMatch(/overflow:\s*auto\s*!important/);
+        expect(scrollSurface).toMatch(/overscroll-behavior:\s*auto/);
     });
 
     test('themes missing-image feedback and keeps it to one source-line footprint', () => {
@@ -104,6 +128,16 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-frontmatter-disclosure')).toMatch(/width:\s*16px/);
         expect(declarationsFor('.cm-frontmatter-disclosure')).toMatch(/transition:\s*transform/);
         expect(declarationsFor('.cm-frontmatter-disclosure.expanded')).toMatch(/rotate\(90deg\)/);
+        expect(declarationsFor('.cm-frontmatter')).toMatch(/border:\s*0/);
+        expect(declarationsFor('.cm-frontmatter')).toMatch(/border-radius:\s*8px/);
+        expect(declarationsFor('.cm-frontmatter')).toMatch(/background:\s*var\(--hover-bg\)/);
+        expect(declarationsFor('.cm-frontmatter')).toMatch(/box-shadow:\s*none/);
+        expect(declarationsFor('.cm-frontmatter-panel')).toMatch(/border:\s*0/);
+        expect(declarationsFor('.cm-frontmatter-panel')).toMatch(/border-radius:\s*8px/);
+        expect(declarationsFor('.cm-frontmatter-panel')).toMatch(/background:\s*var\(--hover-bg\)/);
+        expect(declarationsFor('.cm-frontmatter-panel')).toMatch(/box-shadow:\s*none/);
+        expect(declarationsFor('.cm-frontmatter-chip,\n.cm-frontmatter-more'))
+            .toMatch(/background:\s*transparent/);
     });
 
     test('top-aligns Markdown block guides and provides fold-anchor scroll space', () => {
@@ -123,6 +157,11 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/display:\s*grid/);
         expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/justify-items:\s*end/);
         expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/gap:\s*0/);
+        expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/pointer-events:\s*none/);
+        expect(declarationsFor('.ui-editor-block-guide')).toMatch(/opacity:\s*0/);
+        expect(declarationsFor('.ui-editor-block-guide')).toMatch(/pointer-events:\s*none/);
+        expect(declarationsFor('.ui-editor-fold-control[aria-expanded=\'false\'],\n.ui-editor-block-guide[aria-expanded=\'false\']'))
+            .toMatch(/opacity:\s*1/);
     });
 
     test('keeps expanded frontmatter menus above later editor lines', () => {

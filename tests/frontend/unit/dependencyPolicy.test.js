@@ -34,7 +34,7 @@ describe('locked npm dependency policy', () => {
         const { manifest, lock } = readPackageGraph();
         const babelCore = lock.packages['node_modules/@babel/core'];
         const babelPresetEnv = lock.packages['node_modules/@babel/preset-env'];
-        const jestSyntaxPreset = lock.packages['tools/babel-preset-current-node-syntax'];
+        const jestSyntaxPreset = lock.packages['node_modules/babel-preset-current-node-syntax'];
 
         expect(manifest.engines.node).toBe('^22.18.0 || >=24.11.0');
         expect(lock.packages[''].engines.node).toBe(manifest.engines.node);
@@ -47,13 +47,13 @@ describe('locked npm dependency policy', () => {
         expect(babelCore.engines.node).toBe(manifest.engines.node);
         expect(babelPresetEnv.engines.node).toBe(manifest.engines.node);
         expect(babelPresetEnv.peerDependencies['@babel/core']).toBe('^8.0.0');
-        expect(lock.packages['node_modules/babel-preset-current-node-syntax']).toEqual({
-            resolved: 'tools/babel-preset-current-node-syntax',
-            link: true,
-        });
+        expect(fs.readFileSync('.npmrc', 'utf8').trim()).toBe('install-links=true');
+        expect(fs.readFileSync('scripts/prepare-frontend.sh', 'utf8'))
+            .toContain('cksum .npmrc package.json package-lock.json');
         expect(jestSyntaxPreset.version).toBe('1.2.0');
+        expect(jestSyntaxPreset.resolved).toBe('file:tools/babel-preset-current-node-syntax');
         expect(jestSyntaxPreset.dependencies['@babel/core']).toBe('7.29.7');
-        expect(lock.packages['tools/babel-preset-current-node-syntax/node_modules/@babel/core'].version)
+        expect(lock.packages['node_modules/babel-preset-current-node-syntax/node_modules/@babel/core'].version)
             .toBe('7.29.7');
         expect(fs.readFileSync('tools/babel-preset-current-node-syntax/LICENSE', 'utf8'))
             .toContain('MIT License');

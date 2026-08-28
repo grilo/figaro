@@ -14,7 +14,7 @@ import { addExternalFileTreeEntry, createInboxNote, initFileTree, refreshFileTre
 import { initCalendar, navigateCalendarMonth, prepareCalendarOpen, renderCalendar, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
 import { initKanban, refreshKanbanData } from './kanban.js';
 import { configureDatePickerCalendarSource } from './datePicker.js';
-import { statusBar } from './statusBar.js';
+import { initStatusBarPresentation, statusBar } from './statusBar.js';
 import { confirmDialog, promptDialog } from './dialogs.js';
 import { initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
 import { initBacklinks } from './backlinks.js';
@@ -36,9 +36,12 @@ import { initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitEnabled } from './automation.js';
 import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
 import { initEditorBreadcrumb } from './editorBreadcrumb.js';
+import { initPureEditingChrome } from './pureEditingChrome.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
 import { createVaultLoadingSession } from './usecases/vaultLoading.js';
+import { createStartupHydration } from './usecases/startupHydration.js';
 import { renderVaultLoading, removeVaultLoading } from './views/vaultLoadingView.js';
+import { revealStartupWorkspace } from './views/startupView.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -57,6 +60,17 @@ const vaultLoadingSession = createVaultLoadingSession({
     readStatus: () => backend().GetVaultLoadStatus(),
     present: renderVaultLoading,
     remove: removeVaultLoading,
+});
+const startupHydration = createStartupHydration({
+    loadSession,
+    loadTabSize: initTabSizePreference,
+    loadLinkStyle: initLinkStylePreference,
+    loadAutomation: async () => {
+        try {
+            setAutoCommitEnabled(await backend().AutoCommitLoad());
+        } catch (_) { /* keep the enabled-on-save default */ }
+    },
+    loadEditorPreferences: initTheme,
 });
 
 function claimExternalLaunchFile(file) {
@@ -194,6 +208,7 @@ export function initTopBar() {
         applySidebarLayout(sidebar, layout);
         toggleBtn?.setAttribute('aria-expanded', String(!collapsed));
         document.getElementById('sidebar-resizer')?.classList.toggle('sidebar-resizer-hidden', collapsed);
+        document.documentElement.removeAttribute('data-startup-sidebar-collapsed');
 
         // The rail keeps the destination visible, but an expanded calendar has
         // no useful content at rail width. Closing it makes the next Calendar
@@ -480,7 +495,8 @@ export async function initApp() {
     window._appInitialized = true;
     window._appReady = false;
     configureDatePickerCalendarSource({ loadMonthData: loadCalendarMonthAppearance });
-    
+
+    initStatusBarPresentation();
     statusBar.set('Initializing...');
     const languageSupportReady = preloadLanguageSupport();
     initializeDiagramRenderers();
@@ -496,6 +512,7 @@ export async function initApp() {
     }
     initCalendarNav();
     initTopBar();
+    initPureEditingChrome();
     initKeyboardShortcuts();
     initWindowChrome();
     
@@ -508,14 +525,12 @@ export async function initApp() {
     // default theme while a different saved theme is being read.
     await initThemeAppearance();
 
-    // Subscribe before explicitly starting the backend work, but keep that
-    // work pending until the portable session and its one active buffer have
-    // been restored.
+    // Subscribe before explicitly starting the backend work. Hydrate all
+    // interaction- and geometry-affecting state concurrently with the portable
+    // session, then expose the restored editor with one authoritative profile.
     initVaultChangeNotifications();
-    await initTabSizePreference();
-
-    // Load saved session from vault/.config/session.json
-    await loadSession();
+    statusBar.set('Restoring workspace...');
+    await startupHydration.hydrate();
     
     // Initialize editor (CodeMirror 6)
     statusBar.set('Loading editor...');
@@ -555,8 +570,13 @@ export async function initApp() {
     initPDFPreview();
     initRawTextPreview();
 
-    // The editor or launch document is now visible. Start all remaining eager
-    // work without putting it back on the first-buffer critical path.
+    // CodeMirror derives line-number width and restored scroll geometry from
+    // the mounted document. Let those measurements settle while the editor is
+    // concealed, then publish one stable first buffer frame.
+    await revealStartupWorkspace();
+
+    // The editor or launch document is now visible with its saved interaction
+    // profile. Start background vault work without putting it on that barrier.
     vaultLoadingSession.start();
     await backend().StartVaultLoad();
     await vaultLoadingSession.connect();
@@ -569,13 +589,6 @@ export async function initApp() {
     }
 
     const fileTreeReady = refreshFileTree();
-    const preferencesReady = (async () => {
-        await initLinkStylePreference();
-        try {
-            setAutoCommitEnabled(await backend().AutoCommitLoad());
-        } catch (_) { /* keep the enabled-on-save default */ }
-        await initTheme();
-    })();
 
     if (!restoration.restored && !getState('activeTabId')) {
         // A missing, empty, or pruned workspace begins at the overview rather
@@ -586,7 +599,6 @@ export async function initApp() {
     const [vaultStatus] = await Promise.all([
         vaultReady,
         fileTreeReady,
-        preferencesReady,
         languageSupportReady,
     ]);
     // Persist the repaired workspace so the next launch cannot resurrect

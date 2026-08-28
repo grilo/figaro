@@ -198,7 +198,18 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
             const bufferStatus = getComputedStyle(document.querySelector('.status-right'));
             const statusSeparator = getComputedStyle(document.querySelector('.status-separator'));
             const settingsCard = getComputedStyle(document.querySelector('.settings-card'));
-            const selectedTreeNode = getComputedStyle(document.querySelector('.file-tree-item[data-path="Welcome.md"] > .file-tree-node'));
+            const selectedTreeElement = document.querySelector('.file-tree-item[data-path="Welcome.md"] > .file-tree-node');
+            const selectedTreeNode = getComputedStyle(selectedTreeElement);
+            const searchField = getComputedStyle(document.getElementById('global-search-input'));
+            const quickNote = getComputedStyle(document.getElementById('create-inbox-note'));
+            const quickNoteInbox = getComputedStyle(document.querySelector('#create-inbox-note small'));
+            const quickNoteProbe = document.createElement('span');
+            document.body.append(quickNoteProbe);
+            quickNoteProbe.style.color = 'var(--text-dim)';
+            const expectedQuickNoteDestination = getComputedStyle(quickNoteProbe).color;
+            quickNoteProbe.style.backgroundColor = 'color-mix(in srgb, var(--text-color) 3%, var(--sidebar-bg))';
+            const expectedQuickNoteBackground = getComputedStyle(quickNoteProbe).backgroundColor;
+            quickNoteProbe.remove();
             const activeTabStyle = activeTab ? getComputedStyle(activeTab) : null;
             const activeTabBounds = activeTab?.getBoundingClientRect() || null;
             const inactiveTabStyle = inactiveTab ? getComputedStyle(inactiveTab) : null;
@@ -257,6 +268,16 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
                 settingsCardBackground: settingsCard.backgroundImage,
                 settingsCardShadow: settingsCard.boxShadow,
                 selectedTreeShadow: selectedTreeNode.boxShadow,
+                selectedTreeBackground: selectedTreeNode.backgroundImage,
+                selectedTreeWeight: selectedTreeNode.fontWeight,
+                selectedTreeState: selectedTreeElement.getAttribute('aria-selected'),
+                searchFieldBorder: searchField.borderTopColor,
+                searchFieldBackground: searchField.backgroundColor,
+                quickNoteBorder: quickNote.borderTopColor,
+                quickNoteBackground: quickNote.backgroundColor,
+                quickNoteInboxColor: quickNoteInbox.color,
+                expectedQuickNoteBackground,
+                expectedQuickNoteDestination,
                 screenBackground: screen.backgroundImage,
                 screenOpacity: screen.opacity,
                 screenPointerEvents: screen.pointerEvents,
@@ -292,7 +313,15 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
         expect(details.activeTabBoundaryAligned).toBe(true);
         expect(details.settingsCardBackground).toContain('linear-gradient');
         expect(details.settingsCardShadow).toContain('rgb');
-        expect(details.selectedTreeShadow).toContain('rgb');
+        expect(details.selectedTreeShadow).toBe('none');
+        expect(details.selectedTreeBackground).toContain('linear-gradient');
+        expect(Number(details.selectedTreeWeight)).toBeGreaterThanOrEqual(600);
+        expect(details.selectedTreeState).toBe('true');
+        expect(details.searchFieldBorder).toBe('rgba(0, 0, 0, 0)');
+        expect(details.searchFieldBackground).not.toBe('rgba(0, 0, 0, 0)');
+        expect(details.quickNoteBorder).toBe('rgba(0, 0, 0, 0)');
+        expect(details.quickNoteBackground).toBe(details.expectedQuickNoteBackground);
+        expect(details.quickNoteInboxColor).toBe(details.expectedQuickNoteDestination);
         expect(details.screenPointerEvents).toBe('none');
         if (theme.flat) {
             expect(details.topBarBackground).toBe('none');
@@ -407,6 +436,7 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
             return contrast(foreground, background);
         };
         const results = [];
+        document.documentElement.style.setProperty('--transition-fast', '0ms');
 
         for (const theme of themes) {
             const response = await fetch(`/themes/${theme.id}.css`);
@@ -415,6 +445,11 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
             await new Promise(resolve => requestAnimationFrame(resolve));
 
             const rowColor = getComputedStyle(document.querySelector('.search-result-row')).color;
+            const quickNoteProbe = document.createElement('span');
+            document.body.append(quickNoteProbe);
+            quickNoteProbe.style.backgroundColor = 'color-mix(in srgb, var(--text-color) 3%, var(--sidebar-bg))';
+            const expectedQuickNoteBackground = getComputedStyle(quickNoteProbe).backgroundColor;
+            quickNoteProbe.remove();
             results.push({
                 id: theme.id,
                 rowColor,
@@ -425,8 +460,11 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
                 excerptContrast: renderedContrast('.search-result-excerpt', '.search-result-row'),
                 metaContrast: renderedContrast('.search-result-meta', '.search-result-row'),
                 highlightContrast: renderedContrast('.search-result-excerpt mark', '.search-result-excerpt mark'),
+                quickNoteBackground: getComputedStyle(document.querySelector('#create-inbox-note')).backgroundColor,
+                expectedQuickNoteBackground,
             });
         }
+        document.documentElement.style.removeProperty('--transition-fast');
         return results;
     });
 
@@ -439,6 +477,8 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
         expect(details.excerptContrast, `${details.id} search excerpt contrast`).toBeGreaterThanOrEqual(4.5);
         expect(details.metaContrast, `${details.id} search metadata contrast`).toBeGreaterThanOrEqual(4.5);
         expect(details.highlightContrast, `${details.id} highlighted match contrast`).toBeGreaterThanOrEqual(4.5);
+        expect(details.quickNoteBackground, `${details.id} Quick Note capture surface`)
+            .toBe(details.expectedQuickNoteBackground);
     }
 
     await page.emulateMedia({ reducedMotion: 'reduce' });

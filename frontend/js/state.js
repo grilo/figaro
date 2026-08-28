@@ -21,6 +21,7 @@ export const state = {
     sidebarCollapsed: false,    // Left sidebar collapsed state
     rightSidebarCollapsed: false, // Right sidebar collapsed state
     showEditorBreadcrumbs: false, // Optional vault-relative path above the editor
+    pureEditingChromeEnabled: true, // Edge-revealed chrome for a collapsed-sidebar file editor
     
     // Calendar
     currentCalDate: new Date(), // Current calendar month view
@@ -191,7 +192,12 @@ export function initState() {
     const savedRightSidebar = stateStorage.read('rightSidebarWidth');
     if (savedRightSidebar) state.rightSidebarWidth = parseInt(savedRightSidebar, 10);
 
+    state.sidebarCollapsed = stateStorage.read('sidebarCollapsed') === 'true';
     state.showEditorBreadcrumbs = stateStorage.read('showEditorBreadcrumbs') === 'true';
+    const savedPureEditingChrome = stateStorage.read('pureEditingChromeEnabled');
+    state.pureEditingChromeEnabled = savedPureEditingChrome === null
+        ? true
+        : savedPureEditingChrome === 'true';
     
     // Restore expanded directories
     const savedExpanded = stateStorage.read('expandedDirs');
@@ -278,7 +284,9 @@ export function persistState() {
     
     stateStorage.write('sidebarWidth', state.sidebarWidth.toString());
     stateStorage.write('rightSidebarWidth', state.rightSidebarWidth.toString());
+    stateStorage.write('sidebarCollapsed', String(state.sidebarCollapsed));
     stateStorage.write('showEditorBreadcrumbs', String(state.showEditorBreadcrumbs));
+    stateStorage.write('pureEditingChromeEnabled', String(state.pureEditingChromeEnabled));
     stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs]));
     const serializable = serializeSessionTabs(state.openTabs);
     stateStorage.write('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
@@ -303,8 +311,14 @@ export function persistState() {
 // Auto-persist on changes
 subscribe('sidebarWidth', persistState);
 subscribe('rightSidebarWidth', persistState);
+subscribe('sidebarCollapsed', () => {
+    try { stateStorage.write('sidebarCollapsed', String(state.sidebarCollapsed)); } catch (e) { /* noop */ }
+});
 subscribe('showEditorBreadcrumbs', () => {
     try { stateStorage.write('showEditorBreadcrumbs', String(state.showEditorBreadcrumbs)); } catch (e) { /* noop */ }
+});
+subscribe('pureEditingChromeEnabled', () => {
+    try { stateStorage.write('pureEditingChromeEnabled', String(state.pureEditingChromeEnabled)); } catch (e) { /* noop */ }
 });
 subscribe('expandedDirs', () => {
     try { stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs])); } catch (e) { /* noop */ }

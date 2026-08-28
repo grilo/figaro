@@ -536,6 +536,10 @@ describe('Tab Manager', () => {
             expect(panel.querySelector('#line-numbers-toggle')).not.toBeNull();
             expect(panel.querySelector('#editor-breadcrumbs-toggle').getAttribute('aria-label'))
                 .toBe('Show editor breadcrumbs');
+            expect(panel.querySelector('#pure-editing-chrome-toggle').getAttribute('aria-label'))
+                .toBe('Use pure editing chrome');
+            expect(panel.querySelector('#pure-editing-chrome-toggle').getAttribute('aria-describedby'))
+                .toBe('pure-editing-chrome-description');
             expect(panel.querySelector('#auto-commit-toggle')).not.toBeNull();
             expect(panel.querySelector('#auto-commit-toggle').checked).toBe(true);
             expect(panel.querySelector('#auto-commit-description').textContent).toMatch(/only the file that just saved/i);

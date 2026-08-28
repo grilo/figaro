@@ -17,6 +17,7 @@ import {
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { backend } from './backend.js';
+import { renderLucideIcon } from './lucideIcons.js';
 import {
     FRONTMATTER_UPWARD_REVEAL_USER_EVENT,
     frontmatterModeAfterSelection,
@@ -560,9 +561,17 @@ export function createFrontmatterField(
             heading.textContent = 'Properties';
             const actions = document.createElement('span');
             actions.className = 'cm-frontmatter-panel-actions';
-            actions.append(
-                makeButton('ui-button cm-frontmatter-panel-action', 'Edit YAML', 'Edit raw frontmatter', () => showSource(view, this.frontmatter))
+            const editYAML = makeButton(
+                'ui-button ui-button--quiet cm-frontmatter-panel-action',
+                'Edit YAML',
+                'Edit raw YAML frontmatter',
+                () => showSource(view, this.frontmatter),
             );
+            editYAML.insertAdjacentHTML('afterbegin', renderLucideIcon('FileCode2', {
+                size: 14,
+                className: 'cm-frontmatter-panel-action-icon',
+            }));
+            actions.append(editYAML);
             header.append(
                 createDisclosureButton(true, () => view.dispatch({ effects: setMode.of('collapsed') })),
                 heading,
@@ -578,7 +587,7 @@ export function createFrontmatterField(
 
             const coverInput = document.createElement('input');
             coverInput.type = 'checkbox';
-            coverInput.className = 'cm-frontmatter-panel-toggle';
+            coverInput.className = 'ui-checkbox cm-frontmatter-panel-toggle';
             coverInput.checked = isEnabled(getFrontmatterValue(source, 'cover-page'));
             coverInput.addEventListener('change', () => changeProperty(view, 'cover-page', coverInput.checked ? 'true' : 'false'));
             pdfSection.appendChild(createFieldRow('Cover page', coverInput));
@@ -603,7 +612,7 @@ export function createFrontmatterField(
 
             const pageNumbersInput = document.createElement('input');
             pageNumbersInput.type = 'checkbox';
-            pageNumbersInput.className = 'cm-frontmatter-panel-toggle';
+            pageNumbersInput.className = 'ui-checkbox cm-frontmatter-panel-toggle';
             pageNumbersInput.checked = isEnabled(getFrontmatterValue(source, 'page-numbers'));
             pageNumbersInput.addEventListener('change', () => changeProperty(
                 view,

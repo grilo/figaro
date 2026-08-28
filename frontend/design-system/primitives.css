@@ -316,6 +316,26 @@ input.ui-stepper-value:invalid {
     cursor: wait;
 }
 
+.ui-button--quiet {
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.ui-button--quiet:hover:not(:disabled),
+.ui-button--quiet:focus-visible:not(:disabled) {
+    border-color: transparent;
+    background: var(--active-bg);
+    color: var(--text-color);
+}
+
+.ui-button--quiet.active,
+.ui-button--quiet[aria-pressed="true"] {
+    border-color: transparent;
+    background: var(--active-bg);
+    color: var(--text-color);
+}
+
 .ui-button--accent {
     border-color: color-mix(in srgb, var(--accent-color) 45%, var(--border-color));
     background: color-mix(in srgb, var(--accent-color) 10%, transparent);
@@ -542,11 +562,16 @@ input.ui-stepper-value:invalid {
     background: transparent;
     color: var(--text-dim);
     font: inherit;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(4px);
     cursor: pointer;
     transition:
         background var(--motion-content-duration) ease,
         border-color var(--motion-content-duration) ease,
-        color var(--motion-content-duration) ease;
+        color var(--motion-content-duration) ease,
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out);
 }
 
 .ui-editor-fold-control::before {
@@ -598,8 +623,16 @@ input.ui-stepper-value:invalid {
     font: 500 var(--font-size-editor)/1 var(--font-mono);
     letter-spacing: .025em;
     text-transform: lowercase;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(4px);
     cursor: pointer;
-    transition: background var(--motion-content-duration) ease, border-color var(--motion-content-duration) ease, color var(--motion-content-duration) ease;
+    transition:
+        background var(--motion-content-duration) ease,
+        border-color var(--motion-content-duration) ease,
+        color var(--motion-content-duration) ease,
+        opacity var(--motion-content-duration) ease,
+        transform var(--motion-content-duration) var(--motion-ease-out);
 }
 
 .ui-editor-block-guide:hover {
@@ -627,8 +660,27 @@ input.ui-stepper-value:invalid {
     color: var(--accent-color);
 }
 
+.cm-gutterElement.is-block-control-relevant .ui-editor-fold-control,
+.cm-gutterElement.is-block-control-relevant .ui-editor-block-guide,
+.cm-gutterElement:hover .ui-editor-fold-control,
+.cm-gutterElement:hover .ui-editor-block-guide,
+.cm-gutterElement:focus-within .ui-editor-fold-control,
+.cm-gutterElement:focus-within .ui-editor-block-guide,
+.ui-editor-fold-control:focus-visible,
+.ui-editor-block-guide:focus-visible,
+.ui-editor-fold-control[aria-expanded='false'],
+.ui-editor-block-guide[aria-expanded='false'] {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+}
+
 .ui-editor-block-guide:active:not(:disabled) { background: var(--active-bg); }
-.ui-editor-block-guide:disabled { cursor: default; opacity: .42; }
+.ui-editor-block-guide:disabled {
+    cursor: default;
+    opacity: .42;
+    pointer-events: none;
+}
 
 .ui-badge {
     display: inline-grid;
@@ -679,13 +731,24 @@ input.ui-stepper-value:invalid {
     border-color: color-mix(in srgb, var(--border-color) 55%, var(--text-muted));
 }
 
+.ui-field.ui-field--quiet,
+.ui-field.ui-field--quiet:hover:not(:disabled):not([aria-invalid="true"]) {
+    border-color: transparent;
+}
+
 .ui-field:focus,
 .ui-field:focus-visible {
     border-color: var(--accent-color);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 20%, transparent);
 }
 
-.ui-field[aria-invalid="true"] {
+.ui-field.ui-field--quiet:focus:not([aria-invalid="true"]),
+.ui-field.ui-field--quiet:focus-visible:not([aria-invalid="true"]) {
+    border-color: transparent;
+}
+
+.ui-field[aria-invalid="true"],
+.ui-field[aria-invalid="true"]:hover:not(:disabled) {
     border-color: var(--danger-color);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-color) 16%, transparent);
 }
@@ -693,6 +756,66 @@ input.ui-stepper-value:invalid {
 .ui-field:disabled {
     cursor: not-allowed;
     opacity: .62;
+}
+
+.ui-checkbox {
+    display: inline-grid;
+    width: 16px;
+    height: 16px;
+    box-sizing: border-box;
+    margin: 0;
+    flex: 0 0 auto;
+    appearance: none;
+    place-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    outline: none;
+    background: color-mix(in srgb, var(--bg-color) 86%, var(--hover-bg));
+    color: var(--text-color);
+    cursor: pointer;
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        background var(--transition-fast);
+}
+
+.ui-checkbox::before {
+    width: 9px;
+    height: 9px;
+    background: var(--bg-color);
+    clip-path: polygon(14% 44%, 0 59%, 39% 100%, 100% 21%, 84% 8%, 38% 72%);
+    content: '';
+    transform: scale(0);
+    transition: transform var(--transition-fast);
+}
+
+.ui-checkbox:hover:not(:disabled) {
+    border-color: var(--text-muted);
+    background: var(--hover-bg);
+}
+
+.ui-checkbox:checked {
+    border-color: var(--accent-color);
+    background: var(--accent-color);
+}
+
+.ui-checkbox:checked:hover:not(:disabled) {
+    border-color: var(--accent-hover);
+    background: var(--accent-hover);
+}
+
+.ui-checkbox:checked::before {
+    transform: scale(1);
+}
+
+.ui-checkbox:focus-visible {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.ui-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: .55;
 }
 
 .ui-date-picker {
@@ -948,7 +1071,9 @@ input.ui-stepper-value:invalid {
     .ui-editor-block-guide,
     .ui-editor-fold-control::before,
     .ui-date-picker-day,
-    .ui-field {
+    .ui-field,
+    .ui-checkbox,
+    .ui-checkbox::before {
         transition: none;
     }
 

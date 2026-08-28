@@ -118,6 +118,7 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     expect(gutterAlignment.inwardGap).toBeLessThanOrEqual(7);
 
     const collapseDiagram = page.getByRole('button', { name: 'Collapse mermaid code block' });
+    await page.locator('.cm-live-diagram').hover();
     await expect(collapseDiagram).toBeVisible();
     await collapseDiagram.click();
     await expect(page.locator('.cm-live-diagram')).toHaveCount(0);

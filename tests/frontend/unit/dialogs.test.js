@@ -260,6 +260,7 @@ describe('New note dialog', () => {
         const header = dialog.querySelector('.table-conversion-checkbox input');
         const preview = dialog.querySelector('.table-conversion-preview');
 
+        expect(header.classList.contains('ui-checkbox')).toBe(true);
         expect(dialog.querySelector('.table-conversion-combobox [role="combobox"]')).not.toBeNull();
         expect(dialog.querySelector('.table-conversion-select').classList.contains('select-combobox-native')).toBe(true);
         expect([...dialog.querySelector('.table-conversion-select').options].map(option => option.value))

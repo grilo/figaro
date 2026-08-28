@@ -53,6 +53,10 @@ status instead of cloning its animation or paint. An ordinary disabled
 `.ui-button` represents an unavailable action and uses no busy cursor; a
 genuinely pending button also declares `aria-busy="true"` (or the equivalent
 internal busy hook) so its wait treatment has explicit operation ownership.
+The approved `.ui-button--quiet` variant removes resting border and surface
+paint for low-emphasis actions while retaining themed hover, active, focus,
+disabled, and busy behavior. Expanded Properties uses it for its icon-and-label
+**Edit YAML** source action.
 The missing-Draw.io Markdown Create/Open action is one such compact accent
 button: its feature hook fits the existing image footprint, while the shared
 button and spinner primitives own every interaction and busy state.

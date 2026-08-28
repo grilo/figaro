@@ -99,6 +99,7 @@ describe('frontmatter Properties card', () => {
         view?.destroy();
         view = null;
         document.body.innerHTML = '';
+        delete window.lucide;
     });
 
     test('keeps the collapsed properties state while the cursor moves through the note body', () => {
@@ -120,6 +121,14 @@ describe('frontmatter Properties card', () => {
     });
 
     test('is collapsed initially, exposes friendly PDF controls, and keeps raw YAML available', () => {
+        window.lucide = {
+            icons: {
+                FileCode2: [
+                    ['path', { d: 'M4 12.15V4a2 2 0 0 1 2-2h8' }],
+                    ['path', { d: 'm5 16-3 3 3 3' }],
+                ],
+            },
+        };
         const field = createFrontmatterField(
             StateField,
             StateEffect,
@@ -151,6 +160,9 @@ describe('frontmatter Properties card', () => {
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Spellcheck');
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Table of Contents');
         expect(view.dom.querySelector('.cm-frontmatter-panel-chips').textContent).toContain('title: Report');
+        expect([...view.dom.querySelectorAll('.cm-frontmatter-panel-toggle')].every(toggle => (
+            toggle.classList.contains('ui-checkbox') && toggle.type === 'checkbox'
+        ))).toBe(true);
         const disclosure = view.dom.querySelector('.cm-frontmatter-disclosure-button');
         expect(disclosure.getAttribute('aria-expanded')).toBe('true');
         expect(disclosure.querySelector('.cm-frontmatter-disclosure').classList.contains('expanded')).toBe(true);
@@ -231,6 +243,10 @@ describe('frontmatter Properties card', () => {
 
         const yamlButton = [...view.dom.querySelectorAll('.cm-frontmatter-panel-action')]
             .find(button => button.textContent === 'Edit YAML');
+        expect(yamlButton.classList.contains('ui-button--quiet')).toBe(true);
+        expect(yamlButton.getAttribute('aria-label')).toBe('Edit raw YAML frontmatter');
+        expect(yamlButton.querySelector('.cm-frontmatter-panel-action-icon')).not.toBeNull();
+        expect(yamlButton.querySelector('svg').getAttribute('aria-hidden')).toBe('true');
         yamlButton.click();
         expect(view.dom.querySelector('.cm-frontmatter-panel')).toBeNull();
         expect(view.state.selection.main.head).toBe(source.indexOf('title:'));

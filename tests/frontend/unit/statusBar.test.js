@@ -1,5 +1,5 @@
 import { testUtils } from './test_setup.js';
-import { statusBar } from '../frontend/js/statusBar.js';
+import { initStatusBarPresentation, statusBar } from '../frontend/js/statusBar.js';
 
 describe('status bar', () => {
     beforeEach(() => {
@@ -9,6 +9,33 @@ describe('status bar', () => {
 
     afterEach(() => {
         jest.useRealTimers();
+    });
+
+    test('groups editor state on the left and document metrics on the right in reading order', () => {
+        const childIds = selector => [...document.querySelector(selector).children]
+            .map(child => child.id)
+            .filter(Boolean);
+
+        expect(document.querySelector('.status-buffer-left').getAttribute('aria-label'))
+            .toBe('History, relationships, and editor state');
+        expect(childIds('.status-buffer-left')).toEqual([
+            'history-count',
+            'git-status-separator',
+            'git-status',
+            'backlinks-status',
+            'file-type',
+            'editor-scale-separator',
+            'editor-scale-status',
+            'file-encoding',
+        ]);
+        expect(document.querySelector('.status-buffer-right').getAttribute('aria-label'))
+            .toBe('Document metrics');
+        expect(childIds('.status-buffer-right')).toEqual([
+            'cursor-position',
+            'word-count',
+            'char-count',
+            'reading-time',
+        ]);
     });
 
     test('announces complete messages and does not let an old clear hide newer activity', () => {
@@ -85,5 +112,48 @@ describe('status bar', () => {
         expect(spinner.hidden).toBe(false);
         finishSecond();
         expect(spinner.hidden).toBe(true);
+    });
+
+    test('recedes for ordinary focus and uses the native scroller margins as reveal lanes', async () => {
+        const editor = document.querySelector('#editor-container');
+        const scroller = document.createElement('div');
+        scroller.className = 'cm-scroller';
+        const content = document.createElement('div');
+        content.className = 'cm-content';
+        content.tabIndex = 0;
+        scroller.append(content);
+        editor.append(scroller);
+        initStatusBarPresentation();
+        statusBar.clear();
+
+        content.focus();
+        expect(document.getElementById('status-bar').dataset.writingRest).toBe('true');
+        expect(document.getElementById('status-bar').dataset.applicationIdle).toBe('true');
+
+        scroller.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+        expect(document.getElementById('status-bar').dataset.editorSideReveal).toBe('true');
+        content.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+        expect(document.getElementById('status-bar').dataset.editorSideReveal).toBe('false');
+
+        statusBar.setWritingSummary('37 words');
+        expect(document.querySelector('.status-right').dataset.writingSummary).toBe('37 words');
+
+        statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', () => {});
+        expect(document.getElementById('status-bar').dataset.writingRest).toBe('false');
+        expect(document.getElementById('status-bar').dataset.applicationIdle).toBe('false');
+
+        statusBar.clear();
+        expect(document.getElementById('status-bar').dataset.writingRest).toBe('true');
+
+        document.getElementById('vault-loading-panel').hidden = false;
+        await Promise.resolve();
+        expect(document.getElementById('status-bar').dataset.writingRest).toBe('false');
+        document.getElementById('vault-loading-panel').hidden = true;
+        await Promise.resolve();
+        expect(document.getElementById('status-bar').dataset.writingRest).toBe('true');
+
+        content.blur();
+        await Promise.resolve();
+        expect(document.getElementById('status-bar').dataset.writingRest).toBe('false');
     });
 });

@@ -258,11 +258,19 @@ class Note:
     content: str = ""
 ` + "`" + "`" + "`" + `
 
+### Mermaid diagrams
+
+` + "`" + "`" + "`" + `mermaid
+flowchart LR
+    Capture[Capture an idea] --> Connect[Connect notes]
+    Connect --> Discover[Discover insight]
+` + "`" + "`" + "`" + `
+
 ### Tables
 
 | Feature | Status | Shortcut |
 |---------|--------|----------|
-| File tree | ✅ | Ctrl+B |
+| File tree | ✅ | Ctrl+Shift+B |
 | Search | ✅ | Ctrl+Shift+F |
 | Vim mode | ⚙️ | Settings |
 | Calendar | ✅ | Top bar |
@@ -306,12 +314,12 @@ Use #tagname to create tags — they automatically become kanban columns.
 
 ## Getting Started
 
-1. **Create a new note** — Right-click in the file tree or use Ctrl+N
+1. **Capture a quick note** — Press Ctrl+N, or right-click the file tree to create a named note
 2. **Link notes together** — Use [title](file.md) or [[wikilinks]]
 3. **Organize with folders** — Create directories in the file tree
 4. **Search everything** — Ctrl+Shift+F searches all notes
 5. **Track changes** — Git history is automatic (click "0 changes" in the status bar)
-6. **Export** — Right-click → Export to HTML
+6. **Export** — Right-click the editor → Preview PDF → Generate PDF
 
 ---
 

@@ -9,6 +9,7 @@ import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import { enhanceSettingsPicker } from './settingsPicker.js';
 import { initEditorBreadcrumbSetting } from './editorBreadcrumb.js';
+import { initPureEditingChromeSetting } from './pureEditingChrome.js';
 import { initEditorNavigationPreference, initEditorNavigationSettings } from './editorNavigationPreferences.js';
 import { initHelpPopup } from './helpPopup.js';
 import { initTabSizeSettings } from './tabSizePreference.js';
@@ -130,13 +131,15 @@ export async function initTheme() {
     ensureStyleEl();
     initHelpPopup();
     applyEditorTextScale(getConfiguredEditorTextScale(), { view: getEditorView() });
-    await initVimPreference();
-    await initVimVisualRowsPreference();
-    await initVimRevealBlocksPreference();
-    await initLineNumbersPreference();
-    await initMarkdownLintPreference();
-    await initSpellcheckPreference();
-    await initEditorNavigationPreference();
+    await Promise.all([
+        initVimPreference(),
+        initVimVisualRowsPreference(),
+        initVimRevealBlocksPreference(),
+        initLineNumbersPreference(),
+        initMarkdownLintPreference(),
+        initSpellcheckPreference(),
+        initEditorNavigationPreference(),
+    ]);
 }
 
 export async function applyTheme(themeId) {
@@ -743,6 +746,7 @@ export async function initSettingsPanel(root = document) {
         }
 
         initEditorBreadcrumbSetting(root);
+        initPureEditingChromeSetting(root);
         await initEditorNavigationSettings(root);
 
         const spellcheckLanguage = findIn(root, '#spellcheck-language');

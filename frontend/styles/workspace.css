@@ -738,3 +738,9 @@ html.tab-drag-selection-guard * {
     overflow: hidden;
     border-radius: 0;
 }
+
+/* CodeMirror may need a measurement pass after the restored document supplies
+   its real line-count gutter. Keep those pre-authoritative frames unpainted. */
+#app[data-startup-hydrating="true"] #editor-container {
+    visibility: hidden;
+}

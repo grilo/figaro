@@ -106,13 +106,6 @@
 .merge-file-row:hover {
     background: color-mix(in srgb, var(--text-color) 6%, transparent);
 }
-.merge-checkbox {
-    accent-color: var(--accent-color);
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    flex-shrink: 0;
-}
 .merge-file-icon {
     color: var(--text-muted);
     display: flex;
@@ -609,12 +602,6 @@ body.custom-modal-open { overflow: hidden; }
     color: var(--text-muted);
     font-size: 12px;
     white-space: nowrap;
-}
-
-.table-conversion-checkbox input {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--accent-color);
 }
 
 .table-conversion-summary {

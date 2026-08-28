@@ -136,6 +136,7 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
         await history.updateHistoryCount('Welcome.md');
     });
     await expect(page.locator('#history-count')).toHaveClass(/has-history/);
+    await page.locator('#status-bar').hover();
     await page.locator('#history-count').click();
     await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'history');
     await expect(page.locator('.outline-panel')).toHaveCount(0);

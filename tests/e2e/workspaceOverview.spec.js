@@ -271,8 +271,11 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
     });
 });
 
-test('keeps the status bar on one fixed-height row at narrow widths', async ({ page }) => {
+test('keeps the status bar fixed while ordinary writing recedes and bottom-edge hover restores it', async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 640 });
+    await page.addInitScript(() => {
+        localStorage.setItem('pureEditingChromeEnabled', 'false');
+    });
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
 
@@ -283,17 +286,34 @@ test('keeps the status bar on one fixed-height row at narrow widths', async ({ p
         const sidebar = document.getElementById('sidebar').getBoundingClientRect();
         const application = element.querySelector('.status-left').getBoundingClientRect();
         const buffer = element.querySelector('.status-right').getBoundingClientRect();
-        const visibleChildren = [...element.querySelectorAll('.status-left > *, .status-right > *')]
+        const bufferLeft = element.querySelector('.status-buffer-left');
+        const bufferRight = element.querySelector('.status-buffer-right');
+        const bufferLeftBounds = bufferLeft.getBoundingClientRect();
+        const bufferRightBounds = bufferRight.getBoundingClientRect();
+        const visibleChildren = [...element.querySelectorAll(
+            '.status-left > *, .status-buffer-left > *, .status-buffer-right > *',
+        )]
             .filter(child => getComputedStyle(child).display !== 'none')
             .map(child => child.getBoundingClientRect());
+        const identifiedChildren = group => [...group.children]
+            .filter(child => child.id)
+            .map(child => child.id);
         return {
             height: bar.height,
             overflowY: getComputedStyle(element).overflowY,
             childrenInside: visibleChildren.every(rect => rect.top >= bar.top - 1 && rect.bottom <= bar.bottom + 1),
             applicationAligned: Math.abs(application.right - sidebar.right) <= 1,
             bufferAligned: Math.abs(buffer.left - sidebar.right) <= 1,
+            leftGroupAligned: bufferLeftBounds.left >= buffer.left
+                && bufferLeftBounds.left - buffer.left <= 13,
+            rightGroupAligned: Math.abs(bufferRightBounds.right - buffer.right) <= 3,
+            groupsSeparated: bufferLeftBounds.right <= bufferRightBounds.left,
             applicationLabel: element.querySelector('.status-left').getAttribute('aria-label'),
             bufferLabel: element.querySelector('.status-right').getAttribute('aria-label'),
+            leftGroupLabel: bufferLeft.getAttribute('aria-label'),
+            rightGroupLabel: bufferRight.getAttribute('aria-label'),
+            leftOrder: identifiedChildren(bufferLeft),
+            rightOrder: identifiedChildren(bufferRight),
         };
     });
 
@@ -303,14 +323,70 @@ test('keeps the status bar on one fixed-height row at narrow widths', async ({ p
         childrenInside: true,
         applicationAligned: true,
         bufferAligned: true,
+        leftGroupAligned: true,
+        rightGroupAligned: true,
+        groupsSeparated: true,
         applicationLabel: 'Application status',
         bufferLabel: 'Active buffer status',
+        leftGroupLabel: 'History, relationships, and editor state',
+        rightGroupLabel: 'Document metrics',
+        leftOrder: [
+            'history-count',
+            'git-status-separator',
+            'git-status',
+            'backlinks-status',
+            'file-type',
+            'editor-scale-separator',
+            'editor-scale-status',
+            'file-encoding',
+        ],
+        rightOrder: ['cursor-position', 'word-count', 'char-count', 'reading-time', 'resize-grip'],
     });
+
+    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
+    await page.locator('#editor-container .cm-content').focus();
+    await page.evaluate(async () => {
+        const { statusBar } = await import('/js/statusBar.js');
+        statusBar.clear();
+    });
+    await expect(page.locator('#status-bar')).toHaveAttribute('data-writing-rest', 'true');
+    const readQuietStatus = () => page.locator('#status-bar').evaluate(element => ({
+        applicationOpacity: getComputedStyle(element.querySelector('.status-left')).opacity,
+        applicationTextOpacity: getComputedStyle(element.querySelector('#status-text')).opacity,
+        applicationBackground: getComputedStyle(element.querySelector('.status-left')).backgroundColor,
+        sidebarBackground: getComputedStyle(document.querySelector('#sidebar')).backgroundColor,
+        leftOpacity: getComputedStyle(element.querySelector('.status-buffer-left')).opacity,
+        rightOpacity: getComputedStyle(element.querySelector('.status-buffer-right')).opacity,
+        wordText: element.querySelector('#word-count').textContent,
+        quietWords: getComputedStyle(element.querySelector('.status-right'), '::after').content,
+        quietOpacity: getComputedStyle(element.querySelector('.status-right'), '::after').opacity,
+        height: element.getBoundingClientRect().height,
+    }));
+    await expect.poll(readQuietStatus)
+        .toMatchObject({
+            applicationOpacity: '1',
+            applicationTextOpacity: '0',
+            leftOpacity: '0',
+            rightOpacity: '0',
+            quietOpacity: '0',
+            height: 24,
+        });
+    const quietStatus = await readQuietStatus();
+    expect(quietStatus.quietWords).toBe(JSON.stringify(quietStatus.wordText));
+    expect(quietStatus.applicationBackground).toBe(quietStatus.sidebarBackground);
+
+    await page.locator('#status-bar').hover();
+    await expect.poll(() => page.locator('#status-bar').evaluate(element => ({
+        applicationTextOpacity: getComputedStyle(element.querySelector('#status-text')).opacity,
+        fullOpacity: getComputedStyle(element.querySelector('.status-buffer-right')).opacity,
+        quietOpacity: getComputedStyle(element.querySelector('.status-right'), '::after').opacity,
+    }))).toEqual({ applicationTextOpacity: '1', fullOpacity: '1', quietOpacity: '0' });
 
     await page.evaluate(async () => {
         const { statusBar } = await import('/js/statusBar.js');
         statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', () => {});
     });
+    await expect(page.locator('#status-bar')).toHaveAttribute('data-writing-rest', 'false');
     await page.locator('#toggle-sidebar').click();
     const compactStatusGeometry = () => page.locator('#status-bar').evaluate(element => {
         const application = element.querySelector('.status-left');

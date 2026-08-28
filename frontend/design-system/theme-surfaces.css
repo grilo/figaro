@@ -84,6 +84,36 @@
     pointer-events: none;
 }
 
+/* Pure mode art direction reuses the approved titlebar and tab primitives as
+   edge overlays. At rest their shared surface disappears into the editor; the
+   reveal uses theme surfaces rather than a feature-local colour. */
+#app.pure-editing-chrome .top-bar {
+    background: transparent !important;
+    box-shadow: none;
+}
+
+#app.pure-editing-chrome .top-bar::after {
+    opacity: 0;
+    transition: opacity var(--motion-content-duration) ease;
+}
+
+#app.pure-editing-chrome .top-bar:hover:not(:has(.top-bar-left:hover)),
+#app.pure-editing-chrome .top-bar:has(.top-bar-center:focus-within),
+#app.pure-editing-chrome .top-bar:has(.top-bar-right:focus-within) {
+    background: linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--editor-surface) 96%, transparent),
+        color-mix(in srgb, var(--editor-surface) 88%, transparent) 74%,
+        transparent
+    ) !important;
+}
+
+#app.pure-editing-chrome .top-bar:hover:not(:has(.top-bar-left:hover))::after,
+#app.pure-editing-chrome .top-bar:has(.top-bar-center:focus-within)::after,
+#app.pure-editing-chrome .top-bar:has(.top-bar-right:focus-within)::after {
+    opacity: .42;
+}
+
 .editor-panel,
 .cm-editor {
     background: var(--editor-surface) !important;
@@ -213,6 +243,12 @@
 
 .status-right {
     background: var(--status-bar-surface);
+}
+
+#app.pure-editing-chrome .status-bar,
+#app.pure-editing-chrome .status-left,
+#app.pure-editing-chrome .status-right {
+    background: transparent !important;
 }
 
 .status-separator {

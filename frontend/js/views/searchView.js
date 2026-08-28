@@ -93,8 +93,12 @@ function setComboboxState({ expanded, activeOptionId = '' }) {
 }
 
 export function showSearchLoading() {
-    const { dropdown } = elements();
+    const { count, dropdown } = elements();
     if (!dropdown) return false;
+    if (count) {
+        count.hidden = true;
+        count.textContent = '';
+    }
     searchRenderState = null;
     dropdown.onscroll = null;
     dropdown.innerHTML = `
@@ -205,7 +209,10 @@ export function renderSearchResults({
     if (!dropdown) return;
 
     if (count) {
-        count.textContent = `${results.length} ${results.length === 1 ? 'note' : 'notes'}`;
+        count.hidden = results.length === 0;
+        count.textContent = results.length
+            ? `${results.length} ${results.length === 1 ? 'note' : 'notes'}`
+            : '';
     }
     const safeSelection = selectedIndex >= 0 && selectedIndex < results.length
         ? selectedIndex
@@ -283,27 +290,35 @@ export function clearSearchView(clearInput = true) {
     }
     searchRenderState = null;
     setComboboxState({ expanded: false });
-    if (count) count.textContent = '';
+    if (count) {
+        count.hidden = true;
+        count.textContent = '';
+    }
 }
 
 export function clearSearchCount() {
     const { count } = elements();
-    if (count) count.textContent = '';
+    if (count) {
+        count.hidden = true;
+        count.textContent = '';
+    }
 }
 
 export function closeSearchView() {
-    const { dropdown } = elements();
+    const { count, dropdown } = elements();
     dropdown?.classList.remove('visible');
+    if (count) count.hidden = true;
     setComboboxState({ expanded: false });
 }
 
 export function closeSearchWhenOutside(target, originalPath = []) {
-    const { container, dropdown } = elements();
+    const { container, count, dropdown } = elements();
     const startedInside = container && (
         container.contains(target) || originalPath.includes(container)
     );
     if (container && dropdown && !startedInside) {
         dropdown.classList.remove('visible');
+        if (count) count.hidden = true;
         setComboboxState({ expanded: false });
         return true;
     }
