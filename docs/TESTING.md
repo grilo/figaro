@@ -1943,7 +1943,9 @@ The dependency-policy contract also locks Babel 8 to its exact Node engine
 floor, proves the Jest 30 syntax-preset compatibility copy is inert under Babel
 8 while its Babel 7 plugins resolve a nested core, and verifies that the tracked
 `install-links=true` npm policy gives clean installs a portable local-package
-layout. It keeps the root
+layout. The test imports that installed package rather than the `tools/` source
+directory, preventing ignored developer dependencies from making a dirty
+workspace pass when a fresh CI checkout would fail. It keeps the root
 Markdown-It 15 runtime within the `^15.0.0` peer range declared by every
 selected `@mdit` renderer plugin. It also reads the generated
 browser core's version banner, preventing a package-only upgrade from leaving

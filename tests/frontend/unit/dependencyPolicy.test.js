@@ -60,9 +60,7 @@ describe('locked npm dependency policy', () => {
     });
 
     test('keeps the Jest syntax compatibility preset inert when Babel 8 loads it', async () => {
-        const { default: currentNodeSyntax } = await import(
-            '../../../tools/babel-preset-current-node-syntax/src/index.js'
-        );
+        const { default: currentNodeSyntax } = await import('babel-preset-current-node-syntax');
 
         expect(currentNodeSyntax({ version: '8.0.1' })).toEqual({ plugins: [] });
         expect(currentNodeSyntax({ version: '7.29.7' }).plugins.length).toBeGreaterThan(0);

@@ -1355,7 +1355,10 @@ under `tools/`, which preserves the upstream behavior while anchoring its Babel
 7-only plugin peers to an exact nested core. The tracked npm configuration packs
 that local source into the install graph instead of linking it, so npm 9 and
 newer validate the same lockfile layout. This keeps the root Babel 8 graph valid
-without disabling npm peer enforcement globally.
+without disabling npm peer enforcement globally. Dependency-policy validation
+resolves this boundary through the installed package name; it deliberately does
+not import the `tools/` source path, where ignored developer dependencies could
+mask a clean-install failure.
 
 Generated CodeMirror color support has a similarly explicit dependency seam.
 The upstream ESM entry imports one undeclared Babel object-rest helper, so the

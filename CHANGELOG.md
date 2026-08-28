@@ -10,6 +10,14 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.28.1] - 2026-08-28
+
+### Fixed
+
+- Fresh npm installations now verify the installed Jest syntax-compatibility
+  package instead of accidentally relying on ignored dependencies from its
+  source directory, keeping local and release validation consistent.
+
 ## [1.28.0] - 2026-08-28
 
 ### Added
@@ -1567,7 +1575,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.28.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.28.1...HEAD
+[1.28.1]: https://github.com/grilo/figaro/compare/v1.28.0...v1.28.1
 [1.28.0]: https://github.com/grilo/figaro/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/grilo/figaro/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/grilo/figaro/compare/v1.25.2...v1.26.0

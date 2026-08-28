@@ -371,7 +371,9 @@ MIT-licensed compatibility copy under
 `tools/babel-preset-current-node-syntax/` adds an exact nested Babel 7
 dependency. Remove that copy only after the upstream preset provides the same
 clean Babel 8 peer graph, then update the dependency-policy regression and
-notices together.
+notices together. That regression must import the installed package name, not
+the source path under `tools/`, so a developer's ignored nested `node_modules`
+cannot conceal a broken clean-install layout.
 
 Print-only Markdown token policies belong in
 `frontend/js/printMarkdownRenderer.js`, followed by `npm run vendor:markdown`;
