@@ -442,7 +442,10 @@ family is present in the rendered catalogue. The same boundary checks the
 skeleton's theme-derived fill, radius, clipping, and active shimmer; the unit
 contract owns its reduced-motion rule. The tooltip specimen additionally
 proves hover delay completion, immediate keyboard-focus exposure, Escape
-dismissal, and dark/light computed paint from the canonical tokens. Do not loop
+dismissal, and dark/light computed paint from the canonical tokens. Scroll the
+specimen into a settled viewport before the keyboard-focus assertion so that
+the focus contract stays independent from the separately intended
+viewport-movement dismissal. Do not loop
 all 18 themes through Playwright; the unit contract already proves
 manifest-to-file coverage, while one real stylesheet switch proves the browser
 mechanism.

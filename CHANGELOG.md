@@ -10,6 +10,14 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.28.2] - 2026-08-28
+
+### Fixed
+
+- Release validation now checks keyboard-focused catalogue tooltips from a
+  settled viewport, avoiding false failures caused by the separate
+  scroll-dismiss behavior on slower runners.
+
 ## [1.28.1] - 2026-08-28
 
 ### Fixed
@@ -1575,7 +1583,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.28.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.28.2...HEAD
+[1.28.2]: https://github.com/grilo/figaro/compare/v1.28.1...v1.28.2
 [1.28.1]: https://github.com/grilo/figaro/compare/v1.28.0...v1.28.1
 [1.28.0]: https://github.com/grilo/figaro/compare/v1.27.0...v1.28.0
 [1.27.0]: https://github.com/grilo/figaro/compare/v1.26.0...v1.27.0

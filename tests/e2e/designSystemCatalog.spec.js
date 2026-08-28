@@ -97,7 +97,12 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await page.keyboard.press('Tab');
     await expect(themedCheckbox).toBeFocused();
     expect(await themedCheckbox.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe('none');
-    await tooltipTrigger.focus();
+    await tooltipTrigger.scrollIntoViewIfNeeded();
+    await page.evaluate(() => new Promise(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve));
+    }));
+    await tooltipTrigger.evaluate(element => element.focus({ preventScroll: true }));
+    await expect(tooltipTrigger).toBeFocused();
     await expect(tooltip).toBeVisible();
     await expect(tooltip).toHaveCSS('background-color', await tooltip.evaluate(surface => {
         const probe = document.createElement('span');
