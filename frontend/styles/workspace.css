@@ -224,6 +224,10 @@ html.tab-drag-selection-guard * {
     display: none;
 }
 
+#app.pure-editing-chrome .editor-breadcrumb {
+    display: none !important;
+}
+
 .editor-breadcrumb-list {
     height: 100%;
     min-width: 0;

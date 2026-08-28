@@ -11,7 +11,7 @@
     background: var(--bg-color) !important;
     color: var(--text-color);
     font-family: var(--font-editor) !important;
-    font-size: var(--font-size-editor) !important;
+    font-size: var(--editor-active-font-size) !important;
     line-height: var(--line-height-editor) !important;
 }
 
@@ -56,7 +56,7 @@
 
 .cm-content {
     width: 100% !important;
-    max-width: var(--editor-width) !important;
+    max-width: var(--editor-active-width) !important;
     margin: 0 auto !important;
     padding: 1em 24px 40px 24px !important;
     box-sizing: border-box !important;
@@ -89,7 +89,7 @@
 
 .cm-line {
     width: 100% !important;
-    max-width: var(--editor-width) !important;
+    max-width: var(--editor-active-width) !important;
     margin: 0 auto !important;
     padding: 0 !important;
 }
@@ -118,6 +118,22 @@
     padding: 3px 0 14px;
 }
 
+/* The empty Properties affordance keeps its measured top slot so revealing it
+   never moves prose. Pure mode lets the whole slot, the first-line caret, or
+   keyboard focus call the quiet control back into view. */
+#app.pure-editing-chrome .cm-add-properties {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-content-duration) ease;
+}
+
+#app.pure-editing-chrome .cm-block-widget--add-properties:hover .cm-add-properties,
+#app.pure-editing-chrome .cm-block-widget--add-properties:focus-within .cm-add-properties,
+#app.pure-editing-chrome .cm-editor.cm-pure-caret-at-start .cm-add-properties {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .cm-block-widget--frontmatter-panel {
     /* The expanded surface animates with a transform, which creates a nested
        stacking context. Keep its measured widget root above later positioned
@@ -129,7 +145,7 @@
 
 .cm-frontmatter {
     width: 100%;
-    max-width: var(--editor-width);
+    max-width: var(--editor-active-width);
     min-width: 0;
     box-sizing: border-box;
     display: flex;
@@ -271,7 +287,7 @@
 
 .cm-frontmatter-panel {
     width: 100%;
-    max-width: var(--editor-width);
+    max-width: var(--editor-active-width);
     min-width: 0;
     box-sizing: border-box;
     margin: 0 auto;
@@ -740,7 +756,7 @@
     visibility: hidden;
     min-width: 34px;
     padding: 0 6px;
-    font: 500 var(--font-size-editor)/1 var(--font-mono);
+    font: 500 var(--editor-active-font-size)/1 var(--font-mono);
 }
 
 .editor-navigation-overlay {
@@ -779,6 +795,33 @@
 /* Pure writing mode omits the document-navigation launcher completely. */
 #app.pure-editing-chrome .editor-outline-launcher {
     display: none !important;
+}
+
+/* Pure mode removes document-navigation chrome rather than merely fading it.
+   In particular, the sticky stack must contribute no CodeMirror scroll margin. */
+#app.pure-editing-chrome .sticky-heading-stack {
+    display: none !important;
+}
+
+/* Focus is opt-in. Dimming stays an opacity-only secondary notation so every
+   theme preserves its authored colors, and selections suspend the effect. */
+.cm-editor.cm-pure-writing .cm-pure-focus-dimmed {
+    opacity: .36;
+    transition: opacity 110ms ease-out;
+}
+
+/* Typewriter padding gives the first and final source rows enough natural
+   canvas to occupy the same 42% caret anchor as the middle of a long note. */
+.cm-editor.cm-pure-typewriter .cm-content {
+    padding-top: var(--pure-typewriter-top-space, 1em) !important;
+    padding-bottom: var(--pure-typewriter-bottom-space, 40px) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #app.pure-editing-chrome .cm-add-properties,
+    .cm-editor.cm-pure-writing .cm-pure-focus-dimmed {
+        transition: none;
+    }
 }
 
 .sticky-heading-stack {

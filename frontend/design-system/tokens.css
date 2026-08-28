@@ -41,6 +41,8 @@
     --font-size-sm: 14px;
     --font-size-editor: 16.2px;
     --editor-width: 700px;
+    --editor-active-font-size: var(--font-size-editor);
+    --editor-active-width: var(--editor-width);
     --line-height: 1.6;
     --line-height-ui: 1.3;
     --line-height-editor: 1.65;

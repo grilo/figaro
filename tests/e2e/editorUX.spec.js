@@ -468,7 +468,7 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
     await codeFont.press('ArrowDown');
     await codeFont.press('Tab');
     await expect(codeFont).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.locator('#pure-editing-chrome-toggle')).toBeFocused();
+    await expect(page.locator('#pure-typewriter-toggle')).toBeFocused();
 
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.cm-editor')).toBeVisible();
@@ -487,6 +487,15 @@ test('preserves the active buffer cursor when Settings opens and closes', async 
 test('lets Pure editing fill the window with only word count and no outline', async ({ page }) => {
     await openWelcomeEditor(page);
 
+    await page.evaluate(async () => {
+        const state = await import('/js/state.js');
+        state.setState('showEditorBreadcrumbs', true);
+    });
+    await expect(page.locator('#editor-breadcrumb')).toBeVisible();
+    await page.locator('#outline-toggle').click();
+    await expect(page.locator('#right-sidebar')).toHaveClass(/open/);
+    const preservedPaneMode = await page.locator('#right-sidebar').getAttribute('data-mode');
+
     await page.locator('#toggle-sidebar').click();
     await expect(page.locator('#toggle-sidebar')).toBeFocused();
     await expect(page.locator('#app')).toHaveClass(/pure-editing-chrome/);
@@ -494,6 +503,24 @@ test('lets Pure editing fill the window with only word count and no outline', as
         Number.parseFloat(getComputedStyle(element).opacity)
     ))).toBe(0);
     await expect(page.locator('#outline-toggle')).toBeHidden();
+    await expect(page.locator('#editor-breadcrumb')).toBeHidden();
+    await expect(page.locator('#right-sidebar')).toHaveClass(/open/);
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('data-pure-suppressed', 'true');
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'true');
+    expect(await page.locator('#right-sidebar').evaluate(element => ({
+        width: element.getBoundingClientRect().width,
+        inert: element.inert,
+        mode: element.dataset.mode,
+    }))).toEqual({ width: 0, inert: true, mode: preservedPaneMode });
+
+    await page.locator('#sticky-heading-stack').evaluate(element => {
+        element.hidden = false;
+        const item = document.createElement('button');
+        item.className = 'sticky-heading-item';
+        item.textContent = 'Synthetic visible hierarchy';
+        element.replaceChildren(item);
+    });
+    await expect(page.locator('#sticky-heading-stack')).toBeHidden();
 
     const readPureFooter = () => page.locator('#status-bar').evaluate(element => {
         const visibleBufferIds = [...element.querySelectorAll('.status-buffer-right > [id]')]
@@ -613,9 +640,150 @@ test('lets Pure editing fill the window with only word count and no outline', as
     ))).toBe(1);
     await expect(page.locator('#outline-toggle')).toBeHidden();
 
+    const pureSource = '# Pure writing\n\n' + Array.from({ length: 36 }, (_, index) => (
+        `Paragraph ${index + 1} has enough text to exercise the calm writing viewport.`
+    )).join('\n\n');
+    await page.evaluate(async source => {
+        const editor = await import('/js/editor.js');
+        const state = await import('/js/state.js');
+        state.setState('pureFocusScope', 'paragraph');
+        state.setState('pureAdaptiveTypographyEnabled', true);
+        editor.setEditorContent(source, 'Welcome.md');
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== source) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        const cursor = view.state.doc.line(41).from + 12;
+        view.dispatch({ selection: { anchor: cursor }, scrollIntoView: true });
+        view.focus();
+        window.__pureWritingView = view;
+    }, pureSource);
+    await expect.poll(() => page.locator('.cm-editor').getAttribute('data-pure-typography-tier'))
+        .toBe('spacious');
+    await expect.poll(() => page.locator('.cm-pure-focus-dimmed').first().evaluate(element => (
+        Number.parseFloat(getComputedStyle(element).opacity)
+    ))).toBeLessThan(0.5);
+
+    const focusPresentation = await page.evaluate(() => {
+        const view = window.__pureWritingView;
+        const active = view.domAtPos(view.state.selection.main.head).node.parentElement?.closest('.cm-line')
+            || view.domAtPos(view.state.selection.main.head).node.closest?.('.cm-line');
+        const dimmed = view.contentDOM.querySelector('.cm-pure-focus-dimmed');
+        const root = getComputedStyle(document.documentElement);
+        return {
+            dimmedOpacity: dimmed ? Number.parseFloat(getComputedStyle(dimmed).opacity) : 1,
+            activeOpacity: active ? Number.parseFloat(getComputedStyle(active).opacity) : 1,
+            fontSize: Number.parseFloat(getComputedStyle(view.dom).fontSize),
+            baseFontSize: Number.parseFloat(root.getPropertyValue('--font-size-editor')),
+            maxWidth: Number.parseFloat(getComputedStyle(view.contentDOM).maxWidth),
+        };
+    });
+    expect(focusPresentation.dimmedOpacity).toBeLessThan(0.5);
+    expect(focusPresentation.activeOpacity).toBe(1);
+    expect(focusPresentation.fontSize).toBeGreaterThan(focusPresentation.baseFontSize * 1.05);
+    expect(focusPresentation.maxWidth).toBeGreaterThan(700);
+
+    const purePointerGeometry = await page.evaluate(() => {
+        const view = window.__pureWritingView;
+        const point = position => {
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 8, y: (coords.top + coords.bottom) / 2 };
+        };
+        return {
+            from: point(view.state.doc.line(39).from),
+            to: point(view.state.doc.line(41).to),
+            line41From: view.state.doc.line(41).from,
+        };
+    });
+    await page.mouse.click(purePointerGeometry.to.x, purePointerGeometry.to.y);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__pureWritingView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(41);
+    await page.locator('.cm-content').press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__pureWritingView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(42);
+    await page.locator('.cm-content').press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__pureWritingView;
+        return view.state.doc.lineAt(view.state.selection.main.head).number;
+    })).toBe(41);
+
+    await page.mouse.move(purePointerGeometry.from.x, purePointerGeometry.from.y);
+    await page.mouse.down();
+    await page.mouse.move(purePointerGeometry.to.x, purePointerGeometry.to.y, { steps: 8 });
+    await page.mouse.up();
+    const draggedSelection = await page.evaluate(() => window.__pureWritingView.state.selection.main);
+    expect(draggedSelection.from).toBeLessThan(purePointerGeometry.line41From);
+    expect(draggedSelection.to).toBeGreaterThan(purePointerGeometry.line41From);
+    await expect(page.locator('.cm-pure-focus-dimmed')).toHaveCount(0);
+
+    const typewriterStart = await page.evaluate(async () => {
+        const view = window.__pureWritingView;
+        const cursor = view.state.doc.line(41).from + 12;
+        view.dispatch({ selection: { anchor: cursor }, scrollIntoView: true });
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const scroller = view.scrollDOM;
+        const bounds = scroller.getBoundingClientRect();
+        const caret = view.coordsAtPos(cursor);
+        scroller.scrollTop += caret.top - bounds.top - bounds.height * 0.72;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const positionedCaret = view.coordsAtPos(cursor);
+        window.__pureScrollSamples = [scroller.scrollTop];
+        scroller.addEventListener('scroll', () => {
+            window.__pureScrollSamples.push(scroller.scrollTop);
+        });
+        view.focus();
+        return {
+            ratio: (positionedCaret.top - bounds.top) / bounds.height,
+            top: scroller.scrollTop,
+        };
+    });
+    expect(typewriterStart.ratio).toBeGreaterThan(0.62);
+    await page.keyboard.type('x');
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__pureWritingView;
+        const bounds = view.scrollDOM.getBoundingClientRect();
+        const caret = view.coordsAtPos(view.state.selection.main.head);
+        return (caret.top - bounds.top) / bounds.height;
+    })).toBeGreaterThanOrEqual(0.40);
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__pureWritingView;
+        const bounds = view.scrollDOM.getBoundingClientRect();
+        const caret = view.coordsAtPos(view.state.selection.main.head);
+        return (caret.top - bounds.top) / bounds.height;
+    })).toBeLessThanOrEqual(0.44);
+    const typewriterMotion = await page.evaluate(start => {
+        const samples = [...new Set(window.__pureScrollSamples.map(value => Math.round(value * 10) / 10))];
+        const final = window.__pureWritingView.scrollDOM.scrollTop;
+        return {
+            samples,
+            moved: Math.abs(final - start) > 10,
+            hasIntermediate: samples.some(value => value !== samples[0] && Math.abs(value - final) > 0.5),
+        };
+    }, typewriterStart.top);
+    expect(typewriterMotion.moved).toBe(true);
+    expect(typewriterMotion.samples.length).toBeGreaterThan(2);
+    expect(typewriterMotion.hasIntermediate).toBe(true);
+
     await page.locator('#toggle-sidebar').click();
     await expect(page.locator('#app')).not.toHaveClass(/pure-editing-chrome/);
+    await expect(page.locator('#right-sidebar')).toHaveClass(/open/);
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('data-pure-suppressed', 'false');
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.locator('#editor-breadcrumb')).toBeVisible();
+    await expect.poll(() => page.locator('#right-sidebar').evaluate(element => (
+        element.getBoundingClientRect().width
+    ))).toBeGreaterThan(300);
+    expect(await page.locator('#right-sidebar').evaluate(element => ({
+        inert: element.inert,
+        mode: element.dataset.mode,
+    }))).toEqual({ inert: false, mode: preservedPaneMode });
+    await page.locator('#right-sidebar-close').click();
     await expect(page.locator('#outline-toggle')).toBeVisible();
+    await expect(page.locator('.cm-editor')).toHaveCSS('font-size', '16.2px');
     const restored = await page.evaluate(() => {
         const app = document.querySelector('#app').getBoundingClientRect();
         const main = document.querySelector('.main-container').getBoundingClientRect();
@@ -1638,7 +1806,7 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
     const lineNumbers = page.locator('#line-numbers-toggle');
     await expect(lineNumbers).not.toBeChecked();
     await expect(page.locator('.cm-lineNumbers')).toHaveCount(0);
-    await expect(page.locator('.select-combobox-trigger')).toHaveCount(2);
+    await expect(page.locator('.select-combobox-trigger')).toHaveCount(3);
     const autoCommit = page.locator('#auto-commit-toggle');
     await expect(autoCommit).toBeChecked();
 

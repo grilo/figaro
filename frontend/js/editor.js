@@ -140,6 +140,7 @@ import { markdownLinkPastePlan } from './core/markdownLinkPasteModel.js';
 import { emptyBlockquoteExitPlan } from './core/markdownStructuralEditing.js';
 import { codeBlockScrollbarGuardExtension } from './codeBlockInteraction.js';
 import { createBlockControlVisibilityExtension } from './blockControlVisibility.js';
+import { createPureWritingExtension, refreshPureWriting } from './pureWriting.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
@@ -193,6 +194,15 @@ let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: nul
 let fileModeRequest = 0;
 let markdownModeExtensions = null;
 let editorTabSizeRequested = defaultTabSize;
+
+const refreshCurrentPureWriting = () => refreshPureWriting(getEditorView());
+subscribe('pureTypewriterEnabled', refreshCurrentPureWriting);
+subscribe('pureFocusScope', refreshCurrentPureWriting);
+subscribe('pureAdaptiveTypographyEnabled', refreshCurrentPureWriting);
+subscribe('sidebarCollapsed', refreshCurrentPureWriting);
+if (typeof document !== 'undefined') {
+    document.addEventListener('figaro:pure-editing-chrome-changed', refreshCurrentPureWriting);
+}
 
 function exitEmptyBlockquote(view) {
     const selection = view.state.selection.main;
@@ -2414,6 +2424,16 @@ function createEditorView() {
             tabSizeCompartment.of(editorTabSizeExtensions()),
             imageBasePathCompartment.of(imageFieldForPath('')),
             imageVaultRefreshExtension,
+            createPureWritingExtension({
+                isPureActive: () => document.getElementById('app')
+                    ?.classList.contains('pure-editing-chrome') === true,
+                isMarkdown: () => activeFileLanguage.kind === 'markdown',
+                typewriterEnabled: () => Boolean(getState('pureTypewriterEnabled')),
+                focusScope: () => getState('pureFocusScope') || 'off',
+                adaptiveTypographyEnabled: () => Boolean(getState('pureAdaptiveTypographyEnabled')),
+                pointerSelecting: editorStateValue => editorStateValue.field(mouseSelectingField, false),
+                searchOpen: editorStateValue => isNativeSearchPanelOpen(editorStateValue),
+            }),
             fileModeCompartment.of(markdownExtensionsForPath()),
             lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
             foldingCompartment.of(editorFoldingExtensions('markdown')),

@@ -10,6 +10,7 @@ var mockState = {
 
 jest.mock('../frontend/js/state.js', () => ({
     getState: jest.fn(key => mockState[key]),
+    subscribe: jest.fn(),
 }));
 
 jest.mock('../frontend/js/log.js', () => ({

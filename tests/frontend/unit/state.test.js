@@ -24,7 +24,9 @@ const DEFAULTS = {
     rightSidebarWidth: 320,
     sidebarCollapsed: false,
     showEditorBreadcrumbs: false,
-    pureEditingChromeEnabled: true,
+    pureTypewriterEnabled: true,
+    pureFocusScope: 'off',
+    pureAdaptiveTypographyEnabled: false,
     activeTabId: null,
     openTabs: [],
     pinnedTabs: [],
@@ -184,13 +186,20 @@ describe('State Management', () => {
             expect(getState('showEditorBreadcrumbs')).toBe(true);
         });
 
-        test('enables pure editing chrome by default and restores an explicit opt-out', () => {
+        test('restores Pure writing behavior with typewriter on and stronger focus opt-in', () => {
             initState();
-            expect(getState('pureEditingChromeEnabled')).toBe(true);
+            expect(getState('pureTypewriterEnabled')).toBe(true);
+            expect(getState('pureFocusScope')).toBe('off');
+            expect(getState('pureAdaptiveTypographyEnabled')).toBe(false);
 
-            localStorage.setItem('pureEditingChromeEnabled', 'false');
+            localStorage.setItem('pureTypewriterEnabled', 'false');
+            localStorage.setItem('pureFocusScope', 'paragraph');
+            localStorage.setItem('pureAdaptiveTypographyEnabled', 'true');
             initState();
-            expect(getState('pureEditingChromeEnabled')).toBe(false);
+
+            expect(getState('pureTypewriterEnabled')).toBe(false);
+            expect(getState('pureFocusScope')).toBe('paragraph');
+            expect(getState('pureAdaptiveTypographyEnabled')).toBe(true);
         });
 
         test('should restore openTabs to _restoredTabs', () => {
@@ -237,9 +246,14 @@ describe('State Management', () => {
             expect(saved.sort()).toEqual(['folder1', 'folder2'].sort());
         });
 
-        test('persists the pure editing chrome opt-out', () => {
-            setState('pureEditingChromeEnabled', false);
-            expect(localStorage.getItem('pureEditingChromeEnabled')).toBe('false');
+        test('persists Pure writing behavior settings independently', () => {
+            setState('pureTypewriterEnabled', false);
+            setState('pureFocusScope', 'phrase');
+            setState('pureAdaptiveTypographyEnabled', true);
+
+            expect(localStorage.getItem('pureTypewriterEnabled')).toBe('false');
+            expect(localStorage.getItem('pureFocusScope')).toBe('phrase');
+            expect(localStorage.getItem('pureAdaptiveTypographyEnabled')).toBe('true');
         });
 
         test('should save pinnedTabs to localStorage', () => {

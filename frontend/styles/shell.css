@@ -85,7 +85,7 @@
     padding: 0 12px 0 8px;
 }
 
-/* Pure editing chrome leaves the physical top edge to the document while the
+/* Pure mode leaves the physical top edge to the document while the
    titlebar remains an invisible native drag target. Its existing controls
    return in place when the pointer approaches the edge or focus enters them;
    because the row is overlaid, that reveal never shifts the buffer. */

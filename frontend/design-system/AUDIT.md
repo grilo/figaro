@@ -114,7 +114,7 @@ opaque so `--application-status-surface` continues the sidebar plane rather
 than blending with the buffer surface. It therefore adds no compact-footer
 component family.
 
-Pure editing chrome is likewise a shell composition state, not a new component
+Pure mode is likewise a shell composition state, not a new component
 or visual variant. It repositions the approved titlebar tabs, icon buttons, and
 two-region footer as edge overlays and lets the existing collapsed rail remain
 the spatial anchor. At

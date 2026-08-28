@@ -1,13 +1,13 @@
 import { getState, setState, subscribe } from './state.js';
 import { pureEditingChromeModel } from './core/pureEditingChromeModel.js';
+import { normalizePureFocusScope } from './core/pureWritingModel.js';
+import { setRightSidebarSuppressed } from './rightSidebarState.js';
 
-function currentModel(root = document) {
+function currentModel() {
     return pureEditingChromeModel({
-        enabled: getState('pureEditingChromeEnabled'),
         sidebarCollapsed: getState('sidebarCollapsed'),
         activeTabId: getState('activeTabId'),
         openTabs: getState('openTabs'),
-        detailsPaneOpen: root?.querySelector?.('#right-sidebar')?.classList.contains('open'),
     });
 }
 
@@ -16,16 +16,23 @@ export function renderPureEditingChrome(root = document) {
     const app = root?.querySelector?.('#app');
     if (!app) return false;
 
-    const model = currentModel(root);
+    const model = currentModel();
+    const wasActive = app.classList.contains('pure-editing-chrome');
     app.classList.toggle('pure-editing-chrome', model.active);
     app.dataset.pureEditingChrome = String(model.active);
+    setRightSidebarSuppressed(root?.querySelector?.('#right-sidebar'), model.active);
+    if (wasActive !== model.active) {
+        root.dispatchEvent?.(new CustomEvent('figaro:pure-editing-chrome-changed', {
+            detail: { active: model.active },
+        }));
+    }
     return model.active;
 }
 
 /**
- * Keep the shell synchronized with the preference, active workspace, sidebar,
- * and right-pane visibility. Right-pane state lives at the DOM adapter today,
- * so a narrow class observer bridges only that existing effect boundary.
+ * Keep the shell synchronized with the active workspace and sidebar. An open
+ * right pane is suppressed while Pure is active
+ * and returns unchanged when the sidebar expands.
  */
 export function initPureEditingChrome(root = document) {
     const app = root?.querySelector?.('#app');
@@ -33,29 +40,27 @@ export function initPureEditingChrome(root = document) {
 
     app.dataset.pureEditingChromeInitialized = 'true';
     const render = () => renderPureEditingChrome(root);
-    subscribe('pureEditingChromeEnabled', render);
     subscribe('sidebarCollapsed', render);
     subscribe('activeTabId', render);
     subscribe('openTabs', render);
-
-    const rightSidebar = root.querySelector?.('#right-sidebar');
-    if (rightSidebar && typeof MutationObserver !== 'undefined') {
-        const observer = new MutationObserver(render);
-        observer.observe(rightSidebar, { attributes: true, attributeFilter: ['class'] });
-    }
 
     render();
     return true;
 }
 
-export function initPureEditingChromeSetting(root = document) {
-    const toggle = root?.querySelector?.('#pure-editing-chrome-toggle');
-    if (!toggle || toggle.dataset.initialized === 'true') return false;
+export function initPureWritingSettings(root = document) {
+    const typewriter = root?.querySelector?.('#pure-typewriter-toggle');
+    const focus = root?.querySelector?.('#pure-focus-scope');
+    const adaptive = root?.querySelector?.('#pure-adaptive-typography-toggle');
+    if (!typewriter || !focus || !adaptive || typewriter.dataset.initialized === 'true') return false;
 
-    toggle.dataset.initialized = 'true';
-    toggle.checked = Boolean(getState('pureEditingChromeEnabled'));
-    toggle.addEventListener('change', () => {
-        setState('pureEditingChromeEnabled', toggle.checked);
-    });
+    typewriter.dataset.initialized = 'true';
+    typewriter.checked = Boolean(getState('pureTypewriterEnabled'));
+    focus.value = normalizePureFocusScope(getState('pureFocusScope'));
+    adaptive.checked = Boolean(getState('pureAdaptiveTypographyEnabled'));
+
+    typewriter.addEventListener('change', () => setState('pureTypewriterEnabled', typewriter.checked));
+    focus.addEventListener('change', () => setState('pureFocusScope', normalizePureFocusScope(focus.value)));
+    adaptive.addEventListener('change', () => setState('pureAdaptiveTypographyEnabled', adaptive.checked));
     return true;
 }

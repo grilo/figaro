@@ -10,6 +10,26 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.29.0] - 2026-08-28
+
+### Added
+
+- Pure mode now uses enabled-by-default, smoothly retargeted typewriter
+  scrolling to keep authored input near 42% of the viewport. Its new Settings
+  section can disable that motion, dim everything outside the current phrase
+  or paragraph, and optionally **Adapt text to window size** across three stable
+  bands.
+
+### Changed
+
+- Collapsing the sidebar now enters Pure mode even when a details pane is open:
+  the pane is temporarily hidden and inert, then returns intact on expansion.
+  The former Pure-on-collapse opt-out is retired and cleared, so a collapsed
+  file editor now has one predictable meaning.
+  Pure mode also removes sticky headings and breadcrumbs, while the empty
+  **Add properties** action stays quiet until its top slot, first-line caret,
+  or keyboard focus makes it relevant.
+
 ## [1.28.2] - 2026-08-28
 
 ### Fixed
@@ -1583,7 +1603,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.28.2...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.29.0...HEAD
+[1.29.0]: https://github.com/grilo/figaro/compare/v1.28.2...v1.29.0
 [1.28.2]: https://github.com/grilo/figaro/compare/v1.28.1...v1.28.2
 [1.28.1]: https://github.com/grilo/figaro/compare/v1.28.0...v1.28.1
 [1.28.0]: https://github.com/grilo/figaro/compare/v1.27.0...v1.28.0

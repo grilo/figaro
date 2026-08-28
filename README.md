@@ -164,16 +164,23 @@ hand without changing the underlying Markdown.
   Settings, and closing the buffer discards the temporary scale.
 
 For an iA Writer-like writing view, collapse the sidebar; **Settings →
-Appearance → Writing chrome** can opt out. The active file expands to the physical
-top and bottom of the window while the 44px rail and sidebar toggle remain.
-Enter the upper 28px approach band to reveal tabs and window controls, or the
-bottom-right word count remains as the only footer content. The status bar does
-not reveal on hover, and Document outline stays hidden. Keyboard focus reveals
-the top group without moving the document. Expanding the sidebar, opening the details pane, or
-switching to Settings or another workspace view restores the normal shell.
-Figaro remembers the Pure chrome preference, the expanded/collapsed sidebar
-state, and the active buffer, so the same writing view returns on the next
-launch.
+Appearance → Pure mode** tunes the experience. The active file
+expands to the physical top and bottom of the window while the 44px rail and
+sidebar toggle remain. Any open details pane is preserved but temporarily
+hidden and inert, then returns intact when the sidebar expands. Tabs and window
+controls return only inside the upper 28px approach band, while sticky headings,
+breadcrumbs, Document outline, and every footer item except the bottom-right
+word count remain absent. The empty **Add properties** action similarly waits
+for its top slot, the first-line caret, or keyboard focus.
+
+Smooth typewriter scrolling is enabled by default in Pure mode and keeps
+authored input near 42% of the viewport without reacting to mouse selection,
+Find navigation, or programmatic jumps. The same Settings section can turn it
+off, dim everything outside the current phrase or paragraph, and optionally
+**Adapt text to window size** using three stable bands. Reduced motion makes caret
+repositioning immediate. Figaro remembers all three Pure behavior preferences,
+the expanded/collapsed sidebar state, and the active buffer, so the same
+writing view returns on the next launch.
 
 ## Download
 

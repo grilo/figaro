@@ -1805,15 +1805,32 @@ function renderSettingsTab(panel, _tab) {
                 </div>
                 <div class="settings-section">
                     <div class="settings-section-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16M4 19h16"/><path d="M8 9h8M8 15h8"/></svg>
-                        <span>Writing chrome</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3a6 6 0 1 0 6 6c0-.34-.03-.67-.08-1A8 8 0 1 1 11 1.06c.33-.04.66-.06 1-.06Z"/><path d="M17 3h4v4"/></svg>
+                        <span>Pure mode</span>
                     </div>
-                    <div class="settings-row">
-                        <span id="pure-editing-chrome-description" class="settings-row-label">Merge chrome into the editor when the sidebar is collapsed</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="pure-editing-chrome-toggle" aria-label="Use pure editing chrome" aria-describedby="pure-editing-chrome-description" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
+                    <div class="settings-row-group">
+                        <div class="settings-row">
+                            <span id="pure-typewriter-description" class="settings-row-label">Typewriter scrolling</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pure-typewriter-toggle" data-pure-setting aria-label="Use smooth typewriter scrolling in Pure mode" aria-describedby="pure-typewriter-description" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row settings-row--select">
+                            <label class="settings-row-label" for="pure-focus-scope">Focus scope</label>
+                            <select id="pure-focus-scope" data-pure-setting aria-label="Pure mode focus scope">
+                                <option value="off" selected>Off</option>
+                                <option value="phrase">Phrase</option>
+                                <option value="paragraph">Paragraph</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <span id="pure-adaptive-typography-description" class="settings-row-label">Adapt text to window size</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pure-adaptive-typography-toggle" data-pure-setting aria-label="Adapt text and writing width to the window size in Pure mode" aria-describedby="pure-adaptive-typography-description">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>

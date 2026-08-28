@@ -661,19 +661,34 @@ implementations. After changing the outline, title bar, drag region, or window
 controls, also exercise native edge resizing and maximize/restore in the
 packaged application on each affected desktop platform.
 
-## Pure editing chrome regressions
+## Pure mode regressions
 
 Keep eligibility below browser layout in
 `tests/frontend/unit/pureEditingChrome.test.js`: the pure model must require an
-enabled preference, a collapsed left rail, an active file tab, and a closed
-details pane. The DOM adapter test owns reactive class application, right-pane
-observation, accessible Settings binding, local persistence, keyboard reveal
-selectors, and use of the existing theme surface token. State and Settings-tab
-tests separately prove the enabled-by-default migration, explicit opt-out, and
-labelled control.
+active file tab and a collapsed left rail, with no preference opt-out. An open
+details pane does not change eligibility: the DOM/right-pane adapter tests must
+prove it keeps its owner mode and `open` state while becoming zero-width, inert,
+pointer-transparent, and accessibility-hidden, then returns intact when Pure
+ends. The same suite owns reactive class application, retired-key cleanup,
+keyboard reveal selectors, complete breadcrumb /
+sticky-heading / outline omission, the stable quiet Add-properties slot, and
+use of the existing theme surface token. State and Settings-tab tests separately
+prove the enabled-by-default Typewriter migration and explicit opt-out, the
+Off/Phrase/Paragraph focus vocabulary, disabled-by-default adaptive type, and
+labelled controls.
+
+`tests/frontend/unit/pureWritingModel.test.js` owns scope normalization,
+phrase-versus-block range choice, authored-input event eligibility and
+selection/Find/pointer exclusions, 42% target clamping, motion duration plus
+reduced-motion behavior, and adaptive typography hysteresis.
+`tests/frontend/unit/pureWriting.test.js` mounts a concrete CodeMirror view and
+proves paragraph/phrase decoration updates, normal-mode non-interference,
+selection/Find suspension, typewriter class/padding state, and Arrow Up/Down in
+both directions across the changed presentation. Keep this below the browser;
+do not duplicate every scope or input annotation in Playwright.
 
 One representative case in `tests/e2e/editorUX.spec.js` owns the irreducible
-computed geometry. With the setting enabled and a file open, collapse the
+computed geometry. With a file open, collapse the
 sidebar, focus the editor, and assert that the main container reaches both
 physical window edges while the 28px top approach strip and status bar are
 absolute overlays; crossing into that strip must restore the complete 44px row
@@ -689,20 +704,30 @@ must not reveal any other footer item. Its surface remains transparent and
 pointer-transparent, its application live region remains clipped for assistive
 announcements, and invisible actions cannot receive focus. Programmatic
 keyboard focus inside the tab/window groups must reveal the hidden titlebar
-group. Document outline must remain absent after both pointer and keyboard
-title-bar reveals. Expanding the
-sidebar must restore the ordinary 44px/24px shell allocation.
+group. Breadcrumbs, sticky headings, and Document outline must remain absent
+after both pointer and keyboard title-bar reveals. Begin with an open right
+pane and prove collapse preserves its mode while removing its width/focus, then
+expansion restores the same pane. In that same representative browser workflow,
+enable Paragraph focus and assert computed dimming plus selection suspension;
+enable adaptive typography and assert the coupled spacious font/measure; place
+the caret and drag a selection with real pointer coordinates, then traverse the
+same focused area with Arrow Down/Up before sampling typewriter motion; place
+the caret low in a long document, type once, sample more than one intermediate
+scroll offset, and require the settled caret near 42% of the viewport. Expanding
+the sidebar must restore the ordinary 44px/24px shell allocation and configured
+base typography.
 Retain the computed `--wails-draggable` assertion and, after changes to this
 overlay or its pointer geometry, exercise native drag, edge resizing, and
 maximize/restore in the packaged application on each affected desktop platform.
 
 `tests/e2e/desktopStartup.spec.js` owns the restart composition: seed the saved
-Pure preference and collapsed rail alongside a portable active-file session,
-record every first shell/editor frame, and require a constant 44px sidebar plus
-the remembered active file and Pure class in every visible editor frame. The
-final session write must retain that active file. This complements the pure
-model and session-persistence units without duplicating their normalization or
-write-queue matrices in the browser.
+collapsed rail, disabled Typewriter, Paragraph focus, and
+adaptive type alongside a portable active-file session. Record every first
+shell/editor frame and require a constant 44px sidebar plus the remembered
+active file, Pure/focus/adaptive presentation, and absence of Typewriter in
+every visible editor frame. The final session write must retain that active
+file. This complements the pure model and session-persistence units without
+duplicating their normalization or write-queue matrices in the browser.
 
 ## Sidebar navigation regressions
 

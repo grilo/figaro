@@ -3,16 +3,16 @@ import path from 'node:path';
 import { pureEditingChromeModel } from '../frontend/js/core/pureEditingChromeModel.js';
 import {
     initPureEditingChrome,
-    initPureEditingChromeSetting,
+    initPureWritingSettings,
     renderPureEditingChrome,
 } from '../frontend/js/pureEditingChrome.js';
-import { getState, initState, state } from '../frontend/js/state.js';
+import { initState, state } from '../frontend/js/state.js';
 
 function fileTabs() {
     return [{ id: 'Welcome.md', type: 'file', path: 'Welcome.md', title: 'Welcome.md' }];
 }
 
-describe('pure editing chrome', () => {
+describe('Pure mode shell', () => {
     beforeEach(() => {
         document.body.innerHTML = `
             <div id="app">
@@ -24,22 +24,30 @@ describe('pure editing chrome', () => {
                 <div class="main-container">
                     <aside id="sidebar" class="sidebar collapsed"><nav class="sidebar-tools"></nav></aside>
                     <main id="main-content"></main>
-                    <aside id="right-sidebar" class="right-sidebar"></aside>
+                    <aside id="right-sidebar" class="right-sidebar" aria-hidden="true" inert>
+                        <div class="right-sidebar-header"></div>
+                        <div class="right-sidebar-content"></div>
+                    </aside>
                 </div>
                 <footer id="status-bar" class="status-bar" data-writing-rest="true"></footer>
             </div>
-            <input type="checkbox" id="pure-editing-chrome-toggle">
+            <input type="checkbox" id="pure-typewriter-toggle" data-pure-setting>
+            <select id="pure-focus-scope" data-pure-setting>
+                <option value="off">Off</option><option value="phrase">Phrase</option><option value="paragraph">Paragraph</option>
+            </select>
+            <input type="checkbox" id="pure-adaptive-typography-toggle" data-pure-setting>
         `;
-        state.pureEditingChromeEnabled = false;
         state.sidebarCollapsed = false;
         state.activeTabId = null;
         state.openTabs = [];
+        state.pureTypewriterEnabled = true;
+        state.pureFocusScope = 'off';
+        state.pureAdaptiveTypographyEnabled = false;
         localStorage.clear();
     });
 
-    test('activates only for an opted-in file editor with the left rail collapsed', () => {
+    test('activates for every file editor with the left rail collapsed', () => {
         const eligible = {
-            enabled: true,
             sidebarCollapsed: true,
             activeTabId: 'Welcome.md',
             openTabs: fileTabs(),
@@ -49,27 +57,27 @@ describe('pure editing chrome', () => {
             active: true,
             activeTabType: 'file',
         });
-        expect(pureEditingChromeModel({ ...eligible, enabled: false }).active).toBe(false);
         expect(pureEditingChromeModel({ ...eligible, sidebarCollapsed: false }).active).toBe(false);
         expect(pureEditingChromeModel({
             ...eligible,
             activeTabId: 'settings',
             openTabs: [{ id: 'settings', type: 'settings' }],
         }).active).toBe(false);
-        expect(pureEditingChromeModel({ ...eligible, detailsPaneOpen: true }).active).toBe(false);
     });
 
-    test('treats a profile without a saved override as pure-enabled', () => {
-        state.pureEditingChromeEnabled = true;
+    test('ignores the retired Pure opt-out when a collapsed file session returns', () => {
+        localStorage.setItem('pureEditingChromeEnabled', 'false');
+        localStorage.setItem('sidebarCollapsed', 'true');
+        initState();
         state.sidebarCollapsed = true;
         state.activeTabId = 'Welcome.md';
         state.openTabs = fileTabs();
 
         expect(renderPureEditingChrome()).toBe(true);
+        expect(localStorage.getItem('pureEditingChromeEnabled')).toBeNull();
     });
 
     test('applies and removes the shell state as eligibility changes', () => {
-        state.pureEditingChromeEnabled = true;
         state.sidebarCollapsed = true;
         state.activeTabId = 'Welcome.md';
         state.openTabs = fileTabs();
@@ -78,45 +86,67 @@ describe('pure editing chrome', () => {
         expect(document.getElementById('app').classList.contains('pure-editing-chrome')).toBe(true);
         expect(document.getElementById('app').dataset.pureEditingChrome).toBe('true');
 
-        document.getElementById('right-sidebar').classList.add('open');
+        const rightSidebar = document.getElementById('right-sidebar');
+        rightSidebar.classList.add('open');
+        expect(renderPureEditingChrome()).toBe(true);
+        expect(document.getElementById('app').classList.contains('pure-editing-chrome')).toBe(true);
+        expect(rightSidebar.classList.contains('open')).toBe(true);
+        expect(rightSidebar.dataset.pureSuppressed).toBe('true');
+        expect(rightSidebar.getAttribute('aria-hidden')).toBe('true');
+        expect(rightSidebar.hasAttribute('inert')).toBe(true);
+
+        state.sidebarCollapsed = false;
         expect(renderPureEditingChrome()).toBe(false);
-        expect(document.getElementById('app').classList.contains('pure-editing-chrome')).toBe(false);
+        expect(rightSidebar.classList.contains('open')).toBe(true);
+        expect(rightSidebar.dataset.pureSuppressed).toBe('false');
+        expect(rightSidebar.getAttribute('aria-hidden')).toBe('false');
+        expect(rightSidebar.hasAttribute('inert')).toBe(false);
     });
 
-    test('reacts to the existing right-pane class boundary', async () => {
-        state.pureEditingChromeEnabled = true;
+    test('preserves an open right pane while the reactive Pure shell suppresses it', () => {
         state.sidebarCollapsed = true;
         state.activeTabId = 'Welcome.md';
         state.openTabs = fileTabs();
         const rightSidebar = document.getElementById('right-sidebar');
+        rightSidebar.classList.add('open');
 
         expect(initPureEditingChrome()).toBe(true);
         expect(document.getElementById('app').classList.contains('pure-editing-chrome')).toBe(true);
+        expect(rightSidebar.classList.contains('open')).toBe(true);
+        expect(rightSidebar.dataset.pureSuppressed).toBe('true');
 
-        rightSidebar.classList.add('open');
-        await new Promise(resolve => setTimeout(resolve, 0));
-        expect(document.getElementById('app').classList.contains('pure-editing-chrome')).toBe(false);
-
-        rightSidebar.classList.remove('open');
-        await new Promise(resolve => setTimeout(resolve, 0));
-        expect(document.getElementById('app').classList.contains('pure-editing-chrome')).toBe(true);
+        state.sidebarCollapsed = false;
+        renderPureEditingChrome();
+        expect(rightSidebar.classList.contains('open')).toBe(true);
+        expect(rightSidebar.getAttribute('aria-hidden')).toBe('false');
     });
 
-    test('binds the enabled-by-default control to an explicit persisted opt-out', () => {
-        state.pureEditingChromeEnabled = true;
-        expect(initPureEditingChromeSetting()).toBe(true);
-        const toggle = document.getElementById('pure-editing-chrome-toggle');
-        expect(toggle.checked).toBe(true);
+    test('binds the compact Pure behavior settings and persists their values', () => {
+        state.pureTypewriterEnabled = true;
+        state.pureFocusScope = 'phrase';
+        state.pureAdaptiveTypographyEnabled = false;
+        expect(initPureWritingSettings()).toBe(true);
 
-        toggle.checked = false;
-        toggle.dispatchEvent(new Event('change', { bubbles: true }));
+        const typewriter = document.getElementById('pure-typewriter-toggle');
+        const focus = document.getElementById('pure-focus-scope');
+        const adaptive = document.getElementById('pure-adaptive-typography-toggle');
+        expect(typewriter.checked).toBe(true);
+        expect(focus.value).toBe('phrase');
+        expect(adaptive.checked).toBe(false);
 
-        expect(getState('pureEditingChromeEnabled')).toBe(false);
-        expect(localStorage.getItem('pureEditingChromeEnabled')).toBe('false');
+        typewriter.checked = false;
+        typewriter.dispatchEvent(new Event('change', { bubbles: true }));
+        focus.value = 'paragraph';
+        focus.dispatchEvent(new Event('change', { bubbles: true }));
+        adaptive.checked = true;
+        adaptive.dispatchEvent(new Event('change', { bubbles: true }));
+
+        expect(localStorage.getItem('pureTypewriterEnabled')).toBe('false');
+        expect(localStorage.getItem('pureFocusScope')).toBe('paragraph');
+        expect(localStorage.getItem('pureAdaptiveTypographyEnabled')).toBe('true');
     });
 
     test('re-forms the saved writing view when its active file session returns', () => {
-        localStorage.setItem('pureEditingChromeEnabled', 'true');
         localStorage.setItem('sidebarCollapsed', 'true');
         initState();
         state.activeTabId = 'Welcome.md';
@@ -131,12 +161,19 @@ describe('pure editing chrome', () => {
         const shell = fs.readFileSync(path.resolve('frontend/styles/shell.css'), 'utf8');
         const status = fs.readFileSync(path.resolve('frontend/styles/status-tools.css'), 'utf8');
         const surfaces = fs.readFileSync(path.resolve('frontend/design-system/theme-surfaces.css'), 'utf8');
+        const workspace = fs.readFileSync(path.resolve('frontend/styles/workspace.css'), 'utf8');
+        const rightSidebar = fs.readFileSync(path.resolve('frontend/styles/features/right-sidebar.css'), 'utf8');
 
         expect(shell).toMatch(/#app\.pure-editing-chrome \.top-bar \{[\s\S]*position: absolute;/);
         expect(shell).toMatch(/\.top-bar:hover:not\(:has\(\.top-bar-left:hover\)\) \.top-bar-center/);
         expect(shell).toMatch(/\.top-bar:has\(\.top-bar-center:focus-within\) \.top-bar-center/);
         const editor = fs.readFileSync(path.resolve('frontend/styles/editor.css'), 'utf8');
         expect(editor).toMatch(/#app\.pure-editing-chrome \.editor-outline-launcher \{[\s\S]*display: none !important;/);
+        expect(editor).toMatch(/#app\.pure-editing-chrome \.sticky-heading-stack \{[\s\S]*display: none !important;/);
+        expect(editor).toMatch(/#app\.pure-editing-chrome \.cm-add-properties \{[\s\S]*opacity: 0;/);
+        expect(editor).toMatch(/\.cm-editor\.cm-pure-typewriter \.cm-content \{/);
+        expect(workspace).toMatch(/#app\.pure-editing-chrome \.editor-breadcrumb \{[\s\S]*display: none !important;/);
+        expect(rightSidebar).toMatch(/#app\.pure-editing-chrome \.right-sidebar\[data-pure-suppressed="true"\] \{[\s\S]*width: 0 !important;/);
         expect(status).toMatch(/#app\.pure-editing-chrome \.status-bar \{[\s\S]*pointer-events: none;/);
         expect(status).toMatch(/#app\.pure-editing-chrome \.status-buffer-right > \* \{[\s\S]*display: none !important;/);
         expect(status).toMatch(/#app\.pure-editing-chrome \.status-buffer-right > #word-count \{[\s\S]*display: inline !important;/);

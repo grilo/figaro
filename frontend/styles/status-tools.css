@@ -25,7 +25,7 @@
         border-color var(--motion-content-duration) ease;
 }
 
-/* Pure editing chrome keeps the footer out of document flow and exposes only
+/* Pure mode keeps the footer out of document flow and exposes only
    the real live word-count node. Application announcements remain mounted,
    while actions and buffer controls cannot become invisible focus targets. */
 #app.pure-editing-chrome .status-bar {

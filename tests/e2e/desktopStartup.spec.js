@@ -164,10 +164,12 @@ test('boots through the native Wails binding with the workspace overview, vault 
         .some(call => call.args[0] === 'external-forwarded-1'))).toBe(true);
 });
 
-test('restores the saved active buffer directly into persistent pure editing chrome', async ({ page }) => {
+test('restores the saved active buffer directly into persistent Pure mode', async ({ page }) => {
     await page.addInitScript(() => {
         localStorage.setItem('sidebarCollapsed', 'true');
-        localStorage.setItem('pureEditingChromeEnabled', 'true');
+        localStorage.setItem('pureTypewriterEnabled', 'false');
+        localStorage.setItem('pureFocusScope', 'paragraph');
+        localStorage.setItem('pureAdaptiveTypographyEnabled', 'true');
         const calls = [];
         const observations = { sidebarWidths: [], visibleEditorFrames: [] };
         window.__pureRestartCalls = calls;
@@ -181,9 +183,14 @@ test('restores the saved active buffer directly into persistent pure editing chr
             }
             const app = document.getElementById('app');
             const content = document.querySelector('.cm-content');
+            const editor = document.querySelector('.cm-editor');
             if (content && app?.dataset.startupHydrating !== 'true') {
                 observations.visibleEditorFrames.push({
                     pure: app.classList.contains('pure-editing-chrome'),
+                    pureWriting: editor?.classList.contains('cm-pure-writing') || false,
+                    typewriter: editor?.classList.contains('cm-pure-typewriter') || false,
+                    focusDimmed: document.querySelectorAll('.cm-pure-focus-dimmed').length,
+                    typographyTier: editor?.dataset.pureTypographyTier || '',
                     activeTab: document.querySelector('.tab.active')?.dataset.tabId || '',
                     text: content.textContent,
                 });
@@ -255,7 +262,13 @@ test('restores the saved active buffer directly into persistent pure editing chr
     expect([...new Set(result.observations.sidebarWidths)]).toEqual([44]);
     expect(result.observations.visibleEditorFrames.length).toBeGreaterThan(0);
     expect(result.observations.visibleEditorFrames.every(frame => (
-        frame.pure && frame.activeTab === 'remembered.md' && frame.text.includes('Continue writing here.')
+        frame.pure
+        && frame.pureWriting
+        && !frame.typewriter
+        && frame.focusDimmed > 0
+        && frame.typographyTier !== 'regular'
+        && frame.activeTab === 'remembered.md'
+        && frame.text.includes('Continue writing here.')
     ))).toBe(true);
     expect(result.saves.at(-1).args[0].activeTabId).toBe('remembered.md');
 });

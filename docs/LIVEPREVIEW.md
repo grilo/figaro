@@ -125,6 +125,27 @@ frames. This lets CodeMirror measure the real document, line-number gutter, and
 restored selection/scroll geometry before publishing one stable first frame;
 it does not replace or relax any widget's measured-height contract below.
 
+Pure mode adds a view-only writing presentation without changing Markdown or
+replacing source. Typewriter scrolling gives `.cm-content` measured top and
+bottom padding derived from the current scroller height so the first and last
+caret rows can occupy the same 42% anchor as an interior row. Only authored
+typing, deletion, completion, and paste transactions request the keyed
+coordinate read; pointer selection, Find, navigation, programmatic document
+replacement, and widget actions do not. The adapter cancels or retargets one
+requestAnimationFrame ease, never queues scrolls, and writes the target directly
+for reduced motion. Wheel/pointer input cancels an in-flight ease.
+
+The optional Phrase/Paragraph focus decoration is also geometry-neutral. The
+syntax adapter supplies the nearest Markdown structural block and locale-aware
+sentence-like phrase segments; the pure model selects the bright range. Only
+visible surrounding lines/marks receive an opacity class, and mounted block
+widget roots receive the equivalent class without changing their measured
+height. Any non-empty selection, mouse drag, or open Find panel removes every
+dim decoration. Adaptive typography, when requested, changes active font size
+and writing width together across three hysteretic bands, then requests the
+normal CodeMirror/source-footprint measurements. Normal mode, source text,
+temporary buffer-scale ownership, and print rendering remain unchanged.
+
 Every decoration created with `block: true` must follow these rules:
 
 1. The widget root and its visual surface must have zero top and bottom

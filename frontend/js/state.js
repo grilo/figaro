@@ -21,7 +21,9 @@ export const state = {
     sidebarCollapsed: false,    // Left sidebar collapsed state
     rightSidebarCollapsed: false, // Right sidebar collapsed state
     showEditorBreadcrumbs: false, // Optional vault-relative path above the editor
-    pureEditingChromeEnabled: true, // Edge-revealed chrome for a collapsed-sidebar file editor
+    pureTypewriterEnabled: true, // Smooth caret anchoring while typing in Pure mode
+    pureFocusScope: 'off',       // off | phrase | paragraph
+    pureAdaptiveTypographyEnabled: false, // Stable responsive type bands in Pure mode
     
     // Calendar
     currentCalDate: new Date(), // Current calendar month view
@@ -194,10 +196,16 @@ export function initState() {
 
     state.sidebarCollapsed = stateStorage.read('sidebarCollapsed') === 'true';
     state.showEditorBreadcrumbs = stateStorage.read('showEditorBreadcrumbs') === 'true';
-    const savedPureEditingChrome = stateStorage.read('pureEditingChromeEnabled');
-    state.pureEditingChromeEnabled = savedPureEditingChrome === null
+    stateStorage.remove('pureEditingChromeEnabled');
+    const savedPureTypewriter = stateStorage.read('pureTypewriterEnabled');
+    state.pureTypewriterEnabled = savedPureTypewriter === null
         ? true
-        : savedPureEditingChrome === 'true';
+        : savedPureTypewriter === 'true';
+    const savedPureFocusScope = stateStorage.read('pureFocusScope');
+    state.pureFocusScope = ['off', 'phrase', 'paragraph'].includes(savedPureFocusScope)
+        ? savedPureFocusScope
+        : 'off';
+    state.pureAdaptiveTypographyEnabled = stateStorage.read('pureAdaptiveTypographyEnabled') === 'true';
     
     // Restore expanded directories
     const savedExpanded = stateStorage.read('expandedDirs');
@@ -286,7 +294,9 @@ export function persistState() {
     stateStorage.write('rightSidebarWidth', state.rightSidebarWidth.toString());
     stateStorage.write('sidebarCollapsed', String(state.sidebarCollapsed));
     stateStorage.write('showEditorBreadcrumbs', String(state.showEditorBreadcrumbs));
-    stateStorage.write('pureEditingChromeEnabled', String(state.pureEditingChromeEnabled));
+    stateStorage.write('pureTypewriterEnabled', String(state.pureTypewriterEnabled));
+    stateStorage.write('pureFocusScope', state.pureFocusScope);
+    stateStorage.write('pureAdaptiveTypographyEnabled', String(state.pureAdaptiveTypographyEnabled));
     stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs]));
     const serializable = serializeSessionTabs(state.openTabs);
     stateStorage.write('pinnedTabs', JSON.stringify(state.pinnedTabs.filter(tabId => serializable.some(tab => tab.id === tabId))));
@@ -317,8 +327,14 @@ subscribe('sidebarCollapsed', () => {
 subscribe('showEditorBreadcrumbs', () => {
     try { stateStorage.write('showEditorBreadcrumbs', String(state.showEditorBreadcrumbs)); } catch (e) { /* noop */ }
 });
-subscribe('pureEditingChromeEnabled', () => {
-    try { stateStorage.write('pureEditingChromeEnabled', String(state.pureEditingChromeEnabled)); } catch (e) { /* noop */ }
+subscribe('pureTypewriterEnabled', () => {
+    try { stateStorage.write('pureTypewriterEnabled', String(state.pureTypewriterEnabled)); } catch (e) { /* noop */ }
+});
+subscribe('pureFocusScope', () => {
+    try { stateStorage.write('pureFocusScope', state.pureFocusScope); } catch (e) { /* noop */ }
+});
+subscribe('pureAdaptiveTypographyEnabled', () => {
+    try { stateStorage.write('pureAdaptiveTypographyEnabled', String(state.pureAdaptiveTypographyEnabled)); } catch (e) { /* noop */ }
 });
 subscribe('expandedDirs', () => {
     try { stateStorage.write('expandedDirs', JSON.stringify([...state.expandedDirs])); } catch (e) { /* noop */ }

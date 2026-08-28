@@ -183,35 +183,56 @@ lanes. It publishes those states to the existing footer without measuring
 layout or intercepting input. CSS
 removes every item during focused ordinary writing without changing the 24px
 geometry; the application-status surface remains opaque and continues the
-sidebar plane. In Pure chrome, CSS makes the footer surface transparent and
+sidebar plane. In Pure mode, CSS makes the footer surface transparent and
 non-interactive, clips but retains the application live region for assistive
 technology, removes invisible actions from focus, and exposes only the real
 `#word-count` node at bottom-right. No hover, focus, side-lane, or application
 state restores the other footer contents.
 
-Pure editing chrome composes those existing shell decisions without creating a
+Pure mode composes those existing shell decisions without creating a
 second title bar, tab rail, footer, or editor. The deterministic
-`core/pureEditingChromeModel.js` rule admits only an opted-in active file with
-the left sidebar collapsed and the right details pane closed.
-`pureEditingChrome.js` adapts reactive tab/sidebar/preference state and observes
-only the existing right-pane class boundary, then publishes one class on
-`#app`. Shell CSS takes the existing title bar and footer out of flex flow as
-top and bottom overlays; the editor therefore owns the full physical height,
+`core/pureEditingChromeModel.js` rule admits only an active file with the left
+sidebar collapsed. `pureEditingChrome.js` adapts reactive tab/sidebar state,
+publishes one class on `#app`, and asks the
+right-pane state adapter to suppress an open pane without removing its `open`
+class, owner mode, or mounted contents. The pane becomes inert and
+accessibility-hidden while suppressed; expanding the sidebar exposes the exact
+same pane again. Shell CSS takes the existing title bar and footer out of flex
+flow as top and bottom overlays; the editor therefore owns the full physical height,
 while `--wails-draggable: drag` stays on the transparent title-bar hit region.
 That resting hit region reaches 28px down from the window edge, deep enough for
 a natural upward pointer approach but short of the full overlay so ordinary
 document interaction does not become a title-bar trigger.
 Hover/focus reveal the same approved title-bar tabs and icon buttons without a
-CodeMirror document or measurement change. The existing Document outline
-launcher is omitted throughout Pure mode rather than joining that reveal. The
-preference and collapsed-sidebar state use local state storage and are restored
-synchronously before the shell is initialized. A tiny inline startup mirror
-applies the 44px rail before the application graph runs; `initTopBar()` then
+CodeMirror document or measurement change. Breadcrumbs, the existing Document
+outline launcher, and the sticky-heading stack are omitted throughout Pure mode
+rather than joining that reveal; the stack's computed zero height contributes
+no scroll margin. The empty Properties action retains its measured widget slot
+and changes only opacity/pointer relevance, so the first paragraph never moves.
+The collapsed-sidebar state and Pure behavior preferences use local state
+storage and are restored synchronously before the shell is initialized. A tiny
+inline startup mirror applies the 44px rail before the application graph runs; `initTopBar()` then
 replaces that hint with the normalized sidebar plan. The portable vault session
 remains authoritative for the open tabs and active buffer, and the pure
 controller activates before the restored CodeMirror frame is revealed once
 that active file returns. Eligibility continues to change synchronously as
 tabs or sidebar state move.
+
+Pure writing behavior is a CodeMirror view adapter, not a second editor mode.
+`core/pureWritingModel.js` owns focus-scope normalization, authored-input
+eligibility, the 42% scroll target, bounded motion duration, and three-band
+adaptive-type hysteresis without importing DOM or CodeMirror state.
+`pureWriting.js` supplies locale-aware phrase segments and Markdown syntax-node
+block boundaries, decorates only visible surrounding ranges, temporarily dims
+mounted block widgets, and translates eligible input transactions into one
+keyed CodeMirror measurement. Its requestAnimationFrame adapter cancels or
+retargets the current cubic ease rather than queueing animations; pointer/wheel
+input cancels it and reduced motion assigns the final offset immediately.
+Measured top/bottom canvas lets the first and final caret rows reach the same
+anchor. Optional adaptive typography derives active font size and writing width
+from the configured base and the actual editor viewport, so normal mode,
+per-buffer scale ownership, Markdown source, and printable output stay
+unchanged.
 
 Default semantic values and optional art-direction surfaces live in
 `frontend/design-system/tokens.css`; `theme-surfaces.css` is the only shared

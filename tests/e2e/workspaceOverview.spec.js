@@ -273,9 +273,6 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
 
 test('keeps the status bar fixed while ordinary writing recedes and bottom-edge hover restores it', async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 640 });
-    await page.addInitScript(() => {
-        localStorage.setItem('pureEditingChromeEnabled', 'false');
-    });
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
 
@@ -387,15 +384,15 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
         statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', () => {});
     });
     await expect(page.locator('#status-bar')).toHaveAttribute('data-writing-rest', 'false');
-    await page.locator('#toggle-sidebar').click();
-    const compactStatusGeometry = () => page.locator('#status-bar').evaluate(element => {
+    const activeStatusGeometry = () => page.locator('#status-bar').evaluate(element => {
         const application = element.querySelector('.status-left');
         const applicationBounds = application.getBoundingClientRect();
+        const sidebarBounds = document.getElementById('sidebar').getBoundingClientRect();
         const bufferBounds = element.querySelector('.status-right').getBoundingClientRect();
         const actionBounds = document.getElementById('status-action').getBoundingClientRect();
         const text = document.getElementById('status-text');
         return {
-            width: Math.round(applicationBounds.width),
+            applicationMatchesSidebar: Math.abs(applicationBounds.width - sidebarBounds.width) <= 1,
             bufferAligned: Math.abs(bufferBounds.left - applicationBounds.right) <= 1,
             actionInside: actionBounds.left >= applicationBounds.left - 1
                 && actionBounds.right <= applicationBounds.right + 1,
@@ -406,13 +403,13 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
             active: application.dataset.applicationActive,
         };
     });
-    await expect.poll(compactStatusGeometry).toEqual({
-        width: 44,
+    await expect.poll(activeStatusGeometry).toEqual({
+        applicationMatchesSidebar: true,
         bufferAligned: true,
         actionInside: true,
         actionVisible: true,
         fullLiveText: 'Deleted “Draft.md” ·',
-        liveTextPosition: 'absolute',
+        liveTextPosition: 'static',
         tooltip: 'Deleted “Draft.md” ·',
         active: 'true',
     });

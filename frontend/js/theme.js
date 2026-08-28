@@ -9,7 +9,7 @@ import { getAutoCommitEnabled, setAutoCommitEnabled } from './automation.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
 import { enhanceSettingsPicker } from './settingsPicker.js';
 import { initEditorBreadcrumbSetting } from './editorBreadcrumb.js';
-import { initPureEditingChromeSetting } from './pureEditingChrome.js';
+import { initPureWritingSettings } from './pureEditingChrome.js';
 import { initEditorNavigationPreference, initEditorNavigationSettings } from './editorNavigationPreferences.js';
 import { initHelpPopup } from './helpPopup.js';
 import { initTabSizeSettings } from './tabSizePreference.js';
@@ -746,7 +746,11 @@ export async function initSettingsPanel(root = document) {
         }
 
         initEditorBreadcrumbSetting(root);
-        initPureEditingChromeSetting(root);
+        if (initPureWritingSettings(root)) {
+            enhanceSelectCombobox(findIn(root, '#pure-focus-scope'), {
+                ariaLabel: 'Pure mode focus scope',
+            });
+        }
         await initEditorNavigationSettings(root);
 
         const spellcheckLanguage = findIn(root, '#spellcheck-language');

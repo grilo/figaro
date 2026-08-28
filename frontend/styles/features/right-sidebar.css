@@ -23,6 +23,27 @@
     pointer-events: auto;
 }
 
+/* Collapsing the left sidebar is the reversible Pure-mode command. Preserve an
+   open details pane in place, but remove it from layout, pointing, and the
+   accessibility tree until the sidebar expands again. */
+#app.pure-editing-chrome .right-sidebar[data-pure-suppressed="true"] {
+    width: 0 !important;
+    min-width: 0 !important;
+    border-left: 0 !important;
+    pointer-events: none !important;
+}
+
+#app.pure-editing-chrome .right-sidebar[data-pure-suppressed="true"] .right-sidebar-header,
+#app.pure-editing-chrome .right-sidebar[data-pure-suppressed="true"] .right-sidebar-content {
+    opacity: 0;
+    transform: translateX(8px);
+    transition-delay: 0ms;
+}
+
+#app.pure-editing-chrome .right-sidebar[data-pure-suppressed="true"] .right-sidebar-resizer {
+    display: none !important;
+}
+
 /* PDF preview is deliberately roomier than Calendar, History, and Outline. Its controls
    stay fixed while the isolated paper surface scrolls independently. */
 .right-sidebar.pdf-preview-mode {
