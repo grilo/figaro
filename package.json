@@ -87,7 +87,7 @@
     "@mdit/plugin-sub": "1.1.0",
     "@mdit/plugin-sup": "1.1.0",
     "@mdit/plugin-tasklist": "1.1.0",
-    "@replit/codemirror-vim": "^6.3.0",
+    "@replit/codemirror-vim": "^6.4.0",
     "@uiw/codemirror-extensions-color": "4.25.11",
     "codemirror-live-markdown": "^0.5.1-alpha.1",
     "dictionary-en": "4.0.0",
