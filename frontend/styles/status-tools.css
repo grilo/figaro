@@ -25,6 +25,14 @@
         border-color var(--motion-content-duration) ease;
 }
 
+/* Calendar keeps the shared footer footprint so workspace switches cannot
+   resize the main row. Its buffer telemetry is meaningless in this planning
+   surface, so hide only the main-pane region; application status stays live. */
+#app:has(#calendar-workspace-panel.tab-panel.active) > .status-bar .status-right {
+    visibility: hidden;
+    pointer-events: none;
+}
+
 /* Pure mode keeps the footer out of document flow and exposes only
    the real live word-count node. Application announcements remain mounted,
    while actions and buffer controls cannot become invisible focus targets. */
@@ -187,6 +195,45 @@
         transform var(--motion-content-duration) var(--motion-ease-out);
 }
 
+.graph-status-content {
+    display: none;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-right[data-mode="graph"] .graph-status-content {
+    display: flex;
+}
+
+.status-right[data-mode="graph"]::after,
+.status-right[data-mode="graph"] .status-buffer-left,
+.status-right[data-mode="graph"] .status-buffer-right > :not(#resize-grip) {
+    display: none;
+}
+
+.status-right[data-mode="graph"] .status-buffer-right {
+    flex: 0 0 auto;
+    margin-left: 0;
+}
+
+.graph-status-instruction,
+.graph-status-selection {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.graph-status-instruction {
+    color: var(--text-dim);
+}
+
+.graph-status-selection {
+    min-width: 0;
+    margin-left: auto;
+}
+
 /* Ordinary writing keeps the footer's fixed layout footprint but lets its
    nonessential controls recede. Hovering the bottom edge or tabbing into a
    control restores the complete status bar without moving the document. */
@@ -321,6 +368,10 @@
     .status-vault-loading-message {
         display: none;
     }
+
+    .graph-status-instruction {
+        display: none;
+    }
 }
 
 @media (max-width: 520px) {
@@ -404,6 +455,88 @@
 .md-cheatsheet-tab {
     min-height: 24px;
     padding: 4px 9px;
+}
+
+.md-help-search-box {
+    flex: 0 0 auto;
+    margin-bottom: 9px;
+}
+
+.md-help-search {
+    width: 100%;
+    min-height: 34px;
+    appearance: none;
+}
+
+.md-help-search::-webkit-search-cancel-button {
+    display: none;
+}
+
+.md-help-search-results {
+    position: static;
+    display: flex;
+    min-height: 0;
+    max-height: none;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    overflow-y: auto;
+}
+
+.md-help-search-results[hidden],
+.md-help-search-empty[hidden] {
+    display: none;
+}
+
+.md-help-search-result {
+    display: flex;
+    width: 100%;
+    min-height: 46px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+}
+
+.md-help-search-result-copy {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.md-help-search-result-copy strong,
+.md-help-search-result-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.md-help-search-result-copy strong {
+    color: var(--text-color);
+    font-size: 12px;
+}
+
+.md-help-search-result-copy small {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.md-help-search-empty {
+    display: grid;
+    flex: 1 1 auto;
+    margin: 0;
+    place-items: center;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.md-cheatsheet-popup.is-searching .md-cheatsheet-panel {
+    display: none;
+}
+
+.md-help-search-target td {
+    background: color-mix(in srgb, var(--accent-color) 18%, var(--panel-bg)) !important;
 }
 
 .md-cheatsheet-panel[hidden] {

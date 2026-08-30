@@ -44,5 +44,3 @@ export function tablePreviewOwnsInteraction({
         && y <= rect.bottom;
     return hitsVertical || hitsHorizontal;
 }
-
-export default { tablePreviewOwnsInteraction };

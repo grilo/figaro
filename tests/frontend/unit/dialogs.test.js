@@ -1,4 +1,4 @@
-import { activateModal, confirmDialog, createDialogShell, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, pdfStyleReferenceDialog, promptDialog, renamePathDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
+import { activateModal, confirmDialog, createDialogShell, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, pdfExportErrorDialog, pdfStyleReferenceDialog, promptDialog, renamePathDialog, saveFailureDialog, tableConversionDialog } from '../frontend/js/dialogs.js';
 
 describe('New note dialog', () => {
     beforeEach(() => {
@@ -70,6 +70,24 @@ describe('New note dialog', () => {
 
         await expect(result).resolves.toBeUndefined();
         expect(document.querySelector('.custom-modal-overlay')).toBeNull();
+    });
+
+    test('makes a failed save blocking while explaining that the buffer is preserved', async () => {
+        const result = saveFailureDialog('draft.md', new Error('disk is full'));
+        const dialog = document.querySelector('[role="dialog"]');
+
+        expect(document.body.classList).toContain('custom-modal-open');
+        expect(dialog.textContent).toContain('Couldn’t save ‘draft.md’');
+        expect(dialog.textContent).toContain('disk is full');
+        expect(dialog.textContent).toContain('changes remain in the open buffer');
+        expect([...dialog.querySelectorAll('button')].map(button => button.textContent.trim()))
+            .toEqual(['Copy unsaved text', 'Keep editing', 'Retry']);
+
+        document.querySelector('.custom-modal-overlay').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        expect(document.querySelector('[role="dialog"]')).toBe(dialog);
+
+        dialog.querySelector('.custom-modal-btn-confirm').click();
+        await expect(result).resolves.toBe('confirm');
     });
 
     test('explains a missing browser engine with an in-app PDF export dialog', async () => {

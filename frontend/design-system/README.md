@@ -34,9 +34,10 @@ The catalogue is deliberately not a second component implementation:
   optional theme art-direction values.
 - `theme-surfaces.css` maps those art-direction values to stable production
   selectors; this includes structural divider/resizer and split-status-surface
-  hooks and inert-by-default
-  ambient vignette, scan-line, and screen-transform hooks, so individual themes
-  never own selectors or timers.
+  hooks plus inert-by-default vignette, anti-banding dither, repeating texture,
+  inset glass shadow, phosphor bloom, glass animation, and beam hooks. Individual themes
+  therefore never own selectors or timers, and reduced motion can disable both
+  screen-effect layers centrally.
 - `theme-contract.json` lists the required palette plus optional semantic and
   art-direction tokens, while `style-manifest.json` records the eager cascade
   shared by the application and catalogue.
@@ -57,6 +58,29 @@ The approved `.ui-button--quiet` variant removes resting border and surface
 paint for low-emphasis actions while retaining themed hover, active, focus,
 disabled, and busy behavior. Expanded Properties uses it for its icon-and-label
 **Edit YAML** source action.
+The approved `.ui-segmented-control` composes ordinary `.ui-button` choices
+into one labelled, mutually exclusive presentation control. Its quiet variant
+removes the resting outline for low-chrome surfaces while preserving shared
+hover, selected, keyboard-focus, disabled, and busy states; Calendar uses that
+variant for its session-only **Month / Timeline** choice.
+The document-tab family also includes the approved
+`.ui-document-tab--side-connected` modifier used by the persistent Calendar,
+Kanban, and Graph destinations. It preserves the same inactive, hover, and
+focus language as title-bar tabs, while its borderless selected state opens the
+seam toward the central workspace, rounds both junctions with the shared tab
+radius, and paints above the theme rail. It leaves every border channel
+transparent and transitions only background/text color so pointer selection
+cannot interpolate through a light border frame. Feature CSS
+supplies its sidebar reach and masks only the idle resizer tint at the selected
+row; direct resizer hover, focus, and drag feedback stays visible.
+The workspace layout also reuses that radius for its top-left corner unless the
+first title-bar tab is selected, in which case the connected surface stays
+square at the shared edge. Feature layout also pauses any visible title-bar
+divider and sidebar rail around that curve so they cannot draw a square beneath
+the rounded workspace.
+Active title-bar tabs use the shared 8px radius on top and inverse radial feet
+at their lower junctions. The tab box retains square lower corners and no
+bottom border, avoiding a detached pill while preserving the editor seam.
 The missing-Draw.io Markdown Create/Open action is one such compact accent
 button: its feature hook fits the existing image footprint, while the shared
 button and spinner primitives own every interaction and busy state.
@@ -67,7 +91,12 @@ shared determinate track and value fill; hosts supply its value and geometry
 without redefining those states. The approved stepper accepts either a
 read-only value or a bounded numeric `.ui-stepper-value`; the latter suppresses
 native spinner buttons so the shared decrement/increment controls remain the
-only visible step actions while keyboard entry stays available. The root
+only visible step actions while keyboard entry stays available. Graph uses the
+approved canvas, field, button, and icon-button families: shared CSS owns their
+themed pressed, focus, busy, and panning states while deliberately keeping the
+canvas surface stable on hover. The feature adapter owns their floating layout,
+appearance-derived drawing and icons, pan/zoom, hit testing, persistent tracing,
+and modifier-driven note opening. The root
 `frontend/styles.css` remains a synchronized
 compatibility aggregate, not the production entry point.
 

@@ -1,6 +1,6 @@
 const DEFAULT_EXPANDED_WIDTH = 280;
-const DEFAULT_MIN_WIDTH = 225;
-const DEFAULT_MAX_WIDTH = 500;
+export const SIDEBAR_MINIMUM = 225;
+export const SIDEBAR_MAXIMUM = 500;
 const DEFAULT_RAIL_WIDTH = 44;
 
 function finiteWidth(value, fallback) {
@@ -15,12 +15,12 @@ function finiteWidth(value, fallback) {
 export function sidebarLayoutPlan({
     collapsed = false,
     expandedWidth = DEFAULT_EXPANDED_WIDTH,
-    minWidth = DEFAULT_MIN_WIDTH,
-    maxWidth = DEFAULT_MAX_WIDTH,
+    minWidth = SIDEBAR_MINIMUM,
+    maxWidth = SIDEBAR_MAXIMUM,
     railWidth = DEFAULT_RAIL_WIDTH,
 } = {}) {
-    const minimum = finiteWidth(minWidth, DEFAULT_MIN_WIDTH);
-    const maximum = Math.max(minimum, finiteWidth(maxWidth, DEFAULT_MAX_WIDTH));
+    const minimum = finiteWidth(minWidth, SIDEBAR_MINIMUM);
+    const maximum = Math.max(minimum, finiteWidth(maxWidth, SIDEBAR_MAXIMUM));
     const normalizedExpandedWidth = Math.min(
         maximum,
         Math.max(minimum, finiteWidth(expandedWidth, DEFAULT_EXPANDED_WIDTH)),

@@ -72,6 +72,7 @@ window.go = {
         SearchNotes: jest.fn().mockResolvedValue({ results: [], suggestion: '' }),
         SearchBacklinks: jest.fn().mockResolvedValue([]),
         SearchUnlinkedMentions: jest.fn().mockResolvedValue([]),
+        GetVaultGraph: jest.fn().mockResolvedValue({ nodes: [], edges: [] }),
         LinkUnlinkedMention: jest.fn().mockResolvedValue({ success: true }),
         GetVaultHealth: jest.fn().mockResolvedValue({ broken_links: [], orphan_attachments: [], duplicate_names: [], similar_notes: [], invalid_frontmatter: [] }),
         GetCommitCount: jest.fn().mockResolvedValue(0),
@@ -90,6 +91,7 @@ window.go = {
         RemoveTagFromTask: jest.fn().mockResolvedValue({ success: true }),
         SetTaskDueDate: jest.fn().mockResolvedValue({ success: true }),
         GetLinkedNotesForDate: jest.fn().mockResolvedValue([]),
+        GetCalendarTimelineData: jest.fn().mockResolvedValue({ start_date: '', end_date: '', days: [] }),
         GetCalendarMonthData: jest.fn().mockResolvedValue({
             year: 2024,
             month: 1,
@@ -198,31 +200,57 @@ function createMockDOM() {
                         </div>
                         <button id="create-inbox-note" class="create-inbox-note quick-note-action" data-action="quick-note"><span>Quick note</span></button>
                         <div id="file-tree"></div>
-                        <section id="sidebar-calendar-panel" class="sidebar-calendar-panel" aria-hidden="true">
-                            <div class="calendar-toolbar">
-                                <button id="cal-prev-month"></button>
-                                <span id="cal-month-year"></span>
-                                <button id="cal-next-month"></button>
-                            </div>
-                            <div id="calendar-grid"></div>
-                            <div id="cal-linked-notes"></div>
-                        </section>
                     </div>
                     <nav class="sidebar-tools" aria-label="Workspace tools">
                         <button id="sidebar-quick-note" class="sidebar-tool-btn sidebar-quick-note quick-note-action" data-action="quick-note"><span class="sidebar-tool-label">Quick note</span></button>
-                        <button id="sidebar-calendar" class="sidebar-tool-btn" aria-controls="sidebar-calendar-panel" aria-expanded="false">
+                        <button id="sidebar-calendar" class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected" aria-controls="tab-panels">
                             <span class="sidebar-tool-label">Calendar</span>
                         </button>
-                        <button id="sidebar-kanban" class="sidebar-tool-btn">
+                        <button id="sidebar-kanban" class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected" aria-controls="tab-panels">
                             <span class="sidebar-tool-label">Kanban</span>
                             <span id="kanban-badges" class="kanban-badges"></span>
                         </button>
+                        <button id="sidebar-graph" class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected" aria-controls="tab-panels">
+                            <span class="sidebar-tool-label">Graph</span>
+                        </button>
                     </nav>
-                    <div id="sidebar-resizer"></div>
+                    <div id="sidebar-resizer" role="separator" tabindex="0" aria-label="Resize navigation pane" aria-controls="sidebar"></div>
                 </aside>
                 <main id="main-content" class="main-content">
                     <nav id="editor-breadcrumb" class="editor-breadcrumb" aria-label="Current document path" hidden></nav>
-                    <div id="tab-panels" class="tab-panels"></div>
+                    <div id="tab-panels" class="tab-panels">
+                        <section id="calendar-workspace-view" class="calendar-workspace-view" aria-hidden="true">
+                            <div class="ui-segmented-control ui-segmented-control--quiet calendar-presentation-choices" role="group" aria-label="Calendar presentation">
+                                <button class="ui-button calendar-presentation-choice" data-calendar-presentation="month" aria-pressed="true">Month</button>
+                                <button class="ui-button calendar-presentation-choice" data-calendar-presentation="timeline" aria-pressed="false">Timeline</button>
+                            </div>
+                            <div id="calendar-month-view" class="calendar-month-view">
+                                <div class="calendar-main-pane">
+                                    <div class="calendar-toolbar">
+                                        <button id="cal-prev-month"></button>
+                                        <span id="cal-month-year"></span>
+                                        <button id="cal-next-month"></button>
+                                    </div>
+                                    <div id="calendar-grid"></div>
+                                </div>
+                                <div id="cal-linked-notes"></div>
+                            </div>
+                            <section id="calendar-timeline-view" class="calendar-timeline-view" aria-hidden="true" aria-busy="false" hidden>
+                                <div class="calendar-timeline-toolbar">
+                                    <span class="calendar-timeline-range"></span>
+                                    <div class="calendar-timeline-actions">
+                                        <button class="calendar-timeline-today">Today</button>
+                                        <button class="calendar-timeline-earlier">‹</button>
+                                        <button class="calendar-timeline-later">›</button>
+                                    </div>
+                                </div>
+                                <div class="calendar-timeline-stage">
+                                    <div class="calendar-timeline-scroll" tabindex="0" aria-label="Horizontally scrollable note timeline. Use Left and Right to scroll, or drag empty space to pan; approaching either edge preloads the adjacent week."><div class="calendar-timeline-track"></div></div>
+                                    <p class="calendar-timeline-message" hidden></p>
+                                </div>
+                            </section>
+                        </section>
+                    </div>
                     <div id="editor-container">
                         <div class="editor-navigation-overlay">
                             <button id="outline-toggle" class="ui-icon-button editor-outline-launcher" aria-label="Show document outline" aria-controls="right-sidebar" aria-expanded="false" hidden></button>
@@ -230,8 +258,8 @@ function createMockDOM() {
                         </div>
                     </div>
                 </main>
-                <aside id="right-sidebar" class="right-sidebar collapsed">
-                    <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
+                <aside id="right-sidebar" class="right-sidebar collapsed" aria-hidden="true" inert>
+                    <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" role="separator" tabindex="0" aria-label="Resize details pane" aria-controls="right-sidebar"></div>
                     <div class="right-sidebar-header">
                         <span id="right-sidebar-title" class="right-sidebar-title">Details</span>
                         <button id="right-sidebar-close" class="right-sidebar-close">×</button>
@@ -256,7 +284,13 @@ function createMockDOM() {
                     <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
                     <button id="status-action" hidden></button>
                 </div>
-                <div class="status-right" role="group" aria-label="Active buffer status" data-writing-summary="0 words">
+                <div class="status-right" role="group" aria-label="Active buffer status" data-writing-summary="0 words" data-mode="buffer">
+                    <div id="graph-status-content" class="graph-status-content">
+                        <span id="graph-status-count">Loading graph…</span>
+                        <span class="status-separator">|</span>
+                    <span class="graph-status-instruction">Hover or click to trace links, ctrl+click node to open the file</span>
+                        <span id="graph-status-selection" class="graph-status-selection" role="status" aria-live="polite">No note selected</span>
+                    </div>
                     <div class="status-buffer-left" role="group" aria-label="History, relationships, and editor state">
                         <button id="history-count" class="status-history" disabled>0 changes</button>
                         <span id="git-status-separator" class="status-separator" hidden>|</span>

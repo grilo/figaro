@@ -2088,6 +2088,9 @@ export async function customizeTreePath(path, type) {
         const styles = await backend().SetFileTreeStyle(path, choice.icon || '', choice.color || '');
         fileTreeStyles = normalizeFileTreeStyles(styles);
         renderFileTree();
+        document.dispatchEvent(new CustomEvent('file-tree-appearance-changed', {
+            detail: { path },
+        }));
         statusBar.set(choice.icon || choice.color ? `Styled “${item.name}”` : `Reset appearance for “${item.name}”`);
         setTimeout(() => statusBar.set('Ready'), 1600);
         return true;
@@ -2488,9 +2491,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
-export default {
-    initFileTree,
-    refreshFileTree,
-    getSelectedFilePath
-};

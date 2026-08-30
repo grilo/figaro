@@ -5,6 +5,7 @@
     "styles/base.css",
     "styles/shell.css",
     "styles/features/kanban.css",
+    "styles/features/graph.css",
     "styles/features/relationships.css",
     "styles/workspace.css",
     "styles/editor.css",

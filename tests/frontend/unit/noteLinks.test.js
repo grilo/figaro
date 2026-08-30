@@ -5,12 +5,34 @@ import {
     markdownReferenceDefinition,
     markdownReferenceDefinitions,
     markdownReferenceLink,
+    modifiedExternalBrowserURL,
     normalizeMarkdownReferenceLabel,
     planMarkdownLinkTargetReplacement,
     resolveMarkdownReferenceLink,
 } from '../frontend/js/core/noteLinks.js';
 
 describe('Markdown note-link target planning', () => {
+    test('plans only Ctrl/Cmd-left-clicked HTTP links for the system browser', () => {
+        expect(modifiedExternalBrowserURL('https://example.com/guide', {
+            button: 0,
+            ctrlKey: true,
+        })).toBe('https://example.com/guide');
+        expect(modifiedExternalBrowserURL('http://example.com', {
+            button: 0,
+            metaKey: true,
+        })).toBe('http://example.com/');
+
+        expect(modifiedExternalBrowserURL('notes/Guide.md', { button: 0, ctrlKey: true })).toBe('');
+        expect(modifiedExternalBrowserURL('mailto:hello@example.com', { button: 0, ctrlKey: true })).toBe('');
+        expect(modifiedExternalBrowserURL('https://example.com', { button: 0 })).toBe('');
+        expect(modifiedExternalBrowserURL('https://example.com', { button: 1, ctrlKey: true })).toBe('');
+        expect(modifiedExternalBrowserURL('https://example.com', {
+            button: 0,
+            ctrlKey: true,
+            shiftKey: true,
+        })).toBe('');
+    });
+
     test('locates only the destination of the conventional link under the pointer', () => {
         const line = 'Before [Inner Source](notes/Inner%20Source.md) after';
         expect(markdownLinkDestinationAtPosition(line, 12)).toEqual({

@@ -1,6 +1,23 @@
 function normalizedPath(value) {
     return String(value || '').replaceAll('\\', '/').replace(/^\/+|\/+$/g, '');
 }
+
+const SIDEBAR_WORKSPACE_TYPES = new Set(['calendar-workspace', 'kanban', 'graph']);
+
+export function isSidebarWorkspaceTab(tab) {
+    return SIDEBAR_WORKSPACE_TYPES.has(tab?.type);
+}
+
+/**
+ * Workspace destinations mounted from the sidebar own their navigation there.
+ * They can reuse the tab content lifecycle internally without manufacturing a
+ * duplicate title-bar tab.
+ */
+export function titleBarTabs(tabs = []) {
+    if (!Array.isArray(tabs)) return [];
+    return tabs.filter(tab => !isSidebarWorkspaceTab(tab));
+}
+
 export function tabLocationLabel(tab) {
     const path = normalizedPath(tab?.path);
     if (!path) return '';

@@ -15,6 +15,10 @@
     line-height: var(--line-height-editor) !important;
 }
 
+#editor-container > .cm-editor {
+    border-top-left-radius: inherit !important;
+}
+
 .editor-panel {
     display: flex !important;
     flex-direction: column !important;

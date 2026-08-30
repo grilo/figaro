@@ -3,19 +3,21 @@ import {
     isLatestSave,
     savedLatestEdit,
     saveFailureStatusMessage,
+    saveResultDisposition,
     saveStatusMessage,
 } from '../frontend/js/core/saveModel.js';
 
 describe('save model', () => {
     test('captures immutable save and edit generations', () => {
         const tab = { path: 'note.md', _saveGeneration: 2, _editGeneration: 4 };
-        const snapshot = createSaveSnapshot(tab, 'body');
+        const snapshot = createSaveSnapshot(tab, 'body', { failurePrompt: 'always' });
 
         expect(snapshot).toMatchObject({
             path: 'note.md',
             content: 'body',
             generation: 3,
             editGeneration: 4,
+            failurePrompt: 'always',
         });
         tab._saveGeneration = 3;
         expect(isLatestSave(tab, snapshot)).toBe(true);
@@ -40,5 +42,12 @@ describe('save model', () => {
             .toBe('Save failed — disk is full');
         expect(saveFailureStatusMessage(null))
             .toBe('Save failed — unknown error');
+    });
+
+    test('distinguishes an optimistic conflict from every other failed result', () => {
+        expect(saveResultDisposition({ success: true })).toBe('saved');
+        expect(saveResultDisposition({ success: false, error: 'File modified externally' })).toBe('conflict');
+        expect(saveResultDisposition({ success: false, error: 'External file is read-only' })).toBe('failure');
+        expect(saveResultDisposition(null)).toBe('failure');
     });
 });

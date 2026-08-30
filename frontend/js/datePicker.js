@@ -228,5 +228,3 @@ function escapeHtml(text) {
 function escapeAttr(text) {
     return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-
-export default { closeDatePicker, configureDatePickerCalendarSource, openDatePicker };

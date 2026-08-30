@@ -31,5 +31,3 @@ export function registerVaultChangeEvents(runtime, {
     });
     return true;
 }
-
-export default { registerVaultChangeEvents };

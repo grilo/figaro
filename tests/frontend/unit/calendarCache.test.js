@@ -11,6 +11,7 @@ import {
     prepareCalendarOpen,
     refreshCalendarIfVisible,
     renderCalendar,
+    setCalendarPresentation,
 } from '../frontend/js/calendar.js';
 
 const monthData = {
@@ -31,6 +32,17 @@ async function flushCalendar() {
     await new Promise(resolve => setTimeout(resolve, 0));
 }
 
+function mountActiveCalendarWorkspace() {
+    const host = document.createElement('div');
+    host.className = 'tab-panel active';
+    host.dataset.tabId = 'calendar-workspace';
+    const calendar = document.getElementById('calendar-workspace-view');
+    calendar.setAttribute('aria-hidden', 'false');
+    host.appendChild(calendar);
+    document.getElementById('tab-panels').appendChild(host);
+    return calendar;
+}
+
 describe('Calendar cache', () => {
     beforeEach(() => {
         testUtils.createMockDOM();
@@ -41,9 +53,11 @@ describe('Calendar cache', () => {
         initCalendar();
         setState('currentCalDate', new Date(2025, 0, 15));
         setState('selectedCalDateStr', '2025-01-15');
+        setState('calendarPresentation', 'month');
         setState('openTabs', []);
         window.go.desktop.App.GetCalendarMonthData.mockResolvedValue(monthData);
         window.go.desktop.App.GetLinkedNotesForDate.mockResolvedValue([]);
+        window.go.desktop.App.GetCalendarTimelineData.mockResolvedValue({ days: [] });
         window.go.desktop.App.GetTasksDueOnDate.mockResolvedValue([]);
     });
 
@@ -172,10 +186,8 @@ describe('Calendar cache', () => {
         expect(window.go.desktop.App.GetCalendarMonthData).toHaveBeenCalledTimes(2);
     });
 
-    test('refreshes the open left-sidebar Calendar after a vault change', async () => {
-        const panel = document.getElementById('sidebar-calendar-panel');
-        panel.classList.add('open');
-        panel.setAttribute('aria-hidden', 'false');
+    test('refreshes the selected Calendar workspace after a vault change', async () => {
+        mountActiveCalendarWorkspace();
 
         renderCalendar();
         await flushCalendar();
@@ -189,13 +201,61 @@ describe('Calendar cache', () => {
         expect(document.getElementById('calendar-grid').getAttribute('aria-busy')).toBe('false');
     });
 
-    test('does not reload a hidden Calendar panel', () => {
-        const panel = document.getElementById('sidebar-calendar-panel');
+    test('does not reload a hidden Calendar workspace', () => {
+        const panel = document.getElementById('calendar-workspace-view');
         panel.classList.remove('open');
         panel.setAttribute('aria-hidden', 'true');
 
         expect(refreshCalendarIfVisible()).toBe(false);
         expect(window.go.desktop.App.GetCalendarMonthData).not.toHaveBeenCalled();
+    });
+
+    test('switches between the centered Month split and the session Timeline presentation', async () => {
+        mountActiveCalendarWorkspace();
+        window.go.desktop.App.GetCalendarTimelineData.mockResolvedValue({
+            days: [{
+                date: '2025-01-15',
+                notes: [{ path: 'notes/plan.md', name: 'plan.md', line_num: 4 }],
+            }],
+        });
+
+        expect(setCalendarPresentation('timeline')).toBe('timeline');
+        await flushCalendar();
+
+        expect(getState('calendarPresentation')).toBe('timeline');
+        expect(document.querySelector('[data-calendar-presentation="timeline"]').getAttribute('aria-pressed')).toBe('true');
+        expect(document.getElementById('calendar-month-view').hidden).toBe(true);
+        expect(document.getElementById('calendar-timeline-view').hidden).toBe(false);
+        expect(document.querySelectorAll('.calendar-timeline-day')).toHaveLength(42);
+        expect(document.querySelector('.calendar-timeline-note').dataset.line).toBe('4');
+
+        setCalendarPresentation('month');
+        await flushCalendar();
+        expect(document.querySelector('[data-calendar-presentation="month"]').getAttribute('aria-pressed')).toBe('true');
+        expect(document.getElementById('calendar-month-view').hidden).toBe(false);
+        expect(document.getElementById('calendar-timeline-view').hidden).toBe(true);
+        expect(document.querySelectorAll('#calendar-grid .cal-day-header')).toHaveLength(7);
+    });
+
+    test('releases Timeline DOM and cached ranges when Calendar loses the workspace', async () => {
+        mountActiveCalendarWorkspace();
+        setCalendarPresentation('timeline');
+        await flushCalendar();
+        expect(document.querySelectorAll('.calendar-timeline-day')).toHaveLength(42);
+        expect(window.go.desktop.App.GetCalendarTimelineData).toHaveBeenCalledTimes(1);
+
+        document.dispatchEvent(new CustomEvent('active-tab-changed', {
+            detail: { path: null, type: 'kanban' },
+        }));
+
+        expect(document.querySelectorAll('.calendar-timeline-day')).toHaveLength(0);
+        expect(document.querySelector('.calendar-timeline-range').textContent).toBe('');
+        expect(document.getElementById('calendar-timeline-view').getAttribute('aria-busy')).toBe('false');
+
+        renderCalendar();
+        await flushCalendar();
+        expect(document.querySelectorAll('.calendar-timeline-day')).toHaveLength(42);
+        expect(window.go.desktop.App.GetCalendarTimelineData).toHaveBeenCalledTimes(2);
     });
 
     test('marks due-task days and lists unfinished tasks before linked notes', async () => {
@@ -352,9 +412,7 @@ describe('Calendar cache', () => {
     });
 
     test('reprojects an accepted date shortcut from the dirty editor without waiting for save', async () => {
-        const panel = document.getElementById('sidebar-calendar-panel');
-        panel.classList.add('open');
-        panel.setAttribute('aria-hidden', 'false');
+        mountActiveCalendarWorkspace();
         setState('currentCalDate', new Date(2025, 0, 15));
         window.go.desktop.App.GetCalendarMonthData.mockResolvedValue({
             year: 2025,

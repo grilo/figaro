@@ -5,7 +5,7 @@ Audit snapshot: 2026-08-28. The approved consolidation is represented by the
 
 ## Consolidated foundation
 
-Sixteen approved families now use shared production
+Eighteen approved families now use shared production
 primitives in `frontend/design-system/primitives.css`. Both Figaro and this
 catalogue load that canonical asset, and `approved-components.json` records the
 approved selector set:
@@ -15,16 +15,18 @@ approved selector set:
 | Settings pickers | `.ui-picker`, `.ui-picker-trigger`, `.ui-picker-menu` | Values, persistence, and shared `settingsPicker.js` combobox wiring |
 | Steppers | `.ui-stepper`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size, text-width, and bounded editable tab-size value policy |
 | Compact actions | `.ui-button`, its quiet variant, and semantic variants | Labels, placement, and feature events |
+| Segmented choices | `.ui-segmented-control` and its quiet variant containing `.ui-button` choices | Group labels, selected value, and feature persistence |
 | Icon actions | `.ui-icon-button` and size variants | Accessible names, icons, and host-specific dimensions |
-| Badges and counts | `.ui-badge` and semantic variants | Count source and feature color roles |
+| Badges and counts | `.ui-badge`, `.ui-badge--muted`, and `.ui-badge--warning` | Count source and feature color roles |
 | Menus and popovers | `.ui-menu`, `.ui-menu-item`, labels, and separators | Positioning and separate context, tabs, picker, and properties controllers |
 | Tooltips | `.ui-tooltip` | Hint text, rich feature content, anchor selection, and lifecycle |
 | Form fields | `.ui-field`, `.ui-field--quiet` | Context density, input type, validation policy, and value handling |
 | Independent checkboxes | `.ui-checkbox` | Labels, semantic checked state, and feature-owned value mutation |
 | Calendar days | `.ui-date-picker` and its grid/day primitives, including approved weekend, five-level note-density, selected-surface, and due-outline states | Anchor position, locale week policy, activity data, effective selection, and task mutation |
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
-| Document tabs | `.ui-document-tabs--titlebar`, `.ui-document-tab--connected`, and state modifiers | Title-bar placement, overflow geometry, ordering, drag placement, and tab controller behavior |
+| Document tabs | `.ui-document-tabs--titlebar`, `.ui-document-tab--connected`, `.ui-document-tab--side-connected`, and state modifiers | Title-bar or sidebar placement, overflow geometry, ordering, drag placement, and tab controller behavior |
 | Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table/Draw.io labels, and CodeMirror gutter behavior |
+| Graph canvas | `.ui-graph-canvas` | Node/edge drawing, hit testing, pan/zoom, keyboard selection, and refresh lifecycle |
 | Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
 | Content skeletons | `.ui-skeleton` | Calendar grid and Kanban column/card geometry, loading ownership, and replacement lifecycle |
 | Determinate progress | `.ui-progress` and `.ui-progress-value` | Numeric value, label, compact host geometry, and update policy |
@@ -33,6 +35,26 @@ The primitives own the repeated border, radius, surface, typography, focus,
 hover, active, disabled, busy, selected, and semantic-color rules. Existing
 feature classes remain as behavior selectors and deliberate layout hooks; they
 must not recreate the primitive's state language.
+
+Calendar's approved Timeline variant uses the shared segmented-choice and icon
+button primitives for presentation/range navigation. Its `.calendar-timeline-note`
+feature variant owns the approved 8px stacked note geometry and derives any
+note-specific tonal surface and Lucide icon from the same direct appearance
+entry as the file tree; its hover, focus, active, loading, and error states stay
+within the Calendar surface contract. The track and ordinary day columns reuse
+the main workspace surface, while locale-weekend columns alone retain the
+former subtle Timeline tint. Grab/grabbing cursors, temporary selection
+suppression, three-day wheel scrolling, and continuous edge paging remain feature-owned
+input/layout behavior rather than another component state. Its six-week sparse
+buffer and disposal on workspace exit do not introduce another visual family.
+
+The approved graph-canvas primitive owns its stable surface, grab, panning,
+loading, focus, touch, and selection-suppression states; hovering does not tint
+the complete canvas. The adapter supplies inherited/custom node color and icon
+pixels, arrow pixels, persistent trace behavior, the fixed layout policy,
+floating composition of existing field/button/icon-button primitives, and
+status wiring. The pressed Orphans choice reuses the ordinary `.ui-button`
+contract already exercised by Card density rather than adding a graph variant.
 
 Compact buttons distinguish unavailable input from active work: native
 `disabled` uses the ordinary unavailable cursor and opacity, while a disabled
@@ -64,6 +86,34 @@ cover only its segment of a visible line. Empty and inactive rail space
 therefore cannot produce a startup, final-tab, or right-controls kink. Figaro
 Dark and Figaro Light deliberately make that divider and the tab outline
 transparent, using the shared editor surface as their only selected-tab fill.
+Connected title-bar tabs use the shared 8px radius on their top corners. Their
+active state keeps square lower corners but adds two pointer-transparent radial
+feet with inverse 8px curves, yielding those feet to drag/drop indicators and
+retaining the borderless editor seam without a pill silhouette. Overflow
+reveal includes their full radial bounds rather than clipping a foot or leaving
+a false edge fade.
+The workspace layout reuses the same radius at its top-left corner whenever the
+active title-bar tab is not first; a selected first tab suppresses that host
+radius so the approved connected-tab surface remains continuous. Visible theme
+divider and sidebar-rail paint pauses around the rounded host corner and returns
+in the square state. Its host underlay matches the sidebar surface rather than
+the application canvas, preventing either source of a faded-square silhouette.
+While the inactive first tab is hovered, the underlay reuses its approved hover
+surface and the tab stacks above the unchanged 1px divider mask so the junction
+has neither a contrasting wedge nor a double-painted line.
+The approved side-connected modifier rotates that same browser-tab contract
+onto the left workspace edge: inactive destinations remain flat, while the
+selected Calendar, Kanban, or Graph control keeps rounded left corners, removes
+all tab borders, opens its right edge, and uses two radius-matched radial
+corners to round that edge's junctions into the semantic workspace surface
+above the sidebar rail. The modifier keeps every border channel explicitly
+transparent and limits its transition to surface/text paint, preventing a
+zero-width border from interpolating through the light text color during a
+pointer selection. The `.sidebar-workspace-tab` hook owns footer and
+collapsed-rail reach, plus suppressing an idle theme resizer tint while a side
+tab is selected; resizer hover, keyboard focus, and drag feedback remain
+visible. Shared tab hover, focus, selected, and theme states remain in the
+primitive family.
 CRT Phosphor keeps its outer navigation glow without a redundant inset rule.
 
 Kanban keyboard focus reuses the existing card surface and global focus token;
@@ -113,6 +163,13 @@ opacity; its region remains fully
 opaque so `--application-status-surface` continues the sidebar plane rather
 than blending with the buffer surface. It therefore adds no compact-footer
 component family.
+
+Calendar reuses that exact footer shell instead of removing it: the 24px row
+and file-tree-aligned application-status region remain painted and live, while
+the buffer-status region uses `visibility: hidden` plus suppressed pointer
+events. This keeps Calendar/Kanban/Graph workspace geometry stable, removes the
+irrelevant telemetry from paint, focus, hit testing, and the accessibility
+tree, and introduces no new footer variant.
 
 Pure mode is likewise a shell composition state, not a new component
 or visual variant. It repositions the approved titlebar tabs, icon buttons, and
@@ -192,7 +249,7 @@ state. Their hover/focus explanation reuses the approved `.ui-tooltip` surface
 in a viewport-positioned overlay; the file-tree hook owns only its placement,
 content, and lifecycle.
 
-The sidebar Calendar and due-date popup both reuse the approved date-picker day
+The central Calendar workspace and due-date popup both reuse the approved date-picker day
 primitive and one shared presentation plan at their narrow grid dimensions.
 Its explicitly approved modifiers derive weekend
 muting from neutral theme tokens, five note-density levels from
@@ -224,11 +281,12 @@ future density changes coherent without adding another feature-specific rule.
 All primitive dependencies remain eagerly available in the ordered style
 manifest. Shared defaults and optional art-direction values live in
 `tokens.css`; `theme-surfaces.css` applies the latter through stable selectors,
-so all 18 theme files now contain token overrides only. Figaro CRT Phosphor's
-vignette, very small perspective/scale distortion, and infrequent scan line
-reuse that art-direction contract: the shared overlay is pointer-transparent,
-the motion is removed for reduced-motion users, and no new component family or
-feature-local visual state was introduced.
+so all 18 theme files now contain token overrides only. Figaro CRT Phosphor
+adds no component variant: shared tokens supply its borderless overscan,
+repeating dither and scanline textures, inset glass shadow, phosphor bloom,
+independent glass motion, and beam layer. Both overlays are
+pointer-transparent, and reduced-motion preferences remove their animations
+while leaving the static treatment intact.
 
 The native Dark/Light flattening uses this same approved surface contract, not
 a new component or variant. Optional titlebar-divider, sidebar-tools-divider,
@@ -275,12 +333,12 @@ so the improvement adds neither a seam nor a component-local override.
 
 ## Verification
 
-- `tests/frontend/unit/designSystemCatalog.test.js` verifies all sixteen
+- `tests/frontend/unit/designSystemCatalog.test.js` verifies all eighteen
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, verifies theme-derived
-  Calendar activity modifiers, and keeps cards and toggles intentionally
-  distinct.
+  Calendar activity modifiers plus graph canvas states, and keeps cards
+  and toggles intentionally distinct.
 - Existing component tests retain ownership of dialog, Settings, frontmatter,
   tabs, and feature behavior.
 - `pickerModel.test.js` and `settingsPicker.test.js` own the shared appearance

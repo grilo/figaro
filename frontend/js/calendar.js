@@ -27,6 +27,7 @@ import {
 } from './calendarLocale.js';
 import { hideCalendarDayTooltip, wireCalendarDayTooltips } from './calendarDayTooltip.js';
 import { calendarWheelNavigationPlan } from './core/calendarWheelModel.js';
+import { createCalendarTimeline } from './calendarTimeline.js';
 
 let calendarRequestId = 0;
 let linkedNotesRequestId = 0;
@@ -40,6 +41,8 @@ let liveCalendarRefreshFrame = null;
 let calendarWheelAccumulatedDeltaY = 0;
 let calendarWheelLastEventAt = 0;
 const calendarWheelGestureGapMs = 240;
+let calendarTimelineSession = null;
+let calendarTimelineRoot = null;
 
 /**
  * Drop cached calendar data after a vault mutation or filesystem event.
@@ -49,12 +52,21 @@ export function invalidateCalendarCache() {
     calendarMonthCache.clear();
     linkedNotesCache.clear();
     dueTasksCache.clear();
+    calendarTimelineSession?.invalidate();
 }
 
-/** Re-render only when the calendar panel is actually visible. */
+/** Release the Timeline's range DOM and caches when Calendar stops owning the workspace. */
+export function releaseCalendarTimeline() {
+    calendarTimelineSession?.dispose();
+    calendarTimelineSession = null;
+    calendarTimelineRoot = null;
+}
+
+/** Re-render only when the Calendar workspace is actually selected. */
 export function refreshCalendarIfVisible() {
-    const panel = document.getElementById('sidebar-calendar-panel');
-    if (panel?.classList.contains('open') && panel.getAttribute('aria-hidden') !== 'true') {
+    const calendar = document.getElementById('calendar-workspace-view');
+    const host = calendar?.closest('.tab-panel');
+    if (host?.classList.contains('active') && calendar.getAttribute('aria-hidden') !== 'true') {
         renderCalendar();
         return true;
     }
@@ -107,8 +119,8 @@ function scheduleLiveCalendarRefresh() {
  * Initialize calendar module
  */
 export function initCalendar() {
-    // Calendar renders in the expandable left-sidebar panel. When a day is
-    // clicked, linked notes appear below the grid without creating a tab.
+    // Calendar renders in the sidebar-owned central workspace. When a day is
+    // clicked, linked notes appear alongside the grid without a title-bar tab.
     if (calendarEventsInitialized) return;
     calendarEventsInitialized = true;
     document.addEventListener('calendar-data-changed', () => {
@@ -125,6 +137,20 @@ export function initCalendar() {
     document.addEventListener('file-content-changed', scheduleLiveCalendarRefresh);
     document.addEventListener('vault-file-saved', event => {
         updateCalendarNoteBaselineAfterSave(event.detail?.path, event.detail?.content);
+    });
+    document.addEventListener('file-tree-appearance-changed', () => {
+        calendarTimelineSession?.invalidate();
+        if (getState('calendarPresentation') === 'timeline') refreshCalendarIfVisible();
+    });
+    document.addEventListener('active-tab-changed', event => {
+        if (event.detail?.type !== 'calendar-workspace') releaseCalendarTimeline();
+    });
+    document.addEventListener('click', event => {
+        const choice = event.target instanceof Element
+            ? event.target.closest('[data-calendar-presentation]')
+            : null;
+        if (!choice) return;
+        setCalendarPresentation(choice.dataset.calendarPresentation);
     });
     // Delegate from the document because tests and workspace restoration can
     // replace the grid element after this module has initialized.
@@ -153,6 +179,59 @@ export function initCalendar() {
         calendarWheelLastEventAt = eventTime;
         if (plan.monthOffset) navigateCalendarMonth(plan.monthOffset);
     }, { passive: false });
+}
+
+function ensureCalendarTimeline() {
+    const root = document.getElementById('calendar-timeline-view');
+    if (!root) return null;
+    if (calendarTimelineSession && calendarTimelineRoot === root) return calendarTimelineSession;
+    releaseCalendarTimeline();
+    calendarTimelineRoot = root;
+    calendarTimelineSession = createCalendarTimeline(root, {
+        loadTimeline: (startDate, endDate) => backend().GetCalendarTimelineData(startDate, endDate),
+        loadAppearance: () => backend().GetFileTreeStyles(),
+        openNote: ({ path, line }) => openTab(path, path.split('/').pop(), 'file', { path, line }),
+        currentAssociations: dirtyCalendarNoteAssociations,
+        reportError: error => log.error('Calendar timeline failed:', error),
+    });
+    return calendarTimelineSession;
+}
+
+function calendarPresentation() {
+    return getState('calendarPresentation') === 'timeline' ? 'timeline' : 'month';
+}
+
+function synchronizeCalendarPresentation() {
+    const presentation = calendarPresentation();
+    const monthView = document.getElementById('calendar-month-view');
+    const timelineView = document.getElementById('calendar-timeline-view');
+    document.querySelectorAll('[data-calendar-presentation]').forEach(choice => {
+        choice.setAttribute('aria-pressed', String(choice.dataset.calendarPresentation === presentation));
+    });
+    if (monthView) monthView.hidden = presentation !== 'month';
+    if (timelineView) {
+        timelineView.hidden = presentation !== 'timeline';
+        timelineView.setAttribute('aria-hidden', String(presentation !== 'timeline'));
+    }
+    return presentation;
+}
+
+export function setCalendarPresentation(value) {
+    const presentation = value === 'timeline' ? 'timeline' : 'month';
+    setState('calendarPresentation', presentation);
+    renderCalendar();
+    return presentation;
+}
+
+/** Render whichever Calendar presentation is selected for this app session. */
+export function renderCalendar() {
+    const presentation = synchronizeCalendarPresentation();
+    if (presentation === 'timeline') {
+        const anchor = getState('selectedCalDateStr') || localISODate();
+        ensureCalendarTimeline()?.activate(anchor);
+        return;
+    }
+    renderCalendarMonth();
 }
 
 /** Move the visible Calendar by whole months without mutating stored state. */
@@ -195,7 +274,7 @@ export function prepareCalendarOpen() {
 /**
  * Render calendar widget in sidebar
  */
-export function renderCalendar() {
+function renderCalendarMonth() {
     const container = document.getElementById('calendar-grid');
     const monthYearEl = document.getElementById('cal-month-year');
     const linkedNotesContainer = document.getElementById('cal-linked-notes');
@@ -532,9 +611,3 @@ function escapeHtml(text) {
 function escapeAttr(text) {
     return text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-export default {
-    initCalendar,
-    renderCalendar,
-    loadCalendarResults
-};

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { testUtils } from './test_setup.js';
 import { initStatusBarPresentation, statusBar } from '../frontend/js/statusBar.js';
 
@@ -36,6 +38,16 @@ describe('status bar', () => {
             'char-count',
             'reading-time',
         ]);
+    });
+
+    test('keeps the footer row mounted for Calendar while hiding only buffer telemetry', () => {
+        const styles = fs.readFileSync(path.resolve('frontend/styles/status-tools.css'), 'utf8');
+        const calendarRule = /#app:has\(#calendar-workspace-panel\.tab-panel\.active\) > \.status-bar \.status-right\s*\{([^}]*)\}/s.exec(styles)?.[1] || '';
+
+        expect(calendarRule).toMatch(/visibility:\s*hidden/);
+        expect(calendarRule).toMatch(/pointer-events:\s*none/);
+        expect(calendarRule).not.toMatch(/display:\s*none/);
+        expect(styles).not.toMatch(/#app:has\(#calendar-workspace-panel\.tab-panel\.active\) > \.status-bar\s*\{[^}]*display:\s*none/s);
     });
 
     test('announces complete messages and does not let an old clear hide newer activity', () => {

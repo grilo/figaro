@@ -1406,7 +1406,6 @@ export async function openPDFPreview({ path, title, content } = {}) {
     document.dispatchEvent(new CustomEvent('close-history-panel'));
     document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
     document.dispatchEvent(new CustomEvent('close-raw-text-preview', { detail: { keepSidebarOpen: true } }));
-
     previewRequestId++;
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = null;
@@ -1509,11 +1508,3 @@ export function initPDFPreview() {
         if (frame) handlePreviewFrameLoad(frame);
     }
 }
-
-export default {
-    initPDFPreview,
-    openPDFPreview,
-    closePDFPreview,
-    isPDFPreviewOpen,
-    schedulePDFPreviewRefresh,
-};

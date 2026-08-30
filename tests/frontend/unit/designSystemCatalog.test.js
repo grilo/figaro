@@ -60,6 +60,8 @@ describe('design-system catalogue', () => {
             '.ui-stepper.tab-size-control',
             '.ui-button.settings-action-btn',
             '.ui-button.ui-button--quiet.cm-frontmatter-panel-action',
+            '.ui-segmented-control',
+            '.ui-segmented-control--quiet',
             '.ui-button.drawio-edit-button',
             '.ui-button.cm-drawio-action-button',
             '.ui-menu.context-menu',
@@ -79,10 +81,12 @@ describe('design-system catalogue', () => {
             '.ui-date-picker-day--note-4',
             '.ui-date-picker-day--note-5',
             '.ui-date-picker-day--due',
+            '.calendar-timeline-note',
             '.cal-day-tooltip',
             '.ui-notice',
             '.ui-document-tabs--titlebar',
             '.ui-document-tab--connected',
+            '.ui-document-tab--side-connected',
             '.settings-card',
             '.home-card',
             '.kanban-card',
@@ -95,6 +99,7 @@ describe('design-system catalogue', () => {
             '.ui-skeleton',
             '.ui-progress',
             '.ui-editor-block-guide--danger',
+            '.ui-graph-canvas',
             '.create-inbox-note',
             '.file-tree-node.selected',
             '.file-tree-node.cut-marked',
@@ -121,6 +126,10 @@ describe('design-system catalogue', () => {
         )).toEqual(['Markdown', 'Macros', 'Shortcuts']);
         expect(catalogue.querySelector('.ds-help-popup').textContent)
             .toMatch(/F1.*Toggle Figaro help/);
+        expect(catalogue.querySelector('.ds-help-popup').textContent)
+            .toMatch(/Escape.*then.*Tab.*Shift\+Tab.*Move focus out of the editor/);
+        expect(catalogue.querySelector('.ds-help-popup .md-help-search').getAttribute('aria-label'))
+            .toBe('Search help and settings');
         expect(catalogue.querySelector('.context-menu').textContent)
             .toMatch(/Editor.*Cut.*Copy.*Paste/s);
         expect(catalogue.querySelector('.context-menu').textContent).not.toContain('Add row above');
@@ -207,6 +216,7 @@ describe('design-system catalogue', () => {
             'picker',
             'stepper',
             'button',
+            'segmented-control',
             'icon-button',
             'badge',
             'menu',
@@ -217,6 +227,7 @@ describe('design-system catalogue', () => {
             'notice',
             'document-tabs',
             'editor-fold-control',
+            'graph-canvas',
             'spinner',
             'skeleton',
             'progress',
@@ -225,6 +236,7 @@ describe('design-system catalogue', () => {
         expect(featureStyles).not.toMatch(/^\.ui-[a-z0-9-]+(?:\s|:|,|\{)/m);
         expect(componentRegistry.approvalPolicy).toContain('explicit user approval');
         expect(componentRegistry.featureVariants).toEqual([
+            '.calendar-timeline-note',
             '.file-tree-node.selected',
             '.file-tree-node.cut-marked',
         ]);
@@ -368,7 +380,7 @@ describe('design-system catalogue', () => {
         }
     });
 
-    test('keeps CRT Phosphor ambient effects theme-owned and reduced-motion safe', () => {
+    test('keeps the promoted CRT Phosphor treatment theme-owned and reduced-motion safe', () => {
         const theme = normalizeThemeManifest(manifest).find(item => (
             item.id === 'figaro-crt-phosphor'
         ));
@@ -380,6 +392,10 @@ describe('design-system catalogue', () => {
             path.resolve('frontend/design-system/theme-surfaces.css'),
             'utf8',
         );
+        const tokens = fs.readFileSync(
+            path.resolve('frontend/design-system/tokens.css'),
+            'utf8',
+        );
 
         expect(theme).toEqual({
             id: 'figaro-crt-phosphor',
@@ -389,14 +405,80 @@ describe('design-system catalogue', () => {
         expect(source).toContain('--accent-color: #39ff7a;');
         expect(source).toContain('--font-sans: \'JetBrains Mono\'');
         expect(source).toContain('--screen-vignette:');
-        expect(source).toContain('--screen-scan-animation: figaro-crt-scan;');
-        expect(source).toContain('--screen-scan-duration: 300s;');
-        expect(source).toContain('--screen-content-transform: perspective(2200px)');
         expect(source).toContain('--application-status-surface: #000503;');
-        expect(surfaces).toContain('@keyframes figaro-crt-scan');
-        expect(surfaces).toMatch(
-            /@media \(prefers-reduced-motion: reduce\)[\s\S]*?#app::before[\s\S]*?animation-name: none !important;/,
+        expect(source).toContain('--window-border-color: transparent;');
+        expect(source).toContain('--window-border-shadow: none;');
+        const ditherMatch = source.match(
+            /--screen-dither:\s*url\("data:image\/png,([^";]+)"\);/,
         );
+        expect(ditherMatch).not.toBeNull();
+        const ditherBinary = ditherMatch[1].replace(
+            /%([0-9a-f]{2})/gi,
+            (_match, hex) => String.fromCharCode(Number.parseInt(hex, 16)),
+        );
+        const ditherPNG = Buffer.from(ditherBinary, 'binary');
+        expect(ditherPNG.subarray(1, 4).toString('ascii')).toBe('PNG');
+        expect(ditherPNG.readUInt32BE(16)).toBe(128);
+        expect(ditherPNG.readUInt32BE(20)).toBe(128);
+        expect(source).toContain('--screen-dither-size: 128px 128px;');
+        expect(source).toContain('rgba(0, 0, 0, 0.098) 2px');
+        expect(source).toContain('rgba(0, 0, 0, 0.014) 4px');
+        expect(source).toContain('--screen-effect-inset: -3px;');
+        expect(source).toContain('inset 0 0 140px rgba(0, 0, 0, 0.8)');
+        expect(source).toContain('--screen-effect-duration: 12s, 18s, 24s;');
+        expect(source).toContain('--screen-warp-x: 1.0006;');
+        expect(source).toContain('--screen-breathe-brightness: 1.025;');
+        expect(source).toContain('--screen-beam-animation: figaro-crt-minute-scan;');
+        expect(source).toContain('--screen-beam-duration: 60s;');
+        expect(source).toContain('--screen-beam-height: 140px;');
+        expect(surfaces).toContain('@keyframes figaro-crt-flicker');
+        expect(surfaces).toContain('@keyframes figaro-crt-warp');
+        expect(surfaces).toContain('@keyframes figaro-crt-breathe');
+        expect(surfaces).toContain('@keyframes figaro-crt-minute-scan');
+        expect(surfaces).toContain('var(--screen-dither)');
+        for (const retiredHook of [
+            '--screen-content-transform',
+            '--screen-scanline',
+            '--screen-scan-height',
+            '--screen-scan-animation',
+            '--screen-scan-duration',
+            '--screen-scan-timing-function',
+        ]) {
+            expect(`${source}\n${surfaces}\n${tokens}`).not.toContain(retiredHook);
+            expect(themeContract.optionalSemanticTokens).not.toContain(retiredHook);
+        }
+        expect(surfaces).not.toContain('@keyframes figaro-crt-scan {');
+        expect(surfaces).toMatch(
+            /@media \(prefers-reduced-motion: reduce\)[\s\S]*?#app::before,\s*#app::after[\s\S]*?animation-name: none !important;/,
+        );
+    });
+
+    test('does not retain the audited inactive style artifacts', () => {
+        const tokens = fs.readFileSync(
+            path.resolve('frontend/design-system/tokens.css'),
+            'utf8',
+        );
+        for (const retiredToken of [
+            '--line-height-ui:',
+            '--transition-normal:',
+            '--transition-slow:',
+        ]) {
+            expect(tokens).not.toContain(retiredToken);
+        }
+
+        const primitives = fs.readFileSync(
+            path.resolve('frontend/design-system/primitives.css'),
+            'utf8',
+        );
+        expect(primitives).not.toContain('.ui-date-picker-day.outside-month');
+        expect(primitives).not.toContain('.ui-badge--accent');
+        expect(componentRegistry.families.find(family => family.id === 'badge').primitives)
+            .not.toContain('.ui-badge--accent');
+
+        expect(fs.readFileSync(path.resolve('frontend/styles/workspace.css'), 'utf8'))
+            .not.toContain('@keyframes pulse');
+        expect(fs.readFileSync(path.resolve('frontend/pdf/starter-pdf.css'), 'utf8'))
+            .not.toContain('--figaro-accent-soft:');
     });
 
     test('keeps native Figaro surfaces connected and gives Dark a brighter reading plane', () => {
@@ -432,6 +514,7 @@ describe('design-system catalogue', () => {
             'frontend/js/dialogs.js',
             'frontend/js/drawio.js',
             'frontend/js/frontmatterPlugin.js',
+            'frontend/js/graphView.js',
             'frontend/js/historyPanel.js',
             'frontend/js/kanban.js',
             'frontend/js/rawTextPreview.js',
@@ -457,6 +540,7 @@ describe('design-system catalogue', () => {
             '.ui-stepper',
             '.ui-button',
             '.ui-button--quiet',
+            '.ui-segmented-control',
             '.ui-icon-button',
             '.ui-badge',
             '.ui-field',
@@ -477,8 +561,10 @@ describe('design-system catalogue', () => {
             '.ui-document-tabs--titlebar',
             '.ui-document-tab',
             '.ui-document-tab--connected',
+            '.ui-document-tab--side-connected',
             '.ui-editor-fold-control',
             '.ui-editor-block-guide',
+            '.ui-graph-canvas',
             '.ui-spinner',
             '.ui-skeleton',
             '.ui-progress',
@@ -488,10 +574,24 @@ describe('design-system catalogue', () => {
         }
         expect(styles).toMatch(/\.ui-document-tabs--titlebar\s*\{[^}]*box-shadow:\s*none/s);
         expect(styles).not.toMatch(/\.ui-document-tabs--titlebar\[data-empty="true"\]/);
+        expect(styles).toMatch(/\.ui-document-tab--connected\s*\{[^}]*border-radius:\s*var\(--tab-radius\)/s);
+        expect(fs.readFileSync(path.resolve('frontend/design-system/tokens.css'), 'utf8'))
+            .toMatch(/--tab-radius:\s*8px 8px 0 0;/);
+        expect(styles).toMatch(/\.ui-document-tab--connected\.ui-document-tab--active\s*\{[^}]*--connected-tab-junction-radius:\s*var\(--ui-menu-radius\)/s);
+        expect(styles).toMatch(/\.ui-document-tab--connected\.ui-document-tab--active:not\(\.drop-before\)::before,[\s\S]*\.ui-document-tab--connected\.ui-document-tab--active:not\(\.drop-after\)::after\s*\{[^}]*pointer-events:\s*none/s);
+        expect(styles).toMatch(/\.ui-document-tab--connected\.ui-document-tab--active:not\(\.drop-before\)::before\s*\{[^}]*radial-gradient\(/s);
+        expect(styles).toMatch(/\.ui-document-tab--connected\.ui-document-tab--active:not\(\.drop-after\)::after\s*\{[^}]*radial-gradient\(/s);
+        expect(styles).toMatch(/\.ui-document-tab--side-connected\.ui-document-tab--active\s*\{[^}]*--side-connected-junction-radius:\s*var\(--ui-menu-radius\)/s);
+        expect(styles).toMatch(/\.ui-document-tab--side-connected\s*\{[^}]*transition:\s*background[^,]*,\s*color[^;]*;/s);
+        expect(styles).toMatch(/\.ui-document-tab--side-connected\.ui-document-tab--active\s*\{[^}]*border-color:\s*transparent/s);
+        expect(styles).toMatch(/\.ui-document-tab--side-connected\.ui-document-tab--active::before,[\s\S]*\.ui-document-tab--side-connected\.ui-document-tab--active::after\s*\{[^}]*pointer-events:\s*none/s);
+        expect(styles).toMatch(/\.ui-document-tab--side-connected\.ui-document-tab--active::before\s*\{[^}]*radial-gradient\(/s);
+        expect(styles).toMatch(/\.ui-document-tab--side-connected\.ui-document-tab--active::after\s*\{[^}]*radial-gradient\(/s);
         const themeSurfaces = fs.readFileSync(
             path.resolve('frontend/design-system/theme-surfaces.css'),
             'utf8',
         );
+        expect(themeSurfaces).toMatch(/\.ui-document-tab--side-connected\.ui-document-tab--active\s*\{[^}]*border-color:\s*transparent\s*!important/s);
         expect(themeSurfaces).toMatch(/\.top-bar\s*\{[^}]*box-shadow:\s*inset 0 -1px 0 var\(--titlebar-divider-color\)/s);
         expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.ui-spinner\s*\{[\s\S]*animation:\s*none/);
         expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.ui-skeleton::after\s*\{[\s\S]*animation:\s*none/);
@@ -506,6 +606,19 @@ describe('design-system catalogue', () => {
         expect(styles).toMatch(/\.ui-checkbox:checked\s*\{[^}]*background:\s*var\(--accent-color\)/s);
         expect(styles).toMatch(/\.ui-checkbox:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
         expect(styles).toMatch(/\.ui-checkbox:disabled\s*\{[^}]*cursor:\s*not-allowed/s);
+        expect(styles).toMatch(/\.ui-graph-canvas\s*\{[^}]*cursor:\s*grab[^}]*touch-action:\s*none/s);
+        expect(styles).toMatch(/\.ui-graph-canvas:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
+        expect(styles).toMatch(/\.ui-graph-canvas\.is-panning\s*\{[^}]*cursor:\s*grabbing/s);
+        expect(styles).not.toMatch(/\.ui-graph-canvas:hover/);
+        const graphStyles = fs.readFileSync(
+            path.resolve('frontend/styles/features/graph.css'),
+            'utf8',
+        );
+        expect(graphStyles).not.toMatch(/\.graph-toolbar\s*\{/);
+        expect(graphStyles).toMatch(/\.graph-filter\s*\{[^}]*width:\s*min\(224px, 34vw\)/s);
+        expect(graphStyles).toMatch(/\.graph-canvas-controls\s*\{[^}]*border:\s*0/s);
+        expect(graphStyles).toMatch(/\.graph-show-orphans\.ui-button\s*\{/);
+        expect(graphStyles).toMatch(/\.graph-node-icon-svg\s*\{/);
 
         const tooltipBindings = new Map([
             ['frontend/js/calendarDayTooltip.js', "className = 'ui-tooltip cal-day-tooltip'"],
@@ -526,6 +639,11 @@ describe('design-system catalogue', () => {
         expect(shellStyles).toMatch(/\.calendar-grid \.cal-day\.selected:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
         expect(shellStyles).not.toMatch(/\.calendar-grid \.cal-day\.selected::after\s*\{/);
         expect(shellStyles).not.toMatch(/\.calendar-grid \.cal-day\.today\s*\{[^}]*text-decoration:\s*underline/s);
+        expect(shellStyles).toMatch(/\.calendar-timeline-scroll\s*\{[^}]*background:\s*var\(--workspace-surface\)[^}]*cursor:\s*grab/s);
+        expect(shellStyles).toMatch(/\.calendar-timeline-scroll\.is-panning\s*\{[^}]*cursor:\s*grabbing[^}]*user-select:\s*none/s);
+        expect(shellStyles).toMatch(/\.calendar-timeline-day\[data-weekend="true"\]\s*\{[^}]*var\(--workspace-surface\) 94%[^}]*var\(--text-color\)/s);
+        expect(shellStyles).toMatch(/\.calendar-timeline-note\s*\{[^}]*border-radius:\s*var\(--ui-menu-radius\)/s);
+        expect(shellStyles).toMatch(/\.calendar-timeline-note\.has-custom-color\s*\{[^}]*var\(--calendar-timeline-note-color\)/s);
 
         const datePickerSource = fs.readFileSync(path.resolve('frontend/js/datePicker.js'), 'utf8');
         expect(datePickerSource).toContain('selected: isISODate(value) ? value : today');
@@ -540,6 +658,8 @@ describe('design-system catalogue', () => {
         expect(catalogue).not.toContain('class="ui-card');
         expect(catalogue).not.toContain('class="ui-toggle');
         expect(catalogue).toMatch(/ui-date-picker-grid calendar-grid[\s\S]*cal-day selected has-note ui-date-picker-day--note-3[^>]*aria-current="date"/);
+        expect(catalogue).toMatch(/calendar-timeline-note has-custom-color[\s\S]*calendar-timeline-note-icon-svg/);
+        expect(catalogue).toMatch(/graph-canvas-controls[\s\S]*graph-filter[\s\S]*graph-show-orphans[^>]*aria-pressed="true"/);
     });
 
     test('binds remaining approved-family controls to shared primitives', () => {
@@ -561,6 +681,11 @@ describe('design-system catalogue', () => {
             ['frontend/js/kanban.js', [
                 'ui-icon-button ui-icon-button--small kanban-column-btn',
                 'ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-card-delete',
+            ]],
+            ['frontend/js/graphView.js', [
+                'class="ui-icon-button graph-zoom-out"',
+                'class="ui-field graph-filter-input"',
+                'class="ui-button graph-show-orphans" aria-pressed="true"',
             ]],
             ['frontend/js/tabManager.js', [
                 'class="ui-button" data-kanban-density',

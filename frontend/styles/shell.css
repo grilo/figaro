@@ -63,8 +63,30 @@
 }
 
 .top-bar-center {
+    position: relative;
     align-items: stretch;
     overflow: visible;
+}
+
+/* When the workspace has a rounded leading corner, erase the matching piece
+   of the title-bar divider so a square rule cannot remain behind the curve. */
+#app:not(.pure-editing-chrome):not(:has(#tab-strip > .ui-document-tab--active:first-child))
+    .top-bar-center::after {
+    position: absolute;
+    z-index: 2;
+    bottom: 0;
+    left: 0;
+    width: var(--ui-menu-radius);
+    height: 1px;
+    content: '';
+    background: var(--sidebar-bg);
+    pointer-events: none;
+}
+
+#app:has(
+    #tab-strip > .ui-document-tab:first-child:hover:not(.ui-document-tab--active)
+) #tab-strip > .ui-document-tab:first-child {
+    z-index: 3;
 }
 
 .top-bar-left {
@@ -178,65 +200,381 @@
     display: none;
 }
 
-/* ── Left Sidebar Calendar ── */
-.sidebar-calendar-panel {
-    flex: 0 0 auto;
+/* ── Calendar workspace ── */
+.calendar-workspace-view {
+    display: none;
+}
+
+.tab-panel.active > .calendar-workspace-view {
+    position: relative;
+    display: block;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+    background: var(--workspace-surface);
+}
+
+.calendar-presentation-choices {
+    position: absolute;
+    z-index: 4;
+    top: 14px;
+    left: 24px;
+}
+
+.calendar-month-view {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+}
+
+.calendar-month-view[hidden] {
+    display: none;
+}
+
+.calendar-month-view .calendar-main-pane {
     display: flex;
-    height: 0;
-    max-height: 0;
+    min-width: 0;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
     flex-direction: column;
-    overflow: hidden;
-    visibility: hidden;
-    opacity: 0;
-    border-top: 1px solid transparent;
-    background: var(--sidebar-bg);
-    transform: translateY(6px);
-    transition:
-        height var(--motion-layout-duration) var(--motion-ease-out),
-        max-height var(--motion-layout-duration) var(--motion-ease-out),
-        opacity var(--motion-content-duration) ease,
-        transform var(--motion-content-duration) var(--motion-ease-out),
-        border-color var(--motion-content-duration) ease,
-        visibility 0s linear var(--motion-layout-duration);
+    grid-column: 1;
+    grid-row: 1;
+    padding: 24px;
 }
 
-.sidebar-calendar-panel.open {
-    /* Keep a complete six-week month plus a useful selected-day viewport at
-       normal window heights. The proportional cap still yields space to the
-       independently scrolling tree on shorter windows. */
-    height: min(480px, 72%);
-    max-height: min(480px, 72%);
-    overflow: hidden;
-    visibility: visible;
-    opacity: 1;
-    border-top-color: var(--border-color);
-    transform: translateY(0);
-    /* Opening must become visible immediately; when this class is removed,
-       the base visibility delay keeps the downward close motion paintable. */
-    transition-delay: 0s;
+.calendar-month-view .calendar-toolbar,
+.calendar-month-view .calendar-grid {
+    width: min(100%, 560px);
+    box-sizing: border-box;
 }
 
-.sidebar-calendar-panel .calendar-toolbar {
+.calendar-month-view .calendar-grid {
+    padding: 0 8px 8px;
+}
+
+.calendar-month-view .cal-linked-notes {
+    min-width: 0;
+    min-height: 0;
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    overflow-y: auto;
+    border-top: 0;
+    border-left: 0;
+    padding: 24px;
+}
+
+.calendar-timeline-view {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    grid-template-rows: 62px minmax(0, 1fr);
+}
+
+.calendar-timeline-view[hidden] {
+    display: none;
+}
+
+.calendar-timeline-toolbar {
+    display: grid;
+    min-width: 0;
+    align-items: center;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    gap: 16px;
+    padding: 12px 18px 8px 220px;
+}
+
+.calendar-timeline-range {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.calendar-timeline-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px 6px;
-    flex-shrink: 0;
+    gap: 4px;
 }
 
-.sidebar-calendar-panel .calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-    padding: 0 12px 8px;
+.calendar-timeline-actions .ui-button,
+.calendar-timeline-actions .ui-icon-button {
+    border-color: transparent;
 }
 
-.sidebar-calendar-panel .cal-linked-notes {
-    flex: 1 1 auto;
+.calendar-timeline-stage {
+    position: relative;
+    min-width: 0;
     min-height: 0;
-    overflow-y: auto;
-    border-top: 1px solid var(--border-color);
-    padding: 8px 12px 10px;
+    padding: 8px 18px 18px;
+}
+
+.calendar-timeline-scroll {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: var(--ui-menu-radius);
+    outline: none;
+    background: var(--workspace-surface);
+    scrollbar-color: var(--text-dim) transparent;
+    scrollbar-width: thin;
+    scroll-behavior: smooth;
+    cursor: grab;
+    touch-action: pan-y;
+}
+
+.calendar-timeline-scroll:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.calendar-timeline-scroll.is-panning {
+    scroll-behavior: auto;
+    cursor: grabbing;
+    user-select: none;
+}
+
+.calendar-timeline-scroll.is-panning * {
+    user-select: none;
+}
+
+.calendar-timeline-track {
+    position: relative;
+    display: grid;
+    width: max-content;
+    min-width: 100%;
+    height: 100%;
+    min-height: 440px;
+    grid-auto-columns: 164px;
+    grid-auto-flow: column;
+}
+
+.calendar-timeline-track::before {
+    position: absolute;
+    z-index: 0;
+    top: 92px;
+    right: 0;
+    left: 0;
+    height: 1px;
+    content: '';
+    background: var(--border-color);
+    pointer-events: none;
+}
+
+.calendar-timeline-day {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    padding: 18px 10px 20px;
+    border-left: 1px solid color-mix(in srgb, var(--border-color) 58%, transparent);
+}
+
+.calendar-timeline-day:first-child {
+    border-left: 0;
+}
+
+.calendar-timeline-day[data-past="true"] {
+    opacity: .68;
+}
+
+.calendar-timeline-day[data-weekend="true"] {
+    background: color-mix(in srgb, var(--workspace-surface) 94%, var(--text-color));
+}
+
+.calendar-timeline-day[data-today="true"] {
+    background: color-mix(in srgb, var(--accent-color) 5%, transparent);
+}
+
+.calendar-timeline-day-heading {
+    display: grid;
+    height: 65px;
+    align-content: start;
+    justify-items: center;
+    gap: 1px;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-variant-numeric: tabular-nums;
+}
+
+.calendar-timeline-weekday {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.calendar-timeline-day-number {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: var(--ui-menu-radius);
+    color: var(--text-color);
+    font-size: var(--font-size);
+    font-weight: 650;
+}
+
+.calendar-timeline-day[data-today="true"] .calendar-timeline-day-number {
+    background: var(--accent-color);
+    color: var(--button-text);
+}
+
+.calendar-timeline-month {
+    font-size: 10px;
+}
+
+.calendar-timeline-axis-dot {
+    position: absolute;
+    top: 87px;
+    left: 50%;
+    width: 11px;
+    height: 11px;
+    border: 2px solid var(--workspace-surface);
+    border-radius: 50%;
+    background: var(--text-dim);
+    transform: translateX(-50%);
+}
+
+.calendar-timeline-day[data-has-notes="true"] .calendar-timeline-axis-dot {
+    background: var(--accent-color);
+}
+
+.calendar-timeline-notes {
+    display: grid;
+    gap: 7px;
+    padding-top: 31px;
+}
+
+.calendar-timeline-note {
+    display: flex;
+    width: 100%;
+    min-height: 34px;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 9px;
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--ui-menu-radius);
+    outline: none;
+    background: color-mix(in srgb, var(--accent-color) 18%, var(--workspace-surface));
+    color: color-mix(in srgb, var(--accent-color) 76%, var(--text-color));
+    font: 620 11px/1.35 var(--font-ui);
+    text-align: left;
+    cursor: pointer;
+    transition:
+        background var(--transition-fast),
+        color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.calendar-timeline-note.has-custom-color {
+    background: color-mix(in srgb, var(--calendar-timeline-note-color) 22%, var(--workspace-surface));
+    color: color-mix(in srgb, var(--calendar-timeline-note-color) 72%, var(--text-color));
+}
+
+.calendar-timeline-note:hover {
+    background: color-mix(in srgb, currentColor 24%, var(--workspace-surface));
+    transform: translateY(-1px);
+}
+
+.calendar-timeline-note:active {
+    transform: translateY(0);
+}
+
+.calendar-timeline-note:focus-visible {
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.calendar-timeline-note-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.calendar-timeline-note-icon-svg {
+    display: block;
+}
+
+.calendar-timeline-note-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.calendar-timeline-message {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    left: 50%;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: var(--ui-menu-radius);
+    background: var(--workspace-surface);
+    color: var(--text-muted);
+    font: 12px/1.4 var(--font-ui);
+    transform: translate(-50%, -50%);
+}
+
+.calendar-timeline-message[data-state="error"] {
+    color: var(--danger-color);
+}
+
+@media (max-width: 900px) {
+    .calendar-month-view {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(120px, auto);
+        overflow-y: auto;
+    }
+
+    .calendar-month-view .calendar-main-pane {
+        min-height: min(560px, 72vh);
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .calendar-month-view .cal-linked-notes {
+        grid-column: 1;
+        grid-row: 2;
+        border-top: 0;
+        border-left: 0;
+        padding: 16px 24px 24px;
+    }
+
+    .calendar-timeline-toolbar {
+        padding-left: 210px;
+    }
+}
+
+@media (max-width: 680px) {
+    .calendar-timeline-toolbar {
+        grid-template-columns: 1fr;
+        justify-items: end;
+        padding-left: 196px;
+    }
+
+    .calendar-timeline-range {
+        display: none;
+    }
+
+    .calendar-timeline-track {
+        grid-auto-columns: 146px;
+    }
 }
 
 /* ── Settings Tab ── */
@@ -532,6 +870,28 @@
     min-height: 0;
     overflow: hidden;
     position: relative;
+    background: var(--sidebar-bg);
+}
+
+/* The rounded workspace cutout sits directly below the first title-bar tab.
+   This overlay composites the translucent tab hover token over the same
+   sidebar surface as the tab itself instead of replacing the full backdrop. */
+.main-container::before {
+    position: absolute;
+    top: 0;
+    left: var(--shell-sidebar-width);
+    width: var(--ui-menu-radius);
+    height: var(--ui-menu-radius);
+    content: '';
+    background: transparent;
+    pointer-events: none;
+    transition: background var(--motion-content-duration) ease;
+}
+
+#app:has(
+    #tab-strip > .ui-document-tab:first-child:hover:not(.ui-document-tab--active)
+) .main-container::before {
+    background: var(--tab-hover-surface);
 }
 
 /* ==========================================================================
@@ -573,6 +933,12 @@
     opacity: 1;
 }
 
+/* Continue the same rounded workspace corner through themes whose sidebar rail
+   is visible instead of leaving its first radius-sized segment square. */
+#app:not(:has(#tab-strip > .ui-document-tab--active:first-child)) .sidebar::after {
+    top: var(--ui-menu-radius);
+}
+
 /* Internal scroll wrapper — clips sidebar content locally. */
 .sidebar-content {
     flex: 1;
@@ -600,13 +966,14 @@
    the content pane is collapsed, these controls become a compact navigation rail. */
 .sidebar-tools {
     position: relative;
-    z-index: 1;
+    /* Selected side tabs paint over the theme rail at their row. */
+    z-index: 2;
     display: flex;
     flex: 0 0 auto;
     flex-direction: column;
     gap: 2px;
     padding: 7px 8px 8px;
-    overflow: hidden;
+    overflow: visible;
     border-top: 1px solid var(--border-color);
     background: var(--sidebar-bg);
 }
@@ -620,26 +987,29 @@
     min-width: 0;
     height: 32px;
     padding: 0 9px;
+    font: 500 12px/1 var(--font-sans);
+    text-align: left;
+    cursor: pointer;
+}
+
+.sidebar-tool-btn:not(.sidebar-workspace-tab) {
     border: 1px solid transparent;
     border-radius: 6px;
     background: transparent;
     color: var(--text-muted);
-    font: 500 12px/1 var(--font-sans);
-    text-align: left;
-    cursor: pointer;
     transition:
         color var(--transition-fast),
         background var(--transition-fast),
         border-color var(--transition-fast);
 }
 
-.sidebar-tool-btn:hover {
+.sidebar-tool-btn:not(.sidebar-workspace-tab):hover {
     color: var(--text-color);
     background: var(--hover-bg);
     border-color: var(--border-color);
 }
 
-.sidebar-tool-btn.active {
+.sidebar-tool-btn.active:not(.sidebar-workspace-tab) {
     color: var(--accent-color);
     background: var(--hover-bg);
     border-color: var(--accent-color);
@@ -647,14 +1017,27 @@
     border-color: color-mix(in srgb, var(--accent-color) 38%, var(--border-color));
 }
 
-.sidebar-tool-btn.kanban-due-today {
+.sidebar-workspace-tab {
+    width: calc(100% + 8px);
+    margin-right: -8px;
+}
+
+/* A custom theme may give the idle resize hit area a visible tint. Suppress
+   that tint while a workspace tab is selected so its surface can bridge the
+   seam; hover, keyboard focus, and dragging still reveal the separator. */
+.sidebar:has(.sidebar-workspace-tab.ui-document-tab--active)
+    > .sidebar-resizer:not(:hover):not(:focus-visible):not(.is-dragging) {
+    background-color: transparent !important;
+}
+
+.sidebar-tool-btn.kanban-due-today:not(.ui-document-tab--active) {
     border-color: color-mix(in srgb, var(--warning-color) 42%, var(--border-color));
     background: color-mix(in srgb, var(--warning-color) 10%, transparent);
     color: var(--warning-color);
 }
 
-.sidebar-tool-btn.kanban-due-today:hover,
-.sidebar-tool-btn.kanban-due-today:focus-visible {
+.sidebar-tool-btn.kanban-due-today:not(.ui-document-tab--active):hover,
+.sidebar-tool-btn.kanban-due-today:not(.ui-document-tab--active):focus-visible {
     border-color: var(--warning-color);
     background: color-mix(in srgb, var(--warning-color) 16%, transparent);
     color: var(--warning-color);
@@ -664,7 +1047,7 @@
     margin-left: 2px;
 }
 
-.sidebar-tool-btn:focus-visible,
+.sidebar-tool-btn:not(.sidebar-workspace-tab):focus-visible,
 .titlebar-settings-btn:focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
@@ -726,6 +1109,11 @@
     padding: 0;
 }
 
+.sidebar.collapsed .sidebar-workspace-tab {
+    width: 39px;
+    margin-right: -5px;
+}
+
 .sidebar.collapsed .sidebar-tool-label {
     display: none;
 }
@@ -767,6 +1155,25 @@
     transition:
         background-color var(--transition-fast) ease,
         opacity var(--motion-content-duration) ease;
+    outline: none;
+}
+
+.sidebar-resizer::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 28px;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    content: '';
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+}
+
+.sidebar-resizer:focus-visible::after {
+    background: var(--focus-ring);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel-bg) 82%, transparent);
 }
 
 .sidebar-resizer-hidden {

@@ -35,5 +35,3 @@ export function createStartupHydration({
         },
     };
 }
-
-export default { createStartupHydration };

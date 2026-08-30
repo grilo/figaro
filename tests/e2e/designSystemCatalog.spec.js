@@ -285,6 +285,8 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ds-tab-bar .ui-document-tab--connected.ui-document-tab--active',
     ).evaluate(tab => {
         const style = getComputedStyle(tab);
+        const leadingJunction = getComputedStyle(tab, '::before');
+        const trailingJunction = getComputedStyle(tab, '::after');
         return {
             topLeftRadius: style.borderTopLeftRadius,
             topRightRadius: style.borderTopRightRadius,
@@ -292,6 +294,13 @@ test('catalogues current elements with themed combobox geometry and seamless ste
             bottomRightRadius: style.borderBottomRightRadius,
             bottomBorderWidth: style.borderBottomWidth,
             dragRegion: style.getPropertyValue('--wails-draggable').trim(),
+            junctions: [leadingJunction, trailingJunction].map(junction => ({
+                content: junction.content,
+                width: junction.width,
+                height: junction.height,
+                background: junction.backgroundImage,
+                pointerEvents: junction.pointerEvents,
+            })),
         };
     });
     expect(parseFloat(connectedTabPaint.topLeftRadius)).toBeGreaterThan(0);
@@ -300,6 +309,13 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     expect(connectedTabPaint.bottomRightRadius).toBe('0px');
     expect(connectedTabPaint.bottomBorderWidth).toBe('0px');
     expect(connectedTabPaint.dragRegion).toBe('no-drag');
+    for (const junction of connectedTabPaint.junctions) {
+        expect(junction.content).toBe('\"\"');
+        expect(junction.width).toBe(connectedTabPaint.topLeftRadius);
+        expect(junction.height).toBe(connectedTabPaint.topLeftRadius);
+        expect(junction.background).toContain('radial-gradient');
+        expect(junction.pointerEvents).toBe('none');
+    }
 
     const skeletonPaint = await page.locator('.ui-skeleton').first().evaluate(element => {
         const style = getComputedStyle(element);

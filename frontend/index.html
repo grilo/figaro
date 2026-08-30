@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="styles/base.css">
     <link rel="stylesheet" href="styles/shell.css">
     <link rel="stylesheet" href="styles/features/kanban.css">
+    <link rel="stylesheet" href="styles/features/graph.css">
     <link rel="stylesheet" href="styles/features/relationships.css">
     <link rel="stylesheet" href="styles/workspace.css">
     <link rel="stylesheet" href="styles/editor.css">
@@ -220,6 +221,16 @@
                             </div>
                             <button type="button" class="ui-icon-button md-cheatsheet-close" id="md-cheatsheet-close" title="Close" aria-label="Close Figaro help">×</button>
                         </div>
+                        <div class="md-help-search-box">
+                            <label class="sr-only" for="md-help-search">Search help and settings</label>
+                            <input type="search" class="ui-field md-help-search" id="md-help-search"
+                                   placeholder="Search help and settings…" autocomplete="off" spellcheck="false"
+                                   role="combobox" aria-autocomplete="list" aria-expanded="false"
+                                   aria-controls="md-help-search-results" aria-label="Search help and settings">
+                        </div>
+                        <div class="ui-menu md-help-search-results" id="md-help-search-results"
+                             role="listbox" aria-label="Help and Settings results" hidden></div>
+                        <p class="md-help-search-empty" id="md-help-search-empty" role="status" aria-live="polite" hidden></p>
                         <div class="md-cheatsheet-panel" id="md-help-markdown-panel" role="tabpanel" aria-labelledby="md-help-markdown-tab" tabindex="-1">
                             <table>
                                 <tr><td><code># H1</code> <code>## H2</code> <code>### H3</code></td><td>Headings</td></tr>
@@ -276,6 +287,7 @@
                                 <tr><td><code>F3</code> <code>Ctrl/Cmd+G</code></td><td>Next match</td></tr>
                                 <tr><td><code>Shift+F3</code> <code>Shift+Ctrl/Cmd+G</code></td><td>Previous match</td></tr>
                                 <tr><td><code>Ctrl/Cmd+Shift+V</code></td><td>Paste exact plain text</td></tr>
+                                <tr><td><code>Escape</code> then <code>Tab</code> / <code>Shift+Tab</code></td><td>Move focus out of the editor</td></tr>
                                 <tr><td><code>Ctrl/Cmd+B</code></td><td>Bold</td></tr>
                                 <tr><td><code>Ctrl/Cmd+I</code></td><td>Italic</td></tr>
                                 <tr><td><code>Ctrl/Cmd+K</code></td><td>Link</td></tr>
@@ -343,33 +355,16 @@
                     </button>
                     <!-- File Tree -->
                     <div id="file-tree" class="file-tree" role="tree" aria-label="Vault file tree" aria-multiselectable="true"></div>
-                    <!-- Calendar expands inside the left sidebar so it can coexist
-                         with the right-pane History, Outline, or PDF preview. -->
-                    <section id="sidebar-calendar-panel" class="sidebar-calendar-panel" aria-label="Calendar" aria-hidden="true">
-                        <div class="calendar-toolbar">
-                            <button id="cal-prev-month" class="icon-btn ui-icon-button" title="Previous Month" aria-label="Previous month">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </button>
-                            <span id="cal-month-year" class="cal-month-year"></span>
-                            <button id="cal-next-month" class="icon-btn ui-icon-button" title="Next Month" aria-label="Next month">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </button>
-                        </div>
-                        <div id="calendar-grid" class="calendar-grid"></div>
-                        <div id="cal-linked-notes" class="cal-linked-notes"></div>
-                    </section>
                 </div>
                 <nav class="sidebar-tools" aria-label="Workspace tools">
                     <button type="button" id="sidebar-quick-note" class="sidebar-tool-btn sidebar-quick-note quick-note-action" data-action="quick-note" title="Quick note in Inbox" aria-label="Quick note in Inbox">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15h6"/></svg>
                         <span class="sidebar-tool-label">Quick note</span>
                     </button>
-                    <button id="sidebar-calendar" class="sidebar-tool-btn" title="Calendar" aria-controls="sidebar-calendar-panel" aria-expanded="false">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <button type="button" id="sidebar-calendar"
+                            class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected"
+                            title="Calendar" aria-controls="tab-panels">
+                        <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                             <line x1="16" y1="2" x2="16" y2="6"></line>
                             <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -377,8 +372,10 @@
                         </svg>
                         <span class="sidebar-tool-label">Calendar</span>
                     </button>
-                    <button id="sidebar-kanban" class="sidebar-tool-btn" title="Kanban">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <button type="button" id="sidebar-kanban"
+                            class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected"
+                            title="Kanban" aria-controls="tab-panels">
+                        <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <rect x="3" y="3" width="7" height="7" rx="1"></rect>
                             <rect x="14" y="3" width="7" height="7" rx="1"></rect>
                             <rect x="3" y="14" width="7" height="7" rx="1"></rect>
@@ -387,8 +384,21 @@
                         <span class="sidebar-tool-label">Kanban</span>
                         <span id="kanban-badges" class="kanban-badges" aria-label="Kanban task counts"></span>
                     </button>
+                    <button type="button" id="sidebar-graph"
+                            class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected"
+                            title="Graph" aria-controls="tab-panels">
+                        <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <circle cx="6" cy="6" r="2"></circle>
+                            <circle cx="18" cy="5" r="2"></circle>
+                            <circle cx="12" cy="18" r="2"></circle>
+                            <path d="m7.7 7.1 3.2 8.2M16.4 6.3l-3.2 9.6M8 6h8"></path>
+                        </svg>
+                        <span class="sidebar-tool-label">Graph</span>
+                    </button>
                 </nav>
-                <div id="sidebar-resizer" class="sidebar-resizer"></div>
+                <div id="sidebar-resizer" class="sidebar-resizer" role="separator" tabindex="0"
+                     aria-label="Resize navigation pane" aria-controls="sidebar" aria-orientation="vertical"
+                     aria-valuemin="225" aria-valuemax="500" aria-valuenow="280" aria-valuetext="280 pixels wide"></div>
             </aside>
 
             <!-- Main Content Area -->
@@ -414,13 +424,62 @@
                     </div>
                 </div>
 
-                <!-- Tab Content Panels (for non-file tabs: calendar, backlinks, kanban) -->
-                <div id="tab-panels" class="tab-panels active"></div>
+                <!-- Tab Content Panels (for non-file tabs and sidebar workspaces) -->
+                <div id="tab-panels" class="tab-panels active">
+                    <!-- Calendar is staged here until its persistent workspace
+                         panel claims it on first selection. -->
+                    <section id="calendar-workspace-view" class="calendar-workspace-view" aria-label="Calendar" aria-hidden="true">
+                        <div class="ui-segmented-control ui-segmented-control--quiet calendar-presentation-choices" role="group" aria-label="Calendar presentation">
+                            <button type="button" class="ui-button calendar-presentation-choice" data-calendar-presentation="month" aria-pressed="true">Month</button>
+                            <button type="button" class="ui-button calendar-presentation-choice" data-calendar-presentation="timeline" aria-pressed="false">Timeline</button>
+                        </div>
+
+                        <div id="calendar-month-view" class="calendar-month-view">
+                            <div class="calendar-main-pane">
+                                <div class="calendar-toolbar">
+                                    <button id="cal-prev-month" class="icon-btn ui-icon-button" title="Previous Month" aria-label="Previous month">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="15 18 9 12 15 6"></polyline>
+                                        </svg>
+                                    </button>
+                                    <span id="cal-month-year" class="cal-month-year"></span>
+                                    <button id="cal-next-month" class="icon-btn ui-icon-button" title="Next Month" aria-label="Next month">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="9 18 15 12 9 6"></polyline>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div id="calendar-grid" class="calendar-grid"></div>
+                            </div>
+                            <div id="cal-linked-notes" class="cal-linked-notes"></div>
+                        </div>
+
+                        <section id="calendar-timeline-view" class="calendar-timeline-view" aria-label="Calendar timeline" aria-hidden="true" aria-busy="false" hidden>
+                            <div class="calendar-timeline-toolbar">
+                                <span class="calendar-timeline-range" aria-live="polite"></span>
+                                <div class="calendar-timeline-actions" role="group" aria-label="Timeline navigation">
+                                    <button type="button" class="ui-button ui-button--quiet calendar-timeline-today">Today</button>
+                                    <button type="button" class="ui-icon-button calendar-timeline-earlier" aria-label="Show earlier days" title="Show earlier days">‹</button>
+                                    <button type="button" class="ui-icon-button calendar-timeline-later" aria-label="Show later days" title="Show later days">›</button>
+                                </div>
+                            </div>
+                            <div class="calendar-timeline-stage">
+                                <div class="calendar-timeline-scroll" tabindex="0" role="region"
+                                            aria-label="Horizontally scrollable note timeline. Use Left and Right to scroll, or drag empty space to pan; approaching either edge preloads the adjacent week.">
+                                    <div class="calendar-timeline-track"></div>
+                                </div>
+                                <p class="calendar-timeline-message" role="status" hidden></p>
+                            </div>
+                        </section>
+                    </section>
+                </div>
             </main>
 
-            <!-- Right Sidebar (used for History, Outline, Raw Text, and PDF preview) -->
+            <!-- Right Sidebar (used for Graph details, History, Outline, Raw Text, and PDF preview) -->
             <aside id="right-sidebar" class="right-sidebar collapsed" aria-hidden="true" inert>
-                <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" aria-label="Resize right pane"></div>
+                <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer"
+                     role="separator" tabindex="0" aria-label="Resize details pane" aria-controls="right-sidebar" aria-orientation="vertical"
+                     aria-valuemin="240" aria-valuemax="480" aria-valuenow="320" aria-valuetext="320 pixels wide"></div>
                 <div class="right-sidebar-header">
                     <span id="right-sidebar-title" class="right-sidebar-title">Details</span>
                     <button id="right-sidebar-close" class="right-sidebar-close ui-icon-button" title="Close" aria-label="Close details pane">×</button>
@@ -452,7 +511,13 @@
                 <button type="button" id="status-action" class="status-inline-action" hidden></button>
             </div>
             <div class="status-right" role="group" aria-label="Active buffer status"
-                 data-writing-summary="0 words">
+                 data-writing-summary="0 words" data-mode="buffer">
+                <div id="graph-status-content" class="graph-status-content">
+                    <span id="graph-status-count">Loading graph…</span>
+                    <span class="status-separator">|</span>
+                    <span class="graph-status-instruction">Hover or click to trace links, ctrl+click node to open the file</span>
+                    <span id="graph-status-selection" class="graph-status-selection" role="status" aria-live="polite">No note selected</span>
+                </div>
                 <div class="status-buffer-left" role="group" aria-label="History, relationships, and editor state">
                     <button type="button" id="history-count" class="status-history" title="No committed history" disabled>0 changes</button>
                     <span id="git-status-separator" class="status-separator" hidden>|</span>

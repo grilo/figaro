@@ -4,6 +4,16 @@ export const PDF_PREVIEW_MINIMUM = 340;
 export const PDF_EDITOR_MINIMUM = 320;
 export const PDF_COMPACT_EDITOR_THRESHOLD = 560;
 
+export function rightSidebarBounds({ workspaceWidth, pdfPreview = false } = {}) {
+    const minimum = pdfPreview ? PDF_PREVIEW_MINIMUM : RIGHT_SIDEBAR_MINIMUM;
+    return {
+        minimum,
+        maximum: pdfPreview
+            ? Math.max(minimum, Number(workspaceWidth) - PDF_EDITOR_MINIMUM)
+            : RIGHT_SIDEBAR_MAXIMUM,
+    };
+}
+
 export function rightSidebarWidth({
     startX,
     currentX,
@@ -11,10 +21,7 @@ export function rightSidebarWidth({
     workspaceWidth,
     pdfPreview = false,
 }) {
-    const minimum = pdfPreview ? PDF_PREVIEW_MINIMUM : RIGHT_SIDEBAR_MINIMUM;
-    const maximum = pdfPreview
-        ? Math.max(minimum, Number(workspaceWidth) - PDF_EDITOR_MINIMUM)
-        : RIGHT_SIDEBAR_MAXIMUM;
+    const { minimum, maximum } = rightSidebarBounds({ workspaceWidth, pdfPreview });
     const requested = Number(startWidth) + Number(startX) - Number(currentX);
     return Math.min(maximum, Math.max(minimum, requested));
 }

@@ -7,6 +7,13 @@
     flex-direction: column;
     overflow: hidden !important;
     min-width: 0;
+    border-radius: var(--ui-menu-radius) 0 0 0;
+}
+
+/* A leading active tab owns this corner and must meet the editor squarely.
+   Otherwise expose the same rounded junction used by the tab family. */
+#app:has(#tab-strip > .ui-document-tab--active:first-child) .main-content {
+    border-top-left-radius: 0;
 }
 
 /* When a wide PDF preview leaves the editor with little horizontal room,
@@ -140,11 +147,6 @@ html.tab-drag-selection-guard * {
     right: -3px;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(1.2); }
-}
-
 .tab-icon {
     width: 14px;
     height: 14px;
@@ -270,6 +272,7 @@ html.tab-drag-selection-guard * {
     flex: 1;
     overflow: hidden;
     position: relative;
+    border-top-left-radius: inherit;
     margin-top: 0 !important;
     padding-top: 0 !important;
 }
@@ -289,6 +292,7 @@ html.tab-drag-selection-guard * {
     bottom: 0;
     display: none;
     flex-direction: column;
+    border-top-left-radius: inherit;
     margin-top: 0 !important;
     padding-top: 0 !important;
 }
@@ -731,6 +735,7 @@ html.tab-drag-selection-guard * {
     flex-direction: column;
     background: var(--bg-color);
     border-radius: 0;
+    border-top-left-radius: inherit;
 }
 
 /* Persistent editor container (shared across file tabs) */
@@ -741,6 +746,7 @@ html.tab-drag-selection-guard * {
     min-height: 0;
     overflow: hidden;
     border-radius: 0;
+    border-top-left-radius: inherit;
 }
 
 /* CodeMirror may need a measurement pass after the restored document supplies

@@ -60,4 +60,26 @@ describe('tab overflow model', () => {
             maxScroll: 360,
         })).toBe(0);
     });
+
+    test('includes inverse tab junctions in the fully visible bounds', () => {
+        expect(activeTabScrollTarget({
+            currentScroll: 0,
+            viewportStart: 0,
+            viewportEnd: 200,
+            tabStart: 300,
+            tabEnd: 420,
+            junctionInset: 8,
+            maxScroll: 228,
+        })).toBe(228);
+
+        expect(activeTabScrollTarget({
+            currentScroll: 220,
+            viewportStart: 0,
+            viewportEnd: 200,
+            tabStart: -80,
+            tabEnd: 60,
+            junctionInset: 8,
+            maxScroll: 220,
+        })).toBe(132);
+    });
 });

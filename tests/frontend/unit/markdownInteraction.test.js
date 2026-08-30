@@ -155,4 +155,77 @@ describe('markdown editor interactions', () => {
         expect(window.go.desktop.App.CreateFile).not.toHaveBeenCalled();
         expect(confirmDialog).not.toHaveBeenCalled();
     });
+
+    test('opens rendered and revealed external links in the system browser on Ctrl/Cmd-click and shows the shortcut hint', async () => {
+        const originalRuntime = window.runtime;
+        const originalOpen = window.open;
+        const browserOpen = jest.fn();
+        window.runtime = { ...originalRuntime, BrowserOpenURL: browserOpen };
+        window.open = jest.fn();
+        window.go.desktop.App.ReadFile.mockClear();
+
+        try {
+            const { createEditorView, initEditor } = await import('../frontend/js/editor.js');
+            await initEditor();
+            view = createEditorView();
+
+            const source = '[Web guide](https://example.com/guide) and [Vault guide](notes/Guide.md)';
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: source },
+                selection: { anchor: source.length },
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            const webWidget = [...view.dom.querySelectorAll('.cm-link-widget')]
+                .find(widget => widget.textContent === 'Web guide');
+            view.posAtCoords = jest.fn(() => source.indexOf('Web guide') + 2);
+            webWidget.dispatchEvent(new MouseEvent('mouseover', {
+                bubbles: true,
+                clientX: 20,
+                clientY: 20,
+            }));
+            expect(document.querySelector('.link-hover-preview .lh-hint')?.textContent)
+                .toBe('Ctrl/Cmd-click to open in your browser');
+
+            webWidget.dispatchEvent(new MouseEvent('mousedown', {
+                bubbles: true,
+                cancelable: true,
+                button: 0,
+                ctrlKey: true,
+            }));
+            expect(browserOpen).toHaveBeenLastCalledWith('https://example.com/guide');
+            expect(window.open).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
+
+            const rawURLPosition = source.indexOf('https://') + 4;
+            view.dispatch({ selection: { anchor: rawURLPosition } });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            view.posAtCoords = jest.fn(() => rawURLPosition);
+            view.contentDOM.dispatchEvent(new MouseEvent('mousedown', {
+                bubbles: true,
+                cancelable: true,
+                button: 0,
+                metaKey: true,
+            }));
+            expect(browserOpen).toHaveBeenLastCalledWith('https://example.com/guide');
+            expect(browserOpen).toHaveBeenCalledTimes(2);
+            expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
+
+            const vaultTargetPosition = source.indexOf('notes/Guide.md') + 3;
+            view.dispatch({ selection: { anchor: vaultTargetPosition } });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            view.posAtCoords = jest.fn(() => vaultTargetPosition);
+            view.contentDOM.dispatchEvent(new MouseEvent('mousedown', {
+                bubbles: true,
+                cancelable: true,
+                button: 0,
+                ctrlKey: true,
+            }));
+            expect(browserOpen).toHaveBeenCalledTimes(2);
+            expect(window.go.desktop.App.ReadFile).toHaveBeenCalledWith('notes/Guide.md');
+        } finally {
+            window.runtime = originalRuntime;
+            window.open = originalOpen;
+        }
+    });
 });

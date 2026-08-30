@@ -113,17 +113,3 @@ export function datePickerMonth(year, month, { selected = '', today = localISODa
         };
     });
 }
-
-export default {
-    dateFromISO,
-    datePickerMonth,
-    dueDatePresentation,
-    dueTaskSummary,
-    isISODate,
-    localISODate,
-    millisecondsUntilNextLocalDay,
-    parseDueDateLink,
-    shiftISODate,
-    sortTasksByDue,
-    stripDueDateLinks,
-};

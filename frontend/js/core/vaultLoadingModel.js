@@ -91,5 +91,3 @@ export function presentVaultLoadStatus(value = {}) {
         busy: true,
     };
 }
-
-export default { normalizeVaultLoadStatus, presentVaultLoadStatus, vaultLoadPhaseRank };

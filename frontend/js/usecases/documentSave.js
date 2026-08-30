@@ -1,4 +1,4 @@
-import { createSaveSnapshot } from '../core/saveModel.js';
+import { createSaveSnapshot, saveResultDisposition } from '../core/saveModel.js';
 
 /**
  * Coordinate optimistic document saves without knowing about Wails, the DOM,
@@ -25,12 +25,18 @@ export function createDocumentSave({
         try {
             let result = await write(snapshot.tab.mtime || 0);
             let successMessage = 'Saved';
-            if (!result?.success) {
+            const firstDisposition = saveResultDisposition(result);
+            if (firstDisposition === 'failure') {
+                throw new Error(result?.error || 'The file could not be saved.');
+            }
+            if (firstDisposition === 'conflict') {
                 const overwrite = await confirmOverwrite(snapshot, result);
                 if (!overwrite) return result;
                 result = await write(0);
                 successMessage = 'Saved (forced)';
-                if (!result?.success) return result;
+                if (saveResultDisposition(result) !== 'saved') {
+                    throw new Error(result?.error || 'The file could not be saved.');
+                }
             }
 
             const autoCommitEnabled = !snapshot.externalFileId && shouldCommit(snapshot);

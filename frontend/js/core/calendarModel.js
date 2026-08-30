@@ -332,22 +332,3 @@ export function tooltipPosition(anchorRect, tooltipRect, viewport, gap = 6, marg
     const top = Math.min(Math.max(margin, preferredTop), maxTop);
     return { left, top };
 }
-
-export default {
-    calendarDayClassName,
-    calendarDayLabelParts,
-    calendarDayState,
-    calendarMonthGrid,
-    calendarMonthPresentation,
-    calendarMonthSummaryMap,
-    calendarNoteAssociations,
-    calendarSessionSelectionPlan,
-    isoWeekday,
-    localeWeekInfo,
-    localeWeekdays,
-    normalizeWeekInfo,
-    noteIntensityLevel,
-    overlayCalendarLinkedNotes,
-    overlayCalendarMonthNotes,
-    tooltipPosition,
-};

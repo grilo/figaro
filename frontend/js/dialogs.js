@@ -92,6 +92,7 @@ export function activateModal(overlay, {
             activeModal = null;
             activeModalDismiss = null;
             document.body.classList.remove('custom-modal-open');
+            document.dispatchEvent(new Event('figaro:modal-closed'));
         }
         if (restoreFocus && previousFocus?.isConnected) {
             const focusAfterClose = document.activeElement;
@@ -190,6 +191,7 @@ export function confirmDialog(title, message, isDanger = false, html = false, op
         };
         lifecycle = activateModal(overlay, {
             initialFocus: isDanger ? cancelButton : confirmButton,
+            dismissOnBackdrop: options.dismissOnBackdrop !== false,
             onDismiss: () => resolve(false),
         });
         cancelButton.addEventListener('click', () => settle(false));
@@ -234,6 +236,30 @@ export function messageDialog(title, message, options = {}) {
 export function errorDialog(title, error, fallback = 'Something went wrong.') {
     const message = String(error?.message || error || fallback).trim() || fallback;
     return messageDialog(title, message, { tone: 'danger', icon: 'error', acknowledgementLabel: 'Close' });
+}
+
+/**
+ * Report a failed document write without implying that the in-memory buffer
+ * was discarded. The caller owns retrying and copying the latest text.
+ */
+export function saveFailureDialog(fileName, error) {
+    const cause = String(error?.message || error?.error || error || 'Unknown error')
+        .trim()
+        .replace(/^Error:\s*/i, '') || 'Unknown error';
+    return confirmDialog(
+        `Couldn’t save ‘${String(fileName || 'Untitled')}’`,
+        `${cause}\n\nYour changes remain in the open buffer.`,
+        false,
+        false,
+        {
+            tone: 'danger',
+            icon: 'error',
+            confirmLabel: 'Retry',
+            cancelLabel: 'Keep editing',
+            extraLabel: 'Copy unsaved text',
+            dismissOnBackdrop: false,
+        },
+    );
 }
 
 /** Show a labelled, validated text prompt. */
@@ -882,17 +908,3 @@ function escapeHtml(text) {
     div.textContent = String(text ?? '');
     return div.innerHTML;
 }
-
-export default {
-    confirmDialog,
-    errorDialog,
-    fileTreeStyleDialog,
-    messageDialog,
-    mergeNotesDialog,
-    newNoteDialog,
-    pdfExportErrorDialog,
-    pdfStyleReferenceDialog,
-    promptDialog,
-    renamePathDialog,
-    tableConversionDialog,
-};

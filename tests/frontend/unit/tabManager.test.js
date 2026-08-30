@@ -47,10 +47,12 @@ jest.mock('../frontend/js/statusBar.js', () => ({
 jest.mock('../frontend/js/dialogs.js', () => ({
     confirmDialog: jest.fn().mockResolvedValue(true),
     errorDialog: jest.fn().mockResolvedValue(undefined),
+    saveFailureDialog: jest.fn().mockResolvedValue(false),
 }));
 
 jest.mock('../frontend/js/calendar.js', () => ({
     renderCalendar: jest.fn(),
+    prepareCalendarOpen: jest.fn(),
     loadCalendarResults: jest.fn(),
     invalidateCalendarCache: jest.fn(),
     refreshCalendarIfVisible: jest.fn(),
@@ -62,6 +64,13 @@ jest.mock('../frontend/js/kanban.js', () => ({
     applyKanbanPresentationToViews: jest.fn(),
     initKanbanPresentationSettings: jest.fn(),
     renderKanbanBoard: jest.fn(),
+}));
+jest.mock('../frontend/js/graphView.js', () => ({
+    createGraphView: jest.fn(() => ({
+        activate: jest.fn(),
+        refresh: jest.fn(),
+        dispose: jest.fn(),
+    })),
 }));
 jest.mock('../frontend/js/theme.js', () => ({
     initSettingsPanel: jest.fn().mockResolvedValue()
@@ -79,9 +88,11 @@ jest.mock('../frontend/js/drawio.js', () => ({
 import { state, setState, getState } from '../frontend/js/state.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState } from '../frontend/js/editor.js';
 import { initSettingsPanel } from '../frontend/js/theme.js';
+import { createGraphView } from '../frontend/js/graphView.js';
 import { setAutoCommitEnabled } from '../frontend/js/automation.js';
 import { statusBar } from '../frontend/js/statusBar.js';
-import { errorDialog } from '../frontend/js/dialogs.js';
+import { errorDialog, saveFailureDialog } from '../frontend/js/dialogs.js';
+import { helpSettingsEntries } from '../frontend/js/helpPopup.js';
 // confirmDialog accessed via window.confirmDialog
 
 import { 
@@ -137,6 +148,7 @@ describe('Tab Manager', () => {
         localStorage.clear();
         getEditorDocumentTabId.mockReturnValue(null);
         getEditorContent.mockReturnValue('');
+        saveFailureDialog.mockResolvedValue(false);
         setAutoCommitEnabled(true);
     });
 
@@ -151,6 +163,36 @@ describe('Tab Manager', () => {
             expect(tab.mtime).toBe(1000);
             expect(tab.dirty).toBe(false);
             expect(getState('activeTabId')).toBe('test.md');
+        });
+
+        test('creates one all-notes Graph workspace and reuses it when reopened', async () => {
+            const graphTab = openTab('graph', 'Graph', 'graph');
+            await switchTab('graph');
+
+            expect(graphTab).toEqual(expect.objectContaining({
+                id: 'graph',
+                title: 'Graph',
+                type: 'graph',
+            }));
+            expect(createGraphView).toHaveBeenCalledWith(
+                expect.any(HTMLElement),
+                expect.objectContaining({
+                    loadGraph: expect.any(Function),
+                    loadAppearance: expect.any(Function),
+                    openNote: expect.any(Function),
+                }),
+            );
+            expect(createGraphView.mock.calls[0][1]).not.toEqual(
+                expect.objectContaining({ anchorPath: expect.anything() }),
+            );
+
+            const reopened = openTab('graph', 'Graph', 'graph');
+            await switchTab('graph');
+
+            expect(reopened).toBe(graphTab);
+            expect(mockState.openTabs.filter(tab => tab.type === 'graph')).toHaveLength(1);
+            expect(createGraphView.mock.results[0].value.activate)
+                .toHaveBeenLastCalledWith();
         });
 
         test('can restore inactive tab metadata without reading or activating it', async () => {
@@ -272,11 +314,16 @@ describe('Tab Manager', () => {
             expect(tab.targetPath).toBe('test.md');
         });
 
-        test('should create new kanban tab', () => {
+        test('should create the reusable Kanban workspace state', () => {
             const tab = openTab('kanban-board', 'Kanban', 'kanban', { focusCol: 'todo' });
             
             expect(tab.type).toBe('kanban');
             expect(tab.focusCol).toBe('todo');
+
+            const reused = openTab('kanban', 'Kanban', 'kanban', { focusCol: 'done' });
+            expect(reused).toBe(tab);
+            expect(reused.focusCol).toBe('done');
+            expect(getState('openTabs').filter(candidate => candidate.type === 'kanban')).toHaveLength(1);
         });
 
         test('animates the requested panel types when they open', () => {
@@ -549,6 +596,30 @@ describe('Tab Manager', () => {
             expect(panel.querySelector('#auto-commit-description').textContent).toMatch(/only the file that just saved/i);
         });
 
+        test('gives every compact Settings control an explicit accessible name and focused help', () => {
+            openTab('settings', 'Settings', 'settings');
+            const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
+
+            expect(panel.querySelector('.text-width-control').getAttribute('aria-labelledby'))
+                .toBe('text-width-label');
+            expect(panel.querySelector('#text-width-down').getAttribute('aria-label'))
+                .toBe('Decrease editor text width');
+            expect(panel.querySelector('#text-width-up').getAttribute('aria-label'))
+                .toBe('Increase editor text width');
+            expect(panel.querySelector('#vim-toggle').getAttribute('aria-labelledby'))
+                .toBe('vim-toggle-label');
+            expect(panel.querySelector('#line-numbers-toggle').getAttribute('aria-labelledby'))
+                .toBe('line-numbers-toggle-label');
+            expect(panel.querySelector('label[for="auto-save-interval"]').textContent)
+                .toBe('Auto-Save');
+            expect(panel.querySelector('#auto-save-interval').getAttribute('title')).toMatch(/dirty active note/i);
+            expect(panel.querySelector('#pure-focus-scope').getAttribute('title')).toMatch(/dims text/i);
+            expect(panel.querySelector('#markdown-lint-toggle').getAttribute('title')).toMatch(/F8/);
+            for (const entry of helpSettingsEntries) {
+                expect(panel.querySelector(entry.selector)).not.toBeNull();
+            }
+        });
+
         test('presents Spellcheck scope as concise accessible guidance', () => {
             openTab('settings', 'Settings', 'settings');
             const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
@@ -765,15 +836,21 @@ describe('Tab Manager', () => {
             expect(setEditorContent).toHaveBeenCalledWith('', 'note-1', cursorState);
         });
 
-        test('returns to previously edited file after closing kanban', async () => {
+        test('keeps persistent sidebar workspaces open when a close is requested', async () => {
             openTab('note-1', 'Note 1', 'file', { path: 'note-1.md' });
-            openTab('note-2', 'Note 2', 'file', { path: 'note-2.md' });
-            await switchTab('note-1');
-            openTab('kanban', 'Kanban', 'kanban', {});
+            for (const [id, title, type] of [
+                ['calendar-workspace', 'Calendar', 'calendar-workspace'],
+                ['kanban', 'Kanban', 'kanban'],
+                ['graph', 'Graph', 'graph'],
+            ]) {
+                await switchTab('note-1');
+                openTab(id, title, type, {});
 
-            await closeTab('kanban');
-
-            expect(getState('activeTabId')).toBe('note-1');
+                await expect(closeTab(id, null, { animate: true })).resolves.toBe(false);
+                expect(getState('activeTabId')).toBe(id);
+                expect(getState('openTabs').filter(tab => tab.type === type)).toHaveLength(1);
+                expect(document.querySelector(`.tab-panel[data-tab-id="${id}"]`).classList.contains('figaro-panel-exit')).toBe(false);
+            }
         });
 
         test('should prefer file tab when switching after close', () => {
@@ -874,19 +951,20 @@ describe('Tab Manager', () => {
             expect(movedTabPath('elsewhere.md', 'notes', 'archive/notes')).toBeNull();
         });
 
-        test('updates file and Draw.io tab paths, ids, pins, and the active tab after a move', () => {
+        test('updates file and Draw.io paths, ids, pins, and the active tab after a move', () => {
             mockState.openTabs = [
                 { id: 'notes/a.md', title: 'a.md', type: 'file', path: 'notes/a.md' },
                 { id: 'notes/diagram.drawio.svg', title: 'diagram.drawio.svg', type: 'drawio', path: 'notes/diagram.drawio.svg' },
+                { id: 'graph', title: 'Graph', type: 'graph' },
             ];
             mockState.activeTabId = 'notes/diagram.drawio.svg';
             mockState.pinnedTabs = ['notes/diagram.drawio.svg'];
-
             expect(updateTabsForMovedPath('notes', 'archive/notes')).toBe(true);
 
             expect(getState('openTabs')).toEqual(expect.arrayContaining([
                 expect.objectContaining({ id: 'archive/notes/a.md', path: 'archive/notes/a.md', title: 'a.md' }),
                 expect.objectContaining({ id: 'archive/notes/diagram.drawio.svg', path: 'archive/notes/diagram.drawio.svg', type: 'drawio' }),
+                expect.objectContaining({ id: 'graph', type: 'graph' }),
             ]));
             expect(getState('activeTabId')).toBe('archive/notes/diagram.drawio.svg');
             expect(getState('pinnedTabs')).toEqual(['archive/notes/diagram.drawio.svg']);
@@ -1118,9 +1196,50 @@ describe('Tab Manager', () => {
 
             expect(tab.dirty).toBe(true);
             expect(statusBar.set).toHaveBeenCalledWith('Save failed — permission denied');
+            expect(saveFailureDialog).toHaveBeenCalledWith('Note', expect.objectContaining({ message: 'permission denied' }));
             const liveStatus = document.getElementById('status-text');
             expect(liveStatus.getAttribute('role')).toBe('status');
             expect(liveStatus.getAttribute('aria-live')).toBe('polite');
+        });
+
+        test('shows one blocking prompt per automatic save failure episode', async () => {
+            const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            window.go.desktop.App.SaveFile.mockRejectedValue(new Error('read-only filesystem'));
+
+            await expect(saveFileSnapshot(tab, 'first attempt')).rejects.toThrow('read-only filesystem');
+            await Promise.resolve();
+            await expect(saveFileSnapshot(tab, 'automatic retry')).rejects.toThrow('read-only filesystem');
+            await Promise.resolve();
+            expect(saveFailureDialog).toHaveBeenCalledTimes(1);
+
+            await expect(saveFileSnapshot(tab, 'manual retry', { failurePrompt: 'always' }))
+                .rejects.toThrow('read-only filesystem');
+            await Promise.resolve();
+            expect(saveFailureDialog).toHaveBeenCalledTimes(2);
+        });
+
+        test('copies the latest unsaved buffer from the failure dialog', async () => {
+            const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            getEditorDocumentTabId.mockReturnValue(tab.id);
+            getEditorContent.mockReturnValue('latest unsaved body');
+            window.go.desktop.App.SaveFile.mockRejectedValueOnce(new Error('disk is full'));
+            saveFailureDialog.mockResolvedValueOnce('extra');
+            const originalClipboard = navigator.clipboard;
+            const writeText = jest.fn().mockResolvedValue(undefined);
+            Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+
+            try {
+                await expect(saveFileSnapshot(tab, 'older attempted body')).rejects.toThrow('disk is full');
+                await testUtils.waitFor(0);
+                expect(writeText).toHaveBeenCalledWith('latest unsaved body');
+                expect(statusBar.set).toHaveBeenCalledWith('Unsaved text copied; the file is still not saved');
+            } finally {
+                Object.defineProperty(navigator, 'clipboard', { configurable: true, value: originalClipboard });
+            }
         });
 
         test('serializes snapshots for one file using the prior save revision', async () => {
@@ -1192,6 +1311,27 @@ describe('Tab Manager', () => {
             
             const tabStrip = document.getElementById('tab-strip');
             expect(tabStrip.children.length).toBe(2);
+        });
+
+        test('does not render sidebar-owned Calendar, Kanban, or Graph workspaces in the title bar', () => {
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            openTab('calendar-workspace', 'Calendar', 'calendar-workspace');
+            openTab('kanban', 'Kanban', 'kanban');
+            openTab('graph', 'Graph', 'graph');
+
+            renderTabBar();
+
+            expect(getState('openTabs').map(tab => tab.id)).toEqual([
+                'tab1',
+                'calendar-workspace',
+                'kanban',
+                'graph',
+            ]);
+            expect([...document.querySelectorAll('#tab-strip .tab')].map(tab => tab.dataset.tabId))
+                .toEqual(['tab1']);
+            expect(document.querySelector('#tab-strip .tab.active')).toBeNull();
+            expect(document.querySelector('#tab-strip [data-tab-id="tab1"]').tabIndex).toBe(0);
+            expect(document.querySelector('#tab-strip [data-tab-id="tab1"]').getAttribute('aria-selected')).toBe('false');
         });
 
         test('keeps long filename endings and parent paths visible for similar tabs', () => {
@@ -1553,6 +1693,7 @@ describe('Tab Manager', () => {
             });
             initTabManager();
             openTab('tab1', 'Tab 1', 'file', { path: 'Clients/Acme/tab1.md' });
+            openTab('kanban', 'Kanban', 'kanban');
             openTab('tab2', 'Tab 2', 'file', { path: 'Clients/Beacon/tab2.md' });
 
             const button = document.getElementById('all-tabs-btn');

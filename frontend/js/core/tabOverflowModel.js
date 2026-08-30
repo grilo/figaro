@@ -42,13 +42,15 @@ export function activeTabScrollTarget({
     viewportEnd,
     tabStart,
     tabEnd,
+    junctionInset = 0,
     maxScroll = Number.POSITIVE_INFINITY,
 }) {
     const current = Math.max(0, finiteNumber(currentScroll));
     const viewportLeft = finiteNumber(viewportStart);
     const viewportRight = finiteNumber(viewportEnd, viewportLeft);
-    const itemLeft = finiteNumber(tabStart);
-    const itemRight = finiteNumber(tabEnd, itemLeft);
+    const inset = Math.max(0, finiteNumber(junctionInset));
+    const itemLeft = finiteNumber(tabStart) - inset;
+    const itemRight = finiteNumber(tabEnd, itemLeft) + inset;
     const maximum = Math.max(0, finiteNumber(maxScroll, Number.MAX_SAFE_INTEGER));
 
     let target = current;

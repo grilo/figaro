@@ -73,6 +73,14 @@ describe('frontend architecture policy', () => {
         expect(violations).toEqual([]);
     });
 
+    test('first-party modules do not retain unused default-export wrapper objects', () => {
+        const violations = sourceFiles(JS_ROOT)
+            .filter(file => /\bexport\s+default\s*\{/.test(fs.readFileSync(file, 'utf8')))
+            .map(file => path.relative(JS_ROOT, file));
+
+        expect(violations).toEqual([]);
+    });
+
     test('every first-party module is reachable from an application or renderer-build entry point', () => {
         const files = sourceFiles(JS_ROOT).map(file => path.resolve(file));
         const fileSet = new Set(files);

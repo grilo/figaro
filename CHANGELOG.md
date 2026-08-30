@@ -10,6 +10,79 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.30.0] - 2026-08-30
+
+### Added
+
+- Calendar now offers a **Timeline** presentation: a horizontally scrollable
+  run of days stacks 8px note pills on each date, carries each note's custom
+  color and Lucide icon, and opens or reuses its document tab at the first
+  occurrence of that date. A sparse six-week window keeps more than two weeks
+  buffered around the viewport; approaching either edge silently loads the
+  adjacent week without moving the visible dates, and leaving Calendar releases
+  that Timeline DOM and cache. Locale-defined weekends receive
+  the former Timeline-surface tint while ordinary days blend into the main
+  pane. Wheel and trackpad input advances by at least three days, and dragging
+  empty Timeline space pans without selecting its labels.
+- A new **Graph** workspace maps all saved Markdown notes and vault-local links
+  with a compact floating search, borderless zoom controls, an **Orphans**
+  choice button, clear directed arrows, pan/zoom, and keyboard navigation.
+  File-tree folder colors inherit through brighter nested tints, note colors
+  and icons override them, click pins link tracing, and Ctrl/Cmd-click opens a
+  note while graph counts replace irrelevant buffer status.
+- F1 Help now includes a local search for Markdown syntax, Macros, Shortcuts,
+  and Settings; results jump to the matching reference row or open and focus
+  the exact Settings control without executing commands.
+- The left and right pane separators now support Left/Right, Shift+Left/Right,
+  and Home/End resizing with labelled separator semantics and a compact focus
+  marker.
+- Figaro Help now documents pressing Escape followed by Tab or Shift+Tab to
+  move keyboard focus out of the editor while retaining Tab indentation.
+- Ctrl/Cmd-clicking an external HTTP or HTTPS Markdown link now opens it in
+  the operating system's default browser from either rendered preview or
+  revealed source, and the external-link tooltip advertises that shortcut.
+
+### Changed
+
+- Calendar, Kanban, and Graph now act as borderless browser-style tabs connected
+  to the workspace's left edge across every theme, mask the shell divider along
+  the selected row, round both workspace-side junctions, stay open when
+  reselected, and never add duplicate tabs to the document title bar; Calendar
+  uses an uninterrupted 50/50 central workspace with its month centered in the
+  left pane and selected-day notes in the right pane. Calendar retains the
+  shared status-bar spacing but hides meaningless buffer telemetry, while hashtag
+  and dashboard entry points reuse the same Kanban board.
+- The editor's top-left corner now uses the shared tab radius whenever the first
+  title-bar tab is not selected, applies it through every inner editor layer to
+  prevent a faded square edge, masks theme divider rails around the curve,
+  matches its underlay to the sidebar surface, and retains a seamless square
+  connection when the first tab is selected; hovering the inactive first tab
+  now paints that underlay and stacks above the divider mask instead of exposing
+  a wedge or double-painted line.
+- Active title-bar tabs now use inverse 8px curves at their lower junctions,
+  matching the top-corner roundness without turning the tab into a pill.
+- Specialized Settings controls now expose explicit accessible names and use
+  the shared hover/focus tooltip for concise explanations of arcane options.
+- **Figaro CRT Phosphor** now uses borderless dark overscan, stronger curved
+  glass falloff with fine dithering to prevent visible gradient rings, 35%
+  horizontal scanlines, soft phosphor bloom, restrained flicker/breathing, and
+  one softened beam pulse per minute; reduced-motion preferences retain the
+  static glass while suppressing its motion.
+- Removed obsolete screen-effect hooks, unconsumed styles and tokens, and
+  unused JavaScript module wrapper exports without changing visible behavior.
+
+### Fixed
+
+- Calendar now keeps the shared 24px status-bar footprint while hiding only
+  main-pane buffer telemetry, preventing a vertical jump when switching to
+  Kanban, Graph, or a document.
+- Calendar, Kanban, and Graph no longer flash a light border while their
+  connected sidebar tab changes from pressed to selected.
+- Save failures now override Pure mode with a blocking Retry/Copy/Keep editing
+  dialog, preserve the dirty buffer, avoid repeated Auto-Save popups, and stop
+  **Save and exit** from closing the window before every buffer is confirmed
+  saved.
+
 ## [1.29.0] - 2026-08-28
 
 ### Added
@@ -1603,7 +1676,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.29.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.30.0...HEAD
+[1.30.0]: https://github.com/grilo/figaro/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/grilo/figaro/compare/v1.28.2...v1.29.0
 [1.28.2]: https://github.com/grilo/figaro/compare/v1.28.1...v1.28.2
 [1.28.1]: https://github.com/grilo/figaro/compare/v1.28.0...v1.28.1

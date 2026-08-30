@@ -67,6 +67,47 @@ func TestCalendarMonthSummariesCountDistinctNotesAndExposeDueTitles(t *testing.T
 	}
 }
 
+func TestCalendarTimelineReturnsBoundedIndexedNotesAtFirstDateOccurrence(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "2025-01-15.md", "# Daily note\n")
+	writeTestFile(t, vaultPath, "notes/alpha.md", "Before\n[Planning](2025-01-16.md)\n[Repeated](2025-01-16.md)\n")
+	writeTestFile(t, vaultPath, "notes/outside.md", "[Outside](2025-02-20.md)\n")
+
+	timeline, err := app.GetCalendarTimelineData("2025-01-14", "2025-01-18")
+	if err != nil {
+		t.Fatalf("GetCalendarTimelineData: %v", err)
+	}
+	if got, want := []string{timeline.StartDate, timeline.EndDate}, []string{"2025-01-14", "2025-01-18"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("timeline bounds = %v, want %v", got, want)
+	}
+	if got, want := len(timeline.Days), 2; got != want {
+		t.Fatalf("timeline populated days = %d, want %d: %#v", got, want, timeline.Days)
+	}
+	if got := timeline.Days[0].Notes[0]; got.Path != "2025-01-15.md" || got.LineNum != 1 {
+		t.Fatalf("daily-note timeline row = %#v, want line 1", got)
+	}
+	if got := timeline.Days[1].Notes[0]; got.Path != "notes/alpha.md" || got.LineNum != 2 {
+		t.Fatalf("linked timeline row = %#v, want first date occurrence on line 2", got)
+	}
+
+	// Responses must not expose the shared index's backing slices.
+	timeline.Days[1].Notes[0].LineNum = 99
+	reloaded, err := app.GetCalendarTimelineData("2025-01-16", "2025-01-16")
+	if err != nil || reloaded.Days[0].Notes[0].LineNum != 2 {
+		t.Fatalf("timeline response retained caller mutation: %#v, err=%v", reloaded, err)
+	}
+
+	for _, bounds := range [][2]string{
+		{"not-a-date", "2025-01-18"},
+		{"2025-01-18", "2025-01-14"},
+		{"2025-01-01", "2025-04-30"},
+	} {
+		if _, err := app.GetCalendarTimelineData(bounds[0], bounds[1]); err == nil {
+			t.Fatalf("GetCalendarTimelineData(%q, %q) unexpectedly accepted invalid bounds", bounds[0], bounds[1])
+		}
+	}
+}
+
 func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "2025-01-15.md", "# Daily note")

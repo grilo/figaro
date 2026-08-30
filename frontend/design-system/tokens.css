@@ -16,6 +16,7 @@
     --border-light: #3a3a3a;
     --window-border-color: color-mix(in srgb, var(--text-color) 9%, transparent);
     --window-border-highlight: color-mix(in srgb, var(--text-color) 16%, transparent);
+    --window-border-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-color) 4%, transparent);
     --danger-color: #ed4245;
     --danger-hover: #c03537;
     --success-color: #3ba55c;
@@ -44,7 +45,6 @@
     --editor-active-font-size: var(--font-size-editor);
     --editor-active-width: var(--editor-width);
     --line-height: 1.6;
-    --line-height-ui: 1.3;
     --line-height-editor: 1.65;
     /* Markdown syntax highlighting */
     --cursor-color: #dcddde;
@@ -82,8 +82,6 @@
     --status-bar-height: 24px;
     --tab-height: 38px;
     --transition-fast: 0.14s ease;
-    --transition-normal: 0.18s ease;
-    --transition-slow: 0.18s ease;
     /* Shared component dimensions */
     --ui-control-height: 34px;
     --ui-control-radius: 7px;
@@ -136,13 +134,27 @@
     --status-bar-surface: var(--sidebar-bg);
     --status-bar-border: var(--border-color);
     --status-separator-color: var(--border-color);
+    --screen-dither: none;
+    --screen-dither-size: 1px 1px;
     --screen-vignette: none;
-    --screen-scanline: none;
+    --screen-texture: none;
+    --screen-texture-size: 1px;
     --screen-effect-opacity: 0;
-    --screen-scan-animation: none;
-    --screen-scan-duration: 300s;
-    --screen-scan-height: 14px;
-    --screen-content-transform: none;
+    --screen-effect-inset: 0;
+    --screen-effect-shadow: none;
+    --screen-effect-animation: none;
+    --screen-effect-duration: 1s;
+    --screen-effect-timing-function: linear;
+    --screen-text-shadow: none;
+    --screen-warp-x: 1;
+    --screen-warp-y: 1;
+    --screen-breathe-brightness: 1;
+    --screen-beam: none;
+    --screen-beam-animation: none;
+    --screen-beam-duration: 60s;
+    --screen-beam-timing-function: linear;
+    --screen-beam-height: 140px;
+    --screen-beam-filter: none;
     /* Feature semantic colors */
     --badge-purple: #7c3aed;
     --badge-red: var(--danger-color);

@@ -36,4 +36,23 @@ describe('sidebar resize alignment', () => {
         expect(getState('sidebarWidth')).toBe(280);
         expect(resizer.classList.contains('is-dragging')).toBe(false);
     });
+
+    test('exposes a quiet separator and supports arrow, accelerated, and bound keys', () => {
+        const sidebar = document.getElementById('sidebar');
+        const resizer = document.getElementById('sidebar-resizer');
+
+        expect(resizer.getAttribute('role')).toBe('separator');
+        expect(resizer.getAttribute('aria-controls')).toBe('sidebar');
+        resizer.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        expect(sidebar.style.width).toBe('288px');
+        expect(resizer.getAttribute('aria-valuenow')).toBe('288');
+
+        resizer.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true }));
+        expect(sidebar.style.width).toBe('320px');
+
+        resizer.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+        expect(sidebar.style.width).toBe('225px');
+        resizer.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+        expect(sidebar.style.width).toBe('500px');
+    });
 });

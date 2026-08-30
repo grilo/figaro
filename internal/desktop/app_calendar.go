@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 	"strings"
@@ -20,6 +21,56 @@ type LinkedNote struct {
 	Mtime   float64 `json:"mtime"`
 }
 
+const maxCalendarTimelineDays = 93
+
+// CalendarTimelineDay contains the indexed notes associated with one populated
+// date. Empty dates stay a frontend presentation concern so the native payload
+// remains proportional to vault activity rather than to the requested span.
+type CalendarTimelineDay struct {
+	Date  string       `json:"date"`
+	Notes []LinkedNote `json:"notes"`
+}
+
+// CalendarTimelineData is a bounded, inclusive projection of the shared
+// calendar index for the horizontally scrollable Calendar presentation.
+type CalendarTimelineData struct {
+	StartDate string                `json:"start_date"`
+	EndDate   string                `json:"end_date"`
+	Days      []CalendarTimelineDay `json:"days"`
+}
+
+func calendarTimelineRange(startDate, endDate string) (time.Time, time.Time, error) {
+	start, startErr := time.Parse("2006-01-02", startDate)
+	end, endErr := time.Parse("2006-01-02", endDate)
+	if startErr != nil || endErr != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("timeline dates must use YYYY-MM-DD")
+	}
+	if end.Before(start) {
+		return time.Time{}, time.Time{}, fmt.Errorf("timeline end date must not precede its start date")
+	}
+	days := int(end.Sub(start).Hours()/24) + 1
+	if days > maxCalendarTimelineDays {
+		return time.Time{}, time.Time{}, fmt.Errorf("timeline range exceeds %d days", maxCalendarTimelineDays)
+	}
+	return start, end, nil
+}
+
+func calendarTimelineDays(index *calendarDateIndex, start, end time.Time) []CalendarTimelineDay {
+	days := make([]CalendarTimelineDay, 0)
+	for date := start; !date.After(end); date = date.AddDate(0, 0, 1) {
+		dateStr := date.Format("2006-01-02")
+		notes := index.linkedNotes[dateStr]
+		if len(notes) == 0 {
+			continue
+		}
+		days = append(days, CalendarTimelineDay{
+			Date:  dateStr,
+			Notes: append([]LinkedNote(nil), notes...),
+		})
+	}
+	return days
+}
+
 // GetLinkedNotesForDate returns the distinct daily/ordinarily-linked note rows
 // that contribute to a date's activity count. Semantic due links are tasks.
 func (a *App) GetLinkedNotesForDate(dateStr string) ([]LinkedNote, error) {
@@ -32,6 +83,28 @@ func (a *App) GetLinkedNotesForDate(dateStr string) ([]LinkedNote, error) {
 	}
 	results := append([]LinkedNote(nil), index.linkedNotes[dateStr]...)
 	return results, nil
+}
+
+// GetCalendarTimelineData reads one inclusive, bounded span from the existing
+// shared Markdown index. It performs no filesystem walk and copies every
+// returned slice so callers cannot mutate the cached projection.
+func (a *App) GetCalendarTimelineData(startDate, endDate string) (*CalendarTimelineData, error) {
+	start, end, err := calendarTimelineRange(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	a.vaultMu.RLock()
+	defer a.vaultMu.RUnlock()
+	index, err := a.calendarIndexLocked()
+	if err != nil {
+		return nil, err
+	}
+	return &CalendarTimelineData{
+		StartDate: startDate,
+		EndDate:   endDate,
+		Days:      calendarTimelineDays(index, start, end),
+	}, nil
 }
 
 // CalendarMonthData returns calendar information for a month.

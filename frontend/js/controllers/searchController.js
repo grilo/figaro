@@ -182,12 +182,3 @@ export function handleSearchKeydown(event) {
     }
     return false;
 }
-
-export default {
-    initSearch,
-    performSearch,
-    performGlobalSearch,
-    clearGlobalSearch,
-    handleSearchKeydown,
-    setSearchFilter,
-};

@@ -44,6 +44,10 @@ describe('Figaro help', () => {
         expect(panels.map(panel => panel.tabIndex)).toEqual([-1, -1, -1]);
         expect(tabs.every(tab => tab.classList.contains('ui-button'))).toBe(true);
         expect(tabs[0].classList.contains('ui-button--accent')).toBe(true);
+        const search = popup.querySelector('#md-help-search');
+        expect(search.getAttribute('role')).toBe('combobox');
+        expect(search.getAttribute('aria-controls')).toBe('md-help-search-results');
+        expect(search.getAttribute('aria-label')).toBe('Search help and settings');
     });
 
     test('uses one spacious, scroll-contained viewport for every help topic', () => {
@@ -114,6 +118,7 @@ describe('Figaro help', () => {
             ['Ctrl/Cmd+F', 'Find and replace in current file'],
             ['Ctrl/Cmd+S', 'Save current file'],
             ['Ctrl/Cmd+W', 'Close current buffer'],
+            ['Escape then Tab / Shift+Tab', 'Move focus out of the editor'],
             ['Ctrl/Cmd+B', 'Bold'],
             ['Ctrl/Cmd+I', 'Italic'],
             ['Ctrl/Cmd+K', 'Link'],
@@ -138,7 +143,8 @@ describe('Figaro help', () => {
 
         trigger.click();
         await new Promise(resolve => setTimeout(resolve, 0));
-        expect(document.activeElement).toBe(markdownTab);
+        const search = document.getElementById('md-help-search');
+        expect(document.activeElement).toBe(search);
         macrosTab.click();
         expect(macrosTab.getAttribute('aria-selected')).toBe('true');
         expect(macrosTab.tabIndex).toBe(0);
@@ -176,7 +182,7 @@ describe('Figaro help', () => {
 
         trigger.click();
         await new Promise(resolve => setTimeout(resolve, 0));
-        expect(document.activeElement).toBe(shortcutsTab);
+        expect(document.activeElement).toBe(search);
         expect(shortcutsPanel.hidden).toBe(false);
 
         const invoker = document.createElement('button');
@@ -191,11 +197,45 @@ describe('Figaro help', () => {
         }));
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(popup.hidden).toBe(false);
-        expect(document.activeElement).toBe(shortcutsTab);
-        shortcutsTab.dispatchEvent(new KeyboardEvent('keydown', {
+        expect(document.activeElement).toBe(search);
+        search.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'F1', bubbles: true, cancelable: true,
         }));
         expect(popup.hidden).toBe(true);
         expect(document.activeElement).toBe(invoker);
+    });
+
+    test('searches syntax and Settings, supports arrow selection, and deep-links without executing commands', async () => {
+        const wrapper = loadDocument().querySelector('.md-cheatsheet-wrapper');
+        document.body.innerHTML = wrapper.outerHTML;
+        initHelpPopup();
+        const requestedSettings = jest.fn();
+        document.addEventListener('figaro:open-settings-target', requestedSettings, { once: true });
+
+        document.getElementById('md-cheatsheet-trigger').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const search = document.getElementById('md-help-search');
+        const results = document.getElementById('md-help-search-results');
+
+        search.value = 'bold';
+        search.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(results.hidden).toBe(false);
+        expect(results.textContent).toContain('Emphasis');
+        expect(results.textContent).toContain('Help · Markdown');
+        search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        expect(document.getElementById('md-help-markdown-panel').hidden).toBe(false);
+        expect(document.querySelector('.md-help-search-target').textContent).toContain('bold');
+
+        search.focus();
+        search.value = 'vim';
+        search.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(results.textContent).toContain('Settings · Editor');
+        search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+        search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+        expect(requestedSettings).toHaveBeenCalledTimes(1);
+        expect(requestedSettings.mock.calls[0][0].detail).toEqual({ selector: '#vim-toggle' });
+        expect(document.getElementById('md-cheatsheet-popup').hidden).toBe(true);
     });
 });

@@ -85,5 +85,3 @@ export function scheduleSessionSave(delay = 350) {
         saveSession();
     }, delay);
 }
-
-export default { loadSession, saveSession };

@@ -5,7 +5,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: var(--bg-color);
+    background: var(--workspace-surface);
 }
 
 .kanban-view-header {
@@ -30,26 +30,6 @@
     color: var(--text-muted);
     margin: 0;
     line-height: 1.5;
-}
-
-.settings-segmented-control {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    flex: 0 0 auto;
-    padding: 3px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-color);
-    color: var(--text-dim);
-    font-size: 10px;
-}
-
-.settings-segmented-control button {
-    min-height: 24px;
-    padding: 0 7px;
-    border-radius: 4px;
-    font: 600 10px/1 var(--font-sans);
 }
 
 .kanban-board {

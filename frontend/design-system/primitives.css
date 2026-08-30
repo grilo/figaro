@@ -316,6 +316,49 @@ input.ui-stepper-value:invalid {
     cursor: wait;
 }
 
+.ui-segmented-control {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-dim);
+}
+
+.ui-segmented-control > .ui-button {
+    min-height: 24px;
+    padding: 0 7px;
+    border-radius: 4px;
+    font: 600 10px/1 var(--font-sans);
+}
+
+.ui-segmented-control--quiet {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--text-color) 6%, transparent);
+}
+
+.ui-segmented-control--quiet > .ui-button {
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.ui-segmented-control--quiet > .ui-button:hover:not(:disabled) {
+    border-color: transparent;
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.ui-segmented-control--quiet > .ui-button[aria-pressed="true"] {
+    border-color: transparent;
+    background: var(--bg-color);
+    color: var(--text-color);
+    box-shadow: var(--shadow-sm);
+}
+
 .ui-button--quiet {
     border-color: transparent;
     background: transparent;
@@ -489,12 +532,89 @@ input.ui-stepper-value:invalid {
 }
 
 .ui-document-tab--connected.ui-document-tab--active {
+    --connected-tab-junction-radius: var(--ui-menu-radius);
     position: relative;
     z-index: 3;
     border-color: var(--tab-active-border);
     border-bottom-color: transparent;
     background: var(--editor-surface);
     box-shadow: none;
+}
+
+.ui-document-tab--connected.ui-document-tab--active:not(.drop-before)::before,
+.ui-document-tab--connected.ui-document-tab--active:not(.drop-after)::after {
+    position: absolute;
+    bottom: 0;
+    width: var(--connected-tab-junction-radius);
+    height: var(--connected-tab-junction-radius);
+    content: '';
+    pointer-events: none;
+}
+
+.ui-document-tab--connected.ui-document-tab--active:not(.drop-before)::before {
+    left: calc(-1 * var(--connected-tab-junction-radius));
+    background: radial-gradient(
+        circle at 0 0,
+        transparent calc(var(--connected-tab-junction-radius) - .75px),
+        var(--editor-surface) var(--connected-tab-junction-radius)
+    );
+}
+
+.ui-document-tab--connected.ui-document-tab--active:not(.drop-after)::after {
+    right: calc(-1 * var(--connected-tab-junction-radius));
+    background: radial-gradient(
+        circle at 100% 0,
+        transparent calc(var(--connected-tab-junction-radius) - .75px),
+        var(--editor-surface) var(--connected-tab-junction-radius)
+    );
+}
+
+.ui-document-tab--side-connected {
+    border: 1px solid transparent;
+    border-right: 0;
+    border-right-color: transparent;
+    border-radius: var(--ui-menu-radius) 0 0 var(--ui-menu-radius);
+    transition:
+        background var(--motion-content-duration) ease,
+        color var(--motion-content-duration) ease;
+}
+
+.ui-document-tab--side-connected.ui-document-tab--active {
+    --side-connected-junction-radius: var(--ui-menu-radius);
+    position: relative;
+    z-index: 3;
+    border: 0 solid transparent;
+    border-color: transparent;
+    background: var(--workspace-surface);
+    box-shadow: 4px 0 0 var(--workspace-surface);
+}
+
+.ui-document-tab--side-connected.ui-document-tab--active::before,
+.ui-document-tab--side-connected.ui-document-tab--active::after {
+    position: absolute;
+    right: 0;
+    width: var(--side-connected-junction-radius);
+    height: var(--side-connected-junction-radius);
+    content: '';
+    pointer-events: none;
+}
+
+.ui-document-tab--side-connected.ui-document-tab--active::before {
+    top: calc(-1 * var(--side-connected-junction-radius));
+    background: radial-gradient(
+        circle at 0 0,
+        transparent calc(var(--side-connected-junction-radius) - .75px),
+        var(--workspace-surface) var(--side-connected-junction-radius)
+    );
+}
+
+.ui-document-tab--side-connected.ui-document-tab--active::after {
+    bottom: calc(-1 * var(--side-connected-junction-radius));
+    background: radial-gradient(
+        circle at 0 100%,
+        transparent calc(var(--side-connected-junction-radius) - .75px),
+        var(--workspace-surface) var(--side-connected-junction-radius)
+    );
 }
 
 .ui-document-tab:focus-visible {
@@ -702,11 +822,6 @@ input.ui-stepper-value:invalid {
     background: var(--bg-color);
 }
 
-.ui-badge--accent {
-    background: color-mix(in srgb, var(--accent-color) 16%, var(--bg-color));
-    color: var(--accent-color);
-}
-
 .ui-badge--warning {
     background: color-mix(in srgb, var(--warning-color) 18%, var(--bg-color));
     color: var(--warning-color);
@@ -885,11 +1000,6 @@ input.ui-stepper-value:invalid {
     transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
-.ui-date-picker-day.outside-month {
-    color: var(--text-dim);
-    opacity: .58;
-}
-
 .ui-date-picker-day:hover,
 .ui-date-picker-day:focus-visible {
     border-color: var(--ui-date-picker-day-state-border, var(--border-color));
@@ -1012,6 +1122,33 @@ input.ui-stepper-value:invalid {
     transition: width var(--transition-fast);
 }
 
+.ui-graph-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: 0;
+    outline: none;
+    background: var(--editor-surface);
+    color: var(--text-color);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.ui-graph-canvas:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.ui-graph-canvas.is-panning {
+    cursor: grabbing;
+}
+
+.ui-graph-canvas[aria-busy="true"] {
+    cursor: progress;
+}
+
 .ui-spinner {
     display: inline-block;
     width: 12px;
@@ -1073,7 +1210,8 @@ input.ui-stepper-value:invalid {
     .ui-date-picker-day,
     .ui-field,
     .ui-checkbox,
-    .ui-checkbox::before {
+    .ui-checkbox::before,
+    .ui-graph-canvas {
         transition: none;
     }
 

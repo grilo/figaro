@@ -31,5 +31,3 @@ export function formatCalendarDate(dateStr, locale) {
         }).format(date)
         : dateStr;
 }
-
-export default { currentCalendarLocale, formatCalendarDate, formatCalendarMonth };

@@ -11,7 +11,7 @@ import { preloadLanguageSupport } from './languageSupport.js';
 import { initializeDiagramRenderers } from './diagramRenderer.js';
 import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot, showWorkspaceHome } from './tabManager.js';
 import { addExternalFileTreeEntry, createInboxNote, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
-import { initCalendar, navigateCalendarMonth, prepareCalendarOpen, renderCalendar, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
+import { initCalendar, navigateCalendarMonth, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
 import { initKanban, refreshKanbanData } from './kanban.js';
 import { configureDatePickerCalendarSource } from './datePicker.js';
 import { initStatusBarPresentation, statusBar } from './statusBar.js';
@@ -42,6 +42,8 @@ import { createVaultLoadingSession } from './usecases/vaultLoading.js';
 import { createStartupHydration } from './usecases/startupHydration.js';
 import { renderVaultLoading, removeVaultLoading } from './views/vaultLoadingView.js';
 import { revealStartupWorkspace } from './views/startupView.js';
+import { saveDirtyDocumentsBeforeExit } from './usecases/windowClose.js';
+import { initSettingsNavigation } from './settingsNavigation.js';
 
 // Re-export tab manager functions for other modules to import from app.js
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -129,7 +131,7 @@ function configureAutoSave(seconds) {
     autoSaveTimer = setInterval(() => {
         const activeTab = getActiveTab();
         if (activeTab && activeTab.dirty && activeTab.type === 'file') {
-            saveActiveTabFile();
+            void saveActiveTabFile().catch(() => {});
         }
     }, seconds * 1000);
 }
@@ -189,6 +191,9 @@ function initCalendarNav() {
  * Initialize title-bar and persistent sidebar navigation controls.
  */
 export function initTopBar() {
+    initSettingsNavigation({
+        openSettings: () => openTab('settings', 'Settings', 'settings', {}),
+    });
     // Toggle sidebar
     const toggleBtn = document.getElementById('toggle-sidebar');
     const sidebar = document.getElementById('sidebar');
@@ -207,21 +212,14 @@ export function initTopBar() {
         sidebar.classList.toggle('collapsed', collapsed);
         applySidebarLayout(sidebar, layout);
         toggleBtn?.setAttribute('aria-expanded', String(!collapsed));
-        document.getElementById('sidebar-resizer')?.classList.toggle('sidebar-resizer-hidden', collapsed);
+        const sidebarResizer = document.getElementById('sidebar-resizer');
+        sidebarResizer?.classList.toggle('sidebar-resizer-hidden', collapsed);
+        if (sidebarResizer) {
+            sidebarResizer.tabIndex = collapsed ? -1 : 0;
+            sidebarResizer.setAttribute('aria-hidden', String(collapsed));
+        }
         document.documentElement.removeAttribute('data-startup-sidebar-collapsed');
 
-        // The rail keeps the destination visible, but an expanded calendar has
-        // no useful content at rail width. Closing it makes the next Calendar
-        // click expand the sidebar and reveal the panel in one action.
-        if (collapsed) {
-            const calendarPanel = document.getElementById('sidebar-calendar-panel');
-            const calendarButton = document.getElementById('sidebar-calendar');
-            calendarPanel?.classList.remove('open');
-            calendarPanel?.setAttribute('aria-hidden', 'true');
-            calendarButton?.classList.remove('active');
-            calendarButton?.setAttribute('aria-expanded', 'false');
-            sidebar.classList.remove('calendar-open');
-        }
     };
 
     if (toggleBtn && sidebar) {
@@ -239,39 +237,17 @@ export function initTopBar() {
         });
     }
 
-    // ── Calendar button → toggle an inline panel under the file tree ──
+    // ── Sidebar workspace destinations → persistent connected side tabs ──
     const calBtn = document.getElementById('sidebar-calendar');
-    const calendarPanel = document.getElementById('sidebar-calendar-panel');
     const rightSidebar = document.getElementById('right-sidebar');
-    const closeCalendarPanel = () => {
-        if (!calendarPanel) return;
-        calendarPanel.classList.remove('open');
-        calendarPanel.setAttribute('aria-hidden', 'true');
-        calBtn?.classList.remove('active');
-        calBtn?.setAttribute('aria-expanded', 'false');
-        sidebar?.classList.remove('calendar-open');
-        window.dispatchEvent(new Event('resize'));
-    };
-    const openCalendarPanel = () => {
-        if (!calendarPanel) return;
-        if (getState('sidebarCollapsed')) setSidebarCollapsed(false);
-        calendarPanel.classList.add('open');
-        calendarPanel.setAttribute('aria-hidden', 'false');
-        calBtn?.classList.add('active');
-        calBtn?.setAttribute('aria-expanded', 'true');
-        sidebar?.classList.add('calendar-open');
-        prepareCalendarOpen();
-        renderCalendar();
-        window.dispatchEvent(new Event('resize'));
-    };
-    if (calBtn && calendarPanel) {
+    if (calBtn) {
         calBtn.addEventListener('click', () => {
-            if (calendarPanel.classList.contains('open')) closeCalendarPanel();
-            else openCalendarPanel();
+            if (getActiveTab()?.type === 'calendar-workspace') return;
+            openTab('calendar-workspace', 'Calendar', 'calendar-workspace');
         });
     }
 
-    // The right pane is reserved for History, Outline, and document previews.
+    // The right pane is shared by History, Outline, and previews.
     const rsClose = document.getElementById('right-sidebar-close');
     if (rsClose && rightSidebar) {
         rsClose.addEventListener('click', () => {
@@ -289,19 +265,28 @@ export function initTopBar() {
         });
     }
 
-    // ── Kanban and Settings buttons → focus, open, or close their workspace tabs ──
-    const toggleWorkspaceTab = (id, title, type) => {
+    // Settings remains a title-bar toggle; sidebar workspaces remain selected.
+    const toggleWorkspaceTab = (id, title, type, data = {}) => {
         if (getState('activeTabId') === id) {
             closeTab(id, null, { animate: true });
             return;
         }
-        openTab(id, title, type, {});
+        openTab(id, title, type, data);
     };
 
     const kanbanBtn = document.getElementById('sidebar-kanban');
     if (kanbanBtn) {
         kanbanBtn.addEventListener('click', () => {
-            toggleWorkspaceTab('kanban', 'Kanban', 'kanban');
+            if (getActiveTab()?.type === 'kanban') return;
+            openTab('kanban', 'Kanban', 'kanban');
+        });
+    }
+
+    const graphBtn = document.getElementById('sidebar-graph');
+    if (graphBtn) {
+        graphBtn.addEventListener('click', () => {
+            if (getActiveTab()?.type === 'graph') return;
+            openTab('graph', 'Graph', 'graph');
         });
     }
 
@@ -315,7 +300,17 @@ export function initTopBar() {
     // Keep button active states in sync with tabs
     const syncNavigationState = () => {
         const activeTabId = getState('activeTabId');
-        kanbanBtn?.classList.toggle('active', activeTabId === 'kanban');
+        const activeType = getActiveTab()?.type;
+        for (const [button, type] of [
+            [calBtn, 'calendar-workspace'],
+            [kanbanBtn, 'kanban'],
+            [graphBtn, 'graph'],
+        ]) {
+            const selected = activeType === type;
+            button?.classList.toggle('ui-document-tab--active', selected);
+            if (selected) button?.setAttribute('aria-current', 'page');
+            else button?.removeAttribute('aria-current');
+        }
         settingsBtn?.classList.toggle('active', activeTabId === 'settings');
         homeBtn?.classList.toggle('active', activeTabId === null);
     };
@@ -389,7 +384,7 @@ function initKeyboardShortcuts() {
         // Ctrl/Cmd + S: Save current file
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            saveActiveTabFile();
+            void saveActiveTabFile({ failurePrompt: 'always' }).catch(() => {});
         }
         
         // Ctrl/Cmd + W: Close current tab
@@ -645,13 +640,14 @@ export async function initApp() {
             }
         );
         if (choice === 'confirm') {
-            const activeId = getState('activeTabId');
-            for (const tab of dirty) {
-                const content = tab.id === activeId ? getEditorContent() : tab._content;
-                if (typeof content !== 'string') continue;
-                try { await saveFileSnapshot(tab, content); } catch (_) { /* noop */ }
-            }
-            closeNativeWindow();
+            const saved = await saveDirtyDocumentsBeforeExit({
+                tabs: dirty,
+                activeId: getState('activeTabId'),
+                activeContent: getEditorContent,
+                save: saveFileSnapshot,
+                currentTabs: () => getState('openTabs'),
+            });
+            if (saved) closeNativeWindow();
         } else if (choice === 'extra') {
             closeNativeWindow();
         }
@@ -665,7 +661,7 @@ export async function initApp() {
         for (const tab of tabs) {
             if (tab.dirty && tab.type === 'file') {
                 const content = tab.id === activeId ? getEditorContent() : tab._content;
-                if (typeof content === 'string') await saveFileSnapshot(tab, content);
+                if (typeof content === 'string') await saveFileSnapshot(tab, content).catch(() => {});
             }
         }
         // Save session state via backend API

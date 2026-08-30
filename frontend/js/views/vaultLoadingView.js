@@ -34,5 +34,3 @@ export function removeVaultLoading(root = document) {
     panel.setAttribute('aria-busy', 'false');
     return true;
 }
-
-export default { renderVaultLoading, removeVaultLoading };

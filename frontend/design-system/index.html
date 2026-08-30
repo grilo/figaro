@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="../styles/base.css">
     <link rel="stylesheet" href="../styles/shell.css">
     <link rel="stylesheet" href="../styles/features/kanban.css">
+    <link rel="stylesheet" href="../styles/features/graph.css">
     <link rel="stylesheet" href="../styles/features/relationships.css">
     <link rel="stylesheet" href="../styles/workspace.css">
     <link rel="stylesheet" href="../styles/editor.css">
@@ -221,7 +222,7 @@
 
                 <div class="ds-specimen-grid ds-specimen-grid--two">
                     <article class="ds-specimen">
-                        <header><h3>Document tabs</h3><code class="ds-selector">.ui-document-tabs--titlebar</code><code class="ds-selector">.ui-document-tab--connected</code><code class="ds-selector">.all-tabs-btn</code></header>
+                        <header><h3>Document tabs</h3><code class="ds-selector">.ui-document-tabs--titlebar</code><code class="ds-selector">.ui-document-tab--connected</code><code class="ds-selector">.ui-document-tab--side-connected</code><code class="ds-selector">.all-tabs-btn</code></header>
                         <div class="ds-demo ds-demo--flush ds-tab-state-stack">
                             <div class="ds-tab-state">
                                 <span class="ds-tab-state-label">Open documents</span>
@@ -245,6 +246,17 @@
                                 <span class="ds-tab-state-label">No open documents</span>
                                 <div class="ui-document-tabs ui-document-tabs--titlebar tab-bar ds-tab-bar">
                                     <div class="tab-strip" role="tablist" aria-label="Empty document tabs"></div>
+                                </div>
+                            </div>
+                            <div class="ds-tab-state">
+                                <span class="ds-tab-state-label">Left-side workspace destination</span>
+                                <div class="ds-side-tab-demo">
+                                    <div class="ds-side-tab-rail">
+                                        <button type="button" class="ui-document-tab ui-document-tab--side-connected ds-side-tab">Calendar</button>
+                                        <button type="button" class="ui-document-tab ui-document-tab--side-connected ui-document-tab--active ds-side-tab" aria-current="page">Kanban</button>
+                                        <button type="button" class="ui-document-tab ui-document-tab--side-connected ds-side-tab">Graph</button>
+                                    </div>
+                                    <div class="ds-side-tab-workspace">Kanban workspace</div>
                                 </div>
                             </div>
                         </div>
@@ -339,6 +351,13 @@
                                 <span class="cal-day-tooltip-note-count">10 notes</span>
                                 <span class="cal-day-tooltip-due-label">Due item</span>
                                 <ul><li>Publish release notes</li></ul>
+                            </div>
+                            <div class="ds-calendar-timeline-notes" aria-label="Example stacked Timeline notes">
+                                <button type="button" class="calendar-timeline-note has-custom-color" style="--calendar-timeline-note-color:#ef4444">
+                                    <span class="calendar-timeline-note-icon" aria-hidden="true"><svg class="calendar-timeline-note-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/></svg></span>
+                                    <span class="calendar-timeline-note-label">Release checklist</span>
+                                </button>
+                                <button type="button" class="calendar-timeline-note"><span class="calendar-timeline-note-label">Sprint review</span></button>
                             </div>
                         </div>
                     </article>
@@ -564,15 +583,15 @@
                         </div>
                     </article>
                     <article class="ds-specimen">
-                        <header><h3>Segmented control</h3><code class="ds-selector">.settings-segmented-control</code></header>
+                        <header><h3>Segmented control</h3><code class="ds-selector">.ui-segmented-control</code></header>
                         <div class="ds-demo ds-form-stack">
-                            <div class="settings-segmented-control" role="group" aria-label="Card density example">
-                                <button class="active" aria-pressed="true">Comfortable</button>
-                                <button aria-pressed="false">Compact</button>
+                            <div class="ui-segmented-control" role="group" aria-label="Card density example">
+                                <button class="ui-button" aria-pressed="true">Comfortable</button>
+                                <button class="ui-button" aria-pressed="false">Compact</button>
                             </div>
-                            <div class="settings-segmented-control" role="group" aria-label="Column flow example">
-                                <button aria-pressed="false">Side by side</button>
-                                <button class="active" aria-pressed="true">Stacked</button>
+                            <div class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Calendar presentation example">
+                                <button class="ui-button" aria-pressed="false">Month</button>
+                                <button class="ui-button" aria-pressed="true">Timeline</button>
                             </div>
                         </div>
                     </article>
@@ -626,6 +645,11 @@
                                     </div>
                                     <button type="button" class="ui-icon-button md-cheatsheet-close" aria-label="Close Figaro help">×</button>
                                 </div>
+                                <div class="md-help-search-box">
+                                    <label class="sr-only" for="catalog-help-search">Search help and settings</label>
+                                    <input type="search" class="ui-field md-help-search" id="catalog-help-search"
+                                           placeholder="Search help and settings…" aria-label="Search help and settings">
+                                </div>
                                 <div class="md-cheatsheet-panel" id="catalog-help-markdown-panel" role="tabpanel" aria-labelledby="catalog-help-markdown-tab" tabindex="-1" hidden></div>
                                 <div class="md-cheatsheet-panel" id="catalog-help-macros-panel" role="tabpanel" aria-labelledby="catalog-help-macros-tab" tabindex="-1" hidden>
                                     <table>
@@ -644,6 +668,7 @@
                                         <tr><td><code>Ctrl/Cmd+Shift+B</code></td><td>Toggle sidebar</td></tr>
                                         <tr><td><code>Ctrl+PageUp</code> <code>Ctrl+PageDown</code></td><td>Previous / next open buffer</td></tr>
                                         <tr><td><code>Ctrl/Cmd+F</code></td><td>Find and replace in current file</td></tr>
+                                        <tr><td><code>Escape</code> then <code>Tab</code> / <code>Shift+Tab</code></td><td>Move focus out of the editor</td></tr>
                                         <tr><td><code>Ctrl/Cmd+B</code></td><td>Bold</td></tr>
                                         <tr><td><code>Ctrl/Cmd+I</code></td><td>Italic</td></tr>
                                         <tr><td><code>Ctrl/Cmd+K</code></td><td>Link</td></tr>
@@ -707,6 +732,25 @@
                 </header>
 
                 <div class="ds-specimen-grid ds-specimen-grid--two">
+                    <article class="ds-specimen">
+                        <header><h3>Graph canvas</h3><code class="ds-selector">.ui-graph-canvas</code></header>
+                        <div class="ds-demo ds-graph-demo">
+                            <div class="ds-graph-stage">
+                                <svg class="ui-graph-canvas graph-canvas ds-graph-canvas" viewBox="0 0 420 210" tabindex="0" role="img" aria-label="Example graph canvas with five linked notes">
+                                    <defs><marker id="ds-graph-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z"/></marker></defs>
+                                    <g class="ds-graph-edges" aria-hidden="true"><path d="M65 120 168 64M183 64l79 37M278 100l69-34M277 112l37 52M175 70l0 77"/></g>
+                                    <g class="ds-graph-nodes" aria-hidden="true"><circle class="ds-graph-node-root" cx="65" cy="120" r="7"/><circle class="ds-graph-node-project" cx="175" cy="60" r="10"/><circle class="ds-graph-node-reference" cx="355" cy="63" r="6"/><circle class="ds-graph-node-reference" cx="320" cy="170" r="6"/><circle class="ds-graph-node-project-nested" cx="175" cy="155" r="5"/></g>
+                                    <g class="ds-graph-custom-icon" transform="translate(258 93)" aria-hidden="true"><path d="m12 2 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z"/></g>
+                                    <g class="ds-graph-labels" aria-hidden="true"><text x="175" y="42">Roadmap</text><text x="270" y="88">Design notes</text><text x="65" y="103">Today</text></g>
+                                </svg>
+                                <div class="graph-floating-controls">
+                                    <div class="graph-canvas-controls" role="group" aria-label="Graph zoom controls example"><button class="ui-icon-button" aria-label="Zoom out">−</button><button class="ui-icon-button" aria-label="Fit graph">0</button><button class="ui-icon-button" aria-label="Zoom in">+</button></div>
+                                    <label class="graph-filter"><span class="sr-only">Filter graph example</span><input type="search" class="ui-field graph-filter-input" placeholder="Filter graph…"></label>
+                                    <button class="ui-button graph-show-orphans" aria-pressed="true">Orphans</button>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
                     <article class="ds-specimen">
                         <header><h3>Settings card</h3><code class="ds-selector">.settings-card</code></header>
                         <div class="ds-demo">
@@ -996,6 +1040,7 @@ title: A quiet workspace
                             <tr><td>Tooltips</td><td>Control hints, Calendar, managed files, Markdown links</td><td><code>.ui-tooltip</code> surface; feature content and placement hooks</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Document tabs</td><td>Active, dirty, pinned, hover, and focus</td><td><code>.ui-document-tab</code> + state modifiers</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Editor folding</td><td>Code arrows plus typed Markdown guides in expanded, collapsed, hover, focus, and active states</td><td><code>.ui-editor-fold-control</code>, <code>.ui-editor-block-guide</code></td><td><span class="is-decided">Approved</span></td></tr>
+                            <tr><td>Graph canvas</td><td>Idle, focus, panning, and loading states</td><td><code>.ui-graph-canvas</code></td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Content skeletons</td><td>Calendar month cells and Kanban columns/cards</td><td><code>.ui-skeleton</code> shimmer; feature-owned geometry</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Determinate progress</td><td>Accessible track and value fill</td><td><code>.ui-progress</code> family</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Cards</td><td>Settings, home, Kanban, results, health</td><td>Surface tokens only</td><td><span>Keep layouts</span></td></tr>

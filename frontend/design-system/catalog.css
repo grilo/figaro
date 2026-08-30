@@ -435,6 +435,12 @@ a:focus-visible {
     box-sizing: border-box;
 }
 
+.ds-calendar-timeline-notes {
+    display: grid;
+    width: min(100%, 220px);
+    gap: 7px;
+}
+
 .ds-tooltip-demo {
     display: flex;
     align-items: center;
@@ -614,6 +620,40 @@ a:focus-visible {
     font-size: 10px;
 }
 
+.ds-side-tab-demo {
+    display: grid;
+    grid-template-columns: 116px minmax(0, 1fr);
+    min-height: 104px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: var(--ui-control-radius);
+    background: var(--workspace-surface);
+}
+
+.ds-side-tab-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 0 10px 8px;
+    border-right: 1px solid var(--border-color);
+    background: var(--navigation-surface);
+}
+
+.ds-side-tab {
+    display: flex;
+    width: calc(100% + 1px);
+    min-height: 32px;
+    align-items: center;
+    padding: 0 10px;
+    text-align: left;
+}
+
+.ds-side-tab-workspace {
+    padding: 14px;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
 .ds-sidebar-demo .sidebar-tools {
     position: relative;
     width: 100%;
@@ -683,6 +723,60 @@ a:focus-visible {
 
 .ds-native-check {
     justify-content: flex-start;
+}
+
+.ds-graph-demo {
+    display: grid;
+    gap: 10px;
+}
+
+.ds-graph-stage {
+    position: relative;
+    height: 210px;
+}
+
+.ds-graph-canvas {
+    width: 100%;
+    height: 210px;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+}
+
+.ds-graph-edges {
+    fill: none;
+    stroke: var(--border-light);
+    stroke-linecap: round;
+    stroke-width: 1.4;
+    marker-end: url(#ds-graph-arrow);
+}
+
+#ds-graph-arrow {
+    fill: var(--border-light);
+}
+
+.ds-graph-nodes {
+    fill: var(--accent-color);
+    stroke: var(--editor-surface);
+    stroke-width: 3;
+}
+
+.ds-graph-nodes .ds-graph-node-root { fill: var(--accent-color); }
+.ds-graph-nodes .ds-graph-node-project { fill: #3b82f6; }
+.ds-graph-nodes .ds-graph-node-project-nested { fill: #4d8df7; }
+.ds-graph-nodes .ds-graph-node-reference { fill: var(--success-color); }
+
+.ds-graph-custom-icon {
+    fill: none;
+    stroke: #ef4444;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+}
+
+.ds-graph-labels {
+    fill: var(--text-color);
+    font: 500 11px var(--font-ui);
+    text-anchor: middle;
 }
 
 .ds-menu-grid .ds-demo {

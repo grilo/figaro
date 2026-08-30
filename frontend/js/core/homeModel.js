@@ -108,5 +108,3 @@ export function homeCollections({
         todayExists: files.some(item => todayPaths.has(normalizedPath(item.path))),
     };
 }
-
-export default { homeCollections, localDatePath, todayNotePlan, todayPresentation };

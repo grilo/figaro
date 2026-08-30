@@ -22,6 +22,26 @@ function conventionalMarkdownLinkAtPosition(line, column) {
     return null;
 }
 
+// Return a validated web URL only for the desktop modifier-click gesture.
+// Vault paths and every non-web scheme deliberately remain outside this plan.
+export function modifiedExternalBrowserURL(target, {
+    button = 0,
+    ctrlKey = false,
+    metaKey = false,
+    altKey = false,
+    shiftKey = false,
+} = {}) {
+    if (button !== 0 || (!ctrlKey && !metaKey) || altKey || shiftKey) return '';
+    const value = String(target || '').trim();
+    if (!/^https?:\/\//i.test(value)) return '';
+    try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+    } catch (_) {
+        return '';
+    }
+}
+
 // Return the destination range of the conventional Markdown link covering a
 // position on one source line. Images are deliberately excluded.
 export function markdownLinkDestinationAtPosition(line, column) {

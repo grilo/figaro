@@ -70,6 +70,7 @@ import {
     markdownLinkDestinationAtPosition,
     markdownReferenceDefinitions,
     markdownReferenceLink,
+    modifiedExternalBrowserURL,
     planMarkdownLinkTargetReplacement,
     resolveMarkdownReferenceLink,
 } from './core/noteLinks.js';
@@ -1463,7 +1464,7 @@ function linkPreview() {
                 return;
             }
 
-            this.showTooltip(event, url, /^https?:\/\//.test(url));
+            this.showTooltip(event, url, /^https?:\/\//i.test(url));
         };
 
         onMouseOut = (event) => {
@@ -1480,7 +1481,16 @@ function linkPreview() {
             dom.addEventListener('mouseleave', () => this.hideTooltip());
 
             if (isExternal) {
-                dom.innerHTML = '<span class="lh-type">External link</span><span class="lh-url">' + url + '</span>';
+                const type = document.createElement('span');
+                type.className = 'lh-type';
+                type.textContent = 'External link';
+                const destination = document.createElement('span');
+                destination.className = 'lh-url';
+                destination.textContent = url;
+                const hint = document.createElement('span');
+                hint.className = 'lh-hint';
+                hint.textContent = 'Ctrl/Cmd-click to open in your browser';
+                dom.append(type, destination, hint);
             } else {
                 const displayUrl = (() => { try { return decodeURI(url); } catch (_) { return url; } })();
                 dom.innerHTML = '<span class="lh-type">File link</span><span class="lh-path">' + displayUrl + '</span><span class="lh-status lh-checking">...</span>';
@@ -3022,7 +3032,7 @@ function updateStats(text) {
 }
 
 async function saveActiveFile() {
-    return saveActiveTabFile();
+    return saveActiveTabFile({ failurePrompt: 'always' });
 }
 
 /** Save the exact active editor buffer, then close only after save success. */
@@ -3032,7 +3042,7 @@ export async function saveAndCloseActiveFile() {
 
     const content = getEditorContent();
     try {
-        const result = await saveFileSnapshot(tab, content);
+        const result = await saveFileSnapshot(tab, content, { failurePrompt: 'always' });
         if (!result?.success) return false;
 
         const currentTab = (getState('openTabs') || []).find(candidate => candidate.id === tab.id);
@@ -3132,7 +3142,10 @@ function handleMouseDown(event, view) {
         } else {
             const href = linkEl.getAttribute('href');
             if (href) {
-                if (/^https?:\/\//.test(href)) {
+                const externalURL = modifiedExternalBrowserURL(href, event);
+                if (externalURL) {
+                    openExternalBrowserURL(externalURL);
+                } else if (/^https?:\/\//i.test(href)) {
                     window.open(href, '_blank');
                 } else {
                     handleLinkClick(
@@ -3153,7 +3166,9 @@ function handleMouseDown(event, view) {
         const label = referenceSource.dataset.referenceLabel || referenceSource.textContent;
         if (target) {
             event.preventDefault();
-            if (/^https?:\/\//i.test(target)) window.open(target, '_blank');
+            const externalURL = modifiedExternalBrowserURL(target, event);
+            if (externalURL) openExternalBrowserURL(externalURL);
+            else if (/^https?:\/\//i.test(target)) window.open(target, '_blank');
             else handleLinkClick(target, label, replaceCurrent);
             return true;
         }
@@ -3166,6 +3181,11 @@ function handleMouseDown(event, view) {
     const navigation = markdownEditorNavigationAtPosition(lt, col);
     if (navigation?.kind === 'link') {
         event.preventDefault();
+        const externalURL = modifiedExternalBrowserURL(navigation.target, event);
+        if (externalURL) {
+            openExternalBrowserURL(externalURL);
+            return true;
+        }
         handleLinkClick(navigation.target, navigation.label, replaceCurrent, {
             from: line.from + navigation.destinationFrom,
             to: line.from + navigation.destinationTo,
@@ -3175,7 +3195,7 @@ function handleMouseDown(event, view) {
     }
     if (navigation?.kind === 'hashtag') {
         event.preventDefault();
-        openTab('kanban-board', 'Kanban', 'kanban', { focusCol: navigation.tag });
+        openTab('kanban', 'Kanban', 'kanban', { focusCol: navigation.tag });
         return true;
     }
     const wiki = wikiLinkAtPosition(lt, col);
@@ -3184,6 +3204,22 @@ function handleMouseDown(event, view) {
         handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, replaceCurrent);
         return true;
     }
+}
+
+function openExternalBrowserURL(url) {
+    try {
+        if (typeof window.runtime?.BrowserOpenURL === 'function') {
+            window.runtime.BrowserOpenURL(url);
+            return true;
+        }
+        if (typeof window.open === 'function') {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return true;
+        }
+    } catch (error) {
+        log.warn('Could not open external Markdown link:', error);
+    }
+    return false;
 }
 
 function markdownLinkEditForClick(view, coordinatePosition, linkElement) {

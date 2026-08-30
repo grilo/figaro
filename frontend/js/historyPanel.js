@@ -16,8 +16,10 @@ import { saveFileSnapshot } from './tabManager.js';
 import { renderMarkdownDiff } from './historyDiff.js';
 import {
     compactEditorRequired,
+    rightSidebarBounds,
     rightSidebarWidth,
 } from './core/rightSidebarLayout.js';
+import { paneSeparatorKeyboardPlan } from './core/paneSeparatorModel.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
 
 let liveContent = null;
@@ -297,7 +299,6 @@ async function openHistoryPanel() {
     document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
     document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
     document.dispatchEvent(new CustomEvent('close-raw-text-preview', { detail: { keepSidebarOpen: true } }));
-
     const histContent = document.getElementById('history-content');
     const rightTitle = document.getElementById('right-sidebar-title');
 
@@ -668,6 +669,36 @@ export function initRightSidebarResizer() {
 
     let startX, startWidth, workspaceWidth, activePointerId = null;
 
+    const applyWidth = (width, availableWidth) => {
+        sidebar.style.width = width + 'px';
+        sidebar.style.minWidth = width + 'px';
+        document.documentElement.style.setProperty('--right-sidebar-width', width + 'px');
+        resizer.setAttribute('aria-valuenow', String(Math.round(width)));
+        resizer.setAttribute('aria-valuetext', `${Math.round(width)} pixels wide`);
+        updateRightSidebarEditorLayout(availableWidth - width);
+        resizeEvent('right-sidebar-resize', sidebar, width);
+    };
+
+    const syncAccessibility = () => {
+        const width = sidebar.offsetWidth || Number.parseFloat(sidebar.style.width) || 320;
+        const main = document.getElementById('main-content');
+        const availableWidth = elementWidth(main) + width;
+        const bounds = rightSidebarBounds({
+            workspaceWidth: availableWidth,
+            pdfPreview: sidebar.classList.contains('pdf-preview-mode'),
+        });
+        resizer.setAttribute('aria-valuemin', String(bounds.minimum));
+        resizer.setAttribute('aria-valuemax', String(bounds.maximum));
+        resizer.setAttribute('aria-valuenow', String(Math.round(width)));
+        resizer.setAttribute('aria-valuetext', `${Math.round(width)} pixels wide`);
+    };
+    syncAccessibility();
+    resizer.addEventListener('focus', syncAccessibility);
+    new MutationObserver(syncAccessibility).observe(sidebar, {
+        attributes: true,
+        attributeFilter: ['class', 'data-mode'],
+    });
+
     const beginDrag = (e) => {
         e.preventDefault();
         setRightSidebarOpen(sidebar, true);
@@ -677,6 +708,12 @@ export function initRightSidebarResizer() {
         startWidth = sidebar.offsetWidth || 320;
         const main = document.getElementById('main-content');
         workspaceWidth = elementWidth(main) + startWidth;
+        const bounds = rightSidebarBounds({
+            workspaceWidth,
+            pdfPreview: sidebar.classList.contains('pdf-preview-mode'),
+        });
+        resizer.setAttribute('aria-valuemin', String(bounds.minimum));
+        resizer.setAttribute('aria-valuemax', String(bounds.maximum));
         activePointerId = Number.isFinite(e.pointerId) ? e.pointerId : null;
         if (activePointerId !== null) {
             try { resizer.setPointerCapture?.(activePointerId); } catch (_) { /* WebKit may reject capture during teardown. */ }
@@ -702,11 +739,7 @@ export function initRightSidebarResizer() {
             workspaceWidth,
             pdfPreview: isPDFPreview,
         });
-        sidebar.style.width = newWidth + 'px';
-        sidebar.style.minWidth = newWidth + 'px';
-        document.documentElement.style.setProperty('--right-sidebar-width', newWidth + 'px');
-        updateRightSidebarEditorLayout(workspaceWidth - newWidth);
-        resizeEvent('right-sidebar-resize', sidebar, newWidth);
+        applyWidth(newWidth, workspaceWidth);
     }
 
     function endDrag(e) {
@@ -736,4 +769,31 @@ export function initRightSidebarResizer() {
     } else {
         resizer.addEventListener('mousedown', beginDrag);
     }
+
+    resizer.addEventListener('keydown', event => {
+        if (!sidebar.classList.contains('open')) return;
+        const currentWidth = sidebar.offsetWidth || Number.parseFloat(sidebar.style.width) || 320;
+        const main = document.getElementById('main-content');
+        const availableWidth = elementWidth(main) + currentWidth;
+        const pdfPreview = sidebar.classList.contains('pdf-preview-mode');
+        const bounds = rightSidebarBounds({ workspaceWidth: availableWidth, pdfPreview });
+        resizer.setAttribute('aria-valuemin', String(bounds.minimum));
+        resizer.setAttribute('aria-valuemax', String(bounds.maximum));
+        const plan = paneSeparatorKeyboardPlan({
+            key: event.key,
+            width: currentWidth,
+            minimum: bounds.minimum,
+            maximum: bounds.maximum,
+            shiftKey: event.shiftKey,
+            increaseOnArrowRight: false,
+        });
+        if (!plan.handled) return;
+        event.preventDefault();
+        event.stopPropagation();
+        resizeEvent('right-sidebar-resize-start', sidebar, currentWidth);
+        applyWidth(plan.width, availableWidth);
+        updateRightSidebarEditorLayout();
+        resizeEvent('right-sidebar-resize-end', sidebar, plan.width);
+        window.dispatchEvent(new Event('resize'));
+    });
 }

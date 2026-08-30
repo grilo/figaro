@@ -110,10 +110,3 @@ export async function initEditorNavigationSettings(root = document) {
         });
     }
 }
-
-export default {
-    getEditorNavigationPreference,
-    initEditorNavigationPreference,
-    initEditorNavigationSettings,
-    setEditorNavigationPreference,
-};

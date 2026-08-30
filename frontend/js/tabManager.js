@@ -4,17 +4,23 @@ import { backend } from './backend.js';
  */
 
 import { log } from './log.js';
-import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, settingsIcon, warningIcon } from './icons.js';
+import { fileIcon, calendarIcon, backlinksIcon, kanbanIcon, graphIcon, settingsIcon, warningIcon } from './icons.js';
 import { setState, getState, subscribe, recordRecentFile } from './state.js';
 import { saveSession } from './session.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState, configureEditorForFile, createEditorView, setImageBasePath } from './editor.js';
 import { statusBar } from './statusBar.js';
-import { errorDialog } from './dialogs.js';
+import { errorDialog, saveFailureDialog } from './dialogs.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
 import { playEntranceAnimation, playExitAnimation } from './motion.js';
 import { shouldCommitOnSave } from './automation.js';
 import { renderHome } from './home.js';
-import { invalidateCalendarCache, loadCalendarResults, refreshCalendarIfVisible } from './calendar.js';
+import {
+    invalidateCalendarCache,
+    loadCalendarResults,
+    prepareCalendarOpen,
+    refreshCalendarIfVisible,
+    renderCalendar,
+} from './calendar.js';
 import { loadBacklinksResults } from './backlinks.js';
 import {
     applyKanbanPresentationToViews,
@@ -23,6 +29,7 @@ import {
 } from './kanban.js';
 import { renderVaultHealth } from './vaultHealth.js';
 import { renderDrawioTab } from './drawio.js';
+import { createGraphView } from './graphView.js';
 import { initSettingsPanel } from './theme.js';
 import { isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
@@ -40,8 +47,10 @@ import {
 } from './editorTextScale.js';
 import {
     compactTabTitle,
+    isSidebarWorkspaceTab,
     tabAccessibleLabel,
     tabLocationLabel,
+    titleBarTabs,
 } from './core/tabPresentationModel.js';
 import { createDocumentSave } from './usecases/documentSave.js';
 import { loadApplicationVersion } from './usecases/loadApplicationVersion.js';
@@ -208,7 +217,7 @@ function snapshotActiveFileTab(tab) {
     }
     const cursorState = saveCursorState(tab.id);
     if (cursorState) tab.cursorState = cursorState;
-    if (tab.dirty) saveFileSnapshot(tab, contentSnapshotForTab(tab));
+    if (tab.dirty) void saveFileSnapshot(tab, contentSnapshotForTab(tab)).catch(() => {});
 }
 
 function normalizeTabPath(path) {
@@ -314,7 +323,7 @@ function getTabDropDestination(tabStrip, event) {
         };
     }
 
-    const visibleTabs = sortTabsForDisplay(tabs, pinned)
+    const visibleTabs = sortTabsForDisplay(titleBarTabs(tabs), pinned)
         .filter(tab => tab.id !== draggedTabId && pinned.includes(tab.id) === draggedPinned);
     if (!visibleTabs.length) return null;
 
@@ -364,6 +373,9 @@ function revealActiveTab(tabStrip) {
 
     const viewport = tabStrip.getBoundingClientRect();
     const tab = activeTab.getBoundingClientRect();
+    const junctionInset = Number.parseFloat(
+        getComputedStyle(activeTab).getPropertyValue('--connected-tab-junction-radius')
+    ) || 0;
     const leadingInset = Number.parseFloat(getComputedStyle(tabStrip).paddingLeft) || 0;
     const target = activeTabScrollTarget({
         currentScroll: tabStrip.scrollLeft,
@@ -371,6 +383,7 @@ function revealActiveTab(tabStrip) {
         viewportEnd: viewport.right,
         tabStart: tab.left,
         tabEnd: tab.right,
+        junctionInset,
         maxScroll: Math.max(0, tabStrip.scrollWidth - tabStrip.clientWidth),
     });
     if (Math.abs(target - tabStrip.scrollLeft) > 0.5) {
@@ -685,10 +698,13 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     const shouldActivate = data.activate !== false;
     const preparedFile = data.preparedFile || null;
     
-    if (!forceNew || data.externalFileId) {
-        const existing = tabs.find(t => t.id === id);
+    if (isSidebarWorkspaceTab({ type }) || !forceNew || data.externalFileId) {
+        const existing = isSidebarWorkspaceTab({ type })
+            ? tabs.find(tab => tab.type === type)
+            : tabs.find(tab => tab.id === id);
         if (existing) {
             if (existing.type === 'file' && data.line) existing.searchLine = data.line;
+            if (existing.type === 'kanban' && data.focusCol) existing.focusCol = data.focusCol;
             if (shouldActivate) switchTab(existing.id, {
                 // A dirty buffer remains authoritative over any disk snapshot
                 // read while activating it from the file tree.
@@ -721,12 +737,15 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     case 'calendar':
         tab.dateStr = data.dateStr;
         break;
+    case 'calendar-workspace':
+        break;
     case 'backlinks':
         tab.targetPath = data.targetPath;
         break;
     case 'kanban':
         tab.focusCol = data.focusCol;
         break;
+    case 'graph':
     case 'settings':
     case 'health':
         break;
@@ -863,6 +882,8 @@ export async function switchTab(tabId, {
     await contentReady;
     if (!preserveTabFocus && tab.type === 'settings' && activationId === tabActivationGeneration) {
         document.querySelector('.tab-panel.active .settings-view-title')?.focus({ preventScroll: true });
+    } else if (!preserveTabFocus && tab.type === 'graph' && activationId === tabActivationGeneration) {
+        document.querySelector('.tab-panel.active .graph-canvas')?.focus({ preventScroll: true });
     }
     return true;
 }
@@ -891,16 +912,22 @@ async function renderTabContent(
             panel.dataset.tabId = tab.id;
             panelsContainer.appendChild(panel);
         }
+        if (isSidebarWorkspaceTab(tab)) {
+            const workspaceName = tab.type === 'calendar-workspace' ? 'calendar' : tab.type;
+            panel.id = `${workspaceName}-workspace-panel`;
+        }
         panel.classList.add('active');
 
-        if (['calendar', 'kanban', 'settings', 'health'].includes(tab.type)) {
+        if (['calendar', 'calendar-workspace', 'kanban', 'graph', 'settings', 'health'].includes(tab.type)) {
             playEntranceAnimation(panel);
         }
         
         switch (tab.type) {
         case 'calendar': renderCalendarTab(panel, tab); break;
+        case 'calendar-workspace': renderCalendarWorkspaceTab(panel); break;
         case 'backlinks': renderBacklinksTab(panel, tab); break;
         case 'kanban': renderKanbanTab(panel, tab); break;
+        case 'graph': renderGraphTab(panel, tab); break;
         case 'settings': renderSettingsTab(panel, tab); break;
         case 'health': renderVaultHealthTab(panel); break;
         case 'drawio': renderDrawioDiagramTab(panel, tab); break;
@@ -1032,6 +1059,16 @@ function renderCalendarTab(panel, tab) {
     loadCalendarResults(tab.dateStr, `calendar-results-${tab.dateStr}`);
 }
 
+function renderCalendarWorkspaceTab(panel) {
+    const calendar = document.getElementById('calendar-workspace-view');
+    if (!calendar) return;
+    if (calendar.parentElement !== panel) panel.appendChild(calendar);
+    calendar.classList.add('open');
+    calendar.setAttribute('aria-hidden', 'false');
+    prepareCalendarOpen();
+    renderCalendar();
+}
+
 function renderBacklinksTab(panel, tab) {
     const fileName = tab.targetPath.split('/').pop().replace('.md', '');
     panel.innerHTML = `<div class="backlinks-view-wrapper"><div class="backlinks-view-header"><h2>Relationships for [[${fileName}]]</h2><p class="backlinks-subtitle">Linked notes and plain-text mentions across your vault.</p></div><div class="results-list" id="backlinks-results-${tab.id}"></div></div>`;
@@ -1044,6 +1081,31 @@ function renderKanbanTab(panel, tab) {
     panel.innerHTML = `<div class="kanban-view-wrapper" data-density="${density}" data-layout="${layout}"><div class="kanban-view-header"><div><h2>Kanban Task Board</h2><p class="kanban-instruction">Tab through cards; use arrow keys to reorder or move the focused card. Enter opens its source, D changes its due date, and Delete removes its tag. You can also drag cards between columns.</p></div></div><div class="kanban-board" id="kanban-board-main"></div></div>`;
     applyKanbanPresentationToViews(density, layout);
     renderKanbanBoard('kanban-board-main', tab.focusCol);
+}
+
+function renderGraphTab(panel) {
+    if (!panel.classList.contains('active') || !panel.isConnected) return;
+    if (panel._graphViewSession) {
+        panel._graphViewSession.activate();
+        return;
+    }
+    panel._graphViewSession = createGraphView(panel, {
+        loadGraph: () => backend().GetVaultGraph(),
+        loadAppearance: () => backend().GetFileTreeStyles(),
+        openNote: async path => {
+            const file = await backend().ReadFile(path);
+            if (!file || file.binary) throw new Error('The selected graph note could not be opened.');
+            openTab(path, path.split('/').pop() || path, 'file', {
+                path,
+                mtime: file.mtime,
+                preparedFile: file,
+            });
+        },
+        reportError: error => {
+            log.error('Graph view failed:', error);
+            statusBar.set('Graph is unavailable right now');
+        },
+    });
 }
 
 function renderVaultHealthTab(panel) {
@@ -1067,6 +1129,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
     let tabs = getState('openTabs');
     let tab = tabs.find(t => t.id === tabId);
     if (!tab) return false;
+    if (isSidebarWorkspaceTab(tab)) return false;
     
     if (tab.dirty && (tab.type === 'file' || tab.type === 'drawio')) {
         const shouldClose = await window.confirmDialog(
@@ -1081,7 +1144,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
     
     const panel = document.querySelector(`.tab-panel[data-tab-id="${tabId}"]`);
     if (panel) {
-        if (animate && getState('activeTabId') === tabId && ['kanban', 'settings'].includes(tab.type)) {
+        if (animate && getState('activeTabId') === tabId && tab.type === 'settings') {
             await playExitAnimation(panel);
         }
 
@@ -1092,6 +1155,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         tab = tabs.find(candidate => candidate.id === tabId);
         if (!tab) return true;
         panel._settingsPanelDisposed = tab.type === 'settings';
+        panel._graphViewSession?.dispose?.();
         panel._drawioSession?.dispose?.();
         panel.remove();
     }
@@ -1167,7 +1231,7 @@ export async function replaceActiveFileTab(id, title, type, data = {}) {
 }
 
 /**
- * Keep open file and Draw.io tabs, their panel identities, pin state, and the
+ * Keep open file and Draw.io tab paths, panel identities, pin state, and the
  * persisted session in sync after a successful filesystem move.
  */
 export function updateTabsForMovedPath(oldPath, newPath) {
@@ -1459,7 +1523,10 @@ export function renderTabBar() {
     if (!tabStrip) return;
     
     // Sort: pinned first, then unpinned.
-    const sorted = sortTabsForDisplay(tabs, pinned);
+    const sorted = sortTabsForDisplay(titleBarTabs(tabs), pinned);
+    const keyboardTabId = sorted.some(tab => tab.id === activeId)
+        ? activeId
+        : sorted.at(-1)?.id;
 
     tabStrip.innerHTML = sorted.map(tab => {
         const isPinned = pinned.includes(tab.id);
@@ -1486,7 +1553,7 @@ export function renderTabBar() {
         <div class="${tabClasses}"
                 data-tab-id="${tab.id}"
                 role="tab"
-                tabindex="${isActive ? '0' : '-1'}"
+                tabindex="${tab.id === keyboardTabId ? '0' : '-1'}"
                 aria-selected="${isActive}"
                 aria-label="${escapeHtml(accessibleLabel)}"
                 title="${escapeHtml(tooltip)}">
@@ -1507,6 +1574,7 @@ function getTabIcon(type) {
     case 'calendar': return calendarIcon(14, 2);
     case 'backlinks': return backlinksIcon(14, 2);
     case 'kanban': return kanbanIcon(14, 2);
+    case 'graph': return graphIcon(14, 2);
     case 'settings': return settingsIcon(14, 2);
     case 'health': return warningIcon(14, 2);
     default: return '';
@@ -1567,10 +1635,10 @@ function handleTabContextMenu(e) {
     });
 }
 
-export function saveActiveFile() {
+export function saveActiveFile(options = {}) {
     const activeTab = getActiveTab();
     if (!activeTab || activeTab.type !== 'file' || !getEditorView()) return Promise.resolve(null);
-    return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab));
+    return saveFileSnapshot(activeTab, contentSnapshotForTab(activeTab), options);
 }
 
 function contentSnapshotForTab(tab) {
@@ -1580,6 +1648,78 @@ function contentSnapshotForTab(tab) {
         return getEditorContent();
     }
     return typeof tab._content === 'string' ? tab._content : '';
+}
+
+const saveFailureEpisodes = new WeakMap();
+
+function waitForModalClose(tab, episode) {
+    if (episode.waitingForModal) return;
+    episode.waitingForModal = true;
+    document.addEventListener('figaro:modal-closed', () => {
+        episode.waitingForModal = false;
+        setTimeout(() => {
+            if (saveFailureEpisodes.get(tab) === episode) void presentSaveFailure(tab, episode);
+        }, 0);
+    }, { once: true });
+}
+
+async function copyUnsavedText(tab) {
+    const text = contentSnapshotForTab(tab);
+    try {
+        if (typeof navigator.clipboard?.writeText !== 'function') throw new Error('Clipboard access is unavailable.');
+        await navigator.clipboard.writeText(text);
+        statusBar.set('Unsaved text copied; the file is still not saved');
+    } catch (error) {
+        await errorDialog(
+            'Couldn’t copy unsaved text',
+            error,
+            'Clipboard access is unavailable. Keep Figaro open while you recover the text.',
+        );
+    }
+}
+
+async function presentSaveFailure(tab, episode) {
+    if (saveFailureEpisodes.get(tab) !== episode || episode.prompting || episode.dismissed) return;
+    if (!getState('openTabs').includes(tab) || !tab.dirty) {
+        saveFailureEpisodes.delete(tab);
+        return;
+    }
+    if (document.body.classList.contains('custom-modal-open')) {
+        waitForModalClose(tab, episode);
+        return;
+    }
+
+    episode.prompting = true;
+    const choice = await saveFailureDialog(tab.title, episode.error);
+    episode.prompting = false;
+    if (saveFailureEpisodes.get(tab) !== episode) return;
+
+    if (choice === 'confirm') {
+        try {
+            await saveFileSnapshot(tab, contentSnapshotForTab(tab), { failurePrompt: 'retry' });
+        } catch (_) {
+            if (saveFailureEpisodes.get(tab) === episode) void presentSaveFailure(tab, episode);
+        }
+        return;
+    }
+    episode.dismissed = true;
+    if (choice === 'extra') await copyUnsavedText(tab);
+}
+
+function reportSaveFailure(snapshot, error) {
+    const { tab } = snapshot;
+    if (!isLatestSave(tab, snapshot)) return;
+    statusBar.set(saveFailureStatusMessage(error));
+
+    let episode = saveFailureEpisodes.get(tab);
+    if (!episode) {
+        episode = { error, prompting: false, dismissed: false, waitingForModal: false };
+        saveFailureEpisodes.set(tab, episode);
+    } else {
+        episode.error = error;
+        if (snapshot.failurePrompt === 'always') episode.dismissed = false;
+    }
+    if (!episode.dismissed) void presentSaveFailure(tab, episode);
 }
 
 const documentSave = createDocumentSave({
@@ -1598,7 +1738,7 @@ const documentSave = createDocumentSave({
     onSaved: applySaveSuccess,
     onFailed: (snapshot, error) => {
         log.error('Save failed:', error);
-        if (isLatestSave(snapshot.tab, snapshot)) statusBar.set(saveFailureStatusMessage(error));
+        reportSaveFailure(snapshot, error);
     },
 });
 
@@ -1615,6 +1755,7 @@ async function applySaveSuccess(snapshot, result, {
     successMessage,
 }) {
     const { tab, content } = snapshot;
+    saveFailureEpisodes.delete(tab);
     tab.mtime = result.mtime;
     const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
     tabsForPath.forEach(candidate => {
@@ -1710,7 +1851,7 @@ function initAllTabsDropdown() {
 }
 
 function renderAllTabsDropdown(dropdown) {
-    const tabs = getState('openTabs');
+    const tabs = titleBarTabs(getState('openTabs'));
     const activeId = getState('activeTabId');
     dropdown.innerHTML = tabs.map(t => {
         const active = t.id === activeId ? ' active' : '';
@@ -1727,30 +1868,6 @@ function escapeHtml(str) {
     div.textContent = str;
     return div.innerHTML;
 }
-
-export default {
-    initTabManager,
-    openTab,
-    closeTab,
-    switchTab,
-    getActiveTab,
-    markTabDirty,
-    updateTabTitle,
-    reorderTab,
-    movedTabPath,
-    replaceActiveFileTab,
-    updateTabsForMovedPath,
-    prepareTabsForPathMove,
-    prepareTabsForPathCopy,
-    prepareTabsForPathDelete,
-    prepareTabsForVaultLinkRewrite,
-    refreshTabsForUpdatedLinks,
-    closeTabsForDeletedPath,
-    saveActiveFile,
-    saveFileSnapshot,
-    renderTabBar
-};
-
 
 function renderSettingsTab(panel, _tab) {
     // Only render content once while this tab remains open.
@@ -1812,13 +1929,13 @@ function renderSettingsTab(panel, _tab) {
                         <div class="settings-row">
                             <span id="pure-typewriter-description" class="settings-row-label">Typewriter scrolling</span>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="pure-typewriter-toggle" data-pure-setting aria-label="Use smooth typewriter scrolling in Pure mode" aria-describedby="pure-typewriter-description" checked>
+                                <input type="checkbox" id="pure-typewriter-toggle" data-pure-setting aria-label="Use smooth typewriter scrolling in Pure mode" aria-describedby="pure-typewriter-description" title="Keeps newly typed text near a steady vertical position while Pure mode is active." checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="settings-row settings-row--select">
                             <label class="settings-row-label" for="pure-focus-scope">Focus scope</label>
-                            <select id="pure-focus-scope" data-pure-setting aria-label="Pure mode focus scope">
+                            <select id="pure-focus-scope" data-pure-setting aria-label="Pure mode focus scope" title="Dims text outside the current phrase or paragraph while Pure mode is active.">
                                 <option value="off" selected>Off</option>
                                 <option value="phrase">Phrase</option>
                                 <option value="paragraph">Paragraph</option>
@@ -1827,7 +1944,7 @@ function renderSettingsTab(panel, _tab) {
                         <div class="settings-row">
                             <span id="pure-adaptive-typography-description" class="settings-row-label">Adapt text to window size</span>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="pure-adaptive-typography-toggle" data-pure-setting aria-label="Adapt text and writing width to the window size in Pure mode" aria-describedby="pure-adaptive-typography-description">
+                                <input type="checkbox" id="pure-adaptive-typography-toggle" data-pure-setting aria-label="Adapt text and writing width to the window size in Pure mode" aria-describedby="pure-adaptive-typography-description" title="Scales the writing width and typography for the available Pure mode canvas.">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -1862,12 +1979,12 @@ function renderSettingsTab(panel, _tab) {
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                        <span>Text Width</span>
+                        <span id="text-width-label">Text Width</span>
                     </div>
-                    <div class="ui-stepper text-width-control">
-                        <button class="ui-stepper-button text-width-btn" id="text-width-down" title="Narrower">−</button>
+                    <div class="ui-stepper text-width-control" role="group" aria-labelledby="text-width-label">
+                        <button type="button" class="ui-stepper-button text-width-btn" id="text-width-down" title="Decrease the editor text width" aria-label="Decrease editor text width">−</button>
                         <span class="ui-stepper-value text-width-value" id="text-width-value">100%</span>
-                        <button class="ui-stepper-button text-width-btn" id="text-width-up" title="Wider">+</button>
+                        <button type="button" class="ui-stepper-button text-width-btn" id="text-width-up" title="Increase the editor text width" aria-label="Increase editor text width">+</button>
                     </div>
                 </div>
                 <div class="settings-section">
@@ -1899,7 +2016,7 @@ function renderSettingsTab(panel, _tab) {
                         <div class="settings-row">
                             <span id="markdown-block-guides-description" class="settings-row-label">Block guides and folding</span>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="markdown-block-guides-toggle" aria-label="Show Markdown block guides and folding" aria-describedby="markdown-block-guides-description" checked>
+                                <input type="checkbox" id="markdown-block-guides-toggle" aria-label="Show Markdown block guides and folding" aria-describedby="markdown-block-guides-description" title="Shows structural guides and lets headings, lists, quotes, and code blocks be folded." checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -1919,9 +2036,9 @@ function renderSettingsTab(panel, _tab) {
                     </div>
                     <div class="settings-row-group">
                         <div class="settings-row">
-                            <span class="settings-row-label">Enable Vim</span>
+                            <span id="vim-toggle-label" class="settings-row-label">Enable Vim</span>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="vim-toggle">
+                                <input type="checkbox" id="vim-toggle" aria-labelledby="vim-toggle-label" title="Enables Vim motions, modes, and commands inside the editor.">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -1949,9 +2066,9 @@ function renderSettingsTab(panel, _tab) {
                         <span>Line numbers</span>
                     </div>
                     <div class="settings-row">
-                        <span class="settings-row-label">Show line numbers</span>
+                        <span id="line-numbers-toggle-label" class="settings-row-label">Show line numbers</span>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="line-numbers-toggle">
+                            <input type="checkbox" id="line-numbers-toggle" aria-labelledby="line-numbers-toggle-label">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -1964,7 +2081,7 @@ function renderSettingsTab(panel, _tab) {
                     <div class="settings-row">
                         <span class="settings-row-label">Show Markdown lint</span>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="markdown-lint-toggle" aria-label="Show Markdown lint" checked>
+                            <input type="checkbox" id="markdown-lint-toggle" aria-label="Show Markdown lint" title="Marks common Markdown structure problems and moves between them with F8." checked>
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -2001,7 +2118,7 @@ function renderSettingsTab(panel, _tab) {
                     </div>
                     <div class="ui-picker settings-picker link-style-picker">
                         <button type="button" id="link-style-select" class="ui-picker-trigger settings-picker-btn"
-                                role="combobox" aria-label="Links style" aria-haspopup="listbox"
+                                role="combobox" aria-label="Links style" title="Chooses the link syntax Figaro inserts; existing links are left unchanged." aria-haspopup="listbox"
                                 aria-controls="link-style-menu" aria-expanded="false">
                             <span id="link-style-current-name">Wikilinks</span>
                             <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
@@ -2036,7 +2153,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="16" rx="1"/><rect x="14" y="4" width="6" height="16" rx="1"/></svg>
                         <span>Card density</span>
                     </div>
-                    <div class="settings-segmented-control" role="group" aria-label="Kanban card density">
+                    <div class="ui-segmented-control" role="group" aria-label="Kanban card density">
                         <button type="button" class="ui-button" data-kanban-density="comfortable" aria-pressed="false">Comfortable</button>
                         <button type="button" class="ui-button" data-kanban-density="compact" aria-pressed="false">Compact</button>
                     </div>
@@ -2046,7 +2163,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/><path d="M7 5v14"/></svg>
                         <span>Column flow</span>
                     </div>
-                    <div class="settings-segmented-control" role="group" aria-label="Kanban column flow">
+                    <div class="ui-segmented-control" role="group" aria-label="Kanban column flow">
                         <button type="button" class="ui-button" data-kanban-layout="side-by-side" aria-pressed="false">Side by side</button>
                         <button type="button" class="ui-button" data-kanban-layout="stacked" aria-pressed="false">Stacked</button>
                     </div>
@@ -2059,9 +2176,9 @@ function renderSettingsTab(panel, _tab) {
                 <div class="settings-section">
                     <div class="settings-section-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span>Auto-Save</span>
+                        <label for="auto-save-interval">Auto-Save</label>
                     </div>
-                    <select id="auto-save-interval" class="auto-save-select">
+                    <select id="auto-save-interval" class="auto-save-select" title="Controls how often a dirty active note is written without creating a history commit.">
                         <option value="5">5 seconds</option>
                         <option value="10">10 seconds</option>
                         <option value="30">30 seconds</option>
@@ -2097,7 +2214,7 @@ function renderSettingsTab(panel, _tab) {
                         <p id="pdf-browser-status" class="settings-section-desc pdf-browser-status">Loading browser preference…</p>
                     </div>
                     <div class="pdf-browser-actions">
-                        <button type="button" id="pdf-browser-choose" class="ui-button settings-action-btn">Choose…</button>
+                        <button type="button" id="pdf-browser-choose" class="ui-button settings-action-btn" title="Choose the Chromium-family browser Figaro uses to render PDFs.">Choose…</button>
                         <button type="button" id="pdf-browser-clear" class="ui-button settings-action-btn" hidden>Use automatic</button>
                     </div>
                 </div>

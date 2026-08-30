@@ -56,5 +56,3 @@ export function createVaultLoadingSession({ readStatus, present, remove }) {
         },
     };
 }
-
-export default { createVaultLoadingSession };

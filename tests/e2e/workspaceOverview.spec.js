@@ -1,5 +1,124 @@
 import { expect, test } from '@playwright/test';
 
+test('rounds the editor leading corner without a square canvas underlay unless the first tab is selected', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    await page.evaluate(async () => {
+        const { setState } = await import('/js/state.js');
+        const { openTab } = await import('/js/tabManager.js');
+        setState('openTabs', []);
+        setState('activeTabId', null);
+        setState('pinnedTabs', []);
+        document.querySelectorAll('.tab-panel[data-tab-id]').forEach(panel => panel.remove());
+        openTab('first.md', 'First', 'file', { path: 'first.md', isNew: true });
+        openTab('second.md', 'Second', 'file', { path: 'second.md', isNew: true });
+    });
+
+    const leadingCorner = () => page.evaluate(() => {
+        const main = document.getElementById('main-content');
+        const mainContainer = document.querySelector('.main-container');
+        const sidebar = document.getElementById('sidebar');
+        const active = document.querySelector('#tab-strip > .ui-document-tab--active');
+        const innerSurfaces = [
+            document.getElementById('editor-container'),
+            document.querySelector('#editor-container > .cm-editor'),
+        ];
+        const dividerMask = getComputedStyle(document.querySelector('.top-bar-center'), '::after');
+        const sidebarRail = getComputedStyle(document.getElementById('sidebar'), '::after');
+        return {
+            activeId: active?.dataset.tabId || '',
+            activeIsFirst: active?.matches(':first-child') || false,
+            radius: Number.parseFloat(getComputedStyle(main).borderTopLeftRadius),
+            innerRadii: innerSurfaces.map(surface =>
+                Number.parseFloat(getComputedStyle(surface).borderTopLeftRadius)),
+            dividerMask: {
+                content: dividerMask.content,
+                width: dividerMask.width,
+                height: dividerMask.height,
+                pointerEvents: dividerMask.pointerEvents,
+            },
+            sidebarRailTop: Number.parseFloat(sidebarRail.top),
+            backdropMatchesSidebar:
+                getComputedStyle(mainContainer).backgroundColor
+                === getComputedStyle(sidebar).backgroundColor,
+            sharedRadius: Number.parseFloat(
+                getComputedStyle(document.documentElement).getPropertyValue('--ui-menu-radius')
+            ),
+        };
+    });
+
+    await expect.poll(leadingCorner).toEqual({
+        activeId: 'second.md',
+        activeIsFirst: false,
+        radius: 8,
+        innerRadii: [8, 8],
+        dividerMask: {
+            content: '\"\"',
+            width: '8px',
+            height: '1px',
+            pointerEvents: 'none',
+        },
+        sidebarRailTop: 8,
+        backdropMatchesSidebar: true,
+        sharedRadius: 8,
+    });
+
+    await page.locator('.tab[data-tab-id="first.md"]').hover();
+    await expect.poll(() => page.evaluate(() => {
+        const firstTab = document.querySelector('#tab-strip > .ui-document-tab:first-child');
+        const mainContainer = document.querySelector('.main-container');
+        const cornerHover = getComputedStyle(mainContainer, '::before');
+        const dividerHover = getComputedStyle(document.querySelector('.top-bar-center'), '::after');
+        const tabStyle = getComputedStyle(firstTab);
+        return {
+            hovered: firstTab.matches(':hover'),
+            cornerHover: cornerHover.backgroundColor,
+            dividerHover: dividerHover.backgroundColor,
+            dividerStack: dividerHover.zIndex,
+            tabHover: tabStyle.backgroundColor,
+            tabStack: tabStyle.zIndex,
+        };
+    })).toEqual({
+        hovered: true,
+        cornerHover: 'rgba(255, 250, 243, 0.055)',
+        dividerHover: 'rgb(18, 17, 15)',
+        dividerStack: '2',
+        tabHover: 'rgba(255, 250, 243, 0.055)',
+        tabStack: '3',
+    });
+
+    await page.mouse.move(850, 250);
+    await expect.poll(() => page.evaluate(() => {
+        const firstTab = document.querySelector('#tab-strip > .ui-document-tab:first-child');
+        return {
+            hovered: firstTab.matches(':hover'),
+            cornerHover: getComputedStyle(document.querySelector('.main-container'), '::before')
+                .backgroundColor,
+        };
+    })).toEqual({
+        hovered: false,
+        cornerHover: 'rgba(0, 0, 0, 0)',
+    });
+
+    await page.locator('.tab[data-tab-id="first.md"]').click();
+    await expect.poll(leadingCorner).toEqual({
+        activeId: 'first.md',
+        activeIsFirst: true,
+        radius: 0,
+        innerRadii: [0, 0],
+        dividerMask: {
+            content: 'none',
+            width: 'auto',
+            height: 'auto',
+            pointerEvents: 'auto',
+        },
+        sidebarRailTop: 0,
+        backdropMatchesSidebar: true,
+        sharedRadius: 8,
+    });
+});
+
 test('keeps title-bar divider ownership stable while the active tab connects and after the final tab closes', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
@@ -219,7 +338,7 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
     await expect.poll(tabGeometry).toMatchObject({
         activeId: 'overflow-7.md',
         activeInsideStrip: true,
-        activeLeadingOffset: 0,
+        activeLeadingOffset: 8,
         startFade: '1',
         startFadeWidth: '18px',
     });

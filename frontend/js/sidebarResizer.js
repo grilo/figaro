@@ -5,7 +5,13 @@
  */
 
 import { getState, setState } from './state.js';
-import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
+import { SIDEBAR_MAXIMUM, SIDEBAR_MINIMUM, sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
+import { paneSeparatorKeyboardPlan } from './core/paneSeparatorModel.js';
+
+function updateSeparatorValue(resizer, width) {
+    resizer?.setAttribute('aria-valuenow', String(Math.round(width)));
+    resizer?.setAttribute('aria-valuetext', `${Math.round(width)} pixels wide`);
+}
 
 /**
  * Apply an already-decided sidebar layout to the native shell boundary.
@@ -19,12 +25,33 @@ export function applySidebarLayout(sidebar, plan) {
     const app = document.getElementById('app');
     app?.style.setProperty('--shell-sidebar-width', `${plan.visibleWidth}px`);
     app?.classList.toggle('sidebar-collapsed', plan.collapsed);
+    const resizer = sidebar.querySelector('#sidebar-resizer');
+    updateSeparatorValue(resizer, plan.expandedWidth);
 }
 
 export function initSidebarResizer() {
     const sidebar = document.getElementById('sidebar');
     const resizer = document.getElementById('sidebar-resizer');
     if (!sidebar || !resizer) return;
+
+    updateSeparatorValue(resizer, getState('sidebarWidth') || sidebar.offsetWidth || 280);
+
+    resizer.addEventListener('keydown', event => {
+        if (getState('sidebarCollapsed')) return;
+        const plan = paneSeparatorKeyboardPlan({
+            key: event.key,
+            width: getState('sidebarWidth') || sidebar.offsetWidth || 280,
+            minimum: SIDEBAR_MINIMUM,
+            maximum: SIDEBAR_MAXIMUM,
+            shiftKey: event.shiftKey,
+        });
+        if (!plan.handled) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const layout = sidebarLayoutPlan({ expandedWidth: plan.width });
+        setState('sidebarWidth', layout.expandedWidth);
+        applySidebarLayout(sidebar, layout);
+    });
 
     resizer.addEventListener('mousedown', (e) => {
         e.preventDefault();

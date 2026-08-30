@@ -40,7 +40,7 @@ const nativeThemes = [
     },
 ];
 
-test('brightens the connected Dark reading plane and keeps CRT ambient effects subtle', async ({ page }) => {
+test('brightens the connected Dark reading plane and keeps CRT glass deliberate', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(18, 17, 15)');
@@ -49,6 +49,11 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
     await page.locator('#topbar-settings').click();
     await expect(page.locator('.settings-card')).toHaveCount(7);
     await expect(page.locator('#theme-picker-menu .theme-picker-item')).toHaveCount(18);
+    await page.locator('#theme-picker-btn').click();
+    await page.getByRole('option', { name: 'Figaro CRT Phosphor', exact: true }).click();
+    await expect(page.locator('#theme-picker-btn')).toContainText('Figaro CRT Phosphor');
+    await expect.poll(() => page.locator('#theme-style').textContent())
+        .toContain('--screen-effect-inset: -3px;');
     await expect(page.locator('.settings-card').filter({ hasText: 'Vault care' })).toContainText('Vault health');
     const wideSettingsLayout = await page.evaluate(() => {
         const columns = [...document.querySelectorAll('.settings-grid > .settings-column')];
@@ -179,6 +184,7 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
             const appElement = document.getElementById('app');
             const app = getComputedStyle(appElement);
             const screen = getComputedStyle(appElement, '::before');
+            const frame = getComputedStyle(appElement, '::after');
             const topBarElement = document.querySelector('.top-bar');
             const topBar = getComputedStyle(topBarElement);
             const topBarDecoration = getComputedStyle(topBarElement, '::after');
@@ -283,7 +289,17 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
                 screenPointerEvents: screen.pointerEvents,
                 screenAnimationName: screen.animationName,
                 screenAnimationDuration: screen.animationDuration,
+                screenAnimationTiming: screen.animationTimingFunction,
+                screenTop: screen.top,
+                screenShadow: screen.boxShadow,
                 screenTransform: app.transform,
+                screenTextShadow: app.textShadow,
+                frameBackground: frame.backgroundImage,
+                frameBorder: frame.borderTopColor,
+                frameShadow: frame.boxShadow,
+                frameAnimationName: frame.animationName,
+                frameAnimationDuration: frame.animationDuration,
+                frameFilter: frame.filter,
                 homeEyebrowContrast: renderedContrast('.home-eyebrow', '.home-view'),
                 homeKickerContrast: renderedContrast('.home-card-kicker', '.home-card'),
                 homeInstructionContrast: renderedContrast('.home-empty', '.home-card'),
@@ -302,7 +318,11 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
         expect(details.textContrast).toBeGreaterThanOrEqual(7);
         expect(details.linkContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.focusRing).toContain('rgba(');
-        expect(details.appBackground).toContain('radial-gradient');
+        if (theme.crt) {
+            expect(details.appBackground).toBe('none');
+        } else {
+            expect(details.appBackground).toContain('radial-gradient');
+        }
         expect(details.activeTabShadow).toBe('none');
         expect(details.activeTabBackground).toBe(details.editorBackground);
         expect(details.activeTabBackgroundColor).toBe(details.editorBackgroundColor);
@@ -354,20 +374,35 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
                 expect(details.mutedOnHoverContrast).toBeGreaterThanOrEqual(4.5);
                 expect(details.applicationStatusContrast).toBeGreaterThanOrEqual(4.5);
             }
-        } else {
+        } else if (!theme.crt) {
             expect(details.topBarBackground).toContain('linear-gradient');
             expect(details.statusBarBackground).toContain('linear-gradient');
         }
         if (theme.crt) {
             expect(details.applicationStatusBackgroundColor).toBe('rgb(0, 5, 3)');
-            expect(details.sidebarShadow).not.toContain('inset');
-            expect(details.sidebarShadow).not.toBe('none');
+            expect(details.sidebarShadow).toBe('none');
+            expect(details.screenBackground).toContain('data:image/png,');
             expect(details.screenBackground).toContain('radial-gradient');
-            expect(details.screenBackground).toContain('linear-gradient');
+            expect(details.screenBackground).toContain('repeating-linear-gradient');
             expect(details.screenOpacity).toBe('1');
-            expect(details.screenAnimationName).toBe('figaro-crt-scan');
-            expect(details.screenAnimationDuration).toBe('300s');
-            expect(details.screenTransform).not.toBe('none');
+            expect(details.screenAnimationName).toBe(
+                'figaro-crt-flicker, figaro-crt-warp, figaro-crt-breathe',
+            );
+            expect(details.screenAnimationDuration).toBe('12s, 18s, 24s');
+            expect(details.screenAnimationTiming).toBe(
+                'linear, cubic-bezier(0.45, 0, 0.55, 1), cubic-bezier(0.45, 0, 0.55, 1)',
+            );
+            expect(details.screenTop).toBe('-3px');
+            expect(details.screenShadow).toContain('80px');
+            expect(details.screenShadow).toContain('140px');
+            expect(details.screenTransform).toBe('none');
+            expect(details.screenTextShadow).not.toBe('none');
+            expect(details.frameBackground).toContain('linear-gradient');
+            expect(details.frameBorder).toBe('rgba(0, 0, 0, 0)');
+            expect(details.frameShadow).toBe('none');
+            expect(details.frameAnimationName).toBe('figaro-crt-minute-scan');
+            expect(details.frameAnimationDuration).toBe('60s');
+            expect(details.frameFilter).toBe('blur(6px)');
         } else {
             expect(details.screenOpacity).toBe('0');
             expect(details.screenAnimationName).toBe('none');
@@ -487,14 +522,19 @@ test('brightens the connected Dark reading plane and keeps CRT ambient effects s
         if (!response.ok) throw new Error('Could not load the CRT Phosphor theme');
         document.getElementById('theme-style').textContent = await response.text();
         await new Promise(resolve => requestAnimationFrame(resolve));
-        const screen = getComputedStyle(document.getElementById('app'), '::before');
+        const app = document.getElementById('app');
+        const glass = getComputedStyle(app, '::before');
+        const beam = getComputedStyle(app, '::after');
         return {
-            animationName: screen.animationName,
-            backgroundImage: screen.backgroundImage,
-            opacity: screen.opacity,
+            glassAnimationName: glass.animationName,
+            glassBackgroundImage: glass.backgroundImage,
+            glassOpacity: glass.opacity,
+            beamAnimationName: beam.animationName,
         };
     });
-    expect(reducedMotionCRT.animationName).toBe('none');
-    expect(reducedMotionCRT.backgroundImage).toContain('radial-gradient');
-    expect(reducedMotionCRT.opacity).toBe('1');
+    expect(reducedMotionCRT.glassAnimationName).toBe('none');
+    expect(reducedMotionCRT.glassBackgroundImage).toContain('radial-gradient');
+    expect(reducedMotionCRT.glassBackgroundImage).toContain('repeating-linear-gradient');
+    expect(reducedMotionCRT.glassOpacity).toBe('1');
+    expect(reducedMotionCRT.beamAnimationName).toBe('none');
 });

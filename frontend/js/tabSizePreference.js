@@ -139,10 +139,3 @@ export async function initTabSizeSettings(root = document) {
         input.select();
     });
 }
-
-export default {
-    getTabSizePreference,
-    initTabSizePreference,
-    initTabSizeSettings,
-    setTabSizePreference,
-};

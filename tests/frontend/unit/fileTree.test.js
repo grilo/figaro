@@ -366,6 +366,8 @@ describe('File Tree', () => {
         });
 
         test('saves a right-click appearance choice and redraws the entry', async () => {
+            const appearanceChanged = jest.fn();
+            document.addEventListener('file-tree-appearance-changed', appearanceChanged, { once: true });
             const changed = await customizeTreePath('note.md', 'file');
 
             expect(changed).toBe(true);
@@ -374,6 +376,9 @@ describe('File Tree', () => {
                 type: 'file',
             }));
             expect(window.go.desktop.App.SetFileTreeStyle).toHaveBeenCalledWith('note.md', 'Star', '#3b82f6');
+            expect(appearanceChanged).toHaveBeenCalledWith(expect.objectContaining({
+                detail: { path: 'note.md' },
+            }));
         });
 
         test('allows a faded unsupported file to receive a tree appearance', async () => {

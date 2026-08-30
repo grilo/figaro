@@ -1,6 +1,7 @@
 {
   "approvalPolicy": "Adding a component family, primitive, or visual variant requires explicit user approval before implementation.",
   "featureVariants": [
+    ".calendar-timeline-note",
     ".file-tree-node.selected",
     ".file-tree-node.cut-marked"
   ],
@@ -26,12 +27,16 @@
       ]
     },
     {
+      "id": "segmented-control",
+      "primitives": [".ui-segmented-control", ".ui-segmented-control--quiet"]
+    },
+    {
       "id": "icon-button",
       "primitives": [".ui-icon-button", ".ui-icon-button--small", ".ui-icon-button--danger"]
     },
     {
       "id": "badge",
-      "primitives": [".ui-badge", ".ui-badge--muted", ".ui-badge--accent", ".ui-badge--warning"]
+      "primitives": [".ui-badge", ".ui-badge--muted", ".ui-badge--warning"]
     },
     {
       "id": "menu",
@@ -86,6 +91,7 @@
         ".ui-document-tabs--titlebar",
         ".ui-document-tab",
         ".ui-document-tab--connected",
+        ".ui-document-tab--side-connected",
         ".ui-document-tab--active",
         ".ui-document-tab--dirty",
         ".ui-document-tab--pinned"
@@ -98,6 +104,10 @@
         ".ui-editor-block-guide",
         ".ui-editor-block-guide--danger"
       ]
+    },
+    {
+      "id": "graph-canvas",
+      "primitives": [".ui-graph-canvas"]
     },
     {
       "id": "spinner",

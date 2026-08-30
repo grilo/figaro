@@ -17,5 +17,3 @@ export function revealStartupWorkspace({
         });
     });
 }
-
-export default { revealStartupWorkspace };

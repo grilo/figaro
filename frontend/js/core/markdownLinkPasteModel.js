@@ -16,5 +16,3 @@ export function markdownLinkPastePlan({
         insertion: `[${selection}](${target})`,
     };
 }
-
-export default { markdownLinkPastePlan };

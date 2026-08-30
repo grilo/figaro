@@ -1268,9 +1268,3 @@ function escapeHtml(text) {
 function escapeAttribute(text) {
     return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-
-export default {
-    initKanban,
-    refreshKanbanData,
-    renderKanbanBoard
-};

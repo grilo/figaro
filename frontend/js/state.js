@@ -28,6 +28,7 @@ export const state = {
     // Calendar
     currentCalDate: new Date(), // Current calendar month view
     selectedCalDateStr: null,   // Current-session selected date (YYYY-MM-DD)
+    calendarPresentation: 'month', // Session-only Month | Timeline presentation
     
     // Tabs
     openTabs: [],               // Array of tab objects: { id, type, path, title, dirty, data }

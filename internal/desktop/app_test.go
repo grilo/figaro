@@ -2153,7 +2153,12 @@ func TestGetThemes(t *testing.T) {
 }
 
 func TestEmbeddedThemeAssetPath(t *testing.T) {
-	for _, name := range []string{"manifest.json", "default.css", "figaro-crt-phosphor.css", "github-dark.css"} {
+	for _, name := range []string{
+		"manifest.json",
+		"default.css",
+		"figaro-crt-phosphor.css",
+		"github-dark.css",
+	} {
 		got := embeddedThemeAssetPath(name)
 		want := "frontend/themes/" + name
 		if got != want {
@@ -2210,8 +2215,9 @@ func TestGetThemeCSS_FigaroThemes(t *testing.T) {
 	defer os.RemoveAll(vaultPath)
 
 	for themeID, expected := range map[string]string{
-		"figaro-light": "--accent-color: #b94a3e",
-		"default":      "--accent-color: #d8574a",
+		"figaro-light":        "--accent-color: #b94a3e",
+		"default":             "--accent-color: #d8574a",
+		"figaro-crt-phosphor": "--screen-effect-inset: -3px",
 	} {
 		result, err := app.GetThemeCSS(themeID)
 		if err != nil {

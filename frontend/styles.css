@@ -10,6 +10,7 @@
 @import url("./styles/base.css");
 @import url("./styles/shell.css");
 @import url("./styles/features/kanban.css");
+@import url("./styles/features/graph.css");
 @import url("./styles/features/relationships.css");
 @import url("./styles/workspace.css");
 @import url("./styles/editor.css");

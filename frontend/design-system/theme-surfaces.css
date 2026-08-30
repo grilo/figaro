@@ -6,49 +6,106 @@
  */
 #app {
     background: var(--app-surface);
-    transform: var(--screen-content-transform);
-    transform-origin: center;
+    text-shadow: var(--screen-text-shadow);
 }
 
 #app::before {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: var(--screen-effect-inset);
     z-index: 2147483646;
     border-radius: inherit;
-    background-image: var(--screen-vignette), var(--screen-scanline);
-    background-repeat: no-repeat, no-repeat;
+    background-image:
+        var(--screen-dither),
+        var(--screen-vignette),
+        var(--screen-texture);
+    background-repeat: repeat, no-repeat, repeat;
     background-position:
+        0 0,
         center,
-        0 calc(0px - var(--screen-scan-height));
+        0 0;
     background-size:
+        var(--screen-dither-size),
         100% 100%,
-        100% var(--screen-scan-height);
+        100% var(--screen-texture-size);
+    box-shadow: var(--screen-effect-shadow);
     opacity: var(--screen-effect-opacity);
     pointer-events: none;
-    animation-name: var(--screen-scan-animation);
-    animation-duration: var(--screen-scan-duration);
-    animation-timing-function: linear;
+    animation-name: var(--screen-effect-animation);
+    animation-duration: var(--screen-effect-duration);
+    animation-timing-function: var(--screen-effect-timing-function);
     animation-iteration-count: infinite;
 }
 
-@keyframes figaro-crt-scan {
+@keyframes figaro-crt-flicker {
     0%,
-    98.4% {
-        background-position:
-            center,
-            0 calc(0px - var(--screen-scan-height));
+    98%,
+    100% {
+        opacity: 1;
     }
 
+    98.5% {
+        opacity: 0.985;
+    }
+
+    99% {
+        opacity: 0.995;
+    }
+}
+
+@keyframes figaro-crt-warp {
+    0%,
     100% {
-        background-position:
-            center,
-            0 calc(100vh + var(--screen-scan-height));
+        transform: scale(1, 1);
+    }
+
+    50% {
+        transform: scale(var(--screen-warp-x), var(--screen-warp-y));
+    }
+}
+
+@keyframes figaro-crt-breathe {
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+
+    50% {
+        filter: brightness(var(--screen-breathe-brightness));
+    }
+}
+
+@keyframes figaro-crt-minute-scan {
+    0%,
+    88% {
+        background-position: 0 calc(0px - var(--screen-beam-height));
+        opacity: 0;
+    }
+
+    89% {
+        opacity: 0.6;
+    }
+
+    93% {
+        background-position: 0 center;
+        opacity: 0.4;
+    }
+
+    95% {
+        background-position: 0 center;
+        opacity: 1;
+    }
+
+    97%,
+    100% {
+        background-position: 0 55vh;
+        opacity: 0;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #app::before {
+    #app::before,
+    #app::after {
         animation-name: none !important;
     }
 }
@@ -150,8 +207,8 @@
     background-color: var(--sidebar-resizer-color) !important;
 }
 
-.sidebar-calendar-panel {
-    background: var(--calendar-surface);
+.calendar-workspace-view {
+    background: var(--workspace-surface);
 }
 
 #file-tree {
@@ -196,6 +253,14 @@
         box-shadow var(--motion-content-duration) ease;
 }
 
+.ui-document-tab--side-connected {
+    border-right-color: transparent;
+    border-radius: var(--ui-menu-radius) 0 0 var(--ui-menu-radius);
+    transition:
+        background var(--motion-content-duration) ease,
+        color var(--motion-content-duration) ease;
+}
+
 .ui-document-tab:hover {
     background: var(--tab-hover-surface);
 }
@@ -214,6 +279,13 @@
     box-shadow: none;
 }
 
+.ui-document-tab--side-connected.ui-document-tab--active {
+    background: var(--workspace-surface) !important;
+    border: 0 solid transparent !important;
+    border-color: transparent !important;
+    box-shadow: 4px 0 0 var(--workspace-surface);
+}
+
 .settings-card {
     background: var(--settings-card-surface);
     border-color: var(--settings-card-border);
@@ -227,7 +299,7 @@
 
 .settings-card select,
 .settings-card .ui-picker-trigger,
-.settings-card .settings-segmented-control {
+.settings-card .ui-segmented-control {
     background-color: var(--settings-control-surface);
     box-shadow: var(--settings-control-shadow);
 }

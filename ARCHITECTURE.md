@@ -107,11 +107,15 @@ interactive popovers rather than being coerced into hint semantics.
 Title-bar authoring help is another eager, local DOM boundary.
 `helpPopup.js` owns pointer/F1 disclosure, invoker-specific focus return, and
 the accessible Markdown/Macros/Shortcuts tab state over static startup HTML; it
-performs no backend request and loads no feature code on first use. The topic
-buttons reuse approved button primitives, while Markdown syntax, the complete
-Figaro macro inventory, and the global/editor shortcut inventory remain
-separate labelled tabpanels that can be audited directly against their command
-sources.
+performs no backend request and loads no feature code on first use. Pure
+`core/helpSearchModel.js` ranks plain Help and Settings destinations, while the
+DOM adapter indexes the static rows and dispatches only a Settings deep-link.
+`settingsNavigation.js` owns opening the existing Settings tab, scrolling, and
+exact-control focus/highlight, so the Help search cannot become an action
+command palette. The topic buttons, search field, and results reuse approved
+primitives, while Markdown syntax, the complete Figaro macro inventory, and the
+global/editor shortcut inventory remain separate labelled tabpanels that can
+be audited directly against their command sources.
 
 Find and Replace keeps CodeMirror's native query state, commands, fields, and
 keyboard scopes. Figaro changes only presentation: `editor.css` assigns the
@@ -148,7 +152,12 @@ pre-measurement scroll offset after the browser's automatic clamp, and only
 then reveals the active tab flush with the buffer boundary.
 The approved connected rounded tab modifiers own the theme-aware active,
 hover, and focus presentation; the workspace stylesheet only bottom-aligns
-them inside the 44px title bar and manages overflow geometry. Tabs are explicit
+them inside the 44px title bar and manages overflow geometry. Their semantic
+radius token rounds the top corners, while the connected active modifier uses
+two pointer-transparent, radius-sized radial feet to invert that curvature at
+the lower junctions without restoring a bottom border. The pure overflow target
+expands the active tab bounds by that same radius so both feet are revealed and
+edge fades describe genuinely hidden content. Tabs are explicit
 native no-drag regions, while unused title-bar space retains the Wails drag and
 double-click contract. Divider ownership stays on the title-bar surface rather
 than changing with rail contents: themes that expose the divider get one
@@ -163,7 +172,11 @@ chooses either that boundary or the 44px collapsed rail. `sidebarResizer.js`
 applies the plan to both the sidebar and the shell grid custom property;
 `app.js` coordinates collapse state through the same adapter. The title-bar
 column and sidebar therefore animate and resize from one decision instead of
-maintaining parallel geometry rules.
+maintaining parallel geometry rules. Pure `core/paneSeparatorModel.js` plans
+normal/accelerated arrow movement and Home/End bounds for both pane edges; the
+left and right adapters invert only the physical direction required by their
+mounting side and keep ARIA values synchronized with pointer and keyboard
+changes.
 
 The fixed-height footer consumes that same `--shell-sidebar-width` plan as a
 two-column grid. Its application-status adapter owns only the left live region,
@@ -260,7 +273,7 @@ remain deliberately distinct.
 
 The same optional surface-token seam lets the native Dark/Light pair flatten
 the application without feature-local exceptions. Their titlebar, file tree,
-sidebar tools, Calendar/Kanban host, and application-status region share the
+sidebar tools, Calendar/Kanban/Graph host, and application-status region share the
 navigation surface; their active tab, CodeMirror gutter, editor, and
 buffer-status region share the reading surface. Figaro Dark assigns that
 reading token a modestly higher luminance than its navigation token so the two
@@ -274,29 +287,90 @@ The shell owns the file-tree/buffer boundary geometry independently from those
 colors. Its 1px sidebar rail is painted one pixel outward at the exact shared
 edge, so a visible theme rail and the leading connected-tab outline occupy the
 same coordinate instead of adjacent pixels. Borderless themes keep that rail
-transparent. CRT Phosphor retains its outer sidebar glow but does not add a
-second inset rule beside the canonical rail.
+transparent. CRT Phosphor keeps the rail, shell dividers, and frameless-window
+outline transparent so dark overscan defines the screen edge.
 
 The shell also owns the sidebar's vertical allocation. The fixed workspace
-tools sit outside the clipping `.sidebar-content` flex column; inside it, the
-file tree and Calendar details each own their overflow. An open Calendar takes
-a capped 480px/72% share, which preserves a complete month plus the common
-due-task/linked-note state at normal heights while still yielding a separately
-scrollable tree and a separately scrollable long-results region. Its base
-state delays only `visibility: hidden` through the layout duration, allowing
-the opacity, height, and downward transform to paint when `.open` is removed;
-the open state cancels that delay so upward entry is visible immediately.
-Reduced-motion tokens collapse both directions to one millisecond.
+tools sit outside the clipping `.sidebar-content` flex column, leaving the file
+tree with its own overflow. Calendar is eagerly staged in the central host and,
+once selected, its narrow `.calendar-main-pane` layout hook and selected-day
+region consume equal grid tracks. Flex alignment centers the complete month
+unit within the left track; the right track owns only result overflow and has
+no structural border. A relational shell rule preserves the shared footer row
+while the Calendar panel is active but makes its main-pane buffer region hidden
+and non-interactive. The file-tree-aligned application status remains live, and
+the central workspace geometry no longer changes when another view takes over.
+
+Timeline keeps the same dependency split. `core/calendarTimelineModel.js`
+plans the centered 42-day/14-day-button window, the 14-day prefetch threshold,
+and seven-day range shifts; classifies genuine scroll edges; applies the shared
+locale-weekend projection; and purely merges
+saved rows, dirty buffer associations, and direct note appearance into day/pill
+presentation. `calendarTimeline.js` owns DOM rendering and horizontal input,
+measures one day for key movement and three for minimum wheel movement, applies the pure bounded-pan
+projection under pointer capture, suppresses selection only for that gesture,
+keeps the old track visible while the adjacent range loads, and preserves one
+shared date's viewport coordinate through the silent range swap,
+but receives its
+range read, appearance read, and note-open effects as injected functions from
+`calendar.js`. The eagerly imported Calendar composition wires those ports to
+`GetCalendarTimelineData`, `GetFileTreeStyles`, and the existing `openTab`
+line-target contract. The native range use case validates an inclusive maximum
+span, reads the already-built `calendarDateIndex` under the vault read lock,
+copies populated note slices, and performs no filesystem walk. Empty dates are
+materialized only by the frontend model, keeping payload size proportional to
+activity. The Calendar composition disposes the Timeline controller whenever
+another workspace becomes active, which invalidates pending work and releases
+its rendered dates, range promises, and appearance cache.
+
+Calendar, Kanban, and Graph keep session-local, tab-backed content lifecycles
+for activation history and renderer reuse, but sidebar navigation owns their
+visible tabs. The pure `titleBarTabs` projection removes all three workspaces
+from the title-bar rail, overflow menu, drag order, and bounded keyboard
+navigation. Calendar moves its eagerly staged month view into the central panel
+on first selection; Kanban entry points converge on the single `kanban`
+identity and may update its focused column; Graph retains one all-notes canvas
+session and its deferred refresh policy. The approved `.ui-document-tab--side-connected`
+primitive rotates the connected-tab seam onto the sidebar's right edge and
+removes selected borders. Its explicit transparent border channels and
+surface/text-only transition prevent transient text-colored border paint during
+pointer selection without changing the keyboard focus ring. Two radius-sized,
+pointer-transparent radial corners
+round the upper and lower workspace junctions without closing that seam or
+creating a detached pill; the feature hook owns only footer/rail sizing, and a
+shared workspace surface paints above the theme rail while the inactive
+resizer tint is suppressed across the selected row. Resizer hover, focus, and
+drag feedback remains authoritative during direct separator interaction.
+The central workspace host owns one narrow relational layout rule for the
+title-bar rail: its top-left corner uses the shared tab radius unless the active
+title-bar tab is the first displayed child. A selected leading tab instead
+keeps that corner square so the tab and editor remain one continuous surface;
+no duplicate tab-order state is introduced in JavaScript. The editor host,
+CodeMirror surface, tab-panel host, and active panel inherit that computed
+corner so a square inner paint layer cannot bleed through the outer clip. When
+theme divider tokens are visible, the title-bar center masks the radius-wide
+horizontal segment and the sidebar rail starts one radius below the workspace;
+the full rules return with the square leading-tab state. The main-container
+underlay uses the sidebar surface, so the transparent pixels outside the curve
+cannot expose the differently colored application canvas as a square patch.
+The narrow first-tab hover selector temporarily changes only that underlay to
+the shared tab-hover surface and raises the hovered tab above the 1px title-bar
+mask. The mask still hides the divider beneath, while the tab supplies one clean
+hover layer without adding tab state to JavaScript.
 
 The same theme-surface boundary owns optional ambient screen treatment. Neutral
-defaults leave `#app` untransformed and its non-interactive `::before` overlay
-transparent; Figaro CRT Phosphor supplies only vignette, scan-line, cadence,
-and subtle perspective/scale token values. The shared keyframes keep the line
-off-screen for most of each 300-second cycle, sweep it once near the end, and
-remove the animation under `prefers-reduced-motion` while preserving the
-static vignette. The overlay sits below the frameless-window outline, cannot
-receive pointer input, and does not introduce theme-owned selectors or runtime
-timers.
+defaults leave content geometry untouched and both non-interactive overlays inert.
+CRT Phosphor keeps content geometry flat: its `::before` glass layer combines
+radial falloff, a repeating
+scanline texture, a repeating 128px multi-level high-pass dither tile, inset
+overscan shadow, and independently timed flicker, warp, and brightness
+keyframes; its `::after` layer combines the ordinary
+frameless-window outline contract with a separate one-minute beam, while the
+theme makes that outline transparent. This separation prevents the vignette
+from disappearing with the beam. `prefers-reduced-motion` removes animations
+from both layers while preserving the static glass, dither, and texture. Both
+overlays ignore pointer input, and all behavior remains in shared selectors and CSS
+keyframes rather than theme-owned selectors or runtime timers.
 
 Draw.io is the deliberate exception to that offline-editor boundary: its hosted
 iframe returns editable SVG through the documented cross-origin message
@@ -464,7 +538,10 @@ seam before its callers were rewired:
    controller centralized editor policy, stale-mount ownership, and per-buffer
    undo boundaries.
 5. Frontend document-save and backend note-save use cases were separated from
-   Wails, dialog, status, history, and filesystem adapters.
+   Wails, dialog, status, history, and filesystem adapters. The frontend tracks
+   save-failure presentation episodes around that use case without changing
+   its write policy, and `usecases/windowClose.js` coordinates injected saves
+   so native close is allowed only after every dirty buffer is confirmed clean.
 6. Move, copy, merge, descendant, and collision decisions moved into pure
    mutation plans while real-filesystem execution and rollback coverage stayed
    at the adapter boundary.
@@ -487,12 +564,27 @@ Markdown documents supplied as operating-system launch arguments are deliberatel
 
 ## Incremental vault index and native changes
 
-Search, backlinks, Kanban, and Calendar project the same Markdown vault data,
+Search, backlinks, Graph, Kanban, and Calendar project the same Markdown vault data,
 so they share one Go-owned in-memory index rather than independently walking
 and reopening every note. The index retains a note's source text and derives
 its hashtags/cards, semantic task due links, date links, and daily-note state; this makes Kanban and
 calendar lookups direct and keeps search/backlinks disk-free after the initial
 index build.
+
+`GetVaultGraph` is another read-only projection of that shared index. Its pure
+builder resolves exact and unambiguous Markdown/Wikilink targets, deduplicates
+directed edges, derives folder groups and node degree, and returns stable path
+order without performing filesystem I/O. `frontend/js/core/graphModel.js`
+owns normalization, query/orphan filtering, deterministic fixed-45/45 layout,
+vault-appearance inheritance and tint decisions, viewport fitting/zooming, and
+keyboard selection over plain values. The eagerly loaded `graphView.js` adapter
+coordinates independently injected graph and file-tree-appearance reads, then
+owns canvas drawing, safe Lucide overlays, pointer and keyboard events,
+resize/theme observation, floating-control layout, status presentation, and the
+note-opening port. Plain click changes only the persistent trace selection;
+Ctrl/Cmd-click and Enter invoke the note-opening port. A successful file-tree
+appearance write emits a narrow refresh event so an active graph can reproject
+colors and icons without coupling the graph adapter to file-tree state.
 
 The cold-build adapter first discovers the exact ordinary Markdown workload,
 then reads and transforms that retained path list. It publishes discovery,
@@ -645,7 +737,7 @@ DOM adapter claims wheel input from the month grid, while the distinct selected-
 keeps native scrolling. These narrow methods avoid per-day requests and avoid transferring or filtering the rest
 of a large vault merely to render a small overview.
 
-The sidebar Calendar and the date picker both consume the pure
+The central Calendar workspace and the date picker both consume the pure
 `calendarMonthPresentation` plan and the shared `calendarDayTooltip.js` DOM adapter. The application
 composition root injects Calendar's cached, dirty-buffer-aware month loader into `datePicker.js`, so
 the picker receives the same visible activity data without importing the sidebar controller or
@@ -934,7 +1026,12 @@ complete `[label](#fragment)` therefore remains one link whether it is rendered
 or revealed source; its stable heading slug resolves to an editor offset and
 dispatches an ordinary selection, while only a standalone whitespace-delimited
 hashtag may open Kanban. Missing fragments are consumed locally and cannot fall
-through to vault reads or note creation.
+through to vault reads or note creation. The same pure core validates that only
+a Ctrl/Cmd-modified left click on an HTTP or HTTPS target selects the external-
+browser action; vault paths and non-web schemes remain in their existing editor
+flows. The CodeMirror adapter then delegates that validated URL to Wails'
+system-browser bridge, with `window.open` retained only as the browser-debug
+fallback.
 Footnote interaction has the same pure-decision/effect split. `footnotes.js`
 classifies source tokens, resolves definitions and exact per-tab return
 positions, and plans a missing definition after the reference's complete

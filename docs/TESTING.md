@@ -94,9 +94,12 @@ Link-authoring coverage follows the same boundary. Keep reference-label parsing,
 definition normalization, exact-target suppression, filename planning, creation
 failure, cancellation, similar-name review, and stale editor ranges in focused
 unit/use-case tests. The pure link-click plan must prove both the visible label
-and a `#fragment` destination beat hashtag routing, while the focused CodeMirror
-component must prove rendered and revealed-source clicks select the exact
-heading without a vault read, Kanban tab, prompt, or file creation.
+and a `#fragment` destination beat hashtag routing, and that only Ctrl/Cmd-left-
+clicked HTTP(S) targets select the system-browser action. The focused CodeMirror
+component must prove rendered and revealed-source fragment clicks select the
+exact heading without a vault read, Kanban tab, prompt, or file creation; it also
+proves rendered and revealed external links delegate to the native browser
+bridge, show the shortcut hint, and never route a vault Markdown target there.
 `tests/frontend/unit/editor.test.js` owns the assembled DOM distinction between
 unresolved source and a defined reference widget. The one
 representative `tests/e2e/editorUX.spec.js` workflow verifies the unresolved
@@ -118,7 +121,8 @@ Architecture guardrails reject imports that point from the pure core back to
 adapters or composition roots. They also walk static imports and explicit
 worker edges from the eager bootstrap and print-renderer build entries so an
 orphaned first-party module fails the suite instead of silently remaining in
-the tree.
+the tree. The same policy rejects object-valued default-export wrappers; first-party
+modules expose the named APIs their consumers and focused tests actually use.
 Add a guard when introducing the first module in a new layer rather than
 relying on naming conventions alone.
 
@@ -397,7 +401,7 @@ capture change.
 ### Design-system catalogue
 
 `tests/frontend/unit/designSystemCatalog.test.js` owns the exhaustive catalogue
-contract: indexed group membership, adoption of the fifteen approved families
+contract: indexed group membership, adoption of the eighteen approved families
 in catalogue and production markup, exact agreement between
 `approved-components.json` and the selectors implemented by
 `primitives.css`, exact eager style order in the app, catalogue, compatibility
@@ -406,7 +410,8 @@ and action rule blocks, preservation of distinct cards and toggles, and the
 explicit approval policy in `AGENTS.md`. The same test validates every theme
 against `theme-contract.json`: each theme supplies every required token,
 declares only allowed tokens, and contains exactly one selector-free `:root`
-rule. It also owns validation of all manifest records and backing CSS files,
+rule. It also rejects retired theme-effect hooks and unconsumed style artifacts.
+It owns validation of all manifest records and backing CSS files,
 unsafe/duplicate record rejection, multi-word filtering, DOM index
 construction, stylesheet-link selection, direct-file-relative asset
 resolution, and synchronization of the checked-in classic bundle with its
@@ -459,11 +464,14 @@ specimen is wired to that production controller. `editorUX.spec.js` keeps one
 actual Settings path for focus entry, semantic headings, keyboard selection,
 and normal Tab continuation.
 
-The existing Figaro-theme browser scenario also owns CRT Phosphor's exact
-palette, vignette and scan-line layers, five-minute animation duration,
-non-interactive overlay, subtle content transform, and reduced-motion
-suppression while retaining the vignette. It continues to own the Settings
-layout boundary: at wide widths its two card groups occupy independent columns and
+The existing Figaro-theme browser scenario owns CRT Phosphor's exact palette
+and computed screen-effect boundary. It checks borderless overscan, a
+decodable 128px multi-level high-pass dither tile, 35%-strength repeating
+scanlines, 80px/140px glass shadow, 12/18/24-second glass
+animations, phosphor bloom, the separate 60-second blurred beam, and unchanged
+content geometry. Reduced-motion coverage suppresses its motion while retaining
+the static treatment. The scenario continues to own the
+Settings layout boundary: at wide widths its two card groups occupy independent columns and
 short cards retain intrinsic height; below 960px the groups stack at equal
 width without changing logical card order. `tabManager.test.js` owns the exact
 group membership and DOM order, so Playwright keeps only the representative
@@ -546,8 +554,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   editor/gutter/buffer-status colors, proves the internal sidebar, tab, workspace, and
   status borders are transparent, and keeps only the subtle tools divider and
   status separators. Figaro Dark also asserts that its editor plane has a
-  deliberate luminance lift over the navigation plane. CRT coverage checks its restrained glow plus the ambient
-  overlay and reduced-motion contract.
+  deliberate luminance lift over the navigation plane. CRT coverage checks its
+  borderless glass, separate beam, and reduced-motion contracts.
 - Browser workflows for contextual Relationships, keyboard-triggered mention
   linking, the themed Vault-health Settings entry and finding navigation, and
   the full-width, non-overlapping History source comparison before restoration,
@@ -731,48 +739,129 @@ duplicating their normalization or write-queue matrices in the browser.
 
 ## Sidebar navigation regressions
 
-Calendar and Kanban are persistent destinations, not title-bar toggles.
-Retain focused coverage that they remain in the footer below the file tree,
+Calendar, Kanban, and Graph are persistent sidebar destinations, not title-bar
+toggles. Retain focused coverage that they remain in the footer below the file tree,
 Settings remains beside the window controls, and the approved connected rounded
 tab rail occupies the title-bar center. Real-browser geometry must prove that
 the title-bar/sidebar boundary stays aligned at the restored width, after
-collapse/expand, and after a pointer resize. The application-status region must
-end at that same boundary while the buffer-status region starts there; active tabs meet the workspace with
-rounded top corners and no bottom border. Tabs remain no-drag targets while
-unused title-bar space retains native dragging. Calendar must expand inside the left sidebar without closing or taking
-ownership of History/Document outline/Raw Text Preview/PDF preview on the right. Collapsing must leave a 44px
-tool rail, close any expanded Calendar content, and reopen both the normal
-sidebar and Calendar when its rail icon is selected. Populate a representative
-large tree plus overflowing due-task and linked-note results, then assert that
-the file tree and Calendar detail region scroll independently without
-flex-shrinking the monthly grid out of the open panel. Switching that populated
-date to a compact one-result date must leave the panel height and grid position unchanged.
-At a 1440x900 workspace, also populate one due task and one linked note and
-assert that both headings and rows remain fully visible above the fixed sidebar
-tools; this is the browser-only geometry behind the README capture.
-The same assembled sidebar workflow must close Calendar, pause its real CSS
-transform halfway, and prove that the visible panel has moved downward before
-the delayed visibility transition hides it; reduced-motion duration remains
-owned by the shared motion tokens.
+collapse/expand, and after a pointer resize. `paneSeparatorModel.test.js`,
+`sidebarResizer.test.js`, and the focused PDF-preview splitter test own the
+Left/Right, accelerated Shift movement, Home/End bounds, physical direction,
+and synchronized ARIA values. Keyboard focus must paint only the compact
+centered marker rather than the full separator. The application-status region must
+end at that same boundary while the buffer-status region starts there; active title-bar tabs meet the workspace with
+rounded top corners, radius-matched inverse lower junctions, and no bottom
+border. Both radial feet must be pointer-transparent and yield to the existing
+drop-before/drop-after indicators during reordering. Overflow reveal must
+include both radius-sized feet and clear the corresponding edge fade once the
+complete active silhouette is visible. Tabs remain no-drag targets while
+unused title-bar space retains native dragging. With a non-leading title-bar
+tab selected, the main pane's top-left corner must use the shared tab radius;
+selecting the first displayed tab must return that corner to zero so its editor
+connection remains uninterrupted. The editor container, CodeMirror root,
+tab-panel host, and active panel must inherit the same computed corner so no
+faded square inner layer survives beneath it. In a bordered theme, the
+title-bar mask must cover exactly the radius-wide horizontal segment and the
+sidebar rail must begin one radius below the corner; selecting the first tab
+restores both full rules. The main-container backdrop must equal the sidebar
+surface so the transparent curve cannot reveal a square application-canvas
+patch. Hovering the inactive first title-bar tab must make that backdrop equal
+the tab-hover surface and stack the tab above the unchanged title-bar divider
+mask; pointer exit restores the sidebar surface, and selecting the first tab
+restores the square workspace state. Calendar must occupy the central
+workspace without taking ownership of History/Document outline/Raw Text
+Preview/PDF preview on the right. At desktop width, assert that its two tracks
+have equal geometry, the complete month unit is centered horizontally and
+vertically in the left track, the selected-day region begins at the exact
+halfway point without a border, and the shared status bar retains its 24px row
+with a visible application region and hidden main-pane buffer region. Switch
+between Calendar, Kanban, and Graph and assert the main container's top, bottom,
+and height remain unchanged. Populate
+overflowing due-task and linked-note results, then assert that the right region
+scrolls independently without moving or clipping the monthly grid. Switching
+that populated date to a compact one-result date must leave the workspace
+height and grid position unchanged. At
+a 1440x900 workspace, also populate one due task and one linked note and assert
+that both headings and rows remain fully visible in the selected-day region.
 Select a date with no results separately and verify
 that its guidance uses the Calendar font family, compact 12px/18px type, muted
 theme color, and deliberate spacing instead of inherited application body text.
+The pure Timeline model owns its centered 42-day window, 14-day button paging,
+14-day measured prefetch threshold, seven-day left/right range shifts,
+busy/non-overflow rejection, locale-weekend
+classification, three-day-minimum two-axis wheel normalization, bounded drag-pan
+projection and movement threshold, empty-day materialization, dirty-buffer
+replacement, direct appearance validation, and first-occurrence line projection. The component test
+owns the pressed Month/Timeline state, initial loading/error announcements, silent
+prefetch that retains the existing 42-day DOM until its response, disposal that
+clears rendered dates and cached state, non-destructive prefetch failure that
+keeps the old range and restores its anchor, horizontal
+wheel/keyboard mapping, pointer listener/class lifecycle, note-button exclusion,
+buffer-triggered range request, weekend semantics, stacked 8px pills, custom
+icon/color rendering, and the exact `{path, line, date}` open request. Native Calendar tests prove one bounded
+range reads the shared index, excludes out-of-range notes, retains first
+occurrence lines, copies response slices, and rejects malformed, reversed, or
+oversized ranges. In the existing Calendar browser workflow, assert real
+horizontal overflow, vertically stacked same-day pills, computed custom paint
+and icon geometry, main-pane/weekday surface continuity, the reserved
+locale-weekend tint, three-day minimum wheel travel, grab/grabbing cursor and
+selection suppression during a real pointer pan, fixed blank buffer-status row, a one-week
+range request on entering the two-week edge buffer, preservation of a visible
+shared day's viewport coordinate after insertion, Timeline release when a note
+takes the workspace, fresh rendering on return, existing-tab reuse, new-tab creation, and
+the resulting CodeMirror cursor line. Do not duplicate range, direction, or
+appearance matrices in Playwright.
 
-Kanban and Settings must open or switch to one de-duplicated workspace tab.
-Clicking an inactive persistent destination focuses its existing destination
-tab; clicking
-the already active destination plays `figaro-panel-exit` before closing that
-destination tab without affecting other workspaces. The transition must honor the shared
+Calendar, Kanban, and Graph must each open or switch to one de-duplicated,
+sidebar-owned workspace while remaining absent from the title-bar rail and its
+overflow menu. Every inactive control uses the ordinary flat document-tab
+state; every selected state has rounded left corners, no right radius, zero
+border on all sides, reaches the exact sidebar/workspace boundary, and matches
+its workspace surface across that seam at expanded, collapsed, resized, and
+restored widths. Override the rail and idle-resizer tokens with conspicuous
+colors in the browser regression and prove the selected tab paints above the
+rail while the idle resizer becomes transparent. Drive a real pointer down/up
+sequence rather than relying only on `locator.click()`: while pressed and in the
+first selected transition frame, all four computed border colors must remain
+transparent and the variant's transition list must exclude border and shadow
+paint. The upper and lower
+workspace-edge pseudo-elements must each be pointer-transparent, use the same
+radius as the tab, and paint a radial concave junction outside the selected
+row; hover, focus, and drag states
+must remain available. Clicking any selected control is inert rather than
+closing its workspace. Settings alone retains its de-duplicated title-bar workspace tab and
+active-click `figaro-panel-exit` behavior. That transition must honor the shared
 reduced-motion duration, remain safe under repeated close requests, and retain
-any tab opened while the exit is running. Keep the state/action and animation-lifecycle
-checks in `tests/frontend/unit/topBar.test.js` and real layout, visibility,
-rail-width, tab-reuse, and active-tab toggle checks in
+any workspace opened while the exit is running. Keep the pure title-bar projection in
+`tabPresentationModel.test.js`, state/action checks in
+`tests/frontend/unit/topBar.test.js`, and real layout, visibility, rail-width,
+tab reuse, active-side-tab geometry, and inactive-click checks in
 `tests/e2e/sidebarNavigation.spec.js`:
 
 ```bash
-npm run test:unit -- --runTestsByPath tests/frontend/unit/topBar.test.js
+npm run test:unit -- --runTestsByPath tests/frontend/unit/topBar.test.js tests/frontend/unit/tabPresentationModel.test.js
 npx playwright test tests/e2e/sidebarNavigation.spec.js
 ```
+
+Graph behavior is split at the lowest useful boundaries. Go tests for
+`buildVaultGraph`/`GetVaultGraph` prove stable shared-index projection, known-save
+index reuse, folder groups, daily/orphan degree, exact and unambiguous basename
+resolution, and ambiguous-target refusal. `graphModel.test.js` owns normalization,
+query/orphan filtering, fixed 45/45 deterministic layout, file-tree appearance
+precedence, nested tinting, palette extension, fit/zoom math, and keyboard
+ordering without DOM or Wails. `graphView.test.js` owns the floating control
+structure, button-based orphan state, always-painted arrows, safe custom-icon
+overlay, accessible busy/error states, persistent selection versus deliberate
+opening, status behavior, filtering, and inactive graph/appearance refresh
+deferral. `fileTree.test.js` proves a successful appearance write emits the
+narrow graph-refresh signal. The existing `sidebarNavigation.spec.js` carries
+one browser-only canvas boundary: a fitted custom-icon node must map a real
+pointer click at the canvas centre back to that exact note path and pin its trace
+without leaving Graph; an empty-canvas click clears it and Ctrl-click opens the
+file. The canvas background remains stable on hover, the 224px search and
+pressed Orphans choice float beside borderless zoom controls without a toolbar,
+and graph telemetry uses the existing status bar. Do not duplicate the pure
+filter/layout/appearance matrix in Playwright.
 
 ## Today dashboard regressions
 
@@ -849,17 +938,23 @@ ordinary Markdown free of Figaro semantic rows, inventories every supported
 relative-date, Calendar-link, Kanban-column, and due-date macro, inventories
 the application shortcuts, and proves the three-topic tablist's
 selected/tabbable/panel state plus click, arrow, F1, and Escape behavior with
-invoker-focus restoration.
+invoker-focus restoration. Its shortcut inventory must include the sequential
+Escape-then-Tab/Shift+Tab route for leaving the document editor without removing
+the normal indentation bindings. `helpSearchModel.test.js` owns query
+normalization and ranking; the same Help DOM test proves that syntax results
+jump to reference rows and Settings results dispatch only a deep-link request.
+`settingsNavigation.test.js` owns opening, scrolling, exact-control focus, and
+the temporary section highlight without assigning command execution to Help.
 One focused browser workflow in `tests/e2e/editorUX.spec.js` covers the normal
 prose/task distinction, keyboard acceptance, computed caret-relative picker
-position, exact computed weekday/surface/day-state parity between the picker
-and sidebar Calendar, source-line round trip, Arrow Up/Down, and drag selection. Pure
+position, exact computed weekday/day-state parity between the picker
+and Calendar workspace, source-line round trip, Arrow Up/Down, and drag selection. Pure
 parsing and backend mutation branches do not belong in Playwright. That test
 waits for the initial Kanban refresh before replacing completion columns and
 uses a two-second `Promise.race` timeout; a stalled setup must fail explicitly
 instead of hanging or allowing startup to overwrite the fixture state.
 The Calendar's browser-only boundaries are its body-level shared activity tooltip and
-computed flex geometry: `tests/e2e/sidebarNavigation.spec.js` hovers a day with
+computed central grid geometry: `tests/e2e/sidebarNavigation.spec.js` hovers a day with
 multiple due items, asserts that the themed tooltip remains inside the real
 viewport, proves the common due-task/linked-note details fit above the tool
 footer at 1440x900, then switches from a long result list to an empty day and
@@ -1557,8 +1652,11 @@ hover restoration, urgent-status override, and the collapsed 44px application-st
 presentation: full live text and tooltip remain available, its compact activity
 state stays inside the rail, and **Undo** remains visible and operable. Theme
 coverage compares the native application-status surface with the file tree and
-the buffer-status surface with the editor. Save-model and tab-manager units own
-failure-cause formatting, dirty-buffer retention, and the live status semantics.
+the buffer-status surface with the editor. Save-model, dialog, and tab-manager
+units own failure-cause formatting, dirty-buffer retention, blocking modal
+actions, per-episode Auto-Save deduplication, and the live status semantics.
+`windowClose.test.js` proves that native close is allowed only after every
+requested write succeeds and no newer edit remains dirty.
 The ordinary-writing browser assertion must compare the application-status
 background with the sidebar while its text is transparent, proving that content
 opacity cannot expose the editor-coloured parent surface beneath that region.
@@ -1571,6 +1669,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/workspaceSearch.test.js \
   tests/frontend/unit/search.test.js \
   tests/frontend/unit/saveModel.test.js \
+  tests/frontend/unit/windowClose.test.js \
   tests/frontend/unit/statusBar.test.js \
   tests/frontend/unit/statusBarPresentationModel.test.js \
   tests/frontend/unit/tabManager.test.js \
@@ -1813,11 +1912,12 @@ and one tree-refresh request. The real browser owns only native Enter/Space
 status-button activation, History roving-option focus/selection, link cursor,
 and the relocated help popup's hidden/focus/Escape behavior plus real
 Markdown/Macros/Shortcuts tab focus and panel visibility. The focused F1 case
-opens help from the editor, switches to Shortcuts, toggles it closed and open,
-and proves focus returns to the invoking editor while the selected topic and
-outer geometry remain stable. Unit coverage owns the complete shortcut rows,
-three-topic roving tab state, responsive target dimensions, contained
-scrolling, and stable scrollbar gutter.
+opens help from the editor, verifies initial focus in the search field, switches
+to Shortcuts, toggles it closed and open, and proves focus returns to the
+invoking editor while the selected topic and outer geometry remain stable.
+Unit coverage owns search/result semantics, deep-link dispatch, complete
+shortcut rows, three-topic roving tab state, responsive target dimensions,
+contained scrolling, and stable scrollbar gutter.
 
 Find and Replace keeps behavioral coverage in `editor.test.js`, which opens
 the native panel and requires its query, replacement, navigation, matching, and

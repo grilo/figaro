@@ -107,7 +107,7 @@ test('boots through the native Wails binding with the workspace overview, vault 
         .toBe(readsBeforeTreeOpen + 1);
 
     await page.locator('#sidebar-calendar').click();
-    await expect(page.locator('#sidebar-calendar-panel')).toHaveClass(/open/);
+    await expect(page.locator('#calendar-workspace-view')).toBeVisible();
     await expect(page.locator('#cal-month-year')).not.toHaveText('');
     await expect(page.locator('#calendar-grid .cal-day-header')).toHaveCount(7);
     await expect(page.locator('#calendar-grid .cal-day:not(.cal-empty)')).toHaveCount(31);

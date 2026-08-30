@@ -40,6 +40,12 @@ export const backlinksIcon = (size = 16, sw = 2) => s(size, sw,
     '<path d="M3 17h4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H3"/>' +
     '<line x1="12" y1="12" x2="17" y2="17"/>');
 
+export const graphIcon = (size = 16, sw = 2) => s(size, sw,
+    '<circle cx="6" cy="6" r="2"/>' +
+    '<circle cx="18" cy="5" r="2"/>' +
+    '<circle cx="12" cy="18" r="2"/>' +
+    '<path d="m7.7 7.1 3.2 8.2M16.4 6.3l-3.2 9.6M8 6h8"/>');
+
 // ── Misc ──
 
 export const warningIcon = (size = 14, sw = 2) => s(size, sw,

@@ -35,5 +35,3 @@ export function createOpenTodayNote({ getTodayPath, getTree, ensureDirectory, cr
         throw new Error(result?.error || 'Could not create today’s note.');
     };
 }
-
-export default { createOpenTodayNote };

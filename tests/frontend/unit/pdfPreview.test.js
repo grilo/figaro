@@ -420,7 +420,7 @@ describe('live PDF preview', () => {
     });
 
     test('opens in the right pane without closing Calendar and refreshes after an in-memory CSS change', async () => {
-        const calendarPanel = document.getElementById('sidebar-calendar-panel');
+        const calendarPanel = document.getElementById('calendar-workspace-view');
         calendarPanel.classList.add('open');
         calendarPanel.setAttribute('aria-hidden', 'false');
 
@@ -533,6 +533,31 @@ describe('live PDF preview', () => {
         expect(resizer.classList.contains('is-dragging')).toBe(false);
         expect(sidebar.classList.contains('is-resizing')).toBe(false);
         expect(document.body.classList.contains('right-sidebar-resizing')).toBe(false);
+    });
+
+    test('resizes the right pane with physical-direction arrow keys', async () => {
+        await openPDFPreview({ path: 'notes/report.md', title: 'report.md' });
+        const sidebar = document.getElementById('right-sidebar');
+        const resizer = document.getElementById('right-sidebar-resizer');
+        const main = document.getElementById('main-content');
+        Object.defineProperty(sidebar, 'offsetWidth', { configurable: true, value: 480 });
+        Object.defineProperty(main, 'offsetWidth', { configurable: true, value: 800 });
+        initRightSidebarResizer();
+
+        expect(resizer.getAttribute('role')).toBe('separator');
+        expect(resizer.getAttribute('aria-controls')).toBe('right-sidebar');
+        resizer.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'ArrowLeft', bubbles: true, cancelable: true,
+        }));
+        expect(sidebar.style.width).toBe('488px');
+        expect(resizer.getAttribute('aria-valuenow')).toBe('488');
+        expect(resizer.getAttribute('aria-valuemin')).toBe('340');
+        expect(resizer.getAttribute('aria-valuemax')).toBe('960');
+
+        resizer.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true,
+        }));
+        expect(sidebar.style.width).toBe('448px');
     });
 
     test('pauses both scroll-sync directions while resizing and realigns once after settling', async () => {

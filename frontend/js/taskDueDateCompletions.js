@@ -99,5 +99,3 @@ function insertPickedDueDate(view, absoluteCursor, column, date) {
     });
     return true;
 }
-
-export default { createTaskDueDateCompletionSource };

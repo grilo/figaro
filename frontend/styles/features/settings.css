@@ -81,7 +81,7 @@
     font-size: 10px;
 }
 
-.settings-card .settings-segmented-control {
+.settings-card .ui-segmented-control {
     justify-self: end;
 }
 
@@ -424,6 +424,11 @@
     margin: 0 0 12px 0;
     line-height: 1.5;
 }
+
+.settings-panel-tab .settings-section.settings-search-target {
+    border-radius: var(--radius-md);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
 @media (max-width: 960px) {
     .settings-grid {
         grid-template-columns: minmax(0, 1fr);
@@ -446,11 +451,11 @@
     .settings-card select {
         width: 100%;
     }
-    .settings-card .settings-segmented-control {
+    .settings-card .ui-segmented-control {
         justify-self: stretch;
         width: 100%;
     }
-    .settings-card .settings-segmented-control button {
+    .settings-card .ui-segmented-control button {
         flex: 1 1 0;
     }
     .settings-spellcheck-guidance-row {

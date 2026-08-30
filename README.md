@@ -21,8 +21,8 @@
 ![Figaro Dark showing a Markdown roadmap, populated vault, activity calendar, due task, document outline, and buffer status](docs/images/figaro-editor.jpg)
 
 Figaro is a desktop knowledge workspace built around ordinary files. It combines
-a source-first Markdown editor with search, backlinks, daily notes, Kanban,
-calendar planning, diagrams, local history, and
+a source-first Markdown editor with search, backlinks, a vault graph, daily
+notes, Kanban, calendar planning, diagrams, local history, and
 browser-quality PDF export.
 There is no account, hosted database, or required cloud service.
 The writing surface stays central while the styled vault tree, activity
@@ -104,6 +104,9 @@ hand without changing the underlying Markdown.
   seams; Figaro Dark and Figaro Light instead use a borderless active tab whose
   editor-matched surface opens directly into the buffer. Themes with a visible
   file-tree rail paint it on the same boundary pixel as the leading tab edge.
+  Active title-bar tabs keep 8px convex top corners and use inverse 8px curves
+  at their lower junctions, producing the familiar browser-tab connection
+  without a bottom border.
   Search results expose their selected option to assistive technology and put
   a tail-preserving parent path on its own readable line so even deeply nested
   repeated filenames remain distinguishable. Compact paths, excerpts, and
@@ -119,6 +122,15 @@ hand without changing the underlying Markdown.
   columns, and backlink sets retain their complete logical content while
   mounting bounded windows, so keyboard and assistive navigation remain
   available without creating tens of thousands of DOM elements.
+- **Connected note graph.** Open **Graph** below the file tree to explore every
+  saved Markdown note and its links. Borderless zoom controls, a compact search,
+  and the **Orphans** choice float directly over the canvas. Clear directed
+  arrows are always visible, while node colors inherit vault file-tree
+  appearance choices and brighten through nested folders; note-specific colors
+  and Lucide icons override that inheritance. Hover traces direct links, click
+  pins that trace until the canvas is clicked elsewhere, and Ctrl/Cmd-click
+  opens the note. Drag to pan, use the wheel or buttons to zoom, and fit the
+  complete graph to view.
 - **Capture and planning.** Ctrl/Cmd+N captures a Quick Note in the real
   `Inbox`, while Ctrl/Cmd+Shift+N opens the daily note;
   hashtags form a Kanban board, and portable due-date links feed the Today
@@ -126,9 +138,20 @@ hand without changing the underlying Markdown.
   theme-aware, reduced-motion-safe skeletons instead of an empty surface while
   their indexed data is loading. Scroll vertically over the month grid to move
   through months; the selected-day results retain their own native scrolling.
-  The selected day's due tasks and linked notes
-  remain visible above the fixed workspace tools and scroll independently when
-  the result set is long.
+  The Calendar workspace divides evenly between a horizontally and vertically
+  centered month on the left and the selected day's due tasks and linked notes
+  on the right. The two panes share one uninterrupted surface. Calendar keeps
+  the shared status-bar row to prevent vertical movement between workspaces,
+  but leaves its main-pane buffer region blank. Switch to **Timeline**
+  for horizontally scrollable days: notes on the same date stack as compact
+  pills, direct file-tree colors and icons carry over, and a click opens or
+  reuses the note tab at that date's first occurrence. A six-week sparse window
+  keeps more than two weeks ready on either side; approaching an edge silently
+  loads the adjacent week in place, and the operating-system locale determines
+  which days receive the reserved weekend tint. Ordinary day columns blend
+  into the main pane; wheel or trackpad input moves at least three complete days,
+  and dragging empty Timeline space pans without selecting text. Switching away
+  from Calendar releases the rendered Timeline and its range cache.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
   open Mermaid's 32 chart types and 76 starter templates in a focused live
   editor, or edit Draw.io diagrams while keeping the saved SVG readable outside
@@ -137,27 +160,34 @@ hand without changing the underlying Markdown.
   output, preserve fenced-code syntax colors, add cover pages and tables of
   contents, use a standalone `---` as a PDF page break, apply vault-local print
   CSS, and generate linked PDFs.
-- **Built-in reference.** Press F1 or use the title-bar `?` to open stable
-  Markdown, Macros, and Shortcuts topics; closing the reference returns focus
-  to the control or editor that invoked it. Find and Replace keeps its search,
-  matching options, and replacement actions in three compact predictable rows.
+- **Built-in reference.** Press F1 or use the title-bar `?` to search Markdown
+  syntax, Macros, Shortcuts, and Settings. Help results jump to the matching
+  reference row; Settings results open the existing Settings view and focus the
+  exact control. Closing the reference returns focus to the control or editor
+  that invoked it. Find and Replace keeps its search, matching options, and
+  replacement actions in three compact predictable rows.
 - **Local history.** Optional per-file Auto-Commit, explicit history saves,
   comparisons, and restoration keep unrelated vault changes separate; the
   active-note status check does not scan unrelated vault files.
-- **Configurable workspace.** Choose from eighteen themes, including Figaro
-  CRT Phosphor with its phosphor-green palette, faint vignette, near-imperceptible
-  screen perspective, and one soft scan-line pass about every five minutes.
+- **Configurable workspace.** Choose from eighteen themes, including **Figaro
+  CRT Phosphor** with dark borderless overscan, a strong curved-glass vignette,
+  fine anti-banding dither, 35% horizontal scanlines, soft text bloom and
+  breathing, and one softened beam pulse per minute.
   Figaro Dark and Figaro Light use one flat titlebar/file-tree surface and one
   flat active-tab/editor/buffer-status surface—including the editor gutter—with
   quiet inactive tabs and only subtle separators where status or sidebar tools
   still need grouping. Figaro Dark lifts that uninterrupted reading plane
   slightly above its darker navigation plane for clearer workspace orientation.
-  The scan animation stays off when the operating system requests reduced
-  motion. Prose and code fonts, Vim editing, line numbers, sticky headings,
+  CRT motion stays off when the operating system requests reduced motion while
+  its static glass treatment remains. Prose and code fonts, Vim editing, line
+  numbers, sticky headings,
   block guides, document outline, diagnostics, and fully local spellcheck
   dictionaries remain independently configurable. On launch, Figaro applies
   those saved interaction and layout choices before revealing the restored
   editor, while the first shell frame already uses the saved sidebar width.
+  Both vertical pane separators are keyboard-operable without becoming a
+  visually dominant bar: arrows move the separator by 8px, Shift+Arrow by
+  32px, and Home/End reach the pane-width limits.
   Ctrl/Cmd+
   mouse-wheel temporarily scales the active editor buffer; its status-bar
   **Scale** control resets to the permanent **Default Text Size** chosen in
@@ -232,6 +262,8 @@ writing environment. It defaults to four spaces and can be changed from 2 to
 fences, source-code files and their guides, the Mermaid source editor, rendered
 GFM tables, rendered code, and Raw Text Preview all use that same
 value; the preference never rewrites existing indentation or changes PDFs.
+While the document editor owns Tab for indentation, press Escape and then Tab
+or Shift+Tab to move keyboard focus out of the editor.
 
 Pasting genuinely rich text from a browser, document editor, or AI chat into a
 Markdown note preserves headings, emphasis, links, lists, quotes, code, tasks,
@@ -381,6 +413,9 @@ the note there and inserts the configured portable link syntax. A bare `[label]`
 unless the document contains a matching Markdown reference definition. A
 same-document link such as `[Jump](#writing-and-planning)` moves directly to
 that heading whether the link is currently rendered or showing raw source.
+Ctrl/Cmd-click an external HTTP or HTTPS link to open it in the operating
+system's default browser; its hover tooltip includes the same shortcut, while
+vault Markdown links continue to navigate inside Figaro.
 
 ## Writing and planning
 
@@ -445,7 +480,7 @@ ordinary prose. After any valid tag except `#done`, press Space to choose
 **Add due date…**, **Due today**, or **Due tomorrow** for that tagged line.
 The actions also work for unsaved custom tags; lines containing `#done` and
 already dated lines remain quiet. **Add due date…** opens the same localized
-month view as the sidebar Calendar, with Today selected initially and the same
+month view as the Calendar workspace, with Today selected initially and the same
 theme-aware weekends, note-intensity fills, due outlines, and activity details.
 The title-bar `?` guide keeps general Markdown syntax under **Markdown** and
 collects these Figaro-specific date, Kanban, and due-date forms under
@@ -456,6 +491,28 @@ The board is fully keyboard-operable. Tab advances through every card in
 column order; Up/Down persists a card's vertical position, Left/Right moves it
 to the adjacent column, Enter opens its note, D changes its due date, and
 Delete removes that column tag. Pointer drag remains available.
+
+Calendar, Kanban, and Graph share three persistent browser-style tabs attached
+to the workspace's left edge. Each stays flat while inactive, then becomes
+borderless, opens on its right side, and blends into its central workspace when
+selected, including across themes that tint the sidebar divider or resize hit
+area. Its two workspace-side junctions use the same rounded browser-tab radius
+instead of ending in square notches. None creates a duplicate document-title
+tab, and reselecting the active control keeps that workspace open. Hashtags and
+**Open board** reuse the same
+Kanban workspace and can focus the relevant column. Graph keeps one all-notes
+canvas session without adding graph-only chrome to the shared right pane.
+The main pane keeps that browser-tab silhouette at its top-left corner: it is
+rounded with the shared tab radius unless the first title-bar tab is selected
+and needs a square, uninterrupted connection to the editor. Every mounted
+editor or workspace layer inherits that corner so no square inner edge bleeds
+through the rounded host.
+Themes with visible title-bar and sidebar dividers pause those rules around the
+same 8px curve instead of leaving a faded square underneath it. The transparent
+cutout reveals the matching sidebar surface rather than the differently colored
+application canvas. Hovering the inactive first tab temporarily carries its
+hover surface through that cutout and paints above its 1px divider mask,
+preventing a contrasting wedge or double-painted line.
 
 The same dates appear in the Today dashboard and calendar. Figaro keeps
 reminders inside the application and does not request operating-system
@@ -471,15 +528,26 @@ The full theme-accent selection starts on Today and moves to a selected note or
 due day; the day it leaves immediately recovers its underlying activity
 intensity. The first Calendar opening in each app session selects Today;
 closing and reopening it during that session restores the last selected day,
-while a new launch starts fresh on the current local date. Opening moves the
-panel upward into place and closing mirrors that displacement downward, using
-the shared reduced-motion timing. Empty days other
+while a new launch starts fresh on the current local date. Empty days other
 than Today are not interactive. Accepted date
 shortcuts and other date links update the open calendar from the unsaved editor
 buffer, and selecting a day always shows the same daily/linked notes counted by
 its square. The month grid stays in place while the detail region changes or
-scrolls, and the common one-task/one-note state remains fully visible above the
-fixed workspace tools. Figaro does not guess or download public holidays.
+scrolls independently in the equal-width right pane. There is no middle rule,
+and Calendar retains the fixed status-bar footprint with its irrelevant
+main-pane buffer telemetry hidden.
+The session-only **Month / Timeline** choice defaults to Month. Timeline shows a
+centered six-week range around its anchor; **Today** returns to the current date, the arrow
+buttons page by two weeks, and wheel, trackpad, scrollbar, or keyboard input
+move horizontally. Each wheel/trackpad event advances by at least three day
+columns, while grabbing empty space pans directly and suppresses text selection
+until release. When only two weeks remain before either loaded edge, Timeline
+silently shifts the range by one week while preserving the visible dates'
+positions; the backend still returns only populated dates, and switching away
+from Calendar discards the Timeline DOM and cache. Weekdays share the main-pane
+surface; Timeline uses its former subtle surface tint only for the same
+`Intl.Locale` weekend set as Month, including regional Friday/Saturday weekends;
+Figaro does not guess or download public holidays.
 
 ## Diagrams and PDFs
 
@@ -569,9 +637,12 @@ system Trash, but first saves affected open editors and records the file—or
 every file in a folder—in local history. If that archive cannot be recorded,
 Figaro leaves the item untouched. Each successful deletion is registered in
 the vault's durable **Recently deleted** list and can be restored from its exact
-Git snapshot without overwriting new content at the same path. A failed document save keeps the buffer dirty
-and announces its concrete cause in the status bar so the text can be recovered
-or saved again.
+Git snapshot without overwriting new content at the same path. A failed
+document save keeps the buffer dirty and overrides Pure mode with a blocking
+dialog that explains the concrete cause and offers **Retry**, **Copy unsaved
+text**, or **Keep editing**. Repeated Auto-Save failures do not stack dialogs,
+and **Save and exit** never closes the window until every dirty buffer has
+actually saved.
 
 ## Current limitations
 
@@ -602,5 +673,5 @@ Figaro is free software distributed under the
 [GNU General Public License version 3 or later](LICENSE). You may use, study,
 share, and modify it under those terms.
 
-The Phosphor Design System attribution used by the CRT theme is recorded in
-[Third-party notices](THIRD_PARTY_NOTICES.md).
+The Phosphor Design System and afterglow-crt attributions used by the CRT
+themes are recorded in [Third-party notices](THIRD_PARTY_NOTICES.md).

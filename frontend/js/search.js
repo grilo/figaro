@@ -10,5 +10,3 @@ export {
     performSearch,
     setSearchFilter,
 } from './controllers/searchController.js';
-
-export { default } from './controllers/searchController.js';

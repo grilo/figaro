@@ -27,7 +27,7 @@ test('toggles three-topic Figaro help with F1 and restores editor focus', async 
 
     await page.keyboard.press('F1');
     await expect(popup).toBeVisible();
-    await expect(page.locator('#md-help-markdown-tab')).toBeFocused();
+    await expect(page.locator('#md-help-search')).toBeFocused();
     await popup.evaluate(async element => {
         await Promise.all(element.getAnimations().map(animation => animation.finished));
     });
@@ -41,7 +41,8 @@ test('toggles three-topic Figaro help with F1 and restores editor focus', async 
     await expect(editor).toBeFocused();
 
     await page.keyboard.press('F1');
-    await expect(page.locator('#md-help-shortcuts-tab')).toBeFocused();
+    await expect(page.locator('#md-help-search')).toBeFocused();
+    await expect(page.locator('#md-help-shortcuts-tab')).toHaveAttribute('aria-selected', 'true');
     await popup.evaluate(async element => {
         await Promise.all(element.getAnimations().map(animation => animation.finished));
     });
@@ -1636,6 +1637,7 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
             activityDate: iso(activityDay),
             dueDate: iso(dueDay),
         };
+        window.__pickerSourceTabId = state.getState('activeTabId');
         state.setState('kanbanCompletionColumns', ['urgent']);
         editor.setEditorContent('A long paragraph ');
         const view = editor.getEditorView();
@@ -1655,7 +1657,29 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
     }).toEqual({ source: 'A long paragraph ', columns: ['urgent'] });
     await page.locator('#sidebar-calendar').click();
     await expect(page.locator('#calendar-grid')).toHaveAttribute('aria-busy', 'false');
-    await content.focus();
+    await page.evaluate(async () => {
+        const { switchTab } = await import('/js/tabManager.js');
+        const editor = await import('/js/editor.js');
+        const state = await import('/js/state.js');
+        await switchTab(window.__pickerSourceTabId);
+        state.setState('kanbanCompletionColumns', ['urgent']);
+        editor.setEditorContent('A long paragraph ');
+        const view = editor.getEditorView();
+        view.dispatch({ selection: { anchor: view.state.doc.length } });
+        view.focus();
+    });
+    await expect.poll(() => page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const state = await import('/js/state.js');
+        return {
+            source: editor.getEditorView().state.doc.toString(),
+            columns: state.getState('kanbanCompletionColumns'),
+            focused: editor.getEditorView().hasFocus,
+        };
+    }), {
+        timeout: 3000,
+        message: 'Restored editor autocomplete fixture did not settle before typing',
+    }).toEqual({ source: 'A long paragraph ', columns: ['urgent'], focused: true });
     await page.keyboard.type('#ur');
     await expect(completionLabels).toHaveText(['#urgent']);
     await page.keyboard.press('Escape');
@@ -1691,7 +1715,7 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
     await expect(picker.locator('.ui-date-picker-grid')).toHaveAttribute('aria-busy', 'false');
     const calendarParity = await page.evaluate(() => {
         const dates = window.__pickerCalendarParity;
-        const sidebarGrid = document.getElementById('calendar-grid');
+        const workspaceGrid = document.getElementById('calendar-grid');
         const pickerGrid = document.querySelector('.ui-date-picker-grid');
         const sharedState = element => [...element.classList]
             .filter(name => name === 'selected'
@@ -1712,22 +1736,20 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
             };
         };
         const compareDate = date => {
-            const sidebar = sidebarGrid.querySelector(`[data-date="${date}"]`);
+            const workspace = workspaceGrid.querySelector(`[data-date="${date}"]`);
             const popup = pickerGrid.querySelector(`[data-date="${date}"]`);
             return {
-                sidebarState: sharedState(sidebar),
+                workspaceState: sharedState(workspace),
                 popupState: sharedState(popup),
-                sidebarVisual: visual(sidebar),
+                workspaceVisual: visual(workspace),
                 popupVisual: visual(popup),
             };
         };
-        const weekend = sidebarGrid.querySelector('[data-date].ui-date-picker-day--weekend').dataset.date;
+        const weekend = workspaceGrid.querySelector('[data-date].ui-date-picker-day--weekend').dataset.date;
         return {
-            weekdays: [...sidebarGrid.querySelectorAll('.cal-day-header')].map(day => day.textContent.trim()),
+            weekdays: [...workspaceGrid.querySelectorAll('.cal-day-header')].map(day => day.textContent.trim()),
             popupWeekdays: [...document.querySelectorAll('.ui-date-picker-weekdays .cal-day-header')]
                 .map(day => day.textContent.trim()),
-            surface: getComputedStyle(document.getElementById('sidebar-calendar-panel')).backgroundColor,
-            popupSurface: getComputedStyle(document.querySelector('.ui-date-picker')).backgroundColor,
             todaySelected: pickerGrid.querySelector(`[data-date="${dates.today}"]`).classList.contains('selected'),
             todayCurrent: pickerGrid.querySelector(`[data-date="${dates.today}"]`).getAttribute('aria-current'),
             today: compareDate(dates.today),
@@ -1737,12 +1759,11 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
         };
     });
     expect(calendarParity.popupWeekdays).toEqual(calendarParity.weekdays);
-    expect(calendarParity.popupSurface).toBe(calendarParity.surface);
     expect(calendarParity.todaySelected).toBe(true);
     expect(calendarParity.todayCurrent).toBe('date');
     for (const state of ['today', 'activity', 'due', 'weekend']) {
-        expect(calendarParity[state].popupState).toEqual(calendarParity[state].sidebarState);
-        expect(calendarParity[state].popupVisual).toEqual(calendarParity[state].sidebarVisual);
+        expect(calendarParity[state].popupState).toEqual(calendarParity[state].workspaceState);
+        expect(calendarParity[state].popupVisual).toEqual(calendarParity[state].workspaceVisual);
     }
     const placement = await page.evaluate(() => {
         const cursor = window.__tagDueCursorRect;
@@ -2682,7 +2703,7 @@ test('keeps local history quiet until the active file needs recording again', as
     await expect(cheatsheet).toHaveCSS('cursor', 'pointer');
     await cheatsheet.focus();
     await page.keyboard.press('Enter');
-    await expect(page.locator('#md-help-markdown-tab')).toBeFocused();
+    await expect(page.locator('#md-help-search')).toBeFocused();
     const helpPopup = page.locator('#md-cheatsheet-popup');
     await helpPopup.evaluate(async element => {
         await Promise.all(element.getAnimations().map(animation => animation.finished));
@@ -2702,9 +2723,7 @@ test('keeps local history quiet until the active file needs recording again', as
     await expect(page.locator('#md-cheatsheet-popup')).toBeHidden();
     await expect(cheatsheet).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(page.locator('#md-help-markdown-tab')).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(page.locator('#md-cheatsheet-close')).toBeFocused();
+    await expect(page.locator('#md-help-search')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.locator('#md-cheatsheet-popup')).toBeHidden();
     await expect(page.locator('#topbar-settings')).toBeFocused();

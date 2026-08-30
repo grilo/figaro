@@ -1168,11 +1168,3 @@ function initAutoSave(root) {
         });
     }
 }
-
-export default {
-    initTheme, initThemeAppearance, applyTheme, getCurrentTheme, getCurrentFont, getThemes,
-    initVimPreference, getVimPreference, setVimPreference,
-    initVimVisualRowsPreference, getVimVisualRowsPreference, setVimVisualRowsPreference,
-    initVimRevealBlocksPreference, getVimRevealBlocksPreference, setVimRevealBlocksPreference,
-    initSettingsPanel
-};

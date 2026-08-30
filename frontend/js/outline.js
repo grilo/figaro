@@ -308,7 +308,6 @@ export function openOutlinePanel() {
     document.dispatchEvent(new CustomEvent('close-history-panel'));
     document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
     document.dispatchEvent(new CustomEvent('close-raw-text-preview', { detail: { keepSidebarOpen: true } }));
-
     const { sidebar, title, resizer } = outlineElements();
     if (!sidebar) return false;
     sidebar.dataset.mode = 'outline';
@@ -389,14 +388,3 @@ export function initOutlinePanel() {
     refreshOutlineModel();
     scheduleStickyHeadingMeasure();
 }
-
-export default {
-    activeOutlineHeadingIndex,
-    activeOutlineHeadingHierarchy,
-    closeOutlinePanel,
-    extractOutlineHeadings,
-    initOutlinePanel,
-    openOutlinePanel,
-    setDocumentOutlineEnabled,
-    setStickyHeadingsEnabled,
-};

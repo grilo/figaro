@@ -27,7 +27,7 @@ describe('portable session model', () => {
         });
     });
 
-    test('builds the complete portable snapshot without external tabs', () => {
+    test('builds the complete portable snapshot without external or session-only Graph tabs', () => {
         expect(buildSessionSnapshot({
             openTabs: [
                 {
@@ -43,6 +43,12 @@ describe('portable session model', () => {
                     type: 'file',
                     title: 'External',
                     externalFileId: '1',
+                },
+                {
+                    id: 'graph',
+                    type: 'graph',
+                    title: 'Graph',
+                    anchorPath: 'note.md',
                 },
             ],
             activeTabId: 'note.md',

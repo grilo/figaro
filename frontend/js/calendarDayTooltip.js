@@ -84,5 +84,3 @@ export function wireCalendarDayTooltips(container, summaries, locale) {
         });
     });
 }
-
-export default { hideCalendarDayTooltip, wireCalendarDayTooltips };

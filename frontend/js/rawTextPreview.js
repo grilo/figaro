@@ -282,7 +282,6 @@ export async function openRawTextPreview({ path, title, content } = {}) {
     document.dispatchEvent(new CustomEvent('close-history-panel'));
     document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
     document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
-
     copyRequestId += 1;
     copyInFlight = false;
     preview.path = String(path).replaceAll('\\', '/');
@@ -356,11 +355,3 @@ export function initRawTextPreview() {
         });
     }
 }
-
-export default {
-    closeRawTextPreview,
-    copyRawTextPreview,
-    initRawTextPreview,
-    isRawTextPreviewOpen,
-    openRawTextPreview,
-};

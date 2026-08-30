@@ -67,7 +67,7 @@ describe('document save use case', () => {
 
     test('forces an approved conflict and reports a failed optional commit', async () => {
         const persist = jest.fn()
-            .mockResolvedValueOnce({ success: false })
+            .mockResolvedValueOnce({ success: false, error: 'File modified externally' })
             .mockResolvedValueOnce({ success: true, mtime: 12 });
         const commit = jest.fn().mockRejectedValue(new Error('git unavailable'));
         const onSaved = jest.fn();
@@ -92,5 +92,20 @@ describe('document save use case', () => {
                 successMessage: 'Saved (forced)',
             }),
         );
+    });
+
+    test('reports a non-conflict failed result instead of offering overwrite', async () => {
+        const persist = jest.fn().mockResolvedValue({
+            success: false,
+            error: 'External file is read-only',
+        });
+        const confirmOverwrite = jest.fn();
+        const onFailed = jest.fn();
+        const { saver } = harness({ persist, confirmOverwrite, onFailed });
+        const tab = { path: '/outside/note.md', mtime: 10, externalFileId: 'launch-1' };
+
+        await expect(saver.save(tab, 'mine')).rejects.toThrow('External file is read-only');
+        expect(confirmOverwrite).not.toHaveBeenCalled();
+        expect(onFailed).toHaveBeenCalledWith(expect.objectContaining({ tab }), expect.any(Error));
     });
 });

@@ -2,9 +2,26 @@ import {
     compactTabTitle,
     tabAccessibleLabel,
     tabLocationLabel,
+    titleBarTabs,
 } from '../frontend/js/core/tabPresentationModel.js';
 
 describe('tab presentation', () => {
+    test('keeps every sidebar-owned workspace out of the title-bar tab rail', () => {
+        const tabs = [
+            { id: 'notes/plan.md', type: 'file' },
+            { id: 'calendar-workspace', type: 'calendar-workspace' },
+            { id: 'kanban', type: 'kanban' },
+            { id: 'graph', type: 'graph' },
+            { id: 'settings', type: 'settings' },
+        ];
+
+        expect(titleBarTabs(tabs).map(tab => tab.id)).toEqual([
+            'notes/plan.md',
+            'settings',
+        ]);
+        expect(titleBarTabs(null)).toEqual([]);
+    });
+
     test('preserves both differentiating ends of a long title', () => {
         const title = 'Quarterly planning and forecasting — Europe.md';
         const compact = compactTabTitle(title, 30);
