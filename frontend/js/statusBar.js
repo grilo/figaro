@@ -8,6 +8,7 @@ const delayedActivities = new Set();
 let presentationInitialized = false;
 let observedVaultPanel = null;
 let vaultLoadingObserver = null;
+let editorScaleRevealTimer = null;
 
 function editorOwnsFocus() {
     return Boolean(document.activeElement?.closest?.('#editor-container .cm-content'));
@@ -123,6 +124,19 @@ const statusBar = {
     setWritingSummary(text) {
         const region = document.querySelector('.status-right');
         if (region) region.dataset.writingSummary = String(text || '0 words');
+    },
+
+    /** Briefly reveal the quiet footer after a modified-wheel scale gesture. */
+    revealEditorScale(duration = 3000) {
+        const footer = document.getElementById('status-bar');
+        if (!footer) return false;
+        footer.dataset.editorScaleReveal = 'true';
+        if (editorScaleRevealTimer !== null) clearTimeout(editorScaleRevealTimer);
+        editorScaleRevealTimer = setTimeout(() => {
+            editorScaleRevealTimer = null;
+            if (footer.isConnected) footer.dataset.editorScaleReveal = 'false';
+        }, Math.max(0, Number(duration) || 0));
+        return true;
     },
     /**
      * Clear status (set to Ready)

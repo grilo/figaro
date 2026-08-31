@@ -94,7 +94,16 @@ function refreshWrappedSourceFootprints(view) {
             ? cachedWrappedSourceHeight(view, element, element[SOURCE_TEXT_PROPERTY], metrics)
             : 0;
         const lines = normalizeSourceLineCount(element.dataset.sourceLines);
-        const height = measured || lines * view.defaultLineHeight;
+        const chartHeight = Number(element.dataset.figaroChartHeight);
+        const authoredChartFootprint = Number.isFinite(chartHeight) && chartHeight > 0
+            ? chartHeight + 44
+            : 0;
+        // Managed Figaro charts author their visible geometry directly. Their
+        // compact JSON source is deliberately kept on non-wrapping lines and
+        // receives a matching placeholder while revealed, so measuring that
+        // JSON with the ordinary wrapped-line ruler would incorrectly make
+        // the rendered chart hundreds of pixels taller than requested.
+        const height = authoredChartFootprint || measured || lines * view.defaultLineHeight;
         const value = `${height}px`;
         if (element.style.getPropertyValue('--cm-source-footprint-height') !== value) {
             element.style.setProperty('--cm-source-footprint-height', value);
@@ -229,7 +238,11 @@ export function requestSourceFootprintMeasure(view) {
         write: lineHeight => {
             view.dom.querySelectorAll('.cm-source-footprint[data-source-lines]').forEach(element => {
                 const lines = normalizeSourceLineCount(element.dataset.sourceLines);
-                element.style.setProperty('--cm-source-footprint-height', `${lines * lineHeight}px`);
+                const chartHeight = Number(element.dataset.figaroChartHeight);
+                const height = Number.isFinite(chartHeight) && chartHeight > 0
+                    ? chartHeight + 44
+                    : lines * lineHeight;
+                element.style.setProperty('--cm-source-footprint-height', `${height}px`);
             });
             queueMicrotask(() => {
                 if (!view.isDestroyed && view.contentDOM) refreshWrappedSourceFootprints(view);

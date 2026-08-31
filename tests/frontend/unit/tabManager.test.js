@@ -41,7 +41,7 @@ jest.mock('../frontend/js/editor.js', () => ({
 }));
 
 jest.mock('../frontend/js/statusBar.js', () => ({
-    statusBar: { set: jest.fn(), clearAfter: jest.fn() }
+    statusBar: { set: jest.fn(), clearAfter: jest.fn(), revealEditorScale: jest.fn() }
 }));
 
 jest.mock('../frontend/js/dialogs.js', () => ({
@@ -681,6 +681,7 @@ describe('Tab Manager', () => {
             expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('19.44px');
             expect(document.documentElement.style.getPropertyValue('--line-height-editor')).toBe('1.65');
             expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 120%');
+            expect(statusBar.revealEditorScale).toHaveBeenCalledWith(3000);
 
             const ordinaryWheel = new WheelEvent('wheel', {
                 deltaY: -100,

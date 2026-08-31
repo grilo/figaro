@@ -31,12 +31,13 @@ jest.mock('../frontend/js/statusBar.js', () => ({
     statusBar: { set: jest.fn() },
 }));
 
-import { commitCurrentFileChanges, initHistoryPanel, updateGitStatus } from '../frontend/js/historyPanel.js';
+import { commitCurrentFileChanges, configureHistoryWorkspace, initHistoryPanel, updateGitStatus } from '../frontend/js/historyPanel.js';
 import { errorDialog } from '../frontend/js/dialogs.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 
 describe('quiet local-history action', () => {
     beforeEach(() => {
+        configureHistoryWorkspace({ saveFileSnapshot: mockSaveFileSnapshot });
         testUtils.createMockDOM();
         jest.clearAllMocks();
         mockState.openTabs = [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', dirty: false }];

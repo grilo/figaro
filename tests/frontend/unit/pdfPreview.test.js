@@ -40,6 +40,7 @@ jest.mock('../frontend/js/app.js', () => ({
 import {
     buildPDFPreviewDocument,
     closePDFPreview,
+    configurePDFPreviewWorkspace,
     editorScrollTopForSourcePosition,
     editorSourcePositionAtMarker,
     getPDFPreviewFragmentID,
@@ -105,6 +106,7 @@ async function openReadyPreview(options) {
 
 describe('live PDF preview', () => {
     beforeEach(() => {
+        configurePDFPreviewWorkspace({ openFile: handleFileOpen, saveFileSnapshot });
         testUtils.createMockDOM();
         jest.clearAllMocks();
         renderPrintableMarkdownWithDiagrams.mockResolvedValue(
@@ -188,6 +190,19 @@ describe('live PDF preview', () => {
             .toBeGreaterThan(styles.indexOf(printable.querySelector('#figaro-preview-surface')));
         expect(styles.indexOf(printable.querySelector('#figaro-preview-page-geometry')))
             .toBeGreaterThan(styles.indexOf(printable.querySelector('#figaro-preview-user-stylesheet')));
+    });
+
+    test('resolves printable local images before the sandbox without changing authored geometry', () => {
+        const previewHTML = buildPDFPreviewDocument(
+            '<!doctype html><html><head></head><body><main class="figaro-print-document"><img src="portrait.png" alt="Portrait" width="190" height="121" data-figaro-image-size="190x121"></main></body></html>',
+            { notePath: 'notes/report.md' },
+        );
+        const printable = new DOMParser().parseFromString(previewHTML, 'text/html');
+        const image = printable.querySelector('.figaro-print-document img');
+        expect(image.getAttribute('src')).toBe('/vault/notes/portrait.png');
+        expect(image.getAttribute('width')).toBe('190');
+        expect(image.getAttribute('height')).toBe('121');
+        expect(image.dataset.figaroImageSize).toBe('190x121');
     });
 
     test('preserves semantic Markdown tables in the isolated PDF preview document', () => {
@@ -447,6 +462,36 @@ describe('live PDF preview', () => {
 
         expect(render().html).toContain('color: teal');
         expect(renderPrintableMarkdownWithDiagrams).toHaveBeenCalledTimes(2);
+    });
+
+    test('keeps an established preview visually quiet while an edited snapshot renders', async () => {
+        const { frame, render } = await openReadyPreview({ path: 'notes/report.md', title: 'report.md' });
+        dispatchBridgeMessage(frame, { type: 'rendered', token: render().token });
+
+        const status = document.querySelector('.pdf-preview-status');
+        const loading = document.querySelector('.pdf-preview-loading');
+        const settledStatus = status.textContent;
+        const settledHTML = render().html;
+        let finishRefresh;
+        renderPrintableMarkdownWithDiagrams.mockImplementationOnce(() => new Promise(resolve => {
+            finishRefresh = resolve;
+        }));
+
+        document.dispatchEvent(new CustomEvent('file-content-changed', {
+            detail: { path: 'notes/report.md', content: '# Updated report' },
+        }));
+        await waitForPreview(360);
+
+        expect(loading.hidden).toBe(true);
+        expect(status.textContent).toBe(settledStatus);
+        expect(render().html).toBe(settledHTML);
+
+        finishRefresh('<!doctype html><html><head><title>Report</title></head><body><main class="figaro-print-document"><h1>Updated report</h1></main></body></html>');
+        await waitForPreview(20);
+
+        expect(loading.hidden).toBe(true);
+        expect(status.textContent).toBe('Live preview up to date.');
+        expect(render().html).toContain('Updated report');
     });
 
     test('cancels stale asynchronous preview work and renders only the latest editor snapshot', async () => {

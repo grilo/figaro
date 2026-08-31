@@ -100,10 +100,79 @@ func (a *App) DeletePath(relPath string) (*SaveFileResult, error) {
 func (a *App) RenamePath(oldRel string, newRel string) (*SaveFileResult, error) {
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
-	return a.renamePathLocked(oldRel, newRel)
+	return a.renamePathLocked(oldRel, newRel, true)
 }
 
-func (a *App) renamePathLocked(oldRel string, newRel string) (*SaveFileResult, error) {
+// RenamePathWithLinkUpdates applies the explicit reference choice made by the
+// file-tree rename flow. Moves retain RenamePath's link-preserving default.
+func (a *App) RenamePathWithLinkUpdates(oldRel string, newRel string, updateLinks bool) (*SaveFileResult, error) {
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+	return a.renamePathLocked(oldRel, newRel, updateLinks)
+}
+
+// PreviewRenamePath reports the Markdown files whose exact links would change
+// without mutating the vault. The renamed Markdown file itself is excluded: a
+// prompt is required only for references authored by another note.
+func (a *App) PreviewRenamePath(oldRel string, newRel string) (*SaveFileResult, error) {
+	a.vaultMu.Lock()
+	defer a.vaultMu.Unlock()
+
+	oldClean, err := vaultRelativePath(oldRel)
+	if err != nil {
+		return nil, err
+	}
+	newClean, err := vaultRelativePath(newRel)
+	if err != nil {
+		return nil, err
+	}
+	if oldClean == "." || newClean == "." {
+		return &SaveFileResult{Success: false, Error: "Cannot rename vault root"}, nil
+	}
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	info, err := root.Stat(oldClean)
+	if os.IsNotExist(err) {
+		return &SaveFileResult{Success: false, Error: "Source not found"}, nil
+	} else if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return &SaveFileResult{Success: true, OldPath: oldRel, Path: newRel, UpdatedLinks: []string{}}, nil
+	}
+	index, err := a.ensureVaultIndexLocked()
+	if err != nil {
+		return nil, fmt.Errorf("index links for rename preview: %w", err)
+	}
+	rewrites, _, err := collectVaultLinkRewritesIndexed(root, index, oldClean, newClean)
+	if err != nil {
+		return nil, fmt.Errorf("collect links for rename preview: %w", err)
+	}
+	updated := make(map[string]struct{}, len(rewrites))
+	for _, rewrite := range rewrites {
+		path := filepath.ToSlash(rewrite.path)
+		if path == filepath.ToSlash(oldClean) || path == filepath.ToSlash(newClean) {
+			continue
+		}
+		updated[path] = struct{}{}
+	}
+	updatedLinks := make([]string, 0, len(updated))
+	for path := range updated {
+		updatedLinks = append(updatedLinks, path)
+	}
+	sort.Strings(updatedLinks)
+	return &SaveFileResult{
+		Success:      true,
+		OldPath:      oldRel,
+		Path:         newRel,
+		UpdatedLinks: updatedLinks,
+	}, nil
+}
+
+func (a *App) renamePathLocked(oldRel string, newRel string, updateLinks bool) (*SaveFileResult, error) {
 	oldClean, err := vaultRelativePath(oldRel)
 	if err != nil {
 		return nil, err
@@ -137,9 +206,18 @@ func (a *App) renamePathLocked(oldRel string, newRel string) (*SaveFileResult, e
 	if err != nil {
 		return nil, fmt.Errorf("index links for move: %w", err)
 	}
-	linkRewrites, indexCurrent, err := collectVaultLinkRewritesIndexed(root, index, oldClean, newClean)
-	if err != nil {
-		return nil, fmt.Errorf("collect links for move: %w", err)
+	linkRewrites := make([]vaultLinkRewrite, 0)
+	indexCurrent := false
+	if updateLinks {
+		linkRewrites, indexCurrent, err = collectVaultLinkRewritesIndexed(root, index, oldClean, newClean)
+		if err != nil {
+			return nil, fmt.Errorf("collect links for move: %w", err)
+		}
+	} else {
+		indexCurrent, err = vaultIndexMatchesMarkdownFiles(root, index)
+		if err != nil {
+			return nil, fmt.Errorf("validate link index for move: %w", err)
+		}
 	}
 	if err := root.Rename(oldClean, newClean); err != nil {
 		return nil, err
@@ -243,7 +321,7 @@ func (a *App) MovePath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 			MergeAvailable: plan.MergeAvailable,
 		}, nil
 	}
-	return a.renamePathLocked(sourceClean, newRel)
+	return a.renamePathLocked(sourceClean, newRel, true)
 }
 
 type directoryMergeRename struct {
@@ -407,7 +485,7 @@ func (a *App) prepareDirectoryMergeCollisionsLocked(
 		if err != nil {
 			return err
 		}
-		result, err := a.renamePathLocked(sourcePath, renamedSource)
+		result, err := a.renamePathLocked(sourcePath, renamedSource, true)
 		if err != nil {
 			return err
 		}
@@ -428,7 +506,7 @@ func (a *App) rollbackDirectoryMergeRenamesLocked(renames []directoryMergeRename
 	var rollbackErrors []error
 	for index := len(renames) - 1; index >= 0; index-- {
 		rename := renames[index]
-		result, err := a.renamePathLocked(rename.newPath, rename.oldPath)
+		result, err := a.renamePathLocked(rename.newPath, rename.oldPath, true)
 		if err != nil {
 			rollbackErrors = append(rollbackErrors, err)
 		} else if !result.Success {

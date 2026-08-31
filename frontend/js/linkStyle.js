@@ -1,10 +1,21 @@
 import { backend } from './backend.js';
 import { confirmDialog, errorDialog } from './dialogs.js';
 import { log } from './log.js';
-import {
-    prepareTabsForVaultLinkRewrite,
-    refreshTabsForUpdatedLinks,
-} from './tabManager.js';
+
+let workspacePorts = null;
+
+export function configureLinkStyleWorkspace(ports) {
+    if (
+        typeof ports?.prepareTabsForVaultLinkRewrite !== 'function'
+        || typeof ports?.refreshTabsForUpdatedLinks !== 'function'
+    ) throw new TypeError('Link-style workspace ports are incomplete');
+    workspacePorts = Object.freeze({ ...ports });
+}
+
+function workspace() {
+    if (!workspacePorts) throw new Error('Link-style workspace ports were not configured');
+    return workspacePorts;
+}
 
 const validStyles = new Set(['markdown', 'wikilink']);
 const styleLabels = { markdown: 'Markdown', wikilink: 'Wikilinks' };
@@ -79,7 +90,7 @@ export async function requestLinkStyleChange(requestedStyle) {
 
     const rewrite = choice === 'confirm';
     if (rewrite) {
-        const prepared = await prepareTabsForVaultLinkRewrite();
+        const prepared = await workspace().prepareTabsForVaultLinkRewrite();
         if (!prepared?.success) {
             await errorDialog('Links were not changed', prepared?.error, 'Open notes could not be saved safely.');
             return { success: false, style: currentStyle, error: prepared?.error };
@@ -96,7 +107,7 @@ export async function requestLinkStyleChange(requestedStyle) {
         syncLinkStyleSelectors();
         window.dispatchEvent(new CustomEvent('figaro:link-style-changed', { detail: { style: currentStyle } }));
         if (rewrite && result.updated_links?.length) {
-            await refreshTabsForUpdatedLinks(result.updated_links);
+            await workspace().refreshTabsForUpdatedLinks(result.updated_links);
         }
         return result;
     } catch (error) {

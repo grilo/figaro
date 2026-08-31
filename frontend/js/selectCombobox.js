@@ -1,4 +1,5 @@
 import { setTooltip } from './tooltip.js';
+import { planFloatingMenuPlacement } from './core/floatingMenuModel.js';
 
 /**
  * Replace a native select's host-controlled popup with Figaro's themed,
@@ -42,6 +43,39 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
 
     let optionButtons = [];
     let activeIndex = Math.max(0, options.findIndex(option => option.value === select.value));
+    let menuOpen = false;
+    const clearMenuPlacement = () => {
+        delete menu.dataset.floating;
+        delete menu.dataset.placement;
+        for (const property of ['top', 'left', 'width', 'max-height']) menu.style.removeProperty(property);
+    };
+    const positionMenu = () => {
+        if (!menuOpen) return;
+        if (!wrapper.isConnected) {
+            setOpen(false);
+            return;
+        }
+        const plan = planFloatingMenuPlacement({
+            trigger: trigger.getBoundingClientRect(),
+            menuHeight: menu.scrollHeight,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+        });
+        menu.dataset.floating = 'true';
+        menu.dataset.placement = plan.placement;
+        menu.style.top = `${plan.top}px`;
+        menu.style.left = `${plan.left}px`;
+        menu.style.width = `${plan.width}px`;
+        menu.style.maxHeight = `${plan.maxHeight}px`;
+    };
+    const startTrackingPlacement = () => {
+        window.addEventListener('resize', positionMenu);
+        window.addEventListener('scroll', positionMenu, true);
+    };
+    const stopTrackingPlacement = () => {
+        window.removeEventListener('resize', positionMenu);
+        window.removeEventListener('scroll', positionMenu, true);
+    };
     const sync = () => {
         const selectedIndex = Math.max(0, options.findIndex(option => option.value === select.value));
         activeIndex = selectedIndex;
@@ -62,13 +96,21 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
         optionButtons.forEach((button, buttonIndex) => button.classList.toggle('active', buttonIndex === activeIndex));
         trigger.setAttribute('aria-activedescendant', optionButtons[activeIndex].id);
     };
-    const setOpen = open => {
-        const shouldOpen = Boolean(open && optionButtons.length && !select.disabled && !trigger.disabled);
+    const setOpen = requestedOpen => {
+        const shouldOpen = Boolean(requestedOpen && optionButtons.length && !select.disabled && !trigger.disabled);
+        const changed = shouldOpen !== menuOpen;
+        menuOpen = shouldOpen;
         trigger.setAttribute('aria-expanded', String(shouldOpen));
         menu.hidden = !shouldOpen;
         menu.classList.toggle('open', shouldOpen);
-        if (shouldOpen) setActive(Math.max(0, options.findIndex(option => option.value === select.value)));
+        if (shouldOpen) {
+            positionMenu();
+            if (changed) startTrackingPlacement();
+            setActive(Math.max(0, options.findIndex(option => option.value === select.value)));
+        }
         else {
+            if (changed) stopTrackingPlacement();
+            clearMenuPlacement();
             trigger.removeAttribute('aria-activedescendant');
             optionButtons.forEach(button => button.classList.remove('active'));
         }
@@ -110,8 +152,9 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
         } else if ((event.key === 'Home' || event.key === 'End') && trigger.getAttribute('aria-expanded') === 'true') {
             event.preventDefault();
             setActive(event.key === 'Home' ? 0 : optionButtons.length - 1);
-        } else if (event.key === 'Escape') {
+        } else if (event.key === 'Escape' && trigger.getAttribute('aria-expanded') === 'true') {
             event.preventDefault();
+            event.stopPropagation();
             setOpen(false);
         }
     });
@@ -127,7 +170,10 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
     });
     select.addEventListener('change', sync);
     const closeOnOutsideClick = event => {
-        if (!wrapper.isConnected) document.removeEventListener('click', closeOnOutsideClick);
+        if (!wrapper.isConnected) {
+            setOpen(false);
+            document.removeEventListener('click', closeOnOutsideClick);
+        }
         else if (!wrapper.contains(event.target)) setOpen(false);
     };
     document.addEventListener('click', closeOnOutsideClick);

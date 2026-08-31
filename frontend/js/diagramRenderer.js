@@ -7,6 +7,7 @@
  */
 
 import { planMermaidSourceRender } from './core/diagramSecurityModel.js';
+import { mermaidPaletteCount, mermaidSourceWithoutManagedNodeStyles } from './core/mermaidStyleEditorModel.js';
 import {
     diagramRenderCacheKey,
     rebaseDiagramSvgIds,
@@ -19,6 +20,15 @@ let renderSequence = 0;
 const DIAGRAM_RENDER_CACHE_LIMIT = 64;
 const diagramRenderCache = new Map();
 const pendingDiagramRenders = new Map();
+let mermaidJob = Promise.resolve();
+
+// Mermaid's parsers share theme/configuration state. Keep inspection and its
+// snapshot atomic with respect to all other validation/render requests.
+function withMermaid(operation) {
+    const job = mermaidJob.then(operation, operation);
+    mermaidJob = job.catch(() => {});
+    return job;
+}
 
 export function isDiagramLanguage(language) {
     return diagramLanguages.includes(String(language || '').trim().toLowerCase());
@@ -72,7 +82,7 @@ async function renderMermaidSVG(code, idPrefix) {
     let pending = pendingDiagramRenders.get(key);
     if (!pending) {
         const renderId = targetId;
-        pending = Promise.resolve(window.mermaid.render(renderId, code))
+        pending = withMermaid(() => window.mermaid.render(renderId, code))
             .then(result => {
                 const svg = typeof result?.svg === 'string' && result.svg ? result.svg : null;
                 if (!svg) return null;
@@ -121,7 +131,112 @@ export async function validateMermaidSource(source) {
         error.code = 'mermaid-unavailable';
         throw error;
     }
-    return window.mermaid.parse(code);
+    return withMermaid(() => window.mermaid.parse(code));
+}
+
+/** Snapshot parsed identities and effective styling, without leaking Mermaid's mutable DB. */
+export async function inspectMermaidSource(source) {
+    const code = String(source || '');
+    assertMermaidSourceAllowed(code);
+    if (!code.trim() || !initialiseMermaid() || !window.mermaid.mermaidAPI?.getDiagramFromText) {
+        return validateMermaidSource(code);
+    }
+    return withMermaid(async () => {
+        const result = await window.mermaid.parse(code);
+        const diagram = await window.mermaid.mermaidAPI.getDiagramFromText(mermaidSourceWithoutManagedNodeStyles(code));
+        const config = window.mermaid.mermaidAPI.getConfig();
+        const flowchart = result.diagramType === 'flowchart-v2' || result.diagramType === 'flowchart';
+        const db = diagram.db;
+        const paletteData = {
+            pie: () => Array.from(db.getSections().keys()),
+            journey: () => db.getSections(),
+            timeline: () => ({ sections: db.getSections(), tasks: db.getTasks() }),
+            gitGraph: () => db.getBranchesAsObjArray(),
+            radar: () => db.getCurves(),
+            mindmap: () => db.getMindmap()?.children || [],
+            treemap: () => db.getNodes(),
+            venn: () => db.getCurrentSets(),
+        }[result.diagramType]?.();
+        return JSON.parse(JSON.stringify({
+            ...result,
+            nodes: flowchart ? Array.from(diagram.db.getVertices().values()) : [],
+            classes: flowchart ? Object.fromEntries(diagram.db.getClasses()) : {},
+            plots: diagram.db.getXYChartData?.().plots?.map(plot => ({ type: plot.type })) || [],
+            effectiveVariables: config.themeVariables,
+            paletteCount: mermaidPaletteCount(result.diagramType, paletteData),
+        }));
+    });
+}
+
+function cssThemeValue(name, fallback) {
+    if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return fallback;
+    const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+}
+
+function mergeVegaConfig(theme, authored = {}) {
+    const merged = { ...theme, ...authored };
+    for (const key of ['axis', 'header', 'legend', 'text', 'title', 'view']) {
+        if (theme[key] || authored[key]) merged[key] = { ...(theme[key] || {}), ...(authored[key] || {}) };
+    }
+    return merged;
+}
+
+function applicationThemedVegaSpec(spec) {
+    const text = cssThemeValue('--text-color', '#dcddde');
+    const muted = cssThemeValue('--text-muted', '#72767d');
+    const border = cssThemeValue('--border-color', '#2d2d2d');
+    const grid = cssThemeValue('--border-light', border);
+    const theme = {
+        axis: {
+            domainColor: border,
+            gridColor: border,
+            labelColor: muted,
+            tickColor: grid,
+            titleColor: text,
+        },
+        header: { labelColor: muted, titleColor: text },
+        legend: { labelColor: muted, titleColor: text },
+        text: { color: text },
+        title: { color: text },
+        view: { stroke: null },
+    };
+    return {
+        ...spec,
+        background: 'transparent',
+        config: mergeVegaConfig(theme, spec.config),
+    };
+}
+
+function createVegaRenderTarget(containerWidth, chartHeight) {
+    const target = document.createElement('div');
+    const width = Math.min(1600, Math.max(320, Math.round(Number(containerWidth) || 640)));
+    const height = Math.min(1200, Math.max(360, Math.round(Number(chartHeight) || 340) + 80));
+    target.dataset.figaroVegaRenderTarget = 'true';
+    target.setAttribute('aria-hidden', 'true');
+    target.style.position = 'fixed';
+    target.style.left = '-10000px';
+    target.style.top = '0';
+    target.style.width = `${width}px`;
+    target.style.height = `${height}px`;
+    target.style.overflow = 'hidden';
+    target.style.visibility = 'hidden';
+    target.style.pointerEvents = 'none';
+    (document.body || document.documentElement).append(target);
+    return target;
+}
+
+function assertRenderableVegaSVG(svg) {
+    if (typeof svg !== 'string' || !svg.trim()) throw new Error('Vega-Lite did not produce an SVG preview.');
+    const host = document.createElement('template');
+    host.innerHTML = svg;
+    const graphic = host.content.querySelector('svg');
+    if (!graphic) throw new Error('Vega-Lite did not produce an SVG preview.');
+    const viewBox = String(graphic.getAttribute('viewBox') || '').trim().split(/[\s,]+/u).map(Number);
+    if (viewBox.length === 4 && viewBox.every(Number.isFinite) && (viewBox[2] <= 0 || viewBox[3] <= 0)) {
+        throw new Error('Vega-Lite produced an empty chart. Check the selected columns and values.');
+    }
+    return svg;
 }
 
 /**
@@ -129,7 +244,7 @@ export async function validateMermaidSource(source) {
  * return null; malformed diagram input rejects so callers can keep the
  * original source block visible instead of losing document content.
  */
-export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diagram') {
+export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diagram', options = {}) {
     const normalizedLanguage = String(language || '').trim().toLowerCase();
     const code = String(source || '');
 
@@ -143,8 +258,14 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
         typeof window !== 'undefined' &&
         typeof window.vegaEmbed === 'function' &&
         typeof document !== 'undefined') {
-        const spec = JSON.parse(code);
-        const target = document.createElement('div');
+        const authoredSpec = JSON.parse(code);
+        const spec = options.appearance === 'application'
+            ? applicationThemedVegaSpec(authoredSpec)
+            : authoredSpec;
+        // Keep the target in the live document while Vega measures a portable
+        // `width: "container"` spec. WebKitGTK reports zero geometry for the
+        // equivalent detached node even when it has an inline width.
+        const target = createVegaRenderTarget(options.containerWidth, spec.height);
         let result;
 
         try {
@@ -154,9 +275,10 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
                 renderer: 'svg',
             });
             if (typeof result?.view?.toSVG !== 'function') return null;
-            return await result.view.toSVG();
+            return assertRenderableVegaSVG(await result.view.toSVG());
         } finally {
             result?.view?.finalize?.();
+            target.remove();
         }
     }
 

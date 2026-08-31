@@ -599,6 +599,8 @@ test('centers Calendar in an equal borderless split and blanks buffer status wit
 
 test('scrolls Calendar Timeline days and opens styled note pills at their first date occurrence', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
+    // Keep Today separate from the ordinary Monday whose background we inspect.
+    await page.clock.setFixedTime(new Date('2026-08-29T12:00:00Z'));
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     await page.evaluate(async () => {

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { dateShortcuts } from '../frontend/js/dateShortcutCompletions.js';
+import { authoringMacros } from '../frontend/js/core/authoringMacroModel.js';
 import { initHelpPopup } from '../frontend/js/helpPopup.js';
 import { normalizedKanbanColumns } from '../frontend/js/core/taskDueDateCompletionModel.js';
 
@@ -92,6 +93,18 @@ describe('Figaro help', () => {
             .toEqual(dateShortcuts.map(shortcut => `@${shortcut.label}`));
         expect(macros.querySelector('.md-macro-date-link-row code').textContent.trim())
             .toBe('[YYYY-MM-DD](YYYY-MM-DD.md)');
+        expect([...macros.querySelectorAll('.md-macro-authoring-row code')]
+            .map(code => code.textContent.trim()))
+            .toEqual(authoringMacros.map(macro => `@${macro.name}`));
+        expect(macros.querySelector('.md-macro-authoring-row').textContent)
+            .toMatch(/@due.*semantic due date/);
+        expect([...macros.querySelectorAll('.md-macro-authoring-row')].map(row => row.textContent))
+            .toEqual(expect.arrayContaining([
+                expect.stringMatching(/@table.*Table Editor/),
+                expect.stringMatching(/@todo.*unchecked task-list item/),
+                expect.stringMatching(/@mermaid.*Mermaid Editor/),
+                expect.stringMatching(/@drawio.*sibling diagram.*Draw.io Editor/),
+            ]));
         expect([...macros.querySelectorAll('.md-macro-kanban-row code')]
             .map(code => code.textContent.trim()))
             .toEqual(normalizedKanbanColumns(['custom-column']).map(column => `#${column}`));
@@ -99,6 +112,8 @@ describe('Figaro help', () => {
             .toBe('Text #tag [due YYYY-MM-DD](YYYY-MM-DD.md)');
         expect(macros.querySelector('.md-macro-due-actions-row').textContent)
             .toMatch(/#tag.*Press Space.*Add due date….*Due today.*Due tomorrow/);
+        expect(macros.querySelector('.md-macro-task-actions-row').textContent)
+            .toMatch(/- \[ \] Task.*left Kanban and Calendar actions.*column or due date/i);
     });
 
     test('lists the global and editor shortcuts, including the F1 toggle', () => {

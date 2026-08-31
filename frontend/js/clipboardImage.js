@@ -3,7 +3,20 @@ import { errorDialog } from './dialogs.js';
 import { log } from './log.js';
 import { getState } from './state.js';
 import { statusBar } from './statusBar.js';
-import { refreshFileTree } from './fileTree.js';
+
+let refreshWorkspaceTree = null;
+
+export function configureClipboardImageWorkspace({ refreshFileTree } = {}) {
+    if (typeof refreshFileTree !== 'function') {
+        throw new TypeError('Clipboard image refreshFileTree port is required');
+    }
+    refreshWorkspaceTree = refreshFileTree;
+}
+
+function refreshFileTree(...args) {
+    if (!refreshWorkspaceTree) throw new Error('Clipboard image workspace ports were not configured');
+    return refreshWorkspaceTree(...args);
+}
 
 export const MAX_CLIPBOARD_IMAGE_BYTES = 25 * 1024 * 1024;
 

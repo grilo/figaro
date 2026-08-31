@@ -26,6 +26,7 @@
 @import url("./styles/features/embedded-widgets.css");
 @import url("./styles/features/markdown-table-editor.css");
 @import url("./styles/features/mermaid-editor.css");
+@import url("./styles/features/vega-lite-chart-editor.css");
 @import url("./styles/overrides.css");
 @import url("./design-system/primitives.css");
 @import url("./design-system/theme-surfaces.css");

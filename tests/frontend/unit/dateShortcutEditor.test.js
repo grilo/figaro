@@ -1,5 +1,5 @@
 describe('date shortcuts in the Markdown editor', () => {
-    test('@to shows ordered shortcuts and markdown anchors are not Kanban tags', async () => {
+    test('@to shows ordered date and todo macros, and markdown anchors are not Kanban tags', async () => {
         document.body.innerHTML = `
             <div id="editor-container"></div>
             <span id="status-text"></span>
@@ -19,7 +19,9 @@ describe('date shortcuts in the Markdown editor', () => {
                 userEvent: 'input.type',
             });
             await new Promise(resolve => setTimeout(resolve, 300));
-            expect(currentCompletions(view.state).map(option => option.label)).toEqual(['today', 'tomorrow']);
+            expect(currentCompletions(view.state).map(option => option.label)).toEqual([
+                'today', 'tomorrow', 'todo',
+            ]);
             expect(selectedCompletionIndex(view.state)).toBe(0);
             view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
                 key: 'Tab', bubbles: true, cancelable: true,

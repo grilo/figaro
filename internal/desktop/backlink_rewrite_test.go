@@ -108,6 +108,70 @@ func TestRenamePathRewritesRootMarkdownAndWikiLinks(t *testing.T) {
 	}
 }
 
+func TestPreviewRenamePathAndExplicitLinkChoice(t *testing.T) {
+	t.Run("update referenced Draw.io image", func(t *testing.T) {
+		app, vaultPath := newTestApp(t)
+		defer os.RemoveAll(vaultPath)
+
+		writeTestFile(t, vaultPath, "notes/diagram1.drawio.svg", "<svg></svg>")
+		writeTestFile(t, vaultPath, "notes/plan.md", "![Diagram](./diagram1.drawio.svg)\n")
+		writeTestFile(t, vaultPath, "notes/other.md", "No reference\n")
+
+		preview, err := app.PreviewRenamePath("notes/diagram1.drawio.svg", "notes/system.drawio.svg")
+		if err != nil || preview == nil || !preview.Success {
+			t.Fatalf("PreviewRenamePath: result=%+v err=%v", preview, err)
+		}
+		if !reflect.DeepEqual(preview.UpdatedLinks, []string{"notes/plan.md"}) {
+			t.Fatalf("preview references = %#v, want plan note", preview.UpdatedLinks)
+		}
+		if got := readTestFile(t, vaultPath, "notes/plan.md"); got != "![Diagram](./diagram1.drawio.svg)\n" {
+			t.Fatalf("preview mutated source: %q", got)
+		}
+
+		result, err := app.RenamePathWithLinkUpdates(
+			"notes/diagram1.drawio.svg",
+			"notes/system.drawio.svg",
+			true,
+		)
+		if err != nil || result == nil || !result.Success {
+			t.Fatalf("RenamePathWithLinkUpdates: result=%+v err=%v", result, err)
+		}
+		if got := readTestFile(t, vaultPath, "notes/plan.md"); got != "![Diagram](./system.drawio.svg)\n" {
+			t.Fatalf("accepted Draw.io reference rewrite = %q", got)
+		}
+	})
+
+	t.Run("keep Markdown references unchanged", func(t *testing.T) {
+		app, vaultPath := newTestApp(t)
+		defer os.RemoveAll(vaultPath)
+
+		writeTestFile(t, vaultPath, "old.md", "# Old\n[Self](old.md)\n")
+		writeTestFile(t, vaultPath, "source.md", "[Old](old.md)\n[[old]]\n")
+
+		preview, err := app.PreviewRenamePath("old.md", "new.md")
+		if err != nil || preview == nil || !preview.Success {
+			t.Fatalf("PreviewRenamePath: result=%+v err=%v", preview, err)
+		}
+		if !reflect.DeepEqual(preview.UpdatedLinks, []string{"source.md"}) {
+			t.Fatalf("preview references = %#v, want only the other Markdown source", preview.UpdatedLinks)
+		}
+
+		result, err := app.RenamePathWithLinkUpdates("old.md", "new.md", false)
+		if err != nil || result == nil || !result.Success {
+			t.Fatalf("RenamePathWithLinkUpdates: result=%+v err=%v", result, err)
+		}
+		if len(result.UpdatedLinks) != 0 {
+			t.Fatalf("kept references reported rewrites: %#v", result.UpdatedLinks)
+		}
+		if got := readTestFile(t, vaultPath, "source.md"); got != "[Old](old.md)\n[[old]]\n" {
+			t.Fatalf("declined reference rewrite changed source: %q", got)
+		}
+		if got := readTestFile(t, vaultPath, "new.md"); got != "# Old\n[Self](old.md)\n" {
+			t.Fatalf("renamed Markdown source changed unexpectedly: %q", got)
+		}
+	})
+}
+
 func TestDirectoryMoveRewritesSparseLinksAcrossLargeVault(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

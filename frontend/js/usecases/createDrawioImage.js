@@ -4,11 +4,15 @@ export async function createDrawioImage({
     createFile,
     refreshTree,
     openDiagram,
+    insertReference = null,
     reportRefreshFailure = () => {},
 }) {
     if (!target?.path || !target?.title) return { kind: 'invalid' };
     if (![createFile, refreshTree, openDiagram].every(port => typeof port === 'function')) {
         throw new TypeError('Draw.io image creation requires file, tree, and tab ports');
+    }
+    if (insertReference !== null && typeof insertReference !== 'function') {
+        throw new TypeError('Draw.io reference insertion must be a function or null');
     }
 
     let created;
@@ -24,6 +28,17 @@ export async function createDrawioImage({
         title: target.title,
         mtime: created.mtime,
     };
+    if (insertReference) {
+        try {
+            if (!await insertReference(diagram)) {
+                refreshWithoutBlocking(refreshTree, reportRefreshFailure);
+                return { kind: 'created-reference-failed', path: diagram.path };
+            }
+        } catch (error) {
+            refreshWithoutBlocking(refreshTree, reportRefreshFailure);
+            return { kind: 'created-reference-failed', path: diagram.path, error };
+        }
+    }
     try {
         await openDiagram(diagram);
     } catch (error) {

@@ -34,6 +34,64 @@ type externalCopyBackup struct {
 	backup      string
 }
 
+type externalCopySource struct {
+	path string
+	info fs.FileInfo
+}
+
+type unsupportedExternalSourceMessage func(name string, mode fs.FileMode) string
+
+func inspectExternalCopySources(sourcePaths []string, targetAbsolute string, unsupportedMessage unsupportedExternalSourceMessage) ([]externalCopySource, string) {
+	seenNames := make(map[string]struct{}, len(sourcePaths))
+	sources := make([]externalCopySource, 0, len(sourcePaths))
+	for _, suppliedPath := range sourcePaths {
+		source := filepath.Clean(strings.TrimSpace(suppliedPath))
+		if source == "." || !filepath.IsAbs(source) {
+			return nil, fmt.Sprintf("Dropped path must be absolute: %q", suppliedPath)
+		}
+		info, err := os.Lstat(source)
+		if err != nil {
+			return nil, fmt.Sprintf("Cannot inspect %q: %v", filepath.Base(source), err)
+		}
+		if info.Mode()&fs.ModeSymlink != 0 || (!info.IsDir() && !info.Mode().IsRegular()) {
+			return nil, unsupportedMessage(filepath.Base(source), info.Mode())
+		}
+		if err := validateExternalCopyTree(source); err != nil {
+			return nil, err.Error()
+		}
+
+		nameKey := filepath.Base(source)
+		if goruntime.GOOS == "windows" {
+			nameKey = strings.ToLower(nameKey)
+		}
+		if _, duplicate := seenNames[nameKey]; duplicate {
+			return nil, fmt.Sprintf("More than one dropped item is named %q", filepath.Base(source))
+		}
+		seenNames[nameKey] = struct{}{}
+
+		resolvedSource, err := filepath.EvalSymlinks(source)
+		if err != nil {
+			return nil, fmt.Sprintf("Cannot resolve %q: %v", filepath.Base(source), err)
+		}
+		if info.IsDir() && pathIsWithin(resolvedSource, filepath.Join(targetAbsolute, filepath.Base(source))) {
+			return nil, fmt.Sprintf("Cannot copy folder %q into itself", filepath.Base(source))
+		}
+		sources = append(sources, externalCopySource{path: source, info: info})
+	}
+	return sources, ""
+}
+
+func copyExternalUnsupportedSourceMessage(name string, mode fs.FileMode) string {
+	if mode&fs.ModeSymlink != 0 {
+		return fmt.Sprintf("Cannot import symbolic link %q", name)
+	}
+	return fmt.Sprintf("Cannot import special file %q", name)
+}
+
+func mergeExternalUnsupportedSourceMessage(name string, _ fs.FileMode) string {
+	return fmt.Sprintf("Cannot import unsupported path %q", name)
+}
+
 // CopyExternalPaths copies files or folders supplied by Wails' native file
 // drop channel into an existing vault directory. It preflights the complete
 // batch and only replaces existing entries after the frontend has received
@@ -69,64 +127,38 @@ func (a *App) CopyExternalPaths(sourcePaths []string, targetDirRel string, repla
 	if err != nil {
 		return nil, fmt.Errorf("resolve drop destination: %w", err)
 	}
-	plans := make([]externalCopyPlan, 0, len(sourcePaths))
+	sources, sourceError := inspectExternalCopySources(
+		sourcePaths,
+		targetAbsolute,
+		copyExternalUnsupportedSourceMessage,
+	)
+	if sourceError != "" {
+		return &CopyExternalResult{Success: false, Error: sourceError}, nil
+	}
+
+	plans := make([]externalCopyPlan, 0, len(sources))
 	conflicts := make([]string, 0)
 	directoryConflicts := make([]string, 0)
-	seenDestinations := make(map[string]struct{}, len(sourcePaths))
-	for _, suppliedPath := range sourcePaths {
-		source := filepath.Clean(strings.TrimSpace(suppliedPath))
-		if source == "." || !filepath.IsAbs(source) {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Dropped path must be absolute: %q", suppliedPath)}, nil
-		}
-		info, err := os.Lstat(source)
-		if err != nil {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot inspect %q: %v", filepath.Base(source), err)}, nil
-		}
-		if info.Mode()&fs.ModeSymlink != 0 {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot import symbolic link %q", filepath.Base(source))}, nil
-		}
-		if !info.IsDir() && !info.Mode().IsRegular() {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot import special file %q", filepath.Base(source))}, nil
-		}
-		if err := validateExternalCopyTree(source); err != nil {
-			return &CopyExternalResult{Success: false, Error: err.Error()}, nil
-		}
-
-		destination := filepath.Join(targetClean, filepath.Base(source))
+	for _, source := range sources {
+		destination := filepath.Join(targetClean, filepath.Base(source.path))
 		if targetClean == "." {
-			destination = filepath.Base(source)
+			destination = filepath.Base(source.path)
 		}
-		key := filepath.Clean(destination)
-		if goruntime.GOOS == "windows" {
-			key = strings.ToLower(key)
-		}
-		if _, duplicate := seenDestinations[key]; duplicate {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("More than one dropped item is named %q", filepath.Base(source))}, nil
-		}
-		seenDestinations[key] = struct{}{}
 		destinationInfo, destinationErr := root.Stat(destination)
 		replace := false
 		if destinationErr == nil {
-			if os.SameFile(info, destinationInfo) {
-				return &CopyExternalResult{Success: false, Error: fmt.Sprintf("%q is already at the destination", filepath.Base(source))}, nil
+			if os.SameFile(source.info, destinationInfo) {
+				return &CopyExternalResult{Success: false, Error: fmt.Sprintf("%q is already at the destination", filepath.Base(source.path))}, nil
 			}
 			replace = true
 			conflicts = append(conflicts, filepath.ToSlash(destination))
-			if info.IsDir() && destinationInfo.IsDir() {
+			if source.info.IsDir() && destinationInfo.IsDir() {
 				directoryConflicts = append(directoryConflicts, filepath.ToSlash(destination))
 			}
 		} else if !os.IsNotExist(destinationErr) {
 			return nil, destinationErr
 		}
-
-		resolvedSource, err := filepath.EvalSymlinks(source)
-		if err != nil {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot resolve %q: %v", filepath.Base(source), err)}, nil
-		}
-		if info.IsDir() && pathIsWithin(resolvedSource, filepath.Join(targetAbsolute, filepath.Base(source))) {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot copy folder %q into itself", filepath.Base(source))}, nil
-		}
-		plans = append(plans, externalCopyPlan{source: source, destination: destination, replace: replace})
+		plans = append(plans, externalCopyPlan{source: source.path, destination: destination, replace: replace})
 	}
 	if len(conflicts) > 0 && !replaceExisting {
 		return &CopyExternalResult{
@@ -232,52 +264,26 @@ func (a *App) MergeExternalPaths(sourcePaths []string, targetDirRel string) (*Co
 		return nil, fmt.Errorf("resolve drop destination: %w", err)
 	}
 
-	seenNames := make(map[string]struct{}, len(sourcePaths))
-	sources := make([]string, 0, len(sourcePaths))
-	for _, suppliedPath := range sourcePaths {
-		source := filepath.Clean(strings.TrimSpace(suppliedPath))
-		if source == "." || !filepath.IsAbs(source) {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Dropped path must be absolute: %q", suppliedPath)}, nil
-		}
-		info, err := os.Lstat(source)
-		if err != nil {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot inspect %q: %v", filepath.Base(source), err)}, nil
-		}
-		if info.Mode()&fs.ModeSymlink != 0 || (!info.IsDir() && !info.Mode().IsRegular()) {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot import unsupported path %q", filepath.Base(source))}, nil
-		}
-		if err := validateExternalCopyTree(source); err != nil {
-			return &CopyExternalResult{Success: false, Error: err.Error()}, nil
-		}
-		nameKey := filepath.Base(source)
-		if goruntime.GOOS == "windows" {
-			nameKey = strings.ToLower(nameKey)
-		}
-		if _, duplicate := seenNames[nameKey]; duplicate {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("More than one dropped item is named %q", filepath.Base(source))}, nil
-		}
-		seenNames[nameKey] = struct{}{}
-		resolvedSource, err := filepath.EvalSymlinks(source)
-		if err != nil {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot resolve %q: %v", filepath.Base(source), err)}, nil
-		}
-		if info.IsDir() && pathIsWithin(resolvedSource, filepath.Join(targetAbsolute, filepath.Base(source))) {
-			return &CopyExternalResult{Success: false, Error: fmt.Sprintf("Cannot copy folder %q into itself", filepath.Base(source))}, nil
-		}
-		sources = append(sources, source)
+	sources, sourceError := inspectExternalCopySources(
+		sourcePaths,
+		targetAbsolute,
+		mergeExternalUnsupportedSourceMessage,
+	)
+	if sourceError != "" {
+		return &CopyExternalResult{Success: false, Error: sourceError}, nil
 	}
 
 	createdPaths := make([]string, 0)
 	paths := make([]string, 0, len(sources))
 	for _, source := range sources {
-		destination := filepath.Join(targetClean, filepath.Base(source))
+		destination := filepath.Join(targetClean, filepath.Base(source.path))
 		if targetClean == "." {
-			destination = filepath.Base(source)
+			destination = filepath.Base(source.path)
 		}
-		actualDestination, err := copyExternalTreeMerged(root, source, destination, &createdPaths)
+		actualDestination, err := copyExternalTreeMerged(root, source.path, destination, &createdPaths)
 		if err != nil {
 			cleanupErr := removeMergedPaths(root, createdPaths)
-			return &CopyExternalResult{Success: false, Error: errors.Join(fmt.Errorf("could not merge %q: %w", filepath.Base(source), err), cleanupErr).Error()}, nil
+			return &CopyExternalResult{Success: false, Error: errors.Join(fmt.Errorf("could not merge %q: %w", filepath.Base(source.path), err), cleanupErr).Error()}, nil
 		}
 		paths = append(paths, filepath.ToSlash(actualDestination))
 	}

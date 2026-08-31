@@ -7,7 +7,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 
 import { openTab } from '../frontend/js/tabManager.js';
 import { setState } from '../frontend/js/state.js';
-import { homeTaskLimit, renderHome } from '../frontend/js/home.js';
+import { configureHomeWorkspace, homeTaskLimit, renderHome } from '../frontend/js/home.js';
 
 function deferred() {
     let resolve;
@@ -19,6 +19,7 @@ const fixedNow = () => new Date(2024, 0, 15, 10, 30, 0);
 
 describe('Today workspace overview', () => {
     beforeEach(() => {
+        configureHomeWorkspace({ openTab });
         testUtils.createMockDOM();
         jest.clearAllMocks();
 

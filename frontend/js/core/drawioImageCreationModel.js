@@ -13,13 +13,7 @@ function decodedImagePath(source) {
     }
 }
 
-/** Parse the complete Markdown image forms supported by Figaro live preview. */
-export function parseMarkdownImageSyntax(text) {
-    const match = String(text || '').trim()
-        .match(/^!\[([^\]]*)\]\((.+?)(?:\s+["']([^"']+)["'])?\)$/);
-    if (!match) return null;
-    return { alt: match[1], src: match[2], title: match[3] };
-}
+export { parseMarkdownImageSyntax } from './markdownImageModel.js';
 
 /** Identify a standalone editable local Draw.io image without resolving a note path. */
 export function isLocalDrawioMarkdownImage(source) {
@@ -85,3 +79,4 @@ export function drawioImageStateForRead(result, error = null) {
     }
     return { kind: 'open' };
 }
+import { parseMarkdownImageSyntax } from './markdownImageModel.js';

@@ -5,11 +5,6 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
-import {
-    openTab,
-    prepareTabsForVaultLinkRewrite,
-    refreshTabsForUpdatedLinks,
-} from './tabManager.js';
 import { getLinkStylePreference } from './linkStyle.js';
 import { errorDialog } from './dialogs.js';
 import { statusBar } from './statusBar.js';
@@ -18,10 +13,25 @@ import { relationshipWindow } from './core/relationshipModel.js';
 let backlinksRequestId = 0;
 const backlinksResultsRequestIds = new Map();
 const relationshipRenderStates = new WeakMap();
+let workspacePorts = null;
 
 const RELATIONSHIP_VIRTUAL_THRESHOLD = 120;
 const RELATIONSHIP_WINDOW_SIZE = 96;
 const RELATIONSHIP_ROW_STRIDE = 126;
+
+export function configureBacklinksWorkspace(ports) {
+    if (
+        typeof ports?.openTab !== 'function'
+        || typeof ports?.prepareTabsForVaultLinkRewrite !== 'function'
+        || typeof ports?.refreshTabsForUpdatedLinks !== 'function'
+    ) throw new TypeError('Backlinks workspace ports are incomplete');
+    workspacePorts = Object.freeze({ ...ports });
+}
+
+function workspace() {
+    if (!workspacePorts) throw new Error('Backlinks workspace ports were not configured');
+    return workspacePorts;
+}
 
 /**
  * Keep compatibility with older backends that encoded an empty Go slice as
@@ -152,7 +162,7 @@ export async function loadBacklinksResults(targetPath, containerId) {
             const existing = tabs.find(t => t.id === path);
 
             if (existing) {
-                openTab(path, path.split('/').pop(), 'file', { path });
+                workspace().openTab(path, path.split('/').pop(), 'file', { path });
             } else {
                 // Left-click: replace current file tab
                 const activeId = getState('activeTabId');
@@ -163,7 +173,7 @@ export async function loadBacklinksResults(targetPath, containerId) {
                     if (panel) panel.remove();
                     setState('openTabs', newTabs);
                 }
-                openTab(path, path.split('/').pop(), 'file', { path });
+                workspace().openTab(path, path.split('/').pop(), 'file', { path });
             }
         };
 
@@ -174,7 +184,7 @@ export async function loadBacklinksResults(targetPath, containerId) {
             e.preventDefault();
 
             const path = card.dataset.path;
-            openTab(path, path.split('/').pop(), 'file', { path });
+            workspace().openTab(path, path.split('/').pop(), 'file', { path });
         };
 
         container.onkeydown = event => {
@@ -382,11 +392,11 @@ async function linkUnlinkedMention(button, targetPath, containerId) {
     button.setAttribute('aria-busy', 'true');
     button.textContent = 'Linking…';
     try {
-        const prepared = await prepareTabsForVaultLinkRewrite();
+        const prepared = await workspace().prepareTabsForVaultLinkRewrite();
         if (!prepared?.success) throw new Error(prepared?.error || 'Open notes could not be saved safely.');
         const result = await backend().LinkUnlinkedMention(sourcePath, lineNumber, targetPath, getLinkStylePreference());
         if (!result?.success) throw new Error(result?.error || 'The mention could not be linked.');
-        await refreshTabsForUpdatedLinks([sourcePath]);
+        await workspace().refreshTabsForUpdatedLinks([sourcePath]);
         await updateBacklinksForActiveTab();
         await loadBacklinksResults(targetPath, containerId);
         statusBar.set('Linked mention to note');

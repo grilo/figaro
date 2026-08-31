@@ -21,6 +21,7 @@
     "styles/features/embedded-widgets.css",
     "styles/features/markdown-table-editor.css",
     "styles/features/mermaid-editor.css",
+    "styles/features/vega-lite-chart-editor.css",
     "styles/overrides.css",
     "design-system/primitives.css",
     "design-system/theme-surfaces.css"

@@ -25,6 +25,10 @@ jest.mock('../frontend/js/statusBar.js', () => ({
 
 import { statusBar } from '../frontend/js/statusBar.js';
 import {
+    createVegaLiteChartEditorStateFromTable,
+    serializeVegaLiteChartFence,
+} from '../frontend/js/core/vegaLiteChartEditorModel.js';
+import {
     exportFileToPDF,
     exportMarkdownToPDF,
     renderPrintableMarkdown,
@@ -151,6 +155,25 @@ describe('Interactive PDF export', () => {
         expect(code.querySelector('img')).toBeNull();
         expect(printable.querySelector('style').textContent)
             .toContain('.figaro-print-code .hljs-keyword');
+    });
+
+    test('renders authored image dimensions as standard HTML image geometry', () => {
+        const printable = parseHTML(renderPrintableMarkdown(
+            '![Engelbart|100x145](images/engelbart.jpg "Portrait")',
+            'Sized image',
+        ));
+        const image = printable.querySelector('.figaro-print-document img');
+
+        expect(image.getAttribute('alt')).toBe('Engelbart');
+        expect(image.getAttribute('src')).toBe('images/engelbart.jpg');
+        expect(image.getAttribute('title')).toBe('Portrait');
+        expect(image.getAttribute('width')).toBe('100');
+        expect(image.getAttribute('height')).toBe('145');
+        expect(image.dataset.figaroImageSize).toBe('100x145');
+        expect(image.style.width).toBe('100px');
+        expect(image.style.height).toBe('145px');
+        expect(printable.querySelector('style').textContent)
+            .toContain('img[data-figaro-image-size]');
     });
 
     test('turns standalone triple-dash thematic breaks into PDF page breaks only', () => {
@@ -650,10 +673,25 @@ describe('Interactive PDF export', () => {
 
     test('renders Mermaid, Vega, and Vega-Lite fences as inline printable SVGs', async () => {
         const vegaViews = setDiagramRenderers();
+        const styledMermaid = [
+            '---',
+            'config:',
+            "  theme: 'base'",
+            '  themeVariables:',
+            "    primaryColor: '#3b82f6'",
+            '---',
+            'flowchart TD',
+            '  A --> B',
+            '',
+            '%% Figaro node styles',
+            'style B fill:#ef4444,stroke:#ac3131,color:#ffffff',
+            'B@{ shape: rounded }',
+            '%% End Figaro node styles',
+        ].join('\n');
         const content = [
             '# Visuals',
             '',
-            fence('mermaid', 'flowchart TD\n  A --> B'),
+            fence('mermaid', styledMermaid),
             '',
             fence('vega', '{"title":"Vega chart","marks":[]}'),
             '',
@@ -672,7 +710,7 @@ describe('Interactive PDF export', () => {
         });
         expect(window.mermaid.render).toHaveBeenCalledWith(
             expect.stringMatching(/^figaro-print-diagram-mermaid-/),
-            'flowchart TD\n  A --> B'
+            styledMermaid
         );
         expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
         expect(window.vegaEmbed.mock.calls[0][2]).toEqual({ mode: 'vega', actions: false, renderer: 'svg' });
@@ -690,6 +728,51 @@ describe('Interactive PDF export', () => {
         expect(printable.querySelectorAll('pre > code.language-vega-lite')).toHaveLength(0);
         expect(printable.querySelector('pre > code.language-javascript').textContent).toContain('const remainsSource = true;');
         expect(printable.querySelector('style').textContent).toContain('break-inside: avoid');
+    });
+
+    test('preserves Mermaid XY nested plot colors and the authored theme at the printable boundary', async () => {
+        setDiagramRenderers();
+        const source = "---\nconfig:\n  theme: 'dark'\n  themeVariables:\n    xyChart:\n      plotColorPalette: '#3b82f6,#ef4444'\n---\nxychart-beta\n bar [1,2]\n line [2,3]";
+        const printable = parseHTML(await renderPrintableMarkdownWithDiagrams(fence('mermaid', source), 'XY'));
+        expect(window.mermaid.render).toHaveBeenCalledWith(expect.any(String), source);
+        expect(printable.querySelector('.figaro-print-diagram svg')).not.toBeNull();
+    });
+
+    test('renders a reversible table-backed chart through the shared preview and PDF SVG surface', async () => {
+        setDiagramRenderers();
+        const table = '| Month | Revenue | Cost |\n| --- | ---: | ---: |\n| Jan | 42 | 18 |\n| Feb | 56 | 24 |';
+        const state = createVegaLiteChartEditorStateFromTable(table);
+        state.height = 420;
+        state.legendPosition = 'bottom';
+        state.threshold.visible = true;
+        state.threshold.value = 30;
+        const content = serializeVegaLiteChartFence(state);
+
+        const printable = parseHTML(await renderPrintableMarkdownWithDiagrams(content, 'Chart'));
+        expect(printable.querySelector('.figaro-print-diagram[data-diagram-language="vega-lite"] svg'))
+            .not.toBeNull();
+        const spec = window.vegaEmbed.mock.calls[0][1];
+        expect(spec).toMatchObject({
+            width: 'container',
+            height: 420,
+            usermeta: {
+                figaro: {
+                    editor: 'chart',
+                    tableSource: table,
+                    chart: { legendPosition: 'bottom' },
+                },
+            },
+        });
+        const layers = spec.layer.flatMap(layer => layer.layer || [layer]);
+        layers.map(layer => layer.encoding?.color).filter(Boolean).forEach(color => {
+            expect(color.scale.domain).toEqual(['Revenue', 'Cost']);
+            expect(color.legend.orient).toBe('bottom');
+        });
+        expect(layers.find(layer => layer.transform?.[0]?.fold).encoding.x.field).toBe('Month');
+        const threshold = layers.find(layer => layer.mark?.type === 'rule');
+        expect(threshold.encoding.y).toEqual({ datum: 30, type: 'quantitative' });
+        expect(threshold.encoding.y).not.toHaveProperty('axis');
+        expect(window.vegaEmbed.mock.calls[0][0].style.width).toBe('640px');
     });
 
     test('keeps source fences printable when a diagram renderer is unavailable or fails', async () => {

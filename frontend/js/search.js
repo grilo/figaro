@@ -4,6 +4,7 @@
  */
 export {
     clearGlobalSearch,
+    configureSearchWorkspace,
     handleSearchKeydown,
     initSearch,
     performGlobalSearch,

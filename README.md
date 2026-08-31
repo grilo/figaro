@@ -36,7 +36,7 @@ hand without changing the underlying Markdown.
 - **Source-first Markdown editing.** The active line stays editable Markdown
   while surrounding content renders headings, tables, tasks, callouts,
   footnotes, math, images, links, and fenced code. Editor-sized gutter guides
-  fold headings, fenced code, tables, and standalone local Draw.io images
+  fold headings, fenced code, tables, and standalone images
   without changing the saved source;
   each guide stays aligned to its block and under the pointer while toggling.
   Rendered fences and tables contract to one native fold row, typed fences use
@@ -62,8 +62,17 @@ hand without changing the underlying Markdown.
   expanded Properties presents **Edit YAML** as a quiet file-code action that
   gains tonal paint only on hover or keyboard focus;
   tables, individual fields, focus, errors, and structural dividers retain their
-  meaningful boundaries. Successfully loaded images, Properties,
-  links, and task checkboxes keep their normal sizing. A rendered task checkbox
+  meaningful boundaries. Hovering a successfully loaded image reveals themed
+  width, height, and proportional handles with generous pointer targets and
+  explanatory tooltips. Dragging resizes only the mounted image and updates the
+  centered size readout while leaving the source untouched. Releasing the pointer writes
+  the final `|WIDTHxHEIGHT` hint as one Undo/Redo step; cancellation restores
+  the starting size. Resizing respects the writing surface's right/bottom edges,
+  and height-only resizing is capped at ten times the original height. Clicking
+  the image still reveals its Markdown without moving following text, and the
+  left-side **original size** action removes the hint and restores intrinsic
+  dimensions. Properties, links, and task checkboxes keep their normal sizing.
+  A rendered task checkbox
   has a named 24px target and changes the underlying Markdown from either a
   click or keyboard Space; an image that is still
   loading or cannot be found instead uses a themed one-source-line placeholder,
@@ -191,7 +200,8 @@ hand without changing the underlying Markdown.
   Ctrl/Cmd+
   mouse-wheel temporarily scales the active editor buffer; its status-bar
   **Scale** control resets to the permanent **Default Text Size** chosen in
-  Settings, and closing the buffer discards the temporary scale.
+  Settings, the complete status row stays visible for three seconds after each
+  wheel gesture, and closing the buffer discards the temporary scale.
 
 For an iA Writer-like writing view, collapse the sidebar; **Settings →
 Appearance → Pure mode** tunes the experience. The active file
@@ -371,6 +381,11 @@ Text/PDF preview in the editor context menu and Properties. Copy/import,
 move/merge, rename, and delete announce their activity immediately and add a
 status-bar spinner if they run for at least one second. While a move is running,
 Figaro ignores duplicate drag attempts instead of starting the same move twice.
+Before renaming a file referenced by other Markdown notes, Figaro reports how
+many notes are affected and offers to update every reference, keep the authored
+references unchanged, or cancel. A rename with no incoming Markdown reference
+proceeds without that extra question; folder moves retain their link-preserving
+behavior.
 
 Concise interface hints use one theme-aware tooltip throughout Figaro. A hint
 appears after a short hover or immediately on keyboard focus, remains inside the
@@ -475,6 +490,14 @@ links:
 - [ ] Submit report #todo [due 2026-08-14](2026-08-14.md)
 ```
 
+Every unfinished `- [ ]` item has compact Kanban and Calendar actions in the
+left editor rail. Kanban opens the normal column-suggestion list; Calendar
+opens the shared date picker. Choosing either action appends ordinary Markdown,
+and Figaro keeps the canonical `task #column [due …](….md)` order even when the
+date was chosen first. The index itself recognizes a valid same-line due link
+on either side of the tag; the ordering is an authoring convention, not a parser
+requirement.
+
 Typing a standalone hashtag suggests saved Kanban columns even at the end of
 ordinary prose. After any valid tag except `#done`, press Space to choose
 **Add due date…**, **Due today**, or **Due tomorrow** for that tagged line.
@@ -483,9 +506,16 @@ already dated lines remain quiet. **Add due date…** opens the same localized
 month view as the Calendar workspace, with Today selected initially and the same
 theme-aware weekends, note-intensity fills, due outlines, and activity details.
 The title-bar `?` guide keeps general Markdown syntax under **Markdown** and
-collects these Figaro-specific date, Kanban, and due-date forms under
-**Macros**. Its spacious, viewport-bounded surface keeps the same dimensions
-when you switch topics; longer topic content scrolls inside that surface.
+collects Figaro-specific authoring forms under **Macros**. Alongside
+`@today`, `@tomorrow`, and `@yesterday`, type `@due` to choose and insert a
+portable `[due YYYY-MM-DD](YYYY-MM-DD.md)` link, `@todo` to start `- [ ] ` with
+the caret ready for the task text, `@table` to insert a basic GFM table and open
+the Table Editor, or `@mermaid` to insert an empty Mermaid fence and open the
+Mermaid Editor. `@drawio` prompts with `diagram1`, creates a sibling
+`diagram1.drawio.svg`, inserts `![Diagram](./diagram1.drawio.svg)`, and opens
+the Draw.io Editor. Accept a completion with Enter, Tab, or Space. The help surface
+keeps the same viewport-bounded dimensions when you switch topics; longer topic
+content scrolls inside that surface.
 
 The board is fully keyboard-operable. Tab advances through every card in
 column order; Up/Down persists a card's vertical position, Left/Right moves it
@@ -554,6 +584,10 @@ Figaro does not guess or download public holidays.
 Mermaid, Vega, and Vega-Lite blocks render directly in notes and printable
 documents. Draw.io editing uses the hosted diagrams.net editor, but the
 resulting `.drawio.svg` file stays in the vault and remains readable offline.
+From a Markdown note, `@drawio` creates the named editable SVG beside that note,
+inserts an explicit same-directory image reference, and opens it immediately.
+The prompt defaults to `diagram1` and accepts either a stem or the normal
+`.drawio.svg` suffix.
 You can write an image reference such as `![Flow](flow.drawio.svg)` before the
 asset exists, then choose **Create Draw.io diagram** directly from its rendered
 placeholder. Relative paths resolve from the note, while
@@ -574,6 +608,52 @@ Live Mermaid previews reuse rendered SVGs when CodeMirror remounts them during
 scrolling. New diagrams wait for a quiet, idle moment before rendering so
 moving through long notes stays responsive.
 
+Rendered Markdown tables now add **chart** beneath their existing left-side
+controls. It opens a reversible Vega-Lite Chart Editor: choose Cartesian, Pie,
+or Waterfall; orient Cartesian charts horizontally or vertically; and configure
+each numeric column's visibility, Bar/Stacked Bar/Line/Area/Points mark, primary
+or opposite axis, color, and linear trendline. Trendlines use a hidden authored-row
+index, so text categories such as month or product names remain visible while
+Vega-Lite calculates change across table order. Gridlines and a
+colorable labelled threshold are shared chart guides. Cartesian charts always
+use the first table column as their category axis, while Pie and Waterfall keep
+independent themed Category pickers. Eye/eye-off buttons hide
+columns while retaining their settings; every visible series appears in one
+legend that can be placed on the top, right, bottom, or left. Stacked columns
+share one primary stack, and the original table
+is embedded losslessly in the generated chart. Pie and Waterfall category
+pickers include every table column rather than fixing the first inferred label
+column; their numeric value/change mapping remains independently selectable.
+The first Cartesian column states where labels are placed without presenting
+meaningless mark or color cells. Series and guide colors use the same square,
+theme-aware palette control as Kanban; the complete unavailable trendline label
+explains its actionable requirement on hover, keyboard focus, or click without
+an extra underline or help icon, and the tooltip stays above the editor dialog.
+Threshold visibility,
+value, axis, and color share one row; values use an editable `− value +`
+stepper, and the label field spans the configuration pane. Mode and
+Orientation share one compact row; each numeric series exposes Left/Right or
+Bottom/Top as a direct segmented choice, and thresholds use the same pattern
+for Primary/Opposite without replacing or hiding that value axis. The pane has
+no horizontal scrollbar, while only the
+individual column mappings retain separator rules; section headings provide the
+remaining grouping.
+A managed `vega-lite` block adds
+**editor** and **table** actions; **table** restores the exact original Markdown
+after confirmation, while unsupported manual JSON changes are left untouched.
+The borderless chart preview receives the larger side of the editor and centers
+its SVG vertically. Its surface, axes, labels, and select-only comboboxes follow the
+active Figaro theme; the applied chart uses that same surface so its data colors
+do not change after creation. Narrow configuration panes reflow dense column
+controls into multiple rows, and combobox menus flip and clamp to stay within
+the visible window instead of colliding with or being clipped by nearby
+controls. Rendering and configuration failures appear as an
+announced error in the preview and keep **Create chart** disabled instead of
+leaving a blank chart box. In the note, charts fill the writing width and
+expose one themed bottom-center handle for vertical resizing; the Markdown
+changes once on release, so one drag is one Undo step. The same SVG
+specification renders in PDF Preview and generated PDFs.
+
 Editor block helpers face the writing surface: heading, code, and table labels
 are right-aligned in the left rail. Every Mermaid block extends that same guide
 into a two-button stack, with **editor** directly beneath **mermaid**. The stack
@@ -581,16 +661,45 @@ follows the centered writing column, uses the same editor-sized monospace
 helper type, and remains outside the note instead of occupying diagram space.
 Its reserved overlay width stays stable as parent sections fold, so hiding a
 wider nested label cannot move the note horizontally. The **editor** action
-opens a focused source-and-preview workspace with the chart types and templates from
+opens a focused source/style-and-preview workspace with the chart types and templates from
 the version-matched Mermaid Live Editor catalogue. Linked **Diagram** and
 **Template** pickers sit tightly together at the left and make empty, whitespace-only,
 or already-template-backed blocks follow each selection immediately for quick
 browsing. Existing or manually edited source is protected until **Replace with
-template** is chosen. The temporary source editor inherits the main editor's
+template** is chosen. **Source** retains direct CodeMirror editing; **Style**
+detects the current diagram and reveals only controls Mermaid supports for that
+type. Document, neutral, and accent presets are shared; authored dark or custom
+themes are identified without falsely selecting a preset. Color choices keep
+the current theme. Sequence diagrams, Gantt charts, timelines, pies, Git graphs,
+and other supported types receive their relevant element or series palettes.
+Palette controls follow the groups or series actually present (up to eight
+slots outside XY); XY exposes one color per real bar/line plot and preserves
+the other plots, including charts with repeating palettes. Unsupported element
+controls are omitted, with an explanation instead of nonfunctional swatches.
+Flowcharts add direction and
+connection choices plus a node list: select a node there or directly in the
+preview, then assign a Kanban-palette color or choose its original, rounded, or
+pill shape. The selected node's editor appears first, above a height-bounded
+list and the diagram-wide defaults. Mermaid's parsed node identities include
+chained and standalone nodes without mistaking icon labels for extra nodes.
+Existing native/class-based node colors are shown; **Use source/default color**
+removes only the editor's override. A
+short instruction plus solid color dots distinguish node selection from
+visibility checkboxes. Use Arrow Up/Down or Home/End to move through the list;
+selecting a node in the preview reveals the same editor. Styling actions retain
+keyboard focus, and preview updates keep an open palette intact. Escape closes
+the palette before the editor. Styling is written as portable Mermaid frontmatter, `style`
+statements, and shape declarations, so the editor, live diagram, PDF Preview,
+and generated PDF render the same source. Invalid source pauses styling until
+it is fixed; compact/advanced YAML and overriding init directives remain
+untouched and points back to Source mode. The temporary source editor inherits the main editor's
 Vim and visual-row preferences and keeps its mode while live diagnostics
 refresh. Oversized diagrams fit the preview pane; use the
 mouse wheel or `+`/`-` to zoom, drag or use the arrow keys to pan, and press `0`
-to reset. Zooming repaints the SVG at its new dimensions so text and lines stay
+to reset. A click selects a flowchart node; moving the pointer continues to pan
+without selecting it. The preview receives the larger side of the dialog;
+on compact windows both panes fit above the footer without clipping.
+Zooming repaints the SVG at its new dimensions so text and lines stay
 sharp. The left-side `mermaid` helper collapses a rendered diagram into one
 native fold row and expands it back to the live preview. Syntax errors receive
 underlines and hover explanations while the
@@ -602,9 +711,13 @@ follows the main editor's matching source position with a small smoothing delay
 and can copy the complete current Markdown snapshot directly to the clipboard.
 PDF Preview adds pagination, cover pages, a depth-limited table of contents,
 footnotes, internal links, fenced-code syntax colors, and optional vault-local
-CSS. In the Markdown body, a standalone `---` becomes an invisible page break
-in PDF Preview and generated output; it remains a normal thematic separator in
-the editor, while `***` and `___` remain visible thematic separators everywhere.
+CSS. Note-relative local images load from the same vault location in the editor,
+PDF Preview, and generated output, including any authored image dimensions. In
+an open preview, ordinary Markdown edits refresh the rendered page quietly
+without flashing a transient updating notice. In the Markdown body, a
+standalone `---` becomes an invisible page break in PDF Preview and generated
+output; it remains a normal thematic separator in the editor, while `***` and
+`___` remain visible thematic separators everywhere.
 Set `page-numbers: true` in Properties to add physical PDF footers and
 matching destination pages to the table of contents; an optional cover stays
 visually unnumbered. Existing custom stylesheets keep working, while

@@ -551,6 +551,44 @@ a:focus-visible {
     line-height: var(--line-height-editor);
 }
 
+.ds-image-resize-demo {
+    min-height: 170px;
+    place-items: center;
+}
+
+.ds-image-resize-frame {
+    position: relative;
+    display: grid;
+    width: min(230px, calc(100% - 48px));
+    aspect-ratio: 16 / 9;
+    place-items: center;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--editor-surface) 82%, var(--accent-color));
+    color: var(--text-muted);
+    font: 600 11px/1 var(--font-mono);
+}
+
+.ds-image-resize-frame > .ui-image-resize-handle {
+    position: absolute;
+}
+
+.ds-image-resize-handle--width {
+    top: calc(50% - 14px);
+    right: -14px;
+    cursor: ew-resize;
+}
+
+.ds-image-resize-handle--height {
+    bottom: -14px;
+    left: calc(50% - 14px);
+    cursor: ns-resize;
+}
+
+.ds-image-resize-handle--proportional {
+    right: -14px;
+    bottom: -14px;
+}
+
 .ds-code-sample {
     display: block;
     overflow-x: auto;

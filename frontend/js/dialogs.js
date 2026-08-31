@@ -453,7 +453,7 @@ export function renamePathDialog(path, type) {
                     <div class="custom-modal-context"><span>Current location</span><code title="${escapeHtml(parent)}">${escapeHtml(parent)}</code></div>
                     <label class="custom-modal-field" for="${id}-input">New name</label>
                     <input id="${id}-input" class="ui-field custom-modal-input" type="text" value="${escapeHtml(oldName)}" autocomplete="off" spellcheck="false" aria-describedby="${id}-help ${id}-error">
-                    <p class="custom-modal-help" id="${id}-help">Links to this ${kind} are updated automatically.</p>
+                    <p class="custom-modal-help" id="${id}-help">If Markdown notes reference this ${kind}, Figaro asks whether to update them.</p>
                     <p class="custom-modal-error" id="${id}-error" role="alert" hidden></p>
                 </form>
             `,

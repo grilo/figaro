@@ -55,6 +55,7 @@ const defaultPrintCSS = `
   th, td { border: 1px solid #d0d7de; padding: 8px 12px; vertical-align: top; }
   th { background: #f6f8fa; }
   img, svg { max-width: 100%; height: auto; }
+  img[data-figaro-image-size] { object-fit: fill; }
   a { color: #0969da; }
   hr { border: 0; border-top: 1px solid #d0d7de; margin: 1.5em 0; }
   .figaro-print-page-break { break-after: page; page-break-after: always; }

@@ -9,6 +9,7 @@ import {
 import { markdownFoldAnchorPlan } from '../../../frontend/js/core/markdownFoldAnchorModel.js';
 import {
     buildMarkdownBlockGuides,
+    buildTaskItemActionLines,
     markdownGuideForBlockWidget,
 } from '../../../frontend/js/markdownBlockGuides.js';
 
@@ -18,7 +19,7 @@ function guidePlan(source) {
 }
 
 describe('Markdown block guide model', () => {
-    test('classifies headings, fenced code, tables, and standalone local Draw.io images', () => {
+    test('classifies headings, fenced code, tables, and standalone images', () => {
         expect(markdownBlockGuideKind({ name: 'ATXHeading3' })).toBe('h3');
         expect(markdownBlockGuideKind({ name: 'Paragraph', source: 'plain prose' })).toBeNull();
         expect(markdownBlockGuideKind({ name: 'BulletList', source: '- [ ] task' })).toBeNull();
@@ -29,6 +30,10 @@ describe('Markdown block guide model', () => {
         expect(markdownBlockGuideKind({ name: 'FencedCode', info: 'mermaid' })).toBe('mermaid');
         expect(markdownBlockGuideKind({ name: 'FencedCode', info: 'vega-lite options' })).toBe('vega-lite');
         expect(markdownBlockGuideKind({ name: 'Table' })).toBe('table');
+        expect(markdownBlockGuideKind({
+            name: 'Paragraph',
+            source: '![Portrait|190x121](portrait.png)',
+        })).toBe('image');
         expect(markdownBlockGuideKind({
             name: 'Paragraph',
             source: '![Flow](Diagrams/flow.drawio.svg)',
@@ -55,6 +60,31 @@ describe('Markdown block guide model', () => {
         const { guides } = guidePlan(source);
         expect(guides.map(guide => guide.label)).toEqual(['h1']);
         expect(guides[0]).toMatchObject({ from: source.indexOf('# Body') });
+    });
+
+    test('finds unfinished task actions without matching checked tasks or fenced examples', () => {
+        const source = [
+            '---',
+            'example: - [ ] not a task',
+            '---',
+            '- [ ] Ship release',
+            '- [x] Already shipped',
+            '```md',
+            '- [ ] fenced example',
+            '```',
+            '- [ ] Dated [due 2026-09-14](2026-09-14.md)',
+        ].join('\n');
+        const state = EditorState.create({ doc: source, extensions: [markdownLanguage] });
+        expect(buildTaskItemActionLines(state)).toEqual([
+            expect.objectContaining({
+                lineFrom: source.indexOf('- [ ] Ship release'),
+                dueDate: '',
+            }),
+            expect.objectContaining({
+                lineFrom: source.lastIndexOf('- [ ] Dated'),
+                dueDate: '2026-09-14',
+            }),
+        ]);
     });
 
     test('labels typed and untyped fences and exposes a table without prose or list guides', () => {
@@ -95,6 +125,17 @@ describe('Markdown block guide model', () => {
             foldFrom: from,
             foldTo: from + '![Flow](Diagrams/flow.drawio.svg)'.length,
             foldable: true,
+        });
+    });
+
+    test('gives an ordinary standalone image a sized image guide', () => {
+        const source = 'Before\n![Portrait|190x121](portrait.png)\nAfter';
+        const { guides } = guidePlan(source);
+        expect(guides.find(candidate => candidate.type === 'image')).toMatchObject({
+            label: 'image',
+            type: 'image',
+            imageSized: true,
+            foldFrom: source.indexOf('![Portrait]'.slice(0, 10)),
         });
     });
 

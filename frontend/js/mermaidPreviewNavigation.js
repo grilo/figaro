@@ -1,4 +1,7 @@
 import {
+    mermaidFlowchartNodeIdFromSvg,
+} from './core/mermaidStyleEditorModel.js';
+import {
     mermaidPreviewPanBy,
     mermaidPreviewWheelZoom,
     mermaidPreviewZoomAt,
@@ -13,7 +16,10 @@ function normalizedWheelDelta(event, viewportHeight) {
 }
 
 /** Own pointer/keyboard effects for the otherwise pure Mermaid preview transform. */
-export function createMermaidPreviewNavigation(viewport, { emptyElement = null } = {}) {
+export function createMermaidPreviewNavigation(viewport, {
+    emptyElement = null,
+    onNodeSelect = null,
+} = {}) {
     const canvas = document.createElement('div');
     canvas.className = 'mermaid-editor-preview-canvas';
     canvas.hidden = true;
@@ -25,6 +31,21 @@ export function createMermaidPreviewNavigation(viewport, { emptyElement = null }
     let transform = { ...resetTransform };
     let drag = null;
     let fittedSize = null;
+    let selectableNodeIds = [];
+    let selectedNodeId = '';
+
+    const nodeIdForTarget = target => {
+        const node = target?.closest?.('g.node');
+        return node ? mermaidFlowchartNodeIdFromSvg(node.id, selectableNodeIds) : '';
+    };
+    const publishNodeSelection = () => {
+        canvas.querySelectorAll('g.node').forEach(node => {
+            const nodeId = mermaidFlowchartNodeIdFromSvg(node.id, selectableNodeIds);
+            node.classList.toggle('is-figaro-selected', Boolean(nodeId && nodeId === selectedNodeId));
+            if (nodeId) node.dataset.figaroNodeId = nodeId;
+            else delete node.dataset.figaroNodeId;
+        });
+    };
 
     const publish = () => {
         const svg = canvas.firstElementChild;
@@ -59,6 +80,7 @@ export function createMermaidPreviewNavigation(viewport, { emptyElement = null }
         canvas.hidden = false;
         viewport.classList.add('has-preview');
         emptyElement?.remove();
+        publishNodeSelection();
         fitSVG();
     };
     const onWheel = event => {
@@ -77,15 +99,25 @@ export function createMermaidPreviewNavigation(viewport, { emptyElement = null }
     };
     const stopDrag = event => {
         if (!drag || (event && event.pointerId !== drag.pointerId)) return;
+        const selected = !drag.moved ? drag.nodeId : '';
         if (viewport.hasPointerCapture?.(drag.pointerId)) viewport.releasePointerCapture(drag.pointerId);
         drag = null;
         viewport.classList.remove('is-panning');
+        if (selected) onNodeSelect?.(selected);
     };
     const onPointerDown = event => {
         if (event.button !== 0 || !canvas.firstElementChild) return;
         event.preventDefault();
         viewport.focus({ preventScroll: true });
-        drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+        drag = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            startX: event.clientX,
+            startY: event.clientY,
+            moved: false,
+            nodeId: nodeIdForTarget(event.target),
+        };
         viewport.setPointerCapture?.(event.pointerId);
         viewport.classList.add('is-panning');
     };
@@ -95,7 +127,12 @@ export function createMermaidPreviewNavigation(viewport, { emptyElement = null }
             x: event.clientX - drag.x,
             y: event.clientY - drag.y,
         });
-        drag = { ...drag, x: event.clientX, y: event.clientY };
+        drag = {
+            ...drag,
+            x: event.clientX,
+            y: event.clientY,
+            moved: drag.moved || Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4,
+        };
         publish();
     };
     const onKeydown = event => {
@@ -129,6 +166,15 @@ export function createMermaidPreviewNavigation(viewport, { emptyElement = null }
     return {
         canvas,
         setSVG,
+        setSelectableNodeIds(nodeIds) {
+            selectableNodeIds = Array.from(new Set(nodeIds || []));
+            if (!selectableNodeIds.includes(selectedNodeId)) selectedNodeId = '';
+            publishNodeSelection();
+        },
+        setSelectedNode(nodeId) {
+            selectedNodeId = selectableNodeIds.includes(nodeId) ? nodeId : '';
+            publishNodeSelection();
+        },
         reset,
         destroy() {
             viewport.removeEventListener('wheel', onWheel);

@@ -6,18 +6,37 @@ import { backend, waitForBackend } from './backend.js';
 
 import { log } from './log.js';
 import { state, initState, subscribe, setState, getState } from './state.js';
-import { initEditor, getEditorContent, openEditorSearch } from './editor.js';
+import { configureEditorWorkspace, initEditor, getEditorContent, openEditorSearch } from './editor.js';
 import { preloadLanguageSupport } from './languageSupport.js';
 import { initializeDiagramRenderers } from './diagramRenderer.js';
-import { initTabManager, openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle, saveActiveFile as saveActiveTabFile, saveFileSnapshot, showWorkspaceHome } from './tabManager.js';
-import { addExternalFileTreeEntry, createInboxNote, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
-import { initCalendar, navigateCalendarMonth, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
-import { initKanban, refreshKanbanData } from './kanban.js';
+import {
+    initTabManager,
+    openTab,
+    closeTab,
+    switchTab,
+    getActiveTab,
+    markTabDirty,
+    updateTabTitle,
+    saveActiveFile as saveActiveTabFile,
+    saveFileSnapshot,
+    showWorkspaceHome,
+    prepareTabsForVaultLinkRewrite,
+    refreshTabsForUpdatedLinks,
+    replaceActiveFileTab,
+    closeTabsForDeletedPath,
+    prepareTabsForPathCopy,
+    prepareTabsForPathDelete,
+    prepareTabsForPathMove,
+    updateTabsForMovedPath,
+} from './tabManager.js';
+import { addExternalFileTreeEntry, configureFileTreeWorkspace, createInboxNote, initFileTree, refreshFileTree, scheduleFileTreeRefresh } from './fileTree.js';
+import { configureCalendarWorkspace, initCalendar, navigateCalendarMonth, invalidateCalendarCache, loadCalendarMonthAppearance, refreshCalendarIfVisible } from './calendar.js';
+import { configureKanbanWorkspace, initKanban, refreshKanbanData } from './kanban.js';
 import { configureDatePickerCalendarSource } from './datePicker.js';
 import { initStatusBarPresentation, statusBar } from './statusBar.js';
 import { confirmDialog, promptDialog } from './dialogs.js';
-import { initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
-import { initBacklinks } from './backlinks.js';
+import { configureSearchWorkspace, initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
+import { configureBacklinksWorkspace, initBacklinks } from './backlinks.js';
 import { loadSession, saveSession } from './session.js';
 import { restoredWorkspacePlan } from './sessionTabs.js';
 import { openExternalLaunchFiles, openLaunchExternalFiles } from './externalFiles.js';
@@ -27,12 +46,12 @@ import { applySidebarLayout, initSidebarResizer } from './sidebarResizer.js';
 import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
 import { globalShortcutAction } from './core/globalShortcutModel.js';
 import { localISODate } from './core/dueDateModel.js';
-import { initHistoryPanel } from './historyPanel.js';
-import { closePDFPreview, initPDFPreview } from './pdfPreview.js';
-import { closeRawTextPreview, initRawTextPreview } from './rawTextPreview.js';
+import { configureHistoryWorkspace, initHistoryPanel } from './historyPanel.js';
+import { closePDFPreview, configurePDFPreviewWorkspace, initPDFPreview, openPDFPreview } from './pdfPreview.js';
+import { closeRawTextPreview, initRawTextPreview, openRawTextPreview } from './rawTextPreview.js';
 import { initOutlinePanel } from './outline.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
-import { initLinkStylePreference } from './linkStyle.js';
+import { configureLinkStyleWorkspace, initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitEnabled } from './automation.js';
 import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } from './windowChrome.js';
 import { initEditorBreadcrumb } from './editorBreadcrumb.js';
@@ -44,9 +63,54 @@ import { renderVaultLoading, removeVaultLoading } from './views/vaultLoadingView
 import { revealStartupWorkspace } from './views/startupView.js';
 import { saveDirtyDocumentsBeforeExit } from './usecases/windowClose.js';
 import { initSettingsNavigation } from './settingsNavigation.js';
+import { configureClipboardImageWorkspace } from './clipboardImage.js';
+import { configureDrawioWorkspace } from './drawio.js';
+import { configureHomeWorkspace } from './home.js';
+import { configureVaultHealthWorkspace } from './vaultHealth.js';
 
-// Re-export tab manager functions for other modules to import from app.js
+// Keep composed workspace operations available through the public app facade.
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
+
+configureBacklinksWorkspace({
+    openTab,
+    prepareTabsForVaultLinkRewrite,
+    refreshTabsForUpdatedLinks,
+});
+configureCalendarWorkspace({ openTab });
+configureClipboardImageWorkspace({ refreshFileTree });
+configureDrawioWorkspace({ markTabDirty, saveFileSnapshot, refreshFileTree });
+configureEditorWorkspace({
+    closeTab,
+    getActiveTab,
+    markTabDirty,
+    openFile: handleFileOpen,
+    openPDFPreview,
+    openRawTextPreview,
+    openTab,
+    refreshFileTree,
+    replaceActiveFileTab,
+    saveActiveFile: saveActiveTabFile,
+    saveFileSnapshot,
+    switchTab,
+});
+configureFileTreeWorkspace({
+    closeTab,
+    closeTabsForDeletedPath,
+    openFile: handleFileOpen,
+    openTab,
+    prepareTabsForPathCopy,
+    prepareTabsForPathDelete,
+    prepareTabsForPathMove,
+    refreshTabsForUpdatedLinks,
+    updateTabsForMovedPath,
+});
+configureHistoryWorkspace({ saveFileSnapshot });
+configureHomeWorkspace({ openTab });
+configureKanbanWorkspace({ openTab, openFile: handleFileOpen });
+configureLinkStyleWorkspace({ prepareTabsForVaultLinkRewrite, refreshTabsForUpdatedLinks });
+configurePDFPreviewWorkspace({ openFile: handleFileOpen, saveFileSnapshot });
+configureSearchWorkspace({ openTab });
+configureVaultHealthWorkspace({ openTab });
 
 // Make dialogs globally accessible for other modules
 window.confirmDialog = confirmDialog;

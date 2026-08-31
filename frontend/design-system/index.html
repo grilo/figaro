@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="../styles/features/embedded-widgets.css">
     <link rel="stylesheet" href="../styles/features/markdown-table-editor.css">
     <link rel="stylesheet" href="../styles/features/mermaid-editor.css">
+    <link rel="stylesheet" href="../styles/features/vega-lite-chart-editor.css">
     <link rel="stylesheet" href="../styles/overrides.css">
     <link rel="stylesheet" href="./primitives.css">
     <link rel="stylesheet" href="./theme-surfaces.css">
@@ -290,6 +291,18 @@
                                     </span>
                                 </span>
                                 <span class="ds-editor-sample">Nearby, folded, and relevant guides</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="ds-specimen">
+                        <header><h3>Image resize handles</h3><code class="ds-selector">.ui-image-resize-handle</code></header>
+                        <div class="ds-demo ds-image-resize-demo">
+                            <div class="ds-image-resize-frame" aria-label="Image resize handle states">
+                                <span>Image</span>
+                                <button type="button" class="ui-image-resize-handle ds-image-resize-handle--width" aria-label="Resize image width" data-ui-tooltip="Resize width"></button>
+                                <button type="button" class="ui-image-resize-handle ds-image-resize-handle--height" aria-label="Resize image height" data-ui-tooltip="Resize height"></button>
+                                <button type="button" class="ui-image-resize-handle ds-image-resize-handle--proportional" aria-label="Resize image proportionally" data-ui-tooltip="Resize proportionally"></button>
                             </div>
                         </div>
                     </article>
@@ -593,6 +606,12 @@
                                 <button class="ui-button" aria-pressed="false">Month</button>
                                 <button class="ui-button" aria-pressed="true">Timeline</button>
                             </div>
+                            <div class="ui-segmented-control" role="group" aria-label="Legend position example">
+                                <button class="ui-button" aria-pressed="false">Top</button>
+                                <button class="ui-button" aria-pressed="true">Right</button>
+                                <button class="ui-button" aria-pressed="false">Bottom</button>
+                                <button class="ui-button" aria-pressed="false">Left</button>
+                            </div>
                         </div>
                     </article>
                 </div>
@@ -653,8 +672,9 @@
                                 <div class="md-cheatsheet-panel" id="catalog-help-markdown-panel" role="tabpanel" aria-labelledby="catalog-help-markdown-tab" tabindex="-1" hidden></div>
                                 <div class="md-cheatsheet-panel" id="catalog-help-macros-panel" role="tabpanel" aria-labelledby="catalog-help-macros-tab" tabindex="-1" hidden>
                                     <table>
-                                        <tr><td><code>@today</code> <code>@tomorrow</code></td><td>Date links</td></tr>
-                                        <tr><td><code>#todo</code> <code>#custom-column</code></td><td>Kanban columns</td></tr>
+                                <tr><td><code>@today</code> <code>@tomorrow</code></td><td>Date links</td></tr>
+                                <tr><td><code>- [ ] Task</code></td><td>Left Kanban and Calendar actions</td></tr>
+                                <tr><td><code>#todo</code> <code>#custom-column</code></td><td>Kanban columns</td></tr>
                                         <tr><td><code>Text #tag [due YYYY-MM-DD](YYYY-MM-DD.md)</code></td><td>Tagged-line due date</td></tr>
                                         <tr><td><code>#tag</code></td><td>Press Space for due-date actions</td></tr>
                                     </table>
@@ -715,6 +735,10 @@
                         <div class="ds-demo ds-tooltip-demo">
                             <button type="button" class="ui-icon-button" aria-label="Show document outline"
                                     data-ui-tooltip="Show document outline"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5h13"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="M3 10a2 2 0 0 0 2 2h3"/><path d="M3 5v12a2 2 0 0 0 2 2h3"/></svg></button>
+                            <label class="ds-native-check" tabindex="0" aria-disabled="true"
+                                   data-ui-tooltip="Choose a non-stacked mark to use a linear trendline.">
+                                <input class="ui-checkbox" type="checkbox" disabled> Linear trendline
+                            </label>
                             <div class="ui-tooltip ds-tooltip-specimen" role="tooltip">Show document outline</div>
                         </div>
                     </article>
@@ -1040,6 +1064,7 @@ title: A quiet workspace
                             <tr><td>Tooltips</td><td>Control hints, Calendar, managed files, Markdown links</td><td><code>.ui-tooltip</code> surface; feature content and placement hooks</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Document tabs</td><td>Active, dirty, pinned, hover, and focus</td><td><code>.ui-document-tab</code> + state modifiers</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Editor folding</td><td>Code arrows plus typed Markdown guides in expanded, collapsed, hover, focus, and active states</td><td><code>.ui-editor-fold-control</code>, <code>.ui-editor-block-guide</code></td><td><span class="is-decided">Approved</span></td></tr>
+                            <tr><td>Image resize handles</td><td>Width, height, and proportional handles with themed hover, focus, active, and disabled states</td><td><code>.ui-image-resize-handle</code></td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Graph canvas</td><td>Idle, focus, panning, and loading states</td><td><code>.ui-graph-canvas</code></td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Content skeletons</td><td>Calendar month cells and Kanban columns/cards</td><td><code>.ui-skeleton</code> shimmer; feature-owned geometry</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Determinate progress</td><td>Accessible track and value fill</td><td><code>.ui-progress</code> family</td><td><span class="is-decided">Approved</span></td></tr>

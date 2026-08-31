@@ -9,17 +9,29 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { errorDialog } from './dialogs.js';
-import { markTabDirty, saveFileSnapshot } from './tabManager.js';
-import { refreshFileTree } from './fileTree.js';
+import { isDrawioDiagramPath } from './languageSupport.js';
 
 export const drawioEditorOrigin = 'https://embed.diagrams.net';
 export const drawioExportTimeoutMs = 30000;
 const drawioDebugStorageKey = 'figaro.drawio.debug';
 const drawioEditorURL = `${drawioEditorOrigin}/?embed=1&proto=json&spin=1&ui=atlas&libraries=1&saveAndExit=1`;
+let workspacePorts = null;
 
-export function isDrawioDiagramPath(path) {
-    return /\.drawio\.svg$/i.test(String(path || ''));
+export function configureDrawioWorkspace(ports) {
+    if (
+        typeof ports?.markTabDirty !== 'function'
+        || typeof ports?.saveFileSnapshot !== 'function'
+        || typeof ports?.refreshFileTree !== 'function'
+    ) throw new TypeError('Draw.io workspace ports are incomplete');
+    workspacePorts = Object.freeze({ ...ports });
 }
+
+function workspace() {
+    if (!workspacePorts) throw new Error('Draw.io workspace ports were not configured');
+    return workspacePorts;
+}
+
+export { isDrawioDiagramPath };
 
 export function encodeDrawioSVG(svg) {
     if (!svg) return '';
@@ -196,7 +208,7 @@ function mountDrawioEditor(panel, tab, sourceSVG) {
 
         if (message.event === 'autosave') {
             if (!session.saving) {
-                markTabDirty(tab.id);
+                workspace().markTabDirty(tab.id);
             }
             return;
         }
@@ -276,7 +288,7 @@ async function persistExportedSVG(panel, tab, session, data) {
         if (!/<svg[\s>]/i.test(svg)) throw new Error('Draw.io did not return SVG output');
         traceDrawio('persisting SVG', { bytes: svg.length, path: tab.path });
 
-        const result = await saveFileSnapshot(tab, svg);
+        const result = await workspace().saveFileSnapshot(tab, svg);
         if (!result?.success) throw new Error(result?.error || 'Could not save the diagram');
 
         session.latestSVG = svg;
@@ -286,7 +298,7 @@ async function persistExportedSVG(panel, tab, session, data) {
         session.post({ action: 'spinner', show: 0 });
         session.post({ action: 'status', messageKey: 'allChangesSaved', modified: false });
         traceDrawio('saved SVG', { bytes: svg.length, path: tab.path });
-        refreshFileTree().catch(() => {});
+        workspace().refreshFileTree().catch(() => {});
 
         if (session.exitAfterSave) showDiagramPreview(panel, tab, svg);
     } catch (error) {

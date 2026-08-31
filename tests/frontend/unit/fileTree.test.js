@@ -4,7 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
-import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, copyInternalPath, cutInternalPath, cutInternalPaths, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin, deletePath } from '../frontend/js/fileTree.js';
+import { initFileTree, renderFileTree, buildTreeHTML, buildFileTreeContextMenuHTML, toggleDirectory, findTreeItem, refreshFileTree, scheduleFileTreeRefresh, getContextMenuPosition, isInvalidMoveDestination, moveInternalPath, externalDropTargetDirectory, copyExternalDrop, initNativeFileDrops, clearFileTreeClipboard, configureFileTreeWorkspace, copyInternalPath, cutInternalPath, cutInternalPaths, internalPasteTargetDirectory, isInvalidCopyDestination, pasteInternalClipboard, customizeTreePath, loadFileTreeStyles, createInboxNote, syncFileTreeTabMarkers, addExternalFileTreeEntry, removeExternalFileTreeEntry, toggleTreePin, deletePath } from '../frontend/js/fileTree.js';
 
 // Mock state store (module-level, 'mock' prefix required by jest, var for hoisting)
 var mockState = {
@@ -74,7 +74,7 @@ import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { handleFileOpen } from '../frontend/js/app.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, messageDialog, newNoteDialog, renamePathDialog } from '../frontend/js/dialogs.js';
-import { closeTab, openTab, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
+import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from '../frontend/js/tabManager.js';
 import { saveSession } from '../frontend/js/session.js';
 import { focusEditor } from '../frontend/js/editor.js';
 
@@ -88,6 +88,17 @@ function deferred() {
 
 describe('File Tree', () => {
     beforeEach(() => {
+        configureFileTreeWorkspace({
+            closeTab,
+            closeTabsForDeletedPath,
+            openFile: handleFileOpen,
+            openTab,
+            prepareTabsForPathCopy,
+            prepareTabsForPathDelete,
+            prepareTabsForPathMove,
+            refreshTabsForUpdatedLinks,
+            updateTabsForMovedPath,
+        });
         testUtils.createMockDOM();
         jest.clearAllMocks();
         
@@ -1157,7 +1168,7 @@ describe('File Tree', () => {
         state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 1 }];
         state.selectedTreePath = 'notes/draft.md';
         renamePathDialog.mockResolvedValueOnce('final.md');
-        window.go.desktop.App.RenamePath.mockResolvedValueOnce({
+        window.go.desktop.App.RenamePathWithLinkUpdates.mockResolvedValueOnce({
             success: true,
             old_path: 'notes/draft.md',
             path: 'notes/final.md',
@@ -1179,7 +1190,9 @@ describe('File Tree', () => {
 
         expect(event.defaultPrevented).toBe(true);
         expect(renamePathDialog).toHaveBeenCalledWith('notes/draft.md', 'file');
-        expect(window.go.desktop.App.RenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
+        expect(window.go.desktop.App.PreviewRenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
+        expect(window.go.desktop.App.RenamePathWithLinkUpdates)
+            .toHaveBeenCalledWith('notes/draft.md', 'notes/final.md', false);
         expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
         expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
         expect(document.querySelector('[data-path="notes/final.md"] > .file-tree-node').classList.contains('cut-marked')).toBe(true);
@@ -1658,7 +1671,15 @@ describe('File Tree', () => {
         state.selectedFilePath = 'notes/draft.md';
         state.selectedTreePaths = ['notes/draft.md'];
         renamePathDialog.mockResolvedValueOnce('final.md');
-        window.go.desktop.App.RenamePath.mockResolvedValueOnce({
+        window.go.desktop.App.PreviewRenamePath.mockResolvedValueOnce({
+            success: true,
+            updated_links: ['notes/references.md'],
+        });
+        confirmDialog.mockImplementationOnce(async () => {
+            expect(document.getElementById('file-tree').getAttribute('aria-busy')).toBe('false');
+            return 'confirm';
+        });
+        window.go.desktop.App.RenamePathWithLinkUpdates.mockResolvedValueOnce({
             success: true,
             old_path: 'notes/draft.md',
             path: 'notes/final.md',
@@ -1679,11 +1700,83 @@ describe('File Tree', () => {
 
         expect(renamePathDialog).toHaveBeenCalledWith('notes/draft.md', 'file');
         expect(prepareTabsForPathMove).toHaveBeenCalledWith('notes/draft.md');
-        expect(window.go.desktop.App.RenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
+        expect(confirmDialog).toHaveBeenCalledWith(
+            'Update Markdown references?',
+            expect.stringMatching(/1 Markdown note references.*draft\.md.*final\.md/),
+            false,
+            false,
+            expect.objectContaining({
+                confirmLabel: 'Update references',
+                extraLabel: 'Keep references unchanged',
+                cancelLabel: 'Cancel rename',
+            }),
+        );
+        expect(window.go.desktop.App.RenamePathWithLinkUpdates)
+            .toHaveBeenCalledWith('notes/draft.md', 'notes/final.md', true);
         expect(updateTabsForMovedPath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
         expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith(['notes/references.md']);
         expect(state.selectedFilePath).toBe('notes/final.md');
         expect(state.selectedTreePaths).toEqual(['notes/final.md']);
+    });
+
+    test('can rename a referenced file while deliberately keeping Markdown references unchanged', async () => {
+        state.fileTreeData = [{
+            name: 'diagram1.drawio.svg', path: 'notes/diagram1.drawio.svg', type: 'file', mtime: 100,
+        }];
+        renamePathDialog.mockResolvedValueOnce('system.drawio.svg');
+        window.go.desktop.App.PreviewRenamePath.mockResolvedValueOnce({
+            success: true,
+            updated_links: ['notes/plan.md'],
+        });
+        confirmDialog.mockResolvedValueOnce('extra');
+        window.go.desktop.App.RenamePathWithLinkUpdates.mockResolvedValueOnce({
+            success: true,
+            old_path: 'notes/diagram1.drawio.svg',
+            path: 'notes/system.drawio.svg',
+            updated_links: [],
+        });
+        window.go.desktop.App.GetFileTree.mockResolvedValueOnce([{
+            name: 'system.drawio.svg', path: 'notes/system.drawio.svg', type: 'file', mtime: 101,
+        }]);
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('.file-tree-node').dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        document.querySelector('.context-menu [data-action="rename"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.go.desktop.App.RenamePathWithLinkUpdates).toHaveBeenCalledWith(
+            'notes/diagram1.drawio.svg',
+            'notes/system.drawio.svg',
+            false,
+        );
+        expect(refreshTabsForUpdatedLinks).toHaveBeenCalledWith([]);
+    });
+
+    test('cancels a referenced-file rename without moving the path', async () => {
+        state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 100 }];
+        renamePathDialog.mockResolvedValueOnce('final.md');
+        window.go.desktop.App.PreviewRenamePath.mockResolvedValueOnce({
+            success: true,
+            updated_links: ['notes/reference.md'],
+        });
+        confirmDialog.mockResolvedValueOnce(false);
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('.file-tree-node').dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        document.querySelector('.context-menu [data-action="rename"]').click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.go.desktop.App.RenamePathWithLinkUpdates).not.toHaveBeenCalled();
+        expect(updateTabsForMovedPath).not.toHaveBeenCalled();
+        expect(statusBar.set).toHaveBeenLastCalledWith('Rename cancelled');
     });
 
     test('requires an explicit choice before renaming to a same-folder punctuation variant', async () => {
@@ -1696,7 +1789,7 @@ describe('File Tree', () => {
         state.expandedDirs = new Set(['notes']);
         renamePathDialog.mockResolvedValueOnce('Inner Source.md');
         confirmDialog.mockResolvedValueOnce('extra');
-        window.go.desktop.App.RenamePath.mockResolvedValueOnce({
+        window.go.desktop.App.RenamePathWithLinkUpdates.mockResolvedValueOnce({
             success: true,
             old_path: 'notes/draft.md',
             path: 'notes/Inner Source.md',
@@ -1716,7 +1809,8 @@ describe('File Tree', () => {
             confirmLabel: 'Open existing',
             extraLabel: 'Rename anyway',
         }));
-        expect(window.go.desktop.App.RenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/Inner Source.md');
+        expect(window.go.desktop.App.RenamePathWithLinkUpdates)
+            .toHaveBeenCalledWith('notes/draft.md', 'notes/Inner Source.md', false);
     });
 
     describe('findTreeItem', () => {

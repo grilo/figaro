@@ -12,6 +12,7 @@ import { mark } from '@mdit/plugin-mark';
 import { sub } from '@mdit/plugin-sub';
 import { sup } from '@mdit/plugin-sup';
 import { tasklist } from '@mdit/plugin-tasklist';
+import { parseMarkdownImageAlt } from './core/markdownImageModel.js';
 
 // @mdit/plugin-anchor uses Object.hasOwn. Keep the bundle usable on older
 // WebKitGTK runtimes that predate that ES2022 convenience method.
@@ -108,6 +109,29 @@ function sourceMapPlugin(md) {
     });
 }
 
+/** Convert Figaro's source-only alt suffix into standard sized image attributes. */
+function imageSizePlugin(md) {
+    const renderImage = md.renderer.rules.image;
+    md.renderer.rules.image = (tokens, index, options, env, self) => {
+        const token = tokens[index];
+        const image = parseMarkdownImageAlt(token.content);
+        if (image.sized) {
+            const suffix = `|${image.width}x${image.height}`;
+            token.content = image.alt;
+            const lastText = [...(token.children || [])].reverse()
+                .find(child => child.type === 'text');
+            if (lastText?.content?.endsWith(suffix)) {
+                lastText.content = lastText.content.slice(0, -suffix.length);
+            }
+            token.attrSet('width', String(image.width));
+            token.attrSet('height', String(image.height));
+            token.attrSet('data-figaro-image-size', `${image.width}x${image.height}`);
+            token.attrSet('style', `width:${image.width}px;height:${image.height}px`);
+        }
+        return renderImage(tokens, index, options, env, self);
+    };
+}
+
 /**
  * Create a safe renderer used exclusively for interactive PDF export.
  * Source HTML stays disabled; the selected extensions only parse Markdown.
@@ -116,6 +140,7 @@ export function createPrintMarkdownRenderer() {
     const renderer = MarkdownIt({ html: false, linkify: true, typographer: true })
         .use(wikilinkPlugin)
         .use(sourceMapPlugin)
+        .use(imageSizePlugin)
         .use(footnote)
         .use(katex, { delimiters: 'dollars' })
         .use(mark)

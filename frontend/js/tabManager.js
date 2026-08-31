@@ -176,6 +176,7 @@ function handleEditorTextScaleWheel(event) {
 
     event.preventDefault();
     event.stopPropagation();
+    statusBar.revealEditorScale(3000);
     editorTextScaleWheelLastEventAt = eventTime;
     if (plan.scale !== currentScale) {
         setBufferEditorTextScale(tab, plan.scale);
@@ -2016,7 +2017,7 @@ function renderSettingsTab(panel, _tab) {
                         <div class="settings-row">
                             <span id="markdown-block-guides-description" class="settings-row-label">Block guides and folding</span>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="markdown-block-guides-toggle" aria-label="Show Markdown block guides and folding" aria-describedby="markdown-block-guides-description" title="Shows structural guides and lets headings, lists, quotes, and code blocks be folded." checked>
+                                <input type="checkbox" id="markdown-block-guides-toggle" aria-label="Show Markdown block guides, folding, and task actions" aria-describedby="markdown-block-guides-description" title="Shows Markdown block guides, folding, and unfinished-task Kanban and Calendar actions." checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>

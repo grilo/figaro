@@ -5,7 +5,6 @@ import { backend } from './backend.js';
 
 import { getState } from './state.js';
 import { log } from './log.js';
-import { openTab } from './tabManager.js';
 import { fileIcon, folderIcon } from './icons.js';
 import { homeCollections, todayPresentation } from './core/homeModel.js';
 import { createOpenTodayNote } from './usecases/openTodayNote.js';
@@ -13,6 +12,17 @@ import { dueDatePresentation, localISODate, sortTasksByDue } from './core/dueDat
 
 export const homeTaskLimit = 6;
 export const homeCollectionLimit = 5;
+let openWorkspaceTab = null;
+
+export function configureHomeWorkspace({ openTab } = {}) {
+    if (typeof openTab !== 'function') throw new TypeError('Home openTab port is required');
+    openWorkspaceTab = openTab;
+}
+
+function openTab(...args) {
+    if (!openWorkspaceTab) throw new Error('Home workspace ports were not configured');
+    return openWorkspaceTab(...args);
+}
 
 export function renderHome(panel, { now = () => new Date(), locale = undefined } = {}) {
     if (!panel._homeLocalDateHandler) {

@@ -5,11 +5,10 @@ import { backend } from './backend.js';
 
 import { log } from './log.js';
 import { setState, getState } from './state.js';
-import { openTab } from './tabManager.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
-import { handleFileOpen } from './app.js';
+import { openColorPalettePicker } from './colorPalettePicker.js';
 import { openDatePicker } from './datePicker.js';
 import {
     dueDatePresentation,
@@ -40,10 +39,23 @@ let liveRefreshInitialized = false;
 let dueDayTimer = null;
 const rememberedKanbanOrder = new Map();
 const kanbanRenderStates = new WeakMap();
+let workspacePorts = null;
 
 const KANBAN_VIRTUAL_THRESHOLD = 120;
 const KANBAN_WINDOW_SIZE = 96;
 const KANBAN_CARD_STRIDE_ESTIMATE = 91;
+
+export function configureKanbanWorkspace(ports) {
+    if (typeof ports?.openTab !== 'function' || typeof ports?.openFile !== 'function') {
+        throw new TypeError('Kanban workspace ports are incomplete');
+    }
+    workspacePorts = Object.freeze({ ...ports });
+}
+
+function workspace() {
+    if (!workspacePorts) throw new Error('Kanban workspace ports were not configured');
+    return workspacePorts;
+}
 
 export const KANBAN_CARD_TEXT_LIMIT = 120;
 export const KANBAN_DENSITIES = ['comfortable', 'compact'];
@@ -560,7 +572,7 @@ function initKanbanCardActions(root) {
             const filePath = card.dataset.file;
             const lineNum = parseInt(card.dataset.line, 10);
             if (filePath) {
-                openTab(filePath, filePath.split('/').pop(), 'file', { path: filePath, line: lineNum });
+                workspace().openTab(filePath, filePath.split('/').pop(), 'file', { path: filePath, line: lineNum });
             }
         });
         
@@ -590,54 +602,12 @@ function initKanbanCardActions(root) {
  * Show color picker popup near a button
  */
 function showColorPicker(anchorBtn, columnName) {
-    // Remove existing picker
-    document.querySelectorAll('.kanban-color-picker').forEach(p => p.remove());
-    
-    const picker = document.createElement('div');
-    picker.className = 'kanban-color-picker';
-    
-    const currentColor = kanbanColors[columnName] || '';
-    
-    let swatchesHtml = '';
-    for (const c of ACCENT_COLOR_PALETTE) {
-        const isActive = c === currentColor;
-        const label = c === '' ? '✕' : '';
-        swatchesHtml += `
-            <button class="kanban-color-swatch ${isActive ? 'active' : ''}" 
-                    data-color="${c}" 
-                    style="${c ? `background:${c}` : ''}"
-                    title="${c || 'No color'}">${label}</button>`;
-    }
-    
-    picker.innerHTML = swatchesHtml;
-    
-    // Position near the button
-    const rect = anchorBtn.getBoundingClientRect();
-    picker.style.position = 'fixed';
-    picker.style.top = (rect.bottom + 4) + 'px';
-    picker.style.left = (rect.left - 80) + 'px';
-    
-    document.body.appendChild(picker);
-    
-    // Click handler
-    picker.addEventListener('click', async (e) => {
-        const swatch = e.target.closest('.kanban-color-swatch');
-        if (!swatch) return;
-        const color = swatch.dataset.color;
-        await setColumnColor(columnName, color);
-        picker.remove();
+    return openColorPalettePicker(anchorBtn, {
+        currentColor: kanbanColors[columnName] || '',
+        emptyLabel: 'No color',
+        label: `Choose color for #${columnName}`,
+        onSelect: color => setColumnColor(columnName, color),
     });
-    
-    // Close on outside click
-    setTimeout(() => {
-        const closeHandler = (e) => {
-            if (!picker.contains(e.target) && e.target !== anchorBtn) {
-                picker.remove();
-                document.removeEventListener('click', closeHandler);
-            }
-        };
-        document.addEventListener('click', closeHandler);
-    }, 0);
 }
 
 /**
@@ -1244,7 +1214,7 @@ function reloadActiveFileIfNeeded(filePath, tag = null) {
             (tag && activeTab.path && checkFileHasTag(activeTab.path, tag));
         
         if (shouldReload) {
-            handleFileOpen(activeTab.path);
+            workspace().openFile(activeTab.path);
         }
     }
 }

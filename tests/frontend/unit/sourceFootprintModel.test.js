@@ -91,6 +91,28 @@ describe('stable Markdown source footprints', () => {
         await Promise.resolve();
     });
 
+    test('keeps a managed chart at its authored height when source lines would be shorter', async () => {
+        const dom = document.createElement('div');
+        const block = document.createElement('div');
+        block.className = 'cm-source-footprint';
+        block.dataset.sourceLines = '3';
+        block.dataset.figaroChartHeight = '340';
+        dom.append(block);
+        const view = {
+            defaultLineHeight: 20,
+            dom,
+            contentDOM: dom,
+            requestMeasure: jest.fn(measure => {
+                if (measure) measure.write(measure.read());
+            }),
+        };
+
+        requestSourceFootprintMeasure(view);
+        expect(block.style.getPropertyValue('--cm-source-footprint-height')).toBe('384px');
+        await Promise.resolve();
+        expect(block.style.getPropertyValue('--cm-source-footprint-height')).toBe('384px');
+    });
+
     test('does not remeasure every footprint for ordinary cursor movement', () => {
         expect(sourceFootprintUpdateNeedsMeasure({
             docChanged: false,

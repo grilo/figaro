@@ -53,6 +53,7 @@ describe('Vim command behavior', () => {
             <span id="reading-time"></span>
         `;
 
+        await import('../frontend/js/app.js');
         const { initEditor, createEditorView, toggleVim, isVimEnabled } = await import('../frontend/js/editor.js');
         const { setState, getState } = await import('../frontend/js/state.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
@@ -162,6 +163,7 @@ describe('Vim command behavior', () => {
             <span id="reading-time"></span>
         `;
 
+        await import('../frontend/js/app.js');
         const { initEditor, createEditorView, setVimVisualRows, toggleVim } = await import('../frontend/js/editor.js');
         const { EditorSelection } = await import('@codemirror/state');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
@@ -218,6 +220,7 @@ describe('Vim command behavior', () => {
             value: { readText, writeText },
         });
 
+        await import('../frontend/js/app.js');
         const { initEditor, createEditorView, toggleVim } = await import('../frontend/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
         await initEditor();

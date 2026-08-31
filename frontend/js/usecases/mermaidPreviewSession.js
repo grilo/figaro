@@ -71,7 +71,7 @@ export function createMermaidPreviewSession({
             if (destroyed || jobGeneration !== generation) return;
             onDiagnostics?.([]);
             pendingRender = { source, generation: jobGeneration };
-            onStatus?.({ phase: 'valid', hasError: false, diagramType: result?.diagramType || '' });
+            onStatus?.({ phase: 'valid', hasError: false, diagramType: result?.diagramType || '', inspection: result, source });
             startNextRender();
         } catch (error) {
             if (destroyed || jobGeneration !== generation) return;

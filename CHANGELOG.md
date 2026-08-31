@@ -10,6 +10,117 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.31.0] - 2026-08-31
+
+### Added
+
+- The Mermaid Editor now includes an adaptive **Style** mode. Every detected
+  diagram type receives shared document, neutral, and accent themes, while
+  supported types expose only their relevant element or series colors.
+  Flowcharts additionally support clickable node selection, per-node color and
+  shape, direction, and connection curves. All choices remain portable native
+  Mermaid frontmatter or statements and render identically in notes and PDFs.
+- Markdown tables can now be converted into reversible Vega-Lite charts from
+  the left editor rail. The focused Chart Editor supports per-column marks,
+  visibility, axes, colors, linear trendlines, shared stacks, gridlines,
+  colorable thresholds, Pie and Waterfall modes, exact conversion back to the
+  original table, and full-width charts with direct vertical resizing.
+- Rendered Markdown images can now be resized directly in the editor with
+  themed width, height, and proportional drag handles. Figaro stores the
+  result as an Obsidian-style trailing `|WIDTHxHEIGHT` hint, shows live dimensions
+  while dragging, preserves the rendered footprint while its source is
+  revealed, and offers a left-side **original size** action.
+- Markdown authoring now offers `@due`, `@table`, `@todo`, `@mermaid`, and
+  `@drawio` macros that reuse Figaro's Calendar picker and focused editors,
+  place the caret immediately after a new unchecked task marker, or create and
+  link a named editable diagram beside the active note.
+- Unfinished Markdown task items now show compact Kanban and Calendar actions
+  in the left editor rail. They reuse column autocomplete and the shared date
+  picker, and always serialize a selected column before the semantic due link
+  regardless of which action was used first.
+
+### Changed
+
+- Pie and Waterfall charts can now use any table column as their category;
+  numeric category/value assignments remain independently selectable and
+  round-trip through the reversible Chart Editor metadata.
+- Frontend workspace features now use explicit application wiring instead of
+  circular module imports, and complex editor, file-tree keyboard, and native
+  import workflows are split into independently tested responsibilities.
+- Image width and proportional resizing stop at the writing surface's right
+  edge, proportional resizing also stops at the editor's bottom edge, and
+  height-only resizing is capped at ten times the source image height. PDF
+  Preview and generated PDFs preserve the same authored dimensions.
+- Ctrl/Cmd+mouse-wheel scaling now reveals the otherwise quiet status bar for
+  three seconds so the active buffer's resulting **Scale** remains visible.
+- Renaming a file referenced by other Markdown notes now reports how many notes
+  are affected and asks whether to update every reference, keep the references
+  unchanged, or cancel the rename.
+
+### Fixed
+
+- Mermaid styling now uses exact parsed nodes, includes chained and standalone
+  nodes, and never mistakes icon labels for extra nodes. Existing native/class
+  colors and custom themes are reflected correctly. Color controls use verified
+  renderer mappings, XY colors preserve other plots and repeating palettes,
+  and unsupported or unused palette controls are omitted. Style edits retain
+  keyboard focus, palettes survive preview refreshes, the node editor is visible
+  immediately, and compact panes no longer clip behind the footer.
+- Flowchart node styling is now visible when it is needed: the selected-node
+  color and shape editor appears before a height-bounded node list, selecting a
+  preview node reveals that editor, and the list explains its purpose. Node
+  color markers no longer resemble unchecked boxes, global controls are labeled
+  as defaults, and Arrow keys plus Home/End move through individual nodes.
+- Cartesian charts now consistently use the first table column as their
+  category axis and no longer show a redundant Category selector. Pie and
+  Waterfall retain their independent category controls.
+- Linear trendlines can now be enabled for any visible numeric series with at
+  least two rows, including charts whose first column contains text labels.
+  Vega-Lite regresses against a hidden authored-row index while the chart keeps
+  displaying the original category labels.
+- Disabled linear-trendline controls now explain the exact blocker when the
+  user hovers, focuses, or clicks the complete checkbox label. The redundant
+  dotted underline and question-mark target have been removed, and the shared
+  tooltip now remains visibly layered above the Chart Editor modal.
+- Enabling a Vega-Lite threshold no longer removes the selected value axis.
+  Threshold rules and labels now join the existing scale without suppressing
+  left/right axes in vertical charts or bottom/top axes in horizontal charts;
+  charts created with the earlier threshold shape reopen and upgrade safely.
+- The Vega-Lite Chart Editor now uses its configuration width without a
+  horizontal scrollbar: Mode and Orientation share one row, series color and
+  trendline controls share a compact row, threshold controls share one row,
+  and section separators and instructional filler have been removed. Per-series
+  Left/Right or Bottom/Top placement and threshold
+  Primary/Opposite placement are now direct segmented choices instead of a
+  cycling button or combobox. The threshold stepper matches Settings' compact
+  width, and the complete disabled trendline control explains why it is
+  unavailable. Eye buttons now control column visibility without discarding the
+  column's settings. Mixed-mark charts include every visible series in one legend, which
+  can be placed on any of the chart's four sides, and the preview is borderless.
+  Charts created by the earlier editor reopen safely and adopt the complete
+  legend when next applied.
+- The Vega-Lite Chart Editor now reflows column, mode, and guide controls before
+  they can overlap, keeps mark labels and linear-trendline controls on one line,
+  explains unavailable trendlines on hover, and replaces ambiguous category
+  axis/color cells with one clear label. Square series and guide color controls
+  now reuse the Kanban palette, while threshold values use the same editable
+  minus/value/plus stepper as Settings and guide text fields use their available
+  width. Combobox menus remain inside the visible viewport, and the preview and
+  applied chart retain the same theme surface and data colors.
+- The Chart Editor now renders container-width Vega-Lite charts through a
+  WebKitGTK-safe measured surface, follows the active Figaro theme, replaces
+  native select popups with themed comboboxes, and announces configuration or
+  renderer failures instead of leaving a blank preview.
+- Editing Markdown while PDF Preview is open no longer flashes transient
+  updating text over an already rendered page; background refreshes stay quiet
+  until the replacement snapshot is ready, while errors remain visible.
+- PDF Preview now resolves note-relative local images through the vault route
+  before they enter its sandbox, so images—including authored sizes—no longer
+  appear as broken placeholders there.
+- Image resizing now changes the Markdown size hint only when the pointer is
+  released, producing one Undo/Redo step per completed drag. A cancelled drag
+  restores its starting geometry, and a press without movement writes nothing.
+
 ## [1.30.0] - 2026-08-30
 
 ### Added
@@ -1676,7 +1787,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.30.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.31.0...HEAD
+[1.31.0]: https://github.com/grilo/figaro/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/grilo/figaro/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/grilo/figaro/compare/v1.28.2...v1.29.0
 [1.28.2]: https://github.com/grilo/figaro/compare/v1.28.1...v1.28.2

@@ -11,6 +11,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 import { openTab } from '../frontend/js/tabManager.js';
 import { state, setState } from '../frontend/js/state.js';
 import {
+    configureSearchWorkspace,
     performGlobalSearch,
     handleSearchKeydown,
     initSearch,
@@ -47,6 +48,7 @@ describe('workspace search', () => {
     let disposeSearch = null;
 
     beforeEach(() => {
+        configureSearchWorkspace({ openTab });
         testUtils.createMockDOM();
         jest.clearAllMocks();
 

@@ -1,6 +1,17 @@
 import { backend } from './backend.js';
 import { log } from './log.js';
-import { openTab } from './tabManager.js';
+
+let openWorkspaceTab = null;
+
+export function configureVaultHealthWorkspace({ openTab } = {}) {
+    if (typeof openTab !== 'function') throw new TypeError('Vault Health openTab port is required');
+    openWorkspaceTab = openTab;
+}
+
+function openTab(...args) {
+    if (!openWorkspaceTab) throw new Error('Vault Health workspace ports were not configured');
+    return openWorkspaceTab(...args);
+}
 
 const healthSections = [
     { key: 'broken_links', title: 'Broken links', empty: 'All vault-local links resolve.' },

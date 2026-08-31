@@ -10,6 +10,7 @@ jest.mock('../frontend/js/tabManager.js', () => ({
 import { confirmDialog, errorDialog } from '../frontend/js/dialogs.js';
 import { prepareTabsForVaultLinkRewrite, refreshTabsForUpdatedLinks } from '../frontend/js/tabManager.js';
 import {
+    configureLinkStyleWorkspace,
     getLinkStylePreference,
     initLinkStylePreference,
     initLinkStyleSetting,
@@ -32,6 +33,7 @@ function renderLinkStyleSetting() {
 
 describe('vault link style workflow', () => {
     beforeEach(() => {
+        configureLinkStyleWorkspace({ prepareTabsForVaultLinkRewrite, refreshTabsForUpdatedLinks });
         jest.clearAllMocks();
         resetLinkStyleForTests();
         renderLinkStyleSetting();

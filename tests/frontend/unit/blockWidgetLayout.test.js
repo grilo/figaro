@@ -96,6 +96,59 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-codeblock-copy')).toMatch(/pointer-events:\s*none/);
     });
 
+    test('centers full-width managed charts and exposes only a bottom vertical resize handle', () => {
+        const liveView = declarationsFor('.cm-live-diagram-view');
+        expect(liveView).toMatch(/align-items:\s*center/);
+        expect(liveView).toMatch(/justify-content:\s*center/);
+        const chartGraphic = declarationsFor('.cm-block-widget--figaro-chart .cm-live-diagram-view svg');
+        expect(chartGraphic).toMatch(/width:\s*100%\s*!important/);
+        expect(chartGraphic).toMatch(/max-height:\s*100%\s*!important/);
+        expect(declarationsFor('.cm-block-widget--figaro-chart .cm-live-diagram'))
+            .toMatch(/background:\s*var\(--editor-surface\)/);
+        const handle = declarationsFor('.cm-vega-lite-chart-resize-handle');
+        expect(handle).toMatch(/bottom:\s*-14px/);
+        expect(handle).toMatch(/left:\s*calc\(50% - 14px\)/);
+        expect(handle).toMatch(/cursor:\s*ns-resize/);
+        const sourceLine = declarationsFor('.cm-editor .cm-vega-lite-chart-source-line');
+        expect(sourceLine).toMatch(/overflow-wrap:\s*normal/);
+        expect(sourceLine).toMatch(/white-space:\s*pre/);
+        expect(declarationsFor('.cm-editor .cm-vega-lite-chart-source-placeholder'))
+            .toMatch(/min-height:\s*var\(--cm-vega-lite-chart-source-height\)\s*!important/);
+
+        const workspace = declarationsFor('.vega-lite-chart-editor-workspace');
+        expect(workspace).toMatch(/grid-template-columns:\s*minmax\(330px, \.68fr\) minmax\(540px, 1\.62fr\)/);
+        const preview = declarationsFor('.vega-lite-chart-editor-preview');
+        expect(preview).toMatch(/align-items:\s*center/);
+        expect(preview).toMatch(/justify-content:\s*center/);
+        expect(preview).toMatch(/background:\s*var\(--editor-surface\)/);
+        expect(preview).toMatch(/color:\s*var\(--text-color\)/);
+        expect(declarationsFor('.vega-lite-chart-editor-preview > svg'))
+            .toMatch(/max-height:\s*100%\s*!important/);
+        expect(declarationsFor('.vega-lite-chart-editor-config .vega-lite-chart-editor-combobox'))
+            .toMatch(/width:\s*100%/);
+        expect(declarationsFor('.vega-lite-chart-editor-column-extra'))
+            .toMatch(/white-space:\s*nowrap/);
+        expect(stylesheet).not.toContain('.vega-lite-chart-editor-trendline-help');
+        expect(stylesheet).not.toContain('.vega-lite-chart-editor-column-extra.is-disabled > span');
+        expect(declarationsFor('.vega-lite-chart-editor-color-button.ui-icon-button'))
+            .toMatch(/width:\s*30px[\s\S]*height:\s*30px/);
+        expect(declarationsFor('.vega-lite-chart-editor-threshold-stepper'))
+            .toMatch(/width:\s*104px/);
+        expect(declarationsFor('.vega-lite-chart-editor-section + .vega-lite-chart-editor-section'))
+            .not.toMatch(/border/);
+        expect(declarationsFor('.vega-lite-chart-editor-section[data-columns-section]'))
+            .not.toMatch(/border/);
+        expect(declarationsFor('.vega-lite-chart-editor-preview-pane'))
+            .toMatch(/border:\s*0/);
+        expect(stylesheet).toMatch(/\.vega-lite-chart-editor-preview-heading\s*\{[^}]*border-bottom:\s*0/);
+        expect(declarationsFor('.vega-lite-chart-editor-visibility.ui-icon-button'))
+            .toMatch(/width:\s*24px[\s\S]*height:\s*24px/);
+        expect(declarationsFor('.vega-lite-chart-editor-preview-error')).toMatch(/display:\s*grid/);
+        expect(stylesheet).toMatch(/@container\s+chart-config\s+\(max-width:\s*380px\)/);
+        expect(stylesheet).toMatch(/grid-template-areas:\s*\n\s*"use column mark"/);
+        expect(stylesheet).toMatch(/grid-template-columns:\s*24px minmax\(0, 1fr\) minmax\(132px, 150px\)/);
+    });
+
     test('allows scrollable code footprints to chain vertical wheel input at their limits', () => {
         const scrollSurface = declarationsFor('.cm-source-footprint--scroll');
         expect(scrollSurface).toMatch(/overflow:\s*auto\s*!important/);
@@ -118,6 +171,20 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(reducedMotionSpinner).toMatch(/animation:\s*none\s*!important/);
         expect(declarationsFor('.cm-editor .cm-image-source'))
             .toMatch(/var\(--accent-color\)/);
+        const resizeFrame = declarationsFor('.cm-editor .cm-image-resize-frame');
+        expect(resizeFrame).toMatch(/margin:\s*0/);
+        expect(resizeFrame).toMatch(/border:\s*0/);
+        expect(resizeFrame).toMatch(/touch-action:\s*none/);
+        expect(declarationsFor('.cm-editor .cm-image-resize-frame img'))
+            .toMatch(/height:\s*100%/);
+        expect(declarationsFor('.ui-image-resize-handle'))
+            .toMatch(/width:\s*28px/);
+        expect(declarationsFor('.ui-image-resize-handle'))
+            .toMatch(/height:\s*28px/);
+        expect(declarationsFor('.cm-editor .cm-image-source-placeholder'))
+            .toMatch(/min-height:\s*var\(--cm-image-source-height\)\s*!important/);
+        expect(declarationsFor('.cm-editor .cm-image-widget.is-resizing .cm-image-resize-readout'))
+            .toMatch(/display:\s*block/);
         const drawioAction = declarationsFor('.cm-editor .cm-drawio-action-button');
         expect(drawioAction).toMatch(/height:\s*1\.65em/);
         expect(drawioAction).toMatch(/width:\s*100%/);
@@ -158,6 +225,11 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/justify-items:\s*end/);
         expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/gap:\s*0/);
         expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/pointer-events:\s*none/);
+        expect(declarationsFor('.cm-task-action-guide')).toMatch(/display:\s*flex/);
+        expect(declarationsFor('.cm-task-action-guide')).toMatch(/gap:\s*2px/);
+        expect(declarationsFor('.cm-task-action-guide')).toMatch(/pointer-events:\s*auto/);
+        expect(declarationsFor('.cm-task-action-guide svg')).toMatch(/width:\s*13px/);
+        expect(declarationsFor('.cm-task-action-guide svg')).toMatch(/height:\s*13px/);
         expect(declarationsFor('.ui-editor-block-guide')).toMatch(/opacity:\s*0/);
         expect(declarationsFor('.ui-editor-block-guide')).toMatch(/pointer-events:\s*none/);
         expect(declarationsFor('.ui-editor-fold-control[aria-expanded=\'false\'],\n.ui-editor-block-guide[aria-expanded=\'false\']'))

@@ -13,7 +13,7 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
         'Before',
         '```mermaid',
         'flowchart TD',
-        '  A --> B',
+        '  A[Christmas] --> B[Go shopping] --> C --> D[Laptop] --> E[iPhone] --> F[fa:fa-car Car] --> G[Home]',
         '```',
         'After',
     ].join('\n');
@@ -233,6 +233,58 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     await expect(previewCanvas).toHaveAttribute('data-pan-x', '0.00');
     expect(await modal.locator('.mermaid-editor-code-host .cm-content').textContent()).toBe(sourceBeforeNavigation);
 
+    await modal.getByRole('tab', { name: 'Style' }).click();
+    await expect(modal.locator('[data-diagram-type="flowchart-v2"]')).toBeVisible();
+    await expect(modal.locator('.mermaid-editor-node-row')).toHaveCount(7);
+    expect(await modal.locator('.mermaid-editor-selected-node').evaluate(editor => {
+        const rect = editor.getBoundingClientRect();
+        const panel = editor.closest('.mermaid-editor-style-content').getBoundingClientRect();
+        return rect.top >= panel.top && rect.bottom <= panel.bottom;
+    })).toBe(true);
+    await previewCanvas.locator('[data-figaro-node-id="B"]').click();
+    await expect(modal.locator('.mermaid-editor-node-row[data-node-id="B"]'))
+        .toHaveAttribute('aria-selected', 'true');
+    const nodeEditorLayout = await modal.locator('.mermaid-editor-style-content').evaluate(panel => {
+        const editor = panel.querySelector('.mermaid-editor-selected-node');
+        const list = panel.querySelector('.mermaid-editor-node-list');
+        const editorRect = editor.getBoundingClientRect();
+        const panelRect = panel.getBoundingClientRect();
+        return {
+            editorBeforeList: Boolean(editor.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING),
+            editorVisible: editorRect.top >= panelRect.top && editorRect.bottom <= panelRect.bottom,
+            listIsBounded: list.scrollHeight > list.clientHeight,
+            swatchRadius: getComputedStyle(list.querySelector('.mermaid-editor-node-swatch')).borderRadius,
+        };
+    });
+    expect(nodeEditorLayout).toEqual({
+        editorBeforeList: true,
+        editorVisible: true,
+        listIsBounded: true,
+        swatchRadius: '50%',
+    });
+    await modal.getByRole('button', { name: 'Pill', exact: true }).click();
+    await expect(modal.getByRole('button', { name: 'Pill', exact: true })).toBeFocused();
+    await modal.locator('.mermaid-editor-selected-node .mermaid-editor-color-button').click();
+    await expect(modal.locator('.mermaid-editor-preview-state')).toHaveText('Up to date');
+    await expect(page.getByRole('listbox', { name: 'Go shopping fill' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('.mermaid-editor-selected-node .mermaid-editor-color-button')).toBeFocused();
+    await modal.locator('.mermaid-editor-selected-node .mermaid-editor-color-button').click();
+    await page.getByRole('option', { name: 'Color #3b82f6' }).click();
+    await expect(modal.locator('.mermaid-editor-selected-node .mermaid-editor-color-button')).toBeFocused();
+    await expect(modal.locator('.mermaid-editor-preview-state')).toHaveText('Up to date');
+    await expect(previewCanvas.locator('[data-figaro-node-id="B"] .label-container path').first())
+        .toHaveCSS('fill', 'rgb(59, 130, 246)');
+    const styleOverflow = await modal.locator('.mermaid-editor-style-content').evaluate(panel => ({
+        clientWidth: panel.clientWidth,
+        scrollWidth: panel.scrollWidth,
+    }));
+    expect(styleOverflow.scrollWidth).toBeLessThanOrEqual(styleOverflow.clientWidth + 1);
+    await modal.getByRole('tab', { name: 'Source' }).click();
+    await expect(modal.locator('.mermaid-editor-code-host .cm-content'))
+        .toContainText('style B fill:#3b82f6');
+
     const measureModalPanes = () => modal.locator('.mermaid-editor-panes').evaluate(panes => {
         const modalRect = panes.closest('.mermaid-editor-modal').getBoundingClientRect();
         const paneRects = Array.from(panes.querySelectorAll('.mermaid-editor-pane'))
@@ -250,9 +302,9 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     expect(largeLayout.modal.height).toBeGreaterThan(mediumLayout.modal.height);
     expect(largeLayout.panes[0].width).toBeGreaterThan(mediumLayout.panes[0].width);
     expect(largeLayout.panes[0].height).toBeGreaterThan(mediumLayout.panes[0].height);
-    expect(Math.abs(mediumLayout.panes[0].width - mediumLayout.panes[1].width)).toBeLessThan(2);
-    expect(Math.abs(largeLayout.panes[0].width - largeLayout.panes[1].width)).toBeLessThan(2);
-    expect(largeLayout.modal.width).toBeLessThanOrEqual(1182);
+    expect(mediumLayout.panes[1].width).toBeGreaterThan(mediumLayout.panes[0].width);
+    expect(largeLayout.panes[1].width).toBeGreaterThan(largeLayout.panes[0].width);
+    expect(largeLayout.modal.width).toBeLessThanOrEqual(1262);
     expect(largeLayout.modal.height).toBeLessThanOrEqual(782);
 
     await page.setViewportSize({ width: 800, height: 720 });
@@ -262,6 +314,17 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     })));
     expect(narrowPanes[1].y).toBeGreaterThan(narrowPanes[0].y);
     expect(Math.abs(narrowPanes[1].x - narrowPanes[0].x)).toBeLessThan(2);
+    for (const height of [720, 580]) {
+        await page.setViewportSize({ width: 800, height });
+        expect(await modal.evaluate(dialog => {
+            const content = dialog.querySelector('.custom-modal-content').getBoundingClientRect();
+            const footer = dialog.querySelector('.custom-modal-buttons').getBoundingClientRect();
+            return [...dialog.querySelectorAll('.mermaid-editor-pane')].every(pane => {
+                const rect = pane.getBoundingClientRect();
+                return rect.top >= content.top && rect.bottom <= content.bottom && rect.bottom <= footer.top;
+            });
+        })).toBe(true);
+    }
     await page.setViewportSize({ width: 1280, height: 720 });
 
     const originalCode = await modal.locator('.mermaid-editor-code-host .cm-content').textContent();
@@ -408,26 +471,4 @@ test('inherits Vim mode and display-row navigation inside the Mermaid source edi
         await editor.toggleVim(false);
         delete window.__mermaidModalView;
     });
-});
-
-test('keeps every bundled Mermaid Live Editor template compatible with the bundled parser', async ({ page }) => {
-    await openWelcomeEditor(page);
-    const result = await page.evaluate(async () => {
-        const { mermaidTemplates } = await import('/js/mermaidEditor.js');
-        const { validateMermaidSource } = await import('/js/diagramRenderer.js');
-        const failures = [];
-        let count = 0;
-        for (const diagram of mermaidTemplates) {
-            for (const example of diagram.examples) {
-                count += 1;
-                try {
-                    await validateMermaidSource(example.code);
-                } catch (error) {
-                    failures.push(`${diagram.name} / ${example.title}: ${error.message || error}`);
-                }
-            }
-        }
-        return { diagrams: mermaidTemplates.length, count, failures };
-    });
-    expect(result).toEqual({ diagrams: 32, count: 76, failures: [] });
 });

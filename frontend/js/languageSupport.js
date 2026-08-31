@@ -53,6 +53,10 @@ export function isEditableCodeMirrorFile(path) {
     return getFileLanguage(path).kind !== 'plain';
 }
 
+export function isDrawioDiagramPath(path) {
+    return /\.drawio\.svg$/i.test(String(path || ''));
+}
+
 export async function loadLanguageSupport(path) {
     const language = getFileLanguage(path);
     if (language.kind !== 'code' || !language.description) return null;

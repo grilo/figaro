@@ -106,6 +106,10 @@
       ]
     },
     {
+      "id": "image-resize-handle",
+      "primitives": [".ui-image-resize-handle"]
+    },
+    {
       "id": "graph-canvas",
       "primitives": [".ui-graph-canvas"]
     },

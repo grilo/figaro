@@ -42,6 +42,8 @@ function debugAPI() {
         GetRecentlyDeleted: mock([]),
         RestoreRecentlyDeleted: mock({ success: true }),
         RenamePath: mock({ success: true }),
+        PreviewRenamePath: mock({ success: true, updated_links: [] }),
+        RenamePathWithLinkUpdates: mock({ success: true }),
         MovePath: mock({ success: true }),
         MergeDirectory: mock({ success: true }),
         MergeExternalPaths: mock({ success: true, paths: [] }),

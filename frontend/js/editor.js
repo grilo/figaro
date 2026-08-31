@@ -11,7 +11,7 @@ import { statusBar } from './statusBar.js';
 import { mathField } from './mathPlugin.js';
 import { createDiagramField, diagramLanguages, scanDiagramFences } from './liveDiagramPlugin.js';
 import { createMarkdownTableField, scanMarkdownTables } from './liveMarkdownTablePlugin.js';
-import { createMarkdownImageField } from './markdownImagePlugin.js';
+import { createMarkdownImageField, resetMarkdownImageSize } from './markdownImagePlugin.js';
 import { requestSourceFootprintMeasure, sourceFootprintExtension } from './sourceFootprint.js';
 import {
     defaultTabSize,
@@ -27,10 +27,23 @@ import { FRONTMATTER_UPWARD_REVEAL_USER_EVENT } from './core/frontmatterPresenta
 import { taskCheckboxLabel, taskCheckboxReplacement } from './core/taskCheckboxModel.js';
 import { createFrontmatterCompletionSource, getRelativePrintStylesheets } from './frontmatterCompletions.js';
 import { createDateShortcutCompletionSource } from './dateShortcutCompletions.js';
+import { createAuthoringMacroCompletionSource } from './authoringMacroCompletions.js';
+import {
+    defaultDrawioMacroName,
+    drawioMacroFileName,
+    drawioMacroNameError,
+} from './core/authoringMacroModel.js';
 import { createTaskDueDateCompletionSource } from './taskDueDateCompletions.js';
-import { isHashtagCompletionTrigger } from './core/taskDueDateCompletionModel.js';
+import {
+    planTaskItemDueDateSelection,
+    taskItemActionPlan,
+} from './core/taskItemActionModel.js';
+import {
+    createTaskItemKanbanCompletionSource,
+    requestTaskItemKanbanCompletion,
+} from './taskItemActionCompletions.js';
 import { openDatePicker } from './datePicker.js';
-import { errorDialog, pdfExportErrorDialog, tableConversionDialog } from './dialogs.js';
+import { confirmDialog, errorDialog, pdfExportErrorDialog, promptDialog, tableConversionDialog } from './dialogs.js';
 import { insertMarkdownTable } from './clipboardTable.js';
 import {
     FIGARO_MARKDOWN_CLIPBOARD_TYPE,
@@ -43,15 +56,10 @@ import {
     pasteClipboardPayload,
 } from './clipboardPaste.js';
 import {
-    headingLinkCompletionMatch,
     linkedNoteCompletionInsertion,
     markdownHeadingPosition,
-    markdownHeadingTargets,
-    noteLinkCompletion,
-    noteLinkCompletionMatch,
-    planLinkedNoteCompletion,
-    shouldOfferLinkedNoteCreation,
 } from './linkCompletions.js';
+import { createEditorLinkCompletions } from './editorLinkCompletions.js';
 import { getLinkStylePreference } from './linkStyle.js';
 import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
 import { createDocumentKeyBindings } from './codeMirrorProfiles.js';
@@ -74,20 +82,6 @@ import {
     planMarkdownLinkTargetReplacement,
     resolveMarkdownReferenceLink,
 } from './core/noteLinks.js';
-import { handleFileOpen } from './app.js';
-import { refreshFileTree } from './fileTree.js';
-import {
-    closeTab,
-    getActiveTab,
-    markTabDirty,
-    openTab,
-    replaceActiveFileTab,
-    saveActiveFile as saveActiveTabFile,
-    saveFileSnapshot,
-    switchTab,
-} from './tabManager.js';
-import { openRawTextPreview } from './rawTextPreview.js';
-import { openPDFPreview } from './pdfPreview.js';
 import {
     configureContextMenu,
     dismissContextMenu,
@@ -110,7 +104,7 @@ import {
     HighlightStyle, bracketMatching, foldGutter, foldedRanges, foldKeymap, indentUnit,
     syntaxHighlighting, syntaxTree,
 } from '@codemirror/language';
-import { acceptCompletion, autocompletion, completionKeymap, startCompletion } from '@codemirror/autocomplete';
+import { acceptCompletion, autocompletion, completionKeymap } from '@codemirror/autocomplete';
 import {
     deleteMarkupBackward,
     insertNewlineContinueMarkupCommand,
@@ -124,6 +118,8 @@ import { createMarkdownDocumentLinter } from './usecases/markdownDocumentLint.js
 import { createMarkdownBlockGuidesExtension } from './markdownBlockGuides.js';
 import { openMermaidEditor } from './mermaidEditor.js';
 import { openMarkdownTableEditor } from './markdownTableEditor.js';
+import { openVegaLiteChartEditor } from './vegaLiteChartEditor.js';
+import { vegaLiteChartTableSource } from './core/vegaLiteChartEditorModel.js';
 import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
     isVerticalMotionKey,
@@ -163,6 +159,7 @@ import {
 
 // Editor instance
 let editorView = null;
+let workspacePorts = null;
 let vimCompartment = null;
 let imageBasePathCompartment = null;
 let readOnlyCompartment = null;
@@ -195,6 +192,45 @@ let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: nul
 let fileModeRequest = 0;
 let markdownModeExtensions = null;
 let editorTabSizeRequested = defaultTabSize;
+
+export function configureEditorWorkspace(ports) {
+    const required = [
+        'closeTab',
+        'getActiveTab',
+        'markTabDirty',
+        'openFile',
+        'openPDFPreview',
+        'openRawTextPreview',
+        'openTab',
+        'refreshFileTree',
+        'replaceActiveFileTab',
+        'saveActiveFile',
+        'saveFileSnapshot',
+        'switchTab',
+    ];
+    if (required.some(name => typeof ports?.[name] !== 'function')) {
+        throw new TypeError('Editor workspace ports are incomplete');
+    }
+    workspacePorts = Object.freeze({ ...ports });
+}
+
+function workspace() {
+    if (!workspacePorts) throw new Error('Editor workspace ports were not configured');
+    return workspacePorts;
+}
+
+function closeTab(...args) { return workspace().closeTab(...args); }
+function getActiveTab(...args) { return workspace().getActiveTab(...args); }
+function handleFileOpen(...args) { return workspace().openFile(...args); }
+function markTabDirty(...args) { return workspace().markTabDirty(...args); }
+function openPDFPreview(...args) { return workspace().openPDFPreview(...args); }
+function openRawTextPreview(...args) { return workspace().openRawTextPreview(...args); }
+function openTab(...args) { return workspace().openTab(...args); }
+function refreshFileTree(...args) { return workspace().refreshFileTree(...args); }
+function replaceActiveFileTab(...args) { return workspace().replaceActiveFileTab(...args); }
+function saveActiveTabFile(...args) { return workspace().saveActiveFile(...args); }
+function saveFileSnapshot(...args) { return workspace().saveFileSnapshot(...args); }
+function switchTab(...args) { return workspace().switchTab(...args); }
 
 const refreshCurrentPureWriting = () => refreshPureWriting(getEditorView());
 subscribe('pureTypewriterEnabled', refreshCurrentPureWriting);
@@ -836,24 +872,147 @@ function mermaidEditorInputProfile(mainView) {
     };
 }
 
+function openMermaidBlockEditor(view, block) {
+    if (!block) return null;
+    return openMermaidEditor(view, block, {
+        inputProfile: mermaidEditorInputProfile(view),
+    });
+}
+
+function openTableBlockEditor(view, block, returnFocus = null) {
+    if (!block) return null;
+    return openMarkdownTableEditor(view, block, { returnFocus });
+}
+
+function openTableChartEditor(view, block, returnFocus = null) {
+    if (!block) return null;
+    return openVegaLiteChartEditor(view, block, {
+        sourceKind: 'table',
+        returnFocus,
+    });
+}
+
+function openVegaLiteBlockEditor(view, block, returnFocus = null) {
+    if (!block) return null;
+    return openVegaLiteChartEditor(view, block, {
+        sourceKind: 'vega-lite',
+        returnFocus,
+    });
+}
+
+async function convertVegaLiteBlockToTable(view, originalBlock) {
+    if (!view || !originalBlock) return false;
+    const tableSource = vegaLiteChartTableSource(originalBlock.rawCode ?? originalBlock.code);
+    if (!tableSource) {
+        await errorDialog(
+            'Table conversion unavailable',
+            'Only unchanged Vega-Lite blocks created from a Figaro Markdown table can be converted back.',
+        );
+        return false;
+    }
+    const confirmed = await confirmDialog(
+        'Convert chart back to table?',
+        'The embedded data will become the original Markdown table. Chart marks, axes, colors, and guides will be removed.',
+        false,
+        false,
+        {
+            icon: 'table',
+            confirmLabel: 'Convert to table',
+            cancelLabel: 'Keep chart',
+            dismissOnBackdrop: false,
+        },
+    );
+    if (confirmed !== 'confirm' || view.isDestroyed) return false;
+    const current = scanDiagramFences(view.state.doc).find(candidate => (
+        candidate.lang === 'vega-lite' && candidate.from === originalBlock.from
+    ));
+    const currentTable = current
+        ? vegaLiteChartTableSource(current.rawCode ?? current.code)
+        : null;
+    if (!current || !currentTable || currentTable !== tableSource) {
+        await errorDialog(
+            'Chart changed',
+            'The Vega-Lite block changed while the confirmation was open. Review it and try again.',
+        );
+        return false;
+    }
+    view.dispatch({
+        changes: { from: current.from, to: current.to, insert: currentTable },
+        selection: { anchor: current.from },
+        scrollIntoView: true,
+        annotations: Transaction.userEvent.of('input.chart-to-table'),
+    });
+    view.focus();
+    return true;
+}
+
+function openTaskDueDateFromGuide(view, taskLine, returnFocusTarget) {
+    const initial = taskItemActionPlan(taskLine.text);
+    if (!initial || !returnFocusTarget) return null;
+    return openDatePicker({
+        anchor: returnFocusTarget,
+        value: initial.dueDate,
+        ariaLabel: initial.dueDate ? 'Change task due date' : 'Set task due date',
+        onSelect: date => {
+            if (view.isDestroyed) return;
+            const currentLine = view.state.doc.lineAt(Math.min(taskLine.from, view.state.doc.length));
+            if (currentLine.from !== taskLine.from) return;
+            const plan = planTaskItemDueDateSelection(currentLine.text, date);
+            if (!plan) return;
+            view.dispatch({
+                changes: { from: currentLine.from, to: currentLine.to, insert: plan.text },
+                selection: { anchor: currentLine.from + plan.selectionOffset },
+                userEvent: date ? 'input.task-due' : 'delete.task-due',
+            });
+            view.focus();
+        },
+    });
+}
+
 const markdownBlockGuidesExtension = createMarkdownBlockGuidesExtension({
     openMermaidEditor: (view, guide) => {
         const block = scanDiagramFences(view.state.doc).find(candidate => (
             candidate.lang === 'mermaid' && candidate.from === guide.from
         ));
-        if (!block) return;
-        openMermaidEditor(view, block, {
-            inputProfile: mermaidEditorInputProfile(view),
-        });
+        openMermaidBlockEditor(view, block);
     },
     openDrawioEditor: (view, guide) => openDrawioImageFromGuide(view, guide),
     openTableEditor: (view, guide, returnFocusTarget) => {
         const block = scanMarkdownTables(view.state).find(candidate => (
             candidate.from === guide.from && candidate.to === guide.to
         ));
-        if (!block) return;
-        openMarkdownTableEditor(view, block, { returnFocus: returnFocusTarget });
+        openTableBlockEditor(view, block, returnFocusTarget);
     },
+    openChartEditor: (view, guide, returnFocusTarget) => {
+        if (guide.type === 'table') {
+            const table = scanMarkdownTables(view.state).find(candidate => (
+                candidate.from === guide.from && candidate.to === guide.to
+            ));
+            openTableChartEditor(view, table, returnFocusTarget);
+            return;
+        }
+        if (guide.label === 'vega-lite') {
+            const chart = scanDiagramFences(view.state.doc).find(candidate => (
+                candidate.lang === 'vega-lite'
+                && candidate.from === guide.from
+                && candidate.to === guide.to
+            ));
+            openVegaLiteBlockEditor(view, chart, returnFocusTarget);
+        }
+    },
+    convertChartToTable: (view, guide) => {
+        const chart = scanDiagramFences(view.state.doc).find(candidate => (
+            candidate.lang === 'vega-lite'
+            && candidate.from === guide.from
+            && candidate.to === guide.to
+        ));
+        void convertVegaLiteBlockToTable(view, chart);
+    },
+    resetImageSize: (view, guide) => resetMarkdownImageSize(view, guide.from, guide.to),
+    openTaskKanban: (view, taskLine) => requestTaskItemKanbanCompletion(view, taskLine.from),
+    openTaskCalendar: (view, taskLine, returnFocusTarget) => (
+        openTaskDueDateFromGuide(view, taskLine, returnFocusTarget)
+    ),
 });
 
 const blockControlVisibilityExtension = createBlockControlVisibilityExtension(ViewPlugin);
@@ -1713,20 +1872,11 @@ function referenceLinkPlugin() {
     }, { decorations: value => value.decorations });
 }
 
-function createEditorView() {
-    const container = document.getElementById('editor-container');
-    if (editorView) {
-        if (!editorView.isDestroyed && container && container.contains(editorView.dom)) {
-            return editorView;
-        }
-        destroyEditorView();
-    }
-    if (!container) return null;
-
+function createFoldGutterAccessibilityPlugin() {
     // CodeMirror marks its complete gutter rail aria-hidden because line
     // numbers and ordinary markers are decorative. Fold arrows and Markdown
     // block controls are real controls, so expose only that interactive gutter.
-    const foldGutterAccessibilityPlugin = ViewPlugin.fromClass(class {
+    return ViewPlugin.fromClass(class {
         constructor(view) {
             this.view = view;
             this.sync();
@@ -1763,80 +1913,154 @@ function createEditorView() {
             }
         }
     });
+}
 
-    const getActiveFilePath = () => {
-        const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
-        return activeTab?.type === 'file' ? activeTab.path : '';
-    };
-    const getDefaultAuthor = () => {
-        const app = backend();
-        return typeof app.GetOSUsername === 'function' ? app.GetOSUsername() : '';
-    };
+function activeEditorFilePath() {
+    const activeTab = (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId'));
+    return activeTab?.type === 'file' ? activeTab.path : '';
+}
 
-    // Live Diagram Field — block widgets need a StateField so CodeMirror can lay them out.
-    let diagramField = [];
-    if (StateField && EditorView && WidgetType && shouldShowSource && mouseSelectingField) {
-        try { diagramField = createDiagramField(StateField, EditorView, Decoration, WidgetType, shouldShowSource, mouseSelectingField); } catch(e) { log.warn('[diagram] create failed: ' + (e.message || e)); }
+function defaultFrontmatterAuthor() {
+    const app = backend();
+    return typeof app.GetOSUsername === 'function' ? app.GetOSUsername() : '';
+}
+
+function createDiagramEditorField() {
+    if (!StateField || !EditorView || !WidgetType || !shouldShowSource || !mouseSelectingField) return [];
+    try {
+        return createDiagramField(
+            StateField,
+            EditorView,
+            Decoration,
+            WidgetType,
+            shouldShowSource,
+            mouseSelectingField,
+        );
+    } catch (error) {
+        log.warn('[diagram] create failed: ' + (error.message || error));
+        return [];
     }
-    // Frontmatter is represented by a single collapsed Properties card until
-    // the user activates it or moves the cursor into the YAML source.
-    let frontmatterField = [];
-    if (StateField && StateEffect && EditorView && Decoration && WidgetType) {
-        try {
-            frontmatterField = createFrontmatterField(
-                StateField, StateEffect, EditorView, Decoration, WidgetType, mouseSelectingField,
-                () => getRelativePrintStylesheets(getState('fileTreeData') || [], getActiveFilePath()),
-                getDefaultAuthor,
-                {
-                    getActiveFilePath,
-                    onStylesheetReady: async stylesheetPath => {
-                        try {
-                            await refreshFileTree();
-                            await handleFileOpen(stylesheetPath);
-                        } catch (error) {
-                            // The stylesheet was created successfully even if
-                            // its tab cannot be opened immediately.
-                            log.warn('[frontmatter] starter stylesheet created but could not be opened: ' + (error.message || error));
-                        }
-                    },
-                }
-            );
-        } catch (error) {
-            log.warn('[frontmatter] create failed: ' + (error.message || error));
+}
+
+function createFrontmatterEditorField() {
+    if (!StateField || !StateEffect || !EditorView || !Decoration || !WidgetType) return [];
+    try {
+        return createFrontmatterField(
+            StateField,
+            StateEffect,
+            EditorView,
+            Decoration,
+            WidgetType,
+            mouseSelectingField,
+            () => getRelativePrintStylesheets(getState('fileTreeData') || [], activeEditorFilePath()),
+            defaultFrontmatterAuthor,
+            {
+                getActiveFilePath: activeEditorFilePath,
+                onStylesheetReady: async stylesheetPath => {
+                    try {
+                        await refreshFileTree();
+                        await handleFileOpen(stylesheetPath);
+                    } catch (error) {
+                        // The stylesheet was created successfully even if its
+                        // tab cannot be opened immediately.
+                        log.warn('[frontmatter] starter stylesheet created but could not be opened: '
+                            + (error.message || error));
+                    }
+                },
+            },
+        );
+    } catch (error) {
+        log.warn('[frontmatter] create failed: ' + (error.message || error));
+        return [];
+    }
+}
+
+function createHashtagDecorationPlugin() {
+    return ViewPlugin.fromClass(class {
+        constructor(view) {
+            this.decorations = this.buildDecorations(view);
         }
-    }
 
-    // Hashtag decoration plugin
-    const hashtagPlugin = ViewPlugin.fromClass(class {
-        constructor(view) { this.decorations = this.buildDecorations(view); }
         buildDecorations(view) {
             const builder = new RangeSetBuilder();
-            const re = /(?<!\w)(?<!#)#([a-zA-Z][a-zA-Z0-9_-]*)\b/g;
+            const hashtagPattern = /(?<!\w)(?<!#)#([a-zA-Z][a-zA-Z0-9_-]*)\b/g;
             for (const { from, to } of view.visibleRanges) {
                 const text = view.state.doc.sliceString(from, to);
-                let m;
-                while ((m = re.exec(text)) !== null) {
+                let match;
+                while ((match = hashtagPattern.exec(text)) !== null) {
                     // Valid CSS hex colors own ambiguous tokens such as #bad.
-                    if (isHexColorToken(m[0])) continue;
-                    const s = from + m.index;
-                    const e = s + m[0].length;
-                    const previous = s > 0 ? view.state.doc.sliceString(s - 1, s) : '';
-                    const next = e < view.state.doc.length ? view.state.doc.sliceString(e, e + 1) : '';
+                    if (isHexColorToken(match[0])) continue;
+                    const start = from + match.index;
+                    const end = start + match[0].length;
+                    const previous = start > 0 ? view.state.doc.sliceString(start - 1, start) : '';
+                    const next = end < view.state.doc.length
+                        ? view.state.doc.sliceString(end, end + 1)
+                        : '';
                     // Kanban tags are standalone whitespace-delimited tokens.
                     // This excludes markdown anchors such as [guide](#section).
                     if ((previous && !/\s/.test(previous)) || (next && !/\s/.test(next))) continue;
-                    builder.add(s, s + m[0].length, Decoration.mark({
-                        class: 'cm-hashtag', attributes: { 'data-tag': m[1].toLowerCase() }
+                    builder.add(start, end, Decoration.mark({
+                        class: 'cm-hashtag',
+                        attributes: { 'data-tag': match[1].toLowerCase() },
                     }));
                 }
             }
             return builder.finish();
         }
+
         update(update) {
-            if (update.docChanged || update.viewportChanged)
+            if (update.docChanged || update.viewportChanged) {
                 this.decorations = this.buildDecorations(update.view);
+            }
         }
-    }, { decorations: v => v.decorations });
+    }, { decorations: value => value.decorations });
+}
+
+function createEmptyLinkAutofillPlugin() {
+    return ViewPlugin.fromClass(class {
+        update(update) {
+            if (!update.docChanged) return;
+            const documentText = update.state.doc;
+            const selection = update.state.selection.main;
+            if (!selection.empty) return;
+            const lineStart = documentText.lineAt(selection.head).from;
+            const before = documentText.sliceString(lineStart, selection.head);
+            const emptyLink = before.match(/\[([^\]]+)\]\(\)$/);
+            if (!emptyLink) return;
+
+            let fileName = emptyLink[1].trim() + '.md';
+            const activeTab = getActiveTab();
+            if (activeTab?.type === 'file' && activeTab.path) {
+                const directory = activeTab.path.substring(0, activeTab.path.lastIndexOf('/'));
+                if (directory) fileName = directory + '/' + fileName;
+            }
+            const replacement = `(${fileName.replace(/ /g, '%20')})`;
+            queueMicrotask(() => {
+                const view = update.view;
+                if (view.isDestroyed) return;
+                view.dispatch({
+                    changes: { from: selection.head - 2, to: selection.head, insert: replacement },
+                    selection: { anchor: selection.head - 2 + replacement.length },
+                });
+            });
+        }
+    });
+}
+
+function createEditorView() {
+    const container = document.getElementById('editor-container');
+    if (editorView) {
+        if (!editorView.isDestroyed && container && container.contains(editorView.dom)) {
+            return editorView;
+        }
+        destroyEditorView();
+    }
+    if (!container) return null;
+
+    const foldGutterAccessibilityPlugin = createFoldGutterAccessibilityPlugin();
+    const diagramField = createDiagramEditorField();
+    const frontmatterField = createFrontmatterEditorField();
+    const hashtagPlugin = createHashtagDecorationPlugin();
 
     // Widget plugin — cursor-aware bullet points and interactive checkboxes
     const bulletW = (char) => new (class extends WidgetType {
@@ -2078,232 +2302,54 @@ function createEditorView() {
         }
     }, { decorations: v => v.decorations });
 
-    // Empty-link autofill
+    const emptyLinkAutofillPlugin = createEmptyLinkAutofillPlugin();
 
-    const emptyLinkAutofillPlugin = ViewPlugin.fromClass(class {
-        update(update) {
-            if (update.docChanged) {
-                const doc = update.state.doc;
-                const sel = update.state.selection.main;
-                if (sel.empty) {
-                    const ls = doc.lineAt(sel.head).from;
-                    const before = doc.sliceString(ls, sel.head);
-                    // Empty link autofill: [text]() → [text](dir/text.md)
-                    const emptyLink = before.match(/\[([^\]]+)\]\(\)$/);
-                    if (emptyLink) {
-                        const linkText = emptyLink[1];
-                        let fileName = linkText.trim() + '.md';
-                        const activeTab = getState('openTabs').find(t => t.id === getState('activeTabId'));
-                        if (activeTab && activeTab.type === 'file' && activeTab.path) {
-                            const dir = activeTab.path.substring(0, activeTab.path.lastIndexOf('/'));
-                            if (dir) fileName = dir + '/' + fileName;
-                        }
-                        // Encode spaces so markdown parser sees a valid link
-                        const encoded = fileName.replace(/ /g, '%20');
-                        const replacement = `(${encoded})`;
-                        queueMicrotask(() => {
-                            const v = update.view;
-                            if (!v.isDestroyed) v.dispatch({
-                                changes: { from: sel.head - 2, to: sel.head, insert: replacement },
-                                selection: { anchor: sel.head - 2 + replacement.length }
-                            });
-                        });
-                    }
-                }
-            }
-        }
-    });
-
-    // Helper: compute vault-relative path from target
-    function makeLinkPath(targetPath) {
-        // Always use vault-relative paths (absolute relative to vault root)
-        return targetPath;
-    }
-
-    const imageCompletions = ctx => {
-        const pos = ctx.pos, doc = ctx.state.doc;
-        const line = doc.lineAt(pos), ls = line.from;
-        const before = doc.sliceString(ls, pos);
-        const match = before.match(/!\[([^\]]*)$/);
-        if (!match) return null;
-        const rawPrefix = match[1];
-        const prefix = rawPrefix.toLowerCase();
-        const fileTreeData = getState('fileTreeData') || [];
-        const imgExts = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico']);
-        const imgFiles = [];
-        (function collect(items) {
-            for (const item of items) {
-                if (item.type === 'file') {
-                    const ext = item.name.split('.').pop().toLowerCase();
-                    if (imgExts.has(ext))
-                        imgFiles.push({ name: item.name, path: item.path, mtime: item.mtime || 0 });
-                }
-                if (item.type === 'directory' && item.children) collect(item.children);
-            }
-        })(fileTreeData);
-        if (!imgFiles.length) return null;
-        // Sort by modification time, most recent first
-        imgFiles.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
-        const rf = ls + match.index;
-        const options = imgFiles
-            .filter(f => f.name.toLowerCase().startsWith(prefix) || f.path.toLowerCase().includes(prefix))
-            .slice(0, 10).map(f => ({
-                label: f.name, detail: f.path,
-                apply: (view, comp, from, to) => {
-                    const linkPath = makeLinkPath(f.path);
-                    const encodedPath = linkPath.replace(/ /g, '%20');
-                    const rep = `![${f.name}](${encodedPath})`;
-                    view.dispatch({ changes: { from, to, insert: rep }, selection: { anchor: from + rep.length } });
-                }
-            }));
-        return { from: rf, options, filter: false };
-    };
-
-    const fileLinkCompletions = async ctx => {
-        const pos = ctx.pos, doc = ctx.state.doc;
-        const line = doc.lineAt(pos), ls = line.from;
-        const before = doc.sliceString(ls, pos);
-        const match = noteLinkCompletionMatch(before);
-        if (!match) return null;
-        const rawPrefix = match.prefix;
-        const prefix = rawPrefix.toLowerCase();
-        const fileTreeData = getState('fileTreeData') || [];
-        const mdFiles = [];
-        (function collect(items) {
-            for (const item of items) {
-                if (item.type === 'file' && item.name.endsWith('.md'))
-                    mdFiles.push({ name: item.name.replace('.md', ''), path: item.path, mtime: item.mtime || 0 });
-                if (item.type === 'directory' && item.children) collect(item.children);
-            }
-        })(fileTreeData);
-        // Empty link completions remain recency-based. Once the user types,
-        // use the same native relevance engine as global search so headings,
-        // paths, accents, prefixes, and conservative typo matches agree.
-        mdFiles.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
-        const rf = ls + match.fromOffset;
-        let matchedFiles = mdFiles.slice(0, 10);
-        if (rawPrefix) {
-            try {
-                const response = await backend().SearchNotes(rawPrefix, {
-                    case_sensitive: false,
-                    title_only: false,
-                    profile: 'links',
-                    limit: 10,
-                    suggest: false,
-                });
-                matchedFiles = (response?.results || []).map(file => ({
-                    name: String(file.name || file.path?.split('/').pop() || file.path || '')
-                        .replace(/\.md$/i, ''),
-                    path: file.path,
-                    mtime: file.mtime || 0,
-                })).filter(file => file.path);
-            } catch {
-                matchedFiles = mdFiles
-                    .filter(file => file.name.toLowerCase().startsWith(prefix)
-                        || file.path.toLowerCase().startsWith(prefix))
-                    .slice(0, 10);
-            }
-        }
-        const options = matchedFiles.map(f => ({
-            label: f.name, detail: f.path,
-            apply: (view, comp, from, to) => {
-                const rep = noteLinkCompletion(getLinkStylePreference(), f);
-                view.dispatch({ changes: { from, to, insert: rep }, selection: { anchor: from + rep.length } });
-            }
-        }));
-        const activeTab = getActiveTab();
-        const creationPlan = planLinkedNoteCompletion({
-            label: rawPrefix,
-            currentPath: activeTab?.type === 'file' ? activeTab.path : '',
-            style: getLinkStylePreference(),
-        });
-        if (shouldOfferLinkedNoteCreation(creationPlan, mdFiles)) {
-            options.push({
-                label: `Create “${creationPlan.label}”`,
-                detail: `New note · ${creationPlan.path}`,
-                type: 'text',
-                boost: -100,
-                apply: (view, _completion, from, to) => {
-                    const request = {
-                        from,
-                        to,
-                        expectedSource: view.state.doc.sliceString(from, to),
-                    };
-                    void completeLinkedNoteCreation(view, request, creationPlan);
-                },
-            });
-        }
-        if (!options.length) return null;
-        return { from: rf, options, filter: false };
-    };
-
-    const headingLinkCompletions = ctx => {
-        const pos = ctx.pos, doc = ctx.state.doc;
-        const line = doc.lineAt(pos), ls = line.from;
-        const before = doc.sliceString(ls, pos);
-        const match = headingLinkCompletionMatch(before);
-        if (!match) return null;
-        const prefix = match.prefix.toLowerCase();
-        const from = ls + match.fromOffset;
-        const targets = markdownHeadingTargets(doc.toString())
-            .filter(target => target.slug.startsWith(prefix) || target.label.toLowerCase().includes(prefix))
-            .slice(0, 20);
-        if (!targets.length) return null;
-
-        return {
-            from,
-            filter: false,
-            options: targets.map(target => ({
-                label: target.label,
-                detail: `#${target.slug}`,
-                apply: (view, _completion, applyFrom, applyTo) => {
-                    const hasClosingParenthesis = view.state.doc.sliceString(applyTo, applyTo + 1) === ')';
-                    const insert = `#${target.slug}${hasClosingParenthesis ? '' : ')'}`;
-                    view.dispatch({
-                        changes: { from: applyFrom, to: applyTo, insert },
-                        selection: { anchor: applyFrom + insert.length },
-                    });
-                },
-            })),
-        };
-    };
-
-    // CodeMirror normally activates completions after word characters. A
-    // fragment target starts with `#`, so explicitly start the same normal
-    // completion flow when typing inside `[label](#fragment)`.
-    const headingLinkCompletionActivator = ViewPlugin.fromClass(class {
-        update(update) {
-            if (!update.docChanged || !update.state.selection.main.empty) return;
-            const typed = update.transactions.some(transaction => transaction.isUserEvent?.('input.type'));
-            if (!typed) return;
-            const head = update.state.selection.main.head;
-            const line = update.state.doc.lineAt(head);
-            if (!headingLinkCompletionMatch(update.state.doc.sliceString(line.from, head))) return;
-            queueMicrotask(() => {
-                if (!update.view.isDestroyed) startCompletion(update.view);
-            });
-        }
-    });
-
-    const hashtagCompletionActivator = ViewPlugin.fromClass(class {
-        update(update) {
-            if (!update.docChanged || !update.state.selection.main.empty) return;
-            const typed = update.transactions.some(transaction => transaction.isUserEvent?.('input.type'));
-            if (!typed) return;
-            const head = update.state.selection.main.head;
-            const line = update.state.doc.lineAt(head);
-            if (!isHashtagCompletionTrigger(update.state.doc.sliceString(line.from, head))) return;
-            queueMicrotask(() => {
-                if (!update.view.isDestroyed) startCompletion(update.view);
-            });
-        }
+    const {
+        imageCompletions,
+        fileLinkCompletions,
+        headingLinkCompletions,
+        headingLinkCompletionActivator,
+        hashtagCompletionActivator,
+    } = createEditorLinkCompletions({
+        getFileTree: () => getState('fileTreeData') || [],
+        searchNotes: (query, options) => backend().SearchNotes(query, options),
+        getActiveTab,
+        getLinkStyle: getLinkStylePreference,
+        createLinkedNote: completeLinkedNoteCreation,
     });
 
     const frontmatterCompletions = createFrontmatterCompletionSource({
         getFileTree: () => getState('fileTreeData') || [],
-        getActiveFilePath,
+        getActiveFilePath: activeEditorFilePath,
     });
     const dateShortcutCompletions = createDateShortcutCompletionSource();
+    const authoringMacroCompletions = createAuthoringMacroCompletionSource({
+        openDuePicker: ({ view, position, onSelect }) => {
+            const anchorRect = view.coordsAtPos(position) || view.contentDOM.getBoundingClientRect();
+            openDatePicker({
+                anchor: view.contentDOM,
+                anchorRect,
+                onSelect,
+            });
+        },
+        openTableEditor: ({ view, from, to }) => {
+            const block = scanMarkdownTables(view.state).find(candidate => (
+                candidate.from === from && candidate.to === to
+            ));
+            openTableBlockEditor(view, block);
+        },
+        openMermaidEditor: ({ view, from, to }) => {
+            const block = scanDiagramFences(view.state.doc).find(candidate => (
+                candidate.lang === 'mermaid' && candidate.from === from && candidate.to === to
+            ));
+            openMermaidBlockEditor(view, block);
+        },
+        openDrawioCreator: ({ view, insertReference }) => createDrawioImageFromMacro(
+            view,
+            insertReference,
+        ),
+        contextAllowed: hashtagCompletionContextAllowed,
+    });
     const taskDueDateCompletions = createTaskDueDateCompletionSource({
         getColumns: () => getState('kanbanCompletionColumns') || [],
         contextAllowed: hashtagCompletionContextAllowed,
@@ -2316,6 +2362,9 @@ function createEditorView() {
                 onSelect,
             });
         },
+    });
+    const taskItemKanbanCompletions = createTaskItemKanbanCompletionSource({
+        getColumns: () => getState('kanbanCompletionColumns') || [],
     });
 
     // CodeMirror owns GFM syntax awareness; this field only supplies a
@@ -2346,9 +2395,11 @@ function createEditorView() {
         autocompletion({
             interactionDelay: 0,
             override: [
+                taskItemKanbanCompletions,
                 frontmatterCompletions,
                 taskDueDateCompletions,
                 dateShortcutCompletions,
+                authoringMacroCompletions,
                 headingLinkCompletions,
                 fileLinkCompletions,
                 imageCompletions,
@@ -2687,12 +2738,13 @@ async function activateDrawioImageTarget(target) {
     }
 }
 
-async function createAndOpenDrawioImageTarget(target) {
+async function createAndOpenDrawioImageTarget(target, { insertReference = null } = {}) {
     const result = await createDrawioImage({
         target,
         createFile: (path, content) => backend().CreateFile(path, content),
         refreshTree: refreshFileTree,
         openDiagram: activateDrawioImageTarget,
+        insertReference,
         reportRefreshFailure: error => log.warn(
             'Created Draw.io diagram but could not refresh the file tree:',
             error,
@@ -2706,7 +2758,50 @@ async function createAndOpenDrawioImageTarget(target) {
         await errorDialog('Diagram created but not opened', result.error, `The diagram was created at ${result.path}.`);
         return false;
     }
+    if (result.kind === 'created-reference-failed') {
+        await errorDialog(
+            'Diagram created but not linked',
+            result.error,
+            `The note changed before its reference could be inserted. The diagram remains at ${result.path}.`,
+        );
+        return false;
+    }
     return result.kind === 'created';
+}
+
+async function createDrawioImageFromMacro(view, insertReference) {
+    const tab = getActiveTab();
+    if (tab?.type !== 'file' || getEditorDocumentTabId() !== tab.id || typeof insertReference !== 'function') {
+        return false;
+    }
+    const notePath = tab.path;
+    const separator = notePath.lastIndexOf('/');
+    const parentDirectory = separator >= 0 ? notePath.slice(0, separator) : '';
+    const requestedName = await promptDialog(
+        'New Draw.io diagram',
+        'Create an editable diagram beside this Markdown note.',
+        defaultDrawioMacroName,
+        {
+            icon: 'file-add',
+            label: 'Diagram name',
+            confirmLabel: 'Create diagram',
+            context: parentDirectory ? `${parentDirectory}/` : 'Vault root',
+            help: 'The .drawio.svg extension is added automatically.',
+            validate: drawioMacroNameError,
+        },
+    );
+    if (requestedName === null || view.isDestroyed
+        || getActiveTab()?.id !== tab.id || getEditorDocumentTabId() !== tab.id) return false;
+
+    const fileName = drawioMacroFileName(requestedName);
+    const target = drawioImageCreationTarget({ imageSource: fileName, notePath });
+    if (!target) {
+        await errorDialog('Couldn’t create diagram', null, 'Choose a valid diagram name without a path.');
+        return false;
+    }
+    return createAndOpenDrawioImageTarget(target, {
+        insertReference: () => insertReference(fileName),
+    });
 }
 
 async function openDrawioImageFromGuide(view, guide) {

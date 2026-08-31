@@ -1,7 +1,6 @@
 import { backend } from '../backend.js';
 import { log } from '../log.js';
 import { getState, setState } from '../state.js';
-import { openTab } from '../tabManager.js';
 import {
     nextSearchSelection,
     normalizeSearchFilters,
@@ -21,6 +20,17 @@ import {
 } from '../views/searchView.js';
 
 let activeSearchIndex = -1;
+let openWorkspaceTab = null;
+
+export function configureSearchWorkspace({ openTab } = {}) {
+    if (typeof openTab !== 'function') throw new TypeError('Search openTab port is required');
+    openWorkspaceTab = openTab;
+}
+
+function openTab(...args) {
+    if (!openWorkspaceTab) throw new Error('Search workspace ports were not configured');
+    return openWorkspaceTab(...args);
+}
 
 function filters() {
     return normalizeSearchFilters(getState('searchFilters'));

@@ -3,10 +3,11 @@ import { testUtils } from './test_setup.js';
 jest.mock('../frontend/js/tabManager.js', () => ({ openTab: jest.fn() }));
 
 import { openTab as mockOpenTab } from '../frontend/js/tabManager.js';
-import { normalizeVaultHealth, renderVaultHealth } from '../frontend/js/vaultHealth.js';
+import { configureVaultHealthWorkspace, normalizeVaultHealth, renderVaultHealth } from '../frontend/js/vaultHealth.js';
 
 describe('vault health', () => {
     beforeEach(() => {
+        configureVaultHealthWorkspace({ openTab: mockOpenTab });
         testUtils.createMockDOM();
         jest.clearAllMocks();
     });

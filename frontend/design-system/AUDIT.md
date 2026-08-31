@@ -5,14 +5,14 @@ Audit snapshot: 2026-08-28. The approved consolidation is represented by the
 
 ## Consolidated foundation
 
-Eighteen approved families now use shared production
+Nineteen approved families now use shared production
 primitives in `frontend/design-system/primitives.css`. Both Figaro and this
 catalogue load that canonical asset, and `approved-components.json` records the
 approved selector set:
 
 | Family | Shared primitive | Feature classes retain |
 | --- | --- | --- |
-| Settings pickers | `.ui-picker`, `.ui-picker-trigger`, `.ui-picker-menu` | Values, persistence, and shared `settingsPicker.js` combobox wiring |
+| Settings pickers | `.ui-picker`, `.ui-picker-trigger`, `.ui-picker-menu` | Values, persistence, shared combobox wiring, and pure-plan-backed viewport placement |
 | Steppers | `.ui-stepper`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size, text-width, and bounded editable tab-size value policy |
 | Compact actions | `.ui-button`, its quiet variant, and semantic variants | Labels, placement, and feature events |
 | Segmented choices | `.ui-segmented-control` and its quiet variant containing `.ui-button` choices | Group labels, selected value, and feature persistence |
@@ -26,10 +26,15 @@ approved selector set:
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
 | Document tabs | `.ui-document-tabs--titlebar`, `.ui-document-tab--connected`, `.ui-document-tab--side-connected`, and state modifiers | Title-bar or sidebar placement, overflow geometry, ordering, drag placement, and tab controller behavior |
 | Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table/Draw.io labels, and CodeMirror gutter behavior |
+| Image resize handles | `.ui-image-resize-handle` | Width/height/proportional placement, resize cursors, visibility, tooltip content, and pointer-drag behavior |
 | Graph canvas | `.ui-graph-canvas` | Node/edge drawing, hit testing, pan/zoom, keyboard selection, and refresh lifecycle |
 | Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
 | Content skeletons | `.ui-skeleton` | Calendar grid and Kanban column/card geometry, loading ownership, and replacement lifecycle |
 | Determinate progress | `.ui-progress` and `.ui-progress-value` | Numeric value, label, compact host geometry, and update policy |
+
+Two or three short choices known before rendering use the segmented-choice
+primitive. Variable, extensible, or longer lists use the approved select-only
+combobox instead.
 
 The primitives own the repeated border, radius, surface, typography, focus,
 hover, active, disabled, busy, selected, and semantic-color rules. Existing
@@ -134,10 +139,40 @@ button; its side-lane placement and narrow-width flow within the measured widget
 are table-layout hooks rather than a new component or visual variant. Its
 cell-local row and column commands reuse the approved menu, label, separator,
 disabled, focus, and hover states without adding a table-menu variant.
+The table-backed Chart Editor composes the approved modal, compact button,
+icon button, segmented choice, field, editable stepper, checkbox, notice,
+spinner, tooltip, editor-guide, and resize-handle primitives, including the
+approved select-only combobox in place of host-native select popups. Its square
+color triggers open the established Kanban palette rather than adding a chart
+color component. Mode/Orientation, series Left/Right or Bottom/Top, and
+threshold Primary/Opposite pairs reuse segmented choices; only variable mark
+and Pie/Waterfall table-column lists remain comboboxes. Cartesian category
+ownership stays visibly fixed to the first column without a redundant control.
+Top/Right/Bottom/Left legend placement
+uses the same segmented primitive, column visibility reuses the approved icon
+button with Lucide eye/eye-off glyphs. A disabled trendline uses one plain,
+focusable full-label tooltip target; the shared controller exposes that reason
+on hover, focus, and activation without a feature-local glyph. The only blockers
+are fewer than two data rows or a stacked mark; nominal category labels do not
+disable the control. Its wider borderless preview allocation,
+token-backed chart surface, column grid, chart-mode sections, vertically centered SVG, announced
+error state, and single bottom-center handle are feature-owned layout hooks;
+round-trip warnings reuse semantic notice/status colors. Narrow host geometry
+reflows those controls without changing their primitive presentation, and the
+shared picker controller fixes open menus to a pure-plan-clamped viewport
+position so the scrolling pane cannot clip them. It adds no primitive
+family or visual-state variant.
 Standalone Draw.io images reuse the same approved two-guide stack as Mermaid:
 `drawio` owns the whole-image fold and `editor` opens the editable target. The
 feature hook carries only source coordinates and busy ownership; it adds no
 primitive, state, or visual variant.
+
+Rendered Markdown images use the approved resize-handle primitive for its
+themed dot, generous 28px hit area, and hover/focus/active/disabled language.
+CodeMirror retains ownership of the three handle positions, axis-specific
+cursors, hover visibility, tooltip labels, pointer capture, size readout, and
+source updates. These are host geometry and interaction hooks rather than
+additional visual variants.
 
 The title-bar `?` help trigger reuses the approved icon button. Its Markdown,
 Macros, and Shortcuts topic tabs use the approved compact button and accent variant; the
@@ -270,7 +305,9 @@ immediately on keyboard focus, associates it with the anchor through
 `aria-describedby`, clamps or flips it within the viewport, and dismisses it on
 Escape, activation, scrolling, resizing, or window blur. Iframe `title` values
 remain untouched because they name embedded documents. Disabled switch inputs
-delegate hover geometry to their visible labels. Markdown link previews reuse
+delegate hover geometry to their visible labels. Its canonical layer sits above
+modal, date-picker, and help-popup shells so body-level hints remain visible for
+controls inside those surfaces. Markdown link previews reuse
 the same surface and retain only their structured link/status content locally.
 CodeMirror diagnostic and autocomplete panels are interactive popovers—not
 concise hints—and retain their separately themed library structure.
@@ -333,7 +370,7 @@ so the improvement adds neither a seam nor a component-local override.
 
 ## Verification
 
-- `tests/frontend/unit/designSystemCatalog.test.js` verifies all eighteen
+- `tests/frontend/unit/designSystemCatalog.test.js` verifies all nineteen
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, verifies theme-derived

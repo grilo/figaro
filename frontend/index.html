@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="styles/features/embedded-widgets.css">
     <link rel="stylesheet" href="styles/features/markdown-table-editor.css">
     <link rel="stylesheet" href="styles/features/mermaid-editor.css">
+    <link rel="stylesheet" href="styles/features/vega-lite-chart-editor.css">
     <link rel="stylesheet" href="styles/overrides.css">
     <link rel="stylesheet" href="design-system/primitives.css">
     <link rel="stylesheet" href="design-system/theme-surfaces.css">
@@ -256,8 +257,8 @@
                                 </tr>
                                 <tr><td><code>```lang</code> <code>```</code></td><td>Fenced code block</td></tr>
                                 <tr class="md-cheatsheet-diagram-row"><td><code>```mermaid</code><br><code>flowchart TD; A--&gt;B</code><br><code>```</code></td><td>Mermaid diagram — close with the same fence length</td></tr>
-                                <tr class="md-cheatsheet-diagram-row"><td><code>```vega</code> <code>```vega-lite</code><br><code>{ "mark": "bar", ... }</code><br><code>```</code></td><td>Vega / Vega-Lite JSON chart</td></tr>
-                                <tr class="md-cheatsheet-diagram-row"><td><code>![Diagram](diagram.drawio.svg)</code></td><td>Draw.io SVG — create it from the File Tree, then click its file to edit</td></tr>
+                                <tr class="md-cheatsheet-diagram-row"><td><code>```vega</code> <code>```vega-lite</code><br><code>{ "mark": "bar", ... }</code><br><code>```</code></td><td>Vega / Vega-Lite JSON chart; use a rendered table's <strong>chart</strong> guide for the reversible Chart Editor</td></tr>
+                                <tr class="md-cheatsheet-diagram-row"><td><code>![Diagram](diagram.drawio.svg)</code></td><td>Editable Draw.io SVG — create or open it from the note</td></tr>
                                 <tr><td><code>$x^2$</code> <code>$$...$$</code></td><td>Inline / Block math</td></tr>
                                 <tr><td><code>---</code> <code>***</code> <code>___</code></td><td>Horizontal rule</td></tr>
                                 <tr><td><code>[^1]</code> <code>[^1]: note</code></td><td>Footnote</td></tr>
@@ -268,6 +269,12 @@
                             <table>
                                 <tr class="md-macro-date-shortcuts-row"><td><code>@today</code> <code>@tomorrow</code> <code>@yesterday</code></td><td>Insert a local-date note link</td></tr>
                                 <tr class="md-macro-date-link-row"><td><code>[YYYY-MM-DD](YYYY-MM-DD.md)</code></td><td>Associate this note with a Calendar day</td></tr>
+                                <tr class="md-macro-authoring-row"><td><code>@due</code></td><td>Choose and insert a semantic due date</td></tr>
+                                <tr class="md-macro-authoring-row"><td><code>@table</code></td><td>Insert a basic table and open the Table Editor</td></tr>
+                                <tr class="md-macro-authoring-row"><td><code>@todo</code></td><td>Start an unchecked task-list item</td></tr>
+                                <tr class="md-macro-authoring-row"><td><code>@mermaid</code></td><td>Insert a Mermaid block and open the Mermaid Editor</td></tr>
+                                <tr class="md-macro-authoring-row"><td><code>@drawio</code></td><td>Create a sibling diagram and open the Draw.io Editor</td></tr>
+                                <tr class="md-macro-task-actions-row"><td><code>- [ ] Task</code></td><td>Use the left Kanban and Calendar actions to assign a column or due date</td></tr>
                                 <tr class="md-macro-kanban-row"><td><code>#todo</code> <code>#wip</code> <code>#done</code> <code>#custom-column</code></td><td>Assign a line or task to Kanban columns</td></tr>
                                 <tr class="md-macro-due-row"><td><code>Text #tag [due YYYY-MM-DD](YYYY-MM-DD.md)</code></td><td>Give a Kanban-tagged line a due date</td></tr>
                                 <tr class="md-macro-due-actions-row"><td><code>#tag</code></td><td>Press Space to choose Add due date…, Due today, or Due tomorrow</td></tr>
@@ -490,7 +497,8 @@
             </aside>
             </div>
         <footer id="status-bar" class="status-bar" data-writing-rest="false"
-                data-application-idle="false" data-editor-side-reveal="false">
+                data-application-idle="false" data-editor-side-reveal="false"
+                data-editor-scale-reveal="false">
             <div class="status-left" role="group" aria-label="Application status"
                  data-application-active="true" data-has-action="false" title="Starting Figaro…">
                 <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>

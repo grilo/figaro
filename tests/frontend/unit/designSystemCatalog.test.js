@@ -99,6 +99,7 @@ describe('design-system catalogue', () => {
             '.ui-skeleton',
             '.ui-progress',
             '.ui-editor-block-guide--danger',
+            '.ui-image-resize-handle',
             '.ui-graph-canvas',
             '.create-inbox-note',
             '.file-tree-node.selected',
@@ -106,6 +107,14 @@ describe('design-system catalogue', () => {
         ]) {
             expect(catalogue.querySelector(selector)).not.toBeNull();
         }
+
+        expect(Array.from(
+            catalogue.querySelectorAll('[aria-label="Legend position example"] > .ui-button'),
+            button => button.textContent.trim(),
+        )).toEqual(['Top', 'Right', 'Bottom', 'Left']);
+        expect(catalogue.querySelector(
+            '[aria-disabled="true"][data-ui-tooltip*="non-stacked"] .ui-checkbox:disabled',
+        )).not.toBeNull();
 
         const ids = Array.from(catalogue.querySelectorAll('[id]'), element => element.id);
         expect(new Set(ids).size).toBe(ids.length);
@@ -227,6 +236,7 @@ describe('design-system catalogue', () => {
             'notice',
             'document-tabs',
             'editor-fold-control',
+            'image-resize-handle',
             'graph-canvas',
             'spinner',
             'skeleton',
@@ -564,6 +574,7 @@ describe('design-system catalogue', () => {
             '.ui-document-tab--side-connected',
             '.ui-editor-fold-control',
             '.ui-editor-block-guide',
+            '.ui-image-resize-handle',
             '.ui-graph-canvas',
             '.ui-spinner',
             '.ui-skeleton',
@@ -572,6 +583,7 @@ describe('design-system catalogue', () => {
         ]) {
             expect(styles).toContain(selector);
         }
+        expect(styles).toMatch(/\.ui-tooltip\s*\{[^}]*z-index:\s*3200;/s);
         expect(styles).toMatch(/\.ui-document-tabs--titlebar\s*\{[^}]*box-shadow:\s*none/s);
         expect(styles).not.toMatch(/\.ui-document-tabs--titlebar\[data-empty="true"\]/);
         expect(styles).toMatch(/\.ui-document-tab--connected\s*\{[^}]*border-radius:\s*var\(--tab-radius\)/s);
@@ -606,6 +618,10 @@ describe('design-system catalogue', () => {
         expect(styles).toMatch(/\.ui-checkbox:checked\s*\{[^}]*background:\s*var\(--accent-color\)/s);
         expect(styles).toMatch(/\.ui-checkbox:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
         expect(styles).toMatch(/\.ui-checkbox:disabled\s*\{[^}]*cursor:\s*not-allowed/s);
+        expect(styles).toMatch(/\.ui-image-resize-handle\s*\{[^}]*width:\s*28px[^}]*height:\s*28px[^}]*touch-action:\s*none/s);
+        expect(styles).toMatch(/\.ui-image-resize-handle::after\s*\{[^}]*width:\s*11px[^}]*height:\s*11px[^}]*background:\s*currentColor/s);
+        expect(styles).toMatch(/\.ui-image-resize-handle:hover::after,[\s\S]*\.ui-image-resize-handle:focus-visible::after\s*\{[^}]*width:\s*13px[^}]*var\(--focus-ring\)/s);
+        expect(styles).toMatch(/\.ui-image-resize-handle:disabled\s*\{[^}]*cursor:\s*default[^}]*opacity:\s*\.42/s);
         expect(styles).toMatch(/\.ui-graph-canvas\s*\{[^}]*cursor:\s*grab[^}]*touch-action:\s*none/s);
         expect(styles).toMatch(/\.ui-graph-canvas:focus-visible\s*\{[^}]*var\(--focus-ring\)/s);
         expect(styles).toMatch(/\.ui-graph-canvas\.is-panning\s*\{[^}]*cursor:\s*grabbing/s);

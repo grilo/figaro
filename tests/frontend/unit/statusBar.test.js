@@ -168,4 +168,15 @@ describe('status bar', () => {
         await Promise.resolve();
         expect(document.getElementById('status-bar').dataset.writingRest).toBe('false');
     });
+
+    test('reveals modified-wheel scale feedback for three seconds and then fades it', () => {
+        const footer = document.getElementById('status-bar');
+        expect(statusBar.revealEditorScale()).toBe(true);
+        expect(footer.dataset.editorScaleReveal).toBe('true');
+
+        jest.advanceTimersByTime(2999);
+        expect(footer.dataset.editorScaleReveal).toBe('true');
+        jest.advanceTimersByTime(1);
+        expect(footer.dataset.editorScaleReveal).toBe('false');
+    });
 });

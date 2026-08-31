@@ -750,6 +750,20 @@
     pointer-events: none;
 }
 
+.cm-task-action-guide {
+    display: flex;
+    min-height: 22px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    pointer-events: auto;
+}
+
+.cm-task-action-guide svg {
+    width: 13px;
+    height: 13px;
+}
+
 .cm-editorHelperRail-before {
     margin-right: calc(0px - var(--editor-block-before-rail-width, 0px));
     transform: translate(var(--editor-block-before-rail-offset, 0px), -16px);

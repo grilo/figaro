@@ -91,6 +91,10 @@
     overflow-y: auto;
 }
 
+.ui-picker .ui-picker-menu[data-floating="true"] {
+    position: fixed;
+}
+
 .ui-picker-menu.open {
     display: grid;
     gap: 2px;
@@ -160,7 +164,7 @@
 
 .ui-tooltip {
     position: fixed;
-    z-index: 1400;
+    z-index: 3200;
     box-sizing: border-box;
     width: max-content;
     max-width: min(320px, calc(100vw - 16px));
@@ -802,6 +806,57 @@ input.ui-stepper-value:invalid {
     pointer-events: none;
 }
 
+.ui-image-resize-handle {
+    position: relative;
+    display: inline-grid;
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    outline: none;
+    appearance: none;
+    background: transparent;
+    color: var(--accent-color);
+    cursor: nwse-resize;
+    touch-action: none;
+}
+
+.ui-image-resize-handle::after {
+    box-sizing: border-box;
+    width: 11px;
+    height: 11px;
+    border: 2px solid var(--editor-surface);
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 52%, var(--border-color));
+    content: '';
+    transition:
+        width var(--motion-content-duration) ease,
+        height var(--motion-content-duration) ease,
+        box-shadow var(--motion-content-duration) ease;
+}
+
+.ui-image-resize-handle:hover::after,
+.ui-image-resize-handle:focus-visible::after {
+    width: 13px;
+    height: 13px;
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, currentColor 52%, var(--border-color)),
+        0 0 0 4px var(--focus-ring);
+}
+
+.ui-image-resize-handle:active:not(:disabled)::after {
+    background: color-mix(in srgb, currentColor 82%, var(--text-color));
+}
+
+.ui-image-resize-handle:disabled {
+    cursor: default;
+    opacity: .42;
+}
+
 .ui-badge {
     display: inline-grid;
     min-width: var(--ui-badge-height);
@@ -1206,6 +1261,7 @@ input.ui-stepper-value:invalid {
     .ui-icon-button,
     .ui-editor-fold-control,
     .ui-editor-block-guide,
+    .ui-image-resize-handle::after,
     .ui-editor-fold-control::before,
     .ui-date-picker-day,
     .ui-field,

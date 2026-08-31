@@ -1,11 +1,16 @@
 import { testUtils } from './test_setup.js';
 import { state, setState } from '../frontend/js/state.js';
-import { loadBacklinksResults, normalizeBacklinks, updateBacklinksForActiveTab } from '../frontend/js/backlinks.js';
+import { configureBacklinksWorkspace, loadBacklinksResults, normalizeBacklinks, updateBacklinksForActiveTab } from '../frontend/js/backlinks.js';
+
+const openTab = jest.fn();
+const prepareTabsForVaultLinkRewrite = jest.fn().mockResolvedValue({ success: true });
+const refreshTabsForUpdatedLinks = jest.fn().mockResolvedValue(true);
 
 describe('empty and failed backlink lookups', () => {
     let consoleError;
 
     beforeEach(() => {
+        configureBacklinksWorkspace({ openTab, prepareTabsForVaultLinkRewrite, refreshTabsForUpdatedLinks });
         testUtils.createMockDOM();
         jest.clearAllMocks();
         consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});

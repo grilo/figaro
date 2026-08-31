@@ -3,6 +3,7 @@ import {
     dirtyFilePaths,
     fileTreeActionPaths,
     fileTreeFilePresentation,
+    fileTreeKeyCommand,
     fileTreeKeyboardPlan,
     fileTreeTooltipPosition,
     fileTreeWindow,
@@ -204,5 +205,32 @@ describe('file tree model', () => {
         expect(fileTreeKeyboardPlan('ArrowRight', collapsed, 'Projects')).toEqual({ action: 'expand', path: 'Projects' });
         expect(fileTreeKeyboardPlan('ArrowLeft', collapsed, 'Projects')).toEqual({ action: 'none' });
         expect(fileTreeKeyboardPlan('Tab', collapsed, 'Projects')).toBeNull();
+    });
+
+    test('prioritizes context, safe mutations, navigation, and clipboard keyboard commands', () => {
+        expect(fileTreeKeyCommand({ key: 'F10', shiftKey: true, contextMenuRequested: true }))
+            .toEqual({ action: 'context-menu' });
+        expect(fileTreeKeyCommand({ key: 'Escape', cutActive: true }))
+            .toEqual({ action: 'cancel-cut' });
+        expect(fileTreeKeyCommand({ key: 'F2', itemActionable: true }))
+            .toEqual({ action: 'rename' });
+        expect(fileTreeKeyCommand({ key: 'Delete', itemActionable: true }))
+            .toEqual({ action: 'delete' });
+        expect(fileTreeKeyCommand({
+            key: 'ArrowDown',
+            navigationPlan: { action: 'focus', path: 'next.md' },
+        })).toEqual({ action: 'focus', path: 'next.md' });
+        expect(fileTreeKeyCommand({ key: 'x', ctrlKey: true, selectedEntryCount: 2 }))
+            .toEqual({ action: 'cut' });
+        expect(fileTreeKeyCommand({ key: 'c', metaKey: true, selectedEntryCount: 1 }))
+            .toEqual({ action: 'copy' });
+        expect(fileTreeKeyCommand({
+            key: 'v', ctrlKey: true, clipboardAvailable: true, pasteAllowed: true,
+        })).toEqual({ action: 'paste' });
+        expect(fileTreeKeyCommand({
+            key: 'v', ctrlKey: true, clipboardAvailable: true, pasteAllowed: false,
+        })).toBeNull();
+        expect(fileTreeKeyCommand({ key: 'F2', shiftKey: true, itemActionable: true }))
+            .toBeNull();
     });
 });

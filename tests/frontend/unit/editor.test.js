@@ -421,6 +421,75 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(view.state.doc.toString()).toBe(source);
         });
 
+        test('opens task Kanban suggestions and Calendar actions from approved helper-rail buttons', async () => {
+            const {
+                acceptCompletion,
+                currentCompletions,
+                setSelectedCompletion,
+            } = await import('@codemirror/autocomplete');
+            const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+            const { setState } = await import('../frontend/js/state.js');
+            setState('kanbanCompletionColumns', ['urgent']);
+
+            await initEditor();
+            const view = createEditorView();
+            // jsdom gives gutter elements zero geometry, so keep the exercised
+            // task on the first line; the browser regression owns real line mapping.
+            const source = '- [ ] Ship release\nBelow';
+            view.dispatch({
+                changes: { from: 0, to: view.state.doc.length, insert: source },
+                selection: { anchor: source.length },
+            });
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            let taskActions = view.dom.querySelector('.cm-task-action-guide');
+            const kanban = taskActions.querySelector('.cm-task-kanban-action');
+            const calendar = taskActions.querySelector('.cm-task-calendar-action');
+            expect(taskActions.getAttribute('role')).toBe('group');
+            expect(kanban.classList.contains('ui-icon-button--small')).toBe(true);
+            expect(kanban.getAttribute('aria-label')).toBe('Assign task to Kanban column');
+            expect(kanban.getAttribute('aria-haspopup')).toBe('listbox');
+            expect(calendar.classList.contains('ui-icon-button--small')).toBe(true);
+            expect(calendar.getAttribute('aria-label')).toBe('Set task due date');
+            expect(calendar.getAttribute('aria-haspopup')).toBe('dialog');
+
+            calendar.dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                detail: 1,
+            }));
+            const picker = document.querySelector('.ui-date-picker');
+            expect(picker.getAttribute('aria-label')).toBe('Set task due date');
+            const today = picker.querySelector('[data-date-picker-value]').dataset.datePickerValue;
+            picker.querySelector('[data-date-picker-value]').click();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(view.state.doc.line(1).text).toBe(
+                `- [ ] Ship release [due ${today}](${today}.md)`,
+            );
+
+            taskActions = view.dom.querySelector('.cm-task-action-guide');
+            taskActions.querySelector('.cm-task-kanban-action').dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                detail: 1,
+            }));
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const completions = currentCompletions(view.state);
+            expect(completions.map(option => option.label)).toEqual(['#todo', '#wip', '#done', '#urgent']);
+            expect(document.querySelector('.cm-tooltip-autocomplete')).not.toBeNull();
+            view.dispatch({ effects: setSelectedCompletion(3) });
+            expect(acceptCompletion(view)).toBe(true);
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            expect(view.state.doc.line(1).text).toBe(
+                `- [ ] Ship release #urgent [due ${today}](${today}.md)`,
+            );
+            expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(1);
+            expect(view.state.selection.main.head).toBe(view.state.doc.line(1).to);
+            expect(view.dom.querySelector('.cm-task-calendar-action').getAttribute('aria-label'))
+                .toBe('Change task due date');
+        });
+
         test('mounts a requested Properties body selection in the real CodeMirror document', async () => {
             const { setState } = await import('../frontend/js/state.js');
             const { initEditor, createEditorView, setEditorContent } = await import('../frontend/js/editor.js');

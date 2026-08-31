@@ -56,6 +56,10 @@ The preview is a screen representation of the printable document; final
 pagination remains the browser engine's responsibility and is most accurately
 checked in the generated PDF.
 
+The first preview may show its preparation state. Later Markdown or stylesheet
+edits keep the current page visible and suppress transient updating text while
+the next printable snapshot is prepared; errors still appear in the status row.
+
 Printable tables use the same canonical Markdown-It rendering path as the
 editor's source-preserving GFM table preview. Bare `<br>`/`<br/>` cell markers
 become real line breaks, while the same text inside inline code remains
@@ -67,6 +71,36 @@ table editor can also author rectangular spans as adjacent
 comment from visible output and applies the matching `rowspan`/`colspan` in
 both PDF Preview and generated PDFs. Rendering never rewrites the Markdown
 source.
+
+Authored image geometry uses Figaro's optional Obsidian-style trailing
+alt-text hint (a Figaro extension, not CommonMark or GFM):
+`![Portrait|320x180](portrait.jpg)`. The printable Markdown renderer removes
+the hint from the accessible alt text and emits a standard `<img>` with
+`width="320"`, `height="180"`, and matching inline pixel geometry. PDF Preview
+and generated PDFs therefore match the editor's resized image. An unsized
+image retains its natural aspect ratio and the ordinary printable max-width
+guard; document CSS applied later may deliberately override either form.
+Note-relative and vault-root local sources are resolved from the Markdown
+note's directory to an explicit `/vault/…` URL before PDF Preview enters its
+sandbox, while generated PDF assets retain the equivalent note-relative base.
+
+Figaro-managed charts remain ordinary fenced `vega-lite` JSON in the document.
+The Chart Editor stores a full-width Vega-Lite specification and its authored
+vertical height, complete visible-series legend, and selected four-side legend
+position plus the fixed first-column Cartesian category, so PDF Preview and
+generated PDFs pass it through the same
+shared SVG renderer as hand-written Vega-Lite. Editor-only controls, source
+placeholders, and resize readouts are never printed; a renderer failure keeps
+the original fence visible instead of dropping the chart. Printable CSS may
+still override `.figaro-print-diagram` or its SVG when a document needs a
+different print-specific fit. Interactive Figaro theme colors are supplied at
+render time only for managed editor charts and are not serialized into the
+portable Vega-Lite fence or imposed on the print surface.
+Managed trendlines retain the visible first-column labels while Vega-Lite uses
+their hidden authored-row positions as the regression predictor, so Preview and
+export share the same nominal-category trend geometry.
+Threshold overlays preserve the chart's selected value-axis labels in both the
+interactive and printable renderers.
 
 On Linux, automatic browser discovery includes supported Chromium-family
 commands under `/snap/bin`. Figaro keeps each confined browser's temporary
@@ -220,6 +254,15 @@ Mermaid source that exceeds 50,000 characters or uses a YAML ordered-map tag
 is preserved as its original printable code fence. It does not produce a
 `figure.figaro-print-diagram`, and custom print CSS may style it like any other
 fenced code block.
+
+Themes, type-specific colors, and flowchart node styles created by the Mermaid
+Editor's adaptive Style mode are stored as ordinary Mermaid frontmatter and
+statements. PDF Preview and generated PDFs therefore render the same authored
+colors and shapes through the shared Mermaid renderer; there is no separate
+print-only style record to synchronize. Color edits preserve the source theme;
+XY plots use the native `xyChart.plotColorPalette` (including repeated palettes),
+and resetting an individual flowchart override preserves authored native/class
+styling. These are source transformations, not preview-only CSS overrides.
 
 Each fenced `code.figaro-print-code` also carries
 `data-highlight-language="…"`; automatically detected fences additionally carry

@@ -6,20 +6,18 @@ import { backend } from './backend.js';
 import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
 import { saveSession, scheduleSessionSave } from './session.js';
-import { closeTab, closeTabsForDeletedPath, openTab, prepareTabsForPathCopy, prepareTabsForPathDelete, prepareTabsForPathMove, refreshTabsForUpdatedLinks, updateTabsForMovedPath } from './tabManager.js';
 import { statusBar } from './statusBar.js';
 import { confirmDialog, errorDialog, fileTreeStyleDialog, mergeNotesDialog, messageDialog, newNoteDialog, promptDialog, renamePathDialog } from './dialogs.js';
-import { isDrawioDiagramPath } from './drawio.js';
-import { isEditableCodeMirrorFile } from './languageSupport.js';
+import { isDrawioDiagramPath, isEditableCodeMirrorFile } from './languageSupport.js';
 import { renderLucideIcon } from './lucideIcons.js';
 import { confirmExternalTreeImport, importDroppedExternalPaths } from './externalFiles.js';
 import { focusEditor, getEditorView, insertTextAtCursor } from './editor.js';
-import { handleFileOpen } from './app.js';
 import {
     directoryPathsForReveal,
     dirtyFilePaths,
     fileTreeActionPaths,
     fileTreeFilePresentation,
+    fileTreeKeyCommand,
     fileTreeKeyboardPlan,
     fileTreeTooltipPosition,
     fileTreeWindow,
@@ -38,6 +36,10 @@ import {
     dismissContextMenu,
 } from './contextMenu.js';
 import { isContextMenuInvocationKey } from './core/contextMenuModel.js';
+import {
+    renameReferenceChoice,
+    renameReferenceReviewPlan,
+} from './core/pathRenameReferenceModel.js';
 import { restoreRecentlyDeletedItem } from './recentlyDeleted.js';
 import {
     normalizeTransferEntries,
@@ -49,6 +51,7 @@ import { createFileTreeTransfer } from './usecases/fileTreeTransfer.js';
 
 let dragSourceNode = null;
 let contextMenu = null;
+let workspacePorts = null;
 
 let scheduledTreeRefresh = null;
 let nativeFileDropInitialized = false;
@@ -69,6 +72,39 @@ const fileTreeRenderStates = new WeakMap();
 const FILE_TREE_VIRTUAL_THRESHOLD = 400;
 const FILE_TREE_WINDOW_SIZE = 160;
 const FILE_TREE_ROW_STRIDE = 26;
+
+export function configureFileTreeWorkspace(ports) {
+    const required = [
+        'closeTab',
+        'closeTabsForDeletedPath',
+        'openFile',
+        'openTab',
+        'prepareTabsForPathCopy',
+        'prepareTabsForPathDelete',
+        'prepareTabsForPathMove',
+        'refreshTabsForUpdatedLinks',
+        'updateTabsForMovedPath',
+    ];
+    if (required.some(name => typeof ports?.[name] !== 'function')) {
+        throw new TypeError('File-tree workspace ports are incomplete');
+    }
+    workspacePorts = Object.freeze({ ...ports });
+}
+
+function workspace() {
+    if (!workspacePorts) throw new Error('File-tree workspace ports were not configured');
+    return workspacePorts;
+}
+
+function closeTab(...args) { return workspace().closeTab(...args); }
+function closeTabsForDeletedPath(...args) { return workspace().closeTabsForDeletedPath(...args); }
+function handleFileOpen(...args) { return workspace().openFile(...args); }
+function openTab(...args) { return workspace().openTab(...args); }
+function prepareTabsForPathCopy(...args) { return workspace().prepareTabsForPathCopy(...args); }
+function prepareTabsForPathDelete(...args) { return workspace().prepareTabsForPathDelete(...args); }
+function prepareTabsForPathMove(...args) { return workspace().prepareTabsForPathMove(...args); }
+function refreshTabsForUpdatedLinks(...args) { return workspace().refreshTabsForUpdatedLinks(...args); }
+function updateTabsForMovedPath(...args) { return workspace().updateTabsForMovedPath(...args); }
 
 const fileTreeRefresh = createFileTreeRefresh({
     readTree: () => backend().GetFileTree(),
@@ -1387,120 +1423,130 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
     }
 }
 
-function handleFileTreeKeydown(event) {
-    if (isContextMenuInvocationKey(event)) {
-        event.preventDefault();
-        const selectedPath = getState('selectedTreePath');
-        if (selectedPath && !mountedTreeNodeForPath(event.currentTarget, selectedPath)) {
-            focusTreePath(event.currentTarget, selectedPath);
-        }
-        const target = mountedTreeNodeForPath(event.currentTarget, selectedPath)
-            || event.target.closest?.('.file-tree-node[role="treeitem"]')
-            || event.currentTarget;
-        const rect = target?.getBoundingClientRect?.();
-        target?.dispatchEvent?.(new MouseEvent('contextmenu', {
-            bubbles: true,
-            cancelable: true,
-            clientX: rect ? rect.left + Math.min(24, rect.width / 2) : 16,
-            clientY: rect ? rect.bottom : 16,
-        }));
-        return;
-    }
-
-    if (event.key === 'Escape' && internalClipboard?.operation === 'cut') {
-        event.preventDefault();
-        event.stopPropagation();
-        clearFileTreeClipboard();
-        const message = 'Cut cancelled';
-        statusBar.set(message);
-        statusBar.clearAfter(2500, message);
-        return;
-    }
-
-    if (event.key === 'F2' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-        const currentNode = event.target.closest?.('.file-tree-node[role="treeitem"]');
-        const currentPath = treeNodePath(currentNode) || getState('selectedTreePath');
-        const item = currentPath ? findTreeItem(visibleFileTreeData(), currentPath) : null;
-        const isGroup = (getState('selectedTreePaths') || []).length > 1;
-        if (item && !isGroup && !item.externalFileId && (item.type === 'file' || item.type === 'directory')) {
-            event.preventDefault();
-            event.stopPropagation();
-            renameTreePath(item.path, item.type).catch(error => log.error('Keyboard rename failed:', error));
-        }
-        return;
-    }
-
-    if (event.key === 'Delete' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-        const currentNode = event.target.closest?.('.file-tree-node[role="treeitem"]');
-        const currentPath = treeNodePath(currentNode) || getState('selectedTreePath');
-        const item = currentPath ? findTreeItem(visibleFileTreeData(), currentPath) : null;
-        const isGroup = (getState('selectedTreePaths') || []).length > 1;
-        if (item && !isGroup && !item.externalFileId && (item.type === 'file' || item.type === 'directory')) {
-            event.preventDefault();
-            event.stopPropagation();
-            deletePath(item.path, item.type).catch(error => log.error('Keyboard delete failed:', error));
-        }
-        return;
-    }
-
-    if (!event.altKey && !event.ctrlKey && !event.metaKey) {
-        const rows = fileTreeRenderStates.get(event.currentTarget)?.rows || visibleFileTreeRows(
-            visibleFileTreeData(),
-            getState('expandedDirs'),
-            fileTreeStyles.entries,
-        );
-        const currentNode = event.target.closest?.('.file-tree-node[role="treeitem"]');
-        const currentPath = treeNodePath(currentNode) || getState('selectedTreePath');
-        const plan = fileTreeKeyboardPlan(event.key, rows, currentPath);
-        if (plan) {
-            event.preventDefault();
-            event.stopPropagation();
-            if (plan.action === 'focus') {
-                focusTreePath(event.currentTarget, plan.path);
-            } else if (plan.action === 'toggle-selection') {
-                const item = findTreeItem(visibleFileTreeData(), plan.path);
-                if (item && !item.externalFileId) {
-                    setState('selectedTreePath', plan.path);
-                    setState('selectedTreePaths', toggleSelectedPath(
-                        getState('selectedTreePaths'),
-                        plan.path,
-                    ));
-                    syncMountedFileTreeSelection(event.currentTarget);
-                    saveSession();
-                }
-            } else if (plan.action === 'expand' || plan.action === 'collapse') {
-                const expanded = getState('expandedDirs') instanceof Set
-                    ? getState('expandedDirs')
-                    : new Set(getState('expandedDirs') || []);
-                const shouldExpand = plan.action === 'expand';
-                if (expanded.has(plan.path) !== shouldExpand) toggleDirectory(plan.path);
-                renderFileTree();
-            } else if (plan.action === 'activate') {
-                if (focusTreePath(event.currentTarget, plan.path)) {
-                    mountedTreeNodeForPath(event.currentTarget, plan.path)?.click();
-                }
-            }
-            return;
-        }
-    }
-    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
-    const key = event.key.toLowerCase();
-    const treeData = visibleFileTreeData();
+function openFileTreeContextMenuFromKeyboard(event) {
     const selectedPath = getState('selectedTreePath');
+    if (selectedPath && !mountedTreeNodeForPath(event.currentTarget, selectedPath)) {
+        focusTreePath(event.currentTarget, selectedPath);
+    }
+    const target = mountedTreeNodeForPath(event.currentTarget, selectedPath)
+        || event.target.closest?.('.file-tree-node[role="treeitem"]')
+        || event.currentTarget;
+    const rect = target?.getBoundingClientRect?.();
+    target?.dispatchEvent?.(new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: rect ? rect.left + Math.min(24, rect.width / 2) : 16,
+        clientY: rect ? rect.bottom : 16,
+    }));
+}
+
+function applyFileTreeNavigationCommand(container, plan) {
+    if (plan.action === 'focus') {
+        focusTreePath(container, plan.path);
+    } else if (plan.action === 'toggle-selection') {
+        const item = findTreeItem(visibleFileTreeData(), plan.path);
+        if (item && !item.externalFileId) {
+            setState('selectedTreePath', plan.path);
+            setState('selectedTreePaths', toggleSelectedPath(getState('selectedTreePaths'), plan.path));
+            syncMountedFileTreeSelection(container);
+            saveSession();
+        }
+    } else if (plan.action === 'expand' || plan.action === 'collapse') {
+        const expanded = getState('expandedDirs') instanceof Set
+            ? getState('expandedDirs')
+            : new Set(getState('expandedDirs') || []);
+        const shouldExpand = plan.action === 'expand';
+        if (expanded.has(plan.path) !== shouldExpand) toggleDirectory(plan.path);
+        renderFileTree();
+    } else if (plan.action === 'activate' && focusTreePath(container, plan.path)) {
+        mountedTreeNodeForPath(container, plan.path)?.click();
+    }
+}
+
+function fileTreeKeyboardContext(event) {
+    const treeData = visibleFileTreeData();
+    const currentNode = event.target.closest?.('.file-tree-node[role="treeitem"]');
+    const selectedPath = treeNodePath(currentNode) || getState('selectedTreePath');
     const selectedItem = selectedPath ? findTreeItem(treeData, selectedPath) : null;
     const selectedEntries = selectedItem && !selectedItem.externalFileId
         ? fileTreeActionEntries(selectedItem.path, selectedItem.type)
         : [];
-    if (key === 'x' && selectedEntries.length) {
-        event.preventDefault();
-        cutInternalPaths(selectedEntries);
-    } else if (key === 'c' && selectedEntries.length) {
-        event.preventDefault();
-        copyInternalPaths(selectedEntries);
-    } else if (key === 'v' && internalClipboard && (!selectedItem || !selectedItem.externalFileId)) {
-        event.preventDefault();
-        pasteInternalClipboard(selectedItem?.path || '', selectedItem?.type || 'root').catch(() => {});
+    const rows = !event.altKey && !event.ctrlKey && !event.metaKey
+        ? fileTreeRenderStates.get(event.currentTarget)?.rows || visibleFileTreeRows(
+            treeData,
+            getState('expandedDirs'),
+            fileTreeStyles.entries,
+        )
+        : [];
+    const navigationPlan = rows.length ? fileTreeKeyboardPlan(event.key, rows, selectedPath) : null;
+    return { navigationPlan, selectedEntries, selectedItem, selectedPath };
+}
+
+function plannedFileTreeKeyCommand(event, context) {
+    return fileTreeKeyCommand({
+        key: event.key,
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey,
+        contextMenuRequested: isContextMenuInvocationKey(event),
+        cutActive: internalClipboard?.operation === 'cut',
+        itemActionable: Boolean(
+            context.selectedItem
+            && (getState('selectedTreePaths') || []).length <= 1
+            && !context.selectedItem.externalFileId
+            && (context.selectedItem.type === 'file' || context.selectedItem.type === 'directory')
+        ),
+        navigationPlan: context.navigationPlan,
+        selectedEntryCount: context.selectedEntries.length,
+        clipboardAvailable: Boolean(internalClipboard),
+        pasteAllowed: !context.selectedItem?.externalFileId,
+    });
+}
+
+function executeFileTreeKeyCommand(event, context, command) {
+    const { selectedEntries, selectedItem } = context;
+    switch (command.action) {
+    case 'context-menu':
+        openFileTreeContextMenuFromKeyboard(event);
+        break;
+    case 'cancel-cut': {
+        clearFileTreeClipboard();
+        const message = 'Cut cancelled';
+        statusBar.set(message);
+        statusBar.clearAfter(2500, message);
+        break;
     }
+    case 'rename':
+        renameTreePath(selectedItem.path, selectedItem.type)
+            .catch(error => log.error('Keyboard rename failed:', error));
+        break;
+    case 'delete':
+        deletePath(selectedItem.path, selectedItem.type)
+            .catch(error => log.error('Keyboard delete failed:', error));
+        break;
+    case 'cut':
+        cutInternalPaths(selectedEntries);
+        break;
+    case 'copy':
+        copyInternalPaths(selectedEntries);
+        break;
+    case 'paste':
+        pasteInternalClipboard(selectedItem?.path || '', selectedItem?.type || 'root').catch(() => {});
+        break;
+    default:
+        applyFileTreeNavigationCommand(event.currentTarget, command);
+    }
+}
+
+function handleFileTreeKeydown(event) {
+    const context = fileTreeKeyboardContext(event);
+    const command = plannedFileTreeKeyCommand(event, context);
+    if (!command) return;
+
+    event.preventDefault();
+    if (!['context-menu', 'cut', 'copy', 'paste'].includes(command.action)) event.stopPropagation();
+    executeFileTreeKeyCommand(event, context, command);
 }
 
 /**
@@ -2337,7 +2383,7 @@ async function renameTreePath(path, type) {
         if (nameReview !== 'proceed') return;
     }
     statusBar.set(`Renaming “${oldName}”…`);
-    const finishActivity = beginFileTreeActivity();
+    let finishActivity = beginFileTreeActivity();
     try {
         const saveState = await prepareTabsForPathMove(path);
         if (!saveState.success) {
@@ -2345,7 +2391,45 @@ async function renameTreePath(path, type) {
             await errorDialog(`Couldn’t rename ${kind}`, saveState.error, `Save open files before renaming this ${kind}.`);
             return;
         }
-        const result = await backend().RenamePath(path, newPath);
+        let updateLinks = true;
+        if (type === 'file') {
+            const preview = await backend().PreviewRenamePath(path, newPath);
+            if (!preview?.success) {
+                finishActivity();
+                await errorDialog(
+                    `Couldn’t inspect ${kind} references`,
+                    preview?.error,
+                    `The ${kind} was not renamed because its Markdown references could not be checked.`,
+                );
+                return;
+            }
+            const review = renameReferenceReviewPlan(preview.updated_links, { oldName, newName: nextName });
+            updateLinks = false;
+            if (review) {
+                finishActivity();
+                finishActivity = () => {};
+                const choice = renameReferenceChoice(await confirmDialog(
+                    review.title,
+                    review.message,
+                    false,
+                    false,
+                    review.options,
+                ));
+                if (!choice.proceed) {
+                    finishActivity();
+                    const message = 'Rename cancelled';
+                    statusBar.set(message);
+                    statusBar.clearAfter(1500, message);
+                    return;
+                }
+                updateLinks = choice.updateLinks;
+                statusBar.set(`Renaming “${oldName}”…`);
+                finishActivity = beginFileTreeActivity();
+            }
+        }
+        const result = type === 'file'
+            ? await backend().RenamePathWithLinkUpdates(path, newPath, updateLinks)
+            : await backend().RenamePath(path, newPath);
         if (!result.success) {
             finishActivity();
             await errorDialog(`Couldn’t rename ${kind}`, result.error, `The ${kind} could not be renamed.`);

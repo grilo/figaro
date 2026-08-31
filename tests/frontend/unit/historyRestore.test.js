@@ -33,7 +33,7 @@ jest.mock('../frontend/js/statusBar.js', () => ({
     statusBar: { set: jest.fn() },
 }));
 
-import { initHistoryPanel, updateHistoryCount, closeHistoryPanel } from '../frontend/js/historyPanel.js';
+import { closeHistoryPanel, configureHistoryWorkspace, initHistoryPanel, updateHistoryCount } from '../frontend/js/historyPanel.js';
 import { confirmDialog as mockConfirmDialog, errorDialog as mockErrorDialog } from '../frontend/js/dialogs.js';
 
 async function settle() {
@@ -43,6 +43,7 @@ async function settle() {
 
 describe('history restore workflow', () => {
     beforeEach(() => {
+        configureHistoryWorkspace({ saveFileSnapshot: mockSaveFileSnapshot });
         testUtils.createMockDOM();
         jest.clearAllMocks();
         mockState.openTabs = [{ id: 'note.md', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true }];

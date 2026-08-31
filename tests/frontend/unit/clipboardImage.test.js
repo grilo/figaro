@@ -31,6 +31,7 @@ import {
     MAX_CLIPBOARD_IMAGE_BYTES,
     clipboardImageBase64,
     clipboardImageFile,
+    configureClipboardImageWorkspace,
     handleClipboardImagePaste,
     pasteClipboardImage,
     readClipboardImage,
@@ -51,6 +52,7 @@ function testView(text = 'Before selected after') {
 
 beforeEach(() => {
     jest.clearAllMocks();
+    configureClipboardImageWorkspace({ refreshFileTree });
     mockState = {
         activeTabId: 'capture-tab',
         openTabs: [{ id: 'capture-tab', type: 'file', path: 'notes/capture.md' }],

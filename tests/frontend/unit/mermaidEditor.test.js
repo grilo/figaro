@@ -26,7 +26,7 @@ describe('Mermaid Editor dialog', () => {
         jest.useRealTimers();
     });
 
-    function open(source = 'flowchart TD\n  A --> B', tabSize = 4) {
+    function open(source = 'flowchart TD\n  A --> B', tabSize = 4, nodes = [{id:'A'}, {id:'B'}]) {
         const markdown = `Before\n\`\`\`mermaid\n${source}\n\`\`\`\nAfter`;
         mainView = new EditorView({
             parent: document.getElementById('editor'),
@@ -40,7 +40,10 @@ describe('Mermaid Editor dialog', () => {
             }),
         });
         const block = scanDiagramFences(mainView.state.doc)[0];
-        const parse = jest.fn().mockResolvedValue({ diagramType: 'flowchart-v2' });
+        const parse = jest.fn(source => Promise.resolve({
+            diagramType: source.includes('sequenceDiagram') ? 'sequence' : 'flowchart-v2',
+            nodes,
+        }));
         const render = jest.fn(value => Promise.resolve(`<svg><text>${value}</text></svg>`));
         const catalog = [
             {
@@ -171,5 +174,178 @@ describe('Mermaid Editor dialog', () => {
 
         dialog.overlay.querySelector('.mermaid-editor-apply').click();
         expect(mainView.state.doc.toString()).toContain('```mermaid\nbroken diagram\n```');
+    });
+
+    test('switches between source and adaptive styling without hiding parser errors', async () => {
+        const { dialog, parse } = open('flowchart LR\n  Idea[Idea] --> Draft(Draft)', 4, [{id:'Idea'}, {id:'Draft'}]);
+        jest.advanceTimersByTime(400);
+        await flush();
+
+        const styleTab = dialog.overlay.querySelector('.mermaid-editor-mode-control [role="tab"]:last-child');
+        styleTab.click();
+        expect(styleTab.getAttribute('aria-selected')).toBe('true');
+        expect(dialog.overlay.querySelector('.mermaid-editor-style-content').hidden).toBe(false);
+        expect(dialog.overlay.querySelector('[data-diagram-type="flowchart-v2"]')).not.toBeNull();
+        expect([...dialog.overlay.querySelectorAll('.mermaid-editor-node-name')].map(node => node.textContent))
+            .toEqual(['Idea', 'Draft']);
+
+        parse.mockRejectedValueOnce(new Error('Broken source'));
+        dialog.editorView.dispatch({
+            changes: { from: 0, to: dialog.editorView.state.doc.length, insert: 'broken' },
+        });
+        jest.advanceTimersByTime(400);
+        await flush();
+        expect(dialog.overlay.querySelector('.mermaid-editor-style-content').textContent)
+            .toContain('Fix the Mermaid source error');
+
+        dialog.overlay.querySelector('.mermaid-editor-mode-control [role="tab"]:first-child').click();
+        expect(dialog.overlay.querySelector('.mermaid-editor-source-content').hidden).toBe(false);
+        expect(document.activeElement).toBe(dialog.editorView.contentDOM);
+
+        const sourceTab = dialog.overlay.querySelector('#mermaid-editor-source-tab');
+        sourceTab.focus();
+        sourceTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        expect(dialog.overlay.querySelector('.mermaid-editor-style-content').hidden).toBe(false);
+        expect(document.activeElement).toBe(styleTab);
+        expect(styleTab.tabIndex).toBe(0);
+        expect(sourceTab.tabIndex).toBe(-1);
+    });
+
+    test('writes theme, type colors, node shape, and connection settings as native Mermaid source', async () => {
+        const { dialog } = open('flowchart LR\n  Idea[Idea] --> Draft(Draft)', 4, [{id:'Idea'}, {id:'Draft'}]);
+        jest.advanceTimersByTime(400);
+        await flush();
+        dialog.overlay.querySelector('.mermaid-editor-mode-control [role="tab"]:last-child').click();
+
+        const accent = [...dialog.overlay.querySelectorAll('.mermaid-editor-style-section .ui-button')]
+            .find(button => button.textContent === 'Accent');
+        accent.click();
+        expect(dialog.editorView.state.doc.toString()).toContain("theme: 'base'");
+        expect(dialog.editorView.state.doc.toString()).toContain('themeVariables:');
+
+        const draftRow = [...dialog.overlay.querySelectorAll('.mermaid-editor-node-row')]
+            .find(row => row.textContent.includes('Draft'));
+        draftRow.click();
+        dialog.overlay.querySelector('.mermaid-editor-selected-node .mermaid-editor-color-button').click();
+        const blue = document.querySelector('.kanban-color-picker [data-color="#3b82f6"]');
+        expect(blue).not.toBeNull();
+        blue.click();
+        expect(dialog.editorView.state.doc.toString())
+            .toContain('style Draft fill:#3b82f6,stroke:#2a5eb1,color:#111827');
+        const pill = [...dialog.overlay.querySelectorAll('.mermaid-editor-selected-node .ui-button')]
+            .find(button => button.textContent === 'Pill');
+        pill.click();
+        expect(dialog.editorView.state.doc.toString()).toContain('Draft@{ shape: stadium }');
+
+        const straight = [...dialog.overlay.querySelectorAll('.mermaid-editor-style-section .ui-button')]
+            .find(button => button.textContent === 'Straight');
+        straight.click();
+        expect(dialog.editorView.state.doc.toString()).toContain("curve: 'linear'");
+        expect(dialog.editorView.state.doc.toString().match(/%% Figaro node styles/gu)).toHaveLength(1);
+    });
+
+    test('keeps individual node controls before a bounded keyboard-operable node list', async () => {
+        const { dialog } = open([
+            'flowchart LR',
+            '  A[Christmas] --> B[Go shopping] --> C[Let me think] --> D[Laptop]',
+            '  D --> E[iPhone] --> F[Car] --> G[Home]',
+        ].join('\n'), 4, ['Christmas','Go shopping','Let me think','Laptop','iPhone','Car','Home'].map((text,index) => ({id:'ABCDEFG'[index],text})));
+        jest.advanceTimersByTime(400);
+        await flush();
+        dialog.overlay.querySelector('.mermaid-editor-mode-control [role="tab"]:last-child').click();
+
+        const stylePanel = dialog.overlay.querySelector('.mermaid-editor-style-content');
+        const selectedControls = stylePanel.querySelector('.mermaid-editor-selected-node');
+        const nodeList = stylePanel.querySelector('.mermaid-editor-node-list');
+        const rows = [...nodeList.querySelectorAll('.mermaid-editor-node-row')];
+        expect(stylePanel.textContent).toContain('Default node color');
+        expect(stylePanel.textContent).toContain('Connection color');
+        expect(stylePanel.textContent).toContain('Connection curve');
+        expect(stylePanel.textContent).toContain('Select a node below or in the preview');
+        expect(selectedControls.getAttribute('aria-label')).toBe('Editing node Christmas');
+        expect(selectedControls.compareDocumentPosition(nodeList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(rows).toHaveLength(7);
+        expect(rows.map(row => row.tabIndex)).toEqual([0, -1, -1, -1, -1, -1, -1]);
+
+        rows[0].focus();
+        rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        const selectedRow = stylePanel.querySelector('.mermaid-editor-node-row[aria-selected="true"]');
+        expect(selectedRow.dataset.nodeId).toBe('B');
+        expect(selectedRow.tabIndex).toBe(0);
+        expect(document.activeElement).toBe(selectedRow);
+        expect(stylePanel.querySelector('.mermaid-editor-selected-node').getAttribute('aria-label'))
+            .toBe('Editing node Go shopping');
+    });
+
+    test('replaces type-specific controls after a valid template changes the diagram type', async () => {
+        const { dialog } = open('');
+        const diagramSelect = dialog.overlay.querySelector('.mermaid-editor-diagram-select');
+        jest.advanceTimersByTime(400);
+        await flush();
+        dialog.overlay.querySelector('.mermaid-editor-mode-control [role="tab"]:last-child').click();
+        expect(dialog.overlay.querySelector('[data-diagram-type="flowchart-v2"]')).not.toBeNull();
+
+        diagramSelect.value = 'sequence';
+        diagramSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        jest.advanceTimersByTime(400);
+        await flush();
+
+        expect(dialog.overlay.querySelector('[data-diagram-type="sequence"]')).not.toBeNull();
+        expect(dialog.overlay.querySelector('.mermaid-editor-style-content').textContent).toContain('Participants');
+        expect(dialog.overlay.querySelector('.mermaid-editor-style-content').textContent).toContain('Messages');
+        expect(dialog.overlay.querySelector('.mermaid-editor-node-list')).toBeNull();
+    });
+
+    test('preserves style-control focus and an open palette through validation and preview updates', async () => {
+        const {dialog} = open();
+        jest.advanceTimersByTime(400);
+        await flush();
+        dialog.overlay.querySelector('#mermaid-editor-style-tab').click();
+        const pill = dialog.overlay.querySelector('[data-style-focus="Shape:stadium"]');
+        pill.focus();
+        pill.click();
+        expect(document.activeElement.dataset.styleFocus).toBe('Shape:stadium');
+        const color = dialog.overlay.querySelector('.mermaid-editor-selected-node .mermaid-editor-color-button');
+        color.click();
+        const picker = document.querySelector('.kanban-color-picker');
+        jest.advanceTimersByTime(400);
+        await flush();
+        expect(color.isConnected).toBe(true);
+        expect(picker.isConnected).toBe(true);
+        picker.querySelector('[data-color="#3b82f6"]').click();
+        expect(document.activeElement.dataset.styleFocus).toBe('A fill');
+        expect(dialog.editorView.state.doc.toString()).toContain('style A fill:#3b82f6');
+        dialog.overlay.querySelector('.mermaid-editor-selected-node .mermaid-editor-color-button').click();
+        document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true}));
+        expect(dialog.overlay.isConnected).toBe(true);
+        expect(document.querySelector('.kanban-color-picker')).toBeNull();
+        expect(document.activeElement.dataset.styleFocus).toBe('A fill');
+        dialog.overlay.querySelector('.mermaid-editor-selected-node .mermaid-editor-color-button').click();
+        dialog.close();
+        expect(document.querySelector('.kanban-color-picker')).toBeNull();
+    });
+
+    test('synchronizes a reset XY palette in place after inspection without leaving stale swatches', async () => {
+        const source = "---\nconfig:\n  theme: 'dark'\n  themeVariables:\n    xyChart:\n      plotColorPalette: '#ef4444,#3b82f6'\n---\nxychart-beta\n bar [1,2]\n line [2,3]";
+        const {dialog,parse} = open(source);
+        const snapshot = palette => ({diagramType:'xychart',plots:[{type:'bar'},{type:'line'}],
+            effectiveVariables:{xyChart:{plotColorPalette:palette}}});
+        parse.mockResolvedValueOnce(snapshot('#ef4444,#3b82f6'));
+        jest.advanceTimersByTime(400);
+        await flush();
+        dialog.overlay.querySelector('#mermaid-editor-style-tab').click();
+        const firstPlot = () => dialog.overlay.querySelector('[data-style-focus="Bar 1 color"]');
+        expect(firstPlot().dataset.colorValue).toBe('#ef4444');
+        firstPlot().click();
+        document.querySelector('.kanban-color-picker [data-color=""]').click();
+        const anchor = firstPlot();
+        expect(dialog.editorView.state.doc.toString()).not.toContain('plotColorPalette');
+        expect(dialog.editorView.state.doc.toString()).toContain("theme: 'dark'");
+        parse.mockResolvedValueOnce(snapshot('#111111,#222222'));
+        jest.advanceTimersByTime(400);
+        await flush();
+        expect(firstPlot()).toBe(anchor);
+        expect(anchor.dataset.colorValue).toBe('#111111');
+        expect(anchor.getAttribute('aria-label')).toBe('Bar 1 color: #111111');
     });
 });

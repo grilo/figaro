@@ -94,6 +94,13 @@ describe('design-system tooltip', () => {
         expect(document.getElementById('ui-tooltip').hidden).toBe(false);
         label.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
         expect(document.getElementById('ui-tooltip').hidden).toBe(true);
+
+        slider.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+        slider.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(document.getElementById('ui-tooltip').textContent).toBe('Enable Vim Mode first');
+        expect(document.getElementById('ui-tooltip').hidden).toBe(false);
+        document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(document.getElementById('ui-tooltip').hidden).toBe(true);
     });
 
     test('clamps horizontally and flips above anchors near the viewport bottom', () => {

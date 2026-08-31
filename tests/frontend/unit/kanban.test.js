@@ -3,6 +3,7 @@ import { getState, setState } from '../frontend/js/state.js';
 
 jest.mock('../frontend/js/app.js', () => ({
     openTab: jest.fn(),
+    handleFileOpen: jest.fn(),
 }));
 
 const mockKanbanErrorDialog = jest.fn().mockResolvedValue(undefined);
@@ -14,6 +15,7 @@ jest.mock('../frontend/js/dialogs.js', () => ({
 
 import {
     KANBAN_CARD_TEXT_LIMIT,
+    configureKanbanWorkspace,
     initKanban,
     applySavedKanbanSnapshot,
     kanbanCardsForBuffer,
@@ -23,9 +25,11 @@ import {
     truncateKanbanCardText,
 } from '../frontend/js/kanban.js';
 import { localISODate } from '../frontend/js/core/dueDateModel.js';
+import { handleFileOpen, openTab } from '../frontend/js/app.js';
 
 describe('live Kanban buffers and compact cards', () => {
     beforeEach(() => {
+        configureKanbanWorkspace({ openTab, openFile: handleFileOpen });
         testUtils.createMockDOM();
         jest.clearAllMocks();
         setState('openTabs', []);

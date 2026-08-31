@@ -1,0 +1,520 @@
+/* Reversible Markdown-table to Vega-Lite chart editor. */
+
+.custom-modal.vega-lite-chart-editor-modal {
+    display: flex;
+    width: min(1280px, calc(100vw - 32px));
+    height: min(820px, calc(100vh - 48px));
+    min-width: 0;
+    flex-direction: column;
+}
+
+.vega-lite-chart-editor-modal .custom-modal-content {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    padding: 0 22px 18px;
+    overflow: hidden;
+}
+
+.vega-lite-chart-editor-workspace {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    grid-template-columns: minmax(330px, .68fr) minmax(540px, 1.62fr);
+    gap: 12px;
+}
+
+.vega-lite-chart-editor-config {
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0 12px 12px 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 0;
+    scrollbar-gutter: stable;
+    container-name: chart-config;
+    container-type: inline-size;
+}
+
+.vega-lite-chart-editor-config:disabled {
+    opacity: .58;
+}
+
+.vega-lite-chart-editor-section + .vega-lite-chart-editor-section {
+    margin-top: 10px;
+}
+
+.vega-lite-chart-editor-section[data-columns-section] {
+    margin-top: 11px;
+    padding: 8px 0 6px;
+}
+
+.vega-lite-chart-editor-section-heading,
+.vega-lite-chart-editor-preview-heading {
+    display: flex;
+    min-height: 24px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.vega-lite-chart-editor-section-heading h4,
+.vega-lite-chart-editor-preview-heading h4 {
+    margin: 0;
+    color: var(--text-color);
+    font: 650 11px/1.2 var(--font-ui);
+}
+
+.vega-lite-chart-editor-section-heading > span {
+    color: color-mix(in srgb, var(--text-muted) 76%, var(--text-color));
+    font: 10px/1.3 var(--font-ui);
+    text-align: right;
+}
+
+.vega-lite-chart-editor-mode-layout {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    align-items: end;
+    gap: 8px;
+}
+
+.vega-lite-chart-editor-legend-position {
+    margin-top: 7px;
+}
+
+.vega-lite-chart-editor-special-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+}
+
+.vega-lite-chart-editor-control-label {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+    color: color-mix(in srgb, var(--text-muted) 78%, var(--text-color));
+    font: 10px/1.25 var(--font-ui);
+}
+
+.vega-lite-chart-editor-control-label .ui-segmented-control {
+    justify-self: start;
+}
+
+.vega-lite-chart-editor-config .vega-lite-chart-editor-combobox {
+    width: 100%;
+    min-width: 0;
+}
+
+.vega-lite-chart-editor-config .vega-lite-chart-editor-combobox .ui-picker-menu {
+    z-index: 1500;
+}
+
+.vega-lite-chart-editor-config .vega-lite-chart-editor-combobox .ui-menu-item > span,
+.vega-lite-chart-editor-config .vega-lite-chart-editor-combobox .select-combobox-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vega-lite-chart-editor-column-head,
+.vega-lite-chart-editor-column {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 24px minmax(62px, 1fr) minmax(88px, 108px) minmax(120px, 1fr) minmax(132px, 1fr);
+    align-items: center;
+    gap: 5px;
+}
+
+.vega-lite-chart-editor-column-head {
+    padding: 4px 0;
+    color: var(--text-dim);
+    font: 600 9px/1 var(--font-ui);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.vega-lite-chart-editor-column {
+    min-height: 40px;
+    padding: 5px 0;
+    border-top: 1px solid color-mix(in srgb, var(--border-color) 68%, transparent);
+}
+
+.vega-lite-chart-editor-visibility.ui-icon-button {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    color: var(--text-muted);
+}
+
+.vega-lite-chart-editor-visibility[aria-pressed="false"] {
+    color: var(--text-dim);
+}
+
+.vega-lite-chart-editor-column.is-hidden {
+    opacity: .52;
+}
+
+.vega-lite-chart-editor-column.is-hidden .vega-lite-chart-editor-column-name > span {
+    text-decoration: line-through;
+}
+
+.vega-lite-chart-editor-column-name {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    overflow: hidden;
+    color: var(--text-color);
+    font: 11px/1.25 var(--font-ui);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vega-lite-chart-editor-column-name small {
+    color: var(--text-dim);
+    font: 9px/1.2 var(--font-ui);
+}
+
+.vega-lite-chart-editor-axis-fixed {
+    color: var(--text-dim);
+    font: 10px/1.2 var(--font-ui);
+    text-align: center;
+}
+
+.vega-lite-chart-editor-category-role {
+    min-width: 0;
+    grid-column: 3 / -1;
+    color: color-mix(in srgb, var(--text-muted) 76%, var(--text-color));
+    font: 10px/1.25 var(--font-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vega-lite-chart-editor-axis {
+    width: 100%;
+    min-width: 0;
+}
+
+.vega-lite-chart-editor-axis > .ui-button {
+    min-width: 0;
+    flex: 1;
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+.vega-lite-chart-editor-color-button.ui-icon-button {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    justify-self: start;
+}
+
+.vega-lite-chart-editor-color-button .kanban-column-color-indicator {
+    width: 16px;
+    height: 16px;
+    flex-basis: 16px;
+}
+
+.vega-lite-chart-editor-column-extra {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 24px;
+    align-items: center;
+    gap: 5px;
+    color: color-mix(in srgb, var(--text-muted) 76%, var(--text-color));
+    font: 10px/1.2 var(--font-ui);
+    white-space: nowrap;
+}
+
+.vega-lite-chart-editor-column-extra.is-disabled {
+    cursor: help;
+}
+
+.vega-lite-chart-editor-column-extra.is-disabled .ui-checkbox {
+    pointer-events: none;
+}
+
+.vega-lite-chart-editor-column-options {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 4px;
+}
+
+.vega-lite-chart-editor-stack-summary {
+    margin: 7px 0 0 29px;
+    color: var(--warning-color);
+    font: 10px/1.4 var(--font-ui);
+}
+
+.vega-lite-chart-editor-guide-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.vega-lite-chart-editor-guide-toggles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.vega-lite-chart-editor-threshold-controls {
+    display: grid;
+    grid-template-columns: max-content 104px minmax(105px, 1fr) 30px;
+    align-items: end;
+    gap: 4px;
+}
+
+.vega-lite-chart-editor-threshold-toggle {
+    align-self: end;
+}
+
+.vega-lite-chart-editor-control-label > input.ui-field {
+    min-height: 30px;
+    padding: 6px 8px;
+}
+
+.vega-lite-chart-editor-threshold-stepper {
+    width: 104px;
+    min-width: 0;
+    max-width: 104px;
+}
+
+.vega-lite-chart-editor-threshold-axis {
+    justify-self: start;
+}
+
+.vega-lite-chart-editor-threshold-axis > .ui-button {
+    min-width: 0;
+    padding-right: 5px;
+    padding-left: 5px;
+}
+
+.vega-lite-chart-editor-check {
+    display: inline-flex;
+    min-height: var(--ui-compact-height);
+    align-items: center;
+    gap: 7px;
+    color: color-mix(in srgb, var(--text-muted) 76%, var(--text-color));
+    font: 10px/1.25 var(--font-ui);
+}
+
+.vega-lite-chart-editor-span {
+    grid-column: 1 / -1;
+}
+
+.vega-lite-chart-editor-preview-pane {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    flex-direction: column;
+}
+
+.vega-lite-chart-editor-preview-heading {
+    flex: 0 0 auto;
+    padding: 8px 10px 8px 12px;
+    border-bottom: 0;
+    background: transparent;
+}
+
+.vega-lite-chart-editor-preview-tools {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.vega-lite-chart-editor-roundtrip {
+    color: var(--success-color);
+    font: 10px/1.3 var(--font-ui);
+    text-align: right;
+}
+
+.vega-lite-chart-editor-roundtrip::before {
+    margin-right: 5px;
+    content: '✓';
+}
+
+.vega-lite-chart-editor-roundtrip.is-warning {
+    max-width: 260px;
+    color: var(--warning-color);
+}
+
+.vega-lite-chart-editor-roundtrip.is-warning::before {
+    content: '!';
+}
+
+.vega-lite-chart-editor-preview {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    overflow: hidden;
+    background: var(--editor-surface);
+    color: var(--text-color);
+}
+
+.vega-lite-chart-editor-preview > svg {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 100% !important;
+    flex: 0 1 auto;
+}
+
+.vega-lite-chart-editor-preview-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font: 11px/1.4 var(--font-ui);
+}
+
+.vega-lite-chart-editor-preview-error {
+    display: grid;
+    width: min(360px, 100%);
+    margin: auto;
+    gap: 6px;
+    padding: 14px 16px;
+    text-align: left;
+}
+
+.vega-lite-chart-editor-preview-error strong {
+    color: var(--danger-color);
+    font: 650 12px/1.3 var(--font-ui);
+}
+
+.vega-lite-chart-editor-preview-error span {
+    color: color-mix(in srgb, var(--danger-color) 68%, var(--text-color));
+    font: 11px/1.45 var(--font-ui);
+}
+
+.vega-lite-chart-editor-json {
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    resize: none;
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    background: var(--bg-color);
+    color: var(--text-muted);
+    font: 11px/1.5 var(--font-mono);
+    white-space: pre;
+}
+
+.vega-lite-chart-editor-status {
+    min-width: 0;
+    flex: 1;
+    color: color-mix(in srgb, var(--text-muted) 70%, var(--text-color));
+    font: 11px/1.3 var(--font-ui);
+}
+
+.vega-lite-chart-editor-status.is-error {
+    color: var(--danger-color);
+}
+
+@media (max-width: 980px) {
+    .vega-lite-chart-editor-workspace {
+        grid-template-columns: minmax(310px, .82fr) minmax(420px, 1.18fr);
+    }
+}
+
+@media (max-width: 780px) {
+    .vega-lite-chart-editor-workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(320px, 1fr) minmax(320px, 1.25fr);
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .vega-lite-chart-editor-config {
+        padding-right: 0;
+        overflow-x: hidden;
+        overflow-y: visible;
+    }
+}
+
+@media (max-width: 520px) {
+    .vega-lite-chart-editor-modal .custom-modal-content {
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+
+    .vega-lite-chart-editor-special-grid,
+    .vega-lite-chart-editor-guide-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .vega-lite-chart-editor-column-head {
+        display: none;
+    }
+
+    .vega-lite-chart-editor-column {
+        grid-template-columns: 24px minmax(60px, 1fr) minmax(82px, 100px) 60px 78px;
+    }
+
+    .vega-lite-chart-editor-span {
+        grid-column: auto;
+    }
+}
+
+@container chart-config (max-width: 380px) {
+    .vega-lite-chart-editor-special-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .vega-lite-chart-editor-column-head {
+        display: none;
+    }
+
+    .vega-lite-chart-editor-column {
+        min-height: 0;
+        grid-template-areas:
+            "use column mark"
+            ". axis options";
+        grid-template-columns: 24px minmax(0, 1fr) minmax(132px, 150px);
+        row-gap: 4px;
+    }
+
+    .vega-lite-chart-editor-column.is-category {
+        grid-template-areas:
+            "use column category";
+    }
+
+    .vega-lite-chart-editor-column > :nth-child(1) { grid-area: use; }
+    .vega-lite-chart-editor-column > :nth-child(2) { grid-area: column; }
+    .vega-lite-chart-editor-column > :nth-child(3) { grid-area: mark; }
+    .vega-lite-chart-editor-column > :nth-child(4) { grid-area: axis; }
+    .vega-lite-chart-editor-column > :nth-child(5) { grid-area: options; }
+
+    .vega-lite-chart-editor-column.is-category .vega-lite-chart-editor-category-role {
+        grid-area: category;
+    }
+
+    .vega-lite-chart-editor-span {
+        grid-column: 1 / -1;
+    }
+}
+
+@container chart-config (max-width: 320px) {
+    .vega-lite-chart-editor-mode-layout {
+        grid-template-columns: max-content;
+    }
+
+    .vega-lite-chart-editor-threshold-controls {
+        grid-template-columns: max-content 104px minmax(105px, 1fr) 30px;
+    }
+}

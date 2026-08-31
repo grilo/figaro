@@ -6,7 +6,6 @@ import { backend } from './backend.js';
 import { log } from './log.js';
 import { setState, getState } from './state.js';
 import { fileIcon } from './icons.js';
-import { openTab } from './tabManager.js';
 import { dateFromISO, localISODate } from './core/dueDateModel.js';
 import {
     calendarDayClassName,
@@ -30,6 +29,17 @@ import { calendarWheelNavigationPlan } from './core/calendarWheelModel.js';
 import { createCalendarTimeline } from './calendarTimeline.js';
 
 let calendarRequestId = 0;
+let openWorkspaceTab = null;
+
+export function configureCalendarWorkspace({ openTab } = {}) {
+    if (typeof openTab !== 'function') throw new TypeError('Calendar openTab port is required');
+    openWorkspaceTab = openTab;
+}
+
+function openTab(...args) {
+    if (!openWorkspaceTab) throw new Error('Calendar workspace ports were not configured');
+    return openWorkspaceTab(...args);
+}
 let linkedNotesRequestId = 0;
 let calendarEventsInitialized = false;
 const calendarResultsRequestIds = new Map();

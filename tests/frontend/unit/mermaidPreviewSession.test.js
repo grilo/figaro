@@ -38,6 +38,34 @@ describe('Mermaid preview session', () => {
         session.destroy();
     });
 
+    test('publishes inspection metadata only for the latest source and never after close', async () => {
+        let releaseFirst;
+        const first = new Promise(resolve => {releaseFirst = resolve;});
+        const latest = {diagramType:'flowchart-v2',nodes:[{id:'B'}]};
+        const statuses = [];
+        const session = createMermaidPreviewSession({
+            parse: jest.fn(source => source === 'first' ? first : Promise.resolve(latest)),
+            render: () => Promise.resolve('<svg/>'), onStatus: value => statuses.push(value),
+            setTimer:setTimeout,clearTimer:clearTimeout,now:()=>Date.now(),validationDelay:400,
+        });
+        session.schedule('first');
+        jest.advanceTimersByTime(400);
+        session.schedule('second');
+        jest.advanceTimersByTime(400);
+        await flush();
+        releaseFirst({diagramType:'flowchart-v2',nodes:[{id:'stale'}]});
+        await flush();
+        expect(statuses.filter(status => status.inspection)).toEqual([
+            {phase:'valid',hasError:false,diagramType:'flowchart-v2',inspection:latest,source:'second'},
+        ]);
+        session.schedule('third');
+        session.destroy();
+        const count = statuses.length;
+        jest.runOnlyPendingTimers();
+        await flush();
+        expect(statuses).toHaveLength(count);
+    });
+
     test('keeps an active render serialized and discards its stale result', async () => {
         let resolveFirst;
         const firstRender = new Promise(resolve => { resolveFirst = resolve; });

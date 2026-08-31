@@ -1,7 +1,15 @@
 import { markdown } from '@codemirror/lang-markdown';
 import { Compartment, EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { cursorLineDown, cursorLineUp } from '@codemirror/commands';
+import {
+    cursorLineDown,
+    cursorLineUp,
+    history,
+    redo,
+    redoDepth,
+    undo,
+    undoDepth,
+} from '@codemirror/commands';
 import { collapseOnSelectionFacet, mouseSelectingField } from 'codemirror-live-markdown';
 
 import {
@@ -12,6 +20,7 @@ import {
 const source = 'Before\n![Flow](flow.drawio.svg)\nAfter';
 
 function createView({
+    documentSource = source,
     imageResult = { loaded: false },
     resolveDrawioState = jest.fn(async () => ({ kind: 'create' })),
     onCreateDrawio = jest.fn(async () => false),
@@ -24,10 +33,11 @@ function createView({
     const view = new EditorView({
         parent: document.body,
         state: EditorState.create({
-            doc: source,
+            doc: documentSource,
             selection: { anchor: 0 },
             extensions: [
                 markdown(),
+                history(),
                 collapseOnSelectionFacet.of(true),
                 mouseSelectingField,
                 createMarkdownImageField({
@@ -68,6 +78,150 @@ describe('actionable Draw.io Markdown images', () => {
             title: 'System',
         });
         expect(parseMarkdownImageSyntax('[Flow](flow.drawio.svg)')).toBeNull();
+    });
+
+    test('resizes through three generous handles without revealing source', async () => {
+        const documentSource = 'Before\n![Portrait|190x121](portrait.png)\nAfter';
+        const { view } = createView({
+            documentSource,
+            imageResult: {
+                loaded: true,
+                src: 'portrait.png',
+                width: 240,
+                height: 153,
+            },
+        });
+        await settle();
+
+        const widget = view.dom.querySelector('.cm-image-widget');
+        const frame = widget.querySelector('.cm-image-resize-frame');
+        const handles = [...widget.querySelectorAll('.cm-image-resize-handle')];
+        expect(handles.map(handle => handle.dataset.resizeMode))
+            .toEqual(['width', 'height', 'proportional']);
+        expect(handles.map(handle => handle.getAttribute('aria-label'))).toEqual([
+            'Resize image width',
+            'Resize image height',
+            'Resize image proportionally',
+        ]);
+        expect(widget.querySelector('img').getAttribute('alt')).toBe('Portrait');
+        expect(frame.style.width).toBe('190px');
+        expect(frame.style.height).toBe('121px');
+
+        widget.getBoundingClientRect = () => ({ left: 0, right: 400, top: 0, bottom: 121, width: 400, height: 121 });
+        frame.getBoundingClientRect = () => ({ left: 0, right: 190, top: 40, bottom: 161, width: 190, height: 121 });
+        view.scrollDOM.getBoundingClientRect = () => ({ left: 0, right: 400, top: 0, bottom: 360, width: 400, height: 360 });
+
+        handles[0].dispatchEvent(new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 190,
+            clientY: 100,
+        }));
+        handles[0].dispatchEvent(new MouseEvent('pointermove', {
+            bubbles: true,
+            clientX: 290,
+            clientY: 100,
+        }));
+        handles[0].dispatchEvent(new MouseEvent('pointermove', {
+            bubbles: true,
+            clientX: 360,
+            clientY: 100,
+        }));
+
+        const resizedSource = 'Before\n![Portrait|360x121](portrait.png)\nAfter';
+        expect(view.state.doc.toString()).toBe(documentSource);
+        expect(frame.style.width).toBe('360px');
+        expect(frame.style.height).toBe('121px');
+        expect(widget.classList.contains('is-resizing')).toBe(true);
+        expect(view.dom.querySelector('.cm-image-source')).toBeNull();
+        expect(view.state.selection.main.head).toBe(0);
+
+        handles[0].dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }));
+        await settle();
+        expect(view.state.doc.toString()).toBe(resizedSource);
+        expect(widget.classList.contains('is-resizing')).toBe(false);
+        expect(handles[0].dataset.uiTooltip).toBe('Resize image width');
+        expect(undoDepth(view.state)).toBe(1);
+        expect(undo(view)).toBe(true);
+        expect(view.state.doc.toString()).toBe(documentSource);
+        expect(undoDepth(view.state)).toBe(0);
+        expect(redoDepth(view.state)).toBe(1);
+        expect(redo(view)).toBe(true);
+        expect(view.state.doc.toString()).toBe(resizedSource);
+
+        handles[0].dispatchEvent(new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 360,
+            clientY: 100,
+        }));
+        handles[0].dispatchEvent(new MouseEvent('pointermove', {
+            bubbles: true,
+            clientX: 380,
+            clientY: 100,
+        }));
+        expect(view.state.doc.toString()).toBe(resizedSource);
+        handles[0].dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }));
+        expect(view.state.doc.toString()).toBe('Before\n![Portrait|380x121](portrait.png)\nAfter');
+        expect(undoDepth(view.state)).toBe(2);
+        expect(undo(view)).toBe(true);
+        expect(view.state.doc.toString()).toBe(resizedSource);
+
+        handles[0].dispatchEvent(new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 360,
+            clientY: 100,
+        }));
+        handles[0].dispatchEvent(new MouseEvent('pointermove', {
+            bubbles: true,
+            clientX: 390,
+            clientY: 100,
+        }));
+        expect(frame.style.width).toBe('390px');
+        expect(view.state.doc.toString()).toBe(resizedSource);
+        handles[0].dispatchEvent(new MouseEvent('pointercancel', { bubbles: true }));
+        expect(frame.style.width).toBe('360px');
+        expect(view.state.doc.toString()).toBe(resizedSource);
+        expect(undoDepth(view.state)).toBe(1);
+
+        handles[0].dispatchEvent(new MouseEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            clientX: 360,
+            clientY: 100,
+        }));
+        handles[0].dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }));
+        expect(view.state.doc.toString()).toBe(resizedSource);
+        expect(undoDepth(view.state)).toBe(1);
+        view.destroy();
+    });
+
+    test('preserves resized geometry while the cursor reveals editable source', async () => {
+        const documentSource = 'Before\n![Portrait|190x121](portrait.png)\nAfter';
+        const { view } = createView({
+            documentSource,
+            imageResult: {
+                loaded: true,
+                src: 'portrait.png',
+                width: 240,
+                height: 153,
+            },
+        });
+        await settle();
+        view.dispatch({ selection: { anchor: documentSource.indexOf('Portrait') } });
+
+        expect(view.dom.querySelector('.cm-image-widget')).toBeNull();
+        const sourceLine = view.dom.querySelector('.cm-image-source-placeholder');
+        expect(sourceLine).not.toBeNull();
+        expect(sourceLine.style.getPropertyValue('--cm-image-source-width')).toBe('190px');
+        expect(sourceLine.style.getPropertyValue('--cm-image-source-height')).toBe('121px');
+        expect(view.state.doc.toString()).toBe(documentSource);
+        view.destroy();
     });
 
     test('offers one accessible action and keeps the source unchanged while creating', async () => {

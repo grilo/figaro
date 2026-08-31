@@ -19,12 +19,24 @@ import {
 } from './pdfExport.js';
 import { pdfExportErrorDialog, pdfStyleReferenceDialog } from './dialogs.js';
 import { updateRightSidebarEditorLayout } from './historyPanel.js';
-import { handleFileOpen } from './app.js';
 import { getEditorContent, getEditorView } from './editor.js';
-import { saveFileSnapshot } from './tabManager.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+import { planPDFPreviewImageSource } from './core/pdfPreviewImageModel.js';
 
 const previewDebounceMs = 320;
+let workspacePorts = null;
+
+export function configurePDFPreviewWorkspace(ports) {
+    if (typeof ports?.openFile !== 'function' || typeof ports?.saveFileSnapshot !== 'function') {
+        throw new TypeError('PDF Preview workspace ports are incomplete');
+    }
+    workspacePorts = Object.freeze({ ...ports });
+}
+
+function workspace() {
+    if (!workspacePorts) throw new Error('PDF Preview workspace ports were not configured');
+    return workspacePorts;
+}
 const previewMode = 'pdf-preview';
 const previewFramePath = '/pdf/preview-frame.html';
 const previewBridgeChannel = 'figaro-pdf-preview-v1';
@@ -122,6 +134,12 @@ function parentDirectory(path) {
 function vaultURL(path, directory = false) {
     const encoded = String(path || '').split('/').filter(Boolean).map(encodeURIComponent).join('/');
     return `/vault/${encoded}${directory && encoded ? '/' : ''}`;
+}
+
+/** Resolve one local printable image without relying on sandboxed base-URL behavior. */
+export function resolvePDFPreviewImageURL(notePath, source) {
+    const plan = planPDFPreviewImageSource(notePath, source);
+    return plan.kind === 'vault' ? `${vaultURL(plan.path)}${plan.suffix}` : plan.source;
 }
 
 /**
@@ -276,6 +294,9 @@ export function buildPDFPreviewDocument(printableHTML, { notePath, stylesheetPat
     const head = printable.head || printable.documentElement.appendChild(printable.createElement('head'));
     const body = printable.body || printable.documentElement.appendChild(printable.createElement('body'));
     body.classList.add('figaro-pdf-preview-body');
+    body.querySelectorAll('img[src]').forEach(image => {
+        image.setAttribute('src', resolvePDFPreviewImageURL(notePath, image.getAttribute('src')));
+    });
     const printableStyles = Array.from(head.querySelectorAll('style')).map(style => style.textContent || '').join('\n');
     const pageSize = resolvePDFPreviewPageSize(`${printableStyles}\n${stylesheetContent}`);
 
@@ -479,7 +500,7 @@ async function openPreviewVaultLink(path) {
         return;
     }
     try {
-        await handleFileOpen(path);
+        await workspace().openFile(path);
     } catch (error) {
         log.warn('Could not open linked vault file from PDF preview:', error);
         setPreviewStatus(`Could not open ${path}.`, 'error');
@@ -1185,8 +1206,11 @@ function renderPreview() {
     const requestId = ++previewRequestId;
     previewRenderPromise = (async () => {
         let awaitingBridgeRender = false;
-        setPreviewLoading(true);
-        setPreviewStatus('Updating live preview…');
+        const isInitialRender = !preview.documentHTML;
+        if (isInitialRender) {
+            setPreviewLoading(true);
+            setPreviewStatus('Updating live preview…');
+        }
         try {
             await ensurePreviewStylesheet(requestId);
             if (requestId !== previewRequestId || !isPreviewOpen()) return;
@@ -1337,7 +1361,7 @@ async function savePreviewBuffer(path, content) {
     const onDisk = await readVaultText(path);
     if (!tab.dirty && onDisk?.content === content) return;
 
-    const result = await saveFileSnapshot(tab, content);
+    const result = await workspace().saveFileSnapshot(tab, content);
     if (!result?.success) throw new Error(result?.error || `Could not save ${path} before generating the PDF.`);
 }
 
@@ -1385,7 +1409,7 @@ async function generatePDF() {
 
 async function openPreviewStylesheet() {
     if (!preview.stylesheetPath || preview.stylesheetError) return;
-    await handleFileOpen(preview.stylesheetPath);
+    await workspace().openFile(preview.stylesheetPath);
 }
 
 async function openPDFStyleReference() {

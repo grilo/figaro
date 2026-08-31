@@ -237,22 +237,22 @@
 /* Ordinary writing keeps the footer's fixed layout footprint but lets its
    nonessential controls recede. Hovering the bottom edge or tabbing into a
    control restores the complete status bar without moving the document. */
-.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) {
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) {
     border-top-color: transparent;
 }
 
-.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) .status-left > * {
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-left > * {
     opacity: 0;
 }
 
-.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-left,
-.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-right {
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-left,
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-right {
     opacity: 0;
     pointer-events: none;
     transform: translateY(3px);
 }
 
-.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not(:hover):not(:focus-within) .status-right::after {
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-right::after {
     opacity: 0;
     transform: translateY(0);
 }

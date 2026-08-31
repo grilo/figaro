@@ -12,7 +12,6 @@ import {
     setEditorContent,
     setReadOnly,
 } from './editor.js';
-import { saveFileSnapshot } from './tabManager.js';
 import { renderMarkdownDiff } from './historyDiff.js';
 import {
     compactEditorRequired,
@@ -21,6 +20,20 @@ import {
 } from './core/rightSidebarLayout.js';
 import { paneSeparatorKeyboardPlan } from './core/paneSeparatorModel.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+
+let saveWorkspaceFileSnapshot = null;
+
+export function configureHistoryWorkspace({ saveFileSnapshot } = {}) {
+    if (typeof saveFileSnapshot !== 'function') {
+        throw new TypeError('History saveFileSnapshot port is required');
+    }
+    saveWorkspaceFileSnapshot = saveFileSnapshot;
+}
+
+function saveFileSnapshot(...args) {
+    if (!saveWorkspaceFileSnapshot) throw new Error('History workspace ports were not configured');
+    return saveWorkspaceFileSnapshot(...args);
+}
 
 let liveContent = null;
 let viewingHistory = false;

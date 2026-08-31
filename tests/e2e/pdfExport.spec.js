@@ -6,6 +6,14 @@ function fence(language, source) {
 }
 
 test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendored browser libraries', async ({ page }) => {
+    // Observe real loading without the browser's bounded Resource Timing buffer.
+    // Exact plugin transformations and anchor rules live in export.test.js.
+    let printBundleLoaded = false;
+    page.on('requestfinished', request => {
+        if (new URL(request.url()).pathname === '/vendored/markdown-it-plugins/index.js') {
+            printBundleLoaded = true;
+        }
+    });
     await page.goto('/');
     await page.waitForFunction(() =>
         typeof window.markdownit === 'function' &&
@@ -25,7 +33,7 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
         '',
         '---',
         '',
-        'Second printable page.',
+        'Second printable page with ==highlighting== and $E=mc^2$.',
         '',
         fence('mermaid', 'flowchart TD\n  Start --> Finish'),
         '',
@@ -53,6 +61,8 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
             renderedSVGs: printable.querySelectorAll('.figaro-print-diagram svg').length,
             remainingDiagramFences: printable.querySelectorAll('pre > code.language-mermaid, pre > code.language-vega, pre > code.language-vega-lite').length,
             unsafeMermaidSource: printable.querySelector('pre > code.language-mermaid')?.textContent,
+            highlighted: printable.querySelector('mark')?.textContent,
+            renderedMath: printable.querySelectorAll('.katex').length,
         };
     }, source);
 
@@ -67,83 +77,9 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
     expect(result.renderedSVGs).toBe(3);
     expect(result.remainingDiagramFences).toBe(1);
     expect(result.unsafeMermaidSource).toContain('!!omap');
-});
-
-test('renders the selected vendored Markdown-It extensions with stable TOC targets', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForFunction(() =>
-        typeof window.markdownit === 'function' &&
-        typeof window.katex?.renderToString === 'function'
-    );
-
-    const source = [
-        '---',
-        'toc-depth: 2',
-        '---',
-        '# Café Notes',
-        '## Café Notes',
-        '',
-        'See [the first heading](#cafe-notes).',
-        '',
-        'H~2~O, x^2^, ==highlighted==, and $E=mc^2$.',
-        '',
-        '- [ ] Open task',
-        '- [x] Finished task',
-        '',
-        'Footnotes remain distinct from superscript[^note].',
-        '',
-        '[^note]: Linked footnote destination.',
-    ].join('\n');
-
-    const result = await page.evaluate(async (markdown) => {
-        const module = await import('/js/pdfExport.js');
-        const html = module.renderPrintableMarkdown(markdown, 'Extensions');
-        const printable = new DOMParser().parseFromString(html, 'text/html');
-        const tocLinks = Array.from(printable.querySelectorAll('.figaro-print-toc a'));
-        return {
-            headings: Array.from(printable.querySelectorAll('h1, h2')).map(heading => heading.id).filter(Boolean),
-            tocHrefs: tocLinks.map(link => link.getAttribute('href')),
-            tocTargets: tocLinks.map(link => {
-                const id = link.getAttribute('href').slice(1);
-                const target = printable.getElementById(id);
-                return target && { id: target.id, tag: target.tagName, text: target.textContent };
-            }),
-            documentLinkTarget: printable.getElementById(
-                printable.querySelector('p > a[href="#cafe-notes"]')?.getAttribute('href').slice(1)
-            )?.id,
-            mark: printable.querySelector('mark')?.textContent,
-            sub: printable.querySelector('sub')?.textContent,
-            superscript: printable.querySelector('sup:not(.footnote-ref)')?.textContent,
-            katex: printable.querySelectorAll('.katex').length,
-            tasks: Array.from(printable.querySelectorAll('.figaro-print-task-checkbox')).map(input => ({
-                checked: input.checked,
-                disabled: input.disabled,
-            })),
-            footnoteReference: printable.querySelector('.footnote-ref > a:first-child')?.getAttribute('href'),
-            footnoteDestination: printable.querySelector('.footnotes li')?.id,
-            vendorBundleLoaded: performance.getEntriesByType('resource')
-                .some(entry => entry.name.includes('/vendored/markdown-it-plugins/index.js')),
-        };
-    }, source);
-
-    expect(result.headings).toEqual(['cafe-notes', 'cafe-notes-2']);
-    expect(result.tocHrefs).toEqual(['#cafe-notes', '#cafe-notes-2']);
-    expect(result.tocTargets).toEqual([
-        { id: 'cafe-notes', tag: 'H1', text: 'Café Notes' },
-        { id: 'cafe-notes-2', tag: 'H2', text: 'Café Notes' },
-    ]);
-    expect(result.documentLinkTarget).toBe('cafe-notes');
-    expect(result.mark).toBe('highlighted');
-    expect(result.sub).toBe('2');
-    expect(result.superscript).toBe('2');
-    expect(result.katex).toBeGreaterThan(0);
-    expect(result.tasks).toEqual([
-        { checked: false, disabled: true },
-        { checked: true, disabled: true },
-    ]);
-    expect(result.footnoteReference).toBe('#footnote1');
-    expect(result.footnoteDestination).toBe('footnote1');
-    expect(result.vendorBundleLoaded).toBe(true);
+    expect(result.highlighted).toBe('highlighting');
+    expect(result.renderedMath).toBe(1);
+    await expect.poll(() => printBundleLoaded).toBe(true);
 });
 
 test('renders every section across pages with interactive links and numbered footnote destinations', async ({ page }) => {

@@ -223,6 +223,7 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         '.ui-document-tab': 2,
         '.ui-editor-fold-control': 1,
         '.ui-editor-block-guide': 4,
+        '.ui-image-resize-handle': 3,
         '.ui-spinner': 1,
         '.ui-skeleton': 6,
     };
@@ -255,6 +256,9 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         color: quietRest.muted,
         muted: quietRest.muted,
     });
+    // Finish catalogue navigation before measuring pointer-only paint: earlier
+    // keyboard focus can leave its smooth page scroll in flight under load.
+    await quietAction.evaluate(button => button.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await quietAction.hover();
     const quietHoverToken = await quietAction.evaluate(button => {
         const probe = document.createElement('span');
@@ -374,10 +378,55 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         return result;
     });
     expect(restingDangerPaint.color).not.toBe(restingDangerPaint.danger);
+    await dangerGuide.evaluate(button => button.scrollIntoView({ block: 'center', behavior: 'instant' }));
     await dangerGuide.hover();
     await expect(dangerGuide).toHaveCSS('color', restingDangerPaint.danger);
     await dangerGuide.focus();
     await expect(dangerGuide).toHaveCSS('color', restingDangerPaint.danger);
+
+    const resizeHandle = page.getByRole('button', { name: 'Resize image width' });
+    const resizePaint = await resizeHandle.evaluate(control => {
+        const probe = document.createElement('span');
+        probe.style.color = 'var(--accent-color)';
+        document.body.appendChild(probe);
+        const style = getComputedStyle(control);
+        const dot = getComputedStyle(control, '::after');
+        const result = {
+            width: style.width,
+            height: style.height,
+            border: style.borderTopWidth,
+            background: style.backgroundColor,
+            cursor: style.cursor,
+            touchAction: style.touchAction,
+            dotWidth: dot.width,
+            dotHeight: dot.height,
+            dotRadius: dot.borderRadius,
+            dotBackground: dot.backgroundColor,
+            accent: getComputedStyle(probe).color,
+        };
+        probe.remove();
+        return result;
+    });
+    expect(resizePaint).toEqual({
+        width: '28px',
+        height: '28px',
+        border: '0px',
+        background: 'rgba(0, 0, 0, 0)',
+        cursor: 'ew-resize',
+        touchAction: 'none',
+        dotWidth: '11px',
+        dotHeight: '11px',
+        dotRadius: '50%',
+        dotBackground: resizePaint.accent,
+        accent: resizePaint.accent,
+    });
+    await resizeHandle.focus();
+    await expect.poll(() => resizeHandle.evaluate(control => (
+        getComputedStyle(control, '::after').width
+    ))).toBe('13px');
+    expect(await resizeHandle.evaluate(control => (
+        getComputedStyle(control, '::after').boxShadow
+    ))).not.toBe('none');
 
     const search = page.getByLabel('Find a component');
     await search.fill('compact action');

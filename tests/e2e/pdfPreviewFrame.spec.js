@@ -2,6 +2,43 @@ import { expect, test } from '@playwright/test';
 
 const bridgeChannel = 'figaro-pdf-preview-v1';
 
+test('loads a sized note-relative image inside the sandboxed PDF preview', async ({ page }) => {
+    await page.route('**/vault/notes/portrait.svg', route => route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="153" viewBox="0 0 240 153"><rect width="240" height="153" fill="#7689d8"/></svg>',
+    }));
+    await page.goto('/');
+    await page.setContent('<iframe id="preview" title="PDF preview" sandbox="allow-scripts" src="/pdf/preview-frame.html" style="width: 800px; height: 600px; border: 0"></iframe>');
+    const frameLocator = page.frameLocator('#preview');
+    await expect(frameLocator.locator('script[nonce="figaro-pdf-preview-bridge"]')).toHaveCount(1);
+
+    const printable = await page.evaluate(async () => {
+        const pdf = await import('/js/pdfExport.js');
+        const preview = await import('/js/pdfPreview.js');
+        return preview.buildPDFPreviewDocument(
+            pdf.renderPrintableMarkdown('![Portrait|190x121](portrait.svg)', 'Sized image'),
+            { notePath: 'notes/report.md' },
+        );
+    });
+    const token = 'sized-image-token';
+    await page.evaluate(({ channel, token, printable }) => {
+        document.getElementById('preview').contentWindow.postMessage({
+            channel,
+            type: 'render',
+            token,
+            html: printable,
+            documentProgress: 0,
+        }, '*');
+    }, { channel: bridgeChannel, token, printable });
+
+    const image = frameLocator.locator('.figaro-print-document img[alt="Portrait"]');
+    await expect(image).toBeVisible();
+    await expect(image).toHaveAttribute('src', '/vault/notes/portrait.svg');
+    await expect(image).toHaveJSProperty('naturalWidth', 240);
+    await expect(image).toHaveCSS('width', '190px');
+    await expect(image).toHaveCSS('height', '121px');
+});
+
 test('keeps link activation inside the sandboxed PDF preview bridge', async ({ page }) => {
     await page.goto('/');
     await page.setContent('<iframe id="preview" title="PDF preview" sandbox="allow-scripts" src="/pdf/preview-frame.html" style="width: 800px; height: 600px; border: 0"></iframe>');

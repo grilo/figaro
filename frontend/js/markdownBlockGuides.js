@@ -19,6 +19,9 @@ import {
 } from './core/markdownBlockGuideModel.js';
 import { markdownFoldAnchorPlan } from './core/markdownFoldAnchorModel.js';
 import { markdownTableMetadataEnd } from './core/markdownTableEditorModel.js';
+import { taskItemActionPlan } from './core/taskItemActionModel.js';
+import { isFigaroVegaLiteChartSource } from './core/vegaLiteChartEditorModel.js';
+import { calendarIcon, kanbanIcon } from './icons.js';
 
 const foldAnchorReserveProperty = '--markdown-fold-anchor-reserve';
 
@@ -47,6 +50,14 @@ function topLevelBlocks(state) {
         });
     }
     return blocks;
+}
+
+function fencedBlockBody(source) {
+    const text = String(source || '');
+    const firstBreak = text.indexOf('\n');
+    const lastBreak = text.lastIndexOf('\n');
+    if (firstBreak < 0 || lastBreak <= firstBreak) return '';
+    return text.slice(firstBreak + 1, lastBreak).replace(/\r?\n$/u, '');
 }
 
 /** Build stable, DOM-free guide descriptors from the current Markdown tree. */
@@ -78,6 +89,9 @@ export function buildMarkdownBlockGuides(state) {
             : '';
         guides.push({
             ...plan,
+            ...(plan.label === 'vega-lite' ? {
+                managedChart: isFigaroVegaLiteChartSource(fencedBlockBody(block.source)),
+            } : {}),
             from: block.from,
             to: block.to,
             lineFrom: line.from,
@@ -100,13 +114,14 @@ export function buildMarkdownBlockGuides(state) {
             if (node.to > line.to) return;
             const imageSource = state.sliceDoc(node.from, node.to);
             if (line.text.trim() !== imageSource || guides.some(guide => (
-                guide.type === 'drawio' && guide.from === node.from && guide.to === node.to
+                (guide.type === 'drawio' || guide.type === 'image')
+                && guide.from === node.from && guide.to === node.to
             ))) return;
             const plan = markdownBlockGuidePlan({
                 name: 'Paragraph',
                 source: imageSource,
             });
-            if (plan?.type !== 'drawio') return;
+            if (plan?.type !== 'drawio' && plan?.type !== 'image') return;
             guides.push({
                 ...plan,
                 from: node.from,
@@ -122,6 +137,31 @@ export function buildMarkdownBlockGuides(state) {
     return guides.sort((left, right) => left.from - right.from || left.to - right.to);
 }
 
+/** Find syntax-backed unfinished task items without matching fence/frontmatter text. */
+export function buildTaskItemActionLines(state, from = 0, to = state.doc.length) {
+    const actions = [];
+    const seen = new Set();
+    const tree = ensureSyntaxTree(state, Math.min(state.doc.length, to)) || syntaxTree(state);
+    tree.iterate({
+        from: Math.max(0, from),
+        to: Math.min(state.doc.length, to),
+        enter(node) {
+            if (node.name !== 'Task') return;
+            const line = state.doc.lineAt(node.from);
+            if (seen.has(line.from)) return;
+            const plan = taskItemActionPlan(line.text);
+            if (!plan) return;
+            seen.add(line.from);
+            actions.push({
+                lineFrom: line.from,
+                lineTo: line.to,
+                dueDate: plan.dueDate,
+            });
+        },
+    });
+    return actions;
+}
+
 function exactFoldExists(state, guide) {
     let found = false;
     foldedRanges(state).between(guide.foldFrom, guide.foldTo, (from, to) => {
@@ -131,13 +171,25 @@ function exactFoldExists(state, guide) {
 }
 
 class MarkdownBlockGuideMarker extends GutterMarker {
-    constructor(guide, folded, showMermaidEditor = false, showDrawioEditor = false, showTableEditor = false) {
+    constructor(
+        guide,
+        folded,
+        showMermaidEditor = false,
+        showDrawioEditor = false,
+        showTableEditor = false,
+        showImageReset = false,
+        showChartEditor = false,
+        showChartConversion = false,
+    ) {
         super();
         this.guide = guide;
         this.folded = folded;
         this.showMermaidEditor = showMermaidEditor;
         this.showDrawioEditor = showDrawioEditor;
         this.showTableEditor = showTableEditor;
+        this.showImageReset = showImageReset;
+        this.showChartEditor = showChartEditor;
+        this.showChartConversion = showChartConversion;
     }
 
     eq(other) {
@@ -149,7 +201,12 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             && this.folded === other.folded
             && this.showMermaidEditor === other.showMermaidEditor
             && this.showDrawioEditor === other.showDrawioEditor
-            && this.showTableEditor === other.showTableEditor;
+            && this.showTableEditor === other.showTableEditor
+            && this.showImageReset === other.showImageReset
+            && this.showChartEditor === other.showChartEditor
+            && this.showChartConversion === other.showChartConversion
+            && this.guide.managedChart === other.guide.managedChart
+            && this.guide.imageSized === other.guide.imageSized;
     }
 
     foldControl() {
@@ -162,6 +219,8 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             subject = this.guide.label === 'code' ? 'code block' : `${this.guide.label} code block`;
         } else if (this.guide.type === 'drawio') {
             subject = 'Draw.io image';
+        } else if (this.guide.type === 'image') {
+            subject = 'image';
         }
         control.type = 'button';
         control.className = 'ui-editor-block-guide';
@@ -196,6 +255,27 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             actionControl.dataset.mermaidFrom = String(this.guide.from);
             actionControl.dataset.mermaidTo = String(this.guide.to);
             actionControls.push(actionControl);
+        } else if (this.showChartEditor && this.guide.label === 'vega-lite' && this.guide.managedChart) {
+            const editorControl = document.createElement('button');
+            editorControl.type = 'button';
+            editorControl.className = 'ui-editor-block-guide vega-lite-chart-editor-guide';
+            editorControl.textContent = 'editor';
+            editorControl.setAttribute('aria-label', 'Open Chart Editor for this Vega-Lite chart');
+            editorControl.title = 'Open Chart Editor';
+            editorControl.dataset.chartFrom = String(this.guide.from);
+            editorControl.dataset.chartTo = String(this.guide.to);
+            actionControls.push(editorControl);
+            if (this.showChartConversion) {
+                const tableControl = document.createElement('button');
+                tableControl.type = 'button';
+                tableControl.className = 'ui-editor-block-guide vega-lite-chart-to-table-guide';
+                tableControl.textContent = 'table';
+                tableControl.setAttribute('aria-label', 'Convert Vega-Lite chart back to Markdown table');
+                tableControl.title = 'Convert chart to table';
+                tableControl.dataset.chartFrom = String(this.guide.from);
+                tableControl.dataset.chartTo = String(this.guide.to);
+                actionControls.push(tableControl);
+            }
         } else if (this.showDrawioEditor && this.guide.type === 'drawio') {
             const actionControl = document.createElement('button');
             actionControl.type = 'button';
@@ -218,6 +298,17 @@ class MarkdownBlockGuideMarker extends GutterMarker {
                 editorControl.dataset.tableTo = String(this.guide.to);
                 actionControls.push(editorControl);
             }
+            if (this.showChartEditor) {
+                const chartControl = document.createElement('button');
+                chartControl.type = 'button';
+                chartControl.className = 'ui-editor-block-guide markdown-table-chart-guide';
+                chartControl.textContent = 'chart';
+                chartControl.setAttribute('aria-label', 'Convert Markdown table to Vega-Lite chart');
+                chartControl.title = 'Convert table to chart';
+                chartControl.dataset.tableFrom = String(this.guide.from);
+                chartControl.dataset.tableTo = String(this.guide.to);
+                actionControls.push(chartControl);
+            }
             const deleteControl = document.createElement('button');
             deleteControl.type = 'button';
             deleteControl.className = [
@@ -231,6 +322,20 @@ class MarkdownBlockGuideMarker extends GutterMarker {
             deleteControl.dataset.tableFrom = String(this.guide.from);
             deleteControl.dataset.tableTo = String(this.guide.to);
             actionControls.push(deleteControl);
+        }
+        if (this.showImageReset && (this.guide.type === 'image' || this.guide.type === 'drawio')) {
+            const originalControl = document.createElement('button');
+            originalControl.type = 'button';
+            originalControl.className = 'ui-editor-block-guide markdown-image-original-guide';
+            originalControl.textContent = 'original size';
+            originalControl.setAttribute('aria-label', 'Restore original image size');
+            originalControl.title = this.guide.imageSized
+                ? 'Restore original image size'
+                : 'Image is already at its original size';
+            originalControl.dataset.imageFrom = String(this.guide.from);
+            originalControl.dataset.imageTo = String(this.guide.to);
+            originalControl.disabled = !this.guide.imageSized;
+            actionControls.push(originalControl);
         }
         if (!actionControls.length) return foldControl;
 
@@ -252,6 +357,66 @@ class MarkdownBlockGuideSpacer extends GutterMarker {
         spacer.textContent = 'x'.repeat(MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH);
         spacer.setAttribute('aria-hidden', 'true');
         return spacer;
+    }
+}
+
+class TaskItemActionMarker extends GutterMarker {
+    constructor(action, showKanban, showCalendar) {
+        super();
+        this.action = action;
+        this.showKanban = showKanban;
+        this.showCalendar = showCalendar;
+    }
+
+    eq(other) {
+        return this.action.lineFrom === other.action.lineFrom
+            && this.action.dueDate === other.action.dueDate
+            && this.showKanban === other.showKanban
+            && this.showCalendar === other.showCalendar;
+    }
+
+    actionButton({ className, label, title, icon }) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `ui-icon-button ui-icon-button--small ${className}`;
+        button.setAttribute('aria-label', label);
+        button.title = title;
+        button.dataset.taskLineFrom = String(this.action.lineFrom);
+        button.innerHTML = icon;
+        button.querySelector('svg')?.setAttribute('aria-hidden', 'true');
+        button.addEventListener('mousedown', event => {
+            if (event.button === 0) event.preventDefault();
+        });
+        return button;
+    }
+
+    toDOM() {
+        const controls = document.createElement('div');
+        controls.className = 'cm-task-action-guide';
+        controls.setAttribute('role', 'group');
+        controls.setAttribute('aria-label', 'Task actions');
+        if (this.showKanban) {
+            const kanban = this.actionButton({
+                className: 'cm-task-kanban-action',
+                label: 'Assign task to Kanban column',
+                title: 'Assign Kanban column',
+                icon: kanbanIcon(13, 2),
+            });
+            kanban.setAttribute('aria-haspopup', 'listbox');
+            controls.appendChild(kanban);
+        }
+        if (this.showCalendar) {
+            const hasDueDate = Boolean(this.action.dueDate);
+            const calendar = this.actionButton({
+                className: 'cm-task-calendar-action',
+                label: hasDueDate ? 'Change task due date' : 'Set task due date',
+                title: hasDueDate ? 'Change due date' : 'Set due date',
+                icon: calendarIcon(13, 2),
+            });
+            calendar.setAttribute('aria-haspopup', 'dialog');
+            controls.appendChild(calendar);
+        }
+        return controls;
     }
 }
 
@@ -328,10 +493,24 @@ function applyFoldAnchorPlan(view, guide, targetGuideTop, correctionPass = 0) {
  * Guide planning and folding stay source-only; the application composition
  * root decides how opening the focused editor is handled.
  */
-export function createMarkdownBlockGuidesExtension({ openMermaidEditor, openDrawioEditor, openTableEditor } = {}) {
+export function createMarkdownBlockGuidesExtension({
+    openMermaidEditor,
+    openDrawioEditor,
+    openTableEditor,
+    openChartEditor,
+    convertChartToTable,
+    resetImageSize,
+    openTaskKanban,
+    openTaskCalendar,
+} = {}) {
     const showMermaidEditor = typeof openMermaidEditor === 'function';
     const showDrawioEditor = typeof openDrawioEditor === 'function';
     const showTableEditor = typeof openTableEditor === 'function';
+    const showChartEditor = typeof openChartEditor === 'function';
+    const showChartConversion = typeof convertChartToTable === 'function';
+    const showImageReset = typeof resetImageSize === 'function';
+    const showTaskKanban = typeof openTaskKanban === 'function';
+    const showTaskCalendar = typeof openTaskCalendar === 'function';
     const markerPlugin = ViewPlugin.fromClass(class {
         constructor(view) {
             synchronizeEditorBlockActionLayout(view);
@@ -355,17 +534,37 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor, openDraw
 
         rebuild(view) {
             this.guides = buildMarkdownBlockGuides(view.state);
+            this.taskActions = showTaskKanban || showTaskCalendar
+                ? buildTaskItemActionLines(view.state, view.viewport.from, view.viewport.to)
+                : [];
             const builder = new RangeSetBuilder();
+            const entries = [];
             for (const guide of this.guides) {
                 if (guide.lineFrom < view.viewport.from || guide.lineFrom > view.viewport.to) continue;
-                builder.add(guide.lineFrom, guide.lineFrom, new MarkdownBlockGuideMarker(
-                    guide,
-                    exactFoldExists(view.state, guide),
-                    showMermaidEditor,
-                    showDrawioEditor,
-                    showTableEditor,
-                ));
+                entries.push({
+                    from: guide.lineFrom,
+                    marker: new MarkdownBlockGuideMarker(
+                        guide,
+                        exactFoldExists(view.state, guide),
+                        showMermaidEditor,
+                        showDrawioEditor,
+                        showTableEditor,
+                        showImageReset,
+                        showChartEditor,
+                        showChartConversion,
+                    ),
+                });
             }
+            const occupiedLines = new Set(entries.map(entry => entry.from));
+            for (const action of this.taskActions) {
+                if (occupiedLines.has(action.lineFrom)) continue;
+                entries.push({
+                    from: action.lineFrom,
+                    marker: new TaskItemActionMarker(action, showTaskKanban, showTaskCalendar),
+                });
+            }
+            entries.sort((left, right) => left.from - right.from);
+            for (const entry of entries) builder.add(entry.from, entry.from, entry.marker);
             this.markers = builder.finish();
         }
     });
@@ -380,6 +579,9 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor, openDraw
                 showMermaidEditor,
                 showDrawioEditor,
                 showTableEditor,
+                showImageReset,
+                showChartEditor,
+                showChartConversion,
             )
             : null;
     };
@@ -401,6 +603,39 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor, openDraw
             },
             domEventHandlers: {
                 click(view, line, event) {
+                    const taskKanbanControl = event.target?.closest?.('.cm-task-kanban-action');
+                    if (taskKanbanControl) {
+                        const taskLine = view.state.doc.lineAt(line.from);
+                        if (taskItemActionPlan(taskLine.text)) {
+                            openTaskKanban?.(view, taskLine, taskKanbanControl);
+                        }
+                        return true;
+                    }
+
+                    const taskCalendarControl = event.target?.closest?.('.cm-task-calendar-action');
+                    if (taskCalendarControl) {
+                        const taskLine = view.state.doc.lineAt(line.from);
+                        if (taskItemActionPlan(taskLine.text)) {
+                            openTaskCalendar?.(view, taskLine, taskCalendarControl);
+                        }
+                        return true;
+                    }
+
+                    const imageOriginalControl = event.target?.closest?.('.markdown-image-original-guide');
+                    if (imageOriginalControl) {
+                        const requestedFrom = Number(imageOriginalControl.dataset.imageFrom);
+                        const requestedTo = Number(imageOriginalControl.dataset.imageTo);
+                        const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                            (candidate.type === 'image' || candidate.type === 'drawio')
+                            && candidate.from === requestedFrom
+                            && candidate.to === requestedTo
+                        )) || guideOnLine(view.state, line.from);
+                        if (guide?.type === 'image' || guide?.type === 'drawio') {
+                            resetImageSize?.(view, guide, imageOriginalControl);
+                        }
+                        return true;
+                    }
+
                     const tableEditorControl = event.target?.closest?.('.markdown-table-editor-guide');
                     if (tableEditorControl) {
                         const requestedFrom = Number(tableEditorControl.dataset.tableFrom);
@@ -411,6 +646,47 @@ export function createMarkdownBlockGuidesExtension({ openMermaidEditor, openDraw
                             && candidate.to === requestedTo
                         )) || guideOnLine(view.state, line.from);
                         if (guide?.type === 'table') openTableEditor?.(view, guide, tableEditorControl);
+                        return true;
+                    }
+
+                    const tableChartControl = event.target?.closest?.('.markdown-table-chart-guide');
+                    if (tableChartControl) {
+                        const requestedFrom = Number(tableChartControl.dataset.tableFrom);
+                        const requestedTo = Number(tableChartControl.dataset.tableTo);
+                        const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                            candidate.type === 'table'
+                            && candidate.from === requestedFrom
+                            && candidate.to === requestedTo
+                        )) || guideOnLine(view.state, line.from);
+                        if (guide?.type === 'table') openChartEditor?.(view, guide, tableChartControl);
+                        return true;
+                    }
+
+                    const chartEditorControl = event.target?.closest?.('.vega-lite-chart-editor-guide');
+                    if (chartEditorControl) {
+                        const requestedFrom = Number(chartEditorControl.dataset.chartFrom);
+                        const requestedTo = Number(chartEditorControl.dataset.chartTo);
+                        const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                            candidate.label === 'vega-lite'
+                            && candidate.from === requestedFrom
+                            && candidate.to === requestedTo
+                        )) || guideOnLine(view.state, line.from);
+                        if (guide?.label === 'vega-lite') openChartEditor?.(view, guide, chartEditorControl);
+                        return true;
+                    }
+
+                    const chartTableControl = event.target?.closest?.('.vega-lite-chart-to-table-guide');
+                    if (chartTableControl) {
+                        const requestedFrom = Number(chartTableControl.dataset.chartFrom);
+                        const requestedTo = Number(chartTableControl.dataset.chartTo);
+                        const guide = buildMarkdownBlockGuides(view.state).find(candidate => (
+                            candidate.label === 'vega-lite'
+                            && candidate.from === requestedFrom
+                            && candidate.to === requestedTo
+                        )) || guideOnLine(view.state, line.from);
+                        if (guide?.label === 'vega-lite') {
+                            convertChartToTable?.(view, guide, chartTableControl);
+                        }
                         return true;
                     }
 

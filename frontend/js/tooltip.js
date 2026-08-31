@@ -43,6 +43,14 @@ function tooltipScope(target) {
     return label?.contains(target) ? label : target;
 }
 
+function explainsDisabledControl(target) {
+    const scope = tooltipScope(target);
+    if (!scope) return false;
+    return target.matches?.(':disabled, [aria-disabled="true"]')
+        || scope.matches?.(':disabled, [aria-disabled="true"]')
+        || Boolean(scope.querySelector?.(':disabled, [aria-disabled="true"]'));
+}
+
 function tooltipAnchorRect(target) {
     const rect = target.getBoundingClientRect();
     if (rect.width > 0 || rect.height > 0) return rect;
@@ -196,8 +204,20 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
     const onKeyDown = event => {
         if (event.key === 'Escape' && (activeTarget || showTimer !== null)) hide({ suppress: true });
     };
-    const onPointerDown = () => hide({ suppress: true });
-    const onClick = () => hide({ suppress: true });
+    const showDisabledExplanation = event => {
+        const target = tooltipTarget(event.target);
+        if (!target || !explainsDisabledControl(target)) return false;
+        suppressedTarget = null;
+        hoverTarget = target;
+        show(target);
+        return true;
+    };
+    const onPointerDown = event => {
+        if (!showDisabledExplanation(event)) hide({ suppress: true });
+    };
+    const onClick = event => {
+        if (!showDisabledExplanation(event)) hide({ suppress: true });
+    };
     const onViewportChange = () => hide({ suppress: true });
 
     adoptTitlesIn(root.documentElement);

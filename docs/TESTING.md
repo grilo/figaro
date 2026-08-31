@@ -121,10 +121,12 @@ Architecture guardrails reject imports that point from the pure core back to
 adapters or composition roots. They also walk static imports and explicit
 worker edges from the eager bootstrap and print-renderer build entries so an
 orphaned first-party module fails the suite instead of silently remaining in
-the tree. The same policy rejects object-valued default-export wrappers; first-party
-modules expose the named APIs their consumers and focused tests actually use.
-Add a guard when introducing the first module in a new layer rather than
-relying on naming conventions alone.
+the tree. The graph must remain acyclic, only `bootstrap.js` may import the
+frontend `app.js` composition root, and only `app.js` may import
+`tabManager.js`. The same policy rejects object-valued default-export wrappers;
+first-party modules expose the named APIs their consumers and focused tests
+actually use. Add a guard when introducing the first module in a new layer
+rather than relying on naming conventions alone.
 
 ### Eager-startup contract
 
@@ -443,7 +445,10 @@ combobox and compares its popup surface, text, and border with the active theme
 tokens; computed popup styling cannot be proven in jsdom. It also compares both
 settings steppers' computed button and value backgrounds, because cascade
 equality cannot be proven in jsdom, and confirms that every shared primitive
-family is present in the rendered catalogue. The same boundary checks the
+family is present in the rendered catalogue. Settle the catalogue's smooth
+page scrolling before pointer-only paint assertions; a hover must target the
+control's final geometry, not an in-flight keyboard-focus scroll.
+The same boundary checks the
 skeleton's theme-derived fill, radius, clipping, and active shimmer; the unit
 contract owns its reduced-motion rule. The tooltip specimen additionally
 proves hover delay completion, immediate keyboard-focus exposure, Escape
@@ -534,8 +539,12 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   rewriting source. The same renderer coverage proves that only a parsed body
   `---` thematic break becomes an authored PDF page break: frontmatter and
   Setext headings remain structural, and `***` / `___` remain visible rules.
-  The consolidated browser case carries one authored break through the real
-  vendored renderer used by preview/export.
+  The consolidated browser case carries one authored break and representative
+  highlighting/math through the real vendored renderer used by preview/export.
+  Plugin anchor, task, footnote, and inline-transformation rules remain in
+  `export.test.js`, rather than a duplicate browser matrix. Observe dependency
+  loading through browser request events, not the size-limited Resource Timing
+  buffer, which can omit eagerly loaded modules in the assembled application.
 - Dependency security coverage for patched root lockfile entries and embedded
   packages that `npm audit` cannot see. Mermaid's actual browser bundle remains
   behind a pure pre-parse size and ordered-map policy until its embedded YAML
@@ -569,9 +578,16 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   visible/`aria-hidden`/`inert` focus boundary.
 - The sandboxed PDF-preview bridge: user `html`/`body` styles apply inside the
   frame, external links cannot navigate it away, and fragment/footnote-return
-  links remain in the rendered document. Printable block source ranges and the
-  shared 30% marker must keep editor/preview positions aligned across several
-  differently sized code blocks, with percentage fallback for unmapped areas.
+  links remain in the rendered document. A routed note-relative local image
+  must load inside that real opaque-origin frame with any authored dimensions
+  intact; `pdfPreviewImageModel.test.js` owns the pure resolution/containment
+  plan and jsdom covers DOM rewriting plus attribute preservation. Once the
+  first render settles, a deliberately suspended editor refresh must leave the
+  loading badge hidden, the settled status unchanged, and the prior bridge
+  snapshot mounted until the new printable document is ready.
+  Printable block source ranges and the shared 30% marker must keep
+  editor/preview positions aligned across several differently sized code
+  blocks, with percentage fallback for unmapped areas.
   High-frequency scroll reports are coalesced before they can cause a matching
   burst of editor updates. The
   real-browser suite also verifies that printable Markdown preparation enters
@@ -809,7 +825,9 @@ selection suppression during a real pointer pan, fixed blank buffer-status row, 
 range request on entering the two-week edge buffer, preservation of a visible
 shared day's viewport coordinate after insertion, Timeline release when a note
 takes the workspace, fresh rendering on return, existing-tab reuse, new-tab creation, and
-the resulting CodeMirror cursor line. Do not duplicate range, direction, or
+the resulting CodeMirror cursor line. Pin the fixture's clock so that an
+ordinary weekday cannot acquire Today styling as the real date changes.
+Do not duplicate range, direction, or
 appearance matrices in Playwright.
 
 Calendar, Kanban, and Graph must each open or switch to one de-duplicated,
@@ -930,12 +948,17 @@ vocabulary until save. Keep these in
 `tests/frontend/unit/taskDueDateCompletionModel.test.js`,
 `tests/frontend/unit/taskDueDateCompletions.test.js`,
 `tests/frontend/unit/datePicker.test.js`,
-`tests/frontend/unit/dateShortcutEditor.test.js`, `tests/frontend/unit/kanban.test.js`,
+`tests/frontend/unit/dateShortcutEditor.test.js`,
+`tests/frontend/unit/authoringMacroModel.test.js`,
+`tests/frontend/unit/authoringMacroCompletions.test.js`,
+`tests/frontend/unit/authoringMacroEditor.test.js`,
+`tests/frontend/unit/createDrawioImage.test.js`, `tests/frontend/unit/kanban.test.js`,
 `tests/frontend/unit/home.test.js`, and
 `tests/frontend/unit/calendarCache.test.js`. The static discoverability
 contract belongs in `tests/frontend/unit/markdownCheatsheet.test.js`: it keeps
 ordinary Markdown free of Figaro semantic rows, inventories every supported
-relative-date, Calendar-link, Kanban-column, and due-date macro, inventories
+relative-date, Calendar-link, structured editor, sibling-Draw.io, task-list,
+Kanban-column, and due-date macro, inventories
 the application shortcuts, and proves the three-topic tablist's
 selected/tabbable/panel state plus click, arrow, F1, and Escape behavior with
 invoker-focus restoration. Its shortcut inventory must include the sequential
@@ -1141,6 +1164,30 @@ error treatment across contrasting themes, enters and leaves the source while
 measuring the following line, crosses the widget with Arrow Up/Down, and drags
 a selection across its Markdown range.
 
+Successfully loaded resizable images use a separate geometry contract. Pure
+`markdownImageModel.test.js` cases own hint parsing/serialization, intrinsic
+fit, minimum dimensions, right-edge width capping, first-edge proportional
+capping, and the ten-times-intrinsic vertical limit. CodeMirror component
+coverage owns the accessible three-handle structure, tooltip lifecycle,
+source-only reset, and Arrow Up/Down traversal. The existing focused image
+browser workflow must use real pointer capture to prove a handle keeps the
+image rendered while previewing its final geometry, its 28px hit area and centered live
+readout, right/bottom computed edge constraints, original-size guide action,
+geometry-matched source placeholder, following-line stability, mouse source
+reveal, and bidirectional cursor/selection behavior. Printable renderer tests
+must prove the same hint becomes standard width/height attributes and exact
+inline geometry without contaminating alt text; PDF Preview and export continue
+through the consolidated clipboard-image browser workflow.
+
+The CodeMirror component must dispatch at least two pointer moves in one resize
+gesture, assert the frame/readout change while source remains exact, then prove
+pointer release writes the final hint once, one Undo restores the pre-gesture
+source, and one Redo restores the final hint. A subsequent completed resize
+must increment history depth independently and Undo only to the preceding
+gesture. Pointer cancellation must restore the starting frame, preserve source,
+and add no history item; a press/release without geometry movement must likewise
+leave source and history untouched.
+
 Mermaid virtualization has a separate performance contract. The pure
 `diagramRenderCacheModel.test.js` suite covers normalized source keys and SVG
 id rebasing, `diagramRenderQueue.test.js` covers serialized work and
@@ -1286,7 +1333,9 @@ npx playwright test tests/e2e/editorUX.spec.js --grep 'Ctrl\+wheel text scale'
 ```
 
 Markdown block guides add their own focused matrix. Pure coverage must prove
-that only headings, fenced code, tables, and standalone local Draw.io images receive guides; typed fences use a
+that only headings, fenced code, tables, and standalone images receive guides;
+ordinary images expose `image` plus the size-dependent **original size** action,
+while local Draw.io images retain `drawio`/`editor`; typed fences use a
 bounded normalized language label; untyped fences use `code`; frontmatter and
 every omitted block stay quiet; and parent/child/peer heading plus fence/table
 ranges remain exact. `blockControlVisibilityModel.test.js` separately proves
@@ -1332,41 +1381,133 @@ WebView2, and WKWebView build, repeat those cursor and drag checks with both
 line numbers off and on.
 
 The Mermaid Editor extends that matrix without creating a new block widget.
-Pure tests cover the complete 32-type/76-template catalogue, parser-location
+Pure tests cover the complete 32-type/76-template catalogue, all adaptive Style
+descriptors, color/contrast derivation, conservative frontmatter merging and
+refusal (including overriding init directives), exact/custom theme reconstruction,
+parsed-node projection and membership validation, native/class fill restoration,
+palette cardinality, short/repeating XY palette expansion, native style-section
+round trips, parser-location
 diagnostics, whitespace-only empty-state policy, adaptive render delay, exact
 fence-body replacement, raw Markdown fence discovery/document-offset mapping,
 and pointer-centered bounded zoom/pan transforms. A use-case test injects the
 Mermaid validation boundary and proves valid fences stay quiet while parser
 failures combine with the existing Markdown checks.
-Use-case tests prove debounce, latest-only publication, serialized rendering,
-and last-known-good preservation. The CodeMirror component proves the action is
+Use-case tests prove debounce, latest-only inspection publication, serialized
+rendering, and last-known-good preservation. Adapter tests snapshot Mermaid's
+mutable vertices/classes/config without leaking references, prevent renders
+from interleaving inspection, and recover the engine queue after errors.
+The CodeMirror component proves the action is
 present in raw and rendered states, skips non-Mermaid fences, keeps chart
 browsing live for empty/template-backed buffers while protecting existing or
 manually edited source, and makes Apply one undoable root transaction while
-Cancel dispatches nothing. A DOM-adapter test covers keyboard preview
-navigation without source effects, and the shared combobox test proves dynamic
+Cancel dispatches nothing. Component tests prove Source/Style switching,
+type-specific panel replacement, Kanban palette reuse, invalid-source
+suppression, selected-node controls preceding a long bounded list, roving
+Arrow/Home/End node selection, style-control focus restoration, palette survival
+across preview statuses, reset swatch synchronization, explicit node-editing instructions, and one
+native source update per style choice. A DOM-adapter test
+covers keyboard preview navigation, rendered-node selection versus drag
+panning, and source-free transforms, while the shared combobox test proves dynamic
 option refresh. One browser workflow owns the irreducible focus, compact
 left-aligned linked pickers, ordinary disabled cursor, real wheel zoom and drag
 panning, explicit SVG dimension growth without a scaled canvas, two-axis SVG
-fitting, proportional two-pane growth up to the bounded dialog and narrow
-stacking, left-rail control alignment, first-success empty-state
-removal, rendered-diagram collapse/expand, lint tooltip/SVG, stale-preview,
+fitting, larger preview-pane growth up to the bounded dialog and narrow
+stacking without footer clipping (including short windows), left-rail control alignment, first-success empty-state
+removal, real Mermaid SVG node-id selection, applied node fill, Style-panel
+overflow, long-list containment, selected-editor visibility on first opening
+and after preview selection, focus after shape/color changes, palette Escape
+and preview-refresh survival, non-checkbox node swatches, rendered-diagram collapse/expand, lint tooltip/SVG, stale-preview,
 borderless gutter, and undo boundaries; a focused companion verifies inherited Vim mode
 and wrapped display-row motion after the first diagnostics transaction, while
-the parser loop verifies every bundled template.
+`tests/e2e/mermaidRenderer.spec.js` replaces the former parser-only loop with
+the real SVG boundary: all 32 types/76 templates render, with 304 additional
+Document/Neutral/Accent/dark preset renders. Every offered color must visibly
+paint a geometry/text mark in a representative bundled example; conditional
+targets such as notes or activations are checked across that type's examples.
+The test attaches its per-type/target matrix, and checks parser identities
+against rendered node counts for chains, standalone nodes, icon labels, and
+native/class fills. This remains one renderer-boundary test, not an end-to-end
+dialog workflow per diagram. Pure source transformations stay in unit tests.
 
 The interactive-table browser contract also owns the shared helper-rail action
-placement boundary. It must prove that `editor` and `delete` remain beneath `table`, stay
+placement boundary. It must prove that `editor`, `chart`, and `delete` remain in
+that order beneath `table`, stay
 outside the grid on every sampled frame while Document Outline changes editor
 width, moves above the grid rather than beneath the sidebar when the measured
 left margin is too narrow, adopts destructive styling only on hover/focus, and
 still deletes and undoes through one normal table transaction.
 The existing diagram cursor/drag browser scenario remains the geometry oracle.
 
+The table-backed Vega-Lite Chart Editor has one focused cross-layer contract.
+Pure model tests own table validation and type inference, retained hidden-column
+settings, mark/orientation/stack policy, one shared scale per primary/opposite
+axis, the complete visible-series legend domain and four-side legend position,
+safe recognition and upgrade of the earlier managed legend shape, threshold
+placement without axis ownership, upgrade of the earlier axis-suppressing
+threshold shape, hidden authored-row linear-regression predictors and legacy
+category-predictor upgrades, Pie normalization,
+first-column Cartesian ownership even for numeric-first tables, all-column
+Pie/Waterfall category selection, independent numeric-value
+selection, Waterfall running totals, exact table metadata, canonical foreign-JSON
+detection, and height clamping. Component tests own the approved modal
+structure and names, mode visibility, preview/error states, non-destructive
+Cancel, the absence of a redundant Cartesian Category control, all category
+options in both special-mode comboboxes, stale-source protection, the fixed
+first-column category row, shared Kanban palette selection,
+square series/guide color triggers, disabled-trendline tooltip content, the
+compact editable threshold stepper, direct segmented series and threshold axis
+choices, one-row Mode/Orientation and threshold-control placement, shared
+Top/Right/Bottom/Left legend choices, eye/eye-off visibility buttons, borderless
+preview chrome, removed instructional hints, column-only separators, and one
+root Apply transaction. The shared palette
+component contract separately owns listbox selection state, automatic-option
+policy, focus restoration, Escape, and fixed-menu viewport clamping. Diagram and
+source-footprint component tests own delayed resize serialization, pointer
+cancel, tooltip lifecycle, the non-wrapping equal-height source placeholder,
+one Undo step, the temporary connected container-width render surface and its
+cleanup, theme configuration, and rejection of zero-geometry SVG output.
+Component coverage injects both an engine error and a mapping with no visible
+number series, then asserts the themed live alert and disabled Apply action;
+combobox coverage owns its approved structure, keyboard operation, and
+modal-preserving Escape behavior. Its pure floating-menu placement coverage
+owns above/below selection and viewport clamping; the component adapter test
+owns applying and clearing that geometry. The printable renderer gets one managed
+chart to prove that the existing
+Vega-Lite-to-SVG path preserves authored height in Preview/export.
+
+Only one browser workflow is needed for irreducible geometry and engine
+behavior. It converts a real rendered three-column table, renders Cartesian,
+Pie, and Waterfall with the bundled Vega-Lite engine, proves that the approved
+combobox opens a themed listbox without dismissing the modal, the preview and
+axis text inherit the active Figaro appearance, the preview pane is at least
+1.5 times the configuration width, and the SVG is vertically centered. It
+also checks default and narrow-pane control rectangles for overlap and
+horizontal overflow, proves mark and trendline labels do not wrap, color
+triggers remain square, the four threshold controls stay in one row, section and
+preview borders are absent, and the disabled trendline explanation is visibly
+rendered above the modal and inside the viewport when the complete plain label
+is hovered or clicked. It enables a trendline over nominal first-column labels
+and requires a non-empty dashed SVG path, then proves the stacked-mark blocker.
+It also proves the first column remains the Cartesian category and has no
+category combobox. The real SVG contains all mixed-mark
+series, moves their shared legend from right to bottom, and updates that legend
+when an eye button hides and restores a later column. Enabling a threshold on
+Primary and Opposite preserves every axis title in both chart orientations.
+Both combobox and
+palette listboxes stay within viewport bounds. It then compares one explicit
+data paint plus the themed backing surface before and after Apply,
+drags the actual bottom handle while source remains unchanged until release,
+undoes that single resize, compares rendered/source document coordinates,
+checks Arrow Up/Down plus mouse placement and bidirectional drag selection, and
+confirms exact chart-to-table conversion and Undo. Repeat its cursor, pointer,
+and source-reveal checks in the packaged WebKitGTK/WebView2/WKWebView smoke;
+Chromium cannot prove native webview geometry.
+
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/editorBlockActionLayoutModel.test.js \
   tests/frontend/unit/mermaidEditorModel.test.js \
+  tests/frontend/unit/mermaidStyleEditorModel.test.js \
   tests/frontend/unit/mermaidPreviewSession.test.js \
   tests/frontend/unit/mermaidEditorGuide.test.js \
   tests/frontend/unit/mermaidEditor.test.js \
@@ -1377,15 +1518,30 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/diagramRenderCacheModel.test.js \
   tests/frontend/unit/diagramRenderQueue.test.js \
   tests/frontend/unit/diagramRenderer.test.js
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/colorPalettePicker.test.js \
+  tests/frontend/unit/floatingMenuModel.test.js \
+  tests/frontend/unit/vegaLiteChartEditorModel.test.js \
+  tests/frontend/unit/vegaLiteChartEditor.test.js \
+  tests/frontend/unit/vegaLiteChartEditorGuide.test.js \
+  tests/frontend/unit/liveDiagramPlugin.test.js \
+  tests/frontend/unit/sourceFootprintModel.test.js \
+  tests/frontend/unit/blockWidgetLayout.test.js \
+  tests/frontend/unit/export.test.js
 npx playwright test \
   tests/e2e/mermaidEditor.spec.js \
-  tests/e2e/editorUX.spec.js --grep "math and diagram previews cursor-safe"
+  tests/e2e/mermaidRenderer.spec.js
+npx playwright test tests/e2e/editorUX.spec.js --grep "math and diagram previews cursor-safe"
+npx playwright test tests/e2e/vegaLiteChartEditor.spec.js
 npx playwright test tests/e2e/vimVisualRows.spec.js --grep "reuses Mermaid rendering"
 ```
 
 In the packaged WebKitGTK/WebView2/WKWebView smoke, open the Mermaid Editor from
 both a rendered block and revealed source, traverse chart types with arrows,
-hover one invalid range, Cancel, then Apply and undo. With Vim enabled, verify
+hover one invalid range, Cancel, then Apply and undo. Also verify
+the Style panel's initial node inspector, chained/standalone nodes, native/class
+fill reset, control focus after shape/color edits, palette Escape/cleanup,
+and compact-pane containment above the footer. With Vim enabled, verify
 Insert/Escape, Visual mode, and the configured wrapped-row `j`/`k` behavior in
 the temporary editor. Repeat Arrow Up/Down plus
 forward/reverse drag selection immediately around the block with line numbers
@@ -1543,6 +1699,8 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/fileTree.test.js \
   tests/frontend/unit/imageSystem.test.js \
   tests/frontend/unit/markdownBlockGuides.test.js \
+  tests/frontend/unit/markdownImageGuide.test.js \
+  tests/frontend/unit/markdownImageModel.test.js \
   tests/frontend/unit/markdownImagePlugin.test.js
 npx playwright test tests/e2e/clipboardImagePaste.spec.js
 ```
@@ -1564,6 +1722,16 @@ complete rebuild and match a fresh application plus an independent disk walk.
 Changes to tree actions, tab persistence, link rewriting, vault copy helpers,
 path validation, or duplicate naming must retain Go coverage for the filesystem
 and link results plus frontend coverage for commands and refusal dialogs.
+
+Referenced-file rename adds one focused decision boundary to that contract.
+`pathRenameReferenceModel.test.js` owns de-duplicated/sorted note presentation
+and update/keep/cancel mapping. `fileTree.test.js` owns preview-after-dirty-save,
+no-question rename when the preview is empty, all three dialog outcomes, and
+open-tab/reference refresh after an update. Root-scoped desktop coverage owns a
+read-only exact preview, Draw.io and Markdown targets, exclusion of a renamed
+note's self-reference from the incoming-note prompt, explicit rewrite, and an
+explicit unchanged-reference rename. The collector is shared with the existing
+link-rewrite tests; do not duplicate its syntax matrix in a browser workflow.
 
 Run the focused contract before the full suites:
 
@@ -1604,6 +1772,16 @@ remount, pointer activation in the padded target, Arrow Up/Down across the task
 from both directions, and drag selection across the replacement. Repeat those
 cursor and focus checks in the packaged WebKitGTK/WebView2/WKWebView smoke run
 after changing this widget; Chromium cannot establish native-webview geometry.
+
+`taskItemActionModel.test.js` owns open-task recognition, Calendar-first versus
+Kanban-first equivalence, existing-tag de-duplication, due-link replacement and
+clearing, and canonical tag-before-due output. Syntax-tree coverage must exclude
+checked tasks, frontmatter, and fenced examples. The focused editor component
+owns the approved small-icon structure and accessible popup names, the real
+CodeMirror completion inventory, date-picker handoff, source transaction, and
+final cursor. Extend the existing task browser case—not a second workflow—to
+prove both 22px controls, checked-task removal, real gutter line mapping,
+autocomplete/date-picker activation, Arrow Up/Down, and drag selection.
 
 ## Search and shell accessibility regressions
 
@@ -1745,7 +1923,10 @@ external read binding, and commit the selected tab plus CodeMirror document
 ownership only after that read succeeds. Failed and superseded reads must leave
 the previous tab and buffer paired. Native drops onto the file tree must show
 the destination-specific import confirmation before any copy binding; cancel
-must produce no backend mutation. Buffer drops
+must produce no backend mutation. Root-scoped adapter coverage must run the
+same duplicate-name, unsupported-source, nested-symlink, and recursive-copy
+preflight through copy and recursive-merge modes and prove rejection writes
+nothing. Buffer drops
 must prevent CodeMirror's uncontrolled path insertion, ask once for an entire
 native drop batch, insert the selected path at the drop position, and call the recursive collision-safe
 import once for a dropped directory. A successful dropped-file import must
@@ -1887,8 +2068,10 @@ desktop tests own exact-path launch, missing/directory/symlink/traversal refusal
 and launcher failure; editable-file opening, drag, and remaining context-menu
 behavior must remain unchanged.
 
-Cut/Paste coverage reuses the move seam: component tests must prove Ctrl/Cmd+X
-followed by Ctrl/Cmd+V invokes `MovePath` rather than `CopyPath`, carries a
+Cut/Paste coverage reuses the move seam: the pure `fileTreeKeyCommand` matrix
+owns modifier policy, context-menu targeting, cut cancellation, rename/delete,
+navigation, and clipboard command selection. Component tests must prove
+Ctrl/Cmd+X followed by Ctrl/Cmd+V invokes `MovePath` rather than `CopyPath`, carries a
 mixed selected set including an unsupported file, clears the cut clipboard only
 after every move succeeds, retains unresolved entries after cancellation or
 failure, derives visible and assistive scissors markers for mounted and
@@ -2014,6 +2197,15 @@ bidirectional drag selection retain their previous behavior. The same browser
 case folds and expands the Draw.io image, opens its editor from the left guide,
 and publishes the exact file-tree deletion signal; the versioned preview must
 disappear and the safe Create action must return.
+
+The `@drawio` authoring macro reuses those boundaries instead of adding another
+browser workflow. `authoringMacroModel.test.js` owns the `diagram1` default,
+suffix normalization, explicit sibling reference, validation, and insertion
+plan; `authoringMacroCompletions.test.js` owns retention of the token through
+the name/create effect and exact unchanged-token replacement. The Draw.io use
+case test additionally owns create → reference insertion → open → background
+refresh ordering and the stale-token result that preserves the created asset
+without opening it.
 
 Run the focused contract with:
 

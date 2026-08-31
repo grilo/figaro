@@ -164,6 +164,8 @@ test('keeps Ctrl+wheel text scale on the open buffer and resets it to the Settin
     });
     expect(anchor.prevented).toBe(true);
     await expect(page.locator('#editor-scale-status')).toHaveText('Scale 120%');
+    await expect(page.locator('#status-bar')).toHaveAttribute('data-editor-scale-reveal', 'true');
+    await expect(page.locator('.status-buffer-left')).toHaveCSS('opacity', '1');
     await expect.poll(() => page.evaluate(() => Number.parseFloat(
         getComputedStyle(document.documentElement).getPropertyValue('--font-size-editor'),
     ))).toBe(19.44);
@@ -799,6 +801,8 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     const source = 'Above\n- [ ] Review **release** notes\nBelow';
     await page.evaluate(async value => {
         const editor = await import('/js/editor.js');
+        const state = await import('/js/state.js');
+        state.setState('kanbanCompletionColumns', ['urgent']);
         editor.setEditorContent(value, 'Welcome.md');
         const view = editor.getEditorView();
         while (view.state.doc.toString() !== value) {
@@ -810,6 +814,26 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
 
     let checkbox = page.locator('.cm-task-checkbox');
     const hitbox = page.locator('.cm-task-checkbox-hitbox');
+    let taskActions = page.locator('.cm-task-action-guide');
+    await expect(taskActions).toHaveCount(1);
+    await expect(taskActions.locator('.cm-task-kanban-action')).toHaveAttribute(
+        'aria-label',
+        'Assign task to Kanban column',
+    );
+    await expect(taskActions.locator('.cm-task-calendar-action')).toHaveAttribute(
+        'aria-label',
+        'Set task due date',
+    );
+    const actionSizes = await taskActions.locator('.ui-icon-button--small').evaluateAll(buttons => (
+        buttons.map(button => {
+            const rect = button.getBoundingClientRect();
+            return { width: rect.width, height: rect.height };
+        })
+    ));
+    expect(actionSizes).toEqual([
+        expect.objectContaining({ width: 22, height: 22 }),
+        expect.objectContaining({ width: 22, height: 22 }),
+    ]);
     await expect(checkbox).toHaveAttribute('aria-label', 'Mark “Review release notes” complete');
     const hitboxSize = await hitbox.evaluate(element => {
         const rect = element.getBoundingClientRect();
@@ -825,6 +849,7 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     checkbox = page.locator('.cm-task-checkbox');
     await expect(checkbox).toBeFocused();
     await expect(checkbox).toHaveAttribute('aria-label', 'Mark “Review release notes” incomplete');
+    await expect(page.locator('.cm-task-action-guide')).toHaveCount(0);
 
     const paddingPoint = await page.locator('.cm-task-checkbox-hitbox').evaluate(element => {
         const rect = element.getBoundingClientRect();
@@ -832,6 +857,7 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     });
     await page.mouse.click(paddingPoint.x, paddingPoint.y);
     await expect.poll(() => page.evaluate(() => window.__taskCheckboxView.state.doc.toString())).toBe(source);
+    await expect(page.locator('.cm-task-action-guide')).toHaveCount(1);
 
     await page.evaluate(() => {
         const view = window.__taskCheckboxView;
@@ -880,6 +906,34 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     const selection = await page.evaluate(() => window.__taskCheckboxView.state.selection.main);
     expect(selection.from).toBeLessThanOrEqual(1);
     expect(selection.to).toBeGreaterThanOrEqual(drag.finalLineStart);
+
+    taskActions = page.locator('.cm-task-action-guide');
+    await taskActions.locator('.cm-task-calendar-action').click();
+    const picker = page.locator('.ui-date-picker');
+    await expect(picker).toBeVisible();
+    const dueDate = await picker.locator('[data-date-picker-value]').first().getAttribute('data-date-picker-value');
+    await picker.locator('[data-date-picker-value]').first().click();
+    await expect.poll(() => page.evaluate(() => window.__taskCheckboxView.state.doc.line(2).text))
+        .toBe(`- [ ] Review **release** notes [due ${dueDate}](${dueDate}.md)`);
+
+    await page.locator('.cm-task-kanban-action').focus();
+    await page.keyboard.press('Enter');
+    const completion = page.locator('.cm-tooltip-autocomplete');
+    await expect(completion).toBeVisible();
+    await expect(completion.locator('.cm-completionLabel')).toHaveText(['#todo', '#wip', '#done', '#urgent']);
+    await completion.getByRole('option', { name: /#urgent/ }).click();
+    await expect.poll(() => page.evaluate(() => window.__taskCheckboxView.state.doc.line(2).text))
+        .toBe(`- [ ] Review **release** notes #urgent [due ${dueDate}](${dueDate}.md)`);
+
+    await expect(page.locator('.cm-task-calendar-action')).toHaveAttribute('aria-label', 'Change task due date');
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => (
+        window.__taskCheckboxView.state.doc.lineAt(window.__taskCheckboxView.state.selection.main.head).number
+    ))).toBe(3);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => (
+        window.__taskCheckboxView.state.doc.lineAt(window.__taskCheckboxView.state.selection.main.head).number
+    ))).toBe(2);
 });
 
 test('folds nested Markdown block guides without breaking cursor or drag-selection geometry', async ({ page }) => {

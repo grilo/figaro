@@ -23,6 +23,50 @@ function importsIn(source) {
     return specifiers;
 }
 
+function firstPartyImportGraph() {
+    const files = sourceFiles(JS_ROOT).map(file => path.resolve(file));
+    const fileSet = new Set(files);
+    return new Map(files.map(file => {
+        const imports = importsIn(fs.readFileSync(file, 'utf8'))
+            .filter(specifier => specifier.startsWith('.') || specifier.startsWith('/js/'))
+            .map(specifier => specifier.startsWith('/js/')
+                ? path.join(JS_ROOT, specifier.slice('/js/'.length))
+                : path.resolve(path.dirname(file), specifier))
+            .map(imported => path.extname(imported) ? imported : `${imported}.js`)
+            .filter(imported => fileSet.has(imported));
+        return [file, imports];
+    }));
+}
+
+function circularImportPaths(graph) {
+    const visited = new Set();
+    const visiting = new Set();
+    const stack = [];
+    const cycles = new Set();
+
+    const visit = file => {
+        if (visited.has(file)) return;
+        visiting.add(file);
+        stack.push(file);
+        for (const imported of graph.get(file) || []) {
+            if (visiting.has(imported)) {
+                const cycleStart = stack.indexOf(imported);
+                cycles.add([...stack.slice(cycleStart), imported]
+                    .map(entry => path.relative(JS_ROOT, entry))
+                    .join(' -> '));
+            } else {
+                visit(imported);
+            }
+        }
+        stack.pop();
+        visiting.delete(file);
+        visited.add(file);
+    };
+
+    graph.keys().forEach(visit);
+    return [...cycles].sort();
+}
+
 describe('frontend architecture policy', () => {
     test('pure core modules depend only on other core modules or pure packages', () => {
         const violations = [];
@@ -73,6 +117,32 @@ describe('frontend architecture policy', () => {
         expect(violations).toEqual([]);
     });
 
+    test('first-party modules form an acyclic dependency graph', () => {
+        expect(circularImportPaths(firstPartyImportGraph())).toEqual([]);
+    });
+
+    test('the application composition root exclusively owns workspace assembly', () => {
+        const graph = firstPartyImportGraph();
+        const ownership = new Map([
+            ['app.js', new Set(['bootstrap.js'])],
+            ['tabManager.js', new Set(['app.js'])],
+        ]);
+        const violations = [];
+
+        for (const [importer, imports] of graph) {
+            const importerName = path.relative(JS_ROOT, importer);
+            for (const imported of imports) {
+                const importedName = path.relative(JS_ROOT, imported);
+                const allowedImporters = ownership.get(importedName);
+                if (allowedImporters && !allowedImporters.has(importerName)) {
+                    violations.push(`${importerName} -> ${importedName}`);
+                }
+            }
+        }
+
+        expect(violations.sort()).toEqual([]);
+    });
+
     test('first-party modules do not retain unused default-export wrapper objects', () => {
         const violations = sourceFiles(JS_ROOT)
             .filter(file => /\bexport\s+default\s*\{/.test(fs.readFileSync(file, 'utf8')))
@@ -82,8 +152,8 @@ describe('frontend architecture policy', () => {
     });
 
     test('every first-party module is reachable from an application or renderer-build entry point', () => {
-        const files = sourceFiles(JS_ROOT).map(file => path.resolve(file));
-        const fileSet = new Set(files);
+        const graph = firstPartyImportGraph();
+        const files = [...graph.keys()];
         const reachable = new Set();
         const entries = [
             'bootstrap.js',
@@ -96,15 +166,7 @@ describe('frontend architecture policy', () => {
             const resolvedFile = path.resolve(file);
             if (reachable.has(resolvedFile)) return;
             reachable.add(resolvedFile);
-            const source = fs.readFileSync(resolvedFile, 'utf8');
-            for (const specifier of importsIn(source)) {
-                if (!specifier.startsWith('.') && !specifier.startsWith('/js/')) continue;
-                const imported = specifier.startsWith('/js/')
-                    ? path.join(JS_ROOT, specifier.slice('/js/'.length))
-                    : path.resolve(path.dirname(resolvedFile), specifier);
-                const candidate = path.extname(imported) ? imported : `${imported}.js`;
-                if (fileSet.has(candidate)) visit(candidate);
-            }
+            for (const imported of graph.get(resolvedFile) || []) visit(imported);
         };
 
         entries.forEach(visit);

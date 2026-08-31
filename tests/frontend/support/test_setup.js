@@ -63,6 +63,8 @@ window.go = {
         GetRecentlyDeleted: jest.fn().mockResolvedValue([]),
         RestoreRecentlyDeleted: jest.fn().mockResolvedValue({ success: true }),
         RenamePath: jest.fn().mockResolvedValue({ success: true }),
+        PreviewRenamePath: jest.fn().mockResolvedValue({ success: true, updated_links: [] }),
+        RenamePathWithLinkUpdates: jest.fn().mockResolvedValue({ success: true }),
         MovePath: jest.fn().mockResolvedValue({ success: true }),
         MergeDirectory: jest.fn().mockResolvedValue({ success: true }),
         CopyPath: jest.fn().mockResolvedValue({ success: true, path: '' }),
@@ -270,7 +272,8 @@ function createMockDOM() {
                 </aside>
             </div>
             <footer id="status-bar" class="status-bar" data-writing-rest="false"
-                    data-application-idle="false" data-editor-side-reveal="false">
+                    data-application-idle="false" data-editor-side-reveal="false"
+                    data-editor-scale-reveal="false">
                 <div class="status-left" role="group" aria-label="Application status"
                      data-application-active="false" data-has-action="false" title="Ready">
                     <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>

@@ -440,6 +440,51 @@ func TestCopyExternalPathsCopiesFilesAndFoldersWithoutRemovingSources(t *testing
 	}
 }
 
+func TestExternalCopyModesRejectDuplicateBatchNamesBeforeWriting(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	if _, err := app.CreateDirectory("Imported"); err != nil {
+		t.Fatal(err)
+	}
+	firstRoot := t.TempDir()
+	secondRoot := t.TempDir()
+	first := filepath.Join(firstRoot, "report.md")
+	second := filepath.Join(secondRoot, "report.md")
+	if err := os.WriteFile(first, []byte("first"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(second, []byte("second"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	modes := map[string]func() (*CopyExternalResult, error){
+		"copy": func() (*CopyExternalResult, error) {
+			return app.CopyExternalPaths([]string{first, second}, "Imported", false)
+		},
+		"merge": func() (*CopyExternalResult, error) {
+			return app.MergeExternalPaths([]string{first, second}, "Imported")
+		},
+	}
+	for name, run := range modes {
+		t.Run(name, func(t *testing.T) {
+			result, err := run()
+			if err != nil {
+				t.Fatalf("external %s: %v", name, err)
+			}
+			if result.Success || !strings.Contains(result.Error, "More than one dropped item") {
+				t.Fatalf("expected duplicate-name refusal, got %+v", result)
+			}
+			entries, err := os.ReadDir(filepath.Join(vaultPath, "Imported"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("duplicate-name preflight wrote %d vault entries", len(entries))
+			}
+		})
+	}
+}
+
 func TestMergeExternalPathsMergesDirectoriesAndKeepsCollisionCopies(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	defer os.RemoveAll(vaultPath)

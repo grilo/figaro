@@ -4,8 +4,10 @@ jest.mock('../frontend/js/app.js', () => ({
     openTab: jest.fn(),
 }));
 
+import { openTab } from '../frontend/js/app.js';
 import { getState, setState } from '../frontend/js/state.js';
 import {
+    configureCalendarWorkspace,
     initCalendar,
     invalidateCalendarCache,
     prepareCalendarOpen,
@@ -45,6 +47,7 @@ function mountActiveCalendarWorkspace() {
 
 describe('Calendar cache', () => {
     beforeEach(() => {
+        configureCalendarWorkspace({ openTab });
         testUtils.createMockDOM();
         Object.defineProperty(navigator, 'languages', { value: ['en-US'], configurable: true });
         Object.defineProperty(navigator, 'language', { value: 'en-US', configurable: true });

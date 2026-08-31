@@ -236,6 +236,8 @@ describe('New note dialog', () => {
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(overlay.textContent).toContain('Projects/Quarterly/');
+        expect(overlay.querySelector('.custom-modal-help').textContent)
+            .toContain('asks whether to update');
         expect(input.selectionStart).toBe(0);
         expect(input.selectionEnd).toBe('report'.length);
         expect(confirm.disabled).toBe(true);

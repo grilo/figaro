@@ -23,6 +23,45 @@ describe('Draw.io image creation use case', () => {
         ]);
     });
 
+    test('inserts a macro reference after creation and before opening the diagram', async () => {
+        const calls = [];
+        const result = await createDrawioImage({
+            target,
+            createFile: async () => {
+                calls.push('create');
+                return { success: true, path: target.path, mtime: 42 };
+            },
+            insertReference: async diagram => {
+                calls.push(['insert', diagram]);
+                return true;
+            },
+            openDiagram: async () => calls.push('open'),
+            refreshTree: async () => calls.push('refresh'),
+        });
+
+        expect(result).toEqual({ kind: 'created', path: target.path });
+        expect(calls).toEqual([
+            'create',
+            ['insert', { ...target, mtime: 42 }],
+            'open',
+            'refresh',
+        ]);
+    });
+
+    test('keeps a created asset discoverable when the source token changed before insertion', async () => {
+        const refreshTree = jest.fn();
+        const openDiagram = jest.fn();
+        await expect(createDrawioImage({
+            target,
+            createFile: async () => ({ success: true, path: target.path }),
+            insertReference: async () => false,
+            openDiagram,
+            refreshTree,
+        })).resolves.toEqual({ kind: 'created-reference-failed', path: target.path });
+        expect(openDiagram).not.toHaveBeenCalled();
+        expect(refreshTree).toHaveBeenCalledTimes(1);
+    });
+
     test('does not refresh or open when creation fails', async () => {
         const refreshTree = jest.fn();
         const openDiagram = jest.fn();

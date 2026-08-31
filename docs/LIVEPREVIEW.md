@@ -15,7 +15,7 @@ Your implementation must accurately transition states for the following elements
 ### Headers (`# Heading`)
 * **Cursor on line:** Show the `#` marks. Apply the corresponding heading typography class to the line block.
 * **Cursor off line:** Hide the `#` marks and any trailing spaces. Keep the typography styling active on the line to prevent layout snapping.
-* **Typed block guides and folding:** Editor-sized monospace gutter labels exist only for top-level headings, fenced code blocks, tables, and standalone local Draw.io image lines. Expanded controls rest at zero opacity with pointer events disabled. Non-heading stacks reveal when the pointer enters the rendered block or its uninterrupted approach rectangle through the 42px left rail; heading guides reveal only for the caret, keyboard focus, or that narrow rail lane. Folded controls remain visible and operable until expanded. Headings use `h1`–`h6`; a typed fence uses the normalized first language token such as `yaml`, while an untyped fence uses `code`; tables use `table`; and editable images use `drawio`. The left rail is right-aligned just outside the centered writing surface. Mermaid and Draw.io use a fold/`editor` stack; tables use a `table`/`editor`/`delete` stack. Each secondary action sits directly beneath its fold control, inherits the same helper primitive, and remains outside the writing surface. A hidden maximum-length spacer keeps the rail's overlay width stable when folding removes nested labels, so the centered content never shifts. Every guide aligns with the top of its corresponding line or rendered block. Activating a fence, table, or Draw.io guide makes its live-preview provider yield to CodeMirror's native fold row; expanding restores the rendered widget whenever the cursor remains outside that source. A Draw.io `editor` action resolves the authored note-relative or vault-root destination and opens the existing diagram directly, creating it through the same safe workflow when absent; a table `editor` action opens the isolated transactional grid described below. Activating a heading guide folds its complete section through the last block before the next peer or ancestor, so descendants remain grouped with their parent. The adapter preserves the clicked guide's viewport coordinate and introduces only the trailing scroll reserve needed to prevent end-of-document clamping, so the same pointer coordinate can immediately reverse the action. Frontmatter, prose, lists, quotes, ordinary images, math, HTML, rules, and indented code receive no guide. Folding is editor-only and never changes source, Raw Text Preview, or PDF output. Heading-shaped fence content remains part of its code block rather than becoming a heading guide. Source-code modes keep their normal chevron fold gutter, with the same quiet expanded and persistent folded states.
+* **Typed block guides and folding:** Editor-sized monospace gutter labels exist only for top-level headings, fenced code blocks, tables, and standalone image lines. Expanded controls rest at zero opacity with pointer events disabled. Non-heading stacks reveal when the pointer enters the rendered block or its uninterrupted approach rectangle through the 42px left rail; heading guides reveal only for the caret, keyboard focus, or that narrow rail lane. Folded controls remain visible and operable until expanded. Headings use `h1`–`h6`; a typed fence uses the normalized first language token such as `yaml`, while an untyped fence uses `code`; tables use `table`; ordinary images use `image`; and editable images use `drawio`. The left rail is right-aligned just outside the centered writing surface. Mermaid and Draw.io use a fold/`editor` stack; sized images use `image`/`original size`; tables use `table`/`editor`/`chart`/`delete`; and managed Vega-Lite charts use `vega-lite`/`editor`/`table`. **original size** is disabled when no authored image size exists and otherwise removes only the size hint. Each secondary action sits directly beneath its fold control, inherits the same helper primitive, and remains outside the writing surface. A hidden maximum-length spacer keeps the rail's overlay width stable when folding removes nested labels, so the centered content never shifts. Every guide aligns with the top of its corresponding line or rendered block. Activating a fence, table, or image guide makes its live-preview provider yield to CodeMirror's native fold row; expanding restores the rendered widget whenever the cursor remains outside that source. A Draw.io `editor` action resolves the authored note-relative or vault-root destination and opens the existing diagram directly, creating it through the same safe workflow when absent; a table `editor` action opens the isolated transactional grid, `chart` opens the reversible Chart Editor, and the managed Vega-Lite `table` action restores its embedded original after confirmation. Activating a heading guide folds its complete section through the last block before the next peer or ancestor, so descendants remain grouped with their parent. The adapter preserves the clicked guide's viewport coordinate and introduces only the trailing scroll reserve needed to prevent end-of-document clamping, so the same pointer coordinate can immediately reverse the action. Frontmatter, prose, lists, quotes, math, HTML, rules, and indented code receive no guide. Folding is editor-only and never changes source, Raw Text Preview, or PDF output. Heading-shaped fence content remains part of its code block rather than becoming a heading guide. Source-code modes keep their normal chevron fold gutter, with the same quiet expanded and persistent folded states.
 
 ### Inline Styles (Bold `**text**`, Italic `*text*`, Code `` `code` ``)
 * **Cursor inside node bounds:** Show the boundary delimiters (`**`, `*`, `` ` ``). Keep the inner text styled (bolded, italicized, or monospaced).
@@ -34,6 +34,7 @@ Your implementation must accurately transition states for the following elements
 * **Horizontal-rule print meaning:** The editor continues to render `---`, `***`, and `___` as ordinary thematic separators with normal cursor reveal. The printable renderer alone turns a standalone body `---` thematic-break token into an invisible page break; frontmatter delimiters and Setext heading underlines keep their parser-defined roles, while `***` and `___` stay visible rules.
 * **GFM tables:** CodeMirror's Markdown syntax tree identifies tables, and Figaro replaces an unfocused table range—including immediately adjacent Figaro merge metadata—with a read-only `.cm-live-table` semantic preview. Selecting the range reveals the exact source; a primary rendered-cell click maps the cell's source row/column to the first authored content position after leading whitespace, while a drag from that cell remains a root-editor selection. The ordinary right-click menu stays editor-wide. The guide-launched modal provides editable auto-growing cell text, guarded row/column structure, and a hidden-by-default read-only Markdown pane. Ordinary clicks and unmodified drags retain native textarea caret/selection behavior; only Shift-click, Shift-drag, or Alt+Shift+Arrow starts a rectangular cell range. Its labelled icon toolbar uses separate editing and structural rows, grouping the theme-tinted Delete Row/Delete Column controls at the structural row's end. Merge/Split are contextual, header cells are tinted, and operations that cut a span are disabled with themed tooltips. Modal history is isolated; Apply revalidates and replaces the exact source range once, Cancel has no root transaction, and dirty Escape asks before discarding. In-session Split can restore cached cell values; after reopening it keeps the combined anchor and clears covered cells. The table preview keeps the full writing-column width but uses compact 90% typography, a 1.4 line height, and reduced outer/cell padding. Its visual surface is the sole overflow owner: wheel/touch gestures move it first and chain to CodeMirror at its boundary, native scrollbar presses remain inside it, and a fitting table passes wheel input straight through the document. The live preview and PDF renderer share Markdown-It output for alignment, inline formatting, literal code, `<br>` line breaks, anchored bare `^` row spans, and rectangular spans stored as invisible `<!-- figaro:table-merge A2:C3 -->` metadata.
 * **PDF scroll anchors:** Printable block tokens carry body-relative Markdown line ranges. The PDF frame and CodeMirror synchronize the source position at a shared 30% viewport marker, while generated covers/contents and other unmapped regions retain percentage fallback. Diagram SVG replacement inherits its source fence range. This scroll-only bridge never changes the editor selection: Arrow Up/Down, Vim motion, mouse placement, and bidirectional drag selection remain CodeMirror-owned.
+* **Quiet PDF refresh:** PDF Preview shows preparation feedback for its first document only. Once a snapshot is visible, editing Markdown keeps that settled page and status in place without flashing the transient loading badge or updating copy; the replacement is sent when ready, and failures still surface in the status row.
 
 ### Links (`[Display Text](https://url.com)`)
 * **Cursor inside node bounds:** Show the entire raw string exactly as written.
@@ -58,6 +59,12 @@ Your implementation must accurately transition states for the following elements
 ### Lists (`- item`, `1. item`)
 * **Exit behavior:** Pressing Enter on an empty second list item removes that marker and exits the list immediately. It must not require a second Enter or disturb Arrow Up/Down, mouse placement, or bidirectional drag selection across the boundary.
 
+### Figaro authoring macros (`@due`, `@table`, `@todo`, `@mermaid`, `@drawio`)
+* **Portable source first:** Accepting `@todo` inserts `- [ ] ` and leaves the caret after its trailing space. `@table` and `@mermaid` insert complete portable block source with safe blank-line boundaries, then open the existing focused editor for that exact new range. Cancelling a structured editor keeps the inserted Markdown and discards only modal draft changes.
+* **Due picker:** Accepting `@due` opens the shared caret-anchored Calendar picker without changing the token. Cancelling is non-destructive; selecting a day atomically replaces the unchanged token with `[due YYYY-MM-DD](YYYY-MM-DD.md)` and restores editor focus.
+* **Draw.io creation:** Accepting `@drawio` keeps the token intact while a name prompt defaults to `diagram1`. Confirmation creates the normalized `.drawio.svg` file beside the active note, atomically replaces the unchanged token with an explicit `![Diagram](./name.drawio.svg)` sibling reference, and opens the existing Draw.io Editor. Cancelling or a create failure leaves the source untouched; if the token changes while creation is pending, the created file remains discoverable but is not opened or linked.
+* **Cursor and selection contract:** Macro completion is a normal CodeMirror history transaction. The inserted list, table, and fence retain their existing Arrow Up/Down, feature-key, mouse-placement, and bidirectional drag-selection behavior; no macro adds a replacement widget or a second rendering path.
+
 ### Hashtags (`#todo`, `#urgent`)
 * **Completion context:** A whitespace-delimited partial hashtag may open the normal CodeMirror completion list in ordinary Markdown prose. A line-leading `#` remains heading syntax, and completion stays disabled in frontmatter, code, links, URLs, and HTML.
 * **Tagged-line due actions:** Pressing Space after any valid standalone hashtag, including an unsaved custom column, exposes **Add due date…**, **Due today**, and **Due tomorrow** without requiring checkbox syntax. Lines containing `#done`, lines with an existing semantic due link, CSS color tokens, headings, and excluded Markdown syntax remain quiet. The shared picker is anchored at the caret, returns focus to the editor, and inserts ordinary Markdown rather than a replacement widget. Its month grid uses the Calendar workspace's operating-system locale, starts with Today selected when adding a date, and shares its theme-derived weekend, note-intensity, due-outline, and activity-tooltip states.
@@ -66,12 +73,17 @@ Your implementation must accurately transition states for the following elements
 ### Images (`![Alt Text](image.png)`)
 * **Cursor inside node bounds:** Display the plain text markdown markup exactly. Do not show the image preview.
 * **Cursor outside node bounds:** Completely hide the plain text markup string. Instantiate and inject an inline block widget immediately after the node containing a functional HTML `<img>` tag pointing to the parsed URL.
+* **Optional size hint:** A trailing alt-text hint such as `![Portrait|320x180](portrait.jpg)` gives the rendered image an authored width and height while keeping `Portrait` as its accessible alt text. The hint remains hidden until the cursor reveals the source. PDF Preview and generated PDF HTML translate it to standard image width/height attributes and inline pixel geometry; PDF Preview explicitly resolves note-relative local sources through the vault before the document enters its sandbox.
+* **Direct resizing:** Hovering or focusing the rendered image exposes three themed 28px handles: right changes width only, bottom changes height only, and bottom-right preserves the current aspect ratio. Their shared tooltip names the operation. Dragging a handle never reveals or changes the Markdown, suppresses all handle tooltips until the pointer leaves and re-enters, resizes only the mounted image, and displays the current `W × H` in its center. Width-only and proportional gestures stop at the writing surface's right edge; proportional gestures also stop at the editor's bottom edge; height-only gestures may continue to ten times the intrinsic height. Pointer release writes changed final geometry once as one Undo/Redo history item; release without movement writes nothing; pointer cancellation restores the starting rendered geometry and writes nothing; a later completed drag starts a new item.
+* **Source and reset continuity:** Clicking the image body still reveals its exact Markdown. The rendered geometry is retained as a themed source placeholder, so surrounding text moves only when the hint changes. The left `image` guide folds the complete image; its **original size** action removes the hint and restores intrinsic dimensions without opening the source. Arrow Up/Down, mouse placement, and bidirectional drag selection remain CodeMirror-owned around both states.
 * **Loading/error continuity:** A pending or missing image uses Figaro's semantic panel, muted-text, border, accent, and danger tokens, with animation disabled for reduced motion. Its complete measured placeholder remains exactly one source line high, so moving the cursor into the source does not shift the next line.
 * **Missing Draw.io action and preview recovery:** When a failed local destination ends in `.drawio.svg`, Figaro inspects the exact vault target. Valid saved SVG is rendered directly as the normal image preview, recovering from an earlier blank-file or cached failed request; an absent target gives the one-line placeholder the approved accent **Create Draw.io diagram** action, while an empty or otherwise non-renderable file gives **Open Draw.io diagram**. Returning to a Markdown file deliberately remounts its image widgets, while ordinary selection changes reuse them, so a Draw.io save is re-read without polling. Every image-field generation uses a local cache-busting preview URL; a successful file-tree deletion emits an immediate path-deleted signal, so the active note remounts and cannot retain an image-loader cache entry for the removed SVG. The action consumes its own pointer/keyboard activation rather than revealing source, keeps the Markdown unchanged, and opens the vault file in the Draw.io tab. A successful Create action changes to Open even while the hidden note editor remains mounted, so closing an unchanged blank diagram cannot expose a stale busy state. Ordinary failures still reveal source on pointer placement; Arrow Up/Down and bidirectional drag selection around either replacement remain native CodeMirror behavior.
 
 ### Task Checkboxes (`- [ ] Task` or `- [x] Task`)
 * **Cursor on line:** Show the raw `- [ ]` or `- [x]` string for standard text editing.
 * **Cursor off line:** Dynamically substitute the text marker `[ ]` or `[x]` with an interactive HTML `<input type="checkbox">` widget reflecting the correct state. Its action-oriented accessible name includes the cleaned task text, and its wrapper provides a 24px pointer target without changing source geometry.
+* **Task actions:** An unfinished syntax-backed task receives two approved 22px icon buttons in the left helper rail. Kanban opens CodeMirror's existing saved-column autocomplete list; Calendar opens the shared localized due-date picker, preselecting an existing date and allowing it to be cleared. Checked tasks, frontmatter examples, and fenced task syntax receive no actions.
+* **Canonical source order:** Calendar selection removes any prior valid semantic due links and appends the chosen link at the line end. Kanban selection inserts a missing standalone tag before that link and moves an already valid due link behind the task text/tags. Calendar-first and Kanban-first therefore converge on `- [ ] Task #column [due YYYY-MM-DD](YYYY-MM-DD.md)`. Kanban's parser remains order-independent for valid same-line due links.
 * **Widget Interactivity:** Pointer click or keyboard Space must dispatch the same single editor transaction that toggles the source character between a space and an `x`; native visual state alone is never authoritative. Keyboard activation restores focus to the remounted checkbox. Arrow Up/Down from either direction and bidirectional drag selection across the replacement retain normal CodeMirror behavior.
 
 ---
@@ -169,7 +181,7 @@ Every decoration created with `block: true` must follow these rules:
 ### Stable source footprints
 
 These editor block families deliberately preserve the visual height of their
-Markdown source: Mermaid, Vega, and Vega-Lite fences; ordinary fenced code;
+Markdown source: Mermaid, Vega, and ordinary Vega-Lite fences; ordinary fenced code;
 multi-line display math; and GFM tables. The measured root receives the source
 line count and CodeMirror's current `defaultLineHeight` as an immediate
 fallback. The eager `sourceFootprintExtension` then measures the raw lines with
@@ -179,6 +191,29 @@ changes remeasure existing slots. This keeps the next source line at the same
 browser coordinate when a selection reveals or hides raw source, including
 long wrapped rows.
 
+Figaro-managed, table-backed Vega-Lite charts are the deliberate authored-
+geometry variant. Their root uses the chart's stored height plus 44 pixels of
+widget chrome instead of the wrapped JSON measurement. While source is
+revealed, every compact fence line is non-wrapping and the opener receives the
+remaining `calc(... - Nlh)` placeholder height, so the following source line
+does not move. The SVG fills the available width and is centered vertically in
+that slot. Managed interactive charts merge the current Figaro text, muted,
+border, and surface tokens into Vega's runtime defaults, leaving the authored
+JSON portable; container measurement uses a short-lived connected off-screen
+target because WebKitGTK cannot reliably size a detached node. Empty geometry
+or renderer errors remain visible and announced instead of mounting a blank
+SVG. The managed specification gives every visible mixed-mark series one shared
+legend and preserves its selected Top/Right/Bottom/Left position in the live
+widget. Cartesian charts always use the first table column as their category.
+When a numeric series has a trendline, the managed data adds a collision-safe
+hidden authored-row index for Vega-Lite regression and maps the generated line
+back to the unchanged visible category labels. Threshold rule/text overlays share the selected value scale without
+suppressing its existing axis. Their live widget and Chart Editor preview share `--editor-surface`, so
+alpha-blended data marks do not change appearance when the chart is applied.
+The only resize handle sits at the bottom center; pointer movement updates
+the DOM height and center readout, pointer cancellation restores the start, and
+pointer release emits at most one source transaction.
+
 Ctrl/Cmd+mouse-wheel text scaling is an editor-only, per-open-buffer reflow.
 The active scale changes `--font-size-editor` while the unitless
 `--line-height-editor` ratio stays at `1.65`; scaling both would compound row
@@ -187,6 +222,9 @@ CodeMirror correction measurements, then requests the same wrapped-source and
 sticky-heading measurements used by width changes. Tab switches restore the
 buffer's temporary value, and the status-bar reset returns to the permanent
 Settings default without touching Markdown or printable output.
+Each handled wheel gesture also reveals the complete normal-mode footer for
+three seconds before its existing quiet-state fade resumes, making the new
+effective **Scale** observable without changing footer geometry.
 
 Graphic content follows the pure fit plan in
 `frontend/js/core/sourceFootprintModel.js`: scale down to the available width
@@ -211,7 +249,9 @@ through an injected queue and scheduled after a short scroll-quiet period and
 an idle opportunity; the loading state remains inside the already measured
 source footprint while the editor is moving.
 
-This policy is editor-only. Successfully loaded images, frontmatter/Properties,
+This generalized source-footprint policy is editor-only. Successfully loaded
+images use the separate authored-geometry/source-placeholder contract above;
+frontmatter/Properties,
 links, task checkboxes, inline math, and other inline replacements must not
 receive the `cm-source-footprint` marker. Loading, missing-image, and
 missing-Draw.io action placeholders use their own one-source-line continuity
@@ -268,8 +308,27 @@ or contains only whitespace, and after an explicit template replacement.
 Opening meaningful nonempty source or manually editing the temporary buffer
 protects that source until **Replace with template** is activated. The compact
 comboboxes remain 4 px apart and left-aligned until the narrow single-column
-breakpoint. The equal-width source and preview panes grow together with their
-dialog up to 1180 × 780 px and stack vertically below 820 px. The preview fits
+breakpoint. A peer **Style** panel waits for inspection of the current diagram
+type to expose only relevant Mermaid theme variables; flowcharts also receive
+reversible node colors/shapes, direction, and connection curves. These controls
+transform the temporary native Mermaid source, so live preview, printable
+preview, and export do not require a second styling format. Parser errors
+suppress styling controls, and unsupported compact YAML remains untouched. The
+flowchart panel labels global colors as defaults, groups the curve with those
+defaults, and presents the active node's fill and shape first, before a bounded
+node chooser and the diagram-wide controls. Parsed identities include chained
+and standalone nodes without treating icon labels as nodes. Native and
+class-based fills remain visible and survive resetting the managed override.
+Dark/custom themes are identified correctly; color and curve changes preserve
+the theme. Palette controls follow actual groups/series, XY writes its native
+plot palette, and unsupported controls are omitted. Instructions expose preview selection, solid dots distinguish colors
+from checkboxes, and Arrow Up/Down or Home/End changes the active node without
+hiding its editor. Style changes preserve focus; validation/render phases keep
+open palettes anchored and update colors in place. Escape dismisses the palette
+before the dialog. Preview selection scrolls that active editor into view. The
+preview receives the larger pane as the dialog grows up to 1260 × 780 px, and
+the panes stack vertically below 820 px without extending behind the footer.
+The preview fits
 each SVG within both pane dimensions at its reset scale. A non-passive wheel
 handler performs pointer-centered zoom from 25% to 400%; primary-pointer drag
 pans, `+`/`-` zoom, arrows pan, and `0` resets. These
@@ -277,7 +336,9 @@ controls update explicit SVG dimensions at every scale instead of magnifying a
 cached composited layer, while translation is reserved for panning. The initial
 empty-state node is removed after the first successful SVG and cannot obscure
 later valid or last-known-good output. Preview navigation affects only the
-temporary SVG surface and survives preview refreshes.
+temporary SVG surface and survives preview refreshes. On flowcharts, a click
+selects the matching authored node for Style; pointer movement beyond the click
+tolerance remains ordinary panning.
 The temporary view receives the root editor's active Vim adapter and visual-row
 mapping; its Normal, Insert, and Visual state is published through a CodeMirror
 attribute compartment, so lint and preview-driven editor updates cannot erase

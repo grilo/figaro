@@ -104,6 +104,140 @@ test('pastes a clipboard screenshot beside the note, renders it, and preserves a
     expect(pdf.byteLength).toBeGreaterThan(4000);
 });
 
+// Pointer capture, computed writing edges, and CodeMirror's retained widget DOM
+// are browser-only boundaries; pure sizing and syntax matrices stay in unit tests.
+test('resizes a rendered image in place and preserves its source-reveal geometry', async ({ page }) => {
+    await page.route('**/vault/notes/portrait.svg', route => route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="153" viewBox="0 0 240 153"><rect width="240" height="153" fill="#7689d8"/></svg>',
+    }));
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+
+    const source = 'Before\n![Portrait|190x121](portrait.svg)\nAfter';
+    await page.evaluate(async text => {
+        const editor = await import('/js/editor.js');
+        const tabs = await import('/js/tabManager.js');
+        await editor.initEditor();
+        const view = editor.getEditorView() || editor.createEditorView();
+        tabs.openTab('sized-image', 'Sized image', 'file', {
+            path: 'notes/sized-image.md',
+            isNew: true,
+        });
+        while (editor.getEditorDocumentTabId() !== 'sized-image') {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        editor.setEditorContent(text, 'sized-image');
+        while (view.state.doc.toString() !== text) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
+        view.focus();
+        window.__sizedImageView = view;
+    }, source);
+
+    const widget = page.locator('.cm-image-widget');
+    const frame = widget.locator('.cm-image-resize-frame');
+    const image = frame.locator('img');
+    const widthHandle = frame.locator('[data-resize-mode="width"]');
+    await expect(image).toBeVisible();
+    await expect(image).toHaveAttribute('alt', 'Portrait');
+    await expect(frame.locator('.cm-image-resize-handle')).toHaveCount(3);
+    await expect(frame).toHaveCSS('width', '190px');
+    await expect(frame).toHaveCSS('height', '121px');
+
+    await widget.hover();
+    const widthBox = await widthHandle.boundingBox();
+    expect(widthBox.width).toBe(28);
+    expect(widthBox.height).toBe(28);
+    await expect(widthHandle).toHaveCSS('border-top-width', '0px');
+    await page.mouse.move(widthBox.x + widthBox.width / 2, widthBox.y + widthBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(widthBox.x + widthBox.width / 2 + 1200, widthBox.y + widthBox.height / 2, {
+        steps: 12,
+    });
+    await expect(widget).toHaveClass(/is-resizing/);
+    await expect(frame.locator('.cm-image-resize-readout')).toBeVisible();
+    await expect(frame.locator('.cm-image-resize-readout')).toHaveText(/\d+ × 121/);
+    await expect(widthHandle).not.toHaveAttribute('data-ui-tooltip');
+    expect(await page.evaluate(() => window.__sizedImageView.state.doc.toString())).toBe(source);
+    await page.mouse.up();
+    await expect(widthHandle).toHaveAttribute('data-ui-tooltip', 'Resize image width');
+
+    const horizontal = await page.evaluate(() => {
+        const view = window.__sizedImageView;
+        const rendered = document.querySelector('.cm-image-resize-frame').getBoundingClientRect();
+        const writing = document.querySelector('.cm-image-widget').getBoundingClientRect();
+        return {
+            source: view.state.doc.toString(),
+            rightGap: writing.right - rendered.right,
+            height: rendered.height,
+            selectionLine: view.state.doc.lineAt(view.state.selection.main.head).number,
+            sourceVisible: Boolean(document.querySelector('.cm-image-source')),
+        };
+    });
+    expect(horizontal.source).toMatch(/!\[Portrait\|\d+x121\]\(portrait\.svg\)/);
+    expect(horizontal.rightGap).toBeGreaterThanOrEqual(-1);
+    expect(horizontal.rightGap).toBeLessThanOrEqual(1);
+    expect(horizontal.height).toBeCloseTo(121, 0);
+    expect(horizontal.selectionLine).toBe(1);
+    expect(horizontal.sourceVisible).toBe(false);
+
+    await widget.hover();
+    const originalSize = page.getByRole('button', { name: 'Restore original image size' });
+    await expect(originalSize).toBeEnabled();
+    await originalSize.click();
+    await expect.poll(() => page.evaluate(() => window.__sizedImageView.state.doc.toString()))
+        .toBe('Before\n![Portrait](portrait.svg)\nAfter');
+    await expect(frame).toHaveCSS('width', '240px');
+    await expect(frame).toHaveCSS('height', '153px');
+
+    const heightHandle = frame.locator('[data-resize-mode="height"]');
+    await widget.hover();
+    const heightBox = await heightHandle.boundingBox();
+    await page.mouse.move(heightBox.x + heightBox.width / 2, heightBox.y + heightBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(heightBox.x + heightBox.width / 2, heightBox.y + heightBox.height / 2 + 1000, {
+        steps: 12,
+    });
+    await page.mouse.up();
+
+    const beforeReveal = await page.evaluate(() => {
+        const view = window.__sizedImageView;
+        const rendered = document.querySelector('.cm-image-resize-frame').getBoundingClientRect();
+        return {
+            source: view.state.doc.toString(),
+            height: rendered.height,
+            editorClientHeight: view.scrollDOM.clientHeight,
+            followingTop: view.coordsAtPos(view.state.doc.line(3).from).top,
+        };
+    });
+    expect(beforeReveal.source).toMatch(/!\[Portrait\|240x\d+\]\(portrait\.svg\)/);
+    expect(beforeReveal.height).toBeGreaterThan(beforeReveal.editorClientHeight);
+
+    await image.click({ position: { x: 20, y: 20 } });
+    const sourcePlaceholder = page.locator('.cm-image-source-placeholder');
+    await expect(sourcePlaceholder).toBeVisible();
+    const afterReveal = await page.evaluate(() => {
+        const view = window.__sizedImageView;
+        const placeholder = document.querySelector('.cm-image-source-placeholder').getBoundingClientRect();
+        return {
+            placeholderHeight: placeholder.height,
+            followingTop: view.coordsAtPos(view.state.doc.line(3).from).top,
+            source: view.state.doc.toString(),
+        };
+    });
+    expect(afterReveal.placeholderHeight).toBeCloseTo(beforeReveal.height, 0);
+    expect(afterReveal.followingTop).toBeCloseTo(beforeReveal.followingTop, 0);
+    expect(afterReveal.source).toBe(beforeReveal.source);
+
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowDown');
+    expect(await page.evaluate(() => window.__sizedImageView.state.doc.lineAt(
+        window.__sizedImageView.state.selection.main.head,
+    ).number)).toBe(2);
+});
+
 test('themes a missing-image state and preserves its source-line geometry', async ({ page }) => {
     await page.route('**/vault/notes/missing.png', route => route.fulfill({
         status: 404,

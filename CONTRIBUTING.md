@@ -82,6 +82,13 @@ Separate behavior from effects before splitting files:
   has an in-memory fake; only the real adapter can prove containment,
   permissions, atomic writes, and compensation.
 
+The frontend workspace composition root is `frontend/js/app.js`. Feature
+adapters that need tab, editor, file-tree, preview, or save coordination expose
+a narrow configuration port and let `app.js` supply it during eager startup;
+they do not import `app.js` or `tabManager.js` to recover those operations.
+Keep the first-party import graph acyclic—the architecture policy suite checks
+both the graph and this ownership rule.
+
 Use this structure for future features whenever a workflow combines
 deterministic decisions with I/O. Extract the smallest useful pure seam and
 leave unrelated code alone. A trivial pass-through with no policy, branching,
@@ -100,11 +107,45 @@ well, so a failed browser image request can recover without another effect;
 keep create/open/background-refresh sequencing in the injected use case and
 mounted CodeMirror/button state in the image adapter. Do not add filesystem or
 tab effects to the widget or weaken the backend's vault containment checks.
-Standalone Draw.io guide recognition and fold ranges belong in the pure block
-guide model; direct editor activation remains an injected guide callback. Keep
+Keep authored image-hint parsing, serialization, intrinsic-fit, and resize
+constraints in `core/markdownImageModel.js`; the CodeMirror adapter may own
+only DOM measurements, pointer capture, the source transaction, and rendered
+geometry. Standalone image/Draw.io guide recognition and fold ranges belong in
+the pure block guide model; original-size reset and direct Draw.io editor
+activation remain injected guide callbacks. Keep
 the file-tree's post-delete path signal ahead of discovery refresh and retain a
 fresh Draw.io preview URL per image-field generation so successful loader
 caches cannot outlive deletion.
+Keep table-backed chart validation, type inference, reversible metadata,
+Vega-Lite generation, special-mode calculations, and resize bounds in
+`core/vegaLiteChartEditorModel.js`. The chart modal may own approved UI
+primitives and preview effects; the live-diagram adapter may own pointer capture
+and one release transaction. Do not make hand-written Vega-Lite appear
+reversible unless its complete canonical specification still matches the
+managed model, and do not add a chart-only PDF renderer. Keep native-webview
+container measurement in the shared diagram adapter, prove its temporary
+target is connected and cleaned up, and surface renderer or empty-geometry
+failures as an announced modal state rather than accepting a blank preview.
+Reuse the shared Kanban-backed palette adapter for chart colors and the approved
+editable stepper for numeric guide adjustments instead of introducing native
+controls. Keep visible-series legend membership, palette order, and four-side
+placement in the pure chart model; keep fixed first-column Cartesian category
+ownership and quantitative-series settings there as well. Pie and Waterfall
+may use the approved variable-list combobox for their independent category
+selection. Use the
+approved eye/eye-off icon button for reversible visibility rather than a native
+checkbox or a feature-local control. Do not introduce native
+color or number-control presentation.
+Keep threshold rule/text layers on their selected quantitative scale without an
+axis override; the data-series layer remains the sole owner of axis visibility.
+Keep Cartesian regression over the model's collision-safe hidden authored-row
+index, then look its endpoints back up to the visible first-column labels; do
+not make nominal labels themselves the numerical predictor.
+Disabled chart options must put one actionable explanation on their complete
+focusable label; do not add decorative underlines or separate help glyphs.
+Use the approved segmented control for two to four short fixed choices such as
+axis or legend placement; reserve the select-combobox adapter for variable or longer
+lists such as table-column and mark selection.
 The themed shell and restored active buffer may become interactive while eager
 vault indexing, tree construction, and parser warming continue. Saved
 interaction and geometry preferences are different: start their independent
@@ -241,7 +282,7 @@ remain free of machine-dependent pass/fail thresholds. See
 [the huge-vault procedure](docs/TESTING.md#huge-vault-stress-profile) and
 [the reference audit](docs/HUGE_VAULT_STRESS.md).
 
-For changes to Raw Text Preview, the global tab-size/indentation policy, sticky headings, Markdown block guides or their writing-column rail geometry,
+For changes to Raw Text Preview, the global tab-size/indentation policy, sticky headings, Markdown image resizing or source-reveal geometry, Markdown block guides or their writing-column rail geometry,
 raw-source Mermaid diagnostics, the Mermaid Editor, current-note heading
 completion, frontmatter Properties navigation, Vim rendered-block navigation, or per-tab cursor
 persistence, follow the
@@ -414,8 +455,8 @@ that vulnerable Mermaid YAML releases remain behind Figaro's pre-parse guard.
 The vendor script also pins `@mermaid-js/examples` 1.3.0 and checks its browser
 ES module plus MIT license into `frontend/vendored/mermaid-examples/`. Keep that
 catalogue version aligned with the bundled Mermaid parser and run the Mermaid
-Editor browser contract, which parses every shipped template, before updating
-either side.
+Editor and renderer browser contracts, which render every shipped template and
+verify the offered styling effects, before updating either side.
 
 ## Repository layout
 
@@ -475,6 +516,19 @@ the assembled webview rather than one JavaScript package in isolation.
   a long note with repeated Mermaid source in both directions, prove identical
   source is rendered once after caching, and verify generated SVG ids remain
   unique after remounting.
+- Mermaid Editor styling changes belong first in the pure adaptive descriptor
+  and source-transform tests. Preserve unrelated frontmatter, refuse YAML forms
+  the transform cannot merge safely, and assert parsed-node membership,
+  native/class style restoration, exact preset detection, and repeating XY
+  palette updates below the browser layer. The consolidated renderer matrix
+  must render all 32 types/76 templates and all presets and prove each offered
+  color paints an SVG mark; parser acceptance alone is insufficient. Flowchart UI
+  changes must also exercise a long node list: the active node editor remains
+  visible on first opening, the chooser stays bounded, compact panes stay above
+  the footer, and Arrow/Home/End selection preserves focus. Ordinary style
+  choices must also preserve focus; an open palette must survive preview
+  refreshes, Escape must close it before the dialog, and closing the dialog
+  must clean it up.
 - A tab-size change must keep the pure 2–8/default/step rules, backend restart
   persistence, Settings rollback and bounds, root Markdown and code facets,
   Vim `>`, Mermaid, rendered GFM tables, rendered-code, Raw Text Preview, Arrow Up/Down,

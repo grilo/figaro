@@ -256,3 +256,39 @@ export function fileTreeKeyboardPlan(key, rows, currentPath) {
         ? { action: 'focus', path: current.parentPath }
         : { action: 'none' };
 }
+
+/**
+ * Classify the complete file-tree keyboard surface from plain state. The DOM
+ * adapter owns focus, dialogs, and mutations; this plan owns command priority
+ * and modifier policy so those branches cannot drift across handlers.
+ */
+function fileTreeDirectKeyCommand(input) {
+    if (input.contextMenuRequested) return { action: 'context-menu' };
+    if (input.key === 'Escape' && input.cutActive) return { action: 'cancel-cut' };
+    if (input.altKey || input.ctrlKey || input.metaKey || input.shiftKey) return null;
+    if (input.key === 'F2' && input.itemActionable) return { action: 'rename' };
+    if (input.key === 'Delete' && input.itemActionable) return { action: 'delete' };
+    return null;
+}
+
+function fileTreeNavigationKeyCommand(input) {
+    if (input.altKey || input.ctrlKey || input.metaKey) return null;
+    return input.navigationPlan || null;
+}
+
+function fileTreeClipboardKeyCommand(input) {
+    if (!(input.ctrlKey || input.metaKey) || input.altKey || input.shiftKey) return null;
+    const commandKey = String(input.key || '').toLowerCase();
+    if (commandKey === 'x' && input.selectedEntryCount > 0) return { action: 'cut' };
+    if (commandKey === 'c' && input.selectedEntryCount > 0) return { action: 'copy' };
+    if (commandKey === 'v' && input.clipboardAvailable && input.pasteAllowed) return { action: 'paste' };
+    return null;
+}
+
+export function fileTreeKeyCommand(input = {}) {
+    const directCommand = fileTreeDirectKeyCommand(input);
+    if (directCommand) return directCommand;
+    const navigationCommand = fileTreeNavigationKeyCommand(input);
+    if (navigationCommand) return navigationCommand;
+    return fileTreeClipboardKeyCommand(input);
+}

@@ -10,10 +10,16 @@
  */
 import { log } from './log.js';
 import { foldedRanges } from '@codemirror/language';
+import { Transaction } from '@codemirror/state';
 import { diagramLanguages, renderDiagramSVG } from './diagramRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
 import { createDiagramRenderQueue } from './usecases/diagramRenderQueue.js';
+import {
+    setVegaLiteChartHeight,
+    vegaLiteChartHeight,
+    vegaLiteChartResizePlan,
+} from './core/vegaLiteChartEditorModel.js';
 
 export { diagramLanguages };
 
@@ -192,13 +198,24 @@ function scheduleDiagramIdle(callback, view) {
 
 function createDiagramWidget(WidgetType, renderQueue) {
     return class DiagramWidget extends WidgetType {
-        constructor(lang, code, recoveredFence = false, sourceLines = 1, sourceText = '') {
+        constructor(
+            lang,
+            code,
+            recoveredFence = false,
+            sourceLines = 1,
+            sourceText = '',
+            from = 0,
+            to = 0,
+        ) {
             super();
             this.lang = lang;
             this.code = code;
             this.recoveredFence = recoveredFence;
             this.sourceLines = sourceLines;
             this.sourceText = sourceText;
+            this.from = from;
+            this.to = to;
+            this.chartHeight = lang === 'vega-lite' ? vegaLiteChartHeight(code) : null;
             this.destroyed = false;
             this.renderVersion = 0;
             this.renderTask = null;
@@ -211,7 +228,94 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 other.code === this.code &&
                 other.recoveredFence === this.recoveredFence &&
                 other.sourceLines === this.sourceLines &&
-                other.sourceText === this.sourceText;
+                other.sourceText === this.sourceText &&
+                other.chartHeight === this.chartHeight;
+        }
+
+        currentBlock(view, root) {
+            let position = this.from;
+            try {
+                const mapped = view.posAtDOM(root, 0);
+                if (Number.isInteger(mapped)) position = mapped;
+            } catch (_) { /* a detached widget cannot commit a resize */ }
+            return scanDiagramFences(view.state.doc).find(block => (
+                block.lang === 'vega-lite'
+                && block.from <= position
+                && block.to >= position
+            )) || scanDiagramFences(view.state.doc).find(block => (
+                block.lang === 'vega-lite' && block.from === this.from
+            )) || null;
+        }
+
+        applyChartHeight(root, height) {
+            const normalized = vegaLiteChartResizePlan({ startHeight: height, deltaY: 0 });
+            root.dataset.figaroChartHeight = String(normalized);
+            root.style.setProperty('--cm-source-footprint-height', `${normalized + 44}px`);
+            root.querySelector('.cm-vega-lite-chart-resize-readout').textContent = `${normalized}px high`;
+            return normalized;
+        }
+
+        createChartResizeHandle(view, root) {
+            const handle = document.createElement('button');
+            handle.type = 'button';
+            handle.className = 'ui-image-resize-handle cm-vega-lite-chart-resize-handle';
+            handle.dataset.uiTooltip = 'Resize chart vertically';
+            handle.setAttribute('aria-label', 'Resize chart vertically');
+            const readout = document.createElement('output');
+            readout.className = 'cm-vega-lite-chart-resize-readout';
+            readout.setAttribute('aria-live', 'polite');
+            readout.textContent = `${this.chartHeight}px high`;
+            handle.addEventListener('pointerdown', event => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const start = { y: event.clientY, height: this.chartHeight };
+                let currentHeight = start.height;
+                const tooltip = handle.dataset.uiTooltip;
+                handle.removeAttribute('data-ui-tooltip');
+                root.classList.add('is-resizing');
+                view.dom.classList.add('cm-vega-lite-chart-resizing');
+                handle.setPointerCapture?.(event.pointerId);
+
+                const move = moveEvent => {
+                    currentHeight = vegaLiteChartResizePlan({
+                        startHeight: start.height,
+                        deltaY: moveEvent.clientY - start.y,
+                    });
+                    this.applyChartHeight(root, currentHeight);
+                };
+                const finish = endEvent => {
+                    root.classList.remove('is-resizing');
+                    view.dom.classList.remove('cm-vega-lite-chart-resizing');
+                    const changed = currentHeight !== start.height;
+                    if (endEvent.type === 'pointerup' && changed) {
+                        const block = this.currentBlock(view, root);
+                        const source = block ? (block.rawCode ?? block.code) : '';
+                        const replacement = setVegaLiteChartHeight(source, currentHeight);
+                        if (block && replacement && replacement !== source) {
+                            view.dispatch({
+                                changes: { from: block.contentFrom, to: block.contentTo, insert: `${replacement}${view.state.lineBreak}` },
+                                annotations: Transaction.userEvent.of('chart.resize'),
+                            });
+                        } else {
+                            this.applyChartHeight(root, start.height);
+                        }
+                    } else {
+                        this.applyChartHeight(root, start.height);
+                    }
+                    if (handle.hasPointerCapture?.(endEvent.pointerId)) {
+                        handle.releasePointerCapture(endEvent.pointerId);
+                    }
+                    handle.removeEventListener('pointermove', move);
+                    handle.removeEventListener('pointerup', finish);
+                    handle.removeEventListener('pointercancel', finish);
+                    if (tooltip) handle.dataset.uiTooltip = tooltip;
+                };
+                handle.addEventListener('pointermove', move);
+                handle.addEventListener('pointerup', finish);
+                handle.addEventListener('pointercancel', finish);
+            });
+            root.append(handle, readout);
         }
 
         toDOM(view) {
@@ -244,6 +348,11 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 lineHeight: view?.defaultLineHeight,
                 sourceText: this.sourceText,
             });
+            if (this.chartHeight) {
+                wrapper.classList.add('cm-block-widget--figaro-chart');
+                this.createChartResizeHandle(view, wrapper);
+                this.applyChartHeight(wrapper, this.chartHeight);
+            }
             this.renderTask = renderQueue.enqueue(
                 () => this.renderInto(content, wrapper),
                 view,
@@ -255,7 +364,10 @@ function createDiagramWidget(WidgetType, renderQueue) {
             const version = ++this.renderVersion;
 
             try {
-                const svg = await renderDiagramSVG(this.lang, this.code, 'figaro-live-diagram');
+                const svg = await renderDiagramSVG(this.lang, this.code, 'figaro-live-diagram', {
+                    appearance: this.chartHeight ? 'application' : 'authored',
+                    containerWidth: container.clientWidth || root.clientWidth,
+                });
                 if (this.destroyed || version !== this.renderVersion) return;
 
                 if (typeof svg !== 'string' || !svg) {
@@ -280,8 +392,8 @@ function createDiagramWidget(WidgetType, renderQueue) {
         }
 
         // Let a click on the preview move the cursor back into the source.
-        ignoreEvent() {
-            return false;
+        ignoreEvent(event) {
+            return Boolean(event?.target?.closest?.('.cm-vega-lite-chart-resize-handle'));
         }
 
         destroy() {
@@ -319,10 +431,29 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
 
         for (const block of blocks) {
             ranges.push({ from: block.from, to: block.to });
-            if (!block.code
-                || isDragging
-                || shouldShowSource(state, block.from, block.to)
-                || sourceRangeIsFolded(state, block)) continue;
+            const sourceVisible = shouldShowSource(state, block.from, block.to);
+            const folded = sourceRangeIsFolded(state, block);
+            if (!block.code || isDragging || sourceVisible || folded) {
+                const height = block.lang === 'vega-lite' && sourceVisible && !folded
+                    ? vegaLiteChartHeight(block.rawCode ?? block.code)
+                    : null;
+                if (height) {
+                    const firstLine = state.doc.lineAt(block.from).number;
+                    const lastLine = state.doc.lineAt(block.to).number;
+                    for (let number = firstLine; number <= lastLine; number += 1) {
+                        const opener = number === firstLine;
+                        decorations.push(Decoration.line({
+                            class: opener
+                                ? 'cm-vega-lite-chart-source-line cm-vega-lite-chart-source-placeholder'
+                                : 'cm-vega-lite-chart-source-line',
+                            attributes: opener ? {
+                                style: `--cm-vega-lite-chart-source-height:calc(${height + 44}px - ${lastLine - firstLine}lh)`,
+                            } : undefined,
+                        }).range(state.doc.line(number).from));
+                    }
+                }
+                continue;
+            }
             decorations.push(Decoration.replace({
                 widget: new DiagramWidget(
                     block.lang,
@@ -330,6 +461,8 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                     block.recoveredFence,
                     block.sourceLines,
                     block.sourceText,
+                    block.from,
+                    block.to,
                 ),
                 block: true,
             }).range(block.from, block.to));
