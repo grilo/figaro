@@ -10,6 +10,14 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.32.1] - 2026-09-01
+
+### Fixed
+
+- Release theme verification now compares rendered color channels instead of
+  browser-specific CSS color notation, keeping equivalent `rgb`, `color(srgb)`,
+  and `oklab` paint stable across Chromium versions.
+
 ## [1.32.0] - 2026-09-01
 
 ### Added
@@ -1862,7 +1870,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.32.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.32.1...HEAD
+[1.32.1]: https://github.com/grilo/figaro/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/grilo/figaro/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/grilo/figaro/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/grilo/figaro/compare/v1.29.0...v1.30.0

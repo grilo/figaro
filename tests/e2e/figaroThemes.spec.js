@@ -281,9 +281,13 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
                 searchFieldBackground: searchField.backgroundColor,
                 quickNoteBorder: quickNote.borderTopColor,
                 quickNoteBackground: quickNote.backgroundColor,
+                quickNoteBackgroundPixels: renderedColor(quickNote.backgroundColor),
                 quickNoteInboxColor: quickNoteInbox.color,
+                quickNoteInboxPixels: renderedColor(quickNoteInbox.color),
                 expectedQuickNoteBackground,
+                expectedQuickNoteBackgroundPixels: renderedColor(expectedQuickNoteBackground),
                 expectedQuickNoteDestination,
+                expectedQuickNoteDestinationPixels: renderedColor(expectedQuickNoteDestination),
                 screenBackground: screen.backgroundImage,
                 screenOpacity: screen.opacity,
                 screenPointerEvents: screen.pointerEvents,
@@ -340,8 +344,8 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
         expect(details.searchFieldBorder).toBe('rgba(0, 0, 0, 0)');
         expect(details.searchFieldBackground).not.toBe('rgba(0, 0, 0, 0)');
         expect(details.quickNoteBorder).toBe('rgba(0, 0, 0, 0)');
-        expect(details.quickNoteBackground).toBe(details.expectedQuickNoteBackground);
-        expect(details.quickNoteInboxColor).toBe(details.expectedQuickNoteDestination);
+        expect(details.quickNoteBackgroundPixels).toEqual(details.expectedQuickNoteBackgroundPixels);
+        expect(details.quickNoteInboxPixels).toEqual(details.expectedQuickNoteDestinationPixels);
         expect(details.screenPointerEvents).toBe('none');
         if (theme.flat) {
             expect(details.topBarBackground).toBe('none');

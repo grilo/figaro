@@ -500,6 +500,11 @@ width without changing logical card order. `tabManager.test.js` owns the exact
 group membership and DOM order, so Playwright keeps only the representative
 geometry assertions.
 
+When that scenario compares a rendered CSS color with a token-derived color,
+it compares their canvas-resolved pixel channels. Chromium versions may
+serialize the same paint as `rgb()`, `color(srgb ...)`, or `oklab(...)`; string
+equality would test the browser's chosen notation rather than Figaro's theme.
+
 The same spec contains one direct-`file://` boundary case because browsers
 apply distinct module, fetch, stylesheet, font, and image security rules there.
 It opens the actual `index.html`, proves the catalogue CSS and eager bundle
