@@ -4,7 +4,9 @@
     ".calendar-timeline-note",
     ".kanban-gantt-bar",
     ".file-tree-node.selected",
-    ".file-tree-node.cut-marked"
+    ".file-tree-node.cut-marked",
+    ".file-tree-node.file-issue--warning",
+    ".file-tree-node.file-issue--danger"
   ],
   "families": [
     {

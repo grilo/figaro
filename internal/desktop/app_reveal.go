@@ -78,6 +78,44 @@ func (a *App) OpenWithDefaultApplication(relPath string) (*SaveFileResult, error
 	return &SaveFileResult{Success: true}, nil
 }
 
+// OpenLaunchExternalFile uses the opaque capability created by an explicit
+// operating-system launch; the frontend never gains arbitrary path-launch
+// authority for files outside the vault.
+func (a *App) OpenLaunchExternalFile(id string) (*SaveFileResult, error) {
+	path, err := a.launchExternalFilePath(id)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		if err != nil {
+			return &SaveFileResult{Success: false, Error: err.Error()}, nil
+		}
+		return &SaveFileResult{Success: false, Error: "external launch target is not a regular file"}, nil
+	}
+	if err := launchFileWithDefaultApplication(path); err != nil {
+		return &SaveFileResult{Success: false, Error: fmt.Sprintf("open with default application: %v", err)}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
+// RevealLaunchExternalFile reveals only a previously registered external
+// launch target, preserving the same capability boundary as reads and saves.
+func (a *App) RevealLaunchExternalFile(id string) (*SaveFileResult, error) {
+	path, err := a.launchExternalFilePath(id)
+	if err != nil {
+		return nil, err
+	}
+	command, err := fileManagerCommand(filepath.Dir(path))
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: err.Error()}, nil
+	}
+	if err := startFileManager(command); err != nil {
+		return &SaveFileResult{Success: false, Error: fmt.Sprintf("open file manager: %v", err)}, nil
+	}
+	return &SaveFileResult{Success: true}, nil
+}
+
 var launchFileWithDefaultApplication = openFileInDefaultApplication
 
 func validateDefaultApplicationFile(root *os.Root, relPath string) error {

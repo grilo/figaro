@@ -1,7 +1,6 @@
 package desktop
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -10,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"figaro/internal/notes"
 )
@@ -21,10 +19,11 @@ import (
 
 // ReadFileResult is the return value of ReadFile.
 type ReadFileResult struct {
-	Content string  `json:"content"`
-	Mtime   float64 `json:"mtime"`
-	Path    string  `json:"path"`
-	Binary  bool    `json:"binary,omitempty"`
+	Content string          `json:"content"`
+	Mtime   float64         `json:"mtime"`
+	Path    string          `json:"path"`
+	Binary  bool            `json:"binary,omitempty"`
+	Issue   *VaultFileIssue `json:"issue,omitempty"`
 }
 
 // ExternalLaunchFile describes one Markdown document passed to Figaro by the
@@ -50,15 +49,28 @@ func readExternalMarkdownFile(path string) (*ReadFileResult, error) {
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("cannot read non-regular external file")
 	}
+	if issue := vaultFileMetadataIssue(path, info); issue != nil {
+		return &ReadFileResult{
+			Mtime: externalFileMtime(info),
+			Path:  path,
+			Issue: issue,
+		}, nil
+	}
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return &ReadFileResult{
+			Mtime: externalFileMtime(info),
+			Path:  path,
+			Issue: vaultFileReadIssue(path, err),
+		}, nil
 	}
+	issue := vaultFileContentIssue(path, content)
 	return &ReadFileResult{
 		Content: string(content),
 		Mtime:   externalFileMtime(info),
 		Path:    path,
-		Binary:  isBinaryFileContent(content),
+		Binary:  issue != nil,
+		Issue:   issue,
 	}, nil
 }
 
@@ -193,22 +205,39 @@ func (a *App) ReadFile(relPath string) (*ReadFileResult, error) {
 	if info.IsDir() {
 		return nil, fmt.Errorf("cannot read directory: %s", relPath)
 	}
-	data, err := root.ReadFile(cleanRel)
-	if err != nil {
-		return nil, err
-	}
-	abs := a.vaultAbsolutePath(cleanRel)
-	if isBinaryFileContent(data) {
+	mtime := a.currentFileVersionLocked(a.vaultAbsolutePath(cleanRel), info)
+	if issue := vaultFileMetadataIssue(filepath.ToSlash(cleanRel), info); issue != nil {
+		a.setVaultFileIssue(cleanRel, issue)
 		return &ReadFileResult{
-			Content: "",
-			Mtime:   float64(info.ModTime().UnixNano()) / 1e9,
-			Path:    relPath,
-			Binary:  true,
+			Mtime: mtime,
+			Path:  relPath,
+			Issue: issue,
 		}, nil
 	}
+	data, err := root.ReadFile(cleanRel)
+	if err != nil {
+		issue := vaultFileReadIssue(filepath.ToSlash(cleanRel), err)
+		a.setVaultFileIssue(cleanRel, issue)
+		return &ReadFileResult{
+			Mtime: mtime,
+			Path:  relPath,
+			Issue: issue,
+		}, nil
+	}
+	if issue := vaultFileContentIssue(filepath.ToSlash(cleanRel), data); issue != nil {
+		a.setVaultFileIssue(cleanRel, issue)
+		return &ReadFileResult{
+			Content: "",
+			Mtime:   mtime,
+			Path:    relPath,
+			Binary:  true,
+			Issue:   issue,
+		}, nil
+	}
+	a.removeVaultFileIssue(cleanRel)
 	return &ReadFileResult{
 		Content: string(data),
-		Mtime:   a.currentFileVersionLocked(abs, info),
+		Mtime:   mtime,
 		Path:    relPath,
 	}, nil
 }
@@ -219,7 +248,7 @@ func (a *App) ReadFile(relPath string) (*ReadFileResult, error) {
 // in Go. NUL bytes and invalid UTF-8 are reliable indicators that a vault file
 // should not be opened in a text editor.
 func isBinaryFileContent(data []byte) bool {
-	return bytes.IndexByte(data, 0) >= 0 || !utf8.Valid(data)
+	return vaultFileContentIssue("", data) != nil
 }
 
 // SaveFileResult is the return value of SaveFile.
@@ -337,7 +366,7 @@ func (a *App) CommitCurrentFile(relPath string) error {
 	if a.history != nil {
 		return a.history.CommitFile(cleanRel)
 	}
-	return nil
+	return fmt.Errorf("local history is unavailable")
 }
 
 // FileHasUncommittedChanges scopes Git status to one vault file so the status

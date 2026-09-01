@@ -10,6 +10,36 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.33.0] - 2026-09-02
+
+### Added
+
+- File problems now appear as persistent, accessible warning or danger markers
+  in the file tree and bottom-left status area, with exact diagnostics, recovery
+  guidance, reveal/open actions, and an explicit recheck instead of startup
+  popups.
+
+### Changed
+
+- Figaro now isolates unreadable, binary, non-UTF-8, and over-50-MB files from
+  editing and search without interrupting healthy notes. Invalid settings are
+  preserved before safe defaults are restored, unavailable Git history is
+  reported without blocking note saves, and disk-full failures use a dedicated
+  work-at-risk dialog while keeping unsaved text in memory.
+
+### Fixed
+
+- Background file-diagnostic refreshes no longer interrupt file-tree menus,
+  managed-file double-clicks, or keyboard focus, and the hidden diagnostics
+  action no longer protrudes beyond the fixed 24px status bar.
+- Mermaid and managed Vega-Lite resize dots now sit directly on the diagram's
+  lower edge, so they remain visible and clickable while the pointer approaches.
+- Frontend build tooling now locks Browserslist to a patched release, removing
+  the high-severity audit advisory reported during `npm ci`.
+- A tooltip dismissed with Escape can appear again after keyboard focus leaves
+  and later returns to its control, including when focus passed through a
+  control without its own hint.
+
 ## [1.32.1] - 2026-09-01
 
 ### Fixed
@@ -1870,7 +1900,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.32.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.33.0...HEAD
+[1.33.0]: https://github.com/grilo/figaro/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/grilo/figaro/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/grilo/figaro/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/grilo/figaro/compare/v1.30.0...v1.31.0

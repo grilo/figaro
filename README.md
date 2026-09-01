@@ -167,7 +167,7 @@ hand without changing the underlying Markdown.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
   open Mermaid's 32 chart types and 76 starter templates in a focused live
   editor, resize Mermaid and managed Vega-Lite canvases vertically from their
-  bottom-center handle, or edit Draw.io diagrams while keeping the saved SVG
+  bottom-center edge handle, or edit Draw.io diagrams while keeping the saved SVG
   readable outside Figaro. A new vault's `Welcome.md` includes a ready-to-render Mermaid example.
 - **Source and publishing tools.** Preview the exact raw Markdown or paginated
   output, preserve fenced-code syntax colors, add cover pages and tables of
@@ -346,11 +346,38 @@ left-aligned, with line/column, word/character counts, and reading time
 right-aligned. While the editor is focused and no operation needs attention,
 all content in that fixed 24px footer gently recedes; hovering the row, entering
 an empty editor side margin, or focusing a footer control restores it. In Pure
-editing chrome, all footer chrome remains absent regardless of hover, focus, or
-application activity; only the live word count remains at bottom-right.
-Progress, errors, activity, and **Undo** never collapse. Every Figaro theme continues its
+editing chrome, routine footer chrome remains absent regardless of hover,
+focus, or application activity; the live word count remains at bottom-right,
+and an active file-attention warning remains reachable at bottom-left.
+Outside Pure mode, progress, errors, activity, and **Undo** never collapse. Every Figaro theme continues its
 file-tree palette into the application cell; Figaro Dark and Figaro Light also
 continue the editor color through the complete buffer cell.
+
+Figaro also uses that bottom-left cell for persistent file diagnostics without
+opening warning dialogs during startup. Normal vault indexing identifies files
+that cannot safely enter the editor or search: files over 50 MB are rejected
+before their contents are allocated, while binary, invalid UTF-8, and unreadable
+files are isolated without interrupting healthy notes. An affected tree row
+keeps its normal file icon and adds a warning/danger tint and status glyph;
+hover or keyboard focus explains the exact problem and a click opens recovery
+guidance. Collapsed folders show the number and highest severity beneath them.
+The status action opens the same diagnostic list, including **Show in file
+tree**, **Open externally**, **Reveal in folder**, and **Check again** only when
+those actions apply. Warnings indicate a safely skipped or degraded feature;
+danger is reserved for unreadable files or work that may not be persisted.
+Repeated unchanged diagnostic snapshots stay inert, so background checks do
+not remount the tree or interrupt a context menu, keyboard focus, or a
+managed-file double-click. When there are no findings, the diagnostics action
+is fully hidden and contributes no geometry to the fixed 24px status row.
+
+A disk-full save failure is treated as one urgent incident even when note,
+workspace-state, and Git writes fail together. Figaro keeps each dirty buffer
+in memory, offers Retry, Copy unsaved text, or Keep editing, and leaves the
+danger status visible until writes succeed. If `vault/.config/settings.json`
+is malformed, Figaro preserves it as a timestamped `settings.invalid-*.json`
+copy before restoring defaults. A Git repository that cannot be opened disables
+only local history; editing and note saves remain available while the status
+explains how to repair and recheck it.
 
 Opening a Markdown file from outside the vault offers two safe choices:
 
@@ -396,7 +423,9 @@ behavior.
 Concise interface hints use one theme-aware tooltip throughout Figaro. A hint
 appears after a short hover or immediately on keyboard focus, remains inside the
 window, closes with Escape, and is dismissed if layout moves or removes its
-owning control. Calendar activity, managed-file guidance, and
+owning control. Escape suppresses that hint only until the pointer or keyboard
+focus leaves its control, so returning to it shows the guidance again. Calendar
+activity, managed-file guidance, and
 Markdown link previews share that surface while retaining their richer content.
 
 Every selected tree row uses the same accent-tinted surface, whether the
@@ -661,9 +690,11 @@ Live Mermaid previews reuse rendered SVGs when CodeMirror remounts them during
 scrolling. New diagrams wait for a quiet, idle moment before rendering so
 moving through long notes stays responsive. Even a small diagram receives a
 300px, full-writing-width canvas. Hover or focus it to expose the same themed
-bottom-center vertical resize handle used by charts; the live height changes
-while dragging, then one `%% figaro:height N` Mermaid comment is written on
-release as one Undo step. PDF Preview and generated PDFs honor that height.
+vertical resize handle used by charts, centered directly on the canvas's lower
+edge so the control stays visible while the pointer approaches it. The live
+height changes while dragging, then one `%% figaro:height N` Mermaid comment is
+written on release as one Undo step. PDF Preview and generated PDFs honor that
+height.
 
 Rendered Markdown tables now add **chart** beneath their existing left-side
 controls. It opens a reversible Vega-Lite Chart Editor: choose Cartesian, Pie,
@@ -711,7 +742,7 @@ announced error in the preview and keep **Create chart** disabled instead of
 leaving a blank chart box. Preview work is serialized, and rapid choices retain
 only the newest pending chart instead of rendering stale configurations in
 parallel. In the note, charts fill the writing width and
-expose one themed bottom-center handle for vertical resizing; the Markdown
+expose one themed vertical handle centered on the lower canvas edge; the Markdown
 changes once on release, so one drag is one Undo step. The same SVG
 specification renders in PDF Preview and generated PDFs.
 

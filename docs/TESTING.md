@@ -436,7 +436,9 @@ proves that embedded-editor menus expose the shared open state while retaining
 their own selection policy. `tests/frontend/unit/tooltip.test.js` owns native-title
 adoption, dynamic updates, iframe-name preservation, hover/focus/Escape and
 `aria-describedby` lifecycle, disabled-toggle label delegation, and pure
-viewport placement. It also removes a visible owner's DOM node and simulates a
+viewport placement. It also verifies that moving focus through an unhinted
+control clears Escape suppression so a later return can show the hint again,
+removes a visible owner's DOM node, and simulates a
 stationary pointer across owner reflow; both regressions must dismiss the shared
 tooltip and clear its accessibility relationship without relying on `mouseout`.
 The focused design-system browser regression then moves and removes a real
@@ -1296,11 +1298,13 @@ repeated source once, and checks that mounted SVG ids remain unique.
 
 `mermaidDiagramModel.test.js` separately owns default/minimum/maximum height,
 portable directive replacement, duplicate cleanup, and source-order retention.
-`liveDiagramPlugin.test.js` proves the shared bottom handle changes only mounted
+`liveDiagramPlugin.test.js` proves the shared lower-edge handle changes only mounted
 height during pointer movement, commits one transaction on release, and keeps
-the same footprint when source is revealed. `mermaidEditor.spec.js` is the one
-real-browser geometry check for full-width rendering, pointer capture, one-step
-Undo, Arrow Up/Down across the widget, mouse placement, and drag selection.
+the same footprint when source is revealed. `blockWidgetLayout.test.js` guards
+the feature selector that overrides the later-loaded primitive positioning.
+`mermaidEditor.spec.js` is the one real-browser geometry check for full-width
+rendering, an uninterrupted hover path to the canvas-edge handle, pointer
+capture, one-step Undo, Arrow Up/Down across the widget, mouse placement, and drag selection.
 `export.test.js` owns the matching printable height.
 The consolidated source-footprint browser case performs its forward and reverse
 drag while the pointer remains held and the editor scrolls between endpoints;
@@ -1617,7 +1621,7 @@ Primary and Opposite preserves every axis title in both chart orientations.
 Both combobox and
 palette listboxes stay within viewport bounds. It then compares one explicit
 data paint plus the themed backing surface before and after Apply,
-drags the actual bottom handle while source remains unchanged until release,
+drags the actual lower-canvas-edge handle while source remains unchanged until release,
 undoes that single resize, compares rendered/source document coordinates,
 checks Arrow Up/Down plus mouse placement and bidirectional drag selection, and
 confirms exact chart-to-table conversion and Undo. Repeat its cursor, pointer,
@@ -2164,19 +2168,32 @@ File-tree keyboard coverage is split at the same seam. Pure model tests own the
 visible-row flattening and Up/Down, Home/End, parent/child, expand/collapse,
 Enter activation, Space selection, semantic file-icon mapping with generic
 fallback, viewport-clamped tooltip placement, action-target reduction, and
-mixed-transfer plans. Component tests
+mixed-transfer plans. File-attention model tests additionally own severity
+ordering, runtime/native merging, semantic snapshot equality and inert
+republication, disk-full grouping, exact-file indexing, and distinct
+collapsed-ancestor counts. Component tests
 own `tree`/`treeitem`/`group` semantics, exactly one row with `tabindex="0"`,
 focus independent from active-document and internal file/folder selection,
 collapsed-child mounting, themed hover/focus tooltip semantics for a
 normal-opacity managed-only row, ordinary activation without an open attempt or
 active-buffer replacement, double-click and contextual **Open** convergence on
 the default-application backend, visible launcher failure, focused-row restoration
-after rerender, and F2 dispatch to the
-existing rename workflow for a focused vault row. Component coverage must also
+after rerender, and F2 dispatch to the existing rename workflow for a focused
+vault row. Component coverage must also simulate a diagnostics-driven row
+remount while a context menu is open and between managed-file clicks, proving
+stable focus restoration and exactly one default-application open. It must also
 prove that a successful tab switch moves only `aria-current` without changing
 the selected surface, focus, or mounted rows; `aria-selected` belongs only to
 the operation selection, clean open buffers have no visual marker, and dirty
 buffers alone receive a warning marker plus assistive unsaved text.
+They also prove that an affected file retains its identity icon, gains a
+non-color alert marker and exact hover/focus description, contributes an
+aggregate marker while its ancestor is collapsed, and routes activation to the
+shared diagnostics without opening CodeMirror. Diagnostic component coverage
+owns the persistent status summary, applicable-action filtering, targeted tree
+reveal event, and modal close lifecycle. The design-system browser specimen
+owns the irreducible computed tint, inset marker, status danger variant, and
+unchanged 24px row geometry.
 One browser scenario owns the irreducible Tab-entry and `:focus-visible`
 behavior, then uses Right/Down/Left against real focused rows. That focused
 boundary also proves the managed-only tooltip reuses the approved themed
@@ -2186,6 +2203,18 @@ the contextual **Open** action dispatch the identical vault path. Root-scoped
 desktop tests own exact-path launch, missing/directory/symlink/traversal refusal,
 and launcher failure; editable-file opening, drag, and remaining context-menu
 behavior must remain unchanged.
+
+Root-scoped file-confidence adapter tests create real temporary vault files and
+must prove that the 50 MB metadata gate rejects a sparse oversized note before
+content is returned, binary and invalid-UTF-8 notes are omitted while a healthy
+note remains searchable, a repaired note is restored by targeted recheck, and
+malformed settings are preserved before defaults replace them. A corrupt Git
+root must report degraded history while an ordinary note save still succeeds.
+Frontend save/session tests classify representative ENOSPC text, keep one
+persistent disk-full incident across cascaded failures, and clear it only after
+a successful corresponding write. The save-dialog test separately proves the
+dedicated disk-full consequence text and its Retry, Copy unsaved text, and Keep
+editing actions.
 
 Cut/Paste coverage reuses the move seam: the pure `fileTreeKeyCommand` matrix
 owns modifier policy, context-menu targeting, cut cancellation, rename/delete,

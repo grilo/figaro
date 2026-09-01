@@ -240,7 +240,7 @@ async function activeOrSavedContent(path) {
         return { content: tab._content, mtime: tab.mtime ?? null };
     }
     const result = await backend().ReadFile(path);
-    return result && !result.binary ? result : null;
+    return result && !result.binary && !result.issue ? result : null;
 }
 
 function handleContentChange(event) {

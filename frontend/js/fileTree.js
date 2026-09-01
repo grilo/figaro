@@ -47,6 +47,7 @@ import {
     transferTargetDirectory,
 } from './core/fileTreeTransferModel.js';
 import { createFileTreeTransfer } from './usecases/fileTreeTransfer.js';
+import { fileIssueIndex, fileIssueTreeDescription } from './core/fileIssueModel.js';
 
 
 let dragSourceNode = null;
@@ -423,6 +424,7 @@ export function initFileTree() {
         syncFileTreeTabMarkers();
     });
     subscribe('openTabs', syncFileTreeTabMarkers);
+    subscribe('fileIssues', renderFileTree);
 }
 
 function initFileTreeRequestEvents() {
@@ -443,6 +445,30 @@ function initFileTreeRequestEvents() {
         setState('expandedDirs', expanded);
         setState('selectedTreePath', path);
         setState('selectedTreePaths', [path]);
+        renderFileTree();
+        saveSession();
+
+        requestAnimationFrame(() => {
+            const escaped = path.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            const node = document.querySelector(`.file-tree-item[data-path="${escaped}"] > .file-tree-node`);
+            node?.scrollIntoView?.({ block: 'nearest' });
+            focusTreeNode(node, { scroll: false });
+        });
+    });
+    document.addEventListener('vault-file-issue-reveal-requested', event => {
+        const path = String(event.detail?.path || '');
+        const item = findTreeItem(visibleFileTreeData(), path);
+        if (!item || item.type !== 'file') return;
+
+        if (getState('sidebarCollapsed')) document.getElementById('toggle-sidebar')?.click();
+        const expanded = new Set(getState('expandedDirs') || []);
+        if (!item.externalFileId) {
+            const parentPath = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+            for (const directoryPath of directoryPathsForReveal(parentPath)) expanded.add(directoryPath);
+        }
+        setState('expandedDirs', expanded);
+        setState('selectedTreePath', path);
+        setState('selectedTreePaths', item.externalFileId ? [] : [path]);
         renderFileTree();
         saveSession();
 
@@ -688,6 +714,7 @@ export function renderFileTree() {
     const selectedPaths = getState('selectedTreePaths') || [];
     const cutPaths = internalCutClipboardPaths();
     const dirtyPaths = dirtyFilePaths(getState('openTabs'));
+    const issues = fileIssueIndex(getState('fileIssues'));
     
     if (!container) return;
     // Structural tree refreshes are intentionally rare, but they should not
@@ -718,6 +745,7 @@ export function renderFileTree() {
             cutPaths,
             focusProtection: null,
             dirtyPaths,
+            issues,
             range: { start: 0, end: 0 },
             restoreFocusPath,
             rows: visibleRows,
@@ -740,7 +768,7 @@ export function renderFileTree() {
     // Keep a real flexing surface after short file lists. Delegated context
     // events then reach #file-tree even when the user clicks below the last
     // file, making an empty/new vault easy to populate.
-    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath, fileTreeStyles.entries, dirtyPaths, cutPaths) +
+    container.innerHTML = buildTreeHTML(treeData, expandedDirs, selectedPath, selectedPaths, 0, activeFilePath, fileTreeStyles.entries, dirtyPaths, cutPaths, issues) +
         '<div class="file-tree-root-dropzone" aria-label="Vault root actions"></div>';
     const focusTarget = synchronizeTreeRovingTabIndex(container, restoreFocusPath);
     container.scrollTop = restoreScrollTop;
@@ -750,7 +778,7 @@ export function renderFileTree() {
 /**
  * Build tree HTML recursively
  */
-export function buildTreeHTML(items, expandedDirs, focusPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries, dirtyPaths = [], cutPaths = internalCutClipboardPaths()) {
+export function buildTreeHTML(items, expandedDirs, focusPath, selectedPaths = [], depth = 0, activeFilePath = null, styles = fileTreeStyles.entries, dirtyPaths = [], cutPaths = internalCutClipboardPaths(), issues = fileIssueIndex([])) {
     let html = `<ul class="file-tree-list" role="${depth === 0 ? 'group' : 'none'}">`;
     const cutPathSet = cutPaths instanceof Set ? cutPaths : new Set(cutPaths || []);
     
@@ -784,16 +812,25 @@ export function buildTreeHTML(items, expandedDirs, focusPath, selectedPaths = []
         const appearanceClasses = `${customIcon ? 'custom-icon' : ''} ${customColor ? 'custom-color' : ''}`.trim();
         const appearanceStyle = customColor ? ` style="--file-tree-entry-color:${customColor}"` : '';
         const nodeTitle = isExternal ? `Outside vault: ${item.path}` : '';
-        const capabilityDescription = isManagedOnly
-            ? `${filePresentation.label}. Not editable in Figaro. Double-click to open with the default application.`
-            : '';
-        const capabilityDescriptionId = isManagedOnly
+        const ownIssue = !isDir ? issues.byPath?.get(item.path) : null;
+        const directoryIssue = isDir && !isExpanded ? issues.directories?.get(item.path) : null;
+        const issueSeverity = ownIssue?.severity || directoryIssue?.severity || '';
+        const issueCount = ownIssue ? 1 : (directoryIssue?.count || 0);
+        const capabilityDescription = ownIssue
+            ? fileIssueTreeDescription(ownIssue)
+            : directoryIssue
+                ? `${directoryIssue.count} ${directoryIssue.count === 1 ? 'file in this folder needs' : 'files in this folder need'} ${directoryIssue.severity === 'danger' ? 'urgent ' : ''}attention. Expand the folder or open file diagnostics from the status bar.`
+                : isManagedOnly
+                    ? `${filePresentation.label}. Not editable in Figaro. Double-click to open with the default application.`
+                    : '';
+        const capabilityDescriptionId = capabilityDescription
             ? fileTreeCapabilityDescriptionId(item.path)
             : '';
+        const issueClass = issueSeverity ? `has-file-issue file-issue--${issueSeverity}` : '';
         
         html += `
             <li class="file-tree-item ${isExpanded ? 'expanded' : ''}" role="none" data-path="${escapeHtml(item.path)}" data-type="${item.type}"${isExternal ? ` data-external-file-id="${escapeHtml(item.externalFileId)}"` : ''}>
-                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isDirtyBuffer ? 'dirty-buffer' : ''} ${isCutMarked ? 'cut-marked' : ''} ${isPinned ? 'pinned' : ''} ${isExternal ? 'external-file' : ''} ${appearanceClasses}" role="treeitem" tabindex="${isFocusTarget ? '0' : '-1'}" aria-level="${depth + 1}" aria-selected="${isSelected}"${isActiveFile ? ' aria-current="page"' : ''}${hasChildren ? ` aria-expanded="${isExpanded}"` : ''}${capabilityDescriptionId ? ` aria-label="${escapeHtml(item.name)}" aria-describedby="${escapeHtml(capabilityDescriptionId)}"` : ''} draggable="${isExternal ? 'false' : 'true'}"${nodeTitle ? ` title="${escapeHtml(nodeTitle)}"` : ''}${appearanceStyle}>
+                <div class="file-tree-node ${isSelected ? 'selected' : ''} ${isDirtyBuffer ? 'dirty-buffer' : ''} ${isCutMarked ? 'cut-marked' : ''} ${isPinned ? 'pinned' : ''} ${isExternal ? 'external-file' : ''} ${issueClass} ${appearanceClasses}" role="treeitem" tabindex="${isFocusTarget ? '0' : '-1'}" aria-level="${depth + 1}" aria-selected="${isSelected}"${isActiveFile ? ' aria-current="page"' : ''}${hasChildren ? ` aria-expanded="${isExpanded}"` : ''}${capabilityDescriptionId ? ` aria-label="${escapeHtml(item.name)}" aria-describedby="${escapeHtml(capabilityDescriptionId)}"` : ''}${issueCount ? ` data-file-issue-count="${issueCount}" data-file-issue-severity="${issueSeverity}"` : ''} draggable="${isExternal ? 'false' : 'true'}"${nodeTitle ? ` title="${escapeHtml(nodeTitle)}"` : ''}${appearanceStyle}>
                     ${isDir ? `
                         <span class="node-chevron">${hasChildren ? `
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -815,7 +852,11 @@ export function buildTreeHTML(items, expandedDirs, focusPath, selectedPaths = []
                     `}
                     <span class="node-name">${escapeHtml(item.name)}</span>
                     ${isDirtyBuffer ? '<span class="sr-only node-dirty-status">Unsaved changes</span>' : ''}
-                    ${isManagedOnly ? `<span id="${escapeHtml(capabilityDescriptionId)}" class="sr-only node-capability-status" role="tooltip">${escapeHtml(capabilityDescription)}</span>` : ''}
+                    ${capabilityDescription ? `<span id="${escapeHtml(capabilityDescriptionId)}" class="sr-only node-capability-status" role="tooltip">${escapeHtml(capabilityDescription)}</span>` : ''}
+                    ${issueCount ? `<span class="node-issue-indicator" aria-hidden="true">
+                        ${renderLucideIcon('TriangleAlert', { size: 13 }) || '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 2.3 17.4A2 2 0 0 0 4 20h16a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>'}
+                        ${directoryIssue?.count > 1 ? `<span>${directoryIssue.count}</span>` : ''}
+                    </span>` : ''}
                     ${isCutMarked ? fileTreeCutIndicatorHTML() : ''}
                     ${isExternal ? `<span class="node-external-indicator" title="Outside vault" aria-label="Outside vault">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -830,7 +871,7 @@ export function buildTreeHTML(items, expandedDirs, focusPath, selectedPaths = []
                 </div>
                 ${isDir && hasChildren && isExpanded ? `
                     <div class="file-tree-children" role="group">
-                        ${buildTreeHTML(item.children, expandedDirs, focusPath, selectedPaths, depth + 1, activeFilePath, styles, dirtyPaths, cutPathSet)}
+                        ${buildTreeHTML(item.children, expandedDirs, focusPath, selectedPaths, depth + 1, activeFilePath, styles, dirtyPaths, cutPathSet, issues)}
                     </div>
                 ` : ''}
             </li>
@@ -858,6 +899,7 @@ function buildFlatTreeRowHTML(row, state) {
         state.styles,
         state.dirtyPaths,
         state.cutPaths,
+        state.issues,
     );
     let html = wrapper.slice(wrapper.indexOf('>') + 1, wrapper.lastIndexOf('</ul>'));
     html = html.replace(
@@ -1046,6 +1088,14 @@ function initFileTreeEvents() {
                 // unopened file look current.
                 setState('selectedTreePath', path);
                 setState('selectedTreePaths', externalFileId ? [] : [path]);
+                if (Number(node.dataset.fileIssueCount) > 0) {
+                    saveSession();
+                    renderFileTree();
+                    document.dispatchEvent(new CustomEvent('vault-file-issues-open-requested', {
+                        detail: { path },
+                    }));
+                    return;
+                }
                 if (externalFileId) {
                     const external = (getState('externalFileTreeEntries') || [])
                         .find(entry => entry.externalFileId === externalFileId);
@@ -1062,9 +1112,13 @@ function initFileTreeEvents() {
                 }
                 saveSession();
                 if (!externalFileId && !isDiagram && !isEditable) {
-                    // Keep the row mounted across the two clicks so the native
-                    // dblclick event can reach the managed-file handler.
+                    // A diagnostic/style refresh may remount this row between
+                    // clicks, which prevents the browser from emitting a
+                    // dblclick for one stable DOM target. Click detail remains
+                    // authoritative across that remount, so complete the
+                    // managed-file gesture here on its second activation.
                     syncMountedFileTreeSelection(container);
+                    if (e.detail === 2) void openManagedFileWithDefaultApplication(path);
                 } else {
                     renderFileTree();
                 }
@@ -1072,8 +1126,10 @@ function initFileTreeEvents() {
         }
     });
     
-    // Double-click opens managed-only assets with their OS-associated app.
-    container.addEventListener('dblclick', async (e) => {
+    // Double-click retains the directory gesture. Managed-only assets finish
+    // from click detail above so a background tree remount cannot swallow the
+    // second activation or cause the stable-target path to open twice.
+    container.addEventListener('dblclick', (e) => {
         const node = e.target.closest('.file-tree-node');
         if (!node) return;
         
@@ -1082,17 +1138,8 @@ function initFileTreeEvents() {
         
         const path = item.dataset.path;
         const type = item.dataset.type;
-        const externalFileId = item.dataset.externalFileId;
         
-        if (type === 'directory') {
-            toggleDirectory(path);
-        } else if (type === 'file'
-            && !externalFileId
-            && !isDrawioDiagramPath(path)
-            && !isEditableCodeMirrorFile(path)) {
-            e.preventDefault();
-            await openManagedFileWithDefaultApplication(path);
-        }
+        if (type === 'directory') toggleDirectory(path);
     });
     
     // Drag and drop
@@ -1710,10 +1757,16 @@ export async function moveInternalPath(sourcePath, targetDir) {
         // prefix so dirty/open tabs follow their parenthesized copy names.
         for (const [movedFrom, movedTo] of Object.entries(result.moved_paths || {})) {
             remapTreeSelection(movedFrom, movedTo);
+            document.dispatchEvent(new CustomEvent('vault-file-issue-runtime-remap-requested', {
+                detail: { oldPath: movedFrom, newPath: movedTo },
+            }));
         }
         const movedFrom = result.old_path || sourcePath;
         const movedTo = result.path || sourcePath;
         remapTreeSelection(movedFrom, movedTo);
+        document.dispatchEvent(new CustomEvent('vault-file-issue-runtime-remap-requested', {
+            detail: { oldPath: movedFrom, newPath: movedTo },
+        }));
         await refreshFileTree();
         for (const [pathFrom, pathTo] of Object.entries(result.moved_paths || {})) {
             updateTabsForMovedPath(pathFrom, pathTo);
@@ -1937,6 +1990,11 @@ function initContextMenu() {
 function handleContextMenu(e) {
     e.preventDefault();
 
+    // Event.currentTarget is cleared once this delegated handler returns. The
+    // diagnostics refresh can legitimately remount the tree while its menu is
+    // open, so retain the stable container for focus restoration instead of
+    // reading the expired event later.
+    const treeContainer = e.currentTarget;
     const node = e.target.closest('.file-tree-node');
     const item = node?.closest('.file-tree-item');
     // The event is delegated from #file-tree, so a right-click on its empty
@@ -1989,9 +2047,9 @@ function handleContextMenu(e) {
     configureContextMenu(contextMenu, {
         label: `File actions for ${contextName}`,
         returnFocus: () => {
-            if (path && focusTreePath(e.currentTarget, path)) return;
+            if (path && focusTreePath(treeContainer, path)) return;
             if (returnFocus?.isConnected) returnFocus.focus?.({ preventScroll: true });
-            else e.currentTarget.focus?.({ preventScroll: true });
+            else treeContainer?.focus?.({ preventScroll: true });
         },
         onDismiss: () => { contextMenu = null; },
     });
@@ -2439,6 +2497,9 @@ async function renameTreePath(path, type) {
         const movedFrom = result.old_path || path;
         const movedTo = result.path || newPath;
         remapTreeSelection(movedFrom, movedTo);
+        document.dispatchEvent(new CustomEvent('vault-file-issue-runtime-remap-requested', {
+            detail: { oldPath: movedFrom, newPath: movedTo },
+        }));
         await refreshFileTree();
         updateTabsForMovedPath(movedFrom, movedTo);
         await refreshTabsForUpdatedLinks(result.updated_links);
@@ -2485,6 +2546,9 @@ export async function removeExternalFileTreeEntry(externalFileId, {
         if (!closed) return false;
     }
     setState('externalFileTreeEntries', entries.filter(entry => entry.externalFileId !== externalFileId));
+    document.dispatchEvent(new CustomEvent('vault-file-issue-runtime-clear-requested', {
+        detail: { path: external.path },
+    }));
     if (getState('selectedTreePath') === external.path) setState('selectedTreePath', null);
     if (getState('selectedFilePath') === external.path) setState('selectedFilePath', null);
     renderFileTree();
@@ -2519,6 +2583,9 @@ export async function deletePath(path, type = 'file') {
         if (result.success) {
             document.dispatchEvent(new CustomEvent('vault-path-deleted', {
                 detail: { path, type },
+            }));
+            document.dispatchEvent(new CustomEvent('vault-file-issue-runtime-clear-requested', {
+                detail: { path },
             }));
             await refreshFileTree();
             

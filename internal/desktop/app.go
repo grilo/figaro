@@ -46,6 +46,7 @@ type App struct {
 	vaultIndexBuildMu   sync.Mutex
 	vaultStartupOnce    sync.Once
 	vaultLoadMu         sync.RWMutex
+	fileIssuesMu        sync.RWMutex
 	fileVersions        map[string]float64
 	kanbanColumns       []string
 	kanbanColors        map[string]string
@@ -53,6 +54,7 @@ type App struct {
 	vaultIndex          *vaultIndex
 	fileTreeEntries     map[string]fileTreeCacheEntry
 	fileTreeSnapshot    []*FileTreeItem
+	fileIssues          map[string]VaultFileIssue
 	internalVaultWrites map[string]internalVaultWriteAck
 	vaultWatcher        *vaultWatcher
 	watcherStopping     bool
@@ -182,6 +184,7 @@ func NewApp(vaultPath string) *App {
 		kanbanColumns:       append([]string{}, SystemColumns...),
 		launchExternalFiles: make(map[string]string),
 		internalVaultWrites: make(map[string]internalVaultWriteAck),
+		fileIssues:          make(map[string]VaultFileIssue),
 		windowState:         defaultWindowState(),
 		vaultLoadStatus:     VaultLoadStatus{Phase: VaultLoadPending},
 		windowShow:          runtime.WindowShow,
@@ -192,6 +195,23 @@ func NewApp(vaultPath string) *App {
 	hs, err := NewHistoryService(absPath)
 	if err != nil {
 		log.Println("[history] Failed to init:", err)
+		code := fileIssueHistoryUnavailable
+		severity := "warning"
+		title := "Local history is unavailable"
+		guidance := "Keep editing normally. Repair or restore the .git folder before relying on version history, then check again."
+		if isDiskFullFailure(err) {
+			code = fileIssueDiskFull
+			severity = "danger"
+			title = "Disk full — local history is unavailable"
+			guidance = "Free storage space before relying on version history, then check again. Notes can still be edited."
+		}
+		a.setVaultFileIssue(".git", &VaultFileIssue{
+			Code:     code,
+			Severity: severity,
+			Title:    title,
+			Detail:   fmt.Sprintf("Figaro could not open the vault's local Git history: %v. Notes can still be edited and saved.", err),
+			Guidance: guidance,
+		})
 	} else {
 		hs.SetVaultReadLocker(&a.vaultMu)
 		hs.SetCommitCallback(func() { a.emitRuntimeEvent("vault:history-changed") })
@@ -593,6 +613,9 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 				}
 
 				if !strings.EqualFold(filepath.Ext(cleanRel), ".md") {
+					if change.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
+						a.removeVaultFileIssuesBelow(cleanRel)
+					}
 					if change.Op&fsnotify.Write != 0 {
 						if info, statErr := root.Lstat(cleanRel); statErr == nil {
 							a.updateFileTreeCacheFileLocked(cleanRel, info)
@@ -619,12 +642,33 @@ func (a *App) applyVaultFilesystemChanges(changes []vaultWatchChange) vaultFiles
 					result.kanbanChanged = true
 					continue
 				}
+				if issue := vaultFileMetadataIssue(filepath.ToSlash(cleanRel), info); issue != nil {
+					a.setVaultFileIssue(cleanRel, issue)
+					a.removeVaultIndexFileLocked(cleanRel)
+					result.kanbanChanged = true
+					if change.Op&fsnotify.Create != 0 {
+						result.treeChanged = true
+					}
+					continue
+				}
 				content, err := root.ReadFile(cleanRel)
 				if err != nil {
 					log.Printf("[watcher] read changed note %q: %v", cleanRel, err)
-					a.invalidateVaultIndexLocked()
-					result.treeChanged = true
+					a.setVaultFileIssue(cleanRel, vaultFileReadIssue(filepath.ToSlash(cleanRel), err))
+					a.removeVaultIndexFileLocked(cleanRel)
 					result.kanbanChanged = true
+					if change.Op&fsnotify.Create != 0 {
+						result.treeChanged = true
+					}
+					continue
+				}
+				if issue := vaultFileContentIssue(filepath.ToSlash(cleanRel), content); issue != nil {
+					a.setVaultFileIssue(cleanRel, issue)
+					a.removeVaultIndexFileLocked(cleanRel)
+					result.kanbanChanged = true
+					if change.Op&fsnotify.Create != 0 {
+						result.treeChanged = true
+					}
 					continue
 				}
 				a.updateVaultIndexFileLocked(cleanRel, info, string(content))

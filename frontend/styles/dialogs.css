@@ -451,6 +451,102 @@ body.custom-modal-open { overflow: hidden; }
     line-height: 1.5;
 }
 
+.file-issues-modal {
+    width: min(680px, 100%);
+}
+
+.file-issues-modal .custom-modal-content {
+    padding-bottom: 14px;
+}
+
+.file-issue-list {
+    display: grid;
+    gap: 10px;
+    max-height: min(56vh, 520px);
+    overflow: auto;
+}
+
+.file-issue-card {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 12px;
+}
+
+.file-issue-card-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+}
+
+.file-issue-card h4 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 13px;
+}
+
+.file-issue-severity {
+    flex: 0 0 auto;
+    color: var(--text-dim);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+}
+
+.file-issue-paths {
+    display: grid;
+    gap: 3px;
+}
+
+.file-issue-paths code {
+    overflow: hidden;
+    color: var(--text-color);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-issue-card p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.48;
+}
+
+.file-issue-guidance strong {
+    color: var(--text-color);
+}
+
+.file-issue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.file-issue-actions .ui-button {
+    min-height: 28px;
+    padding: 4px 9px;
+    font-size: 10px;
+}
+
+.file-issues-modal .file-issues-recheck {
+    margin-right: auto;
+}
+
+@media (max-width: 560px) {
+    .file-issue-card-heading {
+        display: grid;
+        gap: 4px;
+    }
+
+    .file-issue-actions .ui-button {
+        flex: 1 1 140px;
+    }
+}
+
 .merge-notes-modal { width: min(500px, 100%); }
 
 .merge-dest-row {

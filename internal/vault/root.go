@@ -152,6 +152,12 @@ type MarkdownVisitor func(root *os.Root, rel string, info fs.FileInfo, data []by
 // (0, total), including for an empty vault.
 type MarkdownProgress func(visited int, total int)
 
+// MarkdownMetadataVisitor receives one ordinary Markdown file before its
+// contents are read. Callers can reject oversized files without allocating
+// them, then perform a root-scoped read only when their admission policy
+// allows it.
+type MarkdownMetadataVisitor func(root *os.Root, rel string, info fs.FileInfo) error
+
 type markdownFile struct {
 	rel  string
 	info fs.FileInfo
@@ -191,6 +197,32 @@ func WalkMarkdownWithProgress(root *os.Root, visitor MarkdownVisitor, progress M
 			return fmt.Errorf("read vault path %q: %w", file.rel, err)
 		}
 		if err := visitor(root, filepath.ToSlash(file.rel), file.info, data); err != nil {
+			return err
+		}
+		if progress != nil {
+			progress(index+1, len(files))
+		}
+	}
+	return nil
+}
+
+// WalkMarkdownMetadataWithProgress discovers the complete Markdown workload,
+// then leaves content reads to the visitor. It preserves the same determinate
+// progress contract as WalkMarkdownWithProgress.
+func WalkMarkdownMetadataWithProgress(root *os.Root, visitor MarkdownMetadataVisitor, progress MarkdownProgress) error {
+	files := make([]markdownFile, 0)
+	if err := walkMarkdownFiles(root, func(file markdownFile) error {
+		files = append(files, file)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if progress != nil {
+		progress(0, len(files))
+	}
+	for index, file := range files {
+		if err := visitor(root, filepath.ToSlash(file.rel), file.info); err != nil {
 			return err
 		}
 		if progress != nil {

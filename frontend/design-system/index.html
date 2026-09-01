@@ -385,7 +385,7 @@
                     </article>
 
                     <article class="ds-specimen">
-                        <header><h3>File-tree states</h3><code class="ds-selector">.file-tree-node.selected</code><code class="ds-selector">.file-tree-node.cut-marked</code></header>
+                        <header><h3>File-tree states</h3><code class="ds-selector">.file-tree-node.selected</code><code class="ds-selector">.file-tree-node.cut-marked</code><code class="ds-selector">.file-tree-node.file-issue--warning</code><code class="ds-selector">.file-tree-node.file-issue--danger</code></header>
                         <div class="ds-demo ds-demo--flush">
                             <div class="file-tree" role="tree" aria-label="Example vault file tree" aria-multiselectable="true">
                                 <ul class="file-tree-list" role="group">
@@ -412,6 +412,24 @@
                                             <span class="node-name">Current buffer.md</span>
                                         </div>
                                     </li>
+                                    <li class="file-tree-item" role="none">
+                                        <div class="file-tree-node has-file-issue file-issue--warning" role="treeitem" tabindex="-1" aria-level="1" aria-selected="false" aria-describedby="ds-file-warning">
+                                            <span class="node-chevron"></span>
+                                            <span class="node-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg></span>
+                                            <span class="node-name">oversized.md</span>
+                                            <span class="node-issue-indicator" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 2.3 17.4A2 2 0 0 0 4 20h16a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path></svg></span>
+                                            <span id="ds-file-warning" class="sr-only">Too large for Figaro. The file was not changed.</span>
+                                        </div>
+                                    </li>
+                                    <li class="file-tree-item" role="none">
+                                        <div class="file-tree-node has-file-issue file-issue--danger" role="treeitem" tabindex="-1" aria-level="1" aria-selected="false" aria-describedby="ds-file-danger">
+                                            <span class="node-chevron"></span>
+                                            <span class="node-icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg></span>
+                                            <span class="node-name">unreadable.md</span>
+                                            <span class="node-issue-indicator" aria-hidden="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.3 3.9 2.3 17.4A2 2 0 0 0 4 20h16a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path></svg></span>
+                                            <span id="ds-file-danger" class="sr-only">File could not be read. The file was not changed.</span>
+                                        </div>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
@@ -422,7 +440,7 @@
                     <header><h3>Status bar</h3><code class="ds-selector">.status-bar</code><code class="ds-selector">.status-backlinks</code></header>
                     <div class="ds-demo ds-demo--flush">
                         <footer class="status-bar ds-status-bar" data-writing-rest="true">
-                            <div class="status-left" role="group" aria-label="Application status" data-application-active="false" data-has-action="false" title="Ready"><span role="status" aria-live="polite">Ready</span></div>
+                            <div class="status-left" role="group" aria-label="Application status" data-application-active="false" data-has-action="false" title="Ready"><button type="button" class="ui-button ui-button--danger status-file-issues" aria-label="Saving is blocked. Action required. Open file diagnostics."><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.3 3.9 2.3 17.4A2 2 0 0 0 4 20h16a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path></svg><span>Saving blocked — action required</span></button><span role="status" aria-live="polite">Ready</span></div>
                             <div class="status-right" role="group" aria-label="Active buffer status" data-writing-summary="286 words">
                                 <div class="status-buffer-left" role="group" aria-label="History, relationships, and editor state"><button class="status-history has-history">8 changes</button><span class="status-separator">|</span><button class="status-backlinks has-backlinks">3 backlinks</button><span class="status-separator">|</span><span>NORMAL</span><span class="status-separator">|</span><button class="status-history has-history status-scale">Scale 110%</button><span class="status-separator">|</span><span>UTF-8</span></div>
                                 <div class="status-buffer-right" role="group" aria-label="Document metrics"><span>Ln 12, Col 8</span><span class="status-separator">|</span><span>286 words</span><span class="status-separator">|</span><span>1,742 chars</span><span class="status-separator">|</span><span>2 min read</span></div>

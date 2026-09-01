@@ -1122,7 +1122,7 @@ async function getDirtyTabContent(path) {
 
 async function readVaultText(path) {
     const result = await backend().ReadFile(path);
-    if (!result || result.binary) return null;
+    if (!result || result.binary || result.issue) return null;
     return result;
 }
 

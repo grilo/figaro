@@ -16,6 +16,7 @@ var mockState = {
     openTabs: [],
     activeTabId: null,
     externalFileTreeEntries: [],
+    fileIssues: [],
 };
 
 jest.mock('../frontend/js/state.js', () => ({
@@ -111,6 +112,7 @@ describe('File Tree', () => {
         state.openTabs = [];
         state.activeTabId = null;
         state.externalFileTreeEntries = [];
+        state.fileIssues = [];
         clearFileTreeClipboard();
         delete window.lucide;
     });
@@ -950,8 +952,12 @@ describe('File Tree', () => {
         expect(handleFileOpen).not.toHaveBeenCalled();
         expect(window.go.desktop.App.OpenWithDefaultApplication).not.toHaveBeenCalled();
 
+        // A diagnostics/style refresh may replace the row between the two
+        // physical clicks. The delegated second-click detail must still own
+        // the managed-file activation without a stable native dblclick target.
+        renderFileTree();
         document.querySelector('[data-path="report.pdf"] > .file-tree-node')
-            .dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+            .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 2 }));
         await testUtils.waitFor(0);
         expect(window.go.desktop.App.OpenWithDefaultApplication).toHaveBeenCalledTimes(1);
         expect(window.go.desktop.App.OpenWithDefaultApplication).toHaveBeenLastCalledWith('report.pdf');
@@ -971,6 +977,53 @@ describe('File Tree', () => {
         expect(window.go.desktop.App.OpenWithDefaultApplication).toHaveBeenLastCalledWith('report.pdf');
     });
 
+    test('marks file problems without replacing identity and routes activation to shared diagnostics', async () => {
+        state.fileTreeData = [{
+            name: 'Archive',
+            path: 'Archive',
+            type: 'directory',
+            children: [{ name: 'large.md', path: 'Archive/large.md', type: 'file', mtime: 2 }],
+        }];
+        state.fileIssues = [{
+            path: 'Archive/large.md',
+            code: 'too_large',
+            severity: 'warning',
+            title: 'Too large for Figaro',
+            detail: 'This file is 1.0 GB; Figaro did not read or index it.',
+            guidance: 'Open it externally or reduce its size.',
+            source: 'vault',
+        }];
+        initFileTree();
+        renderFileTree();
+
+        const collapsedFolder = document.querySelector('[data-path="Archive"] > .file-tree-node');
+        expect(collapsedFolder.dataset.fileIssueCount).toBe('1');
+        expect(collapsedFolder.querySelector('.node-issue-indicator')).toBeTruthy();
+
+        state.expandedDirs = new Set(['Archive']);
+        renderFileTree();
+        const file = document.querySelector('[data-path="Archive/large.md"] > .file-tree-node');
+        expect(file.classList).toContain('file-issue--warning');
+        expect(file.querySelector('.node-icon')).toBeTruthy();
+        expect(file.querySelector('.node-issue-indicator')).toBeTruthy();
+        expect(document.getElementById(file.getAttribute('aria-describedby')).textContent)
+            .toContain('The file was not changed. Press Enter for diagnostics.');
+        file.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        expect(document.querySelector('.file-tree-capability-tooltip')?.textContent)
+            .toContain('This file is 1.0 GB; Figaro did not read or index it.');
+        file.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+
+        const openDiagnostics = jest.fn();
+        document.addEventListener('vault-file-issues-open-requested', openDiagnostics, { once: true });
+        file.click();
+        await testUtils.waitFor(0);
+
+        expect(handleFileOpen).not.toHaveBeenCalled();
+        expect(openDiagnostics).toHaveBeenCalledWith(expect.objectContaining({
+            detail: { path: 'Archive/large.md' },
+        }));
+    });
+
     test('reports a default-application failure without changing the current buffer', async () => {
         state.fileTreeData = [
             { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
@@ -985,7 +1038,7 @@ describe('File Tree', () => {
         renderFileTree();
 
         document.querySelector('[data-path="image.png"] > .file-tree-node')
-            .dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+            .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 2 }));
         await testUtils.waitFor(0);
 
         expect(errorDialog).toHaveBeenCalledWith(
@@ -1134,6 +1187,27 @@ describe('File Tree', () => {
         expect(document.activeElement).toBe(menu.querySelector('[data-action="new-file"]'));
         expect(state.contextTargetType).toBe('root');
         expect(state.contextTargetPath).toBe('');
+    });
+
+    test('restores context-menu focus after a diagnostics refresh remounts its tree row', async () => {
+        state.fileTreeData = [{ name: 'Projects', path: 'Projects', type: 'directory', children: [] }];
+        initFileTree();
+        renderFileTree();
+
+        document.querySelector('[data-path="Projects"] > .file-tree-node').dispatchEvent(
+            new MouseEvent('contextmenu', { bubbles: true, cancelable: true }),
+        );
+        renderFileTree();
+        document.querySelector('.context-menu [data-action="customize-style"]').click();
+        await testUtils.waitFor(0);
+
+        expect(fileTreeStyleDialog).toHaveBeenCalledWith(expect.objectContaining({
+            name: 'Projects',
+            type: 'directory',
+        }));
+        expect(document.activeElement).toBe(
+            document.querySelector('[data-path="Projects"] > .file-tree-node'),
+        );
     });
 
     test('opens the selected file actions with Shift+F10 and navigates them by keyboard', () => {

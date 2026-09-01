@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	pathpkg "path"
+	"path/filepath"
 	goruntime "runtime"
 	"strings"
+	"time"
 
 	"figaro/internal/pdfexport"
 	settingsmodel "figaro/internal/settings"
@@ -80,8 +82,30 @@ func (a *App) ensureSettingsDefaults() {
 	settings, err := a.readSettingsFile()
 	resetInvalid := false
 	if err != nil || settings == nil {
+		if err == nil {
+			err = fmt.Errorf("settings must be a JSON object")
+		}
 		if err != nil {
-			log.Printf("[settings] Resetting invalid settings file: %v", err)
+			backupPath, backupErr := a.quarantineInvalidSettingsFile()
+			if backupErr != nil {
+				log.Printf("[settings] Could not preserve invalid settings file: %v", backupErr)
+				a.setVaultFileIssue(".config/settings.json", &VaultFileIssue{
+					Code:     fileIssueConfigUnreadable,
+					Severity: "warning",
+					Title:    "Settings could not be read",
+					Detail:   fmt.Sprintf("Figaro is using safe defaults, but left the original settings file unchanged: %v.", err),
+					Guidance: "Reveal the configuration folder, preserve settings.json, and repair its JSON before restarting Figaro.",
+				})
+				return
+			}
+			log.Printf("[settings] Preserved invalid settings as %s: %v", backupPath, err)
+			a.setVaultFileIssue(".config/settings.json", &VaultFileIssue{
+				Code:     fileIssueConfigRecovered,
+				Severity: "warning",
+				Title:    "Settings were reset safely",
+				Detail:   fmt.Sprintf("Figaro could not parse settings.json, preserved it as %s, and restored safe defaults.", filepath.ToSlash(backupPath)),
+				Guidance: "No note content was affected. Review the preserved copy only if you want to recover custom preferences.",
+			})
 		}
 		settings = make(map[string]interface{})
 		resetInvalid = true
@@ -92,7 +116,38 @@ func (a *App) ensureSettingsDefaults() {
 	}
 	if err := a.writeSettingsFile(normalized); err != nil {
 		log.Printf("[settings] Could not write normalized settings: %v", err)
+		code := fileIssueConfigWriteFailed
+		severity := "warning"
+		title := "Settings could not be saved"
+		guidance := "Check permissions for the vault's .config folder, then check again. Notes remain unaffected."
+		if isDiskFullFailure(err) {
+			code = fileIssueDiskFull
+			severity = "danger"
+			title = "Disk full — settings could not be saved"
+			guidance = "Free storage space before closing Figaro, then check again."
+		}
+		a.setVaultFileIssue(".config/settings.json", &VaultFileIssue{
+			Code:     code,
+			Severity: severity,
+			Title:    title,
+			Detail:   fmt.Sprintf("Figaro is using safe defaults for this session because it could not write settings.json: %v.", err),
+			Guidance: guidance,
+		})
 	}
+}
+
+func (a *App) quarantineInvalidSettingsFile() (string, error) {
+	root, err := a.openVaultRoot()
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+	stamp := time.Now().UTC().Format("20060102T150405.000000000Z")
+	backup := filepath.ToSlash(filepath.Join(".config", "settings.invalid-"+stamp+".json"))
+	if err := root.Rename(".config/settings.json", backup); err != nil {
+		return "", err
+	}
+	return backup, nil
 }
 
 // PDFBrowserSettingResult describes the optional browser executable selected

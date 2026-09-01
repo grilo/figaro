@@ -10,6 +10,14 @@ rules. Hover, selected, disabled, and keyboard focus remain canonical. Graph's
 Orphans reuses that family; no new component family or variant was introduced.
 The catalogue's deadline help now describes metadata, not legacy due links.
 
+File-attention follow-up, 2026-09-02: the explicitly approved warning and
+danger file-tree variants preserve each file's semantic icon while adding a
+token-based inset tint and trailing status glyph. The application status bar
+reuses the approved semantic button variants, and the diagnostic dialog reuses
+the shared modal, notice, and button language. Its empty state explicitly
+overrides the later shared button display with zero geometry, preserving the
+fixed 24px footer. Color is never the only signal.
+
 ## Consolidated foundation
 
 Nineteen approved families now use shared production
@@ -176,7 +184,7 @@ on hover, focus, and activation without a feature-local glyph. The only blockers
 are fewer than two data rows or a stacked mark; nominal category labels do not
 disable the control. Its wider borderless preview allocation,
 token-backed chart surface, column grid, chart-mode sections, vertically centered SVG, announced
-error state, and single bottom-center handle are feature-owned layout hooks;
+error state, and single lower-canvas-edge handle are feature-owned layout hooks;
 round-trip warnings reuse semantic notice/status colors. Narrow host geometry
 reflows those controls without changing their primitive presentation, and the
 shared picker controller fixes open menus to a pure-plan-clamped viewport
@@ -194,8 +202,9 @@ cursors, hover visibility, tooltip labels, pointer capture, size readout, and
 source updates. These are host geometry and interaction hooks rather than
 additional visual variants.
 Managed Vega-Lite and Mermaid widgets reuse that same primitive for one
-bottom-center vertical handle; their diagram hosts own only placement,
-visibility, live height feedback, and the one-release source transaction.
+vertical handle centered across the lower canvas edge; their diagram hosts own
+only placement, visibility, live height feedback, and the one-release source
+transaction.
 
 The title-bar `?` help trigger reuses the approved icon button. Its Markdown,
 Macros, and Shortcuts topic tabs use the approved compact button and accent variant; the

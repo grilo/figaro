@@ -270,7 +270,7 @@ and resetting an individual flowchart override preserves authored native/class
 styling. These are source transformations, not preview-only CSS overrides.
 An optional `%% figaro:height N` directive inside a Mermaid fence records the
 editor's vertical resize (180–900px). PDF Preview and generated PDFs apply that
-height to the printable figure; the bottom-center resize control itself remains
+height to the printable figure; the bottom-center lower-edge resize control itself remains
 editor-only.
 
 Each fenced `code.figaro-print-code` also carries

@@ -1401,6 +1401,24 @@
     color: var(--text-color);
 }
 
+.file-tree-item > .file-tree-node.file-issue--warning:not(.selected) {
+    background: color-mix(in srgb, var(--warning-color) 8%, transparent);
+    box-shadow: inset 2px 0 color-mix(in srgb, var(--warning-color) 78%, transparent);
+}
+
+.file-tree-item > .file-tree-node.file-issue--danger:not(.selected) {
+    background: color-mix(in srgb, var(--danger-color) 9%, transparent);
+    box-shadow: inset 2px 0 color-mix(in srgb, var(--danger-color) 82%, transparent);
+}
+
+.file-tree-item > .file-tree-node.file-issue--warning:not(.selected):hover {
+    background: color-mix(in srgb, var(--warning-color) 13%, var(--hover-bg));
+}
+
+.file-tree-item > .file-tree-node.file-issue--danger:not(.selected):hover {
+    background: color-mix(in srgb, var(--danger-color) 14%, var(--hover-bg));
+}
+
 /* Only unsaved in-memory buffers need a secondary file-tree marker. Merely
    having a clean tab open does not affect any tree action. */
 .file-tree-item > .file-tree-node.dirty-buffer::after {
@@ -1416,6 +1434,11 @@
 .file-tree-item > .file-tree-node.pinned.dirty-buffer::after,
 .file-tree-item > .file-tree-node.external-file.dirty-buffer::after {
     order: 1;
+    margin-left: 0;
+}
+
+.file-tree-item > .file-tree-node.has-file-issue.dirty-buffer::after {
+    order: 3;
     margin-left: 0;
 }
 
@@ -1487,7 +1510,8 @@
 
 .file-tree-node .node-pin-indicator,
 .file-tree-node .node-external-indicator,
-.file-tree-node .node-cut-indicator {
+.file-tree-node .node-cut-indicator,
+.file-tree-node .node-issue-indicator {
     display: inline-flex;
     flex: 0 0 auto;
     order: 2;
@@ -1496,6 +1520,24 @@
     width: 16px;
     height: 16px;
     color: var(--text-dim);
+}
+
+.file-tree-node .node-issue-indicator {
+    width: auto;
+    min-width: 16px;
+    margin-left: auto;
+    gap: 2px;
+    color: var(--warning-color);
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.file-tree-node.file-issue--danger .node-issue-indicator {
+    color: var(--danger-color);
+}
+
+.file-tree-node.selected .node-issue-indicator {
+    color: currentColor;
 }
 
 .file-tree-node .node-pin-indicator {

@@ -382,7 +382,7 @@ export async function exportFileToPDF(path, title) {
     }
 
     const file = await backend().ReadFile(path);
-    if (!file || file.binary) {
+    if (!file || file.binary || file.issue) {
         throw new Error('Markdown file could not be read');
     }
     return exportMarkdownToPDF({ path, title: title || path.split('/').pop(), content: file.content });

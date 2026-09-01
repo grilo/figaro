@@ -41,6 +41,24 @@ describe('design-system tooltip', () => {
         expect(tooltip.hidden).toBe(true);
     });
 
+    test('allows a dismissed tooltip to reopen after focus leaves through an unhinted control', () => {
+        const outline = document.getElementById('outline');
+        const plain = document.createElement('button');
+        plain.textContent = 'Plain action';
+        document.body.appendChild(plain);
+
+        outline.focus();
+        const tooltip = document.getElementById('ui-tooltip');
+        expect(tooltip.hidden).toBe(false);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(tooltip.hidden).toBe(true);
+
+        plain.focus();
+        outline.focus();
+        expect(tooltip.hidden).toBe(false);
+        expect(outline.getAttribute('aria-describedby')).toBe('ui-tooltip');
+    });
+
     test('adopts dynamically mounted and updated title hints without leaking its description', async () => {
         const dynamic = document.createElement('button');
         dynamic.title = 'First hint';

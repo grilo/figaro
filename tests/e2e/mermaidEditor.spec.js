@@ -7,7 +7,7 @@ async function openWelcomeEditor(page) {
     await expect(page.locator('.cm-editor')).toBeVisible();
 }
 
-test('small Mermaid diagrams use a full-width resizable canvas and commit height once on release', async ({ page }) => {
+test('small Mermaid diagrams keep their edge handle reachable and commit height once on release', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = ['Before', '```mermaid', 'flowchart TD', '  A --> B', '```', 'After'].join('\n');
     await page.evaluate(async markdown => {
@@ -28,16 +28,32 @@ test('small Mermaid diagrams use a full-width resizable canvas and commit height
     const geometry = await diagram.evaluate(element => {
         const root = element.getBoundingClientRect();
         const graphic = element.querySelector('svg').getBoundingClientRect();
-        return { rootHeight: root.height, rootWidth: root.width, graphicWidth: graphic.width };
+        const canvas = element.querySelector('.cm-live-diagram').getBoundingClientRect();
+        const handle = element.querySelector('.cm-mermaid-diagram-resize-handle');
+        const handleRect = handle.getBoundingClientRect();
+        return {
+            rootHeight: root.height,
+            rootWidth: root.width,
+            graphicWidth: graphic.width,
+            canvasBottom: canvas.bottom,
+            canvasCenterX: canvas.left + canvas.width / 2,
+            handleCenterX: handleRect.left + handleRect.width / 2,
+            handleCenterY: handleRect.top + handleRect.height / 2,
+            handlePosition: getComputedStyle(handle).position,
+        };
     });
     expect(geometry.rootHeight).toBeGreaterThanOrEqual(340);
     expect(geometry.graphicWidth).toBeGreaterThan(geometry.rootWidth * 0.5);
+    expect(geometry.handlePosition).toBe('absolute');
+    expect(Math.abs(geometry.handleCenterX - geometry.canvasCenterX)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.handleCenterY - geometry.canvasBottom)).toBeLessThanOrEqual(1);
 
-    await diagram.hover();
     const handle = diagram.getByRole('button', { name: 'Resize Mermaid diagram vertically' });
-    await expect(handle).toBeVisible();
+    await page.mouse.move(geometry.canvasCenterX, geometry.canvasBottom - 12);
+    await expect.poll(() => handle.evaluate(element => getComputedStyle(element).opacity)).toBe('1');
     const box = await handle.boundingBox();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 8 });
+    await expect.poll(() => handle.evaluate(element => getComputedStyle(element).opacity)).toBe('1');
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 80, { steps: 8 });
     await expect(diagram.locator('.cm-diagram-resize-readout')).toHaveText('380px high');

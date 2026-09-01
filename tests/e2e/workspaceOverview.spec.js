@@ -407,6 +407,8 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
         const bufferRight = element.querySelector('.status-buffer-right');
         const bufferLeftBounds = bufferLeft.getBoundingClientRect();
         const bufferRightBounds = bufferRight.getBoundingClientRect();
+        const fileIssues = element.querySelector('#status-file-issues');
+        const fileIssuesBounds = fileIssues.getBoundingClientRect();
         const visibleChildren = [...element.querySelectorAll(
             '.status-left > *, .status-buffer-left > *, .status-buffer-right > *',
         )]
@@ -418,6 +420,8 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
         return {
             height: bar.height,
             overflowY: getComputedStyle(element).overflowY,
+            hiddenFileIssuesDisplay: getComputedStyle(fileIssues).display,
+            hiddenFileIssuesHeight: fileIssuesBounds.height,
             childrenInside: visibleChildren.every(rect => rect.top >= bar.top - 1 && rect.bottom <= bar.bottom + 1),
             applicationAligned: Math.abs(application.right - sidebar.right) <= 1,
             bufferAligned: Math.abs(buffer.left - sidebar.right) <= 1,
@@ -437,6 +441,8 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
     expect(geometry).toEqual({
         height: 24,
         overflowY: 'hidden',
+        hiddenFileIssuesDisplay: 'none',
+        hiddenFileIssuesHeight: 0,
         childrenInside: true,
         applicationAligned: true,
         bufferAligned: true,

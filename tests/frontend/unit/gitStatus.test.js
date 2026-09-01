@@ -31,9 +31,15 @@ jest.mock('../frontend/js/statusBar.js', () => ({
     statusBar: { set: jest.fn() },
 }));
 
+jest.mock('../frontend/js/fileIssues.js', () => ({
+    recordRuntimeFileIssue: jest.fn(),
+    resolveRuntimeFileIssue: jest.fn(),
+}));
+
 import { commitCurrentFileChanges, configureHistoryWorkspace, initHistoryPanel, updateGitStatus } from '../frontend/js/historyPanel.js';
 import { errorDialog } from '../frontend/js/dialogs.js';
 import { statusBar } from '../frontend/js/statusBar.js';
+import { recordRuntimeFileIssue } from '../frontend/js/fileIssues.js';
 
 describe('quiet local-history action', () => {
     beforeEach(() => {
@@ -108,6 +114,19 @@ describe('quiet local-history action', () => {
         expect(control.classList).toContain('is-uncommitted');
     });
 
+    test('keeps note editing available while surfacing a Git status failure', async () => {
+        window.go.desktop.App.FileHasUncommittedChanges.mockRejectedValueOnce(new Error('object database is corrupt'));
+
+        await expect(updateGitStatus('note.md')).resolves.toBe(false);
+
+        expect(document.getElementById('git-status').textContent).toBe('History unavailable');
+        expect(recordRuntimeFileIssue).toHaveBeenCalledWith(expect.objectContaining({
+            path: 'note.md',
+            code: 'history_status_failed',
+            severity: 'warning',
+        }));
+    });
+
     test('keeps the warning and reports a non-destructive commit failure', async () => {
         await updateGitStatus('note.md');
         window.go.desktop.App.CommitCurrentFile.mockRejectedValueOnce(new Error('another file is staged'));
@@ -121,5 +140,10 @@ describe('quiet local-history action', () => {
         );
         expect(document.getElementById('git-status').textContent).toBe('Save to history');
         expect(document.getElementById('git-status').disabled).toBe(false);
+        expect(recordRuntimeFileIssue).toHaveBeenCalledWith(expect.objectContaining({
+            path: 'note.md',
+            code: 'history_failed',
+            severity: 'warning',
+        }));
     });
 });

@@ -42,6 +42,7 @@ export const state = {
     selectedTreePath: null,     // Independent roving-focus path (file or directory)
     selectedTreePaths: [],      // Selected internal file-tree paths (for actions/merge)
     externalFileTreeEntries: [], // Process-local launch documents kept outside the vault
+    fileIssues: [],             // Persistent file diagnostics from startup and runtime failures
     
     // Search
     searchQuery: '',            // Current search query

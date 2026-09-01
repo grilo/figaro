@@ -120,6 +120,35 @@
     white-space: nowrap;
 }
 
+.status-file-issues {
+    min-width: 0;
+    height: 20px;
+    flex: 0 1 auto;
+    gap: 5px;
+    padding: 0 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    line-height: 18px;
+    overflow: hidden;
+}
+
+/* primitives.css loads after feature layout and gives .ui-button a flex
+   display. Preserve the native hidden contract with the stronger host hook. */
+.status-file-issues[hidden] {
+    display: none;
+}
+
+.status-file-issues svg {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 auto;
+}
+
+.status-file-issues span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .status-vault-loading {
     display: flex;
     align-items: center;
@@ -252,6 +281,10 @@
     opacity: 0;
 }
 
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) #status-file-issues:not([hidden]) {
+    opacity: .82;
+}
+
 .status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-left,
 .status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-right {
     opacity: 0;
@@ -314,6 +347,37 @@
     border-radius: 50%;
     background: var(--accent-color);
     content: '';
+}
+
+#app.sidebar-collapsed #status-file-issues:not([hidden]) {
+    width: 24px;
+    flex: 0 0 24px;
+    padding: 0;
+    justify-content: center;
+}
+
+#app.sidebar-collapsed #status-file-issues span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+/* Data-confidence incidents remain reachable in Pure mode without restoring
+   the rest of the application chrome. */
+#app.pure-editing-chrome .status-left:has(#status-file-issues:not([hidden])) {
+    inset: auto auto 2px 8px;
+    width: auto;
+    height: 20px;
+    padding: 0;
+    overflow: visible;
+    clip-path: none;
+    pointer-events: auto;
+}
+
+#app.pure-editing-chrome .status-left:has(#status-file-issues:not([hidden])) > *:not(#status-file-issues):not(#status-file-issues-announcer) {
+    display: none;
 }
 
 #app.sidebar-collapsed #status-text {

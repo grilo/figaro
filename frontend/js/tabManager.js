@@ -30,7 +30,7 @@ import { renderVaultHealth } from './vaultHealth.js';
 import { renderDrawioTab } from './drawio.js';
 import { createGraphView } from './graphView.js';
 import { initSettingsPanel } from './theme.js';
-import { isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
+import { isDiskFullError, isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
 import { boundedAdjacentTabId } from './core/tabNavigationModel.js';
@@ -57,6 +57,13 @@ import { initRecentlyDeletedSettings } from './recentlyDeleted.js';
 import { fileTabReadTarget } from './core/externalFileModel.js';
 import { initialFrontmatterBodySelection } from './frontmatter.js';
 import { isMarkdownFilePath } from './languageSupport.js';
+import {
+    recordRuntimeFileIssue,
+    recordVaultFileIssue,
+    resolveRuntimeFileIssue,
+    resolveVaultFileIssue,
+    showFileIssues,
+} from './fileIssues.js';
 import {
     configureContextMenu,
     contextMenuAnchorPoint,
@@ -801,10 +808,10 @@ export async function switchTab(tabId, {
                 }
                 return false;
             }
-            if (!preparedFile || preparedFile.binary) {
-                throw new Error(preparedFile?.binary
+            if (!preparedFile || preparedFile.issue || preparedFile.binary) {
+                throw new Error(preparedFile?.issue?.detail || (preparedFile?.binary
                     ? 'This external file is binary and cannot be edited.'
-                    : 'The external file returned no readable content.');
+                    : 'The external file returned no readable content.'));
             }
             if (!getEditorView()) createEditorView();
             const configured = await configureEditorForFile(tab.path);
@@ -1003,9 +1010,28 @@ async function loadFileContent(tab, cursorState = null) {
         
         const result = await readFileTab(tab);
         if (result) {
-            if (result.binary) {
-                statusBar.set('Cannot edit binary file');
+            if (result.issue) {
+                if (tab.externalFileId) recordRuntimeFileIssue({ ...result.issue, externalFileId: tab.externalFileId });
+                else recordVaultFileIssue(result.issue);
                 return;
+            }
+            if (result.binary) {
+                const issue = {
+                    path: tab.path,
+                    code: 'binary',
+                    severity: 'warning',
+                    title: 'File appears to be binary',
+                    detail: 'Figaro did not open this file as text.',
+                    guidance: 'Open it with the default application or verify its file type.',
+                };
+                if (tab.externalFileId) recordRuntimeFileIssue({ ...issue, externalFileId: tab.externalFileId });
+                else recordVaultFileIssue(issue);
+                return;
+            }
+            if (tab.externalFileId) {
+                resolveRuntimeFileIssue(tab.path, ['too_large', 'binary', 'unsupported_encoding', 'unreadable']);
+            } else {
+                resolveVaultFileIssue(tab.path);
             }
             if (tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
             const configured = await configureEditorForFile(tab.path);
@@ -1019,7 +1045,14 @@ async function loadFileContent(tab, cursorState = null) {
         }
     } catch (err) {
         log.error('Failed to load file:', err);
-        statusBar.set('Failed to load file');
+        recordRuntimeFileIssue({
+            path: tab.path,
+            code: 'unreadable',
+            severity: 'danger',
+            title: 'File couldn’t be read',
+            detail: `Figaro could not read this file: ${err?.message || err}. The file was not changed.`,
+            guidance: 'Check its permissions and whether another application has locked it, then check again.',
+        });
     }
 }
 
@@ -1090,6 +1123,11 @@ function renderGraphTab(panel) {
         loadAppearance: () => backend().GetFileTreeStyles(),
         openNote: async path => {
             const file = await backend().ReadFile(path);
+            if (file?.issue) {
+                recordVaultFileIssue(file.issue);
+                void showFileIssues({ path });
+                throw new Error(file.issue.detail);
+            }
             if (!file || file.binary) throw new Error('The selected graph note could not be opened.');
             openTab(path, path.split('/').pop() || path, 'file', {
                 path,
@@ -1391,6 +1429,10 @@ export async function refreshTabsForUpdatedLinks(paths) {
             const file = await backend().ReadFile(tab.path);
             // A user edit or tab move while the read was in flight always wins
             // over a delayed reload.
+            if (file?.issue) {
+                recordVaultFileIssue(file.issue);
+                continue;
+            }
             if (!file || file.binary || tab.dirty || !updatedPaths.has(normalizeTabPath(tab.path))) continue;
             tab._content = file.content;
             tab.mtime = file.mtime;
@@ -1707,6 +1749,20 @@ function reportSaveFailure(snapshot, error) {
     const { tab } = snapshot;
     if (!isLatestSave(tab, snapshot)) return;
     statusBar.set(saveFailureStatusMessage(error));
+    const diskFull = isDiskFullError(error);
+    const cause = String(error?.message || error?.error || error || 'Unknown error').replace(/^Error:\s*/i, '');
+    recordRuntimeFileIssue({
+        path: snapshot.path,
+        code: diskFull ? 'disk_full' : 'save_failed',
+        severity: 'danger',
+        title: diskFull ? 'Disk full — saving is blocked' : 'Saving is blocked',
+        detail: diskFull
+            ? `Figaro could not save this document because the storage device is full: ${cause}. The latest text remains in the open buffer.`
+            : `Figaro could not save this document: ${cause}. The latest text remains in the open buffer.`,
+        guidance: diskFull
+            ? 'Free storage space, then retry. Copy the unsaved text before closing Figaro if space cannot be freed.'
+            : 'Retry the save, check file permissions, or copy the unsaved text before closing Figaro.',
+    });
 
     let episode = saveFailureEpisodes.get(tab);
     if (!episode) {
@@ -1753,6 +1809,7 @@ async function applySaveSuccess(snapshot, result, {
 }) {
     const { tab, content } = snapshot;
     saveFailureEpisodes.delete(tab);
+    resolveRuntimeFileIssue(tab.path, ['disk_full', 'save_failed']);
     tab.mtime = result.mtime;
     const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
     tabsForPath.forEach(candidate => {
@@ -1760,6 +1817,16 @@ async function applySaveSuccess(snapshot, result, {
     });
     if (historyCommitFailed) {
         log.warn('File saved, but its history commit failed:', historyCommitError);
+        recordRuntimeFileIssue({
+            path: tab.path,
+            code: 'history_failed',
+            severity: 'warning',
+            title: 'Local history could not be updated',
+            detail: `The document was saved, but Figaro could not record its Git history: ${historyCommitError?.message || historyCommitError}.`,
+            guidance: 'Your note is safe. Check the vault’s Git repository and storage, then save again.',
+        });
+    } else {
+        resolveRuntimeFileIssue(tab.path, ['history_failed']);
     }
     if (!isLatestSave(tab, snapshot)) return;
 

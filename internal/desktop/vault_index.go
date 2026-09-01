@@ -771,8 +771,22 @@ func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
 
 	generation := a.beginVaultLoad()
 	index := newVaultIndex()
+	issues := make(map[string]VaultFileIssue)
 	textPool := make(map[string]vaultIndexedText)
-	if err := a.walkVaultMarkdownWithProgress(func(_ *os.Root, rel string, info fs.FileInfo, data []byte) error {
+	if err := a.walkVaultMarkdownMetadataWithProgress(func(root *os.Root, rel string, info fs.FileInfo) error {
+		if issue := vaultFileMetadataIssue(rel, info); issue != nil {
+			issues[rel] = *issue
+			return nil
+		}
+		data, readErr := root.ReadFile(filepath.FromSlash(rel))
+		if readErr != nil {
+			issues[rel] = *vaultFileReadIssue(rel, readErr)
+			return nil
+		}
+		if issue := vaultFileContentIssue(rel, data); issue != nil {
+			issues[rel] = *issue
+			return nil
+		}
 		content := string(data)
 		text := pooledVaultIndexedText(textPool, content)
 		file := indexMarkdownText(rel, info, text)
@@ -787,6 +801,7 @@ func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
 	}
 	a.setVaultLoadPhase(generation, VaultLoadFinalizing)
 	index.rebuildDerived()
+	a.replaceVaultFileIssues(issues)
 	a.publishVaultIndexLocked(index)
 	a.setVaultLoadPhase(generation, VaultLoadReady)
 	return index, nil
@@ -806,15 +821,35 @@ func (a *App) publishVaultIndexLocked(index *vaultIndex) {
 // Markdown file was saved by Figaro. It never reopens unrelated notes.
 func (a *App) updateVaultIndexFileLocked(rel string, info fs.FileInfo, content string) {
 	a.updateFileTreeCacheFileLocked(rel, info)
+	if !strings.HasSuffix(strings.ToLower(rel), ".md") {
+		return
+	}
+	if issue := vaultFileMetadataIssue(filepath.ToSlash(rel), info); issue != nil {
+		a.setVaultFileIssue(rel, issue)
+		a.removeVaultIndexFileLocked(rel)
+		return
+	}
+	if issue := vaultFileContentIssue(filepath.ToSlash(rel), []byte(content)); issue != nil {
+		a.setVaultFileIssue(rel, issue)
+		a.removeVaultIndexFileLocked(rel)
+		return
+	}
+	a.removeVaultFileIssue(rel)
 	if a.vaultIndex == nil {
 		a.invalidateCalendarIndexLocked()
 		return
 	}
-	if !strings.HasSuffix(strings.ToLower(rel), ".md") {
-		return
-	}
 	file := indexMarkdownFile(rel, info, []byte(content))
 	a.vaultIndex.replaceFile(file)
+	a.publishVaultIndexLocked(a.vaultIndex)
+}
+
+func (a *App) removeVaultIndexFileLocked(rel string) {
+	if a.vaultIndex == nil {
+		a.invalidateCalendarIndexLocked()
+		return
+	}
+	a.vaultIndex.removeFile(filepath.ToSlash(rel))
 	a.publishVaultIndexLocked(a.vaultIndex)
 }
 
@@ -929,10 +964,20 @@ func (a *App) refreshVaultStateAfterCopyLocked(
 			!strings.EqualFold(filepath.Ext(rel), ".md") {
 			return nil
 		}
+		if issue := vaultFileMetadataIssue(filepath.ToSlash(rel), info); issue != nil {
+			a.setVaultFileIssue(rel, issue)
+			return nil
+		}
 		data, err := root.ReadFile(cleanRel)
 		if err != nil {
-			return fmt.Errorf("read copied Markdown %q: %w", rel, err)
+			a.setVaultFileIssue(rel, vaultFileReadIssue(filepath.ToSlash(rel), err))
+			return nil
 		}
+		if issue := vaultFileContentIssue(filepath.ToSlash(rel), data); issue != nil {
+			a.setVaultFileIssue(rel, issue)
+			return nil
+		}
+		a.removeVaultFileIssue(rel)
 		text := pooledVaultIndexedText(textPool, string(data))
 		indexedFiles = append(indexedFiles, indexMarkdownText(filepath.ToSlash(rel), info, text))
 		return nil

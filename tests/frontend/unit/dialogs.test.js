@@ -77,8 +77,9 @@ describe('New note dialog', () => {
         const dialog = document.querySelector('[role="dialog"]');
 
         expect(document.body.classList).toContain('custom-modal-open');
-        expect(dialog.textContent).toContain('Couldn’t save ‘draft.md’');
-        expect(dialog.textContent).toContain('disk is full');
+        expect(dialog.textContent).toContain('Disk full — saving is blocked');
+        expect(dialog.textContent).toContain('draft.md');
+        expect(dialog.textContent).toContain('Git history and other file writes may also fail');
         expect(dialog.textContent).toContain('changes remain in the open buffer');
         expect([...dialog.querySelectorAll('button')].map(button => button.textContent.trim()))
             .toEqual(['Copy unsaved text', 'Keep editing', 'Retry']);

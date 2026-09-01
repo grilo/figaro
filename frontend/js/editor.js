@@ -10,6 +10,7 @@ import { log } from './log.js';
 import { setState, getState, subscribe } from './state.js';
 import { scheduleSessionSave } from './session.js';
 import { statusBar } from './statusBar.js';
+import { recordVaultFileIssue, showFileIssues } from './fileIssues.js';
 import { mathField } from './mathPlugin.js';
 import { createDiagramField, diagramLanguages, scanDiagramFences } from './liveDiagramPlugin.js';
 import { createMarkdownTableField, scanMarkdownTables } from './liveMarkdownTablePlugin.js';
@@ -1712,6 +1713,9 @@ function linkPreview() {
                             previewEl.textContent = previewText;
                             dom.appendChild(previewEl);
                         }
+                    } else if (r?.issue) {
+                        statusEl.className = 'lh-status lh-missing';
+                        statusEl.textContent = '⚠ Needs attention';
                     } else if (r && r.path) {
                         statusEl.className = 'lh-status lh-exists';
                         statusEl.textContent = '✓ Exists';
@@ -4030,7 +4034,10 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false, linkE
         log.debug('handleLinkClick: reading', linkPath);
         const r = await backend().ReadFile(linkPath);
         log.debug('handleLinkClick: read_file result for', linkPath, ':', r ? 'found' : 'not found');
-        if (r) {
+        if (r?.issue) {
+            recordVaultFileIssue(r.issue);
+            void showFileIssues({ path: linkPath });
+        } else if (r) {
             await openLinkedNote(linkPath, r, replaceCurrent);
         } else {
             const fileName = linkPath.split('/').pop();

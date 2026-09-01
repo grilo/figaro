@@ -23,6 +23,7 @@ describe('session persistence', () => {
         setState('selectedTreePath', null);
         setState('openTabs', []);
         setState('activeTabId', null);
+        setState('fileIssues', []);
         state._restoredTabs = null;
         state._restoredActiveTabId = null;
         state._restoredCursorStates = null;
@@ -77,6 +78,26 @@ describe('session persistence', () => {
             { id: 'note.md', type: 'file', title: 'Note', path: 'note.md' },
         ]);
         expect(payload.pinnedTabs).toEqual([]);
+    });
+
+    test('promotes a disk-full session write into one persistent incident and clears it after recovery', async () => {
+        window.go.desktop.App.SaveSession.mockRejectedValueOnce(new Error('write: no space left on device'));
+
+        await saveSession();
+
+        expect(state.fileIssues).toEqual([
+            expect.objectContaining({
+                path: '.config/session.json',
+                code: 'disk_full',
+                severity: 'danger',
+            }),
+        ]);
+        expect(document.getElementById('status-file-issues').textContent)
+            .toContain('Disk full — saving blocked');
+
+        window.go.desktop.App.SaveSession.mockResolvedValueOnce({ success: true });
+        await saveSession();
+        expect(state.fileIssues).toEqual([]);
     });
 
     test('persists the latest per-file cursor range in the portable session', async () => {

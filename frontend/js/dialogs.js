@@ -11,6 +11,7 @@ import { analyzeTabularText, markdownTableFromRows } from './markdownTableConver
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
 import { lucideIconLabel, renderLucideIcon, searchLucideIcons } from './lucideIcons.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
+import { isDiskFullError } from './core/saveModel.js';
 
 let activeModal = null;
 let activeModalDismiss = null;
@@ -246,14 +247,18 @@ export function saveFailureDialog(fileName, error) {
     const cause = String(error?.message || error?.error || error || 'Unknown error')
         .trim()
         .replace(/^Error:\s*/i, '') || 'Unknown error';
+    const diskFull = isDiskFullError(error);
     return confirmDialog(
-        `Couldn’t save ‘${String(fileName || 'Untitled')}’`,
-        `${cause}\n\nYour changes remain in the open buffer.`,
+        diskFull ? 'Disk full — saving is blocked' : `Couldn’t save ‘${String(fileName || 'Untitled')}’`,
+        diskFull
+            ? `Figaro could not save ‘${String(fileName || 'Untitled')}’. Git history and other file writes may also fail until storage space is available.\n\nSystem report: ${cause}.\n\nYour changes remain in the open buffer. Free storage space, then retry.`
+            : `${cause}\n\nYour changes remain in the open buffer.`,
         false,
         false,
         {
             tone: 'danger',
-            icon: 'error',
+            icon: diskFull ? 'warning' : 'error',
+            description: diskFull ? 'Free storage space before closing Figaro.' : '',
             confirmLabel: 'Retry',
             cancelLabel: 'Keep editing',
             extraLabel: 'Copy unsaved text',

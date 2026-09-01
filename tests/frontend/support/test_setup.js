@@ -44,6 +44,8 @@ window.go = {
     desktop: {
         App: {
         GetFileTree: jest.fn().mockResolvedValue([]),
+        GetVaultFileIssues: jest.fn().mockResolvedValue([]),
+        RecheckVaultFileIssues: jest.fn().mockResolvedValue([]),
         GetVaultLoadStatus: jest.fn().mockResolvedValue({ generation: 1, phase: 'ready', loaded: 0, total: 0 }),
         GetFileTreeStyles: jest.fn().mockResolvedValue({ version: 1, entries: {}, recent_icons: [] }),
         SetFileTreeStyle: jest.fn().mockResolvedValue({ version: 1, entries: {}, recent_icons: [] }),
@@ -140,6 +142,9 @@ window.go = {
         GetYesterdayLink: jest.fn().mockReturnValue("2024-01-14"),
         ExportPDF: jest.fn().mockResolvedValue({ success: true, path: '/tmp/document.pdf', engine: 'chromium' }),
         OpenWithDefaultApplication: jest.fn().mockResolvedValue({ success: true }),
+        OpenLaunchExternalFile: jest.fn().mockResolvedValue({ success: true }),
+        RevealLaunchExternalFile: jest.fn().mockResolvedValue({ success: true }),
+        RevealInExplorer: jest.fn().mockResolvedValue({ success: true }),
         PDFBrowserLoad: jest.fn().mockResolvedValue({ success: true, path: '' }),
         PDFBrowserChoose: jest.fn().mockResolvedValue({ success: false, cancelled: true }),
         PDFBrowserClear: jest.fn().mockResolvedValue({ success: true }),
@@ -286,6 +291,8 @@ function createMockDOM() {
                         <span id="vault-loading-progress-value" class="ui-progress-value"></span>
                         <output id="vault-loading-count"></output>
                     </div>
+                    <button type="button" id="status-file-issues" class="ui-button ui-button--warning status-file-issues" aria-label="No file diagnostics" hidden></button>
+                    <span id="status-file-issues-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></span>
                     <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
                     <button id="status-action" hidden></button>
                 </div>

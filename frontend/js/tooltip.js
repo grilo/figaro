@@ -240,8 +240,8 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
     };
     const onFocusIn = event => {
         const target = tooltipTarget(event.target);
-        if (!target) return;
         if (suppressedTarget && suppressedTarget !== target) suppressedTarget = null;
+        if (!target) return;
         focusTarget = target;
         scheduleShow(target, 0);
     };

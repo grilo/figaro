@@ -140,6 +140,10 @@ activation remain injected guide callbacks. Keep
 the file-tree's post-delete path signal ahead of discovery refresh and retain a
 fresh Draw.io preview URL per image-field generation so successful loader
 caches cannot outlive deletion.
+File-diagnostic refreshes must compare normalized snapshots before publishing;
+an unchanged snapshot must not remount rows or interrupt keyboard focus, an
+open context menu, or a managed-file double-click. Deferred menu focus must
+retain the stable tree container rather than the originating DOM event.
 Keep table-backed chart validation, type inference, reversible metadata,
 Vega-Lite generation, special-mode calculations, and resize bounds in
 `core/vegaLiteChartEditorModel.js`. The chart modal may own approved UI
@@ -548,8 +552,10 @@ the assembled webview rather than one JavaScript package in isolation.
   unique after remounting.
 - Mermaid geometry changes belong in `core/mermaidDiagramModel.js`; the live
   adapter may own pointer capture but must update source only once on release.
-  Preserve the equal-height source placeholder, Arrow Up/Down, mouse placement,
-  drag selection, one-step Undo, and matching PDF figure height.
+  Keep the resize target centered on the visible canvas edge rather than the
+  measured wrapper boundary. Preserve the equal-height source placeholder,
+  Arrow Up/Down, mouse placement, drag selection, one-step Undo, and matching
+  PDF figure height.
 - Mermaid Editor styling changes belong first in the pure adaptive descriptor
   and source-transform tests. Preserve unrelated frontmatter, refuse YAML forms
   the transform cannot merge safely, and assert parsed-node membership,

@@ -372,10 +372,14 @@
     max-height: 100% !important;
 }
 
-.cm-diagram-resize-handle {
+.ui-image-resize-handle.cm-diagram-resize-handle {
     position: absolute;
     z-index: 4;
-    bottom: -14px;
+    /* The measured widget keeps 8px of internal breathing room below the
+       visible canvas. Center the 28px target on that canvas edge. The paired
+       primitive selector also wins over the primitive's later-loaded
+       position: relative declaration. */
+    bottom: -6px;
     left: calc(50% - 14px);
     cursor: ns-resize;
     opacity: 0;

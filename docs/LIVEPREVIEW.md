@@ -221,12 +221,14 @@ hidden authored-row index for Vega-Lite regression and maps the generated line
 back to the unchanged visible category labels. Threshold rule/text overlays share the selected value scale without
 suppressing its existing axis. Their live widget and Chart Editor preview share `--editor-surface`, so
 alpha-blended data marks do not change appearance when the chart is applied.
-The only resize handle sits at the bottom center; pointer movement updates
+The only resize handle is centered directly on the visible canvas's bottom
+edge. Its complete 28px hit target bridges the canvas and control, so the hover
+reveal cannot disappear while the pointer approaches. Pointer movement updates
 the DOM height and center readout, pointer cancellation restores the start, and
 pointer release emits at most one source transaction.
 
 Mermaid diagrams use the same authored-geometry variant with a 300px default,
-an 180–900px clamp, and the shared bottom-center vertical handle. Pointer moves
+an 180–900px clamp, and the shared bottom-center lower-edge handle. Pointer moves
 update only the mounted diagram/readout; release adds or updates one portable
 `%% figaro:height N` directive in one undoable transaction. Revealed source
 uses an equal-height placeholder, so the next line moves only when the user

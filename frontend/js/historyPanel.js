@@ -6,6 +6,7 @@ import { log } from './log.js';
 import { getState } from './state.js';
 import { confirmDialog, errorDialog } from './dialogs.js';
 import { statusBar } from './statusBar.js';
+import { recordRuntimeFileIssue, resolveRuntimeFileIssue } from './fileIssues.js';
 import {
     getEditorContent,
     getEditorView,
@@ -209,11 +210,20 @@ export async function updateGitStatus(filePath) {
     try {
         const uncommitted = await backend().FileHasUncommittedChanges(path);
         if (requestId !== gitStatusRequestId || gitStatusPath !== path) return false;
+        resolveRuntimeFileIssue(path, ['history_status_failed']);
         setGitStatusState(Boolean(uncommitted));
         return Boolean(uncommitted);
     } catch (error) {
         if (requestId !== gitStatusRequestId || gitStatusPath !== path) return false;
         log.warn('[history] Git status failed:', error);
+        recordRuntimeFileIssue({
+            path,
+            code: 'history_status_failed',
+            severity: 'warning',
+            title: 'Local history could not be read',
+            detail: `Figaro could not inspect this file’s local Git history: ${error?.message || error}. The note is still editable.`,
+            guidance: 'Check the vault’s .git repository and storage, then check history again.',
+        });
         setGitStatusError();
         return false;
     }
@@ -250,6 +260,7 @@ export async function commitCurrentFileChanges() {
             if (!saved?.success) throw new Error(saved?.error || 'The file could not be saved before committing.');
             if (button && gitStatusPath === path) button.textContent = 'Saving to history…';
             if (saved.historyCommitSucceeded) {
+                resolveRuntimeFileIssue(path, ['history_failed', 'history_status_failed']);
                 statusBar.set('Saved file to local history');
                 await updateHistoryCount(path);
                 await refreshHistoryIfOpen();
@@ -257,12 +268,21 @@ export async function commitCurrentFileChanges() {
             }
         }
         await backend().CommitCurrentFile(path);
+        resolveRuntimeFileIssue(path, ['history_failed', 'history_status_failed']);
         statusBar.set('Saved file to local history');
         await updateHistoryCount(path);
         await refreshHistoryIfOpen();
         return true;
     } catch (error) {
         log.error('[history] Commit failed:', error);
+        recordRuntimeFileIssue({
+            path,
+            code: 'history_failed',
+            severity: 'warning',
+            title: 'Local history could not be updated',
+            detail: `Figaro could not record this file in local Git history: ${error?.message || error}. The note itself was not removed or overwritten.`,
+            guidance: 'Keep editing normally. Check the vault’s .git repository and storage before trying Save to history again.',
+        });
         await errorDialog(
             'Couldn’t commit this file',
             error,

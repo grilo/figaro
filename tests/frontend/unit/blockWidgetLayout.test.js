@@ -107,7 +107,7 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-codeblock-copy')).toMatch(/pointer-events:\s*none/);
     });
 
-    test('centers full-width managed charts and exposes only a bottom vertical resize handle', () => {
+    test('centers full-width diagrams and anchors their vertical resize handle to the canvas edge', () => {
         const liveView = declarationsFor('.cm-live-diagram-view');
         expect(liveView).toMatch(/align-items:\s*center/);
         expect(liveView).toMatch(/justify-content:\s*center/);
@@ -116,8 +116,9 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(chartGraphic).toMatch(/max-height:\s*100%\s*!important/);
         expect(declarationsFor('.cm-block-widget--figaro-chart .cm-live-diagram'))
             .toMatch(/background:\s*var\(--editor-surface\)/);
-        const handle = declarationsFor('.cm-diagram-resize-handle');
-        expect(handle).toMatch(/bottom:\s*-14px/);
+        const handle = declarationsFor('.ui-image-resize-handle.cm-diagram-resize-handle');
+        expect(handle).toMatch(/position:\s*absolute/);
+        expect(handle).toMatch(/bottom:\s*-6px/);
         expect(handle).toMatch(/left:\s*calc\(50% - 14px\)/);
         expect(handle).toMatch(/cursor:\s*ns-resize/);
         const sourceLine = declarationsFor('.cm-editor .cm-diagram-source-line');

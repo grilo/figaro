@@ -104,6 +104,8 @@ describe('design-system catalogue', () => {
             '.create-inbox-note',
             '.file-tree-node.selected',
             '.file-tree-node.cut-marked',
+            '.file-tree-node.file-issue--warning',
+            '.file-tree-node.file-issue--danger',
         ]) {
             expect(catalogue.querySelector(selector)).not.toBeNull();
         }
@@ -252,6 +254,8 @@ describe('design-system catalogue', () => {
             '.kanban-gantt-bar',
             '.file-tree-node.selected',
             '.file-tree-node.cut-marked',
+            '.file-tree-node.file-issue--warning',
+            '.file-tree-node.file-issue--danger',
         ]);
     });
 

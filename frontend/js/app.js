@@ -68,6 +68,14 @@ import { configureClipboardImageWorkspace } from './clipboardImage.js';
 import { configureDrawioWorkspace } from './drawio.js';
 import { configureHomeWorkspace } from './home.js';
 import { configureVaultHealthWorkspace } from './vaultHealth.js';
+import {
+    initFileIssues,
+    recordRuntimeFileIssue,
+    recordVaultFileIssue,
+    refreshFileIssues,
+    resolveVaultFileIssue,
+    showFileIssues,
+} from './fileIssues.js';
 
 // Keep composed workspace operations available through the public app facade.
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
@@ -220,9 +228,11 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
                 refreshKanbanData().catch(() => {});
             }
             document.dispatchEvent(new CustomEvent('vault-filesystem-changed'));
+            refreshFileIssues().catch(() => {});
         },
         onKanbanIndexed: () => {
             refreshKanbanData().catch(() => {});
+            refreshFileIssues().catch(() => {});
         },
         onHistoryChanged: () => {
             document.dispatchEvent(new CustomEvent('vault-history-changed'));
@@ -476,19 +486,45 @@ export async function handleFileOpen(filePath) {
     try {
         const result = await backend().ReadFile(filePath);
         if (result) {
-            if (result.binary) {
-                statusBar.set('Cannot edit binary file');
-                return;
+            if (result.issue) {
+                recordVaultFileIssue(result.issue);
+                void showFileIssues({ path: filePath });
+                return false;
             }
+            if (result.binary) {
+                const issue = {
+                    path: filePath,
+                    code: 'binary',
+                    severity: 'warning',
+                    title: 'File appears to be binary',
+                    detail: 'Figaro did not open this file as text.',
+                    guidance: 'Open it with the default application or verify its file type.',
+                };
+                recordVaultFileIssue(issue);
+                void showFileIssues({ path: filePath });
+                return false;
+            }
+            resolveVaultFileIssue(filePath);
             openTab(filePath, result.path.split('/').pop() || filePath, 'file', {
                 path: filePath,
                 mtime: result.mtime,
                 preparedFile: result,
             });
+            return true;
         }
+        return false;
     } catch (err) {
         log.error('Failed to open file:', err);
-        statusBar.set('Failed to open file');
+        recordRuntimeFileIssue({
+            path: filePath,
+            code: 'unreadable',
+            severity: 'danger',
+            title: 'File couldn’t be read',
+            detail: `Figaro could not read this file: ${err?.message || err}. The file was not changed.`,
+            guidance: 'Check its permissions and whether another application has locked it, then check again.',
+        });
+        void showFileIssues({ path: filePath });
+        return false;
     }
 }
 
@@ -557,6 +593,7 @@ export async function initApp() {
     configureDatePickerCalendarSource({ loadMonthData: loadCalendarMonthAppearance });
 
     initStatusBarPresentation();
+    initFileIssues();
     statusBar.set('Initializing...');
     const languageSupportReady = preloadLanguageSupport();
     initializeDiagramRenderers();
@@ -579,6 +616,10 @@ export async function initApp() {
     // Wait until Wails has published the bound Go App object.
     statusBar.set('Connecting to backend...');
     await waitForBackend();
+    // Configuration and Git-open findings already exist before the background
+    // vault scan. Publish them passively now; indexing will merge its per-file
+    // findings later without opening a startup dialog.
+    await refreshFileIssues();
 
     // Apply the persisted shell appearance before exposing or starting vault
     // discovery. The loading surface therefore never flashes the bundled
@@ -676,6 +717,7 @@ export async function initApp() {
     // removed paths or a legacy synthetic Welcome tab.
     saveSession();
     if (vaultStatus.phase === 'ready') vaultLoadingSession.finish();
+    if (vaultStatus.phase === 'ready') await refreshFileIssues();
     
     statusBar.set('Ready');
     window._appReady = true;

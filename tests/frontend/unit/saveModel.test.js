@@ -1,5 +1,6 @@
 import {
     createSaveSnapshot,
+    isDiskFullError,
     isLatestSave,
     savedLatestEdit,
     saveFailureStatusMessage,
@@ -42,6 +43,13 @@ describe('save model', () => {
             .toBe('Save failed — disk is full');
         expect(saveFailureStatusMessage(null))
             .toBe('Save failed — unknown error');
+    });
+
+    test('recognizes platform disk-capacity failures without misclassifying other save errors', () => {
+        expect(isDiskFullError(new Error('write failed: ENOSPC'))).toBe(true);
+        expect(isDiskFullError({ error: 'No space left on device' })).toBe(true);
+        expect(isDiskFullError('The disk is full')).toBe(true);
+        expect(isDiskFullError('permission denied')).toBe(false);
     });
 
     test('distinguishes an optimistic conflict from every other failed result', () => {

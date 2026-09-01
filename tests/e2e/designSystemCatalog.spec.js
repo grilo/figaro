@@ -20,6 +20,46 @@ test('dismisses a tooltip when its stationary-pointer owner reflows or is remove
     await expect(tooltip).toBeHidden();
 });
 
+test('renders file attention as a supplemental themed state without changing row geometry', async ({ page }) => {
+    await page.goto('/design-system/');
+
+    const warning = page.locator('.file-tree-node.file-issue--warning');
+    const danger = page.locator('.file-tree-node.file-issue--danger');
+    await warning.scrollIntoViewIfNeeded();
+    await expect(warning.locator('.node-icon')).toBeVisible();
+    await expect(warning.locator('.node-issue-indicator')).toBeVisible();
+    await expect(danger.locator('.node-icon')).toBeVisible();
+    await expect(danger.locator('.node-issue-indicator')).toBeVisible();
+
+    const presentation = await page.locator('.file-tree-node').evaluateAll(nodes => {
+        const read = selector => {
+            const node = nodes.find(candidate => candidate.matches(selector));
+            const style = getComputedStyle(node);
+            return {
+                background: style.backgroundColor,
+                shadow: style.boxShadow,
+                height: node.getBoundingClientRect().height,
+            };
+        };
+        return {
+            normal: read('.file-tree-node:not(.selected):not(.file-issue--warning):not(.file-issue--danger)'),
+            warning: read('.file-issue--warning'),
+            danger: read('.file-issue--danger'),
+        };
+    });
+    expect(presentation.warning.background).not.toBe(presentation.normal.background);
+    expect(presentation.danger.background).not.toBe(presentation.normal.background);
+    expect(presentation.warning.shadow).not.toBe('none');
+    expect(presentation.danger.shadow).not.toBe('none');
+    expect(presentation.warning.height).toBe(presentation.normal.height);
+    expect(presentation.danger.height).toBe(presentation.normal.height);
+
+    const status = page.getByRole('button', { name: 'Saving is blocked. Action required. Open file diagnostics.' });
+    await expect(status).toBeVisible();
+    await expect(status).toHaveClass(/ui-button--danger/);
+    await expect(status).toContainText('Saving blocked — action required');
+});
+
 test('catalogues current elements with themed combobox geometry and seamless steppers', async ({ page }) => {
     await page.goto('/design-system/');
 

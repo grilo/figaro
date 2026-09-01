@@ -224,8 +224,11 @@ geometry; the application-status surface remains opaque and continues the
 sidebar plane. In Pure mode, CSS makes the footer surface transparent and
 non-interactive, clips but retains the application live region for assistive
 technology, removes invisible actions from focus, and exposes only the real
-`#word-count` node at bottom-right. No hover, focus, side-lane, or application
-state restores the other footer contents.
+`#word-count` node at bottom-right during healthy operation. An active
+file-attention button is the deliberate data-confidence exception: it remains
+operable at bottom-left without restoring unrelated footer contents. No hover,
+focus, side-lane, or ordinary application state restores the other footer
+contents.
 
 Pure mode composes those existing shell decisions without creating a
 second title bar, tab rail, footer, or editor. The deterministic
@@ -623,7 +626,7 @@ physical splitting of `editor.js`, `tabManager.js`, or a desktop capability
 file should follow tested ownership seams rather than creating pass-through
 modules.
 
-Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. The desktop composition root installs Wails' process-wide single-instance lock. A second launch sends its arguments and working directory to the existing process; launch-path resolution retains only existing Markdown files, and the desktop coordinator registers them before emitting one runtime event and restoring/focusing the existing window. Go records only those explicit launch documents under process-local opaque IDs; the frontend can read or save an ID but cannot turn it into arbitrary filesystem access. The initial capability snapshot closes the race when a second launch arrives before the webview event subscriber is ready, and frontend ID claiming prevents the snapshot and event from prompting twice. Later batches share the same serialized import/keep-outside use case. Before opening, the frontend offers a collision-safe vault import. Declining creates a process-local root projection in the file tree and an external tab; that projection is not vault membership and is never persisted or passed to vault mutation APIs. Removing it closes the capability-backed tab after dirty-state protection and mutates only frontend state, so the original file cannot be deleted by that workflow. The pure external-file model distinguishes capability-backed reads from vault-relative reads and describes destination-specific native-drop confirmation without calling a dialog or backend. Tab activation executes that read plan before committing an external tab as selected; failed or superseded reads leave the previous active tab and CodeMirror owner paired. An external tab writes atomically to its original document and does not join the recent-files list, vault index, watcher, session, or Git history. Native drops on the file tree require confirmation before the copy adapter runs. Copy and recursive-merge modes share the same complete source-batch inspection before either mode writes into the vault. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
+Markdown documents supplied as operating-system launch arguments are deliberately outside that boundary. The desktop composition root installs Wails' process-wide single-instance lock. A second launch sends its arguments and working directory to the existing process; launch-path resolution retains only existing Markdown files, and the desktop coordinator registers them before emitting one runtime event and restoring/focusing the existing window. Go records only those explicit launch documents under process-local opaque IDs; the frontend can read, save, open, or reveal an ID but cannot turn it into arbitrary filesystem access. The initial capability snapshot closes the race when a second launch arrives before the webview event subscriber is ready, and frontend ID claiming prevents the snapshot and event from prompting twice. Later batches share the same serialized import/keep-outside use case. Before opening, the frontend offers a collision-safe vault import. Declining creates a process-local root projection in the file tree and an external tab; that projection is not vault membership and is never persisted or passed to vault mutation APIs. Removing it closes the capability-backed tab after dirty-state protection and mutates only frontend state, so the original file cannot be deleted by that workflow. The pure external-file model distinguishes capability-backed reads from vault-relative reads and describes destination-specific native-drop confirmation without calling a dialog or backend. Tab activation executes that read plan before committing an external tab as selected; failed or superseded reads leave the previous active tab and CodeMirror owner paired. An external tab writes atomically to its original document and does not join the recent-files list, vault index, watcher, session, or Git history. Native drops on the file tree require confirmation before the copy adapter runs. Copy and recursive-merge modes share the same complete source-batch inspection before either mode writes into the vault. Native drops over the editor use one themed choice: insert their paths at the drop location, or reuse the recursive merge operation to import the full batch. CodeMirror prevents its uncontrolled browser fallback from inserting an absolute path before that choice is made. After refresh, imported result paths that are files open as active tabs; directory paths intentionally leave the current buffer in place.
 
 ## Incremental vault index and native changes
 
@@ -1099,13 +1102,43 @@ selection containing at least two distinct Markdown paths; active-buffer state
 cannot substitute for a second selected note.
 
 Editable file-tree activation has a single-read handoff. `app.js` uses the
-native `ReadFile` result to reject binary content, then passes that prepared
+native `ReadFile` result to reject a structured file issue, then passes a safe prepared
 snapshot into `tabManager.js`; tab mounting configures the editor mode and
 installs the supplied content without another filesystem call. The transient
 snapshot is never persisted in tab/session state. Generation, active-tab, and
 dirty-buffer guards remain at the mount boundary, so a superseded activation
 cannot overtake a newer one and an existing dirty buffer cannot be replaced by
 the prepared disk copy.
+
+File-confidence policy is split at the I/O seam. The native adapter inspects
+metadata before allocating content, caps editor admission at 50 MB, classifies
+NUL data, invalid UTF-8, and read failures, and stores current path-owned
+findings independently from the file-tree and Markdown-index projections. The
+cold index uses the metadata-first root-scoped walker, skips only the affected
+file, and continues publishing healthy notes. A targeted recheck reads only
+current findings and restores recovered Markdown to the warm index. Startup
+settings recovery preserves malformed JSON under a timestamped name before
+writing defaults; Git initialization failure contributes a degraded-history
+finding rather than disabling note writes.
+Rejected process-local external notes retain their launch capability ID in the
+frontend diagnosis. Open/reveal actions send that opaque ID to dedicated native
+methods; they never turn the displayed absolute path into arbitrary filesystem
+authority.
+
+`core/fileIssueModel.js` owns normalization, semantic snapshot equality,
+severity ordering, disk-full grouping, distinct descendant counts, status
+summaries, and tree descriptions without DOM or backend access. `fileIssues.js`
+coordinates the Wails findings with runtime save/session/history incidents and
+renders through approved status, tooltip, notice, button, and modal primitives.
+An equivalent background snapshot is inert, preserving mounted tree rows and
+their active interactions. The tree adapter retains its stable container for
+deferred context-menu focus restoration, and recognizes a managed-file second
+click even if a legitimate intervening render replaced the row. Startup
+refreshes are passive: only activation of the status action or an affected tree
+row opens diagnostics. Runtime incidents clear only after the corresponding
+write succeeds, whereas native findings clear through a real targeted recheck.
+This keeps presentation noise policy separate from filesystem, Git, and save
+effects.
 
 File-tree mutation feedback is one reference-counted frontend activity scope.
 It marks the tree busy immediately around copy/import, move/merge, rename, and
@@ -1819,7 +1852,7 @@ replaces the one pending request, stale success/error results are suppressed,
 and modal disposal invalidates every completion. The guide composition root re-scans
 the table or fence before opening; confirmed chart-to-table conversion re-scans
 again after its asynchronous dialog. The live-diagram adapter alone owns pointer
-capture and temporary DOM geometry for the bottom resize handle, then asks the
+capture and temporary DOM geometry for the lower-edge resize handle, then asks the
 pure model for one replacement on release. Managed source lines use an authored
 height placeholder and no wrapping, so CodeMirror measures the same document
 geometry in rendered and source states. PDF Preview and export continue through
@@ -1836,7 +1869,9 @@ belongs to the UI adapter rather than the pure chart model.
 Mermaid height follows the same seam. `core/mermaidDiagramModel.js` reads,
 clamps, and replaces the portable `%% figaro:height N` directive without DOM or
 CodeMirror dependencies. `liveDiagramPlugin.js` owns the shared bottom-center
-pointer gesture, updates only mounted geometry while dragging, and dispatches
+pointer gesture, while the feature layout anchors the approved 28px primitive
+directly across the visible canvas edge instead of the measured wrapper's lower
+boundary. The adapter updates only mounted geometry while dragging and dispatches
 one source transaction on release. `sourceFootprint.js` preserves the authored
 height while source is revealed, and `pdfExport.js` applies it to the printable
 figure through the existing shared Mermaid renderer.

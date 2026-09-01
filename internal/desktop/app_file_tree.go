@@ -257,6 +257,7 @@ func (a *App) addFileTreeCacheDirectoryLocked(rel string) {
 }
 
 func (a *App) removeFileTreeCachePathLocked(rel string) {
+	a.removeVaultFileIssuesBelow(rel)
 	if a.fileTreeEntries == nil {
 		return
 	}
@@ -273,6 +274,7 @@ func (a *App) removeFileTreeCachePathLocked(rel string) {
 }
 
 func (a *App) remapFileTreeCachePathLocked(oldRel string, newRel string) {
+	a.remapVaultFileIssues(oldRel, newRel)
 	if a.fileTreeEntries == nil {
 		return
 	}

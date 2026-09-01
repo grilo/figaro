@@ -531,6 +531,11 @@
                     </span>
                     <output id="vault-loading-count">Preparing file list…</output>
                 </div>
+                <button type="button" id="status-file-issues"
+                        class="ui-button ui-button--warning status-file-issues"
+                        aria-label="No file diagnostics" hidden></button>
+                <span id="status-file-issues-announcer" class="sr-only"
+                      role="status" aria-live="polite" aria-atomic="true"></span>
                 <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Starting Figaro…">Starting Figaro…</span>
                 <button type="button" id="status-action" class="status-inline-action" hidden></button>
             </div>

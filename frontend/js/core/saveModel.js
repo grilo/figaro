@@ -35,6 +35,12 @@ export function saveFailureStatusMessage(error) {
     return cause ? `Save failed — ${cause}` : 'Save failed — unknown error';
 }
 
+export function isDiskFullError(error) {
+    const rawCause = error?.message || error?.error || error;
+    return /(?:\benospc\b|no space left|disk (?:is )?full|not enough (?:disk )?space|insufficient (?:disk )?space)/i
+        .test(String(rawCause || ''));
+}
+
 export function saveResultDisposition(result) {
     if (result?.success) return 'saved';
     if (String(result?.error || '').trim() === 'File modified externally') return 'conflict';

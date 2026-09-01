@@ -13,6 +13,14 @@ after the approved primitive consolidation, including shared foundations,
 intentional feature variants, states, selector names, and computed theme
 tokens.
 
+The approved file-tree warning and danger variants are supplemental states:
+they retain the semantic/custom file icon and 24px row geometry, then add a
+token-based inset tint and trailing alert glyph. The persistent file-attention
+status action and its diagnostics reuse the existing semantic button, modal,
+notice, and tooltip primitives. Its no-findings state has zero geometry even
+though the shared button primitive loads later in the cascade; color is never
+their only signal.
+
 The catalogue is deliberately not a second component implementation:
 
 - `index.html` contains mostly static specimens using the production classes

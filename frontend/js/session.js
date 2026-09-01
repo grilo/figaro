@@ -7,6 +7,8 @@ import { backend } from './backend.js';
 import { log } from './log.js';
 import { state, setState } from './state.js';
 import { createSessionPersistence } from './usecases/sessionPersistence.js';
+import { isDiskFullError } from './core/saveModel.js';
+import { recordRuntimeFileIssue, resolveRuntimeFileIssue } from './fileIssues.js';
 
 let scheduledSessionSave = null;
 
@@ -50,12 +52,26 @@ function applyPortableSession(session) {
 
 const persistence = createSessionPersistence({
     readSession: () => backend().LoadSession(),
-    writeSession: data => backend().SaveSession(data),
+    writeSession: async data => {
+        const result = await backend().SaveSession(data);
+        resolveRuntimeFileIssue('.config/session.json', ['disk_full']);
+        return result;
+    },
     readWorkspace,
     applySession: applyPortableSession,
     resetWorkspace: resetPortableWorkspaceState,
     reportFailure(operation, error) {
         log.warn(`Failed to ${operation} session:`, error);
+        if (operation === 'save' && isDiskFullError(error)) {
+            recordRuntimeFileIssue({
+                path: '.config/session.json',
+                code: 'disk_full',
+                severity: 'danger',
+                title: 'Disk full — workspace state cannot be saved',
+                detail: 'Figaro could not save its workspace state because the storage device is full. Note saves and Git history may fail too.',
+                guidance: 'Free storage space before closing Figaro. Keep any notes with unsaved changes open until their saves succeed.',
+            });
+        }
     },
 });
 
