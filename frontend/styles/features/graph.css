@@ -95,10 +95,10 @@
 .graph-floating-controls {
     position: absolute;
     z-index: 3;
-    top: 10px;
-    left: 10px;
+    top: 14px;
+    left: 24px;
     display: flex;
-    max-width: calc(100% - 20px);
+    max-width: calc(100% - 48px);
     align-items: center;
     gap: 7px;
 }
@@ -120,10 +120,9 @@
 }
 
 .graph-show-orphans.ui-button {
-    min-height: 30px;
+    min-height: 24px;
     flex: 0 0 auto;
     padding: 0 9px;
-    box-shadow: var(--shadow-sm);
     font-size: 10px;
 }
 

@@ -31,11 +31,9 @@ type vaultIndex struct {
 	tags                    map[string]struct{}
 	tagCounts               map[string]int
 	cardsByTag              map[string][]KanbanCard
-	dueTasksByDate          map[string][]KanbanCard
 	calendar                *calendarDateIndex
 	dailyNoteCounts         map[string]int
 	linkedDayCounts         map[string]int
-	dueTaskCounts           map[string]int
 	searchTrigrams          map[string][]string
 	searchUnindexedFiles    map[string]struct{}
 	searchTermPostings      map[string][]string
@@ -62,7 +60,6 @@ type vaultIndexedFile struct {
 	linkTargets    []string
 	tags           []string
 	cards          []KanbanCard
-	dueTasks       []KanbanCard
 	dailyNote      string
 	linkedDays     []string
 	noteDays       []string
@@ -177,6 +174,9 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 
 		for _, match := range dateMarkdownLinkRE.FindAllStringSubmatch(line, -1) {
 			dateStr := match[1]
+			if dateStr == "" {
+				dateStr = match[2]
+			}
 			if !isCalendarDate(dateStr) {
 				continue
 			}
@@ -190,7 +190,7 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 					Mtime:   file.mtime,
 				}
 			}
-			if !taskDueLinkRE.MatchString(match[0]) {
+			{
 				seenNoteDays[dateStr] = struct{}{}
 				if _, seen := file.noteLinks[dateStr]; !seen {
 					file.noteLinks[dateStr] = LinkedNote{
@@ -246,33 +246,21 @@ func indexMarkdownText(rel string, info fs.FileInfo, text vaultIndexedText) vaul
 			lineTags = append(lineTags, tag)
 		}
 
-		dueDate := parseTaskDueDate(line)
 		_, completed := lineTagSet["done"]
 		for _, tag := range lineTags {
 			display := strings.TrimSpace(line)
 			display = regexpListTaskPrefix.ReplaceAllString(display, "")
-			display = stripTaskDueLinks(display)
+
 			display = strings.TrimSpace(removeHashtag(display, tag))
 			file.cards = append(file.cards, KanbanCard{
-				File:      file.path,
-				FileName:  file.name,
-				Line:      lineNumber,
-				Text:      display,
-				Tag:       tag,
-				DueDate:   dueDate,
+				Source:   line,
+				File:     file.path,
+				FileName: file.name,
+				Line:     lineNumber,
+				Text:     display,
+				Tag:      tag,
+
 				Completed: completed,
-			})
-		}
-		if dueDate != "" && !completed && len(lineTags) > 0 {
-			display := regexpListTaskPrefix.ReplaceAllString(strings.TrimSpace(line), "")
-			display = stripTaskDueLinks(display)
-			for _, tag := range lineTags {
-				display = removeHashtag(display, tag)
-			}
-			display = strings.TrimSpace(display)
-			file.dueTasks = append(file.dueTasks, KanbanCard{
-				File: file.path, FileName: file.name, Line: lineNumber,
-				Text: display, Tag: lineTags[0], DueDate: dueDate,
 			})
 		}
 
@@ -442,12 +430,10 @@ func (index *vaultIndex) rebuildDerived() {
 
 	index.tags = make(map[string]struct{})
 	index.cardsByTag = make(map[string][]KanbanCard)
-	index.dueTasksByDate = make(map[string][]KanbanCard)
 	index.calendar = newCalendarDateIndex()
 	index.tagCounts = make(map[string]int)
 	index.dailyNoteCounts = make(map[string]int)
 	index.linkedDayCounts = make(map[string]int)
-	index.dueTaskCounts = make(map[string]int)
 	index.searchTrigrams = make(map[string][]string)
 	index.searchUnindexedFiles = make(map[string]struct{})
 	index.searchTermPostings = make(map[string][]string)
@@ -472,13 +458,6 @@ func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
 	}
 	for _, card := range file.cards {
 		index.cardsByTag[card.Tag] = append(index.cardsByTag[card.Tag], card)
-	}
-	for _, task := range file.dueTasks {
-		if index.dueTaskCounts[task.DueDate] == 0 {
-			index.calendar.addDueTaskDay(task.DueDate)
-		}
-		index.dueTaskCounts[task.DueDate]++
-		index.dueTasksByDate[task.DueDate] = append(index.dueTasksByDate[task.DueDate], task)
 	}
 	if file.dailyNote != "" {
 		index.calendar.addNotePath(file.dailyNote, file.path)
@@ -548,25 +527,6 @@ func (index *vaultIndex) removeFileContributions(file vaultIndexedFile) {
 			delete(index.cardsByTag, tag)
 		} else {
 			index.cardsByTag[tag] = filtered
-		}
-	}
-	for _, task := range file.dueTasks {
-		tasks := index.dueTasksByDate[task.DueDate]
-		filtered := tasks[:0]
-		for _, existing := range tasks {
-			if existing.File != file.path {
-				filtered = append(filtered, existing)
-			}
-		}
-		if len(filtered) == 0 {
-			delete(index.dueTasksByDate, task.DueDate)
-		} else {
-			index.dueTasksByDate[task.DueDate] = filtered
-		}
-		index.dueTaskCounts[task.DueDate]--
-		if index.dueTaskCounts[task.DueDate] <= 0 {
-			delete(index.dueTaskCounts, task.DueDate)
-			index.calendar.removeDueTaskDay(task.DueDate)
 		}
 	}
 	if file.dailyNote != "" {
@@ -651,9 +611,6 @@ func (index *vaultIndex) sortAllCards() {
 	for _, cards := range index.cardsByTag {
 		sortKanbanCards(cards)
 	}
-	for _, tasks := range index.dueTasksByDate {
-		sortKanbanCards(tasks)
-	}
 }
 
 func (index *vaultIndex) sortAllLinkedNotes() {
@@ -678,9 +635,6 @@ func (index *vaultIndex) replaceFile(file vaultIndexedFile) {
 	index.addFileContributions(file)
 	for _, tag := range file.tags {
 		sortKanbanCards(index.cardsByTag[tag])
-	}
-	for _, task := range file.dueTasks {
-		sortKanbanCards(index.dueTasksByDate[task.DueDate])
 	}
 	for dateStr := range file.noteLinks {
 		sortLinkedNotes(index.calendar.linkedNotes[dateStr])

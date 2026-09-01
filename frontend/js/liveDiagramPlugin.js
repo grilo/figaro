@@ -20,6 +20,11 @@ import {
     vegaLiteChartHeight,
     vegaLiteChartResizePlan,
 } from './core/vegaLiteChartEditorModel.js';
+import {
+    mermaidDiagramHeight,
+    mermaidDiagramResizePlan,
+    setMermaidDiagramHeight,
+} from './core/mermaidDiagramModel.js';
 
 export { diagramLanguages };
 
@@ -216,6 +221,8 @@ function createDiagramWidget(WidgetType, renderQueue) {
             this.from = from;
             this.to = to;
             this.chartHeight = lang === 'vega-lite' ? vegaLiteChartHeight(code) : null;
+            this.mermaidHeight = lang === 'mermaid' ? mermaidDiagramHeight(code) : null;
+            this.diagramHeight = this.chartHeight || this.mermaidHeight;
             this.destroyed = false;
             this.renderVersion = 0;
             this.renderTask = null;
@@ -229,7 +236,8 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 other.recoveredFence === this.recoveredFence &&
                 other.sourceLines === this.sourceLines &&
                 other.sourceText === this.sourceText &&
-                other.chartHeight === this.chartHeight;
+                other.chartHeight === this.chartHeight &&
+                other.mermaidHeight === this.mermaidHeight;
         }
 
         currentBlock(view, root) {
@@ -239,69 +247,79 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 if (Number.isInteger(mapped)) position = mapped;
             } catch (_) { /* a detached widget cannot commit a resize */ }
             return scanDiagramFences(view.state.doc).find(block => (
-                block.lang === 'vega-lite'
+                block.lang === this.lang
                 && block.from <= position
                 && block.to >= position
             )) || scanDiagramFences(view.state.doc).find(block => (
-                block.lang === 'vega-lite' && block.from === this.from
+                block.lang === this.lang && block.from === this.from
             )) || null;
         }
 
-        applyChartHeight(root, height) {
-            const normalized = vegaLiteChartResizePlan({ startHeight: height, deltaY: 0 });
-            root.dataset.figaroChartHeight = String(normalized);
+        resizePlan(startHeight, deltaY) {
+            return this.lang === 'mermaid'
+                ? mermaidDiagramResizePlan({ startHeight, deltaY })
+                : vegaLiteChartResizePlan({ startHeight, deltaY });
+        }
+
+        applyDiagramHeight(root, height) {
+            const normalized = this.resizePlan(height, 0);
+            root.dataset.figaroDiagramHeight = String(normalized);
+            if (this.lang === 'vega-lite') root.dataset.figaroChartHeight = String(normalized);
             root.style.setProperty('--cm-source-footprint-height', `${normalized + 44}px`);
-            root.querySelector('.cm-vega-lite-chart-resize-readout').textContent = `${normalized}px high`;
+            root.querySelector('.cm-diagram-resize-readout').textContent = `${normalized}px high`;
             return normalized;
         }
 
-        createChartResizeHandle(view, root) {
+        createDiagramResizeHandle(view, root) {
+            const isMermaid = this.lang === 'mermaid';
+            const label = isMermaid ? 'Resize Mermaid diagram vertically' : 'Resize chart vertically';
             const handle = document.createElement('button');
             handle.type = 'button';
-            handle.className = 'ui-image-resize-handle cm-vega-lite-chart-resize-handle';
-            handle.dataset.uiTooltip = 'Resize chart vertically';
-            handle.setAttribute('aria-label', 'Resize chart vertically');
+            handle.className = `ui-image-resize-handle cm-diagram-resize-handle ${isMermaid ? 'cm-mermaid-diagram-resize-handle' : 'cm-vega-lite-chart-resize-handle'}`;
+            handle.dataset.uiTooltip = label;
+            handle.setAttribute('aria-label', label);
             const readout = document.createElement('output');
-            readout.className = 'cm-vega-lite-chart-resize-readout';
+            readout.className = `cm-diagram-resize-readout ${isMermaid ? 'cm-mermaid-diagram-resize-readout' : 'cm-vega-lite-chart-resize-readout'}`;
             readout.setAttribute('aria-live', 'polite');
-            readout.textContent = `${this.chartHeight}px high`;
+            readout.textContent = `${this.diagramHeight}px high`;
             handle.addEventListener('pointerdown', event => {
                 if (event.button !== 0) return;
                 event.preventDefault();
                 event.stopPropagation();
-                const start = { y: event.clientY, height: this.chartHeight };
+                const start = { y: event.clientY, height: this.diagramHeight };
                 let currentHeight = start.height;
                 const tooltip = handle.dataset.uiTooltip;
                 handle.removeAttribute('data-ui-tooltip');
                 root.classList.add('is-resizing');
-                view.dom.classList.add('cm-vega-lite-chart-resizing');
+                view.dom.classList.add('cm-diagram-resizing');
+                if (!isMermaid) view.dom.classList.add('cm-vega-lite-chart-resizing');
                 handle.setPointerCapture?.(event.pointerId);
 
                 const move = moveEvent => {
-                    currentHeight = vegaLiteChartResizePlan({
-                        startHeight: start.height,
-                        deltaY: moveEvent.clientY - start.y,
-                    });
-                    this.applyChartHeight(root, currentHeight);
+                    currentHeight = this.resizePlan(start.height, moveEvent.clientY - start.y);
+                    this.applyDiagramHeight(root, currentHeight);
                 };
                 const finish = endEvent => {
                     root.classList.remove('is-resizing');
+                    view.dom.classList.remove('cm-diagram-resizing');
                     view.dom.classList.remove('cm-vega-lite-chart-resizing');
                     const changed = currentHeight !== start.height;
                     if (endEvent.type === 'pointerup' && changed) {
                         const block = this.currentBlock(view, root);
                         const source = block ? (block.rawCode ?? block.code) : '';
-                        const replacement = setVegaLiteChartHeight(source, currentHeight);
+                        const replacement = isMermaid
+                            ? setMermaidDiagramHeight(source, currentHeight, view.state.lineBreak)
+                            : setVegaLiteChartHeight(source, currentHeight);
                         if (block && replacement && replacement !== source) {
                             view.dispatch({
                                 changes: { from: block.contentFrom, to: block.contentTo, insert: `${replacement}${view.state.lineBreak}` },
-                                annotations: Transaction.userEvent.of('chart.resize'),
+                                annotations: Transaction.userEvent.of(isMermaid ? 'diagram.resize' : 'chart.resize'),
                             });
                         } else {
-                            this.applyChartHeight(root, start.height);
+                            this.applyDiagramHeight(root, start.height);
                         }
                     } else {
-                        this.applyChartHeight(root, start.height);
+                        this.applyDiagramHeight(root, start.height);
                     }
                     if (handle.hasPointerCapture?.(endEvent.pointerId)) {
                         handle.releasePointerCapture(endEvent.pointerId);
@@ -348,10 +366,12 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 lineHeight: view?.defaultLineHeight,
                 sourceText: this.sourceText,
             });
-            if (this.chartHeight) {
-                wrapper.classList.add('cm-block-widget--figaro-chart');
-                this.createChartResizeHandle(view, wrapper);
-                this.applyChartHeight(wrapper, this.chartHeight);
+            if (this.diagramHeight) {
+                wrapper.classList.add('cm-block-widget--resizable-diagram');
+                if (this.chartHeight) wrapper.classList.add('cm-block-widget--figaro-chart');
+                if (this.mermaidHeight) wrapper.classList.add('cm-block-widget--resizable-mermaid');
+                this.createDiagramResizeHandle(view, wrapper);
+                this.applyDiagramHeight(wrapper, this.diagramHeight);
             }
             this.renderTask = renderQueue.enqueue(
                 () => this.renderInto(content, wrapper),
@@ -393,7 +413,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
 
         // Let a click on the preview move the cursor back into the source.
         ignoreEvent(event) {
-            return Boolean(event?.target?.closest?.('.cm-vega-lite-chart-resize-handle'));
+            return Boolean(event?.target?.closest?.('.cm-diagram-resize-handle'));
         }
 
         destroy() {
@@ -434,8 +454,12 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
             const sourceVisible = shouldShowSource(state, block.from, block.to);
             const folded = sourceRangeIsFolded(state, block);
             if (!block.code || isDragging || sourceVisible || folded) {
-                const height = block.lang === 'vega-lite' && sourceVisible && !folded
-                    ? vegaLiteChartHeight(block.rawCode ?? block.code)
+                const height = sourceVisible && !folded
+                    ? (block.lang === 'vega-lite'
+                        ? vegaLiteChartHeight(block.rawCode ?? block.code)
+                        : block.lang === 'mermaid'
+                            ? mermaidDiagramHeight(block.rawCode ?? block.code)
+                            : null)
                     : null;
                 if (height) {
                     const firstLine = state.doc.lineAt(block.from).number;
@@ -443,11 +467,9 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
                     for (let number = firstLine; number <= lastLine; number += 1) {
                         const opener = number === firstLine;
                         decorations.push(Decoration.line({
-                            class: opener
-                                ? 'cm-vega-lite-chart-source-line cm-vega-lite-chart-source-placeholder'
-                                : 'cm-vega-lite-chart-source-line',
+                            class: `${block.lang === 'mermaid' ? 'cm-mermaid-diagram-source-line' : 'cm-vega-lite-chart-source-line'} cm-diagram-source-line${opener ? ' cm-diagram-source-placeholder' : ''}${opener && block.lang === 'vega-lite' ? ' cm-vega-lite-chart-source-placeholder' : ''}${opener && block.lang === 'mermaid' ? ' cm-mermaid-diagram-source-placeholder' : ''}`,
                             attributes: opener ? {
-                                style: `--cm-vega-lite-chart-source-height:calc(${height + 44}px - ${lastLine - firstLine}lh)`,
+                                style: `--cm-diagram-source-height:calc(${height + 44}px - ${lastLine - firstLine}lh)`,
                             } : undefined,
                         }).range(state.doc.line(number).from));
                     }

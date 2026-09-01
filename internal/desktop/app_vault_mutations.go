@@ -249,6 +249,9 @@ func (a *App) renamePathLocked(oldRel string, newRel string, updateLinks bool) (
 	if err := a.rewriteKanbanOrderPaths(oldClean, newClean, false); err != nil {
 		log.Printf("[kanban] Could not move card-order paths from %q to %q: %v", filepath.ToSlash(oldClean), filepath.ToSlash(newClean), err)
 	}
+	if err := a.rewriteTaskSchedulePaths(oldClean, newClean); err != nil {
+		log.Printf("[kanban] Could not move task schedules: %v", err)
+	}
 	updatedLinks := make([]string, 0, len(linkRewrites))
 	for _, rewrite := range linkRewrites {
 		updatedLinks = append(updatedLinks, filepath.ToSlash(rewrite.path))

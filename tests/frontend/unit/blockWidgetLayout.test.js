@@ -62,6 +62,17 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-live-table table')).toMatch(/border-collapse:\s*collapse/);
     });
 
+    test('stacks approved Outline, Raw, and PDF icon buttons in one editor launcher rail', () => {
+        const launchers = declarationsFor('.editor-navigation-launchers');
+        expect(launchers).toMatch(/display:\s*flex/);
+        expect(launchers).toMatch(/flex-direction:\s*column/);
+        expect(launchers).toMatch(/gap:\s*4px/);
+        const launcher = declarationsFor('.editor-navigation-launcher');
+        expect(launcher).toMatch(/width:\s*28px/);
+        expect(launcher).toMatch(/height:\s*28px/);
+        expect(launcher).toMatch(/background:\s*color-mix\(in srgb, var\(--panel-bg\)/);
+    });
+
     test('pins approved rendered blocks to their measured source height', () => {
         const footprint = declarationsFor('.cm-source-footprint');
         expect(footprint).toMatch(/height:\s*var\(--cm-source-footprint-height\)/);
@@ -105,15 +116,18 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(chartGraphic).toMatch(/max-height:\s*100%\s*!important/);
         expect(declarationsFor('.cm-block-widget--figaro-chart .cm-live-diagram'))
             .toMatch(/background:\s*var\(--editor-surface\)/);
-        const handle = declarationsFor('.cm-vega-lite-chart-resize-handle');
+        const handle = declarationsFor('.cm-diagram-resize-handle');
         expect(handle).toMatch(/bottom:\s*-14px/);
         expect(handle).toMatch(/left:\s*calc\(50% - 14px\)/);
         expect(handle).toMatch(/cursor:\s*ns-resize/);
-        const sourceLine = declarationsFor('.cm-editor .cm-vega-lite-chart-source-line');
+        const sourceLine = declarationsFor('.cm-editor .cm-diagram-source-line');
         expect(sourceLine).toMatch(/overflow-wrap:\s*normal/);
         expect(sourceLine).toMatch(/white-space:\s*pre/);
-        expect(declarationsFor('.cm-editor .cm-vega-lite-chart-source-placeholder'))
-            .toMatch(/min-height:\s*var\(--cm-vega-lite-chart-source-height\)\s*!important/);
+        expect(declarationsFor('.cm-editor .cm-diagram-source-placeholder'))
+            .toMatch(/min-height:\s*var\(--cm-diagram-source-height\)\s*!important/);
+        const mermaidGraphic = declarationsFor('.cm-block-widget--resizable-mermaid .cm-live-diagram-view svg');
+        expect(mermaidGraphic).toMatch(/width:\s*100%\s*!important/);
+        expect(mermaidGraphic).toMatch(/height:\s*100%\s*!important/);
 
         const workspace = declarationsFor('.vega-lite-chart-editor-workspace');
         expect(workspace).toMatch(/grid-template-columns:\s*minmax\(330px, \.68fr\) minmax\(540px, 1\.62fr\)/);

@@ -68,12 +68,14 @@ func (a *App) GetKanbanColumns() (map[string]interface{}, error) {
 
 // KanbanCard represents a task on the board.
 type KanbanCard struct {
+	Source    string `json:"source"`
 	File      string `json:"file"`
 	FileName  string `json:"file_name"`
 	Line      int    `json:"line"`
 	Text      string `json:"text"`
 	Tag       string `json:"tag"`
 	DueDate   string `json:"due_date,omitempty"`
+	StartDate string `json:"start_date,omitempty"`
 	Completed bool   `json:"completed,omitempty"`
 }
 
@@ -102,8 +104,12 @@ func (a *App) GetKanbanBoard() (map[string][]KanbanCard, error) {
 		columnSet[c] = true
 	}
 
+	scheduled, err := a.scheduledBoardLocked(index)
+	if err != nil {
+		log.Printf("[kanban] Task dates unavailable: %v", err)
+	}
 	board := make(map[string][]KanbanCard)
-	for tag, cards := range index.cardsByTag {
+	for tag, cards := range scheduled {
 		if columnSet[tag] {
 			board[tag] = append([]KanbanCard(nil), cards...)
 		}
@@ -136,9 +142,9 @@ func (a *App) GetHomeTasks(limit int) ([]KanbanCard, error) {
 	columns := append([]string(nil), a.kanbanColumns...)
 	a.mu.RUnlock()
 
-	orderedCards := make(map[string][]KanbanCard, len(index.cardsByTag))
-	for tag, cards := range index.cardsByTag {
-		orderedCards[tag] = append([]KanbanCard(nil), cards...)
+	orderedCards, err := a.scheduledBoardLocked(index)
+	if err != nil {
+		log.Printf("[kanban] Task dates unavailable: %v", err)
 	}
 	a.applyKanbanCardOrder(orderedCards)
 	return homeTaskProjection(orderedCards, columns, limit, localToday()), nil
@@ -153,7 +159,11 @@ func (a *App) GetDueTaskSummary() (DueTaskSummary, error) {
 	if err != nil {
 		return DueTaskSummary{}, err
 	}
-	return dueTaskSummary(index.dueTasksByDate, localToday()), nil
+	board, err := a.scheduledBoardLocked(index)
+	if err != nil {
+		return DueTaskSummary{}, err
+	}
+	return dueTaskSummary(dueCardsByDate(board), localToday()), nil
 }
 
 // GetTasksDueOnDate returns each unfinished task due on a calendar day once,
@@ -168,7 +178,11 @@ func (a *App) GetTasksDueOnDate(dateStr string) ([]KanbanCard, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append([]KanbanCard(nil), index.dueTasksByDate[dateStr]...), nil
+	board, err := a.scheduledBoardLocked(index)
+	if err != nil {
+		return nil, err
+	}
+	return dueCardsByDate(board)[dateStr], nil
 }
 
 // SetColumnColor sets a color for a kanban column.
@@ -351,7 +365,7 @@ func (a *App) UpdateTaskTag(filePath string, lineNum int, oldTag string, newTag 
 	}
 	lines[lineNum-1] = newLine
 	updatedContent := strings.Join(lines, "\n")
-	if err := writeRootFileAtomic(root, cleanRel, []byte(updatedContent), 0644); err != nil {
+		if err := a.writeNoteWithTaskSchedules(root, cleanRel, updatedContent); err != nil {
 		return nil, err
 	}
 	info, err := root.Stat(cleanRel)
@@ -391,56 +405,6 @@ func (a *App) RemoveTagFromTask(filePath string, lineNum int, tag string) (*Save
 	if newLine == line {
 		return &SaveFileResult{Success: false, Error: "Tag not found on line"}, nil
 	}
-	lines[lineNum-1] = newLine
-	updatedContent := strings.Join(lines, "\n")
-	if err := writeRootFileAtomic(root, cleanRel, []byte(updatedContent), 0644); err != nil {
-		return nil, err
-	}
-	info, err := root.Stat(cleanRel)
-	if err != nil {
-		return nil, fmt.Errorf("inspect updated task: %w", err)
-	}
-	mtime := a.recordFileVersionLocked(a.vaultAbsolutePath(cleanRel), info)
-	a.updateVaultIndexFileLocked(cleanRel, info, updatedContent)
-	a.markInternalVaultWriteLocked(cleanRel)
-	return &SaveFileResult{Success: true, Mtime: mtime, Path: filePath}, nil
-}
-
-// SetTaskDueDate stores or clears one semantic Markdown due-date link on the
-// source task line. The vault note remains the only source of truth.
-func (a *App) SetTaskDueDate(filePath string, lineNum int, dueDate string) (*SaveFileResult, error) {
-	a.vaultMu.Lock()
-	defer a.vaultMu.Unlock()
-
-	cleanRel, err := vaultRelativePath(filePath)
-	if err != nil {
-		return nil, err
-	}
-	root, err := a.openVaultRoot()
-	if err != nil {
-		return nil, err
-	}
-	defer root.Close()
-	data, err := root.ReadFile(cleanRel)
-	if err != nil {
-		return nil, err
-	}
-	lines := strings.Split(string(data), "\n")
-	if lineNum < 1 || lineNum > len(lines) {
-		return &SaveFileResult{Success: false, Error: "Line out of range"}, nil
-	}
-	newLine, valid := setTaskDueDateOnLine(lines[lineNum-1], dueDate)
-	if !valid {
-		return &SaveFileResult{Success: false, Error: "Invalid due date"}, nil
-	}
-	if newLine == lines[lineNum-1] {
-		info, statErr := root.Stat(cleanRel)
-		if statErr != nil {
-			return nil, statErr
-		}
-		return &SaveFileResult{Success: true, Mtime: indexMtime(info), Path: filePath}, nil
-	}
-
 	lines[lineNum-1] = newLine
 	updatedContent := strings.Join(lines, "\n")
 	if err := writeRootFileAtomic(root, cleanRel, []byte(updatedContent), 0644); err != nil {

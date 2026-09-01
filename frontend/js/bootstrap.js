@@ -56,6 +56,8 @@ function debugAPI() {
         GetVaultHealth: mock({ broken_links: [], orphan_attachments: [], duplicate_names: [], similar_notes: [], invalid_frontmatter: [] }),
         GetKanbanColumns: mock({ columns: ['todo', 'wip', 'done'], colors: {} }),
         GetKanbanBoard: mock({ todo: [], wip: [], done: [] }),
+        GetTaskSchedules: mock([]),
+        SetTaskSchedule: async () => { throw new Error('Scheduling needs a connected vault'); },
         SetKanbanCardOrder: mock({ success: true }),
         GetHomeTasks: mock([]),
         GetDueTaskSummary: mock({ due_today: 0, overdue: 0 }),

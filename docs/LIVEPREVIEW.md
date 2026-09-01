@@ -59,16 +59,16 @@ Your implementation must accurately transition states for the following elements
 ### Lists (`- item`, `1. item`)
 * **Exit behavior:** Pressing Enter on an empty second list item removes that marker and exits the list immediately. It must not require a second Enter or disturb Arrow Up/Down, mouse placement, or bidirectional drag selection across the boundary.
 
-### Figaro authoring macros (`@due`, `@table`, `@todo`, `@mermaid`, `@drawio`)
+### Figaro authoring macros (`@date`, `@table`, `@todo`, `@mermaid`, `@drawio`)
 * **Portable source first:** Accepting `@todo` inserts `- [ ] ` and leaves the caret after its trailing space. `@table` and `@mermaid` insert complete portable block source with safe blank-line boundaries, then open the existing focused editor for that exact new range. Cancelling a structured editor keeps the inserted Markdown and discards only modal draft changes.
-* **Due picker:** Accepting `@due` opens the shared caret-anchored Calendar picker without changing the token. Cancelling is non-destructive; selecting a day atomically replaces the unchanged token with `[due YYYY-MM-DD](YYYY-MM-DD.md)` and restores editor focus.
+* **Date picker:** Accepting `@date` opens the shared caret-anchored Calendar picker without changing the token. The generic surface is announced as **Choose date**, **Date shortcuts**, and **Clear date**; due-date wording is reserved for task metadata. Cancel is non-destructive. Selection replaces the command with a plain date link in the configured Markdown/Wikilink style, or replaces the sole existing date on that line and removes the command. Multiple existing dates are preserved. Plain prose gets only the link; tasks also use normal conflict-aware note saving before attaching metadata, and an untagged checklist item joins TODO. A changed buffer or failed save attaches no deadline. Source undo does not undo metadata. Editor focus returns after the operation.
 * **Draw.io creation:** Accepting `@drawio` keeps the token intact while a name prompt defaults to `diagram1`. Confirmation creates the normalized `.drawio.svg` file beside the active note, atomically replaces the unchanged token with an explicit `![Diagram](./name.drawio.svg)` sibling reference, and opens the existing Draw.io Editor. Cancelling or a create failure leaves the source untouched; if the token changes while creation is pending, the created file remains discoverable but is not opened or linked.
 * **Cursor and selection contract:** Macro completion is a normal CodeMirror history transaction. The inserted list, table, and fence retain their existing Arrow Up/Down, feature-key, mouse-placement, and bidirectional drag-selection behavior; no macro adds a replacement widget or a second rendering path.
 
 ### Hashtags (`#todo`, `#urgent`)
 * **Completion context:** A whitespace-delimited partial hashtag may open the normal CodeMirror completion list in ordinary Markdown prose. A line-leading `#` remains heading syntax, and completion stays disabled in frontmatter, code, links, URLs, and HTML.
-* **Tagged-line due actions:** Pressing Space after any valid standalone hashtag, including an unsaved custom column, exposes **Add due date…**, **Due today**, and **Due tomorrow** without requiring checkbox syntax. Lines containing `#done`, lines with an existing semantic due link, CSS color tokens, headings, and excluded Markdown syntax remain quiet. The shared picker is anchored at the caret, returns focus to the editor, and inserts ordinary Markdown rather than a replacement widget. Its month grid uses the Calendar workspace's operating-system locale, starts with Today selected when adding a date, and shares its theme-derived weekend, note-intensity, due-outline, and activity-tooltip states.
-* **Cursor contract:** Accepting a tag or due-date action leaves the selection at the end of the inserted source. Arrow Up/Down, mouse placement, and bidirectional drag selection around that line must continue to use CodeMirror's normal source geometry.
+* **Tagged-line deadlines:** Space after hashtags remains ordinary typing. `@date` opens the existing Calendar picker, sharing locale, Today selection, theme-derived weekends, note intensity, due outlines, and hover/focus details. It authors the same ordinary Markdown/Wikilink syntax as other date links; no new replacement widget or special date syntax is introduced.
+* **Cursor contract:** Accepting a tag or date action leaves the selection at the end of the inserted source. Arrow Up/Down, mouse placement, and bidirectional drag selection around that line must continue to use CodeMirror's normal source geometry. Only the rendered hashtag decoration is a Kanban navigation target; empty space after an end-of-line hashtag places the caret normally.
 
 ### Images (`![Alt Text](image.png)`)
 * **Cursor inside node bounds:** Display the plain text markdown markup exactly. Do not show the image preview.
@@ -83,7 +83,7 @@ Your implementation must accurately transition states for the following elements
 * **Cursor on line:** Show the raw `- [ ]` or `- [x]` string for standard text editing.
 * **Cursor off line:** Dynamically substitute the text marker `[ ]` or `[x]` with an interactive HTML `<input type="checkbox">` widget reflecting the correct state. Its action-oriented accessible name includes the cleaned task text, and its wrapper provides a 24px pointer target without changing source geometry.
 * **Task actions:** An unfinished syntax-backed task receives two approved 22px icon buttons in the left helper rail. Kanban opens CodeMirror's existing saved-column autocomplete list; Calendar opens the shared localized due-date picker, preselecting an existing date and allowing it to be cleared. Checked tasks, frontmatter examples, and fenced task syntax receive no actions.
-* **Canonical source order:** Calendar selection removes any prior valid semantic due links and appends the chosen link at the line end. Kanban selection inserts a missing standalone tag before that link and moves an already valid due link behind the task text/tags. Calendar-first and Kanban-first therefore converge on `- [ ] Task #column [due YYYY-MM-DD](YYYY-MM-DD.md)`. Kanban's parser remains order-independent for valid same-line due links.
+* **Source fidelity:** Calendar actions insert plain date links and write private deadlines; they replace exactly one existing date on that task line, or append when there are zero or multiple dates. A linked date counts once; code/images/other links are protected. Kanban actions replace a sole hashtag, or append with zero/multiple hashtags, without duplicating a selected tag. Each action remains one source undo step. Clearing metadata preserves authored links, and links render normally in the editor and PDFs.
 * **Widget Interactivity:** Pointer click or keyboard Space must dispatch the same single editor transaction that toggles the source character between a space and an `x`; native visual state alone is never authoritative. Keyboard activation restores focus to the remounted checkbox. Arrow Up/Down from either direction and bidirectional drag selection across the replacement retain normal CodeMirror behavior.
 
 ---
@@ -96,6 +96,17 @@ When writing the TypeScript extension, you must adhere to the following CodeMirr
 2.  **State Triggers:** Recompute the decoration set dynamically if and only if: the document changes (`update.docChanged`), the selection changes (`update.selectionSet`), or the view scrolls (`update.viewportChanged`).
 3.  **Coordinate Sorting Rule:** You must collect all decorations in a mutable array, ensure they are strictly sorted by their incremental document positions, and then construct the final set using `Decoration.set(builder, true)`. Overlapping or unsorted ranges will crash the editor.
 4.  **Stable Metrics:** Ensure inline styles retain their typographic metrics (font-size, line-height) across both states. Revealing exact source may legitimately wrap or reflow a line because it adds the hidden Markdown characters; do not introduce an additional style-driven size jump.
+
+Large Markdown buffers preserve this complete behavior through a staged first
+mount. Figaro installs the exact source in two history-free chunks split at a
+line boundary, then restores images, frontmatter, diagrams, tables, and math in
+separate animation frames. Every stage must still belong to the same active tab
+and document owner; switching away cancels the remaining work. The editor may
+be reported ready only after the complete source and every presentation
+extension are mounted. Syntax-backed helpers must consume CodeMirror's
+incrementally available tree rather than forcing an eager full-document parse.
+The staged path may change scheduling, but not visible source, saved selection,
+Undo/Redo isolation, Arrow Up/Down, mouse placement, or drag selection.
 
 The shared editor document and selected file tab must change ownership
 together. In particular, an external capability read completes before its tab
@@ -213,6 +224,14 @@ alpha-blended data marks do not change appearance when the chart is applied.
 The only resize handle sits at the bottom center; pointer movement updates
 the DOM height and center readout, pointer cancellation restores the start, and
 pointer release emits at most one source transaction.
+
+Mermaid diagrams use the same authored-geometry variant with a 300px default,
+an 180–900px clamp, and the shared bottom-center vertical handle. Pointer moves
+update only the mounted diagram/readout; release adds or updates one portable
+`%% figaro:height N` directive in one undoable transaction. Revealed source
+uses an equal-height placeholder, so the next line moves only when the user
+changes geometry. The printable renderer applies the directive to the Mermaid
+figure while keeping the editor handle and readout out of Raw/PDF output.
 
 Ctrl/Cmd+mouse-wheel text scaling is an editor-only, per-open-buffer reflow.
 The active scale changes `--font-size-editor` while the unitless

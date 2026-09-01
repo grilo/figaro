@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { expectContinuousTimelinePaint } from './support/timelinePaint.js';
 
 test('keeps Calendar, Kanban, and Graph as borderless connected sidebar workspaces', async ({ page }) => {
     await page.goto('/');
@@ -391,13 +392,13 @@ test('floats Graph controls, pins node tracing, and opens only on Ctrl-click', a
             leftInset: Math.round(controls.left - stage.left),
             searchWidth: Math.round(search.width),
             zoomBeforeSearch: zoom.nextElementSibling?.classList.contains('graph-filter'),
-            orphansAfterSearch: orphans.previousElementSibling?.classList.contains('graph-filter'),
+            orphansAfterSearch: orphans.closest('.ui-segmented-control').previousElementSibling?.classList.contains('graph-filter'),
             zoomBorder: getComputedStyle(zoom).borderTopWidth,
         };
     });
     expect(floatingControls).toEqual({
-        topInset: 10,
-        leftInset: 10,
+        topInset: 14,
+        leftInset: 24,
         searchWidth: 224,
         zoomBeforeSearch: true,
         orphansAfterSearch: true,
@@ -731,40 +732,9 @@ test('scrolls Calendar Timeline days and opens styled note pills at their first 
 
     await page.locator('.calendar-timeline-today').click();
     await expect(page.locator('#calendar-timeline-view')).toHaveAttribute('aria-busy', 'false');
-    const rangeCountBeforeEdge = await page.evaluate(() => window.__timelineRanges.length);
-    const rangeStartBeforeEdge = await page.locator('.calendar-timeline-day').first().getAttribute('data-date');
-
-    const edgeBefore = await page.locator('.calendar-timeline-scroll').evaluate(scroll => {
-        const dayWidth = scroll.querySelector('.calendar-timeline-day').getBoundingClientRect().width;
-        scroll.scrollTo({ left: (dayWidth * 14) - 2, behavior: 'instant' });
-        const marker = [...scroll.querySelectorAll('.calendar-timeline-day')].find(day => (
-            day.getBoundingClientRect().right > scroll.getBoundingClientRect().left
-        ));
-        const viewportLeft = scroll.getBoundingClientRect().left;
-        const result = {
-            date: marker.dataset.date,
-            viewportOffset: marker.getBoundingClientRect().left - viewportLeft,
-        };
-        scroll.dispatchEvent(new Event('scroll'));
-        return result;
-    });
-    await expect.poll(() => page.evaluate(() => window.__timelineRanges.length)).toBe(rangeCountBeforeEdge + 1);
+    await expectContinuousTimelinePaint(page, '.calendar-timeline-scroll', '.calendar-timeline-day');
+    await page.locator('.calendar-timeline-today').click();
     await expect(page.locator('#calendar-timeline-view')).toHaveAttribute('aria-busy', 'false');
-    const edgeAfter = await page.locator('.calendar-timeline-scroll').evaluate((scroll, markerDate) => {
-        const marker = scroll.querySelector(`[data-date="${markerDate}"]`);
-        return {
-            firstDate: scroll.querySelector('.calendar-timeline-day').dataset.date,
-            lastDate: [...scroll.querySelectorAll('.calendar-timeline-day')].at(-1).dataset.date,
-            markerOffset: marker.getBoundingClientRect().left - scroll.getBoundingClientRect().left,
-            scrollLeft: scroll.scrollLeft,
-            ranges: window.__timelineRanges,
-        };
-    }, edgeBefore.date);
-    expect((Date.parse(`${rangeStartBeforeEdge}T00:00:00Z`) - Date.parse(`${edgeAfter.firstDate}T00:00:00Z`)) / 86400000).toBe(7);
-    expect(edgeAfter.ranges.at(-1)).toEqual({ startDate: edgeAfter.firstDate, endDate: edgeAfter.lastDate });
-    expect(Math.abs(edgeAfter.markerOffset - edgeBefore.viewportOffset)).toBeLessThanOrEqual(1);
-    expect(edgeAfter.scrollLeft).toBeGreaterThan(0);
-
     await page.locator('.calendar-timeline-note[data-path="Notes/Existing.md"]').click();
     await expect.poll(async () => page.evaluate(async () => {
         const { getState } = await import('/js/state.js');

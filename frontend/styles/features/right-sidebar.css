@@ -18,9 +18,24 @@
 }
 .right-sidebar.open {
     border-left: 1px solid var(--border-color) !important;
-    width: var(--right-sidebar-width, 320px) !important;
+    width: var(--right-sidebar-effective-width, var(--right-sidebar-width, 320px)) !important;
     min-width: 240px !important;
     pointer-events: auto;
+}
+
+/* When the editor and the preview cannot both retain their usable minimum,
+   keep the editor at its full workspace width and place the existing pane over
+   its trailing edge. The preview remains the same resizable right-sidebar
+   component; only its responsive placement changes. */
+.right-sidebar.right-sidebar--responsive-overlay.open {
+    position: absolute;
+    z-index: 12;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--right-sidebar-effective-width) !important;
+    min-width: 0 !important;
+    box-shadow: -10px 0 24px color-mix(in srgb, var(--bg-color) 28%, transparent);
 }
 
 /* Collapsing the left sidebar is the reversible Pure-mode command. Preserve an
@@ -51,8 +66,12 @@
 }
 
 .right-sidebar.pdf-preview-mode.open {
-    width: max(340px, var(--right-sidebar-width, 480px)) !important;
+    width: var(--right-sidebar-effective-width, max(340px, var(--right-sidebar-width, 480px))) !important;
     min-width: 340px !important;
+}
+
+.right-sidebar.pdf-preview-mode.right-sidebar--responsive-overlay.open {
+    min-width: 0 !important;
 }
 
 /* Direct manipulation must track the pointer exactly. Normal open/close
@@ -425,9 +444,14 @@ body.right-sidebar-resizing .pdf-preview-frame {
 }
 
 @media (max-width: 760px) {
-    .right-sidebar.pdf-preview-mode.open {
+    .right-sidebar.pdf-preview-mode.open:not(.right-sidebar--responsive-overlay) {
         width: min(100vw, 560px) !important;
         min-width: min(100vw, 340px) !important;
+    }
+
+    .right-sidebar.pdf-preview-mode.right-sidebar--responsive-overlay.open {
+        width: var(--right-sidebar-effective-width) !important;
+        min-width: 0 !important;
     }
 
     .pdf-preview-generate span { display: none; }

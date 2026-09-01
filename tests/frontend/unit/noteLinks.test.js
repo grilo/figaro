@@ -61,10 +61,16 @@ describe('Markdown note-link target planning', () => {
             destinationFrom: 7,
             destinationTo: 15,
         });
-        expect(markdownEditorNavigationAtPosition(line, line.indexOf('#todo') + 2)).toEqual({
+        expect(markdownEditorNavigationAtPosition(line, line.indexOf('#todo') + 2, {
+            hashtagTarget: 'todo',
+        })).toEqual({
             kind: 'hashtag',
             tag: 'todo',
         });
+        expect(markdownEditorNavigationAtPosition(line, line.length)).toBeNull();
+        expect(markdownEditorNavigationAtPosition(line, line.indexOf('#todo') + 2, {
+            hashtagTarget: 'wip',
+        })).toBeNull();
         expect(markdownEditorNavigationAtPosition('punctuation(#not-a-tag)', 14)).toBeNull();
     });
 

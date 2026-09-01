@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('boots through the native Wails binding with the workspace overview, vault tree, and Calendar available', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-07-09T12:00:00Z'));
     const browserMessages = [];
     page.on('console', message => browserMessages.push(`${message.type()}: ${message.text()}`));
     page.on('pageerror', error => browserMessages.push(`pageerror: ${error.message}`));

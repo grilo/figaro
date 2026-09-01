@@ -269,15 +269,15 @@
                             <table>
                                 <tr class="md-macro-date-shortcuts-row"><td><code>@today</code> <code>@tomorrow</code> <code>@yesterday</code></td><td>Insert a local-date note link</td></tr>
                                 <tr class="md-macro-date-link-row"><td><code>[YYYY-MM-DD](YYYY-MM-DD.md)</code></td><td>Associate this note with a Calendar day</td></tr>
-                                <tr class="md-macro-authoring-row"><td><code>@due</code></td><td>Choose and insert a semantic due date</td></tr>
+                                <tr class="md-macro-authoring-row"><td><code>@date</code></td><td>Insert a date link in your preferred style; tasks also store a deadline in private metadata</td></tr>
                                 <tr class="md-macro-authoring-row"><td><code>@table</code></td><td>Insert a basic table and open the Table Editor</td></tr>
                                 <tr class="md-macro-authoring-row"><td><code>@todo</code></td><td>Start an unchecked task-list item</td></tr>
                                 <tr class="md-macro-authoring-row"><td><code>@mermaid</code></td><td>Insert a Mermaid block and open the Mermaid Editor</td></tr>
                                 <tr class="md-macro-authoring-row"><td><code>@drawio</code></td><td>Create a sibling diagram and open the Draw.io Editor</td></tr>
-                                <tr class="md-macro-task-actions-row"><td><code>- [ ] Task</code></td><td>Use the left Kanban and Calendar actions to assign a column or due date</td></tr>
+                                <tr class="md-macro-task-actions-row"><td><code>- [ ] Task</code></td><td>Use the left Kanban and Calendar actions to insert a column tag or due-date link. Replace a single tag/date; preserve multiple and add the selection</td></tr>
                                 <tr class="md-macro-kanban-row"><td><code>#todo</code> <code>#wip</code> <code>#done</code> <code>#custom-column</code></td><td>Assign a line or task to Kanban columns</td></tr>
-                                <tr class="md-macro-due-row"><td><code>Text #tag [due YYYY-MM-DD](YYYY-MM-DD.md)</code></td><td>Give a Kanban-tagged line a due date</td></tr>
-                                <tr class="md-macro-due-actions-row"><td><code>#tag</code></td><td>Press Space to choose Add due date…, Due today, or Due tomorrow</td></tr>
+                                <tr class="md-macro-due-row"><td><code>Task #todo @date</code></td><td>Choose a date link; the task deadline stays in metadata</td></tr>
+                                <tr class="md-macro-due-actions-row"><td><code>D</code> on a focused Kanban card</td><td>Set its due date; Escape cancels without changing the task</td></tr>
                             </table>
                         </div>
                         <div class="md-cheatsheet-panel" id="md-help-shortcuts-panel" role="tabpanel" aria-labelledby="md-help-shortcuts-tab" tabindex="-1" hidden>
@@ -416,18 +416,34 @@
                 <!-- Persistent Editor Container (shared across all file tabs) -->
                 <div id="editor-container" class="editor-panel">
                     <div class="editor-navigation-overlay">
-                        <button type="button" id="outline-toggle" class="ui-icon-button editor-outline-launcher"
-                                title="Show document outline" aria-label="Show document outline"
-                                aria-controls="right-sidebar" aria-expanded="false" hidden>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M8 5h13"></path>
-                                <path d="M13 12h8"></path>
-                                <path d="M13 19h8"></path>
-                                <path d="M3 10a2 2 0 0 0 2 2h3"></path>
-                                <path d="M3 5v12a2 2 0 0 0 2 2h3"></path>
-                            </svg>
-                        </button>
                         <nav id="sticky-heading-stack" class="sticky-heading-stack" aria-label="Sticky heading hierarchy" hidden></nav>
+                        <div class="editor-navigation-launchers">
+                            <button type="button" id="outline-toggle" class="ui-icon-button editor-navigation-launcher editor-outline-launcher"
+                                    title="Show document outline" aria-label="Show document outline"
+                                    aria-controls="right-sidebar" aria-expanded="false" hidden>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M8 5h13"></path>
+                                    <path d="M13 12h8"></path>
+                                    <path d="M13 19h8"></path>
+                                    <path d="M3 10a2 2 0 0 0 2 2h3"></path>
+                                    <path d="M3 5v12a2 2 0 0 0 2 2h3"></path>
+                                </svg>
+                            </button>
+                            <button type="button" id="raw-text-preview-toggle" class="ui-icon-button editor-navigation-launcher editor-preview-launcher"
+                                    title="Preview raw Markdown" aria-label="Preview raw Markdown"
+                                    aria-controls="right-sidebar" aria-expanded="false" hidden>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M4 4h16v16H4z"></path><path d="m8 9-2 3 2 3"></path><path d="m16 9 2 3-2 3"></path><path d="m13 7-2 10"></path>
+                                </svg>
+                            </button>
+                            <button type="button" id="pdf-preview-toggle" class="ui-icon-button editor-navigation-launcher editor-preview-launcher"
+                                    title="Preview PDF" aria-label="Preview PDF"
+                                    aria-controls="right-sidebar" aria-expanded="false" hidden>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M6 2h9l5 5v15H6z"></path><path d="M14 2v6h6"></path><path d="M9 13h6"></path><path d="M9 17h4"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -526,6 +542,7 @@
                     <span class="graph-status-instruction">Hover or click to trace links, ctrl+click node to open the file</span>
                     <span id="graph-status-selection" class="graph-status-selection" role="status" aria-live="polite">No note selected</span>
                 </div>
+                <div id="gantt-status-content" class="gantt-status-content" role="status" aria-live="polite"></div>
                 <div class="status-buffer-left" role="group" aria-label="History, relationships, and editor state">
                     <button type="button" id="history-count" class="status-history" title="No committed history" disabled>0 changes</button>
                     <span id="git-status-separator" class="status-separator" hidden>|</span>

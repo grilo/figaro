@@ -72,7 +72,7 @@ func calendarTimelineDays(index *calendarDateIndex, start, end time.Time) []Cale
 }
 
 // GetLinkedNotesForDate returns the distinct daily/ordinarily-linked note rows
-// that contribute to a date's activity count. Semantic due links are tasks.
+// that contribute to a date's activity count. Task deadlines live in metadata.
 func (a *App) GetLinkedNotesForDate(dateStr string) ([]LinkedNote, error) {
 	a.vaultMu.RLock()
 	defer a.vaultMu.RUnlock()
@@ -126,13 +126,13 @@ type CalendarDaySummary struct {
 	DueTitles []string `json:"due_titles"`
 }
 
-func calendarMonthDaySummaries(index *vaultIndex, year, month int) []CalendarDaySummary {
+func calendarMonthDaySummaries(index *vaultIndex, tasksByDate map[string][]KanbanCard, year, month int) []CalendarDaySummary {
 	daysInMonth := time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC).Day()
 	summaries := make([]CalendarDaySummary, 0)
 	for day := 1; day <= daysInMonth; day++ {
 		dateStr := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC).Format("2006-01-02")
 		noteCount := index.calendar.noteCount(dateStr)
-		tasks := index.dueTasksByDate[dateStr]
+		tasks := tasksByDate[dateStr]
 		if noteCount == 0 && len(tasks) == 0 {
 			continue
 		}
@@ -163,6 +163,15 @@ func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, err
 		return nil, err
 	}
 	calendarIndex := index.calendar
+	board, err := a.scheduledBoardLocked(index)
+	if err != nil {
+		return nil, err
+	}
+	tasksByDate := dueCardsByDate(board)
+	dueDaysByMonth := make(map[string][]int)
+	for date := range tasksByDate {
+		addCalendarMonthDay(dueDaysByMonth, date)
+	}
 
 	// Build calendar grid
 	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
@@ -195,8 +204,8 @@ func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, err
 		Month:            month,
 		DaysWithNotes:    calendarMonthDays(calendarIndex.dailyDaysByMonth, year, month),
 		DaysWithLinks:    calendarMonthDays(calendarIndex.linkedDaysByMonth, year, month),
-		DaysWithDueTasks: calendarMonthDays(calendarIndex.dueDaysByMonth, year, month),
-		DaySummaries:     calendarMonthDaySummaries(index, year, month),
+		DaysWithDueTasks: calendarMonthDays(dueDaysByMonth, year, month),
+		DaySummaries:     calendarMonthDaySummaries(index, tasksByDate, year, month),
 		Calendar:         cal,
 	}, nil
 }

@@ -1,5 +1,12 @@
 # Figaro design system
 
+Segmented choices use the existing quiet borderless treatment throughout the
+three Figaro themes, including Graph's Orphans toggle. Optional `--choice-*`
+tokens define group, item, hover, and selected paint; semantic defaults keep
+other themes outlined. Selected shadows must not replace the explicit
+keyboard-focus outline. Calendar, Kanban, and Graph controls share their
+upper-left workspace inset; feature styles own placement only.
+
 This directory is the review surface for Figaro's visual language. The
 [component catalogue](index.html) displays the current production elements
 after the approved primitive consolidation, including shared foundations,
@@ -58,6 +65,13 @@ The approved `.ui-button--quiet` variant removes resting border and surface
 paint for low-emphasis actions while retaining themed hover, active, focus,
 disabled, and busy behavior. Expanded Properties uses it for its icon-and-label
 **Edit YAML** source action.
+The approved `.kanban-gantt-bar` button variant adds column-tinted, 8px task
+bars with a softer completed state. Its colour/state rules live in primitives;
+the feature owns only timeline geometry and pointer hit regions. The catalogue
+shows ongoing, completed, and disabled bars alongside the shared controls.
+Checklist date/column actions reuse the date picker and completion list: content
+updates describe preferred-style date links and single-value replacement without
+introducing a control or variant.
 The approved `.ui-segmented-control` composes ordinary `.ui-button` choices
 into one labelled, mutually exclusive presentation control. Its quiet variant
 removes the resting outline for low-chrome surfaces while preserving shared

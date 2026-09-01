@@ -5,7 +5,7 @@
  * only replaces an otherwise unfocused table range with a read-only semantic
  * table; selecting the range restores the original Markdown for editing.
  */
-import { ensureSyntaxTree, foldedRanges, syntaxTree } from '@codemirror/language';
+import { foldedRanges, syntaxTree } from '@codemirror/language';
 import { renderMarkdownTable } from './markdownTableRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { markSourceFootprint } from './sourceFootprint.js';
@@ -99,7 +99,7 @@ export function renderedTableCellMouseSelection(view, event, EditorSelection) {
 
 /** Return top-level GFM table ranges from CodeMirror's Markdown syntax tree. */
 export function scanMarkdownTables(state) {
-    const tree = ensureSyntaxTree(state, state.doc.length) || syntaxTree(state);
+    const tree = syntaxTree(state);
     const tables = [];
     const documentSource = state.doc.toString();
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
@@ -229,7 +229,8 @@ export function createMarkdownTableField(
     const field = StateField.define({
         create: buildState,
         update(value, transaction) {
-            if (transaction.docChanged || transaction.reconfigured) {
+            if (transaction.docChanged || transaction.reconfigured
+                || syntaxTree(transaction.startState) !== syntaxTree(transaction.state)) {
                 return buildState(transaction.state);
             }
 

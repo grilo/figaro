@@ -787,14 +787,27 @@
     pointer-events: none;
 }
 
-.editor-outline-launcher {
+.editor-navigation-launchers {
     position: relative;
     z-index: 1;
     grid-row: 2;
     justify-self: end;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 8px 10px 0 0;
+    pointer-events: none;
+}
+
+/* A narrow responsive right-pane overlay leaves the launcher rail in the
+   exposed editor strip, so the same control can still close or switch it. */
+.main-content.right-sidebar-overlay-active .editor-navigation-launchers {
+    margin-right: calc(var(--right-sidebar-overlay-width) + 10px);
+}
+
+.editor-navigation-launcher {
     width: 28px;
     height: 28px;
-    margin: 8px 10px 0 0;
     border-color: color-mix(in srgb, var(--border-color) 78%, transparent);
     background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
     box-shadow: var(--shadow-sm);
@@ -803,15 +816,16 @@
     backdrop-filter: blur(6px);
 }
 
-.editor-outline-launcher[hidden] { display: none; }
+.editor-navigation-launcher[hidden] { display: none; }
 
-.editor-outline-launcher:hover,
-.editor-outline-launcher:focus-visible {
+.editor-navigation-launcher:hover,
+.editor-navigation-launcher:focus-visible,
+.editor-navigation-launcher.is-open {
     color: var(--text-color);
 }
 
 /* Pure writing mode omits the document-navigation launcher completely. */
-#app.pure-editing-chrome .editor-outline-launcher {
+#app.pure-editing-chrome .editor-navigation-launchers {
     display: none !important;
 }
 

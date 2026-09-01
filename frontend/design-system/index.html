@@ -376,6 +376,15 @@
                     </article>
 
                     <article class="ds-specimen">
+                        <header><h3>Gantt task bars</h3><code class="ds-selector">.kanban-gantt-bar</code></header>
+                        <div class="ds-demo">
+                            <button type="button" class="ui-button kanban-gantt-bar" style="position:relative;top:auto;--gantt-color:#d8574a">Design interface</button>
+                            <button type="button" class="ui-button kanban-gantt-bar" data-done="true" style="position:relative;top:auto;--gantt-color:#3da674">✓ Research complete</button>
+                            <button type="button" class="ui-button kanban-gantt-bar" disabled style="position:relative;top:auto;--gantt-color:#d8574a">Saving dates…</button>
+                        </div>
+                    </article>
+
+                    <article class="ds-specimen">
                         <header><h3>File-tree states</h3><code class="ds-selector">.file-tree-node.selected</code><code class="ds-selector">.file-tree-node.cut-marked</code></header>
                         <div class="ds-demo ds-demo--flush">
                             <div class="file-tree" role="tree" aria-label="Example vault file tree" aria-multiselectable="true">
@@ -675,8 +684,8 @@
                                 <tr><td><code>@today</code> <code>@tomorrow</code></td><td>Date links</td></tr>
                                 <tr><td><code>- [ ] Task</code></td><td>Left Kanban and Calendar actions</td></tr>
                                 <tr><td><code>#todo</code> <code>#custom-column</code></td><td>Kanban columns</td></tr>
-                                        <tr><td><code>Text #tag [due YYYY-MM-DD](YYYY-MM-DD.md)</code></td><td>Tagged-line due date</td></tr>
-                                        <tr><td><code>#tag</code></td><td>Press Space for due-date actions</td></tr>
+                                        <tr><td><code>Task #todo @date</code></td><td>Preferred-style date link and task deadline in private metadata</td></tr>
+                                        <tr><td><code>#tag</code></td><td>Type to complete a saved Kanban column</td></tr>
                                     </table>
                                 </div>
                                 <div class="md-cheatsheet-panel" id="catalog-help-shortcuts-panel" role="tabpanel" aria-labelledby="catalog-help-shortcuts-tab" tabindex="-1">

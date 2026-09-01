@@ -4,6 +4,9 @@ import {
     graphLayoutBounds,
     graphNodeAppearances,
     graphView,
+    graphViewLayout,
+    graphLayoutIterationCount,
+    sameGraphView,
     layoutGraph,
     normalizeVaultGraph,
     zoomGraphViewport,
@@ -117,6 +120,29 @@ describe('note graph model', () => {
         const zoomed = zoomGraphViewport(fitted, 1.4, anchor.x, anchor.y);
         expect((anchor.x - zoomed.offsetX) / zoomed.scale).toBeCloseTo(before.x);
         expect((anchor.y - zoomed.offsetY) / zoomed.scale).toBeCloseTo(before.y);
+    });
+
+    test('projects filtered nodes onto the full graph layout without moving them', () => {
+        const graph = sampleGraph();
+        const full = layoutGraph(graph.nodes, graph.edges);
+        const filtered = graphView(graph, { query: 'projects' });
+
+        expect(graphViewLayout(filtered.nodes, full)).toEqual(full.filter(point => (
+            point.path.startsWith('Projects/')
+        )));
+    });
+
+    test('recognizes unchanged projections and bounds force refinement for huge vaults', () => {
+        const graph = sampleGraph();
+        const first = graphView(graph, { query: 'project' });
+        const equivalent = graphView(graph, { query: 'projects' });
+        const different = graphView(graph, { query: 'atlas' });
+
+        expect(sameGraphView(first, equivalent)).toBe(true);
+        expect(sameGraphView(first, different)).toBe(false);
+        expect(graphLayoutIterationCount(1000)).toBe(24);
+        expect(graphLayoutIterationCount(1001)).toBe(12);
+        expect(graphLayoutIterationCount(10000)).toBe(4);
     });
 
     test('cycles keyboard node selection in stable path order', () => {

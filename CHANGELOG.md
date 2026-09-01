@@ -10,6 +10,81 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.32.0] - 2026-09-01
+
+### Added
+
+- Markdown buffers now expose compact Raw Markdown and PDF preview icons beneath
+  Document outline, and in-note Find announces its match count to screen readers.
+- Kanban now has a **Board / Gantt** switch with column-colored task bars,
+  faded completed tasks, localized weekends, date editing, and drag-to-move
+  or resize. Gantt uses the application's existing status bar. Schedules stay
+  in ignored vault metadata without adding hidden dates or IDs to Markdown; ambiguous
+  task edits preserve their saved dates for explicit reconnection.
+  Calendar Timeline and Gantt reuse the same buffered scrolling, panning, and
+  date-position preservation rather than maintaining separate timeline widgets.
+
+### Changed
+
+- Mermaid diagrams now render full-width at a useful 300px default and share
+  Vega-Lite's bottom-center vertical resize gesture; one portable height hint is
+  written on release and honored in PDF Preview and export.
+- The date-picker macro is now `@date`; `@due` is no longer offered. It inserts
+  a date link in the configured Markdown/Wikilink style in prose and tasks;
+  tasks also retain a metadata deadline. The checklist Calendar action does the
+  same. Date and column pickers replace a single existing value on the line, or
+  preserve multiple values and add the selection.
+- Kanban timeline dates apply as soon as they are chosen or cleared, without
+  Save/Cancel buttons. Escape closes the prompt; failed edits preserve saved
+  dates and remain retryable.
+- Calendar, Kanban, and Graph align their controls at the upper left. Choice
+  switches across the three Figaro themes use Calendar's borderless styling,
+  with visible keyboard focus.
+- Task deadlines now live only in private metadata shared by Board, Gantt,
+  Calendar, Today, and reminders. `@date` opens the Calendar picker and replaces
+  its command with an ordinary date link; old due-looking Markdown links no longer
+  schedule tasks. Moving into a non-TODO column records an unset start date
+  without resetting existing starts or postponing overdue deadlines.
+- Very large Markdown notes now mount their complete source and presentation in
+  bounded frame-sized phases, preserving the full editor while avoiding one
+  blocking parse/decorations task. Large Graph canvases likewise retain one
+  stable layout and paint interruptible batches instead of recomputing every
+  filtered view synchronously.
+
+### Fixed
+
+- Raw Markdown and PDF previews now preserve the editor's usable width when the
+  navigation pane leaves too little room to dock them, using the same right
+  pane as a responsive overlay without horizontal overflow. Empty Gantt boards
+  no longer advertise drag gestures until tasks exist.
+- Charts preserve authored category order instead of silently sorting labels.
+  Empty Gantt boards now show a centered status, generic `@date` controls no
+  longer use due-date wording, and shared tooltips disappear when their owner is
+  removed or moves away from a stationary pointer.
+- Hashtags open Kanban only when the tag itself is clicked; clicking empty
+  editor space after an end-of-line tag now places the caret normally.
+- Date-link edits preserve existing task schedules and start dates. Wikilink
+  dates now contribute to Calendar associations alongside Markdown date links.
+- Gantt's Start/End popup closes when clicking elsewhere without swallowing the
+  next action. Escape closes nested calendars before the popup and also works
+  during saving; dismissed popups never reopen or steal focus when saving finishes.
+- Calendar and Kanban timelines no longer flash a different week while paging.
+  Buffered updates preserve mounted days/task bars and the latest scroll
+  position, including continued wheel movement during loading.
+- Kanban's D date picker returns keyboard focus to the card after cancellation
+  or selection. Deadline edits no longer rewrite or reload note contents;
+  dirty-source and failed-write checks preserve the task.
+- Rapid Gantt scrolling now coalesces row-window updates to one per animation
+  frame. Graph filter, selection, and zoom remain responsive at 10,000 notes,
+  and semantically unchanged filters no longer repaint the canvas.
+- The Vega-Lite Chart Editor serializes preview rendering and keeps only the
+  newest pending configuration, so rapid control changes cannot run overlapping
+  Vega engines or publish a stale preview.
+- The huge-vault browser profiler now supplies Graph and schedule fixtures,
+  waits for complete canvas/Markdown presentation, records each completed
+  scenario immediately, and continues to report later scenarios independently
+  after a failure.
+
 ## [1.31.0] - 2026-08-31
 
 ### Added
@@ -1787,7 +1862,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.31.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.32.0...HEAD
+[1.32.0]: https://github.com/grilo/figaro/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/grilo/figaro/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/grilo/figaro/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/grilo/figaro/compare/v1.28.2...v1.29.0

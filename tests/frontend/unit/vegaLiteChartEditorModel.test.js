@@ -72,6 +72,8 @@ describe('Vega-Lite Chart Editor model', () => {
         const grouped = spec.layer.find(layer => layer.transform?.[0]?.fold);
         expect(grouped.transform[0].fold).toEqual(['Revenue', 'Profit Δ']);
         expect(grouped.encoding.x.field).toBe('Month');
+        expect(grouped.encoding.x.sort).toBeNull();
+        expect(spec.data.values.map(row => row.Month)).toEqual(['2026-01', '2026-02', '2026-03']);
         expect(grouped.encoding.color.scale.domain).toEqual(['Revenue', 'Profit Δ']);
         expect(cost).toMatchObject({ mark: 'area', axis: 'primary', color: '#a855f7', visible: false });
 
@@ -81,6 +83,30 @@ describe('Vega-Lite Chart Editor model', () => {
             roundTrip: true,
         });
         expect(JSON.parse(source).usermeta.figaro.chart).not.toHaveProperty('cartesianCategoryField');
+    });
+
+    test('preserves authored category order instead of accepting Vega-Lite nominal sorting', () => {
+        const state = createVegaLiteChartEditorStateFromTable([
+            '| Stage | Count |',
+            '| --- | ---: |',
+            '| Zeta | 1 |',
+            '| Alpha | 2 |',
+            '| Middle | 3 |',
+        ].join('\n'));
+
+        const vertical = buildVegaLiteChartSpec(state);
+        expect(vertical.data.values.map(row => row.Stage)).toEqual(['Zeta', 'Alpha', 'Middle']);
+        expect(vertical.layer[0].encoding.x).toMatchObject({ field: 'Stage', sort: null });
+
+        state.orientation = 'horizontal';
+        const horizontal = buildVegaLiteChartSpec(state);
+        expect(horizontal.layer[0].encoding.y).toMatchObject({ field: 'Stage', sort: null });
+
+        state.mode = 'pie';
+        state.pie.valueField = 'Count';
+        const pie = buildVegaLiteChartSpec(state);
+        expect(pie.data.values.map(row => row.Stage)).toEqual(['Zeta', 'Alpha', 'Middle']);
+        expect(pie.layer[0].encoding.color).toMatchObject({ field: 'Stage', sort: null });
     });
 
     test('defaults the Cartesian category to the first table column even when it is numeric', () => {
@@ -125,12 +151,12 @@ describe('Vega-Lite Chart Editor model', () => {
             lookup: hiddenField,
             from: { key: hiddenField, fields: ['Month'] },
         });
-        expect(trendline.encoding.x).toEqual({ field: 'Month', type: 'nominal' });
+        expect(trendline.encoding.x).toEqual({ field: 'Month', type: 'nominal', sort: null });
 
         state.orientation = 'horizontal';
         const horizontal = buildVegaLiteChartSpec(state);
         expect(horizontal.layer.find(layer => layer.transform?.[0]?.regression).encoding.y)
-            .toEqual({ field: 'Month', type: 'nominal' });
+            .toEqual({ field: 'Month', type: 'nominal', sort: null });
         const source = serializeVegaLiteChartFence(state).split('\n')[1];
         expect(createVegaLiteChartEditorStateFromSource(source)).toMatchObject({
             valid: true, roundTrip: true,

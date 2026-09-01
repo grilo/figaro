@@ -4,6 +4,24 @@
    Feature classes remain available as behavior and layout hooks. These
    primitives own the visual and interaction states shared across features.
    ========================================================================== */
+/* Approved Gantt task variant: column tint, readable completion, shared focus. */
+.ui-button.kanban-gantt-bar {
+    --gantt-tint: 28%;
+    background: color-mix(in srgb, var(--gantt-color, var(--accent-color)) var(--gantt-tint), var(--workspace-surface));
+    color: var(--text-color);
+    border: 0;
+    border-radius: var(--ui-menu-radius);
+    cursor: grab;
+}
+.ui-button.kanban-gantt-bar[data-done="true"] { --gantt-tint: 10%; color: var(--text-muted); }
+.ui-button.kanban-gantt-bar:hover:not(:disabled),
+.ui-button.kanban-gantt-bar:active:not(:disabled) {
+    background: color-mix(in srgb, var(--gantt-color, var(--accent-color)) 40%, var(--workspace-surface));
+    color: var(--text-color);
+}
+.ui-button.kanban-gantt-bar[data-done="true"]:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--gantt-color, var(--accent-color)) 20%, var(--workspace-surface));
+}
 .ui-picker {
     position: relative;
     width: 176px;
@@ -326,13 +344,16 @@ input.ui-stepper-value:invalid {
     align-items: center;
     gap: 2px;
     padding: 3px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--choice-border);
     border-radius: 6px;
-    background: var(--bg-color);
+    background: var(--choice-surface);
     color: var(--text-dim);
 }
 
 .ui-segmented-control > .ui-button {
+    border-color: var(--choice-item-border);
+    background: var(--choice-item-surface);
+    color: var(--choice-item-color);
     min-height: 24px;
     padding: 0 7px;
     border-radius: 4px;
@@ -340,27 +361,36 @@ input.ui-stepper-value:invalid {
 }
 
 .ui-segmented-control--quiet {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--text-color) 6%, transparent);
+    --choice-border: transparent;
+    --choice-surface: color-mix(in srgb, var(--text-color) 6%, transparent);
+    --choice-item-border: transparent;
+    --choice-item-surface: transparent;
+    --choice-item-color: var(--text-muted);
+    --choice-hover-border: transparent;
+    --choice-hover-surface: var(--hover-bg);
+    --choice-selected-border: transparent;
+    --choice-selected-surface: var(--bg-color);
+    --choice-selected-color: var(--text-color);
+    --choice-selected-shadow: var(--shadow-sm);
 }
 
-.ui-segmented-control--quiet > .ui-button {
-    border-color: transparent;
-    background: transparent;
-    color: var(--text-muted);
-}
-
-.ui-segmented-control--quiet > .ui-button:hover:not(:disabled) {
-    border-color: transparent;
-    background: var(--hover-bg);
+.ui-segmented-control > .ui-button:hover:not(:disabled) {
+    border-color: var(--choice-hover-border);
+    background: var(--choice-hover-surface);
     color: var(--text-color);
 }
 
-.ui-segmented-control--quiet > .ui-button[aria-pressed="true"] {
-    border-color: transparent;
-    background: var(--bg-color);
-    color: var(--text-color);
-    box-shadow: var(--shadow-sm);
+.ui-segmented-control > .ui-button[aria-pressed="true"] {
+    border-color: var(--choice-selected-border);
+    background: var(--choice-selected-surface);
+    color: var(--choice-selected-color);
+    box-shadow: var(--choice-selected-shadow);
+}
+
+.ui-segmented-control > .ui-button:focus-visible:not(:disabled) {
+    border-color: var(--choice-hover-border);
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
 }
 
 .ui-button--quiet {

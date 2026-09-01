@@ -23,26 +23,29 @@ describe('Figaro authoring macro completions', () => {
         const complete = createAuthoringMacroCompletionSource();
         const result = complete(completionContext('@'));
 
-        expect(result.options.map(option => option.label)).toEqual(['due', 'table', 'todo', 'mermaid', 'drawio']);
+        expect(result.options.map(option => option.label)).toEqual(['date', 'table', 'todo', 'mermaid', 'drawio']);
         expect(result.options.every(option => option.commitCharacters.includes(' '))).toBe(true);
         expect(result.filter).toBe(false);
-        expect(createAuthoringMacroCompletionSource({ contextAllowed: () => false })(completionContext('@due')))
+        expect(createAuthoringMacroCompletionSource({ contextAllowed: () => false })(completionContext('@date')))
             .toBeNull();
+        expect(complete(completionContext('@due'))).toBeNull();
     });
 
-    test('@due keeps the token on cancellation and replaces it after a valid pick', async () => {
+    test('@date hands its range to metadata scheduling without editing on cancellation', async () => {
         const openDuePicker = jest.fn();
         const complete = createAuthoringMacroCompletionSource({ openDuePicker });
-        const view = testView('Plan @due');
-        const result = complete(completionContext('Plan @due'));
+        const view = testView('Plan @date');
+        const result = complete(completionContext('Plan @date'));
 
-        result.options[0].apply(view, null, result.from, 'Plan @due'.length);
+        result.options[0].apply(view, null, result.from, 'Plan @date'.length);
         await Promise.resolve();
-        expect(view.state.doc.toString()).toBe('Plan @due');
+        expect(view.state.doc.toString()).toBe('Plan @date');
         const request = openDuePicker.mock.calls[0][0];
-        expect(request.position).toBe('Plan @due'.length);
-        expect(request.onSelect('2026-08-30')).toBe(true);
-        expect(view.state.doc.toString()).toBe('Plan [due 2026-08-30](2026-08-30.md)');
+        expect(request.position).toBe('Plan @date'.length);
+        expect(request.range).toEqual({ from: 5, to: 10 });
+        expect(request.isCurrent()).toBe(true);
+        view.dispatch({ changes: { from: 5, to: 10, insert: 'changed' } });
+        expect(request.isCurrent()).toBe(false);
     });
 
     test('@todo inserts one unchecked item and leaves the cursor after its trailing space', () => {

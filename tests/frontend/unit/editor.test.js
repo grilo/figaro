@@ -4,6 +4,20 @@
  */
 
 describe('Editor Module - CodeMirror Initialization', () => {
+    async function configureTaskWorkspace() {
+        const { configureEditorWorkspace } = await import('../frontend/js/editor.js');
+        const { getState } = await import('../frontend/js/state.js');
+        const ports = {
+            getActiveTab: () => (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId')),
+            closeTab: jest.fn(), markTabDirty: jest.fn(), openFile: jest.fn(),
+            openPDFPreview: jest.fn(), openRawTextPreview: jest.fn(), openTab: jest.fn(),
+            refreshFileTree: jest.fn(), replaceActiveFileTab: jest.fn(),
+            saveActiveFile: jest.fn(), saveFileSnapshot: jest.fn().mockResolvedValue({ success: true }), switchTab: jest.fn(),
+        };
+        configureEditorWorkspace(ports);
+        return ports;
+    }
+
     beforeEach(() => {
         document.body.innerHTML = '';
     });
@@ -422,6 +436,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
         });
 
         test('opens task Kanban suggestions and Calendar actions from approved helper-rail buttons', async () => {
+            await configureTaskWorkspace();
             const {
                 acceptCompletion,
                 currentCompletions,
@@ -450,7 +465,7 @@ describe('Editor Module - CodeMirror Initialization', () => {
             expect(kanban.getAttribute('aria-label')).toBe('Assign task to Kanban column');
             expect(kanban.getAttribute('aria-haspopup')).toBe('listbox');
             expect(calendar.classList.contains('ui-icon-button--small')).toBe(true);
-            expect(calendar.getAttribute('aria-label')).toBe('Set task due date');
+            expect(calendar.getAttribute('aria-label')).toBe('Task due date');
             expect(calendar.getAttribute('aria-haspopup')).toBe('dialog');
 
             calendar.dispatchEvent(new MouseEvent('click', {
@@ -458,14 +473,11 @@ describe('Editor Module - CodeMirror Initialization', () => {
                 cancelable: true,
                 detail: 1,
             }));
-            const picker = document.querySelector('.ui-date-picker');
-            expect(picker.getAttribute('aria-label')).toBe('Set task due date');
-            const today = picker.querySelector('[data-date-picker-value]').dataset.datePickerValue;
-            picker.querySelector('[data-date-picker-value]').click();
             await new Promise(resolve => setTimeout(resolve, 0));
-            expect(view.state.doc.line(1).text).toBe(
-                `- [ ] Ship release [due ${today}](${today}.md)`,
-            );
+            const picker = document.querySelector('.ui-date-picker');
+            expect(picker.getAttribute('aria-label')).toBe('Task due date');
+            picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            expect(view.state.doc.toString()).toBe(source);
 
             taskActions = view.dom.querySelector('.cm-task-action-guide');
             taskActions.querySelector('.cm-task-kanban-action').dispatchEvent(new MouseEvent('click', {
@@ -482,12 +494,104 @@ describe('Editor Module - CodeMirror Initialization', () => {
             await new Promise(resolve => setTimeout(resolve, 0));
 
             expect(view.state.doc.line(1).text).toBe(
-                `- [ ] Ship release #urgent [due ${today}](${today}.md)`,
+                '- [ ] Ship release #urgent',
             );
             expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(1);
             expect(view.state.selection.main.head).toBe(view.state.doc.line(1).to);
             expect(view.dom.querySelector('.cm-task-calendar-action').getAttribute('aria-label'))
-                .toBe('Change task due date');
+                .toBe('Task due date');
+            // Reopening the same rail choice replaces a sole tag, not a second
+            // hidden board membership. Each choice still uses the normal list.
+            view.dom.querySelector('.cm-task-kanban-action').click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            view.dispatch({ effects: setSelectedCompletion(1) });
+            expect(acceptCompletion(view)).toBe(true);
+            expect(view.state.doc.line(1).text).toBe('- [ ] Ship release #wip');
+            const { undo } = await import('@codemirror/commands');
+            expect(undo(view)).toBe(true);
+            expect(view.state.doc.line(1).text).toBe('- [ ] Ship release #urgent');
+        });
+
+        test('task Calendar handoff refuses a different active note even with identical source', async () => {
+            await configureTaskWorkspace();
+            const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+            const { setState } = await import('../frontend/js/state.js');
+            const first = { id: 'first.md', path: 'first.md', type: 'file' };
+            const second = { id: 'second.md', path: 'second.md', type: 'file' };
+            setState('openTabs', [first, second]); setState('activeTabId', first.id);
+            await initEditor();
+            const view = createEditorView();
+            const source = '- [ ] Shared title #todo';
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source }, selection: { anchor: source.length } });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            const clickAction = () => view.dom.querySelector('.cm-task-calendar-action').dispatchEvent(new MouseEvent('click', {
+                bubbles: true, cancelable: true, detail: 1,
+            }));
+            let resolveDates;
+            window.go.desktop.App.GetTaskSchedules.mockImplementationOnce(() => new Promise(resolve => { resolveDates = resolve; }));
+            clickAction();
+            setState('activeTabId', second.id);
+            resolveDates([]); await new Promise(resolve => setTimeout(resolve, 0));
+            expect(document.querySelector('.ui-date-picker')).toBeNull();
+            setState('activeTabId', first.id);
+            clickAction(); await new Promise(resolve => setTimeout(resolve, 0));
+            const picker = document.querySelector('.ui-date-picker');
+            expect(picker).not.toBeNull();
+            setState('activeTabId', second.id);
+            picker.querySelector('[data-date-picker-day]').click();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(window.go.desktop.App.SetTaskDueDate).not.toHaveBeenCalled();
+            expect(view.state.doc.toString()).toBe(source);
+        });
+
+        test.each(['markdown', 'wikilink'])('the checklist Calendar writes a %s date link, saves exact source, and preserves one-step undo', async style => {
+            const ports = await configureTaskWorkspace();
+            const linkStyle = await import('../frontend/js/linkStyle.js');
+            const preference = jest.spyOn(linkStyle, 'getLinkStylePreference').mockReturnValue(style);
+            const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+            const { setState } = await import('../frontend/js/state.js');
+            const { undo, redo } = await import('@codemirror/commands');
+            const tab = { id: 'tasks.md', path: 'tasks.md', type: 'file' };
+            setState('openTabs', [tab]); setState('activeTabId', tab.id);
+            await initEditor();
+            const view = createEditorView();
+            const source = '- [ ] Ship [[2026-01-01]] #todo\nBelow';
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source }, selection: { anchor: source.length } });
+            await new Promise(resolve => setTimeout(resolve, 0));
+            try {
+                view.dom.querySelector('.cm-task-calendar-action').click();
+                await new Promise(resolve => setTimeout(resolve, 0));
+                const day = document.querySelector('.ui-date-picker [data-date-picker-day]');
+                const date = day.dataset.datePickerDay;
+                const link = style === 'wikilink' ? `[[${date}]]` : `[${date}](${date}.md)`;
+                day.click();
+                await new Promise(resolve => setTimeout(resolve, 0));
+                const updated = `- [ ] Ship ${link} #todo\nBelow`;
+                expect(view.state.doc.toString()).toBe(updated);
+                expect(ports.saveFileSnapshot).toHaveBeenCalledWith(tab, updated, { failurePrompt: 'always' });
+                expect(window.go.desktop.App.SetTaskDueDate).toHaveBeenCalledWith(
+                    { file: tab.path, line: 1, source: updated.split('\n')[0] }, date,
+                );
+                expect(view.hasFocus).toBe(true);
+                expect(undo(view)).toBe(true);
+                expect(view.state.doc.toString()).toBe(source);
+                expect(redo(view)).toBe(true);
+                expect(view.state.doc.toString()).toBe(updated);
+                await new Promise(resolve => setTimeout(resolve, 0));
+                view.dom.querySelector('.cm-task-calendar-action').click();
+                await new Promise(resolve => setTimeout(resolve, 0));
+                document.querySelectorAll('.ui-date-picker [data-date-picker-day]')[1].click();
+                await new Promise(resolve => setTimeout(resolve, 0));
+                expect(view.state.doc.toString()).not.toBe(updated);
+                expect(undo(view)).toBe(true);
+                expect(view.state.doc.toString()).toBe(updated);
+                view.dispatch({ selection: { anchor: view.state.doc.length } });
+                await new Promise(resolve => setTimeout(resolve, 0));
+                const rendered = view.dom.querySelector(style === 'wikilink' ? '.cm-wikilink-widget' : '.cm-link-widget');
+                expect(rendered?.textContent).toContain(date);
+            } finally {
+                preference.mockRestore(); view.destroy();
+            }
         });
 
         test('mounts a requested Properties body selection in the real CodeMirror document', async () => {
@@ -603,6 +707,22 @@ describe('Editor Module - CodeMirror Initialization', () => {
             ]);
             expect([...panel.querySelectorAll(':scope > label input[name]')]
                 .map(input => input.name)).toEqual(['case', 're', 'word']);
+
+            const search = panel.querySelector('input[name="search"]');
+            search.value = 'Find';
+            search.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', bubbles: true }));
+            await new Promise(resolve => setTimeout(resolve, 30));
+            const resultStatus = panel.querySelector('.cm-search-match-status');
+            expect(resultStatus).not.toBeNull();
+            expect(resultStatus.classList.contains('sr-only')).toBe(true);
+            expect(resultStatus.getAttribute('role')).toBe('status');
+            expect(resultStatus.getAttribute('aria-live')).toBe('polite');
+            expect(resultStatus.textContent).toMatch(/1 of 2 matches|2 matches/);
+
+            search.value = 'missing';
+            search.dispatchEvent(new KeyboardEvent('keyup', { key: 'g', bubbles: true }));
+            await new Promise(resolve => setTimeout(resolve, 30));
+            expect(resultStatus.textContent).toBe('No matches');
 
             expect(closeSearchPanel()).toBe(true);
             expect(view.dom.querySelector('.cm-panel.cm-search')).toBeNull();

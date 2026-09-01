@@ -107,6 +107,11 @@ text cursor and lack of an anchor, keyboard acceptance of **Create note**,
 defined-reference navigation, Arrow Up/Down from both directions, and mouse
 drag selection across the inline replacement.
 
+Hashtag navigation keeps its token matching and decorated-target agreement in
+the pure note-link tests. The focused editor browser regression clicks both the
+rendered tag and empty space after an end-of-line tag because CodeMirror's real
+pointer-to-position clamping cannot be represented faithfully in jsdom.
+
 Footnote coverage follows the equivalent source-first split. Pure tests own
 reference/definition classification, repeated-reference return preference,
 paragraph-end insertion, exact blank-line preservation, end-of-document
@@ -229,7 +234,15 @@ small warm copy followed by its cached file-tree projection. It also records
 ranked rare, prefix, typo, and link-completion searches.
 The browser test supplies equivalent 10,000-item responses to isolate real DOM,
 layout, CodeMirror virtualization, keyboard rerender behavior, and bounded
-large-collection rendering. Opening the generated vault through `make dev`
+large-collection rendering. Its backend fixture includes Graph and private task
+schedule projections. Each scenario writes the accumulated JSON report before
+the next isolated page starts, so a later failure cannot erase earlier evidence.
+The Graph timings wait for the latest complete canvas frame, and the large-note
+timing waits for every staged Markdown presentation feature before measuring
+cursor movement and a tail edit. `editorDocumentMountModel.test.js` separately
+proves that only large Markdown inputs split, that the split stays on a line
+boundary, and that joining its chunks preserves the source byte-for-byte.
+Opening the generated vault through `make dev`
 remains the native packaged-webview smoke check. Current reference measurements
 and prioritized findings live in
 [`docs/HUGE_VAULT_STRESS.md`](HUGE_VAULT_STRESS.md).
@@ -423,7 +436,12 @@ proves that embedded-editor menus expose the shared open state while retaining
 their own selection policy. `tests/frontend/unit/tooltip.test.js` owns native-title
 adoption, dynamic updates, iframe-name preservation, hover/focus/Escape and
 `aria-describedby` lifecycle, disabled-toggle label delegation, and pure
-viewport placement.
+viewport placement. It also removes a visible owner's DOM node and simulates a
+stationary pointer across owner reflow; both regressions must dismiss the shared
+tooltip and clear its accessibility relationship without relying on `mouseout`.
+The focused design-system browser regression then moves and removes a real
+hovered owner without moving the pointer, establishing native hit-testing and
+layout behavior that jsdom cannot provide.
 
 The Calendar wheel model owns vertical-direction, high-resolution accumulation,
 direction-reset, modifier, and horizontal-gesture policy. The Calendar cache
@@ -802,7 +820,7 @@ that both headings and rows remain fully visible in the selected-day region.
 Select a date with no results separately and verify
 that its guidance uses the Calendar font family, compact 12px/18px type, muted
 theme color, and deliberate spacing instead of inherited application body text.
-The pure Timeline model owns its centered 42-day window, 14-day button paging,
+The shared pure Timeline model owns Calendar's centered 42-day window, 14-day button paging,
 14-day measured prefetch threshold, seven-day left/right range shifts,
 busy/non-overflow rejection, locale-weekend
 classification, three-day-minimum two-axis wheel normalization, bounded drag-pan
@@ -872,7 +890,13 @@ structure, button-based orphan state, always-painted arrows, safe custom-icon
 overlay, accessible busy/error states, persistent selection versus deliberate
 opening, status behavior, filtering, and inactive graph/appearance refresh
 deferral. `fileTree.test.js` proves a successful appearance write emits the
-narrow graph-refresh signal. The existing `sidebarNavigation.spec.js` carries
+narrow graph-refresh signal. The opt-in huge-vault browser profile additionally
+owns the irreducible scheduling boundary: a 10,000-node render, equivalent
+filter, pinned selection, and zoom must each wait for a committed canvas frame
+and report their own long tasks. Pure tests prove filtered layouts retain full-
+graph coordinates, equivalent projections are recognized, and large layouts
+bound force refinement.
+The existing `sidebarNavigation.spec.js` carries
 one browser-only canvas boundary: a fitted custom-icon node must map a real
 pointer click at the canvas centre back to that exact note path and pin its trace
 without leaving Graph; an empty-canvas click clears it and Ctrl-click opens the
@@ -897,7 +921,7 @@ the local-date presentation, Inbox/pin/rediscovery projections, and daily-note
 Inbox preference, legacy-root fallback, and directory/create/collision plan.
 Component coverage owns task/pin stale-response guards, quick-capture reuse,
 folder reveal, inline errors, and focus recovery.
-Due-task coverage additionally owns semantic-link parsing, valid local dates,
+Due-task coverage additionally owns metadata projection, valid local dates,
 urgency ordering, the ambient Today reminder, and the warning state on the
 persistent Kanban control.
 The real-browser workflow keeps the responsive dashboard geometry and primary
@@ -923,23 +947,80 @@ go test ./internal/desktop -run 'Test(CreateDirectory|CreateInboxNote|LoadSessio
 
 ## Kanban due-date regressions
 
-Due dates remain Markdown data, not configuration state. Pure tests cover the
-matching `[due YYYY-MM-DD](YYYY-MM-DD.md)` contract, invalid and mismatched
-dates, local-day presentation, unique summary counts, Home priority, shared
-sidebar/picker month presentation, the next-midnight refresh plan,
-hashtag-column normalization, and the
-post-Space valid/custom/done/already-dated eligibility matrix. Completion-source
-tests own atomic Today/Tomorrow insertion and picker handoff without requiring
-checkbox syntax. Root-scoped backend tests prove
-that setting, replacing, and clearing a due date changes only the requested
-task line and immediately updates the shared Kanban/Calendar index. Component
+Board, Gantt, Calendar, Today, and reminders share one metadata deadline contract. Pure
+`internal/taskschedule` tests cover valid dates, start-only tasks, and overdue deadlines before actual starts, canonical task
+identity, line/tag shifts, duplicate ambiguity, clear overrides, reconnect
+collisions, and subtree rename. Root-scoped `task_schedules_test.go` proves
+private atomic metadata persistence/reload, exact unchanged Markdown including
+ordinary Markdown links, stale/path/corrupt-file refusal, escaping config symlinks,
+and the production rename hook. `ganttModel.test.js` covers inclusive geometry,
+DST-independent movement, endpoint clamping, deduplication, metadata precedence,
+completed colors, and bounded rows. `kanbanGantt.test.js` owns picker handoff,
+immediate date/clear persistence without Save/Cancel, outside-click dismissal,
+real nested Start/End picker ownership and Escape order, Escape after focus loss
+during a pending write, listener teardown on every dismissal path, and no late
+focus theft or popup revival after success/failure. It also covers failed-date
+retry, retained fields, open-note handoff, one-write drag release, pointer/Escape cancellation, visible
+errors, reconnection controls, dirty-note refusal, Calendar deadline invalidation
+after persistence (including a failed subsequent refresh), status ownership, and disposal.
+Rapid native scroll events are also asserted to schedule exactly one row-window
+render frame, while keyboard Home/End retains its synchronous reveal path.
+The same component suite owns the zero-task status lifecycle, hides drag/resize
+guidance until a task exists, and proves the status is outside the translated
+row track. The focused Gantt browser boundary scrolls a genuinely empty track,
+asserts that its live status remains visible and centered, and confirms that
+the inapplicable manipulation guidance is absent; this is the irreducible
+overflow/geometry regression.
+`timelineViewport.test.js` parameterizes the shared component for Calendar and
+Gantt, proving synchronous pre-paint marker restoration, keyed element/focus
+retention, unfinished-wheel destination and active-pan origin rebasing, reduced motion, disposal,
+edge paging, and buffer sizing once. Calendar component coverage additionally
+keeps scrolling during a delayed range read and rejects stale/disposed commits.
+Existing Calendar Timeline pure/component tests continue
+to own note projections and cache behavior. Run the existing Calendar browser
+case alongside Gantt after changing the shared viewport.
+`kanbanGantt.spec.js` is the representative browser boundary for sticky labels,
+real pointer capture and click delivery, edge geometry, the themed date picker,
+outside-popup click/focus handoff and one-click switching to another task,
+and unchanged application-footer geometry. Both existing timeline browser
+scenarios use `support/timelinePaint.js` to sample every animation frame across
+left and right buffer crossings: no empty track, backwards/week-sized flash,
+or lost wheel travel. A final-position-only assertion cannot detect this bug.
+The Calendar scenario's former backend range/argument assertions are covered
+by component/pure tests instead. Keep data/failure matrices below
+the browser layer. Native packaged pointer behavior still requires the normal
+WebKitGTK/WebView2/WKWebView smoke check.
+
+Old due-looking links remain ordinary Markdown, not scheduling syntax.
+Pure tests prove preferred-style date-link insertion in tasks and prose,
+single-date replacement versus multiple-date append, single-tag replacement
+versus multiple-tag append, protected inline syntax, command removal,
+untagged-checklist TODO assignment, date validation, first starts on moves into non-TODO columns, preserved existing
+starts/deadlines, identity ambiguity, and local-day presentation.
+`taskDueMetadata.test.js` proves safe-save-before-metadata ordering and stale
+buffer/save/metadata failures. The assembled editor components verify the link
+preference, exact source handed to persistence, no deadline for prose, picker
+cancellation, repeat column selection, and one-step source undo/redo.
+`internal/taskschedule/date_edits_test.go` proves date-only identity rebinding,
+preserved start/end, duplicate refusal, and schedule collisions; root adapter
+tests exercise this through real note saves. Calendar model/index tests cover
+wikilink associations and Markdown/Wikilink deduplication.
+`dateLinkRendering.test.js` renders the exact planned output through the shared
+printable renderer used by PDF Preview/export, while the editor component checks
+both live link widgets. Existing wikilink preview/PDF browser coverage remains
+the renderer/workflow boundary; no separate export workflow is added here.
+`internal/taskschedule/transitions_test.go`
+proves note-write rollback and metadata failure refusing note writes.
+Root-scoped tests prove metadata-only Board/Gantt deadlines never rewrite Markdown, source preconditions,
+corrupt-config refusal, and joined Calendar/Board/Today projections. Component
 tests own the picker's default Today selection, injected live month activity,
 focus and Arrow-key movement, card controls, warning states,
 Today reminders, the column header's neutral-icon/selected-color indicator,
 Calendar task results, cache invalidation, locale weekday/weekend rendering,
 first-open Today and same-session reopen selection, movable Today/selection precedence with restored note intensity, accepted-shortcut dirty-buffer projection,
 count-to-selected-row agreement, due-title hover/focus content, prose hashtag completion,
-post-Space tagged-line scheduling, and frontmatter/code suppression. The live Kanban component must also prove that a
+metadata scheduling with `@date`, generic **Choose date / Date shortcuts / Clear
+date** naming, and frontmatter/code suppression. The live Kanban component must also prove that a
 dirty new tag appears on the board without entering the saved completion
 vocabulary until save. Keep these in
 `kanban_due_test.go`, `app_test.go`, `calendar_index_test.go`,
@@ -1053,6 +1134,17 @@ snapshot through the visible action, follow main-editor scrolling down and back
 up, and close it by keyboard. Current-note heading completion must ignore frontmatter and fenced
 examples, preserve duplicate anchor suffixes, and accept a keyboard selection
 after typing `](#`.
+
+`editorPreviewLaunchers.test.js` owns Markdown/document visibility, injected
+Raw/PDF dispatch, mutual open state, busy re-entry, and disposal. The focused
+Outline browser scenario owns the actual three-button rail geometry, themed
+tooltip adoption, accessible expanded state, and click-to-open/click-to-close
+behavior for both preview modes. At an 800px viewport with the navigation pane
+expanded, that same scenario opens Raw and PDF Preview and asserts the pure
+presentation plan selects the existing overlay placement, the editor retains at
+least its 320px layout floor, at least 180px remains visibly exposed, and no
+root horizontal overflow appears. Widening the same viewport must return the
+pane to docked placement; no duplicate preview workflow is added.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
@@ -1196,6 +1288,23 @@ same-source renders. The browser regression in
 `tests/e2e/vimVisualRows.spec.js` scrolls through a long note with repeated
 Mermaid fences in both directions, verifies that the engine renders the
 repeated source once, and checks that mounted SVG ids remain unique.
+
+`mermaidDiagramModel.test.js` separately owns default/minimum/maximum height,
+portable directive replacement, duplicate cleanup, and source-order retention.
+`liveDiagramPlugin.test.js` proves the shared bottom handle changes only mounted
+height during pointer movement, commits one transaction on release, and keeps
+the same footprint when source is revealed. `mermaidEditor.spec.js` is the one
+real-browser geometry check for full-width rendering, pointer capture, one-step
+Undo, Arrow Up/Down across the widget, mouse placement, and drag selection.
+`export.test.js` owns the matching printable height.
+The consolidated source-footprint browser case performs its forward and reverse
+drag while the pointer remains held and the editor scrolls between endpoints;
+the 300px Mermaid default can legitimately place those endpoints outside one
+viewport, so cached off-screen coordinates are not a valid input boundary.
+Calendar startup fixtures must pin browser time to the month represented by
+their mocked native response. Geometry-only checks of animated overflow fades
+use reduced motion so assertions observe the settled themed state rather than
+an arbitrary interpolation frame.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
@@ -1446,6 +1555,8 @@ safe recognition and upgrade of the earlier managed legend shape, threshold
 placement without axis ownership, upgrade of the earlier axis-suppressing
 threshold shape, hidden authored-row linear-regression predictors and legacy
 category-predictor upgrades, Pie normalization,
+exact authored category order through explicit `sort: null` encodings for
+vertical/horizontal Cartesian axes, trendline lookups, and Pie color domains,
 first-column Cartesian ownership even for numeric-first tables, all-column
 Pie/Waterfall category selection, independent numeric-value
 selection, Waterfall running totals, exact table metadata, canonical foreign-JSON
@@ -1468,7 +1579,12 @@ one Undo step, the temporary connected container-width render surface and its
 cleanup, theme configuration, and rejection of zero-geometry SVG output.
 Component coverage injects both an engine error and a mapping with no visible
 number series, then asserts the themed live alert and disabled Apply action;
-combobox coverage owns its approved structure, keyboard operation, and
+`latestPreviewSession.test.js` proves one renderer can be in flight, intermediate
+requests collapse into the newest pending configuration, stale failures never
+publish, and disposal suppresses late completion. The Chart Editor component
+drives three rapid choices against deferred engine promises and proves only the
+initial plus final specifications render.
+Combobox coverage owns its approved structure, keyboard operation, and
 modal-preserving Escape behavior. Its pure floating-menu placement coverage
 owns above/below selection and viewport clamping; the component adapter test
 owns applying and clearing that geometry. The printable renderer gets one managed
@@ -1773,9 +1889,7 @@ from both directions, and drag selection across the replacement. Repeat those
 cursor and focus checks in the packaged WebKitGTK/WebView2/WKWebView smoke run
 after changing this widget; Chromium cannot establish native-webview geometry.
 
-`taskItemActionModel.test.js` owns open-task recognition, Calendar-first versus
-Kanban-first equivalence, existing-tag de-duplication, due-link replacement and
-clearing, and canonical tag-before-due output. Syntax-tree coverage must exclude
+`taskItemActionModel.test.js` owns open-task recognition, column insertion, existing-tag de-duplication, and ordinary-link source fidelity. Syntax-tree coverage must exclude
 checked tasks, frontmatter, and fenced examples. The focused editor component
 owns the approved small-icon structure and accessible popup names, the real
 CodeMirror completion inventory, date-picker handoff, source transaction, and
@@ -2104,9 +2218,13 @@ contained scrolling, and stable scrollbar gutter.
 
 Find and Replace keeps behavioral coverage in `editor.test.js`, which opens
 the native panel and requires its query, replacement, navigation, matching, and
-close controls. `editorSearchLayout.test.js` owns the three-row CSS assignment.
+close controls. `searchMatchModel.test.js` owns empty, invalid, zero, singular,
+plural, and selected-result announcement text; the editor component proves the
+nonvisual polite status follows the native query. `editorSearchLayout.test.js`
+owns the three-row CSS assignment.
 The focused browser case measures the computed 104px panel, requires three
-ordered non-overlapping control bands, and performs a real Replace all action;
+ordered non-overlapping control bands, checks a real typed query announces its
+match count, and performs a real Replace all action;
 these computed grid coordinates cannot be established in jsdom.
 
 Slow file-tree mutation feedback stays below the browser layer. Status-bar
@@ -2285,3 +2403,17 @@ The Go vulnerability scan includes reachable standard-library symbols, so
 `go.mod`, `make doctor`, and the documented development prerequisite must stay
 on the same patched Go release. The dependency-security unit contract guards
 that minimum independently of the live advisory scan used by CI.
+
+### Workspace consistency and scheduling safety
+
+The existing `kanbanDueDate.spec.js` exercises actual D/Escape focus handoff and
+picker placement, not backend argument matrices. `kanban.test.js` owns exact
+D/Delete/modifier/repeat dispatch, dirty-source refusal, and failed-write card
+retention. The existing Gantt browser boundary compares Calendar/Kanban/Graph
+control insets and keeps footer geometry fixed. Catalogue tests verify borderless
+choice paint and visible focus in all three Figaro themes; optional `--choice-*`
+tokens preserve other themes' outlined defaults. The existing editor boundary
+covers caret-anchored `@date`, Arrow Up/Down, and task mouse/drag selection; normal
+macro completion component tests cover Enter/Tab/Space and source undo. The
+task-rail component also refuses handoff after switching notes, including an
+identical-source note while loading or choosing its date.

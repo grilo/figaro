@@ -1,4 +1,16 @@
 :root {
+    /* Shared choice controls; themes can retain or override the outlined treatment. */
+    --choice-border: transparent;
+    --choice-surface: color-mix(in srgb, var(--text-color) 6%, transparent);
+    --choice-item-border: transparent;
+    --choice-item-surface: transparent;
+    --choice-item-color: var(--text-muted);
+    --choice-hover-border: transparent;
+    --choice-hover-surface: var(--hover-bg);
+    --choice-selected-border: transparent;
+    --choice-selected-surface: var(--bg-color);
+    --choice-selected-color: var(--text-color);
+    --choice-selected-shadow: var(--shadow-sm);
     /* Figaro Light — quiet ivory paper, ink, collar red, and an aged brass tag. */
     --bg-color: #fcf8f1;
     --sidebar-bg: #f1e7d9;

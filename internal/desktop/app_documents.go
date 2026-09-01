@@ -312,7 +312,7 @@ func (r *vaultNoteSaveRepository) CurrentVersion() (float64, bool) {
 }
 
 func (r *vaultNoteSaveRepository) Write(content string) (float64, error) {
-	if err := writeRootFileAtomic(r.root, r.cleanRel, []byte(content), 0644); err != nil {
+	if err := r.app.writeNoteWithTaskSchedules(r.root, r.cleanRel, content); err != nil {
 		return 0, err
 	}
 	info, err := r.root.Stat(r.cleanRel)

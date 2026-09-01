@@ -64,6 +64,7 @@ jest.mock('../frontend/js/kanban.js', () => ({
     applyKanbanPresentationToViews: jest.fn(),
     initKanbanPresentationSettings: jest.fn(),
     renderKanbanBoard: jest.fn(),
+    mountKanbanWorkspace: jest.fn(),
 }));
 jest.mock('../frontend/js/graphView.js', () => ({
     createGraphView: jest.fn(() => ({

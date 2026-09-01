@@ -6,7 +6,7 @@ import { backend, waitForBackend } from './backend.js';
 
 import { log } from './log.js';
 import { state, initState, subscribe, setState, getState } from './state.js';
-import { configureEditorWorkspace, initEditor, getEditorContent, openEditorSearch } from './editor.js';
+import { configureEditorWorkspace, initEditor, getEditorContent, getEditorDocumentTabId, openEditorSearch } from './editor.js';
 import { preloadLanguageSupport } from './languageSupport.js';
 import { initializeDiagramRenderers } from './diagramRenderer.js';
 import {
@@ -50,6 +50,7 @@ import { configureHistoryWorkspace, initHistoryPanel } from './historyPanel.js';
 import { closePDFPreview, configurePDFPreviewWorkspace, initPDFPreview, openPDFPreview } from './pdfPreview.js';
 import { closeRawTextPreview, initRawTextPreview, openRawTextPreview } from './rawTextPreview.js';
 import { initOutlinePanel } from './outline.js';
+import { initEditorPreviewLaunchers } from './editorPreviewLaunchers.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
 import { configureLinkStyleWorkspace, initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitEnabled } from './automation.js';
@@ -628,6 +629,17 @@ export async function initApp() {
     // Document outline; Calendar remains independent in the left sidebar.
     initPDFPreview();
     initRawTextPreview();
+    initEditorPreviewLaunchers({
+        getActiveTab,
+        getEditorContent,
+        getEditorDocumentTabId,
+        openRawTextPreview,
+        openPDFPreview,
+        onError(error, kind) {
+            log.error(`${kind === 'pdf' ? 'PDF' : 'Raw text'} preview failed:`, error);
+            statusBar.set(`${kind === 'pdf' ? 'PDF' : 'Raw text'} preview couldn’t open`);
+        },
+    });
 
     // CodeMirror derives line-number width and restored scroll geometry from
     // the mounted document. Let those measurements settle while the editor is

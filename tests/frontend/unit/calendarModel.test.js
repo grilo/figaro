@@ -16,6 +16,11 @@ import {
 } from '../../../frontend/js/core/calendarModel.js';
 
 describe('calendar model', () => {
+    test('preferred wikilink date insertion is visible before save and deduplicates Markdown dates', () => {
+        const source = 'Before\nMeet [[2026-01-01]]\nAgain [2026-01-01](2026-01-01.md)\n[[2026-01-02.md|Next]]';
+        expect(calendarNoteAssociations('plan.md', source).map(note => [note.date, note.line_num]))
+            .toEqual([['2026-01-01', 2], ['2026-01-02', 4]]);
+    });
     test('plans Today only for a fresh Calendar session and preserves a valid session selection', () => {
         expect(calendarSessionSelectionPlan(null, '2026-08-23')).toEqual({
             selectedDateStr: '2026-08-23',
@@ -142,7 +147,7 @@ describe('calendar model', () => {
         });
     });
 
-    test('projects daily notes and ordinary links once while excluding semantic due links', () => {
+    test('projects every ordinary date link, including old due-looking text, without deadline semantics', () => {
         expect(calendarNoteAssociations('Inbox/2026-08-21.md', [
             '# Daily note',
             '[First](2026-08-22.md) and [again](2026-08-22.md)',
@@ -152,9 +157,11 @@ describe('calendar model', () => {
         ].join('\n'))).toEqual([
             expect.objectContaining({ date: '2026-08-21', path: 'Inbox/2026-08-21.md', line_num: 1 }),
             expect.objectContaining({ date: '2026-08-22', path: 'Inbox/2026-08-21.md', line_num: 2 }),
-            expect.objectContaining({ date: '2026-08-23', path: 'Inbox/2026-08-21.md', line_num: 4 }),
+            expect.objectContaining({ date: '2026-08-23', path: 'Inbox/2026-08-21.md', line_num: 3 }),
         ]);
-        expect(calendarNoteAssociations('tasks.md', '- [ ] Ship #todo [due 2026-08-23](2026-08-23.md)')).toEqual([]);
+        expect(calendarNoteAssociations('tasks.md', '- [ ] Ship #todo [due 2026-08-23](2026-08-23.md)')).toEqual([
+            expect.objectContaining({ date: '2026-08-23', line_num: 1 }),
+        ]);
     });
 
     test('replaces saved file contributions with dirty-buffer dates in the month and selected-day rows', () => {

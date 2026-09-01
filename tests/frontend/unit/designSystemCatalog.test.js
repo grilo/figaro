@@ -128,7 +128,9 @@ describe('design-system catalogue', () => {
         expect(catalogue.querySelector('script[src]').getAttribute('src')).toBe('./catalog.bundle.js');
         expect(catalogue.querySelector('.catalog-audit-note').textContent).toContain('Shared foundations');
         expect(catalogue.querySelector('.ds-help-popup').textContent)
-            .toMatch(/#tag.*Press Space for due-date actions/);
+            .toMatch(/#tag.*Type to complete a saved Kanban column/);
+        expect(catalogue.querySelector('.ds-help-popup').textContent)
+            .toMatch(/@date.*Preferred-style date link.*private metadata/);
         expect(Array.from(
             catalogue.querySelectorAll('.ds-help-popup [role="tab"]'),
             tab => tab.textContent.trim(),
@@ -247,9 +249,21 @@ describe('design-system catalogue', () => {
         expect(componentRegistry.approvalPolicy).toContain('explicit user approval');
         expect(componentRegistry.featureVariants).toEqual([
             '.calendar-timeline-note',
+            '.kanban-gantt-bar',
             '.file-tree-node.selected',
             '.file-tree-node.cut-marked',
         ]);
+    });
+
+    test('Gantt task bars share approved theme paint, completion, and catalogue states', () => {
+        const primitives = fs.readFileSync(path.resolve('frontend/design-system/primitives.css'), 'utf8');
+        const template = document.createElement('template');
+        template.innerHTML = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
+        expect(template.content.querySelector('.kanban-gantt-bar[data-done="true"]')).not.toBeNull();
+        expect(template.content.querySelector('.kanban-gantt-bar:disabled')).not.toBeNull();
+        expect(primitives).toMatch(/\.ui-button\.kanban-gantt-bar\s*\{[^}]*border-radius: var\(--ui-menu-radius\)/s);
+        expect(primitives).toContain('--gantt-tint: 10%');
+        expect(primitives).toContain('var(--workspace-surface)');
     });
 
     test('keeps Search notes, Quick note, and selected file surfaces within the sidebar border budget', () => {
@@ -318,6 +332,11 @@ describe('design-system catalogue', () => {
 
         for (const theme of ['default', 'figaro-light', 'figaro-crt-phosphor']) {
             const source = fs.readFileSync(path.resolve(`frontend/themes/${theme}.css`), 'utf8');
+            expect(source).toContain('--choice-border: transparent;');
+            expect(source).toContain('--choice-item-border: transparent;');
+            expect(source).toContain('--choice-hover-border: transparent;');
+            expect(source).toContain('--choice-selected-border: transparent;');
+            expect(source).toContain('--choice-selected-color: var(--text-color);');
             expect(source).toContain('--file-node-selected-shadow: none;');
             expect(source).toMatch(/--file-node-selected-surface:\s*linear-gradient/);
             expect(source).toContain('--file-node-selected-weight: 600;');

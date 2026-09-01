@@ -738,6 +738,19 @@ describe('Interactive PDF export', () => {
         expect(printable.querySelector('.figaro-print-diagram svg')).not.toBeNull();
     });
 
+    test('preserves an editor-resized Mermaid height in preview and generated PDF HTML', async () => {
+        setDiagramRenderers();
+        const source = 'flowchart TD\n  A --> B\n%% figaro:height 420';
+        const printable = parseHTML(await renderPrintableMarkdownWithDiagrams(fence('mermaid', source), 'Sized'));
+        const diagram = printable.querySelector('.figaro-print-diagram[data-diagram-language="mermaid"]');
+
+        expect(window.mermaid.render).toHaveBeenCalledWith(expect.any(String), source);
+        expect(diagram.dataset.figaroHeight).toBe('420');
+        expect(diagram.style.getPropertyValue('--figaro-diagram-height')).toBe('420px');
+        expect(printable.querySelector('style').textContent)
+            .toContain('.figaro-print-diagram[data-figaro-height]');
+    });
+
     test('renders a reversible table-backed chart through the shared preview and PDF SVG surface', async () => {
         setDiagramRenderers();
         const table = '| Month | Revenue | Cost |\n| --- | ---: | ---: |\n| Jan | 42 | 18 |\n| Feb | 56 | 24 |';

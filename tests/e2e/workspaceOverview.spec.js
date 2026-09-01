@@ -225,6 +225,7 @@ test('keeps the Today launchpad responsive and creates a missing daily note from
 });
 
 test('keeps the active tab inside the real overflow viewport and exposes themed edge fades only while needed', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 760, height: 720 });
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);

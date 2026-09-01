@@ -16,6 +16,7 @@ import { renderMarkdownDiff } from './historyDiff.js';
 import {
     compactEditorRequired,
     rightSidebarBounds,
+    rightSidebarPresentation,
     rightSidebarWidth,
 } from './core/rightSidebarLayout.js';
 import { paneSeparatorKeyboardPlan } from './core/paneSeparatorModel.js';
@@ -48,6 +49,7 @@ let historyNotice = '';
 let gitStatusPath = null;
 let gitStatusRequestId = 0;
 let gitCommitInProgress = false;
+let responsiveLayoutBound = false;
 
 export function initHistoryPanel() {
     document.addEventListener('close-history-panel', closeHistoryPanel);
@@ -67,6 +69,10 @@ export function initHistoryPanel() {
 
     // Right sidebar resizer
     initRightSidebarResizer();
+    if (!responsiveLayoutBound) {
+        responsiveLayoutBound = true;
+        window.addEventListener('resize', () => updateRightSidebarEditorLayout());
+    }
 
     // Listen for active tab changes to update count
     document.addEventListener('tab-switched', (e) => {
@@ -652,17 +658,64 @@ function elementWidth(element) {
     return Number.isFinite(offsetWidth) && offsetWidth > 0 ? offsetWidth : 0;
 }
 
-export function updateRightSidebarEditorLayout(remainingEditorWidth = null) {
+function configuredRightSidebarWidth(pdfPreview) {
+    const value = Number.parseFloat(getComputedStyle(document.documentElement)
+        .getPropertyValue('--right-sidebar-width'));
+    return Number.isFinite(value) && value > 0 ? value : (pdfPreview ? 480 : 320);
+}
+
+function clearPreviewSidebarPresentation(sidebar) {
+    sidebar?.classList.remove('right-sidebar--responsive-overlay');
+    sidebar?.style.removeProperty('--right-sidebar-effective-width');
+    const main = document.getElementById('main-content');
+    main?.classList.remove('right-sidebar-overlay-active');
+    main?.style.removeProperty('--right-sidebar-overlay-width');
+}
+
+export function updateRightSidebarEditorLayout(
+    workspaceWidthOverride = null,
+    preferredWidthOverride = null,
+) {
     const sidebar = document.getElementById('right-sidebar');
     const main = document.getElementById('main-content');
     if (!main) return;
-    const isPDFPreview = Boolean(sidebar?.classList.contains('open') && sidebar.classList.contains('pdf-preview-mode'));
-    const measuredWidth = Number.isFinite(remainingEditorWidth) ? remainingEditorWidth : elementWidth(main);
+    const sidebarOpen = Boolean(sidebar?.classList.contains('open'));
+    const isPDFPreview = Boolean(sidebarOpen && sidebar.classList.contains('pdf-preview-mode'));
+    const isRawPreview = Boolean(sidebarOpen && sidebar.classList.contains('raw-text-preview-mode'));
+    if (!isPDFPreview && !isRawPreview) {
+        clearPreviewSidebarPresentation(sidebar);
+        main.classList.remove('pdf-preview-compact-editor');
+        return null;
+    }
+
+    const overlay = sidebar.classList.contains('right-sidebar--responsive-overlay');
+    const workspaceWidth = Number.isFinite(workspaceWidthOverride)
+        ? workspaceWidthOverride
+        : elementWidth(main) + (overlay ? 0 : elementWidth(sidebar));
+    if (workspaceWidth <= 0) {
+        clearPreviewSidebarPresentation(sidebar);
+        main.classList.remove('pdf-preview-compact-editor');
+        return null;
+    }
+    const plan = rightSidebarPresentation({
+        workspaceWidth,
+        preferredWidth: Number.isFinite(preferredWidthOverride)
+            ? preferredWidthOverride
+            : configuredRightSidebarWidth(isPDFPreview),
+        pdfPreview: isPDFPreview,
+    });
+    sidebar.classList.toggle('right-sidebar--responsive-overlay', plan.overlay);
+    sidebar.style.setProperty('--right-sidebar-effective-width', `${plan.width}px`);
+    main.classList.toggle('right-sidebar-overlay-active', plan.overlay);
+    if (plan.overlay) main.style.setProperty('--right-sidebar-overlay-width', `${plan.width}px`);
+    else main.style.removeProperty('--right-sidebar-overlay-width');
+    const measuredWidth = plan.editorWidth;
     main.classList.toggle('pdf-preview-compact-editor', compactEditorRequired({
-        sidebarOpen: Boolean(sidebar?.classList.contains('open')),
+        sidebarOpen,
         pdfPreview: isPDFPreview,
         editorWidth: measuredWidth,
     }));
+    return plan;
 }
 
 function resizeEvent(type, sidebar, width) {
@@ -683,22 +736,25 @@ export function initRightSidebarResizer() {
     let startX, startWidth, workspaceWidth, activePointerId = null;
 
     const applyWidth = (width, availableWidth) => {
-        sidebar.style.width = width + 'px';
-        sidebar.style.minWidth = width + 'px';
         document.documentElement.style.setProperty('--right-sidebar-width', width + 'px');
-        resizer.setAttribute('aria-valuenow', String(Math.round(width)));
-        resizer.setAttribute('aria-valuetext', `${Math.round(width)} pixels wide`);
-        updateRightSidebarEditorLayout(availableWidth - width);
-        resizeEvent('right-sidebar-resize', sidebar, width);
+        const plan = updateRightSidebarEditorLayout(availableWidth, width);
+        const appliedWidth = plan?.width ?? width;
+        sidebar.style.width = appliedWidth + 'px';
+        sidebar.style.minWidth = appliedWidth + 'px';
+        resizer.setAttribute('aria-valuenow', String(Math.round(appliedWidth)));
+        resizer.setAttribute('aria-valuetext', `${Math.round(appliedWidth)} pixels wide`);
+        resizeEvent('right-sidebar-resize', sidebar, appliedWidth);
     };
 
     const syncAccessibility = () => {
         const width = sidebar.offsetWidth || Number.parseFloat(sidebar.style.width) || 320;
         const main = document.getElementById('main-content');
-        const availableWidth = elementWidth(main) + width;
+        const availableWidth = elementWidth(main)
+            + (sidebar.classList.contains('right-sidebar--responsive-overlay') ? 0 : width);
         const bounds = rightSidebarBounds({
             workspaceWidth: availableWidth,
             pdfPreview: sidebar.classList.contains('pdf-preview-mode'),
+            overlay: sidebar.classList.contains('right-sidebar--responsive-overlay'),
         });
         resizer.setAttribute('aria-valuemin', String(bounds.minimum));
         resizer.setAttribute('aria-valuemax', String(bounds.maximum));
@@ -720,10 +776,12 @@ export function initRightSidebarResizer() {
         startX = e.clientX;
         startWidth = sidebar.offsetWidth || 320;
         const main = document.getElementById('main-content');
-        workspaceWidth = elementWidth(main) + startWidth;
+        workspaceWidth = elementWidth(main)
+            + (sidebar.classList.contains('right-sidebar--responsive-overlay') ? 0 : startWidth);
         const bounds = rightSidebarBounds({
             workspaceWidth,
             pdfPreview: sidebar.classList.contains('pdf-preview-mode'),
+            overlay: sidebar.classList.contains('right-sidebar--responsive-overlay'),
         });
         resizer.setAttribute('aria-valuemin', String(bounds.minimum));
         resizer.setAttribute('aria-valuemax', String(bounds.maximum));
@@ -751,6 +809,7 @@ export function initRightSidebarResizer() {
             startWidth,
             workspaceWidth,
             pdfPreview: isPDFPreview,
+            overlay: sidebar.classList.contains('right-sidebar--responsive-overlay'),
         });
         applyWidth(newWidth, workspaceWidth);
     }
@@ -787,9 +846,11 @@ export function initRightSidebarResizer() {
         if (!sidebar.classList.contains('open')) return;
         const currentWidth = sidebar.offsetWidth || Number.parseFloat(sidebar.style.width) || 320;
         const main = document.getElementById('main-content');
-        const availableWidth = elementWidth(main) + currentWidth;
+        const availableWidth = elementWidth(main)
+            + (sidebar.classList.contains('right-sidebar--responsive-overlay') ? 0 : currentWidth);
         const pdfPreview = sidebar.classList.contains('pdf-preview-mode');
-        const bounds = rightSidebarBounds({ workspaceWidth: availableWidth, pdfPreview });
+        const overlay = sidebar.classList.contains('right-sidebar--responsive-overlay');
+        const bounds = rightSidebarBounds({ workspaceWidth: availableWidth, pdfPreview, overlay });
         resizer.setAttribute('aria-valuemin', String(bounds.minimum));
         resizer.setAttribute('aria-valuemax', String(bounds.maximum));
         const plan = paneSeparatorKeyboardPlan({

@@ -10,6 +10,10 @@ const defaultGraphOptions = Object.freeze({
     showOrphans: true,
 });
 
+function compareGraphText(left, right) {
+    return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function cleanPath(value) {
     return typeof value === 'string'
         ? value.replaceAll('\\', '/').replace(/^\/+|\/+$/g, '')
@@ -72,18 +76,19 @@ function brightenGraphColor(color, depth) {
  */
 export function graphNodeAppearances(nodes, appearances = {}, requestedPalette = []) {
     const styles = appearances && typeof appearances === 'object' ? appearances : {};
+    const hasStyles = Object.keys(styles).length > 0;
     const palette = [...new Set((Array.isArray(requestedPalette) ? requestedPalette : [])
         .map(validHexColor).filter(Boolean))];
-    const roots = [...new Set((nodes || []).map(node => node.group))].sort();
+    const roots = [...new Set((nodes || []).map(node => node.group))].sort(compareGraphText);
     const automaticColors = new Map(roots.map((root, index) => [
         root,
         palette[index] || generatedGraphColor(index - palette.length),
     ]));
 
     return (nodes || []).map(node => {
-        const direct = styles[node.path] || {};
+        const direct = hasStyles ? (styles[node.path] || {}) : {};
         const directColor = validHexColor(direct.color);
-        const directories = graphNodeDirectories(node.path);
+        const directories = hasStyles ? graphNodeDirectories(node.path) : [];
         let baseColor = directColor;
         let tintDepth = 0;
         if (!baseColor) {
@@ -97,7 +102,9 @@ export function graphNodeAppearances(nodes, appearances = {}, requestedPalette =
         }
         if (!baseColor) {
             baseColor = automaticColors.get(node.group) || generatedGraphColor(roots.length);
-            tintDepth = Math.max(0, directories.length - 1);
+            tintDepth = hasStyles
+                ? Math.max(0, directories.length - 1)
+                : Math.max(0, (node.path.match(/\//g) || []).length - 1);
         }
         const icon = typeof direct.icon === 'string' && /^[A-Za-z][A-Za-z0-9]*$/.test(direct.icon.trim())
             ? direct.icon.trim()
@@ -148,10 +155,10 @@ export function normalizeVaultGraph(payload, { appearances = {}, palette = [] } 
 
     let nodes = [...nodesByPath.values()];
     for (const node of nodes) node.degree = node.incoming + node.outgoing;
-    nodes.sort((left, right) => left.path.localeCompare(right.path));
+    nodes.sort((left, right) => compareGraphText(left.path, right.path));
     nodes = graphNodeAppearances(nodes, appearances, palette);
     edges.sort((left, right) => (
-        left.source.localeCompare(right.source) || left.target.localeCompare(right.target)
+        compareGraphText(left.source, right.source) || compareGraphText(left.target, right.target)
     ));
     return { nodes, edges };
 }
@@ -183,6 +190,27 @@ export function graphView(graph, requestedOptions = {}) {
     };
 }
 
+/** True when two projected graph views retain the same ordered node/edge objects. */
+export function sameGraphView(left, right) {
+    const leftNodes = Array.isArray(left?.nodes) ? left.nodes : [];
+    const rightNodes = Array.isArray(right?.nodes) ? right.nodes : [];
+    const leftEdges = Array.isArray(left?.edges) ? left.edges : [];
+    const rightEdges = Array.isArray(right?.edges) ? right.edges : [];
+    return leftNodes.length === rightNodes.length
+        && leftEdges.length === rightEdges.length
+        && leftNodes.every((node, index) => node === rightNodes[index])
+        && leftEdges.every((edge, index) => edge === rightEdges[index]);
+}
+
+/** Keep force refinement useful for ordinary vaults without stalling huge ones. */
+export function graphLayoutIterationCount(nodeCount) {
+    const count = Math.max(0, Number(nodeCount) || 0);
+    if (count > 5000) return 4;
+    if (count > 2000) return 8;
+    if (count > 1000) return 12;
+    return 24;
+}
+
 function stableHash(value) {
     let hash = 2166136261;
     for (let index = 0; index < value.length; index += 1) {
@@ -212,12 +240,12 @@ function graphGroupCenters(groups, nodeCount, spacingFactor) {
 
 export function layoutGraph(nodes, edges, { spacing = 45, linkPull = 45 } = {}) {
     const stableNodes = [...(Array.isArray(nodes) ? nodes : [])]
-        .sort((left, right) => left.group.localeCompare(right.group)
-            || right.degree - left.degree || left.path.localeCompare(right.path));
+        .sort((left, right) => compareGraphText(left.group, right.group)
+            || right.degree - left.degree || compareGraphText(left.path, right.path));
     if (!stableNodes.length) return [];
 
     const spacingFactor = 0.68 + Math.max(0, Math.min(100, Number(spacing) || 0)) / 100 * 1.14;
-    const groups = [...new Set(stableNodes.map(node => node.group))].sort();
+    const groups = [...new Set(stableNodes.map(node => node.group))].sort(compareGraphText);
     const centers = graphGroupCenters(groups, stableNodes.length, spacingFactor);
     const groupMembers = new Map(groups.map(group => [group, []]));
     stableNodes.forEach(node => groupMembers.get(node.group).push(node));
@@ -243,7 +271,8 @@ export function layoutGraph(nodes, edges, { spacing = 45, linkPull = 45 } = {}) 
 
     const attraction = 0.004 + Math.max(0, Math.min(100, Number(linkPull) || 0)) / 100 * 0.016;
     const desiredDistance = 88 * spacingFactor;
-    for (let iteration = 0; iteration < 24; iteration += 1) {
+    const iterationCount = graphLayoutIterationCount(stableNodes.length);
+    for (let iteration = 0; iteration < iterationCount; iteration += 1) {
         for (const edge of edges || []) {
             const source = positions.get(edge.source);
             const target = positions.get(edge.target);
@@ -266,7 +295,16 @@ export function layoutGraph(nodes, edges, { spacing = 45, linkPull = 45 } = {}) 
         }
     }
 
-    return [...positions.values()].sort((left, right) => left.path.localeCompare(right.path));
+    return [...positions.values()].sort((left, right) => compareGraphText(left.path, right.path));
+}
+
+/** Preserve the full graph's stable geometry while projecting a filtered view. */
+export function graphViewLayout(nodes, fullLayout) {
+    const positions = new Map((Array.isArray(fullLayout) ? fullLayout : [])
+        .map(point => [point.path, point]));
+    return (Array.isArray(nodes) ? nodes : [])
+        .map(node => positions.get(node.path))
+        .filter(Boolean);
 }
 
 export function graphLayoutBounds(layout) {

@@ -345,7 +345,7 @@
     height: auto;
 }
 
-.cm-block-widget--figaro-chart.cm-source-footprint--graphic {
+.cm-block-widget--resizable-diagram.cm-source-footprint--graphic {
     overflow: visible;
 }
 
@@ -365,7 +365,14 @@
     max-height: 100% !important;
 }
 
-.cm-vega-lite-chart-resize-handle {
+.cm-block-widget--resizable-mermaid .cm-live-diagram-view svg {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+}
+
+.cm-diagram-resize-handle {
     position: absolute;
     z-index: 4;
     bottom: -14px;
@@ -376,14 +383,14 @@
     transition: opacity var(--motion-content-duration) ease;
 }
 
-.cm-block-widget--figaro-chart:hover .cm-vega-lite-chart-resize-handle,
-.cm-block-widget--figaro-chart:focus-within .cm-vega-lite-chart-resize-handle,
-.cm-block-widget--figaro-chart.is-resizing .cm-vega-lite-chart-resize-handle {
+.cm-block-widget--resizable-diagram:hover .cm-diagram-resize-handle,
+.cm-block-widget--resizable-diagram:focus-within .cm-diagram-resize-handle,
+.cm-block-widget--resizable-diagram.is-resizing .cm-diagram-resize-handle {
     opacity: 1;
     pointer-events: auto;
 }
 
-.cm-vega-lite-chart-resize-readout {
+.cm-diagram-resize-readout {
     position: absolute;
     z-index: 4;
     top: 50%;
@@ -401,23 +408,23 @@
     transform: translate(-50%, -50%);
 }
 
-.cm-block-widget--figaro-chart.is-resizing .cm-vega-lite-chart-resize-readout {
+.cm-block-widget--resizable-diagram.is-resizing .cm-diagram-resize-readout {
     display: block;
 }
 
-.cm-editor.cm-vega-lite-chart-resizing .cm-content {
+.cm-editor.cm-diagram-resizing .cm-content {
     user-select: none;
 }
 
-.cm-editor .cm-vega-lite-chart-source-line {
+.cm-editor .cm-diagram-source-line {
     overflow-wrap: normal;
     white-space: pre;
 }
 
-.cm-editor .cm-vega-lite-chart-source-placeholder {
+.cm-editor .cm-diagram-source-placeholder {
     position: relative;
     box-sizing: border-box;
-    min-height: var(--cm-vega-lite-chart-source-height) !important;
+    min-height: var(--cm-diagram-source-height) !important;
     background: color-mix(in srgb, var(--accent-color) 7%, transparent);
 }
 

@@ -85,6 +85,8 @@ window.go = {
         RenameKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         DeleteKanbanColumn: jest.fn().mockResolvedValue({ success: true, columns: ["todo", "wip", "done"] }),
         GetKanbanBoard: jest.fn().mockResolvedValue({ todo: [], wip: [], done: [] }),
+        GetTaskSchedules: jest.fn().mockResolvedValue([]),
+        SetTaskSchedule: jest.fn().mockResolvedValue(null),
         SetKanbanCardOrder: jest.fn().mockResolvedValue({ success: true }),
         GetHomeTasks: jest.fn().mockResolvedValue([]),
         GetDueTaskSummary: jest.fn().mockResolvedValue({ due_today: 0, overdue: 0 }),

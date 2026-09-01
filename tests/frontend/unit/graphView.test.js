@@ -85,6 +85,15 @@ describe('Graph view', () => {
         document.body.replaceChildren();
     });
 
+    test('Graph disposal does not replace a newer Gantt status-bar owner', () => {
+        session = createGraphView(panel, { loadGraph: jest.fn().mockResolvedValue(sampleGraph), openNote: jest.fn() });
+        const region = document.querySelector('.status-right');
+        region.dataset.mode = 'gantt'; region.setAttribute('aria-label', 'Gantt status');
+        session.dispose();
+        expect(region.dataset.mode).toBe('gantt');
+        expect(region.getAttribute('aria-label')).toBe('Gantt status');
+    });
+
     test('uses floating controls, appearance metadata, persistent selection, graph status, and deferred refresh', async () => {
         const loadGraph = jest.fn().mockResolvedValue(sampleGraph);
         const loadAppearance = jest.fn().mockResolvedValue({
@@ -124,7 +133,7 @@ describe('Graph view', () => {
         const customIcon = panel.querySelector('.graph-node-icon[data-path="Projects/Roadmap.md"]');
         expect(customIcon).not.toBeNull();
         expect(customIcon.style.color).toBe('rgb(239, 68, 68)');
-        expect(context.closePath).toHaveBeenCalled();
+        expect(context.stroke).toHaveBeenCalled();
         const [arrowBaseLeft, arrowBaseRight] = context.lineTo.mock.calls.slice(-2);
         expect(Math.hypot(
             arrowBaseRight[0] - arrowBaseLeft[0],

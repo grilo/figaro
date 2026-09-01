@@ -1,5 +1,3 @@
-import { semanticDueDateLink } from './taskDueDateCompletionModel.js';
-
 export const basicMarkdownTable = [
     '| Column 1 | Column 2 |',
     '| --- | --- |',
@@ -11,7 +9,7 @@ export const emptyMermaidBlock = '```mermaid\n\n```';
 export const defaultDrawioMacroName = 'diagram1';
 
 export const authoringMacros = Object.freeze([
-    { name: 'due', detail: 'Choose a due date', action: 'due-date' },
+    { name: 'date', detail: 'Insert date link; set deadline on tasks', action: 'date-picker' },
     { name: 'table', detail: 'Insert a table and open its editor', action: 'table-editor' },
     { name: 'todo', detail: 'Start a task list', action: 'insert' },
     { name: 'mermaid', detail: 'Insert a diagram and open its editor', action: 'mermaid-editor' },
@@ -101,23 +99,12 @@ function blockInsertion(documentText, range, block, cursorInBlock = block.length
  * Plan one atomic macro replacement without touching CodeMirror or opening UI.
  * Block macros add portable blank-line boundaries when surrounding prose exists.
  */
-export function authoringMacroInsertionPlan(name, documentText, range, { date = '', drawioName = '' } = {}) {
+export function authoringMacroInsertionPlan(name, documentText, range, { drawioName = '' } = {}) {
     const source = String(documentText || '');
     const from = Math.max(0, Math.min(Number(range?.from) || 0, source.length));
     const to = Math.max(from, Math.min(Number(range?.to) || from, source.length));
     const boundedRange = { from, to };
 
-    if (name === 'due') {
-        const insert = semanticDueDateLink(date);
-        if (!insert) return null;
-        return {
-            ...boundedRange,
-            insert,
-            cursorOffset: insert.length,
-            targetOffset: 0,
-            targetLength: insert.length,
-        };
-    }
     if (name === 'todo') return blockInsertion(source, boundedRange, '- [ ] ');
     if (name === 'table') return blockInsertion(source, boundedRange, basicMarkdownTable);
     if (name === 'mermaid') {

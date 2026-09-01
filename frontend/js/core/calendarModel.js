@@ -126,13 +126,12 @@ export function calendarMonthSummaryMap(data) {
     return summaries;
 }
 
-const calendarDateLinkPattern = /\[[^\]\r\n]*\]\((\d{4}-\d{2}-\d{2})\.md\)/gi;
-const semanticDueLinkPattern = /^\[due\s+\d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)$/i;
+const calendarDateLinkPattern = /\[[^\]\r\n]*\]\((\d{4}-\d{2}-\d{2})\.md\)|\[\[(\d{4}-\d{2}-\d{2})(?:\.md)?(?:\|[^\]\r\n]*)?\]\]/gi;
 
 /**
  * Project the distinct calendar-note associations contributed by one Markdown
  * buffer. Daily-note identity and ordinary date links are one association per
- * file/date; semantic due links remain task state and do not count as notes.
+ * file/date. Task deadlines are separate metadata, never special Markdown links.
  */
 export function calendarNoteAssociations(path, content) {
     const normalizedPath = String(path || '').replaceAll('\\', '/');
@@ -155,8 +154,8 @@ export function calendarNoteAssociations(path, content) {
         calendarDateLinkPattern.lastIndex = 0;
         let match;
         while ((match = calendarDateLinkPattern.exec(line)) !== null) {
-            const date = match[1];
-            if (!isISODate(date) || semanticDueLinkPattern.test(match[0]) || associations.has(date)) continue;
+            const date = match[1] || match[2];
+            if (!isISODate(date) || associations.has(date)) continue;
             associations.set(date, {
                 date,
                 path: normalizedPath,

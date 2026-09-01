@@ -103,6 +103,35 @@ describe('design-system tooltip', () => {
         expect(document.getElementById('ui-tooltip').hidden).toBe(true);
     });
 
+    test('dismisses a tooltip when its owning control is removed', async () => {
+        const outline = document.getElementById('outline');
+        document.elementFromPoint = jest.fn(() => outline);
+        outline.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: 110, clientY: 30 }));
+        expect(document.getElementById('ui-tooltip').hidden).toBe(false);
+
+        outline.remove();
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        expect(document.getElementById('ui-tooltip').hidden).toBe(true);
+        expect(outline.hasAttribute('aria-describedby')).toBe(false);
+    });
+
+    test('dismisses a tooltip when reflow moves its owner away from a stationary pointer', async () => {
+        const outline = document.getElementById('outline');
+        const replacement = document.createElement('div');
+        document.body.appendChild(replacement);
+        document.elementFromPoint = jest.fn(() => outline);
+        outline.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, clientX: 110, clientY: 30 }));
+        expect(document.getElementById('ui-tooltip').hidden).toBe(false);
+
+        document.elementFromPoint.mockReturnValue(replacement);
+        document.body.appendChild(document.createElement('span'));
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        expect(document.getElementById('ui-tooltip').hidden).toBe(true);
+        expect(outline.hasAttribute('aria-describedby')).toBe(false);
+    });
+
     test('clamps horizontally and flips above anchors near the viewport bottom', () => {
         expect(tooltipPosition(
             { left: 190, right: 210, top: 30, bottom: 50 },

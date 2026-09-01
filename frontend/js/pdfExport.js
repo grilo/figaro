@@ -17,6 +17,7 @@ import {
     stripMarkdownTableMergeMetadata,
 } from './core/markdownTableEditorModel.js';
 import { getEditorContent } from './editor.js';
+import { authoredMermaidDiagramHeight } from './core/mermaidDiagramModel.js';
 
 const defaultPrintCSS = `
   @page { margin: 18mm; }
@@ -96,7 +97,9 @@ const defaultPrintCSS = `
   .footnotes li + li { margin-top: .65em; }
   .footnote-backref { margin-left: .35em; text-decoration: none; white-space: nowrap; }
   .figaro-print-diagram { margin: 1.4em 0; break-inside: avoid; page-break-inside: avoid; }
-  .figaro-print-diagram svg { display: block; margin: 0 auto; }
+  .figaro-print-diagram[data-figaro-height] { height: var(--figaro-diagram-height); }
+  .figaro-print-diagram-content { width: 100%; height: 100%; }
+  .figaro-print-diagram svg { display: block; max-width: 100%; max-height: 100%; margin: 0 auto; }
   @media print { .figaro-print-page-break { break-after: page !important; page-break-after: always !important; } }
 `;
 
@@ -288,6 +291,13 @@ function makePrintableDiagram(printable, language, svg, sourceElement = null) {
     figure.dataset.diagramLanguage = language;
     figure.setAttribute('role', 'img');
     figure.setAttribute('aria-label', language + ' diagram');
+    const authoredHeight = language === 'mermaid'
+        ? authoredMermaidDiagramHeight(sourceElement?.textContent || '')
+        : null;
+    if (authoredHeight) {
+        figure.dataset.figaroHeight = String(authoredHeight);
+        figure.style.setProperty('--figaro-diagram-height', `${authoredHeight}px`);
+    }
     for (const attribute of ['data-figaro-source-start', 'data-figaro-source-end']) {
         const value = sourceElement?.getAttribute?.(attribute);
         if (value !== null && value !== undefined) figure.setAttribute(attribute, value);

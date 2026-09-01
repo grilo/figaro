@@ -10,13 +10,13 @@ import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
 import { openColorPalettePicker } from './colorPalettePicker.js';
 import { openDatePicker } from './datePicker.js';
+import { createKanbanGantt } from './kanbanGantt.js';
+import { indexTaskSchedules, scheduleForTask } from './core/ganttModel.js';
 import {
     dueDatePresentation,
     dueTaskSummary,
     localISODate,
     millisecondsUntilNextLocalDay,
-    parseDueDateLink,
-    stripDueDateLinks,
 } from './core/dueDateModel.js';
 import {
     adjacentKanbanColumn,
@@ -40,6 +40,17 @@ let dueDayTimer = null;
 const rememberedKanbanOrder = new Map();
 const kanbanRenderStates = new WeakMap();
 let workspacePorts = null;
+let taskSchedules = [];
+let taskScheduleIndex = new Map();
+let taskScheduleError = '';
+let kanbanViewMode = 'board';
+let activeKanbanWorkspace = null;
+let scheduleRequestId = 0;
+
+function rememberTaskSchedules(entries) {
+    taskSchedules = entries || [];
+    taskScheduleIndex = indexTaskSchedules(taskSchedules);
+}
 
 const KANBAN_VIRTUAL_THRESHOLD = 120;
 const KANBAN_WINDOW_SIZE = 96;
@@ -50,6 +61,83 @@ export function configureKanbanWorkspace(ports) {
         throw new TypeError('Kanban workspace ports are incomplete');
     }
     workspacePorts = Object.freeze({ ...ports });
+}
+
+/** One sidebar workspace, two projections, and the application's own footer. */
+export function mountKanbanWorkspace(panel, focusCol = null) {
+    activeKanbanWorkspace?.dispose();
+    panel.innerHTML = `<div class="kanban-view-wrapper">
+        <div class="kanban-view-header">
+            <div class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Kanban view">
+                <button type="button" class="ui-button" data-kanban-view="board">Board</button>
+                <button type="button" class="ui-button" data-kanban-view="gantt">Gantt</button>
+            </div>
+            <p class="kanban-instruction">Tab focuses cards; arrows move them. Enter opens the note, D sets a due date.</p>
+        </div>
+        <p class="ui-notice ui-notice--danger kanban-schedule-notice" role="alert" hidden></p>
+        <div class="kanban-board" id="kanban-board-main"></div><div class="kanban-gantt-host"></div></div>`;
+    const board = panel.querySelector('.kanban-board');
+    const wrapper = panel.querySelector('.kanban-view-wrapper');
+    const gantt = createKanbanGantt(panel.querySelector('.kanban-gantt-host'), {
+        async saveSchedule(task, dates, id) {
+            if (dirtyKanbanBuffers().has(task.file)) throw new Error('Save changes to this note before scheduling it. Your Markdown has not been changed.');
+            const finishActivity = statusBar.beginDelayedActivity();
+            ++scheduleRequestId;
+            statusBar.set('Saving schedule…');
+            try {
+                await backend().SetTaskSchedule({ file: task.file, line: task.line, source: task.source }, dates.start, dates.end, id);
+                document.dispatchEvent(new CustomEvent('calendar-data-changed'));
+                const request = ++scheduleRequestId;
+                try {
+                    const entries = await backend().GetTaskSchedules();
+                    if (request === scheduleRequestId) rememberTaskSchedules(entries);
+                }
+                catch (error) { throw new Error(`Dates saved, but the view could not refresh. Reopen Kanban to reload them. ${error.message || error}`, { cause: error }); }
+                taskScheduleError = '';
+                renderKanbanSnapshot(getState('kanbanBoardData') || {});
+                statusBar.set('Schedule saved');
+                statusBar.clearAfter(1500, 'Schedule saved');
+            } catch (error) { statusBar.clear(); throw error; }
+            finally { finishActivity(); }
+        },
+        openTask: task => workspace().openTab(task.file, task.file_name, 'file', { path: task.file, line: task.line }),
+        setStatus: text => {
+            const region = document.querySelector('.status-right');
+            if (region) { region.dataset.mode = 'gantt'; region.setAttribute('aria-label', 'Gantt status'); }
+            const content = document.getElementById('gantt-status-content');
+            if (content) content.textContent = text;
+        },
+    });
+    function releaseStatus() {
+        const region = document.querySelector('.status-right');
+        if (region?.dataset.mode === 'gantt') { region.dataset.mode = 'buffer'; region.setAttribute('aria-label', 'Active buffer status'); }
+    }
+    function selectMode() {
+        wrapper.dataset.view = kanbanViewMode;
+        board.hidden = kanbanViewMode !== 'board';
+        wrapper.querySelector('.kanban-instruction').hidden = kanbanViewMode !== 'board';
+        wrapper.querySelectorAll('[data-kanban-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.kanbanView === kanbanViewMode)));
+        if (kanbanViewMode === 'board') releaseStatus();
+        gantt.setActive(kanbanViewMode === 'gantt');
+    }
+    const switched = event => { if (event.detail?.type !== 'kanban') session.dispose(); };
+    const session = {
+        update: data => gantt.update(data, taskSchedules, kanbanColors, taskScheduleError),
+        dispose() {
+            document.removeEventListener('active-tab-changed', switched);
+            gantt.dispose(); releaseStatus();
+            if (activeKanbanWorkspace === session) activeKanbanWorkspace = null;
+        },
+    };
+    activeKanbanWorkspace = session;
+    document.addEventListener('active-tab-changed', switched);
+    wrapper.querySelectorAll('[data-kanban-view]').forEach(button => button.addEventListener('click', () => {
+        kanbanViewMode = button.dataset.kanbanView; selectMode();
+    }));
+    applyKanbanPresentationToViews();
+    selectMode();
+    renderKanbanBoard('kanban-board-main', focusCol);
+    return session;
 }
 
 function workspace() {
@@ -137,6 +225,7 @@ export function initKanban() {
     if (!liveRefreshInitialized) {
         liveRefreshInitialized = true;
         document.addEventListener('file-content-changed', scheduleLiveKanbanRefresh);
+        document.addEventListener('task-schedules-changed', () => refreshKanbanData().catch(() => {}));
         document.addEventListener('vault-file-saved', event => {
             const { path, content } = event.detail || {};
             applySavedKanbanSnapshot(path, content);
@@ -209,20 +298,19 @@ export function kanbanCardsForBuffer(file, content) {
     const cards = [];
     String(content || '').split('\n').forEach((line, index) => {
         const tags = standaloneHashtags(line);
-        const dueDate = parseDueDateLink(line);
         const completed = tags.includes('done');
         for (const tag of tags) {
             const display = removeDisplayHashtag(
-                stripDueDateLinks(line.trim().replace(/^[-*+]\s*\[[ x]\]\s*/i, '')),
+                line.trim().replace(/^[-*+]\s*\[[ x]\]\s*/i, ''),
                 tag
             );
             cards.push({
+                source: line,
                 file,
                 file_name: fileName,
                 line: index + 1,
                 text: display,
                 tag,
-                ...(dueDate ? { due_date: dueDate } : {}),
                 ...(completed ? { completed: true } : {}),
             });
         }
@@ -312,6 +400,21 @@ export function applySavedKanbanSnapshot(filePath, content) {
     setState('kanbanCompletionColumns', [...savedKanbanColumns]);
     setState('kanbanBoardData', boardData);
     renderKanbanSnapshot(boardData);
+    // Own saves skip the expensive board refetch, but task references may have
+    // shifted. Refresh metadata for the persistent sidebar reminders as well.
+    if (typeof backend().GetTaskSchedules === 'function') {
+        const request = ++scheduleRequestId;
+        Promise.resolve().then(() => backend().GetTaskSchedules()).then(entries => {
+            if (request !== scheduleRequestId) return;
+            rememberTaskSchedules(entries);
+            taskScheduleError = '';
+            renderKanbanSnapshot(getState('kanbanBoardData') || {});
+        }).catch(error => {
+            if (request !== scheduleRequestId) return;
+            taskScheduleError = `Couldn’t reload task schedules: ${error.message || error}`;
+            activeKanbanWorkspace?.update(getState('kanbanBoardData') || {});
+        });
+    }
     return true;
 }
 
@@ -349,13 +452,19 @@ export function truncateKanbanCardText(value, limit = KANBAN_CARD_TEXT_LIMIT) {
 // any open board rather than each surface issuing its own vault query.
 export async function refreshKanbanData({ focusCol = null, container = getBoardContainer() } = {}) {
     const requestId = ++kanbanBoardRequestId;
+    const scheduleRequest = ++scheduleRequestId;
     try {
-        const [columnResult, savedBoard] = await Promise.all([
+        const [columnResult, savedBoard, schedules] = await Promise.all([
             backend().GetKanbanColumns(),
             backend().GetKanbanBoard(),
+            Promise.resolve().then(() => backend().GetTaskSchedules()).then(entries => ({ entries })).catch(error => ({ error })),
         ]);
         if (requestId !== kanbanBoardRequestId) return false;
         applyKanbanColumns(columnResult);
+        if (scheduleRequest === scheduleRequestId) {
+            rememberTaskSchedules(schedules.entries);
+            taskScheduleError = schedules.error ? `Couldn’t load schedules: ${schedules.error.message || schedules.error}. Reopen Kanban to retry; no metadata was changed.` : '';
+        }
         savedKanbanBoardData = savedBoard || {};
         const boardData = applyRememberedKanbanOrder(overlayDirtyKanbanBuffers(savedKanbanBoardData));
         setState('kanbanBoardData', boardData);
@@ -425,7 +534,15 @@ function renderKanbanBadges(boardData) {
 }
 
 function renderKanbanSnapshot(boardData, focusCol = null, container = getBoardContainer()) {
+    const notice = container?.closest('.kanban-view-wrapper')?.querySelector('.kanban-schedule-notice');
+    if (notice) { notice.hidden = !taskScheduleError; notice.textContent = taskScheduleError; }
+    boardData = Object.fromEntries(Object.entries(boardData || {}).map(([column, cards]) => [column, cards.map(task => {
+        const schedule = scheduleForTask(task, taskScheduleIndex);
+        return schedule ? { ...task, due_date: schedule.end, start_date: schedule.start } : task;
+    })]));
+    setState('kanbanBoardData', boardData);
     renderKanbanBadges(boardData);
+    activeKanbanWorkspace?.update(boardData);
     if (!container || !container.isConnected) return;
     const boardScroll = {
         left: container.scrollLeft,
@@ -649,6 +766,7 @@ function renderCards(
         const index = range.start + offset;
         const displayText = truncateKanbanCardText(task.text);
         const due = dueDatePresentation(task.due_date, localISODate());
+        const schedule = scheduleForTask(task, taskScheduleIndex);
         const dueControl = due
             ? `<button type="button" tabindex="-1" class="ui-button kanban-card-date-control kanban-card-due" data-due-state="${due.state}" data-due-date="${task.due_date}" aria-label="Change due date: ${escapeAttribute(due.label)}" title="Change due date">
                     ${calendarIcon()}<span>${escapeHtml(due.label)}</span>
@@ -667,6 +785,7 @@ function renderCards(
              data-card-index="${index}"
              data-text="${escapeAttribute(task.text)}">
             <div class="kanban-card-text" title="${escapeAttribute(task.text)}">${escapeHtml(displayText)}</div>
+            ${schedule?.start ? `<span class="kanban-card-schedule">Started ${escapeHtml(schedule.start)}</span>` : ''}
             <div class="kanban-card-meta">
                 <span class="kanban-card-meta-main">${due ? dueControl : ''}<span class="kanban-card-source">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
@@ -866,6 +985,8 @@ function initKanbanKeyboard(container, root = container) {
             }
             if (event.key.toLowerCase() === 'd') {
                 event.preventDefault();
+                event.stopPropagation();
+                if (event.repeat) return;
                 const dueButton = card.querySelector('.kanban-card-date-control');
                 if (dueButton) openTaskDueDatePicker(dueButton, card);
                 return;
@@ -882,30 +1003,32 @@ function openTaskDueDatePicker(anchor, card) {
     openDatePicker({
         anchor,
         value: card.dataset.dueDate || anchor.dataset.dueDate || '',
+        returnFocus: card,
         onSelect: dueDate => setTaskDueDate(
-            card.dataset.file,
-            parseInt(card.dataset.line, 10),
+            card,
             dueDate,
         ),
     });
 }
 
-async function setTaskDueDate(filePath, lineNum, dueDate) {
+async function setTaskDueDate(card, dueDate) {
+    const filePath = card.dataset.file;
+    const lineNum = Number(card.dataset.line);
+    const task = (getState('kanbanBoardData')?.[card.dataset.tag] || []).find(item => item.file === filePath && item.line === lineNum);
+    if (!task || dirtyKanbanBuffers().has(filePath)) {
+        await errorDialog('Save the note first', 'Save your changes before scheduling this task. No task was changed.');
+        return;
+    }
     const mutationId = beginKanbanMutation();
     try {
         statusBar.set(dueDate ? 'Setting due date…' : 'Clearing due date…');
-        const result = await backend().SetTaskDueDate(filePath, lineNum, dueDate);
+        await backend().SetTaskDueDate({ file: task.file, line: task.line, source: task.source }, dueDate);
         if (mutationId !== kanbanMutationId) return;
-        if (!result.success) {
-            await errorDialog('Couldn’t update due date', result.error, 'The due date could not be updated.');
-            statusBar.set('Ready');
-            return;
-        }
         statusBar.set(dueDate ? 'Due date set' : 'Due date cleared');
         setTimeout(() => statusBar.set('Ready'), 1000);
         document.dispatchEvent(new CustomEvent('calendar-data-changed'));
         if (!await refreshAfterKanbanMutation(mutationId)) return;
-        reloadActiveFileIfNeeded(filePath);
+        focusKanbanCard(document.getElementById('kanban-board-main'), task, card.dataset.tag);
     } catch (error) {
         if (mutationId !== kanbanMutationId) return;
         log.error('Set task due date failed:', error);

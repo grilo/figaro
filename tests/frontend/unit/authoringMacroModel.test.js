@@ -15,18 +15,15 @@ describe('Figaro authoring macro plans', () => {
             .toEqual(['table', 'todo']);
         expect(authoringMacroCompletionPlan('Draft @mer').macros.map(macro => macro.name))
             .toEqual(['mermaid']);
-        expect(authoringMacroCompletionPlan('name@due')).toBeNull();
+        expect(authoringMacroCompletionPlan('Draft @da').macros.map(macro => macro.name))
+            .toEqual(['date']);
+        expect(authoringMacroCompletionPlan('name@date')).toBeNull();
+        expect(authoringMacroCompletionPlan('@due')).toBeNull();
         expect(authoringMacroCompletionPlan('@unknown')).toBeNull();
     });
 
-    test('creates semantic due source and rejects invalid dates', () => {
-        expect(authoringMacroInsertionPlan('due', '@due', { from: 0, to: 4 }, { date: '2026-08-30' }))
-            .toMatchObject({
-                insert: '[due 2026-08-30](2026-08-30.md)',
-                cursorOffset: '[due 2026-08-30](2026-08-30.md)'.length,
-            });
-        expect(authoringMacroInsertionPlan('due', '@due', { from: 0, to: 4 }, { date: '2026-02-30' }))
-            .toBeNull();
+    test('@date delegates date selection instead of serializing a Markdown link itself', () => {
+        expect(authoringMacroInsertionPlan('date', '@date', { from: 0, to: 5 })).toBeNull();
     });
 
     test('puts the task cursor immediately after the first unchecked item', () => {

@@ -73,6 +73,11 @@ material cold-index regression at this scale.
 | PERF-08 | Resolved | File-tree scans previously took 270–365 ms and returned a 2.48 MB JSON payload even after the search index was warm. The cached warm projection took 16 ms; serialization remained 11 ms for the intentionally complete payload. | The backend publishes an immutable tree snapshot, retains flat path metadata, updates known file saves/creates, and remaps known moves in memory. Broad or ambiguous mutations and unscoped watcher events invalidate the cache and retain the complete root-scoped scan fallback. | Preserve snapshot reuse, pure hierarchy projection, known create/move remapping, external-change invalidation, symlink omission, and disk/warm/cold tree equivalence. Consider an incremental bridge payload only if serialization becomes material. |
 | PERF-09 | Resolved | Copying one small note previously took 783 ms because it synchronously rebuilt the complete Markdown index; the following tree request took another 220 ms. The guarded 10,000-note profile now measures 234 ms for the copy and 10 ms for the warm tree projection. | A copy validates pre-existing Markdown metadata, parses and adds only the new subtree to a current index/tree cache, and acknowledges exact copied watcher paths. A stale index retains the complete rebuild fallback. | Preserve warm-vs-cold copied search, backlink, Kanban, calendar, health, and tree equivalence; exact stale-index fallback; cache identity; watcher suppression; link rewriting; and non-destructive collisions. |
 | PERF-12 | Monitored | BM25F fields, term postings, document frequencies, and the 10,475-term vocabulary increased the reference cold build from 852 to 1,120 ms and the reported post-build heap from 64 to 101 MB. Warm ranked queries stayed interactive: 22 ms rare, 38 ms broad prefix, 50 ms broad typo, and 0.1 ms link completion. | The added retained state is the cost of field-aware ranking, natural terms, prefixes, typo tolerance, and suggestions. Direct normalized-text analysis and query-local passage reuse avoid a second fold/token-occurrence slice and repeated scans of pooled content. | Keep the new ranked metrics and warm-vs-cold differential oracle. Treat further cold-memory reduction as worthwhile, but do not discard exact incremental results or rescan the vault on each query. |
+| PERF-13 | Resolved | The first measured 10,000-node Graph render took 350 ms with a 145 ms long task; equivalent filtering, selection, and zoom each repainted synchronously. The guarded complete-paint profile now reports about 267–302 ms initially and 49/114/169 ms for those interactions, with no Graph long task. | Filtered views retain the full layout, identity-equal projections skip paint, force refinement is bounded at large scale, and off-screen canvas batches yield before atomically publishing the latest frame. | Preserve exact full-paint waits and separate render/filter/select/zoom metrics in the browser profile, plus pure layout/projection identity tests. |
+| PERF-14 | Resolved | Gantt's native vertical scroll listener attempted a row projection for every event in a burst, amplifying flashing risk shared with its horizontally buffered timeline. | Passive scroll input now coalesces to one row-window render per animation frame; keyboard focus navigation keeps its immediate reveal path and disposal cancels pending work. | Preserve the focused three-events/one-frame component regression and the Calendar/Gantt frame-sampling browser tests. |
+| PERF-15 | Resolved | Opening the 10,000-line note took 216–251 ms around a 120–139 ms task after recent editor features accumulated. The complete staged profile now takes about 188–191 ms with no long task; a tail edit takes 40–52 ms without one. | The pure mount plan splits large Markdown at a line boundary. CodeMirror installs the two source chunks outside history, then restores image, frontmatter, diagram, table, and math presentation on guarded frames. Table/helper-rail scans follow CodeMirror's incrementally available syntax tree instead of forcing a full parse. | Wait for complete presentation before timing, prove source reassembly and mid-document Up/Down, and retain the packaged-webview cursor/mouse smoke. |
+| PERF-16 | Resolved | A missing schedule bridge mock stopped the browser profile at startup; later scenario failures could hide all earlier results, and Graph had no scale boundary. | The fixture now covers schedules and a deterministic 10,000-node graph, each scenario has an independent timeout, and the JSON report is rewritten after every completed scenario. | Preserve partial-report output, isolated failure records, and full Graph/Markdown completion signals rather than timing status text alone. |
+| PERF-17 | Resolved | Rapid Chart Editor controls could start overlapping Vega-Lite engines; version checks hid stale output but did not prevent duplicated CPU and temporary render targets. | One latest-preview use case serializes the renderer, replaces intermediate pending work with the newest specification, suppresses stale success/error publication, and invalidates completion on modal disposal. | Preserve the deferred-promise unit/component regressions that prove maximum concurrency one and initial-plus-latest rendering. |
 
 Severity uses the audit scale: 3 blocks or substantially impairs a primary
 workflow, 2 causes meaningful friction, and 1 is minor. P1 means fix next; P2
@@ -80,10 +85,10 @@ means schedule soon.
 
 ## Boundaries that held up well
 
-- The 10,000-line note opened in 313–356 ms and mounted only 31 CodeMirror
-  lines. A tail edit took 47–141 ms across three runs. CodeMirror's viewport
-  virtualization is working and should be preserved, although the slower edit
-  runs included an 84–85 ms long task worth watching.
+- The staged 10,000-line note opened completely in 188–191 ms and mounted
+  33 CodeMirror lines. A tail edit took 40–52 ms; neither operation produced a
+  long task. CodeMirror's viewport virtualization and staged presentation must
+  both be preserved.
 - A rare five-result search took 50–83 ms in the browser.
 - Warm literal backend search was 21 ms for five matches and 51 ms for 10,000
   matches in the latest run. Ranked search was 22 ms for five matches, 38 ms
@@ -124,14 +129,16 @@ means schedule soon.
 | --- | ---: | ---: | ---: |
 | Collapsed startup | 612–768 ms | 82–105 ms | 9 tree rows |
 | Expand all tree directories | 2,478–2,775 ms | 1,815–2,110 ms | 21,630 rows |
-| Open 10,000-line note | 313–356 ms | 113–142 ms | 31 editor lines |
-| Edit note tail | 47–141 ms | 0–85 ms | 31 editor lines |
+| Open 10,000-line note, complete presentation | 188–191 ms | none | 33 editor lines |
+| Edit note tail | 40–52 ms | none | 33 editor lines |
 | Render 5 search results | 50–83 ms | none | 5 rows |
 | Render 10,000 search results | 1,425–2,065 ms | 211–247 ms | 10,000 rows |
 | Arrow Down in broad search | 1,381–1,864 ms | 1,149–1,621 ms | 10,000 rows rebuilt |
 | Render 10,000 Kanban cards | 1,886–2,250 ms | 1,586–1,798 ms | 10,000 cards |
 | Arrow Down in large Kanban | 2,105–2,462 ms | 1,550–1,774 ms | 10,000 cards rebuilt |
 | Render 10,000 backlinks | 1,050–1,301 ms | 854–1,111 ms | 10,000 cards |
+| Render 10,000-node Graph, complete paint | 267–302 ms | none | one canvas / 9,999 edges |
+| Equivalent Graph filter / select / zoom | 49 / 114 / 169 ms | none | one latest canvas frame |
 
 ### Optimization checkpoints
 
@@ -141,6 +148,8 @@ means schedule soon.
 | Kanban column windowing and linear order reconciliation | 1,886–2,250 ms initial render; 2,105–2,462 ms per Arrow Down; 10,000 mounted cards | 118 ms initial render; 150 ms per Arrow Down; 101 mounted cards | Full huge-vault harness passed after detecting and correcting a focus-loss race; the focused card survived 110 Tabs, reorder, and drag/drop across a window boundary, with three repeated browser passes. |
 | Expanded file-tree windowing | 2,478–2,775 ms; 21,630 mounted rows; 208,383 DOM nodes | 131 ms; 160 mounted rows; 1,857 DOM nodes; no long task | Full harness passed after detecting and correcting stale-node context-menu focus restoration; the boundary scenario passed five consecutive runs covering End/Home, distant arrows, Shift+F10/Escape, and activation. |
 | Backlink result windowing | 1,050–1,301 ms; 10,000 mounted cards; 80,628 DOM nodes | 104 ms; 96 mounted cards; 1,397 DOM nodes; no long task | Full harness passed with the normal browser contract Tabbing to the final logical relationship beyond the mounted window. |
+| Graph retained layout and interruptible canvas | 350 ms initial with a 145 ms task; every interaction repainted synchronously | 267–302 ms complete initial paint; equivalent filter 49 ms; selection 114 ms; zoom 169 ms; no Graph long task | Full harness waits for `data-render-state=ready`; pure tests cover retained coordinates, equivalent topology, and bounded layout refinement. |
+| Staged large-Markdown mount | 216–251 ms with a 120–139 ms task | 188–191 ms with complete presentation and no long task; tail edit 40–52 ms | Source chunks reassemble byte-for-byte, the profiler waits for every presentation stage, and mid-document Arrow Down/Up returns to the exact logical line. |
 | Compact and pooled cold index | 1,626–2,195 ms; ~476 MB cumulative allocation; 177–200 MB heap | 714 ms; 249 MB cumulative allocation; 64 MB heap | Full harness and warm-vs-fresh-cold projections passed after known saves, watcher create/remove, and directory moves. Sorted posting insert/remove/lookup and shared immutable text have focused tests. |
 | Field-aware relevance index and passage reuse | First ranked samples rescanned duplicate source per result: 209 ms rare and 345–351 ms broad, allocating 88–171 MB per query | 22 ms rare, 38 ms broad prefix, and 50 ms broad typo; 11–30 MB cumulative allocation. The richer cold index is 1,120 ms / 335 MB cumulative allocation / 101 MB reported heap. | Pure feature tests cover every query rule; native tests cover ranking and link profiles; warm-vs-cold snapshots include ranked responses through mutations; the complete backend/browser stress profiles pass. |
 | Indexed move rewrite planning and remapping | 2,165–2,762 ms; ~576 MB cumulative allocation per direction | 436–687 ms; ~188 MB cumulative allocation per direction | Full harness passed. Sparse links among decoy notes, every supported link syntax, stale-index fallback, unchanged decoys, and warm-vs-fresh-cold state after the move all remain asserted. |

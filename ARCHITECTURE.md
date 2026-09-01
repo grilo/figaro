@@ -106,7 +106,9 @@ The approved tooltip family is split at the same deterministic/effect seam.
 plain rectangles. The eagerly initialized `tooltip.js` adapter adopts ordinary
 static and dynamically mounted `title` hints, preserves iframe accessible
 names, owns hover/focus/Escape lifecycle and `aria-describedby`, and renders one
-body-level `.ui-tooltip`. Rich Calendar, managed-file, and Markdown-link hints
+body-level `.ui-tooltip`. While visible, it revalidates the pointer owner on an
+animation frame and after DOM mutations; owner removal or reflow away from a
+stationary pointer dismisses the hint and removes the relationship. Rich Calendar, managed-file, and Markdown-link hints
 reuse that visual primitive while retaining only feature content and placement
 hooks. CodeMirror diagnostics and autocomplete remain separately themed
 interactive popovers rather than being coerced into hint semantics.
@@ -137,7 +139,11 @@ editor handoff, so the pure model has no DOM, CodeMirror, timer, or modal
 dependency.
 
 Find and Replace keeps CodeMirror's native query state, commands, fields, and
-keyboard scopes. Figaro changes only presentation: `editor.css` assigns the
+keyboard scopes. The pure `core/searchMatchModel.js` formats empty, invalid,
+zero, singular, plural, and current-result announcements; the
+`searchMatchStatus.js` CodeMirror adapter counts the native query cursor and
+publishes that result through a nonvisual polite status without replacing the
+upstream panel. Figaro otherwise changes only presentation: `editor.css` assigns the
 existing direct children to three explicit 28px grid rows for query/navigation,
 matching options, and replacement actions. The upstream panel adapter therefore
 continues to own searching and mutation while the application stylesheet owns
@@ -320,17 +326,21 @@ while the Calendar panel is active but makes its main-pane buffer region hidden
 and non-interactive. The file-tree-aligned application status remains live, and
 the central workspace geometry no longer changes when another view takes over.
 
-Timeline keeps the same dependency split. `core/calendarTimelineModel.js`
-plans the centered 42-day/14-day-button window, the 14-day prefetch threshold,
-and seven-day range shifts; classifies genuine scroll edges; applies the shared
-locale-weekend projection; and purely merges
+Timeline keeps the same dependency split. Shared `core/timelineModel.js`
+plans Calendar's centered 42-day/14-day-button window, the 14-day prefetch threshold,
+and seven-day range shifts, and classifies genuine scroll edges.
+`core/calendarTimelineModel.js` applies the shared locale-weekend projection and merges
 saved rows, dirty buffer associations, and direct note appearance into day/pill
-presentation. `calendarTimeline.js` owns DOM rendering and horizontal input,
-measures one day for key movement and three for minimum wheel movement, applies the pure bounded-pan
-projection under pointer capture, suppresses selection only for that gesture,
-keeps the old track visible while the adjacent range loads, and preserves one
-shared date's viewport coordinate through the silent range swap,
-but receives its
+presentation. `calendarTimeline.js` owns note/day rendering and delegates
+horizontal input, measured key/wheel movement, bounded pointer panning, and
+date-marker capture/restoration to the same `timelineViewport.js` widget as
+Gantt. It keeps the old track visible and scrollable while the adjacent range loads.
+The shared widget's synchronous content commit captures the latest marker,
+patches keyed days/rows in place, and rebases scroll coordinates before paint.
+It disables competing browser scroll anchoring and carries unfinished smooth
+scroll destinations and active pan origins across range shifts; pure `timelineScrollTarget` accumulates
+input at that destination. Only edge-event suppression waits for later frames.
+Calendar receives its
 range read, appearance read, and note-open effects as injected functions from
 `calendar.js`. The eagerly imported Calendar composition wires those ports to
 `GetCalendarTimelineData`, `GetFileTreeStyles`, and the existing `openTab`
@@ -620,7 +630,7 @@ Markdown documents supplied as operating-system launch arguments are deliberatel
 Search, backlinks, Graph, Kanban, and Calendar project the same Markdown vault data,
 so they share one Go-owned in-memory index rather than independently walking
 and reopening every note. The index retains a note's source text and derives
-its hashtags/cards, semantic task due links, date links, and daily-note state; this makes Kanban and
+its hashtags/cards, date links, and daily-note state; this makes Kanban and
 calendar lookups direct and keeps search/backlinks disk-free after the initial
 index build.
 
@@ -637,7 +647,12 @@ resize/theme observation, floating-control layout, status presentation, and the
 note-opening port. Plain click changes only the persistent trace selection;
 Ctrl/Cmd-click and Enter invoke the note-opening port. A successful file-tree
 appearance write emits a narrow refresh event so an active graph can reproject
-colors and icons without coupling the graph adapter to file-tree state.
+colors and icons without coupling the graph adapter to file-tree state. One
+full-vault layout remains authoritative for every filtered projection;
+identity-equal projections skip rebuild and paint entirely. At large scale the
+model bounds force refinement, while the adapter paints edges, arrows, nodes,
+and labels into an off-screen canvas in interruptible time-budgeted slices and
+atomically publishes only the latest completed frame.
 
 The cold-build adapter first discovers the exact ordinary Markdown workload,
 then reads and transforms that retained path list. It publishes discovery,
@@ -689,7 +704,7 @@ root-scoped rewrite scan and cold index rebuild. Other ambiguous broad changes,
 such as merges or an unscoped notification, deliberately invalidate and rebuild
 one coherent snapshot; correctness wins over a speculative partial update.
 
-Each indexed file owns its own tag, Kanban-card, due-task, daily-note, date-link,
+Each indexed file owns its own tag, Kanban-card, daily-note, date-link,
 month-grouped Calendar-day, accent-folded search fields, term frequencies,
 trigram, and Markdown-backlink
 contributions. Those projections are derived in one line-oriented document
@@ -762,8 +777,8 @@ navigation needs no filesystem access.
 
 The full Kanban board remains available for its workspace, but the Today dashboard asks the
 backend for its bounded unfinished-card projection and due-task summary directly. Due work is
-deduplicated by source line, prioritized ahead of undated work, and stored only as the standard
-`[due YYYY-MM-DD](YYYY-MM-DD.md)` link on that line. Pure Go and JavaScript helpers own parsing,
+deduplicated by source line, prioritized ahead of undated work, and joined from private task metadata onto copies of indexed cards. The Markdown
+index never interprets due-link syntax. Pure Go and JavaScript helpers own
 date validation, local-day comparison, priority, locale week normalization, month-grid construction,
 note-intensity buckets, shared sidebar/picker month presentation, accessible day-label composition,
 and tooltip placement; root-scoped task
@@ -780,9 +795,9 @@ enters the application. Its pure session-selection plan chooses local Today when
 selection exists; the panel-open coordinator restores the selected month on later openings without
 persisting that selection across launches. The shared vault index maintains per-date note-path reference counts and
 matching note rows so a daily note or normally linked Markdown file contributes once to both the
-month count and selected-day results, while a semantic due link remains an independent task signal.
+month count and selected-day results, while metadata deadlines supply the independent task signal.
 Calendar month navigation similarly copies only that month's pre-grouped daily-note, linked-day, and
-due-task lists plus compact day summaries containing note counts and due titles. While a Markdown tab
+metadata-derived due-task lists plus compact day summaries containing note counts and due titles. While a Markdown tab
 is dirty, the pure Calendar model replaces that file's saved date associations with its current
 in-memory buffer; editor events schedule this projection on the next frame without scanning or saving
 the vault. Vertical wheel policy is isolated in `core/calendarWheelModel.js`: it rejects modified and
@@ -831,18 +846,77 @@ in `.config/kanban-order.json`; column and vault-path rename/delete workflows
 rewrite or prune them. `kanban.js` owns keyboard events, status/focus handoff,
 and the existing hashtag mutation boundary for horizontal moves.
 
+Kanban's alternative Gantt projection is eagerly imported through `kanban.js`.
+Calendar and Gantt both consume `timelineViewport.js`, the shared measured
+date-anchor, wheel/pan/keyboard, and buffered-edge component. Its pure policies
+and localized labels live in `core/timelineModel.js`; Calendar's existing API
+re-exports those policies while retaining only its note projection locally.
+Calendar supplies note/day rendering and cached native date reads; Gantt
+supplies task rows, sticky-name inset, and denser day widths. No task metadata
+or note-loading policy enters the shared viewport.
+`core/ganttModel.js` owns deduplication, schedule precedence, inclusive date
+geometry, range shifts, row windows, and counts. `kanbanGantt.js` adapts DOM,
+pointer capture, and the existing date/picker primitives through injected
+save/open/status ports. Its empty status is a sibling overlay of the translated
+timeline track, so it remains centered and announced even when the horizontal
+viewport is scrolled. `kanban.js` coordinates native persistence, dirty-buffer
+preconditions, and ownership of the one application status region; leaving the
+workspace disposes the Gantt surface instead of retaining detached controls.
+Gantt date-picker choices and clearing persist immediately through the existing
+save port; failed writes preserve displayed saved dates. Inspector-scoped document
+listeners dismiss on outside pointer presses or unconsumed Escape and are removed
+on closure, deactivation, and disposal. The body-portalled date picker is owned
+by its inspector: inside clicks remain interactive and its Escape is consumed
+before the parent closes. Outside dismissal keeps the clicked control's focus;
+Escape restores task focus even if persistence has blurred a disabled control.
+Neither cancels a submitted write nor lets its completion reopen the UI.
+Ambiguous-record reconnection retains its
+explicit action. Keyed row patches preserve mounted bars, names, and focus
+instead of replaying their initial visual states at every page boundary. Native
+vertical scroll events are passive and coalesce into one row-window projection
+per animation frame; keyboard navigation retains its synchronous reveal/focus
+path, and disposal cancels any queued projection.
+
+`internal/taskschedule` owns pure identity reconciliation, immutable date
+updates, collision refusal, and path rewriting. `task_schedules.go` supplies
+current indexed source references and root-scoped atomic JSON I/O under the
+vault/settings locks. `.config/task-schedules.json` is private, ignored
+application state: it supplies Board, Gantt, Calendar, Today, and reminders
+without modifying notes or adding Calendar links. `task_schedule_projection.go`
+joins resolved dates onto copies without mutating the Markdown index.
+`transitions.go` plans first starts on actual moves into non-TODO columns;
+initial indexing never starts tasks. The save/tag-move adapter calls the injected
+`CommitChange` coordinator: write metadata, replace the note atomically, and
+restore metadata if the note write fails. Existing starts and overdue deadlines
+are preserved; an end date before the actual start is a valid late task.
+Unique canonical task text follows line/tag changes; duplicates require their
+unchanged source-task fingerprint. Unresolved records are preserved rather than
+silently deleted or attached to a replacement. Explicit reconnection validates
+both the live source and target ownership before replacing one record.
+
 Hashtag completion deliberately reads a second, stable projection of the saved
 Kanban columns rather than the dirty-buffer column list. Unsaved tags still
 reproject the visible board immediately, but a partial new tag cannot become
 its own completion candidate during the same typing frame. The pure
 `core/taskDueDateCompletionModel.js` owns column normalization, saved-column
-suggestion matching, post-Space tagged-line eligibility, existing-date/`#done`
-rejection, and portable due-link insertion plans.
-`taskDueDateCompletions.js` translates those plans into CodeMirror completion
-transactions, while `editor.js` supplies syntax-context filtering and anchors
-the existing shared date-picker adapter at `coordsAtPos()`. The picker receives
-its visible-month source at startup through the application composition root;
-the completion feature depends only on the picker contract, not Calendar or backend I/O.
+suggestion matching, and literal hashtag eligibility. It no longer offers
+post-Space due-link insertions. `core/taskDueMetadataModel.js` plans preferred-style
+date-link insertion and removal of the unchanged `@date` command, assigning an
+untagged checklist item to TODO. `core/taskLineTokens.js` supplies source ranges
+for replacing exactly one date/tag while preserving multiple values and protected
+inline syntax. Plain prose receives only the link, without metadata I/O.
+`taskDueMetadata.js` coordinates injected note-save/current-snapshot/deadline
+ports. The CodeMirror adapter owns the source transaction and shared date
+picker; normal save conflict handling must succeed before metadata is attached.
+A stale buffer or failed save attaches no deadline. Cancelling the picker
+leaves source untouched. `SetTaskDueDate` checks the exact saved task source and
+preserves its existing start while atomically changing only private metadata.
+Known note saves use `taskschedule.DateEdits` and `RebindDateEdits` to preserve
+schedule identity across uniquely matched date-only source changes. This leaves
+ordinary identity rules intact, rejects schedule collisions, and uses the same
+metadata-first/note-write/rollback adapter as first-start changes. Unrelated or
+ambiguous title edits remain unresolved instead of guessing.
+The picker receives its visible-month source eagerly at startup.
 
 ## Git status and history restoration
 
@@ -952,6 +1026,15 @@ with empty history. Normal transactions then remain undoable across switches
 for that open buffer alone. This keeps delayed I/O and DOM effects outside the
 ownership decision while making it impossible for Undo or Redo to replay a
 document replacement from another tab.
+
+`core/editorDocumentMountModel.js` separately decides when a Markdown source is
+large enough to require a staged mount and splits it at a source line boundary.
+The editor adapter installs those chunks as two history-free transactions,
+then restores image, frontmatter, diagram, table, and math presentation in
+separate animation frames. The active tab and document owner guard every stage;
+switching away cancels queued work, while edits made after source completion are
+retained. Visible source, saved cursor, isolated undo history, and the complete
+Markdown feature set are unchanged—only their scheduling differs.
 
 ## Editor text scale ownership
 
@@ -1072,12 +1155,13 @@ source replacement and action-oriented accessible name in the pure
 target, one source transaction, and keyboard-focus handoff after remounting.
 The same syntax-backed task line may contribute a separate helper-rail marker:
 `core/taskItemActionModel.js` owns unfinished-task recognition and the
-order-independent column/due transformations, while
+single-tag replacement or append-with-multiple-tags policy, while
 `taskItemActionCompletions.js` requests CodeMirror's already-mounted completion
 surface for an exact line. The gutter adapter owns only the two approved small
 icon buttons; `editor.js` injects the saved-column source and shared date-picker
-effect. Both action orders converge on task text/tags followed by one due link,
-without changing the indexer's intentionally order-independent due parsing.
+effect. Dates use the same preferred-style link plan and metadata command as
+`@date`; a sole date on the current line is replaced, while multiple dates are
+preserved and the selection is added. Clearing a deadline preserves source links.
 Successful images instead keep a source-keyed geometry cache inside their
 mounted CodeMirror field. The pure `core/markdownImageModel.js` supplies their
 authored/intrinsic fit and resize limits; the DOM adapter measures the writing
@@ -1093,7 +1177,10 @@ renderer uses the same pure hint parser to strip the suffix from alt text and
 emit standard image width/height attributes plus exact inline pixel geometry;
 other printable images retain natural sizing.
 Conventional-link and standalone-hashtag click precedence is decided in the
-pure `core/noteLinks.js` model before the CodeMirror adapter runs effects. A
+pure `core/noteLinks.js` model before the CodeMirror adapter runs effects. The
+adapter supplies the decorated tag actually under the pointer, and the pure
+decision requires it to match the source token; CodeMirror's line-end coordinate
+clamping therefore cannot make adjacent empty space navigate. A
 complete `[label](#fragment)` therefore remains one link whether it is rendered
 or revealed source; its stable heading slug resolves to an editor offset and
 dispatches an ordinary selection, while only a standalone whitespace-delimited
@@ -1571,6 +1658,13 @@ editor's source of truth. It shares the sidebar ownership protocol with
 History, Outline, and PDF Preview; each view dispatches the corresponding close
 event before taking the pane.
 
+`editorPreviewLaunchers.js` is the eager DOM adapter for the compact Raw
+Markdown and PDF icon buttons beneath the Outline launcher. Injected active-tab,
+document-ownership, and preview ports keep it independent of either preview
+implementation; it exposes open state, hides outside an owned Markdown buffer,
+and uses the existing mutually exclusive right-pane events rather than creating
+a second preview state machine.
+
 For scroll following, `core/rawTextPreviewModel.js` purely clamps a measured
 source anchor or source-progress fallback to the raw pane's scroll range.
 `rawTextPreview.js` owns the DOM effects: it samples the source position at the
@@ -1705,7 +1799,7 @@ generation, fixed first-column Cartesian category ownership, Pie/Waterfall
 category selection and calculations, dual-axis grouping, non-owning
 threshold overlays and stack
 policy, collision-safe hidden row-order predictors for nominal-category
-regression, complete visible-series legend domains and placement, exact embedded
+regression, explicit no-sort nominal category encodings, complete visible-series legend domains and placement, exact embedded
 table restoration, foreign-JSON detection, and height
 clamping. Its compatibility reader accepts the exact prior managed-legend and
 axis-suppressing threshold shapes plus earlier category-predictor trendlines,
@@ -1719,7 +1813,10 @@ complete label's shared tooltip above modal surfaces, represents column visibili
 buttons, and represents fixed series/threshold axis pairs plus the four legend
 positions with the approved segmented control rather than invoking the
 variable-list combobox adapter. It performs live calls to the existing shared diagram renderer and
-owns one guarded root transaction. The guide composition root re-scans
+owns one guarded root transaction. `usecases/latestPreviewSession.js` keeps that
+expensive renderer strictly serialized: a change during an active render
+replaces the one pending request, stale success/error results are suppressed,
+and modal disposal invalidates every completion. The guide composition root re-scans
 the table or fence before opening; confirmed chart-to-table conversion re-scans
 again after its asynchronous dialog. The live-diagram adapter alone owns pointer
 capture and temporary DOM geometry for the bottom resize handle, then asks the
@@ -1735,6 +1832,15 @@ WebKitGTK—and is finalized and removed in the same adapter call. The modal
 stays non-destructive while rendering: configuration validation and SVG
 geometry checks gate its one Apply transaction, and visible live-alert state
 belongs to the UI adapter rather than the pure chart model.
+
+Mermaid height follows the same seam. `core/mermaidDiagramModel.js` reads,
+clamps, and replaces the portable `%% figaro:height N` directive without DOM or
+CodeMirror dependencies. `liveDiagramPlugin.js` owns the shared bottom-center
+pointer gesture, updates only mounted geometry while dragging, and dispatches
+one source transaction on release. `sourceFootprint.js` preserves the authored
+height while source is revealed, and `pdfExport.js` applies it to the printable
+figure through the existing shared Mermaid renderer.
+
 The editor preview and managed live widget deliberately share the same
 `--editor-surface` backing canvas, while ordinary portable diagrams retain the
 generic white diagram canvas. Configuration-pane container rules own only
@@ -1798,12 +1904,17 @@ parent waits 80 ms for resize events to settle, resumes the bridge, and sends
 one authoritative editor-to-preview position. Any queued frame scroll report
 is cancelled when the pause message arrives.
 
-The preview has a 340 px minimum width and no arbitrary maximum. While space
-is available, the splitter instead preserves a 320 px editor floor. When the
-remaining editor becomes narrower than 560 px, CodeMirror's horizontal content
-padding contracts from 24 px to 12 px; it returns to the normal padding when
-space is restored. Pointer capture keeps the gesture alive outside the narrow
-splitter, and sidebar transitions are disabled only for the active drag.
+The docked preview has a 340 px minimum width and no arbitrary maximum. While
+space is available, the splitter preserves a 320 px editor floor. If the
+workspace cannot fit both minima, the pure presentation plan moves that same
+pane into bounded trailing-overlay placement; CodeMirror retains its full
+layout width, a normal compact window exposes at least 180 px of it, and the
+launcher rail moves into that exposed strip so the pane remains reversible.
+When the remaining docked editor becomes narrower than 560 px, CodeMirror's
+horizontal content padding contracts from 24 px to 12 px; it returns to the
+normal padding when space is restored. Pointer capture keeps the gesture alive
+outside the narrow splitter, and sidebar transitions are disabled only for the
+active drag.
 
 As defence in depth, the frame gives copied document links a blocked popup
 fallback and the parent reloads the fixed bridge document if it stops reporting
@@ -1964,8 +2075,14 @@ WebKitGTK/Wails path on Linux. That boundary check proves that no user click can
 navigate the preview frame away from Figaro's local bridge; parsing, bridge
 message validation, and failure matrices remain below the browser layer.
 
-The frontend unit suite also covers the splitter's editor floor, compact
-padding state, synchronization pause, and single post-resize alignment. Go
+The pure right-sidebar presentation plan receives only available workspace,
+preferred pane width, and preview kind. It docks a clamped pane while both
+minimums fit; otherwise the DOM adapter positions that same pane over the
+trailing editor edge so CodeMirror retains its layout width and a bounded
+visible strip. Window and splitter effects merely re-run that plan. The
+frontend unit suite covers this opening/resizing policy, compact padding state,
+synchronization pause, and single post-resize alignment, while one focused
+browser case owns actual narrow-window geometry and the return to docking. Go
 tests inject browser validation for deterministic discovery-order checks; the
 opt-in system-browser test exercises the real isolated CDP validation on a
 developer machine.

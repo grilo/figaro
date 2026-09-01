@@ -168,7 +168,7 @@ describe('Pure mode shell', () => {
         expect(shell).toMatch(/\.top-bar:hover:not\(:has\(\.top-bar-left:hover\)\) \.top-bar-center/);
         expect(shell).toMatch(/\.top-bar:has\(\.top-bar-center:focus-within\) \.top-bar-center/);
         const editor = fs.readFileSync(path.resolve('frontend/styles/editor.css'), 'utf8');
-        expect(editor).toMatch(/#app\.pure-editing-chrome \.editor-outline-launcher \{[\s\S]*display: none !important;/);
+        expect(editor).toMatch(/#app\.pure-editing-chrome \.editor-navigation-launchers \{[\s\S]*display: none !important;/);
         expect(editor).toMatch(/#app\.pure-editing-chrome \.sticky-heading-stack \{[\s\S]*display: none !important;/);
         expect(editor).toMatch(/#app\.pure-editing-chrome \.cm-add-properties \{[\s\S]*opacity: 0;/);
         expect(editor).toMatch(/\.cm-editor\.cm-pure-typewriter \.cm-content \{/);

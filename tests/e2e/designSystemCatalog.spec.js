@@ -2,6 +2,24 @@ import { expect, test } from '@playwright/test';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+test('dismisses a tooltip when its stationary-pointer owner reflows or is removed', async ({ page }) => {
+    await page.goto('/design-system/');
+    const trigger = page.getByRole('button', { name: 'Show document outline' });
+    const tooltip = page.locator('#ui-tooltip');
+
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.hover();
+    await expect(tooltip).toBeVisible();
+    await trigger.evaluate(element => { element.style.translate = '180px 0'; });
+    await expect(tooltip).toBeHidden();
+
+    await page.mouse.move(0, 0);
+    await trigger.hover();
+    await expect(tooltip).toBeVisible();
+    await trigger.evaluate(element => element.remove());
+    await expect(tooltip).toBeHidden();
+});
+
 test('catalogues current elements with themed combobox geometry and seamless steppers', async ({ page }) => {
     await page.goto('/design-system/');
 
@@ -13,6 +31,31 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(themeSelect).toHaveValue('default');
     await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#d8574a');
+
+    // Computed cascade boundary: every segmented choice uses Calendar's quiet
+    // treatment in the three Figaro themes, including hover and selected items.
+    for (const theme of ['default', 'figaro-light', 'figaro-crt-phosphor']) {
+        await themeSelect.selectOption(theme);
+        const choice = page.locator('.ui-segmented-control').first();
+        const selected = choice.locator('.ui-button[aria-pressed="true"]').first();
+        await expect.poll(() => choice.evaluate(el => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
+        await selected.hover();
+        await expect.poll(() => selected.evaluate(el => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
+        await selected.focus();
+        await expect(selected).toBeFocused();
+        expect(await selected.evaluate(el => getComputedStyle(el).outlineStyle)).toBe('solid');
+        const unselected = choice.locator('.ui-button[aria-pressed="false"]').first();
+        await unselected.focus();
+        await expect(unselected).toBeFocused();
+        await expect.poll(() => unselected.evaluate(el => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
+        expect(await unselected.evaluate(el => getComputedStyle(el).outlineStyle)).toBe('solid');
+        await unselected.hover();
+        await page.mouse.down();
+        try {
+            await expect.poll(() => unselected.evaluate(el => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
+        } finally { await page.mouse.up(); }
+    }
+    await themeSelect.selectOption('default');
 
     const themedCheckbox = page.getByRole('checkbox', { name: 'Frontmatter boolean' });
     const readCheckboxPaint = locator => locator.evaluate(element => {
@@ -35,6 +78,10 @@ test('catalogues current elements with themed combobox geometry and seamless ste
             markTransform: mark.transform,
         };
     });
+    await expect.poll(async () => {
+        const paint = await readCheckboxPaint(themedCheckbox);
+        return paint.background === paint.accent;
+    }).toBe(true);
     const darkCheckbox = await readCheckboxPaint(themedCheckbox);
     expect(darkCheckbox).toMatchObject({
         background: darkCheckbox.accent,

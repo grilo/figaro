@@ -22,8 +22,7 @@ const tableSource = [
 ].join('\n');
 
 const flush = async () => {
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
 };
 
 describe('Vega-Lite Chart Editor dialog', () => {
@@ -117,6 +116,36 @@ describe('Vega-Lite Chart Editor dialog', () => {
         }));
         expect(dialog.overlay.isConnected).toBe(true);
         expect(markTrigger.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    test('serializes rapid preview changes and renders only the latest pending configuration', async () => {
+        const renderResult = () => ({
+            view: {
+                toSVG: jest.fn().mockResolvedValue('<svg viewBox="0 0 640 340"></svg>'),
+                finalize: jest.fn(),
+            },
+        });
+        let finishInitial;
+        let finishLatest;
+        window.vegaEmbed
+            .mockReset()
+            .mockImplementationOnce(() => new Promise(resolve => { finishInitial = resolve; }))
+            .mockImplementationOnce(() => new Promise(resolve => { finishLatest = resolve; }));
+
+        const dialog = openTable();
+        dialog.overlay.querySelector('[data-chart-orientation="horizontal"]').click();
+        dialog.overlay.querySelector('[data-chart-orientation="vertical"]').click();
+        dialog.overlay.querySelector('[data-chart-orientation="horizontal"]').click();
+        expect(window.vegaEmbed).toHaveBeenCalledTimes(1);
+
+        finishInitial(renderResult());
+        await flush();
+        expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
+        expect(window.vegaEmbed.mock.calls[1][1].usermeta.figaro.chart.orientation).toBe('horizontal');
+        finishLatest(renderResult());
+        await flush();
+        expect(dialog.overlay.querySelector('[data-chart-preview] svg')).not.toBeNull();
+        expect(dialog.overlay.querySelector('.vega-lite-chart-editor-apply').disabled).toBe(false);
     });
 
     test('preserves a hidden column mapping and supports chart-wide modes and focused settings', async () => {

@@ -203,6 +203,13 @@
     gap: 12px;
 }
 
+.gantt-status-content { display: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-right[data-mode="gantt"] .gantt-status-content { display: block; flex: 1; }
+.status-right[data-mode="gantt"]::after,
+.status-right[data-mode="gantt"] .status-buffer-left,
+.status-right[data-mode="gantt"] .status-buffer-right > :not(#resize-grip) { display: none; }
+.status-right[data-mode="gantt"] .status-buffer-right { flex: 0 0 auto; margin-left: 0; }
+
 .status-right[data-mode="graph"] .graph-status-content {
     display: flex;
 }

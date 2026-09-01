@@ -5,6 +5,7 @@ import { openColorPalettePicker } from './colorPalettePicker.js';
 import { renderDiagramSVG } from './diagramRenderer.js';
 import { renderLucideIcon } from './lucideIcons.js';
 import { enhanceSelectCombobox } from './selectCombobox.js';
+import { createLatestPreviewSession } from './usecases/latestPreviewSession.js';
 import {
     buildVegaLiteChartSpec,
     createVegaLiteChartEditorStateFromSource,
@@ -200,9 +201,9 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
     const roundtrip = overlay.querySelector('[data-roundtrip-status]');
     let lifecycle = null;
     let settled = false;
-    let renderVersion = 0;
     let jsonVisible = false;
     let colorPicker = null;
+    let previewSession = null;
 
     const categories = state.columns;
     const values = state.columns.filter(column => column.dataType === 'quantitative');
@@ -395,25 +396,45 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
         ? String(originalBlock.rawCode ?? originalBlock.code ?? '')
         : JSON.stringify(buildVegaLiteChartSpec(state));
 
-    const renderPreview = async () => {
-        const version = ++renderVersion;
+    const beginPreview = () => {
         preview.setAttribute('aria-busy', 'true');
         applyButton.disabled = true;
         status.classList.remove('is-error');
         status.textContent = 'Rendering chart preview…';
         preview.innerHTML = '<div class="vega-lite-chart-editor-preview-state"><span class="ui-spinner" aria-hidden="true"></span><span>Rendering chart…</span></div>';
-        try {
-            const validation = validateVegaLiteChartConfiguration(state);
-            if (!validation.valid) throw new Error(validation.error);
-            const source = previewSource();
-            json.value = JSON.stringify(JSON.parse(source), null, 2);
-            const svg = await renderDiagramSVG('vega-lite', source, 'figaro-chart-editor-preview', {
+    };
+
+    const showPreviewError = error => {
+        if (settled) return;
+        preview.innerHTML = '';
+        preview.setAttribute('aria-busy', 'false');
+        const message = document.createElement('div');
+        message.className = 'ui-notice ui-notice--danger vega-lite-chart-editor-preview-error';
+        message.setAttribute('role', 'alert');
+        const heading = document.createElement('strong');
+        heading.textContent = 'Chart preview failed';
+        const detail = document.createElement('span');
+        detail.textContent = String(error?.message || 'Unable to render this chart.');
+        message.append(heading, detail);
+        preview.append(message);
+        status.textContent = 'The chart cannot be created until its preview renders successfully.';
+        status.classList.add('is-error');
+        applyButton.disabled = true;
+    };
+
+    previewSession = createLatestPreviewSession({
+        async render(job) {
+            if (job.error) throw job.error;
+            const svg = await renderDiagramSVG('vega-lite', job.source, 'figaro-chart-editor-preview', {
                 appearance: 'application',
-                containerWidth: preview.clientWidth > 36 ? preview.clientWidth - 36 : 640,
+                containerWidth: job.containerWidth,
             });
-            if (settled || version !== renderVersion) return;
             if (!svg) throw new Error('Vega-Lite renderer unavailable');
-            preview.innerHTML = svg;
+            return { ...job, svg };
+        },
+        publish(result) {
+            if (settled) return;
+            preview.innerHTML = result.svg;
             const graphic = preview.querySelector('svg');
             graphic?.setAttribute('preserveAspectRatio', 'xMidYMid meet');
             graphic?.setAttribute('aria-label', 'Generated chart preview');
@@ -421,22 +442,24 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
             preview.setAttribute('aria-busy', 'false');
             status.textContent = '';
             applyButton.disabled = unsupported;
+        },
+        reportError: showPreviewError,
+    });
+
+    const renderPreview = () => {
+        beginPreview();
+        try {
+            const validation = validateVegaLiteChartConfiguration(state);
+            if (!validation.valid) throw new Error(validation.error);
+            const source = previewSource();
+            json.value = JSON.stringify(JSON.parse(source), null, 2);
+            previewSession.request({
+                source,
+                containerWidth: preview.clientWidth > 36 ? preview.clientWidth - 36 : 640,
+            });
         } catch (error) {
-            if (settled || version !== renderVersion) return;
-            preview.innerHTML = '';
-            preview.setAttribute('aria-busy', 'false');
-            const message = document.createElement('div');
-            message.className = 'ui-notice ui-notice--danger vega-lite-chart-editor-preview-error';
-            message.setAttribute('role', 'alert');
-            const heading = document.createElement('strong');
-            heading.textContent = 'Chart preview failed';
-            const detail = document.createElement('span');
-            detail.textContent = String(error?.message || 'Unable to render this chart.');
-            message.append(heading, detail);
-            preview.append(message);
-            status.textContent = 'The chart cannot be created until its preview renders successfully.';
-            status.classList.add('is-error');
-            applyButton.disabled = true;
+            previewSession.request({ error });
+            showPreviewError(error);
         }
     };
 
@@ -496,7 +519,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
             }
         }
         settled = true;
-        renderVersion += 1;
+        previewSession.destroy();
         colorPicker?.close();
         colorPicker = null;
         lifecycle.close(false);
@@ -581,7 +604,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
         preview.hidden = jsonVisible;
         jsonToggle.setAttribute('aria-pressed', String(jsonVisible));
         jsonToggle.textContent = jsonVisible ? 'Preview' : 'JSON';
-        if (!jsonVisible) void renderPreview();
+        if (!jsonVisible) renderPreview();
     });
     cancelButton.addEventListener('click', () => finish(false));
     applyButton.addEventListener('click', () => finish(true));

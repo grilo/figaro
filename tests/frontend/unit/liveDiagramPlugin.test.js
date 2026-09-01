@@ -105,7 +105,8 @@ describe('live diagram preview', () => {
         expect(window.mermaid.render).toHaveBeenCalled();
 
         view.dispatch({ selection: { anchor: source.indexOf('flowchart') } });
-        expect(decorationsIn(view.state, diagramField)).toHaveLength(0);
+        expect(decorationsIn(view.state, diagramField)).toHaveLength(4);
+        expect(view.dom.querySelector('.cm-mermaid-diagram-source-placeholder')).not.toBeNull();
 
         view.dispatch({ selection: { anchor: 0 } });
         expect(decorationsIn(view.state, diagramField)).toHaveLength(1);
@@ -223,6 +224,59 @@ describe('live diagram preview', () => {
         expect(undo(view)).toBe(false);
     });
 
+    test('gives Mermaid the same bottom vertical resize contract and commits only on release', () => {
+        const source = ['Before', '```mermaid', 'flowchart TD', '  A --> B', '```', 'After'].join('\n');
+        let resizeTransactions = 0;
+        const diagramField = createDiagramField(
+            StateField,
+            EditorView,
+            Decoration,
+            WidgetType,
+            shouldShowSource,
+            mouseSelectingField,
+        );
+        view = new EditorView({
+            state: EditorState.create({
+                doc: source,
+                selection: { anchor: source.length },
+                extensions: [
+                    history(),
+                    collapseOnSelectionFacet.of(true),
+                    mouseSelectingField,
+                    diagramField,
+                    EditorView.updateListener.of(update => {
+                        resizeTransactions += update.transactions.filter(transaction => (
+                            transaction.isUserEvent('diagram.resize')
+                        )).length;
+                    }),
+                ],
+            }),
+            parent: document.body,
+        });
+
+        const root = view.dom.querySelector('.cm-block-widget--resizable-mermaid');
+        const handle = root.querySelector('.cm-mermaid-diagram-resize-handle');
+        expect(root.dataset.figaroDiagramHeight).toBe('300');
+        expect(root.hasAttribute('data-figaro-chart-height')).toBe(false);
+        expect(handle.dataset.uiTooltip).toBe('Resize Mermaid diagram vertically');
+
+        handle.dispatchEvent(new MouseEvent('pointerdown', {
+            bubbles: true, cancelable: true, button: 0, clientY: 200,
+        }));
+        handle.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientY: 280 }));
+        expect(root.dataset.figaroDiagramHeight).toBe('380');
+        expect(root.querySelector('.cm-diagram-resize-readout').textContent).toBe('380px high');
+        expect(view.state.doc.toString()).toBe(source);
+        expect(resizeTransactions).toBe(0);
+
+        handle.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, clientY: 280 }));
+        expect(resizeTransactions).toBe(1);
+        expect(scanDiagramFences(view.state.doc)[0].rawCode).toContain('%% figaro:height 380');
+        expect(undo(view)).toBe(true);
+        expect(view.state.doc.toString()).toBe(source);
+        expect(undo(view)).toBe(false);
+    });
+
     test('cancels a chart resize and reserves its authored height while source is revealed', () => {
         window.vegaEmbed = jest.fn().mockResolvedValue({
             view: {
@@ -269,7 +323,7 @@ describe('live diagram preview', () => {
         expect(view.dom.querySelector('.cm-block-widget--figaro-chart')).toBeNull();
         expect(placeholder).not.toBeNull();
         expect(view.dom.querySelectorAll('.cm-vega-lite-chart-source-line')).toHaveLength(3);
-        expect(placeholder.style.getPropertyValue('--cm-vega-lite-chart-source-height'))
+        expect(placeholder.style.getPropertyValue('--cm-diagram-source-height'))
             .toBe('calc(384px - 2lh)');
     });
 
@@ -407,7 +461,8 @@ describe('live diagram preview', () => {
 
         view.dispatch({ selection: { anchor: source.indexOf('flowchart') } });
         expect(view.state.field(diagramField)).not.toBe(initial);
-        expect(decorationsIn(view.state, diagramField)).toHaveLength(0);
+        expect(decorationsIn(view.state, diagramField)).toHaveLength(4);
+        expect(view.dom.querySelector('.cm-mermaid-diagram-source-placeholder')).not.toBeNull();
 
         view.dispatch({ selection: { anchor: view.state.doc.line(1).from } });
         expect(decorationsIn(view.state, diagramField)).toHaveLength(1);

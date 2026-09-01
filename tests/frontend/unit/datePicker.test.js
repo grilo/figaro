@@ -12,6 +12,33 @@ describe('Due date picker', () => {
         configureDatePickerCalendarSource({ loadMonthData: null });
     });
 
+    test('Gantt reuses the picker with an explicit start-date clear label', async () => {
+        const anchor = document.createElement('button'); document.body.appendChild(anchor);
+        const onSelect = jest.fn();
+        const picker = openDatePicker({ anchor, value: '2026-08-31', onSelect, ariaLabel: 'Choose start date', clearLabel: 'Clear start date' });
+        expect(picker.getAttribute('aria-label')).toBe('Choose start date');
+        expect(picker.querySelector('.ui-date-picker-clear').textContent).toBe('Clear start date');
+        picker.querySelector('.ui-date-picker-clear').click();
+        await Promise.resolve();
+        expect(onSelect).toHaveBeenCalledWith('');
+    });
+
+    test('accepts generic date terminology without inheriting task deadline labels', () => {
+        const anchor = document.createElement('button'); document.body.appendChild(anchor);
+        const picker = openDatePicker({
+            anchor,
+            onSelect: jest.fn(),
+            ariaLabel: 'Choose date',
+            clearLabel: 'Clear date',
+            shortcutsLabel: 'Date shortcuts',
+        });
+
+        expect(picker.getAttribute('aria-label')).toBe('Choose date');
+        expect(picker.querySelector('.ui-date-picker-shortcuts').getAttribute('aria-label')).toBe('Date shortcuts');
+        expect(picker.querySelector('.ui-date-picker-clear').textContent).toBe('Clear date');
+        expect(picker.textContent).not.toMatch(/due date/iu);
+    });
+
     test('offers shortcuts, a keyboard grid, clear, and focus restoration', async () => {
         const anchor = document.createElement('button');
         document.body.appendChild(anchor);

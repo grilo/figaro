@@ -7,6 +7,51 @@ async function openWelcomeEditor(page) {
     await expect(page.locator('.cm-editor')).toBeVisible();
 }
 
+test('small Mermaid diagrams use a full-width resizable canvas and commit height once on release', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = ['Before', '```mermaid', 'flowchart TD', '  A --> B', '```', 'After'].join('\n');
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown);
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== markdown) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.length } });
+        view.focus();
+        window.__resizableMermaidView = view;
+    }, source);
+
+    const diagram = page.locator('.cm-block-widget--resizable-mermaid');
+    await expect(diagram).toBeVisible();
+    await expect(diagram.locator('svg')).toBeVisible();
+    const geometry = await diagram.evaluate(element => {
+        const root = element.getBoundingClientRect();
+        const graphic = element.querySelector('svg').getBoundingClientRect();
+        return { rootHeight: root.height, rootWidth: root.width, graphicWidth: graphic.width };
+    });
+    expect(geometry.rootHeight).toBeGreaterThanOrEqual(340);
+    expect(geometry.graphicWidth).toBeGreaterThan(geometry.rootWidth * 0.5);
+
+    await diagram.hover();
+    const handle = diagram.getByRole('button', { name: 'Resize Mermaid diagram vertically' });
+    await expect(handle).toBeVisible();
+    const box = await handle.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 80, { steps: 8 });
+    await expect(diagram.locator('.cm-diagram-resize-readout')).toHaveText('380px high');
+    expect(await page.evaluate(() => window.__resizableMermaidView.state.doc.toString())).toBe(source);
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => window.__resizableMermaidView.state.doc.toString()))
+        .toContain('%% figaro:height 380');
+
+    await page.locator('#editor-container > .cm-editor .cm-content').focus();
+    await page.keyboard.press('Control+z');
+    await expect.poll(() => page.evaluate(() => window.__resizableMermaidView.state.doc.toString()))
+        .toBe(source);
+});
+
 test('edits a Mermaid block with templates, live diagnostics, and last-known-good preview', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = [

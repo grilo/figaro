@@ -1,4 +1,5 @@
 import { startCompletion } from '@codemirror/autocomplete';
+import { isolateHistory } from '@codemirror/commands';
 import { normalizedKanbanColumns } from './core/taskDueDateCompletionModel.js';
 import {
     planTaskItemKanbanSelection,
@@ -50,6 +51,7 @@ export function createTaskItemKanbanCompletionSource({ getColumns = () => [] } =
                     changes: { from: currentLine.from, to: currentLine.to, insert: plan.text },
                     selection: { anchor: currentLine.from + plan.selectionOffset },
                     userEvent: 'input.task-kanban',
+                    annotations: isolateHistory.of('full'),
                 });
                 targetView.focus();
             },

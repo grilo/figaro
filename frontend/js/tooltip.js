@@ -88,6 +88,8 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
     let suppressedTarget = null;
     let describedTarget = null;
     let showTimer = null;
+    let revalidationFrame = null;
+    let lastPointer = null;
 
     const ensureTooltip = () => {
         if (tooltip?.isConnected) return tooltip;
@@ -113,8 +115,16 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
         showTimer = null;
     };
 
+    const cancelRevalidation = () => {
+        if (revalidationFrame === null) return;
+        if (typeof view.cancelAnimationFrame === 'function') view.cancelAnimationFrame(revalidationFrame);
+        else view.clearTimeout(revalidationFrame);
+        revalidationFrame = null;
+    };
+
     const hide = ({ suppress = false } = {}) => {
         cancelShow();
+        cancelRevalidation();
         if (suppress) suppressedTarget = activeTarget || focusTarget || hoverTarget;
         unlinkDescription(activeTarget);
         activeTarget = null;
@@ -123,6 +133,40 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
             tooltip.style.removeProperty('visibility');
             tooltip.removeAttribute('data-placement');
         }
+    };
+
+    const revalidate = () => {
+        revalidationFrame = null;
+        if (!activeTarget) return false;
+        if (!activeTarget.isConnected) {
+            if (hoverTarget === activeTarget) hoverTarget = null;
+            if (focusTarget === activeTarget) focusTarget = null;
+            hide();
+            return false;
+        }
+        const scope = tooltipScope(activeTarget);
+        const focused = focusTarget === activeTarget && scope?.contains(root.activeElement);
+        if (focused) return show(activeTarget);
+        if (hoverTarget !== activeTarget || !lastPointer) {
+            hide();
+            return false;
+        }
+        if (typeof root.elementFromPoint !== 'function') return show(activeTarget);
+        const hit = root.elementFromPoint(lastPointer.x, lastPointer.y);
+        if (!hit || !scope?.contains(hit)) {
+            hoverTarget = null;
+            hide();
+            return false;
+        }
+        return show(activeTarget);
+    };
+
+    const scheduleRevalidation = () => {
+        if (!activeTarget || revalidationFrame !== null) return;
+        const schedule = typeof view.requestAnimationFrame === 'function'
+            ? callback => view.requestAnimationFrame(callback)
+            : callback => view.setTimeout(callback, 0);
+        revalidationFrame = schedule(revalidate);
     };
 
     const show = target => {
@@ -157,6 +201,9 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
             target.setAttribute('aria-describedby', [...tokens, tooltipID].join(' '));
             describedTarget = target;
         }
+        // Revalidate while visible: CSS layout shifts do not emit mouseout,
+        // and not every reflow is accompanied by a DOM mutation.
+        scheduleRevalidation();
         return true;
     };
 
@@ -174,11 +221,15 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
     };
 
     const onMouseOver = event => {
+        lastPointer = { x: event.clientX, y: event.clientY };
         const target = tooltipTarget(event.target);
         if (!target || tooltipScope(target).contains(event.relatedTarget)) return;
         if (suppressedTarget && suppressedTarget !== target) suppressedTarget = null;
         hoverTarget = target;
         scheduleShow(target, showDelay);
+    };
+    const onMouseMove = event => {
+        lastPointer = { x: event.clientX, y: event.clientY };
     };
     const onMouseOut = event => {
         const target = tooltipTarget(event.target);
@@ -222,6 +273,7 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
 
     adoptTitlesIn(root.documentElement);
     root.addEventListener('mouseover', onMouseOver, true);
+    root.addEventListener('mousemove', onMouseMove, true);
     root.addEventListener('mouseout', onMouseOut, true);
     root.addEventListener('focusin', onFocusIn, true);
     root.addEventListener('focusout', onFocusOut, true);
@@ -234,11 +286,15 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
 
     const Observer = view.MutationObserver || globalThis.MutationObserver;
     const observer = Observer ? new Observer(records => {
+        let layoutMayHaveChanged = false;
         for (const record of records) {
             if (record.type === 'childList') {
+                layoutMayHaveChanged = true;
                 for (const node of record.addedNodes) adoptTitlesIn(node);
             } else if (record.attributeName === 'title') {
                 adoptTitle(record.target);
+            } else {
+                layoutMayHaveChanged = true;
             }
             if (record.target === activeTarget) {
                 const text = String(activeTarget?.getAttribute?.(tooltipAttribute) || '').trim();
@@ -246,6 +302,7 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
                 else hide();
             }
         }
+        if (layoutMayHaveChanged) scheduleRevalidation();
     }) : null;
     observer?.observe(root.documentElement, {
         subtree: true,
@@ -262,6 +319,7 @@ export function initTooltips({ root = document, showDelay = 420 } = {}) {
             hide();
             observer?.disconnect();
             root.removeEventListener('mouseover', onMouseOver, true);
+            root.removeEventListener('mousemove', onMouseMove, true);
             root.removeEventListener('mouseout', onMouseOut, true);
             root.removeEventListener('focusin', onFocusIn, true);
             root.removeEventListener('focusout', onFocusOut, true);

@@ -1,5 +1,3 @@
-const dueLinkPattern = /\[due\s+(\d{4}-\d{2}-\d{2})\]\((\d{4}-\d{2}-\d{2})\.md\)/gi;
-
 export function isISODate(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
     if (!match) return false;
@@ -33,22 +31,6 @@ export function shiftISODate(value, days) {
 export function millisecondsUntilNextLocalDay(date = new Date()) {
     const next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0, 50);
     return Math.max(50, next.getTime() - date.getTime());
-}
-
-export function parseDueDateLink(line) {
-    dueLinkPattern.lastIndex = 0;
-    let match;
-    while ((match = dueLinkPattern.exec(String(line || ''))) !== null) {
-        if (match[1] === match[2] && isISODate(match[1])) return match[1];
-    }
-    return '';
-}
-
-export function stripDueDateLinks(line) {
-    dueLinkPattern.lastIndex = 0;
-    return String(line || '').replace(dueLinkPattern, (candidate, labelDate, targetDate) => (
-        labelDate === targetDate && isISODate(labelDate) ? '' : candidate
-    )).replace(/\s{2,}/g, ' ').trim();
 }
 
 export function dueDatePresentation(dueDate, today = localISODate(), locale = undefined) {

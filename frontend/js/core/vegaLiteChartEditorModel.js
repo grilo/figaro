@@ -302,6 +302,9 @@ function categoryEncoding(state, dimension, channel) {
     return {
         field: dimension.field,
         type: dimension.dataType,
+        // Vega-Lite sorts discrete values by default. A Markdown table is an
+        // authored sequence, so preserve its row order on the category axis.
+        sort: null,
         axis: {
             grid: channel === 'x' ? state.gridX : state.gridY,
             title: dimension.label,
@@ -444,7 +447,7 @@ function trendlineLayer(state, dimension, column, { legacyCategoryPredictor = fa
             opacity: 0.8,
         },
         encoding: {
-            [categoryChannel]: { field: dimension.field, type: dimension.dataType },
+            [categoryChannel]: { field: dimension.field, type: dimension.dataType, sort: null },
             [valueChannel]: { field: column.field, type: 'quantitative' },
         },
     };
@@ -589,6 +592,7 @@ function pieSpec(state, base, { completeLegend = true } = {}) {
         color: {
             field: category.field,
             type: 'nominal',
+            sort: null,
             scale: { range: palette },
             legend: {
                 title: category.label,

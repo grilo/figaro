@@ -130,7 +130,9 @@ hand without changing the underlying Markdown.
   tree or another workspace region. Large searches, expanded trees, Kanban
   columns, and backlink sets retain their complete logical content while
   mounting bounded windows, so keyboard and assistive navigation remain
-  available without creating tens of thousands of DOM elements.
+  available without creating tens of thousands of DOM elements. Very large
+  Markdown notes mount source and full live presentation in short phases, so
+  opening one does not monopolize the interface.
 - **Connected note graph.** Open **Graph** below the file tree to explore every
   saved Markdown note and its links. Borderless zoom controls, a compact search,
   and the **Orphans** choice float directly over the canvas. Clear directed
@@ -139,10 +141,11 @@ hand without changing the underlying Markdown.
   and Lucide icons override that inheritance. Hover traces direct links, click
   pins that trace until the canvas is clicked elsewhere, and Ctrl/Cmd-click
   opens the note. Drag to pan, use the wheel or buttons to zoom, and fit the
-  complete graph to view.
+  complete graph to view. Large vaults keep one stable layout; filtering,
+  tracing, and zooming repaint in responsive batches.
 - **Capture and planning.** Ctrl/Cmd+N captures a Quick Note in the real
   `Inbox`, while Ctrl/Cmd+Shift+N opens the daily note;
-  hashtags form a Kanban board, and portable due-date links feed the Today
+  hashtags form a Kanban board, and private task deadlines feed the Today
   dashboard and calendar. Calendar months and the Kanban board show
   theme-aware, reduced-motion-safe skeletons instead of an empty surface while
   their indexed data is loading. Scroll vertically over the month grid to move
@@ -163,18 +166,21 @@ hand without changing the underlying Markdown.
   from Calendar releases the rendered Timeline and its range cache.
 - **Diagrams and data graphics.** Render Mermaid, Vega, and Vega-Lite blocks,
   open Mermaid's 32 chart types and 76 starter templates in a focused live
-  editor, or edit Draw.io diagrams while keeping the saved SVG readable outside
-  Figaro. A new vault's `Welcome.md` includes a ready-to-render Mermaid example.
+  editor, resize Mermaid and managed Vega-Lite canvases vertically from their
+  bottom-center handle, or edit Draw.io diagrams while keeping the saved SVG
+  readable outside Figaro. A new vault's `Welcome.md` includes a ready-to-render Mermaid example.
 - **Source and publishing tools.** Preview the exact raw Markdown or paginated
   output, preserve fenced-code syntax colors, add cover pages and tables of
   contents, use a standalone `---` as a PDF page break, apply vault-local print
-  CSS, and generate linked PDFs.
+  CSS, and generate linked PDFs. Compact Raw and PDF icons sit directly beneath
+  the Document outline launcher on every Markdown buffer.
 - **Built-in reference.** Press F1 or use the title-bar `?` to search Markdown
   syntax, Macros, Shortcuts, and Settings. Help results jump to the matching
   reference row; Settings results open the existing Settings view and focus the
   exact control. Closing the reference returns focus to the control or editor
   that invoked it. Find and Replace keeps its search, matching options, and
-  replacement actions in three compact predictable rows.
+  replacement actions in three compact predictable rows and announces the
+  current/total result count—or that no match exists—to assistive technology.
 - **Local history.** Optional per-file Auto-Commit, explicit history saves,
   comparisons, and restoration keep unrelated vault changes separate; the
   active-note status check does not scan unrelated vault files.
@@ -389,7 +395,8 @@ behavior.
 
 Concise interface hints use one theme-aware tooltip throughout Figaro. A hint
 appears after a short hover or immediately on keyboard focus, remains inside the
-window, and closes with Escape. Calendar activity, managed-file guidance, and
+window, closes with Escape, and is dismissed if layout moves or removes its
+owning control. Calendar activity, managed-file guidance, and
 Markdown link previews share that surface while retaining their richer content.
 
 Every selected tree row uses the same accent-tinted surface, whether the
@@ -483,32 +490,39 @@ while matching results are open. A panel-shaped top-bar icon now toggles the
 workspace sidebar, while a nested-list icon opens the current note's outline.
 
 Kanban cards are ordinary Markdown lines with standalone hashtags; checkbox
-task syntax is optional. Hashtags define columns, and due dates remain portable
-links:
+task syntax is optional. Scheduling stays in private metadata, not date strings:
 
 ```markdown
-- [ ] Submit report #todo [due 2026-08-14](2026-08-14.md)
+- [ ] Submit report #todo
 ```
 
-Every unfinished `- [ ]` item has compact Kanban and Calendar actions in the
-left editor rail. Kanban opens the normal column-suggestion list; Calendar
-opens the shared date picker. Choosing either action appends ordinary Markdown,
-and Figaro keeps the canonical `task #column [due …](….md)` order even when the
-date was chosen first. The index itself recognizes a valid same-line due link
-on either side of the tag; the ordering is an authoring convention, not a parser
-requirement.
+Type `@date` on that line and accept it with Enter, Tab, or Space to open the
+shared localized calendar. Choosing a date inserts `[[YYYY-MM-DD]]` or
+`[YYYY-MM-DD](YYYY-MM-DD.md)` according to Settings → Links, with no `due`
+prefix. Its generic dialog, shortcut group, and clear action all say **date**;
+task-specific Board/Gantt controls retain deadline terminology. This works in plain prose too; only tasks also save a metadata deadline
+through normal note conflict protection. An untagged checklist item joins `#todo`.
+The left Calendar action on an unfinished checklist item uses the same flow.
+Both replace the sole date on the current line; with no dates or multiple dates,
+they add the chosen date instead. A date link counts once, not once per repeated
+date in its source. Cancel changes nothing; clearing the metadata deadline keeps
+authored date references. Existing task starts survive date-link edits.
+The left Kanban action similarly replaces a sole hashtag, or adds the column
+when there are zero or multiple hashtags (without duplicating an existing tag).
+Code, images and other links are left alone. Space after a hashtag remains
+ordinary typing; normal hashtag completion remains available. Clicking the
+hashtag itself opens its Kanban column, while adjacent line space remains
+available for placing the caret and continuing the text.
 
-Typing a standalone hashtag suggests saved Kanban columns even at the end of
-ordinary prose. After any valid tag except `#done`, press Space to choose
-**Add due date…**, **Due today**, or **Due tomorrow** for that tagged line.
-The actions also work for unsaved custom tags; lines containing `#done` and
-already dated lines remain quiet. **Add due date…** opens the same localized
-month view as the Calendar workspace, with Today selected initially and the same
-theme-aware weekends, note-intensity fills, due outlines, and activity details.
+Calendar and Kanban place their view switches at the upper left; Graph's
+floating controls use the same inset. All segmented choice controls use the
+Calendar's borderless treatment in Figaro Dark, Light, and CRT Phosphor,
+including hover/selection while retaining a visible keyboard-focus ring.
+
 The title-bar `?` guide keeps general Markdown syntax under **Markdown** and
 collects Figaro-specific authoring forms under **Macros**. Alongside
-`@today`, `@tomorrow`, and `@yesterday`, type `@due` to choose and insert a
-portable `[due YYYY-MM-DD](YYYY-MM-DD.md)` link, `@todo` to start `- [ ] ` with
+`@today`, `@tomorrow`, and `@yesterday`, type `@date` to insert a date link and
+also attach a metadata deadline on tasks, `@todo` to start `- [ ] ` with
 the caret ready for the task text, `@table` to insert a basic GFM table and open
 the Table Editor, or `@mermaid` to insert an empty Mermaid fence and open the
 Mermaid Editor. `@drawio` prompts with `diagram1`, creates a sibling
@@ -521,6 +535,45 @@ The board is fully keyboard-operable. Tab advances through every card in
 column order; Up/Down persists a card's vertical position, Left/Right moves it
 to the adjacent column, Enter opens its note, D changes its due date, and
 Delete removes that column tag. Pointer drag remains available.
+
+Switch **Board / Gantt** in the Kanban header to plan the same tasks on a
+horizontal timeline. Bars use their column's color; `#done` tasks are faded.
+Click a task or bar to choose **Start** and **End** with the shared date picker,
+which applies each choice immediately—there is no Save/Cancel step. Click outside
+to close the schedule popup and its calendar. Escape closes the calendar first,
+then the schedule popup, returning focus to the invoking control. Closing never
+undoes dates already chosen; **Unscheduled** clears both dates immediately.
+Failed changes keep the last saved dates and can be
+retried through the picker. Drag a bar to move its whole range, or either end to resize it;
+Escape cancels a drag. **Open note** opens the source at the task line.
+End-only tasks show a one-day bar; start-only tasks show ongoing work through
+today. Undated tasks remain **Unscheduled**. A task’s first move into any column
+other than TODO sets its start date. Further moves keep that original start;
+returning to TODO does not erase it. An overdue deadline remains unchanged.
+Pan empty timeline space, scroll horizontally, or use the week arrows and
+**Today**. Task names stay pinned, weekends follow your locale, and counts use
+the existing application status bar without adding another footer.
+Gantt and Calendar Timeline reuse the same scrolling widget: wheel gestures
+move at least three days, buffered outer weeks extend automatically while
+preserving the visible date without a flashing replacement frame. Overlapping
+days and task bars stay mounted, and continued scrolling during a range load
+is preserved. Panning never selects text. Wheel over the
+task-name column to scroll a long task list vertically.
+An empty Gantt keeps a centered **No tasks yet** explanation visible even when
+the wide date track has been scrolled away from its origin. Drag and resize
+instructions remain hidden until at least one task exists.
+
+Task schedules live in `vault/.config/task-schedules.json`, outside Git history,
+not in your Markdown. Save dirty notes before scheduling them. Unique task text
+keeps its dates when lines shift or column tags change; Figaro file/folder moves
+also retain schedules. Renamed task text and ambiguous duplicate edits keep their
+dates under **Reconnect**, where you explicitly choose the intended task. A
+reconnection cannot overwrite another task's schedule. **End** is the same due
+date used by Board, Calendar, Today, and reminders. Old `[due …](….md)` links
+remain ordinary Markdown links; they no longer schedule tasks. There is no
+migration or hidden task ID in your notes. Press D on a focused card to open
+the date picker; Escape returns focus to that card without changing it.
+
 
 Calendar, Kanban, and Graph share three persistent browser-style tabs attached
 to the workspace's left edge. Each stays flat while inactive, then becomes
@@ -544,7 +597,7 @@ application canvas. Hovering the inactive first tab temporarily carries its
 hover surface through that cutout and paints above its 1px divider mask,
 preventing a contrasting wedge or double-painted line.
 
-The same dates appear in the Today dashboard and calendar. Figaro keeps
+The same metadata deadlines appear in the Today dashboard and calendar. Figaro keeps
 reminders inside the application and does not request operating-system
 notification access. A Kanban column with a chosen color shows that color as a
 small header swatch; an uncolored column keeps the neutral palette icon. At
@@ -606,7 +659,11 @@ diagnostics pause.
 
 Live Mermaid previews reuse rendered SVGs when CodeMirror remounts them during
 scrolling. New diagrams wait for a quiet, idle moment before rendering so
-moving through long notes stays responsive.
+moving through long notes stays responsive. Even a small diagram receives a
+300px, full-writing-width canvas. Hover or focus it to expose the same themed
+bottom-center vertical resize handle used by charts; the live height changes
+while dragging, then one `%% figaro:height N` Mermaid comment is written on
+release as one Undo step. PDF Preview and generated PDFs honor that height.
 
 Rendered Markdown tables now add **chart** beneath their existing left-side
 controls. It opens a reversible Vega-Lite Chart Editor: choose Cartesian, Pie,
@@ -616,7 +673,9 @@ or opposite axis, color, and linear trendline. Trendlines use a hidden authored-
 index, so text categories such as month or product names remain visible while
 Vega-Lite calculates change across table order. Gridlines and a
 colorable labelled threshold are shared chart guides. Cartesian charts always
-use the first table column as their category axis, while Pie and Waterfall keep
+use the first table column as their category axis and preserve the table's
+authored category order instead of alphabetically sorting labels. Pie and
+Waterfall preserve that row order while keeping
 independent themed Category pickers. Eye/eye-off buttons hide
 columns while retaining their settings; every visible series appears in one
 legend that can be placed on the top, right, bottom, or left. Stacked columns
@@ -649,7 +708,9 @@ controls into multiple rows, and combobox menus flip and clamp to stay within
 the visible window instead of colliding with or being clipped by nearby
 controls. Rendering and configuration failures appear as an
 announced error in the preview and keep **Create chart** disabled instead of
-leaving a blank chart box. In the note, charts fill the writing width and
+leaving a blank chart box. Preview work is serialized, and rapid choices retain
+only the newest pending chart instead of rendering stale configurations in
+parallel. In the note, charts fill the writing width and
 expose one themed bottom-center handle for vertical resizing; the Markdown
 changes once on release, so one drag is one Undo step. The same SVG
 specification renders in PDF Preview and generated PDFs.
@@ -709,6 +770,10 @@ body as one undoable edit; **Cancel** leaves the note unchanged.
 Raw Text Preview shows the exact Markdown source, including frontmatter. It
 follows the main editor's matching source position with a small smoothing delay
 and can copy the complete current Markdown snapshot directly to the clipboard.
+When the navigation pane leaves insufficient room to dock Raw or PDF Preview
+beside a usable editor, the existing preview pane overlays the trailing edge
+instead. The document keeps its layout width, at least 180px remains visible at
+normal compact-window sizes, and widening the window docks the pane again.
 PDF Preview adds pagination, cover pages, a depth-limited table of contents,
 footnotes, internal links, fenced-code syntax colors, and optional vault-local
 CSS. Note-relative local images load from the same vault location in the editor,

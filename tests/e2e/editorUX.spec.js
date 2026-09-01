@@ -19,6 +19,38 @@ test('gives the main editor a document-specific accessible name', async ({ page 
     await expect(page).toHaveTitle('Welcome.md — Figaro');
 });
 
+test('opens Kanban only from the hashtag glyph and keeps trailing line space editable', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = 'Continue writing #todo';
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown);
+        const view = editor.getEditorView();
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+    }, source);
+
+    const hashtag = page.locator('.cm-hashtag', { hasText: '#todo' });
+    const line = hashtag.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " cm-line ")]');
+    await expect(hashtag).toBeVisible();
+    const tagBox = await hashtag.boundingBox();
+    const lineBox = await line.boundingBox();
+    expect(tagBox).not.toBeNull();
+    expect(lineBox).not.toBeNull();
+    const trailingX = Math.min(lineBox.x + lineBox.width - 12, tagBox.x + tagBox.width + 80);
+    expect(trailingX).toBeGreaterThan(tagBox.x + tagBox.width);
+
+    await page.mouse.click(trailingX, tagBox.y + tagBox.height / 2);
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    await expect(page.locator('.kanban-view-wrapper')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(async () => (
+        (await import('/js/editor.js')).getEditorView().state.selection.main.head
+    ))).toBe(source.length);
+
+    await page.mouse.click(tagBox.x + tagBox.width / 2, tagBox.y + tagBox.height / 2);
+    await expect(page.locator('.kanban-view-wrapper')).toBeVisible();
+});
+
 test('toggles three-topic Figaro help with F1 and restores editor focus', async ({ page }) => {
     await openWelcomeEditor(page);
     const editor = page.locator('.cm-content');
@@ -97,7 +129,14 @@ test('keeps Find and Replace on three compact, non-overlapping bands', async ({ 
     expect(geometry.search.bottom).toBeLessThanOrEqual(geometry.caseOption.top);
     expect(geometry.caseOption.bottom).toBeLessThanOrEqual(geometry.replace.top);
 
-    await page.locator('input[name="search"]').fill('Welcome');
+    await page.locator('input[name="search"]').pressSequentially('Welcome');
+    await expect(panel.locator('.cm-search-match-status')).toContainText(/\d+ (?:of \d+ )?match(?:es)?/);
+    await expect(panel.locator('.cm-search-match-status')).toHaveAttribute('role', 'status');
+    await page.locator('input[name="search"]').press('Control+a');
+    await page.locator('input[name="search"]').pressSequentially('This phrase is absent');
+    await expect(panel.locator('.cm-search-match-status')).toHaveText('No matches');
+    await page.locator('input[name="search"]').press('Control+a');
+    await page.locator('input[name="search"]').pressSequentially('Welcome');
     await page.locator('input[name="replace"]').fill('WELCOME');
     await page.locator('button[name="replaceAll"]').click();
     await expect.poll(() => page.evaluate(async () => (
@@ -822,7 +861,7 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     );
     await expect(taskActions.locator('.cm-task-calendar-action')).toHaveAttribute(
         'aria-label',
-        'Set task due date',
+        'Task due date',
     );
     const actionSizes = await taskActions.locator('.ui-icon-button--small').evaluateAll(buttons => (
         buttons.map(button => {
@@ -911,10 +950,8 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     await taskActions.locator('.cm-task-calendar-action').click();
     const picker = page.locator('.ui-date-picker');
     await expect(picker).toBeVisible();
-    const dueDate = await picker.locator('[data-date-picker-value]').first().getAttribute('data-date-picker-value');
-    await picker.locator('[data-date-picker-value]').first().click();
-    await expect.poll(() => page.evaluate(() => window.__taskCheckboxView.state.doc.line(2).text))
-        .toBe(`- [ ] Review **release** notes [due ${dueDate}](${dueDate}.md)`);
+    await page.keyboard.press('Escape');
+    await expect(taskActions.locator('.cm-task-calendar-action')).toBeFocused();
 
     await page.locator('.cm-task-kanban-action').focus();
     await page.keyboard.press('Enter');
@@ -923,9 +960,9 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     await expect(completion.locator('.cm-completionLabel')).toHaveText(['#todo', '#wip', '#done', '#urgent']);
     await completion.getByRole('option', { name: /#urgent/ }).click();
     await expect.poll(() => page.evaluate(() => window.__taskCheckboxView.state.doc.line(2).text))
-        .toBe(`- [ ] Review **release** notes #urgent [due ${dueDate}](${dueDate}.md)`);
+        .toBe('- [ ] Review **release** notes #urgent');
 
-    await expect(page.locator('.cm-task-calendar-action')).toHaveAttribute('aria-label', 'Change task due date');
+    await expect(page.locator('.cm-task-calendar-action')).toHaveAttribute('aria-label', 'Task due date');
     await page.keyboard.press('ArrowDown');
     await expect.poll(() => page.evaluate(() => (
         window.__taskCheckboxView.state.doc.lineAt(window.__taskCheckboxView.state.selection.main.head).number
@@ -1645,7 +1682,7 @@ test('uses ranked native search for typo-tolerant link autocomplete', async ({ p
         .toBe('Link [Deployment Guide](docs/Deployment%20Guide.md) ');
 });
 
-test('offers due-date actions after Space on any tagged line and keeps editor navigation intact', async ({ page }) => {
+test('@date reuses Calendar styling, anchors at the caret, and restores editor navigation', async ({ page }) => {
     await openWelcomeEditor(page);
     const content = page.locator('.cm-content');
     const completionLabels = page.locator('.cm-tooltip-autocomplete .cm-completionLabel');
@@ -1749,10 +1786,8 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
         });
         view.focus();
     }, source);
-    await page.keyboard.type('#todo ');
-    await expect(completionLabels).toHaveText([
-        'Add due date…', 'Due today', 'Due tomorrow',
-    ]);
+    await page.keyboard.type('#todo @date');
+    await expect(completionLabels).toHaveText(['date']);
     await page.evaluate(() => {
         const view = window.__tagDueView;
         const rect = view.coordsAtPos(view.state.selection.main.head);
@@ -1762,10 +1797,12 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
             bottom: rect.bottom,
         };
     });
-    await page.keyboard.press('Enter');
+    await page.keyboard.press('Space');
 
-    const picker = page.locator('.ui-date-picker[aria-label="Choose due date"]');
+    const picker = page.locator('.ui-date-picker[aria-label="Choose date"]');
     await expect(picker).toBeVisible();
+    await expect(picker.locator('.ui-date-picker-shortcuts')).toHaveAttribute('aria-label', 'Date shortcuts');
+    await expect(picker.locator('.ui-date-picker-clear')).toHaveText('Clear date');
     await expect(picker.locator('.ui-date-picker-grid')).toHaveAttribute('aria-busy', 'false');
     const calendarParity = await page.evaluate(() => {
         const dates = window.__pickerCalendarParity;
@@ -1839,8 +1876,9 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
     expect(placement.focusedInside).toBe(true);
 
     await picker.getByRole('button', { name: 'Today', exact: true }).click();
+    const selectedDate = await page.evaluate(() => window.__pickerCalendarParity.today);
     await expect.poll(() => page.evaluate(() => window.__tagDueView.state.doc.toString()))
-        .toMatch(/^Before\nPrepare release #todo \[due \d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)\nAfter$/);
+        .toBe(`Before\nPrepare release #todo [${selectedDate}](${selectedDate}.md)\nAfter`);
     await content.press('ArrowDown');
     expect(await page.evaluate(() => window.__tagDueView.state.doc.lineAt(
         window.__tagDueView.state.selection.main.head,
@@ -1849,6 +1887,11 @@ test('offers due-date actions after Space on any tagged line and keeps editor na
     expect(await page.evaluate(() => window.__tagDueView.state.doc.lineAt(
         window.__tagDueView.state.selection.main.head,
     ).number)).toBe(2);
+    await content.press('Control+Home');
+    await content.press('ArrowDown');
+    expect(await page.evaluate(() => window.__tagDueView.state.doc.lineAt(window.__tagDueView.state.selection.main.head).number)).toBe(2);
+    await content.press('ArrowUp');
+    expect(await page.evaluate(() => window.__tagDueView.state.doc.lineAt(window.__tagDueView.state.selection.main.head).number)).toBe(1);
 
     const drag = await page.evaluate(() => {
         const view = window.__tagDueView;
@@ -2295,27 +2338,57 @@ test('keeps rendered block source footprints stable and chains code wheel input 
         expect(landed).toBeLessThanOrEqual(max);
     }
 
-    const points = await page.evaluate(() => {
+    const blockRange = await page.evaluate(() => {
         const view = window.__sourceFootprintView;
-        const point = position => {
-            const coords = view.coordsAtPos(position);
-            return { x: coords.left + 3, y: (coords.top + coords.bottom) / 2 };
-        };
         return {
-            before: point(view.state.doc.line(1).from),
-            after: point(view.state.doc.line(15).from),
             firstBlock: view.state.doc.line(3).from,
             lastBlock: view.state.doc.line(14).to,
         };
     });
-    for (const [start, end] of [[points.before, points.after], [points.after, points.before]]) {
+    for (const direction of ['down', 'up']) {
+        await page.evaluate(currentDirection => {
+            const view = window.__sourceFootprintView;
+            const start = currentDirection === 'down'
+                ? view.state.doc.line(1).from
+                : view.state.doc.line(15).from;
+            view.dispatch({ selection: { anchor: start } });
+            view.focus();
+            view.scrollDOM.scrollTop = currentDirection === 'down'
+                ? 0
+                : view.scrollDOM.scrollHeight;
+        }, direction);
+        await expect(page.locator('.cm-live-diagram')).toHaveCount(1);
+        const start = await page.evaluate(currentDirection => {
+            const view = window.__sourceFootprintView;
+            const position = currentDirection === 'down'
+                ? view.state.doc.line(1).from
+                : view.state.doc.line(15).from;
+            const coords = view.coordsAtPos(position);
+            return { x: coords.left + 3, y: (coords.top + coords.bottom) / 2 };
+        }, direction);
         await page.mouse.move(start.x, start.y);
         await page.mouse.down();
+        await page.evaluate(currentDirection => {
+            const view = window.__sourceFootprintView;
+            view.scrollDOM.scrollTop = currentDirection === 'down'
+                ? view.scrollDOM.scrollHeight
+                : 0;
+        }, direction);
+        const end = await page.evaluate(currentDirection => new Promise(resolve => {
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                const view = window.__sourceFootprintView;
+                const position = currentDirection === 'down'
+                    ? view.state.doc.line(15).from
+                    : view.state.doc.line(1).from;
+                const coords = view.coordsAtPos(position);
+                resolve({ x: coords.left + 3, y: (coords.top + coords.bottom) / 2 });
+            }));
+        }), direction);
         await page.mouse.move(end.x, end.y, { steps: 10 });
         await page.mouse.up();
         const selection = await page.evaluate(() => window.__sourceFootprintView.state.selection.main);
-        expect(selection.from).toBeLessThanOrEqual(points.firstBlock);
-        expect(selection.to).toBeGreaterThanOrEqual(points.lastBlock);
+        expect(selection.from).toBeLessThanOrEqual(blockRange.firstBlock);
+        expect(selection.to).toBeGreaterThanOrEqual(blockRange.lastBlock);
     }
 
     // A scrollbar press is a native browser boundary. Keep the rendered code
@@ -3008,5 +3081,5 @@ test('keeps Markdown link syntax together and Figaro macros in their own help to
     await page.locator('#md-help-macros-tab').click();
     await expect(page.locator('#md-help-macros-panel')).toContainText('@today');
     await expect(page.locator('#md-help-macros-panel')).toContainText('#custom-column');
-    await expect(page.locator('#md-help-macros-panel')).toContainText('[due YYYY-MM-DD](YYYY-MM-DD.md)');
+    await expect(page.locator('#md-help-macros-panel')).toContainText('Task #todo @date');
 });

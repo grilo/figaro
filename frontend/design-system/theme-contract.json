@@ -76,6 +76,17 @@
     "--badge-green"
   ],
   "optionalArtDirectionTokens": [
+    "--choice-border",
+    "--choice-surface",
+    "--choice-item-border",
+    "--choice-item-surface",
+    "--choice-item-color",
+    "--choice-hover-border",
+    "--choice-hover-surface",
+    "--choice-selected-border",
+    "--choice-selected-surface",
+    "--choice-selected-color",
+    "--choice-selected-shadow",
     "--app-surface",
     "--navigation-surface",
     "--tab-bar-surface",

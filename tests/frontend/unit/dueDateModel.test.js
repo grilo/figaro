@@ -3,20 +3,10 @@ import {
     dueDatePresentation,
     dueTaskSummary,
     millisecondsUntilNextLocalDay,
-    parseDueDateLink,
     sortTasksByDue,
-    stripDueDateLinks,
 } from '../frontend/js/core/dueDateModel.js';
 
 describe('Due date model', () => {
-    test('parses only matching valid semantic Markdown date links', () => {
-        const line = '- [ ] Submit report #todo [due 2026-08-14](2026-08-14.md)';
-        expect(parseDueDateLink(line)).toBe('2026-08-14');
-        expect(stripDueDateLinks(line)).toBe('- [ ] Submit report #todo');
-        expect(parseDueDateLink('[due 2026-02-30](2026-02-30.md)')).toBe('');
-        expect(parseDueDateLink('[due 2026-08-14](2026-08-15.md)')).toBe('');
-    });
-
     test('presents overdue, today, tomorrow, and later dates with local-date semantics', () => {
         expect(dueDatePresentation('2026-08-13', '2026-08-14', 'en-US')).toEqual({ state: 'overdue', label: 'Overdue · Aug 13' });
         expect(dueDatePresentation('2026-08-14', '2026-08-14', 'en-US')).toEqual({ state: 'today', label: 'Due today' });

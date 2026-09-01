@@ -6,8 +6,10 @@ layout.
 
 ## Live preview
 
-Choose **Preview PDF** from the editor context menu or **Properties → PDF
-layout**. The file-tree context menu deliberately prioritizes file operations.
+Choose the compact **PDF** icon beneath Document outline, the editor context
+menu's **Preview PDF**, or **Properties → PDF layout**. The adjacent **Raw
+Markdown** icon opens the exact source preview. The file-tree context menu
+deliberately prioritizes file operations.
 The right pane renders the same
 printable document structure used for export inside an isolated preview, so a
 note stylesheet cannot change the application interface. It updates after a
@@ -99,6 +101,9 @@ portable Vega-Lite fence or imposed on the print surface.
 Managed trendlines retain the visible first-column labels while Vega-Lite uses
 their hidden authored-row positions as the regression predictor, so Preview and
 export share the same nominal-category trend geometry.
+Managed nominal encodings explicitly preserve table row order for Cartesian
+categories, regression lookups, Pie legends, and slices; Vega-Lite is never
+allowed to silently apply lexical category sorting.
 Threshold overlays preserve the chart's selected value-axis labels in both the
 interactive and printable renderers.
 
@@ -263,6 +268,10 @@ print-only style record to synchronize. Color edits preserve the source theme;
 XY plots use the native `xyChart.plotColorPalette` (including repeated palettes),
 and resetting an individual flowchart override preserves authored native/class
 styling. These are source transformations, not preview-only CSS overrides.
+An optional `%% figaro:height N` directive inside a Mermaid fence records the
+editor's vertical resize (180–900px). PDF Preview and generated PDFs apply that
+height to the printable figure; the bottom-center resize control itself remains
+editor-only.
 
 Each fenced `code.figaro-print-code` also carries
 `data-highlight-language="…"`; automatically detected fences additionally carry

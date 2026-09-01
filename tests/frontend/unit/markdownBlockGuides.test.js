@@ -78,11 +78,11 @@ describe('Markdown block guide model', () => {
         expect(buildTaskItemActionLines(state)).toEqual([
             expect.objectContaining({
                 lineFrom: source.indexOf('- [ ] Ship release'),
-                dueDate: '',
+
             }),
             expect.objectContaining({
                 lineFrom: source.lastIndexOf('- [ ] Dated'),
-                dueDate: '2026-09-14',
+
             }),
         ]);
     });

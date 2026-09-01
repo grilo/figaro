@@ -23,9 +23,8 @@ import {
 } from './calendar.js';
 import { loadBacklinksResults } from './backlinks.js';
 import {
-    applyKanbanPresentationToViews,
     initKanbanPresentationSettings,
-    renderKanbanBoard,
+    mountKanbanWorkspace,
 } from './kanban.js';
 import { renderVaultHealth } from './vaultHealth.js';
 import { renderDrawioTab } from './drawio.js';
@@ -1077,11 +1076,7 @@ function renderBacklinksTab(panel, tab) {
 }
 
 function renderKanbanTab(panel, tab) {
-    const density = getState('kanbanDensity') === 'compact' ? 'compact' : 'comfortable';
-    const layout = getState('kanbanLayout') === 'stacked' ? 'stacked' : 'side-by-side';
-    panel.innerHTML = `<div class="kanban-view-wrapper" data-density="${density}" data-layout="${layout}"><div class="kanban-view-header"><div><h2>Kanban Task Board</h2><p class="kanban-instruction">Tab through cards; use arrow keys to reorder or move the focused card. Enter opens its source, D changes its due date, and Delete removes its tag. You can also drag cards between columns.</p></div></div><div class="kanban-board" id="kanban-board-main"></div></div>`;
-    applyKanbanPresentationToViews(density, layout);
-    renderKanbanBoard('kanban-board-main', tab.focusCol);
+    panel._kanbanSession = mountKanbanWorkspace(panel, tab.focusCol);
 }
 
 function renderGraphTab(panel) {
@@ -1157,6 +1152,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         if (!tab) return true;
         panel._settingsPanelDisposed = tab.type === 'settings';
         panel._graphViewSession?.dispose?.();
+        panel._kanbanSession?.dispose?.();
         panel._drawioSession?.dispose?.();
         panel.remove();
     }

@@ -7,6 +7,95 @@ async function openWelcomeEditor(page) {
     await expect(page.locator('.cm-editor')).toBeVisible();
 }
 
+test('stacks discoverable Outline, Raw, and PDF launchers and toggles both preview panes', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = '# Report\n\nBody';
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown);
+        const view = editor.getEditorView();
+        while (view.state.doc.toString() !== markdown) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        view.dispatch({ selection: { anchor: view.state.doc.length } });
+    }, source);
+
+    const outline = page.locator('#outline-toggle');
+    const raw = page.locator('#raw-text-preview-toggle');
+    const pdf = page.locator('#pdf-preview-toggle');
+    await expect(outline).toBeVisible();
+    await expect(raw).toBeVisible();
+    await expect(pdf).toBeVisible();
+    await expect(raw).toHaveAttribute('data-ui-tooltip', 'Preview raw Markdown');
+    await expect(pdf).toHaveAttribute('data-ui-tooltip', 'Preview PDF');
+    const geometry = await page.evaluate(() => [
+        document.getElementById('outline-toggle'),
+        document.getElementById('raw-text-preview-toggle'),
+        document.getElementById('pdf-preview-toggle'),
+    ].map(element => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
+    }));
+    expect(geometry.every(item => item.width === 28 && item.height === 28)).toBe(true);
+    expect(Math.abs(geometry[0].left - geometry[1].left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry[1].left - geometry[2].left)).toBeLessThanOrEqual(1);
+    expect(geometry[1].top - geometry[0].bottom).toBe(4);
+    expect(geometry[2].top - geometry[1].bottom).toBe(4);
+
+    await raw.click();
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'raw-text-preview');
+    await expect(raw).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.raw-text-preview-source')).toContainText('# Report');
+    await raw.click();
+    await expect(page.locator('#right-sidebar')).not.toHaveAttribute('data-mode', 'raw-text-preview');
+
+    await pdf.click();
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'pdf-preview');
+    await expect(pdf).toHaveAttribute('aria-expanded', 'true');
+    await pdf.click();
+    await expect(page.locator('#right-sidebar')).not.toHaveAttribute('data-mode', 'pdf-preview');
+
+    // Browser-only responsive boundary: the expanded navigation pane leaves
+    // too little room to dock either preview at an 800px window. Opening must
+    // preserve the editor's layout width and keep a usable visible strip.
+    await page.setViewportSize({ width: 800, height: 720 });
+    const assertResponsivePreview = async () => {
+        await expect(page.locator('#right-sidebar')).toHaveClass(/right-sidebar--responsive-overlay/);
+        const layout = await page.evaluate(() => {
+            const editor = document.getElementById('main-content').getBoundingClientRect();
+            const preview = document.getElementById('right-sidebar').getBoundingClientRect();
+            return {
+                editorWidth: editor.width,
+                visibleEditorWidth: preview.left - editor.left,
+                previewRight: preview.right,
+                launcherRight: document.querySelector('.editor-navigation-launchers')
+                    .getBoundingClientRect().right,
+                previewLeft: preview.left,
+                viewportWidth: window.innerWidth,
+                bodyOverflow: document.documentElement.scrollWidth - window.innerWidth,
+            };
+        });
+        expect(layout.editorWidth).toBeGreaterThanOrEqual(320);
+        expect(layout.visibleEditorWidth).toBeGreaterThanOrEqual(180);
+        expect(layout.launcherRight).toBeLessThanOrEqual(layout.previewLeft);
+        expect(layout.previewRight).toBeLessThanOrEqual(layout.viewportWidth);
+        expect(layout.bodyOverflow).toBeLessThanOrEqual(0);
+    };
+
+    await raw.click();
+    await assertResponsivePreview();
+    await raw.click();
+    await pdf.click();
+    await assertResponsivePreview();
+
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(page.locator('#right-sidebar')).not.toHaveClass(/right-sidebar--responsive-overlay/);
+    await expect.poll(() => page.locator('#main-content').evaluate(element => (
+        element.getBoundingClientRect().width
+    ))).toBeGreaterThanOrEqual(320);
+    await pdf.click();
+});
+
 test('shows a nested Markdown outline, follows the active section, and jumps with the keyboard', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = [

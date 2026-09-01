@@ -33,19 +33,23 @@ function codeInfo(node, state) {
     return firstLine.replace(/^\s*(?:`{3,}|~{3,})\s*/, '').trim();
 }
 
-function topLevelBlocks(state) {
+function topLevelBlocks(state, source) {
     const blocks = [];
-    const source = state.doc.toString();
     const frontmatterEnd = leadingFrontmatterEnd(source);
-    const tree = ensureSyntaxTree(state, state.doc.length) || syntaxTree(state);
+    // Never force the Markdown parser through an entire large note just to
+    // populate the visible helper rail. CodeMirror advances this tree in idle
+    // slices and the view plugin rebuilds as that syntax tree grows.
+    const tree = syntaxTree(state);
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
         if (node.from < frontmatterEnd) continue;
         const to = node.name === 'Table' ? markdownTableMetadataEnd(source, node.to) : node.to;
+        const needsSource = Boolean(markdownHeadingLevel(node.name))
+            || node.name === 'FencedCode' || node.name === 'Table';
         blocks.push({
             name: node.name,
             from: node.from,
             to,
-            source: state.sliceDoc(node.from, to),
+            source: needsSource ? state.sliceDoc(node.from, to) : '',
             info: node.name === 'FencedCode' ? codeInfo(node, state) : '',
         });
     }
@@ -62,7 +66,8 @@ function fencedBlockBody(source) {
 
 /** Build stable, DOM-free guide descriptors from the current Markdown tree. */
 export function buildMarkdownBlockGuides(state) {
-    const blocks = topLevelBlocks(state);
+    const source = state.doc.toString();
+    const blocks = topLevelBlocks(state, source);
     const guides = [];
     blocks.forEach((block, index) => {
         const plan = markdownBlockGuidePlan(block);
@@ -105,8 +110,8 @@ export function buildMarkdownBlockGuides(state) {
     // Markdown permits a visually standalone image line inside a larger
     // Paragraph node. Build its guide from the exact Image node rather than
     // requiring blank lines around the authored image.
-    const frontmatterEnd = leadingFrontmatterEnd(state.doc.toString());
-    const tree = ensureSyntaxTree(state, state.doc.length) || syntaxTree(state);
+    const frontmatterEnd = leadingFrontmatterEnd(source);
+    const tree = syntaxTree(state);
     tree.iterate({
         enter(node) {
             if (node.name !== 'Image' || node.from < frontmatterEnd) return;
@@ -155,7 +160,6 @@ export function buildTaskItemActionLines(state, from = 0, to = state.doc.length)
             actions.push({
                 lineFrom: line.from,
                 lineTo: line.to,
-                dueDate: plan.dueDate,
             });
         },
     });
@@ -370,7 +374,6 @@ class TaskItemActionMarker extends GutterMarker {
 
     eq(other) {
         return this.action.lineFrom === other.action.lineFrom
-            && this.action.dueDate === other.action.dueDate
             && this.showKanban === other.showKanban
             && this.showCalendar === other.showCalendar;
     }
@@ -406,11 +409,10 @@ class TaskItemActionMarker extends GutterMarker {
             controls.appendChild(kanban);
         }
         if (this.showCalendar) {
-            const hasDueDate = Boolean(this.action.dueDate);
             const calendar = this.actionButton({
                 className: 'cm-task-calendar-action',
-                label: hasDueDate ? 'Change task due date' : 'Set task due date',
-                title: hasDueDate ? 'Change due date' : 'Set due date',
+                label: 'Task due date',
+                title: 'Task due date',
                 icon: calendarIcon(13, 2),
             });
             calendar.setAttribute('aria-haspopup', 'dialog');

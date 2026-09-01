@@ -1,4 +1,6 @@
 import { backend } from './backend.js';
+import { taskDueMetadataPlan } from './core/taskDueMetadataModel.js';
+import { saveTaskDueMetadata } from './taskDueMetadata.js';
 /**
  * CodeMirror 6 Editor Implementation
  * Uses locally vendored CodeMirror 6 modules + codemirror-live-markdown
@@ -35,7 +37,6 @@ import {
 } from './core/authoringMacroModel.js';
 import { createTaskDueDateCompletionSource } from './taskDueDateCompletions.js';
 import {
-    planTaskItemDueDateSelection,
     taskItemActionPlan,
 } from './core/taskItemActionModel.js';
 import {
@@ -65,6 +66,7 @@ import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
 import { createDocumentKeyBindings } from './codeMirrorProfiles.js';
 import { markdownInlineFormatPlan } from './core/markdownInlineFormatting.js';
 import { createEditorDocumentSession } from './usecases/editorDocumentSession.js';
+import { editorDocumentMountChunks, editorDocumentMountPlan } from './core/editorDocumentMountModel.js';
 import { createLinkedNoteFromCompletion } from './usecases/createLinkedNoteFromCompletion.js';
 import { createDrawioImage } from './usecases/createDrawioImage.js';
 import {
@@ -98,7 +100,7 @@ import {
 } from '@codemirror/state';
 import {
     cursorLineDown, cursorLineUp, defaultKeymap, history, historyKeymap,
-    historyField, indentLess, indentMore,
+    historyField, indentLess, indentMore, isolateHistory,
 } from '@codemirror/commands';
 import {
     HighlightStyle, bracketMatching, foldGutter, foldedRanges, foldKeymap, indentUnit,
@@ -138,6 +140,7 @@ import { emptyBlockquoteExitPlan } from './core/markdownStructuralEditing.js';
 import { codeBlockScrollbarGuardExtension } from './codeBlockInteraction.js';
 import { createBlockControlVisibilityExtension } from './blockControlVisibility.js';
 import { createPureWritingExtension, refreshPureWriting } from './pureWriting.js';
+import { searchMatchStatusExtension } from './searchMatchStatus.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
     openSearchPanel as openNativeSearchPanel,
@@ -170,6 +173,14 @@ let markdownLintCompartment = null;
 let spellcheckCompartment = null;
 let tabSizeCompartment = null;
 let historyCompartment = null;
+let markdownFrontmatterCompartment = null;
+let markdownDiagramCompartment = null;
+let markdownTableCompartment = null;
+let markdownMathCompartment = null;
+let markdownFrontmatterExtensions = [];
+let markdownDiagramExtensions = [];
+let markdownTableExtensions = [];
+let markdownMathExtensions = [];
 let vimActive = false;
 let vimRequested = false;
 let vimVisualRowsRequested = false;
@@ -189,7 +200,10 @@ let vimModeCM = null;
 let vimModeChangeHandler = null;
 const vimModeClassSyncTokens = new WeakMap();
 let activeFileLanguage = { kind: 'markdown', label: 'Markdown', description: null };
+let activeFilePath = '';
 let fileModeRequest = 0;
+let deferredMarkdownFrame = null;
+let deferredMarkdownGeneration = 0;
 let markdownModeExtensions = null;
 let editorTabSizeRequested = defaultTabSize;
 
@@ -946,26 +960,56 @@ async function convertVegaLiteBlockToTable(view, originalBlock) {
     return true;
 }
 
-function openTaskDueDateFromGuide(view, taskLine, returnFocusTarget) {
-    const initial = taskItemActionPlan(taskLine.text);
-    if (!initial || !returnFocusTarget) return null;
+async function setEditorTaskDueDate(view, position, range, date) {
+    const tab = getActiveTab();
+    if (!tab?.path || view.isDestroyed) return;
+    const plan = taskDueMetadataPlan(view.state.doc.toString(), position, range, date, getLinkStylePreference());
+    if (!plan) return;
+    if (plan.isTask && tab.externalFileId) {
+        await errorDialog('Vault task required', 'Task dates belong to notes inside the current vault.');
+        return;
+    }
+    if (plan.content !== view.state.doc.toString()) {
+        view.dispatch({
+            changes: { from: plan.from, to: plan.to, insert: plan.line },
+            selection: { anchor: plan.from + plan.selectionOffset },
+            userEvent: 'input.task-due',
+            annotations: isolateHistory.of('full'),
+        });
+    }
+    if (!plan.isTask) { view.focus(); return; }
+    try {
+        await saveTaskDueMetadata({
+            task: { file: tab.path, line: plan.lineNumber, source: plan.line },
+            date, content: plan.content,
+            saveNote: content => saveFileSnapshot(tab, content, { failurePrompt: 'always' }),
+            setDue: (task, value) => backend().SetTaskDueDate(task, value),
+            isCurrent: () => !view.isDestroyed && getActiveTab() === tab && view.state.doc.toString() === plan.content,
+        });
+        statusBar.set(date ? 'Due date saved' : 'Due date cleared');
+        document.dispatchEvent(new CustomEvent('task-schedules-changed'));
+        document.dispatchEvent(new CustomEvent('calendar-data-changed'));
+    } catch (error) {
+        await errorDialog('Couldn’t update due date', error);
+    }
+    if (!view.isDestroyed && getActiveTab() === tab) view.focus();
+}
+
+async function openTaskDueDateFromGuide(view, taskLine, returnFocusTarget) {
+    if (!taskItemActionPlan(taskLine.text) || !returnFocusTarget) return null;
+    const tab = getActiveTab();
+    let value;
+    const expected = view.state.doc.toString();
+    try {
+        const entries = await backend().GetTaskSchedules();
+        value = entries.find(entry => entry.task?.file === tab?.path
+            && entry.task?.line === taskLine.number && entry.task.source === taskLine.text)?.end || '';
+    } catch (error) { await errorDialog('Couldn’t load task dates', error); return null; }
+    const isCurrent = () => !view.isDestroyed && getActiveTab() === tab && view.state.doc.toString() === expected;
+    if (!isCurrent() || !returnFocusTarget.isConnected) return null;
     return openDatePicker({
-        anchor: returnFocusTarget,
-        value: initial.dueDate,
-        ariaLabel: initial.dueDate ? 'Change task due date' : 'Set task due date',
-        onSelect: date => {
-            if (view.isDestroyed) return;
-            const currentLine = view.state.doc.lineAt(Math.min(taskLine.from, view.state.doc.length));
-            if (currentLine.from !== taskLine.from) return;
-            const plan = planTaskItemDueDateSelection(currentLine.text, date);
-            if (!plan) return;
-            view.dispatch({
-                changes: { from: currentLine.from, to: currentLine.to, insert: plan.text },
-                selection: { anchor: currentLine.from + plan.selectionOffset },
-                userEvent: date ? 'input.task-due' : 'delete.task-due',
-            });
-            view.focus();
-        },
+        anchor: returnFocusTarget, value, ariaLabel: 'Task due date',
+        onSelect: date => isCurrent() && setEditorTaskDueDate(view, taskLine.from, null, date),
     });
 }
 
@@ -2324,12 +2368,16 @@ function createEditorView() {
     });
     const dateShortcutCompletions = createDateShortcutCompletionSource();
     const authoringMacroCompletions = createAuthoringMacroCompletionSource({
-        openDuePicker: ({ view, position, onSelect }) => {
+        openDuePicker: ({ view, position, range, isCurrent }) => {
+            const tab = getActiveTab();
             const anchorRect = view.coordsAtPos(position) || view.contentDOM.getBoundingClientRect();
             openDatePicker({
                 anchor: view.contentDOM,
                 anchorRect,
-                onSelect,
+                ariaLabel: 'Choose date',
+                clearLabel: 'Clear date',
+                shortcutsLabel: 'Date shortcuts',
+                onSelect: date => getActiveTab() === tab && isCurrent() && setEditorTaskDueDate(view, position, range, date),
             });
         },
         openTableEditor: ({ view, from, to }) => {
@@ -2353,15 +2401,6 @@ function createEditorView() {
     const taskDueDateCompletions = createTaskDueDateCompletionSource({
         getColumns: () => getState('kanbanCompletionColumns') || [],
         contextAllowed: hashtagCompletionContextAllowed,
-        openPicker: ({ view, position, now, onSelect }) => {
-            const anchorRect = view.coordsAtPos(position) || view.contentDOM.getBoundingClientRect();
-            openDatePicker({
-                anchor: view.contentDOM,
-                anchorRect,
-                now,
-                onSelect,
-            });
-        },
     });
     const taskItemKanbanCompletions = createTaskItemKanbanCompletionSource({
         getColumns: () => getState('kanbanCompletionColumns') || [],
@@ -2383,6 +2422,14 @@ function createEditorView() {
     spellcheckCompartment = new Compartment();
     tabSizeCompartment = new Compartment();
     historyCompartment = new Compartment();
+    markdownFrontmatterCompartment = new Compartment();
+    markdownDiagramCompartment = new Compartment();
+    markdownTableCompartment = new Compartment();
+    markdownMathCompartment = new Compartment();
+    markdownFrontmatterExtensions = Array.isArray(frontmatterField) ? frontmatterField : [frontmatterField];
+    markdownDiagramExtensions = Array.isArray(diagramField) ? diagramField : [diagramField];
+    markdownTableExtensions = Array.isArray(markdownTableField) ? markdownTableField : [markdownTableField];
+    markdownMathExtensions = Array.isArray(mathField) ? mathField : [mathField];
 
     const markdownExtensionsForPath = () => [
         collapseOnSelectionFacet.of(true),
@@ -2413,7 +2460,6 @@ function createEditorView() {
         hashtagCompletionActivator,
         livePreviewPlugin,
         editorTheme,
-        ...(Array.isArray(frontmatterField) ? frontmatterField : [frontmatterField]),
         linkPlugin({
             onWikiLinkClick: target => handleLinkClick(normalizeWikiLinkTarget(target), target, true),
         }),
@@ -2421,9 +2467,6 @@ function createEditorView() {
         linkPreview(),
         ...codeBlockField({ lineNumbers: true, skipLanguages: diagramLanguages }),
         codeBlockScrollbarGuardExtension,
-        ...(Array.isArray(diagramField) ? diagramField : [diagramField]),
-        ...(Array.isArray(markdownTableField) ? markdownTableField : [markdownTableField]),
-        mathField,
         sourceFootprintExtension,
         hexColorExtension,
         hashtagPlugin,
@@ -2496,12 +2539,17 @@ function createEditorView() {
                 searchOpen: editorStateValue => isNativeSearchPanelOpen(editorStateValue),
             }),
             fileModeCompartment.of(markdownExtensionsForPath()),
+            markdownFrontmatterCompartment.of(markdownFrontmatterExtensions),
+            markdownDiagramCompartment.of(markdownDiagramExtensions),
+            markdownTableCompartment.of(markdownTableExtensions),
+            markdownMathCompartment.of(markdownMathExtensions),
             lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
             foldingCompartment.of(editorFoldingExtensions('markdown')),
             foldGutterAccessibilityPlugin,
             blockControlVisibilityExtension,
             historyCompartment.of(history()), bracketMatching(), drawSelection(),
             searchExtension({ top: false }),
+            searchMatchStatusExtension,
             EditorView.updateListener.of(update => {
                 const replacingDocument = update.docChanged && _programmaticChange;
                 if (update.docChanged) handleDocChange(update);
@@ -2672,6 +2720,78 @@ function dispatchEditorContent(view, request, excludeFromHistory = false) {
     });
 }
 
+function cancelDeferredMarkdownPresentation() {
+    deferredMarkdownGeneration += 1;
+    if (deferredMarkdownFrame === null) return;
+    const cancel = window.cancelAnimationFrame || window.clearTimeout;
+    cancel(deferredMarkdownFrame);
+    deferredMarkdownFrame = null;
+}
+
+function scheduleDeferredMarkdownPresentation(view, request) {
+    cancelDeferredMarkdownPresentation();
+    const generation = deferredMarkdownGeneration;
+    const schedule = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
+    const stages = [
+        () => imageBasePathCompartment.reconfigure(imageFieldForPath(activeFilePath)),
+        () => markdownFrontmatterCompartment.reconfigure(markdownFrontmatterExtensions),
+        () => markdownDiagramCompartment.reconfigure(markdownDiagramExtensions),
+        () => markdownTableCompartment.reconfigure(markdownTableExtensions),
+        () => markdownMathCompartment.reconfigure(markdownMathExtensions),
+    ];
+    view.dom.dataset.markdownPresentationState = 'pending';
+    const runStage = index => {
+        deferredMarkdownFrame = schedule(() => {
+            deferredMarkdownFrame = null;
+            if (generation !== deferredMarkdownGeneration || view.isDestroyed
+                || getState('activeTabId') !== request.tabId
+                || editorDocumentSession.documentTabId() !== request.tabId
+                || activeFileLanguage.kind !== 'markdown') return;
+            view.dispatch({ effects: stages[index]() });
+            if (index + 1 < stages.length) runStage(index + 1);
+            else {
+                view.dom.dataset.markdownPresentationState = 'ready';
+                view.requestMeasure();
+            }
+        });
+    };
+    runStage(0);
+}
+
+function scheduleDeferredMarkdownMount(view, request, chunks) {
+    cancelDeferredMarkdownPresentation();
+    const generation = deferredMarkdownGeneration;
+    const prefixDocument = view.state.doc;
+    const schedule = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
+    view.dom.dataset.markdownPresentationState = 'pending';
+    deferredMarkdownFrame = schedule(() => {
+        deferredMarkdownFrame = null;
+        if (generation !== deferredMarkdownGeneration || view.isDestroyed
+            || getState('activeTabId') !== request.tabId
+            || editorDocumentSession.documentTabId() !== request.tabId
+            || view.state.doc !== prefixDocument) return;
+        try {
+            _programmaticChange = true;
+            const selection = normalizedCursorState(request.cursorState, request.content.length);
+            view.dispatch({
+                changes: { from: view.state.doc.length, insert: chunks[1] },
+                ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
+                annotations: Transaction.addToHistory.of(false),
+            });
+            view.dispatch({
+                effects: historyCompartment.reconfigure(historyExtensionsForDocument(request)),
+            });
+            scheduleDeferredMarkdownPresentation(view, request);
+        } catch (error) {
+            _programmaticChange = false;
+            try {
+                view.dispatch({ effects: historyCompartment.reconfigure(history()) });
+            } catch (_) { /* The shared editor may already have been destroyed. */ }
+            log.warn('Could not finish mounting a large Markdown document:', error);
+        }
+    });
+}
+
 const editorDocumentSession = createEditorDocumentSession({
     schedule: callback => setTimeout(callback, 0),
     readEditor: getEditorView,
@@ -2688,11 +2808,38 @@ const editorDocumentSession = createEditorDocumentSession({
         captureEditorHistory(view, request.previousTabId);
         view.dispatch({ effects: historyCompartment.reconfigure([]) });
         try {
-            if (contentChanged) dispatchEditorContent(view, request, true);
+            const mountPlan = editorDocumentMountPlan({
+                languageKind: activeFileLanguage.kind,
+                contentLength: request.content.length,
+            });
+            if (contentChanged && mountPlan.deferMarkdownPresentation) {
+                const chunks = editorDocumentMountChunks(request.content, activeFileLanguage.kind);
+                view.dispatch({
+                    effects: [
+                        imageBasePathCompartment.reconfigure([]),
+                        markdownFrontmatterCompartment.reconfigure([]),
+                        markdownDiagramCompartment.reconfigure([]),
+                        markdownTableCompartment.reconfigure([]),
+                        markdownMathCompartment.reconfigure([]),
+                    ],
+                });
+                dispatchEditorContent(view, {
+                    ...request,
+                    content: chunks[0],
+                    cursorState: null,
+                }, true);
+                scheduleDeferredMarkdownMount(view, request, chunks);
+                return;
+            } else if (contentChanged) {
+                cancelDeferredMarkdownPresentation();
+                dispatchEditorContent(view, request, true);
+                view.dom.dataset.markdownPresentationState = 'ready';
+            }
             view.dispatch({
                 effects: historyCompartment.reconfigure(historyExtensionsForDocument(request)),
             });
         } catch (error) {
+            cancelDeferredMarkdownPresentation();
             _programmaticChange = false;
             if (!view.isDestroyed) {
                 try {
@@ -2887,6 +3034,7 @@ async function configureEditorForFile(path) {
     const view = getEditorView();
     if (!view || view.isDestroyed || !fileModeCompartment || !foldingCompartment) return false;
 
+    cancelDeferredMarkdownPresentation();
     const request = ++fileModeRequest;
     let language = getFileLanguage(path);
     let extensions;
@@ -2921,9 +3069,23 @@ async function configureEditorForFile(path) {
             imageBasePathCompartment.reconfigure(
                 language.kind === 'markdown' ? imageFieldForPath(path) : []
             ),
+            markdownFrontmatterCompartment.reconfigure(
+                language.kind === 'markdown' ? markdownFrontmatterExtensions : []
+            ),
+            markdownDiagramCompartment.reconfigure(
+                language.kind === 'markdown' ? markdownDiagramExtensions : []
+            ),
+            markdownTableCompartment.reconfigure(
+                language.kind === 'markdown' ? markdownTableExtensions : []
+            ),
+            markdownMathCompartment.reconfigure(
+                language.kind === 'markdown' ? markdownMathExtensions : []
+            ),
         ],
     });
     activeFileLanguage = language;
+    activeFilePath = path;
+    view.dom.dataset.markdownPresentationState = 'ready';
     applyFileLanguageUI(view, language);
     return true;
 }
@@ -3273,7 +3435,8 @@ function handleMouseDown(event, view) {
     if (pos === null) return;
     if (event.button === 0 && handleFootnoteNavigation(event, view, pos)) return true;
     const doc = view.state.doc, line = doc.lineAt(pos), lt = line.text, col = pos - line.from;
-    const navigation = markdownEditorNavigationAtPosition(lt, col);
+    const hashtagTarget = event.target.closest('.cm-hashtag')?.dataset.tag || '';
+    const navigation = markdownEditorNavigationAtPosition(lt, col, { hashtagTarget });
     if (navigation?.kind === 'link') {
         event.preventDefault();
         const externalURL = modifiedExternalBrowserURL(navigation.target, event);

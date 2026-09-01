@@ -85,6 +85,16 @@ function materializeBrowserFixture(manifest, plan, smallContent, hugeContent) {
         match_text: '2026-08-11',
         mtime: index + 1,
     }));
+    const graphNodes = plan.documents.map((document, index) => ({
+        path: document.path,
+        name: `Note ${index}`,
+        group: document.path.includes('/') ? document.path.split('/')[0] : 'Vault root',
+        mtime: index + 1,
+    }));
+    const graphEdges = graphNodes.slice(1).map(node => ({
+        source: node.path,
+        target: graphNodes[0].path,
+    }));
     return {
         manifest,
         tree,
@@ -93,6 +103,7 @@ function materializeBrowserFixture(manifest, plan, smallContent, hugeContent) {
         rareResults,
         board: { review, todo, wip: [], done: [] },
         backlinks,
+        graph: { nodes: graphNodes, edges: graphEdges },
         smallContent,
         hugeContent,
     };
@@ -173,6 +184,8 @@ async function installFixtureBackend(page, fixture) {
             SearchUnlinkedMentions: () => mock([]),
             GetKanbanColumns: () => mock({ columns: ['review', 'todo', 'wip', 'done'], colors: {} }),
             GetKanbanBoard: () => mock(data.board),
+            GetTaskSchedules: () => mock([]),
+            GetVaultGraph: () => mock(data.graph),
             GetHomeTasks: limit => mock(data.board.todo.slice(0, Number(limit) || 6)),
             GetDueTaskSummary: () => mock({ due_today: 0, overdue: 0 }),
             GetCalendarMonthData: () => mock({ year: 2026, month: 8, days_with_notes: [11], days_with_links: [11], days_with_due_tasks: [], calendar: [] }),
@@ -274,6 +287,7 @@ async function reloadStressApp(page) {
 
 async function isolatedScenario(context, metrics, failureName, run) {
     const page = await context.newPage();
+    page.setDefaultTimeout(30000);
     try {
         await reloadStressApp(page);
         await run(page);
@@ -288,10 +302,30 @@ async function isolatedScenario(context, metrics, failureName, run) {
     }
 }
 
+function writeBrowserReport(context, fixture, metrics) {
+    const report = {
+        vault: stressVaultPath ? path.resolve(stressVaultPath) : '',
+        browser: context.browser()?.version() || 'unknown',
+        manifest: fixture.manifest,
+        metrics,
+    };
+    if (browserReportPath) {
+        fs.mkdirSync(path.dirname(browserReportPath), { recursive: true });
+        fs.writeFileSync(browserReportPath, `${JSON.stringify(report, null, 2)}\n`);
+    }
+    return report;
+}
+
 async function pressRepeatedly(page, key, count) {
     for (let index = 0; index < count; index += 1) {
         await page.keyboard.press(key);
     }
+}
+
+async function waitForGraphPaint(page) {
+    await page.waitForFunction(() => (
+        document.querySelector('.graph-canvas')?.dataset.renderState === 'ready'
+    ));
 }
 
 test('preserves keyboard reachability and focus beyond a large collection window', async ({ context }) => {
@@ -488,6 +522,7 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
             mountedTreeRows: await page.locator('.file-tree-node').count(),
         }));
     });
+    writeBrowserReport(context, fixture, metrics);
 
     await isolatedScenario(context, metrics, 'huge_editor_scenario', async page => {
         await beginMetric(page);
@@ -499,11 +534,35 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
             const editor = await import('/js/editor.js');
             return editor.getEditorView()?.state?.doc?.lines >= expectedLines;
         }, fixture.manifest.hugeLineCount);
+        await page.waitForFunction(async () => (
+            (await import('/js/editor.js')).getEditorView()?.dom
+                ?.dataset.markdownPresentationState === 'ready'
+        ));
         metrics.push(await finishMetric(page, 'open_huge_10000_line_document', {
             status: 'completed',
             editorLines: await page.evaluate(async () => (await import('/js/editor.js')).getEditorView().state.doc.lines),
             mountedEditorLines: await page.locator('.cm-line').count(),
         }));
+
+        const cursorLine = Math.floor(fixture.manifest.hugeLineCount / 2);
+        await page.evaluate(async lineNumber => {
+            const view = (await import('/js/editor.js')).getEditorView();
+            view.dispatch({
+                selection: { anchor: view.state.doc.line(lineNumber).from },
+                scrollIntoView: true,
+            });
+            view.focus();
+        }, cursorLine);
+        await page.keyboard.press('ArrowDown');
+        await expect.poll(() => page.evaluate(async () => {
+            const view = (await import('/js/editor.js')).getEditorView();
+            return view.state.doc.lineAt(view.state.selection.main.head).number;
+        })).toBe(cursorLine + 1);
+        await page.keyboard.press('ArrowUp');
+        await expect.poll(() => page.evaluate(async () => {
+            const view = (await import('/js/editor.js')).getEditorView();
+            return view.state.doc.lineAt(view.state.selection.main.head).number;
+        })).toBe(cursorLine);
 
         await beginMetric(page);
         await page.evaluate(async () => {
@@ -512,6 +571,7 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
         });
         metrics.push(await finishMetric(page, 'edit_huge_document_tail', { status: 'completed' }));
     });
+    writeBrowserReport(context, fixture, metrics);
 
     await isolatedScenario(context, metrics, 'rare_search_scenario', async page => {
         await beginMetric(page);
@@ -529,6 +589,7 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
             renderedRows: await page.locator('.search-result-row').count(),
         }));
     });
+    writeBrowserReport(context, fixture, metrics);
 
     await isolatedScenario(context, metrics, 'common_search_scenario', async page => {
         await beginMetric(page);
@@ -555,6 +616,7 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
         await expect(page.locator('.search-result-row.selected')).toHaveCount(1);
         metrics.push(await finishMetric(page, 'search_arrow_rerender_10000_results', { status: 'completed' }));
     });
+    writeBrowserReport(context, fixture, metrics);
 
     await isolatedScenario(context, metrics, 'kanban_scenario', async page => {
         await beginMetric(page);
@@ -576,6 +638,43 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
         await expect(page.locator('#status-text')).toContainText('Task reordered', { timeout: 120000 });
         metrics.push(await finishMetric(page, 'kanban_arrow_rerender_10000_cards', { status: 'completed' }));
     });
+    writeBrowserReport(context, fixture, metrics);
+
+    await isolatedScenario(context, metrics, 'graph_scenario', async page => {
+        await beginMetric(page);
+        await page.locator('#sidebar-graph').click();
+        await expect(page.locator('#graph-status-count')).toHaveText(
+            `${fixture.manifest.documentCount} notes · ${fixture.manifest.documentCount - 1} links`,
+            { timeout: 120000 },
+        );
+        await waitForGraphPaint(page);
+        metrics.push(await finishMetric(page, 'graph_render_10000_nodes', {
+            status: 'completed',
+            logicalNodes: fixture.manifest.documentCount,
+            logicalEdges: fixture.manifest.documentCount - 1,
+            canvasCount: await page.locator('.graph-canvas').count(),
+        }));
+
+        await beginMetric(page);
+        await page.locator('.graph-filter-input').fill('note');
+        await expect(page.locator('#graph-status-count')).toHaveText(
+            `${fixture.manifest.documentCount} notes · ${fixture.manifest.documentCount - 1} links`,
+        );
+        await waitForGraphPaint(page);
+        metrics.push(await finishMetric(page, 'graph_filter_10000_nodes', { status: 'completed' }));
+
+        await beginMetric(page);
+        await page.locator('.graph-canvas').press(']');
+        await expect(page.locator('#graph-status-selection')).not.toHaveText('No note selected');
+        await waitForGraphPaint(page);
+        metrics.push(await finishMetric(page, 'graph_select_10000_nodes', { status: 'completed' }));
+
+        await beginMetric(page);
+        await page.locator('.graph-zoom-in').click();
+        await waitForGraphPaint(page);
+        metrics.push(await finishMetric(page, 'graph_zoom_10000_nodes', { status: 'completed' }));
+    });
+    writeBrowserReport(context, fixture, metrics);
 
     await isolatedScenario(context, metrics, 'backlinks_scenario', async page => {
         await page.evaluate(async sourcePath => {
@@ -584,7 +683,8 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
         }, fixture.manifest.sources.small);
         await expect(page.locator('#backlinks-status')).toContainText(`${fixture.manifest.documentCount} backlinks`);
         await beginMetric(page);
-        await page.locator('#backlinks-status').click();
+        await page.locator('#status-bar').hover();
+        await page.locator('#backlinks-status').click({ timeout: 10000 });
         await expect(page.locator('.relationship-count').first())
             .toHaveText(String(fixture.manifest.documentCount), { timeout: 120000 });
         await expect(page.locator('.relationship-card').first()).toBeVisible();
@@ -594,19 +694,11 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
             renderedCards: await page.locator('.relationship-card').count(),
         }));
     });
+    const report = writeBrowserReport(context, fixture, metrics);
 
-    const report = {
-        vault: path.resolve(stressVaultPath),
-        browser: context.browser()?.version() || 'unknown',
-        manifest: fixture.manifest,
-        metrics,
-    };
     for (const metric of metrics) {
         console.log(`stress ${metric.name} ${JSON.stringify(metric)}`);
     }
-    if (browserReportPath) {
-        fs.mkdirSync(path.dirname(browserReportPath), { recursive: true });
-        fs.writeFileSync(browserReportPath, `${JSON.stringify(report, null, 2)}\n`);
-    }
+    expect(report.metrics).toBe(metrics);
     expect(metrics.some(metric => metric.name === 'startup_collapsed_tree')).toBe(true);
 });

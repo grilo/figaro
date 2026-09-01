@@ -2,6 +2,18 @@
    CSS Custom Properties (Theme)
    ========================================================================== */
 :root {
+    /* Shared choice controls; themes can retain or override the outlined treatment. */
+    --choice-border: var(--border-color);
+    --choice-surface: var(--bg-color);
+    --choice-item-border: var(--border-color);
+    --choice-item-surface: var(--bg-color);
+    --choice-item-color: var(--text-color);
+    --choice-hover-border: var(--accent-color);
+    --choice-hover-surface: var(--bg-color);
+    --choice-selected-border: color-mix(in srgb, var(--accent-color) 42%, var(--border-color));
+    --choice-selected-surface: color-mix(in srgb, var(--accent-color) 12%, var(--hover-bg));
+    --choice-selected-color: var(--accent-color);
+    --choice-selected-shadow: none;
     --bg-color: #1e1e1e;
     --sidebar-bg: #151515;
     --panel-bg: #18191c;

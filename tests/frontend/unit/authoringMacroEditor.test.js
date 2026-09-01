@@ -36,7 +36,7 @@ describe('structured authoring macros in the Markdown editor', () => {
                 userEvent: 'input.type',
             });
             await new Promise(resolve => setTimeout(resolve, 100));
-            expect(currentCompletions(view.state).map(option => option.label)).toEqual([source.slice(1)]);
+            expect(currentCompletions(view.state).map(option => option.label)).toEqual([source.slice(source.lastIndexOf('@') + 1)]);
             view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
                 key: 'Tab', bubbles: true, cancelable: true,
             }));
@@ -48,14 +48,34 @@ describe('structured authoring macros in the Markdown editor', () => {
             expect(view.state.doc.toString()).toBe('- [ ] ');
             expect(view.state.selection.main.head).toBe(6);
 
-            await typeMacro('@due');
-            const picker = document.querySelector('.ui-date-picker[aria-label="Choose due date"]');
+            await typeMacro('- [ ] Ship #todo @date');
+            const picker = document.querySelector('.ui-date-picker[aria-label="Choose date"]');
             expect(picker).not.toBeNull();
-            picker.querySelector('[data-date-picker-day]').click();
-            await Promise.resolve();
-            expect(view.state.doc.toString()).toMatch(
-                /^\[due \d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)$/,
+            expect(picker.querySelector('.ui-date-picker-shortcuts').getAttribute('aria-label')).toBe('Date shortcuts');
+            expect(picker.querySelector('.ui-date-picker-clear').textContent).toBe('Clear date');
+            const day = picker.querySelector('[data-date-picker-day]');
+            const date = day.dataset.datePickerDay;
+            const datedTask = `- [ ] Ship #todo [${date}](${date}.md)`;
+            day.click();
+            await new Promise(resolve => setTimeout(resolve, 30));
+            expect(view.state.doc.toString()).toBe(datedTask);
+            expect(window.go.desktop.App.SetTaskDueDate).toHaveBeenCalledWith(
+                { file: tab.path, line: 1, source: datedTask },
+                expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
             );
+            const { undo, redo } = await import('@codemirror/commands');
+            const writes = window.go.desktop.App.SetTaskDueDate.mock.calls.length;
+            expect(undo(view)).toBe(true);
+            expect(view.state.doc.toString()).toBe('- [ ] Ship #todo @date');
+            expect(redo(view)).toBe(true);
+            expect(view.state.doc.toString()).toBe(datedTask);
+            expect(window.go.desktop.App.SetTaskDueDate).toHaveBeenCalledTimes(writes);
+
+            await typeMacro('Meeting @date');
+            document.querySelector('.ui-date-picker [data-date-picker-day]').click();
+            await new Promise(resolve => setTimeout(resolve, 30));
+            expect(view.state.doc.toString()).toBe(`Meeting [${date}](${date}.md)`);
+            expect(window.go.desktop.App.SetTaskDueDate).toHaveBeenCalledTimes(writes);
 
             await typeMacro('@table');
             expect(scanMarkdownTables(view.state)).toHaveLength(1);

@@ -1,15 +1,11 @@
+import { calendarTimelinePresentation } from './core/calendarTimelineModel.js';
 import {
-    CALENDAR_TIMELINE_PREFETCH_DAYS,
-    calendarTimelineEdgeDirection,
-    calendarTimelinePanPlan,
-    calendarTimelinePresentation,
-    calendarTimelineWheelPlan,
-    calendarTimelineWindow,
-    shiftCalendarTimelineAnchor,
-    shiftCalendarTimelineEdgeAnchor,
-} from './core/calendarTimelineModel.js';
+    calendarTimelineWindow, shiftCalendarTimelineAnchor, shiftCalendarTimelineEdgeAnchor,
+    timelineRangeLabel, timelineDayLabels,
+} from './core/timelineModel.js';
+import { createTimelineViewport, patchTimelineContents } from './timelineViewport.js';
 import { localeWeekInfo } from './core/calendarModel.js';
-import { dateFromISO, isISODate, localISODate } from './core/dueDateModel.js';
+import { isISODate, localISODate } from './core/dueDateModel.js';
 import { normalizeFileTreeStyles } from './core/fileTreeModel.js';
 import { currentCalendarLocale } from './calendarLocale.js';
 import { renderLucideIcon } from './lucideIcons.js';
@@ -21,28 +17,6 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
-}
-
-function timelineRangeLabel(window, locale) {
-    const start = dateFromISO(window?.startDate);
-    const end = dateFromISO(window?.endDate);
-    if (!start || !end) return '';
-    const startLabel = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(start);
-    const endLabel = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(end);
-    return `${startLabel} – ${endLabel}`;
-}
-
-function timelineDayLabels(dateStr, locale, isToday) {
-    const date = dateFromISO(dateStr);
-    if (!date) return { weekday: '', day: '', month: '', long: dateStr };
-    return {
-        weekday: new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date),
-        day: new Intl.DateTimeFormat(locale, { day: 'numeric' }).format(date),
-        month: isToday ? 'Today' : new Intl.DateTimeFormat(locale, { month: 'short' }).format(date),
-        long: new Intl.DateTimeFormat(locale, {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        }).format(date),
-    };
 }
 
 function timelineNoteHTML(note, date) {
@@ -108,76 +82,15 @@ export function createCalendarTimeline(root, {
     let requestGeneration = 0;
     let disposed = false;
     let hasRendered = false;
-    let edgePaging = false;
-    let restoringScroll = false;
-    let panSession = null;
-    let suppressClick = false;
-    let suppressClickTimer = null;
     const payloadCache = new Map();
     let appearanceCache = null;
-
-    function dayTrackLeft(day) {
-        return day.getBoundingClientRect().left - track.getBoundingClientRect().left;
-    }
 
     function timelineDayWidth() {
         const day = track.querySelector('.calendar-timeline-day');
         return day?.getBoundingClientRect().width || 164;
     }
 
-    function setScrollLeftImmediately(value) {
-        const left = Math.max(0, Number(value) || 0);
-        if (typeof scroll.scrollTo === 'function') {
-            scroll.scrollTo({ left, top: scroll.scrollTop, behavior: 'instant' });
-        } else {
-            scroll.scrollLeft = left;
-        }
-    }
-
-    function nextFrame(callback) {
-        return new Promise(resolve => {
-            const run = () => {
-                callback();
-                resolve();
-            };
-            if (typeof requestAnimationFrame === 'function') requestAnimationFrame(run);
-            else setTimeout(run, 0);
-        });
-    }
-
-    function centerAnchor() {
-        const anchor = track.querySelector(`[data-date="${CSS.escape(anchorDate)}"]`);
-        if (!anchor) return;
-        const target = dayTrackLeft(anchor) - ((scroll.clientWidth - anchor.getBoundingClientRect().width) / 2);
-        setScrollLeftImmediately(target);
-    }
-
-    function captureViewportMarker() {
-        const position = scroll.scrollLeft;
-        const days = [...track.querySelectorAll('.calendar-timeline-day')];
-        const marker = days.find(day => (
-            dayTrackLeft(day) + Math.max(1, day.getBoundingClientRect().width) > position
-        ))
-            || days.at(-1);
-        return marker ? {
-            date: marker.dataset.date,
-            viewportOffset: dayTrackLeft(marker) - position,
-        } : null;
-    }
-
-    function restoreViewportMarker(marker) {
-        if (!marker?.date) return false;
-        const day = track.querySelector(`[data-date="${CSS.escape(marker.date)}"]`);
-        if (!day) return false;
-        setScrollLeftImmediately(dayTrackLeft(day) - marker.viewportOffset);
-        return true;
-    }
-
-    async function renderPresentation(payload, styles, timelineWindow, {
-        scrollMode,
-        scrollMarker,
-        previousScrollLeft,
-    }) {
+    function renderPresentation(payload, styles, timelineWindow, scrollMode) {
         const resolvedLocale = locale();
         const presentation = calendarTimelinePresentation({
             payload,
@@ -187,37 +100,22 @@ export function createCalendarTimeline(root, {
             today: today(),
             weekend: localeWeekInfo(resolvedLocale).weekend,
         });
-        track.innerHTML = presentation.days.map(day => timelineDayHTML(day, resolvedLocale)).join('');
-        message.hidden = true;
-        restoringScroll = true;
-        try {
-            await nextFrame(() => {
-                if (scrollMode === 'marker' && restoreViewportMarker(scrollMarker)) return;
-                if (scrollMode === 'retain') {
-                    setScrollLeftImmediately(Math.min(previousScrollLeft, scroll.scrollWidth - scroll.clientWidth));
-                    return;
-                }
-                centerAnchor();
-            });
-            // Keep programmatic restoration out of edge detection until the
-            // browser has dispatched the resulting scroll event in its next frame.
-            await nextFrame(() => {});
-        } finally {
-            restoringScroll = false;
-        }
+        const settled = viewport.updateContent(() => {
+            patchTimelineContents(track, presentation.days.map(day => timelineDayHTML(day, resolvedLocale)).join(''), 'data-date');
+            message.hidden = true;
+        }, { mode: scrollMode, date: anchorDate });
         hasRendered = true;
+        return settled;
     }
 
     async function render({
         reload = false,
         scrollMode = 'retain',
-        scrollMarker = null,
         quiet = false,
     } = {}) {
         if (disposed || !isISODate(anchorDate)) return false;
         const timelineWindow = calendarTimelineWindow(anchorDate);
         const key = `${timelineWindow.startDate}\u0000${timelineWindow.endDate}`;
-        const previousScrollLeft = scroll.scrollLeft;
         const nextRangeLabel = timelineRangeLabel(timelineWindow, locale());
         root.setAttribute('aria-busy', 'true');
         if (!quiet) {
@@ -240,11 +138,8 @@ export function createCalendarTimeline(root, {
             if (!appearanceCache) appearanceCache = Promise.resolve(loadAppearance());
             const [payload, styles] = await Promise.all([payloadPromise, appearanceCache]);
             if (disposed || generation !== requestGeneration) return false;
-            await renderPresentation(payload, styles, timelineWindow, {
-                scrollMode,
-                scrollMarker,
-                previousScrollLeft,
-            });
+            await renderPresentation(payload, styles, timelineWindow, scrollMode);
+            if (disposed || generation !== requestGeneration) return false;
             range.textContent = nextRangeLabel;
             return true;
         } catch (error) {
@@ -288,12 +183,6 @@ export function createCalendarTimeline(root, {
     }
 
     function handleClick(event) {
-        if (suppressClick) {
-            event.preventDefault();
-            event.stopPropagation();
-            suppressClick = false;
-            return;
-        }
         const note = event.target.closest('.calendar-timeline-note');
         if (!note || !root.contains(note)) return;
         openNote({
@@ -303,116 +192,21 @@ export function createCalendarTimeline(root, {
         });
     }
 
-    function handleWheel(event) {
-        const plan = calendarTimelineWheelPlan({
-            deltaX: event.deltaX,
-            deltaY: event.deltaY,
-            deltaMode: event.deltaMode,
-            clientWidth: scroll.clientWidth,
-            dayWidth: timelineDayWidth(),
-            modified: event.ctrlKey || event.metaKey || event.altKey,
-        });
-        if (!plan.handled) return;
-        event.preventDefault();
-        if (typeof scroll.scrollBy === 'function') {
-            scroll.scrollBy({ left: plan.left, behavior: 'smooth' });
-        } else {
-            scroll.scrollLeft += plan.left;
-        }
-    }
-
-    function beginPan(event) {
-        const target = event.target instanceof Element ? event.target : null;
-        if (event.button !== 0 || event.isPrimary === false || target?.closest('button, a, input, textarea, select')) return;
-        panSession = {
-            pointerId: event.pointerId,
-            startClientX: event.clientX,
-            startScrollLeft: scroll.scrollLeft,
-            moved: false,
-        };
-        scroll.classList.add('is-panning');
-        scroll.setPointerCapture?.(event.pointerId);
-        event.preventDefault();
-    }
-
-    function movePan(event) {
-        if (!panSession || event.pointerId !== panSession.pointerId) return;
-        const plan = calendarTimelinePanPlan({
-            startClientX: panSession.startClientX,
-            clientX: event.clientX,
-            startScrollLeft: panSession.startScrollLeft,
-            scrollWidth: scroll.scrollWidth,
-            clientWidth: scroll.clientWidth,
-        });
-        panSession.moved ||= plan.moved;
-        if (!panSession.moved) return;
-        event.preventDefault();
-        setScrollLeftImmediately(plan.scrollLeft);
-    }
-
-    function finishPan(event, suppressDraggedClick = false) {
-        if (!panSession || event.pointerId !== panSession.pointerId) return;
-        const completed = panSession;
-        panSession = null;
-        scroll.classList.remove('is-panning');
-        if (scroll.hasPointerCapture?.(completed.pointerId)) {
-            scroll.releasePointerCapture(completed.pointerId);
-        }
-        if (completed.moved && suppressDraggedClick) {
-            suppressClick = true;
-            clearTimeout(suppressClickTimer);
-            suppressClickTimer = setTimeout(() => { suppressClick = false; }, 0);
-            event.preventDefault();
-        }
-        handleScroll();
-    }
-
-    function endPan(event) {
-        finishPan(event, true);
-    }
-
-    function handleScroll() {
-        const direction = calendarTimelineEdgeDirection({
-            scrollLeft: scroll.scrollLeft,
-            scrollWidth: scroll.scrollWidth,
-            clientWidth: scroll.clientWidth,
-            busy: edgePaging || restoringScroll || panSession !== null || root.getAttribute('aria-busy') === 'true',
-            threshold: timelineDayWidth() * CALENDAR_TIMELINE_PREFETCH_DAYS,
-        });
-        if (!direction) return;
-        const marker = captureViewportMarker();
+    async function pageAtEdge(direction) {
         const previousAnchor = anchorDate || today();
         const nextAnchor = shiftCalendarTimelineEdgeAnchor(previousAnchor, direction);
         anchorDate = nextAnchor;
-        edgePaging = true;
-        render({ scrollMode: 'marker', scrollMarker: marker, quiet: true })
-            .then(rendered => {
-                if (!rendered && anchorDate === nextAnchor) anchorDate = previousAnchor;
-            })
-            .finally(() => { edgePaging = false; });
+        const rendered = await render({ scrollMode: 'marker', quiet: true });
+        if (!rendered && anchorDate === nextAnchor) anchorDate = previousAnchor;
     }
 
-    function handleKeydown(event) {
-        if (event.target !== scroll) return;
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-            event.preventDefault();
-            const dayWidth = timelineDayWidth();
-            scroll.scrollBy?.({ left: event.key === 'ArrowLeft' ? -dayWidth : dayWidth, behavior: 'smooth' });
-        } else if (event.key === 'Home' || event.key === 'End') {
-            event.preventDefault();
-            scroll.scrollTo?.({ left: event.key === 'Home' ? 0 : scroll.scrollWidth, behavior: 'smooth' });
-        }
-    }
+    const viewport = createTimelineViewport({
+        scroll, track, daySelector: '.calendar-timeline-day', dayWidth: timelineDayWidth,
+        busy: () => disposed || (!hasRendered && root.getAttribute('aria-busy') === 'true'),
+        onEdge: pageAtEdge,
+    });
 
     root.addEventListener('click', handleClick);
-    scroll.addEventListener('wheel', handleWheel, { passive: false });
-    scroll.addEventListener('scroll', handleScroll);
-    scroll.addEventListener('keydown', handleKeydown);
-    scroll.addEventListener('pointerdown', beginPan);
-    scroll.addEventListener('pointermove', movePan);
-    scroll.addEventListener('pointerup', endPan);
-    scroll.addEventListener('pointercancel', finishPan);
-    scroll.addEventListener('lostpointercapture', finishPan);
     todayButton.addEventListener('click', returnToToday);
     earlierButton.addEventListener('click', showEarlier);
     laterButton.addEventListener('click', showLater);
@@ -428,20 +222,10 @@ export function createCalendarTimeline(root, {
             disposed = true;
             requestGeneration++;
             root.removeEventListener('click', handleClick);
-            scroll.removeEventListener('wheel', handleWheel);
-            scroll.removeEventListener('scroll', handleScroll);
-            scroll.removeEventListener('keydown', handleKeydown);
-            scroll.removeEventListener('pointerdown', beginPan);
-            scroll.removeEventListener('pointermove', movePan);
-            scroll.removeEventListener('pointerup', endPan);
-            scroll.removeEventListener('pointercancel', finishPan);
-            scroll.removeEventListener('lostpointercapture', finishPan);
             todayButton.removeEventListener('click', returnToToday);
             earlierButton.removeEventListener('click', showEarlier);
             laterButton.removeEventListener('click', showLater);
-            clearTimeout(suppressClickTimer);
-            panSession = null;
-            scroll.classList.remove('is-panning');
+            viewport.dispose();
             payloadCache.clear();
             appearanceCache = null;
             track.replaceChildren();

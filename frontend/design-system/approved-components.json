@@ -2,6 +2,7 @@
   "approvalPolicy": "Adding a component family, primitive, or visual variant requires explicit user approval before implementation.",
   "featureVariants": [
     ".calendar-timeline-note",
+    ".kanban-gantt-bar",
     ".file-tree-node.selected",
     ".file-tree-node.cut-marked"
   ],
@@ -28,6 +29,7 @@
     },
     {
       "id": "segmented-control",
+      "description": "Shared choice controls; Figaro themes use the existing quiet borderless treatment through --choice-* tokens. Keyboard focus remains explicit.",
       "primitives": [".ui-segmented-control", ".ui-segmented-control--quiet"]
     },
     {

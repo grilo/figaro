@@ -91,6 +91,7 @@ describe('live Kanban buffers and compact cards', () => {
         expect(overlayDirtyKanbanBuffers(saved, buffers)).toEqual({
             todo: [],
             urgent: [{
+                source: '- [ ] Current urgent paragraph #urgent',
                 file: 'note.md',
                 file_name: 'note.md',
                 line: 1,
@@ -106,11 +107,12 @@ describe('live Kanban buffers and compact cards', () => {
         ]);
     });
 
-    test('parses a semantic due link into card metadata without showing it as task text', () => {
+    test('treats old due-looking links as ordinary Markdown, not metadata', () => {
         expect(kanbanCardsForBuffer('note.md', '- [ ] Submit report #todo [due 2026-08-14](2026-08-14.md)')).toEqual([
             {
                 file: 'note.md', file_name: 'note.md', line: 1,
-                text: 'Submit report', tag: 'todo', due_date: '2026-08-14',
+                text: 'Submit report [due 2026-08-14](2026-08-14.md)', tag: 'todo',
+                source: '- [ ] Submit report #todo [due 2026-08-14](2026-08-14.md)',
             },
         ]);
     });
@@ -364,7 +366,7 @@ describe('live Kanban buffers and compact cards', () => {
     test('sets a due date from the card picker without opening the source note', async () => {
         const today = localISODate();
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
-            todo: [{ file: 'note.md', file_name: 'note.md', line: 4, text: 'Schedule me', tag: 'todo' }],
+            todo: [{ file: 'note.md', file_name: 'note.md', line: 4, text: 'Schedule me', tag: 'todo', source: 'Schedule me #todo' }],
             wip: [], done: [],
         });
         await renderKanbanBoard('kanban-board-main');
@@ -373,8 +375,54 @@ describe('live Kanban buffers and compact cards', () => {
         document.querySelector(`[data-date-picker-value="${today}"]`).click();
         await testUtils.waitFor(0);
 
-        expect(window.go.desktop.App.SetTaskDueDate).toHaveBeenCalledWith('note.md', 4, today);
+        expect(window.go.desktop.App.SetTaskDueDate).toHaveBeenCalledWith({ file: 'note.md', line: 4, source: 'Schedule me #todo' }, today);
         expect(window.go.desktop.App.GetCalendarMonthData).not.toHaveBeenCalled();
+    });
+
+    test('D and Escape preserve the focused card; only Delete removes its tag', async () => {
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Keep me', source: 'Keep me #todo', tag: 'todo' }],
+        });
+        await renderKanbanBoard('kanban-board-main');
+        const card = document.querySelector('.kanban-card');
+        card.focus();
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true, cancelable: true }));
+        const picker = document.querySelector('.ui-date-picker');
+        expect(picker).not.toBeNull();
+        expect(window.go.desktop.App.RemoveTagFromTask).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.SetTaskDueDate).not.toHaveBeenCalled();
+        picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(document.activeElement).toBe(card);
+        expect(card.isConnected).toBe(true);
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', bubbles: true, cancelable: true, repeat: true }));
+        expect(document.querySelector('.ui-date-picker')).toBeNull();
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true, ctrlKey: true }));
+        expect(document.querySelector('.ui-date-picker')).toBeNull();
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+        await testUtils.waitFor(0);
+        expect(window.go.desktop.App.RemoveTagFromTask).toHaveBeenCalledWith('note.md', 1, 'todo');
+    });
+
+    test('due-date write failures and dirty notes leave cards and Markdown alone', async () => {
+        const source = 'Keep me #todo';
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Keep me', source, tag: 'todo' }],
+        });
+        await renderKanbanBoard('kanban-board-main');
+        window.go.desktop.App.SetTaskDueDate.mockRejectedValueOnce(new Error('Read only'));
+        document.querySelector('.kanban-card-due-action').click();
+        document.querySelector('[data-date-picker-value]').click();
+        await testUtils.waitFor(0);
+        expect(mockKanbanErrorDialog).toHaveBeenCalled();
+        expect(document.querySelector('.kanban-card').textContent).toContain('Keep me');
+        expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.RemoveTagFromTask).not.toHaveBeenCalled();
+        window.go.desktop.App.SetTaskDueDate.mockClear();
+        setState('openTabs', [{ type: 'file', path: 'note.md', dirty: true, _content: source }]);
+        document.querySelector('.kanban-card-due-action').click();
+        document.querySelector('[data-date-picker-value]').click();
+        await testUtils.waitFor(0);
+        expect(window.go.desktop.App.SetTaskDueDate).not.toHaveBeenCalled();
     });
 
     test('changes density and stacked flow from Settings while preserving board and column scroll', async () => {

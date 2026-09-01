@@ -54,7 +54,7 @@ describe('date shortcuts in the Markdown editor', () => {
         }
     });
 
-    test('Space after any tagged line offers the shared due-date picker', async () => {
+    test('Space after a tag no longer offers a legacy due-link writer', async () => {
         document.body.innerHTML = `
             <div id="editor-container"></div>
             <span id="status-text"></span>
@@ -103,21 +103,8 @@ describe('date shortcuts in the Markdown editor', () => {
                 userEvent: 'input.type',
             });
             await new Promise(resolve => setTimeout(resolve, 100));
-            expect(currentCompletions(view.state).map(option => option.label)).toEqual([
-                'Add due date…', 'Due today', 'Due tomorrow',
-            ]);
-
-            view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
-                key: 'Enter', bubbles: true, cancelable: true,
-            }));
-            await new Promise(resolve => setTimeout(resolve, 0));
-            const picker = document.querySelector('.ui-date-picker');
-            expect(picker).not.toBeNull();
-            picker.querySelector('[data-date-picker-value]').click();
-            await Promise.resolve();
-            expect(view.state.doc.toString()).toMatch(
-                /^Prepare release #follow-up \[due \d{4}-\d{2}-\d{2}\]\(\d{4}-\d{2}-\d{2}\.md\)$/
-            );
+            expect(currentCompletions(view.state)).toEqual([]);
+            expect(view.state.doc.toString()).toBe(task);
         } finally {
             view.destroy();
         }

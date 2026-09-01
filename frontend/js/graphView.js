@@ -3,9 +3,11 @@ import {
     fitGraphViewport,
     graphAdjacency,
     graphLayoutBounds,
+    graphViewLayout,
     graphView,
     layoutGraph,
     normalizeVaultGraph,
+    sameGraphView,
     zoomGraphViewport,
 } from './core/graphModel.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
@@ -13,6 +15,7 @@ import { normalizeFileTreeStyles } from './core/fileTreeModel.js';
 import { renderLucideIcon } from './lucideIcons.js';
 
 const emptyGraph = Object.freeze({ nodes: [], edges: [] });
+const GRAPH_CANVAS_BATCH_SIZE = 256;
 function searchIcon() {
     return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
 }
@@ -41,7 +44,9 @@ function graphTemplate() {
                             ${searchIcon()}
                             <input type="search" class="ui-field graph-filter-input" placeholder="Filter graph…" autocomplete="off" spellcheck="false">
                         </label>
-                        <button type="button" class="ui-button graph-show-orphans" aria-pressed="true">Orphans</button>
+                        <div class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Graph filters">
+                            <button type="button" class="ui-button graph-show-orphans" aria-pressed="true">Orphans</button>
+                        </div>
                     </div>
                     <div class="graph-stage-message" role="status">Loading note relationships…</div>
                 </div>
@@ -70,7 +75,7 @@ function pointRadius(node) {
     return 4.5 + Math.min(8, Math.sqrt(Math.max(0, node.degree)) * 1.65);
 }
 
-function drawArrow(context, source, target, radius, color) {
+function appendArrow(context, source, target, radius) {
     const dx = target.x - source.x;
     const dy = target.y - source.y;
     const distance = Math.hypot(dx, dy);
@@ -80,13 +85,10 @@ function drawArrow(context, source, target, radius, color) {
     const tipX = target.x - ux * (radius + 3);
     const tipY = target.y - uy * (radius + 3);
     const size = 7;
-    context.fillStyle = color;
-    context.beginPath();
     context.moveTo(tipX, tipY);
     context.lineTo(tipX - ux * size - uy * size * 0.62, tipY - uy * size + ux * size * 0.62);
     context.lineTo(tipX - ux * size + uy * size * 0.62, tipY - uy * size - ux * size * 0.62);
     context.closePath();
-    context.fill();
 }
 
 function intersects(box, boxes) {
@@ -122,6 +124,7 @@ export function createGraphView(panel, {
     let graph = emptyGraph;
     let view = graphView(graph);
     let layout = [];
+    let fullLayout = [];
     let positions = new Map();
     let visibleNodes = new Map();
     let adjacency = new Map();
@@ -135,8 +138,12 @@ export function createGraphView(panel, {
     let refreshPending = false;
     let loading = true;
     let frame = null;
+    let drawing = false;
+    let drawRequestVersion = 0;
     let pointer = null;
     let needsFit = true;
+    let labelOrder = [];
+    let fullLabelOrder = [];
 
     function nodeByPath(path) {
         return visibleNodes.get(path) || null;
@@ -161,14 +168,18 @@ export function createGraphView(panel, {
         };
     }
 
-    function syncNodeIcons() {
+    function syncNodeIcons(screenPositions = null) {
         if (!iconLayer) return;
+        if (!nodeIconMarkup.size) {
+            if (iconLayer.childElementCount) iconLayer.replaceChildren();
+            return;
+        }
         const visibleIcons = new Set();
         const tracedPath = hoveredPath || selectedPath;
         const tracedNeighbors = tracedPath ? (adjacency.get(tracedPath) || new Set()) : null;
         for (const node of view.nodes) {
             const markup = nodeIconMarkup.get(node.path);
-            const point = markup ? screenPoint(node.path) : null;
+            const point = markup ? (screenPositions?.get(node.path) || screenPoint(node.path)) : null;
             if (!markup || !point) continue;
             visibleIcons.add(node.path);
             let element = [...iconLayer.children].find(candidate => candidate.dataset.path === node.path);
@@ -194,114 +205,244 @@ export function createGraphView(panel, {
         });
     }
 
+    function syncCanvasBusy() {
+        canvas.setAttribute('aria-busy', String(
+            loading || drawing || frame !== null || canvas.dataset.renderState === 'pending'
+        ));
+    }
+
     function scheduleDraw() {
-        if (!context || disposed || frame !== null) return;
+        if (!context || disposed) return;
+        drawRequestVersion += 1;
+        canvas.dataset.renderState = 'pending';
+        syncCanvasBusy();
+        if (frame !== null || drawing) return;
         const request = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
         frame = request(() => {
             frame = null;
-            draw();
+            const version = drawRequestVersion;
+            drawing = true;
+            syncCanvasBusy();
+            Promise.resolve(draw(version)).finally(() => {
+                drawing = false;
+                if (disposed) return;
+                if (version === drawRequestVersion) canvas.dataset.renderState = 'ready';
+                else scheduleDraw();
+                syncCanvasBusy();
+            });
         });
     }
 
-    function draw() {
-        if (!context || disposed) return;
+    async function draw(version) {
+        if (!context || disposed) return false;
         const colors = graphColors(root);
         const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
         const pixelWidth = Math.max(1, Math.round(width * ratio));
         const pixelHeight = Math.max(1, Math.round(height * ratio));
-        if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-            canvas.width = pixelWidth;
-            canvas.height = pixelHeight;
+        const progressive = view.nodes.length > 1000;
+        const renderCanvas = progressive ? document.createElement('canvas') : canvas;
+        const renderContext = progressive ? renderCanvas.getContext?.('2d') : context;
+        if (!renderContext) return false;
+        if (renderCanvas.width !== pixelWidth || renderCanvas.height !== pixelHeight) {
+            renderCanvas.width = pixelWidth;
+            renderCanvas.height = pixelHeight;
         }
-        context.setTransform(ratio, 0, 0, ratio, 0, 0);
-        context.clearRect(0, 0, width, height);
+        renderContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+        renderContext.clearRect(0, 0, width, height);
+        const request = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
+        let sliceStarted = performance.now();
+        const checkpoint = async () => {
+            if (disposed || version !== drawRequestVersion) return false;
+            if (!progressive || performance.now() - sliceStarted < 8) return true;
+            await new Promise(resolve => request(resolve));
+            sliceStarted = performance.now();
+            return !disposed && version === drawRequestVersion;
+        };
 
         const tracedPath = hoveredPath || selectedPath;
         const tracedNeighbors = tracedPath ? (adjacency.get(tracedPath) || new Set()) : null;
-        const visiblePaths = new Set(view.nodes.map(node => node.path));
-        for (const edge of view.edges) {
-            const source = screenPoint(edge.source);
-            const target = screenPoint(edge.target);
-            if (!source || !target) continue;
-            const related = tracedPath && (edge.source === tracedPath || edge.target === tracedPath);
-            context.globalAlpha = tracedPath ? (related ? 0.9 : 0.08) : 0.54;
-            context.strokeStyle = related ? colors.accent : colors.edge;
-            context.lineWidth = related ? 2 : 1.2;
-            context.beginPath();
-            context.moveTo(source.x, source.y);
-            context.lineTo(target.x, target.y);
-            context.stroke();
-            const targetNode = nodeByPath(edge.target);
-            drawArrow(context, source, target, pointRadius(targetNode || { degree: 0 }) * viewport.scale, related ? colors.accent : colors.edge);
+        const screenPositions = new Map(layout.map(point => [point.path, {
+            x: point.x * viewport.scale + viewport.offsetX,
+            y: point.y * viewport.scale + viewport.offsetY,
+        }]));
+        const drawEdges = async (related, alpha, color, lineWidth) => {
+            renderContext.globalAlpha = alpha;
+            renderContext.strokeStyle = color;
+            renderContext.lineWidth = lineWidth;
+            renderContext.beginPath();
+            let batchSize = 0;
+            for (const edge of view.edges) {
+                const isRelated = Boolean(tracedPath && (edge.source === tracedPath || edge.target === tracedPath));
+                if (isRelated !== related) continue;
+                const source = screenPositions.get(edge.source);
+                const target = screenPositions.get(edge.target);
+                if (!source || !target) continue;
+                renderContext.moveTo(source.x, source.y);
+                renderContext.lineTo(target.x, target.y);
+                batchSize += 1;
+                if (batchSize === GRAPH_CANVAS_BATCH_SIZE) {
+                    renderContext.stroke();
+                    renderContext.beginPath();
+                    batchSize = 0;
+                    if (!await checkpoint()) return false;
+                }
+            }
+            if (batchSize) renderContext.stroke();
+            renderContext.fillStyle = color;
+            renderContext.beginPath();
+            batchSize = 0;
+            for (const edge of view.edges) {
+                const isRelated = Boolean(tracedPath && (edge.source === tracedPath || edge.target === tracedPath));
+                if (isRelated !== related) continue;
+                const source = screenPositions.get(edge.source);
+                const target = screenPositions.get(edge.target);
+                if (!source || !target) continue;
+                appendArrow(renderContext, source, target,
+                    pointRadius(nodeByPath(edge.target) || { degree: 0 }) * viewport.scale);
+                batchSize += 1;
+                if (batchSize === GRAPH_CANVAS_BATCH_SIZE) {
+                    renderContext.fill();
+                    renderContext.beginPath();
+                    batchSize = 0;
+                    if (!await checkpoint()) return false;
+                }
+            }
+            if (batchSize) renderContext.fill();
+            return true;
+        };
+        if (tracedPath) {
+            if (!await drawEdges(false, 0.08, colors.edge, 1.2)) return false;
+            if (!await drawEdges(true, 0.9, colors.accent, 2)) return false;
+        } else {
+            if (!await drawEdges(false, 0.54, colors.edge, 1.2)) return false;
         }
 
         const labelBoxes = [];
-        const labelCandidates = [...view.nodes].sort((left, right) => {
-            const leftPriority = left.path === tracedPath ? 3 : 0;
-            const rightPriority = right.path === tracedPath ? 3 : 0;
-            return rightPriority - leftPriority || right.degree - left.degree || left.path.localeCompare(right.path);
-        });
-        for (const node of labelCandidates) {
-            if (!visiblePaths.has(node.path)) continue;
-            const point = screenPoint(node.path);
+        const regularNodes = new Map();
+        const emphasizedNodes = [];
+        for (const node of view.nodes) {
+            const point = screenPositions.get(node.path);
             if (!point) continue;
             const connected = !tracedPath || node.path === tracedPath || tracedNeighbors?.has(node.path);
             const selected = node.path === selectedPath;
             const hovered = node.path === hoveredPath;
             const radius = pointRadius(node) * Math.max(0.72, Math.min(1.35, viewport.scale));
             const color = node.color || colors.accent;
-            context.globalAlpha = connected ? 1 : 0.12;
-            if (nodeIconMarkup.has(node.path)) {
-                if (selected || hovered) {
-                    context.strokeStyle = colors.text;
-                    context.lineWidth = selected ? 2.4 : 1.8;
-                    context.beginPath();
-                    context.arc(point.x, point.y, radius + 3, 0, Math.PI * 2);
-                    context.stroke();
-                }
-            } else {
-                context.fillStyle = color;
-                context.strokeStyle = selected || hovered ? colors.text : colors.background;
-                context.lineWidth = selected ? 2.8 : 2;
-                context.beginPath();
-                context.arc(point.x, point.y, radius + (selected ? 1.5 : 0), 0, Math.PI * 2);
-                context.fill();
-                context.stroke();
+            if (selected || hovered || nodeIconMarkup.has(node.path)) {
+                emphasizedNodes.push({ node, point, connected, selected, hovered, radius, color });
+                continue;
             }
+            const key = `${connected ? 1 : 0}:${color}`;
+            if (!regularNodes.has(key)) regularNodes.set(key, { connected, color, nodes: [] });
+            regularNodes.get(key).nodes.push({ point, radius });
+        }
+        for (const group of regularNodes.values()) {
+            renderContext.globalAlpha = group.connected ? 1 : 0.12;
+            renderContext.fillStyle = group.color;
+            renderContext.strokeStyle = colors.background;
+            renderContext.lineWidth = 2;
+            renderContext.beginPath();
+            let batchSize = 0;
+            for (const { point, radius } of group.nodes) {
+                renderContext.moveTo(point.x + radius, point.y);
+                renderContext.arc(point.x, point.y, radius, 0, Math.PI * 2);
+                batchSize += 1;
+                if (batchSize === GRAPH_CANVAS_BATCH_SIZE) {
+                    renderContext.fill();
+                    renderContext.stroke();
+                    renderContext.beginPath();
+                    batchSize = 0;
+                    if (!await checkpoint()) return false;
+                }
+            }
+            if (batchSize) {
+                renderContext.fill();
+                renderContext.stroke();
+            }
+        }
+        for (const entry of emphasizedNodes) {
+            const { node, point, connected, selected, hovered, radius, color } = entry;
+            renderContext.globalAlpha = connected ? 1 : 0.12;
+            if (nodeIconMarkup.has(node.path)) {
+                if (!selected && !hovered) continue;
+                renderContext.strokeStyle = colors.text;
+                renderContext.lineWidth = selected ? 2.4 : 1.8;
+                renderContext.beginPath();
+                renderContext.arc(point.x, point.y, radius + 3, 0, Math.PI * 2);
+                renderContext.stroke();
+                continue;
+            }
+            renderContext.fillStyle = color;
+            renderContext.strokeStyle = colors.text;
+            renderContext.lineWidth = selected ? 2.8 : 2;
+            renderContext.beginPath();
+            renderContext.arc(point.x, point.y, radius + (selected ? 1.5 : 0), 0, Math.PI * 2);
+            renderContext.fill();
+            renderContext.stroke();
+        }
+
+        const drawLabel = node => {
+            const point = screenPositions.get(node.path);
+            if (!point) return;
+            const connected = !tracedPath || node.path === tracedPath || tracedNeighbors?.has(node.path);
+            const selected = node.path === selectedPath;
+            const hovered = node.path === hoveredPath;
+            const radius = pointRadius(node) * Math.max(0.72, Math.min(1.35, viewport.scale));
 
             const showLabel = hovered || selected || view.nodes.length <= 90
                 || (view.nodes.length <= 500 && node.degree >= 3)
                 || node.degree >= 8;
-            if (!showLabel) continue;
-            context.font = `500 11px ${colors.font}`;
-            const metrics = context.measureText(node.name);
+            if (!showLabel) return;
+            renderContext.font = `500 11px ${colors.font}`;
+            const metrics = renderContext.measureText(node.name);
             const box = {
                 left: point.x - metrics.width / 2 - 3,
                 right: point.x + metrics.width / 2 + 3,
                 top: point.y - radius - 17,
                 bottom: point.y - radius - 3,
             };
-            if (!hovered && !selected && intersects(box, labelBoxes)) continue;
+            if (!hovered && !selected && intersects(box, labelBoxes)) return;
             labelBoxes.push(box);
-            context.globalAlpha = connected ? 0.96 : 0.12;
-            context.textAlign = 'center';
-            context.textBaseline = 'bottom';
-            context.lineWidth = 3.5;
-            context.strokeStyle = colors.background;
-            context.strokeText(node.name, point.x, point.y - radius - 4);
-            context.fillStyle = colors.text;
-            context.fillText(node.name, point.x, point.y - radius - 4);
+            renderContext.globalAlpha = connected ? 0.96 : 0.12;
+            renderContext.textAlign = 'center';
+            renderContext.textBaseline = 'bottom';
+            renderContext.lineWidth = 3.5;
+            renderContext.strokeStyle = colors.background;
+            renderContext.strokeText(node.name, point.x, point.y - radius - 4);
+            renderContext.fillStyle = colors.text;
+            renderContext.fillText(node.name, point.x, point.y - radius - 4);
+        };
+        if (tracedPath) drawLabel(nodeByPath(tracedPath));
+        let labelIndex = 0;
+        for (const node of labelOrder) {
+            if (node.path !== tracedPath) drawLabel(node);
+            labelIndex += 1;
+            if (labelIndex % (GRAPH_CANVAS_BATCH_SIZE * 2) === 0 && !await checkpoint()) return false;
         }
-        context.globalAlpha = 1;
-        syncNodeIcons();
+        renderContext.globalAlpha = 1;
+        if (!await checkpoint()) return false;
+        if (progressive) {
+            if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+                canvas.width = pixelWidth;
+                canvas.height = pixelHeight;
+            }
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.clearRect(0, 0, pixelWidth, pixelHeight);
+            context.drawImage(renderCanvas, 0, 0);
+        }
+        syncNodeIcons(screenPositions);
+        return true;
     }
 
     function resizeCanvas({ fit = false } = {}) {
         const bounds = stage.getBoundingClientRect();
-        width = Math.max(280, Math.round(bounds.width || stage.clientWidth || 800));
-        height = Math.max(260, Math.round(bounds.height || stage.clientHeight || 520));
+        const nextWidth = Math.max(280, Math.round(bounds.width || stage.clientWidth || 800));
+        const nextHeight = Math.max(260, Math.round(bounds.height || stage.clientHeight || 520));
+        const changed = nextWidth !== width || nextHeight !== height;
+        width = nextWidth;
+        height = nextHeight;
         if (fit || needsFit) fitView();
-        scheduleDraw();
+        else if (changed) scheduleDraw();
     }
 
     function fitView() {
@@ -318,16 +459,23 @@ export function createGraphView(panel, {
             : 'Vault graph. Hover or click a node to trace its links, and Control-click to open it. Arrow keys pan, plus and minus zoom, brackets select notes, and Enter opens the selected note.');
     }
 
-    function applyGraphView({ fit = true } = {}) {
-        view = graphView(graph, {
+    function applyGraphView({ fit = true, force = false } = {}) {
+        const nextView = graphView(graph, {
             query: filter.value,
             showOrphans: showOrphans.getAttribute('aria-pressed') === 'true',
         });
-        layout = layoutGraph(view.nodes, view.edges);
-        positions = new Map(layout.map(point => [point.path, point]));
-        visibleNodes = new Map(view.nodes.map(node => [node.path, node]));
-        adjacency = graphAdjacency(view);
-        if (selectedPath && !view.nodes.some(node => node.path === selectedPath)) selectedPath = '';
+        const topologyChanged = !sameGraphView(view, nextView);
+        view = nextView;
+        if (topologyChanged || force) {
+            layout = graphViewLayout(view.nodes, fullLayout);
+            positions = new Map(layout.map(point => [point.path, point]));
+            visibleNodes = new Map(view.nodes.map(node => [node.path, node]));
+            adjacency = graphAdjacency(view);
+            labelOrder = view.nodes.length === graph.nodes.length
+                ? fullLabelOrder
+                : fullLabelOrder.filter(node => visibleNodes.has(node.path));
+        }
+        if (selectedPath && !visibleNodes.has(selectedPath)) selectedPath = '';
         if (count) count.textContent = `${view.nodes.length} ${view.nodes.length === 1 ? 'note' : 'notes'} · ${view.edges.length} ${view.edges.length === 1 ? 'link' : 'links'}`;
         message.hidden = loading || view.nodes.length > 0;
         if (!loading && view.nodes.length === 0) {
@@ -337,8 +485,9 @@ export function createGraphView(panel, {
                 : 'No Markdown notes are available yet.';
         }
         updateSelectedPresentation();
-        if (fit) needsFit = true;
-        resizeCanvas({ fit });
+        const shouldDraw = topologyChanged || force;
+        if (fit && shouldDraw) needsFit = true;
+        resizeCanvas({ fit: fit && shouldDraw });
     }
 
     async function refresh() {
@@ -361,6 +510,20 @@ export function createGraphView(panel, {
                 palette: ACCENT_COLOR_PALETTE,
             });
             if (disposed) return;
+            if (graph.nodes.length > 1000) {
+                const request = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
+                await new Promise(resolve => request(resolve));
+                if (disposed) return;
+            }
+            fullLayout = layoutGraph(graph.nodes, graph.edges);
+            fullLabelOrder = graph.nodes.slice().sort((left, right) => (
+                right.degree - left.degree || (left.path < right.path ? -1 : left.path > right.path ? 1 : 0)
+            ));
+            if (graph.nodes.length > 1000) {
+                const request = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
+                await new Promise(resolve => request(resolve));
+                if (disposed) return;
+            }
             indexNodeIcons();
             message.hidden = true;
             loading = false;
@@ -375,7 +538,7 @@ export function createGraphView(panel, {
             message.textContent = 'Graph is unavailable right now.';
             reportError(error);
         } finally {
-            canvas.setAttribute('aria-busy', 'false');
+            syncCanvasBusy();
             if (refreshPending && !disposed) {
                 refreshPending = false;
                 void refresh();
@@ -448,6 +611,7 @@ export function createGraphView(panel, {
 
     function setGraphStatusActive(active) {
         if (!statusRegion) return;
+        if (!active && statusRegion.dataset.mode !== 'graph') return;
         statusRegion.dataset.mode = active ? 'graph' : 'buffer';
         statusRegion.setAttribute('aria-label', active ? 'Graph status' : 'Active buffer status');
     }
@@ -580,12 +744,13 @@ export function createGraphView(panel, {
                 refreshPending = false;
                 void refresh();
             } else {
-                applyGraphView({ fit: true });
+                applyGraphView({ fit: true, force: true });
             }
         },
         refresh,
         dispose() {
             disposed = true;
+            drawRequestVersion += 1;
             setGraphStatusActive(false);
             resizeObserver?.disconnect();
             themeObserver?.disconnect();

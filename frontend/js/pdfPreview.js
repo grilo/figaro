@@ -1457,6 +1457,7 @@ export async function openPDFPreview({ path, title, content } = {}) {
     sidebar.classList.remove('collapsed');
     if (rightTitle) rightTitle.textContent = 'PDF Preview';
     if (resizer) resizer.classList.add('visible');
+    updateRightSidebarEditorLayout();
     scheduleAnimationFrame(() => updateRightSidebarEditorLayout());
     updatePreviewMeta();
     setPreviewStatus('Preparing live preview…');

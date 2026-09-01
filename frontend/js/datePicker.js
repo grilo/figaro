@@ -30,24 +30,27 @@ export function configureDatePickerCalendarSource({ loadMonthData = null } = {})
 
 export function closeDatePicker({ restoreFocus = true } = {}) {
     if (!activePicker) return;
-    const { element, anchor, outsideHandler, repositionHandler } = activePicker;
+    const { element, returnFocus, outsideHandler, repositionHandler } = activePicker;
     document.removeEventListener('pointerdown', outsideHandler, true);
     window.removeEventListener('resize', repositionHandler);
     window.removeEventListener('scroll', repositionHandler, true);
     hideCalendarDayTooltip();
     element.remove();
     activePicker = null;
-    if (restoreFocus && anchor?.isConnected) anchor.focus();
+    if (restoreFocus && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
 }
 
 export function openDatePicker({
     anchor,
     anchorRect = null,
+    returnFocus = anchor,
     value = '',
     onSelect,
     now = () => new Date(),
     locale = undefined,
     ariaLabel = 'Choose due date',
+    clearLabel = 'Clear due date',
+    shortcutsLabel = 'Due date shortcuts',
     loadMonthData = configuredMonthDataLoader,
 }) {
     if (!anchor || typeof onSelect !== 'function') throw new TypeError('Date picker anchor and selection handler are required');
@@ -69,7 +72,7 @@ export function openDatePicker({
     picker.setAttribute('role', 'dialog');
     picker.setAttribute('aria-label', ariaLabel);
     picker.innerHTML = `
-        <div class="ui-date-picker-shortcuts" aria-label="Due date shortcuts">
+        <div class="ui-date-picker-shortcuts" aria-label="${escapeAttr(shortcutsLabel)}">
             <button type="button" class="ui-button" data-date-picker-value="${today}">Today</button>
             <button type="button" class="ui-button" data-date-picker-value="${shiftISODate(today, 1)}">Tomorrow</button>
             <button type="button" class="ui-button" data-date-picker-value="${shiftISODate(today, 7)}">Next week</button>
@@ -86,6 +89,7 @@ export function openDatePicker({
         </div>`;
 
     const position = () => positionPicker(picker, anchor, anchorRect);
+    picker.querySelector('.ui-date-picker-clear').textContent = clearLabel;
     const render = (focusDate = null, { requestData = true } = {}) => {
         const key = `${state.year}-${state.month}`;
         const weekInfo = localeWeekInfo(resolvedLocale);
@@ -158,7 +162,7 @@ export function openDatePicker({
         if (!selection) return;
         const nextValue = selection.dataset.datePickerValue ?? selection.dataset.datePickerDay;
         closeDatePicker({ restoreFocus: false });
-        if (anchor.isConnected) anchor.focus();
+        if (returnFocus.isConnected) returnFocus.focus({ preventScroll: true });
         Promise.resolve().then(() => onSelect(nextValue));
     });
     picker.addEventListener('keydown', event => {
@@ -184,7 +188,7 @@ export function openDatePicker({
         if (!picker.contains(event.target) && event.target !== anchor) closeDatePicker({ restoreFocus: false });
     };
     const repositionHandler = () => closeDatePicker({ restoreFocus: false });
-    activePicker = { element: picker, anchor, outsideHandler, repositionHandler };
+    activePicker = { element: picker, anchor, returnFocus, outsideHandler, repositionHandler };
     document.body.appendChild(picker);
     document.addEventListener('pointerdown', outsideHandler, true);
     window.addEventListener('resize', repositionHandler);

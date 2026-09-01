@@ -1,4 +1,16 @@
 :root {
+    /* Shared choice controls; themes can retain or override the outlined treatment. */
+    --choice-border: transparent;
+    --choice-surface: color-mix(in srgb, var(--text-color) 6%, transparent);
+    --choice-item-border: transparent;
+    --choice-item-surface: transparent;
+    --choice-item-color: var(--text-muted);
+    --choice-hover-border: transparent;
+    --choice-hover-surface: var(--hover-bg);
+    --choice-selected-border: transparent;
+    --choice-selected-surface: var(--bg-color);
+    --choice-selected-color: var(--text-color);
+    --choice-selected-shadow: var(--shadow-sm);
     /* Figaro CRT Phosphor. Palette adapted from Joaquin Bozzalla's
        MIT-licensed Phosphor Design System. Optical treatment adapted from
        HauntedCrusader's MIT-licensed afterglow-crt demonstration. */

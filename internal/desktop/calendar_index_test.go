@@ -5,6 +5,25 @@ import (
 	"testing"
 )
 
+func TestCalendarIndexesPreferredWikilinkDatesWithoutDuplicateNotes(t *testing.T) {
+	app, vault := newTestApp(t)
+	writeTestFile(t, vault, "plan.md", "Before\nMeet [[2026-01-01]]\nAgain [2026-01-01](2026-01-01.md)\n[[2026-01-02.md|Next]]")
+	for _, date := range []string{"2026-01-01", "2026-01-02"} {
+		notes, err := app.GetLinkedNotesForDate(date)
+		if err != nil || len(notes) != 1 || notes[0].Path != "plan.md" {
+			t.Fatal(notes, err)
+		}
+	}
+	month, err := app.GetCalendarMonthData(2026, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary, found := calendarSummaryForDay(month.DaySummaries, 1)
+	if !found || summary.NoteCount != 1 {
+		t.Fatal(summary)
+	}
+}
+
 func cachedCalendarIndex(app *App) *calendarDateIndex {
 	app.calendarMu.Lock()
 	defer app.calendarMu.Unlock()
@@ -25,8 +44,10 @@ func TestCalendarMonthSummariesCountDistinctNotesAndExposeDueTitles(t *testing.T
 	writeTestFile(t, vaultPath, "2025-01-15.md", "# Daily note\n")
 	writeTestFile(t, vaultPath, "notes/alpha.md", "[Planning](2025-01-15.md)\n")
 	writeTestFile(t, vaultPath, "notes/bravo.md", "[First](2025-01-15.md)\n[Second](2025-01-15.md)\n")
-	writeTestFile(t, vaultPath, "notes/mixed.md", "- [ ] Review launch #todo [due 2025-01-15](2025-01-15.md)\n[Context](2025-01-15.md)\n")
-	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Ship release #todo [due 2025-01-15](2025-01-15.md)\n")
+	writeTestFile(t, vaultPath, "notes/mixed.md", "- [ ] Review launch #todo\n[Context](2025-01-15.md)\n")
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Ship release #todo\n")
+	setTestTaskDueDate(t, app, "notes/mixed.md", 1, "2025-01-15")
+	setTestTaskDueDate(t, app, "tasks.md", 1, "2025-01-15")
 
 	month, err := app.GetCalendarMonthData(2025, 1)
 	if err != nil {
@@ -112,7 +133,9 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "2025-01-15.md", "# Daily note")
 	writeTestFile(t, vaultPath, "notes/source.md", "[Project date](2025-01-20.md)\n")
-	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Due work #todo [due 2025-01-22](2025-01-22.md)\n- [x] Finished #done [due 2025-01-23](2025-01-23.md)\n")
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Due work #todo\n- [x] Finished #done\n")
+	setTestTaskDueDate(t, app, "tasks.md", 1, "2025-01-22")
+	setTestTaskDueDate(t, app, "tasks.md", 2, "2025-01-23")
 
 	month, err := app.GetCalendarMonthData(2025, 1)
 	if err != nil {
@@ -121,7 +144,7 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	if got, want := month.DaysWithNotes, []int{15}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithNotes = %v, want %v", got, want)
 	}
-	if got, want := month.DaysWithLinks, []int{20, 22, 23}; !reflect.DeepEqual(got, want) {
+	if got, want := month.DaysWithLinks, []int{20}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithLinks = %v, want %v", got, want)
 	}
 	if got, want := month.DaysWithDueTasks, []int{22}; !reflect.DeepEqual(got, want) {
@@ -172,7 +195,7 @@ func TestCalendarIndexUpdatesDatesIncrementallyAfterVaultMutation(t *testing.T) 
 	if err != nil {
 		t.Fatalf("rebuilt GetCalendarMonthData: %v", err)
 	}
-	if got, want := month.DaysWithLinks, []int{20, 21, 22, 23}; !reflect.DeepEqual(got, want) {
+	if got, want := month.DaysWithLinks, []int{20, 21}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("DaysWithLinks after mutation = %v, want %v", got, want)
 	}
 	if summary, found := calendarSummaryForDay(month.DaySummaries, 21); !found || summary.NoteCount != 1 {

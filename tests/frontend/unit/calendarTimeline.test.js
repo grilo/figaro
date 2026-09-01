@@ -175,6 +175,43 @@ describe('Calendar Timeline view', () => {
         expect(root.querySelector('.calendar-timeline-day').dataset.date).toBe('2026-08-01');
     });
 
+    test('commits delayed prefetch at the latest scrolled position without remounting overlapping days', async () => {
+        const root = timelineDOM();
+        const scroll = root.querySelector('.calendar-timeline-scroll');
+        const track = root.querySelector('.calendar-timeline-track');
+        Object.defineProperties(scroll, { clientWidth: { value: 900 }, scrollWidth: { value: 6888 } });
+        scroll.scrollTo = ({ left }) => { scroll.scrollLeft = left; };
+        scroll.scrollBy = ({ left }) => { scroll.scrollLeft += left; scroll.dispatchEvent(new Event('scroll')); };
+        const geometry = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+            const index = [...track.children].indexOf(this);
+            return { left: (index < 0 ? 0 : index * 164) - scroll.scrollLeft, width: index < 0 ? 6888 : 164 };
+        });
+        let resolveRange;
+        const loadTimeline = jest.fn().mockResolvedValueOnce({ days: [] })
+            .mockImplementationOnce(() => new Promise(resolve => { resolveRange = resolve; }));
+        session = createCalendarTimeline(root, {
+            loadTimeline, loadAppearance: async () => ({ entries: {} }), openNote: jest.fn(), today: () => '2026-08-29',
+        });
+        try {
+            await session.activate();
+            const retained = track.querySelector('[data-date="2026-08-20"]');
+            scroll.scrollLeft = 164 * 14 - 2;
+            scroll.dispatchEvent(new Event('scroll'));
+            expect(root.getAttribute('aria-busy')).toBe('true');
+            scroll.dispatchEvent(new WheelEvent('wheel', { deltaY: -1, cancelable: true }));
+            const latestLeft = scroll.scrollLeft;
+            expect(latestLeft).toBe(164 * 11 - 2);
+            resolveRange({ days: [] });
+            await settleTimeline();
+            expect(scroll.scrollLeft).toBe(latestLeft + 164 * 7);
+            expect(track.querySelector('[data-date="2026-08-20"]')).toBe(retained);
+            session.dispose();
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            expect(track.children).toHaveLength(0);
+            expect(root.querySelector('.calendar-timeline-range').textContent).toBe('');
+        } finally { geometry.mockRestore(); }
+    });
+
     test('keeps the current range intact when silent edge prefetch fails', async () => {
         const root = timelineDOM();
         const scroll = root.querySelector('.calendar-timeline-scroll');
@@ -214,8 +251,9 @@ describe('Calendar Timeline view', () => {
     test('maps vertical wheel and keyboard input onto horizontal timeline movement', async () => {
         const root = timelineDOM();
         const scroll = root.querySelector('.calendar-timeline-scroll');
-        scroll.scrollBy = jest.fn();
-        scroll.scrollTo = jest.fn();
+        scroll.scrollBy = jest.fn(({ left }) => { scroll.scrollLeft += left; scroll.dispatchEvent(new Event('scroll')); });
+        scroll.scrollTo = jest.fn(({ left }) => { scroll.scrollLeft = left; });
+        Object.defineProperties(scroll, { clientWidth: { value: 900 }, scrollWidth: { value: 6888 } });
         session = createCalendarTimeline(root, {
             loadTimeline: jest.fn().mockResolvedValue({ days: [] }),
             loadAppearance: jest.fn().mockResolvedValue({ entries: {} }),
@@ -225,6 +263,7 @@ describe('Calendar Timeline view', () => {
         });
         await session.activate('2026-08-29');
         await settleTimeline();
+        scroll.scrollLeft = 3000;
 
         const wheel = new WheelEvent('wheel', { deltaY: 80, bubbles: true, cancelable: true });
         scroll.dispatchEvent(wheel);
@@ -234,7 +273,7 @@ describe('Calendar Timeline view', () => {
         scroll.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
         expect(scroll.scrollBy).toHaveBeenLastCalledWith({ left: 164, behavior: 'smooth' });
         scroll.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
-        expect(scroll.scrollTo).toHaveBeenCalledWith({ left: 0, behavior: 'smooth' });
+        expect(scroll.scrollLeft).toBe(0);
     });
 
     test('pans from empty Timeline space while leaving note buttons outside the gesture', async () => {

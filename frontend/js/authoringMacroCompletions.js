@@ -56,18 +56,19 @@ export function createAuthoringMacroCompletionSource({
                 type: 'keyword',
                 commitCharacters: [' '],
                 apply: (view, _completion, from, to) => {
-                    if (macro.action === 'due-date') {
+                    if (macro.action === 'date-picker') {
                         if (typeof openDuePicker !== 'function') return;
                         const expectedToken = view.state.sliceDoc(from, to);
+                        const expectedDocument = view.state.doc.toString();
                         queueMicrotask(() => {
                             if (view.isDestroyed) return;
                             openDuePicker({
                                 view,
                                 position: to,
-                                onSelect: date => {
-                                    if (view.isDestroyed || view.state.sliceDoc(from, to) !== expectedToken) return false;
-                                    return Boolean(applyInsertion(view, macro.name, from, to, { date }));
-                                },
+                                range: { from, to },
+                                isCurrent: () => !view.isDestroyed && view.state.sliceDoc(from, to) === expectedToken
+                                    && [expectedDocument, expectedDocument.slice(0, to) + ' ' + expectedDocument.slice(to)]
+                                        .includes(view.state.doc.toString()),
                             });
                         });
                         return;

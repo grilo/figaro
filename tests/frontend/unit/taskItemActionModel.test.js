@@ -1,50 +1,23 @@
-import {
-    planTaskItemDueDateSelection,
-    planTaskItemKanbanSelection,
-    taskItemActionPlan,
-} from '../../../frontend/js/core/taskItemActionModel.js';
+import { taskItemActionPlan, planTaskItemKanbanSelection } from '../../../frontend/js/core/taskItemActionModel.js';
 
-describe('task item action planning', () => {
-    test('offers actions only for unfinished bullet-list tasks', () => {
-        expect(taskItemActionPlan('- [ ] Ship release')).toEqual({
-            dueDate: '',
-            completionOffset: '- [ ] Ship release'.length,
-        });
-        expect(taskItemActionPlan('  * [ ] Nested task')).not.toBeNull();
-        expect(taskItemActionPlan('- [x] Finished')).toBeNull();
-        expect(taskItemActionPlan('Plain [ ] text')).toBeNull();
-    });
-
-    test('produces the same canonical order whether Calendar or Kanban is selected first', () => {
-        const dueFirst = planTaskItemDueDateSelection('- [ ] Ship release', '2026-09-14');
-        expect(dueFirst.text).toBe('- [ ] Ship release [due 2026-09-14](2026-09-14.md)');
-        expect(planTaskItemKanbanSelection(dueFirst.text, 'urgent').text).toBe(
-            '- [ ] Ship release #urgent [due 2026-09-14](2026-09-14.md)',
-        );
-
-        const kanbanFirst = planTaskItemKanbanSelection('- [ ] Ship release', 'urgent');
-        expect(kanbanFirst.text).toBe('- [ ] Ship release #urgent');
-        expect(planTaskItemDueDateSelection(kanbanFirst.text, '2026-09-14').text).toBe(
-            '- [ ] Ship release #urgent [due 2026-09-14](2026-09-14.md)',
-        );
-    });
-
-    test('canonicalizes a due-before-tag line without duplicating an existing column', () => {
-        const source = '- [ ] Ship [due 2026-09-14](2026-09-14.md) #urgent';
-        expect(taskItemActionPlan(source).dueDate).toBe('2026-09-14');
-        expect(planTaskItemKanbanSelection(source, 'urgent').text).toBe(
-            '- [ ] Ship #urgent [due 2026-09-14](2026-09-14.md)',
-        );
-        expect(planTaskItemDueDateSelection(source, '2026-09-15').text).toBe(
-            '- [ ] Ship #urgent [due 2026-09-15](2026-09-15.md)',
-        );
-    });
-
-    test('clears a due date without disturbing authored task spacing away from the link', () => {
-        expect(planTaskItemDueDateSelection(
-            '- [ ] Keep  deliberate spacing #todo [due 2026-09-14](2026-09-14.md)',
-            '',
-        ).text).toBe('- [ ] Keep  deliberate spacing #todo');
-        expect(planTaskItemKanbanSelection('- [ ] Task', 'bad tag')).toBeNull();
-    });
+test('task actions remain available only on unfinished checklist items', () => {
+    expect(taskItemActionPlan('- [ ] Ship')).toEqual({ completionOffset: 10 });
+    expect(taskItemActionPlan('- [x] Done')).toBeNull();
+    expect(taskItemActionPlan('Plain prose')).toBeNull();
+});
+test('assigning a column preserves ordinary Markdown, including old due-looking links', () => {
+    const source = '- [ ] Ship [due 2026-09-14](2026-09-14.md) #urgent';
+    expect(planTaskItemKanbanSelection(source, 'urgent').text).toBe(source);
+    expect(planTaskItemKanbanSelection(source, 'todo').text).toBe(source.replace('#urgent', '#todo'));
+    expect(planTaskItemKanbanSelection('- [ ] Task', 'bad tag')).toBeNull();
+});
+test('column selection appends with zero or multiple hashtags and replaces only a single hashtag', () => {
+    expect(planTaskItemKanbanSelection('- [ ] Task', 'wip').text).toBe('- [ ] Task #wip');
+    expect(planTaskItemKanbanSelection('- [ ] Task #TODO later', 'wip').text).toBe('- [ ] Task #wip later');
+    expect(planTaskItemKanbanSelection('- [ ] Task #todo #urgent', 'wip').text).toBe('- [ ] Task #todo #urgent #wip');
+    expect(planTaskItemKanbanSelection('- [ ] Task #todo #wip', 'wip').text).toBe('- [ ] Task #todo #wip');
+});
+test('column selection leaves hashes in code, links, colors, and escaped text alone', () => {
+    const source = '- [ ] Task `#code #other` [link](#section) #fff \\#escaped #todo';
+    expect(planTaskItemKanbanSelection(source, 'wip').text).toBe(source.replace('#todo', '#wip'));
 });

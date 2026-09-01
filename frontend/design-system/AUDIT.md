@@ -3,6 +3,13 @@
 Audit snapshot: 2026-08-28. The approved consolidation is represented by the
 [visual catalogue](index.html) and used by the production interface.
 
+Consistency follow-up, 2026-08-31: Calendar/Kanban/Graph controls now share an
+upper-left inset. The three Figaro themes apply Calendar's approved quiet
+segmented treatment through shared choice tokens, not feature-local state
+rules. Hover, selected, disabled, and keyboard focus remain canonical. Graph's
+Orphans reuses that family; no new component family or variant was introduced.
+The catalogue's deadline help now describes metadata, not legacy due links.
+
 ## Consolidated foundation
 
 Nineteen approved families now use shared production
@@ -52,6 +59,19 @@ former subtle Timeline tint. Grab/grabbing cursors, temporary selection
 suppression, three-day wheel scrolling, and continuous edge paging remain feature-owned
 input/layout behavior rather than another component state. Its six-week sparse
 buffer and disposal on workspace exit do not introduce another visual family.
+
+The approved Kanban Gantt mockup adds `.kanban-gantt-bar` as a variant of the
+existing button, not a separate control family. Canonical primitives own its
+8px radius, column tint, faded completed state, hover/active treatment, and
+inherited keyboard focus/disabled states. The catalogue includes active-work,
+completed, and saving specimens. Feature CSS owns sticky names, day/row geometry,
+resize hit regions, and the floating editor layout. Board/Gantt choices, range
+buttons, date pickers, reconnect choices, notices, and status telemetry reuse
+existing primitives; no feature-local footer or status-bar component is added.
+Editor date-link and single-tag replacement reuse the existing Calendar picker
+and CodeMirror suggestion list unchanged. The help content and catalogue explain
+preferred-style date links plus separate deadline metadata; no new visual variant
+or family is introduced.
 
 The approved graph-canvas primitive owns its stable surface, grab, panning,
 loading, focus, touch, and selection-suppression states; hovering does not tint
@@ -173,6 +193,9 @@ CodeMirror retains ownership of the three handle positions, axis-specific
 cursors, hover visibility, tooltip labels, pointer capture, size readout, and
 source updates. These are host geometry and interaction hooks rather than
 additional visual variants.
+Managed Vega-Lite and Mermaid widgets reuse that same primitive for one
+bottom-center vertical handle; their diagram hosts own only placement,
+visibility, live height feedback, and the one-release source transaction.
 
 The title-bar `?` help trigger reuses the approved icon button. Its Markdown,
 Macros, and Shortcuts topic tabs use the approved compact button and accent variant; the
@@ -303,8 +326,9 @@ The eager tooltip controller converts ordinary static and dynamically mounted
 `title` hints into one body-level `.ui-tooltip`, opens it after a short hover or
 immediately on keyboard focus, associates it with the anchor through
 `aria-describedby`, clamps or flips it within the viewport, and dismisses it on
-Escape, activation, scrolling, resizing, or window blur. Iframe `title` values
-remain untouched because they name embedded documents. Disabled switch inputs
+Escape, activation, scrolling, resizing, window blur, owner removal, or owner
+reflow away from a stationary pointer. Iframe `title` values remain untouched
+because they name embedded documents. Disabled switch inputs
 delegate hover geometry to their visible labels. Its canonical layer sits above
 modal, date-picker, and help-popup shells so body-level hints remain visible for
 controls inside those surfaces. Markdown link previews reuse

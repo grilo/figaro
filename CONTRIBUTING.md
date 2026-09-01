@@ -100,6 +100,30 @@ initialized during startup. Do not introduce interaction-triggered dynamic
 imports or first-use parser/renderer initialization. User-selected work such as
 opening a hosted Draw.io document, scanning Vault health, or generating a PDF
 remains demand-driven, but its application code must already be ready.
+
+Keep Kanban planning dates separate from authored task content. Gantt's pure
+models own matching, collision refusal, date movement, and geometry; the native
+adapter alone writes ignored `.config/task-schedules.json`. Never add hidden
+task IDs or special `due` syntax to Markdown. Editor date pickers insert ordinary
+date links in the preferred style, never a source-derived deadline. All deadline
+readers must use the same metadata projection. First-start
+policy belongs in the pure task transition model; injected write sequencing
+must restore dates if note replacement fails. `@date` uses normal conflict-aware
+save handling before attaching metadata to the exact saved source; plain prose
+only receives the link. Date-only source edits rebind uniquely matched schedules
+without changing start/end, rejecting collisions and rolling back metadata when
+the note write fails. Editor pickers replace a sole date/tag on the current line;
+with multiple values they preserve them and add the selection. New workspace
+telemetry belongs in the application status bar, not an additional footer.
+Calendar and Gantt must share the timeline viewport's atomic content/scroll
+commit. Do not defer marker restoration to another frame or remount retained
+days and rows during edge paging. Preserve pending wheel destinations and pan
+origins when rebasing after a delayed load. Date choices persist immediately;
+Outside clicks and Escape dismiss their UI, not an operation already submitted
+to persistence. Treat the portalled calendar as part of its owning inspector;
+Escape closes the innermost picker first. Release document dismissal listeners
+when the inspector closes and never steal an outside click's focus on completion.
+
 For missing `.drawio.svg` Markdown images, keep vault-path resolution in the
 pure creation model, including missing-versus-existing action classification;
 valid SVG fallback classification and data-URL construction remain pure as
@@ -130,7 +154,8 @@ Reuse the shared Kanban-backed palette adapter for chart colors and the approved
 editable stepper for numeric guide adjustments instead of introducing native
 controls. Keep visible-series legend membership, palette order, and four-side
 placement in the pure chart model; keep fixed first-column Cartesian category
-ownership and quantitative-series settings there as well. Pie and Waterfall
+ownership, explicit no-sort nominal encodings, and quantitative-series settings
+there as well. Pie and Waterfall
 may use the approved variable-list combobox for their independent category
 selection. Use the
 approved eye/eye-off icon button for reversible visibility rather than a native
@@ -330,6 +355,11 @@ shared background, border, radius, shadow, typography, or text color. CodeMirror
 autocomplete and diagnostic panels are interactive popovers and retain their
 separate library semantics.
 
+Tooltip lifecycle changes must exercise owner removal and stationary-pointer
+reflow, not only `mouseleave`: a visible body-level tooltip must disappear and
+release `aria-describedby` whenever its owner is detached or no longer occupies
+the pointer hit target.
+
 Use the approved `.ui-skeleton` primitive for content-shaped loading
 placeholders. Keep month-grid, row, column, and card dimensions in the owning
 feature, hide decorative placeholder blocks from assistive technology, and put
@@ -516,6 +546,10 @@ the assembled webview rather than one JavaScript package in isolation.
   a long note with repeated Mermaid source in both directions, prove identical
   source is rendered once after caching, and verify generated SVG ids remain
   unique after remounting.
+- Mermaid geometry changes belong in `core/mermaidDiagramModel.js`; the live
+  adapter may own pointer capture but must update source only once on release.
+  Preserve the equal-height source placeholder, Arrow Up/Down, mouse placement,
+  drag selection, one-step Undo, and matching PDF figure height.
 - Mermaid Editor styling changes belong first in the pure adaptive descriptor
   and source-transform tests. Preserve unrelated frontmatter, refuse YAML forms
   the transform cannot merge safely, and assert parsed-node membership,

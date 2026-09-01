@@ -3,6 +3,7 @@
 import { backend } from './backend.js';
 import { copyTextToClipboard, getEditorContent, getEditorView } from './editor.js';
 import { getState } from './state.js';
+import { updateRightSidebarEditorLayout } from './historyPanel.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
 import {
     rawPreviewScrollTopForAnchor,
@@ -304,6 +305,7 @@ export async function openRawTextPreview({ path, title, content } = {}) {
     sidebar.classList.remove('collapsed');
     if (rightTitle) rightTitle.textContent = 'Raw Text';
     resizer?.classList.add('visible');
+    updateRightSidebarEditorLayout();
     const { title: titleElement, status } = panelElements();
     if (titleElement) titleElement.textContent = preview.title || 'Markdown';
     if (status) status.textContent = 'Loading raw text…';
@@ -333,6 +335,7 @@ export function closeRawTextPreview({ keepSidebarOpen = false } = {}) {
     preview.content = '';
     preview.sourceMtime = null;
     copyInFlight = false;
+    updateRightSidebarEditorLayout();
     window.dispatchEvent(new Event('resize'));
 }
 

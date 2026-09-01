@@ -1,55 +1,11 @@
 package desktop
 
 import (
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
-
-var taskDueLinkRE = regexp.MustCompile(`(?i)\[due\s+(\d{4}-\d{2}-\d{2})\]\((\d{4}-\d{2}-\d{2})\.md\)`)
-
-func parseTaskDueDate(line string) string {
-	for _, match := range taskDueLinkRE.FindAllStringSubmatch(line, -1) {
-		if len(match) == 3 && match[1] == match[2] && isCalendarDate(match[1]) {
-			return match[1]
-		}
-	}
-	return ""
-}
-
-func stripTaskDueLinks(line string) string {
-	return strings.Join(strings.Fields(removeTaskDueLinks(line)), " ")
-}
-
-func removeTaskDueLinks(line string) string {
-	cleaned := taskDueLinkRE.ReplaceAllStringFunc(line, func(candidate string) string {
-		match := taskDueLinkRE.FindStringSubmatch(candidate)
-		if len(match) == 3 && match[1] == match[2] && isCalendarDate(match[1]) {
-			return ""
-		}
-		return candidate
-	})
-	return strings.TrimRight(cleaned, " \t")
-}
-
-func setTaskDueDateOnLine(line, dueDate string) (string, bool) {
-	dueDate = strings.TrimSpace(dueDate)
-	if dueDate != "" && !isCalendarDate(dueDate) {
-		return line, false
-	}
-
-	cleaned := strings.TrimRight(removeTaskDueLinks(line), " \t")
-	if dueDate == "" {
-		return cleaned, true
-	}
-	link := "[due " + dueDate + "](" + dueDate + ".md)"
-	if cleaned == "" {
-		return link, true
-	}
-	return cleaned + " " + link, true
-}
 
 func homeTaskProjection(cardsByTag map[string][]KanbanCard, columns []string, limit int, today string) []KanbanCard {
 	if limit <= 0 {

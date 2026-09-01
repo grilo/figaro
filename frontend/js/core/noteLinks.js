@@ -58,12 +58,15 @@ export function markdownLinkDestinationAtPosition(line, column) {
 /**
  * Classify an editor click that may navigate either a conventional Markdown
  * link or a standalone Kanban hashtag. Complete links win over hashtag-shaped
- * destinations such as `[Jump](#section)`.
+ * destinations such as `[Jump](#section)`. Hashtags additionally require the
+ * tag reported by the rendered decoration under the pointer so line-end
+ * coordinate clamping cannot turn adjacent editor space into navigation.
  */
-export function markdownEditorNavigationAtPosition(line, column) {
+export function markdownEditorNavigationAtPosition(line, column, { hashtagTarget = '' } = {}) {
     const source = String(line || '');
     const position = Number(column);
     if (!Number.isInteger(position) || position < 0) return null;
+    const clickedHashtag = String(hashtagTarget || '').trim().toLowerCase();
 
     const link = conventionalMarkdownLinkAtPosition(source, position);
     if (link && position >= link.linkFrom && position <= link.destinationTo) {
@@ -84,7 +87,7 @@ export function markdownEditorNavigationAtPosition(line, column) {
         const previous = from > 0 ? source[from - 1] : '';
         const next = to < source.length ? source[to] : '';
         if ((previous && !/\s/.test(previous)) || (next && !/\s/.test(next))) continue;
-        if (position >= from && position <= to) {
+        if (clickedHashtag === match[1].toLowerCase() && position >= from && position <= to) {
             return { kind: 'hashtag', tag: match[1].toLowerCase() };
         }
     }
