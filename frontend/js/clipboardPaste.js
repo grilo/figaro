@@ -66,6 +66,16 @@ function tableConversion(payload, inlineOnly) {
     return markdownTableFromClipboard(payload);
 }
 
+/** Insert only a validated external table, leaving every other payload untouched. */
+export function pasteClipboardTablePayload(view, payload, options = {}) {
+    if (options.markdown !== true
+        || payload?.internal === true
+        || options.protectedContext === true
+        || options.inlineOnly === true) return false;
+    const table = tableConversion(payload, false);
+    return table ? insertClipboardTable(view, table) : false;
+}
+
 function richConversion(payload, inlineOnly) {
     return richMarkdownFromClipboard(payload, { inlineOnly });
 }
@@ -132,22 +142,34 @@ export function handleClipboardPaste(event, view, options = {}) {
     const earlyPlainText = plainBypass || protectedContext
         ? clipboardText(clipboardData, 'text/plain')
         : '';
+    const canConvertTable = options.markdown === true
+        && !internal
+        && !plainBypass
+        && !protectedContext
+        && options.inlineOnly !== true;
+    const candidatePayload = canConvertTable ? clipboardMarkdownPayload(clipboardData) : null;
+    const candidateTable = candidatePayload ? tableConversion(candidatePayload, false) : null;
     const preflight = richPastePreflightPlan({
         internal,
         plainBypass,
         hasPlainText: Boolean(earlyPlainText),
+        table: Boolean(candidateTable),
         image: imageCandidate(clipboardData),
         markdown: options.markdown === true,
         protectedContext,
     });
     if (preflight.action === 'native') return false;
+    if (preflight.action === 'table') {
+        event.preventDefault();
+        return insertClipboardTable(view, candidateTable);
+    }
     if (preflight.action === 'image') return handleClipboardImagePaste(event, view);
     if (preflight.action === 'plain') {
         event.preventDefault();
         return insertClipboardText(view, earlyPlainText);
     }
 
-    const payload = clipboardMarkdownPayload(clipboardData);
+    const payload = candidatePayload || clipboardMarkdownPayload(clipboardData);
     const table = options.markdown === true
         ? tableConversion(payload, options.inlineOnly === true)
         : null;
@@ -183,10 +205,7 @@ export function pasteClipboardPayload(view, payload, options = {}) {
     if (preflight.action !== 'inspect') {
         return payload?.text ? insertClipboardText(view, payload.text) : false;
     }
-    const table = options.markdown === true
-        ? tableConversion(payload, options.inlineOnly === true)
-        : null;
-    if (table) return insertClipboardTable(view, table);
+    if (pasteClipboardTablePayload(view, payload, options)) return true;
     const rich = options.markdown === true
         ? richConversion(payload, options.inlineOnly === true)
         : { converted: false };

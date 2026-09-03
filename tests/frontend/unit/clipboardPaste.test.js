@@ -16,6 +16,7 @@ import {
     handlePlainPasteBypass,
     handlePlainPasteKeydown,
     pasteClipboardPayload,
+    pasteClipboardTablePayload,
 } from '../frontend/js/clipboardPaste.js';
 import {
     clipboardImageFile,
@@ -148,7 +149,20 @@ describe('central clipboard paste coordinator', () => {
         expect(unavailableView.dispatch).not.toHaveBeenCalled();
     });
 
-    test('keeps image and table precedence ahead of general rich conversion', () => {
+    test('prefers a validated spreadsheet table over its accompanying image representation', () => {
+        clipboardImageFile.mockReturnValueOnce(new Blob(['image'], { type: 'image/png' }));
+        const tableView = testView();
+        const tablePaste = pasteEvent({
+            'image/png': '',
+            'text/html': '<table><tr><th>Name</th><th>State</th></tr><tr><td>Alpha</td><td>Ready</td></tr></table>',
+            'text/plain': 'Name\tState\nAlpha\tReady',
+        });
+        expect(handleClipboardPaste(tablePaste, tableView, { markdown: true })).toBe(true);
+        expect(tableView.dispatch.mock.calls[0][0].changes.insert).toContain('| Name | State |');
+        expect(handleClipboardImagePaste).not.toHaveBeenCalled();
+    });
+
+    test('keeps ordinary image paste ahead of general rich conversion', () => {
         clipboardImageFile.mockReturnValueOnce(new Blob(['image'], { type: 'image/png' }));
         const imageView = testView();
         const imagePaste = pasteEvent({
@@ -159,14 +173,6 @@ describe('central clipboard paste coordinator', () => {
         expect(handleClipboardPaste(imagePaste, imageView, { markdown: true })).toBe(true);
         expect(handleClipboardImagePaste).toHaveBeenCalledWith(imagePaste, imageView);
         expect(imageView.dispatch).not.toHaveBeenCalled();
-
-        const tableView = testView();
-        const tablePaste = pasteEvent({
-            'text/html': '<table><tr><th>Name</th><th>State</th></tr><tr><td>Alpha</td><td>Ready</td></tr></table>',
-            'text/plain': 'Name\tState\nAlpha\tReady',
-        });
-        expect(handleClipboardPaste(tablePaste, tableView, { markdown: true })).toBe(true);
-        expect(tableView.dispatch.mock.calls[0][0].changes.insert).toContain('| Name | State |');
     });
 
     test('lets plain and non-Markdown native pastes fall through unchanged', () => {
@@ -188,6 +194,13 @@ describe('central clipboard paste coordinator', () => {
     });
 
     test('context-menu rich paste shares conversion and falls back to exact plaintext', () => {
+        const tableView = testView();
+        expect(pasteClipboardTablePayload(tableView, {
+            html: '<table><tr><th>Name</th><th>State</th></tr><tr><td>Alpha</td><td>Ready</td></tr></table>',
+            text: 'Name\tState\nAlpha\tReady',
+        }, { markdown: true })).toBe(true);
+        expect(tableView.dispatch.mock.calls[0][0].changes.insert).toContain('| Name | State |');
+
         const richView = testView();
         expect(pasteClipboardPayload(richView, {
             html: '<strong>Rich</strong>',

@@ -80,6 +80,7 @@ export function initHelpPopup(root = document) {
     let returnFocusTarget = trigger;
     let currentResults = [];
     let activeResultIndex = -1;
+    let activatingResult = false;
 
     const activateTab = (target, { focus = false } = {}) => {
         if (!target || !tabs.includes(target)) return;
@@ -145,17 +146,22 @@ export function initHelpPopup(root = document) {
     const activateResult = index => {
         const entry = currentResults[index];
         if (!entry) return;
-        if (entry.type === 'setting') {
-            setOpen(false, { restoreFocus: false });
-            requestSettingsTarget(root, entry.selector);
-            return;
+        activatingResult = true;
+        try {
+            if (entry.type === 'setting') {
+                setOpen(false, { restoreFocus: false });
+                requestSettingsTarget(root, entry.selector);
+                return;
+            }
+            clearSearch();
+            activateTab(entry.tab);
+            entry.row.scrollIntoView?.({ block: 'center' });
+            entry.row.classList.add('md-help-search-target');
+            (root.defaultView || window).setTimeout(() => entry.row.classList.remove('md-help-search-target'), 1800);
+            entry.panel.focus({ preventScroll: true });
+        } finally {
+            activatingResult = false;
         }
-        clearSearch();
-        activateTab(entry.tab);
-        entry.row.scrollIntoView?.({ block: 'center' });
-        entry.row.classList.add('md-help-search-target');
-        (root.defaultView || window).setTimeout(() => entry.row.classList.remove('md-help-search-target'), 1800);
-        entry.panel.focus({ preventScroll: true });
     };
 
     search.addEventListener('input', renderSearch);
@@ -180,6 +186,9 @@ export function initHelpPopup(root = document) {
         if (!option) return;
         event.stopPropagation();
         activateResult(Number(option.dataset.resultIndex));
+    });
+    resultsSurface.addEventListener('pointerdown', event => {
+        if (event.target.closest('[data-result-index]')) event.preventDefault();
     });
 
     for (const tab of tabs) {
@@ -233,7 +242,7 @@ export function initHelpPopup(root = document) {
         setOpen(false, { restoreFocus: true });
     });
     wrapper.addEventListener('focusout', event => {
-        if (!popup.classList.contains('open') || wrapper.contains(event.relatedTarget)) return;
+        if (!popup.classList.contains('open') || activatingResult || wrapper.contains(event.relatedTarget)) return;
         setOpen(false);
     });
     close?.addEventListener('click', event => {

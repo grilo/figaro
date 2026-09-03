@@ -24,6 +24,7 @@ export function richPastePreflightPlan({
     internal = false,
     plainBypass = false,
     hasPlainText = false,
+    table = false,
     image = false,
     markdown = false,
     protectedContext = false,
@@ -34,6 +35,7 @@ export function richPastePreflightPlan({
             ? { action: 'plain', reason: 'plain-bypass' }
             : { action: 'native', reason: 'plain-bypass-unavailable' };
     }
+    if (markdown && table) return { action: 'table', reason: 'high-confidence-table' };
     if (image) return { action: 'image', reason: 'clipboard-image' };
     if (!markdown) return { action: 'native', reason: 'non-markdown-file' };
     if (protectedContext) {
@@ -48,8 +50,7 @@ export function richPastePreflightPlan({
 export function richPastePlan(options = {}) {
     const preflight = richPastePreflightPlan(options);
     if (preflight.action !== 'inspect') return preflight;
-    const { table = false, rich = false } = options;
-    if (table) return { action: 'table', reason: 'high-confidence-table' };
+    const { rich = false } = options;
     if (rich) return { action: 'rich', reason: 'semantic-html' };
     return { action: 'native', reason: 'plain-or-ambiguous' };
 }

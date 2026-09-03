@@ -176,10 +176,11 @@ hand without changing the underlying Markdown.
   the Document outline launcher on every Markdown buffer.
 - **Built-in reference.** Press F1 or use the title-bar `?` to search Markdown
   syntax, Macros, Shortcuts, and Settings. Help results jump to the matching
-  reference row; Settings results open the existing Settings view and focus the
-  exact control. Closing the reference returns focus to the control or editor
-  that invoked it. Find and Replace keeps its search, matching options, and
-  replacement actions in three compact predictable rows and announces the
+  reference row without dismissing the reference when clicked; Settings results
+  open the existing Settings view and focus the exact control. Closing the
+  reference returns focus to the control or editor that invoked it. Find and
+  Replace keeps its search, matching options, and replacement actions in three
+  compact predictable rows and announces the
   current/total result count—or that no match exists—to assistive technology.
 - **Local history.** Optional per-file Auto-Commit, explicit history saves,
   comparisons, and restoration keep unrelated vault changes separate; the
@@ -226,7 +227,8 @@ off, dim everything outside the current phrase or paragraph, and optionally
 **Adapt text to window size** using three stable bands. Reduced motion makes caret
 repositioning immediate. Figaro remembers all three Pure behavior preferences,
 the expanded/collapsed sidebar state, and the active buffer, so the same
-writing view returns on the next launch.
+writing view returns on the next launch. The Focus scope menu opens directly
+below its control, including while the Settings view is scrolled.
 
 ## Download
 
@@ -281,6 +283,10 @@ value; the preference never rewrites existing indentation or changes PDFs.
 While the document editor owns Tab for indentation, press Escape and then Tab
 or Shift+Tab to move keyboard focus out of the editor.
 
+**Settings → Editor → Show line numbers** adds a cursor-relative gutter. The
+cursor line stays unnumbered; the lines immediately above and below show `1`,
+then `2`, and so on. Only visible gutter rows are refreshed as the cursor moves.
+
 Pasting genuinely rich text from a browser, document editor, or AI chat into a
 Markdown note preserves headings, emphasis, links, lists, quotes, code, tasks,
 highlights, and rectangular tables as ordinary Markdown. Common clipboard-only
@@ -293,7 +299,9 @@ spreadsheet tables, Vim Visual `p`/`P`, revealed table source, and the editor's 
 menu retain their specialized behavior. A URL pasted over selected prose
 becomes a Markdown link through the native shortcut, Vim paste commands, or
 the menu. Spreadsheet paste prioritizes an Excel/LibreOffice HTML table, then
-explicit TSV, then explicit CSV with comma-or-semicolon dialect detection.
+explicit TSV, then explicit CSV with comma-or-semicolon dialect detection. If
+Excel also exposes a copied range as an image, the validated table wins and no
+image asset is created.
 Untyped delimited text is converted only when at least three rows form the same
 rectangular shape, keeping shorter prose untouched.
 

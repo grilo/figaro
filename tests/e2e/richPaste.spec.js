@@ -243,4 +243,83 @@ test('converts semantic rich clipboard structure while preserving literal paste 
         view.focus();
     });
     await expect(page.locator('.cm-block-widget--table')).toBeVisible();
+
+    // Windows Excel advertises its selection as a table and an image. The
+    // validated table must win in the real ClipboardEvent path.
+    const mixedSpreadsheet = await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const backendModule = await import('/js/backend.js');
+        const view = editor.getEditorView();
+        editor.setEditorContent('', 'Welcome.md');
+        while (view.state.doc.length) await new Promise(resolve => setTimeout(resolve, 10));
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+        let imageSaveCalls = 0;
+        backendModule.backend().SaveClipboardImage = async () => {
+            imageSaveCalls += 1;
+            return { success: true, path: 'excel.png', markdown: '![Excel](excel.png)' };
+        };
+        const transfer = new DataTransfer();
+        transfer.setData('text/html', '<table><tr><th>Name</th><th>State</th></tr><tr><td>Alpha</td><td>Ready</td></tr></table>');
+        transfer.setData('text/plain', 'Name\tState\nAlpha\tReady');
+        transfer.items.add(new File([new Uint8Array([137, 80, 78, 71])], 'excel.png', {
+            type: 'image/png',
+        }));
+        const event = new ClipboardEvent('paste', {
+            bubbles: true,
+            cancelable: true,
+            clipboardData: transfer,
+        });
+        view.contentDOM.dispatchEvent(event);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        return {
+            prevented: event.defaultPrevented,
+            imageSaveCalls,
+            source: view.state.doc.toString(),
+        };
+    });
+    expect(mixedSpreadsheet).toEqual({
+        prevented: true,
+        imageSaveCalls: 0,
+        source: '| Name | State |\n| --- | --- |\n| Alpha | Ready |',
+    });
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const backendModule = await import('/js/backend.js');
+        const view = editor.getEditorView();
+        editor.setEditorContent('', 'Welcome.md');
+        while (view.state.doc.length) await new Promise(resolve => setTimeout(resolve, 10));
+        view.dispatch({ selection: { anchor: 0 } });
+        view.focus();
+        window.__excelMenuImageSaves = 0;
+        backendModule.backend().SaveClipboardImage = async () => {
+            window.__excelMenuImageSaves += 1;
+            return { success: true, path: 'excel.png', markdown: '![Excel](excel.png)' };
+        };
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                read: async () => [{
+                    types: ['text/html', 'text/plain', 'image/png'],
+                    getType: async type => new Blob([
+                        type === 'text/html'
+                            ? '<table><tr><th>Name</th><th>State</th></tr><tr><td>Alpha</td><td>Ready</td></tr></table>'
+                            : type === 'text/plain' ? 'Name\tState\nAlpha\tReady' : new Uint8Array([137, 80, 78, 71]),
+                    ], { type }),
+                }],
+            },
+        });
+        const rectangle = view.coordsAtPos(0);
+        view.contentDOM.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: rectangle.left + 2,
+            clientY: (rectangle.top + rectangle.bottom) / 2,
+        }));
+    });
+    await page.locator('.editor-context-menu [data-action="paste"]').click();
+    await expect.poll(() => page.evaluate(() => window.__richPasteView.state.doc.toString()))
+        .toBe('| Name | State |\n| --- | --- |\n| Alpha | Ready |');
+    expect(await page.evaluate(() => window.__excelMenuImageSaves)).toBe(0);
 });

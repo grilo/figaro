@@ -29,7 +29,7 @@ describe('rich paste policy', () => {
             .toBe('dom-too-large');
     });
 
-    test('keeps internal/plain/image/table/rich/native paste priorities explicit', () => {
+    test('keeps internal/plain/table/image/rich/native paste priorities explicit', () => {
         expect(richPastePreflightPlan({ markdown: true })).toEqual({
             action: 'inspect',
             reason: 'conversion-candidate',
@@ -40,7 +40,7 @@ describe('rich paste policy', () => {
             action: 'native',
             reason: 'plain-bypass-unavailable',
         });
-        expect(richPastePlan({ image: true, markdown: true, table: true }).action).toBe('image');
+        expect(richPastePlan({ image: true, markdown: true, table: true }).action).toBe('table');
         expect(richPastePlan({ markdown: false, rich: true }).action).toBe('native');
         expect(richPastePlan({ markdown: true, protectedContext: true, hasPlainText: true }).action).toBe('plain');
         expect(richPastePlan({ markdown: true, table: true, rich: true }).action).toBe('table');

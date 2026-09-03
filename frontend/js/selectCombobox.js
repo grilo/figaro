@@ -6,7 +6,11 @@ import { planFloatingMenuPlacement } from './core/floatingMenuModel.js';
  * keyboard-accessible select-only combobox while retaining the select as the
  * form/state source of truth.
  */
-export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' } = {}) {
+export function enhanceSelectCombobox(select, {
+    className = '',
+    ariaLabel = '',
+    floating = true,
+} = {}) {
     if (!select || select.dataset.comboboxEnhanced === 'true') return select?._figaroCombobox || null;
 
     let options = Array.from(select.options || []);
@@ -51,6 +55,10 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
     };
     const positionMenu = () => {
         if (!menuOpen) return;
+        if (!floating) {
+            clearMenuPlacement();
+            return;
+        }
         if (!wrapper.isConnected) {
             setOpen(false);
             return;
@@ -105,7 +113,7 @@ export function enhanceSelectCombobox(select, { className = '', ariaLabel = '' }
         menu.classList.toggle('open', shouldOpen);
         if (shouldOpen) {
             positionMenu();
-            if (changed) startTrackingPlacement();
+            if (changed && floating) startTrackingPlacement();
             setActive(Math.max(0, options.findIndex(option => option.value === select.value)));
         }
         else {

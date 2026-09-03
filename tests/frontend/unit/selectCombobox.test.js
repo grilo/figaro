@@ -77,4 +77,18 @@ describe('select combobox', () => {
         expect(combobox.menu.dataset.floating).toBeUndefined();
         expect(combobox.menu.style.cssText).toBe('');
     });
+
+    test('keeps an anchored popup attached to its control wrapper', () => {
+        const combobox = enhanceSelectCombobox(document.getElementById('diagram'), {
+            floating: false,
+        });
+
+        combobox.trigger.click();
+
+        expect(combobox.menu.parentElement).toBe(combobox.wrapper);
+        expect(combobox.menu.dataset.floating).toBeUndefined();
+        expect(combobox.menu.dataset.placement).toBeUndefined();
+        expect(combobox.menu.style.cssText).toBe('');
+        expect(combobox.trigger.getAttribute('aria-expanded')).toBe('true');
+    });
 });

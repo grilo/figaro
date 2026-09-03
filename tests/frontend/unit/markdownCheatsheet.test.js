@@ -220,7 +220,7 @@ describe('Figaro help', () => {
         expect(document.activeElement).toBe(invoker);
     });
 
-    test('searches syntax and Settings, supports arrow selection, and deep-links without executing commands', async () => {
+    test('keeps pointer-selected Help results open and deep-links Settings without executing commands', async () => {
         const wrapper = loadDocument().querySelector('.md-cheatsheet-wrapper');
         document.body.innerHTML = wrapper.outerHTML;
         initHelpPopup();
@@ -237,7 +237,12 @@ describe('Figaro help', () => {
         expect(results.hidden).toBe(false);
         expect(results.textContent).toContain('Emphasis');
         expect(results.textContent).toContain('Help · Markdown');
-        search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        const helpResult = results.querySelector('[data-result-index="0"]');
+        const pointerDown = new Event('pointerdown', { bubbles: true, cancelable: true });
+        helpResult.dispatchEvent(pointerDown);
+        expect(pointerDown.defaultPrevented).toBe(true);
+        helpResult.click();
+        expect(document.getElementById('md-cheatsheet-popup').hidden).toBe(false);
         expect(document.getElementById('md-help-markdown-panel').hidden).toBe(false);
         expect(document.querySelector('.md-help-search-target').textContent).toContain('bold');
 

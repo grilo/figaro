@@ -489,6 +489,13 @@ specimen is wired to that production controller. `editorUX.spec.js` keeps one
 actual Settings path for focus entry, semantic headings, keyboard selection,
 and normal Tab continuation.
 
+Help search keeps its ranking and activation behavior below the browser where
+possible. `markdownCheatsheet.test.js` owns pointer-down focus retention, Help
+topic activation without dismissal, and the deliberately closing Settings
+deep-link. The focused F1 scenario in `editorUX.spec.js` pointer-selects one
+Help result because only a real browser reproduces the focusout caused when a
+focused result is removed; the popup must remain visible around that handoff.
+
 The existing Figaro-theme browser scenario owns CRT Phosphor's exact palette
 and computed screen-effect boundary. It checks borderless overscan, a
 decodable 128px multi-level high-pass dither tile, 35%-strength repeating
@@ -1498,6 +1505,16 @@ fold-state or ARIA-only assertion is not sufficient. In a native WebKitGTK,
 WebView2, and WKWebView build, repeat those cursor and drag checks with both
 line numbers off and on.
 
+`relativeLineNumbers.test.js` owns the pure distance/spacer rules and a concrete
+CodeMirror gutter update when the primary cursor changes lines. The focused
+Settings/editor browser scenario keeps the gutter enabled while exercising
+Arrow Down/Up, mouse placement, and forward drag selection, asserting the
+visible relative labels after each move. The same scenario owns Focus scope's
+browser-only popup geometry: its listbox edges match its trigger and remain six
+pixels below it inside the animated, scrolled Settings panel. Generic
+`selectCombobox.test.js` coverage keeps locally anchored menus in their control
+wrapper without viewport-floating state.
+
 The Mermaid Editor extends that matrix without creating a new block widget.
 Pure tests cover the complete 32-type/76-template catalogue, all adaptive Style
 descriptors, color/contrast derivation, conservative frontmatter merging and
@@ -1769,7 +1786,9 @@ block insertion, variable-length code fences, and AI math/fence transforms.
 only fallback, inline-only cells, rich tables, AI code shapes, unsafe markup,
 remote-image alt text, and the bounded 100 KB conversion check.
 `clipboardPaste.test.js` owns internal provenance, exact protected/plain
-fallback, image/table precedence, context-menu parity, and one dispatch.
+fallback, validated-table precedence over a spreadsheet's accompanying image,
+ordinary-image precedence over general rich HTML, context-menu parity, and one
+dispatch.
 Conversion has no vault/index dependency, so vault size cannot change its cost;
 profile clipboard HTML size and element count instead of using the huge-vault
 fixture for this feature.
@@ -1777,7 +1796,8 @@ fixture for this feature.
 The single browser boundary in `richPaste.spec.js` must use real copy/paste
 `ClipboardEvent` objects and the Async Clipboard menu path. It covers one-Undo
 replacement, Ctrl/Cmd+Shift+V, protected fenced source, Vim Visual mode, a
-revealed table source range, Arrow Up/Down, and bidirectional pointer drag selection.
+revealed table source range, a Windows Excel-shaped table-plus-image payload
+without an image save, Arrow Up/Down, and bidirectional pointer drag selection.
 Do not duplicate the pure failure matrix in Playwright.
 
 ```bash

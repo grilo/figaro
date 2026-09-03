@@ -119,6 +119,9 @@ the accessible Markdown/Macros/Shortcuts tab state over static startup HTML; it
 performs no backend request and loads no feature code on first use. Pure
 `core/helpSearchModel.js` ranks plain Help and Settings destinations, while the
 DOM adapter indexes the static rows and dispatches only a Settings deep-link.
+Pointer activation retains focus on the search field until the selected result
+has been applied, and the adapter ignores only the transient focus loss caused
+by removing that result; ordinary focus leaving the popup still dismisses it.
 `settingsNavigation.js` owns opening the existing Settings tab, scrolling, and
 exact-control focus/highlight, so the Help search cannot become an action
 command palette. The topic buttons, search field, and results reuse approved
@@ -291,7 +294,10 @@ and notices use that canonical
 asset. `settingsPicker.js` binds Theme, Font, and Code Font to one select-only
 combobox adapter whose deterministic key decisions live in
 `core/pickerModel.js`; native-select enhancements retain their separate state
-source. Feature classes retain behavior and narrow host-layout differences, but
+source. That adapter can retain a menu in its control wrapper when the popup
+must remain locally anchored; Focus scope uses this mode so the animated
+Settings panel cannot become an unintended fixed-position containing block.
+Feature classes retain behavior and narrow host-layout differences, but
 do not restate shared hover, focus, open, selected, disabled, validation, or
 semantic rules. The approved `.ui-checkbox` owns independent-selection paint
 for Properties and dialogs, including checked, hover, focus, and disabled
@@ -1170,6 +1176,11 @@ visible document region and rebuilt on viewport changes. Cursor movement only
 rebuilds source-aware decorations when it crosses an affected line or widget.
 This keeps the source-first editing contract while avoiding whole-document
 syntax walks and string copies on every arrow key or ordinary keystroke.
+The adjacent relative-number gutter follows the same bounded rule:
+`core/relativeLineNumberModel.js` owns distance labels and stable spacer width,
+while `relativeLineNumbers.js` caches the primary cursor line for each state and
+asks CodeMirror to redraw only the rendered gutter rows after selection or
+document changes.
 Stable block sizing uses the same dependency direction. The pure
 `core/sourceFootprintModel.js` module owns the approved block-kind allowlist,
 source-line counting, and downscale-only graphic plan. The DOM adapter in
@@ -1467,8 +1478,10 @@ boundaries, safe code fences, and narrowly scoped AI math/fence repairs.
 clipboard document, recognizes semantic evidence, repairs positively identified
 AI code shapes, and emits Markdown without reading the vault or loading remote
 resources. `frontend/js/clipboardPaste.js` coordinates native events, internal
-source provenance, image/table precedence, exact plain fallback, and the single
-CodeMirror transaction. Its pure preflight resolves internal, plain, image,
+source provenance, table/image precedence, exact plain fallback, and the single
+CodeMirror transaction. Its pure preflight lets a validated table outrank an
+accompanying clipboard image (matching Windows Excel) while ordinary images
+still outrank general rich conversion; it also resolves internal, plain,
 non-Markdown, and protected cases before the adapter parses rich HTML. The root
 Markdown editor injects that coordinator; the editor context menu adapts Async
 Clipboard items to the same payload.

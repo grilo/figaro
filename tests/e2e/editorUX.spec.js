@@ -60,6 +60,11 @@ test('toggles three-topic Figaro help with F1 and restores editor focus', async 
     await page.keyboard.press('F1');
     await expect(popup).toBeVisible();
     await expect(page.locator('#md-help-search')).toBeFocused();
+    await page.locator('#md-help-search').fill('bold');
+    await page.getByRole('option', { name: /Emphasis/ }).click();
+    await expect(popup).toBeVisible();
+    await expect(page.locator('#md-help-markdown-panel')).toBeVisible();
+    await expect(page.locator('.md-help-search-target')).toContainText('bold');
     await popup.evaluate(async element => {
         await Promise.all(element.getAnimations().map(animation => animation.finished));
     });
@@ -1917,7 +1922,7 @@ test('@date reuses Calendar styling, anchors at the caret, and restores editor n
     })).toEqual({ fromLine: 1, toLine: 3 });
 });
 
-test('defaults line numbers off and toggles them without disturbing cursor or mouse selection', async ({ page }) => {
+test('anchors Focus scope and keeps relative line numbers in sync with cursor movement', async ({ page }) => {
     await openWelcomeEditor(page);
     await page.locator('#topbar-settings').click();
 
@@ -1938,11 +1943,31 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
         expect(styles.radius).toBeGreaterThanOrEqual(6);
     }
 
+    const focusScopePicker = page.locator('#pure-focus-scope').locator('xpath=..');
+    const focusScopeTrigger = focusScopePicker.locator('.select-combobox-trigger');
+    const focusScopeMenu = focusScopePicker.locator('.select-combobox-menu');
+    await focusScopeTrigger.click();
+    const focusScopeGeometry = await focusScopePicker.evaluate(picker => {
+        const trigger = picker.querySelector('.select-combobox-trigger').getBoundingClientRect();
+        const menu = picker.querySelector('.select-combobox-menu').getBoundingClientRect();
+        return {
+            trigger: { left: trigger.left, right: trigger.right, bottom: trigger.bottom },
+            menu: { left: menu.left, right: menu.right, top: menu.top },
+        };
+    });
+    expect(Math.abs(focusScopeGeometry.menu.left - focusScopeGeometry.trigger.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(focusScopeGeometry.menu.right - focusScopeGeometry.trigger.right)).toBeLessThanOrEqual(1);
+    expect(focusScopeGeometry.menu.top - focusScopeGeometry.trigger.bottom).toBeCloseTo(6, 0);
+    await focusScopeTrigger.press('Escape');
+    await expect(focusScopeMenu).toBeHidden();
+
     const lineNumberSwitch = page.locator('.settings-section:has(#line-numbers-toggle) .toggle-slider');
     await lineNumberSwitch.click();
     await expect(page.locator('.cm-lineNumbers')).toHaveCount(1);
     await lineNumberSwitch.click();
     await expect(page.locator('.cm-lineNumbers')).toHaveCount(0);
+    await lineNumberSwitch.click();
+    await expect(page.locator('.cm-lineNumbers')).toHaveCount(1);
 
     await page.evaluate(async () => {
         const app = (await import('/js/backend.js')).backend();
@@ -1983,11 +2008,16 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
     });
     const editorContent = page.locator('.cm-content');
     await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/);
-    await page.waitForTimeout(100);
+    const visibleLineNumbers = () => page.evaluate(() => Array.from(
+        document.querySelectorAll('.cm-lineNumbers .cm-gutterElement'),
+    ).filter(element => element.style.visibility !== 'hidden').map(element => element.textContent));
+    await expect.poll(visibleLineNumbers).toEqual(['1', '', '1']);
     await editorContent.press('ArrowDown');
     expect(await page.evaluate(() => window.__lineNumberView.state.doc.lineAt(window.__lineNumberView.state.selection.main.head).number)).toBe(3);
+    await expect.poll(visibleLineNumbers).toEqual(['2', '1', '']);
     await editorContent.press('ArrowUp');
     expect(await page.evaluate(() => window.__lineNumberView.state.doc.lineAt(window.__lineNumberView.state.selection.main.head).number)).toBe(2);
+    await expect.poll(visibleLineNumbers).toEqual(['1', '', '1']);
 
     const points = await page.evaluate(() => {
         const view = window.__lineNumberView;
@@ -2003,6 +2033,7 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
     });
     await page.mouse.click(points.second.x, points.second.y);
     expect(await page.evaluate(() => window.__lineNumberView.state.doc.lineAt(window.__lineNumberView.state.selection.main.head).number)).toBe(2);
+    await expect.poll(visibleLineNumbers).toEqual(['1', '', '1']);
     await page.mouse.move(points.first.x, points.first.y);
     await page.mouse.down();
     await page.mouse.move(points.last.x, points.last.y, { steps: 8 });
@@ -2014,6 +2045,7 @@ test('defaults line numbers off and toggles them without disturbing cursor or mo
             toLine: window.__lineNumberView.state.doc.lineAt(selection.to).number,
         };
     })).toEqual({ fromLine: 1, toLine: 3 });
+    await expect.poll(visibleLineNumbers).toEqual(['2', '1', '']);
 });
 
 test('clamps cursor and viewport movement at both document boundaries', async ({ page }) => {

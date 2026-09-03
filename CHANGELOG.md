@@ -10,6 +10,22 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.34.0] - 2026-09-03
+
+### Changed
+
+- Optional editor line numbers are now relative to the cursor: its line stays
+  blank while surrounding lines count outward in both directions.
+
+### Fixed
+
+- The Pure mode Focus scope list now opens directly below its control instead
+  of drifting and stretching with the animated Settings panel.
+- Clicking a Help search result now reaches and highlights its reference row
+  instead of dismissing the popup during the browser's focus handoff.
+- Excel selections that advertise both table data and an image now paste as
+  Markdown tables without creating an image asset.
+
 ## [1.33.0] - 2026-09-02
 
 ### Added
@@ -1900,7 +1916,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.33.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.34.0...HEAD
+[1.34.0]: https://github.com/grilo/figaro/compare/v1.33.0...v1.34.0
 [1.33.0]: https://github.com/grilo/figaro/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/grilo/figaro/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/grilo/figaro/compare/v1.31.0...v1.32.0

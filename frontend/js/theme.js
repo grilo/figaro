@@ -749,6 +749,7 @@ export async function initSettingsPanel(root = document) {
         if (initPureWritingSettings(root)) {
             enhanceSelectCombobox(findIn(root, '#pure-focus-scope'), {
                 ariaLabel: 'Pure mode focus scope',
+                floating: false,
             });
         }
         await initEditorNavigationSettings(root);

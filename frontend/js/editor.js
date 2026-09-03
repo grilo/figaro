@@ -56,6 +56,7 @@ import {
     handlePlainPasteKeyup,
     pasteClipboardItemImage,
     pasteClipboardPayload,
+    pasteClipboardTablePayload,
 } from './clipboardPaste.js';
 import {
     linkedNoteCompletionInsertion,
@@ -89,11 +90,12 @@ import {
     configureContextMenu,
     dismissContextMenu,
 } from './contextMenu.js';
+import { relativeLineNumbers } from './relativeLineNumbers.js';
 import { indentationMarkers as indentationMarkerExtension } from '@replit/codemirror-indentation-markers';
 import { getCM, vim, Vim } from '@replit/codemirror-vim';
 import {
     Decoration, EditorView, ViewPlugin, WidgetType, drawSelection,
-    highlightActiveLineGutter, keymap, lineNumbers,
+    highlightActiveLineGutter, keymap,
 } from '@codemirror/view';
 import {
     Compartment, EditorSelection, EditorState, Prec, RangeSetBuilder,
@@ -2547,7 +2549,7 @@ function createEditorView() {
             markdownDiagramCompartment.of(markdownDiagramExtensions),
             markdownTableCompartment.of(markdownTableExtensions),
             markdownMathCompartment.of(markdownMathExtensions),
-            lineNumbersCompartment.of(lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []),
+            lineNumbersCompartment.of(lineNumbersRequested ? [relativeLineNumbers(), highlightActiveLineGutter()] : []),
             foldingCompartment.of(editorFoldingExtensions('markdown')),
             foldGutterAccessibilityPlugin,
             blockControlVisibilityExtension,
@@ -3124,7 +3126,7 @@ function setLineNumbers(enabled) {
     if (!view || !lineNumbersCompartment) return;
     view.dispatch({
         effects: lineNumbersCompartment.reconfigure(
-            lineNumbersRequested ? [lineNumbers(), highlightActiveLineGutter()] : []
+            lineNumbersRequested ? [relativeLineNumbers(), highlightActiveLineGutter()] : []
         ),
     });
     view.requestMeasure();
@@ -3692,6 +3694,15 @@ export async function copyEditorSelection(view) {
     return copyTextToClipboard(selectedEditorText(view));
 }
 
+async function clipboardItemText(item, type) {
+    try {
+        const blob = await item?.getType?.(type);
+        return String(await blob?.text?.() || '');
+    } catch (_) {
+        return '';
+    }
+}
+
 async function cutEditorSelection(view) {
     const range = view?.state?.selection?.main;
     const text = selectedEditorText(view);
@@ -3714,11 +3725,9 @@ async function pasteIntoEditor(view) {
             const items = await clipboard.read();
             const internal = items.some(item => Array.from(item?.types || [])
                 .some(type => String(type).toLowerCase() === FIGARO_MARKDOWN_CLIPBOARD_TYPE));
-            for (const item of items) {
-                if (Array.from(item?.types || []).some(type =>
-                    String(type).toLowerCase().startsWith('image/')
-                )) return pasteClipboardItemImage(view, item);
-            }
+            const imageItem = items.find(item => Array.from(item?.types || []).some(type =>
+                String(type).toLowerCase().startsWith('image/')
+            ));
 
             const htmlItem = items.find(item => Array.from(item?.types || []).includes('text/html'));
             const csvItem = items.find(item => Array.from(item?.types || []).includes('text/csv'));
@@ -3726,18 +3735,25 @@ async function pasteIntoEditor(view) {
             const plainItem = items.find(item => Array.from(item?.types || []).includes('text/plain'));
             const textItem = tsvItem || csvItem || plainItem;
             const mimeType = tsvItem ? 'text/tab-separated-values' : csvItem ? 'text/csv' : 'text/plain';
-            const html = htmlItem ? await (await htmlItem.getType('text/html')).text() : '';
-            const text = textItem ? await (await textItem.getType(mimeType)).text() : '';
-            if (text && pasteMarkdownURLAsLink(view, text)) return true;
-            if ((html || text) && pasteClipboardPayload(view, {
+            const html = await clipboardItemText(htmlItem, 'text/html');
+            const text = await clipboardItemText(textItem, mimeType);
+            const protectedContext = markdownRichPasteProtectedContext(view.state);
+            const payload = {
                 html,
                 text,
                 internal,
                 mimeType: html ? 'text/html' : mimeType,
                 tabularMimeType: html && (tsvItem || csvItem) ? mimeType : '',
-            }, {
+            };
+            if ((html || text) && pasteClipboardTablePayload(view, payload, {
                 markdown: true,
-                protectedContext: markdownRichPasteProtectedContext(view.state),
+                protectedContext,
+            })) return true;
+            if (imageItem) return pasteClipboardItemImage(view, imageItem);
+            if (text && pasteMarkdownURLAsLink(view, text)) return true;
+            if ((html || text) && pasteClipboardPayload(view, payload, {
+                markdown: true,
+                protectedContext,
             })) return true;
         } catch (_) {
             // Keyboard paste events remain the most compatible image path in
