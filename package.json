@@ -29,7 +29,7 @@
     "babel-preset-current-node-syntax": "file:tools/babel-preset-current-node-syntax",
     "esbuild": "0.28.1",
     "eslint": "^10.8.0",
-    "globals": "^17.7.0",
+    "globals": "^17.11.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1"
   },
