@@ -10,6 +10,87 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.35.0] - 2026-09-04
+
+### Added
+
+- The Table, Mermaid, and Chart Editor dialogs can now be resized from a themed
+  lower-right handle or with Arrow keys. Their panes reflow with the chosen
+  viewport-safe size, Home restores the default, and the size resets on close.
+
+### Changed
+
+- Unstyled Mermaid diagrams now use the active Figaro palette and editor surface
+  in live preview and the Mermaid Editor, avoiding a bright white canvas in dark
+  themes without changing authored themes or printable HTML/PDF output.
+- Mermaid Style mode now keeps node rows stationary through pointer selection
+  and preserves their scroll position. The active editor and chooser arrange
+  the node name, centered shape, and color in compact three-part rows. Its pickers and color actions,
+  plus Graph search, now reuse the same borderless shared controls as Settings
+  and Search notes.
+- Mermaid, Chart, and Table editor dialogs now drop decorative outer, pane,
+  heading, and redundant toolbar-group borders. Mermaid and Chart form and
+  choice controls use Settings' quiet variants; Table actions use its outlined
+  button treatment with one clear divider between Rows and Columns. Table-cell
+  grids, code gutters, focus, errors, and forced-colors boundaries remain visible.
+- Calendar Timeline's **Today**, Mermaid's **Replace with template**, Chart
+  Editor's **JSON**, and file-diagnostic recovery actions now use the same
+  outlined action-button treatment as Settings and the Table Editor.
+- Settings cards, pickers, steppers, and Kanban columns/cards now use layered
+  theme surfaces without decorative outlines. Pointer-open pickers stay quiet,
+  while keyboard focus, drag targets, errors, and forced-colors mode retain
+  explicit state cues. Figaro Light controls have a stronger resting layer,
+  while every segmented choice now uses the former Settings control surface
+  as a pill-shaped track with a theme-accented highlight that slides between
+  options. Figaro Dark retains its red selected treatment.
+- Kanban cards now put their ellipsis at the top right, omit the source filename,
+  and keep clickable **Start/Not started** and **Due/No due date** pills at the
+  lower left and right. Their menu clears both dates or removes the board tag,
+  while S, D, and Delete retain direct keyboard access.
+- Gantt task bars now expose wider edge targets with the same theme-accented
+  resize dots as images, centered half inside and half outside each bar edge,
+  for changing start and end dates. Unscheduled is unavailable when a task has
+  no dates to clear.
+- Graph nodes now open on double-click as well as Ctrl/Cmd-click and Enter;
+  plain click continues to pin the node's link trace.
+- Deleting a numbered Markdown list item now rewrites the remaining sibling
+  markers in sequence while preserving the list's starting number and nesting.
+- Rendered Markdown tables now keep their tonal rounded background and internal
+  cell grid without drawing a second border around the complete table.
+- Test runs now reject tautological assertions, copied production logic and CSS
+  formulas, vacuous conditional samples, duplicated shell fixtures, and native
+  write mocks that were not explicitly configured by the test.
+
+### Fixed
+
+- Application modals now show **ESC to close** and honor Escape from focused
+  fields and embedded editors. Unapplied Table, Chart, and Mermaid drafts ask
+  for confirmation before they are discarded, after closing any nested picker.
+- Ctrl/Cmd-clicking a rendered external Markdown link now opens the system
+  browser even when a native webview cannot map the replacement widget back to
+  source, including links whose visible label is the complete URL.
+- One-day Gantt tasks now keep distinct start-resize, center-drag, and
+  end-resize regions, including in webviews that report an edge press on the
+  task bar itself.
+- Folding a sized Markdown image now removes its rendered/source-placeholder
+  height and leaves only the compact native fold row; expanding restores the
+  rendered image at its authored size.
+- Large Kanban columns now scroll without rebuilding overlapping cards, use
+  measured card heights to keep virtual positions stable, and temporarily
+  suppress hover elevation during active scrolling. Returning to an already
+  loaded Kanban workspace reuses its populated surface without replaying a
+  loading or entrance frame.
+- Select-only popup menus now remain attached to their invoking control, flip
+  when needed, and stay inside the viewport across Settings, editors, and
+  document properties instead of being displaced or clipped by their panels.
+- Gantt paints one continuous current-day marker through the full timeline,
+  removing the doubled header edge and filling otherwise empty track space.
+- A saved collapsed sidebar now paints at its final 44px width from the first
+  startup frame instead of briefly animating down from its expanded width.
+- Editor extras, link navigation, image completion, note merging, native window
+  commands, and theme behavior are now verified through their production seams
+  instead of test-only reimplementations or silently swallowed runtime panics.
+
 ## [1.34.0] - 2026-09-03
 
 ### Changed
@@ -1916,7 +1997,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.34.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.35.0...HEAD
+[1.35.0]: https://github.com/grilo/figaro/compare/v1.34.0...v1.35.0
 [1.34.0]: https://github.com/grilo/figaro/compare/v1.33.0...v1.34.0
 [1.33.0]: https://github.com/grilo/figaro/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/grilo/figaro/compare/v1.32.0...v1.32.1

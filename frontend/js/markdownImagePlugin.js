@@ -404,7 +404,8 @@ function imageDecorations(state, options) {
             foldedRanges(state).between(node.from, node.to, (from, to) => {
                 if (from === node.from && to === node.to) folded = true;
             });
-            if (!folded && !shouldShowSource(state, node.from, node.to) && !dragging) {
+            if (folded) return;
+            if (!shouldShowSource(state, node.from, node.to) && !dragging) {
                 decorations.push(Decoration.replace({
                     widget: new MarkdownImageWidget(data, options),
                     block: true,

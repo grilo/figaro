@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"figaro/internal/taskschedule"
 )
 
 // ============================================================================
@@ -1067,6 +1069,36 @@ func TestUpdateTaskTag(t *testing.T) {
 	}
 	if strings.Contains(content, "#todo") {
 		t.Error("old #todo tag should be gone")
+	}
+}
+
+func TestUpdateTaskTagRecordsFirstNonTodoDateAndPreservesOverride(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+
+	writeTestFile(t, vaultPath, "tasks.md", "- [ ] Started work #todo\n")
+	app.syncKanbanColumns()
+	result, err := app.UpdateTaskTag("tasks.md", 1, "todo", "wip")
+	if err != nil || !result.Success {
+		t.Fatal(result, err)
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["wip"]) != 1 || board["wip"][0].StartDate != localToday() {
+		t.Fatalf("first move did not record today's start: %#v %v", board["wip"], err)
+	}
+
+	manual := "2026-08-14"
+	task := taskschedule.Task{File: "tasks.md", Line: 1, Source: "- [ ] Started work #wip"}
+	if err := app.SetTaskSchedule(task, manual, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	result, err = app.UpdateTaskTag("tasks.md", 1, "wip", "done")
+	if err != nil || !result.Success {
+		t.Fatal(result, err)
+	}
+	board, err = app.GetKanbanBoard()
+	if err != nil || len(board["done"]) != 1 || board["done"][0].StartDate != manual {
+		t.Fatalf("later move replaced the user start: %#v %v", board["done"], err)
 	}
 }
 
@@ -2746,71 +2778,6 @@ func TestDrag_TitleBarDoubleClickTogglesMaximize(t *testing.T) {
 	if !strings.Contains(content, "callNative('WindowMaximize')") {
 		t.Error("title-bar double click must use the existing native maximize toggle")
 	}
-}
-
-// ============================================================================
-// 17. Window Resize Method Coverage
-// ============================================================================
-
-func TestWindowStartResize_AllDirections(t *testing.T) {
-	// Verify WindowStartResize handles all 8 compass directions.
-	// We test with nil context — it should return without panicking or calling runtime.
-	app, _ := newTestApp(t)
-
-	directions := []string{"N", "S", "E", "W", "NE", "NW", "SE", "SW", "n", "s", "e", "w"}
-	for _, d := range directions {
-		// Should not panic even with nil context
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					t.Errorf("WindowStartResize(%q) panicked with nil context: %v", d, r)
-				}
-			}()
-			app.WindowStartResize(d)
-		}()
-	}
-}
-
-func TestWindowMinimizeMaximizeClose_NoPanic(t *testing.T) {
-	app, _ := newTestApp(t)
-
-	funcs := []struct {
-		name string
-		fn   func()
-	}{
-		{"WindowMinimize", app.WindowMinimize},
-		{"WindowMaximize", app.WindowMaximize},
-		{"WindowClose", app.WindowClose},
-	}
-
-	for _, f := range funcs {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					t.Errorf("%s panicked: %v", f.name, r)
-				}
-			}()
-			f.fn()
-		}()
-	}
-}
-
-func TestWindowSetTitle_NoPanicWithoutRuntimeContext(t *testing.T) {
-	app, _ := newTestApp(t)
-	app.WindowSetTitle("Project brief.md — Figaro")
-}
-
-func TestWindowSetPosition_NoPanic(t *testing.T) {
-	app, _ := newTestApp(t)
-	// Should not panic with nil context (just returns early)
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("WindowSetPosition panicked: %v", r)
-			}
-		}()
-		app.WindowSetPosition(100, 200)
-	}()
 }
 
 func TestWindowGetPosition_ReturnsZeroOnNilCtx(t *testing.T) {

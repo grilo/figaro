@@ -114,8 +114,8 @@ test('converts a simple table into a themed, complete chart and resizes it as on
     await expect(previewSVG).toBeVisible();
     const markCombobox = modal.getByRole('combobox', { name: 'Mark type for Column 2' });
     await expect(markCombobox).toBeVisible();
+    const markOptions = page.locator(`#${await markCombobox.getAttribute('aria-controls')}`);
     await markCombobox.click();
-    const markOptions = modal.getByRole('listbox', { name: 'Mark type for Column 2 options' });
     await expect(markOptions).toBeVisible();
     const popupGeometry = await markOptions.evaluate(menu => {
         const bounds = menu.getBoundingClientRect();
@@ -245,6 +245,8 @@ test('converts a simple table into a themed, complete chart and resizes it as on
             modeTop: mode.top,
             orientationTop: orientation.top,
             seriesRowHeight: seriesRow.height,
+            modalBorderTop: getComputedStyle(root).borderTopWidth,
+            seriesRowBorderTop: getComputedStyle(root.querySelector('[data-chart-column="Column 2"]')).borderTopWidth,
             columnsBorderTop: getComputedStyle(columnsSection).borderTopWidth,
             columnsBorderBottom: getComputedStyle(columnsSection).borderBottomWidth,
             axesBorderTop: getComputedStyle(axesSection).borderTopWidth,
@@ -258,6 +260,12 @@ test('converts a simple table into a themed, complete chart and resizes it as on
                 'Resize vertically in the note',
                 'Apply writes one change',
             ].some(text => root.textContent.includes(text)),
+            quietSegmentedControls: Array.from(root.querySelectorAll('.ui-segmented-control'))
+                .every(control => control.classList.contains('ui-segmented-control--quiet')),
+            quietSteppers: Array.from(root.querySelectorAll('.ui-stepper'))
+                .every(control => control.classList.contains('ui-stepper--quiet')),
+            quietFields: Array.from(root.querySelectorAll('.ui-field'))
+                .every(control => control.classList.contains('ui-field--quiet')),
         };
     });
     expect(controlGeometry.categoryText).toBe('Labels on bottom axis');
@@ -272,6 +280,8 @@ test('converts a simple table into a themed, complete chart and resizes it as on
     expect(controlGeometry.thresholdStepperHeight).toBe(30);
     expect(Math.abs(controlGeometry.modeTop - controlGeometry.orientationTop)).toBeLessThan(1);
     expect(controlGeometry.seriesRowHeight).toBeLessThanOrEqual(85);
+    expect(controlGeometry.modalBorderTop).toBe('0px');
+    expect(controlGeometry.seriesRowBorderTop).toBe('1px');
     expect(controlGeometry.columnsBorderTop).toBe('0px');
     expect(controlGeometry.columnsBorderBottom).toBe('0px');
     expect(controlGeometry.axesBorderTop).toBe('0px');
@@ -282,6 +292,9 @@ test('converts a simple table into a themed, complete chart and resizes it as on
         [...controlGeometry.thresholdControlLefts].sort((left, right) => left - right),
     );
     expect(controlGeometry.removedHintsPresent).toBe(false);
+    expect(controlGeometry.quietSegmentedControls).toBe(true);
+    expect(controlGeometry.quietSteppers).toBe(true);
+    expect(controlGeometry.quietFields).toBe(true);
 
     const seriesAxis = modal.getByRole('group', { name: 'Axis for Column 2' });
     await expect(seriesAxis.getByRole('button', { name: 'Left' })).toHaveAttribute('aria-pressed', 'true');
@@ -336,9 +349,13 @@ test('converts a simple table into a themed, complete chart and resizes it as on
     expect(trendlineGeometry).not.toBeNull();
     expect(trendlineGeometry.width).toBeGreaterThan(40);
 
-    const columnTwoMark = modal.getByRole('combobox', { name: 'Mark type for Column 2' });
-    await columnTwoMark.click();
-    await modal.getByRole('option', { name: 'Stacked Bar', exact: true }).click();
+    const chooseColumnTwoMark = async name => {
+        const combobox = modal.getByRole('combobox', { name: 'Mark type for Column 2' });
+        const options = page.locator(`#${await combobox.getAttribute('aria-controls')}`);
+        await combobox.click();
+        await options.getByRole('option', { name, exact: true }).click();
+    };
+    await chooseColumnTwoMark('Stacked Bar');
     await expect(preview).toHaveAttribute('aria-busy', 'false');
     const disabledTrendline = modal.locator(
         '[data-chart-column="Column 2"] .vega-lite-chart-editor-column-extra',
@@ -368,8 +385,7 @@ test('converts a simple table into a themed, complete chart and resizes it as on
     await expect(page.getByRole('tooltip')).toBeVisible();
     await expect(page.getByRole('tooltip'))
         .toHaveText('Choose a non-stacked mark to use a linear trendline.');
-    await columnTwoMark.click();
-    await modal.getByRole('option', { name: 'Bar', exact: true }).click();
+    await chooseColumnTwoMark('Bar');
     await expect(preview).toHaveAttribute('aria-busy', 'false');
     await expect(trendlineInput).toBeEnabled();
 
@@ -389,8 +405,7 @@ test('converts a simple table into a themed, complete chart and resizes it as on
     await expect.poll(() => chartEditorCollisionReport(modal)).toEqual({ collisions: [], horizontalOverflow: 0, outside: [] });
     await page.setViewportSize({ width: 1280, height: 720 });
 
-    await modal.getByRole('combobox', { name: 'Mark type for Column 2' }).click();
-    await modal.getByRole('option', { name: 'Area', exact: true }).click();
+    await chooseColumnTwoMark('Area');
     const authoredColor = '#14b8a6';
     await modal.locator('[data-column-color-button="Column 2"]').click();
     const colorPalette = page.getByRole('listbox', { name: 'Choose color for Column 2' });

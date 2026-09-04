@@ -102,7 +102,12 @@ opening a hosted Draw.io document, scanning Vault health, or generating a PDF
 remains demand-driven, but its application code must already be ready.
 
 Keep Kanban planning dates separate from authored task content. Gantt's pure
-models own matching, collision refusal, date movement, and geometry; the native
+models own matching, collision refusal, date movement, geometry, and pointer-zone
+classification. Preserve distinct start-resize, center-move, and end-resize
+targets on a one-day bar; derive gesture ownership from measured bar position
+rather than trusting a webview's nested event target. Keep each visible dot
+centered on its painted bar edge without moving the larger hit region out of
+the bar. The native
 adapter alone writes ignored `.config/task-schedules.json`. Never add hidden
 task IDs or special `due` syntax to Markdown. Editor date pickers insert ordinary
 date links in the preferred style, never a source-derived deadline. All deadline
@@ -123,6 +128,10 @@ Outside clicks and Escape dismiss their UI, not an operation already submitted
 to persistence. Treat the portalled calendar as part of its owning inspector;
 Escape closes the innermost picker first. Release document dismissal listeners
 when the inspector closes and never steal an outside click's focus on completion.
+Board cards keep Start and Due as separate clickable pills; changing one must
+preserve the other through a pure schedule-update plan. Their top-right menu
+clears both dates or removes the board tag, and card rendering does not repeat
+the source filename.
 
 For missing `.drawio.svg` Markdown images, keep vault-path resolution in the
 pure creation model, including missing-versus-existing action classification;
@@ -136,7 +145,9 @@ constraints in `core/markdownImageModel.js`; the CodeMirror adapter may own
 only DOM measurements, pointer capture, the source transaction, and rendered
 geometry. Standalone image/Draw.io guide recognition and fold ranges belong in
 the pure block guide model; original-size reset and direct Draw.io editor
-activation remain injected guide callbacks. Keep
+activation remain injected guide callbacks. A folded image must suppress both
+its rendered replacement and any cached source-height line decoration so the
+native fold row owns the complete footprint. Keep
 the file-tree's post-delete path signal ahead of discovery refresh and retain a
 fresh Draw.io preview URL per image-field generation so successful loader
 caches cannot outlive deletion.
@@ -154,6 +165,15 @@ managed model, and do not add a chart-only PDF renderer. Keep native-webview
 container measurement in the shared diagram adapter, prove its temporary
 target is connected and cleaned up, and surface renderer or empty-geometry
 failures as an announced modal state rather than accepting a blank preview.
+Keep shared Table/Mermaid/Chart modal sizing and viewport-clamping policy in
+`core/editorModalResizeModel.js`; the DOM adapter may own measurement, pointer
+capture, keyboard focus/readouts, and temporary inline geometry. Do not attach
+that opt-in adapter to generic dialogs, and keep editor layout breakpoints based
+on the modal container so a user resize reflows without changing pure editor state.
+Keep Mermaid's decision to apply an ephemeral application theme in the pure
+style model and theme-token reads in the shared renderer adapter. Live/editor
+calls may request application appearance, but printable calls must retain the
+authored source and a distinct cache key.
 Reuse the shared Kanban-backed palette adapter for chart colors and the approved
 editable stepper for numeric guide adjustments instead of introducing native
 controls. Keep visible-series legend membership, palette order, and four-side
@@ -172,9 +192,16 @@ index, then look its endpoints back up to the visible first-column labels; do
 not make nominal labels themselves the numerical predictor.
 Disabled chart options must put one actionable explanation on their complete
 focusable label; do not add decorative underlines or separate help glyphs.
-Use the approved segmented control for two to four short fixed choices such as
-axis or legend placement; reserve the select-combobox adapter for variable or longer
-lists such as table-column and mark selection.
+Use the approved pill-shaped segmented control for one to four short fixed
+choices such as graph filters, axis, or legend placement. Its shared highlight
+must follow `aria-pressed`; reserve the select-combobox adapter for variable or
+longer lists such as table-column and mark selection.
+Use `.ui-field--quiet` for borderless search surfaces such as Search notes and
+Graph, and `.ui-picker--quiet` when a select-only editor control is intended to
+match Settings. Keep feature selectors to geometry and placement; do not
+recreate their hover, press, focus, open, selected, or disabled paint. Rows
+that must remain geometrically stationary on pointer press should consume the
+approved menu-item primitive rather than the translating button primitive.
 The themed shell and restored active buffer may become interactive while eager
 vault indexing, tree construction, and parser warming continue. Saved
 interaction and geometry preferences are different: start their independent
@@ -285,6 +312,13 @@ npx playwright install chromium # first time only
 npm run test:pdf
 ```
 
+`npm run test:unit` starts with the test-integrity scan. Tests must exercise an
+imported production rule, use case, adapter, or component rather than rebuilding
+the expected algorithm locally. Shared native write mocks also require an
+explicit per-test or narrowly scoped suite response before they can be called;
+the default read-only fixture is recreated between tests and clones the shell
+from `frontend/index.html`.
+
 When the browser check fails on GitHub, both the ordinary CI workflow and the
 release-verification workflow upload a `playwright-diagnostics-*` artifact for
 14 days. Download it from the failed run's **Artifacts** section: the HTML
@@ -348,6 +382,16 @@ table grid or expanded form), keyboard focus, validation/error state, risk, or
 a selection state that has no independent tonal, typographic, or semantic cue.
 Review both resting and relevant/interactive states in the catalogue; removing
 a decorative border must not alter control or measured CodeMirror geometry.
+For quiet pickers, pointer-open state must not imitate keyboard focus: use a
+tonal open state and reserve the halo for `:focus-visible`. Preserve automatic
+forced-colors borders and system-color focus/selection cues whenever normal
+theme borders are removed.
+
+Use `floatingMenu.js` for select-style popup menus so transformed, scrolling,
+or clipping ancestors cannot displace them. Keep the menu attached to its
+trigger through the pure placement plan, restore it to its owner on close, and
+test the specialized controller against that lifecycle. Result regions that
+are deliberately part of a larger search/help surface stay inline.
 
 Use `data-ui-tooltip` for a new concise hint, or `setTooltip()` when its text is
 updated programmatically. The eager tooltip controller also adopts ordinary
@@ -550,6 +594,11 @@ the assembled webview rather than one JavaScript package in isolation.
   a long note with repeated Mermaid source in both directions, prove identical
   source is rendered once after caching, and verify generated SVG ids remain
   unique after remounting.
+- Kanban virtualization or workspace-lifecycle changes must sample intermediate
+  animation frames while crossing multiple card-window boundaries and during a
+  warm reopen. Assert populated paint, monotonic logical movement, stable
+  measured coordinates, retained overlapping node identity, and absence of
+  scroll-time hover trails; a settled end-state assertion is insufficient.
 - Mermaid geometry changes belong in `core/mermaidDiagramModel.js`; the live
   adapter may own pointer capture but must update source only once on release.
   Keep the resize target centered on the visible canvas edge rather than the

@@ -64,7 +64,13 @@ by Settings. The adapter measures trigger and menu geometry, while
 `core/floatingMenuModel.js` purely chooses above/below placement and viewport
 clamping for both trigger-width menus and explicitly sized palettes; fixed popup
 positioning escapes scroll-container clipping without changing the approved
-picker presentation. `colorPalettePicker.js` owns one body-level, accessible
+picker presentation. `floatingMenu.js` owns that shared body-overlay mount,
+scroll/resize tracking, and restoration lifecycle for Settings, Link Style,
+native-select replacements, document properties, and Kanban card actions.
+Mermaid Diagram/Template controls opt into that adapter's approved quiet picker
+variant, and Graph search opts into the same quiet field primitive as Search
+notes; their feature styles own only sizing and placement.
+`colorPalettePicker.js` owns one body-level, accessible
 palette lifecycle and reuses the established Kanban swatches for Kanban and
 Chart Editor color choices, while feature adapters own only the selected value
 and subsequent effect. `catalog.css` is limited to the page shell and to containing open
@@ -112,6 +118,16 @@ stationary pointer dismisses the hint and removes the relationship. Rich Calenda
 reuse that visual primitive while retaining only feature content and placement
 hooks. CodeMirror diagnostics and autocomplete remain separately themed
 interactive popovers rather than being coerced into hint semantics.
+
+The explicitly approved `.custom-modal--resizable` host variant is composed only
+by the Table, Mermaid, and Chart editors and reuses the existing
+`.ui-image-resize-handle` interaction primitive. `core/editorModalResizeModel.js`
+owns width/height, keyboard-delta, minimum-size, and viewport-clamping decisions
+over plain numbers. `editorModalResize.js` alone measures and pins DOM geometry,
+owns pointer capture and keyboard/readout lifecycle, cancels an active gesture
+before shared modal Escape handling, and discards session geometry on close.
+Editor feature CSS uses named modal containers for internal reflow; generic
+dialogs remain on the shared responsive shell without the variant.
 
 Title-bar authoring help is another eager, local DOM boundary.
 `helpPopup.js` owns pointer/F1 disclosure, invoker-specific focus return, and
@@ -294,9 +310,15 @@ and notices use that canonical
 asset. `settingsPicker.js` binds Theme, Font, and Code Font to one select-only
 combobox adapter whose deterministic key decisions live in
 `core/pickerModel.js`; native-select enhancements retain their separate state
-source. That adapter can retain a menu in its control wrapper when the popup
-must remain locally anchored; Focus scope uses this mode so the animated
-Settings panel cannot become an unintended fixed-position containing block.
+source. Open select-only menus leave transformed and clipping ancestors for the
+shared body overlay, remain aligned to their trigger while the window scrolls,
+and return to their control wrapper on close. Inline Help and sidebar-search
+results deliberately remain inside their own result surfaces.
+The approved quiet picker and stepper modifiers remove only decorative resting
+borders. Their canonical CSS preserves disabled, busy, validation, keyboard
+focus, and forced-colors behavior; a pointer-open picker uses tonal state rather
+than borrowing the keyboard focus halo. Settings cards and Kanban card/column
+hosts own their distinct layouts while consuming the same theme surfaces.
 Feature classes retain behavior and narrow host-layout differences, but
 do not restate shared hover, focus, open, selected, disabled, validation, or
 semantic rules. The approved `.ui-checkbox` owns independent-selection paint
@@ -368,7 +390,10 @@ from the title-bar rail, overflow menu, drag order, and bounded keyboard
 navigation. Calendar moves its eagerly staged month view into the central panel
 on first selection; Kanban entry points converge on the single `kanban`
 identity and may update its focused column; Graph retains one all-notes canvas
-session and its deferred refresh policy. The approved `.ui-document-tab--side-connected`
+session and its deferred refresh policy. Kanban likewise retains its mounted
+Board/Gantt session while inactive, deactivating Gantt status and transient
+menus without discarding the populated board; warm activation therefore skips
+both remounting and the panel entrance animation. The approved `.ui-document-tab--side-connected`
 primitive rotates the connected-tab seam onto the sidebar's right edge and
 removes selected borders. Its explicit transparent border channels and
 surface/text-only transition prevent transient text-colored border paint during
@@ -468,7 +493,9 @@ injected **original size** source transformation; Draw.io reuses `drawio` and
 `editor`. The injected editor composition resolves the current note path,
 reads or creates a Draw.io target through existing ports, and activates its
 tab. Fold state stays editor-only and makes the image field yield its
-replacement for the native CodeMirror fold placeholder.
+replacement and source-height line decoration to the native CodeMirror fold
+placeholder. Source-height continuity belongs only to an intentionally revealed
+image source, never to a folded range.
 
 `frontend/js/backend.js` is the frontend's sole backend entry point. It calls
 the native Wails binding at `window.go.desktop.App` using its generated PascalCase
@@ -649,13 +676,14 @@ directed edges, derives folder groups and node degree, and returns stable path
 order without performing filesystem I/O. `frontend/js/core/graphModel.js`
 owns normalization, query/orphan filtering, deterministic fixed-45/45 layout,
 vault-appearance inheritance and tint decisions, viewport fitting/zooming, and
-keyboard selection over plain values. The eagerly loaded `graphView.js` adapter
-coordinates independently injected graph and file-tree-appearance reads, then
-owns canvas drawing, safe Lucide overlays, pointer and keyboard events,
+keyboard selection plus pointer-gesture action policy over plain values. The
+eagerly loaded `graphView.js` adapter coordinates independently injected graph
+and file-tree-appearance reads, then owns canvas drawing, safe Lucide overlays,
+pointer and keyboard events,
 resize/theme observation, floating-control layout, status presentation, and the
 note-opening port. Plain click changes only the persistent trace selection;
-Ctrl/Cmd-click and Enter invoke the note-opening port. A successful file-tree
-appearance write emits a narrow refresh event so an active graph can reproject
+double-click, Ctrl/Cmd-click, and Enter invoke the note-opening port. A
+successful file-tree appearance write emits a narrow refresh event so an active graph can reproject
 colors and icons without coupling the graph adapter to file-tree state. One
 full-vault layout remains authoritative for every filtered projection;
 identity-equal projections skip rebuild and paint entirely. At large scale the
@@ -853,7 +881,13 @@ file/line/text, fall back to file/text after edits shift a task, and append all
 unmatched cards. The root-scoped adapter atomically stores only those references
 in `.config/kanban-order.json`; column and vault-path rename/delete workflows
 rewrite or prune them. `kanban.js` owns keyboard events, status/focus handoff,
-and the existing hashtag mutation boundary for horizontal moves.
+and the existing hashtag mutation boundary for horizontal moves. Large board
+columns keep variable-height geometry in a deterministic Fenwick height index
+owned by `core/kanbanKeyboardModel.js`. The DOM adapter calibrates that index
+from rendered card strides, resolves scroll anchors through it, and reconciles
+only entering/leaving window edges so shared cards retain identity. Browser
+scroll anchoring is disabled for that explicitly rebased surface, and transient
+hover elevation pauses until scrolling is quiet.
 
 Kanban's alternative Gantt projection is eagerly imported through `kanban.js`.
 Calendar and Gantt both consume `timelineViewport.js`, the shared measured
@@ -864,13 +898,22 @@ Calendar supplies note/day rendering and cached native date reads; Gantt
 supplies task rows, sticky-name inset, and denser day widths. No task metadata
 or note-loading policy enters the shared viewport.
 `core/ganttModel.js` owns deduplication, schedule precedence, inclusive date
-geometry, range shifts, row windows, and counts. `kanbanGantt.js` adapts DOM,
-pointer capture, and the existing date/picker primitives through injected
-save/open/status ports. Its empty status is a sibling overlay of the translated
+geometry, range shifts, row windows, counts, and measured pointer-zone
+classification. Compact bars reserve a center move target between proportional
+endpoint hit regions, so the DOM event's child target is never authoritative.
+`kanbanGantt.js` adapts DOM, pointer capture, and the existing date/picker primitives through injected
+save/open/status ports. Each endpoint's geometry remains feature-owned while
+its visible dot reuses the approved image-resize-handle primitive. The hit
+region stays inside the bar, while only that primitive's pseudo-element is
+translated by half its own width to straddle the painted boundary; pointer-zone
+policy and the one-day center target therefore do not change. Its empty
+status is a sibling overlay of the translated
 timeline track, so it remains centered and announced even when the horizontal
 viewport is scrolled. `kanban.js` coordinates native persistence, dirty-buffer
 preconditions, and ownership of the one application status region; leaving the
-workspace disposes the Gantt surface instead of retaining detached controls.
+workspace deactivates Gantt and releases its status ownership while retaining
+the session for a stable warm return. Actual session disposal still removes its
+listeners, pending work, and detached controls.
 Gantt date-picker choices and clearing persist immediately through the existing
 save port; failed writes preserve displayed saved dates. Inspector-scoped document
 listeners dismiss on outside pointer presses or unconsumed Escape and are removed
@@ -920,6 +963,11 @@ picker; normal save conflict handling must succeed before metadata is attached.
 A stale buffer or failed save attaches no deadline. Cancelling the picker
 leaves source untouched. `SetTaskDueDate` checks the exact saved task source and
 preserves its existing start while atomically changing only private metadata.
+The Board card adapter uses the same `SetTaskSchedule` port for its independent
+Start and Due pills and its clear-both command. Pure `taskScheduleUpdatePlan`
+validation preserves the untouched endpoint and schedule identity before any
+write; the DOM layer owns picker/menu events and refreshes the shared Board,
+Gantt, Calendar, Today, and reminder projection afterward.
 Known note saves use `taskschedule.DateEdits` and `RebindDateEdits` to preserve
 schedule identity across uniquely matched date-only source changes. This leaves
 ordinary identity rules intact, rejects schedule collisions, and uses the same
@@ -1232,9 +1280,11 @@ hashtag may open Kanban. Missing fragments are consumed locally and cannot fall
 through to vault reads or note creation. The same pure core validates that only
 a Ctrl/Cmd-modified left click on an HTTP or HTTPS target selects the external-
 browser action; vault paths and non-web schemes remain in their existing editor
-flows. The CodeMirror adapter then delegates that validated URL to Wails'
-system-browser bridge, with `window.open` retained only as the browser-debug
-fallback.
+flows. A rendered external-link widget supplies that validated destination
+directly before the adapter requests any CodeMirror source coordinate, because
+native webviews need not expose replacement-widget geometry. The adapter then
+delegates the URL to Wails' system-browser bridge, with `window.open` retained
+only as the browser-debug fallback.
 Footnote interaction has the same pure-decision/effect split. `footnotes.js`
 classifies source tokens, resolves definitions and exact per-tab return
 positions, and plans a missing definition after the reference's complete
@@ -1307,7 +1357,13 @@ rendered-cell-to-source pointer adaptation. The guide-launched
 source serialization, merge-coordinate shifting, and disabled reasons do not
 read CodeMirror or the DOM. The modal owns temporary Undo/Redo and performs no
 root change until Apply revalidates the original source and dispatches one
-replacement transaction. Direct guide deletion removes that same table range,
+replacement transaction. Its shell and pane frames consume the borderless
+modal-surface contract, while ordinary toolbar actions reuse the approved
+outlined compact button and one feature-owned divider separates Rows from
+Columns. The internal cell grid, danger actions, focus, and forced-colors
+boundaries remain structural. Its modal composes the shared resize adapter and
+responds to modal-container width without moving geometry policy into the table
+draft model. Direct guide deletion removes that same table range,
 including adjacent merge metadata, as one history action.
 The Properties field uses the same source-first transition: its disclosure
 generates missing default frontmatter directly into structured-panel mode,
@@ -1334,8 +1390,8 @@ CodeMirror scrollbar gutter prevents
 the control's viewport position from shifting when the taller panel introduces
 vertical overflow. The measured expanded-widget root establishes a paint layer
 above later positioned editor lines; transient panel transforms can therefore
-animate without trapping an absolutely positioned picker menu beneath the note
-content that follows it.
+animate without trapping a picker beneath the note content that follows it,
+because open property menus share the body-level floating-menu lifecycle.
 
 Vertical document navigation has a separate deterministic boundary policy in
 `frontend/js/core/verticalCursorModel.js`. It consumes movement at the absolute
@@ -1470,6 +1526,12 @@ blockquote marker, then falls through to the library's configurable
 continuation command with non-tight-list retention disabled. This changes only
 the deterministic empty-structure exit rules while leaving CodeMirror's parser,
 history, and cursor geometry in control.
+Ordered-list deletion follows the same split. `orderedListRenumber.js` uses the
+incremental syntax tree to identify a deleted numeric marker and the direct
+siblings at that list level. `core/orderedListRenumberModel.js` returns only the
+number replacements needed from the original starting value; the adapter adds
+them sequentially to the deletion transaction so cursor mapping and Undo remain
+CodeMirror-owned. Text-only edits do not invoke the plan.
 
 Smart rich paste keeps deterministic policy separate from clipboard and DOM
 effects. `frontend/js/core/richPasteModel.js` owns priority, size limits, block
@@ -1606,6 +1668,14 @@ The state machine preserves the last useful desktop presentation:
   they bypass the custom controls. Shutdown performs a final capture, and the
   custom maximize action captures normal bounds before toggling.
 
+`App` consumes native window operations through a narrow `windowRuntime` port.
+The production adapter delegates directly to Wails, while backend tests inject
+a recording fake for geometry, lifecycle, and snapshot assertions. Runtime
+panics are not converted into silent success; tests never pass a generic Go
+context to Wails merely to have that failure recovered and discarded. Keyboard
+resize directions are reduced to a pure geometry plan before the adapter moves
+or resizes the native window.
+
 At startup, the stored normal dimensions configure the native Wails window,
 the backend centers it without restoring coordinates, and only then is the
 saved maximized state applied. The normal default is `1280 × 800`; dimensions
@@ -1650,8 +1720,8 @@ fur/paper neutrals establish flat navigation and reading planes. Their source
 CSS remains the single place that defines those visual identities, including
 the matched titlebar/file-tree/application-status surface, matched
 active-tab/gutter/editor/buffer-status surface, Figaro Dark's brighter reading
-plane, quiet structural seams, and
-tactile Settings cards.
+plane, quiet structural seams, and tactile but borderless Settings cards and
+controls.
 
 Browser modules, KaTeX assets, icon derivatives, and Wails bindings are
 generated assets. The source material and generator scripts are tracked, while
@@ -1785,6 +1855,14 @@ its replacement decoration so the fold placeholder owns the block, and an
 unfold transaction rebuilds the live decoration under the ordinary
 cursor-reveal rule.
 
+For Mermaid source without an authored theme or custom variables,
+`core/mermaidStyleEditorModel.js` produces an ephemeral application-only source
+variant from colors read by the renderer adapter from Figaro theme tokens. The
+live widget and Mermaid Editor request that appearance; printable consumers do
+not. Explicit Mermaid styling bypasses the transformation. Because the
+transformed source is the cache input, application and printable SVGs cannot
+alias even though they retain one shared render engine.
+
 Mermaid's render-performance seam keeps the cache policy in the pure
 `core/diagramRenderCacheModel.js` module. The shared renderer owns a bounded
 source-keyed LRU and in-flight promise map, and rebases generated SVG ids each
@@ -1830,7 +1908,14 @@ color refreshes update swatches in place. Source/selection rebuilds restore a
 stable semantic focus key. For flowcharts it keeps the selected-node editor
 first, ahead of both the bounded
 chooser, implements roving listbox focus locally, and asks the preview adapter
-only for the selected authored id; those presentation decisions never enter the
+only for the selected authored id. The chooser preserves its nested scroll
+offset across DOM refreshes and uses the approved menu-item row so pointer-down
+paint cannot translate its geometry. Both the active editor and chooser use
+feature-owned identity/shape/color grid layout without owning control states.
+The modal also reuses the approved quiet picker and segmented-choice variants;
+feature CSS removes redundant shell, pane, heading, and node-list frames while
+retaining the CodeMirror gutter, focus, diagnostic, and forced-colors boundaries.
+Those presentation decisions never enter the
 source transform. Whitespace classification, rendered flowchart-id matching, and preview
 transform decisions remain in pure Mermaid models. `mermaidPreviewNavigation.js` alone translates wheel,
 pointer, and keyboard events into those transforms, publishes explicit SVG
@@ -1852,7 +1937,8 @@ axis-suppressing threshold shapes plus earlier category-predictor trendlines,
 but still rejects any
 other JSON drift; the next Apply writes the current
 canonical form. It has no DOM or CodeMirror dependency. `vegaLiteChartEditor.js` owns
-the approved modal primitives, composes the approved editable stepper and shared
+the approved borderless modal composition, quiet field/picker/stepper/segmented
+variants, and shared
 Kanban color-palette adapter, keeps the fixed first Cartesian category visible
 without a redundant control, makes disabled trendline policy discoverable through the
 complete label's shared tooltip above modal surfaces, represents column visibility with approved icon
@@ -2056,6 +2142,13 @@ Escape as cancellation, and restores the element that previously held focus.
 Opening a second dialog cancels and resolves the first instead of leaving a
 detached promise or key listener behind.
 
+Resizable geometry is an opt-in editor composition, not part of the generic
+dialog lifecycle. The Table, Mermaid, and Chart editors attach the shared
+resize adapter after creating the shell and dispose it with their temporary
+draft. During pointer resizing its capture-phase Escape handler restores the
+gesture's starting geometry; once the gesture ends, the dialog handler again
+owns Escape and therefore preserves each editor's pending-change confirmation.
+
 Backdrop dismissal is allowed for acknowledgement and confirmation dialogs,
 where it is equivalent to cancel. Text-entry and merge dialogs require an
 explicit Cancel or Escape so an accidental click cannot discard typed input or
@@ -2108,6 +2201,13 @@ use cases use narrow injected fakes; adapters and components exercise one real
 effect boundary. Playwright is reserved for behavior lower layers cannot
 represent, and packaged-native checks cover differences among WebKitGTK,
 WebView2, and WKWebView.
+
+Before Jest, `scripts/test-integrity.mjs` rejects self-authored subjects and
+oracles, tautologies, copied CSS formulas, and vacuous conditional samples. The
+shared jsdom shell is cloned from `frontend/index.html`, and write-like native
+mocks must be explicitly configured before use. These checks prevent a green
+suite from being produced by a parallel test implementation, stale shell copy,
+or permissive success default.
 
 Hosted browser checks keep their diagnostic effect at the workflow boundary.
 Under `CI`, Playwright emits an HTML report and retains traces and screenshots

@@ -14,6 +14,7 @@ describe('PDF browser setting', () => {
     });
 
     test('shows, replaces, and clears the persisted executable through native APIs', async () => {
+        window.go.desktop.App.PDFBrowserClear.mockResolvedValue({ success: true });
         await initPDFBrowserSetting();
         const status = document.getElementById('pdf-browser-status');
         const choose = document.getElementById('pdf-browser-choose');

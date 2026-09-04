@@ -58,7 +58,7 @@ describe('Graph view', () => {
                 <div class="status-right" data-mode="buffer" aria-label="Active buffer status">
                     <div id="graph-status-content">
                         <span id="graph-status-count">Loading graph…</span>
-                        <span class="graph-status-instruction">Hover or click to trace links, ctrl+click node to open the file</span>
+                        <span class="graph-status-instruction">Hover or click to trace links, double-click or ctrl+click node to open the file</span>
                         <span id="graph-status-selection">No note selected</span>
                     </div>
                     <div class="status-buffer-left"></div>
@@ -114,7 +114,7 @@ describe('Graph view', () => {
         expect(document.getElementById('graph-status-count').textContent).toBe('3 notes · 2 links');
         expect(document.querySelector('.status-right').dataset.mode).toBe('graph');
         expect(document.querySelector('.graph-status-instruction').textContent)
-            .toBe('Hover or click to trace links, ctrl+click node to open the file');
+            .toBe('Hover or click to trace links, double-click or ctrl+click node to open the file');
         expect(panel.querySelector('.graph-toolbar')).toBeNull();
         expect(panel.querySelector('.graph-floating-controls')).not.toBeNull();
         expect(panel.querySelector('.graph-canvas-controls').nextElementSibling)
@@ -129,7 +129,7 @@ describe('Graph view', () => {
         expect(panel.querySelector('.graph-show-orphans').tagName).toBe('BUTTON');
         expect(panel.querySelector('.graph-show-orphans').getAttribute('aria-pressed')).toBe('true');
         expect(document.getElementById('graph-status-selection').textContent).toBe('No note selected');
-        expect(panel.querySelector('.graph-canvas').getAttribute('aria-label')).toContain('Control-click to open it');
+        expect(panel.querySelector('.graph-canvas').getAttribute('aria-label')).toContain('double-click or Control-click to open it');
         const customIcon = panel.querySelector('.graph-node-icon[data-path="Projects/Roadmap.md"]');
         expect(customIcon).not.toBeNull();
         expect(customIcon.style.color).toBe('rgb(239, 68, 68)');
@@ -158,6 +158,7 @@ describe('Graph view', () => {
         expect(orphans.getAttribute('aria-pressed')).toBe('true');
 
         const filter = panel.querySelector('.graph-filter-input');
+        expect(filter.classList.contains('ui-field--quiet')).toBe(true);
         filter.value = 'orphan';
         filter.dispatchEvent(new Event('input', { bubbles: true }));
         expect(document.getElementById('graph-status-count').textContent).toBe('1 note · 0 links');

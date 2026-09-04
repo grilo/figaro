@@ -4,6 +4,9 @@ import { CALENDAR_TIMELINE_DAY_COUNT } from './timelineModel.js';
 export const GANTT_DAY_WIDTH = 44;
 export const GANTT_DAYS = CALENDAR_TIMELINE_DAY_COUNT;
 export const GANTT_ROW_HEIGHT = 48;
+const GANTT_RESIZE_HANDLE_WIDTH = 18;
+const GANTT_MIN_RESIZE_HANDLE_WIDTH = 5;
+const GANTT_MIN_MOVE_TARGET_WIDTH = 10;
 
 export function taskKey(task) { return JSON.stringify([task.file, task.line]); }
 
@@ -68,6 +71,30 @@ export function moveGanttDates(task, mode, delta, today = localISODate()) {
         else end = start;
     }
     return { start, end };
+}
+
+export function ganttPointerMode(pointerX, left, width, { start = true, end = true } = {}) {
+    if (![pointerX, left, width].every(Number.isFinite) || width <= 0) return 'move';
+    const edgeWidth = ganttResizeHandleWidth(width);
+    const offset = pointerX - left;
+    if (start && offset < edgeWidth) return 'start';
+    if (end && offset >= width - edgeWidth) return 'end';
+    return 'move';
+}
+
+export function ganttResizeHandleWidth(width) {
+    if (!Number.isFinite(width) || width <= 0) return GANTT_RESIZE_HANDLE_WIDTH;
+    return Math.min(GANTT_RESIZE_HANDLE_WIDTH,
+        Math.max(GANTT_MIN_RESIZE_HANDLE_WIDTH,
+            (width - GANTT_MIN_MOVE_TARGET_WIDTH) / 2));
+}
+
+/** Build one validated, non-mutating update for a task's private schedule. */
+export function taskScheduleUpdatePlan(current = {}, changes = {}) {
+    const start = Object.hasOwn(changes, 'start') ? String(changes.start || '') : String(current.start || '');
+    const end = Object.hasOwn(changes, 'end') ? String(changes.end || '') : String(current.end || '');
+    if ((start && !isISODate(start)) || (end && !isISODate(end))) return null;
+    return { start, end, id: String(current.id || '') };
 }
 
 export function ganttWindow(count, scrollTop) {

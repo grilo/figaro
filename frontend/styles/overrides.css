@@ -20,11 +20,6 @@
     height: 26px;
 }
 
-.kanban-card-delete.ui-icon-button {
-    width: 18px;
-    height: 18px;
-}
-
 .home-card-action.ui-button,
 .search-filter-chip.ui-button {
     min-height: 24px;

@@ -102,6 +102,7 @@ describe('File Tree', () => {
         });
         testUtils.createMockDOM();
         jest.clearAllMocks();
+        fileTreeStyleDialog.mockReset().mockResolvedValue(null);
         
         // Reset state
         state.fileTreeData = null;
@@ -912,6 +913,7 @@ describe('File Tree', () => {
     });
 
     test('selects managed-only vault assets and opens them only on double-click or Open', async () => {
+        window.go.desktop.App.OpenWithDefaultApplication.mockResolvedValue({ success: true });
         state.fileTreeData = [
             { name: 'draft.md', path: 'draft.md', type: 'file', mtime: 1 },
             { name: 'report.pdf', path: 'report.pdf', type: 'file', mtime: 2 },
@@ -1273,6 +1275,7 @@ describe('File Tree', () => {
     });
 
     test('runs the confirmed recovery-aware delete workflow from the Delete key', async () => {
+        window.go.desktop.App.DeletePath.mockResolvedValue({ success: true });
         state.fileTreeData = [{ name: 'draft.md', path: 'notes/draft.md', type: 'file', mtime: 1 }];
         state.selectedTreePath = 'notes/draft.md';
         initFileTree();
@@ -2377,75 +2380,4 @@ describe('File Tree', () => {
         });
     });
 
-    describe('merge notes', () => {
-        beforeEach(() => {
-            // Set up DOM for modal
-            document.body.innerHTML = '<div id="modals-container"></div>';
-        });
-
-        test('merge modal should create checkboxes for each source file', async () => {
-            // Simulate multi-select + open file
-            state.selectedTreePaths = ['b.md'];
-            state.selectedFilePath = 'a.md';
-            state.contextTargetPath = 'a.md';
-
-            // Build the HTML that mergeSelectedNotes would produce
-            const sourceNames = ['b.md'];
-            const sourceRows = sourceNames.map((n, i) =>
-                `<label class="merge-file-row">
-                    <input type="checkbox" class="merge-checkbox" data-index="${i}" checked>
-                    <span class="merge-file-name">${n}</span>
-                </label>`
-            ).join('');
-            
-            expect(sourceRows).toContain('merge-checkbox');
-            expect(sourceRows).toContain('checked');
-            expect(sourceRows).toContain('b.md');
-            expect(sourceRows).toContain('data-index="0"');
-        });
-
-        test('merge modal should render destination row with master name', () => {
-            const masterName = 'a.md';
-            const html = `<span class="merge-dest-name">${masterName}</span>`;
-            
-            expect(html).toContain('merge-dest-name');
-            expect(html).toContain('a.md');
-        });
-
-        test('merge modal should have cancel and merge buttons', () => {
-            const buttons = `
-                <button class="custom-modal-btn custom-modal-btn-cancel">Cancel</button>
-                <button class="custom-modal-btn custom-modal-btn-confirm">Merge</button>
-            `;
-            
-            expect(buttons).toContain('custom-modal-btn-cancel');
-            expect(buttons).toContain('custom-modal-btn-confirm');
-            expect(buttons).toContain('Cancel');
-            expect(buttons).toContain('Merge');
-        });
-
-        test('merge modal should show warning about deletion', () => {
-            const warning = 'Checked notes will be permanently deleted after merging.';
-            
-            expect(warning).toContain('permanently deleted');
-            expect(warning).toContain('Checked notes');
-        });
-
-        test('mergePaths should include master + checked sources only', () => {
-            state.selectedTreePaths = ['b.md', 'c.md'];
-            state.selectedFilePath = 'a.md';
-            state.contextTargetPath = 'a.md';
-
-            // Simulate what mergeSelectedNotes builds internally
-            const all = ['a.md', 'b.md', 'c.md'];
-            const paths = [...new Set(all)];  // deduplicated
-            expect(paths).toEqual(['a.md', 'b.md', 'c.md']);
-
-            // Simulate user unchecking b.md (index 0 in sources)
-            const checkedIndices = [1]; // only c.md checked
-            const mergePaths = [paths[0], ...checkedIndices.map(i => paths[i + 1])];
-            expect(mergePaths).toEqual(['a.md', 'c.md']);
-            expect(mergePaths).not.toContain('b.md');
-        });
-    });
 });

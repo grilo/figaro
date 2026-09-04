@@ -749,7 +749,7 @@ export async function initSettingsPanel(root = document) {
         if (initPureWritingSettings(root)) {
             enhanceSelectCombobox(findIn(root, '#pure-focus-scope'), {
                 ariaLabel: 'Pure mode focus scope',
-                floating: false,
+                className: 'ui-picker--quiet',
             });
         }
         await initEditorNavigationSettings(root);
@@ -760,6 +760,7 @@ export async function initSettingsPanel(root = document) {
             if (!isActivePanel(root)) return;
             const spellcheckPicker = enhanceSelectCombobox(spellcheckLanguage, {
                 ariaLabel: 'Spellcheck language',
+                className: 'ui-picker--quiet',
             });
             spellcheckLanguage.value = spellcheckSettingValue(preference);
             spellcheckPicker?.sync();
@@ -1119,7 +1120,10 @@ function initAutoSave(root) {
     const acToggle = findIn(root, '#auto-commit-toggle');
 
     if (asSelect) {
-        const picker = enhanceSelectCombobox(asSelect, { ariaLabel: 'Auto-Save interval' });
+        const picker = enhanceSelectCombobox(asSelect, {
+            ariaLabel: 'Auto-Save interval',
+            className: 'ui-picker--quiet',
+        });
         try {
             backend().AutoSaveLoad().then(seconds => {
                 if (isActivePanel(root)) {

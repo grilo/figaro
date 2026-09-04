@@ -22,8 +22,10 @@ import {
     fileTreeTooltipPosition,
     fileTreeWindow,
     isFileTreeEntryPinned,
+    mergeNoteCandidates,
     normalizeFileTreeStyles,
     reconcileSelectedTreePaths,
+    selectedMergeNotePaths,
     sortFileTreeItems,
     toggleExpandedDirectory,
     toggleSelectedPath,
@@ -2227,20 +2229,14 @@ async function mergeSelectedNotes() {
     const sel = getState('selectedTreePaths') || [];
     const ctx = getState('contextTargetPath');
     const openPath = getState('selectedFilePath');
-    // Build the ordered merge set from the open file and operation selection.
-    const all = [openPath, ...sel]
-        .filter(path => String(path || '').toLowerCase().endsWith('.md'));
-    const paths = [...new Set(ctx && !all.includes(ctx) && String(ctx).toLowerCase().endsWith('.md')
-        ? [ctx, ...all]
-        : all)];
+    const paths = mergeNoteCandidates(openPath, sel, ctx);
     if (paths.length < 2) return;
 
     const checkedIndices = await mergeNotesDialog(paths[0], paths.slice(1));
 
     if (!checkedIndices || checkedIndices.length === 0) return;
 
-    // Build merge paths: master + checked sources
-    const mergePaths = [paths[0], ...checkedIndices.map(i => paths[i + 1])];
+    const mergePaths = selectedMergeNotePaths(paths, checkedIndices);
     if (mergePaths.length < 2) return;
 
     // Animate: mark source nodes as merging

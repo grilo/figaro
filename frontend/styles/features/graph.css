@@ -33,9 +33,7 @@
     width: 100%;
     height: 30px;
     padding: 0 10px 0 31px;
-    background: color-mix(in srgb, var(--sidebar-bg) 96%, transparent);
     font-size: 12px;
-    box-shadow: var(--shadow-sm);
 }
 
 .graph-workspace {

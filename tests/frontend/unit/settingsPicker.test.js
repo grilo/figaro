@@ -56,13 +56,44 @@ describe('shared Settings appearance picker', () => {
         });
 
         trigger.click();
+        expect(menu.parentElement).toBe(document.body);
+        expect(menu.dataset.floating).toBe('true');
         trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         expect(menu.hidden).toBe(true);
+        expect(menu.parentElement).toBe(trigger.parentElement);
         trigger.click();
         trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
         expect(menu.hidden).toBe(true);
         trigger.click();
         menu.querySelector('[data-value="figtree"]').click();
         expect(changed).toHaveBeenCalledWith('figtree');
+    });
+
+    test('keeps its portalled menu aligned to the trigger while the page moves', () => {
+        const trigger = document.querySelector('.ui-picker-trigger');
+        const menu = document.querySelector('.ui-picker-menu');
+        const bounds = jest.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+            top: 210, right: 190, bottom: 240, left: 90, width: 100,
+        });
+        Object.defineProperty(menu, 'scrollWidth', { configurable: true, value: 180 });
+        Object.defineProperty(menu, 'scrollHeight', { configurable: true, value: 90 });
+        enhanceSettingsPicker({
+            trigger, menu,
+            options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'A longer choice' }],
+            value: 'one', ariaLabel: 'Example',
+        });
+
+        trigger.click();
+        expect(menu.parentElement).toBe(document.body);
+        expect(menu.style.left).toBe('90px');
+        expect(menu.style.top).toBe('246px');
+        expect(menu.style.width).toBe('180px');
+
+        bounds.mockReturnValue({ top: 110, right: 190, bottom: 140, left: 40, width: 150 });
+        window.dispatchEvent(new Event('scroll'));
+        expect(menu.style.left).toBe('40px');
+        expect(menu.style.top).toBe('146px');
+        trigger._figaroSettingsPicker.destroy();
+        expect(menu.parentElement).toBe(trigger.parentElement);
     });
 });

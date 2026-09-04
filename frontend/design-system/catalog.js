@@ -107,6 +107,7 @@ function enhanceCatalogueComboboxes(root) {
     return Array.from(root.querySelectorAll('[data-catalog-combobox]'), select => {
         const picker = enhanceSelectCombobox(select, {
             ariaLabel: select.getAttribute('aria-label') || '',
+            className: select.closest('.settings-card') ? 'ui-picker--quiet' : '',
         });
         picker?.setDisabled(select.disabled);
         return picker;

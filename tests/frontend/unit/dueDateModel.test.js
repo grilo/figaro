@@ -4,6 +4,7 @@ import {
     dueTaskSummary,
     millisecondsUntilNextLocalDay,
     sortTasksByDue,
+    startDatePresentation,
 } from '../frontend/js/core/dueDateModel.js';
 
 describe('Due date model', () => {
@@ -12,6 +13,13 @@ describe('Due date model', () => {
         expect(dueDatePresentation('2026-08-14', '2026-08-14', 'en-US')).toEqual({ state: 'today', label: 'Due today' });
         expect(dueDatePresentation('2026-08-15', '2026-08-14', 'en-US')).toEqual({ state: 'upcoming', label: 'Tomorrow' });
         expect(dueDatePresentation('2026-08-20', '2026-08-14', 'en-US')).toEqual({ state: 'upcoming', label: 'Due Aug 20' });
+    });
+
+    test('presents a compact start date and keeps an unset start actionable', () => {
+        expect(startDatePresentation('2026-08-14', 'en-US'))
+            .toEqual({ state: 'set', label: 'Start Aug 14' });
+        expect(startDatePresentation('', 'en-US'))
+            .toEqual({ state: 'unset', label: 'Not started' });
     });
 
     test('counts each unfinished due task once across multiple columns', () => {

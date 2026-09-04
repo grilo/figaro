@@ -64,7 +64,7 @@ jest.mock('../frontend/js/kanban.js', () => ({
     applyKanbanPresentationToViews: jest.fn(),
     initKanbanPresentationSettings: jest.fn(),
     renderKanbanBoard: jest.fn(),
-    mountKanbanWorkspace: jest.fn(),
+    mountKanbanWorkspace: jest.fn(() => ({ activate: jest.fn(), dispose: jest.fn() })),
 }));
 jest.mock('../frontend/js/graphView.js', () => ({
     createGraphView: jest.fn(() => ({
@@ -94,6 +94,7 @@ import { setAutoCommitEnabled } from '../frontend/js/automation.js';
 import { statusBar } from '../frontend/js/statusBar.js';
 import { errorDialog, saveFailureDialog } from '../frontend/js/dialogs.js';
 import { helpSettingsEntries } from '../frontend/js/helpPopup.js';
+import { mountKanbanWorkspace } from '../frontend/js/kanban.js';
 // confirmDialog accessed via window.confirmDialog
 
 import { 
@@ -151,6 +152,7 @@ describe('Tab Manager', () => {
         getEditorContent.mockReturnValue('');
         saveFailureDialog.mockResolvedValue(false);
         setAutoCommitEnabled(true);
+        mountKanbanWorkspace.mockImplementation(() => ({ activate: jest.fn(), dispose: jest.fn() }));
     });
 
     describe('openTab', () => {
@@ -325,6 +327,21 @@ describe('Tab Manager', () => {
             expect(reused).toBe(tab);
             expect(reused.focusCol).toBe('done');
             expect(getState('openTabs').filter(candidate => candidate.type === 'kanban')).toHaveLength(1);
+        });
+
+        test('reactivates the mounted Kanban workspace without replacing its first paint', async () => {
+            const session = { activate: jest.fn(), dispose: jest.fn() };
+            mountKanbanWorkspace.mockReturnValue(session);
+            const tab = openTab('kanban', 'Kanban', 'kanban', { focusCol: 'todo' });
+            await testUtils.waitFor(0);
+            const panel = document.querySelector('[data-tab-id="kanban"]');
+
+            openTab('away.md', 'Away', 'file', { path: 'away.md', isNew: true });
+            await switchTab(tab.id);
+
+            expect(document.querySelector('[data-tab-id="kanban"]')).toBe(panel);
+            expect(mountKanbanWorkspace).toHaveBeenCalledTimes(1);
+            expect(session.activate).toHaveBeenCalledWith('todo');
         });
 
         test('animates the requested panel types when they open', () => {
@@ -520,6 +537,21 @@ describe('Tab Manager', () => {
             ]);
             expect([...grid.querySelectorAll('.settings-card-title')]
                 .every(title => title.tagName === 'H2')).toBe(true);
+        });
+
+        test('uses the approved quiet control variants throughout Settings', () => {
+            openTab('settings', 'Settings', 'settings');
+            const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
+            const pickers = [...panel.querySelectorAll('.ui-picker')];
+            const steppers = [...panel.querySelectorAll('.ui-stepper')];
+            const choices = [...panel.querySelectorAll('.ui-segmented-control')];
+
+            expect(pickers).toHaveLength(4);
+            expect(steppers).toHaveLength(3);
+            expect(choices).toHaveLength(2);
+            expect(pickers.every(control => control.classList.contains('ui-picker--quiet'))).toBe(true);
+            expect(steppers.every(control => control.classList.contains('ui-stepper--quiet'))).toBe(true);
+            expect(choices.every(control => control.classList.contains('ui-segmented-control--quiet'))).toBe(true);
         });
 
         test('moves focus into the semantic Settings view when activated', async () => {

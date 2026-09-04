@@ -6,6 +6,9 @@
     height: min(820px, calc(100vh - 48px));
     min-width: 0;
     flex-direction: column;
+    border: 0;
+    container-name: editor-modal;
+    container-type: inline-size;
 }
 
 .vega-lite-chart-editor-modal .custom-modal-content {
@@ -22,7 +25,12 @@
     min-height: 0;
     flex: 1;
     grid-template-columns: minmax(330px, .68fr) minmax(540px, 1.62fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     gap: 12px;
+}
+
+.vega-lite-chart-editor-discard {
+    grid-column: 1 / -1;
 }
 
 .vega-lite-chart-editor-config {
@@ -426,16 +434,16 @@
     color: var(--danger-color);
 }
 
-@media (max-width: 980px) {
+@container editor-modal (max-width: 980px) {
     .vega-lite-chart-editor-workspace {
         grid-template-columns: minmax(310px, .82fr) minmax(420px, 1.18fr);
     }
 }
 
-@media (max-width: 780px) {
+@container editor-modal (max-width: 780px) {
     .vega-lite-chart-editor-workspace {
         grid-template-columns: 1fr;
-        grid-template-rows: minmax(320px, 1fr) minmax(320px, 1.25fr);
+        grid-template-rows: minmax(320px, 1fr) minmax(320px, 1.25fr) auto;
         overflow-x: hidden;
         overflow-y: auto;
     }
@@ -447,7 +455,7 @@
     }
 }
 
-@media (max-width: 520px) {
+@container editor-modal (max-width: 520px) {
     .vega-lite-chart-editor-modal .custom-modal-content {
         padding-right: 12px;
         padding-left: 12px;
@@ -516,5 +524,11 @@
 
     .vega-lite-chart-editor-threshold-controls {
         grid-template-columns: max-content 104px minmax(105px, 1fr) 30px;
+    }
+}
+
+@media (forced-colors: active) {
+    .custom-modal.vega-lite-chart-editor-modal {
+        border: 1px solid CanvasText;
     }
 }

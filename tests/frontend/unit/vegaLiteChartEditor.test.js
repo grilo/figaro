@@ -80,6 +80,8 @@ describe('Vega-Lite Chart Editor dialog', () => {
         const pane = workspace.querySelector('[aria-label="Chart preview"]');
         const preview = pane.querySelector('[data-chart-preview]');
 
+        expect(dialog.overlay.querySelector('.custom-modal-resize-handle').getAttribute('aria-label'))
+            .toBe('Resize editor dialog');
         expect([...workspace.children]).toEqual(expect.arrayContaining([config, pane]));
         expect(preview.querySelector('svg')).not.toBeNull();
         expect(preview.querySelector('svg').getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
@@ -92,6 +94,9 @@ describe('Vega-Lite Chart Editor dialog', () => {
         ))).toBe(true);
         expect(dialog.overlay.querySelector('[data-chart-column="Revenue"] .select-combobox-trigger')
             .getAttribute('aria-label')).toBe('Mark type for Revenue');
+        const jsonToggle = dialog.overlay.querySelector('[data-json-toggle]');
+        expect(jsonToggle.classList.contains('ui-button')).toBe(true);
+        expect(jsonToggle.classList.contains('ui-button--quiet')).toBe(false);
         expect(window.vegaEmbed).toHaveBeenCalledWith(
             expect.objectContaining({ style: expect.objectContaining({ width: '640px' }) }),
             expect.objectContaining({
@@ -260,6 +265,7 @@ describe('Vega-Lite Chart Editor dialog', () => {
         const threshold = dialog.overlay.querySelector('[data-threshold-value]');
         const stepper = threshold.closest('.ui-stepper');
         expect(stepper.getAttribute('aria-label')).toBe('Threshold value');
+        expect(stepper.classList.contains('ui-stepper--quiet')).toBe(true);
         expect(stepper.querySelector('[data-threshold-step="-1"]')).not.toBeNull();
         expect(stepper.querySelector('[data-threshold-step="1"]')).not.toBeNull();
         stepper.querySelector('[data-threshold-step="1"]').click();
@@ -284,6 +290,12 @@ describe('Vega-Lite Chart Editor dialog', () => {
         expect(dialog.state.threshold.color).toBe('#ef4444');
         expect(dialog.overlay.querySelector('[data-threshold-label]').classList.contains('ui-field'))
             .toBe(true);
+        expect([...dialog.overlay.querySelectorAll('.ui-segmented-control')]
+            .every(control => control.classList.contains('ui-segmented-control--quiet'))).toBe(true);
+        expect([...dialog.overlay.querySelectorAll('.vega-lite-chart-editor-combobox')]
+            .every(control => control.classList.contains('ui-picker--quiet'))).toBe(true);
+        expect([...dialog.overlay.querySelectorAll('.ui-field')]
+            .every(control => control.classList.contains('ui-field--quiet'))).toBe(true);
         expect(dialog.overlay.querySelector('[data-threshold-visible]')
             .closest('.vega-lite-chart-editor-threshold-controls')).not.toBeNull();
         expect(dialog.overlay.textContent).not.toContain('One mode, one orientation');
@@ -311,10 +323,22 @@ describe('Vega-Lite Chart Editor dialog', () => {
     test('Cancel is non-destructive and Create chart is one reversible buffer transaction', async () => {
         const cancelled = openTable();
         await flush();
-        cancelled.overlay.querySelector('[data-chart-orientation="horizontal"]').click();
+        const horizontal = cancelled.overlay.querySelector('[data-chart-orientation="horizontal"]');
+        horizontal.click();
         await flush();
-        cancelled.overlay.querySelector('.vega-lite-chart-editor-cancel').click();
+        horizontal.focus();
+        horizontal.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        }));
+        const confirmation = cancelled.overlay.querySelector('.vega-lite-chart-editor-discard');
+        expect(confirmation.hidden).toBe(false);
+        expect(document.activeElement).toBe(confirmation.querySelector('.custom-modal-pending-keep'));
+        expect(cancelled.overlay.isConnected).toBe(true);
         expect(view.state.doc.toString()).toBe(tableSource);
+        confirmation.querySelector('.custom-modal-pending-discard').click();
+        expect(cancelled.overlay.isConnected).toBe(false);
 
         const reopened = openVegaLiteChartEditor(view, scanMarkdownTables(view.state)[0], {
             sourceKind: 'table',

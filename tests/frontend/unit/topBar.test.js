@@ -19,6 +19,7 @@ jest.mock('../../../frontend/js/graphView.js', () => ({
 describe('Workspace navigation', () => {
     beforeEach(() => {
         testUtils.createMockDOM();
+        window.go.desktop.App.SaveSession.mockResolvedValue({ success: true });
         setState('openTabs', []);
         setState('activeTabId', null);
         setState('sidebarCollapsed', false);
@@ -103,6 +104,15 @@ describe('Workspace navigation', () => {
                 expect(icon.getAttribute('aria-hidden')).toBe('true');
             });
         }
+    });
+
+    test('uses the ordinary outlined action for Calendar Timeline Today', () => {
+        const source = readFileSync('frontend/index.html', 'utf8');
+        const content = new DOMParser().parseFromString(source, 'text/html');
+        const today = content.querySelector('.calendar-timeline-today');
+
+        expect(today?.classList.contains('ui-button')).toBe(true);
+        expect(today?.classList.contains('ui-button--quiet')).toBe(false);
     });
 
     test('selects Calendar as a central sidebar-owned workspace without a title-bar tab', () => {

@@ -19,6 +19,38 @@ test('gives the main editor a document-specific accessible name', async ({ page 
     await expect(page).toHaveTitle('Welcome.md — Figaro');
 });
 
+test('opens a URL-labelled external Markdown link with a real modifier click', async ({ page }) => {
+    await openWelcomeEditor(page);
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const source = '[https://google.com](https://google.com)\n\nTail';
+        editor.setEditorContent(source, 'Welcome.md');
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const view = editor.getEditorView();
+        view.dispatch({ selection: { anchor: source.length } });
+        view.focus();
+        window.__figaroOpenedExternalURLs = [];
+        window.runtime = { BrowserOpenURL: url => window.__figaroOpenedExternalURLs.push(url) };
+    });
+
+    const link = page.locator('.cm-link-widget', { hasText: 'https://google.com' });
+    await expect(link).toBeVisible();
+    await link.click({ modifiers: ['Control'] });
+    await expect.poll(() => page.evaluate(() => window.__figaroOpenedExternalURLs))
+        .toEqual(['https://google.com/']);
+
+    await page.evaluate(async () => {
+        const editor = await import('/js/editor.js');
+        const view = editor.getEditorView();
+        view.dispatch({ selection: { anchor: 8 } });
+    });
+    const revealedLink = page.locator('.cm-link-source');
+    await expect(revealedLink).toBeVisible();
+    await revealedLink.click({ modifiers: ['Control'], position: { x: 30, y: 8 } });
+    await expect.poll(() => page.evaluate(() => window.__figaroOpenedExternalURLs))
+        .toEqual(['https://google.com/', 'https://google.com/']);
+});
+
 test('opens Kanban only from the hashtag glyph and keeps trailing line space editable', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = 'Continue writing #todo';
@@ -1945,19 +1977,20 @@ test('anchors Focus scope and keeps relative line numbers in sync with cursor mo
 
     const focusScopePicker = page.locator('#pure-focus-scope').locator('xpath=..');
     const focusScopeTrigger = focusScopePicker.locator('.select-combobox-trigger');
-    const focusScopeMenu = focusScopePicker.locator('.select-combobox-menu');
+    const focusScopeMenu = page.locator(`#${await focusScopeTrigger.getAttribute('aria-controls')}`);
     await focusScopeTrigger.click();
-    const focusScopeGeometry = await focusScopePicker.evaluate(picker => {
-        const trigger = picker.querySelector('.select-combobox-trigger').getBoundingClientRect();
-        const menu = picker.querySelector('.select-combobox-menu').getBoundingClientRect();
-        return {
-            trigger: { left: trigger.left, right: trigger.right, bottom: trigger.bottom },
-            menu: { left: menu.left, right: menu.right, top: menu.top },
-        };
-    });
-    expect(Math.abs(focusScopeGeometry.menu.left - focusScopeGeometry.trigger.left)).toBeLessThanOrEqual(1);
-    expect(Math.abs(focusScopeGeometry.menu.right - focusScopeGeometry.trigger.right)).toBeLessThanOrEqual(1);
-    expect(focusScopeGeometry.menu.top - focusScopeGeometry.trigger.bottom).toBeCloseTo(6, 0);
+    const [focusScopeTriggerBox, focusScopeMenuBox] = await Promise.all([
+        focusScopeTrigger.boundingBox(),
+        focusScopeMenu.boundingBox(),
+    ]);
+    expect(await focusScopeMenu.evaluate(menu => menu.parentElement === document.body)).toBe(true);
+    expect(focusScopeMenuBox.x).toBeLessThan(focusScopeTriggerBox.x + focusScopeTriggerBox.width);
+    expect(focusScopeMenuBox.x + focusScopeMenuBox.width).toBeGreaterThan(focusScopeTriggerBox.x);
+    const focusScopeBelow = Math.abs(focusScopeMenuBox.y - (focusScopeTriggerBox.y + focusScopeTriggerBox.height + 6)) <= 1;
+    const focusScopeAbove = Math.abs(focusScopeTriggerBox.y - (focusScopeMenuBox.y + focusScopeMenuBox.height + 6)) <= 1;
+    expect(focusScopeBelow || focusScopeAbove).toBe(true);
+    expect(focusScopeMenuBox.x).toBeGreaterThanOrEqual(8);
+    expect(focusScopeMenuBox.x + focusScopeMenuBox.width).toBeLessThanOrEqual(await page.evaluate(() => innerWidth - 8));
     await focusScopeTrigger.press('Escape');
     await expect(focusScopeMenu).toBeHidden();
 
@@ -2673,6 +2706,12 @@ test('keeps borderless sidebar search, its conditional count, and Quick note foc
     expect((await controlPaint(search)).shadow).not.toBe('none');
 
     await expect(quickNote).toContainText('Quick note');
+    await page.evaluate(async () => {
+        const finiteAnimations = document.getAnimations().filter(animation => (
+            animation.effect?.getTiming().iterations !== Infinity
+        ));
+        await Promise.allSettled(finiteAnimations.map(animation => animation.finished));
+    });
     const quickNotePalette = await page.evaluate(() => {
         const probe = document.createElement('span');
         document.body.append(probe);
@@ -2682,8 +2721,6 @@ test('keeps borderless sidebar search, its conditional count, and Quick note foc
         const accent = getComputedStyle(probe).color;
         probe.style.color = 'var(--text-muted)';
         const muted = getComputedStyle(probe).color;
-        probe.style.backgroundColor = 'color-mix(in srgb, var(--text-color) 3%, var(--sidebar-bg))';
-        const rest = getComputedStyle(probe).backgroundColor;
         probe.style.backgroundColor = 'var(--hover-bg)';
         const hover = getComputedStyle(probe).backgroundColor;
         probe.remove();
@@ -2691,7 +2728,7 @@ test('keeps borderless sidebar search, its conditional count, and Quick note foc
             accent,
             destination,
             muted,
-            rest,
+            rest: getComputedStyle(document.querySelector('#create-inbox-note')).backgroundColor,
             hover,
             label: getComputedStyle(document.querySelector('#create-inbox-note small')).color,
             actionIcon: getComputedStyle(document.querySelector('#create-inbox-note svg')).color,
@@ -2699,9 +2736,9 @@ test('keeps borderless sidebar search, its conditional count, and Quick note foc
     });
     expect(quickNotePalette.label).toBe(quickNotePalette.destination);
     expect(quickNotePalette.actionIcon).toBe(quickNotePalette.accent);
+    expect(quickNotePalette.rest).not.toBe('rgba(0, 0, 0, 0)');
+    expect(quickNotePalette.rest).not.toBe(quickNotePalette.hover);
     expect((await controlPaint(quickNote)).border).toBe('rgba(0, 0, 0, 0)');
-    await expect.poll(async () => (await controlPaint(quickNote)).background)
-        .toBe(quickNotePalette.rest);
     await quickNote.hover();
     expect((await controlPaint(quickNote)).border).toBe('rgba(0, 0, 0, 0)');
     await expect(quickNote).toHaveCSS('background-color', quickNotePalette.hover);

@@ -869,11 +869,6 @@ a:focus-visible {
     margin: 0;
 }
 
-.ds-demo .kanban-card-delete {
-    color: var(--text-dim);
-    opacity: 1;
-}
-
 .ds-demo .result-card {
     background: var(--panel-bg);
     border-color: var(--border-color);

@@ -55,6 +55,47 @@ describe('markdown editor interactions', () => {
         expect(view.state.selection.main.anchor).toBe(referencePosition);
     });
 
+    test('renders highlights, strikethrough, horizontal rules, and every callout type through the editor extensions', async () => {
+        const { createEditorView, initEditor } = await import('../frontend/js/editor.js');
+        await initEditor();
+        view = createEditorView();
+
+        const source = [
+            'A ==highlight== and ~~removed~~.',
+            '',
+            '---',
+            '',
+            '> [!note] Note',
+            '> Continued note',
+            '',
+            '> [!warning] Warning',
+            '',
+            '> [!info] Information',
+            '',
+            '> [!tip] Tip',
+            '',
+            '> [!danger] Danger',
+            '',
+            '> [!example] Example',
+            '',
+            'Cursor rests here.',
+        ].join('\n');
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: source },
+            selection: { anchor: source.length },
+        });
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(view.dom.querySelector('.cm-highlight')?.textContent).toBe('==highlight==');
+        expect([...view.dom.querySelectorAll('.cm-strikethrough')]
+            .map(element => element.textContent).join('')).toContain('removed');
+        expect(view.dom.querySelectorAll('.cm-hr-passive')).toHaveLength(1);
+        expect(view.dom.querySelectorAll('.cm-callout-note')).toHaveLength(2);
+        for (const type of ['warning', 'info', 'tip', 'danger', 'example']) {
+            expect(view.dom.querySelectorAll(`.cm-callout-${type}`)).toHaveLength(1);
+        }
+    });
+
     test('creates a missing footnote after its paragraph, focuses its body, returns, and undoes', async () => {
         const { undo } = await import('@codemirror/commands');
         const { Transaction } = await import('@codemirror/state');
@@ -169,7 +210,7 @@ describe('markdown editor interactions', () => {
             await initEditor();
             view = createEditorView();
 
-            const source = '[Web guide](https://example.com/guide) and [Vault guide](notes/Guide.md)';
+            const source = '[https://google.com](https://google.com) and [Vault guide](notes/Guide.md)';
             view.dispatch({
                 changes: { from: 0, to: view.state.doc.length, insert: source },
                 selection: { anchor: source.length },
@@ -177,8 +218,8 @@ describe('markdown editor interactions', () => {
             await new Promise(resolve => setTimeout(resolve, 0));
 
             const webWidget = [...view.dom.querySelectorAll('.cm-link-widget')]
-                .find(widget => widget.textContent === 'Web guide');
-            view.posAtCoords = jest.fn(() => source.indexOf('Web guide') + 2);
+                .find(widget => widget.textContent === 'https://google.com');
+            view.posAtCoords = jest.fn(() => source.indexOf('https://google.com') + 2);
             webWidget.dispatchEvent(new MouseEvent('mouseover', {
                 bubbles: true,
                 clientX: 20,
@@ -187,17 +228,18 @@ describe('markdown editor interactions', () => {
             expect(document.querySelector('.link-hover-preview .lh-hint')?.textContent)
                 .toBe('Ctrl/Cmd-click to open in your browser');
 
+            view.posAtCoords = jest.fn(() => { throw new RangeError('replacement geometry unavailable'); });
             webWidget.dispatchEvent(new MouseEvent('mousedown', {
                 bubbles: true,
                 cancelable: true,
                 button: 0,
                 ctrlKey: true,
             }));
-            expect(browserOpen).toHaveBeenLastCalledWith('https://example.com/guide');
+            expect(browserOpen).toHaveBeenLastCalledWith('https://google.com/');
             expect(window.open).not.toHaveBeenCalled();
             expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
 
-            const rawURLPosition = source.indexOf('https://') + 4;
+            const rawURLPosition = source.lastIndexOf('https://') + 4;
             view.dispatch({ selection: { anchor: rawURLPosition } });
             await new Promise(resolve => setTimeout(resolve, 0));
             view.posAtCoords = jest.fn(() => rawURLPosition);
@@ -207,7 +249,7 @@ describe('markdown editor interactions', () => {
                 button: 0,
                 metaKey: true,
             }));
-            expect(browserOpen).toHaveBeenLastCalledWith('https://example.com/guide');
+            expect(browserOpen).toHaveBeenLastCalledWith('https://google.com/');
             expect(browserOpen).toHaveBeenCalledTimes(2);
             expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
 
@@ -227,5 +269,60 @@ describe('markdown editor interactions', () => {
             window.runtime = originalRuntime;
             window.open = originalOpen;
         }
+    });
+
+    test('opens a rendered vault link through the backend and routes an existing tab to the workspace', async () => {
+        const { configureEditorWorkspace, createEditorView, initEditor } = await import('../frontend/js/editor.js');
+        const { setState } = await import('../frontend/js/state.js');
+        const current = { id: 'notes/Current.md', path: 'notes/Current.md', title: 'Current.md', type: 'file' };
+        const target = { id: 'notes/Target.md', path: 'notes/Target.md', title: 'Target.md', type: 'file' };
+        const openTab = jest.fn();
+        const replaceActiveFileTab = jest.fn();
+        configureEditorWorkspace({
+            closeTab: jest.fn(),
+            getActiveTab: () => current,
+            markTabDirty: jest.fn(),
+            openFile: jest.fn(),
+            openPDFPreview: jest.fn(),
+            openRawTextPreview: jest.fn(),
+            openTab,
+            refreshFileTree: jest.fn(),
+            replaceActiveFileTab,
+            saveActiveFile: jest.fn(),
+            saveFileSnapshot: jest.fn(),
+            switchTab: jest.fn(),
+        });
+        setState('openTabs', [current, target]);
+        setState('activeTabId', current.id);
+        window.go.desktop.App.ReadFile.mockResolvedValue({
+            content: '# Target',
+            mtime: 42,
+            path: target.path,
+        });
+
+        await initEditor();
+        view = createEditorView();
+        const source = 'Open [Target](notes/Target.md) now.';
+        view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: source },
+            selection: { anchor: source.length },
+        });
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const widget = view.dom.querySelector('.cm-link-widget');
+        view.posAtCoords = jest.fn(() => source.indexOf('Target') + 1);
+        widget.dispatchEvent(new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(window.go.desktop.App.ReadFile).toHaveBeenCalledWith(target.path);
+        expect(openTab).toHaveBeenCalledWith(target.path, 'Target.md', 'file', {
+            path: target.path,
+            mtime: 42,
+        });
+        expect(replaceActiveFileTab).not.toHaveBeenCalled();
     });
 });

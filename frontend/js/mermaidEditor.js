@@ -4,7 +4,8 @@ import { bracketMatching, indentUnit } from '@codemirror/language';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { lintKeymap, setDiagnostics } from '@codemirror/lint';
 
-import { activateModal, createDialogShell } from './dialogs.js';
+import { activateModal, createDialogShell, createPendingChangesNotice } from './dialogs.js';
+import { makeEditorModalResizable } from './editorModalResize.js';
 import { inspectMermaidSource, renderDiagramSVG } from './diagramRenderer.js';
 import { scanDiagramFences } from './liveDiagramPlugin.js';
 import {
@@ -31,6 +32,7 @@ import {
     mermaidTargetVariablePatch,
     mermaidThemePresetForState,
     mermaidThemePresetPatch,
+    mermaidUsesApplicationTheme,
 } from './core/mermaidStyleEditorModel.js';
 
 export const mermaidTemplates = mermaidTemplateCatalog(diagramData);
@@ -55,7 +57,7 @@ function createChoiceControl(label, choices, selected, onSelect, className = '')
     controlLabel.className = 'mermaid-editor-style-label';
     controlLabel.textContent = label;
     const control = document.createElement('div');
-    control.className = 'ui-segmented-control';
+    control.className = 'ui-segmented-control ui-segmented-control--quiet';
     control.setAttribute('role', 'group');
     control.setAttribute('aria-label', label);
     for (const choice of choices) {
@@ -87,7 +89,9 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     const tabSize = normalizeTabSize(mainView.state.tabSize);
     const catalog = options.catalog || mermaidTemplates;
     const parse = options.parse || inspectMermaidSource;
-    const render = options.render || (source => renderDiagramSVG('mermaid', source, 'figaro-mermaid-editor'));
+    const render = options.render || (source => renderDiagramSVG('mermaid', source, 'figaro-mermaid-editor', {
+        appearance: 'application',
+    }));
     const { overlay } = createDialogShell({
         title: 'Mermaid Editor',
         description: 'Edit the source directly or use styling controls tailored to the detected diagram type.',
@@ -104,6 +108,7 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     const cancelButton = overlay.querySelector('.mermaid-editor-cancel');
     const applyButton = overlay.querySelector('.mermaid-editor-apply');
     const applyNote = overlay.querySelector('.mermaid-editor-apply-note');
+    const modalResize = makeEditorModalResizable(overlay.querySelector('.custom-modal'));
 
     const templateBar = document.createElement('div');
     templateBar.className = 'mermaid-editor-template-controls';
@@ -139,7 +144,7 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     const sourceHeading = document.createElement('div');
     sourceHeading.className = 'mermaid-editor-mode-heading';
     const modeControl = document.createElement('div');
-    modeControl.className = 'ui-segmented-control mermaid-editor-mode-control';
+    modeControl.className = 'ui-segmented-control ui-segmented-control--quiet mermaid-editor-mode-control';
     modeControl.setAttribute('role', 'tablist');
     modeControl.setAttribute('aria-label', 'Mermaid editor mode');
     const sourceModeButton = document.createElement('button');
@@ -199,6 +204,7 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     previewHeading.append(previewTitle, previewActivity);
     const preview = document.createElement('div');
     preview.className = 'mermaid-editor-preview';
+    preview.classList.toggle('is-application-themed', mermaidUsesApplicationTheme(originalBlock.code));
     preview.setAttribute('aria-live', 'polite');
     const previewEmpty = document.createElement('p');
     previewEmpty.className = 'mermaid-editor-preview-empty';
@@ -229,7 +235,13 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     staleNotice.hidden = true;
     previewPane.append(previewHeading, preview, staleNotice);
     panes.append(sourcePane, previewPane);
-    workspace.append(templateBar, panes);
+    const {
+        notice: discard,
+        keepButton,
+        discardButton,
+    } = createPendingChangesNotice('Mermaid');
+    discard.classList.add('mermaid-editor-discard');
+    workspace.append(templateBar, panes, discard);
 
     const initialTemplateState = initialMermaidTemplateState(
         catalog,
@@ -279,11 +291,11 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     diagramSelect.value = selectedType?.id || '';
     refreshTemplateOptions();
     enhanceSelectCombobox(diagramSelect, {
-        className: 'mermaid-editor-combobox',
+        className: 'ui-picker--quiet mermaid-editor-combobox',
         ariaLabel: 'Diagram',
     });
     enhanceSelectCombobox(templateSelect, {
-        className: 'mermaid-editor-combobox',
+        className: 'ui-picker--quiet mermaid-editor-combobox',
         ariaLabel: 'Template',
     });
     updateTemplateReplacementState();
@@ -301,6 +313,7 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
             mainView.dispatch({ changes: change });
         }
         settled = true;
+        modalResize.destroy();
         colorPicker?.close();
         previewSession?.destroy();
         previewNavigation.destroy();
@@ -309,6 +322,20 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
         lifecycle.close(false);
         mainView.focus();
         return true;
+    };
+
+    const dirty = () => editorView.state.doc.toString() !== initialTemplateState.source;
+    const hideDiscard = () => {
+        discard.hidden = true;
+        cancelButton.focus();
+    };
+    const requestCancel = () => {
+        colorPicker?.close();
+        colorPicker = null;
+        if (!dirty()) return finish(false);
+        discard.hidden = false;
+        keepButton.focus();
+        return false;
     };
 
     editorView = new EditorView({
@@ -404,7 +431,7 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     const createColorButton = ({ label, color = '', emptyLabel = 'Automatic color', readColor, onSelect }) => {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'ui-button mermaid-editor-color-button';
+        button.className = 'ui-icon-button mermaid-editor-color-button';
         button.setAttribute('aria-label', `${label}: ${color || 'automatic'}`);
         button.dataset.uiTooltip = `${label}: ${color || 'Automatic'}`;
         button.dataset.styleFocus = label;
@@ -455,6 +482,7 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
         const styleState = mermaidStyleConfigState(source, inspection?.config);
         const focusKey = styleContent.contains(document.activeElement) ? document.activeElement.dataset.styleFocus : '';
         const scrollTop = styleContent.scrollTop;
+        const nodeListScrollTop = styleContent.querySelector('.mermaid-editor-node-list')?.scrollTop || 0;
         paintedSource = source;
         paintedError = hasErrors;
         paintedInspection = !!inspection;
@@ -593,7 +621,7 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
                         ));
                     },
                 }));
-                selectedControls.append(selectedHeading, fillRow, createChoiceControl('Shape', [
+                const shapeControl = createChoiceControl('Shape', [
                     { value: 'original', label: 'Original' },
                     { value: 'rounded', label: 'Rounded' },
                     { value: 'stadium', label: 'Pill' },
@@ -604,7 +632,8 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
                         { shape },
                         inspection,
                     ));
-                }));
+                }, 'mermaid-editor-selected-node-shape');
+                selectedControls.append(selectedHeading, shapeControl, fillRow);
 
                 const nodeList = document.createElement('div');
                 nodeList.className = 'mermaid-editor-node-list';
@@ -612,7 +641,6 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
                 nodeList.setAttribute('aria-label', 'Choose a flowchart node to edit');
                 const selectNode = (node, focus = true) => {
                     selectedFlowchartNodeId = node.id;
-                    revealSelectedFlowchartNode = true;
                     refreshStylePanel();
                     if (focus) {
                         styleContent.querySelector(`[data-node-id="${CSS.escape(node.id)}"]`)?.focus();
@@ -621,23 +649,34 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
                 nodes.forEach((node, index) => {
                     const row = document.createElement('button');
                     row.type = 'button';
-                    row.className = 'ui-button ui-button--quiet mermaid-editor-node-row';
+                    row.className = 'ui-menu-item mermaid-editor-node-row';
                     row.dataset.nodeId = node.id;
                     row.dataset.styleFocus = `node:${node.id}`;
                     row.setAttribute('role', 'option');
                     row.setAttribute('aria-selected', String(node.id === selectedFlowchartNodeId));
                     row.tabIndex = node.id === selectedFlowchartNodeId ? 0 : -1;
-                    const swatch = document.createElement('span');
-                    swatch.className = 'mermaid-editor-node-swatch';
-                    swatch.setAttribute('aria-hidden', 'true');
-                    if (node.fill) swatch.style.background = node.fill;
+                    const identity = document.createElement('span');
+                    identity.className = 'mermaid-editor-node-identity';
                     const name = document.createElement('span');
                     name.className = 'mermaid-editor-node-name';
                     name.textContent = node.label;
                     const id = document.createElement('span');
                     id.className = 'mermaid-editor-node-id';
-                    id.textContent = node.id;
-                    row.append(swatch, name, id);
+                    id.textContent = `Node ${node.id}`;
+                    identity.append(name, id);
+                    const shape = document.createElement('span');
+                    shape.className = 'mermaid-editor-node-shape';
+                    shape.textContent = {
+                        original: 'Original',
+                        rounded: 'Rounded',
+                        stadium: 'Pill',
+                    }[node.shape] || 'Original';
+                    const swatch = document.createElement('span');
+                    swatch.className = 'mermaid-editor-node-swatch';
+                    swatch.setAttribute('aria-hidden', 'true');
+                    if (node.fill) swatch.style.background = node.fill;
+                    row.setAttribute('aria-label', `${node.label}, ${shape.textContent} shape, ${node.fill ? `color ${node.fill}` : 'default color'}, node ${node.id}`);
+                    row.append(identity, shape, swatch);
                     row.addEventListener('click', () => selectNode(node));
                     row.addEventListener('keydown', event => {
                         const destination = {
@@ -666,6 +705,8 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
             styleContent.append(typeSection, appearance);
         }
         styleContent.scrollTop = scrollTop;
+        const refreshedNodeList = styleContent.querySelector('.mermaid-editor-node-list');
+        if (refreshedNodeList) refreshedNodeList.scrollTop = nodeListScrollTop;
         if (revealSelectedFlowchartNode) {
             revealSelectedFlowchartNode = false;
             styleContent.querySelector('.mermaid-editor-selected-node')?.scrollIntoView?.({ block: 'nearest' });
@@ -730,6 +771,9 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
                 inspectedSource = status.source;
             }
             if (status.diagramType) detectedDiagramType = status.diagramType;
+            if (status.phase === 'valid' && status.source !== undefined) {
+                preview.classList.toggle('is-application-themed', mermaidUsesApplicationTheme(status.source));
+            }
             previewSpinner.hidden = status.phase !== 'rendering' && status.phase !== 'checking';
             previewState.textContent = status.phase === 'checking' ? 'Checking…'
                 : status.phase === 'rendering' ? 'Rendering…'
@@ -751,8 +795,10 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
     });
 
     loadTemplateButton.addEventListener('click', applySelectedTemplate);
-    cancelButton.addEventListener('click', () => finish(false));
+    cancelButton.addEventListener('click', requestCancel);
     applyButton.addEventListener('click', () => finish(true));
+    keepButton.addEventListener('click', hideDiscard);
+    discardButton.addEventListener('click', () => finish(false));
     lifecycle = activateModal(overlay, {
         initialFocus: () => editorView.contentDOM,
         dismissOnBackdrop: false,
@@ -761,21 +807,26 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
             if (colorPicker?.picker.isConnected) {
                 event.preventDefault();
                 colorPicker.close({ restoreFocus: true });
+                colorPicker = null;
                 return false;
             }
-            return !options.inputProfile?.capturesEscape?.(editorView, event);
+            event.preventDefault();
+            event.stopPropagation();
+            if (!discard.hidden) hideDiscard();
+            else requestCancel();
+            return false;
         },
     });
     detachInputProfile = options.inputProfile?.attach?.(editorView, {
         apply: () => finish(true),
-        cancel: () => finish(false),
+        cancel: requestCancel,
     }) || null;
     previewSession.schedule(editorView.state.doc.toString());
 
     return {
         overlay,
         editorView,
-        close: () => finish(false),
+        close: requestCancel,
         apply: () => finish(true),
         get hasErrors() { return hasErrors; },
     };

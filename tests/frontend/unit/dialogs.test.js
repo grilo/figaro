@@ -185,26 +185,23 @@ describe('New note dialog', () => {
         expect(document.activeElement).toBe(newerTarget);
     });
 
-    test('lets a focused editor reserve Escape before the modal dismissal shortcut', () => {
+    test('advertises Escape and dismisses even when a text editor owns focus', () => {
         const { overlay } = createDialogShell({
             title: 'Embedded editor',
             content: '<div><textarea aria-label="Source"></textarea></div>',
         });
+        const dialog = overlay.querySelector('[role="dialog"]');
         const source = overlay.querySelector('textarea');
         const onDismiss = jest.fn();
-        let editorOwnsEscape = true;
         activateModal(overlay, {
             initialFocus: source,
             onDismiss,
-            shouldDismissOnEscape: () => !editorOwnsEscape,
         });
         source.focus();
 
-        source.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-        expect(overlay.isConnected).toBe(true);
-        expect(onDismiss).not.toHaveBeenCalled();
-
-        editorOwnsEscape = false;
+        expect(dialog.getAttribute('aria-keyshortcuts')).toBe('Escape');
+        expect(dialog.querySelector('.custom-modal-dismiss-hint').textContent).toBe('ESC to close');
+        expect(dialog.querySelector('.custom-modal-resize-handle')).toBeNull();
         source.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
         expect(overlay.isConnected).toBe(false);
         expect(onDismiss).toHaveBeenCalledTimes(1);
@@ -257,10 +254,21 @@ describe('New note dialog', () => {
     });
 
     test('requires at least one source and returns the selected merge order', async () => {
-        const result = mergeNotesDialog('a.md', ['b.md', 'c.md']);
+        const result = mergeNotesDialog('Projects/a.md', ['Inbox/b.md', 'Archive/c.md']);
         const overlay = document.querySelector('.custom-modal-overlay');
         const checkboxes = [...overlay.querySelectorAll('.merge-checkbox')];
         const confirm = overlay.querySelector('.custom-modal-btn-delete');
+
+        expect(overlay.querySelector('.merge-dest-name').textContent).toBe('a.md');
+        expect(overlay.querySelector('.merge-dest-row').title).toBe('Projects/a.md');
+        expect(checkboxes).toHaveLength(2);
+        expect(checkboxes.every(checkbox => checkbox.checked)).toBe(true);
+        expect([...overlay.querySelectorAll('.merge-file-name')].map(element => element.textContent))
+            .toEqual(['b.md', 'c.md']);
+        expect(overlay.querySelector('.merge-warning').textContent)
+            .toContain('permanently deleted');
+        expect(overlay.querySelector('.custom-modal-btn-cancel').textContent).toBe('Cancel');
+        expect(confirm.textContent).toBe('Merge and delete sources');
 
         checkboxes.forEach(checkbox => {
             checkbox.checked = false;

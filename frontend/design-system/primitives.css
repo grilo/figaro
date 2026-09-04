@@ -78,6 +78,22 @@
     transform: rotate(180deg);
 }
 
+.ui-picker--quiet .ui-picker-trigger,
+.ui-picker--quiet .ui-picker-trigger:hover:not(:disabled) {
+    border-color: transparent;
+}
+
+.ui-picker--quiet .ui-picker-trigger[aria-expanded="true"] {
+    border-color: transparent;
+    background: var(--active-bg);
+    box-shadow: none;
+}
+
+.ui-picker--quiet .ui-picker-trigger:focus-visible {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
 .ui-picker-trigger:disabled {
     cursor: not-allowed;
     opacity: .62;
@@ -96,21 +112,30 @@
     font-family: var(--font-ui);
 }
 
-.ui-picker .ui-picker-menu {
+.ui-picker-menu {
     display: none;
     position: absolute;
     z-index: 120;
-    top: calc(100% + 6px);
-    left: 0;
-    width: 100%;
     box-sizing: border-box;
     max-height: min(310px, calc(100vh - 80px));
     padding: 4px;
     overflow-y: auto;
 }
 
-.ui-picker .ui-picker-menu[data-floating="true"] {
+.ui-picker .ui-picker-menu {
+    top: calc(100% + 6px);
+    left: 0;
+    width: 100%;
+}
+
+.ui-picker--quiet .ui-picker-menu,
+.ui-picker-menu[data-owner-quiet="true"] {
+    border-color: transparent;
+}
+
+.ui-picker-menu[data-floating="true"] {
     position: fixed;
+    z-index: 2400;
 }
 
 .ui-picker-menu.open {
@@ -135,7 +160,7 @@
     cursor: pointer;
 }
 
-.ui-picker .ui-menu-item {
+.ui-picker-menu .ui-menu-item {
     justify-content: space-between;
 }
 
@@ -216,6 +241,15 @@
 
 .ui-stepper[aria-busy="true"] {
     border-color: color-mix(in srgb, var(--accent-color) 55%, var(--border-color));
+}
+
+.ui-stepper--quiet {
+    border-color: transparent;
+}
+
+.ui-stepper--quiet[aria-busy="true"] {
+    border-color: transparent;
+    box-shadow: inset 0 -2px color-mix(in srgb, var(--accent-color) 55%, transparent);
 }
 
 .ui-stepper-button {
@@ -339,42 +373,105 @@ input.ui-stepper-value:invalid {
 }
 
 .ui-segmented-control {
-    display: inline-flex;
+    --choice-highlight-width: calc(50% - 3px);
+    --choice-highlight-translate: 0%;
+    --choice-highlight-opacity: 0;
+    display: inline-grid;
     flex: 0 0 auto;
+    position: relative;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     align-items: center;
-    gap: 2px;
+    gap: 0;
     padding: 3px;
     border: 1px solid var(--choice-border);
-    border-radius: 6px;
+    border-radius: 999px;
     background: var(--choice-surface);
     color: var(--text-dim);
+    box-shadow: var(--choice-track-shadow);
+}
+
+.ui-segmented-control:has(> .ui-button:only-child) {
+    --choice-highlight-width: calc(100% - 6px);
+}
+
+.ui-segmented-control:has(> .ui-button:nth-child(3):last-child) {
+    --choice-highlight-width: calc(33.333333% - 2px);
+}
+
+.ui-segmented-control:has(> .ui-button:nth-child(4):last-child) {
+    --choice-highlight-width: calc(25% - 1.5px);
+}
+
+.ui-segmented-control:has(> .ui-button:nth-child(1)[aria-pressed="true"]) {
+    --choice-highlight-translate: 0%;
+    --choice-highlight-opacity: 1;
+}
+
+.ui-segmented-control:has(> .ui-button:nth-child(2)[aria-pressed="true"]) {
+    --choice-highlight-translate: 100%;
+    --choice-highlight-opacity: 1;
+}
+
+.ui-segmented-control:has(> .ui-button:nth-child(3)[aria-pressed="true"]) {
+    --choice-highlight-translate: 200%;
+    --choice-highlight-opacity: 1;
+}
+
+.ui-segmented-control:has(> .ui-button:nth-child(4)[aria-pressed="true"]) {
+    --choice-highlight-translate: 300%;
+    --choice-highlight-opacity: 1;
+}
+
+.ui-segmented-control:has(> .ui-button[aria-pressed="true"]:disabled) {
+    --choice-highlight-opacity: .65;
+}
+
+.ui-segmented-control::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    top: 3px;
+    bottom: 3px;
+    left: 3px;
+    width: var(--choice-highlight-width);
+    box-sizing: border-box;
+    border: 1px solid var(--choice-selected-border);
+    border-radius: 999px;
+    background: var(--choice-selected-surface);
+    opacity: var(--choice-highlight-opacity);
+    box-shadow: var(--choice-selected-shadow);
+    transform: translateX(var(--choice-highlight-translate));
+    transition:
+        transform var(--motion-content-duration) var(--motion-ease-out),
+        opacity var(--motion-content-duration) ease;
+    pointer-events: none;
 }
 
 .ui-segmented-control > .ui-button {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
     border-color: var(--choice-item-border);
     background: var(--choice-item-surface);
     color: var(--choice-item-color);
     min-height: 24px;
-    padding: 0 7px;
-    border-radius: 4px;
+    padding: 0 6px;
+    border-radius: 999px;
     font: 600 10px/1 var(--font-sans);
 }
 
 .ui-segmented-control--quiet {
     --choice-border: transparent;
-    --choice-surface: color-mix(in srgb, var(--text-color) 6%, transparent);
     --choice-item-border: transparent;
     --choice-item-surface: transparent;
     --choice-item-color: var(--text-muted);
     --choice-hover-border: transparent;
     --choice-hover-surface: var(--hover-bg);
     --choice-selected-border: transparent;
-    --choice-selected-surface: var(--bg-color);
-    --choice-selected-color: var(--text-color);
-    --choice-selected-shadow: var(--shadow-sm);
 }
 
-.ui-segmented-control > .ui-button:hover:not(:disabled) {
+.ui-segmented-control > .ui-button:hover:not(:disabled):not([aria-pressed="true"]) {
     border-color: var(--choice-hover-border);
     background: var(--choice-hover-surface);
     color: var(--text-color);
@@ -382,9 +479,9 @@ input.ui-stepper-value:invalid {
 
 .ui-segmented-control > .ui-button[aria-pressed="true"] {
     border-color: var(--choice-selected-border);
-    background: var(--choice-selected-surface);
+    background: transparent;
     color: var(--choice-selected-color);
-    box-shadow: var(--choice-selected-shadow);
+    box-shadow: none;
 }
 
 .ui-segmented-control > .ui-button:focus-visible:not(:disabled) {
@@ -1283,6 +1380,33 @@ input.ui-stepper-value:invalid {
     to { transform: translateX(100%); }
 }
 
+@media (forced-colors: active) {
+    .ui-picker--quiet .ui-picker-trigger,
+    .ui-picker--quiet .ui-picker-trigger:hover:not(:disabled),
+    .ui-picker--quiet .ui-picker-menu,
+    .ui-stepper--quiet,
+    .ui-segmented-control--quiet {
+        border-color: ButtonText;
+    }
+
+    .ui-picker--quiet .ui-picker-trigger:focus-visible,
+    .ui-stepper--quiet :is(.ui-stepper-button, .ui-stepper-value):focus-visible,
+    .ui-segmented-control--quiet > .ui-button:focus-visible:not(:disabled) {
+        outline: 2px solid Highlight;
+        outline-offset: 1px;
+        box-shadow: none;
+    }
+
+    .ui-segmented-control--quiet > .ui-button[aria-pressed="true"] {
+        background: Highlight;
+        color: HighlightText;
+    }
+
+    .ui-segmented-control::before {
+        display: none;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .ui-picker-trigger,
     .ui-picker-trigger > svg,
@@ -1302,6 +1426,10 @@ input.ui-stepper-value:invalid {
     }
 
     .ui-progress-value {
+        transition: none;
+    }
+
+    .ui-segmented-control::before {
         transition: none;
     }
 

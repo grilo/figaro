@@ -36,6 +36,7 @@ describe('Kanban Gantt view adapter', () => {
     test('applies each date and clearing immediately without Save/Cancel; Escape only closes the prompt', async () => {
         root.querySelector('.kanban-gantt-bar').click();
         expect(root.querySelector('[data-edit="save"], [data-edit="cancel"]')).toBeNull();
+        expect(root.querySelector('[data-edit="clear"]').disabled).toBe(false);
         root.querySelector('[data-edit="open"]').click(); expect(open).toHaveBeenCalledWith(expect.objectContaining(card));
         root.querySelector('[role="dialog"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         expect(save).not.toHaveBeenCalled();
@@ -52,10 +53,20 @@ describe('Kanban Gantt view adapter', () => {
         expect(save).toHaveBeenLastCalledWith(expect.objectContaining(card), { start: '2026-08-30', end: '' }, 'one');
         root.querySelector('[data-edit="clear"]').click(); await flush();
         expect(save).toHaveBeenLastCalledWith(expect.objectContaining(card), { start: '', end: '' }, 'one');
+        expect(root.querySelector('[data-edit="clear"]').disabled).toBe(true);
         expect(save).toHaveBeenCalledTimes(4);
         root.querySelector('[role="dialog"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         expect(save).toHaveBeenCalledTimes(4);
         expect(document.activeElement.dataset.task).toBeTruthy();
+    });
+    test('keeps Unscheduled disabled until an undated task has at least one saved date', async () => {
+        const undated = { ...card, line: 2, text: 'Undated', source: 'Undated #todo' };
+        session.update({ todo: [undated] }, [], {});
+        root.querySelector('.kanban-gantt-unscheduled').click();
+        const clear = root.querySelector('[data-edit="clear"]');
+        expect(clear.disabled).toBe(true);
+        await chooseDate(root, 'start', '2026-08-31');
+        expect(clear.disabled).toBe(false);
     });
     test('outside pointer presses dismiss the schedule inspector without swallowing the next action', () => {
         root.querySelector('.kanban-gantt-bar').click();
@@ -185,6 +196,32 @@ describe('Kanban Gantt view adapter', () => {
         expect(save).toHaveBeenCalledWith(expect.objectContaining(card), { start: '2026-08-31', end: '2026-09-03' }, 'one');
         expect(root.querySelector('[role="alert"]').textContent).toContain('Disk is read only');
         expect(root.querySelector('[aria-busy="true"]')).toBeNull();
+    });
+    test('one-day bars resize from either visual edge when the webview retargets the pointer to the bar', async () => {
+        const oneDay = [{ ...schedules[0], start: '2026-08-31', end: '2026-08-31' }];
+        session.update({ todo: [card] }, oneDay, { todo: '#d8574a' });
+        const bar = root.querySelector('.kanban-gantt-bar');
+        bar.getBoundingClientRect = () => ({ left: 100, right: 138, width: 38, top: 0, bottom: 34, height: 34, x: 100, y: 0 });
+
+        pointer(bar, 'pointerdown', 104); pointer(bar, 'pointermove', 60); pointer(bar, 'pointerup', 60); await flush();
+        expect(save).toHaveBeenLastCalledWith(expect.objectContaining(card), { start: '2026-08-30', end: '2026-08-31' }, 'one');
+
+        pointer(bar, 'pointerdown', 134); pointer(bar, 'pointermove', 178); pointer(bar, 'pointerup', 178); await flush();
+        expect(save).toHaveBeenLastCalledWith(expect.objectContaining(card), { start: '2026-08-31', end: '2026-09-01' }, 'one');
+
+        pointer(bar, 'pointerdown', 119); pointer(bar, 'pointermove', 163); pointer(bar, 'pointerup', 163); await flush();
+        expect(save).toHaveBeenLastCalledWith(expect.objectContaining(card), { start: '2026-09-01', end: '2026-09-01' }, 'one');
+    });
+    test('uses one shared today line across the heading, rows, and empty timeline height', () => {
+        expect(root.style.getPropertyValue('--gantt-today-color')).toBe('var(--accent-color)');
+        expect(root.querySelector('.kanban-gantt-day.is-today')).not.toBeNull();
+        expect(root.querySelectorAll('.kanban-gantt-lane [data-resize]')).toHaveLength(2);
+        expect([...root.querySelectorAll('.kanban-gantt-handle')].every(handle => (
+            handle.classList.contains('ui-image-resize-handle')
+        ))).toBe(true);
+        session.update({}, [], {});
+        expect(root.querySelector('.kanban-gantt-grid')).not.toBeNull();
+        expect(root.querySelector('.kanban-gantt-rows').childElementCount).toBe(0);
     });
     test('shows unresolved metadata with a themed task choice and blocks writes when loading fails', () => {
         session.update({ todo: [card] }, [{ id: 'old', task: null, text: 'Old title', file: 'tasks.md', start: '', end: '2026-09-01' }], {});

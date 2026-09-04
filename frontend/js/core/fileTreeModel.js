@@ -40,6 +40,25 @@ export function directoryPathsForReveal(path) {
     return parts.map((_part, index) => parts.slice(0, index + 1).join('/'));
 }
 
+export function mergeNoteCandidates(openPath, selectedPaths, contextPath) {
+    const candidates = [openPath, ...(Array.isArray(selectedPaths) ? selectedPaths : [])]
+        .filter(path => String(path || '').toLowerCase().endsWith('.md'));
+    const contextIsNote = String(contextPath || '').toLowerCase().endsWith('.md');
+    const ordered = contextIsNote && !candidates.includes(contextPath)
+        ? [contextPath, ...candidates]
+        : candidates;
+    return [...new Set(ordered)];
+}
+
+export function selectedMergeNotePaths(candidates, selectedSourceIndices) {
+    if (!Array.isArray(candidates) || candidates.length < 2) return [];
+    if (!Array.isArray(selectedSourceIndices) || selectedSourceIndices.length === 0) return [];
+    const selectedSources = selectedSourceIndices
+        .map(index => candidates[Number(index) + 1])
+        .filter(Boolean);
+    return selectedSources.length ? [candidates[0], ...selectedSources] : [];
+}
+
 export function toggleSelectedPath(selectedPaths, path) {
     const next = [...new Set(selectedPaths || [])];
     const index = next.indexOf(path);

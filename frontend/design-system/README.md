@@ -1,11 +1,17 @@
 # Figaro design system
 
-Segmented choices use the existing quiet borderless treatment throughout the
-three Figaro themes, including Graph's Orphans toggle. Optional `--choice-*`
-tokens define group, item, hover, and selected paint; semantic defaults keep
-other themes outlined. Selected shadows must not replace the explicit
-keyboard-focus outline. Calendar, Kanban, and Graph controls share their
-upper-left workspace inset; feature styles own placement only.
+Segmented choices use the former Settings surface as Figaro's canonical
+pill-shaped track. A separate `::before` highlight uses the shared
+`--choice-selected-*` tokens and slides beneath equal-width options as
+`aria-pressed` moves; the same CSS supports the app's one- through four-option
+groups without feature-owned paint or script measurements. Quiet groups remove
+only the outer border. Forced colors paint the selected button directly,
+reduced motion removes the slide, and neither state replaces the explicit
+keyboard-focus outline. Figaro Dark retains its red treatment, while Figaro
+Light supplies the stronger warm control layer first established in Settings.
+Calendar, Kanban, and Graph
+controls share their upper-left workspace inset; feature styles own placement
+only.
 
 This directory is the review surface for Figaro's visual language. The
 [component catalogue](index.html) displays the current production elements
@@ -73,18 +79,62 @@ The approved `.ui-button--quiet` variant removes resting border and surface
 paint for low-emphasis actions while retaining themed hover, active, focus,
 disabled, and busy behavior. Expanded Properties uses it for its icon-and-label
 **Edit YAML** source action.
+The approved `.ui-picker--quiet` and `.ui-stepper--quiet` variants give Settings
+controls a borderless theme surface without changing their controller or value
+policy. A quiet picker opened by pointer uses tonal open paint without a focus
+halo; `:focus-visible` restores the halo for keyboard users. Menus remain
+elevated but borderless. Disabled/busy and validation states remain explicit,
+and forced-colors mode restores system borders, focus, and selected paint.
+The Mermaid and Chart editors consume the quiet picker, field, stepper, and
+segmented variants wherever each control applies. Their standalone **Replace
+with template** and **JSON** actions use the ordinary outlined button, as do
+Calendar Timeline's **Today**, file-diagnostic recovery actions, and the Table
+Editor toolbar. Graph search consumes the quiet
+field already used by Search notes. Feature selectors may arrange
+or size those controls but do not own interaction-state paint. Modal and
+pane surfaces omit decorative frames while preserving structural table grids,
+code gutters, semantic states, and forced-colors boundaries; the Table Editor
+adds one feature-owned structural divider between Rows and Columns.
+The shared modal header visibly advertises **ESC to close** and its lifecycle
+handles that shortcut independently of focused fields or embedded editors.
+Transactional editors compose the approved warning notice and ordinary/danger
+buttons for their inline pending-change confirmation; nested pickers close
+before the modal.
+The explicitly approved `.custom-modal--resizable` feature variant is limited
+to the Table, Mermaid, and Chart editor compositions. It places the existing
+`.ui-image-resize-handle` primitive at the lower-right corner and retains that
+primitive's hover, focus, active, reduced-motion, and forced-colors language;
+feature code owns viewport-safe geometry, keyboard resizing, the live size
+readout, and session-only reset behavior. Generic modal specimens and production
+dialogs do not inherit the variant.
+Open select-only menus are temporarily mounted in the body overlay and placed
+from the invoking control by the shared pure planner. They track scrolling,
+flip above when necessary, clamp within the viewport, and return to their
+owning component on close; Help and sidebar-search results remain intentional
+inline regions.
 The approved `.kanban-gantt-bar` button variant adds column-tinted, 8px task
 bars with a softer completed state. Its colour/state rules live in primitives;
-the feature owns only timeline geometry and pointer hit regions. The catalogue
+the feature owns timeline geometry, visible endpoint resize hit regions that
+contract on one-day bars to preserve a center drag target, and
+the single full-height current-day marker. Each endpoint renders the approved
+image-resize dot centered on the painted edge, half inside and half outside,
+while the feature-owned hit region remains inside the bar. The catalogue
 shows ongoing, completed, and disabled bars alongside the shared controls.
 Checklist date/column actions reuse the date picker and completion list: content
 updates describe preferred-style date links and single-value replacement without
 introducing a control or variant.
+Kanban Board cards likewise compose ordinary buttons into compact Start and Due
+pills and the existing icon button into a top-right actions trigger. Feature CSS
+owns only card placement, pill dimensions, and semantic due-state color; the
+shared primitives retain interaction states. The catalogue mirrors the two-pill
+layout without introducing another component family or visual variant.
 The approved `.ui-segmented-control` composes ordinary `.ui-button` choices
-into one labelled, mutually exclusive presentation control. Its quiet variant
-removes the resting outline for low-chrome surfaces while preserving shared
-hover, selected, keyboard-focus, disabled, and busy states; Calendar uses that
-variant for its session-only **Month / Timeline** choice.
+into one labelled, mutually exclusive presentation control. Its moving
+selection pill is structural paint and never receives pointer events. The quiet
+variant removes the resting outline for low-chrome surfaces while preserving
+shared hover, selected, keyboard-focus, disabled, and busy states; Calendar uses that
+variant for its session-only **Month / Timeline** choice and Kanban for
+**Board / Gantt**. Its pill track is theme-relative rather than a fixed color.
 The document-tab family also includes the approved
 `.ui-document-tab--side-connected` modifier used by the persistent Calendar,
 Kanban, and Graph destinations. It preserves the same inactive, hover, and

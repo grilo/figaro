@@ -10,7 +10,10 @@ describe('diagram renderer startup', () => {
     });
 
     afterEach(() => {
-        for (const token of ['--text-color', '--text-muted', '--border-color']) {
+        for (const token of [
+            '--text-color', '--text-muted', '--border-color', '--border-light',
+            '--panel-bg', '--hover-bg', '--active-bg',
+        ]) {
             document.documentElement.style.removeProperty(token);
         }
         document.querySelectorAll('[data-figaro-vega-render-target]').forEach(target => target.remove());
@@ -113,6 +116,45 @@ describe('diagram renderer startup', () => {
         expect(first).toContain('live-mermaid-1');
         expect(second).toContain('print-mermaid-2');
         expect(second).not.toContain('live-mermaid-1');
+    });
+
+    test('themes an unstyled application Mermaid render without changing the authored print render', async () => {
+        window.mermaid.render.mockImplementation(async (id, source) => ({
+            svg: `<svg id="${id}" data-source="${encodeURIComponent(source)}"></svg>`,
+        }));
+        document.documentElement.style.setProperty('--text-color', '#f5eee4');
+        document.documentElement.style.setProperty('--text-muted', '#b9ac9e');
+        document.documentElement.style.setProperty('--border-light', '#62594f');
+        document.documentElement.style.setProperty('--panel-bg', '#24211d');
+        document.documentElement.style.setProperty('--hover-bg', '#29251f');
+        document.documentElement.style.setProperty('--active-bg', '#3b2924');
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        const source = 'flowchart TD\n  A --> B';
+
+        await renderDiagramSVG('mermaid', source, 'live', { appearance: 'application' });
+        await renderDiagramSVG('mermaid', source, 'print');
+
+        expect(window.mermaid.render).toHaveBeenCalledTimes(2);
+        expect(window.mermaid.render.mock.calls[0][1]).toContain("theme: 'base'");
+        expect(window.mermaid.render.mock.calls[0][1]).toContain("primaryTextColor: '#f5eee4'");
+        expect(window.mermaid.render.mock.calls[0][1]).toContain("lineColor: '#b9ac9e'");
+        expect(window.mermaid.render.mock.calls[1][1]).toBe(source);
+    });
+
+    test('preserves explicit Mermaid styling in the application appearance', async () => {
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        const source = [
+            '---',
+            'config:',
+            "  theme: 'neutral'",
+            '---',
+            'flowchart TD',
+            '  A --> B',
+        ].join('\n');
+
+        await renderDiagramSVG('mermaid', source, 'live', { appearance: 'application' });
+
+        expect(window.mermaid.render).toHaveBeenCalledWith(expect.any(String), source);
     });
 
     test('deduplicates concurrent renders of identical Mermaid source', async () => {

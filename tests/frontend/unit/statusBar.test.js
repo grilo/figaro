@@ -37,6 +37,7 @@ describe('status bar', () => {
             'word-count',
             'char-count',
             'reading-time',
+            'resize-grip',
         ]);
     });
 

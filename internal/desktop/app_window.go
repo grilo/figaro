@@ -1,11 +1,5 @@
 package desktop
 
-import (
-	"strings"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
-)
-
 // ============================================================================
 // 11. Window Management (native, hardware-accelerated via Wails runtime)
 // ============================================================================
@@ -14,7 +8,7 @@ import (
 func (a *App) WindowMinimize() {
 	if a.ctx != nil {
 		a.captureWindowState(a.ctx)
-		safeRuntimeCall(func() { runtime.WindowMinimise(a.ctx) })
+		a.windowRuntime.Minimise(a.ctx)
 	}
 }
 
@@ -22,7 +16,7 @@ func (a *App) WindowMinimize() {
 // active Figaro document. The frontend owns the presentation decision.
 func (a *App) WindowSetTitle(title string) {
 	if a.ctx != nil {
-		safeRuntimeCall(func() { runtime.WindowSetTitle(a.ctx, title) })
+		a.windowRuntime.SetTitle(a.ctx, title)
 	}
 }
 
@@ -32,7 +26,7 @@ func (a *App) WindowMaximize() {
 		// Preserve the current normal dimensions before entering maximized
 		// state. A resize observation records the resulting state afterwards.
 		a.captureWindowState(a.ctx)
-		safeRuntimeCall(func() { runtime.WindowToggleMaximise(a.ctx) })
+		a.windowRuntime.ToggleMaximise(a.ctx)
 	}
 }
 
@@ -43,14 +37,14 @@ func (a *App) WindowClose() {
 		// native teardown has begun on Linux, where querying state would emit
 		// gtk_widget_get_window / gdk_window_get_state critical assertions.
 		a.captureWindowState(a.ctx)
-		safeRuntimeCall(func() { runtime.Quit(a.ctx) })
+		a.windowRuntime.Quit(a.ctx)
 	}
 }
 
 // WindowSetPosition moves the window to (x, y). Used by the drag handler.
 func (a *App) WindowSetPosition(x int, y int) {
 	if a.ctx != nil {
-		safeRuntimeCall(func() { runtime.WindowSetPosition(a.ctx, x, y) })
+		a.windowRuntime.SetPosition(a.ctx, x, y)
 	}
 }
 
@@ -60,10 +54,7 @@ func (a *App) WindowGetPosition() map[string]int {
 	if a.ctx == nil {
 		return map[string]int{"x": 0, "y": 0}
 	}
-	var x, y int
-	safeRuntimeCall(func() {
-		x, y = runtime.WindowGetPosition(a.ctx)
-	})
+	x, y := a.windowRuntime.GetPosition(a.ctx)
 	return map[string]int{"x": x, "y": y}
 }
 
@@ -72,17 +63,14 @@ func (a *App) WindowGetSize() map[string]int {
 	if a.ctx == nil {
 		return map[string]int{"w": 800, "h": 600}
 	}
-	var w, h int
-	safeRuntimeCall(func() {
-		w, h = runtime.WindowGetSize(a.ctx)
-	})
+	w, h := a.windowRuntime.GetSize(a.ctx)
 	return map[string]int{"w": w, "h": h}
 }
 
 // WindowSetSize sets the window dimensions.
 func (a *App) WindowSetSize(w int, h int) {
 	if a.ctx != nil {
-		safeRuntimeCall(func() { runtime.WindowSetSize(a.ctx, w, h) })
+		a.windowRuntime.SetSize(a.ctx, w, h)
 	}
 }
 
@@ -97,43 +85,14 @@ func (a *App) WindowStartResize(direction string) {
 	if a.ctx == nil {
 		return
 	}
-	safeRuntimeCall(func() {
-		x, y := runtime.WindowGetPosition(a.ctx)
-		w, h := runtime.WindowGetSize(a.ctx)
-		delta := 20 // pixels per step
-		switch strings.ToUpper(direction) {
-		case "N":
-			runtime.WindowSetPosition(a.ctx, x, y-delta)
-			runtime.WindowSetSize(a.ctx, w, h+delta)
-		case "S":
-			runtime.WindowSetSize(a.ctx, w, h+delta)
-		case "E":
-			runtime.WindowSetSize(a.ctx, w+delta, h)
-		case "W":
-			runtime.WindowSetPosition(a.ctx, x-delta, y)
-			runtime.WindowSetSize(a.ctx, w+delta, h)
-		case "NE":
-			runtime.WindowSetPosition(a.ctx, x, y-delta)
-			runtime.WindowSetSize(a.ctx, w+delta, h+delta)
-		case "NW":
-			runtime.WindowSetPosition(a.ctx, x-delta, y-delta)
-			runtime.WindowSetSize(a.ctx, w+delta, h+delta)
-		case "SE":
-			runtime.WindowSetSize(a.ctx, w+delta, h+delta)
-		case "SW":
-			runtime.WindowSetPosition(a.ctx, x-delta, y)
-			runtime.WindowSetSize(a.ctx, w+delta, h+delta)
-		}
-	})
-}
-
-// safeRuntimeCall wraps a call to the Wails runtime to prevent panics
-// when a non-Wails context (e.g., context.Background()) is passed during testing.
-func safeRuntimeCall(fn func()) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Runtime panics with non-Wails contexts are expected in tests; suppress.
-		}
-	}()
-	fn()
+	x, y := a.windowRuntime.GetPosition(a.ctx)
+	w, h := a.windowRuntime.GetSize(a.ctx)
+	plan, ok := planWindowResize(direction, x, y, w, h)
+	if !ok {
+		return
+	}
+	if plan.move {
+		a.windowRuntime.SetPosition(a.ctx, plan.x, plan.y)
+	}
+	a.windowRuntime.SetSize(a.ctx, plan.width, plan.height)
 }

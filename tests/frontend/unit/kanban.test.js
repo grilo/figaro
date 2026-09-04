@@ -39,8 +39,13 @@ describe('live Kanban buffers and compact cards', () => {
         document.getElementById('tab-panels').innerHTML = '<div id="kanban-board-main"></div>';
         window.go.desktop.App.GetKanbanColumns.mockResolvedValue({ columns: ['todo', 'wip', 'done'], colors: {} });
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: [], wip: [], done: [] });
+        window.go.desktop.App.GetTaskSchedules.mockResolvedValue([]);
         window.go.desktop.App.SetColumnColor = jest.fn().mockResolvedValue({ success: true, colors: {} });
+        window.go.desktop.App.SetTaskSchedule.mockResolvedValue(null);
         window.go.desktop.App.SetTaskDueDate.mockResolvedValue({ success: true });
+        window.go.desktop.App.SetKanbanCardOrder.mockResolvedValue({ success: true });
+        window.go.desktop.App.UpdateTaskTag.mockResolvedValue({ success: true });
+        window.go.desktop.App.RemoveTagFromTask.mockResolvedValue({ success: true });
     });
 
     test('caps visible card text at 120 characters including a Unicode ellipsis', () => {
@@ -207,7 +212,7 @@ describe('live Kanban buffers and compact cards', () => {
         todoCards[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
 
         expect(document.activeElement).toBe(wipCard);
-        expect([...document.querySelectorAll('.kanban-card-date-control, .kanban-card-delete')]
+        expect([...document.querySelectorAll('.kanban-card-menu-trigger')]
             .every(button => button.tabIndex === -1)).toBe(true);
     });
 
@@ -244,6 +249,28 @@ describe('live Kanban buffers and compact cards', () => {
         expect(persistedRefs).toHaveLength(300);
         expect(persistedRefs[151].file).toBe('task-150.md');
         expect(document.activeElement.dataset.file).toBe('task-150.md');
+    });
+
+    test('preserves overlapping card nodes when scrolling advances the virtual window', async () => {
+        const tasks = Array.from({ length: 300 }, (_, index) => ({
+            file: `stable-${index}.md`,
+            file_name: `stable-${index}.md`,
+            line: index + 1,
+            text: `Stable task ${index}`,
+            tag: 'todo',
+        }));
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: tasks, wip: [], done: [] });
+        await renderKanbanBoard('kanban-board-main');
+
+        const cards = document.querySelector('.kanban-column-cards[data-column="todo"]');
+        const overlappingCard = cards.querySelector('[data-card-index="60"]');
+        cards.scrollTop = 70 * 91;
+        cards.dispatchEvent(new Event('scroll'));
+        await testUtils.waitFor(30);
+
+        expect(cards.querySelector('[data-card-index="60"]')).toBe(overlappingCard);
+        expect(cards.querySelector('.kanban-card').dataset.cardIndex).toBe('22');
+        expect(cards.querySelectorAll('.kanban-card')).toHaveLength(96);
     });
 
     test('persists ArrowUp reordering and restores focus to the moved card', async () => {
@@ -363,34 +390,129 @@ describe('live Kanban buffers and compact cards', () => {
         expect(document.querySelector('.kanban-due-badge').textContent).toBe('Due 1');
     });
 
-    test('sets a due date from the card picker without opening the source note', async () => {
-        const today = localISODate();
+    test('lays out task actions above two clickable schedule pills without showing the filename', async () => {
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
-            todo: [{ file: 'note.md', file_name: 'note.md', line: 4, text: 'Schedule me', tag: 'todo', source: 'Schedule me #todo' }],
+            todo: [{ file: 'Roadmap.md', file_name: 'Roadmap.md', line: 4, text: 'Schedule me', tag: 'todo', source: 'Schedule me #todo' }],
             wip: [], done: [],
         });
         await renderKanbanBoard('kanban-board-main');
 
-        document.querySelector('.kanban-card-due-action').click();
-        document.querySelector(`[data-date-picker-value="${today}"]`).click();
-        await testUtils.waitFor(0);
-
-        expect(window.go.desktop.App.SetTaskDueDate).toHaveBeenCalledWith({ file: 'note.md', line: 4, source: 'Schedule me #todo' }, today);
-        expect(window.go.desktop.App.GetCalendarMonthData).not.toHaveBeenCalled();
+        const card = document.querySelector('.kanban-card');
+        const header = card.querySelector('.kanban-card-header');
+        const dates = card.querySelector('.kanban-card-dates');
+        expect([...header.children].map(element => element.className)).toEqual([
+            'kanban-card-text',
+            'ui-icon-button ui-icon-button--small kanban-card-menu-trigger',
+        ]);
+        expect([...dates.querySelectorAll('.kanban-card-date')].map(button => button.dataset.dateField))
+            .toEqual(['start', 'end']);
+        expect(dates.querySelector('[data-date-field="start"]').textContent).toContain('Not started');
+        expect(dates.querySelector('[data-date-field="end"]').textContent).toContain('No due date');
+        expect(card.textContent).not.toContain('Roadmap.md');
+        expect(card.querySelector('.kanban-card-source')).toBeNull();
+        expect(dates.querySelector('[data-date-field="start"]').getAttribute('aria-label'))
+            .toContain('Set task start date');
+        expect(dates.querySelector('[data-date-field="end"]').getAttribute('aria-label'))
+            .toContain('Set task due date');
     });
 
-    test('D and Escape preserve the focused card; only Delete removes its tag', async () => {
+    test('sets each date from its pill while preserving the other schedule date', async () => {
+        const today = localISODate();
+        const task = { file: 'note.md', file_name: 'note.md', line: 4, text: 'Schedule me', tag: 'todo', source: 'Schedule me #todo' };
+        let schedule = { id: 'schedule-one', task, start: '', end: '2026-10-01' };
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [task],
+            wip: [], done: [],
+        });
+        window.go.desktop.App.GetTaskSchedules.mockImplementation(async () => [schedule]);
+        window.go.desktop.App.SetTaskSchedule.mockImplementation(async (identity, start, end, id) => {
+            schedule = { id: id || 'schedule-one', task: { ...task, ...identity }, start, end };
+        });
+        await renderKanbanBoard('kanban-board-main');
+
+        document.querySelector('[data-date-field="start"]').click();
+        expect(document.querySelector('.ui-date-picker').getAttribute('aria-label')).toBe('Choose start date');
+        document.querySelector(`[data-date-picker-value="${today}"]`).click();
+        await testUtils.waitFor(10);
+
+        expect(window.go.desktop.App.SetTaskSchedule).toHaveBeenLastCalledWith(
+            { file: 'note.md', line: 4, source: 'Schedule me #todo' },
+            today,
+            '2026-10-01',
+            'schedule-one',
+        );
+        expect(document.querySelector('.kanban-card-start').textContent).toContain('Start');
+
+        document.querySelector('[data-date-field="end"]').click();
+        expect(document.querySelector('.ui-date-picker').getAttribute('aria-label')).toBe('Choose due date');
+        document.querySelector(`[data-date-picker-value="${today}"]`).click();
+        await testUtils.waitFor(10);
+
+        expect(window.go.desktop.App.SetTaskSchedule).toHaveBeenLastCalledWith(
+            { file: 'note.md', line: 4, source: 'Schedule me #todo' },
+            today,
+            today,
+            'schedule-one',
+        );
+        expect(window.go.desktop.App.GetCalendarMonthData).not.toHaveBeenCalled();
+        expect(openTab).not.toHaveBeenCalled();
+    });
+
+    test('puts clear-schedule and removal commands in the top task menu', async () => {
+        const task = { file: 'note.md', file_name: 'note.md', line: 2, text: 'Review menu', source: 'Review menu #todo', tag: 'todo' };
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: [task],
+        });
+        let schedules = [{ id: 'schedule-two', task, start: '2026-09-01', end: '2026-09-03' }];
+        window.go.desktop.App.GetTaskSchedules.mockImplementation(async () => schedules);
+        window.go.desktop.App.SetTaskSchedule.mockImplementation(async () => { schedules = []; });
+        await renderKanbanBoard('kanban-board-main');
+        const card = document.querySelector('.kanban-card');
+        const trigger = card.querySelector('.kanban-card-menu-trigger');
+
+        trigger.click();
+        const menu = document.querySelector('.kanban-card-menu');
+        expect(menu.parentElement).toBe(document.body);
+        expect(menu.getAttribute('aria-label')).toContain('Review menu');
+        expect([...menu.querySelectorAll('[role="menuitem"]')].map(item => item.textContent.trim()))
+            .toEqual(['Clear start and due dates', 'Remove from board']);
+        expect(trigger.getAttribute('aria-expanded')).toBe('true');
+        menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        expect(document.querySelector('.kanban-card-menu')).toBeNull();
+        expect(document.activeElement).toBe(card);
+
+        card.querySelector('.kanban-card-menu-trigger').click();
+        document.querySelector('[data-card-action="clear-dates"]').click();
+        await testUtils.waitFor(10);
+        expect(window.go.desktop.App.SetTaskSchedule).toHaveBeenCalledWith(
+            { file: 'note.md', line: 2, source: 'Review menu #todo' }, '', '', 'schedule-two',
+        );
+        expect(document.querySelector('.kanban-card-start').textContent).toContain('Not started');
+        expect(document.querySelector('.kanban-card-due').textContent).toContain('No due date');
+
+        const refreshedCard = document.querySelector('.kanban-card');
+        refreshedCard.dispatchEvent(new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true }));
+        document.querySelector('[data-card-action="remove"]').click();
+        await testUtils.waitFor(0);
+        expect(window.go.desktop.App.RemoveTagFromTask).toHaveBeenCalledWith('note.md', 2, 'todo');
+    });
+
+    test('S/D and Escape preserve the focused card; only Delete removes its tag', async () => {
         window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
             todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Keep me', source: 'Keep me #todo', tag: 'todo' }],
         });
         await renderKanbanBoard('kanban-board-main');
         const card = document.querySelector('.kanban-card');
         card.focus();
+        card.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true, cancelable: true }));
+        expect(document.querySelector('.ui-date-picker').getAttribute('aria-label')).toBe('Choose start date');
+        document.querySelector('.ui-date-picker').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(document.activeElement).toBe(card);
         card.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true, cancelable: true }));
         const picker = document.querySelector('.ui-date-picker');
         expect(picker).not.toBeNull();
         expect(window.go.desktop.App.RemoveTagFromTask).not.toHaveBeenCalled();
-        expect(window.go.desktop.App.SetTaskDueDate).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.SetTaskSchedule).not.toHaveBeenCalled();
         picker.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         expect(document.activeElement).toBe(card);
         expect(card.isConnected).toBe(true);
@@ -409,20 +531,20 @@ describe('live Kanban buffers and compact cards', () => {
             todo: [{ file: 'note.md', file_name: 'note.md', line: 1, text: 'Keep me', source, tag: 'todo' }],
         });
         await renderKanbanBoard('kanban-board-main');
-        window.go.desktop.App.SetTaskDueDate.mockRejectedValueOnce(new Error('Read only'));
-        document.querySelector('.kanban-card-due-action').click();
+        window.go.desktop.App.SetTaskSchedule.mockRejectedValueOnce(new Error('Read only'));
+        document.querySelector('[data-date-field="end"]').click();
         document.querySelector('[data-date-picker-value]').click();
         await testUtils.waitFor(0);
         expect(mockKanbanErrorDialog).toHaveBeenCalled();
         expect(document.querySelector('.kanban-card').textContent).toContain('Keep me');
         expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
         expect(window.go.desktop.App.RemoveTagFromTask).not.toHaveBeenCalled();
-        window.go.desktop.App.SetTaskDueDate.mockClear();
+        window.go.desktop.App.SetTaskSchedule.mockClear();
         setState('openTabs', [{ type: 'file', path: 'note.md', dirty: true, _content: source }]);
-        document.querySelector('.kanban-card-due-action').click();
+        document.querySelector('[data-date-field="end"]').click();
         document.querySelector('[data-date-picker-value]').click();
         await testUtils.waitFor(0);
-        expect(window.go.desktop.App.SetTaskDueDate).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.SetTaskSchedule).not.toHaveBeenCalled();
     });
 
     test('changes density and stacked flow from Settings while preserving board and column scroll', async () => {

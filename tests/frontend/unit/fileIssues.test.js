@@ -41,6 +41,12 @@ describe('file diagnostics UI', () => {
         expect(dialog.textContent).toContain('What to do:');
         expect([...dialog.querySelectorAll('button')].map(button => button.textContent.trim()))
             .toEqual(['Show in file tree', 'Reveal in folder', 'Close']);
+        const recoveryActions = [...dialog.querySelectorAll('[data-file-issue-action]')];
+        expect(recoveryActions).toHaveLength(2);
+        expect(recoveryActions.every(button => (
+            button.classList.contains('ui-button')
+            && !button.classList.contains('ui-button--quiet')
+        ))).toBe(true);
 
         dialog.querySelector('.custom-modal-btn-confirm').click();
         await testUtils.waitFor(0);
@@ -99,6 +105,8 @@ describe('file diagnostics UI', () => {
     });
 
     test('uses an external note capability instead of granting arbitrary path-launch access', async () => {
+        window.go.desktop.App.OpenLaunchExternalFile.mockResolvedValue({ success: true });
+        window.go.desktop.App.RevealLaunchExternalFile.mockResolvedValue({ success: true });
         recordRuntimeFileIssue({
             path: '/tmp/large.md',
             code: 'too_large',

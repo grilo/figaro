@@ -56,6 +56,9 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-live-table')).toMatch(/line-height:\s*1\.4/);
         expect(declarationsFor('.cm-live-table')).toMatch(/padding:\s*6px/);
         expect(declarationsFor('.cm-live-table')).toMatch(/scrollbar-gutter:\s*stable/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/background:\s*var\(--panel-bg\)/);
+        expect(declarationsFor('.cm-live-table')).toMatch(/border-radius:\s*8px/);
+        expect(declarationsFor('.cm-live-table')).not.toMatch(/(?:^|;)\s*border\s*:/);
         expect(declarationsFor('.cm-source-footprint--scroll.cm-block-widget--table'))
             .toMatch(/overflow:\s*hidden\s*!important/);
         expect(declarationsFor('.cm-live-table th,\n.cm-live-table td')).toMatch(/padding:\s*3px 7px/);

@@ -7,7 +7,7 @@ import { createTimelineViewport, patchTimelineContents } from './timelineViewpor
 import { calendarTimelineWindow, shiftCalendarTimelineEdgeAnchor, timelineDayLabels, timelineRangeLabel, CALENDAR_TIMELINE_PREFETCH_DAYS } from './core/timelineModel.js';
 import {
     GANTT_DAYS, GANTT_DAY_WIDTH, GANTT_ROW_HEIGHT, ganttBarGeometry,
-    ganttTasks, ganttSummary, ganttWindow, moveGanttDates,
+    ganttPointerMode, ganttResizeHandleWidth, ganttTasks, ganttSummary, ganttWindow, moveGanttDates,
 } from './core/ganttModel.js';
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -137,6 +137,8 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
             if (!disposed) {
                 root.removeAttribute('aria-busy');
                 root.querySelectorAll('button').forEach(button => { button.disabled = false; });
+                const clear = inspector?.querySelector('[data-edit="clear"]');
+                if (clear) clear.disabled = inspector.dataset.hasDates !== 'true';
                 renderRows(true);
                 if (active && pendingFocusKey) focusTask(pendingFocusKey);
                 pendingFocusKey = null;
@@ -180,22 +182,28 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
             button.textContent = dateLabel(dates[button.dataset.date]);
             button.setAttribute('aria-label', `${button.dataset.date === 'start' ? 'Start' : 'End'} date: ${button.textContent}`);
         });
+        const syncDates = () => {
+            updateDates();
+            if (!inspector) return;
+            inspector.dataset.hasDates = String(Boolean(dates.start || dates.end));
+            inspector.querySelector('[data-edit="clear"]').disabled = !(dates.start || dates.end);
+        };
         const applyDates = async (nextDates, control) => {
             if (inspector !== owner || pending || disposed) return;
             if (await persist(target, nextDates, reconnect?.id || target.scheduleID, false)) {
                 Object.assign(dates, nextDates);
-                if (inspector === owner) updateDates();
+                if (inspector === owner) syncDates();
             }
             if (inspector === owner && control?.isConnected) control.focus({ preventScroll: true });
         };
-        updateDates();
+        syncDates();
         inspector.addEventListener('click', event => {
             const date = event.target.closest('[data-date]');
             if (date) {
                 const field = date.dataset.date;
                 datePopup = openDatePicker({ anchor: date, value: dates[field], ariaLabel: `Choose ${field} date`, clearLabel: `Clear ${field} date`, onSelect: value => {
                     if (inspector !== owner || pending || disposed) return;
-                    if (reconnect) { dates[field] = value; updateDates(); }
+                    if (reconnect) { dates[field] = value; syncDates(); }
                     else return applyDates({ ...dates, [field]: value }, date);
                 } });
                 return;
@@ -203,7 +211,7 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
             const action = event.target.closest('[data-edit]')?.dataset.edit;
             if (action === 'open') openTask(target);
             if (action === 'clear') {
-                if (reconnect) { dates.start = ''; dates.end = ''; updateDates(); }
+                if (reconnect) { dates.start = ''; dates.end = ''; syncDates(); }
                 else applyDates({ start: '', end: '' }, event.target.closest('[data-edit]'));
             }
             if (action === 'reconnect') {
@@ -234,6 +242,7 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
         root.style.setProperty('--gantt-weekends', `linear-gradient(to right, ${bands.join(',')})`);
         const todayIndex = dateWindow.dates.indexOf(today);
         root.style.setProperty('--gantt-today', todayIndex >= 0 ? `${todayIndex * GANTT_DAY_WIDTH}px` : '-10px');
+        root.style.setProperty('--gantt-today-color', todayIndex >= 0 ? 'var(--accent-color)' : 'transparent');
     }
 
     function renderRows(force = false) {
@@ -248,10 +257,11 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
         if (!tasks.length) { rows.replaceChildren(); return; }
         const markup = `<div data-timeline-key="before" style="height:${range.start * GANTT_ROW_HEIGHT}px" aria-hidden="true"></div>` + tasks.slice(range.start, range.end).map(task => {
             const bar = ganttBarGeometry(task, firstDay, dateWindow.dates.length, localISODate(now()));
+            const paintedWidth = bar ? Math.max(10, bar.width - 6) : 0;
             return `<div class="kanban-gantt-row" data-timeline-key="${escape(task.key)}" data-done="${task.done}">
                 <div class="kanban-gantt-name"><button type="button" class="ui-button ui-button--quiet" data-task="${escape(task.key)}" title="${escape(`${task.text} — ${task.file}:${task.line}`)}"><span>${task.done ? '✓ ' : ''}${escape(task.text)}</span><small>#${escape(task.column)} · ${escape(task.file_name)}</small></button></div>
-                <div class="kanban-gantt-lane">${bar ? `<button type="button" class="ui-button kanban-gantt-bar" data-task="${escape(task.key)}" aria-label="${escape(`${task.text}: ${task.start ? `${dateLabel(task.start)} to ` : ''}${task.end ? dateLabel(task.end) : 'ongoing'}${task.done ? ', done' : ''}`)}" style="left:${bar.left + 3}px;width:${Math.max(10, bar.width - 6)}px;--gantt-color:${task.color || 'var(--accent-color)'}" data-done="${task.done}">
-                    ${bar.clippedStart ? '' : '<span class="kanban-gantt-handle" data-resize="start" aria-hidden="true"></span>'}<span class="kanban-gantt-bar-label">${escape(task.text)}</span>${bar.clippedEnd ? '' : '<span class="kanban-gantt-handle" data-resize="end" aria-hidden="true"></span>'}
+                <div class="kanban-gantt-lane">${bar ? `<button type="button" class="ui-button kanban-gantt-bar" data-task="${escape(task.key)}" aria-label="${escape(`${task.text}: ${task.start ? `${dateLabel(task.start)} to ` : ''}${task.end ? dateLabel(task.end) : 'ongoing'}${task.done ? ', done' : ''}`)}" style="left:${bar.left + 3}px;width:${paintedWidth}px;--gantt-resize-hit-width:${ganttResizeHandleWidth(paintedWidth)}px;--gantt-color:${task.color || 'var(--accent-color)'}" data-done="${task.done}">
+                    ${bar.clippedStart ? '' : '<span class="ui-image-resize-handle kanban-gantt-handle" data-resize="start" aria-hidden="true"></span>'}<span class="kanban-gantt-bar-label">${escape(task.text)}</span>${bar.clippedEnd ? '' : '<span class="ui-image-resize-handle kanban-gantt-handle" data-resize="end" aria-hidden="true"></span>'}
                 </button>` : `<button type="button" class="ui-button ui-button--quiet kanban-gantt-unscheduled" data-task="${escape(task.key)}">${task.end || task.start ? `${escape(dateLabel(task.start || task.end))} · Outside this range` : 'Unscheduled · Set dates'}</button>`}</div></div>`;
         }).join('') + `<div data-timeline-key="after" style="height:${Math.max(0, tasks.length - range.end) * GANTT_ROW_HEIGHT}px" aria-hidden="true"></div>`;
         patchTimelineContents(rows, markup, 'data-timeline-key');
@@ -306,9 +316,15 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
         const bar = event.target.closest('.kanban-gantt-bar');
         if (!bar) return; // The shared Calendar timeline widget owns empty-space panning.
         closeInspector(false);
+        const bounds = bar.getBoundingClientRect();
+        const explicitMode = event.target.closest('[data-resize]')?.dataset.resize;
+        const mode = bounds.width > 0 ? ganttPointerMode(event.clientX, bounds.left, bounds.width, {
+            start: Boolean(bar.querySelector('[data-resize="start"]')),
+            end: Boolean(bar.querySelector('[data-resize="end"]')),
+        }) : explicitMode || 'move';
         drag = { element: bar, pointerId: event.pointerId, x: event.clientX, scroll: scroll.scrollLeft,
             task: tasks.find(task => task.key === bar.dataset.task),
-            mode: event.target.closest('[data-resize]')?.dataset.resize || 'move', delta: 0, moved: false };
+            mode, delta: 0, moved: false };
         drag.element.setPointerCapture?.(event.pointerId);
     });
     scroll.addEventListener('pointermove', event => {

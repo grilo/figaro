@@ -8,8 +8,10 @@ import {
     fileTreeTooltipPosition,
     fileTreeWindow,
     isFileTreeEntryPinned,
+    mergeNoteCandidates,
     normalizeFileTreeStyles,
     reconcileSelectedTreePaths,
+    selectedMergeNotePaths,
     sortFileTreeItems,
     toggleExpandedDirectory,
     toggleSelectedPath,
@@ -22,6 +24,20 @@ import {
 } from '../frontend/js/core/fileTreeTransferModel.js';
 
 describe('file tree model', () => {
+    test('plans note merges from the open note and only the checked sources', () => {
+        const candidates = mergeNoteCandidates(
+            'a.md',
+            ['b.md', 'c.md', 'a.md', 'image.png'],
+            'context.md',
+        );
+
+        expect(candidates).toEqual(['context.md', 'a.md', 'b.md', 'c.md']);
+        expect(selectedMergeNotePaths(candidates, [1, 2]))
+            .toEqual(['context.md', 'b.md', 'c.md']);
+        expect(selectedMergeNotePaths(candidates, [])).toEqual([]);
+        expect(selectedMergeNotePaths(candidates, [99])).toEqual([]);
+    });
+
     test('bounds a large visible-row window around scroll and keyboard anchors', () => {
         expect(fileTreeWindow(20_000)).toEqual({ start: 0, end: 160 });
         expect(fileTreeWindow(20_000, { selectedIndex: 10_000 }))

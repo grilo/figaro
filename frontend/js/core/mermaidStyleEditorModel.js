@@ -459,6 +459,24 @@ export function mermaidSourceWithStyleConfig(source, {
     return { source: nextSource, changed: nextSource !== String(source || ''), reason: '' };
 }
 
+/** Keep authored Mermaid themes authoritative while allowing an unstyled live preview to follow application chrome. */
+export function mermaidUsesApplicationTheme(source) {
+    const state = mermaidStyleConfigState(source);
+    return !state.theme && !state.hasCustomTheme;
+}
+
+/** Build an ephemeral, portable-looking Mermaid source variant for application-only rendering. */
+export function mermaidSourceWithApplicationTheme(source, variables = {}) {
+    const authoredSource = String(source || '');
+    if (!mermaidUsesApplicationTheme(authoredSource)) {
+        return { source: authoredSource, applicationThemed: false };
+    }
+    const result = mermaidSourceWithStyleConfig(authoredSource, { theme: 'base', variables });
+    return result.changed && !result.reason
+        ? { source: result.source, applicationThemed: true }
+        : { source: authoredSource, applicationThemed: false };
+}
+
 /** Produce a portable preset using only native Mermaid theme settings. */
 export function mermaidThemePresetPatch(preset, accent = '#ef4444') {
     if (preset === 'neutral') {

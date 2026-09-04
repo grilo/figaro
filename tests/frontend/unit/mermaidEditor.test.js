@@ -76,7 +76,11 @@ describe('Mermaid Editor dialog', () => {
         const { dialog } = open();
         const diagramSelect = dialog.overlay.querySelector('.mermaid-editor-diagram-select');
         const templateButton = dialog.overlay.querySelector('.mermaid-editor-load-template');
+        expect(dialog.overlay.querySelector('.custom-modal-resize-handle').getAttribute('aria-label'))
+            .toBe('Resize editor dialog');
         expect(templateButton.disabled).toBe(false);
+        expect(templateButton.classList.contains('ui-button')).toBe(true);
+        expect(templateButton.classList.contains('ui-button--quiet')).toBe(false);
 
         diagramSelect.value = 'sequence';
         diagramSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -130,7 +134,10 @@ describe('Mermaid Editor dialog', () => {
             changes: { from: 0, to: dialog.editorView.state.doc.length, insert: 'flowchart LR\n  X --> Y' },
         });
         dialog.overlay.querySelector('.mermaid-editor-cancel').click();
+        const confirmation = dialog.overlay.querySelector('.mermaid-editor-discard');
+        expect(confirmation.hidden).toBe(false);
         expect(mainView.state.doc.toString()).toBe(markdown);
+        confirmation.querySelector('.custom-modal-pending-discard').click();
         expect(document.activeElement).toBe(mainView.contentDOM);
 
         const reopened = openMermaidEditor(mainView, scanDiagramFences(mainView.state.doc)[0], {
@@ -151,11 +158,36 @@ describe('Mermaid Editor dialog', () => {
         expect(mainView.state.doc.toString()).toBe(markdown);
     });
 
+    test('routes focused-editor Escape through dirty draft confirmation', () => {
+        const { markdown, dialog } = open();
+        dialog.editorView.dispatch({
+            changes: { from: dialog.editorView.state.doc.length, insert: '\nC --> D' },
+        });
+        dialog.editorView.contentDOM.focus();
+
+        dialog.editorView.contentDOM.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        const confirmation = dialog.overlay.querySelector('.mermaid-editor-discard');
+        expect(confirmation.hidden).toBe(false);
+        expect(document.activeElement).toBe(confirmation.querySelector('.custom-modal-pending-keep'));
+        expect(dialog.overlay.isConnected).toBe(true);
+        expect(mainView.state.doc.toString()).toBe(markdown);
+
+        confirmation.querySelector('.custom-modal-pending-discard').click();
+        expect(dialog.overlay.isConnected).toBe(false);
+        expect(mainView.state.doc.toString()).toBe(markdown);
+    });
+
     test('draws diagnostics, keeps the last good SVG, and still permits applying invalid source', async () => {
         const { dialog, parse } = open();
         jest.advanceTimersByTime(400);
         await flush();
         expect(dialog.overlay.querySelector('.mermaid-editor-preview svg')).not.toBeNull();
+        expect(dialog.overlay.querySelector('.mermaid-editor-preview').classList.contains('is-application-themed')).toBe(true);
 
         parse.mockRejectedValueOnce(Object.assign(new Error('Parse error'), {
             hash: { loc: { first_line: 1, first_column: 0, last_column: 4 } },
@@ -178,6 +210,10 @@ describe('Mermaid Editor dialog', () => {
 
     test('switches between source and adaptive styling without hiding parser errors', async () => {
         const { dialog, parse } = open('flowchart LR\n  Idea[Idea] --> Draft(Draft)', 4, [{id:'Idea'}, {id:'Draft'}]);
+        expect([...dialog.overlay.querySelectorAll('.mermaid-editor-combobox')]
+            .every(control => control.classList.contains('ui-picker--quiet'))).toBe(true);
+        expect([...dialog.overlay.querySelectorAll('.ui-segmented-control')]
+            .every(control => control.classList.contains('ui-segmented-control--quiet'))).toBe(true);
         jest.advanceTimersByTime(400);
         await flush();
 
@@ -186,6 +222,8 @@ describe('Mermaid Editor dialog', () => {
         expect(styleTab.getAttribute('aria-selected')).toBe('true');
         expect(dialog.overlay.querySelector('.mermaid-editor-style-content').hidden).toBe(false);
         expect(dialog.overlay.querySelector('[data-diagram-type="flowchart-v2"]')).not.toBeNull();
+        expect([...dialog.overlay.querySelectorAll('.ui-segmented-control')]
+            .every(control => control.classList.contains('ui-segmented-control--quiet'))).toBe(true);
         expect([...dialog.overlay.querySelectorAll('.mermaid-editor-node-name')].map(node => node.textContent))
             .toEqual(['Idea', 'Draft']);
 
@@ -249,6 +287,9 @@ describe('Mermaid Editor dialog', () => {
             'flowchart LR',
             '  A[Christmas] --> B[Go shopping] --> C[Let me think] --> D[Laptop]',
             '  D --> E[iPhone] --> F[Car] --> G[Home]',
+            '%% Figaro node styles',
+            '  B@{ shape: stadium }',
+            '%% End Figaro node styles',
         ].join('\n'), 4, ['Christmas','Go shopping','Let me think','Laptop','iPhone','Car','Home'].map((text,index) => ({id:'ABCDEFG'[index],text})));
         jest.advanceTimersByTime(400);
         await flush();
@@ -263,16 +304,33 @@ describe('Mermaid Editor dialog', () => {
         expect(stylePanel.textContent).toContain('Connection curve');
         expect(stylePanel.textContent).toContain('Select a node below or in the preview');
         expect(selectedControls.getAttribute('aria-label')).toBe('Editing node Christmas');
+        expect([...selectedControls.children].map(child => child.className)).toEqual([
+            'mermaid-editor-selected-node-heading',
+            'mermaid-editor-style-control mermaid-editor-selected-node-shape',
+            'mermaid-editor-selected-node-color',
+        ]);
         expect(selectedControls.compareDocumentPosition(nodeList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(rows).toHaveLength(7);
         expect(rows.map(row => row.tabIndex)).toEqual([0, -1, -1, -1, -1, -1, -1]);
+        expect(rows.every(row => row.classList.contains('ui-menu-item'))).toBe(true);
+        expect([...rows[0].children].map(child => child.className)).toEqual([
+            'mermaid-editor-node-identity',
+            'mermaid-editor-node-shape',
+            'mermaid-editor-node-swatch',
+        ]);
+        expect(rows[0].querySelector('.mermaid-editor-node-shape').textContent).toBe('Original');
+        expect(rows[1].querySelector('.mermaid-editor-node-shape').textContent).toBe('Pill');
+        expect(selectedControls.querySelector('.mermaid-editor-color-button').classList.contains('ui-icon-button')).toBe(true);
 
+        nodeList.scrollTop = 24;
         rows[0].focus();
         rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        const refreshedList = stylePanel.querySelector('.mermaid-editor-node-list');
         const selectedRow = stylePanel.querySelector('.mermaid-editor-node-row[aria-selected="true"]');
         expect(selectedRow.dataset.nodeId).toBe('B');
         expect(selectedRow.tabIndex).toBe(0);
         expect(document.activeElement).toBe(selectedRow);
+        expect(refreshedList.scrollTop).toBe(24);
         expect(stylePanel.querySelector('.mermaid-editor-selected-node').getAttribute('aria-label'))
             .toBe('Editing node Go shopping');
     });
@@ -323,6 +381,7 @@ describe('Mermaid Editor dialog', () => {
         dialog.overlay.querySelector('.mermaid-editor-selected-node .mermaid-editor-color-button').click();
         dialog.close();
         expect(document.querySelector('.kanban-color-picker')).toBeNull();
+        dialog.overlay.querySelector('.custom-modal-pending-discard').click();
     });
 
     test('synchronizes a reset XY palette in place after inspection without leaving stale swatches', async () => {

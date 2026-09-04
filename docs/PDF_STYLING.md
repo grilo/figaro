@@ -268,6 +268,11 @@ print-only style record to synchronize. Color edits preserve the source theme;
 XY plots use the native `xyChart.plotColorPalette` (including repeated palettes),
 and resetting an individual flowchart override preserves authored native/class
 styling. These are source transformations, not preview-only CSS overrides.
+When a diagram has no authored theme or custom variables, Figaro gives only its
+in-application live canvas an ephemeral palette derived from the active UI
+theme. Printable HTML, PDF Preview, and generated PDFs render the unchanged
+source with Mermaid's document defaults, and the two SVG variants use separate
+cache entries.
 An optional `%% figaro:height N` directive inside a Mermaid fence records the
 editor's vertical resize (180–900px). PDF Preview and generated PDFs apply that
 height to the printable figure; the bottom-center lower-edge resize control itself remains

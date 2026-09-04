@@ -27,6 +27,7 @@ describe('session persistence', () => {
         state._restoredTabs = null;
         state._restoredActiveTabId = null;
         state._restoredCursorStates = null;
+        window.go.desktop.App.SaveSession.mockResolvedValue({ success: true });
     });
 
     test('sends a newer snapshot only after the older one finishes', async () => {

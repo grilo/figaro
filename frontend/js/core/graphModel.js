@@ -365,3 +365,14 @@ export function adjacentGraphNodePath(nodes, currentPath, direction = 1) {
     if (currentIndex < 0) return direction < 0 ? paths.at(-1) : paths[0];
     return paths[(currentIndex + (direction < 0 ? -1 : 1) + paths.length) % paths.length];
 }
+
+/** Decide whether a node pointer gesture selects its trace or opens its note. */
+export function graphNodePointerAction({
+    button = 0,
+    ctrlKey = false,
+    metaKey = false,
+    clickCount = 1,
+} = {}) {
+    if (button !== 0) return '';
+    return ctrlKey || metaKey || clickCount >= 2 ? 'open' : 'select';
+}

@@ -331,7 +331,7 @@ test('keeps Calendar, Kanban, and Graph as borderless connected sidebar workspac
     await expect(graphButton).toHaveAttribute('aria-current', 'page');
 });
 
-test('floats Graph controls, pins node tracing, and opens only on Ctrl-click', async ({ page }) => {
+test('floats Graph controls, pins node tracing, and opens on double-click or Ctrl-click', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     await page.evaluate(() => {
@@ -367,7 +367,7 @@ test('floats Graph controls, pins node tracing, and opens only on Ctrl-click', a
     await expect(page.locator('.status-right')).toHaveAttribute('data-mode', 'graph');
     await expect(page.locator('#graph-status-content')).toBeVisible();
     await expect(page.locator('.graph-status-instruction'))
-        .toHaveText('Hover or click to trace links, ctrl+click node to open the file');
+        .toHaveText('Hover or click to trace links, double-click or ctrl+click node to open the file');
     await expect(page.locator('.status-buffer-left')).toBeHidden();
     await expect(page.locator('#right-sidebar')).not.toHaveClass(/open/);
     await expect(page.locator('.graph-toolbar')).toHaveCount(0);
@@ -438,6 +438,20 @@ test('floats Graph controls, pins node tracing, and opens only on Ctrl-click', a
     await graphCanvas.click({ position: { x: 24, y: graphBounds.height - 24 } });
     await expect(page.locator('#graph-status-selection')).toHaveText('No note selected');
 
+    await graphCanvas.dblclick({
+        position: { x: graphBounds.width / 2, y: graphBounds.height / 2 },
+    });
+    await expect.poll(() => page.evaluate(() => window.__figaroGraphOpenedPaths)).toEqual([
+        'Projects/Roadmap.md',
+    ]);
+    await expect.poll(async () => page.evaluate(async () => {
+        const { getState } = await import('/js/state.js');
+        return getState('activeTabId');
+    })).toBe('Projects/Roadmap.md');
+
+    await page.locator('#sidebar-graph').click();
+    await expect(graphCanvas).toBeVisible();
+    await page.evaluate(() => { window.__figaroGraphOpenedPaths = []; });
     await graphCanvas.click({
         position: { x: graphBounds.width / 2, y: graphBounds.height / 2 },
         modifiers: ['Control'],
@@ -870,22 +884,22 @@ test('uses compact calendar typography for an empty selected date', async ({ pag
         const style = getComputedStyle(element);
         const dayStyle = getComputedStyle(document.querySelector('.cal-day'));
         const colorProbe = document.createElement('span');
-        colorProbe.style.color = 'color-mix(in srgb, var(--text-muted) 75%, var(--text-color))';
+        colorProbe.style.color = 'var(--text-color)';
         document.body.append(colorProbe);
-        const mutedColor = getComputedStyle(colorProbe).color;
+        const primaryTextColor = getComputedStyle(colorProbe).color;
         colorProbe.remove();
         return {
             fontFamilyMatchesCalendar: style.fontFamily === dayStyle.fontFamily,
             fontSize: style.fontSize,
             lineHeight: style.lineHeight,
-            usesMutedColor: style.color === mutedColor,
+            isVisuallyDeemphasized: style.color !== primaryTextColor,
             paddingTop: style.paddingTop,
         };
     })).toEqual({
         fontFamilyMatchesCalendar: true,
         fontSize: '12px',
         lineHeight: '18px',
-        usesMutedColor: true,
+        isVisuallyDeemphasized: true,
         paddingTop: '8px',
     });
 });

@@ -153,17 +153,19 @@ test('generates rendered Properties first and reuses one disclosure across curso
     const disabledLanguage = page.getByRole('option', { name: 'Disabled for this note' });
     await expect(disabledLanguage).toBeVisible();
     const popupHit = await disabledLanguage.evaluate(option => {
-        const panelBox = option.closest('.cm-frontmatter-panel').getBoundingClientRect();
+        const panelBox = document.querySelector('.cm-frontmatter-panel').getBoundingClientRect();
         const optionBox = option.getBoundingClientRect();
         const x = optionBox.left + optionBox.width / 2;
         const y = optionBox.top + optionBox.height / 2;
         const hit = document.elementFromPoint(x, y);
         return {
             extendsBeyondPanel: optionBox.bottom > panelBox.bottom,
+            usesSharedOverlay: option.closest('[role="listbox"]')?.parentElement === document.body,
             hitValue: hit?.closest('[role="option"]')?.getAttribute('data-value') || '',
         };
     });
     expect(popupHit.extendsBeyondPanel).toBe(true);
+    expect(popupHit.usesSharedOverlay).toBe(true);
     expect(popupHit.hitValue).toBe('false');
     await disabledLanguage.hover();
     await expect(language).toBeFocused();

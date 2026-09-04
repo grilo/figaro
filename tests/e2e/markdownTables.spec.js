@@ -72,6 +72,22 @@ test('renders GFM tables as source-preserving semantic previews', async ({ page 
     await expect(widget).not.toContainText('^');
     await expect(widget.locator('.cm-editor')).toHaveCount(0);
 
+    const surfaceAppearance = await widget.locator('.cm-live-table').evaluate(element => {
+        const surface = getComputedStyle(element);
+        const cell = getComputedStyle(element.querySelector('td'));
+        return {
+            borders: [surface.borderTopWidth, surface.borderRightWidth,
+                surface.borderBottomWidth, surface.borderLeftWidth],
+            background: surface.backgroundColor,
+            radius: surface.borderRadius,
+            cellBorder: cell.borderTopWidth,
+        };
+    });
+    expect(surfaceAppearance.borders).toEqual(['0px', '0px', '0px', '0px']);
+    expect(surfaceAppearance.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(Number.parseFloat(surfaceAppearance.radius)).toBeGreaterThan(0);
+    expect(Number.parseFloat(surfaceAppearance.cellBorder)).toBeGreaterThan(0);
+
     expect(await page.evaluate(() => window.__markdownTableTestView.state.doc.toString()))
         .toBe(tableSource);
 
@@ -182,6 +198,32 @@ test('edits a table transactionally without turning an ordinary cell click into 
     await expect(modal.locator('.markdown-table-editor-danger-group .ui-button--danger-ghost')).toHaveCount(2);
     const toolbarGeometry = await toolbarRows.evaluateAll(rows => rows.map(row => row.getBoundingClientRect().top));
     expect(toolbarGeometry[1]).toBeGreaterThan(toolbarGeometry[0]);
+    const editorChrome = await modal.evaluate(root => {
+        const style = selector => getComputedStyle(root.querySelector(selector));
+        const cell = style('.markdown-table-editor-grid td');
+        return {
+            modalBorder: getComputedStyle(root).borderTopWidth,
+            gridPaneBorder: style('.markdown-table-editor-grid-pane').borderTopWidth,
+            toolbarDivider: style('.markdown-table-editor-toolbar-row--structure').borderTopWidth,
+            groupDivider: style('.markdown-table-editor-command-group').borderLeftWidth,
+            rowsColumnsDivider: style('.markdown-table-editor-columns-group').borderLeftWidth,
+            ordinaryButtonBorder: style('.markdown-table-editor-undo').borderTopWidth,
+            cellGrid: [cell.borderRightWidth, cell.borderBottomWidth],
+            outlinedToolbar: Array.from(root.querySelectorAll(
+                '.markdown-table-editor-toolbar .ui-button:not(.ui-button--danger-ghost)',
+            )).every(button => !button.classList.contains('ui-button--quiet')),
+        };
+    });
+    expect(editorChrome).toEqual({
+        modalBorder: '0px',
+        gridPaneBorder: '0px',
+        toolbarDivider: '0px',
+        groupDivider: '0px',
+        rowsColumnsDivider: '1px',
+        ordinaryButtonBorder: '1px',
+        cellGrid: ['1px', '1px'],
+        outlinedToolbar: true,
+    });
     const firstBodyCell = modal.locator('[aria-label="Cell A2"]');
     await firstBodyCell.click({ position: { x: 34, y: 12 } });
     await expect(modal.locator('.markdown-table-editor-status')).toHaveText('Editing A2');
@@ -202,6 +244,10 @@ test('edits a table transactionally without turning an ordinary cell click into 
     const markdown = modal.locator('.markdown-table-editor-source');
     await expect(markdown).toHaveJSProperty('readOnly', true);
     await expect(markdown).toHaveValue(/figaro:table-merge A2:B2/);
+    expect(await modal.locator('.markdown-table-editor-source-pane').evaluate(pane => ({
+        paneBorder: getComputedStyle(pane).borderTopWidth,
+        headingBorder: getComputedStyle(pane.querySelector('h4')).borderBottomWidth,
+    }))).toEqual({ paneBorder: '0px', headingBorder: '0px' });
     await modal.locator('.markdown-table-editor-split').click();
 
     await modal.locator('[aria-label="Cell A2"]').fill('Changed');

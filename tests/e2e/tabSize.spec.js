@@ -168,6 +168,8 @@ test('uses one persisted tab size for normal and Vim indentation across editor s
     await expect.poll(() => page.evaluate(() => window.__tabSizeMermaidView.state.doc.line(2).text))
         .toBe('      A --> B');
     await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Mermaid Editor' })).toHaveCount(0);
 
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');

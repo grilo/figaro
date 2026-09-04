@@ -216,7 +216,7 @@
     background: var(--workspace-surface);
 }
 
-.calendar-presentation-choices {
+.calendar-workspace-view > .calendar-presentation-choices {
     position: absolute;
     z-index: 4;
     top: 14px;
@@ -600,7 +600,7 @@
 .settings-card {
     align-self: start;
     background: var(--hover-bg);
-    border: 1px solid var(--border-color);
+    border: 0;
     border-radius: 10px;
     padding: 16px 18px;
 }
@@ -612,7 +612,6 @@
     color: var(--text-dim);
     margin: 0 0 10px;
     padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-color);
 }
 .settings-card .settings-section {
     display: grid;
@@ -622,7 +621,6 @@
     padding: 10px 0;
 }
 .settings-card .settings-section + .settings-section {
-    border-top: 1px solid var(--border-light);
     padding-top: 10px;
 }
 .settings-card .settings-section-icon {
@@ -640,7 +638,7 @@
 .application-version {
     min-width: 5.5rem;
     padding: 4px 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: 5px;
     background: var(--bg-color);
     color: var(--text-color);
@@ -656,6 +654,17 @@
 .application-version[data-state="error"] {
     border-color: var(--danger-color);
     color: var(--danger-color);
+}
+
+@media (forced-colors: active) {
+    .settings-card,
+    .application-version {
+        border: 1px solid CanvasText;
+    }
+
+    .application-version[data-state="error"] {
+        border-color: Highlight;
+    }
 }
 
 /* Search Dropdown (used in sidebar) */
@@ -915,6 +924,19 @@
 .sidebar.collapsed {
     width: var(--sidebar-rail-width) !important;
     min-width: var(--sidebar-rail-width) !important;
+}
+
+/* The saved collapsed state is known in the document head. Apply its final
+   geometry as soon as the shell nodes are parsed, before the body bootstrap
+   can mirror the state with classes and inline layout values. */
+html[data-startup-sidebar-collapsed="true"] #app {
+    --shell-sidebar-width: var(--sidebar-rail-width);
+}
+
+html[data-startup-sidebar-collapsed="true"] #sidebar {
+    width: var(--sidebar-rail-width) !important;
+    min-width: var(--sidebar-rail-width) !important;
+    transition: none;
 }
 
 .sidebar::after {

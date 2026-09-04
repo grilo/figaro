@@ -147,6 +147,18 @@ test('resizes a rendered image in place and preserves its source-reveal geometry
     await expect(frame).toHaveCSS('height', '121px');
 
     await widget.hover();
+    await page.getByRole('button', { name: 'Collapse image' }).click();
+    await expect(widget).toHaveCount(0);
+    await expect(page.locator('.cm-image-source-placeholder')).toHaveCount(0);
+    await expect(page.locator('.cm-foldPlaceholder')).toBeVisible();
+    expect(await page.locator('.cm-foldPlaceholder').evaluate(placeholder => (
+        placeholder.closest('.cm-line').getBoundingClientRect().height
+    ))).toBeLessThan(40);
+    await page.getByRole('button', { name: 'Expand image' }).click();
+    await expect(image).toBeVisible();
+    await expect(frame).toHaveCSS('height', '121px');
+
+    await widget.hover();
     const widthBox = await widthHandle.boundingBox();
     expect(widthBox.width).toBe(28);
     expect(widthBox.height).toBe(28);

@@ -1,5 +1,5 @@
 import { setTooltip } from './tooltip.js';
-import { planFloatingMenuPlacement } from './core/floatingMenuModel.js';
+import { mountFloatingMenu } from './floatingMenu.js';
 
 /**
  * Replace a native select's host-controlled popup with Figaro's themed,
@@ -48,42 +48,7 @@ export function enhanceSelectCombobox(select, {
     let optionButtons = [];
     let activeIndex = Math.max(0, options.findIndex(option => option.value === select.value));
     let menuOpen = false;
-    const clearMenuPlacement = () => {
-        delete menu.dataset.floating;
-        delete menu.dataset.placement;
-        for (const property of ['top', 'left', 'width', 'max-height']) menu.style.removeProperty(property);
-    };
-    const positionMenu = () => {
-        if (!menuOpen) return;
-        if (!floating) {
-            clearMenuPlacement();
-            return;
-        }
-        if (!wrapper.isConnected) {
-            setOpen(false);
-            return;
-        }
-        const plan = planFloatingMenuPlacement({
-            trigger: trigger.getBoundingClientRect(),
-            menuHeight: menu.scrollHeight,
-            viewportWidth: window.innerWidth,
-            viewportHeight: window.innerHeight,
-        });
-        menu.dataset.floating = 'true';
-        menu.dataset.placement = plan.placement;
-        menu.style.top = `${plan.top}px`;
-        menu.style.left = `${plan.left}px`;
-        menu.style.width = `${plan.width}px`;
-        menu.style.maxHeight = `${plan.maxHeight}px`;
-    };
-    const startTrackingPlacement = () => {
-        window.addEventListener('resize', positionMenu);
-        window.addEventListener('scroll', positionMenu, true);
-    };
-    const stopTrackingPlacement = () => {
-        window.removeEventListener('resize', positionMenu);
-        window.removeEventListener('scroll', positionMenu, true);
-    };
+    let placement = null;
     const sync = () => {
         const selectedIndex = Math.max(0, options.findIndex(option => option.value === select.value));
         activeIndex = selectedIndex;
@@ -112,13 +77,11 @@ export function enhanceSelectCombobox(select, {
         menu.hidden = !shouldOpen;
         menu.classList.toggle('open', shouldOpen);
         if (shouldOpen) {
-            positionMenu();
-            if (changed && floating) startTrackingPlacement();
+            if (changed && floating) placement = mountFloatingMenu(trigger, menu);
             setActive(Math.max(0, options.findIndex(option => option.value === select.value)));
         }
         else {
-            if (changed) stopTrackingPlacement();
-            clearMenuPlacement();
+            if (changed) { placement?.close(); placement = null; }
             trigger.removeAttribute('aria-activedescendant');
             optionButtons.forEach(button => button.classList.remove('active'));
         }
@@ -182,7 +145,7 @@ export function enhanceSelectCombobox(select, {
             setOpen(false);
             document.removeEventListener('click', closeOnOutsideClick);
         }
-        else if (!wrapper.contains(event.target)) setOpen(false);
+        else if (!wrapper.contains(event.target) && !menu.contains(event.target)) setOpen(false);
     };
     document.addEventListener('click', closeOnOutsideClick);
 

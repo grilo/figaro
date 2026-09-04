@@ -57,8 +57,14 @@ describe('Markdown table editor modal', () => {
         expect(rows[1].textContent).toContain('Columns');
         expect(dangerGroup.textContent).toBe('DeleteRowColumn');
         expect(dangerGroup.querySelectorAll('.ui-button--danger-ghost')).toHaveLength(2);
+        expect([...dialog.overlay.querySelectorAll('.markdown-table-editor-toolbar .ui-button:not(.ui-button--danger-ghost)')]
+            .every(button => !button.classList.contains('ui-button--quiet'))).toBe(true);
+        expect(dialog.overlay.querySelector('.markdown-table-editor-rows-group')).not.toBeNull();
+        expect(dialog.overlay.querySelector('.markdown-table-editor-columns-group')).not.toBeNull();
         expect(dialog.overlay.querySelectorAll('.markdown-table-editor-toolbar svg').length).toBeGreaterThan(0);
         expect(dialog.overlay.querySelector('.markdown-table-editor-undo').textContent).toBe('Undo');
+        expect(dialog.overlay.querySelector('.custom-modal-resize-handle').getAttribute('aria-label'))
+            .toBe('Resize editor dialog');
     });
 
     test('uses ordinary clicks for text editing and only enters cell-range mode while Shift is held', () => {
@@ -181,7 +187,12 @@ describe('Markdown table editor modal', () => {
         const currentAlpha = dialog.overlay.querySelector('[aria-label="Cell A2"]');
         currentAlpha.value = 'Dirty';
         currentAlpha.dispatchEvent(new Event('input', { bubbles: true }));
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        currentAlpha.focus();
+        currentAlpha.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        }));
         const confirmation = dialog.overlay.querySelector('.markdown-table-editor-discard');
         expect(confirmation.hidden).toBe(false);
         expect(dialog.overlay.isConnected).toBe(true);

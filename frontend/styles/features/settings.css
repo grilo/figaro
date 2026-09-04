@@ -5,7 +5,7 @@
     width: 176px;
     height: 34px;
     padding: 0 30px 0 11px;
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: 7px;
     background: var(--bg-color);
     color: var(--text-color);
@@ -20,19 +20,20 @@
     background-repeat: no-repeat;
     background-position: right 10px center;
     padding-right: 28px;
-    transition: border-color 0.15s ease;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 .settings-card select:hover {
-    border-color: var(--text-dim);
+    border-color: transparent;
+    background-color: var(--active-bg);
 }
-.settings-card select:focus {
-    border-color: var(--accent-color);
+.settings-card select:focus-visible {
+    border-color: transparent;
     box-shadow: 0 0 0 2px var(--focus-ring);
 }
 .settings-card select:disabled {
     cursor: not-allowed;
     opacity: .62;
-    border-color: var(--border-color);
+    border-color: transparent;
     background-color: var(--hover-bg);
     color: var(--text-muted);
 }
@@ -92,13 +93,22 @@
     font-size: 12px;
     line-height: 1.2;
 }
-.settings-card .auto-save-select:focus { border-color: var(--accent-color); }
-.settings-card .auto-save-select:hover { border-color: var(--text-dim); }
+.settings-card .auto-save-select:focus-visible { border-color: transparent; }
+.settings-card .auto-save-select:hover { border-color: transparent; }
 .settings-card .auto-save-select option {
     background: var(--panel-bg);
     color: var(--text-color);
     font-size: 12px;
     white-space: nowrap;
+}
+
+@media (forced-colors: active) {
+    .settings-card select,
+    .settings-card select:hover,
+    .settings-card select:focus-visible,
+    .settings-card select:disabled {
+        border-color: ButtonText;
+    }
 }
 
 .settings-card .pdf-browser-setting {

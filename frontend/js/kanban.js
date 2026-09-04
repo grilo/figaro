@@ -10,19 +10,26 @@ import { confirmDialog, errorDialog, promptDialog } from './dialogs.js';
 import { ACCENT_COLOR_PALETTE } from './colorPalette.js';
 import { openColorPalettePicker } from './colorPalettePicker.js';
 import { openDatePicker } from './datePicker.js';
+import { mountFloatingMenu } from './floatingMenu.js';
 import { createKanbanGantt } from './kanbanGantt.js';
-import { indexTaskSchedules, scheduleForTask } from './core/ganttModel.js';
+import { indexTaskSchedules, scheduleForTask, taskScheduleUpdatePlan } from './core/ganttModel.js';
 import {
     dueDatePresentation,
     dueTaskSummary,
     localISODate,
     millisecondsUntilNextLocalDay,
+    startDatePresentation,
 } from './core/dueDateModel.js';
 import {
     adjacentKanbanColumn,
     applyKanbanCardOrder,
+    calibrateKanbanVirtualLayout,
+    createKanbanVirtualLayout,
     kanbanCardOrderRef,
     kanbanCardWindow,
+    kanbanVirtualIndexAtOffset,
+    kanbanVirtualOffset,
+    recordKanbanVirtualMeasurements,
     reorderKanbanCardRefs,
 } from './core/kanbanKeyboardModel.js';
 
@@ -46,6 +53,8 @@ let taskScheduleError = '';
 let kanbanViewMode = 'board';
 let activeKanbanWorkspace = null;
 let scheduleRequestId = 0;
+let activeKanbanCardMenu = null;
+let kanbanCardMenuSequence = 0;
 
 function rememberTaskSchedules(entries) {
     taskSchedules = entries || [];
@@ -72,7 +81,7 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
                 <button type="button" class="ui-button" data-kanban-view="board">Board</button>
                 <button type="button" class="ui-button" data-kanban-view="gantt">Gantt</button>
             </div>
-            <p class="kanban-instruction">Tab focuses cards; arrows move them. Enter opens the note, D sets a due date.</p>
+            <p class="kanban-instruction">Tab focuses cards; arrows move them. Enter opens the note, S sets a start date, and D sets a due date.</p>
         </div>
         <p class="ui-notice ui-notice--danger kanban-schedule-notice" role="alert" hidden></p>
         <div class="kanban-board" id="kanban-board-main"></div><div class="kanban-gantt-host"></div></div>`;
@@ -117,14 +126,35 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
         board.hidden = kanbanViewMode !== 'board';
         wrapper.querySelector('.kanban-instruction').hidden = kanbanViewMode !== 'board';
         wrapper.querySelectorAll('[data-kanban-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.kanbanView === kanbanViewMode)));
-        if (kanbanViewMode === 'board') releaseStatus();
+        if (kanbanViewMode === 'board') {
+            ensureKanbanVirtualLayouts(board);
+            releaseStatus();
+        }
         gantt.setActive(kanbanViewMode === 'gantt');
     }
-    const switched = event => { if (event.detail?.type !== 'kanban') session.dispose(); };
+    const switched = event => { if (event.detail?.type !== 'kanban') session.deactivate(); };
     const session = {
         update: data => gantt.update(data, taskSchedules, kanbanColors, taskScheduleError),
+        activate(nextFocusCol = null) {
+            activeKanbanWorkspace = session;
+            applyKanbanPresentationToViews();
+            selectMode();
+            if (nextFocusCol) {
+                const focused = board.querySelector(
+                    `.kanban-column[data-column="${escapeAttribute(nextFocusCol)}"]`,
+                );
+                focused?.classList.add('focused');
+                setTimeout(() => focused?.classList.remove('focused'), 2500);
+            }
+        },
+        deactivate() {
+            closeKanbanCardMenu();
+            gantt.setActive(false);
+            releaseStatus();
+        },
         dispose() {
             document.removeEventListener('active-tab-changed', switched);
+            closeKanbanCardMenu();
             gantt.dispose(); releaseStatus();
             if (activeKanbanWorkspace === session) activeKanbanWorkspace = null;
         },
@@ -165,8 +195,11 @@ export function applyKanbanPresentationToViews(
     const resolvedDensity = normalizeKanbanDensity(density);
     const resolvedLayout = normalizeKanbanLayout(layout);
     document.querySelectorAll('.kanban-view-wrapper').forEach(view => {
+        const geometryChanged = view.dataset.density !== resolvedDensity
+            || view.dataset.layout !== resolvedLayout;
         view.dataset.density = resolvedDensity;
         view.dataset.layout = resolvedLayout;
+        if (geometryChanged) resetKanbanVirtualLayouts(view.querySelector('.kanban-board'));
     });
     document.querySelectorAll('[data-kanban-density]').forEach(button => {
         const selected = button.dataset.kanbanDensity === resolvedDensity;
@@ -534,6 +567,7 @@ function renderKanbanBadges(boardData) {
 }
 
 function renderKanbanSnapshot(boardData, focusCol = null, container = getBoardContainer()) {
+    closeKanbanCardMenu();
     const notice = container?.closest('.kanban-view-wrapper')?.querySelector('.kanban-schedule-notice');
     if (notice) { notice.hidden = !taskScheduleError; notice.textContent = taskScheduleError; }
     boardData = Object.fromEntries(Object.entries(boardData || {}).map(([column, cards]) => [column, cards.map(task => {
@@ -592,6 +626,7 @@ export async function renderKanbanBoard(containerId, focusCol = null) {
  * Render kanban columns
  */
 function renderColumns(container, boardData, focusCol) {
+    kanbanRenderStates.get(container)?.resizeObserver?.disconnect();
     let html = '';
     
     // Preserve persisted column order, append new columns
@@ -603,15 +638,16 @@ function renderColumns(container, boardData, focusCol) {
         allColumns,
         boardData,
         ranges: new Map(),
-        rowStrides: new Map(),
+        layouts: new Map(),
     };
     for (const column of allColumns) {
         const tasks = boardData[column] || [];
+        const layout = createKanbanVirtualLayout(tasks.length, KANBAN_CARD_STRIDE_ESTIMATE);
         const range = tasks.length > KANBAN_VIRTUAL_THRESHOLD
             ? kanbanCardWindow(tasks.length, { windowSize: KANBAN_WINDOW_SIZE })
             : { start: 0, end: tasks.length };
         renderState.ranges.set(column, range);
-        renderState.rowStrides.set(column, KANBAN_CARD_STRIDE_ESTIMATE);
+        renderState.layouts.set(column, layout);
         const isSystem = ['todo', 'wip', 'done'].includes(column);
         const isFocused = column === focusCol;
         const selectedColor = ACCENT_COLOR_PALETTE.includes(kanbanColors[column]) ? kanbanColors[column] : '';
@@ -640,7 +676,7 @@ function renderColumns(container, boardData, focusCol) {
                     </div>
                 </div>
                 <div class="kanban-column-cards" data-column="${column}">
-                    ${renderCards(tasks, range, KANBAN_CARD_STRIDE_ESTIMATE)}
+                    ${renderCards(tasks, range, layout)}
                 </div>
             </div>
         `;
@@ -684,8 +720,10 @@ function renderColumns(container, boardData, focusCol) {
 
 function initKanbanCardActions(root) {
     root.querySelectorAll('.kanban-card').forEach(card => {
+        if (card._kanbanActionsInitialized) return;
+        card._kanbanActionsInitialized = true;
         card.addEventListener('click', (e) => {
-            if (e.target.closest('.kanban-card-delete, .kanban-card-date-control')) return;
+            if (e.target.closest('.kanban-card-menu-trigger, .kanban-card-date')) return;
             const filePath = card.dataset.file;
             const lineNum = parseInt(card.dataset.line, 10);
             if (filePath) {
@@ -693,26 +731,91 @@ function initKanbanCardActions(root) {
             }
         });
         
-        // Delete button
-        const deleteBtn = card.querySelector('.kanban-card-delete');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const filePath = card.dataset.file;
-                const lineNum = parseInt(card.dataset.line, 10);
-                const tag = card.dataset.tag;
-                removeTagFromTask(filePath, lineNum, tag);
+        const menuButton = card.querySelector('.kanban-card-menu-trigger');
+        if (menuButton) {
+            menuButton.addEventListener('click', event => {
+                event.stopPropagation();
+                if (activeKanbanCardMenu?.anchor === menuButton) closeKanbanCardMenu();
+                else openKanbanCardMenu(menuButton, card);
             });
         }
-
-        const dueButton = card.querySelector('.kanban-card-date-control');
-        if (dueButton) {
-            dueButton.addEventListener('click', event => {
+        card.querySelectorAll('.kanban-card-date').forEach(button => {
+            button.addEventListener('click', event => {
                 event.stopPropagation();
-                openTaskDueDatePicker(dueButton, card);
+                openTaskDatePicker(button, card, button.dataset.dateField);
             });
+        });
+        card.addEventListener('contextmenu', event => {
+            event.preventDefault();
+            openKanbanCardMenu(menuButton, card);
+        });
+    });
+}
+
+function closeKanbanCardMenu({ restoreFocus = false } = {}) {
+    const session = activeKanbanCardMenu;
+    if (!session) return;
+    activeKanbanCardMenu = null;
+    document.removeEventListener('pointerdown', session.outside, true);
+    session.placement?.close();
+    session.menu.remove();
+    session.anchor.setAttribute('aria-expanded', 'false');
+    session.anchor.removeAttribute('aria-controls');
+    if (restoreFocus && session.card.isConnected) session.card.focus({ preventScroll: true });
+}
+
+function openKanbanCardMenu(anchor, card) {
+    if (!anchor?.isConnected || !card?.isConnected) return;
+    closeKanbanCardMenu();
+    const menu = document.createElement('div');
+    const menuID = `kanban-card-menu-${++kanbanCardMenuSequence}`;
+    menu.id = menuID;
+    menu.className = 'ui-menu kanban-card-menu';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', `Actions for ${card.dataset.text}`);
+    const hasSchedule = Boolean(card.dataset.startDate || card.dataset.dueDate);
+    menu.innerHTML = `<button type="button" class="ui-menu-item" role="menuitem" data-card-action="clear-dates" ${hasSchedule ? '' : 'disabled'}>
+            ${calendarIcon()}<span>Clear start and due dates</span>
+        </button>
+        <button type="button" class="ui-menu-item danger" role="menuitem" data-card-action="remove">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <span>Remove from board</span>
+        </button>`;
+    card.append(menu);
+    anchor.setAttribute('aria-controls', menuID);
+    anchor.setAttribute('aria-expanded', 'true');
+    const placement = mountFloatingMenu(anchor, menu, { maximumWidth: 220 });
+    const items = [...menu.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+    const outside = event => {
+        if (!menu.contains(event.target) && event.target !== anchor) closeKanbanCardMenu();
+    };
+    activeKanbanCardMenu = { anchor, card, menu, placement, outside };
+    document.addEventListener('pointerdown', outside, true);
+    menu.addEventListener('click', event => {
+        const action = event.target.closest('[data-card-action]')?.dataset.cardAction;
+        if (!action) return;
+        event.stopPropagation();
+        if (action === 'clear-dates') {
+            closeKanbanCardMenu();
+            updateTaskSchedule(card, { start: '', end: '' });
+        } else if (action === 'remove') {
+            closeKanbanCardMenu();
+            removeTagFromTask(card.dataset.file, Number(card.dataset.line), card.dataset.tag);
         }
     });
+    menu.addEventListener('keydown', event => {
+        const index = items.indexOf(document.activeElement);
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeKanbanCardMenu({ restoreFocus: true });
+        } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+            event.preventDefault();
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+                : (Math.max(0, index) + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+            items[next]?.focus();
+        }
+    });
+    items[0]?.focus({ preventScroll: true });
 }
 
 /**
@@ -748,61 +851,201 @@ async function setColumnColor(columnName, color) {
 /**
  * Render task cards for a column
  */
-function renderCards(
-    tasks,
-    range = { start: 0, end: tasks?.length || 0 },
-    rowStride = KANBAN_CARD_STRIDE_ESTIMATE,
-) {
+function renderCard(task, index, cardCount) {
+    const displayText = truncateKanbanCardText(task.text);
+    const schedule = scheduleForTask(task, taskScheduleIndex);
+    const startDate = schedule?.start || task.start_date || '';
+    const dueDate = schedule?.end || task.due_date || '';
+    const start = startDatePresentation(startDate);
+    const due = dueDatePresentation(dueDate, localISODate()) || { state: 'unset', label: 'No due date' };
+    const cardLabel = `${task.text}. Column ${task.tag}. ${start.label}. ${due.label}`;
+    const dateButton = (field, presentation) => {
+        const kind = field === 'start' ? 'start' : 'due';
+        const action = presentation.state === 'unset' ? `Set task ${kind} date` : `Change task ${kind} date`;
+        return `<button type="button" tabindex="-1" class="ui-button kanban-card-date kanban-card-${kind}" data-date-field="${field}" data-date-state="${presentation.state}" aria-label="${escapeAttribute(`${action}, currently ${presentation.label}`)}" title="${escapeAttribute(action)}">
+            ${calendarIcon()}<span>${escapeHtml(presentation.label)}</span>
+        </button>`;
+    };
+    return `<div class="kanban-card" role="button" tabindex="0"
+         aria-label="${escapeAttribute(cardLabel)}"
+         aria-description="Enter opens the source. Arrow keys move the card. S changes its start date. D changes its due date. Delete removes its column tag. Shift F10 opens task actions."
+         aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight S D Delete Shift+F10"
+         aria-posinset="${index + 1}" aria-setsize="${cardCount}"
+         draggable="true"
+         data-file="${escapeAttribute(task.file)}"
+         data-line="${task.line}"
+         data-tag="${escapeAttribute(task.tag)}"
+         data-card-index="${index}"
+         data-start-date="${escapeAttribute(startDate)}"
+         data-due-date="${escapeAttribute(dueDate)}"
+         data-schedule-id="${escapeAttribute(schedule?.id || '')}"
+         data-text="${escapeAttribute(task.text)}">
+        <div class="kanban-card-header">
+            <div class="kanban-card-text" title="${escapeAttribute(task.text)}">${escapeHtml(displayText)}</div>
+            <button type="button" tabindex="-1" class="ui-icon-button ui-icon-button--small kanban-card-menu-trigger" aria-label="Task actions" aria-haspopup="menu" aria-expanded="false" title="Task actions">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+            </button>
+        </div>
+        <div class="kanban-card-dates">
+            ${dateButton('start', start)}
+            ${dateButton('end', due)}
+        </div>
+    </div>`;
+}
+
+function spacerHeight(layout, start, end) {
+    return Math.max(0, kanbanVirtualOffset(layout, end) - kanbanVirtualOffset(layout, start));
+}
+
+function renderCards(tasks, range = { start: 0, end: tasks?.length || 0 }, layout = null) {
     if (!tasks || tasks.length === 0) {
         return '<div class="kanban-empty">No tasks</div>';
     }
 
     const rows = [];
-    if (range.start > 0) {
-        rows.push(`<div class="kanban-card-spacer" aria-hidden="true"
-            style="height:${range.start * rowStride}px"></div>`);
+    if (layout && tasks.length > KANBAN_VIRTUAL_THRESHOLD) {
+        rows.push(`<div class="kanban-card-spacer" data-edge="start" aria-hidden="true"
+            style="height:${spacerHeight(layout, 0, range.start)}px"></div>`);
     }
     tasks.slice(range.start, range.end).forEach((task, offset) => {
-        const index = range.start + offset;
-        const displayText = truncateKanbanCardText(task.text);
-        const due = dueDatePresentation(task.due_date, localISODate());
-        const schedule = scheduleForTask(task, taskScheduleIndex);
-        const dueControl = due
-            ? `<button type="button" tabindex="-1" class="ui-button kanban-card-date-control kanban-card-due" data-due-state="${due.state}" data-due-date="${task.due_date}" aria-label="Change due date: ${escapeAttribute(due.label)}" title="Change due date">
-                    ${calendarIcon()}<span>${escapeHtml(due.label)}</span>
-                </button>`
-            : `<button type="button" tabindex="-1" class="ui-icon-button ui-icon-button--small kanban-card-date-control kanban-card-due-action" aria-label="Set due date" title="Set due date">${calendarIcon()}</button>`;
-        rows.push(`
-        <div class="kanban-card" role="button" tabindex="0"
-             aria-label="${escapeAttribute(`${task.text}. Column ${task.tag}. Source ${task.file_name}`)}"
-             aria-description="Enter opens the source. Arrow keys move the card. D changes its due date. Delete removes its column tag."
-             aria-keyshortcuts="Enter Space ArrowUp ArrowDown ArrowLeft ArrowRight D Delete"
-             aria-posinset="${index + 1}" aria-setsize="${tasks.length}"
-             draggable="true" 
-             data-file="${escapeAttribute(task.file)}"
-             data-line="${task.line}"
-             data-tag="${escapeAttribute(task.tag)}"
-             data-card-index="${index}"
-             data-text="${escapeAttribute(task.text)}">
-            <div class="kanban-card-text" title="${escapeAttribute(task.text)}">${escapeHtml(displayText)}</div>
-            ${schedule?.start ? `<span class="kanban-card-schedule">Started ${escapeHtml(schedule.start)}</span>` : ''}
-            <div class="kanban-card-meta">
-                <span class="kanban-card-meta-main">${due ? dueControl : ''}<span class="kanban-card-source">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                        ${escapeHtml(task.file_name)}
-                    </span></span>
-                <span class="kanban-card-actions">${due ? '' : dueControl}<button tabindex="-1" class="ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-card-delete" aria-label="Remove tag">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button></span>
-            </div>
-        </div>
-    `);
+        rows.push(renderCard(task, range.start + offset, tasks.length));
     });
-    if (range.end < tasks.length) {
-        rows.push(`<div class="kanban-card-spacer" aria-hidden="true"
-            style="height:${(tasks.length - range.end) * rowStride}px"></div>`);
+    if (layout && tasks.length > KANBAN_VIRTUAL_THRESHOLD) {
+        rows.push(`<div class="kanban-card-spacer" data-edge="end" aria-hidden="true"
+            style="height:${spacerHeight(layout, range.end, tasks.length)}px"></div>`);
     }
     return rows.join('');
+}
+
+function createKanbanCardElement(task, index, cardCount) {
+    const template = document.createElement('template');
+    template.innerHTML = renderCard(task, index, cardCount);
+    return template.content.firstElementChild;
+}
+
+function updateKanbanSpacers(cardsContainer, layout, range) {
+    const start = cardsContainer.querySelector('.kanban-card-spacer[data-edge="start"]');
+    const end = cardsContainer.querySelector('.kanban-card-spacer[data-edge="end"]');
+    if (start) start.style.height = `${spacerHeight(layout, 0, range.start)}px`;
+    if (end) end.style.height = `${spacerHeight(layout, range.end, layout.count)}px`;
+}
+
+function measureKanbanColumn(cardsContainer, layout, range) {
+    if (!layout || layout.count <= KANBAN_VIRTUAL_THRESHOLD) return;
+    const measurements = [...cardsContainer.querySelectorAll('.kanban-card')].map(card => {
+        const rect = card.getBoundingClientRect();
+        const margin = Number.parseFloat(getComputedStyle(card).marginBottom) || 0;
+        return { index: Number(card.dataset.cardIndex), height: rect.height + margin };
+    }).filter(measurement => measurement.height > 0);
+    if (!measurements.length) return;
+    if (!layout.calibrated) {
+        const average = measurements.reduce((total, measurement) => total + measurement.height, 0)
+            / measurements.length;
+        calibrateKanbanVirtualLayout(layout, average);
+    }
+    recordKanbanVirtualMeasurements(layout, measurements);
+    layout.measuredWidth = cardsContainer.getBoundingClientRect().width;
+    updateKanbanSpacers(cardsContainer, layout, range);
+}
+
+function closestRetainedCard(cardsContainer, range) {
+    const viewport = cardsContainer.getBoundingClientRect();
+    const retained = [...cardsContainer.querySelectorAll('.kanban-card')].filter(card => {
+        const index = Number(card.dataset.cardIndex);
+        return index >= range.start && index < range.end;
+    });
+    return retained.find(card => card.getBoundingClientRect().bottom > viewport.top) || retained[0] || null;
+}
+
+function resetKanbanVirtualLayouts(container) {
+    const state = kanbanRenderStates.get(container);
+    if (!state || !container?.isConnected) return;
+    const stacked = container.closest('.kanban-view-wrapper')?.dataset.layout === 'stacked';
+    const boardViewport = container.getBoundingClientRect();
+    const boardAnchor = stacked
+        ? [...container.querySelectorAll('.kanban-card')].find(card => (
+            card.getBoundingClientRect().bottom > boardViewport.top
+        ))
+        : null;
+    const boardAnchorTop = boardAnchor?.getBoundingClientRect().top;
+    for (const cardsContainer of container.querySelectorAll('.kanban-column-cards')) {
+        const column = cardsContainer.dataset.column;
+        const tasks = state.boardData[column] || [];
+        if (tasks.length <= KANBAN_VIRTUAL_THRESHOLD) continue;
+        const range = state.ranges.get(column);
+        const columnAnchor = stacked ? null : closestRetainedCard(cardsContainer, range);
+        const columnAnchorTop = columnAnchor?.getBoundingClientRect().top;
+        const layout = createKanbanVirtualLayout(tasks.length, KANBAN_CARD_STRIDE_ESTIMATE);
+        state.layouts.set(column, layout);
+        measureKanbanColumn(cardsContainer, layout, range);
+        if (columnAnchor?.isConnected && Number.isFinite(columnAnchorTop)) {
+            const shift = columnAnchor.getBoundingClientRect().top - columnAnchorTop;
+            if (Math.abs(shift) > 0.5) cardsContainer.scrollTop += shift;
+        }
+    }
+    if (boardAnchor?.isConnected && Number.isFinite(boardAnchorTop)) {
+        const shift = boardAnchor.getBoundingClientRect().top - boardAnchorTop;
+        if (Math.abs(shift) > 0.5) container.scrollTop += shift;
+    }
+}
+
+function ensureKanbanVirtualLayouts(container) {
+    const state = kanbanRenderStates.get(container);
+    if (!state) return;
+    const stale = [...container.querySelectorAll('.kanban-column-cards')].some(cards => {
+        const layout = state.layouts.get(cards.dataset.column);
+        if (!layout || layout.count <= KANBAN_VIRTUAL_THRESHOLD) return false;
+        const width = cards.getBoundingClientRect().width;
+        return !layout.calibrated
+            || !Number.isFinite(layout.measuredWidth)
+            || Math.abs(width - layout.measuredWidth) > 0.5;
+    });
+    if (stale) resetKanbanVirtualLayouts(container);
+}
+
+function reconcileKanbanCards(cardsContainer, tasks, range, layout) {
+    const continuityCard = closestRetainedCard(cardsContainer, range);
+    const continuityTop = continuityCard?.getBoundingClientRect().top;
+    const existing = new Map([...cardsContainer.querySelectorAll('.kanban-card')].map(card => (
+        [Number(card.dataset.cardIndex), card]
+    )));
+    let startSpacer = cardsContainer.querySelector('.kanban-card-spacer[data-edge="start"]');
+    let endSpacer = cardsContainer.querySelector('.kanban-card-spacer[data-edge="end"]');
+    if (!startSpacer) {
+        startSpacer = document.createElement('div');
+        startSpacer.className = 'kanban-card-spacer';
+        startSpacer.dataset.edge = 'start';
+        startSpacer.setAttribute('aria-hidden', 'true');
+        cardsContainer.prepend(startSpacer);
+    }
+    if (!endSpacer) {
+        endSpacer = document.createElement('div');
+        endSpacer.className = 'kanban-card-spacer';
+        endSpacer.dataset.edge = 'end';
+        endSpacer.setAttribute('aria-hidden', 'true');
+        cardsContainer.append(endSpacer);
+    }
+    cardsContainer.querySelector('.kanban-empty')?.remove();
+    for (const [index, card] of existing) {
+        if (index < range.start || index >= range.end) {
+            if (activeKanbanCardMenu?.card === card) closeKanbanCardMenu();
+            card.remove();
+            existing.delete(index);
+        }
+    }
+    let reference = endSpacer;
+    for (let index = range.end - 1; index >= range.start; index -= 1) {
+        const card = existing.get(index) || createKanbanCardElement(tasks[index], index, tasks.length);
+        if (card.nextElementSibling !== reference) cardsContainer.insertBefore(card, reference);
+        reference = card;
+    }
+    if (startSpacer.nextElementSibling !== reference) cardsContainer.insertBefore(startSpacer, reference);
+    updateKanbanSpacers(cardsContainer, layout, range);
+    measureKanbanColumn(cardsContainer, layout, range);
+    if (continuityCard?.isConnected && Number.isFinite(continuityTop)) {
+        const shift = continuityCard.getBoundingClientRect().top - continuityTop;
+        if (Math.abs(shift) > 0.5) cardsContainer.scrollTop += shift;
+    }
 }
 
 function renderKanbanColumnWindow(container, column, { anchorIndex = 0, selectedIndex = -1 } = {}) {
@@ -824,8 +1067,8 @@ function renderKanbanColumnWindow(container, column, { anchorIndex = 0, selected
         })
         : { start: 0, end: tasks.length };
     state.ranges.set(column, range);
-    const rowStride = state.rowStrides.get(column) || KANBAN_CARD_STRIDE_ESTIMATE;
-    cardsContainer.innerHTML = renderCards(tasks, range, rowStride);
+    const layout = state.layouts.get(column);
+    reconcileKanbanCards(cardsContainer, tasks, range, layout);
     initKanbanCardActions(cardsContainer);
     initKanbanCardDrag(cardsContainer);
     initKanbanKeyboard(container, cardsContainer);
@@ -949,6 +1192,8 @@ function nextKanbanCardLocation(state, column, index, offset) {
 
 function initKanbanKeyboard(container, root = container) {
     root.querySelectorAll('.kanban-card').forEach(card => {
+        if (card._kanbanKeyboardInitialized) return;
+        card._kanbanKeyboardInitialized = true;
         card.addEventListener('keydown', event => {
             if (event.target !== card || event.altKey || event.ctrlKey || event.metaKey) return;
             if (event.key === 'Tab') {
@@ -983,12 +1228,25 @@ function initKanbanKeyboard(container, root = container) {
                 card.click();
                 return;
             }
+            if ((event.shiftKey && event.key === 'F10') || event.key === 'ContextMenu') {
+                event.preventDefault();
+                openKanbanCardMenu(card.querySelector('.kanban-card-menu-trigger'), card);
+                return;
+            }
             if (event.key.toLowerCase() === 'd') {
                 event.preventDefault();
                 event.stopPropagation();
                 if (event.repeat) return;
-                const dueButton = card.querySelector('.kanban-card-date-control');
-                if (dueButton) openTaskDueDatePicker(dueButton, card);
+                const dueButton = card.querySelector('[data-date-field="end"]');
+                if (dueButton) openTaskDatePicker(dueButton, card, 'end');
+                return;
+            }
+            if (event.key.toLowerCase() === 's') {
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.repeat) return;
+                const startButton = card.querySelector('[data-date-field="start"]');
+                if (startButton) openTaskDatePicker(startButton, card, 'start');
                 return;
             }
             if (event.key === 'Delete') {
@@ -999,19 +1257,20 @@ function initKanbanKeyboard(container, root = container) {
     });
 }
 
-function openTaskDueDatePicker(anchor, card) {
+function openTaskDatePicker(anchor, card, field) {
+    const start = field === 'start';
     openDatePicker({
         anchor,
-        value: card.dataset.dueDate || anchor.dataset.dueDate || '',
+        value: start ? card.dataset.startDate || '' : card.dataset.dueDate || '',
         returnFocus: card,
-        onSelect: dueDate => setTaskDueDate(
-            card,
-            dueDate,
-        ),
+        ariaLabel: start ? 'Choose start date' : 'Choose due date',
+        clearLabel: start ? 'Clear start date' : 'Clear due date',
+        shortcutsLabel: start ? 'Start date shortcuts' : 'Due date shortcuts',
+        onSelect: date => updateTaskSchedule(card, { [field]: date }),
     });
 }
 
-async function setTaskDueDate(card, dueDate) {
+async function updateTaskSchedule(card, changes) {
     const filePath = card.dataset.file;
     const lineNum = Number(card.dataset.line);
     const task = (getState('kanbanBoardData')?.[card.dataset.tag] || []).find(item => item.file === filePath && item.line === lineNum);
@@ -1019,20 +1278,39 @@ async function setTaskDueDate(card, dueDate) {
         await errorDialog('Save the note first', 'Save your changes before scheduling this task. No task was changed.');
         return;
     }
+    const schedule = scheduleForTask(task, taskScheduleIndex);
+    const plan = taskScheduleUpdatePlan({
+        start: schedule?.start || task.start_date || card.dataset.startDate || '',
+        end: schedule?.end || task.due_date || card.dataset.dueDate || '',
+        id: schedule?.id || card.dataset.scheduleId || '',
+    }, changes);
+    if (!plan) {
+        await errorDialog('Couldn’t update schedule', 'The selected date is invalid. No task was changed.');
+        return;
+    }
+    const changedFields = ['start', 'end'].filter(field => Object.hasOwn(changes, field));
+    const singleField = changedFields.length === 1 ? changedFields[0] : '';
+    const label = singleField === 'start' ? 'start date' : singleField === 'end' ? 'due date' : 'schedule';
+    const clearing = singleField ? !changes[singleField] : true;
     const mutationId = beginKanbanMutation();
     try {
-        statusBar.set(dueDate ? 'Setting due date…' : 'Clearing due date…');
-        await backend().SetTaskDueDate({ file: task.file, line: task.line, source: task.source }, dueDate);
+        statusBar.set(`${clearing ? 'Clearing' : 'Setting'} ${label}…`);
+        await backend().SetTaskSchedule(
+            { file: task.file, line: task.line, source: task.source },
+            plan.start,
+            plan.end,
+            plan.id,
+        );
         if (mutationId !== kanbanMutationId) return;
-        statusBar.set(dueDate ? 'Due date set' : 'Due date cleared');
+        statusBar.set(`${label[0].toUpperCase()}${label.slice(1)} ${clearing ? 'cleared' : 'set'}`);
         setTimeout(() => statusBar.set('Ready'), 1000);
         document.dispatchEvent(new CustomEvent('calendar-data-changed'));
         if (!await refreshAfterKanbanMutation(mutationId)) return;
         focusKanbanCard(document.getElementById('kanban-board-main'), task, card.dataset.tag);
     } catch (error) {
         if (mutationId !== kanbanMutationId) return;
-        log.error('Set task due date failed:', error);
-        await errorDialog('Couldn’t update due date', error, 'The due date could not be updated.');
+        log.error('Set task schedule failed:', error);
+        await errorDialog('Couldn’t update schedule', error, 'The task dates could not be updated.');
         statusBar.set('Ready');
     }
 }
@@ -1085,6 +1363,8 @@ function initKanbanDragDrop(container) {
 
 function initKanbanCardDrag(root) {
     root.querySelectorAll('.kanban-card').forEach(card => {
+        if (card._kanbanDragInitialized) return;
+        card._kanbanDragInitialized = true;
         card.addEventListener('dragstart', (event) => {
             draggedCard = card;
             card.classList.add('dragging');
@@ -1110,8 +1390,14 @@ function initKanbanWindowing(container) {
     for (const cards of container.querySelectorAll('.kanban-column-cards')) {
         const column = cards.dataset.column;
         if ((state.boardData[column] || []).length <= KANBAN_VIRTUAL_THRESHOLD) continue;
+        const layout = state.layouts.get(column);
+        measureKanbanColumn(cards, layout, state.ranges.get(column));
         let frame = 0;
+        let idleTimer = 0;
         cards.onscroll = () => {
+            cards.classList.add('is-scrolling');
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => cards.classList.remove('is-scrolling'), 120);
             if (frame) return;
             frame = scheduleKanbanWindowUpdate(() => {
                 frame = 0;
@@ -1121,8 +1407,8 @@ function initKanbanWindowing(container) {
                     Date.now() < (activeState.focusProtection?.until || 0)
                     && cards.contains(document.activeElement)
                 ) return;
-                const stride = activeState.rowStrides.get(column) || KANBAN_CARD_STRIDE_ESTIMATE;
-                const anchorIndex = Math.floor(cards.scrollTop / stride);
+                const activeLayout = activeState.layouts.get(column);
+                const anchorIndex = kanbanVirtualIndexAtOffset(activeLayout, cards.scrollTop);
                 const range = kanbanCardWindow((activeState.boardData[column] || []).length, {
                     anchorIndex,
                     windowSize: KANBAN_WINDOW_SIZE,
@@ -1137,9 +1423,17 @@ function initKanbanWindowing(container) {
     }
 
     let boardFrame = 0;
+    let boardIdleTimer = 0;
     container.onscroll = () => {
         const wrapper = container.closest('.kanban-view-wrapper');
-        if (wrapper?.dataset.layout !== 'stacked' || boardFrame) return;
+        if (wrapper?.dataset.layout !== 'stacked') return;
+        const columnCards = [...container.querySelectorAll('.kanban-column-cards')];
+        columnCards.forEach(cards => cards.classList.add('is-scrolling'));
+        clearTimeout(boardIdleTimer);
+        boardIdleTimer = setTimeout(() => {
+            columnCards.forEach(cards => cards.classList.remove('is-scrolling'));
+        }, 120);
+        if (boardFrame) return;
         boardFrame = scheduleKanbanWindowUpdate(() => {
             boardFrame = 0;
             const activeState = kanbanRenderStates.get(container);
@@ -1150,8 +1444,8 @@ function initKanbanWindowing(container) {
                 const tasks = activeState.boardData[column] || [];
                 if (tasks.length <= KANBAN_VIRTUAL_THRESHOLD) continue;
                 const relativeTop = Math.max(0, boardRect.top - cards.getBoundingClientRect().top);
-                const stride = activeState.rowStrides.get(column) || KANBAN_CARD_STRIDE_ESTIMATE;
-                const anchorIndex = Math.floor(relativeTop / stride);
+                const activeLayout = activeState.layouts.get(column);
+                const anchorIndex = kanbanVirtualIndexAtOffset(activeLayout, relativeTop);
                 const range = kanbanCardWindow(tasks.length, {
                     anchorIndex,
                     windowSize: KANBAN_WINDOW_SIZE,
@@ -1164,6 +1458,28 @@ function initKanbanWindowing(container) {
         });
     };
     if (container.scrollTop > 0) container.onscroll();
+
+    if (typeof ResizeObserver === 'function') {
+        const observedWidths = new WeakMap();
+        const resizeObserver = new ResizeObserver(entries => {
+            const widthChanged = entries.some(entry => {
+                const width = entry.contentRect?.width ?? entry.target.getBoundingClientRect().width;
+                const previous = observedWidths.get(entry.target);
+                observedWidths.set(entry.target, width);
+                return Number.isFinite(previous) && Math.abs(width - previous) > 0.5;
+            });
+            if (!widthChanged || state.resizeFrame) return;
+            state.resizeFrame = scheduleKanbanWindowUpdate(() => {
+                state.resizeFrame = 0;
+                if (kanbanRenderStates.get(container) === state) resetKanbanVirtualLayouts(container);
+            });
+        });
+        for (const cards of container.querySelectorAll('.kanban-column-cards')) {
+            observedWidths.set(cards, cards.getBoundingClientRect().width);
+            resizeObserver.observe(cards);
+        }
+        state.resizeObserver = resizeObserver;
+    }
 }
 
 /**

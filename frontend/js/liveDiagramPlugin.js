@@ -25,6 +25,7 @@ import {
     mermaidDiagramResizePlan,
     setMermaidDiagramHeight,
 } from './core/mermaidDiagramModel.js';
+import { mermaidUsesApplicationTheme } from './core/mermaidStyleEditorModel.js';
 
 export { diagramLanguages };
 
@@ -359,7 +360,12 @@ function createDiagramWidget(WidgetType, renderQueue) {
 
             dom.append(label, content);
             const wrapper = wrapBlockWidget(dom, 'cm-block-widget--diagram');
-            if (this.lang === 'mermaid') wrapper.classList.add('cm-block-widget--mermaid');
+            if (this.lang === 'mermaid') {
+                wrapper.classList.add('cm-block-widget--mermaid');
+                if (mermaidUsesApplicationTheme(this.code)) {
+                    wrapper.classList.add('cm-block-widget--application-mermaid');
+                }
+            }
             markSourceFootprint(wrapper, {
                 kind: this.lang,
                 lineCount: this.sourceLines,
@@ -385,7 +391,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
 
             try {
                 const svg = await renderDiagramSVG(this.lang, this.code, 'figaro-live-diagram', {
-                    appearance: this.chartHeight ? 'application' : 'authored',
+                    appearance: this.lang === 'mermaid' || this.chartHeight ? 'application' : 'authored',
                     containerWidth: container.clientWidth || root.clientWidth,
                 });
                 if (this.destroyed || version !== this.renderVersion) return;

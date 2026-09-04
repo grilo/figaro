@@ -23,6 +23,8 @@ import {
     frontmatterModeAfterSelection,
 } from './core/frontmatterPresentationModel.js';
 import { startCompletion } from '@codemirror/autocomplete';
+import { enhanceSettingsPicker } from './settingsPicker.js';
+import { mountFloatingMenu } from './floatingMenu.js';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'page-numbers', 'print-stylesheet']);
 const COVER_PROPERTY_KEYS = new Set(['title', 'subtitle', 'description', 'author', 'date', 'created']);
@@ -165,7 +167,6 @@ function createThemedSelect(value, options, ariaLabel, onSelect) {
     root.addEventListener('mousedown', stopEditorMouseSelection);
 
     const menuID = 'figaro-frontmatter-menu-' + ++frontmatterMenuID;
-    const selected = options.find(option => option.value === String(value)) || options[0];
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'ui-picker-trigger cm-frontmatter-panel-select cm-frontmatter-combobox-trigger';
@@ -176,7 +177,7 @@ function createThemedSelect(value, options, ariaLabel, onSelect) {
 
     const triggerValue = document.createElement('span');
     triggerValue.className = 'cm-frontmatter-combobox-value';
-    triggerValue.textContent = selected.label;
+    triggerValue.dataset.pickerValue = '';
     const triggerArrow = document.createElement('span');
     triggerArrow.className = 'cm-frontmatter-combobox-arrow';
     triggerArrow.textContent = '⌄';
@@ -189,45 +190,17 @@ function createThemedSelect(value, options, ariaLabel, onSelect) {
     menu.setAttribute('aria-label', ariaLabel);
     menu.hidden = true;
 
-    let open = false;
-    const setOpen = nextOpen => {
-        open = nextOpen;
-        root.classList.toggle('is-open', open);
-        trigger.setAttribute('aria-expanded', String(open));
-        menu.hidden = !open;
-        menu.classList.toggle('open', open);
-    };
-    const selectOption = nextValue => {
-        setOpen(false);
-        onSelect(nextValue);
-    };
-
-    for (const option of options) {
-        menu.appendChild(createMenuOption(option, option.value === selected.value, selectOption));
-    }
-
     trigger.addEventListener('mousedown', stopEditorMouseSelection);
-    trigger.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        setOpen(!open);
-    });
-    trigger.addEventListener('keydown', event => {
-        if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            setOpen(true);
-        } else if (event.key === 'Escape') {
-            event.preventDefault();
-            setOpen(false);
-        }
-    });
-    root.addEventListener('focusout', () => {
-        requestAnimationFrame(() => {
-            if (!root.contains(document.activeElement)) setOpen(false);
-        });
-    });
-
     root.append(trigger, menu);
+    enhanceSettingsPicker({
+        trigger,
+        menu,
+        options,
+        value,
+        ariaLabel,
+        optionClass: 'cm-frontmatter-combobox-option',
+        onChange: onSelect,
+    });
     return root;
 }
 
@@ -263,12 +236,27 @@ function createStylesheetCombobox(value, stylesheets, onCommit) {
     menu.hidden = true;
 
     let open = false;
+    let placement = null;
+    const closeOnOutsidePointer = event => {
+        if (!root.contains(event.target) && !menu.contains(event.target)) setOpen(false);
+    };
     const setOpen = nextOpen => {
-        open = nextOpen && stylesheets.length > 0;
+        const next = nextOpen && stylesheets.length > 0;
+        const changed = next !== open;
+        open = next;
         root.classList.toggle('is-open', open);
         input.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
         menu.classList.toggle('open', open);
+        if (open && changed) {
+            placement = mountFloatingMenu(input, menu, { maximumHeight: 180 });
+            document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+        }
+        if (!open && changed) {
+            document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+            placement?.close();
+            placement = null;
+        }
     };
     const selectPath = path => {
         input.value = path;
@@ -335,7 +323,7 @@ function createStylesheetCombobox(value, stylesheets, onCommit) {
     });
     root.addEventListener('focusout', () => {
         requestAnimationFrame(() => {
-            if (!root.contains(document.activeElement)) setOpen(false);
+            if (!root.contains(document.activeElement) && !menu.contains(document.activeElement)) setOpen(false);
         });
     });
 

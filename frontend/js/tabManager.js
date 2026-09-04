@@ -925,7 +925,12 @@ async function renderTabContent(
         }
         panel.classList.add('active');
 
-        if (['calendar', 'calendar-workspace', 'kanban', 'graph', 'settings', 'health'].includes(tab.type)) {
+        const warmKanban = tab.type === 'kanban' && Boolean(panel._kanbanSession);
+        if (warmKanban) panel.classList.remove('figaro-panel-enter');
+        if (
+            ['calendar', 'calendar-workspace', 'kanban', 'graph', 'settings', 'health'].includes(tab.type)
+            && !warmKanban
+        ) {
             playEntranceAnimation(panel);
         }
         
@@ -1109,6 +1114,10 @@ function renderBacklinksTab(panel, tab) {
 }
 
 function renderKanbanTab(panel, tab) {
+    if (panel._kanbanSession) {
+        panel._kanbanSession.activate(tab.focusCol);
+        return;
+    }
     panel._kanbanSession = mountKanbanWorkspace(panel, tab.focusCol);
 }
 
@@ -1950,7 +1959,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/><path d="M2 12h20"/></svg>
                         <span>Theme</span>
                     </div>
-                    <div class="ui-picker theme-picker">
+                    <div class="ui-picker ui-picker--quiet theme-picker">
                         <button type="button" class="ui-picker-trigger theme-picker-btn" id="theme-picker-btn" role="combobox" aria-label="Theme" aria-haspopup="listbox" aria-controls="theme-picker-menu" aria-expanded="false">
                             <span id="theme-current-name" data-picker-value>Loading…</span>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1963,7 +1972,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
                         <span>Font</span>
                     </div>
-                    <div class="ui-picker font-picker">
+                    <div class="ui-picker ui-picker--quiet font-picker">
                         <button type="button" class="ui-picker-trigger font-picker-btn" id="font-picker-btn" role="combobox" aria-label="Font" aria-haspopup="listbox" aria-controls="font-picker-menu" aria-expanded="false">
                             <span id="font-current-name" data-picker-value>Inter</span>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1976,7 +1985,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 9h11M4 13h16M4 17h11"/><path d="M17 17l2 2 3-4"/></svg>
                         <span>Code Font</span>
                     </div>
-                    <div class="ui-picker font-picker">
+                    <div class="ui-picker ui-picker--quiet font-picker">
                         <button type="button" class="ui-picker-trigger font-picker-btn" id="code-font-picker-btn" title="Used only for code files" role="combobox" aria-label="Code font" aria-haspopup="listbox" aria-controls="code-font-picker-menu" aria-expanded="false">
                             <span id="code-font-current-name" data-picker-value>Theme default</span>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
@@ -2023,7 +2032,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 8 12 4 20 8"/><polyline points="4 16 12 20 20 16"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
                         <span>Default Text Size</span>
                     </div>
-                    <div class="ui-stepper font-size-control" role="group" aria-label="Default editor text size">
+                    <div class="ui-stepper ui-stepper--quiet font-size-control" role="group" aria-label="Default editor text size">
                         <button type="button" class="ui-stepper-button font-size-btn" id="font-size-down" title="Decrease default text size" aria-label="Decrease default text size">−</button>
                         <span class="ui-stepper-value font-size-value" id="font-size-value">100%</span>
                         <button type="button" class="ui-stepper-button font-size-btn" id="font-size-up" title="Increase default text size" aria-label="Increase default text size">+</button>
@@ -2034,7 +2043,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h5M4 12h9M4 18h13"/><path d="m17 9 3 3-3 3"/></svg>
                         <span id="tab-size-label">Tab Size</span>
                     </div>
-                    <div class="ui-stepper tab-size-control" role="group" aria-labelledby="tab-size-label">
+                    <div class="ui-stepper ui-stepper--quiet tab-size-control" role="group" aria-labelledby="tab-size-label">
                         <button type="button" class="ui-stepper-button tab-size-down" aria-label="Decrease tab size" title="Decrease tab size">−</button>
                         <input class="ui-stepper-value tab-size-value" id="tab-size-value" type="number" inputmode="numeric" min="2" max="8" step="1" value="4" aria-label="Tab size in spaces">
                         <button type="button" class="ui-stepper-button tab-size-up" aria-label="Increase tab size" title="Increase tab size">+</button>
@@ -2045,7 +2054,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
                         <span id="text-width-label">Text Width</span>
                     </div>
-                    <div class="ui-stepper text-width-control" role="group" aria-labelledby="text-width-label">
+                    <div class="ui-stepper ui-stepper--quiet text-width-control" role="group" aria-labelledby="text-width-label">
                         <button type="button" class="ui-stepper-button text-width-btn" id="text-width-down" title="Decrease the editor text width" aria-label="Decrease editor text width">−</button>
                         <span class="ui-stepper-value text-width-value" id="text-width-value">100%</span>
                         <button type="button" class="ui-stepper-button text-width-btn" id="text-width-up" title="Increase the editor text width" aria-label="Increase editor text width">+</button>
@@ -2180,7 +2189,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>
                         <span>Links style</span>
                     </div>
-                    <div class="ui-picker settings-picker link-style-picker">
+                    <div class="ui-picker ui-picker--quiet settings-picker link-style-picker">
                         <button type="button" id="link-style-select" class="ui-picker-trigger settings-picker-btn"
                                 role="combobox" aria-label="Links style" title="Chooses the link syntax Figaro inserts; existing links are left unchanged." aria-haspopup="listbox"
                                 aria-controls="link-style-menu" aria-expanded="false">
@@ -2217,7 +2226,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="16" rx="1"/><rect x="14" y="4" width="6" height="16" rx="1"/></svg>
                         <span>Card density</span>
                     </div>
-                    <div class="ui-segmented-control" role="group" aria-label="Kanban card density">
+                    <div class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Kanban card density">
                         <button type="button" class="ui-button" data-kanban-density="comfortable" aria-pressed="false">Comfortable</button>
                         <button type="button" class="ui-button" data-kanban-density="compact" aria-pressed="false">Compact</button>
                     </div>
@@ -2227,7 +2236,7 @@ function renderSettingsTab(panel, _tab) {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/><path d="M7 5v14"/></svg>
                         <span>Column flow</span>
                     </div>
-                    <div class="ui-segmented-control" role="group" aria-label="Kanban column flow">
+                    <div class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Kanban column flow">
                         <button type="button" class="ui-button" data-kanban-layout="side-by-side" aria-pressed="false">Side by side</button>
                         <button type="button" class="ui-button" data-kanban-layout="stacked" aria-pressed="false">Stacked</button>
                     </div>

@@ -6,6 +6,7 @@ import {
     graphView,
     graphViewLayout,
     graphLayoutIterationCount,
+    graphNodePointerAction,
     sameGraphView,
     layoutGraph,
     normalizeVaultGraph,
@@ -149,5 +150,13 @@ describe('note graph model', () => {
         const nodes = sampleGraph().nodes;
         expect(adjacentGraphNodePath(nodes, '', 1)).toBe('2026-08-29.md');
         expect(adjacentGraphNodePath(nodes, '2026-08-29.md', -1)).toBe('Research/Graph.md');
+    });
+
+    test('opens nodes on double-click or Ctrl/Cmd-click and selects on a plain click', () => {
+        expect(graphNodePointerAction()).toBe('select');
+        expect(graphNodePointerAction({ ctrlKey: true })).toBe('open');
+        expect(graphNodePointerAction({ metaKey: true })).toBe('open');
+        expect(graphNodePointerAction({ clickCount: 2 })).toBe('open');
+        expect(graphNodePointerAction({ button: 2, clickCount: 2 })).toBe('');
     });
 });

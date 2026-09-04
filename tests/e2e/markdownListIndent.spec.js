@@ -65,6 +65,70 @@ test('exits an empty second list item with one Enter and preserves cursor geomet
     })).toBe(true);
 });
 
+test('renumbers an ordered list after deleting an item as one cursor-stable undo step', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = '1. First item\n2. Remove this item\n3. Third item\n4. Fourth item';
+    await page.evaluate(async content => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(content);
+        const view = editor.getEditorView();
+        await new Promise(resolve => setTimeout(resolve, 80));
+        const removed = view.state.doc.line(2);
+        view.dispatch({
+            selection: { anchor: removed.from, head: removed.to + 1 },
+        });
+        view.focus();
+        window.__orderedListDeleteView = view;
+    }, source);
+
+    await page.keyboard.press('Delete');
+    const renumbered = '1. First item\n2. Third item\n3. Fourth item';
+    await expect.poll(() => page.evaluate(() => ({
+        source: window.__orderedListDeleteView.state.doc.toString(),
+        line: window.__orderedListDeleteView.state.doc.lineAt(
+            window.__orderedListDeleteView.state.selection.main.head,
+        ).number,
+    }))).toEqual({ source: renumbered, line: 2 });
+
+    await page.keyboard.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__orderedListDeleteView.state.doc.lineAt(
+        window.__orderedListDeleteView.state.selection.main.head,
+    ).number)).toBe(3);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__orderedListDeleteView.state.doc.lineAt(
+        window.__orderedListDeleteView.state.selection.main.head,
+    ).number)).toBe(2);
+
+    const points = await page.evaluate(() => {
+        const view = window.__orderedListDeleteView;
+        const click = view.coordsAtPos(view.state.doc.line(2).from + 3);
+        const start = view.coordsAtPos(view.state.doc.line(1).from + 3);
+        const end = view.coordsAtPos(view.state.doc.line(3).to);
+        return {
+            click: { x: click.left + 1, y: (click.top + click.bottom) / 2 },
+            start: { x: start.left + 1, y: (start.top + start.bottom) / 2 },
+            end: { x: end.left - 1, y: (end.top + end.bottom) / 2 },
+        };
+    });
+    await page.mouse.click(points.click.x, points.click.y);
+    await expect.poll(() => page.evaluate(() => window.__orderedListDeleteView.state.doc.lineAt(
+        window.__orderedListDeleteView.state.selection.main.head,
+    ).number)).toBe(2);
+    await page.mouse.move(points.start.x, points.start.y);
+    await page.mouse.down();
+    await page.mouse.move(points.end.x, points.end.y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => {
+        const view = window.__orderedListDeleteView;
+        return view.state.selection.main.from < view.state.doc.line(1).to
+            && view.state.selection.main.to > view.state.doc.line(3).from;
+    })).toBe(true);
+
+    await page.keyboard.press('Control+z');
+    await expect.poll(() => page.evaluate(() => window.__orderedListDeleteView.state.doc.toString()))
+        .toBe(source);
+});
+
 test('exits one empty blockquote level with one Enter', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = 'Above\n> Quoted text\n> \nBelow';

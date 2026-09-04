@@ -3,6 +3,7 @@ import {
     fitGraphViewport,
     graphAdjacency,
     graphLayoutBounds,
+    graphNodePointerAction,
     graphViewLayout,
     graphView,
     layoutGraph,
@@ -30,7 +31,7 @@ function graphTemplate() {
             <div class="graph-workspace">
                 <div class="graph-stage">
                     <canvas class="ui-graph-canvas graph-canvas" tabindex="0" role="region"
-                            aria-label="Vault graph. Hover or click a node to trace its links, and Control-click to open it. Arrow keys pan, plus and minus zoom, brackets select notes, and Enter opens the selected note."
+                            aria-label="Vault graph. Hover or click a node to trace its links, and double-click or Control-click to open it. Arrow keys pan, plus and minus zoom, brackets select notes, and Enter opens the selected note."
                             aria-busy="true"></canvas>
                     <div class="graph-node-icons" aria-hidden="true"></div>
                     <div class="graph-floating-controls">
@@ -42,7 +43,7 @@ function graphTemplate() {
                         <label class="graph-filter">
                             <span class="sr-only">Filter graph</span>
                             ${searchIcon()}
-                            <input type="search" class="ui-field graph-filter-input" placeholder="Filter graph…" autocomplete="off" spellcheck="false">
+                            <input type="search" class="ui-field ui-field--quiet graph-filter-input" placeholder="Filter graph…" autocomplete="off" spellcheck="false">
                         </label>
                         <div class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Graph filters">
                             <button type="button" class="ui-button graph-show-orphans" aria-pressed="true">Orphans</button>
@@ -455,8 +456,8 @@ export function createGraphView(panel, {
         const selected = nodeByPath(selectedPath);
         if (selectionStatus) selectionStatus.textContent = selected?.path || 'No note selected';
         canvas.setAttribute('aria-label', selected
-            ? `Vault graph. Pinned trace for ${selected.name}, ${selected.degree} linked ${selected.degree === 1 ? 'note' : 'notes'}. Hover or click a node to trace its links, and Control-click to open it. Arrow keys pan, plus and minus zoom, brackets select notes, and Enter opens the selected note.`
-            : 'Vault graph. Hover or click a node to trace its links, and Control-click to open it. Arrow keys pan, plus and minus zoom, brackets select notes, and Enter opens the selected note.');
+            ? `Vault graph. Pinned trace for ${selected.name}, ${selected.degree} linked ${selected.degree === 1 ? 'note' : 'notes'}. Hover or click a node to trace its links, and double-click or Control-click to open it. Arrow keys pan, plus and minus zoom, brackets select notes, and Enter opens the selected note.`
+            : 'Vault graph. Hover or click a node to trace its links, and double-click or Control-click to open it. Arrow keys pan, plus and minus zoom, brackets select notes, and Enter opens the selected note.');
     }
 
     function applyGraphView({ fit = true, force = false } = {}) {
@@ -667,12 +668,27 @@ export function createGraphView(panel, {
         if (!moved) {
             const node = hitNode(point.x, point.y);
             if (node) {
-                if (event.ctrlKey || event.metaKey) void openPath(node.path);
-                else selectPath(node.path);
+                const action = graphNodePointerAction(event);
+                if (action === 'open') void openPath(node.path);
+                else if (action === 'select') selectPath(node.path);
             } else clearSelectedPath();
         }
     };
     canvas.addEventListener('pointerup', finishPointer);
+    canvas.addEventListener('dblclick', event => {
+        const action = graphNodePointerAction({
+            button: event.button,
+            ctrlKey: event.ctrlKey,
+            metaKey: event.metaKey,
+            clickCount: 2,
+        });
+        if (action !== 'open') return;
+        const point = eventPoint(event);
+        const node = hitNode(point.x, point.y);
+        if (!node) return;
+        event.preventDefault();
+        void openPath(node.path);
+    });
     canvas.addEventListener('pointercancel', event => {
         if (pointer?.id !== event.pointerId) return;
         pointer = null;

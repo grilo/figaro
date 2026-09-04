@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	goruntime "runtime"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const (
@@ -193,27 +191,21 @@ func (a *App) configureWindowState(path string, state windowState) {
 	a.windowState = state
 }
 
-func currentWindowSnapshot(ctx context.Context) (snapshot windowSnapshot, ok bool) {
-	if ctx == nil {
+func currentWindowSnapshot(window windowRuntime, ctx context.Context) (windowSnapshot, bool) {
+	if ctx == nil || window == nil {
 		return windowSnapshot{}, false
 	}
-	defer func() {
-		if recover() != nil {
-			ok = false
-		}
-	}()
-
-	snapshot.Minimized = runtime.WindowIsMinimised(ctx)
+	snapshot := windowSnapshot{Minimized: window.IsMinimised(ctx)}
 	if snapshot.Minimized {
 		return snapshot, true
 	}
-	snapshot.Maximized = runtime.WindowIsMaximised(ctx)
+	snapshot.Maximized = window.IsMaximised(ctx)
 	if snapshot.Maximized {
 		return snapshot, true
 	}
-	snapshot.Normal = runtime.WindowIsNormal(ctx)
+	snapshot.Normal = window.IsNormal(ctx)
 	if snapshot.Normal {
-		snapshot.Width, snapshot.Height = runtime.WindowGetSize(ctx)
+		snapshot.Width, snapshot.Height = window.GetSize(ctx)
 	}
 	return snapshot, true
 }
@@ -236,7 +228,7 @@ func (a *App) rememberWindowSnapshot(snapshot windowSnapshot) {
 }
 
 func (a *App) captureWindowState(ctx context.Context) {
-	snapshot, ok := currentWindowSnapshot(ctx)
+	snapshot, ok := currentWindowSnapshot(a.windowRuntime, ctx)
 	if !ok {
 		return
 	}

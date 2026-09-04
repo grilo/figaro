@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -135,6 +136,21 @@ func TestUpdateWindowStateTracksOnlyNormalSizeAndMaximizedState(t *testing.T) {
 	})
 	if !accepted || state.Width != minimumWindowWidth || state.Height != minimumWindowHeight || state.Maximized {
 		t.Fatalf("small normal snapshot was not clamped safely: accepted=%v state=%+v", accepted, state)
+	}
+}
+
+func TestCurrentWindowSnapshotUsesInjectedRuntime(t *testing.T) {
+	window := &fakeWindowRuntime{normal: true, width: 1512, height: 916}
+	snapshot, ok := currentWindowSnapshot(window, context.Background())
+	if !ok {
+		t.Fatal("currentWindowSnapshot rejected an available runtime")
+	}
+	want := windowSnapshot{Width: 1512, Height: 916, Normal: true}
+	if !reflect.DeepEqual(snapshot, want) {
+		t.Fatalf("snapshot = %+v, want %+v", snapshot, want)
+	}
+	if calls := []string{"is-minimised", "is-maximised", "is-normal", "get-size"}; !reflect.DeepEqual(window.calls, calls) {
+		t.Fatalf("snapshot calls = %v, want %v", window.calls, calls)
 	}
 }
 

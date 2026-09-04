@@ -244,8 +244,9 @@ test('converts semantic rich clipboard structure while preserving literal paste 
     });
     await expect(page.locator('.cm-block-widget--table')).toBeVisible();
 
-    // Windows Excel advertises its selection as a table and an image. The
-    // validated table must win in the real ClipboardEvent path.
+    // This synthetic payload has the HTML/plain/image shape observed from
+    // Windows Excel. The validated table must win in Chromium's ClipboardEvent
+    // path; packaged WebView2 remains a separate manual release check.
     const mixedSpreadsheet = await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         const backendModule = await import('/js/backend.js');

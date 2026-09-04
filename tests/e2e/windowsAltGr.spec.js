@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('delegates Windows keyboard text and composition without synthesizing backticks', async ({ page }) => {
+test('keeps browser-supplied text intact while emulating Windows platform detection', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();

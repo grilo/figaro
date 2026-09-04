@@ -8,6 +8,7 @@ import {
     mermaidReadableTextColor,
     mermaidSourceWithFlowchartDirection,
     mermaidSourceWithFlowchartNodeStyle,
+    mermaidSourceWithApplicationTheme,
     mermaidSourceWithStyleConfig,
     mermaidSourceWithoutManagedNodeStyles,
     mermaidStyleConfigState,
@@ -16,6 +17,7 @@ import {
     mermaidTargetColor,
     mermaidThemePresetForState,
     mermaidThemePresetPatch,
+    mermaidUsesApplicationTheme,
 } from '../../../frontend/js/core/mermaidStyleEditorModel.js';
 
 describe('Mermaid style editor model', () => {
@@ -208,6 +210,31 @@ describe('Mermaid style editor model', () => {
         expect(mermaidThemePresetForState(mermaidStyleConfigState('', {
             ...preset, themeVariables: {...preset.variables, customVariable:'#ffffff'},
         }))).toBe('custom');
+    });
+
+    test('adds an ephemeral application palette only to unstyled Mermaid source', () => {
+        const source = 'flowchart TD\n  A --> B';
+        const palette = {
+            primaryColor: '#24211d',
+            primaryBorderColor: '#62594f',
+            primaryTextColor: '#f5eee4',
+            secondaryColor: '#29251f',
+            tertiaryColor: '#3b2924',
+            lineColor: '#b9ac9e',
+        };
+
+        expect(mermaidUsesApplicationTheme(source)).toBe(true);
+        expect(mermaidSourceWithApplicationTheme(source, palette)).toMatchObject({
+            applicationThemed: true,
+            source: expect.stringContaining("theme: 'base'"),
+        });
+
+        const authored = "---\nconfig:\n  theme: 'neutral'\n---\n" + source;
+        expect(mermaidUsesApplicationTheme(authored)).toBe(false);
+        expect(mermaidSourceWithApplicationTheme(authored, palette)).toEqual({
+            applicationThemed: false,
+            source: authored,
+        });
     });
 
     test('XY offers only real plots and edits the native nested palette without changing the other series or theme', () => {

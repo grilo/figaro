@@ -1,4 +1,4 @@
-import { ganttTasks, ganttBarGeometry, moveGanttDates, dayDistance, ganttWindow, ganttSummary } from '../frontend/js/core/ganttModel.js';
+import { ganttTasks, ganttBarGeometry, ganttPointerMode, ganttResizeHandleWidth, moveGanttDates, dayDistance, ganttWindow, ganttSummary, taskScheduleUpdatePlan } from '../frontend/js/core/ganttModel.js';
 
 const task = { file: 'tasks.md', line: 1, text: 'Task', source: 'Task #todo', tag: 'todo', due_date: '2026-09-01' };
 describe('Gantt schedule projection and gestures', () => {
@@ -19,6 +19,26 @@ describe('Gantt schedule projection and gestures', () => {
         expect(moveGanttDates(range, 'end', -20)).toEqual({ start: '2026-08-30', end: '2026-08-30' });
         expect(moveGanttDates({ start: '', end: '2026-09-02' }, 'move', 1)).toEqual({ start: '', end: '2026-09-03' });
         expect(range).toEqual({ start: '2026-08-30', end: '2026-09-02' });
+    });
+    test('keeps separate start, move, and end hit regions on a one-day painted bar', () => {
+        expect(ganttResizeHandleWidth(38)).toBe(14);
+        expect(ganttResizeHandleWidth(170)).toBe(18);
+        expect(ganttPointerMode(104, 100, 38)).toBe('start');
+        expect(ganttPointerMode(119, 100, 38)).toBe('move');
+        expect(ganttPointerMode(134, 100, 38)).toBe('end');
+        expect(ganttPointerMode(104, 100, 38, { start: false, end: true })).toBe('move');
+        expect(ganttPointerMode(134, 100, 38, { start: true, end: false })).toBe('move');
+    });
+    test('updates one schedule field without discarding the other date or id', () => {
+        const schedule = { start: '2026-08-14', end: '2026-08-20', id: 'schedule-1' };
+        expect(taskScheduleUpdatePlan(schedule, { start: '2026-08-15' }))
+            .toEqual({ start: '2026-08-15', end: '2026-08-20', id: 'schedule-1' });
+        expect(taskScheduleUpdatePlan(schedule, { end: '' }))
+            .toEqual({ start: '2026-08-14', end: '', id: 'schedule-1' });
+        expect(taskScheduleUpdatePlan(schedule, { start: '', end: '' }))
+            .toEqual({ start: '', end: '', id: 'schedule-1' });
+        expect(taskScheduleUpdatePlan(schedule, { start: 'not-a-date' })).toBeNull();
+        expect(schedule).toEqual({ start: '2026-08-14', end: '2026-08-20', id: 'schedule-1' });
     });
     test('uses inclusive day widths across DST, clips ranges and bounds mounted rows', () => {
         expect(dayDistance('2026-03-28', '2026-03-30')).toBe(2);

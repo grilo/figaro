@@ -1,16 +1,17 @@
 :root {
-    /* Shared choice controls; themes can retain or override the outlined treatment. */
+    /* Shared pill choices; this promotes the former Settings control surface. */
     --choice-border: transparent;
-    --choice-surface: color-mix(in srgb, var(--text-color) 6%, transparent);
+    --choice-surface: #1b1916;
+    --choice-track-shadow: inset 0 1px rgba(255, 250, 243, 0.035);
     --choice-item-border: transparent;
     --choice-item-surface: transparent;
     --choice-item-color: var(--text-muted);
     --choice-hover-border: transparent;
     --choice-hover-surface: var(--hover-bg);
     --choice-selected-border: transparent;
-    --choice-selected-surface: var(--bg-color);
-    --choice-selected-color: var(--text-color);
-    --choice-selected-shadow: var(--shadow-sm);
+    --choice-selected-surface: var(--active-bg);
+    --choice-selected-color: var(--accent-color);
+    --choice-selected-shadow: none;
     /* Figaro Dark — quiet midnight fur, ivory detail, collar red, brass tag. */
     --bg-color: #1a1816;
     --sidebar-bg: #12110f;
@@ -108,7 +109,6 @@
     --tab-active-shadow: none;
     --tab-active-transform: none;
     --settings-card-surface: linear-gradient(145deg, rgba(255, 250, 243, 0.045), rgba(255, 250, 243, 0.018));
-    --settings-card-border: color-mix(in srgb, var(--border-color) 82%, var(--hashtag-color));
     --settings-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.11), inset 0 1px rgba(255, 250, 243, 0.045);
     --settings-title-color: var(--hashtag-color);
     --settings-title-letter-spacing: 0.11em;

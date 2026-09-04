@@ -43,6 +43,13 @@ export function dueDatePresentation(dueDate, today = localISODate(), locale = un
     return { state: 'upcoming', label: `Due ${shortDate}` };
 }
 
+export function startDatePresentation(startDate, locale = undefined) {
+    const date = dateFromISO(startDate);
+    if (!date) return { state: 'unset', label: 'Not started' };
+    const shortDate = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(date);
+    return { state: 'set', label: `Start ${shortDate}` };
+}
+
 export function dueTaskSummary(boardData, today = localISODate()) {
     const unique = new Map();
     for (const [column, cards] of Object.entries(boardData || {})) {

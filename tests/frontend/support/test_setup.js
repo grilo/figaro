@@ -4,6 +4,9 @@
  * Run in browser or with jsdom/Jest
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 // jsdom does not provide matchMedia, while every supported desktop webview does.
 if (typeof window.matchMedia !== 'function') {
     window.matchMedia = jest.fn().mockImplementation(query => ({
@@ -39,10 +42,44 @@ if (typeof Range.prototype.getBoundingClientRect !== 'function') {
     });
 }
 
-// Mock native Wails App binding.
-window.go = {
-    desktop: {
-        App: {
+const NATIVE_EFFECT_METHODS = new Set([
+    'SetFileTreeStyle', 'SetFileTreePinned', 'SaveFile', 'SaveClipboardImage', 'SaveSession',
+    'CreateFile', 'CreateInboxNote', 'CreateStarterPrintStylesheet', 'CreateUpgradedPrintStylesheet',
+    'CreateDirectory', 'DeletePath', 'RestoreRecentlyDeleted', 'RenamePath', 'RenamePathWithLinkUpdates',
+    'MovePath', 'MergeDirectory', 'CopyPath', 'CopyExternalPaths', 'MergeExternalPaths',
+    'LinkUnlinkedMention', 'RenameKanbanColumn', 'DeleteKanbanColumn', 'SetTaskSchedule',
+    'SetKanbanCardOrder', 'UpdateTaskTag', 'RemoveTagFromTask', 'SetTaskDueDate', 'CodeFontSave',
+    'ThemeSave', 'VimSave', 'VimVisualRowsSave', 'VimRevealBlocksSave', 'TabSizeSave',
+    'LineNumbersSave', 'MarkdownLintSave', 'EditorNavigationSave', 'SpellcheckSave', 'AutoSaveSave',
+    'AutoCommitSave', 'CommitCurrentFile', 'ChangeLinkStyle', 'ExportPDF', 'OpenWithDefaultApplication',
+    'OpenLaunchExternalFile', 'RevealLaunchExternalFile', 'RevealInExplorer', 'PDFBrowserChoose',
+    'PDFBrowserClear', 'WindowMinimize', 'WindowMaximize', 'WindowClose', 'WindowCaptureState',
+    'WindowSetSize', 'WindowSetTitle',
+]);
+
+function requireExplicitNativeEffect(name, mock) {
+    let configured = false;
+    mock.mockImplementation(() => {
+        throw new Error(`Native test effect must be configured explicitly before use: ${name}`);
+    });
+    for (const method of [
+        'mockImplementation', 'mockImplementationOnce', 'mockResolvedValue', 'mockResolvedValueOnce',
+        'mockRejectedValue', 'mockRejectedValueOnce', 'mockReturnValue', 'mockReturnValueOnce',
+    ]) {
+        const configure = mock[method].bind(mock);
+        mock[method] = (...args) => {
+            configured = true;
+            return configure(...args);
+        };
+    }
+    Object.defineProperties(mock, {
+        _figaroNativeEffect: { value: name },
+        _figaroNativeEffectConfigured: { get: () => configured },
+    });
+}
+
+export function createNativeAppMock() {
+    const app = {
         GetFileTree: jest.fn().mockResolvedValue([]),
         GetVaultFileIssues: jest.fn().mockResolvedValue([]),
         RecheckVaultFileIssues: jest.fn().mockResolvedValue([]),
@@ -155,181 +192,27 @@ window.go = {
         WindowGetSize: jest.fn().mockResolvedValue({ w: 1280, h: 800 }),
         WindowSetSize: jest.fn().mockResolvedValue(undefined),
         WindowSetTitle: jest.fn().mockResolvedValue(undefined),
-        }
+    };
+    for (const name of NATIVE_EFFECT_METHODS) {
+        if (typeof app[name] === 'function') requireExplicitNativeEffect(name, app[name]);
     }
-};
+    return app;
+}
 
-// Mock DOM elements for testing
+let defaultNativeApp = createNativeAppMock();
+let defaultNativeBinding = { desktop: { App: defaultNativeApp } };
+let suiteNativeBinding;
+window.go = defaultNativeBinding;
+
+const applicationHTML = readFileSync(resolve('frontend/index.html'), 'utf8');
+const applicationDocument = new DOMParser().parseFromString(applicationHTML, 'text/html');
+const applicationBodyTemplate = document.createElement('template');
+applicationBodyTemplate.innerHTML = applicationDocument.body.innerHTML;
+
+// Use the production shell as the component-test fixture so changes to ids,
+// roles, nesting, or default attributes cannot drift into a parallel test DOM.
 function createMockDOM() {
-    // Create minimal DOM structure matching current index.html
-    document.body.innerHTML = `
-        <div id="app">
-            <header class="top-bar">
-                <div class="top-bar-left">
-                    <button id="toggle-sidebar"></button>
-                    <button id="topbar-home" class="app-home-btn"><span class="app-title">figaro</span></button>
-                </div>
-                <div class="top-bar-center">
-                    <div id="tab-bar" class="ui-document-tabs ui-document-tabs--titlebar tab-bar">
-                        <div id="tab-strip" class="tab-strip" role="tablist" aria-label="Open notes"></div>
-                        <button id="all-tabs-btn" aria-label="Show all open tabs" aria-controls="all-tabs-dropdown" aria-haspopup="menu" aria-expanded="false" hidden></button>
-                        <div id="all-tabs-dropdown" class="all-tabs-dropdown hidden" role="menu" aria-label="All open tabs"></div>
-                    </div>
-                </div>
-                <div class="top-bar-right">
-                    <span class="md-cheatsheet-wrapper topbar-cheatsheet">
-                        <button id="md-cheatsheet-trigger" title="Figaro help (F1)" aria-label="Open Figaro help" aria-expanded="false" aria-controls="md-cheatsheet-popup">?</button>
-                        <div id="md-cheatsheet-popup" role="dialog" aria-label="Figaro help" hidden>
-                            <div role="tablist" aria-label="Help topics">
-                                <button id="md-help-markdown-tab" role="tab" aria-selected="true" aria-controls="md-help-markdown-panel">Markdown</button>
-                                <button id="md-help-macros-tab" role="tab" aria-selected="false" aria-controls="md-help-macros-panel" tabindex="-1">Macros</button>
-                                <button id="md-help-shortcuts-tab" role="tab" aria-selected="false" aria-controls="md-help-shortcuts-panel" tabindex="-1">Shortcuts</button>
-                            </div>
-                            <button id="md-cheatsheet-close" aria-label="Close Figaro help"></button>
-                            <div id="md-help-markdown-panel" role="tabpanel" aria-labelledby="md-help-markdown-tab" tabindex="-1"></div>
-                            <div id="md-help-macros-panel" role="tabpanel" aria-labelledby="md-help-macros-tab" tabindex="-1" hidden></div>
-                            <div id="md-help-shortcuts-panel" role="tabpanel" aria-labelledby="md-help-shortcuts-tab" tabindex="-1" hidden></div>
-                        </div>
-                    </span>
-                    <button id="topbar-settings" class="icon-btn titlebar-settings-btn" aria-label="Open Settings"></button>
-                    <button id="win-minimize"></button>
-                    <button id="win-maximize"></button>
-                    <button id="win-close"></button>
-                </div>
-            </header>
-            <div class="main-container">
-                <aside id="sidebar" class="sidebar">
-                    <div class="sidebar-content">
-                        <div id="sidebar-search" class="sidebar-search">
-                            <div class="search-input-wrapper">
-                                <input id="global-search-input" role="combobox" aria-label="Search notes" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="search-result-list" aria-expanded="false" />
-                                <span id="search-results-count" aria-live="polite" aria-atomic="true" hidden></span>
-                            </div>
-                            <div id="global-search-dropdown" class="search-dropdown"></div>
-                        </div>
-                        <button id="create-inbox-note" class="create-inbox-note quick-note-action" data-action="quick-note"><span>Quick note</span></button>
-                        <div id="file-tree"></div>
-                    </div>
-                    <nav class="sidebar-tools" aria-label="Workspace tools">
-                        <button id="sidebar-quick-note" class="sidebar-tool-btn sidebar-quick-note quick-note-action" data-action="quick-note"><span class="sidebar-tool-label">Quick note</span></button>
-                        <button id="sidebar-calendar" class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected" aria-controls="tab-panels">
-                            <span class="sidebar-tool-label">Calendar</span>
-                        </button>
-                        <button id="sidebar-kanban" class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected" aria-controls="tab-panels">
-                            <span class="sidebar-tool-label">Kanban</span>
-                            <span id="kanban-badges" class="kanban-badges"></span>
-                        </button>
-                        <button id="sidebar-graph" class="sidebar-tool-btn sidebar-workspace-tab ui-document-tab ui-document-tab--side-connected" aria-controls="tab-panels">
-                            <span class="sidebar-tool-label">Graph</span>
-                        </button>
-                    </nav>
-                    <div id="sidebar-resizer" role="separator" tabindex="0" aria-label="Resize navigation pane" aria-controls="sidebar"></div>
-                </aside>
-                <main id="main-content" class="main-content">
-                    <nav id="editor-breadcrumb" class="editor-breadcrumb" aria-label="Current document path" hidden></nav>
-                    <div id="tab-panels" class="tab-panels">
-                        <section id="calendar-workspace-view" class="calendar-workspace-view" aria-hidden="true">
-                            <div class="ui-segmented-control ui-segmented-control--quiet calendar-presentation-choices" role="group" aria-label="Calendar presentation">
-                                <button class="ui-button calendar-presentation-choice" data-calendar-presentation="month" aria-pressed="true">Month</button>
-                                <button class="ui-button calendar-presentation-choice" data-calendar-presentation="timeline" aria-pressed="false">Timeline</button>
-                            </div>
-                            <div id="calendar-month-view" class="calendar-month-view">
-                                <div class="calendar-main-pane">
-                                    <div class="calendar-toolbar">
-                                        <button id="cal-prev-month"></button>
-                                        <span id="cal-month-year"></span>
-                                        <button id="cal-next-month"></button>
-                                    </div>
-                                    <div id="calendar-grid"></div>
-                                </div>
-                                <div id="cal-linked-notes"></div>
-                            </div>
-                            <section id="calendar-timeline-view" class="calendar-timeline-view" aria-hidden="true" aria-busy="false" hidden>
-                                <div class="calendar-timeline-toolbar">
-                                    <span class="calendar-timeline-range"></span>
-                                    <div class="calendar-timeline-actions">
-                                        <button class="calendar-timeline-today">Today</button>
-                                        <button class="calendar-timeline-earlier">‹</button>
-                                        <button class="calendar-timeline-later">›</button>
-                                    </div>
-                                </div>
-                                <div class="calendar-timeline-stage">
-                                    <div class="calendar-timeline-scroll" tabindex="0" aria-label="Horizontally scrollable note timeline. Use Left and Right to scroll, or drag empty space to pan; approaching either edge preloads the adjacent week."><div class="calendar-timeline-track"></div></div>
-                                    <p class="calendar-timeline-message" hidden></p>
-                                </div>
-                            </section>
-                        </section>
-                    </div>
-                    <div id="editor-container">
-                        <div class="editor-navigation-overlay">
-                            <button id="outline-toggle" class="ui-icon-button editor-outline-launcher" aria-label="Show document outline" aria-controls="right-sidebar" aria-expanded="false" hidden></button>
-                            <nav id="sticky-heading-stack" class="sticky-heading-stack" aria-label="Sticky heading hierarchy" hidden></nav>
-                        </div>
-                    </div>
-                </main>
-                <aside id="right-sidebar" class="right-sidebar collapsed" aria-hidden="true" inert>
-                    <div id="right-sidebar-resizer" class="sidebar-resizer right-sidebar-resizer" role="separator" tabindex="0" aria-label="Resize details pane" aria-controls="right-sidebar"></div>
-                    <div class="right-sidebar-header">
-                        <span id="right-sidebar-title" class="right-sidebar-title">Details</span>
-                        <button id="right-sidebar-close" class="right-sidebar-close">×</button>
-                    </div>
-                    <div id="right-sidebar-content" class="right-sidebar-content">
-                        <div id="history-content" style="display:none"></div>
-                    </div>
-                </aside>
-            </div>
-            <footer id="status-bar" class="status-bar" data-writing-rest="false"
-                    data-application-idle="false" data-editor-side-reveal="false"
-                    data-editor-scale-reveal="false">
-                <div class="status-left" role="group" aria-label="Application status"
-                     data-application-active="false" data-has-action="false" title="Ready">
-                    <span id="status-activity-spinner" class="ui-spinner" aria-hidden="true" hidden></span>
-                    <div id="vault-loading-panel" class="status-vault-loading" aria-busy="true" hidden>
-                        <span id="vault-loading-title"></span>
-                        <span id="vault-loading-message"></span>
-                        <span id="vault-loading-progress" class="ui-progress" role="progressbar"></span>
-                        <span id="vault-loading-progress-value" class="ui-progress-value"></span>
-                        <output id="vault-loading-count"></output>
-                    </div>
-                    <button type="button" id="status-file-issues" class="ui-button ui-button--warning status-file-issues" aria-label="No file diagnostics" hidden></button>
-                    <span id="status-file-issues-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></span>
-                    <span id="status-text" role="status" aria-live="polite" aria-atomic="true" title="Ready">Ready</span>
-                    <button id="status-action" hidden></button>
-                </div>
-                <div class="status-right" role="group" aria-label="Active buffer status" data-writing-summary="0 words" data-mode="buffer">
-                    <div id="graph-status-content" class="graph-status-content">
-                        <span id="graph-status-count">Loading graph…</span>
-                        <span class="status-separator">|</span>
-                    <span class="graph-status-instruction">Hover or click to trace links, ctrl+click node to open the file</span>
-                        <span id="graph-status-selection" class="graph-status-selection" role="status" aria-live="polite">No note selected</span>
-                    </div>
-                    <div class="status-buffer-left" role="group" aria-label="History, relationships, and editor state">
-                        <button id="history-count" class="status-history" disabled>0 changes</button>
-                        <span id="git-status-separator" class="status-separator" hidden>|</span>
-                        <button id="git-status" class="status-git" hidden disabled>Save to history</button>
-                        <span class="status-separator">|</span>
-                        <button id="backlinks-status" class="status-backlinks" disabled>0 backlinks</button>
-                        <span class="status-separator status-detail-extended">|</span>
-                        <span id="file-type" class="status-detail-extended">Standard</span>
-                        <span id="editor-scale-separator" class="status-separator" hidden>|</span>
-                        <button id="editor-scale-status" class="status-history has-history status-scale" hidden>Scale 100%</button>
-                        <span class="status-separator status-detail-extended">|</span>
-                        <span id="file-encoding" class="status-detail-extended">UTF-8</span>
-                    </div>
-                    <div class="status-buffer-right" role="group" aria-label="Document metrics">
-                        <span id="cursor-position">Ln 1, Col 1</span>
-                        <span class="status-separator status-detail-word">|</span>
-                        <span id="word-count" class="status-detail-word">0 words</span>
-                        <span class="status-separator status-detail-extended">|</span>
-                        <span id="char-count" class="status-detail-extended">0 chars</span>
-                        <span class="status-separator status-detail-reading">|</span>
-                        <span id="reading-time" class="status-detail-reading">0 min read</span>
-                    </div>
-                </div>
-            </footer>
-            <div id="modals-container"></div>
-        </div>
-    `;
+    document.body.replaceChildren(applicationBodyTemplate.content.cloneNode(true));
 }
 
 // Mock localStorage
@@ -358,6 +241,7 @@ window.statusBar = {
 // Test utilities
 export const testUtils = {
     createMockDOM,
+    createNativeAppMock,
     mockLocalStorage,
     
     // Wait for async operations
@@ -400,9 +284,30 @@ export const testUtils = {
 // Auto-setup for Jest
 if (typeof beforeEach !== 'undefined') {
     beforeEach(() => {
+        if (suiteNativeBinding === undefined) {
+            suiteNativeBinding = window.go === defaultNativeBinding ? null : window.go;
+        }
+        if (suiteNativeBinding) {
+            window.go = suiteNativeBinding;
+        } else {
+            defaultNativeApp = createNativeAppMock();
+            defaultNativeBinding = { desktop: { App: defaultNativeApp } };
+            window.go = defaultNativeBinding;
+        }
         createMockDOM();
         mockLocalStorage.clear();
         jest.clearAllMocks();
+    });
+
+    afterEach(() => {
+        const unconfigured = Object.values(defaultNativeApp)
+            .filter(mock => mock?._figaroNativeEffect
+                && mock.mock.calls.length > 0
+                && !mock._figaroNativeEffectConfigured)
+            .map(mock => mock._figaroNativeEffect);
+        if (unconfigured.length) {
+            throw new Error(`Native test effects must be configured explicitly: ${unconfigured.join(', ')}`);
+        }
     });
 }
 

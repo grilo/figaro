@@ -40,6 +40,8 @@ async function waitForMockCall(mock, expectedCalls = 1, timeout = 500) {
 
 describe('Vim command behavior', () => {
     test('searches with / and :wq saves the latest buffer before closing the file tab', async () => {
+        window.go.desktop.App.SaveSession.mockResolvedValue({ success: true });
+        window.go.desktop.App.CommitCurrentFile.mockResolvedValue(null);
         installSelectionLayoutStubs();
         document.body.innerHTML = `
             <div id="tab-bar"><div id="tab-strip"></div></div>

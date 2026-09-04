@@ -41,6 +41,26 @@ test('Gantt drags and resizes painted bars while sharing the unchanged applicati
     await page.getByRole('button', { name: 'Gantt', exact: true }).click();
     const bar = page.locator('.kanban-gantt-bar').filter({ hasText: 'Build Gantt view' });
     await expect(bar).toBeVisible();
+    const todayPaint = await page.locator('.kanban-gantt-grid').evaluate(grid => {
+        const today = grid.querySelector('.kanban-gantt-day.is-today');
+        const line = getComputedStyle(grid, '::after');
+        return {
+            todayShadow: getComputedStyle(today).boxShadow,
+            lineWidth: line.width,
+            lineTop: line.top,
+            lineBottom: line.bottom,
+            lineColor: line.backgroundColor,
+            accent: getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim(),
+            gridHeight: grid.getBoundingClientRect().height,
+            viewportHeight: grid.parentElement.getBoundingClientRect().height,
+        };
+    });
+    expect(todayPaint.todayShadow).toBe('none');
+    expect(todayPaint.lineWidth).toBe('1px');
+    expect(todayPaint.lineTop).toBe('0px');
+    expect(todayPaint.lineBottom).toBe('0px');
+    expect(todayPaint.lineColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(todayPaint.gridHeight).toBeGreaterThanOrEqual(todayPaint.viewportHeight);
     await expect(page.locator('#gantt-status-content')).toBeVisible();
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await expectContinuousTimelinePaint(page, '.kanban-gantt-scroll', '.kanban-gantt-day');
@@ -53,6 +73,15 @@ test('Gantt drags and resizes painted bars while sharing the unchanged applicati
     await page.mouse.up();
     await expect.poll(async () => Math.round((await bar.boundingBox()).x - before.x)).toBe(88);
     const moved = await bar.boundingBox();
+    const endHandle = bar.locator('[data-resize="end"]');
+    await endHandle.hover();
+    expect(await endHandle.evaluate(element => ({
+        width: getComputedStyle(element).width,
+        cursor: getComputedStyle(element).cursor,
+        handleOpacity: getComputedStyle(element).opacity,
+        dotWidth: getComputedStyle(element, '::after').width,
+        dotRadius: getComputedStyle(element, '::after').borderRadius,
+    }))).toEqual({ width: '18px', cursor: 'ew-resize', handleOpacity: '1', dotWidth: '13px', dotRadius: '50%' });
     await page.mouse.move(moved.x + moved.width - 4, moved.y + moved.height / 2);
     await page.mouse.down();
     await page.mouse.move(moved.x + moved.width + 40, moved.y + moved.height / 2, { steps: 5 });
@@ -104,6 +133,98 @@ test('Gantt drags and resizes painted bars while sharing the unchanged applicati
     await page.getByRole('button', { name: 'Board', exact: true }).click();
     await expect(page.locator('#gantt-status-content')).toBeHidden();
     await expect(page.locator('.kanban-card')).toHaveCount(3);
+});
+
+test('one-day Gantt resize dots straddle the visual edges while retaining a center drag target', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-08-31T12:00:00') });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    await page.waitForFunction(() => window._appReady === true);
+    await page.evaluate(() => {
+        const app = window.__figaroDebugBackend;
+        const tasks = ['Resize start', 'Drag one day', 'Resize end'].map((text, index) => ({
+            file: 'Tasks.md', file_name: 'Tasks.md', line: index + 1,
+            text, source: `${text} #wip`, tag: 'wip',
+        }));
+        const entries = tasks.map((task, index) => ({
+            id: String(index + 1), task, start: '2026-08-31', end: '2026-08-31',
+        }));
+        app.GetKanbanBoard = async () => ({ todo: [], wip: tasks, done: [] });
+        app.GetKanbanColumns = async () => ({ columns: ['todo', 'wip', 'done'], colors: { wip: '#d8574a' } });
+        app.GetTaskSchedules = async () => structuredClone(entries);
+        app.SetTaskSchedule = async (task, start, end) => Object.assign(entries.find(entry => entry.task.line === task.line), { start, end });
+    });
+    await page.locator('#sidebar-kanban').click();
+    await page.getByRole('button', { name: 'Gantt', exact: true }).click();
+
+    const startBar = page.locator('.kanban-gantt-bar').filter({ hasText: 'Resize start' });
+    const moveBar = page.locator('.kanban-gantt-bar').filter({ hasText: 'Drag one day' });
+    const endBar = page.locator('.kanban-gantt-bar').filter({ hasText: 'Resize end' });
+    await expect(startBar).toBeVisible();
+    const hitRegions = await moveBar.evaluate(bar => {
+        const bounds = bar.getBoundingClientRect();
+        const y = bounds.top + bounds.height / 2;
+        const modeAt = x => document.elementFromPoint(x, y)?.dataset.resize || 'move';
+        const handleElements = [...bar.querySelectorAll('[data-resize]')];
+        const handles = handleElements.map(handle => handle.getBoundingClientRect().width);
+        const dots = handleElements.map(handle => {
+            const style = getComputedStyle(handle, '::after');
+            const transform = new DOMMatrixReadOnly(style.transform);
+            const dotWidth = Number.parseFloat(style.width);
+            return {
+                edge: handle.dataset.resize,
+                inset: Number.parseFloat(handle.dataset.resize === 'start' ? style.left : style.right),
+                widthShiftRatio: Math.round((transform.m41 / dotWidth) * 100) / 100,
+            };
+        });
+        return {
+            width: bounds.width,
+            handleWidth: handles[0],
+            centerWidth: bounds.width - handles.reduce((sum, width) => sum + width, 0),
+            modes: [modeAt(bounds.left + 4), modeAt(bounds.left + bounds.width / 2), modeAt(bounds.right - 4)],
+            overflow: getComputedStyle(bar).overflow,
+            dots,
+        };
+    });
+    expect(hitRegions.width).toBe(38);
+    expect(hitRegions.handleWidth).toBeGreaterThanOrEqual(12);
+    expect(hitRegions.centerWidth).toBeGreaterThanOrEqual(8);
+    expect(hitRegions.modes).toEqual(['start', 'move', 'end']);
+    expect(hitRegions.overflow).toBe('visible');
+    expect(hitRegions.dots).toEqual([
+        { edge: 'start', inset: 0, widthShiftRatio: -0.5 },
+        { edge: 'end', inset: 0, widthShiftRatio: 0.5 },
+    ]);
+
+    const beforeStart = await startBar.boundingBox();
+    await page.mouse.move(beforeStart.x + 4, beforeStart.y + beforeStart.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(beforeStart.x - 40, beforeStart.y + beforeStart.height / 2, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => {
+        const after = await startBar.boundingBox();
+        return [Math.round(after.x - beforeStart.x), Math.round(after.width - beforeStart.width)];
+    }).toEqual([-44, 44]);
+
+    const beforeEnd = await endBar.boundingBox();
+    await page.mouse.move(beforeEnd.x + beforeEnd.width - 4, beforeEnd.y + beforeEnd.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(beforeEnd.x + beforeEnd.width + 40, beforeEnd.y + beforeEnd.height / 2, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => {
+        const after = await endBar.boundingBox();
+        return [Math.round(after.x - beforeEnd.x), Math.round(after.width - beforeEnd.width)];
+    }).toEqual([0, 44]);
+
+    const beforeMove = await moveBar.boundingBox();
+    await page.mouse.move(beforeMove.x + beforeMove.width / 2, beforeMove.y + beforeMove.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(beforeMove.x + beforeMove.width / 2 + 44, beforeMove.y + beforeMove.height / 2, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => {
+        const after = await moveBar.boundingBox();
+        return [Math.round(after.x - beforeMove.x), Math.round(after.width - beforeMove.width)];
+    }).toEqual([44, 0]);
 });
 
 test('an empty Gantt keeps its explanation visible after horizontal scrolling', async ({ page }) => {

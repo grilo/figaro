@@ -72,15 +72,38 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#d8574a');
 
-    // Computed cascade boundary: every segmented choice uses Calendar's quiet
-    // treatment in the three Figaro themes, including hover and selected items.
+    // Computed cascade boundary: every segmented choice consumes the shared
+    // theme tokens in all three Figaro themes, including selected paint.
     for (const theme of ['default', 'figaro-light', 'figaro-crt-phosphor']) {
         await themeSelect.selectOption(theme);
         const choice = page.locator('.ui-segmented-control').first();
         const selected = choice.locator('.ui-button[aria-pressed="true"]').first();
         await expect.poll(() => choice.evaluate(el => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
+        await expect.poll(() => choice.evaluate(element => {
+            const probe = document.createElement('span');
+            probe.style.background = 'var(--active-bg)';
+            probe.style.color = 'var(--accent-color)';
+            document.body.append(probe);
+            const selectedButton = element.querySelector('.ui-button[aria-pressed="true"]');
+            const highlight = getComputedStyle(element, '::before');
+            const matches = highlight.backgroundColor === getComputedStyle(probe).backgroundColor
+                && getComputedStyle(selectedButton).backgroundColor === 'rgba(0, 0, 0, 0)'
+                && getComputedStyle(selectedButton).color === getComputedStyle(probe).color;
+            probe.remove();
+            return matches;
+        })).toBe(true);
+        await expect(choice).toHaveCSS('border-radius', '999px');
         await selected.hover();
         await expect.poll(() => selected.evaluate(el => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
+        await expect.poll(() => selected.evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+        await expect.poll(() => selected.evaluate(el => {
+            const probe = document.createElement('span');
+            probe.style.color = 'var(--accent-color)';
+            document.body.append(probe);
+            const matches = getComputedStyle(el).color === getComputedStyle(probe).color;
+            probe.remove();
+            return matches;
+        })).toBe(true);
         await selected.focus();
         await expect(selected).toBeFocused();
         expect(await selected.evaluate(el => getComputedStyle(el).outlineStyle)).toBe('solid');
@@ -95,6 +118,37 @@ test('catalogues current elements with themed combobox geometry and seamless ste
             await expect.poll(() => unselected.evaluate(el => getComputedStyle(el).borderTopColor)).toBe('rgba(0, 0, 0, 0)');
         } finally { await page.mouse.up(); }
     }
+    await themeSelect.selectOption('default');
+
+    const fourChoices = page.getByRole('group', { name: 'Legend position example' });
+    await fourChoices.evaluate(element => {
+        [...element.children].forEach((button, index) => {
+            button.setAttribute('aria-pressed', String(index === 3));
+        });
+    });
+    await expect.poll(() => fourChoices.evaluate(element => {
+        const selectedButton = element.querySelector('[aria-pressed="true"]');
+        const selected = selectedButton.getBoundingClientRect();
+        const highlight = getComputedStyle(element, '::before');
+        const matrix = new DOMMatrixReadOnly(highlight.transform);
+        const track = element.getBoundingClientRect();
+        const highlightLeft = track.left + Number.parseFloat(highlight.left) + matrix.m41;
+        const highlightWidth = Number.parseFloat(highlight.width);
+        const rows = new Set([...element.children].map(button => Math.round(button.getBoundingClientRect().top)));
+        return Math.abs(highlightLeft - selected.left) <= 1
+            && Math.abs(highlightWidth - selected.width) <= 1
+            && rows.size === 1;
+    })).toBe(true);
+
+    const quietChoice = page.getByRole('group', { name: 'Calendar presentation example' });
+    const darkQuietSurface = await quietChoice.evaluate(element => getComputedStyle(element).backgroundColor);
+    expect(darkQuietSurface).not.toBe('rgba(0, 0, 0, 0)');
+    await themeSelect.selectOption('github');
+    await expect.poll(() => quietChoice.evaluate(element => getComputedStyle(element).borderTopColor))
+        .toBe('rgba(0, 0, 0, 0)');
+    const lightQuietSurface = await quietChoice.evaluate(element => getComputedStyle(element).backgroundColor);
+    expect(lightQuietSurface).not.toBe('rgba(0, 0, 0, 0)');
+    expect(lightQuietSurface).not.toBe(darkQuietSurface);
     await themeSelect.selectOption('default');
 
     const themedCheckbox = page.getByRole('checkbox', { name: 'Frontmatter boolean' });
@@ -203,11 +257,15 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     const autoSaveSource = page.locator('#catalog-auto-save');
     const autoSavePicker = page.locator('#form-controls .select-combobox').filter({ has: autoSaveSource });
     const autoSaveTrigger = autoSavePicker.locator('.select-combobox-trigger');
-    const autoSaveMenu = autoSavePicker.locator('.select-combobox-menu');
+    const autoSaveMenu = page.locator('#catalog-auto-save-menu');
     await expect(autoSaveSource).toHaveClass(/select-combobox-native/);
     await autoSaveTrigger.click();
     await expect(autoSaveTrigger).toHaveAttribute('aria-expanded', 'true');
     await expect(autoSaveMenu).toBeVisible();
+    await expect.poll(() => autoSaveTrigger.evaluate(element => getComputedStyle(element).borderTopColor))
+        .toBe('rgba(0, 0, 0, 0)');
+    await expect.poll(() => autoSaveTrigger.evaluate(element => getComputedStyle(element).boxShadow))
+        .toBe('none');
 
     const themedPopup = await autoSaveMenu.evaluate(menu => {
         const resolveColor = value => {
@@ -225,12 +283,11 @@ test('catalogues current elements with themed combobox geometry and seamless ste
             color: style.color,
             textToken: resolveColor('var(--text-color)'),
             border: style.borderTopColor,
-            borderToken: resolveColor('var(--border-color)'),
         };
     });
     expect(themedPopup.background).toBe(themedPopup.panelToken);
     expect(themedPopup.color).toBe(themedPopup.textToken);
-    expect(themedPopup.border).toBe(themedPopup.borderToken);
+    expect(themedPopup.border).toBe('rgba(0, 0, 0, 0)');
 
     await autoSaveMenu.getByRole('option', { name: 'Off' }).click();
     await expect(autoSaveSource).toHaveValue('0');
@@ -244,11 +301,17 @@ test('catalogues current elements with themed combobox geometry and seamless ste
 
     const appearancePicker = page.locator('[data-catalog-settings-picker="theme"]');
     const appearanceTrigger = appearancePicker.getByRole('combobox', { name: 'Theme' });
-    const appearanceMenu = appearancePicker.locator('.ui-picker-menu');
+    const appearanceMenu = page.locator('[role="listbox"][aria-label="Theme options"]');
     await expect(appearanceMenu).toHaveAttribute('aria-label', 'Theme options');
-    await appearanceTrigger.focus();
+    await appearanceTrigger.click();
+    await expect(appearanceMenu).toBeVisible();
+    await expect.poll(() => appearanceTrigger.evaluate(element => getComputedStyle(element).boxShadow))
+        .toBe('none');
+    await appearanceTrigger.press('Escape');
     await appearanceTrigger.press('ArrowDown');
     await expect(appearanceMenu).toBeVisible();
+    await expect.poll(() => appearanceTrigger.evaluate(element => getComputedStyle(element).boxShadow))
+        .not.toBe('none');
     await expect(appearanceTrigger).toHaveAttribute('aria-activedescendant', /option-0/);
     await appearanceTrigger.press('ArrowDown');
     await appearanceTrigger.press('Enter');
@@ -295,9 +358,39 @@ test('catalogues current elements with themed combobox geometry and seamless ste
         expect(backgrounds.value).toBe('rgba(0, 0, 0, 0)');
     }
 
+    const borderlessSurfaces = await page.locator('#surfaces-cards').evaluate(section => {
+        const borderWidth = selector => getComputedStyle(section.querySelector(selector)).borderTopWidth;
+        return {
+            settings: borderWidth('.settings-card'),
+            kanban: borderWidth('.kanban-card'),
+        };
+    });
+    expect(borderlessSurfaces).toEqual({ settings: '0px', kanban: '0px' });
+
+    await page.emulateMedia({ forcedColors: 'active' });
+    const forcedColorBoundaries = await page.locator('#surfaces-cards').evaluate(section => {
+        const border = selector => {
+            const style = getComputedStyle(document.querySelector(selector) || section.querySelector(selector));
+            return { width: style.borderTopWidth, color: style.borderTopColor };
+        };
+        return {
+            settings: border('.settings-card'),
+            kanban: border('.kanban-card'),
+            picker: border('.ui-picker--quiet .ui-picker-trigger'),
+            stepper: border('.ui-stepper--quiet'),
+        };
+    });
+    for (const boundary of Object.values(forcedColorBoundaries)) {
+        expect(boundary.width).toBe('1px');
+        expect(boundary.color).not.toBe('rgba(0, 0, 0, 0)');
+    }
+    await page.emulateMedia({ forcedColors: 'none' });
+
     const primitiveFamilies = {
         '.ui-picker': 3,
+        '.ui-picker--quiet': 3,
         '.ui-stepper': 2,
+        '.ui-stepper--quiet': 2,
         '.ui-button': 12,
         '.ui-button--quiet': 2,
         '.ui-icon-button': 8,

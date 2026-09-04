@@ -27,7 +27,7 @@ describe('Markdown image block guide', () => {
         document.body.innerHTML = '';
     });
 
-    test('restores intrinsic geometry through the approved image guide', async () => {
+    test('collapses the complete sized footprint and restores intrinsic geometry through the image guide', async () => {
         view = new EditorView({
             parent: document.body,
             state: EditorState.create({
@@ -62,7 +62,17 @@ describe('Markdown image block guide', () => {
         expect(original.textContent).toBe('original size');
         expect(original.disabled).toBe(false);
 
-        original.click();
+        fold.click();
+        await settle();
+        expect(view.dom.querySelector('.cm-image-widget')).toBeNull();
+        expect(view.dom.querySelector('.cm-image-source-placeholder')).toBeNull();
+        expect(view.dom.querySelector('.cm-foldPlaceholder')).not.toBeNull();
+
+        view.dom.querySelector('[aria-label="Expand image"]').click();
+        await settle();
+        expect(view.dom.querySelector('.cm-image-resize-frame')).not.toBeNull();
+
+        view.dom.querySelector('.markdown-image-original-guide').click();
         await settle();
         expect(view.state.doc.toString()).toBe('Before\n![Portrait](portrait.png)\nAfter');
         expect(view.dom.querySelector('.cm-image-resize-frame').style.width).toBe('240px');

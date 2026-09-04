@@ -4,11 +4,11 @@ Audit snapshot: 2026-08-28. The approved consolidation is represented by the
 [visual catalogue](index.html) and used by the production interface.
 
 Consistency follow-up, 2026-08-31: Calendar/Kanban/Graph controls now share an
-upper-left inset. The three Figaro themes apply Calendar's approved quiet
-segmented treatment through shared choice tokens, not feature-local state
-rules. Hover, selected, disabled, and keyboard focus remain canonical. Graph's
-Orphans reuses that family; no new component family or variant was introduced.
-The catalogue's deadline help now describes metadata, not legacy due links.
+upper-left inset. The three Figaro themes route their segmented treatment
+through shared choice tokens, not feature-local state rules. Hover, selected,
+disabled, and keyboard focus remain canonical. Graph's Orphans reuses that
+family; no new component family or variant was introduced. The catalogue's
+deadline help now describes metadata, not legacy due links.
 
 File-attention follow-up, 2026-09-02: the explicitly approved warning and
 danger file-tree variants preserve each file's semantic icon while adding a
@@ -17,6 +17,40 @@ reuses the approved semantic button variants, and the diagnostic dialog reuses
 the shared modal, notice, and button language. Its empty state explicitly
 overrides the later shared button display with zero geometry, preserving the
 fixed 24px footer. Color is never the only signal.
+
+Border-budget follow-up, 2026-09-03: the explicitly approved quiet picker and
+stepper variants remove decorative Settings control borders; Settings cards
+and Kanban columns/cards now use layered theme surfaces without outer outlines.
+Quiet pointer-open state is tonal, keyboard focus remains explicit, Kanban hover
+and drop targets remain visible, and forced-colors mode restores system borders.
+Board/Gantt continues to use the quiet segmented variant, whose pill-shaped
+track promotes the former Settings surface to the canonical shared treatment.
+One non-interactive highlight slides beneath equal-width one- through
+four-option groups using `aria-pressed`; Figaro Light retains its stronger warm
+surface while Figaro Dark retains its red-accented selected state. Settings does
+not replace that primitive's track or shadow: Kanban density/flow, Board/Gantt,
+and Month/Timeline have identical computed paint and selection geometry in the
+same theme. Forced-colors mode replaces the pseudo-element with direct selected
+button paint, and reduced motion removes the transition. Select-only menus now share a body-level, pure-plan-clamped
+overlay across Settings, editor dialogs, and document properties; intentional
+Help and sidebar-search result regions remain inline.
+
+Modal-keyboard follow-up, 2026-09-04: the existing application-modal shell now
+shows a compact **ESC to close** cue and exposes `aria-keyshortcuts="Escape"`.
+The document-level capture handler makes dismissal independent of focused
+fields and embedded editors, while nested pickers retain first-Escape ownership.
+Transactional Table, Chart, and Mermaid editors compose the existing warning
+notice and button primitives for their shared dirty-draft guard. No component
+family or visual variant was added.
+
+Editor-modal resize follow-up, 2026-09-04: explicit user approval added the
+`.custom-modal--resizable` feature variant only for Table, Mermaid, and Chart
+editor compositions. Its lower-right control reuses the approved
+`.ui-image-resize-handle`; the host supplies pointer/Arrow-key geometry, a live
+size readout, viewport clamping, Home reset, and container-driven pane reflow.
+Escape cancels an active gesture before returning to the existing modal and
+dirty-draft contract. No new component family or primitive was introduced, and
+generic dialogs remain non-resizable.
 
 ## Consolidated foundation
 
@@ -27,8 +61,8 @@ approved selector set:
 
 | Family | Shared primitive | Feature classes retain |
 | --- | --- | --- |
-| Settings pickers | `.ui-picker`, `.ui-picker-trigger`, `.ui-picker-menu` | Values, persistence, shared combobox wiring, and pure-plan-backed viewport placement |
-| Steppers | `.ui-stepper`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size, text-width, and bounded editable tab-size value policy |
+| Settings pickers | `.ui-picker`, `.ui-picker--quiet`, `.ui-picker-trigger`, `.ui-picker-menu` | Values, persistence, shared combobox wiring, and pure-plan-backed viewport placement |
+| Steppers | `.ui-stepper`, `.ui-stepper--quiet`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size, text-width, and bounded editable tab-size value policy |
 | Compact actions | `.ui-button`, its quiet variant, and semantic variants | Labels, placement, and feature events |
 | Segmented choices | `.ui-segmented-control` and its quiet variant containing `.ui-button` choices | Group labels, selected value, and feature persistence |
 | Icon actions | `.ui-icon-button` and size variants | Accessible names, icons, and host-specific dimensions |
@@ -41,13 +75,13 @@ approved selector set:
 | Notices | `.ui-notice` and semantic variants | Message content, placement, and workflow lifecycle |
 | Document tabs | `.ui-document-tabs--titlebar`, `.ui-document-tab--connected`, `.ui-document-tab--side-connected`, and state modifiers | Title-bar or sidebar placement, overflow geometry, ordering, drag placement, and tab controller behavior |
 | Editor folding | `.ui-editor-fold-control`, `.ui-editor-block-guide` | Source-code fold ranges, editor-sized heading/fenced-code/table/Draw.io labels, and CodeMirror gutter behavior |
-| Image resize handles | `.ui-image-resize-handle` | Width/height/proportional placement, resize cursors, visibility, tooltip content, and pointer-drag behavior |
+| Image resize handles | `.ui-image-resize-handle` | Image width/height/proportional placement, Gantt endpoint placement, editor-modal corner placement, resize cursors, visibility, tooltip content, keyboard input, and pointer-drag behavior |
 | Graph canvas | `.ui-graph-canvas` | Node/edge drawing, hit testing, pan/zoom, keyboard selection, and refresh lifecycle |
 | Indeterminate activity | `.ui-spinner` | Delayed visibility, status text, busy ownership, and operation lifecycle |
 | Content skeletons | `.ui-skeleton` | Calendar grid and Kanban column/card geometry, loading ownership, and replacement lifecycle |
 | Determinate progress | `.ui-progress` and `.ui-progress-value` | Numeric value, label, compact host geometry, and update policy |
 
-Two or three short choices known before rendering use the segmented-choice
+One to four short choices known before rendering use the segmented-choice
 primitive. Variable, extensible, or longer lists use the approved select-only
 combobox instead.
 
@@ -73,13 +107,24 @@ existing button, not a separate control family. Canonical primitives own its
 8px radius, column tint, faded completed state, hover/active treatment, and
 inherited keyboard focus/disabled states. The catalogue includes active-work,
 completed, and saving specimens. Feature CSS owns sticky names, day/row geometry,
-resize hit regions, and the floating editor layout. Board/Gantt choices, range
+adaptive visible resize hit regions that preserve a center target on one-day bars,
+approved image-resize dots centered half-in/half-out at both painted endpoints,
+one full-height current-day marker,
+and the floating editor layout. Board/Gantt choices, range
 buttons, date pickers, reconnect choices, notices, and status telemetry reuse
 existing primitives; no feature-local footer or status-bar component is added.
 Editor date-link and single-tag replacement reuse the existing Calendar picker
 and CodeMirror suggestion list unchanged. The help content and catalogue explain
 preferred-style date links plus separate deadline metadata; no new visual variant
 or family is introduced.
+
+Kanban cards compose the ordinary button primitive into separate Start and Due
+pills and keep one theme-accented top-right ellipsis behavior hook for the
+existing menu/menu-item primitives. The pills own only compact layout and
+date-state color; shared hover, focus, active, and disabled states remain
+canonical. The menu clears both dates or removes the board tag without adding
+a family or visual variant; direct S/D/Delete shortcuts and card keyboard focus
+remain intact, and the card no longer repeats its source filename.
 
 The approved graph-canvas primitive owns its stable surface, grab, panning,
 loading, focus, touch, and selection-suppression states; hovering does not tint
@@ -101,6 +146,12 @@ muted text, and restores the standard tonal surface, normal text, and focus
 halo when relevant. Expanded Properties applies it to **Edit YAML** with the
 existing `FileCode2` glyph; the frontmatter hook owns only header density and
 the source-reveal event.
+
+Standalone text actions retain the ordinary outlined `.ui-button` boundary.
+That includes Calendar Timeline **Today**, Mermaid **Replace with template**,
+Chart Editor **JSON**, file-diagnostic recovery actions, and the Table Editor
+toolbar; icon buttons, content rows, menu items, and segmented choices keep
+their role-specific primitives.
 
 The connected rounded title-bar rail combines its document-tab family with the approved
 `.ui-icon-button`, `.ui-menu`, and `.ui-menu-item` primitives. Its
@@ -167,8 +218,15 @@ button; its side-lane placement and narrow-width flow within the measured widget
 are table-layout hooks rather than a new component or visual variant. Its
 cell-local row and column commands reuse the approved menu, label, separator,
 disabled, focus, and hover states without adding a table-menu variant.
-The table-backed Chart Editor composes the approved modal, compact button,
-icon button, segmented choice, field, editable stepper, checkbox, notice,
+The Table, Mermaid, and table-backed Chart editors compose the approved modal
+plus the explicitly approved `.custom-modal--resizable` feature variant, which
+reuses the image-resize primitive and leaves generic dialogs unchanged.
+Mermaid and Chart use the applicable quiet compact-button, picker, segmented,
+field, and editable-stepper variants; Table uses the canonical outlined compact
+button. Their feature layouts omit decorative shell, pane, heading, list, and
+redundant toolbar-group frames while retaining one Rows/Columns divider, table
+grids, the source gutter, focus, semantic errors/danger, and forced-colors boundaries.
+The Chart Editor additionally composes the approved icon button, checkbox, notice,
 spinner, tooltip, editor-guide, and resize-handle primitives, including the
 approved select-only combobox in place of host-native select popups. Its square
 color triggers open the established Kanban palette rather than adding a chart
@@ -278,6 +336,10 @@ muted `INBOX` destination and the file tree's ordinary Inbox Mail glyph remain
 unchanged. File-tree operation selection keeps its
 accent-tinted surface, heavier label, `aria-selected`, and independent keyboard
 outline without the former leading stripe or selected-row shadow.
+Graph now consumes that same quiet field for its canvas filter. The Mermaid
+Editor likewise binds Diagram and Template to the quiet picker, color actions
+to the icon button, fixed choices to the segmented control, and selectable node
+rows to menu items; its three-part node-row CSS owns layout only.
 Its compact result-count badge is conditional result feedback rather than
 permanent field decoration: the badge remains hidden until matching results are
 open and leaves with that result interaction. The existing icon-button family
@@ -407,8 +469,9 @@ so the improvement adds neither a seam nor a component-local override.
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, verifies theme-derived
-  Calendar activity modifiers plus graph canvas states, and keeps cards
-  and toggles intentionally distinct.
+  Calendar activity modifiers plus graph canvas states, the approved quiet
+  picker/stepper border budget and forced-colors fallback, and keeps cards and
+  toggles intentionally distinct.
 - Existing component tests retain ownership of dialog, Settings, frontmatter,
   tabs, and feature behavior.
 - `pickerModel.test.js` and `settingsPicker.test.js` own the shared appearance
@@ -416,14 +479,15 @@ so the improvement adds neither a seam nor a component-local override.
   listbox semantics, active descendant, selection, and pointer choice. The
   catalogue specimen runs that production controller rather than a static copy.
 - `tests/e2e/designSystemCatalog.spec.js` is the single computed-style
-  boundary: it checks themed picker and tooltip paint, tooltip hover/focus and
-  Escape behavior, shared stepper backgrounds, the primitive inventory, theme
+  primitive boundary: it checks quiet pointer-open versus keyboard focus,
+  theme-relative choice paint, borderless Settings/Kanban specimens, tooltip
+  behavior, shared stepper backgrounds, the primitive inventory, theme
   switching, and direct-`file://` operation.
 
 ## Later review, not part of this merger
 
-- Evaluate shared surface/elevation tokens for cards without merging their
-  layouts.
+- Evaluate additional shared surface/elevation tokens without merging distinct
+  card layouts.
 - Continue reducing literal spacing and radius values when a changed feature
   provides a clean, tested seam; do not perform a mechanical whole-file
   rewrite.

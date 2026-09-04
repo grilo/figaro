@@ -55,7 +55,9 @@ describe('design-system catalogue', () => {
         for (const selector of [
             '[data-catalog-combobox]',
             '.ui-picker .theme-picker-btn',
+            '.ui-picker--quiet',
             '.ui-stepper.font-size-control',
+            '.ui-stepper--quiet',
             '.ui-stepper.text-width-control',
             '.ui-stepper.tab-size-control',
             '.ui-button.settings-action-btn',
@@ -252,6 +254,7 @@ describe('design-system catalogue', () => {
         expect(componentRegistry.featureVariants).toEqual([
             '.calendar-timeline-note',
             '.kanban-gantt-bar',
+            '.custom-modal--resizable',
             '.file-tree-node.selected',
             '.file-tree-node.cut-marked',
             '.file-tree-node.file-issue--warning',
@@ -265,9 +268,33 @@ describe('design-system catalogue', () => {
         template.innerHTML = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
         expect(template.content.querySelector('.kanban-gantt-bar[data-done="true"]')).not.toBeNull();
         expect(template.content.querySelector('.kanban-gantt-bar:disabled')).not.toBeNull();
+        expect(template.content.querySelector('.kanban-gantt-bar .ui-image-resize-handle')).not.toBeNull();
         expect(primitives).toMatch(/\.ui-button\.kanban-gantt-bar\s*\{[^}]*border-radius: var\(--ui-menu-radius\)/s);
         expect(primitives).toContain('--gantt-tint: 10%');
         expect(primitives).toContain('var(--workspace-surface)');
+    });
+
+    test('keeps quiet Settings controls and Kanban surfaces borderless until state needs emphasis', () => {
+        const primitives = fs.readFileSync(path.resolve('frontend/design-system/primitives.css'), 'utf8');
+        const shell = fs.readFileSync(path.resolve('frontend/styles/shell.css'), 'utf8');
+        const settings = fs.readFileSync(path.resolve('frontend/styles/features/settings.css'), 'utf8');
+        const kanban = fs.readFileSync(path.resolve('frontend/styles/features/kanban.css'), 'utf8');
+
+        expect(primitives).toMatch(
+            /\.ui-picker--quiet \.ui-picker-trigger\[aria-expanded="true"\]\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*var\(--active-bg\);[^}]*box-shadow:\s*none;/s,
+        );
+        expect(primitives).toMatch(
+            /\.ui-picker--quiet \.ui-picker-trigger:focus-visible\s*\{[^}]*box-shadow:\s*0 0 0 2px var\(--focus-ring\);/s,
+        );
+        expect(primitives).toMatch(/\.ui-stepper--quiet\s*\{[^}]*border-color:\s*transparent;/s);
+        expect(primitives).toMatch(/@media \(forced-colors:\s*active\)[\s\S]*ButtonText[\s\S]*Highlight/);
+        expect(shell).toMatch(/\.settings-card\s*\{[^}]*border:\s*0;/s);
+        expect(settings).toMatch(/\.settings-card select\s*\{[^}]*border:\s*1px solid transparent;/s);
+        expect(settings).not.toMatch(/\.settings-card select:focus\s*\{/);
+        expect(kanban).toMatch(/\.kanban-column\s*\{[^}]*border:\s*0;/s);
+        expect(kanban).toMatch(/\.kanban-card\s*\{[^}]*border:\s*0;/s);
+        expect(kanban).toMatch(/\.kanban-card:hover\s*\{[^}]*box-shadow:\s*var\(--shadow-md\);/s);
+        expect(kanban).toMatch(/@media \(forced-colors:\s*active\)[\s\S]*\.kanban-card[\s\S]*CanvasText/);
     });
 
     test('keeps Search notes, Quick note, and selected file surfaces within the sidebar border budget', () => {
@@ -340,7 +367,8 @@ describe('design-system catalogue', () => {
             expect(source).toContain('--choice-item-border: transparent;');
             expect(source).toContain('--choice-hover-border: transparent;');
             expect(source).toContain('--choice-selected-border: transparent;');
-            expect(source).toContain('--choice-selected-color: var(--text-color);');
+            expect(source).toContain('--choice-selected-surface: var(--active-bg);');
+            expect(source).toContain('--choice-selected-color: var(--accent-color);');
             expect(source).toContain('--file-node-selected-shadow: none;');
             expect(source).toMatch(/--file-node-selected-surface:\s*linear-gradient/);
             expect(source).toContain('--file-node-selected-weight: 600;');
@@ -570,7 +598,9 @@ describe('design-system catalogue', () => {
         const styles = fs.readFileSync(path.resolve('frontend/design-system/primitives.css'), 'utf8');
         for (const selector of [
             '.ui-picker',
+            '.ui-picker--quiet',
             '.ui-stepper',
+            '.ui-stepper--quiet',
             '.ui-button',
             '.ui-button--quiet',
             '.ui-segmented-control',
@@ -634,6 +664,11 @@ describe('design-system catalogue', () => {
         expect(styles).not.toMatch(/\.text-width-control\s*\{[^}]*border:/s);
         expect(styles).not.toMatch(/\.settings-picker-btn\s*\{/);
         expect(styles).not.toMatch(/\.settings-action-btn\s*\{/);
+        expect(styles).toMatch(/\.ui-segmented-control\s*\{[^}]*display:\s*inline-grid[^}]*border-radius:\s*999px[^}]*box-shadow:\s*var\(--choice-track-shadow\)/s);
+        expect(styles).toMatch(/\.ui-segmented-control::before\s*\{[^}]*background:\s*var\(--choice-selected-surface\)[^}]*transform:\s*translateX\(var\(--choice-highlight-translate\)\)[^}]*pointer-events:\s*none/s);
+        expect(styles).toMatch(/\.ui-segmented-control:has\(> \.ui-button:nth-child\(4\):last-child\)\s*\{[^}]*--choice-highlight-width:/s);
+        expect(styles).toMatch(/@media \(forced-colors: active\)[\s\S]*\.ui-segmented-control::before\s*\{[^}]*display:\s*none/s);
+        expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.ui-segmented-control::before\s*\{[^}]*transition:\s*none/s);
         expect(styles).toMatch(/\.ui-date-picker-day--note-5\s*\{[^}]*var\(--success-color\)/s);
         expect(styles).toMatch(/\.ui-date-picker-day--due\s*\{[^}]*var\(--danger-color\)/s);
         expect(styles).toMatch(/\.ui-date-picker\s*\{[^}]*background:\s*var\(--calendar-surface\)/s);
@@ -655,6 +690,7 @@ describe('design-system catalogue', () => {
         );
         expect(graphStyles).not.toMatch(/\.graph-toolbar\s*\{/);
         expect(graphStyles).toMatch(/\.graph-filter\s*\{[^}]*width:\s*min\(224px, 34vw\)/s);
+        expect(graphStyles).not.toMatch(/\.graph-filter-input\.ui-field\s*\{[^}]*(?:border|background|box-shadow)\s*:/s);
         expect(graphStyles).toMatch(/\.graph-canvas-controls\s*\{[^}]*border:\s*0/s);
         expect(graphStyles).toMatch(/\.graph-show-orphans\.ui-button\s*\{/);
         expect(graphStyles).toMatch(/\.graph-node-icon-svg\s*\{/);
@@ -692,13 +728,16 @@ describe('design-system catalogue', () => {
             .toContain('calendarMonthPresentation({');
 
         const catalogue = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
+        expect(catalogue).toContain('class="custom-modal-dismiss-hint" aria-hidden="true">ESC to close</span>');
+        expect(catalogue).toContain('class="ui-notice ui-notice--warning custom-modal-pending-changes"');
+        expect(catalogue).toContain('class="ui-image-resize-handle custom-modal-resize-handle"');
         expect(catalogue).toContain('<div class="settings-card');
         expect(catalogue).toContain('class="toggle-switch"');
         expect(catalogue).not.toContain('class="ui-card');
         expect(catalogue).not.toContain('class="ui-toggle');
         expect(catalogue).toMatch(/ui-date-picker-grid calendar-grid[\s\S]*cal-day selected has-note ui-date-picker-day--note-3[^>]*aria-current="date"/);
         expect(catalogue).toMatch(/calendar-timeline-note has-custom-color[\s\S]*calendar-timeline-note-icon-svg/);
-        expect(catalogue).toMatch(/graph-canvas-controls[\s\S]*graph-filter[\s\S]*graph-show-orphans[^>]*aria-pressed="true"/);
+        expect(catalogue).toMatch(/graph-canvas-controls[\s\S]*graph-filter[\s\S]*ui-field--quiet graph-filter-input[\s\S]*ui-segmented-control ui-segmented-control--quiet[\s\S]*graph-show-orphans[^>]*aria-pressed="true"/);
     });
 
     test('binds remaining approved-family controls to shared primitives', () => {
@@ -719,12 +758,20 @@ describe('design-system catalogue', () => {
             ['frontend/js/dialogs.js', ['class="ui-checkbox"', 'ui-checkbox merge-checkbox']],
             ['frontend/js/kanban.js', [
                 'ui-icon-button ui-icon-button--small kanban-column-btn',
-                'ui-icon-button ui-icon-button--small ui-icon-button--danger kanban-card-delete',
+                'ui-icon-button ui-icon-button--small kanban-card-menu-trigger',
+                'class="ui-button kanban-card-date kanban-card-${kind}"',
+                'data-card-action="clear-dates"',
+                'class="ui-menu-item danger" role="menuitem" data-card-action="remove"',
             ]],
             ['frontend/js/graphView.js', [
                 'class="ui-icon-button graph-zoom-out"',
-                'class="ui-field graph-filter-input"',
+                'class="ui-field ui-field--quiet graph-filter-input"',
                 'class="ui-button graph-show-orphans" aria-pressed="true"',
+            ]],
+            ['frontend/js/mermaidEditor.js', [
+                "className: 'ui-picker--quiet mermaid-editor-combobox'",
+                "button.className = 'ui-icon-button mermaid-editor-color-button'",
+                "row.className = 'ui-menu-item mermaid-editor-node-row'",
             ]],
             ['frontend/js/tabManager.js', [
                 'class="ui-button" data-kanban-density',
@@ -812,19 +859,21 @@ describe('design-system catalogue', () => {
             <p id="catalog-visible-count"></p>
             <nav id="catalog-index"></nav>
             <p id="catalog-empty" hidden></p>
-            <label>
-                Auto-save
-                <select id="catalog-test-combobox" data-catalog-combobox aria-label="Auto-save interval">
-                    <option value="300">5 minutes</option>
-                    <option value="0">Off</option>
-                </select>
-            </label>
-            <label>
-                Unavailable
-                <select id="catalog-disabled-combobox" data-catalog-combobox disabled>
-                    <option>Loading…</option>
-                </select>
-            </label>
+            <div class="settings-card">
+                <label>
+                    Auto-save
+                    <select id="catalog-test-combobox" data-catalog-combobox aria-label="Auto-save interval">
+                        <option value="300">5 minutes</option>
+                        <option value="0">Off</option>
+                    </select>
+                </label>
+                <label>
+                    Unavailable
+                    <select id="catalog-disabled-combobox" data-catalog-combobox disabled>
+                        <option>Loading…</option>
+                    </select>
+                </label>
+            </div>
             <div class="ui-picker theme-picker" data-catalog-settings-picker="theme">
                 <button class="ui-picker-trigger"><span data-picker-value>Figaro Dark</span></button>
                 <div class="ui-menu ui-picker-menu" hidden></div>
@@ -858,14 +907,14 @@ describe('design-system catalogue', () => {
         appearanceTrigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
         expect(appearanceTrigger.getAttribute('aria-expanded')).toBe('true');
         expect(appearanceTrigger.getAttribute('aria-label')).toBe('Theme');
-        expect(document.querySelectorAll('[data-catalog-settings-picker="theme"] [role="option"]'))
-            .toHaveLength(3);
+        expect(result.settingsPickers[0].menu.querySelectorAll('[role="option"]')).toHaveLength(3);
 
         const source = document.querySelector('#catalog-test-combobox');
         const picker = source.closest('.select-combobox');
         const trigger = picker.querySelector('.select-combobox-trigger');
         const menu = picker.querySelector('.select-combobox-menu');
         expect(source.classList.contains('select-combobox-native')).toBe(true);
+        expect(picker.classList.contains('ui-picker--quiet')).toBe(true);
         expect(picker.classList.contains('ui-picker')).toBe(true);
         expect(trigger.classList.contains('ui-picker-trigger')).toBe(true);
         expect(menu.classList.contains('ui-menu')).toBe(true);

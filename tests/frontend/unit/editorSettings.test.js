@@ -94,6 +94,8 @@ describe('editor settings', () => {
         expect(document.getElementById('auto-save-interval').classList.contains('select-combobox-native')).toBe(true);
         expect(document.getElementById('spellcheck-language').classList.contains('select-combobox-native')).toBe(true);
         expect(document.querySelectorAll('.select-combobox-trigger')).toHaveLength(2);
+        expect([...document.querySelectorAll('.select-combobox')]
+            .every(picker => picker.classList.contains('ui-picker--quiet'))).toBe(true);
         expect(document.getElementById('spellcheck-language')._figaroCombobox.trigger.getAttribute('role')).toBe('combobox');
         expect(document.getElementById('spellcheck-language')._figaroCombobox.trigger.getAttribute('aria-describedby')).toBe('spellcheck-guidance');
         expect(document.getElementById('spellcheck-language').value).toBe('en-US');

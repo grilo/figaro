@@ -7,7 +7,11 @@
  */
 
 import { planMermaidSourceRender } from './core/diagramSecurityModel.js';
-import { mermaidPaletteCount, mermaidSourceWithoutManagedNodeStyles } from './core/mermaidStyleEditorModel.js';
+import {
+    mermaidPaletteCount,
+    mermaidSourceWithApplicationTheme,
+    mermaidSourceWithoutManagedNodeStyles,
+} from './core/mermaidStyleEditorModel.js';
 import {
     diagramRenderCacheKey,
     rebaseDiagramSvgIds,
@@ -208,6 +212,18 @@ function applicationThemedVegaSpec(spec) {
     };
 }
 
+function applicationThemedMermaidSource(source) {
+    const border = cssThemeValue('--border-color', '#62594f');
+    return mermaidSourceWithApplicationTheme(source, {
+        primaryColor: cssThemeValue('--panel-bg', '#24211d'),
+        primaryBorderColor: cssThemeValue('--border-light', border),
+        primaryTextColor: cssThemeValue('--text-color', '#f5eee4'),
+        secondaryColor: cssThemeValue('--hover-bg', '#29251f'),
+        tertiaryColor: cssThemeValue('--active-bg', '#3b2924'),
+        lineColor: cssThemeValue('--text-muted', '#b9ac9e'),
+    }).source;
+}
+
 function createVegaRenderTarget(containerWidth, chartHeight) {
     const target = document.createElement('div');
     const width = Math.min(1600, Math.max(320, Math.round(Number(containerWidth) || 640)));
@@ -251,7 +267,10 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
     if (normalizedLanguage === 'mermaid') {
         assertMermaidSourceAllowed(code);
         if (!initialiseMermaid()) return null;
-        return renderMermaidSVG(code, idPrefix);
+        const renderSource = options.appearance === 'application'
+            ? applicationThemedMermaidSource(code)
+            : code;
+        return renderMermaidSVG(renderSource, idPrefix);
     }
 
     if ((normalizedLanguage === 'vega' || normalizedLanguage === 'vega-lite') &&

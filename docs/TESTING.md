@@ -100,6 +100,10 @@ component must prove rendered and revealed-source fragment clicks select the
 exact heading without a vault read, Kanban tab, prompt, or file creation; it also
 proves rendered and revealed external links delegate to the native browser
 bridge, show the shortcut hint, and never route a vault Markdown target there.
+Its URL-labelled rendered-link case makes pointer-to-source mapping fail, so
+native replacement-widget geometry cannot prevent external activation. A
+focused real-browser case sends actual Ctrl modifiers to the rendered label and
+revealed source for that exact URL-labelled syntax.
 `tests/frontend/unit/editor.test.js` owns the assembled DOM distinction between
 unresolved source and a defined reference widget. The one
 representative `tests/e2e/editorUX.spec.js` workflow verifies the unresolved
@@ -132,6 +136,31 @@ frontend `app.js` composition root, and only `app.js` may import
 first-party modules expose the named APIs their consumers and focused tests
 actually use. Add a guard when introducing the first module in a new layer
 rather than relying on naming conventions alone.
+
+### Test-integrity guardrails
+
+`npm run test:integrity` statically scans every frontend unit and Playwright
+test before the main suite. It rejects assertions whose subject and oracle are
+both constructed inside the test, identical or literal assertions, test-local
+regex implementations, comments that describe copied production logic,
+browser specs that reproduce a production `color-mix()` formula, and
+conditionally collected arrays passed to `every()` without a preceding
+non-empty length assertion. Replace a rejected test with coverage of an
+imported pure rule, use case, adapter, or real component; do not weaken the
+rule or add a ceremonial assertion.
+
+The shared jsdom fixture clones the body of `frontend/index.html`; it must not
+carry a second handwritten copy of the application shell. Its default native
+binding may provide inert read responses, but write-like methods are tracked.
+A test that invokes a save, create, delete, move, export, native open,
+preference write, or window command must first configure that method's exact
+success or failure response. An unconfigured call throws immediately, and the
+after-test check still fails if production code caught that error. The binding
+is recreated for each test so mock behavior cannot leak into the next case.
+
+```bash
+npm run test:integrity
+```
 
 ### Eager-startup contract
 
@@ -484,10 +513,23 @@ The Theme, Font, and Code Font controls reuse the approved picker paint but
 have their own shared controller. `pickerModel.test.js` owns the deterministic
 arrow/Home/End/Enter/Space/Escape/Tab plan; `settingsPicker.test.js` owns the
 labelled combobox/listbox DOM, active descendant, announced selection, pointer
-choice, and close behavior. The catalogue component test proves its Appearance
+choice, body-overlay mounting/restoration, scroll tracking, and close behavior.
+`selectCombobox.test.js` owns the equivalent adapter contract for native-select
+replacements, while `linkStyle.test.js` and `frontmatter.test.js` prove their
+specialized popup controls use that same placement boundary. The catalogue component test proves its Appearance
 specimen is wired to that production controller. `editorUX.spec.js` keeps one
 actual Settings path for focus entry, semantic headings, keyboard selection,
 and normal Tab continuation.
+
+The Settings component contract also requires every picker, stepper, and short
+choice in the Settings template to opt into its approved quiet modifier. The
+catalogue browser boundary compares a pointer-open picker with keyboard focus:
+the former has tonal open paint and no halo, while the latter retains the focus
+ring. `kanbanDensity.spec.js` opens every Settings combobox and proves its menu
+is mounted in the shared overlay, overlaps its trigger horizontally, appears
+above or below it, and remains inside the viewport. It also proves the stronger
+Figaro Light control surface and Figaro Dark's accent-selected Board/Gantt
+treatment. Quiet choice surfaces retain transparent resting borders.
 
 Help search keeps its ranking and activation behavior below the browser where
 possible. `markdownCheatsheet.test.js` owns pointer-down focus retention, Help
@@ -585,8 +627,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
 - The Figaro Dark, Light, and CRT Phosphor theme assets, including their warm or
   phosphor reading surfaces, contiguous active tab, shared single-pixel
   file-tree/tab boundary, borderless but filled Search/Quick Note controls,
-  stripe-free operation-selection surface and weight, tactile Settings
-  card, focus token, text/link contrast, and at
+  stripe-free operation-selection surface and weight, tactile borderless
+  Settings card, focus token, text/link contrast, and at
   least 4.5:1 rendered contrast for Home's small muted instructions. Figaro
   Dark additionally holds dim and muted tokens against the conservative hover
   surface plus the application-status text at 4.5:1 or above. The debug shell
@@ -782,7 +824,9 @@ adaptive type alongside a portable active-file session. Record every first
 shell/editor frame and require a constant 44px sidebar plus the remembered
 active file, Pure/focus/adaptive presentation, and absence of Typewriter in
 every visible editor frame. The final session write must retain that active
-file. This complements the pure model and session-persistence units without
+file. The width sample intentionally includes frames before application module
+startup so it catches an expanded-to-collapsed first-paint transition rather
+than accepting only the settled result. This complements the pure model and session-persistence units without
 duplicating their normalization or write-queue matrices in the browser.
 
 ## Sidebar navigation regressions
@@ -898,8 +942,9 @@ Graph behavior is split at the lowest useful boundaries. Go tests for
 index reuse, folder groups, daily/orphan degree, exact and unambiguous basename
 resolution, and ambiguous-target refusal. `graphModel.test.js` owns normalization,
 query/orphan filtering, fixed 45/45 deterministic layout, file-tree appearance
-precedence, nested tinting, palette extension, fit/zoom math, and keyboard
-ordering without DOM or Wails. `graphView.test.js` owns the floating control
+precedence, nested tinting, palette extension, fit/zoom math, keyboard ordering,
+and plain/double/modifier-click activation policy without DOM or Wails.
+`graphView.test.js` owns the floating control
 structure, button-based orphan state, always-painted arrows, safe custom-icon
 overlay, accessible busy/error states, persistent selection versus deliberate
 opening, status behavior, filtering, and inactive graph/appearance refresh
@@ -913,8 +958,8 @@ bound force refinement.
 The existing `sidebarNavigation.spec.js` carries
 one browser-only canvas boundary: a fitted custom-icon node must map a real
 pointer click at the canvas centre back to that exact note path and pin its trace
-without leaving Graph; an empty-canvas click clears it and Ctrl-click opens the
-file. The canvas background remains stable on hover, the 224px search and
+without leaving Graph; an empty-canvas click clears it, and double-click plus
+Ctrl-click each open the file. The canvas background remains stable on hover, the 224px search and
 pressed Orphans choice float beside borderless zoom controls without a toolbar,
 and graph telemetry uses the existing status bar. Do not duplicate the pure
 filter/layout/appearance matrix in Playwright.
@@ -959,6 +1004,45 @@ npx playwright test tests/e2e/workspaceOverview.spec.js
 go test ./internal/desktop -run 'Test(CreateDirectory|CreateInboxNote|LoadSessionPrunesMissingTabsAndWorkspaceReferences)'
 ```
 
+## Kanban paint-continuity regressions
+
+Large Board columns split their coverage at the rendering boundary.
+`kanbanKeyboardModel.test.js` owns the deterministic measured-height index and
+offset-to-card mapping. `kanban.test.js` advances a virtual window while an
+overlapping card remains mounted and requires exact DOM identity, bounded card
+count, and the expected logical range. `tabManager.test.js` leaves and returns
+to Kanban and requires activation of the original mounted session instead of a
+second mount.
+
+`kanbanPaint.spec.js` owns the irreducible browser paint boundary. Its rapid
+wheel probe samples every animation frame across multiple 96-card window
+changes, requiring a populated visible range, monotonic downward movement,
+stable logical coordinates derived from actual card heights, retained identity
+for every shared card, and no hover shadow while scrolling is active. Its warm
+open probe begins sampling before sidebar activation and requires the original
+populated wrapper at full opacity and zero transform in every active frame—an
+eventual card count cannot catch either regression. Run it with the functional
+Kanban and large-window checks:
+
+```bash
+npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/kanbanKeyboardModel.test.js \
+  tests/frontend/unit/kanban.test.js \
+  tests/frontend/unit/tabManager.test.js
+npx playwright test \
+  tests/e2e/kanbanPaint.spec.js \
+  tests/e2e/kanbanDensity.spec.js \
+  tests/e2e/sidebarNavigation.spec.js
+npx playwright test tests/e2e/hugeVaultStress.spec.js \
+  --grep "preserves keyboard reachability"
+```
+
+Chromium establishes frame sequencing, computed geometry, and node identity,
+but cannot reproduce a native compositor. Before release, repeat fast wheel or
+trackpad scrolling and Calendar/Graph → Kanban warm returns in packaged
+WebKitGTK, WebView2, and WKWebView builds; no stale card image, blank frame, or
+entrance fade should appear.
+
 ## Kanban due-date regressions
 
 Board, Gantt, Calendar, Today, and reminders share one metadata deadline contract. Pure
@@ -967,20 +1051,24 @@ identity, line/tag shifts, duplicate ambiguity, clear overrides, reconnect
 collisions, and subtree rename. Root-scoped `task_schedules_test.go` proves
 private atomic metadata persistence/reload, exact unchanged Markdown including
 ordinary Markdown links, stale/path/corrupt-file refusal, escaping config symlinks,
-and the production rename hook. `ganttModel.test.js` covers inclusive geometry,
+and the production rename hook. `app_test.go` drives the real tag-update use
+case and proves that the first TODO-to-active move records the local start date
+while later column changes preserve a manual override. `ganttModel.test.js` covers inclusive geometry,
 DST-independent movement, endpoint clamping, deduplication, metadata precedence,
-completed colors, and bounded rows. `kanbanGantt.test.js` owns picker handoff,
+completed colors, bounded rows, preservation of the untouched endpoint and
+schedule ID in Board pill updates, and the three pointer zones retained by a one-day bar. `kanbanGantt.test.js` owns picker handoff,
 immediate date/clear persistence without Save/Cancel, outside-click dismissal,
 real nested Start/End picker ownership and Escape order, Escape after focus loss
 during a pending write, listener teardown on every dismissal path, and no late
 focus theft or popup revival after success/failure. It also covers failed-date
 retry, retained fields, open-note handoff, one-write drag release, pointer/Escape cancellation, visible
-errors, reconnection controls, dirty-note refusal, Calendar deadline invalidation
+errors, retargeted one-day edge presses, reconnection controls, dirty-note refusal, Calendar deadline invalidation
 after persistence (including a failed subsequent refresh), status ownership, and disposal.
 Rapid native scroll events are also asserted to schedule exactly one row-window
 render frame, while keyboard Home/End retains its synchronous reveal path.
 The same component suite owns the zero-task status lifecycle, hides drag/resize
-guidance until a task exists, and proves the status is outside the translated
+guidance until a task exists, disables Unscheduled until either date exists,
+and proves the status is outside the translated
 row track. The focused Gantt browser boundary scrolls a genuinely empty track,
 asserts that its live status remains visible and centered, and confirms that
 the inapplicable manipulation guidance is absent; this is the irreducible
@@ -991,10 +1079,14 @@ retention, unfinished-wheel destination and active-pan origin rebasing, reduced 
 edge paging, and buffer sizing once. Calendar component coverage additionally
 keeps scrolling during a delayed range read and rejects stale/disposed commits.
 Existing Calendar Timeline pure/component tests continue
-to own note projections and cache behavior. Run the existing Calendar browser
+to own note projections and cache behavior, while the shell markup test keeps
+its standalone **Today** action bound to the ordinary outlined button. Run the existing Calendar browser
 case alongside Gantt after changing the shared viewport.
 `kanbanGantt.spec.js` is the representative browser boundary for sticky labels,
-real pointer capture and click delivery, edge geometry, the themed date picker,
+real pointer capture and click delivery, the adaptive edge hit regions,
+approved image-resize dots centered half-in/half-out on the painted endpoints,
+and their unchanged one-day start/center/end hit geometry, the
+single full-height current-day marker, the themed date picker,
 outside-popup click/focus handoff and one-click switching to another task,
 and unchanged application-footer geometry. Both existing timeline browser
 scenarios use `support/timelinePaint.js` to sample every animation frame across
@@ -1028,7 +1120,8 @@ proves note-write rollback and metadata failure refusing note writes.
 Root-scoped tests prove metadata-only Board/Gantt deadlines never rewrite Markdown, source preconditions,
 corrupt-config refusal, and joined Calendar/Board/Today projections. Component
 tests own the picker's default Today selection, injected live month activity,
-focus and Arrow-key movement, card controls, warning states,
+focus and Arrow-key movement, card header/footer order, absent filename, direct
+Start/Due pill events, clear-both/remove menu, retained endpoint, warning states,
 Today reminders, the column header's neutral-icon/selected-color indicator,
 Calendar task results, cache invalidation, locale weekday/weekend rendering,
 first-open Today and same-session reopen selection, movable Today/selection precedence with restored note intensity, accepted-shortcut dirty-buffer projection,
@@ -1180,6 +1273,12 @@ real-browser regression supplies browser text, requires one backtick per input
 and exactly three for a Markdown fence, accepts already-composed Unicode such
 as `ã`, and keeps Arrow Up/Down working across the resulting fence.
 
+Those automated checks run in Chromium: changing `navigator.platform`
+exercises Figaro's platform branch, but it does not reproduce WebView2, a
+Windows keyboard layout, or native dead-key composition. Their names and
+comments must describe that simulated boundary rather than claiming
+Windows-native coverage.
+
 The dependency contract pins the application to Wails v2.14 and replaces its
 runtime module with `github.com/grilo/wails/v2` tag `v2.14.0-figaro.1`. That
 fork carries the native regression which distinguishes AltGr's Ctrl+Right-Alt
@@ -1298,7 +1397,10 @@ Mermaid virtualization has a separate performance contract. The pure
 `diagramRenderCacheModel.test.js` suite covers normalized source keys and SVG
 id rebasing, `diagramRenderQueue.test.js` covers serialized work and
 cancellation, and `diagramRenderer.test.js` covers cached and concurrent
-same-source renders. The browser regression in
+same-source renders plus separation between temporary application-themed and
+authored printable Mermaid source. The focused Mermaid and PDF browser
+regressions compare the computed live canvas/connector paint and prove that a
+preceding application render cannot contaminate printable output. The browser regression in
 `tests/e2e/vimVisualRows.spec.js` scrolls through a long note with repeated
 Mermaid fences in both directions, verifies that the engine renders the
 repeated source once, and checks that mounted SVG ids remain unique.
@@ -1347,7 +1449,7 @@ bypass the policy; `editor.test.js` verifies that the resolved offset becomes
 the real CodeMirror anchor/head while the Properties card stays rendered.
 `frontmatterProperties.spec.js` opens a
 language option whose center extends below the card, verifies that option is
-the topmost hit target, hovers and activates it, and confirms the document
+the topmost hit target in the shared body overlay, hovers and activates it, and confirms the document
 selection remains on its original body line. It verifies that **Edit YAML**
 uses the approved quiet button and file-code glyph, has transparent border and
 surface plus muted text at rest, and restores tonal hover paint and the shared
@@ -1404,6 +1506,15 @@ below, and verify mouse placement and drag selection around it. For a vertical
 navigation change, also put the cursor and viewport at the end and press Arrow
 Down, then put both at the beginning and press Arrow Up; neither action may
 move or wrap, and wheel input must remain at the corresponding scroll limit.
+
+Ordered-list deletion keeps its number transformation below the browser layer.
+`orderedListRenumber.test.js` proves middle/first-item deletion, custom starts,
+independent nested lists, exact selection mapping, and the text-only no-op
+through the real Markdown transaction filter. The focused
+`markdownListIndent.spec.js` case supplies an actual Delete key, then verifies
+the rewritten source, one Undo, Arrow Up/Down, mouse placement, and a drag
+across the retained list. The adapter visits only deleted marker ranges and
+direct siblings of the affected ordered-list level.
 
 The shared tab-size contract is split across the lowest capable layers.
 `tabSizeModel.test.js` owns the four-space default, whole-number 2–8 bounds,
@@ -1490,7 +1601,9 @@ edge remain unchanged. A
 Draw.io component case must exercise the `drawio` / `editor` stack, direct
 editor callback, whole-image folding and expansion, unchanged Markdown, and
 Arrow Up/Down traversal in both directions. The browser image boundary must
-also open the actual Draw.io tab from `editor`, then delete the referenced path
+fold an authored-size ordinary image, prove there is one short native fold row
+and no image source-height placeholder, expand it back to its authored
+geometry, open the actual Draw.io tab from `editor`, then delete the referenced path
 signal and prove that the preview disappears despite a previous successful
 image load.
 rendered Mermaid block must yield its replacement to
@@ -1510,10 +1623,11 @@ CodeMirror gutter update when the primary cursor changes lines. The focused
 Settings/editor browser scenario keeps the gutter enabled while exercising
 Arrow Down/Up, mouse placement, and forward drag selection, asserting the
 visible relative labels after each move. The same scenario owns Focus scope's
-browser-only popup geometry: its listbox edges match its trigger and remain six
-pixels below it inside the animated, scrolled Settings panel. Generic
-`selectCombobox.test.js` coverage keeps locally anchored menus in their control
-wrapper without viewport-floating state.
+browser-only popup geometry: its listbox stays horizontally attached to the
+trigger, chooses the available side, and remains viewport-clamped while the
+animated Settings panel scrolls. Generic `selectCombobox.test.js` coverage
+proves menus leave clipping ancestors for the body overlay, track scroll, then
+return to their control wrapper on close.
 
 The Mermaid Editor extends that matrix without creating a new block widget.
 Pure tests cover the complete 32-type/76-template catalogue, all adaptive Style
@@ -1535,24 +1649,36 @@ The CodeMirror component proves the action is
 present in raw and rendered states, skips non-Mermaid fences, keeps chart
 browsing live for empty/template-backed buffers while protecting existing or
 manually edited source, and makes Apply one undoable root transaction while
-Cancel dispatches nothing. Component tests prove Source/Style switching,
+Cancel dispatches nothing. Focused-source Escape must reach the modal and show
+the shared dirty-draft confirmation; **Discard** closes without a root
+transaction. Component tests prove Source/Style switching,
 type-specific panel replacement, Kanban palette reuse, invalid-source
 suppression, selected-node controls preceding a long bounded list, roving
 Arrow/Home/End node selection, style-control focus restoration, palette survival
 across preview statuses, reset swatch synchronization, explicit node-editing instructions, and one
-native source update per style choice. A DOM-adapter test
+native source update per style choice. It also asserts the approved quiet
+picker and segmented-choice bindings plus the menu-item and icon-button bindings,
+the ordinary outlined binding for **Replace with template**,
+the absence of decorative modal/pane/heading/list/row borders alongside the
+retained source-gutter divider, the node row's identity/shape/color
+order, the active editor's name/shape/color ordering and real long-name
+ellipsis, shape summary, and nested scroll restoration. A DOM-adapter test
 covers keyboard preview navigation, rendered-node selection versus drag
 panning, and source-free transforms, while the shared combobox test proves dynamic
 option refresh. One browser workflow owns the irreducible focus, compact
 left-aligned linked pickers, ordinary disabled cursor, real wheel zoom and drag
 panning, explicit SVG dimension growth without a scaled canvas, two-axis SVG
 fitting, larger preview-pane growth up to the bounded dialog and narrow
-stacking without footer clipping (including short windows), left-rail control alignment, first-success empty-state
+stacking without footer clipping (including short windows), pointer-resized modal
+geometry, modal-width-driven pane stacking, Home reset, left-rail control alignment, first-success empty-state
 removal, real Mermaid SVG node-id selection, applied node fill, Style-panel
 overflow, long-list containment, selected-editor visibility on first opening
 and after preview selection, focus after shape/color changes, palette Escape
 and preview-refresh survival, non-checkbox node swatches, rendered-diagram collapse/expand, lint tooltip/SVG, stale-preview,
-borderless gutter, and undo boundaries; a focused companion verifies inherited Vim mode
+borderless gutter, and undo boundaries. That browser workflow samples the
+pointer-down frame and three following animation frames, requiring identical
+node-row geometry and the same nested scroll offset so a final-state-only check
+cannot miss press wiggle or refresh jumps; a focused companion verifies inherited Vim mode
 and wrapped display-row motion after the first diagnostics transaction, while
 `tests/e2e/mermaidRenderer.spec.js` replaces the former parser-only loop with
 the real SVG boundary: all 32 types/76 templates render, with 304 additional
@@ -1588,14 +1714,17 @@ Pie/Waterfall category selection, independent numeric-value
 selection, Waterfall running totals, exact table metadata, canonical foreign-JSON
 detection, and height clamping. Component tests own the approved modal
 structure and names, mode visibility, preview/error states, non-destructive
-Cancel, the absence of a redundant Cartesian Category control, all category
+Cancel, focused-control Escape plus dirty-draft confirmation, the absence of a
+redundant Cartesian Category control, all category
 options in both special-mode comboboxes, stale-source protection, the fixed
 first-column category row, shared Kanban palette selection,
 square series/guide color triggers, disabled-trendline tooltip content, the
 compact editable threshold stepper, direct segmented series and threshold axis
 choices, one-row Mode/Orientation and threshold-control placement, shared
 Top/Right/Bottom/Left legend choices, eye/eye-off visibility buttons, borderless
-preview chrome, removed instructional hints, column-only separators, and one
+preview and outer-modal chrome, quiet fields/pickers/steppers/segmented choices,
+the ordinary outlined **JSON** disclosure, removed instructional hints,
+column-only separators, and one
 root Apply transaction. The shared palette
 component contract separately owns listbox selection state, automatic-option
 policy, focus restoration, Escape, and fixed-menu viewport clamping. Diagram and
@@ -1647,6 +1776,8 @@ Chromium cannot prove native webview geometry.
 
 ```bash
 npm run test:unit -- --runTestsByPath \
+  tests/frontend/unit/editorModalResizeModel.test.js \
+  tests/frontend/unit/editorModalResize.test.js \
   tests/frontend/unit/editorBlockActionLayoutModel.test.js \
   tests/frontend/unit/mermaidEditorModel.test.js \
   tests/frontend/unit/mermaidStyleEditorModel.test.js \
@@ -1713,9 +1844,9 @@ replacement-widget editor. Exercise Arrow Up/Down, Vim motions, mouse
 placement, and bidirectional drag selection at the source range's edges;
 ordinary history, search, prompts, and paste remain root-editor behavior. The
 rendered surface must preserve inline GFM formatting and alignment, compact
-full-width density, `<br>` outside code spans, anchored bare `^` vertical
-merges, and editor-authored rectangular merges in both live and printable
-output.
+full-width density, a rounded tonal background without an outer stroke, the
+internal cell grid, `<br>` outside code spans, anchored bare `^` vertical merges,
+and editor-authored rectangular merges in both live and printable output.
 
 The pure `tablePreviewInteractionModel.test.js` event-policy matrix owns
 wheel/touch, surface/scrollbar, and cell-content pointer ownership.
@@ -1727,7 +1858,7 @@ span-aware row/column guards. `markdownTableEditor.test.js` owns the two-row
 labelled-icon toolbar, grouped danger actions, accessible cell names, ordinary
 native pointer ownership, Shift-click/Shift-drag selection, contextual
 disabled tooltips, read-only source, local history, one Apply dispatch, and
-dirty Escape confirmation.
+dirty Escape confirmation. It also owns canonical outlined ordinary toolbar-button bindings.
 `markdownTableEditorGuide.test.js` owns the three-action guide and complete
 table-plus-metadata deletion. `markdownTables.test.js` covers the semantic DOM
 adapter, exact source reveal, rectangular rendering, and the absence of legacy
@@ -1739,7 +1870,12 @@ and exercises Arrow Down/Up around revealed source. It also opens the modal,
 proves an ordinary click retains native textarea caret placement without a
 cell-range announcement, uses a real Shift-drag for Merge/Split, checks the header
 tint and read-only source, applies one transaction, and undoes it once through
-root CodeMirror history. Native track paging is platform-owned and may not
+root CodeMirror history. It also checks the computed preview surface has no
+outer border while its background, corner radius, and cell grid remain. The
+same computed-style pass requires the Table Editor modal, pane, pane-heading,
+and redundant toolbar-group borders to be absent while the ordinary action
+borders, Rows/Columns divider, and cell grid remain. Native
+track paging is platform-owned and may not
 advance from synthetic Chromium input. Packaged WebKitGTK, WebView2, and
 WKWebView checks remain required after changes to table/source cursor geometry.
 There is no third-party table-editor module to map or vendor.
@@ -1758,6 +1894,25 @@ For tab or workspace-view work, retain a browser regression that places a
 nonzero file selection, opens and closes Settings, and verifies the exact
 anchor/head pair plus the file tab's saved cursor state. Unit coverage must
 also assert that the portable session serializes the current per-file range.
+
+`tests/frontend/unit/dialogs.test.js` owns the shared modal keyboard contract:
+the visible **ESC to close** cue and `aria-keyshortcuts` metadata are present,
+and Escape dismisses while a text field or embedded editor owns focus. Feature
+component tests retain responsibility for nested picker precedence and
+dirty-draft confirmation.
+
+Resizable editor modals stay below the generic dialog boundary.
+`editorModalResizeModel.test.js` owns independent width/height clamping,
+minimum-size yielding for small viewports, and Arrow-key deltas.
+`editorModalResize.test.js` owns pointer commit/cancel/no-movement behavior,
+keyboard steps, Home reset, live readout, viewport reclamping, disposal, and
+the capture-phase rule that lets the first Escape cancel an active resize while
+the next reaches modal dismissal. Table, Mermaid, and Chart component suites
+assert the shared accessible handle is attached; the generic dialog suite
+asserts it is absent. The existing Mermaid Editor browser workflow performs one
+real pointer resize, requires modal-container pane reflow and viewport
+containment, then restores the CSS-managed geometry with Home. Other editor
+workflows do not duplicate that shared geometry boundary.
 
 Table conversion retains focused component coverage: selection conversion
 previews delimiter/header changes and cancels without editing, invalid input
@@ -1800,6 +1955,11 @@ revealed table source range, a Windows Excel-shaped table-plus-image payload
 without an image save, Arrow Up/Down, and bidirectional pointer drag selection.
 Do not duplicate the pure failure matrix in Playwright.
 
+The table-plus-image object is synthetic and only matches the MIME shape
+observed from Windows Excel. It proves Figaro's browser-side precedence rule in
+Chromium; only a paste from Excel into the packaged WebView2 build establishes
+the Windows clipboard bridge.
+
 ```bash
 npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/richPasteModel.test.js \
@@ -1841,8 +2001,8 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/drawioImageCreationModel.test.js \
   tests/frontend/unit/drawioImageGuide.test.js \
   tests/frontend/unit/editor.test.js \
+  tests/frontend/unit/editorLinkCompletions.test.js \
   tests/frontend/unit/fileTree.test.js \
-  tests/frontend/unit/imageSystem.test.js \
   tests/frontend/unit/markdownBlockGuides.test.js \
   tests/frontend/unit/markdownImageGuide.test.js \
   tests/frontend/unit/markdownImageModel.test.js \
@@ -2211,7 +2371,8 @@ non-color alert marker and exact hover/focus description, contributes an
 aggregate marker while its ancestor is collapsed, and routes activation to the
 shared diagnostics without opening CodeMirror. Diagnostic component coverage
 owns the persistent status summary, applicable-action filtering, targeted tree
-reveal event, and modal close lifecycle. The design-system browser specimen
+reveal event, outlined per-file recovery actions, and modal close lifecycle.
+The design-system browser specimen
 owns the irreducible computed tint, inset marker, status danger variant, and
 unchanged 24px row geometry.
 One browser scenario owns the irreducible Tab-entry and `:focus-visible`
@@ -2460,13 +2621,26 @@ that minimum independently of the live advisory scan used by CI.
 
 ### Workspace consistency and scheduling safety
 
-The existing `kanbanDueDate.spec.js` exercises actual D/Escape focus handoff and
-picker placement, not backend argument matrices. `kanban.test.js` owns exact
-D/Delete/modifier/repeat dispatch, dirty-source refusal, and failed-write card
-retention. The existing Gantt browser boundary compares Calendar/Kanban/Graph
-control insets and keeps footer geometry fixed. Catalogue tests verify borderless
-choice paint and visible focus in all three Figaro themes; optional `--choice-*`
-tokens preserve other themes' outlined defaults. The existing editor boundary
+The existing `kanbanDueDate.spec.js` exercises the card's top-right action and
+bottom-left/right date-control geometry, non-crossed pill paint, direct pointer
+picker delivery, Escape focus handoff, picker placement, and clear-both menu,
+not backend argument matrices. `kanban.test.js` owns exact S/D/Delete,
+modifier/repeat dispatch, dirty-source refusal, retained endpoints, and
+failed-write card retention. The existing Gantt browser boundary compares Calendar/Kanban/Graph
+control insets and keeps footer geometry fixed. The focused Kanban presentation
+scenario verifies that the real Board/Gantt track, loading columns, columns, and
+cards are borderless theme surfaces, while card hover and keyboard focus remain
+observable. It also compares the computed track and selected-segment paint for
+Settings' Kanban choices, Board/Gantt, and Month/Timeline in both native themes,
+preventing a Settings context rule from restyling the shared primitive. The
+same browser boundary samples the Board/Gantt highlight across real animation
+frames, requires an intermediate transform, and checks the settled pill against
+the selected option's geometry. Static design-system coverage requires the
+one- through four-option selectors plus forced-colors and reduced-motion fallbacks.
+Catalogue tests verify that explicit quiet choices stay borderless
+and theme-relative in representative dark and light themes; ordinary choices
+may still use optional `--choice-*` outlined defaults. Static contracts retain
+forced-colors borders for Settings and Kanban. The existing editor boundary
 covers caret-anchored `@date`, Arrow Up/Down, and task mouse/drag selection; normal
 macro completion component tests cover Enter/Tab/Space and source undo. The
 task-rail component also refuses handoff after switching notes, including an

@@ -69,6 +69,7 @@ type App struct {
 	vaultLoadLastEmit   int
 	eventEmitter        func(name string, data ...any)
 	windowShow          func(context.Context)
+	windowRuntime       windowRuntime
 	windowFocusPending  bool
 }
 
@@ -188,6 +189,7 @@ func NewApp(vaultPath string) *App {
 		windowState:         defaultWindowState(),
 		vaultLoadStatus:     VaultLoadStatus{Phase: VaultLoadPending},
 		windowShow:          runtime.WindowShow,
+		windowRuntime:       wailsWindowRuntime{},
 	}
 	a.loadColors()
 

@@ -1,4 +1,5 @@
 import { pickerKeyboardPlan } from './core/pickerModel.js';
+import { mountFloatingMenu } from './floatingMenu.js';
 
 let pickerSequence = 0;
 
@@ -23,6 +24,7 @@ export function enhanceSettingsPicker({
     value,
     ariaLabel,
     optionClass = '',
+    floating = true,
     onChange = () => {},
 } = {}) {
     if (!trigger || !menu) return null;
@@ -37,6 +39,7 @@ export function enhanceSettingsPicker({
         : records[0]?.value || '';
     let activeIndex = Math.max(0, records.findIndex(option => option.value === selectedValue));
     let open = false;
+    let placement = null;
 
     trigger.type = 'button';
     trigger.setAttribute('role', 'combobox');
@@ -101,14 +104,18 @@ export function enhanceSettingsPicker({
         optionButtons[activeIndex].scrollIntoView?.({ block: 'nearest' });
     };
     const setOpen = requested => {
-        open = Boolean(requested && optionButtons.length && !trigger.disabled);
+        const nextOpen = Boolean(requested && optionButtons.length && !trigger.disabled);
+        const changed = nextOpen !== open;
+        open = nextOpen;
         trigger.setAttribute('aria-expanded', String(open));
         menu.hidden = !open;
         menu.classList.toggle('open', open);
         if (open) {
+            if (changed && floating) placement = mountFloatingMenu(trigger, menu);
             const selectedIndex = Math.max(0, records.findIndex(option => option.value === selectedValue));
             setActive(selectedIndex);
         } else {
+            if (changed) { placement?.close(); placement = null; }
             trigger.removeAttribute('aria-activedescendant');
             optionButtons.forEach(button => button.classList.remove('active'));
         }
@@ -157,8 +164,9 @@ export function enhanceSettingsPicker({
     };
     const onOutsideClick = event => {
         if (!trigger.isConnected || !menu.isConnected) {
+            setOpen(false);
             document.removeEventListener('click', onOutsideClick);
-        } else if (!trigger.closest('.ui-picker')?.contains(event.target)) {
+        } else if (!trigger.closest('.ui-picker')?.contains(event.target) && !menu.contains(event.target)) {
             setOpen(false);
         }
     };
@@ -180,6 +188,7 @@ export function enhanceSettingsPicker({
             return choose(index, { notify });
         },
         destroy() {
+            setOpen(false);
             trigger.removeEventListener('click', onTriggerClick);
             trigger.removeEventListener('keydown', onTriggerKeydown);
             menu.removeEventListener('pointermove', onPointerMove);

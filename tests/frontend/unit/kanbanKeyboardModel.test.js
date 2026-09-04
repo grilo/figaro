@@ -1,8 +1,13 @@
 import {
     adjacentKanbanColumn,
     applyKanbanCardOrder,
+    calibrateKanbanVirtualLayout,
+    createKanbanVirtualLayout,
     kanbanCardOrderRef,
     kanbanCardWindow,
+    kanbanVirtualIndexAtOffset,
+    kanbanVirtualOffset,
+    recordKanbanVirtualMeasurements,
     reorderKanbanCardRefs,
 } from '../frontend/js/core/kanbanKeyboardModel.js';
 
@@ -20,6 +25,27 @@ describe('Kanban keyboard decisions', () => {
         expect(kanbanCardWindow(10_000, { anchorIndex: 9_999, windowSize: 96 }))
             .toEqual({ start: 9_904, end: 10_000 });
         expect(kanbanCardWindow(0)).toEqual({ start: 0, end: 0 });
+    });
+
+    test('maps scroll offsets through calibrated and individually measured card heights', () => {
+        const layout = createKanbanVirtualLayout(6, 90);
+        calibrateKanbanVirtualLayout(layout, 110);
+        recordKanbanVirtualMeasurements(layout, [
+            { index: 1, height: 140 },
+            { index: 3, height: 70 },
+        ]);
+
+        expect([
+            kanbanVirtualOffset(layout, 0),
+            kanbanVirtualOffset(layout, 1),
+            kanbanVirtualOffset(layout, 2),
+            kanbanVirtualOffset(layout, 3),
+            kanbanVirtualOffset(layout, 4),
+            kanbanVirtualOffset(layout, 6),
+        ]).toEqual([0, 110, 250, 360, 430, 650]);
+        expect(kanbanVirtualIndexAtOffset(layout, 249)).toBe(1);
+        expect(kanbanVirtualIndexAtOffset(layout, 250)).toBe(2);
+        expect(kanbanVirtualIndexAtOffset(layout, 649)).toBe(5);
     });
 
     test('moves a card one vertical position without mutating the input', () => {

@@ -78,6 +78,7 @@
   "optionalArtDirectionTokens": [
     "--choice-border",
     "--choice-surface",
+    "--choice-track-shadow",
     "--choice-item-border",
     "--choice-item-surface",
     "--choice-item-color",
@@ -119,7 +120,6 @@
     "--tab-active-shadow",
     "--tab-active-transform",
     "--settings-card-surface",
-    "--settings-card-border",
     "--settings-card-shadow",
     "--settings-title-color",
     "--settings-title-letter-spacing",

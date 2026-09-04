@@ -365,7 +365,7 @@ func (a *App) UpdateTaskTag(filePath string, lineNum int, oldTag string, newTag 
 	}
 	lines[lineNum-1] = newLine
 	updatedContent := strings.Join(lines, "\n")
-		if err := a.writeNoteWithTaskSchedules(root, cleanRel, updatedContent); err != nil {
+	if err := a.writeNoteWithTaskSchedules(root, cleanRel, updatedContent); err != nil {
 		return nil, err
 	}
 	info, err := root.Stat(cleanRel)

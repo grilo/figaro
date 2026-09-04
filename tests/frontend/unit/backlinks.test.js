@@ -125,6 +125,7 @@ describe('empty and failed backlink lookups', () => {
     });
 
     test('links one unlinked mention in the preferred syntax after safeguarding open buffers', async () => {
+        window.go.desktop.App.LinkUnlinkedMention.mockResolvedValue({ success: true });
         const container = document.createElement('div');
         container.id = 'link-mention-results';
         document.body.appendChild(container);

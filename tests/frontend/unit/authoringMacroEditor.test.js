@@ -1,5 +1,8 @@
 describe('structured authoring macros in the Markdown editor', () => {
     test('accepts structured macros and opens the sibling Draw.io name prompt through CodeMirror completion', async () => {
+        window.go.desktop.App.SaveFile.mockResolvedValue({ success: true, mtime: 1 });
+        window.go.desktop.App.SetTaskDueDate.mockResolvedValue({ success: true });
+        window.go.desktop.App.CommitCurrentFile.mockResolvedValue(null);
         document.body.innerHTML = `
             <main id="app"><div id="editor-container"></div></main>
             <span id="status-text"></span>

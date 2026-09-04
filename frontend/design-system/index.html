@@ -378,7 +378,7 @@
                     <article class="ds-specimen">
                         <header><h3>Gantt task bars</h3><code class="ds-selector">.kanban-gantt-bar</code></header>
                         <div class="ds-demo">
-                            <button type="button" class="ui-button kanban-gantt-bar" style="position:relative;top:auto;--gantt-color:#d8574a">Design interface</button>
+                            <button type="button" class="ui-button kanban-gantt-bar" style="position:relative;top:auto;--gantt-color:#d8574a;--gantt-resize-hit-width:18px"><span class="ui-image-resize-handle kanban-gantt-handle" data-resize="start" aria-hidden="true"></span>Design interface<span class="ui-image-resize-handle kanban-gantt-handle" data-resize="end" aria-hidden="true"></span></button>
                             <button type="button" class="ui-button kanban-gantt-bar" data-done="true" style="position:relative;top:auto;--gantt-color:#3da674">✓ Research complete</button>
                             <button type="button" class="ui-button kanban-gantt-bar" disabled style="position:relative;top:auto;--gantt-color:#d8574a">Saving dates…</button>
                         </div>
@@ -542,7 +542,7 @@
                     </article>
 
                     <article class="ds-specimen">
-                        <header><h3>Themed comboboxes</h3><code class="ds-selector">.select-combobox</code><code class="ds-selector">.settings-picker</code></header>
+                        <header><h3>Themed comboboxes</h3><code class="ds-selector">.select-combobox</code><code class="ds-selector">.settings-picker</code><code class="ds-selector">.ui-picker--quiet</code></header>
                         <div class="ds-demo ds-form-stack settings-card ds-inline-settings-card">
                             <label class="settings-row settings-row--select">
                                 <span class="settings-row-label">Auto-save</span>
@@ -573,18 +573,18 @@
 
                 <div class="ds-specimen-grid ds-specimen-grid--two">
                     <article class="ds-specimen">
-                        <header><h3>Appearance pickers</h3><code class="ds-selector">.ui-picker</code><code class="ds-selector">.ui-picker-trigger</code></header>
+                        <header><h3>Appearance pickers</h3><code class="ds-selector">.ui-picker</code><code class="ds-selector">.ui-picker--quiet</code><code class="ds-selector">.ui-picker-trigger</code></header>
                         <div class="ds-demo settings-card ds-inline-settings-card">
                             <div class="settings-section">
                                 <span class="settings-section-icon">Theme</span>
-                                <div class="ui-picker theme-picker" data-catalog-settings-picker="theme">
+                                <div class="ui-picker ui-picker--quiet theme-picker" data-catalog-settings-picker="theme">
                                     <button type="button" class="ui-picker-trigger theme-picker-btn"><span data-picker-value>Figaro Dark</span><span aria-hidden="true">⌄</span></button>
                                     <div class="ui-menu ui-picker-menu theme-picker-menu" hidden></div>
                                 </div>
                             </div>
                             <div class="settings-section">
                                 <span class="settings-section-icon">Font</span>
-                                <div class="ui-picker font-picker" data-catalog-settings-picker="font">
+                                <div class="ui-picker ui-picker--quiet font-picker" data-catalog-settings-picker="font">
                                     <button type="button" class="ui-picker-trigger font-picker-btn"><span data-picker-value>Inter</span><span aria-hidden="true">⌄</span></button>
                                     <div class="ui-menu ui-picker-menu font-picker-menu" hidden></div>
                                 </div>
@@ -592,19 +592,19 @@
                         </div>
                     </article>
                     <article class="ds-specimen">
-                        <header><h3>Steppers</h3><span class="ds-review-tag is-decided">Merged</span><code class="ds-selector">.ui-stepper</code></header>
+                        <header><h3>Steppers</h3><span class="ds-review-tag is-decided">Merged</span><code class="ds-selector">.ui-stepper</code><code class="ds-selector">.ui-stepper--quiet</code></header>
                         <div class="ds-demo settings-card ds-inline-settings-card">
                             <div class="settings-section">
                                 <span class="settings-section-icon">Font size</span>
-                                <div class="ui-stepper font-size-control"><button class="ui-stepper-button font-size-btn">−</button><span class="ui-stepper-value font-size-value">100%</span><button class="ui-stepper-button font-size-btn">+</button></div>
+                                <div class="ui-stepper ui-stepper--quiet font-size-control"><button class="ui-stepper-button font-size-btn">−</button><span class="ui-stepper-value font-size-value">100%</span><button class="ui-stepper-button font-size-btn">+</button></div>
                             </div>
                             <div class="settings-section">
                                 <span class="settings-section-icon">Text width</span>
-                                <div class="ui-stepper text-width-control"><button class="ui-stepper-button text-width-btn">−</button><span class="ui-stepper-value text-width-value">100%</span><button class="ui-stepper-button text-width-btn">+</button></div>
+                                <div class="ui-stepper ui-stepper--quiet text-width-control"><button class="ui-stepper-button text-width-btn">−</button><span class="ui-stepper-value text-width-value">100%</span><button class="ui-stepper-button text-width-btn">+</button></div>
                             </div>
                             <div class="settings-section">
                                 <span class="settings-section-icon" id="catalogue-tab-size-label">Tab size</span>
-                                <div class="ui-stepper tab-size-control" role="group" aria-labelledby="catalogue-tab-size-label"><button class="ui-stepper-button tab-size-down" aria-label="Decrease tab size">−</button><input class="ui-stepper-value tab-size-value" type="number" min="2" max="8" step="1" value="4" aria-label="Tab size in spaces"><button class="ui-stepper-button tab-size-up" aria-label="Increase tab size">+</button></div>
+                                <div class="ui-stepper ui-stepper--quiet tab-size-control" role="group" aria-labelledby="catalogue-tab-size-label"><button class="ui-stepper-button tab-size-down" aria-label="Decrease tab size">−</button><input class="ui-stepper-value tab-size-value" type="number" min="2" max="8" step="1" value="4" aria-label="Tab size in spaces"><button class="ui-stepper-button tab-size-up" aria-label="Increase tab size">+</button></div>
                             </div>
                         </div>
                     </article>
@@ -623,7 +623,7 @@
                         </div>
                     </article>
                     <article class="ds-specimen">
-                        <header><h3>Segmented control</h3><code class="ds-selector">.ui-segmented-control</code></header>
+                        <header><h3>Segmented control</h3><code class="ds-selector">.ui-segmented-control</code><code class="ds-selector">.ui-segmented-control--quiet</code></header>
                         <div class="ds-demo ds-form-stack">
                             <div class="ui-segmented-control" role="group" aria-label="Card density example">
                                 <button class="ui-button" aria-pressed="true">Comfortable</button>
@@ -729,7 +729,7 @@
                     <article class="ds-specimen">
                         <header><h3>Settings listbox</h3><code class="ds-selector">.settings-picker-menu</code></header>
                         <div class="ds-demo">
-                            <div class="ui-picker settings-picker ds-open-picker">
+                            <div class="ui-picker ui-picker--quiet settings-picker ds-open-picker">
                                 <div class="ui-menu ui-picker-menu settings-picker-menu open" role="listbox">
                                     <button class="ui-menu-item settings-picker-item selected" role="option" aria-selected="true"><span>Markdown</span><span>✓</span></button>
                                     <button class="ui-menu-item settings-picker-item" role="option" aria-selected="false"><span>Wikilinks</span><span>✓</span></button>
@@ -796,8 +796,8 @@
                                 </svg>
                                 <div class="graph-floating-controls">
                                     <div class="graph-canvas-controls" role="group" aria-label="Graph zoom controls example"><button class="ui-icon-button" aria-label="Zoom out">−</button><button class="ui-icon-button" aria-label="Fit graph">0</button><button class="ui-icon-button" aria-label="Zoom in">+</button></div>
-                                    <label class="graph-filter"><span class="sr-only">Filter graph example</span><input type="search" class="ui-field graph-filter-input" placeholder="Filter graph…"></label>
-                                    <button class="ui-button graph-show-orphans" aria-pressed="true">Orphans</button>
+                                    <label class="graph-filter"><span class="sr-only">Filter graph example</span><input type="search" class="ui-field ui-field--quiet graph-filter-input" placeholder="Filter graph…"></label>
+                                    <div class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Graph filters example"><button class="ui-button graph-show-orphans" aria-pressed="true">Orphans</button></div>
                                 </div>
                             </div>
                         </div>
@@ -834,8 +834,20 @@
                         <header><h3>Kanban card</h3><code class="ds-selector">.kanban-card</code></header>
                         <div class="ds-demo">
                             <div class="kanban-card">
-                                <div class="kanban-card-text">Verify compact action variants against the shared primitive.</div>
-                                <div class="kanban-card-meta"><span class="kanban-card-source">Roadmap.md</span><button class="kanban-card-delete" aria-label="Delete card">×</button></div>
+                                <div class="kanban-card-header">
+                                    <div class="kanban-card-text">Verify compact action variants against the shared primitive.</div>
+                                    <button type="button" tabindex="-1" class="ui-icon-button ui-icon-button--small kanban-card-menu-trigger" aria-label="Task actions" aria-haspopup="menu" aria-expanded="false">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+                                    </button>
+                                </div>
+                                <div class="kanban-card-dates">
+                                    <button type="button" tabindex="-1" class="ui-button kanban-card-date kanban-card-start" data-date-field="start" data-date-state="unset" aria-label="Set task start date, currently Not started">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg><span>Not started</span>
+                                    </button>
+                                    <button type="button" tabindex="-1" class="ui-button kanban-card-date kanban-card-due" data-date-field="end" data-date-state="upcoming" aria-label="Change task due date, currently Due Sep 28">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg><span>Due Sep 28</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </article>
@@ -945,7 +957,7 @@
             </section>
 
             <section id="dialogs" class="catalog-section" data-catalog-section
-                     data-catalog-terms="dialog modal overlay confirmation warning danger form footer buttons">
+                     data-catalog-terms="dialog modal overlay confirmation warning danger form footer buttons resize handle">
                 <header class="catalog-section-header">
                     <div>
                         <p>09 · Dialogs</p>
@@ -957,7 +969,7 @@
                 <article class="ds-specimen">
                     <header><h3>Warning confirmation</h3><code class="ds-selector">.custom-modal</code><code class="ds-selector">.custom-modal--warning</code></header>
                     <div class="ds-demo ds-dialog-stage">
-                        <section class="custom-modal custom-modal--warning" role="dialog" aria-labelledby="catalog-dialog-title">
+                        <section class="custom-modal custom-modal--warning" role="dialog" aria-keyshortcuts="Escape" aria-labelledby="catalog-dialog-title">
                             <header class="custom-modal-header">
                                 <span class="custom-modal-icon" aria-hidden="true">
                                     <svg viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0ZM12 9v4M12 17h.01"/></svg>
@@ -966,16 +978,45 @@
                                     <h3 id="catalog-dialog-title">Rewrite vault links?</h3>
                                     <p>Choose how existing links should behave after changing the preferred syntax.</p>
                                 </div>
+                                <span class="custom-modal-dismiss-hint" aria-hidden="true">ESC to close</span>
                             </header>
                             <div class="custom-modal-content">
                                 <div class="custom-modal-context"><span>Vault</span><code>Notes / Personal</code></div>
                                 <div class="ui-notice ui-notice--warning custom-modal-notice custom-modal-notice--warning"><strong>Review first</strong><span>Dirty notes will be saved before rewriting resolved local links.</span></div>
+                                <div class="ui-notice ui-notice--warning custom-modal-pending-changes"><span>Discard the unapplied changes?</span><button class="ui-button custom-modal-pending-keep">Keep editing</button><button class="ui-button ui-button--danger custom-modal-pending-discard">Discard</button></div>
                             </div>
                             <footer class="custom-modal-buttons">
                                 <button class="ui-button custom-modal-btn custom-modal-btn-cancel">Cancel</button>
                                 <button class="ui-button ui-button--warning custom-modal-btn custom-modal-btn-extra">Keep existing</button>
                                 <button class="ui-button ui-button--primary custom-modal-btn custom-modal-btn-confirm">Rewrite links</button>
                             </footer>
+                        </section>
+                    </div>
+                </article>
+
+                <article class="ds-specimen">
+                    <header><h3>Resizable editor modal</h3><code class="ds-selector">.custom-modal--resizable</code><code class="ds-selector">.custom-modal-resize-handle</code></header>
+                    <div class="ds-demo ds-dialog-stage">
+                        <section class="custom-modal custom-modal--resizable" role="dialog" aria-keyshortcuts="Escape" aria-labelledby="catalog-resizable-dialog-title">
+                            <header class="custom-modal-header">
+                                <span class="custom-modal-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16M15 4v16"/></svg>
+                                </span>
+                                <div class="custom-modal-heading">
+                                    <h3 id="catalog-resizable-dialog-title">Table Editor</h3>
+                                    <p>Editor workspaces can be resized within the visible window.</p>
+                                </div>
+                                <span class="custom-modal-dismiss-hint" aria-hidden="true">ESC to close</span>
+                            </header>
+                            <div class="custom-modal-content">
+                                <div class="custom-modal-body">Drag the lower-right handle, or focus it and use the Arrow keys. Home restores the default size.</div>
+                            </div>
+                            <footer class="custom-modal-buttons">
+                                <button class="ui-button custom-modal-btn">Cancel</button>
+                                <button class="ui-button ui-button--primary custom-modal-btn">Apply</button>
+                            </footer>
+                            <button type="button" class="ui-image-resize-handle custom-modal-resize-handle" aria-label="Resize editor dialog"></button>
+                            <output class="custom-modal-resize-readout">720 × 520px</output>
                         </section>
                     </div>
                 </article>
@@ -1091,7 +1132,7 @@ title: A quiet workspace
                             <tr><td>Tooltips</td><td>Control hints, Calendar, managed files, Markdown links</td><td><code>.ui-tooltip</code> surface; feature content and placement hooks</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Document tabs</td><td>Active, dirty, pinned, hover, and focus</td><td><code>.ui-document-tab</code> + state modifiers</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Editor folding</td><td>Code arrows plus typed Markdown guides in expanded, collapsed, hover, focus, and active states</td><td><code>.ui-editor-fold-control</code>, <code>.ui-editor-block-guide</code></td><td><span class="is-decided">Approved</span></td></tr>
-                            <tr><td>Image resize handles</td><td>Width, height, and proportional handles with themed hover, focus, active, and disabled states</td><td><code>.ui-image-resize-handle</code></td><td><span class="is-decided">Approved</span></td></tr>
+                            <tr><td>Image resize handles</td><td>Image width, height, and proportional handles, Gantt endpoint dots, and the editor-modal corner handle with themed hover, focus, active, and disabled states</td><td><code>.ui-image-resize-handle</code></td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Graph canvas</td><td>Idle, focus, panning, and loading states</td><td><code>.ui-graph-canvas</code></td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Content skeletons</td><td>Calendar month cells and Kanban columns/cards</td><td><code>.ui-skeleton</code> shimmer; feature-owned geometry</td><td><span class="is-decided">Approved</span></td></tr>
                             <tr><td>Determinate progress</td><td>Accessible track and value fill</td><td><code>.ui-progress</code> family</td><td><span class="is-decided">Approved</span></td></tr>

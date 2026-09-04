@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { confirmDialog, errorDialog } from './dialogs.js';
+import { mountFloatingMenu } from './floatingMenu.js';
 import { log } from './log.js';
 
 let workspacePorts = null;
@@ -133,6 +134,7 @@ export async function initLinkStyleSetting(root = document) {
     trigger.dataset.linkStyleBound = 'true';
 
     let activeIndex = Math.max(0, options.findIndex(option => option.dataset.linkStyle === currentStyle));
+    let placement = null;
     const setActive = index => {
         activeIndex = (index + options.length) % options.length;
         options.forEach((option, optionIndex) => option.classList.toggle('active', optionIndex === activeIndex));
@@ -140,12 +142,18 @@ export async function initLinkStyleSetting(root = document) {
     };
     const setOpen = (open) => {
         const shouldOpen = Boolean(open && !trigger.disabled);
+        const changed = shouldOpen !== (trigger.getAttribute('aria-expanded') === 'true');
         trigger.setAttribute('aria-expanded', String(shouldOpen));
         menu.hidden = !shouldOpen;
         menu.classList.toggle('open', shouldOpen);
         if (shouldOpen) {
+            if (changed) placement = mountFloatingMenu(trigger, menu);
             setActive(options.findIndex(option => option.dataset.linkStyle === currentStyle));
         } else {
+            if (changed) {
+                placement?.close();
+                placement = null;
+            }
             trigger.removeAttribute('aria-activedescendant');
             options.forEach(option => option.classList.remove('active'));
         }
@@ -207,8 +215,9 @@ export async function initLinkStyleSetting(root = document) {
 
     const closeOnOutsideClick = event => {
         if (!trigger.isConnected) {
+            setOpen(false);
             document.removeEventListener('click', closeOnOutsideClick);
-        } else if (!picker.contains(event.target)) {
+        } else if (!picker.contains(event.target) && !menu.contains(event.target)) {
             setOpen(false);
         }
     };

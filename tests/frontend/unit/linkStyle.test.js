@@ -61,6 +61,8 @@ describe('vault link style workflow', () => {
         trigger.click();
         expect(trigger.getAttribute('aria-expanded')).toBe('true');
         expect(menu.hidden).toBe(false);
+        expect(menu.parentElement).toBe(document.body);
+        expect(menu.dataset.floating).toBe('true');
         expect(trigger.getAttribute('aria-activedescendant')).toBe('link-style-option-markdown');
 
         trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
@@ -68,6 +70,7 @@ describe('vault link style workflow', () => {
         trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         expect(trigger.getAttribute('aria-expanded')).toBe('false');
         expect(menu.hidden).toBe(true);
+        expect(menu.parentElement).toBe(trigger.closest('.link-style-picker'));
         expect(document.activeElement).toBe(trigger);
     });
 

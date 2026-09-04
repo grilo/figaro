@@ -47,6 +47,7 @@ describe('Today workspace overview', () => {
             { file: 'Projects/Plan.md', file_name: 'Plan.md', line: 12, text: 'Clarify the next milestone', tag: 'todo' },
         ]);
         window.go.desktop.App.GetDueTaskSummary.mockResolvedValue({ due_today: 0, overdue: 0 });
+        window.go.desktop.App.CreateDirectory.mockResolvedValue({ success: true });
     });
 
     test('makes Today the primary action and balances Inbox, tasks, pins, recent notes, and rediscovery', async () => {

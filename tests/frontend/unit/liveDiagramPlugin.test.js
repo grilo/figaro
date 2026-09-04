@@ -97,12 +97,16 @@ describe('live diagram preview', () => {
         expect(diagramDOM.classList.contains('cm-block-widget')).toBe(true);
         expect(diagramDOM.classList.contains('cm-block-widget--diagram')).toBe(true);
         expect(diagramDOM.classList.contains('cm-block-widget--mermaid')).toBe(true);
+        expect(diagramDOM.classList.contains('cm-block-widget--application-mermaid')).toBe(true);
         expect(diagramDOM.classList.contains('cm-source-footprint')).toBe(true);
         expect(diagramDOM.classList.contains('cm-source-footprint--graphic')).toBe(true);
         expect(diagramDOM.dataset.sourceFootprint).toBe('mermaid');
         expect(diagramDOM.dataset.sourceLines).toBe('4');
         expect(diagramDOM.querySelectorAll('svg')).toHaveLength(1);
-        expect(window.mermaid.render).toHaveBeenCalled();
+        expect(window.mermaid.render).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.stringContaining("theme: 'base'"),
+        );
 
         view.dispatch({ selection: { anchor: source.indexOf('flowchart') } });
         expect(decorationsIn(view.state, diagramField)).toHaveLength(4);

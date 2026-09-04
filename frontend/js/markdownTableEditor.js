@@ -1,6 +1,7 @@
 import { Transaction } from '@codemirror/state';
 
-import { activateModal, createDialogShell, errorDialog } from './dialogs.js';
+import { activateModal, createDialogShell, createPendingChangesNotice, errorDialog } from './dialogs.js';
+import { makeEditorModalResizable } from './editorModalResize.js';
 import { renderLucideIcon } from './lucideIcons.js';
 import {
     applyMarkdownTableEditorAction,
@@ -123,6 +124,7 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
     const cancelButton = overlay.querySelector('.markdown-table-editor-cancel');
     const applyButton = overlay.querySelector('.markdown-table-editor-apply');
     const status = overlay.querySelector('.markdown-table-editor-status');
+    const modalResize = makeEditorModalResizable(overlay.querySelector('.custom-modal'));
     setButtonContent(cancelButton, 'X', 'Cancel');
     setButtonContent(applyButton, 'Check', 'Apply');
 
@@ -210,22 +212,16 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
     sourcePane.append(sourceHeading, source);
     panes.append(gridPane, sourcePane);
 
-    const discard = document.createElement('div');
-    discard.className = 'ui-notice ui-notice--warning markdown-table-editor-discard';
-    discard.hidden = true;
-    discard.setAttribute('role', 'alertdialog');
-    discard.setAttribute('aria-label', 'Discard table changes?');
-    const discardText = document.createElement('span');
-    discardText.textContent = 'Discard the unapplied table changes?';
-    const keepButton = document.createElement('button');
-    keepButton.type = 'button';
-    keepButton.className = 'ui-button markdown-table-editor-keep';
+    const {
+        notice: discard,
+        keepButton,
+        discardButton,
+    } = createPendingChangesNotice('table');
+    discard.classList.add('markdown-table-editor-discard');
+    keepButton.classList.add('markdown-table-editor-keep');
     setButtonContent(keepButton, 'PencilLine', 'Keep editing');
-    const discardButton = document.createElement('button');
-    discardButton.type = 'button';
-    discardButton.className = 'ui-button ui-button--danger markdown-table-editor-discard-confirm';
+    discardButton.classList.add('markdown-table-editor-discard-confirm');
     setButtonContent(discardButton, 'Trash2', 'Discard');
-    discard.append(discardText, keepButton, discardButton);
     workspace.append(toolbar, selectionHint, panes, discard);
 
     let state = initialState;
@@ -418,6 +414,7 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
             }
         }
         settled = true;
+        modalResize.destroy();
         lifecycle.close(false);
         returnFocus(mainView, options.returnFocus, originalBlock.from);
         return true;

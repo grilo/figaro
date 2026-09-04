@@ -139,7 +139,12 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
                 document.head.appendChild(style);
             }
             style.textContent = await response.text();
-            await new Promise(resolve => setTimeout(resolve, 220));
+            void document.documentElement.offsetWidth;
+            const finiteAnimations = document.getAnimations().filter(animation => (
+                animation.effect?.getTiming().iterations !== Infinity
+            ));
+            await Promise.allSettled(finiteAnimations.map(animation => animation.finished));
+            await new Promise(resolve => requestAnimationFrame(resolve));
 
             const computed = getComputedStyle(document.documentElement);
             const color = name => computed.getPropertyValue(name).trim().toLowerCase();
@@ -213,8 +218,6 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
             document.body.append(quickNoteProbe);
             quickNoteProbe.style.color = 'var(--text-dim)';
             const expectedQuickNoteDestination = getComputedStyle(quickNoteProbe).color;
-            quickNoteProbe.style.backgroundColor = 'color-mix(in srgb, var(--text-color) 3%, var(--sidebar-bg))';
-            const expectedQuickNoteBackground = getComputedStyle(quickNoteProbe).backgroundColor;
             quickNoteProbe.remove();
             const activeTabStyle = activeTab ? getComputedStyle(activeTab) : null;
             const activeTabBounds = activeTab?.getBoundingClientRect() || null;
@@ -281,11 +284,10 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
                 searchFieldBackground: searchField.backgroundColor,
                 quickNoteBorder: quickNote.borderTopColor,
                 quickNoteBackground: quickNote.backgroundColor,
-                quickNoteBackgroundPixels: renderedColor(quickNote.backgroundColor),
+                quickNoteContrast: renderedContrast('#create-inbox-note', '#create-inbox-note'),
+                sidebarBackgroundColor: sidebar.backgroundColor,
                 quickNoteInboxColor: quickNoteInbox.color,
                 quickNoteInboxPixels: renderedColor(quickNoteInbox.color),
-                expectedQuickNoteBackground,
-                expectedQuickNoteBackgroundPixels: renderedColor(expectedQuickNoteBackground),
                 expectedQuickNoteDestination,
                 expectedQuickNoteDestinationPixels: renderedColor(expectedQuickNoteDestination),
                 screenBackground: screen.backgroundImage,
@@ -344,7 +346,9 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
         expect(details.searchFieldBorder).toBe('rgba(0, 0, 0, 0)');
         expect(details.searchFieldBackground).not.toBe('rgba(0, 0, 0, 0)');
         expect(details.quickNoteBorder).toBe('rgba(0, 0, 0, 0)');
-        expect(details.quickNoteBackgroundPixels).toEqual(details.expectedQuickNoteBackgroundPixels);
+        expect(details.quickNoteBackground).not.toBe('rgba(0, 0, 0, 0)');
+        expect(details.quickNoteBackground).not.toBe(details.sidebarBackgroundColor);
+        expect(details.quickNoteContrast).toBeGreaterThanOrEqual(4.5);
         expect(details.quickNoteInboxPixels).toEqual(details.expectedQuickNoteDestinationPixels);
         expect(details.screenPointerEvents).toBe('none');
         if (theme.flat) {
@@ -484,11 +488,6 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
             await new Promise(resolve => requestAnimationFrame(resolve));
 
             const rowColor = getComputedStyle(document.querySelector('.search-result-row')).color;
-            const quickNoteProbe = document.createElement('span');
-            document.body.append(quickNoteProbe);
-            quickNoteProbe.style.backgroundColor = 'color-mix(in srgb, var(--text-color) 3%, var(--sidebar-bg))';
-            const expectedQuickNoteBackground = getComputedStyle(quickNoteProbe).backgroundColor;
-            quickNoteProbe.remove();
             results.push({
                 id: theme.id,
                 rowColor,
@@ -500,7 +499,7 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
                 metaContrast: renderedContrast('.search-result-meta', '.search-result-row'),
                 highlightContrast: renderedContrast('.search-result-excerpt mark', '.search-result-excerpt mark'),
                 quickNoteBackground: getComputedStyle(document.querySelector('#create-inbox-note')).backgroundColor,
-                expectedQuickNoteBackground,
+                quickNoteContrast: renderedContrast('#create-inbox-note', '#create-inbox-note'),
             });
         }
         document.documentElement.style.removeProperty('--transition-fast');
@@ -517,7 +516,8 @@ test('brightens the connected Dark reading plane and keeps CRT glass deliberate'
         expect(details.metaContrast, `${details.id} search metadata contrast`).toBeGreaterThanOrEqual(4.5);
         expect(details.highlightContrast, `${details.id} highlighted match contrast`).toBeGreaterThanOrEqual(4.5);
         expect(details.quickNoteBackground, `${details.id} Quick Note capture surface`)
-            .toBe(details.expectedQuickNoteBackground);
+            .not.toBe('rgba(0, 0, 0, 0)');
+        expect(details.quickNoteContrast, `${details.id} Quick Note contrast`).toBeGreaterThanOrEqual(4.5);
     }
 
     await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -47,9 +47,25 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
     ].join('\n');
 
     const result = await page.evaluate(async (markdown) => {
+        const { renderDiagramSVG } = await import('/js/diagramRenderer.js');
+        const applicationHost = document.createElement('div');
+        applicationHost.innerHTML = await renderDiagramSVG(
+            'mermaid',
+            'flowchart TD\n  Start --> Finish',
+            'application-before-print',
+            { appearance: 'application' },
+        );
+        document.body.append(applicationHost);
+        const applicationEdgeStroke = getComputedStyle(applicationHost.querySelector('.flowchart-link')).stroke;
+        applicationHost.remove();
         const module = await import('/js/pdfExport.js');
         const html = await module.renderPrintableMarkdownWithDiagrams(markdown, 'Fallback');
         const printable = new DOMParser().parseFromString(html, 'text/html');
+        const printableHost = document.createElement('div');
+        printableHost.innerHTML = html;
+        document.body.append(printableHost);
+        const printableEdgeStroke = getComputedStyle(printableHost.querySelector('.figaro-print-diagram .flowchart-link')).stroke;
+        printableHost.remove();
         return {
             covers: printable.querySelectorAll('.figaro-print-cover').length,
             coverTitle: printable.querySelector('.figaro-print-cover h1')?.textContent,
@@ -63,6 +79,8 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
             unsafeMermaidSource: printable.querySelector('pre > code.language-mermaid')?.textContent,
             highlighted: printable.querySelector('mark')?.textContent,
             renderedMath: printable.querySelectorAll('.katex').length,
+            applicationEdgeStroke,
+            printableEdgeStroke,
         };
     }, source);
 
@@ -79,6 +97,8 @@ test('renders printable cover, TOC, Mermaid, Vega, and Vega-Lite with the vendor
     expect(result.unsafeMermaidSource).toContain('!!omap');
     expect(result.highlighted).toBe('highlighting');
     expect(result.renderedMath).toBe(1);
+    expect(result.applicationEdgeStroke).not.toBe('rgb(51, 51, 51)');
+    expect(result.printableEdgeStroke).toBe('rgb(51, 51, 51)');
     await expect.poll(() => printBundleLoaded).toBe(true);
 });
 

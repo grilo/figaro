@@ -67,6 +67,7 @@ describe('select combobox', () => {
         combobox.trigger.click();
 
         expect(combobox.menu.dataset.floating).toBe('true');
+        expect(combobox.menu.parentElement).toBe(document.body);
         expect(combobox.menu.dataset.placement).toBe('top');
         expect(combobox.menu.style.cssText).toContain('top: 8px');
         expect(combobox.menu.style.cssText).toContain('left: 120px');
@@ -75,6 +76,7 @@ describe('select combobox', () => {
 
         combobox.trigger.click();
         expect(combobox.menu.dataset.floating).toBeUndefined();
+        expect(combobox.menu.parentElement).toBe(combobox.wrapper);
         expect(combobox.menu.style.cssText).toBe('');
     });
 

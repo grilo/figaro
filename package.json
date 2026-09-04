@@ -1,6 +1,6 @@
 {
   "name": "figaro",
-  "version": "1.34.0",
+  "version": "1.35.0",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -9,10 +9,11 @@
   },
   "scripts": {
     "build:design-system": "node scripts/build-design-system.mjs",
-    "test": "jest",
-    "test:unit": "bash tests/release/prepare-release.test.sh && jest --runInBand",
+    "test": "npm run test:integrity && jest",
+    "test:integrity": "node scripts/test-integrity.mjs",
+    "test:unit": "npm run test:integrity && bash tests/release/prepare-release.test.sh && jest --runInBand",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test:coverage": "npm run test:integrity && jest --coverage",
     "test:pdf": "playwright test",
     "lint": "eslint frontend/js frontend/design-system",
     "lint:fix": "eslint frontend/js frontend/design-system --fix",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@babel/core": "^8.0.1",
+    "@babel/parser": "^7.29.0",
     "@babel/preset-env": "^8.0.2",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.0",
@@ -34,7 +36,7 @@
   "jest": {
     "testEnvironment": "jsdom",
     "transform": {
-      "^.+\\.js$": "babel-jest"
+      "^.+\\.[cm]?js$": "babel-jest"
     },
     "moduleNameMapper": {
       "^\\./test_setup\\.js$": "<rootDir>/tests/frontend/support/test_setup.js",

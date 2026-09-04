@@ -298,24 +298,26 @@ test('keeps the left Mermaid control stack aligned when Outline narrows the writ
             const fold = document.querySelector('[aria-label="Collapse mermaid code block"]');
             const diagram = document.querySelector('.cm-live-diagram');
             const widget = document.querySelector('.cm-block-widget--mermaid');
-            if (helper && fold && diagram && widget) {
-                const helperRect = helper.getBoundingClientRect();
-                const foldRect = fold.getBoundingClientRect();
-                const diagramRect = diagram.getBoundingClientRect();
-                const widgetRect = widget.getBoundingClientRect();
-                samples.push({
-                    widgetOffset: helperRect.top - widgetRect.top,
-                    foldGap: helperRect.top - foldRect.bottom,
-                    horizontalGap: widgetRect.left - helperRect.right,
-                    overlaps: helperRect.left < diagramRect.right
-                        && helperRect.right > diagramRect.left
-                        && helperRect.top < diagramRect.bottom
-                        && helperRect.bottom > diagramRect.top,
-                });
+            if (!helper || !fold || !diagram || !widget) {
+                throw new Error('Mermaid controls disappeared during the outline transition');
             }
+            const helperRect = helper.getBoundingClientRect();
+            const foldRect = fold.getBoundingClientRect();
+            const diagramRect = diagram.getBoundingClientRect();
+            const widgetRect = widget.getBoundingClientRect();
+            samples.push({
+                widgetOffset: helperRect.top - widgetRect.top,
+                foldGap: helperRect.top - foldRect.bottom,
+                horizontalGap: widgetRect.left - helperRect.right,
+                overlaps: helperRect.left < diagramRect.right
+                    && helperRect.right > diagramRect.left
+                    && helperRect.top < diagramRect.bottom
+                    && helperRect.bottom > diagramRect.top,
+            });
         }
         return samples;
     });
+    expect(transitionLayout).toHaveLength(30);
     expect(transitionLayout.every(sample => Math.abs(sample.widgetOffset - beforeWidgetOffset) <= 2)).toBe(true);
     expect(transitionLayout.every(sample => !sample.overlaps)).toBe(true);
     expect(transitionLayout.every(sample => Math.abs(sample.foldGap - before.foldGap) <= 1)).toBe(true);
@@ -334,24 +336,26 @@ test('keeps the left Mermaid control stack aligned when Outline narrows the writ
             const fold = document.querySelector('[aria-label="Collapse mermaid code block"]');
             const diagram = document.querySelector('.cm-live-diagram');
             const widget = document.querySelector('.cm-block-widget--mermaid');
-            if (helper && fold && diagram && widget) {
-                const helperRect = helper.getBoundingClientRect();
-                const foldRect = fold.getBoundingClientRect();
-                const diagramRect = diagram.getBoundingClientRect();
-                const widgetRect = widget.getBoundingClientRect();
-                samples.push({
-                    widgetOffset: helperRect.top - widgetRect.top,
-                    foldGap: helperRect.top - foldRect.bottom,
-                    horizontalGap: widgetRect.left - helperRect.right,
-                    overlaps: helperRect.left < diagramRect.right
-                        && helperRect.right > diagramRect.left
-                        && helperRect.top < diagramRect.bottom
-                        && helperRect.bottom > diagramRect.top,
-                });
+            if (!helper || !fold || !diagram || !widget) {
+                throw new Error('Mermaid controls disappeared while the outline closed');
             }
+            const helperRect = helper.getBoundingClientRect();
+            const foldRect = fold.getBoundingClientRect();
+            const diagramRect = diagram.getBoundingClientRect();
+            const widgetRect = widget.getBoundingClientRect();
+            samples.push({
+                widgetOffset: helperRect.top - widgetRect.top,
+                foldGap: helperRect.top - foldRect.bottom,
+                horizontalGap: widgetRect.left - helperRect.right,
+                overlaps: helperRect.left < diagramRect.right
+                    && helperRect.right > diagramRect.left
+                    && helperRect.top < diagramRect.bottom
+                    && helperRect.bottom > diagramRect.top,
+            });
         }
         return samples;
     });
+    expect(closingLayout).toHaveLength(30);
     expect(closingLayout.every(sample => Math.abs(sample.widgetOffset - beforeWidgetOffset) <= 2)).toBe(true);
     expect(closingLayout.every(sample => !sample.overlaps)).toBe(true);
     expect(closingLayout.every(sample => Math.abs(sample.foldGap - before.foldGap) <= 1)).toBe(true);

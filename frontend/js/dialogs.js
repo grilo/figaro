@@ -51,13 +51,14 @@ export function createDialogShell({ title, description = '', tone = 'neutral', i
     const overlay = document.createElement('div');
     overlay.className = 'custom-modal-overlay';
     overlay.innerHTML = `
-        <section class="custom-modal custom-modal--${escapeHtml(tone)} ${escapeHtml(className)}" role="dialog" aria-modal="true" aria-labelledby="${id}-title" ${description ? `aria-describedby="${id}-description"` : ''} tabindex="-1">
+        <section class="custom-modal custom-modal--${escapeHtml(tone)} ${escapeHtml(className)}" role="dialog" aria-modal="true" aria-keyshortcuts="Escape" aria-labelledby="${id}-title" ${description ? `aria-describedby="${id}-description"` : ''} tabindex="-1">
             <header class="custom-modal-header">
                 <span class="custom-modal-icon" aria-hidden="true">${iconSVG(icon)}</span>
                 <div class="custom-modal-heading">
                     <h3 id="${id}-title">${escapeHtml(title)}</h3>
                     ${description ? `<p id="${id}-description">${escapeHtml(description)}</p>` : ''}
                 </div>
+                <span class="custom-modal-dismiss-hint" aria-hidden="true">ESC to close</span>
             </header>
             ${content ? `<div class="custom-modal-content">${content}</div>` : ''}
             ${footer ? `<footer class="custom-modal-buttons">${footer}</footer>` : ''}
@@ -65,6 +66,30 @@ export function createDialogShell({ title, description = '', tone = 'neutral', i
     `;
     document.body.appendChild(overlay);
     return { overlay, modal: overlay.querySelector('.custom-modal') };
+}
+
+/** Build the shared inline guard shown before abandoning a transactional modal draft. */
+export function createPendingChangesNotice(subject = '') {
+    const normalizedSubject = String(subject).trim();
+    const qualifier = normalizedSubject ? `${normalizedSubject} ` : '';
+    const notice = document.createElement('div');
+    notice.className = 'ui-notice ui-notice--warning custom-modal-pending-changes';
+    notice.hidden = true;
+    notice.setAttribute('role', 'alertdialog');
+    notice.setAttribute('aria-label', `Discard ${qualifier}changes?`);
+
+    const message = document.createElement('span');
+    message.textContent = `Discard the unapplied ${qualifier}changes?`;
+    const keepButton = document.createElement('button');
+    keepButton.type = 'button';
+    keepButton.className = 'ui-button custom-modal-pending-keep';
+    keepButton.textContent = 'Keep editing';
+    const discardButton = document.createElement('button');
+    discardButton.type = 'button';
+    discardButton.className = 'ui-button ui-button--danger custom-modal-pending-discard';
+    discardButton.textContent = 'Discard';
+    notice.append(message, keepButton, discardButton);
+    return { notice, keepButton, discardButton };
 }
 
 export function activateModal(overlay, {

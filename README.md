@@ -61,8 +61,8 @@ hand without changing the underlying Markdown.
   rounded tonal surface in either state, with theme-aware checkboxes inside;
   expanded Properties presents **Edit YAML** as a quiet file-code action that
   gains tonal paint only on hover or keyboard focus;
-  tables, individual fields, focus, errors, and structural dividers retain their
-  meaningful boundaries. Hovering a successfully loaded image reveals themed
+  internal table grids, keyboard focus, errors, and destructive states retain
+  their meaningful boundaries. Hovering a successfully loaded image reveals themed
   width, height, and proportional handles with generous pointer targets and
   explanatory tooltips. Dragging resizes only the mounted image and updates the
   centered size readout while leaving the source untouched. Releasing the pointer writes
@@ -71,7 +71,9 @@ hand without changing the underlying Markdown.
   and height-only resizing is capped at ten times the original height. Clicking
   the image still reveals its Markdown without moving following text, and the
   left-side **original size** action removes the hint and restores intrinsic
-  dimensions. Properties, links, and task checkboxes keep their normal sizing.
+  dimensions. The adjacent **image** action collapses the complete image to one
+  native fold row, without retaining its size placeholder, and restores the
+  authored geometry on expansion. Properties, links, and task checkboxes keep their normal sizing.
   A rendered task checkbox
   has a named 24px target and changes the underlying Markdown from either a
   click or keyboard Space; an image that is still
@@ -130,19 +132,23 @@ hand without changing the underlying Markdown.
   tree or another workspace region. Large searches, expanded trees, Kanban
   columns, and backlink sets retain their complete logical content while
   mounting bounded windows, so keyboard and assistive navigation remain
-  available without creating tens of thousands of DOM elements. Very large
+  available without creating tens of thousands of DOM elements. Kanban's
+  window uses measured card heights and retains overlapping cards while its
+  edges move, avoiding visual jumps or repeated hover elevation during a fast
+  scroll. Very large
   Markdown notes mount source and full live presentation in short phases, so
   opening one does not monopolize the interface.
 - **Connected note graph.** Open **Graph** below the file tree to explore every
-  saved Markdown note and its links. Borderless zoom controls, a compact search,
+  saved Markdown note and its links. Borderless zoom controls, a compact
+  borderless search field matching Search notes,
   and the **Orphans** choice float directly over the canvas. Clear directed
   arrows are always visible, while node colors inherit vault file-tree
   appearance choices and brighten through nested folders; note-specific colors
   and Lucide icons override that inheritance. Hover traces direct links, click
-  pins that trace until the canvas is clicked elsewhere, and Ctrl/Cmd-click
-  opens the note. Drag to pan, use the wheel or buttons to zoom, and fit the
-  complete graph to view. Large vaults keep one stable layout; filtering,
-  tracing, and zooming repaint in responsive batches.
+  pins that trace until the canvas is clicked elsewhere, and either
+  double-click or Ctrl/Cmd-click opens the note. Drag to pan, use the wheel or
+  buttons to zoom, and fit the complete graph to view. Large vaults keep one
+  stable layout; filtering, tracing, and zooming repaint in responsive batches.
 - **Capture and planning.** Ctrl/Cmd+N captures a Quick Note in the real
   `Inbox`, while Ctrl/Cmd+Shift+N opens the daily note;
   hashtags form a Kanban board, and private task deadlines feed the Today
@@ -227,8 +233,16 @@ off, dim everything outside the current phrase or paragraph, and optionally
 **Adapt text to window size** using three stable bands. Reduced motion makes caret
 repositioning immediate. Figaro remembers all three Pure behavior preferences,
 the expanded/collapsed sidebar state, and the active buffer, so the same
-writing view returns on the next launch. The Focus scope menu opens directly
+writing view returns from the first painted frame on the next launch. The Focus scope menu opens directly
 below its control, including while the Settings view is scrolled.
+
+Settings groups, pickers, steppers, and short choices use borderless layered
+theme surfaces. Figaro Light gives form controls a distinct warm resting layer,
+while selected choices use the active theme's accent treatment. Mouse
+interaction changes tone without adding a focus halo; keyboard focus,
+validation, and forced-colors mode retain explicit boundaries. Popup lists
+stay attached to their controls, flipping and clamping within the window when
+near an edge or inside a scrolling panel.
 
 ## Download
 
@@ -287,6 +301,18 @@ or Shift+Tab to move keyboard focus out of the editor.
 cursor line stays unnumbered; the lines immediately above and below show `1`,
 then `2`, and so on. Only visible gutter rows are refreshed as the cursor moves.
 
+Every application modal shows **ESC to close** and honors Escape regardless of
+which field or embedded editor has focus. Editors with unapplied changes ask
+for confirmation before discarding their temporary draft; an open picker closes
+first so its parent modal remains available.
+The Table, Mermaid, and Chart editors also have a lower-right resize handle;
+other dialogs keep their normal responsive size. Drag the handle, or focus it
+and use the Arrow keys (Shift for smaller steps). **Home** restores the default
+size. The editor panes reflow with the resized dialog, which remains inside the
+visible window, and the chosen size lasts only until that editor closes. Escape
+during a drag cancels the resize first; a later Escape follows the normal
+close-and-confirm behavior.
+
 Pasting genuinely rich text from a browser, document editor, or AI chat into a
 Markdown note preserves headings, emphasis, links, lists, quotes, code, tasks,
 highlights, and rectangular tables as ordinary Markdown. Common clipboard-only
@@ -316,9 +342,10 @@ source-preserving semantic preview. The preview uses the same Markdown-It
 renderer as PDF Preview and generated PDFs, so emphasis, alignment, links,
 literal code, `<br/>` line-break markers, anchored `^` row spans, and
 editor-created rectangular merges stay consistent across editor and printable
-output. Move the cursor into the table—or click a rendered cell—to edit the raw
-Markdown directly; scrolling or manipulating either preview scrollbar keeps
-the semantic table rendered.
+output. Its rounded tonal background has no separate outer stroke; the internal
+cell grid retains the table's structure. Move the cursor into the table—or click
+a rendered cell—to edit the raw Markdown directly; scrolling or manipulating
+either preview scrollbar keeps the semantic table rendered.
 
 Use the table's left-side **editor** guide for a grid view. A normal cell click
 places the native text caret without selecting the cell. Hold Shift while
@@ -327,6 +354,11 @@ rectangular body-cell range for Merge; Split is available only on a merged
 cell. Header cells use a distinct theme tint. Labelled icon controls use one
 row for history/cell/view actions and another for row/column structure, with
 the two Delete actions grouped at the end in the theme's danger tint.
+The dialog shell and grid/source panes use borderless tonal separation. Toolbar
+actions use the same outlined buttons as Settings, with one divider between
+Rows and Columns; the cell grid, keyboard focus, validation, and destructive
+actions keep their structural emphasis. Its lower-right handle can resize the
+workspace, and the grid/source layout responds to the available dialog width.
 Row/column commands disable with an explanation when they would cut through a
 merge, and the final column and header remain protected. Undo/Redo in the
 window affects only its temporary draft; **Apply** writes one undoable
@@ -371,7 +403,8 @@ hover or keyboard focus explains the exact problem and a click opens recovery
 guidance. Collapsed folders show the number and highest severity beneath them.
 The status action opens the same diagnostic list, including **Show in file
 tree**, **Open externally**, **Reveal in folder**, and **Check again** only when
-those actions apply. Warnings indicate a safely skipped or degraded feature;
+those actions apply. The per-file recovery actions use the same outlined button
+treatment as Settings. Warnings indicate a safely skipped or degraded feature;
 danger is reserved for unreadable files or work that may not be persisted.
 Repeated unchanged diagnostic snapshots stay inert, so background checks do
 not remount the tree or interrupt a context menu, keyboard focus, or a
@@ -473,15 +506,18 @@ unless the document contains a matching Markdown reference definition. A
 same-document link such as `[Jump](#writing-and-planning)` moves directly to
 that heading whether the link is currently rendered or showing raw source.
 Ctrl/Cmd-click an external HTTP or HTTPS link to open it in the operating
-system's default browser; its hover tooltip includes the same shortcut, while
-vault Markdown links continue to navigate inside Figaro.
+system's default browser, including when the visible label is the complete URL;
+its hover tooltip includes the same shortcut, while vault Markdown links
+continue to navigate inside Figaro.
 
 ## Writing and planning
 
 Markdown diagnostics identify structural problems and Mermaid syntax errors
 without changing source.
 Pressing Enter on an empty list item or blockquote exits one structural level
-immediately; nested quotes step outward one level at a time.
+immediately; nested quotes step outward one level at a time. Deleting a numbered
+list item renumbers its remaining siblings from the list's original starting
+number, including within nested lists, as part of the same Undo step.
 Offline spellcheck is disabled by default; choose **Settings → Spellcheck →
 Language** to select English (US), English (UK), Spanish (Spain), or **None**.
 The setting separates the vault default from per-note frontmatter controls, and
@@ -551,10 +587,13 @@ ordinary typing; normal hashtag completion remains available. Clicking the
 hashtag itself opens its Kanban column, while adjacent line space remains
 available for placing the caret and continuing the text.
 
-Calendar and Kanban place their view switches at the upper left; Graph's
-floating controls use the same inset. All segmented choice controls use the
-Calendar's borderless treatment in Figaro Dark, Light, and CRT Phosphor,
-including hover/selection while retaining a visible keyboard-focus ring.
+Calendar and Kanban place their view choices at the upper left; Graph's
+floating controls use the same inset. Their explicit quiet segmented choices
+reuse the same pill-shaped track and sliding selected highlight as Settings and
+every other fixed short choice. The track promotes Settings' stronger control
+surface to the canonical treatment and derives all paint from the active theme.
+Pointer interaction stays quiet, reduced motion moves immediately, and keyboard
+focus retains a visible ring.
 
 The title-bar `?` guide keeps general Markdown syntax under **Markdown** and
 collects Figaro-specific authoring forms under **Macros**. Alongside
@@ -570,8 +609,20 @@ content scrolls inside that surface.
 
 The board is fully keyboard-operable. Tab advances through every card in
 column order; Up/Down persists a card's vertical position, Left/Right moves it
-to the adjacent column, Enter opens its note, D changes its due date, and
-Delete removes that column tag. Pointer drag remains available.
+to the adjacent column, Enter opens its note, S changes its start date, D
+changes its due date, and Delete removes that column tag. Each card keeps its
+task name beside a top-right theme-accented ellipsis and omits the source
+filename. A clickable **Start …** or **Not started** pill sits at the lower
+left, and a clickable **Due …** or **No due date** pill sits at the lower
+right; either opens the shared calendar picker. The ellipsis menu can **Clear
+start and due dates** or **Remove from board**, and Shift+F10/Menu opens it from
+the keyboard. Pointer drag remains available.
+
+Columns and cards are separated by layered theme surfaces instead of permanent
+outlines. Cards lift on hover, keyboard focus receives a ring, and drag targets
+receive a temporary accent halo; Windows forced-colors mode restores structural
+borders automatically. Hover lift pauses during active scrolling so cards
+passing beneath a stationary pointer do not leave visual trails.
 
 Switch **Board / Gantt** in the Kanban header to plan the same tasks on a
 horizontal timeline. Bars use their column's color; `#done` tasks are faded.
@@ -579,9 +630,13 @@ Click a task or bar to choose **Start** and **End** with the shared date picker,
 which applies each choice immediately—there is no Save/Cancel step. Click outside
 to close the schedule popup and its calendar. Escape closes the calendar first,
 then the schedule popup, returning focus to the invoking control. Closing never
-undoes dates already chosen; **Unscheduled** clears both dates immediately.
+undoes dates already chosen; **Unscheduled** clears both dates immediately and
+is disabled when neither date is set.
 Failed changes keep the last saved dates and can be
-retried through the picker. Drag a bar to move its whole range, or either end to resize it;
+retried through the picker. Drag a bar to move its whole range, or use the
+theme-accented dot centered on either end edge—half inside the bar and half
+outside—to resize that date;
+one-day bars keep both resize edges and a distinct center drag target.
 Escape cancels a drag. **Open note** opens the source at the task line.
 End-only tasks show a one-day bar; start-only tasks show ongoing work through
 today. Undated tasks remain **Unscheduled**. A task’s first move into any column
@@ -590,6 +645,8 @@ returning to TODO does not erase it. An overdue deadline remains unchanged.
 Pan empty timeline space, scroll horizontally, or use the week arrows and
 **Today**. Task names stay pinned, weekends follow your locale, and counts use
 the existing application status bar without adding another footer.
+One current-day line runs from the day heading through the complete timeline,
+including empty space below the last task.
 Gantt and Calendar Timeline reuse the same scrolling widget: wheel gestures
 move at least three days, buffered outer weeks extend automatically while
 preserving the visible date without a flashing replacement frame. Overlapping
@@ -609,7 +666,8 @@ reconnection cannot overwrite another task's schedule. **End** is the same due
 date used by Board, Calendar, Today, and reminders. Old `[due …](….md)` links
 remain ordinary Markdown links; they no longer schedule tasks. There is no
 migration or hidden task ID in your notes. Press D on a focused card to open
-the date picker; Escape returns focus to that card without changing it.
+the due-date picker, or S to open the start-date picker; Escape returns focus
+to that card without changing it.
 
 
 Calendar, Kanban, and Graph share three persistent browser-style tabs attached
@@ -622,6 +680,8 @@ tab, and reselecting the active control keeps that workspace open. Hashtags and
 **Open board** reuse the same
 Kanban workspace and can focus the relevant column. Graph keeps one all-notes
 canvas session without adding graph-only chrome to the shared right pane.
+Returning to a loaded Kanban workspace reuses the populated board immediately;
+its entrance animation and loading skeleton are reserved for the initial open.
 The main pane keeps that browser-tab silhouette at its top-left corner: it is
 rounded with the shared tab radius unless the first title-bar tab is selected
 and needs a square, uninterrupted connection to the editor. Every mounted
@@ -657,7 +717,7 @@ scrolls independently in the equal-width right pane. There is no middle rule,
 and Calendar retains the fixed status-bar footprint with its irrelevant
 main-pane buffer telemetry hidden.
 The session-only **Month / Timeline** choice defaults to Month. Timeline shows a
-centered six-week range around its anchor; **Today** returns to the current date, the arrow
+centered six-week range around its anchor; its outlined **Today** action returns to the current date, the arrow
 buttons page by two weeks, and wheel, trackpad, scrollbar, or keyboard input
 move horizontally. Each wheel/trackpad event advances by at least three day
 columns, while grabbing empty space pans directly and suppresses text selection
@@ -697,7 +757,12 @@ diagnostics pause.
 Live Mermaid previews reuse rendered SVGs when CodeMirror remounts them during
 scrolling. New diagrams wait for a quiet, idle moment before rendering so
 moving through long notes stays responsive. Even a small diagram receives a
-300px, full-writing-width canvas. Hover or focus it to expose the same themed
+300px, full-writing-width canvas. An unstyled diagram uses an ephemeral palette
+derived from the active Figaro theme, so dark themes do not surround dark
+connectors with a white slab. An explicit Mermaid theme or custom variables
+remain authoritative. This application appearance never changes the Markdown;
+printable HTML, PDF Preview, and generated PDFs continue to render the authored
+Mermaid source with its document palette. Hover or focus it to expose the same themed
 vertical resize handle used by charts, centered directly on the canvas's lower
 edge so the control stays visible while the pointer approaches it. The live
 height changes while dragging, then one `%% figaro:height N` Mermaid comment is
@@ -733,7 +798,11 @@ stepper, and the label field spans the configuration pane. Mode and
 Orientation share one compact row; each numeric series exposes Left/Right or
 Bottom/Top as a direct segmented choice, and thresholds use the same pattern
 for Primary/Opposite without replacing or hiding that value axis. The pane has
-no horizontal scrollbar, while only the
+the same borderless quiet fields, pickers, steppers, and segmented choices as
+Settings; its outer dialog and preview are unframed while column separators,
+focus, validation, and errors remain explicit. The standalone **JSON** action
+uses the ordinary outlined button. The configuration has no
+horizontal scrollbar, while only the
 individual column mappings retain separator rules; section headings provide the
 remaining grouping.
 A managed `vega-lite` block adds
@@ -745,11 +814,13 @@ active Figaro theme; the applied chart uses that same surface so its data colors
 do not change after creation. Narrow configuration panes reflow dense column
 controls into multiple rows, and combobox menus flip and clamp to stay within
 the visible window instead of colliding with or being clipped by nearby
-controls. Rendering and configuration failures appear as an
+controls. The editor dialog itself can be resized from its lower-right handle,
+and its configuration/preview split follows the resulting width. Rendering and configuration failures appear as an
 announced error in the preview and keep **Create chart** disabled instead of
 leaving a blank chart box. Preview work is serialized, and rapid choices retain
 only the newest pending chart instead of rendering stale configurations in
-parallel. In the note, charts fill the writing width and
+parallel. Escape closes a focused Chart Editor, asking before discarding an
+unapplied configuration. In the note, charts fill the writing width and
 expose one themed vertical handle centered on the lower canvas edge; the Markdown
 changes once on release, so one drag is one Undo step. The same SVG
 specification renders in PDF Preview and generated PDFs.
@@ -766,7 +837,7 @@ the version-matched Mermaid Live Editor catalogue. Linked **Diagram** and
 **Template** pickers sit tightly together at the left and make empty, whitespace-only,
 or already-template-backed blocks follow each selection immediately for quick
 browsing. Existing or manually edited source is protected until **Replace with
-template** is chosen. **Source** retains direct CodeMirror editing; **Style**
+template** is chosen through an outlined action button. **Source** retains direct CodeMirror editing; **Style**
 detects the current diagram and reveals only controls Mermaid supports for that
 type. Document, neutral, and accent presets are shared; authored dark or custom
 themes are identified without falsely selecting a preset. Color choices keep
@@ -779,8 +850,16 @@ controls are omitted, with an explanation instead of nonfunctional swatches.
 Flowcharts add direction and
 connection choices plus a node list: select a node there or directly in the
 preview, then assign a Kanban-palette color or choose its original, rounded, or
-pill shape. The selected node's editor appears first, above a height-bounded
-list and the diagram-wide defaults. Mermaid's parsed node identities include
+pill shape. The active editor keeps the ellipsized node identity on the left,
+its shape control centered, and its color action on the right; height-stable
+chooser rows summarize those same three parts. Selecting a row does not move
+the list or reset its scroll position. The selected node's editor appears first,
+above the height-bounded list and the diagram-wide defaults.
+Mermaid's Diagram/Template pickers, segmented choices, and color actions reuse
+the same approved quiet control primitives as Settings. The outer dialog,
+source/preview panes, headings, and node list use tonal separation without
+decorative frames; the source gutter, keyboard focus, diagnostics, and
+forced-colors boundaries remain visible. Mermaid's parsed node identities include
 chained and standalone nodes without mistaking icon labels for extra nodes.
 Existing native/class-based node colors are shown; **Use source/default color**
 removes only the editor's override. A
@@ -788,9 +867,11 @@ short instruction plus solid color dots distinguish node selection from
 visibility checkboxes. Use Arrow Up/Down or Home/End to move through the list;
 selecting a node in the preview reveals the same editor. Styling actions retain
 keyboard focus, and preview updates keep an open palette intact. Escape closes
-the palette before the editor. Styling is written as portable Mermaid frontmatter, `style`
-statements, and shape declarations, so the editor, live diagram, PDF Preview,
-and generated PDF render the same source. Invalid source pauses styling until
+the palette before the editor; otherwise it closes from any focused editor
+control and asks before discarding unapplied source. Styling is written as portable Mermaid frontmatter, `style`
+statements, and shape declarations, so explicit styling renders consistently in
+the editor, live diagram, PDF Preview, and generated PDF; only an otherwise
+unstyled in-application preview receives the ephemeral Figaro palette. Invalid source pauses styling until
 it is fixed; compact/advanced YAML and overriding init directives remain
 untouched and points back to Source mode. The temporary source editor inherits the main editor's
 Vim and visual-row preferences and keeps its mode while live diagnostics
@@ -798,7 +879,8 @@ refresh. Oversized diagrams fit the preview pane; use the
 mouse wheel or `+`/`-` to zoom, drag or use the arrow keys to pan, and press `0`
 to reset. A click selects a flowchart node; moving the pointer continues to pan
 without selecting it. The preview receives the larger side of the dialog;
-on compact windows both panes fit above the footer without clipping.
+on compact windows or a deliberately narrower resized dialog, both panes stack
+and fit above the footer without clipping.
 Zooming repaints the SVG at its new dimensions so text and lines stay
 sharp. The left-side `mermaid` helper collapses a rendered diagram into one
 native fold row and expands it back to the live preview. Syntax errors receive

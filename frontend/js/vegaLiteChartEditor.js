@@ -1,6 +1,7 @@
 import { Transaction } from '@codemirror/state';
 
-import { activateModal, createDialogShell, errorDialog } from './dialogs.js';
+import { activateModal, createDialogShell, createPendingChangesNotice, errorDialog } from './dialogs.js';
+import { makeEditorModalResizable } from './editorModalResize.js';
 import { openColorPalettePicker } from './colorPalettePicker.js';
 import { renderDiagramSVG } from './diagramRenderer.js';
 import { renderLucideIcon } from './lucideIcons.js';
@@ -74,6 +75,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
     }
     const state = initialState;
     const unsupported = sourceKind === 'vega-lite' && !initialState.roundTrip;
+    const initialStateSignature = JSON.stringify(initialState);
     const { overlay } = createDialogShell({
         title: 'Chart Editor',
         description: sourceKind === 'table'
@@ -88,21 +90,21 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
                         <div class="vega-lite-chart-editor-section-heading"><h4>Chart</h4></div>
                         <div class="vega-lite-chart-editor-mode-layout">
                             <div class="vega-lite-chart-editor-control-label"><span>Mode</span>
-                                <span class="ui-segmented-control" role="group" aria-label="Chart mode">
+                                <span class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Chart mode">
                                     <button type="button" class="ui-button" data-chart-mode="cartesian">Cartesian</button>
                                     <button type="button" class="ui-button" data-chart-mode="pie">Pie</button>
                                     <button type="button" class="ui-button" data-chart-mode="waterfall">Waterfall</button>
                                 </span>
                             </div>
                             <div class="vega-lite-chart-editor-control-label" data-orientation-group><span>Orientation</span>
-                                <span class="ui-segmented-control" role="group" aria-label="Chart orientation">
+                                <span class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Chart orientation">
                                     <button type="button" class="ui-button" data-chart-orientation="vertical">Vertical</button>
                                     <button type="button" class="ui-button" data-chart-orientation="horizontal">Horizontal</button>
                                 </span>
                             </div>
                         </div>
                         <div class="vega-lite-chart-editor-control-label vega-lite-chart-editor-legend-position" data-legend-group><span>Legend position</span>
-                            <span class="ui-segmented-control" role="group" aria-label="Legend position">
+                            <span class="ui-segmented-control ui-segmented-control--quiet" role="group" aria-label="Legend position">
                                 <button type="button" class="ui-button" data-legend-position="top">Top</button>
                                 <button type="button" class="ui-button" data-legend-position="right">Right</button>
                                 <button type="button" class="ui-button" data-legend-position="bottom">Bottom</button>
@@ -128,29 +130,29 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
                             <div class="vega-lite-chart-editor-threshold-controls">
                                 <label class="vega-lite-chart-editor-check vega-lite-chart-editor-threshold-toggle"><input class="ui-checkbox" type="checkbox" data-threshold-visible> Threshold</label>
                                 <div class="vega-lite-chart-editor-control-label vega-lite-chart-editor-threshold-value-control"><span>Value</span>
-                                    <div class="ui-stepper vega-lite-chart-editor-threshold-stepper" role="group" aria-label="Threshold value">
+                                    <div class="ui-stepper ui-stepper--quiet vega-lite-chart-editor-threshold-stepper" role="group" aria-label="Threshold value">
                                         <button type="button" class="ui-stepper-button" data-threshold-step="-1" aria-label="Decrease threshold value">−</button>
                                         <input class="ui-stepper-value" type="number" step="any" data-threshold-value aria-label="Threshold value">
                                         <button type="button" class="ui-stepper-button" data-threshold-step="1" aria-label="Increase threshold value">+</button>
                                     </div>
                                 </div>
                                 <div class="vega-lite-chart-editor-control-label"><span>Axis</span>
-                                    <span class="ui-segmented-control vega-lite-chart-editor-threshold-axis" role="group" aria-label="Threshold axis">
+                                    <span class="ui-segmented-control ui-segmented-control--quiet vega-lite-chart-editor-threshold-axis" role="group" aria-label="Threshold axis">
                                         <button type="button" class="ui-button" data-threshold-axis="primary">Primary</button>
                                         <button type="button" class="ui-button" data-threshold-axis="secondary">Opposite</button>
                                     </span>
                                 </div>
                                 <div class="vega-lite-chart-editor-control-label"><span>Color</span><button type="button" class="ui-icon-button vega-lite-chart-editor-color-button" data-threshold-color-button><span class="kanban-column-color-indicator" data-color-indicator aria-hidden="true"></span></button></div>
                             </div>
-                            <label class="vega-lite-chart-editor-control-label vega-lite-chart-editor-threshold-label">Label<input class="ui-field" type="text" maxlength="80" data-threshold-label></label>
+                            <label class="vega-lite-chart-editor-control-label vega-lite-chart-editor-threshold-label">Label<input class="ui-field ui-field--quiet" type="text" maxlength="80" data-threshold-label></label>
                         </div>
                     </section>
 
                     <section class="vega-lite-chart-editor-section" data-pie-section hidden>
                         <div class="vega-lite-chart-editor-section-heading"><h4>Pie settings</h4><span>Values are normalized to percentages</span></div>
                         <div class="vega-lite-chart-editor-special-grid">
-                            <label class="vega-lite-chart-editor-control-label">Category<select class="ui-field" data-pie-category></select></label>
-                            <label class="vega-lite-chart-editor-control-label">Values<select class="ui-field" data-pie-value></select></label>
+                            <label class="vega-lite-chart-editor-control-label">Category<select class="ui-field ui-field--quiet" data-pie-category></select></label>
+                            <label class="vega-lite-chart-editor-control-label">Values<select class="ui-field ui-field--quiet" data-pie-value></select></label>
                             <label class="vega-lite-chart-editor-check vega-lite-chart-editor-span"><input class="ui-checkbox" type="checkbox" data-pie-percent> Percentage labels</label>
                         </div>
                     </section>
@@ -158,9 +160,9 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
                     <section class="vega-lite-chart-editor-section" data-waterfall-section hidden>
                         <div class="vega-lite-chart-editor-section-heading"><h4>Waterfall settings</h4><span>One change column</span></div>
                         <div class="vega-lite-chart-editor-special-grid">
-                            <label class="vega-lite-chart-editor-control-label">Category<select class="ui-field" data-waterfall-category></select></label>
-                            <label class="vega-lite-chart-editor-control-label">Changes<select class="ui-field" data-waterfall-value></select></label>
-                            <label class="vega-lite-chart-editor-control-label">Starting value<input class="ui-field" type="number" data-waterfall-start></label>
+                            <label class="vega-lite-chart-editor-control-label">Category<select class="ui-field ui-field--quiet" data-waterfall-category></select></label>
+                            <label class="vega-lite-chart-editor-control-label">Changes<select class="ui-field ui-field--quiet" data-waterfall-value></select></label>
+                            <label class="vega-lite-chart-editor-control-label">Starting value<input class="ui-field ui-field--quiet" type="number" data-waterfall-start></label>
                             <label class="vega-lite-chart-editor-check"><input class="ui-checkbox" type="checkbox" data-waterfall-total> Show final total</label>
                             <div class="vega-lite-chart-editor-control-label"><span>Positive</span><button type="button" class="ui-icon-button vega-lite-chart-editor-color-button" data-waterfall-positive-button><span class="kanban-column-color-indicator" data-color-indicator aria-hidden="true"></span></button></div>
                             <div class="vega-lite-chart-editor-control-label"><span>Negative</span><button type="button" class="ui-icon-button vega-lite-chart-editor-color-button" data-waterfall-negative-button><span class="kanban-column-color-indicator" data-color-indicator aria-hidden="true"></span></button></div>
@@ -179,7 +181,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
                     <div class="vega-lite-chart-editor-preview" data-chart-preview role="status" aria-live="polite" aria-atomic="true">
                         <div class="vega-lite-chart-editor-preview-state"><span class="ui-spinner" aria-hidden="true"></span><span>Rendering chart…</span></div>
                     </div>
-                    <textarea class="ui-field vega-lite-chart-editor-json" data-chart-json readonly spellcheck="false" aria-label="Generated Vega-Lite JSON" hidden></textarea>
+                    <textarea class="ui-field ui-field--quiet vega-lite-chart-editor-json" data-chart-json readonly spellcheck="false" aria-label="Generated Vega-Lite JSON" hidden></textarea>
                 </section>
             </div>
         `,
@@ -199,11 +201,19 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
     const cancelButton = overlay.querySelector('.vega-lite-chart-editor-cancel');
     const status = overlay.querySelector('.vega-lite-chart-editor-status');
     const roundtrip = overlay.querySelector('[data-roundtrip-status]');
+    const modalResize = makeEditorModalResizable(overlay.querySelector('.custom-modal'));
     let lifecycle = null;
     let settled = false;
     let jsonVisible = false;
     let colorPicker = null;
     let previewSession = null;
+    const {
+        notice: discard,
+        keepButton,
+        discardButton,
+    } = createPendingChangesNotice('chart');
+    discard.classList.add('vega-lite-chart-editor-discard');
+    overlay.querySelector('.vega-lite-chart-editor-workspace').append(discard);
 
     const categories = state.columns;
     const values = state.columns.filter(column => column.dataType === 'quantitative');
@@ -222,7 +232,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
     const staticComboboxes = [...staticComboboxLabels].map(([selector, ariaLabel]) => {
         const select = overlay.querySelector(selector);
         return enhanceSelectCombobox(select, {
-            className: 'vega-lite-chart-editor-combobox',
+            className: 'ui-picker--quiet vega-lite-chart-editor-combobox',
             ariaLabel,
         });
     }).filter(Boolean);
@@ -309,14 +319,14 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
                 row.append(visible, name, role);
             } else {
                 const mark = document.createElement('select');
-                mark.className = 'ui-field';
+                mark.className = 'ui-field ui-field--quiet';
                 mark.dataset.columnMark = column.field;
                 mark.setAttribute('aria-label', `Mark type for ${column.label}`);
                 markOptions.forEach(([value, text]) => option(mark, value, text));
                 mark.value = column.mark;
 
                 const axis = document.createElement('span');
-                axis.className = 'ui-segmented-control vega-lite-chart-editor-axis';
+                axis.className = 'ui-segmented-control ui-segmented-control--quiet vega-lite-chart-editor-axis';
                 axis.setAttribute('role', 'group');
                 axis.setAttribute('aria-label', `Axis for ${column.label}`);
                 for (const [value, text] of axisChoices()) {
@@ -373,7 +383,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
                 options.append(color, trend);
                 row.append(visible, name, mark, axis, options);
                 enhanceSelectCombobox(mark, {
-                    className: 'vega-lite-chart-editor-combobox',
+                    className: 'ui-picker--quiet vega-lite-chart-editor-combobox',
                     ariaLabel: `Mark type for ${column.label}`,
                 });
             }
@@ -519,12 +529,27 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
             }
         }
         settled = true;
+        modalResize.destroy();
         previewSession.destroy();
         colorPicker?.close();
         colorPicker = null;
         lifecycle.close(false);
         returnFocus(mainView, options.returnFocus, originalBlock.from);
         return true;
+    };
+
+    const dirty = () => JSON.stringify(state) !== initialStateSignature;
+    const hideDiscard = () => {
+        discard.hidden = true;
+        cancelButton.focus();
+    };
+    const requestCancel = () => {
+        colorPicker?.close();
+        colorPicker = null;
+        if (!dirty()) return finish(false);
+        discard.hidden = false;
+        keepButton.focus();
+        return false;
     };
 
     overlay.addEventListener('click', event => {
@@ -606,8 +631,10 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
         jsonToggle.textContent = jsonVisible ? 'Preview' : 'JSON';
         if (!jsonVisible) renderPreview();
     });
-    cancelButton.addEventListener('click', () => finish(false));
+    cancelButton.addEventListener('click', requestCancel);
     applyButton.addEventListener('click', () => finish(true));
+    keepButton.addEventListener('click', hideDiscard);
+    discardButton.addEventListener('click', () => finish(false));
 
     lifecycle = activateModal(overlay, {
         initialFocus: unsupported ? cancelButton : overlay.querySelector('[data-chart-mode="cartesian"]'),
@@ -615,9 +642,16 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
         onDismiss: () => finish(false),
         shouldDismissOnEscape: event => {
             if (overlay.querySelector('.select-combobox-trigger[aria-expanded="true"]')) return false;
+            if (colorPicker?.picker.isConnected) {
+                event.preventDefault();
+                colorPicker.close({ restoreFocus: true });
+                colorPicker = null;
+                return false;
+            }
             event.preventDefault();
             event.stopPropagation();
-            finish(false);
+            if (!discard.hidden) hideDiscard();
+            else requestCancel();
             return false;
         },
     });
@@ -626,7 +660,7 @@ export function openVegaLiteChartEditor(mainView, originalBlock, options = {}) {
     return {
         overlay,
         apply: () => finish(true),
-        cancel: () => finish(false),
+        cancel: requestCancel,
         get state() { return state; },
     };
 }

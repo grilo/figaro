@@ -1,16 +1,17 @@
 :root {
-    /* Shared choice controls; themes can retain or override the outlined treatment. */
+    /* Shared pill choices; this promotes the former Settings control surface. */
     --choice-border: transparent;
-    --choice-surface: color-mix(in srgb, var(--text-color) 6%, transparent);
+    --choice-surface: #020a06;
+    --choice-track-shadow: inset 0 1px rgba(111, 255, 156, 0.025);
     --choice-item-border: transparent;
     --choice-item-surface: transparent;
     --choice-item-color: var(--text-muted);
     --choice-hover-border: transparent;
     --choice-hover-surface: var(--hover-bg);
     --choice-selected-border: transparent;
-    --choice-selected-surface: var(--bg-color);
-    --choice-selected-color: var(--text-color);
-    --choice-selected-shadow: var(--shadow-sm);
+    --choice-selected-surface: var(--active-bg);
+    --choice-selected-color: var(--accent-color);
+    --choice-selected-shadow: none;
     /* Figaro CRT Phosphor. Palette adapted from Joaquin Bozzalla's
        MIT-licensed Phosphor Design System. Optical treatment adapted from
        HauntedCrusader's MIT-licensed afterglow-crt demonstration. */
@@ -120,7 +121,6 @@
     --tab-active-shadow: none;
     --tab-active-transform: none;
     --settings-card-surface: linear-gradient(145deg, rgba(57, 255, 122, 0.035), rgba(57, 255, 122, 0.01));
-    --settings-card-border: rgba(57, 255, 122, 0.14);
     --settings-card-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
     --settings-title-color: #6fff9c;
     --settings-title-letter-spacing: 0.11em;

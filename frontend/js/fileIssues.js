@@ -192,9 +192,9 @@ function issueCardHTML(issue, index) {
             <p>${escapeHtml(issue.detail)}</p>
             <p class="file-issue-guidance"><strong>What to do:</strong> ${escapeHtml(issue.guidance)}</p>
             <div class="file-issue-actions">
-                ${hiddenPath ? '' : `<button type="button" class="ui-button ui-button--quiet" data-file-issue-action="show" data-path="${escapeHtml(path)}">Show in file tree</button>`}
-                ${canOpenExternally ? `<button type="button" class="ui-button ui-button--quiet" data-file-issue-action="open" data-path="${escapeHtml(path)}" data-external-file-id="${externalFileId}">Open externally</button>` : ''}
-                <button type="button" class="ui-button ui-button--quiet" data-file-issue-action="reveal" data-path="${escapeHtml(path)}" data-external-file-id="${externalFileId}">Reveal in folder</button>
+                ${hiddenPath ? '' : `<button type="button" class="ui-button" data-file-issue-action="show" data-path="${escapeHtml(path)}">Show in file tree</button>`}
+                ${canOpenExternally ? `<button type="button" class="ui-button" data-file-issue-action="open" data-path="${escapeHtml(path)}" data-external-file-id="${externalFileId}">Open externally</button>` : ''}
+                <button type="button" class="ui-button" data-file-issue-action="reveal" data-path="${escapeHtml(path)}" data-external-file-id="${externalFileId}">Reveal in folder</button>
             </div>
         </article>
     `;

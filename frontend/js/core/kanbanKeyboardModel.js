@@ -82,3 +82,82 @@ export function kanbanCardWindow(
     const start = Math.min(count - size, Math.max(0, anchor - Math.floor(size / 2)));
     return { start, end: start + size };
 }
+
+function addHeightDelta(tree, index, delta) {
+    for (let cursor = index + 1; cursor < tree.length; cursor += cursor & -cursor) {
+        tree[cursor] += delta;
+    }
+}
+
+function heightDeltaBefore(tree, index) {
+    let total = 0;
+    for (let cursor = index; cursor > 0; cursor -= cursor & -cursor) {
+        total += tree[cursor];
+    }
+    return total;
+}
+
+/** Create a DOM-independent height index for a variable-height virtual column. */
+export function createKanbanVirtualLayout(cardCount, estimatedStride = 91) {
+    const count = Math.max(0, Math.floor(Number(cardCount) || 0));
+    const estimate = Math.max(1, Number(estimatedStride) || 1);
+    return {
+        count,
+        estimate,
+        measured: new Float64Array(count),
+        deltas: new Float64Array(count + 1),
+        calibrated: false,
+    };
+}
+
+/** Calibrate unmeasured rows while retaining exact measurements already seen. */
+export function calibrateKanbanVirtualLayout(layout, estimatedStride) {
+    const estimate = Math.max(1, Number(estimatedStride) || 1);
+    if (!layout || estimate === layout.estimate) {
+        if (layout) layout.calibrated = true;
+        return layout;
+    }
+    layout.estimate = estimate;
+    layout.deltas.fill(0);
+    layout.measured.forEach((height, index) => {
+        if (height > 0) addHeightDelta(layout.deltas, index, height - estimate);
+    });
+    layout.calibrated = true;
+    return layout;
+}
+
+/** Record exact row strides without coupling the virtual-window policy to DOM reads. */
+export function recordKanbanVirtualMeasurements(layout, measurements) {
+    if (!layout) return layout;
+    for (const measurement of measurements || []) {
+        const index = Number(measurement?.index);
+        const height = Number(measurement?.height);
+        if (!Number.isInteger(index) || index < 0 || index >= layout.count || !Number.isFinite(height) || height <= 0) continue;
+        const previous = layout.measured[index] || layout.estimate;
+        if (Math.abs(previous - height) < 0.01) continue;
+        layout.measured[index] = height;
+        addHeightDelta(layout.deltas, index, height - previous);
+    }
+    return layout;
+}
+
+/** Estimated world-space top of one logical card index. */
+export function kanbanVirtualOffset(layout, index) {
+    if (!layout) return 0;
+    const bounded = Math.max(0, Math.min(layout.count, Math.floor(Number(index) || 0)));
+    return bounded * layout.estimate + heightDeltaBefore(layout.deltas, bounded);
+}
+
+/** Logical card intersecting a world-space vertical offset. */
+export function kanbanVirtualIndexAtOffset(layout, offset) {
+    if (!layout?.count) return 0;
+    const target = Math.max(0, Number(offset) || 0);
+    let low = 0;
+    let high = layout.count - 1;
+    while (low < high) {
+        const middle = Math.ceil((low + high) / 2);
+        if (kanbanVirtualOffset(layout, middle) <= target) low = middle;
+        else high = middle - 1;
+    }
+    return low;
+}

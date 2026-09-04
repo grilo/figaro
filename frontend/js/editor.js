@@ -91,6 +91,7 @@ import {
     dismissContextMenu,
 } from './contextMenu.js';
 import { relativeLineNumbers } from './relativeLineNumbers.js';
+import { orderedListRenumberExtension } from './orderedListRenumber.js';
 import { indentationMarkers as indentationMarkerExtension } from '@replit/codemirror-indentation-markers';
 import { getCM, vim, Vim } from '@replit/codemirror-vim';
 import {
@@ -860,9 +861,6 @@ function mermaidEditorInputProfile(mainView) {
             vimSourceBoundaryExtension(),
             modeClassCompartment.of(vimModeClassExtension('normal')),
         ],
-        capturesEscape(modalView, event) {
-            return Boolean(modalView?.dom.contains(event.target));
-        },
         attach(modalView, { apply, cancel }) {
             const cm = getCM(modalView);
             const syncMode = event => {
@@ -2461,6 +2459,7 @@ function createEditorView() {
         markdownLanguage,
         EditorView.domEventHandlers({ paste: handlePlainPasteBypass }),
         pasteURLAsLink,
+        orderedListRenumberExtension,
         markdownStylePlugin,
         headingLinkCompletionActivator,
         hashtagCompletionActivator,
@@ -3388,8 +3387,6 @@ function handleMouseDown(event, view) {
     if (event.button !== 0 && event.button !== 1) return;
     const replaceCurrent = event.button === 0;
 
-    const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
-
     // Handle clicks on link widgets (don't move cursor, navigate directly)
     const linkEl = event.target.closest('.cm-link-widget');
     if (linkEl) {
@@ -3397,10 +3394,13 @@ function handleMouseDown(event, view) {
         if (linkEl.classList.contains('cm-wikilink-widget')) {
             // The widget's own click listener receives its real target for a left
             // click. Middle-click has no click event, so recover the source token.
-            if (event.button === 1 && position !== null) {
-                const line = view.state.doc.lineAt(position);
-                const wiki = wikiLinkAtPosition(line.text, position - line.from);
-                if (wiki) handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, false);
+            if (event.button === 1) {
+                const position = safeEditorPositionAtPointer(view, event);
+                if (position !== null) {
+                    const line = view.state.doc.lineAt(position);
+                    const wiki = wikiLinkAtPosition(line.text, position - line.from);
+                    if (wiki) handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, false);
+                }
             }
         } else {
             const href = linkEl.getAttribute('href');
@@ -3411,6 +3411,7 @@ function handleMouseDown(event, view) {
                 } else if (/^https?:\/\//i.test(href)) {
                     window.open(href, '_blank');
                 } else {
+                    const position = safeEditorPositionAtPointer(view, event);
                     handleLinkClick(
                         decodeURI(href),
                         linkEl.textContent,
@@ -3437,7 +3438,7 @@ function handleMouseDown(event, view) {
         }
     }
 
-    const pos = position;
+    const pos = safeEditorPositionAtPointer(view, event);
     if (pos === null) return;
     if (event.button === 0 && handleFootnoteNavigation(event, view, pos)) return true;
     const doc = view.state.doc, line = doc.lineAt(pos), lt = line.text, col = pos - line.from;
@@ -3467,6 +3468,15 @@ function handleMouseDown(event, view) {
         event.preventDefault();
         handleLinkClick(normalizeWikiLinkTarget(wiki.target), wiki.label, replaceCurrent);
         return true;
+    }
+}
+
+function safeEditorPositionAtPointer(view, event) {
+    try {
+        return view.posAtCoords({ x: event.clientX, y: event.clientY });
+    } catch (error) {
+        log.warn('Could not map editor pointer to source:', error);
+        return null;
     }
 }
 

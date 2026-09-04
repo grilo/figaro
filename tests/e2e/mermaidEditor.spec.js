@@ -26,9 +26,23 @@ test('small Mermaid diagrams keep their edge handle reachable and commit height 
     await expect(diagram).toBeVisible();
     await expect(diagram.locator('svg')).toBeVisible();
     const geometry = await diagram.evaluate(element => {
+        const channels = color => (String(color).match(/[\d.]+/gu) || []).slice(0, 3).map(Number);
+        const luminance = color => channels(color).reduce((sum, channel, index) => {
+            const normalized = channel / 255;
+            const linear = normalized <= 0.04045
+                ? normalized / 12.92
+                : ((normalized + 0.055) / 1.055) ** 2.4;
+            return sum + linear * [0.2126, 0.7152, 0.0722][index];
+        }, 0);
+        const contrast = (left, right) => {
+            const values = [luminance(left), luminance(right)].sort((a, b) => b - a);
+            return (values[0] + 0.05) / (values[1] + 0.05);
+        };
         const root = element.getBoundingClientRect();
         const graphic = element.querySelector('svg').getBoundingClientRect();
         const canvas = element.querySelector('.cm-live-diagram').getBoundingClientRect();
+        const canvasBackground = getComputedStyle(element.querySelector('.cm-live-diagram')).backgroundColor;
+        const edgeStroke = getComputedStyle(element.querySelector('.flowchart-link')).stroke;
         const handle = element.querySelector('.cm-mermaid-diagram-resize-handle');
         const handleRect = handle.getBoundingClientRect();
         return {
@@ -40,11 +54,16 @@ test('small Mermaid diagrams keep their edge handle reachable and commit height 
             handleCenterX: handleRect.left + handleRect.width / 2,
             handleCenterY: handleRect.top + handleRect.height / 2,
             handlePosition: getComputedStyle(handle).position,
+            canvasBackground,
+            editorBackground: getComputedStyle(element.closest('.cm-editor')).backgroundColor,
+            edgeContrast: contrast(edgeStroke, canvasBackground),
         };
     });
     expect(geometry.rootHeight).toBeGreaterThanOrEqual(340);
     expect(geometry.graphicWidth).toBeGreaterThan(geometry.rootWidth * 0.5);
     expect(geometry.handlePosition).toBe('absolute');
+    expect(geometry.canvasBackground).toBe(geometry.editorBackground);
+    expect(geometry.edgeContrast).toBeGreaterThanOrEqual(3);
     expect(Math.abs(geometry.handleCenterX - geometry.canvasCenterX)).toBeLessThanOrEqual(1);
     expect(Math.abs(geometry.handleCenterY - geometry.canvasBottom)).toBeLessThanOrEqual(1);
 
@@ -74,7 +93,7 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
         'Before',
         '```mermaid',
         'flowchart TD',
-        '  A[Christmas] --> B[Go shopping] --> C --> D[Laptop] --> E[iPhone] --> F[fa:fa-car Car] --> G[Home]',
+        '  A[Christmas planning with a deliberately long node name] --> B[Go shopping] --> C --> D[Laptop] --> E[iPhone] --> F[fa:fa-car Car] --> G[Home]',
         '```',
         'After',
     ].join('\n');
@@ -252,6 +271,10 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     await expect(modal.locator('.mermaid-editor-preview svg')).toBeVisible();
     await expect(modal.locator('.mermaid-editor-preview-empty')).toHaveCount(0);
     await expect(modal.locator('.mermaid-editor-preview-state')).toHaveText('Up to date');
+    expect(await modal.evaluate(dialog => (
+        getComputedStyle(dialog.querySelector('.mermaid-editor-preview')).backgroundColor
+        === getComputedStyle(dialog.querySelector('.mermaid-editor-code-host .cm-editor')).backgroundColor
+    ))).toBe(true);
     await expect(modal.locator('.mermaid-editor-code-host .cm-content')).toBeFocused();
     const pickerRects = await modal.locator('.mermaid-editor-template-label').evaluateAll(labels => labels.map(label => {
         const rect = label.getBoundingClientRect();
@@ -297,17 +320,92 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     await modal.getByRole('tab', { name: 'Style' }).click();
     await expect(modal.locator('[data-diagram-type="flowchart-v2"]')).toBeVisible();
     await expect(modal.locator('.mermaid-editor-node-row')).toHaveCount(7);
+    await expect(modal.locator('.mermaid-editor-combobox').first()).toHaveClass(/ui-picker--quiet/);
+    const nodeList = modal.locator('.mermaid-editor-node-list');
+    await nodeList.evaluate(element => { element.scrollTop = 24; });
+    const nodeRows = modal.locator('.mermaid-editor-node-row');
+    const rowGeometry = async () => nodeRows.evaluateAll(rows => rows.map(row => {
+        const rect = row.getBoundingClientRect();
+        return { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
+    }));
+    const baselineRows = await rowGeometry();
+    const secondRowBox = await nodeRows.nth(1).boundingBox();
+    await page.mouse.move(secondRowBox.x + secondRowBox.width / 2, secondRowBox.y + secondRowBox.height / 2);
+    await page.mouse.down();
+    const pressedRows = await rowGeometry();
+    await page.mouse.up();
+    const settledFrames = await modal.locator('.mermaid-editor-style-content').evaluate(async panel => {
+        const frames = [];
+        for (let index = 0; index < 3; index++) {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            frames.push([...panel.querySelectorAll('.mermaid-editor-node-row')].map(row => {
+                const rect = row.getBoundingClientRect();
+                return { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
+            }));
+        }
+        return frames;
+    });
+    expect(pressedRows).toEqual(baselineRows);
+    expect(settledFrames.every(frame => JSON.stringify(frame) === JSON.stringify(baselineRows))).toBe(true);
+    expect(await nodeList.evaluate(element => element.scrollTop)).toBe(24);
+    expect(await nodeRows.first().evaluate(row => {
+        const identity = row.querySelector('.mermaid-editor-node-identity');
+        const shape = row.querySelector('.mermaid-editor-node-shape');
+        const swatch = row.querySelector('.mermaid-editor-node-swatch');
+        const identityRect = identity.getBoundingClientRect();
+        const shapeRect = shape.getBoundingClientRect();
+        const swatchRect = swatch.getBoundingClientRect();
+        const name = identity.querySelector('.mermaid-editor-node-name');
+        return identityRect.right <= shapeRect.left
+            && shapeRect.right <= swatchRect.left
+            && getComputedStyle(name).textOverflow === 'ellipsis'
+            && name.scrollWidth > name.clientWidth;
+    })).toBe(true);
+    const directionChoice = modal.getByRole('group', { name: 'Direction' });
+    await expect(directionChoice.getByRole('button')).toHaveCount(4);
+    expect(await directionChoice.evaluate(element => {
+        const track = element.getBoundingClientRect();
+        const buttons = [...element.querySelectorAll('.ui-button')].map(button => button.getBoundingClientRect());
+        const highlight = getComputedStyle(element, '::before');
+        const matrix = new DOMMatrixReadOnly(highlight.transform);
+        const selected = element.querySelector('[aria-pressed="true"]').getBoundingClientRect();
+        const highlightLeft = track.left + Number.parseFloat(highlight.left) + matrix.m41;
+        return {
+            oneRow: new Set(buttons.map(rect => Math.round(rect.top))).size === 1,
+            contained: buttons.every(rect => rect.left >= track.left && rect.right <= track.right),
+            highlightAligned: Math.abs(highlightLeft - selected.left) <= 1
+                && Math.abs(Number.parseFloat(highlight.width) - selected.width) <= 1,
+        };
+    })).toEqual({ oneRow: true, contained: true, highlightAligned: true });
+    await nodeRows.first().click();
     expect(await modal.locator('.mermaid-editor-selected-node').evaluate(editor => {
         const rect = editor.getBoundingClientRect();
         const panel = editor.closest('.mermaid-editor-style-content').getBoundingClientRect();
-        return rect.top >= panel.top && rect.bottom <= panel.bottom;
-    })).toBe(true);
+        const name = editor.querySelector('.mermaid-editor-selected-node-heading');
+        const shape = editor.querySelector('.mermaid-editor-selected-node-shape');
+        const color = editor.querySelector('.mermaid-editor-selected-node-color');
+        const nameRect = name.getBoundingClientRect();
+        const shapeRect = shape.getBoundingClientRect();
+        const colorRect = color.getBoundingClientRect();
+        return {
+            visible: rect.top >= panel.top && rect.bottom <= panel.bottom,
+            oneRow: Math.abs(nameRect.top - shapeRect.top) <= 1 && Math.abs(shapeRect.top - colorRect.top) <= 1,
+            ordered: nameRect.right <= shapeRect.left && shapeRect.right <= colorRect.left,
+            nameEllipsizes: getComputedStyle(name.querySelector('strong')).textOverflow === 'ellipsis'
+                && name.querySelector('strong').scrollWidth > name.querySelector('strong').clientWidth,
+        };
+    })).toEqual({ visible: true, oneRow: true, ordered: true, nameEllipsizes: true });
     await previewCanvas.locator('[data-figaro-node-id="B"]').click();
     await expect(modal.locator('.mermaid-editor-node-row[data-node-id="B"]'))
         .toHaveAttribute('aria-selected', 'true');
     const nodeEditorLayout = await modal.locator('.mermaid-editor-style-content').evaluate(panel => {
         const editor = panel.querySelector('.mermaid-editor-selected-node');
         const list = panel.querySelector('.mermaid-editor-node-list');
+        const row = list.querySelector('.mermaid-editor-node-row');
+        const modal = panel.closest('.mermaid-editor-modal');
+        const pane = panel.closest('.mermaid-editor-pane');
+        const heading = pane.querySelector('.mermaid-editor-mode-heading');
+        const gutter = pane.querySelector('.cm-gutters');
         const editorRect = editor.getBoundingClientRect();
         const panelRect = panel.getBoundingClientRect();
         return {
@@ -315,6 +413,14 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
             editorVisible: editorRect.top >= panelRect.top && editorRect.bottom <= panelRect.bottom,
             listIsBounded: list.scrollHeight > list.clientHeight,
             swatchRadius: getComputedStyle(list.querySelector('.mermaid-editor-node-swatch')).borderRadius,
+            modalBorder: getComputedStyle(modal).borderTopWidth,
+            paneBorder: getComputedStyle(pane).borderTopWidth,
+            headingBorder: getComputedStyle(heading).borderBottomWidth,
+            listBorder: getComputedStyle(list).borderTopWidth,
+            rowDivider: getComputedStyle(row).borderBottomWidth,
+            gutterDivider: getComputedStyle(gutter).borderRightWidth,
+            quietControls: Array.from(modal.querySelectorAll('.ui-segmented-control'))
+                .every(control => control.classList.contains('ui-segmented-control--quiet')),
         };
     });
     expect(nodeEditorLayout).toEqual({
@@ -322,6 +428,13 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
         editorVisible: true,
         listIsBounded: true,
         swatchRadius: '50%',
+        modalBorder: '0px',
+        paneBorder: '0px',
+        headingBorder: '0px',
+        listBorder: '0px',
+        rowDivider: '0px',
+        gutterDivider: '1px',
+        quietControls: true,
     });
     await modal.getByRole('button', { name: 'Pill', exact: true }).click();
     await expect(modal.getByRole('button', { name: 'Pill', exact: true })).toBeFocused();
@@ -388,10 +501,54 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     }
     await page.setViewportSize({ width: 1280, height: 720 });
 
+    const resizeHandle = modal.getByRole('button', { name: 'Resize editor dialog' });
+    await expect(resizeHandle).toBeVisible();
+    const defaultModalBounds = await modal.boundingBox();
+    const resizeHandleBounds = await resizeHandle.boundingBox();
+    expect(defaultModalBounds).not.toBeNull();
+    expect(resizeHandleBounds).not.toBeNull();
+    await page.mouse.move(
+        resizeHandleBounds.x + (resizeHandleBounds.width / 2),
+        resizeHandleBounds.y + (resizeHandleBounds.height / 2),
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+        resizeHandleBounds.x + (resizeHandleBounds.width / 2) - 520,
+        resizeHandleBounds.y + (resizeHandleBounds.height / 2),
+        { steps: 8 },
+    );
+    await page.mouse.up();
+    const resizedModalBounds = await modal.boundingBox();
+    const resizedPanePositions = await modal.locator('.mermaid-editor-pane').evaluateAll(panes => (
+        panes.map(pane => {
+            const bounds = pane.getBoundingClientRect();
+            return { x: bounds.x, y: bounds.y };
+        })
+    ));
+    expect(resizedModalBounds.width).toBeLessThan(defaultModalBounds.width);
+    expect(resizedModalBounds.width).toBeLessThan(820);
+    expect(resizedModalBounds.x).toBeGreaterThanOrEqual(23);
+    expect(resizedModalBounds.x + resizedModalBounds.width).toBeLessThanOrEqual(1257);
+    expect(resizedPanePositions[1].y).toBeGreaterThan(resizedPanePositions[0].y);
+
+    await resizeHandle.focus();
+    await page.keyboard.press('Home');
+    await expect.poll(async () => (await modal.boundingBox()).width)
+        .toBeGreaterThan(resizedModalBounds.width);
+    const resetPanePositions = await modal.locator('.mermaid-editor-pane').evaluateAll(panes => (
+        panes.map(pane => {
+            const bounds = pane.getBoundingClientRect();
+            return { x: bounds.x, y: bounds.y };
+        })
+    ));
+    expect(Math.abs(resetPanePositions[1].y - resetPanePositions[0].y)).toBeLessThan(2);
+    expect(resetPanePositions[1].x).toBeGreaterThan(resetPanePositions[0].x);
+
     const originalCode = await modal.locator('.mermaid-editor-code-host .cm-content').textContent();
     const diagramCombobox = modal.getByRole('combobox', { name: 'Diagram' });
+    const diagramOptions = page.locator(`#${await diagramCombobox.getAttribute('aria-controls')}`);
     await diagramCombobox.click();
-    await modal.getByRole('option', { name: 'C4 Diagram' }).click();
+    await diagramOptions.getByRole('option', { name: 'C4 Diagram' }).click();
     await expect(diagramCombobox).toContainText('C4 Diagram');
     expect(await modal.locator('.mermaid-editor-code-host .cm-content').textContent()).toBe(originalCode);
     await expect(modal.locator('.mermaid-editor-template-select option')).toHaveCount(2);
@@ -411,7 +568,7 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     expect(largeTemplateBounds.svg.height).toBeLessThanOrEqual(largeTemplateBounds.viewport.height);
 
     await diagramCombobox.click();
-    await modal.getByRole('option', { name: 'Sequence Diagram' }).click();
+    await diagramOptions.getByRole('option', { name: 'Sequence Diagram' }).click();
     await expect(modal.locator('.mermaid-editor-code-host .cm-content')).toContainText('sequenceDiagram');
     expect(await modal.locator('.mermaid-editor-template-select option').first().evaluate(option => option.selected)).toBe(true);
     await expect(replaceButton).toBeDisabled();
@@ -491,15 +648,21 @@ test('inherits Vim mode and display-row navigation inside the Mermaid source edi
     await expect(modalEditor).toHaveClass(/vim-insert/);
     await expect(page.locator('#file-type')).toHaveText('INSERT');
     await content.press('Escape');
-    await expect(modal).toBeVisible();
-    await expect(modalEditor).toHaveClass(/vim-normal/);
+    await expect(modal).toHaveCount(0);
     await expect(page.locator('#file-type')).toHaveText('NORMAL');
+
+    await openEditor.click();
+    await expect(modal.locator('.mermaid-editor-preview-state')).toHaveText('Up to date');
+    await expect(modalEditor).toHaveClass(/vim-normal/);
 
     await content.press('v');
     await expect(modalEditor).toHaveClass(/vim-visual/);
     await expect(page.locator('#file-type')).toHaveText('VISUAL');
     await content.press('Escape');
-    await expect(modal).toBeVisible();
+    await expect(modal).toHaveCount(0);
+
+    await openEditor.click();
+    await expect(modal.locator('.mermaid-editor-preview-state')).toHaveText('Up to date');
     await expect(modalEditor).toHaveClass(/vim-normal/);
 
     const longLine = Array.from({ length: 130 }, (_, index) => `node${index}`).join(' ');
@@ -526,6 +689,8 @@ test('inherits Vim mode and display-row navigation inside the Mermaid source edi
     expect(after.top).toBeGreaterThan(before.top);
 
     await modal.getByRole('button', { name: 'Cancel' }).click();
+    await modal.getByRole('button', { name: 'Discard', exact: true }).click();
+    await expect(modal).toHaveCount(0);
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         editor.setVimVisualRows(false);

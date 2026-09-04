@@ -3,6 +3,7 @@
   "featureVariants": [
     ".calendar-timeline-note",
     ".kanban-gantt-bar",
+    ".custom-modal--resizable",
     ".file-tree-node.selected",
     ".file-tree-node.cut-marked",
     ".file-tree-node.file-issue--warning",
@@ -11,11 +12,11 @@
   "families": [
     {
       "id": "picker",
-      "primitives": [".ui-picker", ".ui-picker-trigger", ".ui-picker-menu"]
+      "primitives": [".ui-picker", ".ui-picker--quiet", ".ui-picker-trigger", ".ui-picker-menu"]
     },
     {
       "id": "stepper",
-      "primitives": [".ui-stepper", ".ui-stepper-button", ".ui-stepper-value"]
+      "primitives": [".ui-stepper", ".ui-stepper--quiet", ".ui-stepper-button", ".ui-stepper-value"]
     },
     {
       "id": "button",
@@ -31,7 +32,7 @@
     },
     {
       "id": "segmented-control",
-      "description": "Shared choice controls; Figaro themes use the existing quiet borderless treatment through --choice-* tokens. Keyboard focus remains explicit.",
+      "description": "Shared pill-shaped choice controls with a theme-tokenized sliding selection highlight. Keyboard focus and reduced-motion behavior remain explicit.",
       "primitives": [".ui-segmented-control", ".ui-segmented-control--quiet"]
     },
     {
