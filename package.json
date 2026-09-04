@@ -25,7 +25,7 @@
     "@babel/parser": "^7.29.0",
     "@babel/preset-env": "^8.0.2",
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.62.1",
     "babel-preset-current-node-syntax": "file:tools/babel-preset-current-node-syntax",
     "esbuild": "0.28.1",
     "eslint": "^10.8.0",
