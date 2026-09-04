@@ -10,6 +10,13 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.35.1] - 2026-09-04
+
+### Fixed
+
+- Release verification no longer fails nondeterministically when a background
+  file-tree refresh reports **Ready** after a cancelled rename.
+
 ## [1.35.0] - 2026-09-04
 
 ### Added
@@ -1997,7 +2004,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.35.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.35.1...HEAD
+[1.35.1]: https://github.com/grilo/figaro/compare/v1.35.0...v1.35.1
 [1.35.0]: https://github.com/grilo/figaro/compare/v1.34.0...v1.35.0
 [1.34.0]: https://github.com/grilo/figaro/compare/v1.33.0...v1.34.0
 [1.33.0]: https://github.com/grilo/figaro/compare/v1.32.1...v1.33.0

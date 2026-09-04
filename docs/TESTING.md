@@ -85,7 +85,10 @@ prove open-existing, explicit create/rename-anyway, exact-name, and cancellation
 outcomes without filesystem effects. File-tree component tests prove the create
 and rename wiring, while the root-scoped Vault-health adapter test distinguishes
 repeated cross-folder filenames from actionable same-folder or content-backed
-variants. The existing editor UX browser spec contains one representative
+variants. Cancellation assertions observe the emitted cancellation status but
+do not require it to remain the last status after an independent asynchronous
+tree refresh legitimately returns the application to **Ready**. The existing
+editor UX browser spec contains one representative
 rendered-link click because mapping a replaced CodeMirror link widget back to
 its exact source destination is a real geometry/DOM boundary; exhaustive name,
 choice, stale-range, and error cases remain below the browser layer.

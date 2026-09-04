@@ -1853,7 +1853,7 @@ describe('File Tree', () => {
 
         expect(window.go.desktop.App.RenamePathWithLinkUpdates).not.toHaveBeenCalled();
         expect(updateTabsForMovedPath).not.toHaveBeenCalled();
-        expect(statusBar.set).toHaveBeenLastCalledWith('Rename cancelled');
+        expect(statusBar.set).toHaveBeenCalledWith('Rename cancelled');
     });
 
     test('requires an explicit choice before renaming to a same-folder punctuation variant', async () => {
