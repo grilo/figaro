@@ -2872,9 +2872,11 @@ const editorDocumentSession = createEditorDocumentSession({
  * active. This prevents a rapid A -> B -> A switch from mounting B's delayed
  * document into A's editor. A different tab also swaps to that buffer's own
  * undo history, so document replacement can never be replayed across buffers.
+ * The returned promise settles only after the scheduled CodeMirror transaction
+ * lands or is rejected as stale, allowing startup to conceal the old document.
  */
 function setEditorContent(content, tabId = undefined, cursorState = null) {
-    editorDocumentSession.mount(content, tabId, cursorState);
+    return editorDocumentSession.mount(content, tabId, cursorState);
 }
 
 function getEditorDocumentTabId() { return editorDocumentSession.documentTabId(); }

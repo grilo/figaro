@@ -187,9 +187,11 @@ scenario for every feature.
 Saved input and layout state has an earlier correctness boundary than
 `window._appReady`. The startup-hydration use-case test must prove every
 independent session/preference port begins in the same turn, the shared promise
-does not settle early, and repeated callers do not duplicate the reads. The DOM
-presentation test owns the two-frame conceal/reveal scheduler. Keep failures
-and concurrency below the browser layer; they do not need geometry.
+does not settle early, and repeated callers do not duplicate the reads. The
+editor document-session and tab-manager tests prove restored activation cannot
+settle before its scheduled source replacement, while the DOM presentation
+test owns the later two-frame conceal/reveal scheduler. Keep failures and
+concurrency below the browser layer; they do not need geometry.
 
 Initial vault progress is split across the same boundaries. Root-adapter tests
 prove exact Markdown discovery and monotonically increasing counts; desktop
@@ -427,6 +429,10 @@ normal startup hydration can overwrite the test's setting partway through a
 slower CI run. A test of startup itself should instead install held preference
 ports before navigation, assert the editor remains concealed, then release the
 ports and inspect only frames painted after `data-startup-hydrating` is removed.
+The focused startup regression must fail if that attribute disappears before
+the deferred editor document mount: a later correct frame cannot excuse an
+initial frame containing only placeholder editor chrome or missing Pure-mode
+focus decoration.
 
 ### Remote browser-failure diagnostics
 

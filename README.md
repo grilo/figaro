@@ -205,8 +205,9 @@ hand without changing the underlying Markdown.
   numbers, sticky headings,
   block guides, document outline, diagnostics, and fully local spellcheck
   dictionaries remain independently configurable. On launch, Figaro applies
-  those saved interaction and layout choices before revealing the restored
-  editor, while the first shell frame already uses the saved sidebar width.
+  those saved interaction and layout choices and completes the selected note's
+  editor mount before revealing it, while the first shell frame already uses
+  the saved sidebar width.
   Both vertical pane separators are keyboard-operable without becoming a
   visually dominant bar: arrows move the separator by 8px, Shift+Arrow by
   32px, and Home/End reach the pane-width limits.

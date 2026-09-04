@@ -705,9 +705,12 @@ vault-backed settings remain authoritative. The injected
 link-style, automation, and complete editor-preference ports in the same turn
 and exposes one promise as their correctness barrier. Only after it settles
 does the composition root create CodeMirror, recreate inactive tabs as
-metadata, and read and mount the selected file. A presentation adapter keeps
-that mounted editor concealed for two animation frames so document-dependent
-line-number and scroll measurements settle without an intermediate paint.
+metadata, and read and mount the selected file. The editor document-session use
+case resolves each mount only after its scheduled CodeMirror replacement lands
+or is rejected as stale, so restored tab activation is an explicit readiness
+boundary. A presentation adapter then keeps that mounted editor concealed for
+two animation frames so document-dependent line-number, focus-decoration, and
+scroll measurements settle without an intermediate paint.
 Once that authoritative buffer is visible and usable, the frontend invokes
 the idempotent `StartVaultLoad` port, reconciles the current snapshot, and
 starts the initial file-tree read while remaining parser warming continues.
@@ -1605,8 +1608,9 @@ the theme link accent and never add block height or change cursor geometry.
 Document observers follow the same rule. A changed editor document is kept as
 CodeMirror's immutable text snapshot until the next animation frame, when the
 latest dirty snapshot is published to Kanban and PDF-preview consumers. Tab
-switches and saves still materialize the live editor document synchronously,
-so coalescing cannot lose a buffer. Word/character statistics are intentionally
+switches await their scheduled live-document replacement, while saves
+materialize the current editor document synchronously, so coalescing cannot
+lose a buffer. Word/character statistics are intentionally
 settled after a short typing pause and reuse that latest materialized snapshot
 where possible, avoiding a whole-document tokenization per keypress.
 

@@ -148,12 +148,13 @@ Anything that occupies vertical space outside that boundary can corrupt
 coordinate calculations and make the cursor jump across unrelated source
 lines.
 
-Startup has a related document-level measurement boundary. The restored editor
-is mounted only after saved interaction and layout preferences have hydrated,
-then its complete container remains `visibility: hidden` for two animation
-frames. This lets CodeMirror measure the real document, line-number gutter, and
-restored selection/scroll geometry before publishing one stable first frame;
-it does not replace or relax any widget's measured-height contract below.
+Startup has a related document-level measurement boundary. After saved
+interaction and layout preferences hydrate, restored tab activation awaits its
+scheduled CodeMirror document replacement. The complete editor container then
+remains `visibility: hidden` for two animation frames. This lets CodeMirror
+measure the real document, line-number gutter, focus decoration, and restored
+selection/scroll geometry before publishing one stable first frame; it does
+not replace or relax any widget's measured-height contract below.
 
 Pure mode adds a view-only writing presentation without changing Markdown or
 replacing source. Typewriter scrolling gives `.cm-content` measured top and

@@ -963,11 +963,12 @@ async function renderFileTab(
             if (!configured || tab.id !== getState('activeTabId')
                 || tab._loadGeneration !== loadId || tab.dirty) return;
         }
-        setEditorContent(
+        const mounted = await setEditorContent(
             preparedFile.content,
             tab.id,
             fileMountSelection(tab, preparedFile.content, cursorState),
         );
+        if (mounted === false) return;
         tab._content = preparedFile.content;
         tab.mtime = preparedFile.mtime;
         tab.dirty = false;
@@ -981,7 +982,8 @@ async function renderFileTab(
         const configured = await configureEditorForFile(tab.path);
         if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
         if (tab._content == null) tab._content = '';
-        setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
+        const mounted = await setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
+        if (mounted === false) return;
         document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
         return;
     }
@@ -1007,7 +1009,8 @@ async function loadFileContent(tab, cursorState = null) {
         if (tab._content != null && tab.dirty) {
             const configured = await configureEditorForFile(tab.path);
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
-            setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
+            const mounted = await setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
+            if (mounted === false) return;
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
             focusSearchLine(tab);
             return;
@@ -1041,7 +1044,8 @@ async function loadFileContent(tab, cursorState = null) {
             if (tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
             const configured = await configureEditorForFile(tab.path);
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
-            setEditorContent(result.content, tab.id, fileMountSelection(tab, result.content, cursorState));
+            const mounted = await setEditorContent(result.content, tab.id, fileMountSelection(tab, result.content, cursorState));
+            if (mounted === false) return;
             tab._content = result.content;
             tab.mtime = result.mtime;
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
@@ -1446,7 +1450,8 @@ export async function refreshTabsForUpdatedLinks(paths) {
             tab._content = file.content;
             tab.mtime = file.mtime;
             if (tab.id === getState('activeTabId')) {
-                setEditorContent(file.content, tab.id);
+                const mounted = await setEditorContent(file.content, tab.id);
+                if (mounted === false) continue;
             }
             changed = true;
         } catch (error) {

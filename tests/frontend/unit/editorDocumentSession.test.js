@@ -35,16 +35,39 @@ function harness() {
 }
 
 describe('shared editor document session', () => {
-    test('drops an older scheduled mount when a newer request replaces it', () => {
+    test('drops an older scheduled mount when a newer request replaces it', async () => {
         const { scheduled, editor, applyContent, session } = harness();
-        session.mount('first', 'first.md');
-        session.mount('second', 'first.md');
+        const firstMount = session.mount('first', 'first.md');
+        const secondMount = session.mount('second', 'first.md');
 
         scheduled[0]();
+        await expect(firstMount).resolves.toBe(false);
         expect(applyContent).not.toHaveBeenCalled();
         scheduled[1]();
+        await expect(secondMount).resolves.toBe(true);
         expect(editor.content).toBe('second');
         expect(session.documentTabId()).toBe('first.md');
+    });
+
+    test('settles a mount only after the scheduled editor replacement has landed', async () => {
+        const { scheduled, editor, session } = harness();
+        let settled = false;
+
+        const mount = session.mount('restored source', 'first.md')
+            .then(result => {
+                settled = true;
+                return result;
+            });
+        await Promise.resolve();
+
+        expect(settled).toBe(false);
+        expect(editor.content).toBe('before');
+
+        scheduled[0]();
+
+        await expect(mount).resolves.toBe(true);
+        expect(settled).toBe(true);
+        expect(editor.content).toBe('restored source');
     });
 
     test('does not mount a document after another tab becomes active', () => {

@@ -771,6 +771,31 @@ describe('Tab Manager', () => {
     });
 
     describe('switchTab', () => {
+        test('does not complete restored file activation before its editor mount settles', async () => {
+            const mounted = deferred();
+            setEditorContent.mockReturnValueOnce(mounted.promise);
+            const tab = openTab('remembered.md', 'Remembered', 'file', {
+                path: 'remembered.md',
+                isNew: true,
+                activate: false,
+            });
+            let settled = false;
+
+            const activation = switchTab(tab.id).then(result => {
+                settled = true;
+                return result;
+            });
+            await testUtils.waitFor(0);
+
+            expect(setEditorContent).toHaveBeenCalledWith('', tab.id, null);
+            expect(settled).toBe(false);
+
+            mounted.resolve(true);
+
+            await expect(activation).resolves.toBe(true);
+            expect(settled).toBe(true);
+        });
+
         test('should switch to existing tab', () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });

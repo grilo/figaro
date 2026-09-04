@@ -206,8 +206,10 @@ The themed shell and restored active buffer may become interactive while eager
 vault indexing, tree construction, and parser warming continue. Saved
 interaction and geometry preferences are different: start their independent
 reads concurrently and keep them behind the startup-hydration barrier so the
-restored editor's first visible frame is already authoritative. Preserve that
-short critical path as well as the later `window._appReady` boundary.
+restored editor's first visible frame is already authoritative. Restored tab
+activation must await the editor document-session mount before the two-frame
+presentation reveal begins. Preserve that short critical path as well as the
+later `window._appReady` boundary.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete dependency and startup
 decisions.
