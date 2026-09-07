@@ -2068,7 +2068,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/codeBlockInteraction.test.js \
   tests/frontend/unit/codeEditorMode.test.js \
   tests/frontend/unit/editor.test.js
-npx playwright test tests/e2e/editorUX.spec.js --grep "folds nested Markdown block guides"
+npx playwright test tests/e2e/editorUX.spec.js --grep "keeps activity and block-guide gutters aligned"
 ```
 
 Rendered GFM tables add a source-reveal cursor matrix. Unit and CodeMirror
@@ -3180,13 +3180,23 @@ Git commit.
 
 The existing `editorUX.spec.js` block-guide scenario enables activity dates to
 check actual outer/inner rail geometry immediately after switching line numbers
-on, off and on again, shared row alignment with line numbers,
+on, off and on again, and reads a restored block guide's gap in the same browser
+callback that enables it. This prevents a later resize or animation frame from
+concealing an unmeasured gutter. The scenario also checks shared row alignment,
 transparent helper/activity current rows, keyboard/fold/mouse selection, source
-widgets, pane focus and width restoration through Settings. Run the native
+widgets, pane focus and width restoration through Settings. Static geometry
+checks wait for the finite Pure-mode transitions and read compared rectangles
+in one frame, so movement between snapshots cannot create a false overlap.
+Run the native
 packaged webview cursor check with dates enabled as well: Welcome line 23
 **Text formatting** → Up to 22 → Down to 23, then both directions across Mermaid
 and table blocks, date keyboard activation, and bidirectional drag selection.
 Keep native QA in a disposable vault on an isolated display.
+
+`editorBlockActionLayout.test.js` verifies the DOM adapter's measurement order:
+new gutter widths take effect before centered writing-edge measurements, while
+stable widths avoid an extra measurement. Layout decisions remain covered by
+`editorBlockActionLayoutModel.test.js`.
 
 The implementation was checked on Linux GTK 3.24.52 / WebKitGTK 2.52.6 using
 an instrumented packaged build and a disposable vault. Native arrows, date

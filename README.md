@@ -56,9 +56,10 @@ source note.
 Return to a project note and see when its passages changed. Enable **Activity
 dates** in **Settings → Editor → Navigation**, then click a margin date such as
 **7 Sep 26** to review the recorded changes. Dates and block controls stay clear
-of the text when you switch optional line numbers on or off. Adding a new meeting
-at the top preserves the older text's dates. New writing shows today's date immediately while waiting
-for history to record it. Use explicit date links for the meeting's scheduled day.
+of the text when you switch line numbers or block guides on or off. Adding a new
+meeting at the top preserves the older text's dates. New writing shows today's
+date immediately while waiting for history to record it. Use explicit date links
+for the meeting's scheduled day.
 
 [Explore notes and planning →](docs/NOTES_AND_PLANNING.md)
 

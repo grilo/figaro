@@ -168,7 +168,7 @@ describe('Code file editor mode', () => {
 
         setMarkdownBlockGuides(false);
         expect(view.dom.querySelector('.cm-markdownBlockGutter')).toBeNull();
-        expect(view.dom.style.getPropertyValue('--editor-block-writing-inset')).toBe('');
+        expect(Number.parseFloat(view.dom.style.getPropertyValue('--editor-block-writing-inset') || '0')).toBe(0);
         expect(view.state.doc.toString()).toContain('## Goals');
         setMarkdownBlockGuides(true);
         await new Promise(resolve => setTimeout(resolve, 0));

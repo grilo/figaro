@@ -1703,11 +1703,16 @@ synthetic delta forwarding, or selection transaction participates.
 `core/editorBlockActionLayoutModel.js` separately turns the measured writing
 edges and untransformed helper-rail edges into a bounded rail offset, width,
 and missing writing-margin inset. The DOM adapter subtracts the previously
-applied inset before remeasurement so the reservation cannot oscillate. The
-line-number setter remeasures after reconfiguring its gutter because that DOM
-change can shift the writing edge without a CodeMirror `geometryChanged` event.
+applied inset before remeasurement so the reservation cannot oscillate. When a
+gutter's width changes, the adapter publishes its negative-margin reservation
+before remeasuring the centered writing edge and calculating final positions.
+Unchanged widths need only the ordinary measurement. Line-number and block-guide
+setters remeasure after their gutter DOM changes; plugin constructors run before
+new gutters are installed, and reconfiguration need not emit a CodeMirror
+`geometryChanged` event.
 CSS reserves missing space as left content padding, including compact PDF splits;
-removing block guides clears it. The left rail's hidden spacer uses the longest
+removing block guides clears their reservation while retaining space for enabled
+activity dates. The left rail's hidden spacer uses the longest
 label needed by the parsed document and its enabled actions, not a hypothetical
 maximum-length fence. An equal negative flex margin makes that stable width an overlay;
 folding a parent can therefore remove a wider child guide without recentering

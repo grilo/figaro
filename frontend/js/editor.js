@@ -3186,6 +3186,9 @@ function setMarkdownBlockGuides(enabled) {
     view.dispatch({
         effects: foldingCompartment.reconfigure(editorFoldingExtensions('markdown')),
     });
+    // The plugin constructor runs before its new gutter is in the DOM. Measure
+    // the installed rails now, including the remaining date rail on removal.
+    synchronizeEditorBlockActionLayout(view);
     view.requestMeasure();
 }
 

@@ -10,6 +10,21 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.37.2] - 2026-09-07
+
+### Added
+
+- Includes the passage activity feature, gutter and save fixes, and documentation
+  improvements from [1.37.0](https://github.com/grilo/figaro/blob/v1.37.0/CHANGELOG.md#1370---2026-09-07)
+  and [1.37.1](https://github.com/grilo/figaro/blob/v1.37.1/CHANGELOG.md#1371---2026-09-07),
+  whose download releases were blocked during verification.
+
+### Fixed
+
+- Restoring block guides places their controls beside the text immediately;
+  hiding them keeps activity dates aligned. Gutter widths are reserved before
+  positioning controls, so the centered writing column stays clear.
+
 ## [1.37.1] - 2026-09-07
 
 ### Added
@@ -2162,7 +2177,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.37.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.37.2...HEAD
+[1.37.2]: https://github.com/grilo/figaro/compare/v1.37.1...v1.37.2
 [1.37.1]: https://github.com/grilo/figaro/compare/v1.37.0...v1.37.1
 [1.37.0]: https://github.com/grilo/figaro/compare/v1.36.1...v1.37.0
 [1.36.1]: https://github.com/grilo/figaro/compare/v1.36.0...v1.36.1

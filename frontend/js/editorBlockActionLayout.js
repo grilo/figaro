@@ -51,7 +51,18 @@ function measureWritingEdges(view) {
 /** Publish one measured action layout for rendered blocks and the left helper rail. */
 export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getBoundingClientRect?.().width) {
     if (!view || view.isDestroyed || !Number.isFinite(width)) return;
-    const layout = editorBlockActionLayout(width, measureWritingEdges(view));
+    let layout = editorBlockActionLayout(width, measureWritingEdges(view));
+    // A newly installed gutter initially occupies flex space. Publish its
+    // negative-margin reservation before measuring the centered writing edge;
+    // otherwise applying the width would invalidate the position just read.
+    const widths = [
+        ['--editor-activity-rail-width', layout.activityRailWidth ?? 0],
+        ['--editor-block-before-rail-width', layout.beforeRailWidth],
+    ];
+    if (widths.some(([property, value]) => numericPixels(view.dom.style.getPropertyValue(property)) !== value)) {
+        for (const [property, value] of widths) view.dom.style.setProperty(property, `${value}px`);
+        layout = editorBlockActionLayout(width, measureWritingEdges(view));
+    }
     view.dom.style.setProperty('--editor-activity-rail-offset', `${layout.activityRailOffset ?? 0}px`);
     view.dom.style.setProperty('--editor-activity-rail-width', `${layout.activityRailWidth ?? 0}px`);
     view.dom.style.setProperty('--editor-block-before-rail-offset', `${layout.beforeRailOffset}px`);

@@ -1004,7 +1004,7 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     ))).toBe(2);
 });
 
-test('keeps activity and block-guide gutters aligned through line-number toggles, folding and selection', async ({ page }) => {
+test('keeps activity and block-guide gutters aligned through gutter toggles, folding and selection', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = [
         '# Product roadmap',
@@ -1086,11 +1086,30 @@ test('keeps activity and block-guide gutters aligned through line-number toggles
     await expect(page.locator('.activity-date-marker:visible')).toHaveCount(0);
     await page.keyboard.press('Control+Shift+B');
     await expect(activityDate).toBeVisible();
+    await page.evaluate(async () => {
+        const finiteAnimations = document.getAnimations().filter(animation => (
+            animation.effect?.getTiming().iterations !== Infinity
+        ));
+        await Promise.allSettled(finiteAnimations.map(animation => animation.finished));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    });
     await page.evaluate(async () => (await import('/js/editorNavigationPreferences.js')).setEditorNavigationPreference('blockGuides', false));
     await expect(page.getByRole('group', { name: 'Passage activity', exact: true })).toBeVisible();
-    const dateOnly = await activityDate.boundingBox();
-    expect(dateOnly.x).toBeGreaterThanOrEqual(0);
-    expect(dateOnly.x + dateOnly.width).toBeLessThan((await page.locator('.cm-line').first().boundingBox()).x);
+    const dateOnly = await activityDate.evaluate(date => {
+        const rect = date.getBoundingClientRect();
+        const line = document.querySelector('.cm-line').getBoundingClientRect();
+        return { left: rect.left, right: rect.right, lineLeft: line.left };
+    });
+    expect(dateOnly.left).toBeGreaterThanOrEqual(0);
+    expect(dateOnly.right).toBeLessThan(dateOnly.lineLeft);
+    const restoredGuide = await page.evaluate(async () => {
+        (await import('/js/editor.js')).setMarkdownBlockGuides(true);
+        const helper = document.querySelector('.ui-editor-block-guide').getBoundingClientRect();
+        const line = document.querySelector('.cm-line').getBoundingClientRect();
+        return { gap: line.left - helper.right };
+    });
+    expect(restoredGuide.gap).toBeGreaterThanOrEqual(6);
+    expect(restoredGuide.gap).toBeLessThanOrEqual(10);
     await page.evaluate(async () => (await import('/js/editorNavigationPreferences.js')).setEditorNavigationPreference('blockGuides', true));
 
     const collapseControls = page.locator(
