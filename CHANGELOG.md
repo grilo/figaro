@@ -8,7 +8,12 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+
+- Rebuilt the README around everyday workflows, with focused screenshots and
+  linked guides for setup, writing, planning, diagrams, and PDF export.
+- Reviewed documentation with all five writing lenses, clarified setup and
+  technical guidance, and corrected terminology and grammar in current references.
 
 ## [1.36.1] - 2026-09-07
 

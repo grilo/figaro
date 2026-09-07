@@ -1,11 +1,12 @@
 # Local writing engine
 
-Writing review connects the existing shared Writing lenses pane, Pure picker,
-owned editor snapshots, rooted preference adapter, and spelling implementation.
+Writing review connects the Writing lenses pane and Pure picker to editor
+snapshots, saved preferences, and spelling checks.
 The implementation uses packaged Vale CLI output because its stdin/JSON and
 process-cancellation boundary is smaller than importing its application internals.
-The prose parser and pure resolver run in the same eager worker; the resolver owns
-meaning, policy, equivalence, source safety, and grouping. Full projections and raw
+The prose parser and pure resolver run in the same eager worker. The resolver
+interprets observations, applies policy, protects source ranges, and groups
+equivalent advice. Full projections and raw
 observations stay there. Separate eager workers run spelling and durable-decision
 tracking. The UI receives resolved suggestions and computed active decision IDs. The user-approved suggestion primitive adds rounded, borderless grouping.
 

@@ -18,8 +18,8 @@ Proofreading owns its inline marks and right-click actions;
 its document language is authoritative and legacy Settings/Properties have no
 effect. Both review paths honor accepted spelling words after successful saves. Test Arrow Up/Down from both directions, mouse placement, drag selection,
 and undo around rendered Markdown after pane transitions or suggestion navigation.
-PDF preview and export consume the same resulting Markdown through their existing
-renderers; this feature introduces no Markdown syntax or PDF styling change.
+PDF preview and export consume the resulting Markdown through their existing
+renderers. Writing review adds no Markdown syntax or PDF styling.
 
 ## 1. High-Level Core Philosophy
 Implement a CodeMirror 6 (CM6) extension that creates an inline "Live Preview" experience for Markdown. The system operates on a binary visibility rule driven by the user's cursor/selection state:
@@ -93,7 +93,7 @@ Your implementation must accurately transition states for the following elements
 * **Cursor contract:** Accepting a tag or date action leaves the selection at the end of the inserted source. Arrow Up/Down, mouse placement, and bidirectional drag selection around that line must continue to use CodeMirror's normal source geometry. Only the rendered hashtag decoration is a Kanban navigation target; empty space after an end-of-line hashtag places the caret normally.
 
 ### Images (`![Alt Text](image.png)`)
-* **Cursor inside node bounds:** Display the plain text markdown markup exactly. Do not show the image preview.
+* **Cursor inside node bounds:** Display the plain text Markdown markup exactly. Do not show the image preview.
 * **Cursor outside node bounds:** Completely hide the plain text markup string. Instantiate and inject an inline block widget immediately after the node containing a functional HTML `<img>` tag pointing to the parsed URL.
 * **Optional size hint:** A trailing alt-text hint such as `![Portrait|320x180](portrait.jpg)` gives the rendered image an authored width and height while keeping `Portrait` as its accessible alt text. The hint remains hidden until the cursor reveals the source. PDF Preview and generated PDF HTML translate it to standard image width/height attributes and inline pixel geometry; PDF Preview explicitly resolves note-relative local sources through the vault before the document enters its sandbox.
 * **Direct resizing:** Hovering or focusing the rendered image exposes three themed 28px handles: right changes width only, bottom changes height only, and bottom-right preserves the current aspect ratio. Their shared tooltip names the operation. Dragging a handle never reveals or changes the Markdown, suppresses all handle tooltips until the pointer leaves and re-enters, resizes only the mounted image, and displays the current `W × H` in its center. Width-only and proportional gestures stop at the writing surface's right edge; proportional gestures also stop at the editor's bottom edge; height-only gestures may continue to ten times the intrinsic height. Pointer release writes changed final geometry once as one Undo/Redo history item; release without movement writes nothing; pointer cancellation restores the starting rendered geometry and writes nothing; a later completed drag starts a new item.

@@ -1,8 +1,10 @@
 # Styling PDF exports
 
-Figaro's PDF export has a polished built-in style. A custom stylesheet is
-optional and is intended for document-specific branding, typography, and print
-layout.
+For the everyday workflow, start with [Diagrams and export](DIAGRAMS_AND_EXPORT.md).
+This reference covers the print behavior and CSS contract.
+
+Figaro includes a default PDF style. Add a custom stylesheet to control a
+document's branding, typography, and print layout.
 
 ## Live preview
 

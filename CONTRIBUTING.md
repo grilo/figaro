@@ -1,8 +1,8 @@
 # Contributing to Figaro
 
-Thank you for helping improve Figaro. The project is a local-first Wails desktop
-application: changes should preserve portable vault files, work without a
-cloud service, and avoid silently discarding a user's edits.
+Thank you for helping improve Figaro. It is a Wails desktop application that
+keeps notes in local files. Changes must preserve portable vault files, work
+without a cloud service, and protect the user's edits.
 
 ## Development setup
 
@@ -649,8 +649,9 @@ the assembled webview rather than one JavaScript package in isolation.
   vendored dependencies.
 - Update `CHANGELOG.md` under `[Unreleased]` for every user-facing feature,
   behavior change, and bug fix; changelog work is part of feature completion.
-- Audit every affected document in the same change. Keep user workflows in
-  `README.md`, the detailed contract in `docs/PROMPT.md`, and update the
+- Audit every affected document in the same change. Keep concise workflow
+  introductions in `README.md`, practical steps in the [user guides](docs/README.md),
+  the detailed contract in `docs/PROMPT.md`, and update the
   architecture, testing, live-preview, PDF-styling, or contributor guides
   whenever their subject changes. Search for stale defaults, counts, names,
   commands, versions, and limitations before considering the work complete.
@@ -712,8 +713,10 @@ the assembled webview rather than one JavaScript package in isolation.
 - Eagerly load bundled feature code during startup. Do not hide dependency
   cycles or postpone feature initialization with interaction-triggered dynamic
   imports.
-- Keep user-facing workflow changes in `README.md` and the detailed behavior
-  contract in `docs/PROMPT.md` in the same change.
+- Keep user-facing workflow summaries and guide links in `README.md`, practical
+  instructions in the relevant user guide, and the detailed behavior contract
+  in `docs/PROMPT.md` in the same change. The README introduces the product;
+  avoid appending pixel measurements, migration history, or test internals.
 
 ## Licensing contributions
 

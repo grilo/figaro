@@ -1,12 +1,12 @@
 # Figaro architecture notes
 
-This is a decision-oriented companion to the product specification. It records
-the parts of Figaro whose implementation is intentionally less obvious than a
-straightforward feature description. It is not an exhaustive API reference.
+This companion to the [product specification](docs/PROMPT.md) explains Figaro's
+architecture decisions, effect boundaries, and data flow. Start with the
+[user guides](docs/README.md) for everyday workflows.
 
 ## Boundaries and source of truth
 
-Figaro is a Wails desktop application with three deliberately separate layers:
+Figaro is a Wails desktop application with three layers:
 
 - Go owns vault-scoped filesystem operations, settings, session repair,
   history, native window integration, and browser-backed PDF export.
@@ -22,7 +22,8 @@ Figaro is a Wails desktop application with three deliberately separate layers:
 
 The Wails asset server embeds `frontend/` at package-build time. Backend code
 may use an on-disk fallback during development, but a released application must
-not depend on a package manager, CDN, or source checkout at runtime.
+not depend on a package manager, content delivery network (CDN), or source
+checkout at runtime.
 
 The composition root separately embeds `wails.json`, validates its
 `info.productVersion` through the pure `internal/appinfo` parser, and injects

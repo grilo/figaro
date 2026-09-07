@@ -8,10 +8,10 @@ Unicode offsets, explicit labels and advisory implicit link/image labels.
 `writingSpelling.test.js` uses both bundled English dictionaries for valid
 possessives, unknown stems and suffix-preserving corrections; it also feeds real
 results into the pane to prove misleading Apply/bulk controls are absent.
-Resolver tests reject protected or corrupt spelling ranges and protect implicit
-reference keys from other prose fixes. These eligibility and grammar cases
-belong below the browser layer; retain the existing link interaction and eager
-startup boundary checks rather than adding a browser matrix.
+Resolver tests reject protected or corrupt spelling ranges. They also protect
+implicit reference keys from other prose fixes. Test these eligibility and
+grammar cases below the browser layer. Keep the existing browser checks for
+link interaction and eager startup.
 
 Writing review has focused tests for real pinned retext/textlint output, Markdown/UTF-16
 mapping, conservative Vale/retext equivalence, independent lens filtering, conflicting
@@ -2207,7 +2207,7 @@ npx playwright test tests/e2e/richPaste.spec.js
 ```
 
 On each native platform, paste from at least one browser/document editor and
-one AI chat into ordinary prose, a Vim Visual selection, fenced code, and an
+one AI chat into ordinary prose, a Vim Visual selection, fenced code, and a
 revealed table source. Repeat with the editor Paste menu and plain-text chord,
 then verify one Undo, Arrow Up/Down, mouse placement, and a drag across the
 inserted block in the packaged WebKitGTK, WebView2, or WKWebView runtime.
@@ -3110,8 +3110,13 @@ preference gate or a Properties picker. At narrow buffer widths, the status bar
 hides its editor-state group, keeps visible metrics inside the buffer, and leaves
 the window resize grip at the physical corner. `statusBar.test.js` owns group names
 and reading order; `editorSettings.test.js` owns auto-commit writes and rollback.
-The README and product specification share the current native Linux screenshot;
-`releaseMetadata.test.js` verifies both references and the bundled PNG signature.
+The README and product specification share a native Linux editor screenshot.
+The README also illustrates in-place writing review and PDF Preview with
+separate captures. `releaseMetadata.test.js` verifies the shared editor image
+references and its PNG signature. For documentation changes, verify relative
+links and images, render the README at repository-page width, and inspect each
+capture for readable content and complete controls. Use demonstration files
+in an isolated native session; keep screenshots free of private notes.
 
 The rooted writing adapter tests verify every pinned Vale rule against its
 `SOURCE.json` hash. Git attributes preserve those bytes across platform checkouts;
