@@ -129,6 +129,7 @@ import { createMarkdownDocumentLinter } from './usecases/markdownDocumentLint.js
 import { createMarkdownBlockGuidesExtension } from './markdownBlockGuides.js';
 import { activityEditDateExtension, activityGutterExtension, setActivityData } from './activityGutter.js';
 import { syncEditorGutterAccessibility } from './editorGutterAccessibility.js';
+import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
 import { openMermaidEditor } from './mermaidEditor.js';
 import { openMarkdownTableEditor } from './markdownTableEditor.js';
 import { openVegaLiteChartEditor } from './vegaLiteChartEditor.js';
@@ -3171,6 +3172,9 @@ function setLineNumbers(enabled) {
             lineNumbersRequested ? [relativeLineNumbers(), highlightActiveLineGutter()] : []
         ),
     });
+    // Reconfiguring gutters can shift the writing edge without changing the
+    // viewport dimensions, so CodeMirror may emit no geometryChanged update.
+    synchronizeEditorBlockActionLayout(view);
     view.requestMeasure();
 }
 

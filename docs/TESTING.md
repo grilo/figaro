@@ -3179,7 +3179,8 @@ arrow movement through the new passage, and tooltip replacement after a real
 Git commit.
 
 The existing `editorUX.spec.js` block-guide scenario enables activity dates to
-check actual outer/inner rail geometry, shared row alignment with line numbers,
+check actual outer/inner rail geometry immediately after switching line numbers
+on, off and on again, shared row alignment with line numbers,
 transparent helper/activity current rows, keyboard/fold/mouse selection, source
 widgets, pane focus and width restoration through Settings. Run the native
 packaged webview cursor check with dates enabled as well: Welcome line 23

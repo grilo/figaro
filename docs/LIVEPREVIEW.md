@@ -605,7 +605,9 @@ The opt-in activity gutter does not replace source or add Markdown syntax.
 Its compact date labels always include the year (for example, **7 Sep 26**);
 the existing spacer reserves enough width without changing the writing inset.
 It shares `editorBlockActionLayout` measurements with the inner helper rail,
-reserving their combined width without overlaying text. Dates group adjacent
+reserving their combined width without overlaying text. Toggling line numbers
+remeasures both rails after the gutter DOM changes; their positions must not
+depend on a subsequent resize or edit. Dates group adjacent
 passages; a viewport continuation retains its visible context. Folding removes
 hidden markers, and Pure/read-only Versions suppress the rail. Source range
 mapping is immediate; worker projection after a typing pause supplies fresh

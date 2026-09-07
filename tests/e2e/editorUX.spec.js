@@ -1004,7 +1004,7 @@ test('keeps rendered task checkboxes honest for keyboard, pointer, cursor, and d
     ))).toBe(2);
 });
 
-test('folds nested Markdown block guides without breaking cursor or drag-selection geometry', async ({ page }) => {
+test('keeps activity and block-guide gutters aligned through line-number toggles, folding and selection', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = [
         '# Product roadmap',
@@ -1054,15 +1054,18 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
         .map(element => ({ numbers: element.parentElement.classList.contains('cm-lineNumbers'), background: getComputedStyle(element).backgroundColor })));
     expect(gutterHighlights.some(element => element.numbers && element.background !== 'rgba(0, 0, 0, 0)')).toBe(true);
     expect(gutterHighlights.filter(element => !element.numbers).every(element => element.background === 'rgba(0, 0, 0, 0)')).toBe(true);
-    const activityRail = await page.evaluate(() => {
-        const date = document.querySelector('.activity-date-marker').getBoundingClientRect();
-        const helper = document.querySelector('.ui-editor-block-guide').getBoundingClientRect();
-        const line = document.querySelector('.cm-line').getBoundingClientRect();
-        return { dateLeft: date.left, dateRight: date.right, helperLeft: helper.left, helperRight: helper.right, lineLeft: line.left };
-    });
-    expect(activityRail.dateLeft).toBeGreaterThanOrEqual(0);
-    expect(activityRail.dateRight).toBeLessThanOrEqual(activityRail.helperLeft);
-    expect(activityRail.helperRight).toBeLessThanOrEqual(activityRail.lineLeft);
+    for (const enabled of [true, false, true]) {
+        const activityRail = await page.evaluate(async enabled => {
+            (await import('/js/editor.js')).setLineNumbers(enabled);
+            const date = document.querySelector('.activity-date-marker').getBoundingClientRect();
+            const helper = document.querySelector('.ui-editor-block-guide').getBoundingClientRect();
+            const line = document.querySelector('.cm-line').getBoundingClientRect();
+            return { dateLeft: date.left, dateRight: date.right, helperLeft: helper.left, helperRight: helper.right, lineLeft: line.left };
+        }, enabled);
+        expect(activityRail.dateLeft).toBeGreaterThanOrEqual(0);
+        expect(activityRail.dateRight).toBeLessThanOrEqual(activityRail.helperLeft);
+        expect(activityRail.helperRight).toBeLessThanOrEqual(activityRail.lineLeft);
+    }
     const caretBeforeActivity = await page.evaluate(() => window.__headingFoldView.state.selection.main.head);
     await activityDate.click();
     await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'activity');

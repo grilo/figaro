@@ -1703,8 +1703,10 @@ synthetic delta forwarding, or selection transaction participates.
 `core/editorBlockActionLayoutModel.js` separately turns the measured writing
 edges and untransformed helper-rail edges into a bounded rail offset, width,
 and missing writing-margin inset. The DOM adapter subtracts the previously
-applied inset before remeasurement so the reservation cannot oscillate. CSS
-reserves missing space as left content padding, including compact PDF splits;
+applied inset before remeasurement so the reservation cannot oscillate. The
+line-number setter remeasures after reconfiguring its gutter because that DOM
+change can shift the writing edge without a CodeMirror `geometryChanged` event.
+CSS reserves missing space as left content padding, including compact PDF splits;
 removing block guides clears it. The left rail's hidden spacer uses the longest
 label needed by the parsed document and its enabled actions, not a hypothetical
 maximum-length fence. An equal negative flex margin makes that stable width an overlay;
@@ -2358,9 +2360,9 @@ and table actions share the helper stack; a constrained writing margin gains
 stable left padding instead of an overlapping or clipped action row.
 The left-side layout hook positions both entries in each control stack
 toward the writing surface without redefining the shared button primitive. It
-uses the primitive's editor-sized monospace typography, compensates for
-CodeMirror's 16 px gutter padding, and translates the helper rail just outside
-the writing edge. Editor width stays unchanged; the writing column is measured
+uses the primitive's editor-sized monospace typography, shares CodeMirror's
+row offsets without extra vertical padding, and translates the helper rail just
+outside the writing edge. Editor width stays unchanged; the writing column is measured
 with its reserved helper lane before pointer interaction.
 
 | Direction | Messages | Purpose |

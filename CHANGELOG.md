@@ -10,6 +10,19 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.37.1] - 2026-09-07
+
+### Added
+
+- Includes the passage activity dates and documentation improvements described in
+  [1.37.0](https://github.com/grilo/figaro/blob/v1.37.0/CHANGELOG.md#1370---2026-09-07),
+  whose download release was blocked during verification.
+
+### Fixed
+
+- Switching line numbers on or off keeps activity dates and block controls
+  outside the writing column, without waiting for a resize or another edit.
+
 ## [1.37.0] - 2026-09-07
 
 ### Added
@@ -2149,7 +2162,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.37.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.37.1...HEAD
+[1.37.1]: https://github.com/grilo/figaro/compare/v1.37.0...v1.37.1
 [1.37.0]: https://github.com/grilo/figaro/compare/v1.36.1...v1.37.0
 [1.36.1]: https://github.com/grilo/figaro/compare/v1.36.0...v1.36.1
 [1.36.0]: https://github.com/grilo/figaro/compare/v1.35.2...v1.36.0
