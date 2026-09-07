@@ -1,4 +1,8 @@
 import {
+    acknowledgeWorkspaceFileSave,
+    beginWorkspaceFileLoad,
+    finishWorkspaceFileLoad,
+    workspaceFileLoadIsCurrent,
     beginWorkspaceTabSave,
     recordWorkspaceTabContent,
     recordWorkspaceTabCursor,
@@ -61,5 +65,64 @@ describe('workspace tab model', () => {
         const saving = beginWorkspaceTabSave(cursor.tabs, 'a.md');
         expect(saving.tab._saveGeneration).toBe(1);
         expect(cursor.tab._saveGeneration).toBeUndefined();
+    });
+});
+
+
+describe('file load revision ownership', () => {
+    const original = { id: 'note', type: 'file', path: 'note.md', mtime: 10, dirty: false };
+    const file = { content: 'loaded', mtime: 20 };
+
+    test('finishes on the current immutable tab after cursor changes', () => {
+        const loading = beginWorkspaceFileLoad([original], original.id);
+        const cursor = recordWorkspaceTabCursor(loading.tabs, original.id, { anchor: 1, head: 1 });
+        expect(workspaceFileLoadIsCurrent(cursor.tab, loading.tab, original.id)).toBe(true);
+        const finished = finishWorkspaceFileLoad(cursor.tabs, loading.tab, file, original.id);
+        expect(finished.tab).toMatchObject({ mtime: 20, _content: 'loaded', dirty: false, cursorState: { anchor: 1, head: 1 } });
+        expect(original.mtime).toBe(10);
+    });
+
+    test('rejects an older read even when cursor updates separated two loads', () => {
+        const first = beginWorkspaceFileLoad([original], original.id);
+        const cursor = recordWorkspaceTabCursor(first.tabs, original.id, { anchor: 1, head: 1 });
+        const second = beginWorkspaceFileLoad(cursor.tabs, original.id);
+        expect(workspaceFileLoadIsCurrent(second.tab, first.tab, original.id)).toBe(false);
+        expect(finishWorkspaceFileLoad(second.tabs, first.tab, file, original.id).changed).toBe(false);
+    });
+
+    test('never mounts over fresh edits and retains edits made during a successful mount', () => {
+        const loading = beginWorkspaceFileLoad([original], original.id);
+        const edited = recordWorkspaceTabEdit(loading.tabs, original.id);
+        const content = recordWorkspaceTabContent(edited.tabs, original.id, 1, 'new typing');
+        expect(workspaceFileLoadIsCurrent(content.tab, loading.tab, original.id)).toBe(false);
+        expect(finishWorkspaceFileLoad(content.tabs, loading.tab, file, original.id).tab)
+            .toMatchObject({ mtime: 20, dirty: true, _content: 'new typing' });
+    });
+
+    test('a later save prevents a late load from regressing the saved revision', () => {
+        const loading = beginWorkspaceFileLoad([original], original.id);
+        const saving = beginWorkspaceTabSave(loading.tabs, original.id);
+        const saved = acknowledgeWorkspaceFileSave(saving.tabs, { path: original.path }, { mtime: 30 });
+        expect(finishWorkspaceFileLoad(saved, loading.tab, file, original.id).changed).toBe(false);
+        expect(saved[0].mtime).toBe(30);
+    });
+
+    test.each(['inactive', 'closed', 'renamed', 'external'])('rejects completion after ownership becomes %s', change => {
+        const loading = beginWorkspaceFileLoad([original], original.id);
+        const tabs = change === 'closed' ? [] : [{ ...loading.tab,
+            ...(change === 'renamed' ? { path: 'renamed.md' } : {}),
+            ...(change === 'external' ? { externalFileId: 'external-1' } : {}),
+        }];
+        expect(finishWorkspaceFileLoad(tabs, loading.tab, file, change === 'inactive' ? 'other' : original.id).changed).toBe(false);
+    });
+
+    test('acknowledges matching disk owners without clearing edits or updating other sources', () => {
+        const tabs = [{ ...original, dirty: true, _content: 'new draft', _saveGeneration: 4 },
+            { ...original, id: 'external', externalFileId: 'external-1' },
+            { ...original, id: 'other', path: 'other.md' }];
+        const saved = acknowledgeWorkspaceFileSave(tabs, { path: original.path, generation: 3 }, { mtime: 11 });
+        expect(saved[0]).toMatchObject({ mtime: 11, dirty: true, _content: 'new draft', _saveGeneration: 4 });
+        expect(saved[1]).toBe(tabs[1]);
+        expect(saved[2]).toBe(tabs[2]);
     });
 });

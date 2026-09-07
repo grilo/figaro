@@ -43,6 +43,45 @@ Open **Settings → Appearance → Pure mode** for typewriter scrolling and
 phrase or paragraph focus. You can also let text sizing follow the window.
 Typewriter scrolling starts enabled; adaptive text sizing starts disabled.
 
+## See when a passage changed
+
+Enable **Settings → Editor → Navigation → Activity dates** to show recorded
+Git dates in the outer margin, always including the year: **7 Sep 26**. This
+setting starts off and applies across the vault. Headings, paragraphs, and
+rendered blocks keep their existing editor
+controls in the inner margin, aligned with the text and optional line numbers.
+Pure mode hides the dates with the other chrome.
+
+A date applies to the consecutive passages below it until the next marker.
+The same day can appear again after a different day: **7 Sep 26 → 3 Sep 26 → 7 Sep 26**.
+Scrolling into a group repeats its date at the first visible passage so you
+keep the context. Prepending a meeting or moving unchanged text does not
+refresh older passages' dates.
+
+Click a date to open those passages in **History → Activity**. Review a change,
+expand **View changes**, or use its link button to go to the passage in the
+current note. This view keeps your draft editable. **Versions** opens the
+existing saved-note history. You can also open History from the status bar and
+choose Activity when margin dates are hidden. Closing the pane restores editor
+focus; switching away and back restores the document's pane for the session.
+
+New typing immediately shows today's local date. It groups with adjacent
+passages from the same day, and its tooltip explains that some changes have
+not yet been recorded. This temporary display date stays through background
+analysis and saves while editing; it is discarded when the note is reopened
+or Figaro closes. Recorded Git dates take over when available.
+
+A dash has an explanation on hover: existing text can be **unrecorded** or its
+earlier attribution can be **unknown**, with no observed edit date. Auto-Save
+writes files; Auto-Commit or **Save to history** records the dates. Loading errors offer Retry. Large or ambiguous
+histories may have unknown passages rather than guessed dates.
+
+These dates describe edits, including temporary dates for current typing,
+rather than the date of the meeting or event.
+Keep using `@today`, `@tomorrow`, or an explicit date for those links. Activity
+adds no Markdown or PDF content and does not add dates to Calendar. Git history
+and vault-local move metadata keep attribution available after restarting.
+
 ## Choose writing lenses
 
 Open **Writing lenses** beside the document. Choose **Analysis language** first,

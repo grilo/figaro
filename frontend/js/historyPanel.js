@@ -3,6 +3,7 @@ import { backend } from './backend.js';
  * History Panel — right sidebar showing git file history
  */
 import { log } from './log.js';
+import { configureHistoryPaneTabs, prependHistoryPaneTabs } from './historyPaneTabs.js';
 import { getState } from './state.js';
 import { confirmDialog, errorDialog } from './dialogs.js';
 import { statusBar } from './statusBar.js';
@@ -55,6 +56,7 @@ let responsiveLayoutBound = false;
 
 export function initHistoryPanel() {
     registerRightPaneMode('history', closeHistoryPanel, openHistoryPanel);
+    configureHistoryPaneTabs({ versions: openHistoryPanel, beforeActivity: async () => { if (viewingHistory) await exitHistoryMode(); } });
 
     // Status bar click
     const countEl = document.getElementById('history-count');
@@ -354,6 +356,7 @@ async function openHistoryPanel() {
     const requestId = ++historyListRequestId;
 
     content.innerHTML = '<div class="history-empty">Loading history...</div>';
+    prependHistoryPaneTabs(content, 'versions');
 
     try {
         const entries = await backend().GetFileHistory(filePath);
@@ -362,6 +365,7 @@ async function openHistoryPanel() {
     } catch (e) {
         if (requestId !== historyListRequestId || currentFilePath !== filePath || !sidebar.classList.contains('open') || sidebar.dataset.mode !== 'history' || !content.isConnected) return;
         content.innerHTML = '<div class="history-empty">Failed to load history</div>';
+        prependHistoryPaneTabs(content, 'versions');
         log.error('[history] Failed to load:', e);
     }
 
@@ -372,6 +376,7 @@ async function openHistoryPanel() {
 function renderHistoryList(container, entries) {
     if (!entries || entries.length === 0) {
         container.innerHTML = '<div class="history-empty">No committed history yet. Enable Auto-Commit in Settings to record versions.</div>';
+        prependHistoryPaneTabs(container, 'versions');
         return;
     }
 
@@ -388,6 +393,7 @@ function renderHistoryList(container, entries) {
     }).join('')}</div>`;
 
     // Click handlers
+    prependHistoryPaneTabs(container, 'versions');
     container.querySelectorAll('.history-item').forEach(item => {
         item.addEventListener('click', async () => {
             const hash = item.dataset.hash;
@@ -620,9 +626,10 @@ async function exitHistoryMode() {
     }
     if (requestId !== historyModeRequestId) return;
 
+    let restored;
     // Restore live content
     if (liveContent !== null && getState('activeTabId') === historyModeTabId) {
-        setEditorContent(liveContent);
+        restored = setEditorContent(liveContent, historyModeTabId);
     }
     liveContent = null;
     historyModeTabId = null;
@@ -642,6 +649,7 @@ async function exitHistoryMode() {
             el.setAttribute('aria-selected', 'false');
         });
     }
+    await restored;
 }
 
 export function closeHistoryPanel({ keepSidebarOpen = false } = {}) {

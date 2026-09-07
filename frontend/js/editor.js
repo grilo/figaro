@@ -127,6 +127,8 @@ import { tags } from '@lezer/highlight';
 import { validateMermaidSource } from './diagramRenderer.js';
 import { createMarkdownDocumentLinter } from './usecases/markdownDocumentLint.js';
 import { createMarkdownBlockGuidesExtension } from './markdownBlockGuides.js';
+import { activityEditDateExtension, activityGutterExtension, setActivityData } from './activityGutter.js';
+import { syncEditorGutterAccessibility } from './editorGutterAccessibility.js';
 import { openMermaidEditor } from './mermaidEditor.js';
 import { openMarkdownTableEditor } from './markdownTableEditor.js';
 import { openVegaLiteChartEditor } from './vegaLiteChartEditor.js';
@@ -1939,7 +1941,7 @@ function referenceLinkPlugin() {
 function createFoldGutterAccessibilityPlugin() {
     // CodeMirror marks its complete gutter rail aria-hidden because line
     // numbers and ordinary markers are decorative. Fold arrows and Markdown
-    // block controls are real controls, so expose only that interactive gutter.
+    // block controls and activity dates are real controls, so expose those gutters.
     return ViewPlugin.fromClass(class {
         constructor(view) {
             this.view = view;
@@ -1953,28 +1955,7 @@ function createFoldGutterAccessibilityPlugin() {
         }
 
         sync() {
-            if (this.view.isDestroyed) return;
-            for (const gutters of this.view.dom.querySelectorAll('.cm-gutters')) {
-                const interactiveGutters = [...gutters.querySelectorAll(
-                    '.cm-markdownBlockGutter, .cm-foldGutter',
-                )];
-                if (!interactiveGutters.length) {
-                    gutters.setAttribute('aria-hidden', 'true');
-                    continue;
-                }
-                gutters.removeAttribute('aria-hidden');
-                for (const gutter of gutters.querySelectorAll(':scope > .cm-gutter')) {
-                    if (interactiveGutters.includes(gutter)) {
-                        gutter.removeAttribute('aria-hidden');
-                        gutter.setAttribute('role', 'group');
-                        gutter.setAttribute('aria-label', gutter.classList.contains('cm-markdownBlockGutter')
-                            ? 'Markdown block controls'
-                            : 'Code folding');
-                    } else {
-                        gutter.setAttribute('aria-hidden', 'true');
-                    }
-                }
-            }
+            syncEditorGutterAccessibility(this.view);
         }
     });
 }
@@ -2564,6 +2545,8 @@ function createEditorView() {
             markdownTableCompartment.of(markdownTableExtensions),
             markdownMathCompartment.of(markdownMathExtensions),
             lineNumbersCompartment.of(lineNumbersRequested ? [relativeLineNumbers(), highlightActiveLineGutter()] : []),
+            activityGutterExtension,
+            activityEditDateExtension({ isDocumentReplacement: () => _programmaticChange }),
             foldingCompartment.of(editorFoldingExtensions('markdown')),
             foldGutterAccessibilityPlugin,
             blockControlVisibilityExtension,
@@ -2854,6 +2837,7 @@ const editorDocumentSession = createEditorDocumentSession({
             // document's diagrams, tables, math, images, or frontmatter.
             view.dispatch({
                 effects: [
+                    setActivityData.of({ clear: true, enabled: false }),
                     historyCompartment.reconfigure([]),
                     ...(activeFileLanguage.kind === 'markdown'
                         ? markdownPresentationEffects(activeFilePath, false)

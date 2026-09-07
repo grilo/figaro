@@ -417,7 +417,7 @@ plain/content medians with a generous relative regression ceiling. See
 [the huge-vault procedure](docs/TESTING.md#huge-vault-stress-profile) and
 [the reference audit](docs/HUGE_VAULT_STRESS.md).
 
-For changes to Raw Text Preview, the global tab-size/indentation policy, sticky headings, Markdown image resizing or source-reveal geometry, Markdown block guides or their writing-column rail geometry,
+For changes to Raw Text Preview, the global tab-size/indentation policy, sticky headings, Markdown image resizing or source-reveal geometry, Markdown block guides, activity dates, or their writing-column rail geometry,
 raw-source Mermaid diagnostics, the Mermaid Editor, current-note heading
 completion, frontmatter Properties navigation, Vim rendered-block navigation, or per-tab cursor
 persistence, follow the
@@ -542,7 +542,7 @@ adds words without modifying bundled Hunspell resources or note contents.
 Writing review preparation also requires Go. `scripts/prepare-frontend.sh` runs
 `scripts/vendor-writing.mjs` for the pinned remark/retext runtime and notices,
 `go run ./cmd/prepare-writing-assets` for SHA-256-verified Vale release assets,
-and the app bundler for all three eager workers. No runtime Node installation or
+and the app bundler for the three writing workers and the activity worker. No runtime Node installation or
 analyzer download is required by the installed application. Generated executables
 under `internal/writing/assets/` and `frontend/*.worker.js` are ignored.
 Cross builds must prepare the target first (`-target windows/amd64` or
@@ -631,6 +631,7 @@ internal/desktop/            Wails assembly, bound App capabilities, and adapter
 internal/vault/              Root-scoped filesystem primitives
 internal/links/              Pure Markdown link rewriting
 internal/history/            Local Git history and auto-commit service
+internal/activity/           Pure passage attribution and note-move identity
 internal/recovery/           Pure recently-deleted registry rules
 frontend/                    Webview, CodeMirror, themes, fonts, and assets
 frontend/design-system/      Shared UI assets, approved registry, catalogue, and audit

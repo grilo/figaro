@@ -1069,6 +1069,36 @@ metadata-first/note-write/rollback adapter as first-start changes. Unrelated or
 ambiguous title edits remain unresolved instead of guessing.
 The picker receives its visible-month source eagerly at startup.
 
+## Passage activity attribution
+
+`internal/activity` owns pure snapshot attribution and path-move planning.
+Unchanged-line matching combines stable edges, unique anchors, and bounded
+local LCS; uncertain duplicate regions stay unattributed. Events carry parent
+links to earlier edits and source excerpts. `internal/history/activity.go`
+reads bounded immutable first-parent Git snapshots and supplies committer time,
+with a disposable four-entry cache behind a lock separate from Git mutations.
+It follows persisted Figaro move boundaries and detected Git renames. The
+rooted `activity_paths.go` adapter bounds metadata reads; desktop relocation
+includes `.config/activity-paths.json` in the same atomic, rollback-capable move
+transaction as writing choices. No activity state is inserted into Markdown.
+
+`core/activityModel.js` owns draft alignment, Markdown passage projection, local
+day grouping, compact year-bearing date labels, selected-range remapping, and
+parent-event traversal.
+`usecases/activityReview.js` coordinates injected native loading, worker
+projection, cancellation, timers, source snapshots, and publication. The
+composition adapter `activity.js` wires those ports to the owned Markdown
+buffer and shared pane. `activityWorkerClient.js` initializes eagerly and
+restarts cancelled/failed workers; it has no renderer-thread fallback.
+`activityGutter.js` maps CodeMirror ranges through edits without parsing text,
+rebuilds markers for the viewport, and adds line backgrounds without replacing
+source. Edit transactions supply a local day through an adapter annotation;
+range reconciliation applies the pure temporary-date policy without parsing
+source. Confirmed Git attribution wins, and document resets discard temporary
+dates. Its outer rail participates in the existing measured writing inset.
+`views/activityView.js` renders safe source text and approved buttons/cards;
+`historyPaneTabs.js` coordinates Activity/Versions without coupling their owners.
+
 ## Git status and history restoration
 
 Editor changes mark their tab model dirty synchronously, then publish the
@@ -2591,3 +2621,16 @@ The browser contract navigates logical collections beyond a prospective render
 window and never equates mounted-node count with result count. This lets future
 adapters change storage and rendering strategies without weakening the stable
 observable contract.
+
+
+## Document load and save revisions
+
+`core/workspaceTabModel.js` owns immutable load tickets and disk-version
+acknowledgements. `tabManager.js` applies accepted reads to the current tab,
+so cursor snapshots cannot strand metadata on a replaced object. Ownership,
+load, edit, and save generations reject stale completions without discarding
+new typing. `usecases/documentSave.js` serializes writes through an injected
+persistence port. Each successful write acknowledges its version before the
+optional history commit; later failed or cancelled writes retain that queue
+baseline. Save completion clears dirty state only for the matching latest
+edit. Actual disk conflicts still require explicit overwrite permission.

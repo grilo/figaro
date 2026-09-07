@@ -80,6 +80,10 @@ your Auto-Commit setting; **Save to history** records the active file when it ha
 changes to save. It does not include unrelated staged files. Undo and Redo belong
 to each open document, so switching tabs also switches editing history.
 
+History contains **Versions** for saved notes and **Activity** for passage
+changes. Optional margin dates open Activity directly; enable them under
+**Settings → Editor → Navigation**. See [passage activity](WRITING.md#see-when-a-passage-changed).
+
 Deleting a vault item bypasses the system Trash. Figaro first saves affected
 editors and records the item in local history. If that fails, deletion stops.
 Use the status bar's **Undo** immediately after deletion, or open

@@ -45,6 +45,39 @@ describe('document save use case', () => {
         expect(saver.pendingForPath('note.md')).toBeNull();
     });
 
+    test('a queued failure preserves the last successful revision for remaining saves', async () => {
+        const first = deferred();
+        const persist = jest.fn()
+            .mockImplementationOnce(() => first.promise)
+            .mockRejectedValueOnce(new Error('temporarily read-only'))
+            .mockResolvedValueOnce({ success: true, mtime: 12 });
+        const onPersisted = jest.fn();
+        const { saver } = harness({ persist, onPersisted });
+        const tab = { path: 'note.md', mtime: 10 };
+        const saving = saver.save(tab, 'first');
+        const failing = expect(saver.save(tab, 'second')).rejects.toThrow('temporarily read-only');
+        const retrying = saver.save(tab, 'third');
+        first.resolve({ success: true, mtime: 11 });
+        await saving;
+        await failing;
+        await retrying;
+        expect(persist.mock.calls.map(([request]) => request.expectedMtime)).toEqual([10, 11, 11]);
+        expect(onPersisted.mock.calls.map(([, result]) => result.mtime)).toEqual([11, 12]);
+    });
+
+    test('acknowledges the written revision before waiting for Git history', async () => {
+        const history = deferred();
+        const onPersisted = jest.fn();
+        const { saver, onSaved } = harness({ shouldCommit: () => true, commit: () => history.promise, onPersisted });
+        const saving = saver.save({ path: 'note.md', mtime: 10 }, 'saved');
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(onPersisted).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mtime: 11 }));
+        expect(onSaved).not.toHaveBeenCalled();
+        history.resolve();
+        await saving;
+    });
+
     test('cancels a conflict without overwriting external content', async () => {
         const persist = jest.fn().mockResolvedValue({
             success: false,

@@ -3148,3 +3148,68 @@ The catalogue disclosure regression samples intermediate body geometry, then
 waits for the arrow's final computed transform. A fixed sampling window does
 not guarantee CSS transitions have finished when rendering frames are delayed;
 that timing must not turn a working reveal into a release failure.
+
+## Passage activity dates
+
+`internal/activity` tests source-line identity across prepends, edits, moved
+passages, repeated text, Unicode/CRLF, partial histories, and large notes.
+`internal/history` tests immutable snapshot reads, cache reuse, service restart,
+recorded renames, bounded traversal, and uncommitted notes. Desktop activity
+relocation tests exercise real rooted rename/folder/merge operations across
+restart and subsequent commits, collision preservation, metadata corruption,
+symlink containment, rollback and private permissions. Editor navigation tests
+cover the opt-in setting's persistence and frontend failed-save rollback.
+
+Frontend `activityModel`, `activityReview`, `activityWorkerClient`,
+`activityGutter`, `activityPane`, and `activityView` unit tests own grouping, source offsets,
+selected-range remapping and pane restoration, debounce, coalescing, cancellation, stale results,
+worker deadlines/recovery, caret preservation, safe excerpts and accessible
+actions. `editorGutterAccessibility` covers labelled activity controls while
+line numbers remain decorative, including when block guides are off. Attribution
+policies are not repeated in browser tests. Pure date-label cases cover current
+and other years, day/month order, and leading zeroes in the two-digit year;
+the gutter component verifies compact visible labels and full accessible dates.
+Temporary-date regressions cover immediate typing, background refresh/error
+retention, Git takeover with a different day, midnight edits, same-day grouping
+and tooltip updates, resets/reopening, and excluding programmatic loads. The
+adapter test injects its date function and uses the CodeMirror transaction time;
+no timing or attribution rules are duplicated in browser tests. Native keyboard
+typing confirmed immediate same-day grouping, retention after worker analysis,
+arrow movement through the new passage, and tooltip replacement after a real
+Git commit.
+
+The existing `editorUX.spec.js` block-guide scenario enables activity dates to
+check actual outer/inner rail geometry, shared row alignment with line numbers,
+transparent helper/activity current rows, keyboard/fold/mouse selection, source
+widgets, pane focus and width restoration through Settings. Run the native
+packaged webview cursor check with dates enabled as well: Welcome line 23
+**Text formatting** → Up to 22 → Down to 23, then both directions across Mermaid
+and table blocks, date keyboard activation, and bidirectional drag selection.
+Keep native QA in a disposable vault on an isolated display.
+
+The implementation was checked on Linux GTK 3.24.52 / WebKitGTK 2.52.6 using
+an instrumented packaged build and a disposable vault. Native arrows, date
+activation, source diffs, bidirectional drag, Settings restoration and Pure
+suppression passed. A 12,000-word / 1,000-paragraph note kept 40 measured editor
+transactions between 4 and 12 ms while draft activity was enabled. These are
+local dispatch measurements, not a guarantee for every document or platform.
+
+
+## File revision continuity
+
+`workspaceTabModel.test.js` covers immutable cursor updates during file loads,
+newer load/save rejection, retained edits, ownership changes, and scoped disk
+acknowledgements. `documentSave.test.js` proves acknowledgement before Git
+completion and revision continuity across queued failures. `tabManager.test.js`
+exercises ordinary and prepared file mounts, approved overwrite followed by
+repeated saves, a failed queued save followed by retry, and non-destructive
+cancellation of a real disk conflict. These sequencing rules stay below the
+browser layer; repeat ordinary saves and a genuine external edit in the
+isolated packaged app to check the native binding boundary.
+
+The follow-up Linux WebKitGTK check confirmed date, number, and helper row tops
+within 0.2 px, bidirectional arrows across Mermaid/table boundaries, mouse
+placement, and drag selection in both directions. Four ordinary native saves
+retained matching tab/disk versions. A deliberate external edit preserved the
+draft and external file on cancellation; one approved overwrite followed by
+three further saves produced no repeat warning.

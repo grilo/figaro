@@ -106,6 +106,7 @@ import {
     getActiveTab, 
     markTabDirty, 
     recordTabEdit,
+    recordTabCursor,
     updateTabTitle,
     reorderTab,
     movedTabPath,
@@ -244,8 +245,24 @@ describe('Tab Manager', () => {
                 tab.id,
                 null,
             );
-            expect(tab._content).toBe(preparedFile.content);
-            expect(tab.mtime).toBe(preparedFile.mtime);
+            expect(getActiveTab()._content).toBe(preparedFile.content);
+            expect(getActiveTab().mtime).toBe(preparedFile.mtime);
+        });
+
+        test.each([false, true])('file mount records its revision on the current immutable tab before the next save (prepared=%s)', async prepared => {
+            setEditorContent.mockImplementationOnce(async (_content, id) => {
+                recordTabCursor(id, {anchor: 1, head: 1});
+            });
+            const file = { content: 'Loaded note.', mtime: 20, path: 'revision.md' };
+            if (!prepared) window.go.desktop.App.ReadFile.mockResolvedValueOnce(file);
+            openTab('revision.md', 'Revision', 'file', { path: 'revision.md', mtime: 10, ...(prepared ? { preparedFile: file } : {}) });
+            await testUtils.waitFor(0);
+            const current = getActiveTab();
+            expect(current.mtime).toBe(20);
+            window.go.desktop.App.SaveFile.mockResolvedValueOnce({ success: true, mtime: 21 });
+            await saveFileSnapshot(current,'Edited note.');
+            expect(window.go.desktop.App.SaveFile).toHaveBeenLastCalledWith('revision.md','Edited note.',20);
+            expect(confirmDialog).not.toHaveBeenCalled();
         });
 
         test('opens an unpositioned Markdown buffer on the first line after Properties', async () => {
@@ -1339,6 +1356,61 @@ describe('Tab Manager', () => {
             } finally {
                 Object.defineProperty(navigator, 'clipboard', { configurable: true, value: originalClipboard });
             }
+        });
+
+        test('an approved overwrite updates the revision through cursor changes and subsequent saves', async () => {
+            const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            let diskVersion = 11;
+            window.go.desktop.App.SaveFile.mockReset().mockImplementation(async (_path, _content, expected) => {
+                recordTabCursor(tab.id, { anchor: 1, head: 1 });
+                return expected && expected !== diskVersion
+                    ? { success: false, error: 'File modified externally' }
+                    : { success: true, mtime: ++diskVersion };
+            });
+            confirmDialog.mockResolvedValueOnce(true);
+            await saveFileSnapshot(tab, 'overwrite');
+            await saveFileSnapshot(tab, 'next save');
+            await saveFileSnapshot(tab, 'third save');
+            expect(confirmDialog).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFile.mock.calls.map(call => call[2])).toEqual([10, 0, 12, 13]);
+            expect(getActiveTab().mtime).toBe(14);
+        });
+
+        test('cancelling a real disk conflict keeps the draft and does not adopt the unseen version', async () => {
+            const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true, _content: 'draft' };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            window.go.desktop.App.SaveFile.mockReset().mockResolvedValueOnce({ success: false, error: 'File modified externally', mtime: 11 });
+            confirmDialog.mockResolvedValueOnce(false);
+            await saveFileSnapshot(tab, 'draft');
+            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
+            expect(getActiveTab()).toMatchObject({ dirty: true, _content: 'draft', mtime: 10 });
+            expect(confirmDialog).toHaveBeenCalledWith(
+                'File changed on disk', expect.stringContaining('since this note was loaded or last saved'),
+                true, false, expect.objectContaining({ confirmLabel: 'Overwrite file', cancelLabel: 'Keep editing' }),
+            );
+        });
+
+        test('retains an acknowledged disk revision when a newer queued save fails', async () => {
+            const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
+            mockState.openTabs = [tab];
+            mockState.activeTabId = tab.id;
+            let resolveFirst;
+            const first = new Promise(resolve => { resolveFirst = resolve; });
+            window.go.desktop.App.SaveFile
+                .mockImplementationOnce(() => first)
+                .mockRejectedValueOnce(new Error('permission denied'))
+                .mockResolvedValueOnce({ success: true, mtime: 12 });
+            const saving = saveFileSnapshot(tab, 'first');
+            const failing = expect(saveFileSnapshot(tab, 'second')).rejects.toThrow('permission denied');
+            resolveFirst({ success: true, mtime: 11 });
+            await saving;
+            await failing;
+            expect(getActiveTab()).toMatchObject({ mtime: 11, dirty: true });
+            await saveFileSnapshot(tab, 'retry');
+            expect(window.go.desktop.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'retry', 11);
         });
 
         test('serializes snapshots for one file using the prior save revision', async () => {

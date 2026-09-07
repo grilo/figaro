@@ -2,6 +2,7 @@ export const editorNavigationDefaults = Object.freeze({
     stickyHeadings: true,
     blockGuides: true,
     documentOutline: true,
+    activityDates: false,
 });
 
 const preferenceKeys = new Set(Object.keys(editorNavigationDefaults));

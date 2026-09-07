@@ -466,10 +466,11 @@ type EditorNavigationPreference struct {
 	StickyHeadings  bool `json:"stickyHeadings"`
 	BlockGuides     bool `json:"blockGuides"`
 	DocumentOutline bool `json:"documentOutline"`
+	ActivityDates   bool `json:"activityDates"`
 }
 
 // EditorNavigationLoad loads the persisted Markdown navigation preferences.
-// All three features are on by default for existing vaults.
+// Navigation aids default on; passage activity dates are opt-in.
 func (a *App) EditorNavigationLoad() (*EditorNavigationPreference, error) {
 	a.settingsMu.RLock()
 	defer a.settingsMu.RUnlock()
@@ -482,11 +483,12 @@ func (a *App) EditorNavigationLoad() (*EditorNavigationPreference, error) {
 		StickyHeadings:  settingsmodel.Bool(settings, "sticky_headings", true),
 		BlockGuides:     settingsmodel.Bool(settings, "markdown_block_guides", true),
 		DocumentOutline: settingsmodel.Bool(settings, "document_outline", true),
+		ActivityDates:   settingsmodel.Bool(settings, "activity_dates", false),
 	}, nil
 }
 
 // EditorNavigationSave persists one complete Markdown navigation snapshot.
-func (a *App) EditorNavigationSave(stickyHeadings, blockGuides, documentOutline bool) (*SaveFileResult, error) {
+func (a *App) EditorNavigationSave(stickyHeadings, blockGuides, documentOutline, activityDates bool) (*SaveFileResult, error) {
 	a.settingsMu.Lock()
 	defer a.settingsMu.Unlock()
 
@@ -497,6 +499,7 @@ func (a *App) EditorNavigationSave(stickyHeadings, blockGuides, documentOutline 
 	settings["sticky_headings"] = stickyHeadings
 	settings["markdown_block_guides"] = blockGuides
 	settings["document_outline"] = documentOutline
+	settings["activity_dates"] = activityDates
 	if err := a.writeSettingsFile(settings); err != nil {
 		return &SaveFileResult{Success: false, Error: err.Error()}, nil
 	}

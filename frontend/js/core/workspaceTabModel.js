@@ -96,3 +96,41 @@ export function beginWorkspaceTabSave(tabs, tabId) {
         _saveGeneration: (tab._saveGeneration || 0) + 1,
     }));
 }
+
+/** A load ticket survives immutable cursor/layout updates, but not a newer load. */
+export function beginWorkspaceFileLoad(tabs, tabId) {
+    return updateWorkspaceTab(tabs, tabId, tab => ({ _loadGeneration: (tab._loadGeneration || 0) + 1 }));
+}
+
+export function workspaceFileLoadIsCurrent(current, loading, activeId, { allowEdits = false } = {}) {
+    return Boolean(current && current.id === activeId && current.id === loading.id
+        && current.path === loading.path && current.externalFileId === loading.externalFileId
+        && current._loadGeneration === loading._loadGeneration
+        && (current._saveGeneration || 0) === (loading._saveGeneration || 0)
+        && (allowEdits || ((current._editGeneration || 0) === (loading._editGeneration || 0)
+            && (loading.dirty || !current.dirty))));
+}
+
+/** A mounted snapshot supplies a baseline, without clearing edits made since it mounted. */
+export function finishWorkspaceFileLoad(tabs, loading, file, activeId) {
+    return updateWorkspaceTab(tabs, loading.id, current => {
+        if (!workspaceFileLoadIsCurrent(current, loading, activeId, { allowEdits: true })) return null;
+        return {
+            mtime: file.mtime,
+            ...((current._editGeneration || 0) === (loading._editGeneration || 0)
+                ? { _content: file.content, dirty: false } : {}),
+        };
+    });
+}
+
+/** Disk acknowledgements survive newer queued saves, without marking later edits clean. */
+export function acknowledgeWorkspaceFileSave(tabs, snapshot, result) {
+    let changed = false;
+    const next = tabs.map(tab => {
+        if ((tab.type !== 'file' && tab.type !== 'drawio') || tab.path !== snapshot.path
+            || (tab.externalFileId || null) !== (snapshot.externalFileId || null) || tab.mtime === result.mtime) return tab;
+        changed = true;
+        return { ...tab, mtime: result.mtime };
+    });
+    return changed ? next : tabs;
+}

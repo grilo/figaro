@@ -35,6 +35,13 @@ func planWritingPathMove(root *os.Root, oldPath, newPath string) ([]writing.Meta
 
 func applyWritingPathMove(root *os.Root, changes []writing.MetadataChange) (func() error, error) {
 	return writing.ApplyMetadataMove(changes, func(path string, data []byte) error {
+		if data == nil {
+			err := root.Remove(path)
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
 		return writeRootFileAtomic(root, path, data, 0600)
 	})
 }

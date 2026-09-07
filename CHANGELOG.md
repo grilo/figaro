@@ -8,12 +8,36 @@ remain as originally published.
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.37.0] - 2026-09-07
+
+### Added
+
+- Optional activity dates show when passages were last recorded in Git. Adjacent
+  passages from the same day share one margin date; click it to review their
+  changes in History without leaving the live editor. Dates survive prepending
+  text and note moves, while unrecorded or uncertain changes are labelled clearly.
+
 ### Changed
 
+- Activity margin dates always include a two-digit year, using **7 Sep 26** format.
+- Fresh edits immediately show today’s date while awaiting Git history. These
+  temporary dates group with same-day passages and disappear when the note is
+  reopened; recorded dates take over when available.
 - Rebuilt the README around everyday workflows, with focused screenshots and
   linked guides for setup, writing, planning, diagrams, and PDF export.
 - Reviewed documentation with all five writing lenses, clarified setup and
   technical guidance, and corrected terminology and grammar in current references.
+
+### Fixed
+
+- Line numbers, activity dates, and block controls align with their editor rows;
+  current-line shading stays in the line-number column instead of painting
+  empty red blocks across the margins.
+- File loading and queued saves retain the latest acknowledged disk version,
+  preventing false conflict warnings after cursor updates or failed queued saves.
+  The warning now describes a disk change without assuming another editor caused it.
 
 ## [1.36.1] - 2026-09-07
 
@@ -2125,7 +2149,8 @@ remain as originally published.
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.36.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.37.0...HEAD
+[1.37.0]: https://github.com/grilo/figaro/compare/v1.36.1...v1.37.0
 [1.36.1]: https://github.com/grilo/figaro/compare/v1.36.0...v1.36.1
 [1.36.0]: https://github.com/grilo/figaro/compare/v1.35.2...v1.36.0
 [1.35.2]: https://github.com/grilo/figaro/compare/v1.35.1...v1.35.2

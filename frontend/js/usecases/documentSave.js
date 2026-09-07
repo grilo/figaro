@@ -10,13 +10,14 @@ export function createDocumentSave({
     shouldCommit = () => false,
     commit = async () => {},
     onStarted = () => {},
+    onPersisted = () => {},
     onSaved = async () => {},
     onFailed = () => {},
 }) {
     const queues = new Map();
     const generations = new Map();
 
-    async function persistSnapshot(snapshot, queuedMtime = snapshot.expectedMtime) {
+    async function persistSnapshot(snapshot, queue) {
         const write = expectedMtime => persist({
             path: snapshot.path,
             externalFileId: snapshot.externalFileId,
@@ -25,7 +26,7 @@ export function createDocumentSave({
         });
 
         try {
-            let result = await write(queuedMtime);
+            let result = await write(queue.mtime);
             let successMessage = 'Saved';
             const firstDisposition = saveResultDisposition(result);
             if (firstDisposition === 'failure') {
@@ -40,6 +41,9 @@ export function createDocumentSave({
                     throw new Error(result?.error || 'The file could not be saved.');
                 }
             }
+
+            queue.mtime = result.mtime;
+            onPersisted(snapshot, result);
 
             const autoCommitEnabled = !snapshot.externalFileId && shouldCommit(snapshot);
             let historyCommitFailed = false;
@@ -76,19 +80,14 @@ export function createDocumentSave({
         generations.set(snapshot.tabId, snapshot.generation);
         onStarted(snapshot);
 
-        const previous = queues.get(snapshot.path);
-        const queued = previous
-            ? previous
-                .catch(() => null)
-                .then(result => persistSnapshot(
-                    snapshot,
-                    result?.success ? result.mtime : snapshot.expectedMtime,
-                ))
-            : persistSnapshot(snapshot);
-
-        queues.set(snapshot.path, queued);
+        const queue = queues.get(snapshot.path) || { mtime: snapshot.expectedMtime, pending: null };
+        const queued = queue.pending
+            ? queue.pending.catch(() => null).then(() => persistSnapshot(snapshot, queue))
+            : persistSnapshot(snapshot, queue);
+        queue.pending = queued;
+        queues.set(snapshot.path, queue);
         queued.finally(() => {
-            if (queues.get(snapshot.path) === queued) queues.delete(snapshot.path);
+            if (queue.pending === queued) queues.delete(snapshot.path);
         }).catch(() => {});
         return queued;
     }
@@ -96,7 +95,7 @@ export function createDocumentSave({
     return {
         save,
         pendingForPath(path) {
-            return queues.get(path) || null;
+            return queues.get(path)?.pending || null;
         },
     };
 }

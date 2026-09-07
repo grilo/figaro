@@ -1,5 +1,6 @@
 import { backend } from './backend.js';
 import { log } from './log.js';
+import { setActivityDatesEnabled } from './activity.js';
 import { setMarkdownBlockGuides } from './editor.js';
 import { setDocumentOutlineEnabled, setStickyHeadingsEnabled } from './outline.js';
 import {
@@ -19,9 +20,11 @@ const controls = {
     stickyHeadings: 'sticky-headings-toggle',
     blockGuides: 'markdown-block-guides-toggle',
     documentOutline: 'document-outline-toggle',
+    activityDates: 'activity-dates-toggle',
 };
 
 function apply(preference) {
+    setActivityDatesEnabled(preference.activityDates);
     if (typeof setStickyHeadingsEnabled === 'function') setStickyHeadingsEnabled(preference.stickyHeadings);
     if (typeof setMarkdownBlockGuides === 'function') setMarkdownBlockGuides(preference.blockGuides);
     if (typeof setDocumentOutlineEnabled === 'function') setDocumentOutlineEnabled(preference.documentOutline);
@@ -75,6 +78,7 @@ export async function setEditorNavigationPreference(key, enabled) {
                 requested.stickyHeadings,
                 requested.blockGuides,
                 requested.documentOutline,
+                requested.activityDates,
             );
             if (!result?.success) throw new Error(result?.error || 'Could not save editor navigation preferences.');
             persisted = { ...requested };

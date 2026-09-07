@@ -205,7 +205,7 @@ func (a *App) renamePathWritingLocked(oldRel string, newRel string, updateLinks 
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
-	writingChanges, err := planWritingPathMove(root, oldClean, newClean)
+	writingChanges, err := a.planDocumentPathMove(root, oldClean, newClean)
 	if err != nil {
 		return nil, err
 	}
@@ -410,7 +410,7 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 		rollbackErr := a.rollbackDirectoryMergeRenamesLocked(renames)
 		return &SaveFileResult{Success: false, Error: errors.Join(fmt.Errorf("collect links for merge: %w", err), rollbackErr).Error()}, nil
 	}
-	writingChanges, err := planWritingPathMove(root, sourceClean, destination)
+	writingChanges, err := a.planDocumentPathMove(root, sourceClean, destination)
 	if err != nil {
 		return &SaveFileResult{Success: false, Error: errors.Join(err, a.rollbackDirectoryMergeRenamesLocked(renames)).Error()}, nil
 	}

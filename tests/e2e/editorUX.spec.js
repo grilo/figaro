@@ -1028,6 +1028,68 @@ test('folds nested Markdown block guides without breaking cursor or drag-selecti
         view.focus();
     }, source);
 
+    // Activity's outer rail shares real cursor/fold geometry with the helper
+    // rail. Attribution rules and failure paths are covered below the browser.
+    await page.evaluate(async markdown => {
+        (await import('/js/backend.js')).backend().GetFileActivity = async () => ({
+            source: markdown, revision: 'fixture', partial: false,
+            lines: markdown.split('\n').map(() => ({ event: 0 })),
+            events: [{ revision: 'fixture', timestamp: 1788436800, kind: 'added', before: '', after: markdown, parents: [] }],
+        });
+        await (await import('/js/editorNavigationPreferences.js')).setEditorNavigationPreference('activityDates', true);
+    }, source);
+    const activityDate = page.locator('.activity-date-marker:visible').first();
+    await expect(activityDate).toHaveAttribute('aria-label', /Last recorded change/);
+    await expect(page.getByRole('group', { name: 'Passage activity', exact: true })).toBeVisible();
+    await page.evaluate(async () => (await import('/js/editor.js')).setLineNumbers(true));
+    await expect.poll(() => page.evaluate(() => {
+        const line = document.querySelector('.cm-line').getBoundingClientRect();
+        const number = [...document.querySelectorAll('.cm-lineNumbers .cm-gutterElement')]
+            .find(element => element.getBoundingClientRect().height > 0).getBoundingClientRect();
+        const date = document.querySelector('.activity-date-marker').parentElement.getBoundingClientRect();
+        const helper = document.querySelector('.ui-editor-block-guide').parentElement.getBoundingClientRect();
+        return Math.max(Math.abs(number.top - line.top), Math.abs(date.top - line.top), Math.abs(helper.top - line.top));
+    })).toBeLessThan(2);
+    const gutterHighlights = await page.evaluate(() => [...document.querySelectorAll('.cm-activeLineGutter')]
+        .map(element => ({ numbers: element.parentElement.classList.contains('cm-lineNumbers'), background: getComputedStyle(element).backgroundColor })));
+    expect(gutterHighlights.some(element => element.numbers && element.background !== 'rgba(0, 0, 0, 0)')).toBe(true);
+    expect(gutterHighlights.filter(element => !element.numbers).every(element => element.background === 'rgba(0, 0, 0, 0)')).toBe(true);
+    const activityRail = await page.evaluate(() => {
+        const date = document.querySelector('.activity-date-marker').getBoundingClientRect();
+        const helper = document.querySelector('.ui-editor-block-guide').getBoundingClientRect();
+        const line = document.querySelector('.cm-line').getBoundingClientRect();
+        return { dateLeft: date.left, dateRight: date.right, helperLeft: helper.left, helperRight: helper.right, lineLeft: line.left };
+    });
+    expect(activityRail.dateLeft).toBeGreaterThanOrEqual(0);
+    expect(activityRail.dateRight).toBeLessThanOrEqual(activityRail.helperLeft);
+    expect(activityRail.helperRight).toBeLessThanOrEqual(activityRail.lineLeft);
+    const caretBeforeActivity = await page.evaluate(() => window.__headingFoldView.state.selection.main.head);
+    await activityDate.click();
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'activity');
+    expect(await page.evaluate(() => window.__headingFoldView.state.selection.main.head)).toBe(caretBeforeActivity);
+    await page.locator('#right-sidebar').evaluate(async element => { await Promise.all(element.getAnimations().map(animation => animation.finished)); });
+    const activityWidth = (await page.locator('#right-sidebar').boundingBox()).width;
+    await page.getByRole('button', { name: 'View changes', exact: true }).click();
+    await expect(page.locator('.activity-change .history-diff')).toContainText('Product roadmap');
+    await page.locator('#topbar-settings').click();
+    await page.locator('#topbar-settings').click();
+    await expect(page.locator('#right-sidebar')).toHaveAttribute('data-mode', 'activity');
+    await expect.poll(async () => (await page.locator('#right-sidebar').boundingBox()).width).toBe(activityWidth);
+    await page.locator('#right-sidebar-close').click();
+    await expect(page.locator('#right-sidebar')).not.toHaveClass(/\bopen\b/);
+    await page.evaluate(() => window.__headingFoldView.focus());
+    await page.keyboard.press('Control+Shift+B');
+    await expect(page.locator('#app')).toHaveClass(/pure-editing-chrome/);
+    await expect(page.locator('.activity-date-marker:visible')).toHaveCount(0);
+    await page.keyboard.press('Control+Shift+B');
+    await expect(activityDate).toBeVisible();
+    await page.evaluate(async () => (await import('/js/editorNavigationPreferences.js')).setEditorNavigationPreference('blockGuides', false));
+    await expect(page.getByRole('group', { name: 'Passage activity', exact: true })).toBeVisible();
+    const dateOnly = await activityDate.boundingBox();
+    expect(dateOnly.x).toBeGreaterThanOrEqual(0);
+    expect(dateOnly.x + dateOnly.width).toBeLessThan((await page.locator('.cm-line').first().boundingBox()).x);
+    await page.evaluate(async () => (await import('/js/editorNavigationPreferences.js')).setEditorNavigationPreference('blockGuides', true));
+
     const collapseControls = page.locator(
         '.ui-editor-block-guide[aria-expanded="true"][aria-label*="section"]:visible',
     );

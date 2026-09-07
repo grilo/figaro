@@ -42,6 +42,7 @@ func Defaults() map[string]any {
 		"sticky_headings":       true,
 		"markdown_block_guides": true,
 		"document_outline":      true,
+		"activity_dates":        false,
 		"spellcheck":            false,
 		"spellcheck_language":   "en-US",
 		"auto_save_seconds":     300,

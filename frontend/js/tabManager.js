@@ -36,6 +36,10 @@ import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
 import { boundedAdjacentTabId } from './core/tabNavigationModel.js';
 import {
+    acknowledgeWorkspaceFileSave,
+    beginWorkspaceFileLoad,
+    finishWorkspaceFileLoad,
+    workspaceFileLoadIsCurrent,
     recordWorkspaceTabContent,
     recordWorkspaceTabCursor,
     recordWorkspaceTabEdit,
@@ -1000,6 +1004,21 @@ function refreshReactivatedImages(tab, enabled) {
     if (enabled && tab.id === getState('activeTabId')) setImageBasePath(tab.path);
 }
 
+function startFileLoad(tabId) {
+    const transition = beginWorkspaceFileLoad(getState('openTabs'), tabId);
+    if (transition.changed) setState('openTabs', transition.tabs);
+    return transition.tab;
+}
+function currentFileLoad(loading) {
+    const current = getState('openTabs').find(tab => tab.id === loading.id);
+    return workspaceFileLoadIsCurrent(current, loading, getState('activeTabId'));
+}
+function finishFileLoad(loading, file) {
+    const transition = finishWorkspaceFileLoad(getState('openTabs'), loading, file, getState('activeTabId'));
+    if (transition.changed) setState('openTabs', transition.tabs);
+    return workspaceFileLoadIsCurrent(transition.tab, loading, getState('activeTabId'), { allowEdits: true });
+}
+
 async function renderFileTab(
     panel,
     tab,
@@ -1015,12 +1034,11 @@ async function renderFileTab(
     const refreshMountedImagePresentation = getEditorDocumentTabId() === tab.id
         && isMarkdownFilePath(tab.path);
     if (preparedFile) {
-        const loadId = (tab._loadGeneration || 0) + 1;
-        tab._loadGeneration = loadId;
+        tab = startFileLoad(tab.id);
+        if (!tab) return;
         if (!preparedFileConfigured) {
             const configured = await configureEditorForFile(tab.path);
-            if (!configured || tab.id !== getState('activeTabId')
-                || tab._loadGeneration !== loadId || tab.dirty) return;
+            if (!configured || !currentFileLoad(tab)) return;
         }
         const mounted = await setEditorContent(
             preparedFile.content,
@@ -1029,20 +1047,18 @@ async function renderFileTab(
         );
         if (mounted === false) return;
         refreshReactivatedImages(tab, refreshMountedImagePresentation);
-        tab._content = preparedFile.content;
-        tab.mtime = preparedFile.mtime;
-        tab.dirty = false;
+        if (!finishFileLoad(tab, preparedFile)) return;
         document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
         focusSearchLine(tab);
         return;
     }
     if (tab.isNew) {
-        const loadId = (tab._loadGeneration || 0) + 1;
-        tab._loadGeneration = loadId;
+        tab = startFileLoad(tab.id);
+        if (!tab) return;
         const configured = await configureEditorForFile(tab.path);
-        if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
-        if (tab._content == null) tab._content = '';
-        const mounted = await setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
+        if (!configured || !currentFileLoad(tab)) return;
+        const content = tab._content ?? '';
+        const mounted = await setEditorContent(content, tab.id, fileMountSelection(tab, content, cursorState));
         if (mounted === false) return;
         refreshReactivatedImages(tab, refreshMountedImagePresentation);
         document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
@@ -1061,15 +1077,15 @@ function fileMountSelection(tab, content, rememberedSelection = null) {
 }
 
 async function loadFileContent(tab, cursorState = null, refreshMountedImagePresentation = false) {
-    const loadId = (tab._loadGeneration || 0) + 1;
-    tab._loadGeneration = loadId;
+    tab = startFileLoad(tab.id);
+    if (!tab) return;
     try {
         // If we have cached content from a previous switch-away and the tab
         // is still dirty, use the cache instead of re-reading from disk.
         // This prevents data loss if the auto-save on switch-away failed.
         if (tab._content != null && tab.dirty) {
             const configured = await configureEditorForFile(tab.path);
-            if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
+            if (!configured || !currentFileLoad(tab)) return;
             const mounted = await setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
             if (mounted === false) return;
             refreshReactivatedImages(tab, refreshMountedImagePresentation);
@@ -1103,16 +1119,14 @@ async function loadFileContent(tab, cursorState = null, refreshMountedImagePrese
             } else {
                 resolveVaultFileIssue(tab.path);
             }
-            if (tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
+            if (!currentFileLoad(tab)) return;
             const configured = await configureEditorForFile(tab.path);
-            if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
+            if (!configured || !currentFileLoad(tab)) return;
             const mounted = await setEditorContent(result.content, tab.id, fileMountSelection(tab, result.content, cursorState));
             if (mounted === false) return;
             refreshReactivatedImages(tab, refreshMountedImagePresentation);
-            tab._content = result.content;
-            tab.mtime = result.mtime;
+            if (!finishFileLoad(tab, result)) return;
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
-            tab.dirty = false;
             focusSearchLine(tab);
         }
     } catch (err) {
@@ -1929,11 +1943,11 @@ function createDocumentSaveService() {
             ? backend().SaveLaunchExternalFile(externalFileId, content, expectedMtime)
             : backend().SaveFile(path, content, expectedMtime),
         confirmOverwrite: () => confirmTabAction(
-            'File changed outside Figaro',
-            'Another application saved a newer version of this file. Overwriting will replace those external changes with the version currently open in Figaro.',
+            'File changed on disk',
+            'The saved file changed since this note was loaded or last saved. Overwriting will replace the version on disk with the text currently open in Figaro.',
             true,
             false,
-            { confirmLabel: 'Overwrite file', cancelLabel: 'Keep external version', icon: 'warning' },
+            { confirmLabel: 'Overwrite file', cancelLabel: 'Keep editing', icon: 'warning' },
         ),
         shouldCommit: () => shouldCommitOnSave(),
         commit: path => backend().CommitCurrentFile(path),
@@ -1942,6 +1956,11 @@ function createDocumentSaveService() {
                 _saveGeneration: snapshot.generation,
             });
             if (transition.changed) setState('openTabs', transition.tabs);
+        },
+        onPersisted: (snapshot, result) => {
+            const tabs = getState('openTabs');
+            const next = acknowledgeWorkspaceFileSave(tabs, snapshot, result);
+            if (next !== tabs) setState('openTabs', next);
         },
         onSaved: applySaveSuccess,
         onFailed: (snapshot, error) => {
@@ -1990,7 +2009,7 @@ async function applySaveSuccess(snapshot, result, {
         if ((candidate.type !== 'file' && candidate.type !== 'drawio') || candidate.path !== snapshot.path) {
             return candidate;
         }
-        const patch = { mtime: result.mtime };
+        const patch = {};
         if (candidate.id === snapshot.tabId && latestEdit) {
             patch.dirty = false;
             patch._content = null;
@@ -2245,6 +2264,13 @@ function renderSettingsTab(panel, _tab) {
                             <span id="markdown-block-guides-description" class="settings-row-label">Block guides and folding</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="markdown-block-guides-toggle" aria-label="Show Markdown block guides, folding, and task actions" aria-describedby="markdown-block-guides-description" title="Shows Markdown block guides, folding, and unfinished-task Kanban and Calendar actions." checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <span id="activity-dates-description" class="settings-row-label">Activity dates</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="activity-dates-toggle" aria-label="Show activity dates" aria-describedby="activity-dates-description" title="Show when passages were last recorded in Git history. Click a date to review their changes.">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>

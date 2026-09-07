@@ -124,6 +124,7 @@ function debugAPI() {
         ChangeLinkStyle: mock({ success: true, style: 'markdown', updated_links: [] }),
         FontSave: mock({ success: true }),
         CodeFontSave: mock({ success: true }),
+        GetFileActivity: mock({ source: '', lines: [], events: [] }),
         GetFileHistory: mock([]),
         GetFileVersion: mock(''),
         GetCommitCount: mock(0),

@@ -598,3 +598,33 @@ pointer dismisses it, and Tab resumes the lens row order. Entering Pure closes
 help owned by the suppressed pane. Internal help scrolling keeps its outer dimensions and does not reposition the
 popup or scroll the buffer. Illustrative examples never edit Markdown or
 start analysis; this adds no CodeMirror decoration, widget, or cursor keymap.
+
+## Activity dates in the outer margin
+
+The opt-in activity gutter does not replace source or add Markdown syntax.
+Its compact date labels always include the year (for example, **7 Sep 26**);
+the existing spacer reserves enough width without changing the writing inset.
+It shares `editorBlockActionLayout` measurements with the inner helper rail,
+reserving their combined width without overlaying text. Dates group adjacent
+passages; a viewport continuation retains its visible context. Folding removes
+hidden markers, and Pure/read-only Versions suppress the rail. Source range
+mapping is immediate; worker projection after a typing pause supplies fresh
+passages. The editor adapter annotates real edit transactions with their local
+calendar day, excluding programmatic document mounts. Affected ranges show
+that day immediately and retain it through projection until confirmed Git
+attribution replaces it. Mixed recorded/temporary same-day groups share a
+marker whose tooltip identifies pending changes. This state is discarded on
+document reset and never persisted. An open Activity group adds only line
+backgrounds.
+
+All gutters use CodeMirror's row offsets, which already include the document's
+vertical padding. Do not add gutter padding or compensate with a fixed vertical
+translation. Current-line gutter shading applies only to line numbers; helper
+and activity columns stay transparent even when CodeMirror emits an empty
+active row. Verify alignment with line numbers both enabled and disabled.
+
+Keep Arrow Up/Down, mouse placement, and bidirectional drag selection native
+around headings, Mermaid, tables, and source transitions with dates enabled.
+The existing block-guide browser regression exercises the outer rail plus pane
+focus/width restoration; native WebKitGTK checks must cover those same cursor
+boundaries. No new block widget or printable-renderer path is introduced.

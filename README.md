@@ -53,6 +53,13 @@ produced them. Add a hashtag such as `#todo` to put a task on the board. Use
 Calendar for dates or Gantt for a longer schedule. Open a card to return to its
 source note.
 
+Return to a project note and see when its passages changed. Enable **Activity
+dates** in **Settings → Editor → Navigation**, then click a margin date such as
+**7 Sep 26** to review the recorded changes. Dates sit beside the text and optional line
+numbers. Adding a new meeting at the top preserves the
+older text's dates. New writing shows today's date immediately while waiting
+for history to record it. Use explicit date links for the meeting's scheduled day.
+
 [Explore notes and planning →](docs/NOTES_AND_PLANNING.md)
 
 ## Refine a draft in your own voice

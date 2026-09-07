@@ -33,6 +33,7 @@ jest.mock('../frontend/js/statusBar.js', () => ({
     statusBar: { set: jest.fn() },
 }));
 
+import { configureHistoryPaneTabs } from '../frontend/js/historyPaneTabs.js';
 import { closeHistoryPanel, configureHistoryWorkspace, initHistoryPanel, updateHistoryCount } from '../frontend/js/historyPanel.js';
 import { confirmDialog as mockConfirmDialog, errorDialog as mockErrorDialog } from '../frontend/js/dialogs.js';
 
@@ -60,6 +61,22 @@ describe('history restore workflow', () => {
     });
 
     afterEach(() => closeHistoryPanel());
+
+    test('switching from Versions to Activity waits for the owned live buffer to return', async () => {
+        updateHistoryCount('note.md'); await settle();
+        document.getElementById('history-count').click(); await settle();
+        document.querySelectorAll('.history-item')[1].click(); await settle();
+        let restore;
+        mockSetEditorContent.mockImplementationOnce(() => new Promise(resolve => { restore = resolve; }));
+        const openActivity = jest.fn(); configureHistoryPaneTabs({ activity: openActivity });
+        // Rebuild the shared tabs after installing the Activity owner.
+        const tabs = document.querySelector('.history-pane-tabs');
+        const button = [...tabs.querySelectorAll('button')].find(item => item.textContent === 'Activity');
+        button.disabled = false; button.click(); await settle();
+        expect(mockSetEditorContent.mock.calls.at(-1)[1]).toBe('note.md');
+        expect(openActivity).not.toHaveBeenCalled();
+        restore(); await settle(); expect(openActivity).toHaveBeenCalledTimes(1);
+    });
 
     test('commits the restored snapshot and refreshes History after a non-destructive revert', async () => {
         let entries = [
@@ -118,7 +135,7 @@ describe('history restore workflow', () => {
         ]);
         expect(window.go.desktop.App.CommitCurrentFile.mock.calls).toEqual([['note.md'], ['note.md']]);
         expect(mockSetReadOnly).toHaveBeenLastCalledWith(false);
-        expect(mockSetEditorContent).toHaveBeenLastCalledWith('historical version');
+        expect(mockSetEditorContent).toHaveBeenLastCalledWith('historical version', 'note.md');
         expect(document.querySelectorAll('.history-item')).toHaveLength(3);
         expect(document.querySelector('.history-current-notice').textContent).toBe('Restored the selected version as the latest committed version.');
         expect(document.querySelector('.history-item-latest').textContent).toContain('Latest committed');

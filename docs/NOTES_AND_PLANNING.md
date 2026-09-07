@@ -101,3 +101,10 @@ panning, or **Today** to navigate.
 Clicking the active Calendar, Kanban, or Graph control returns to your previous
 view. Clicking Timeline again returns to Month; clicking Gantt again returns
 to Board. Returning to a document restores its previous details pane.
+
+## Keep a running meeting note
+
+Keep adding meetings at the top of a project note. Optional [activity dates](WRITING.md#see-when-a-passage-changed)
+show when passages were recorded without inserting date text. A planned meeting
+still needs an authored date such as `@tomorrow`: Calendar follows those
+explicit links and task dates, not the activity margin.

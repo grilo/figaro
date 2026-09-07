@@ -699,3 +699,15 @@ body.right-sidebar-resizing .pdf-preview-frame {
 
 .writing-result-location { max-width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 .writing-result-location svg { flex-shrink: 0; }
+
+.history-pane-tabs { margin: 12px 14px 16px; }
+#right-sidebar[data-mode="activity"] #history-content { box-sizing: border-box; padding: 14px; }
+#right-sidebar[data-mode="activity"] .history-pane-tabs { margin: 0 0 16px; }
+.activity-context, .activity-detail { color: var(--text-dim); font-size: calc(var(--font-size-sm) * .9); }
+.activity-context { margin: 12px 0 20px; }
+.activity-day { margin: 18px 0 8px; color: var(--text-dim); font-size: var(--font-size-sm); font-weight: 500; }
+.activity-change { padding: 12px; margin-bottom: 10px; }
+.activity-change p { margin: 0 0 8px; }
+.activity-change-heading { display: flex; gap: 8px; align-items: flex-start; }
+.activity-change-title { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--font-size-sm); }
+.activity-change .history-diff { margin-top: 12px; }

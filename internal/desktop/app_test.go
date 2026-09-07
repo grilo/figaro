@@ -2143,16 +2143,16 @@ func TestEditorNavigationSaveLoadAndDefaults(t *testing.T) {
 	defer os.RemoveAll(vaultPath)
 
 	loaded, err := app.EditorNavigationLoad()
-	if err != nil || !loaded.StickyHeadings || !loaded.BlockGuides || !loaded.DocumentOutline {
+	if err != nil || !loaded.StickyHeadings || !loaded.BlockGuides || !loaded.DocumentOutline || loaded.ActivityDates {
 		t.Fatalf("EditorNavigationLoad default = %#v, %v; want all enabled", loaded, err)
 	}
-	result, err := app.EditorNavigationSave(false, true, false)
+	result, err := app.EditorNavigationSave(false, true, false, true)
 	if err != nil || !result.Success {
 		t.Fatalf("EditorNavigationSave(false, true, false) = %#v, %v", result, err)
 	}
 	restarted := NewApp(vaultPath)
 	loaded, err = restarted.EditorNavigationLoad()
-	if err != nil || loaded.StickyHeadings || !loaded.BlockGuides || loaded.DocumentOutline {
+	if err != nil || loaded.StickyHeadings || !loaded.BlockGuides || loaded.DocumentOutline || !loaded.ActivityDates {
 		t.Fatalf("EditorNavigationLoad after restart = %#v, %v", loaded, err)
 	}
 }

@@ -54,6 +54,7 @@ import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
 import { globalShortcutAction } from './core/globalShortcutModel.js';
 import { localISODate } from './core/dueDateModel.js';
 import { configureHistoryWorkspace, initHistoryPanel } from './historyPanel.js';
+import { initActivity } from './activity.js';
 import { configurePDFPreviewWorkspace, initPDFPreview, openPDFPreview } from './pdfPreview.js';
 import { initRawTextPreview, openRawTextPreview } from './rawTextPreview.js';
 import { initOutlinePanel } from './outline.js';
@@ -661,6 +662,7 @@ export async function initApp() {
 
     // Initialize history panel
     initHistoryPanel();
+    await initActivity();
 
     // Outline shares the right sidebar with History and PDF Preview.
     initOutlinePanel();

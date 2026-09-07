@@ -200,7 +200,7 @@ describe('frontend architecture policy', () => {
             'bootstrap.js',
             'printMarkdownRenderer.js',
             'writingRuntime.js', // Eager worker runtime build entry (scripts/vendor-writing.mjs).
-            'writingWorker.js', 'writingSpellingWorker.js', 'writingDecisionWorker.js', // Eager standalone worker build entries (scripts/build-app-bundle.mjs).
+            'writingWorker.js', 'writingSpellingWorker.js', 'writingDecisionWorker.js', 'activityWorker.js', // Eager standalone worker build entries (scripts/build-app-bundle.mjs).
             'markdownItRuntime.js',
             'katexRuntime.js',
         ].map(file => path.join(JS_ROOT, file));

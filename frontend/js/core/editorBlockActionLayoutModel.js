@@ -16,12 +16,15 @@ function boundedWidth(width, viewportWidth) {
 export function editorBlockActionLayout(width, geometry = {}) {
     const viewportWidth = Number.isFinite(width) ? Math.max(0, width) : 0;
     const beforeRailWidth = boundedWidth(geometry.beforeRailWidth, viewportWidth);
+    const activityRailWidth = boundedWidth(geometry.activityRailWidth, viewportWidth);
+    const totalRailWidth = beforeRailWidth + activityRailWidth + (beforeRailWidth && activityRailWidth ? EDITOR_BLOCK_RAIL_EDGE_GAP : 0);
     const beforeRailSpace = geometry.writingLeft - geometry.viewportLeft;
-    const writingInset = Number.isFinite(beforeRailSpace) && beforeRailWidth > 0
-        ? boundedWidth(beforeRailWidth + EDITOR_BLOCK_RAIL_EDGE_GAP - beforeRailSpace, viewportWidth)
+    const writingInset = Number.isFinite(beforeRailSpace) && totalRailWidth > 0
+        ? boundedWidth(totalRailWidth + EDITOR_BLOCK_RAIL_EDGE_GAP - beforeRailSpace, viewportWidth)
         : 0;
     return {
         writingInset,
+        ...(geometry.activityRailWidth !== undefined ? { activityRailWidth, activityRailOffset: boundedOffset(geometry.writingLeft + writingInset - EDITOR_BLOCK_RAIL_EDGE_GAP - beforeRailWidth - (beforeRailWidth ? EDITOR_BLOCK_RAIL_EDGE_GAP : 0) - geometry.activityRailBaseRight, viewportWidth) } : {}),
         beforeRailOffset: boundedOffset(
             geometry.writingLeft + writingInset - EDITOR_BLOCK_RAIL_EDGE_GAP - geometry.beforeRailBaseRight,
             viewportWidth,

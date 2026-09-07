@@ -276,7 +276,7 @@ those workflows, and Figaro never merges notes automatically.
   and table's `table`/`delete` stacks remain in that rail while its measured
   margin can contain them. If the text action would enter the sidebar, the
   table's `delete` control moves above its grid until the margin returns.
-- **Sticky headings and Document outline**: the enabled-by-default sticky hierarchy shows every scrolled-out active ancestor in a flat strip spanning the full editor width and reserves exactly its height as CodeMirror scroll margin. Sticky heading titles use the same active editor size as normal text, while their compact `h1`–`h6` marker remains secondary metadata. Each ancestor enters separately when its source row crosses beneath the currently visible stack; scroll timing follows the visible editor edge rather than CodeMirror's batched virtual-viewport boundary. The passive scroll observer schedules one keyed CodeMirror read/write measurement at a time, reuses the cached heading model, and changes the sticky DOM only when the hierarchy changes. The strip is flush with the editor edges rather than a floating card; each full-width typed row navigates to its source heading. A separate enabled-by-default nested-list launcher remains near the editor's top-right beneath the complete visible hierarchy, opens the source-position-based right-pane outline, remains visible and highlighted while that pane is open. On a Markdown note with no headings it retains that position in the approved disabled icon-button state using guarded `aria-disabled`; Tab exposes the same explanation as hover, and the first heading enables it without a tab reload. Explicit open focuses the current/first heading; close from the pane restores its launcher. Background refresh and pane replacement do not steal outside focus. Pure mode omits the launcher, breadcrumb, sticky stack, and its effective scroll margin for its complete lifetime; an outline pane that was already open is suppressed intact with the rest of the right pane and returns on exit. Both navigation surfaces otherwise support nested H1–H6 levels, ignore frontmatter and fenced-code lookalikes, and dispatch a normal CodeMirror selection when activated. The three Navigation settings—sticky headings, block guides and folding, and document outline—persist in the vault settings and may be disabled independently.
+- **Sticky headings and Document outline**: the enabled-by-default sticky hierarchy shows every scrolled-out active ancestor in a flat strip spanning the full editor width and reserves exactly its height as CodeMirror scroll margin. Sticky heading titles use the same active editor size as normal text, while their compact `h1`–`h6` marker remains secondary metadata. Each ancestor enters separately when its source row crosses beneath the currently visible stack; scroll timing follows the visible editor edge rather than CodeMirror's batched virtual-viewport boundary. The passive scroll observer schedules one keyed CodeMirror read/write measurement at a time, reuses the cached heading model, and changes the sticky DOM only when the hierarchy changes. The strip is flush with the editor edges rather than a floating card; each full-width typed row navigates to its source heading. A separate enabled-by-default nested-list launcher remains near the editor's top-right beneath the complete visible hierarchy, opens the source-position-based right-pane outline, remains visible and highlighted while that pane is open. On a Markdown note with no headings it retains that position in the approved disabled icon-button state using guarded `aria-disabled`; Tab exposes the same explanation as hover, and the first heading enables it without a tab reload. Explicit open focuses the current/first heading; close from the pane restores its launcher. Background refresh and pane replacement do not steal outside focus. Pure mode omits the launcher, breadcrumb, sticky stack, and its effective scroll margin for its complete lifetime; an outline pane that was already open is suppressed intact with the rest of the right pane and returns on exit. Both navigation surfaces otherwise support nested H1–H6 levels, ignore frontmatter and fenced-code lookalikes, and dispatch a normal CodeMirror selection when activated. The four Navigation settings—sticky headings, block guides and folding, document outline, and activity dates—persist in the vault settings independently. Activity dates start disabled; the other three start enabled.
 - **Rendered GFM tables**: tables expose fold, editor, chart, and delete actions in a left-side helper stack. The delete action stays visually quiet until hover or keyboard focus applies the theme's destructive treatment. When the measured left margin cannot contain the stack, the writing area reserves the missing horizontal space, including compact PDF split views, instead of letting actions enter the sidebar or cover cells. Delete removes the complete table source in one normal history transaction, returns focus to the document editor, and is fully reversible with Undo. The table's measured root uses its source line count and the shared wrapped-source ruler. The denser full-width grid owns the only preview scrollbar: wheel/touch gestures over an overflowing grid move it until its boundary and then chain to the document, while presses in either scrollbar strip stop at the widget, preserve the root selection, and keep the preview mounted; a table without overflow lets wheel scrolling continue through the document immediately. Clicking actual header or data-cell content retains the normal source-reveal path.
 - Inline rendering of hashtags and Markdown links with distinct styling.
 - **Fenced code blocks**: triple-backtick blocks with an optional language tag render as monospace, syntax-highlighted numbered code on a borderless tonal surface with 8px rounded corners. Line numbers have no separator rule, and the borderless copy control fades in on block hover or keyboard focus. The inactive preview hides its opening/closing backticks and language tag; placing the cursor inside restores the complete editable Markdown source. The opening fence, body, and closing fence still determine a fixed editor footprint, and excess preview content scrolls rather than shrinking text. Native scrollbar presses are captured before the source-reveal handler without cancelling the browser's scroll action. Normal overscroll chaining lets continued vertical wheel input resume document scrolling at the preview boundary.
@@ -1144,7 +1144,7 @@ Multiple layers prevent a white flash before CSS loads:
 - **Text Width**: −/+ buttons adjusting editor max-width from 50% (350px) to 200% (1400px) in 10% steps. Base is 700px and persisted to localStorage; the buttons and value share the same continuous themed background as the font-size stepper.
 - **Show document path**: disabled-by-default toggle for a compact breadcrumb between the tab rail and editor. When enabled it shows the active file or Draw.io document's vault-relative folders and filename, updates after tab switches and moves, and stays hidden for workspace views and external launch documents.
 - **Auto-Save**: content-only save interval for the active dirty file (Off / 5s / 10s / 30s / 1min / 5min). Persisted as `auto_save_seconds` and styled as a themed keyboard-accessible combobox.
-- **Show line numbers**: persistent iOS-style toggle for the cursor-relative CodeMirror gutter, disabled by default and applied live to the current editor. The cursor line is blank and surrounding logical lines show their distance from it.
+- **Show line numbers**: persistent iOS-style toggle for the cursor-relative CodeMirror gutter, disabled by default and applied live to the current editor. The cursor line is blank and surrounding logical lines show their distance from it. Number rows share CodeMirror’s vertical coordinates with activity dates and block guides; current-line gutter shading applies only to the number column.
 - **Show Markdown lint**: persistent, enabled-by-default toggle for local Markdown diagnostics. It applies live, removes or restores only lint markers, and never changes note text.
 
 - **Move by visual rows**: Vim-only persistent toggle. It remains disabled until Vim mode is enabled; when active, `j`, `k`, and Up/Down traverse wrapped display rows with a one-source-line fallback for stalled or skipped engine results and an exact-position clamp for backwards edge results, while operator-pending motions stay source-line based.
@@ -1317,7 +1317,7 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 
 ### 25.6 Right Sidebar — History Panel
 - Toggleable panel on the right side of the workspace (resizable via pointer or the same physical-direction separator keys, a shared 240px minimum with the maximum set by the remaining workspace and editor floor).
-- Header: "History" title + × close button.
+- Header: "History" title + × close button, with **Activity / Versions** below. Existing history entry points open Versions; clicking an activity date opens Activity.
 - Lists commits for the active file by date/time, with a **Latest committed** marker for the current version. Commit hashes remain an internal lookup detail and are not displayed.
 - The version container is a labelled selection list. Its native option buttons use roving focus: Arrow Up/Down selects and previews an adjacent version, Home/End jumps to a boundary, and Enter/Space activates the focused version.
 - Sorted by modification time, most recent first.
@@ -1329,12 +1329,63 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
 - **Revert to this version** opens a styled warning dialog focused on preserving the current file. Confirming saves and commits the live version, restores and commits the selected contents, then refreshes the panel with a notice and a **Latest committed** marker. Cancellation changes nothing, and a preservation failure leaves the historical view open with the current version intact.
 - **Click the latest version** (top entry) → exits history mode (no need for read-only on current version).
 - Closing the panel (× button, History count click, or tab switch) restores the live editor content instantly.
-- Panel auto-closes when switching to a different file tab.
+- Switching tabs closes the current pane; returning restores that tab’s selected History view and Activity scope for the session when its source still matches. Switching from a historical version to Activity first restores the owned live buffer.
+
+### 25.6.1 Passage Activity
+
+- **Settings → Editor → Navigation → Activity dates** is a vault-persistent,
+  disabled-by-default toggle. It controls only the margin. No new lens or
+  right-edge launcher is added; History's Activity tab works with dates hidden.
+- The outer rail shows the latest recorded change among a passage's source
+  lines. Top-level Markdown blocks are passages; frontmatter and separator
+  rules have no marker. The existing heading/block controls remain inside it.
+- Adjacent passages with the same local calendar day share one marker, in
+  document order. Different days and undated unknown/unrecorded passages break a group.
+  Nonadjacent dates may repeat; the first visible passage supplies context when
+  scrolling into a group. Margin labels always use day, three-letter English
+  month, and two-digit year, such as **7 Sep 26**, including the current year.
+  The full ISO date remains accessible on hover/focus. Pure mode suppresses the rail and open pane without changing choices.
+- A click selects the consecutive group in Activity without moving the caret
+  or modifying Markdown. Changes are grouped by day, with time, an excerpt,
+  **View changes**, and a link button that selects the corresponding current
+  passage and unfolds it if needed. A subtle source highlight identifies the
+  selected group. Activity never replaces the editable buffer with a snapshot.
+- Exact unchanged lines retain attribution across prepends and unique moves.
+  Renames/folder moves made in Figaro record path boundaries transactionally in
+  `.config/activity-paths.json`, including collision copies during merges.
+  Recorded Git renames outside Figaro use similarity detection where possible.
+- Edits observed in the live editor immediately receive the local edit day as
+  an ephemeral display date, while retaining their unrecorded status. Same-day
+  recorded and temporary passages share one marker; its tooltip identifies
+  pending history. Background projection and ordinary saves retain observed
+  dates; confirmed Git attribution replaces them, including after an overnight
+  commit. Further edits use their actual new local day.
+- Temporary dates live only in the mounted editor state. They are discarded on
+  document reset/reopen or application close and are never written to Markdown
+  or settings. Programmatic document loads do not count as edits. Existing
+  unrecorded/unknown passages without an observed edit stay undated. Auto-Save
+  alone supplies no Git date; Auto-Commit and manual history scheduling remain
+  unchanged. Native read/worker errors expose Retry without blocking edits.
+- Git committer timestamps on the current branch's first-parent history supply
+  dates, displayed in the user's local timezone. They are not meeting dates or
+  proof of every keystroke's time. Authored `@today`, `@tomorrow`, and date links
+  retain their existing Calendar meaning. Activity adds no exported content.
+- History reads are bounded to 2 MiB per snapshot, 32 MiB of revision sources,
+  256 changed revisions, 20,000 visited commits, and a five-second traversal.
+  A bounded walk leaves the oldest baseline unknown; at most 2,048 events are
+  retained, with 4,000-character before/after excerpts. The pane shows at most
+  100 recent changes for the selected passages and labels excerpts/limits.
+- Application code and the activity worker initialize eagerly. Draft comparison
+  and Markdown parsing run in the worker after a 180 ms quiet period. Typing
+  maps existing ranges immediately, cancels obsolete work, and never rereads
+  Git. Native loading is serialized/coalesced independently of save locks;
+  stale results cannot annotate another note or overwrite newer draft ranges.
 
 ### 25.7 Conflict Detection
-- Each save carries the modification version returned when the file was read.
+- Each save carries the version acknowledged by the latest successful read or write. Async loads update the current tab through an immutable transition; cursor/layout updates cannot strand the version on an old tab object, and stale loads cannot replace later edits or save acknowledgements.
+- A successful write acknowledges its version before optional Git history finishes, even if a newer save is queued. The queue retains that version across failed writes; only the matching saved edit clears the dirty state.
 - If the file changed externally before the write, the backend rejects the compare-and-swap save and returns the current version.
-- The editor offers to overwrite with the local content. Cancelling leaves the tab dirty and preserves its in-memory snapshot; it does not reload or discard content automatically.
+- **File changed on disk** offers **Overwrite file** or **Keep editing** without assuming who changed the file. Cancelling leaves the tab dirty and preserves its in-memory snapshot; it does not reload or discard content automatically. An approved overwrite supplies the version for subsequent saves.
 - The backend keeps a monotonic per-file version when filesystem timestamps are too coarse to distinguish rapid successive writes.
 
 ---

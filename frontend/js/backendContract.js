@@ -26,6 +26,7 @@ export const BACKEND_METHODS = Object.freeze([
     'GetCalendarTimelineData',
     'GetCommitCount',
     'GetDueTaskSummary',
+    'GetFileActivity',
     'GetFileHistory',
     'GetFileTree',
     'GetFileTreeStyles',

@@ -237,7 +237,7 @@ describe('CodeMirror block-widget layout contract', () => {
         expect(declarationsFor('.cm-editorHelperRail-before'))
             .toMatch(/margin-right:\s*calc\(0px - var\(--editor-block-before-rail-width, 0px\)\)/);
         expect(declarationsFor('.cm-editorHelperRail-before'))
-            .toMatch(/translate\(var\(--editor-block-before-rail-offset, 0px\), -16px\)/);
+            .toMatch(/translateX\(var\(--editor-block-before-rail-offset, 0px\)\)/);
         expect(declarationsFor('.cm-markdownBlockGuideSpacer')).toMatch(/padding:\s*0 6px/);
         expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/display:\s*grid/);
         expect(declarationsFor('.cm-editor-block-guide-stack')).toMatch(/justify-items:\s*end/);

@@ -35,6 +35,7 @@ function measureWritingEdges(view) {
     const contentStyle = ownerWindow.getComputedStyle(content);
     const appliedInset = numericPixels(view.dom.style.getPropertyValue('--editor-block-writing-inset'));
     const before = railMeasurement(beforeRail, ownerWindow);
+    const activity = railMeasurement(view.scrollDOM.querySelector('.cm-activityGutter'), ownerWindow);
     return {
         viewportLeft: viewportRect.left,
         // Recover the ordinary writing edge so reserving the lane does not
@@ -42,6 +43,8 @@ function measureWritingEdges(view) {
         writingLeft: contentRect.left + numericPixels(contentStyle.paddingLeft) - appliedInset,
         beforeRailBaseRight: before.baseRight,
         beforeRailWidth: before.width,
+        activityRailBaseRight: activity.baseRight,
+        activityRailWidth: activity.width,
     };
 }
 
@@ -49,6 +52,8 @@ function measureWritingEdges(view) {
 export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getBoundingClientRect?.().width) {
     if (!view || view.isDestroyed || !Number.isFinite(width)) return;
     const layout = editorBlockActionLayout(width, measureWritingEdges(view));
+    view.dom.style.setProperty('--editor-activity-rail-offset', `${layout.activityRailOffset ?? 0}px`);
+    view.dom.style.setProperty('--editor-activity-rail-width', `${layout.activityRailWidth ?? 0}px`);
     view.dom.style.setProperty('--editor-block-before-rail-offset', `${layout.beforeRailOffset}px`);
     view.dom.style.setProperty('--editor-block-before-rail-width', `${layout.beforeRailWidth}px`);
     view.dom.style.setProperty('--editor-block-writing-inset', `${layout.writingInset}px`);

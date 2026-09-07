@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"figaro/internal/activity"
 	"figaro/internal/vault"
 
 	"github.com/go-git/go-git/v5"
@@ -45,11 +46,13 @@ type VaultReadLocker interface {
 
 // Service manages Git operations for file versioning.
 type Service struct {
-	repo     *git.Repository
-	repoPath string
-	vaultMu  VaultReadLocker
-	mu       sync.Mutex
-	onCommit func()
+	repo          *git.Repository
+	repoPath      string
+	vaultMu       VaultReadLocker
+	mu            sync.Mutex
+	onCommit      func()
+	activityMu    sync.Mutex
+	activityCache map[string]*activity.Document
 }
 
 // New initializes or opens a Git repository in the vault directory.

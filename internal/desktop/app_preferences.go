@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"encoding/json"
+	"figaro/internal/activity"
 	"fmt"
 	"log"
 	"os"
@@ -150,4 +151,16 @@ func (a *App) GetCommitCount(relPath string) (int, error) {
 		return 0, fmt.Errorf("history not available")
 	}
 	return a.history.CommitCount(relPath)
+}
+
+// GetFileActivity returns Git-backed passage dates and their recorded changes.
+func (a *App) GetFileActivity(relPath string) (*activity.Document, error) {
+	if a.history == nil {
+		return nil, fmt.Errorf("history not available")
+	}
+	clean, err := vaultRelativePath(relPath)
+	if err != nil {
+		return nil, err
+	}
+	return a.history.GetFileActivity(clean)
 }

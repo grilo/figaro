@@ -28,13 +28,13 @@ test('boots the generated production bundle and loads the selected editor font',
     await page.goto('/?figaro-entry=production');
     await page.waitForFunction(() => window._appReady === true);
     expect(await page.evaluate(() => window.__workerReadiness)).toEqual(expect.arrayContaining(
-        ['/writing.worker.js', '/spelling.worker.js', '/decisions.worker.js'].map(url => ({ url, ready: true, errors: [] })),
+        ['/writing.worker.js', '/spelling.worker.js', '/decisions.worker.js', '/activity.worker.js'].map(url => ({ url, ready: true, errors: [] })),
     ));
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await expect(page.locator('script[type="module"][src="/app.bundle.js"]')).toHaveCount(1);
     expect(applicationRequests.filter(pathname => pathname === '/app.bundle.js')).toHaveLength(1);
     expect(applicationRequests.filter(pathname => pathname.startsWith('/js/'))).toEqual([]);
-    expect(applicationRequests.filter(pathname => pathname.endsWith('.worker.js')).sort()).toEqual(['/decisions.worker.js', '/spelling.worker.js', '/writing.worker.js']);
+    expect(applicationRequests.filter(pathname => pathname.endsWith('.worker.js')).sort()).toEqual(['/activity.worker.js', '/decisions.worker.js', '/spelling.worker.js', '/writing.worker.js']);
     applicationRequests.length = 0;
 
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();

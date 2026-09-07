@@ -19,6 +19,7 @@ export const helpSettingsEntries = [
     ['Text width', '#text-width-down', 'Editor', ['line length', 'narrow', 'wide']],
     ['Breadcrumbs', '#editor-breadcrumbs-toggle', 'Editor · Navigation', ['document path']],
     ['Sticky headings', '#sticky-headings-toggle', 'Editor · Navigation', ['hierarchy']],
+    ['Activity dates', '#activity-dates-toggle', 'Editor · Navigation', ['history', 'passage', 'changed', 'date']],
     ['Block guides and folding', '#markdown-block-guides-toggle', 'Editor · Navigation', ['collapse', 'expand']],
     ['Document outline', '#document-outline-toggle', 'Editor · Navigation', ['headings']],
     ['Vim mode', '#vim-toggle', 'Editor', ['vi', 'keybindings', 'motions']],

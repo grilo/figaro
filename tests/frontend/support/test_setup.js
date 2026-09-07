@@ -119,6 +119,7 @@ export function createNativeAppMock() {
         GetVaultHealth: jest.fn().mockResolvedValue({ broken_links: [], orphan_attachments: [], duplicate_names: [], similar_notes: [], invalid_frontmatter: [] }),
         GetCommitCount: jest.fn().mockResolvedValue(0),
         FileHasUncommittedChanges: jest.fn().mockResolvedValue(false),
+        GetFileActivity: jest.fn().mockResolvedValue({ source: '', lines: [], events: [] }),
         GetFileHistory: jest.fn().mockResolvedValue([]),
         GetFileVersion: jest.fn().mockResolvedValue(''),
         GetKanbanColumns: jest.fn().mockResolvedValue(["todo", "wip", "done"]),

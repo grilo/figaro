@@ -81,3 +81,11 @@ describe('editor block action layout model', () => {
         })).toEqual({ writingInset: 153, beforeRailOffset: 150, beforeRailWidth: 180 });
     });
 });
+
+test('activity reserves an outer lane independently of block guides at narrow widths', () => {
+ const both=editorBlockActionLayout(500,{viewportLeft:300,writingLeft:333,beforeRailBaseRight:330,beforeRailWidth:120,activityRailWidth:75,activityRailBaseRight:405});
+ expect(both.writingInset).toBe(174);
+ expect(405+both.activityRailOffset).toBeLessThan(330+both.beforeRailOffset-120);
+ const only=editorBlockActionLayout(500,{viewportLeft:300,writingLeft:333,beforeRailWidth:0,activityRailWidth:75,activityRailBaseRight:375});
+ expect(only.writingInset).toBe(48); expect(375+only.activityRailOffset).toBe(375);
+});
