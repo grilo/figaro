@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"figaro/internal/settings"
@@ -139,7 +140,7 @@ func TestWritingLensCombinationsAreIndependentAcrossDocumentsAndRestarts(t *test
 		}
 	}
 	info, err := os.Stat(filepath.Join(dir, writingLensesPath))
-	if err != nil || info.Mode().Perm() != 0600 {
+	if err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0600) {
 		t.Fatalf("permissions: %v %v", info, err)
 	}
 }

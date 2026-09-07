@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -100,7 +101,7 @@ func TestTaskScheduleWritesOnlyPrivateMetadataAndReloads(t *testing.T) {
 		t.Fatal("Markdown changed")
 	}
 	info, err := os.Stat(filepath.Join(vault, taskSchedulesPath))
-	if err != nil || info.Mode().Perm() != 0600 {
+	if err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0600) {
 		t.Fatal(info, err)
 	}
 	entries, err := app.GetTaskSchedules()

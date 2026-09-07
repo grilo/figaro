@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -410,7 +411,7 @@ func snapBrowserCandidates(names []string) []candidate {
 		}
 		byEngine[engine] = append(byEngine[engine], candidate{
 			engine: engine,
-			path:   filepath.Join("/snap/bin", name),
+			path:   path.Join("/snap/bin", name),
 		})
 	}
 

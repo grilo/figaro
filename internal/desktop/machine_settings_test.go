@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	settingsmodel "figaro/internal/settings"
@@ -69,7 +70,7 @@ func TestMachineSettingsSaveLoadAndRepair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm()&0077 != 0 {
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0 {
 		t.Fatalf("machine settings permissions = %o, want no group/other access", info.Mode().Perm())
 	}
 

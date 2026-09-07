@@ -28,8 +28,37 @@ func newTestApp(t *testing.T) (*App, string) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	app := OpenApp(tmpDir, testAssets)
-	return app, tmpDir
+	resolvedDir, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		_ = os.RemoveAll(tmpDir)
+		t.Fatalf("failed to resolve temp dir: %v", err)
+	}
+	app := OpenApp(resolvedDir, testAssets)
+	return app, resolvedDir
+}
+
+func TestNewTestAppUsesCanonicalTemporaryVaultThroughDirectoryAlias(t *testing.T) {
+	parent := t.TempDir()
+	realDirectory := filepath.Join(parent, "real")
+	if err := os.Mkdir(realDirectory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(parent, "alias")
+	if err := os.Symlink(realDirectory, alias); err != nil {
+		t.Skipf("directory symlinks are unavailable: %v", err)
+	}
+	for _, name := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(name, alias)
+	}
+	app, vaultPath := newTestApp(t)
+	defer os.RemoveAll(vaultPath)
+	canonicalParent, err := filepath.EvalSymlinks(realDirectory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Dir(vaultPath) != canonicalParent || app.vaultPath != vaultPath {
+		t.Fatalf("fixture and app must share the canonical root: fixture=%q app=%q parent=%q", vaultPath, app.vaultPath, canonicalParent)
+	}
 }
 
 func TestGetApplicationVersionReturnsInjectedBuildMetadata(t *testing.T) {
@@ -119,7 +148,7 @@ func TestSafePath_TraversalBlocked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error for /notes/file.md: %v", err)
 	}
-	if !strings.HasSuffix(abs, "notes/file.md") {
+	if !strings.HasSuffix(abs, filepath.Join("notes", "file.md")) {
 		t.Errorf("expected path ending in notes/file.md, got: %s", abs)
 	}
 
@@ -1637,6 +1666,11 @@ func TestChangeLinkStyleRewritesOnlyExistingVaultNoteLinksAndPersistsPreference(
 		t.Fatal(err)
 	}
 
+	originalInfo, err := os.Stat(filepath.Join(vaultPath, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	result, err := app.ChangeLinkStyle("wikilink", true)
 	if err != nil || !result.Success {
 		t.Fatalf("ChangeLinkStyle(wikilink) = %#v, %v", result, err)
@@ -1648,7 +1682,7 @@ func TestChangeLinkStyleRewritesOnlyExistingVaultNoteLinksAndPersistsPreference(
 	if got := readTestFile(t, vaultPath, "index.md"); got != wantWiki {
 		t.Fatalf("rewritten note = %q, want %q", got, wantWiki)
 	}
-	if info, statErr := os.Stat(filepath.Join(vaultPath, "index.md")); statErr != nil || info.Mode().Perm() != 0600 {
+	if info, statErr := os.Stat(filepath.Join(vaultPath, "index.md")); statErr != nil || info.Mode().Perm() != originalInfo.Mode().Perm() {
 		t.Fatalf("rewrite changed note permissions: %v, %v", info, statErr)
 	}
 	loaded, _ := app.LinkStyleLoad()

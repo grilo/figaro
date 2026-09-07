@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -49,7 +50,7 @@ func TestSetKanbanCardOrderPersistsBoardOrderInVault(t *testing.T) {
 	if err != nil || len(home) != 2 || home[0].Text != "Second" || home[1].Text != "First" {
 		t.Fatalf("Home task order = %#v err=%v", home, err)
 	}
-	if info, err := os.Stat(filepath.Join(vaultPath, kanbanOrderPath)); err != nil || info.Mode().Perm() != 0600 {
+	if info, err := os.Stat(filepath.Join(vaultPath, kanbanOrderPath)); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0600) {
 		t.Fatalf("Kanban order config mode=%v err=%v", info, err)
 	}
 }

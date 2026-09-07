@@ -3116,3 +3116,30 @@ The README and product specification share the current native Linux screenshot;
 The rooted writing adapter tests verify every pinned Vale rule against its
 `SOURCE.json` hash. Git attributes preserve those bytes across platform checkouts;
 the exact Microsoft sentence-length rule retains its upstream final blank line.
+
+The desktop fixture helper resolves temporary-directory symlinks before opening
+its vault, so expected file URLs and synthetic watcher events use the same
+canonical root as the app. Its alias regression reproduces macOS `/var` versus
+`/private/var` behavior on any runner that supports directory symlinks.
+
+The CI and Release PDF integration steps pass `--no-sandbox` only to their
+trusted, authored Chromium fixture on disposable Ubuntu runners, whose AppArmor
+policy blocks the downloaded browser's namespace sandbox. The override uses the
+existing opt-in test argument port; it does not change application browser
+arguments or other jobs. `releaseMetadata.test.js` parses both workflows to
+verify that step-level scope. The real PDF integration test still checks page
+numbers, destinations, and external-link annotations.
+
+Windows permission assertions use Go's actual platform contract: private POSIX
+mode bits are asserted on Unix; file preservation compares the mode reported
+before and after rewriting on every platform. Persistence, containment, and
+rollback scenarios still run on Windows. The Snap discovery fixture supplies
+Linux lookup results through its injected port, and the pure candidate planner
+always emits Linux paths. Mention-path policy tests cover nested slash/backslash
+keys, traversal, non-Markdown targets, and equivalent self-links before the
+rooted relationship integration test performs an edit.
+
+The catalogue disclosure regression samples intermediate body geometry, then
+waits for the arrow's final computed transform. A fixed sampling window does
+not guarantee CSS transitions have finished when rendering frames are delayed;
+that timing must not turn a working reveal into a release failure.

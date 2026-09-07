@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import yaml from 'js-yaml';
 
 const read = path => fs.readFileSync(path, 'utf8');
 
@@ -110,6 +111,24 @@ describe('release metadata and documentation', () => {
             lines: 84,
             statements: 80,
         });
+    });
+
+    test('scopes the Ubuntu PDF sandbox override to the trusted fixture step only', () => {
+        for (const filename of ['.github/workflows/test.yml', '.github/workflows/release.yml']) {
+            const workflow = yaml.safeLoad(read(filename));
+            expect(workflow.env?.FIGARO_BROWSER_PDF_ARGUMENTS).toBeUndefined();
+            const overriddenSteps = [];
+            for (const job of Object.values(workflow.jobs)) {
+                expect(job.env?.FIGARO_BROWSER_PDF_ARGUMENTS).toBeUndefined();
+                for (const step of job.steps) {
+                    if (step.env?.FIGARO_BROWSER_PDF_ARGUMENTS) overriddenSteps.push(step);
+                }
+            }
+            expect(overriddenSteps).toHaveLength(1);
+            expect(overriddenSteps[0].name).toBe('Exercise the application Chromium PDF process');
+            expect(overriddenSteps[0].env.FIGARO_BROWSER_PDF_ARGUMENTS).toBe('--no-sandbox');
+            expect(overriddenSteps[0].run).toContain('TestRenderChromiumPDFAgainstOptInBrowser');
+        }
     });
 
     test('requires every affected documentation surface to stay synchronized', () => {

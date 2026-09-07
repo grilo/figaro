@@ -121,9 +121,15 @@ func TestFindBrowserScansSnapBinForSupportedLinuxBrowsers(t *testing.T) {
 	}
 
 	browser, err := FindBrowserWith(context.Background(), FinderOptions{
-		GOOS:     "linux",
-		Getenv:   func(string) string { return "" },
-		LookPath: func(string) (string, error) { return "", os.ErrNotExist },
+		GOOS:   "linux",
+		Getenv: func(string) string { return "" },
+		LookPath: func(name string) (string, error) {
+			// Model Linux resolution even on Windows, where /snap is not an absolute native path.
+			if strings.HasPrefix(name, "/snap/bin/") {
+				return name, nil
+			}
+			return "", os.ErrNotExist
+		},
 		ReadDir: func(path string) ([]os.DirEntry, error) {
 			if path != "/snap/bin" {
 				t.Fatalf("unexpected Snap directory: %q", path)
@@ -156,7 +162,7 @@ func TestFindBrowserScansSnapBinForSupportedLinuxBrowsers(t *testing.T) {
 	}
 }
 
-func TestSnapBrowserCandidatesIgnoreHelpersAndPreserveEnginePriority(t *testing.T) {
+func TestSnapBrowserCandidatesKeepLinuxPathsIgnoreHelpersAndPreserveEnginePriority(t *testing.T) {
 	candidates := snapBrowserCandidates([]string{
 		"brave",
 		"chromium.chromedriver",
@@ -345,7 +351,7 @@ func TestSnapBrowserIdentityAndWorkspaceStayInsideUserCommon(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if parent != "/home/tester/snap/chromium/common/figaro" {
+	if parent != filepath.Join("/home/tester", "snap", "chromium", "common", "figaro") {
 		t.Fatalf("unexpected Snap workspace parent: %q", parent)
 	}
 	if _, err := browserWorkspaceParent(Browser{SnapName: "../escape"}, "/home/tester"); err == nil {

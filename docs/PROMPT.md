@@ -498,7 +498,7 @@ The custom `EditorView.theme()` block overrides the library's hardcoded colors w
 - Reads incrementally maintained reverse Markdown links for a given note (by path or basename), case-insensitive, without rescanning unrelated note text.
 - Returns each backlink with source file path, line number, nearby context, and modification time, sorted newest first.
 - The same tab separately finds plain-text uses of the target note's filename title from cached Markdown source. It ignores fenced code and already-linked text.
-- Each unlinked result has **Link this mention**. The frontend saves dirty Markdown tabs first; the backend revalidates the exact source line and writes only one unambiguous mention as the active Markdown or conventional Wikilink preference. A stale, fenced, or already-linked occurrence is refused without changing the source note.
+- Each unlinked result has **Link this mention**. The frontend saves dirty Markdown tabs first; the backend revalidates the exact source line and writes only one unambiguous mention as the active Markdown or conventional Wikilink preference. A stale, fenced, or already-linked occurrence is refused without changing the source note. Both note paths are validated and normalized to portable vault-index keys, so nested targets resolve on Windows as well as macOS and Linux; traversal, non-Markdown targets and self-links are refused before writes.
 - Status bar shows backlink count as a native button; the zero state is disabled,
   while a nonzero link-styled button keeps the pointer cursor and opens
   Relationships with click, Enter, or Space.

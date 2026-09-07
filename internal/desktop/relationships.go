@@ -105,16 +105,9 @@ func (a *App) LinkUnlinkedMention(sourcePath string, lineNumber int, targetPath 
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 
-	sourcePath, err := vaultRelativePath(sourcePath)
-	if err != nil || !strings.HasSuffix(strings.ToLower(sourcePath), ".md") {
-		return &SaveFileResult{Success: false, Error: "A Markdown source note is required"}, nil
-	}
-	targetPath, err = vaultRelativePath(targetPath)
-	if err != nil || !strings.HasSuffix(strings.ToLower(targetPath), ".md") {
-		return &SaveFileResult{Success: false, Error: "A Markdown target note is required"}, nil
-	}
-	if sourcePath == targetPath {
-		return &SaveFileResult{Success: false, Error: "A note cannot link one of its own mentions"}, nil
+	sourcePath, targetPath, problem := planMentionPaths(sourcePath, targetPath)
+	if problem != "" {
+		return &SaveFileResult{Success: false, Error: problem}, nil
 	}
 
 	index, err := a.ensureVaultIndexLocked()

@@ -86,6 +86,10 @@ jobs:
       - run: ./scripts/prepare-frontend.sh
       - run: npx playwright install --with-deps chromium
       - name: Exercise the application Chromium PDF process
+        # Only this trusted fixture browser runs without a sandbox in the
+        # disposable Ubuntu runner; packaged application arguments are unchanged.
+        env:
+          FIGARO_BROWSER_PDF_ARGUMENTS: --no-sandbox
         shell: bash
         run: |
           browser_executable="$(node --input-type=module -e \

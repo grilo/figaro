@@ -893,3 +893,10 @@ Pinned Vale rules under `internal/writing/styles/` retain their exact source byt
 on every platform through `.gitattributes`; their `SOURCE.json` hashes remain
 mandatory. The upstream Microsoft `SentenceLength.yml` ends in a blank line,
 so only that file permits `blank-at-eof`; other whitespace checks still apply.
+
+CI's authored Chromium PDF fixture sets `FIGARO_BROWSER_PDF_ARGUMENTS=--no-sandbox`
+for that single step on its disposable Ubuntu runner. This test-only override
+accommodates the runner's AppArmor policy; do not add it to packaged browser
+arguments or use it as a global workflow environment setting. Desktop tests
+canonicalize temporary roots so macOS filesystem aliases do not skew file URLs
+or synthetic watcher events.

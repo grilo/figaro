@@ -59,7 +59,6 @@ async function assertWritingDisclosure(page, testInfo) {
     await trigger.scrollIntoViewIfNeeded();
     const samples = await trigger.evaluate(async button => {
         const body = button.parentElement.querySelector('.ui-disclosure-body');
-        const arrow = button.querySelector('.ui-disclosure-chevron');
         const values = [body.getBoundingClientRect().height];
         button.click();
         const start = performance.now();
@@ -67,14 +66,17 @@ async function assertWritingDisclosure(page, testInfo) {
             await new Promise(requestAnimationFrame);
             values.push(body.getBoundingClientRect().height);
         }
-        return { values, arrow: getComputedStyle(arrow).transform,
+        return { values,
             state: button.parentElement.dataset.expanded, grid: getComputedStyle(body).gridTemplateRows,
             duration: getComputedStyle(body).transitionDuration, clipHeight: body.firstElementChild.scrollHeight };
     });
     const finalHeight = samples.values.at(-1);
     expect(finalHeight, JSON.stringify(samples)).toBeGreaterThan(50);
     expect(samples.values.some(value => value > 1 && value < finalHeight - 1)).toBe(true);
-    expect(samples.arrow).toBe('matrix(0, 1, -1, 0, 0, 0)');
+    // Frame sampling proves an intermediate reveal, not that every transition
+    // has finished on a busy runner. Wait for the arrow's actual final paint.
+    await expect(host.locator('.ui-disclosure-chevron'))
+        .toHaveCSS('transform', 'matrix(0, 1, -1, 0, 0, 0)');
     await trigger.focus(); await page.keyboard.press('Tab');
     await expect(host.getByRole('checkbox', { name: /Proofreading/ })).toBeFocused();
     await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Space');

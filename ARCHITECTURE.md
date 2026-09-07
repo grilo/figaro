@@ -861,6 +861,11 @@ so the next request repeats the established root-scoped scan. The bridge still
 returns the complete hierarchy; this cache removes rediscovery cost without
 changing tree membership, sorting, hidden-path, or symlink rules.
 
+`relationship_paths.go` owns the pure mention-path plan: validate both Markdown
+identities, reject traversal and self-links, then return portable slash-separated
+vault-index keys. The relationship coordinator reads the index and executes writes
+only after that plan succeeds, including for Windows nested note paths.
+
 Relationships reuse that same index for both reverse backlinks and unlinked
 mentions. Trigram postings first exclude files that cannot contain the target
 title; the exact mention scan then walks only candidate cached sources,

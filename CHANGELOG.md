@@ -10,6 +10,23 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.36.1] - 2026-09-07
+
+### Added
+
+- Includes the Writing lenses and workspace improvements documented in
+  [1.36.0](https://github.com/grilo/figaro/blob/v1.36.0/CHANGELOG.md#1360---2026-09-07),
+  whose download release was blocked during verification.
+
+### Fixed
+
+- Linking an unlinked mention finds nested target notes on Windows.
+- Release verification handles platform-specific paths, permissions and temporary
+  directory aliases, and starts the trusted PDF fixture browser on restricted
+  Ubuntu CI runners. Application PDF export keeps its existing sandbox settings.
+- Disclosure animation verification waits for the final painted state on busy
+  runners instead of assuming a fixed delay guarantees completion.
+
 ## [1.36.0] - 2026-09-07
 
 ### Added
@@ -2103,7 +2120,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.36.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.36.1...HEAD
+[1.36.1]: https://github.com/grilo/figaro/compare/v1.36.0...v1.36.1
 [1.36.0]: https://github.com/grilo/figaro/compare/v1.35.2...v1.36.0
 [1.35.2]: https://github.com/grilo/figaro/compare/v1.35.1...v1.35.2
 [1.35.1]: https://github.com/grilo/figaro/compare/v1.35.0...v1.35.1

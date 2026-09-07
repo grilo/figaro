@@ -109,7 +109,8 @@ hand without changing the underlying Markdown.
   relevance-ranked full-vault search with natural multi-word queries, prefixes,
   conservative typo tolerance, accent-insensitive matching, best-match excerpts,
   and low-result spelling suggestions,
-  backlinks, unlinked mentions, a top-right document-outline launcher that
+  backlinks, unlinked mentions that can link nested notes on every platform,
+  a top-right document-outline launcher that
   stays beneath the sticky hierarchy and remains visible with an explanatory
   disabled state when a Markdown note has no headings (Tab exposes the same
   explanation as hover). Opening the outline focuses the current heading;
