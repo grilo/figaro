@@ -99,9 +99,10 @@ export function renderedTableCellMouseSelection(view, event, EditorSelection) {
 
 /** Return top-level GFM table ranges from CodeMirror's Markdown syntax tree. */
 export function scanMarkdownTables(state) {
-    const tree = syntaxTree(state);
     const tables = [];
     const documentSource = state.doc.toString();
+    if (!documentSource.includes('|')) return tables;
+    const tree = syntaxTree(state);
     for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
         if (node.name !== 'Table') continue;
         const to = markdownTableMetadataEnd(documentSource, node.to);
@@ -229,7 +230,7 @@ export function createMarkdownTableField(
     const field = StateField.define({
         create: buildState,
         update(value, transaction) {
-            if (transaction.docChanged || transaction.reconfigured
+            if (transaction.docChanged
                 || syntaxTree(transaction.startState) !== syntaxTree(transaction.state)) {
                 return buildState(transaction.state);
             }

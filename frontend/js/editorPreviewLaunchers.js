@@ -1,3 +1,5 @@
+import { closeActiveRightPane } from './rightPaneCoordinator.js';
+
 const markdownPath = /\.(?:md|markdown|mdown|mkdn)$/iu;
 
 /**
@@ -35,13 +37,14 @@ export function initEditorPreviewLaunchers({
             button.hidden = !available;
             button.classList.toggle('is-open', expanded);
             button.setAttribute('aria-expanded', String(expanded));
+            button.setAttribute('aria-pressed', String(expanded));
         }
     };
 
     const toggle = async (kind, button) => {
         const mode = kind === 'raw' ? 'raw-text-preview' : 'pdf-preview';
         if (sidebar.classList.contains('open') && sidebar.dataset.mode === mode) {
-            document.dispatchEvent(new CustomEvent(`close-${mode}`));
+            closeActiveRightPane({ sidebar });
             refresh();
             return;
         }

@@ -10,6 +10,11 @@ Choose the compact **PDF** icon beneath Document outline, the editor context
 menu's **Preview PDF**, or **Properties → PDF layout**. The adjacent **Raw
 Markdown** icon opens the exact source preview. The file-tree context menu
 deliberately prioritizes file operations.
+PDF shares the current pane width with Outline, Raw Markdown, and Writing
+lenses. All launchers remain visible and the selected one is highlighted.
+Returning to a note restores its previously open pane for this session.
+The status bar’s document metrics remain beneath the editor and follow the
+preview pane edge when resized; this shell layout does not alter printed output.
 The right pane renders the same
 printable document structure used for export inside an isolated preview, so a
 note stylesheet cannot change the application interface. It updates after a

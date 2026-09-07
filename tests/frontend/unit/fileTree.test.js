@@ -87,6 +87,8 @@ function deferred() {
     return { promise, resolve };
 }
 
+const moveWritingPaths = jest.fn(operation => operation());
+
 describe('File Tree', () => {
     beforeEach(() => {
         configureFileTreeWorkspace({
@@ -97,6 +99,7 @@ describe('File Tree', () => {
             prepareTabsForPathCopy,
             prepareTabsForPathDelete,
             prepareTabsForPathMove,
+            moveWritingPaths,
             refreshTabsForUpdatedLinks,
             updateTabsForMovedPath,
         });
@@ -1267,6 +1270,7 @@ describe('File Tree', () => {
         expect(event.defaultPrevented).toBe(true);
         expect(renamePathDialog).toHaveBeenCalledWith('notes/draft.md', 'file');
         expect(window.go.desktop.App.PreviewRenamePath).toHaveBeenCalledWith('notes/draft.md', 'notes/final.md');
+        expect(moveWritingPaths).toHaveBeenCalledTimes(1);
         expect(window.go.desktop.App.RenamePathWithLinkUpdates)
             .toHaveBeenCalledWith('notes/draft.md', 'notes/final.md', false);
         expect(statusBar.beginDelayedActivity).toHaveBeenCalledWith(1000);
@@ -1953,6 +1957,7 @@ describe('File Tree', () => {
             });
 
             await expect(moveInternalPath('Drafts', 'Archive')).resolves.toBe(true);
+            expect(moveWritingPaths).toHaveBeenCalledTimes(2);
 
             expect(confirmDialog).toHaveBeenCalledWith(
                 'Destination directory already exists',

@@ -5,6 +5,7 @@ import { copyTextToClipboard, getEditorContent, getEditorView } from './editor.j
 import { getState } from './state.js';
 import { updateRightSidebarEditorLayout } from './historyPanel.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+import { claimRightPane, registerRightPaneMode } from './rightPaneCoordinator.js';
 import {
     rawPreviewScrollTopForAnchor,
     rawPreviewScrollTopForProgress,
@@ -280,9 +281,7 @@ export async function openRawTextPreview({ path, title, content } = {}) {
     const resizer = document.getElementById('right-sidebar-resizer');
     if (!panel || !sidebar) throw new Error('Raw text preview panel is unavailable.');
 
-    document.dispatchEvent(new CustomEvent('close-history-panel'));
-    document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
-    document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
+    claimRightPane(previewMode, sidebar);
     copyRequestId += 1;
     copyInFlight = false;
     preview.path = String(path).replaceAll('\\', '/');
@@ -344,9 +343,9 @@ export function initRawTextPreview() {
     if (!panel) return;
     if (!initialized) {
         initialized = true;
+        registerRightPaneMode(previewMode, closeRawTextPreview, openRawTextPreview);
         document.addEventListener('file-content-changed', handleContentChange);
         document.addEventListener('vault-file-saved', handleSave);
-        document.addEventListener('close-raw-text-preview', event => closeRawTextPreview(event.detail || {}));
         document.addEventListener('tab-switched', handleTabSwitch);
         document.addEventListener('right-sidebar-resize-end', scheduleScrollSync);
         window.addEventListener('resize', scheduleScrollSync);

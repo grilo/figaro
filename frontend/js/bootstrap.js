@@ -3,6 +3,7 @@ import { initApp } from './app.js';
 import { startupBackendDecision } from './core/bootstrapModel.js';
 import { initTooltips } from './tooltip.js';
 import { createDebugThemeAssets } from './debugThemeAssets.js';
+import { createBackendStub } from './backendContract.js';
 
 let bootTries = 0;
 let bootStarted = false;
@@ -24,7 +25,12 @@ function startApp() {
 function debugAPI() {
     const mock = (value) => () => Promise.resolve(value);
     const themeAssets = createDebugThemeAssets();
-    return {
+    const reviewDecisions = new Map();
+    let spellingWords = [];
+    return createBackendStub({
+        WritingInitialize: async () => { throw new Error('Native writing checks require the desktop application'); },
+        WritingAnalyze: async () => { throw new Error('Native writing checks require the desktop application'); },
+        WritingCancel: mock(undefined),
         GetFileTree: mock([{ name: 'Welcome.md', path: 'Welcome.md', type: 'file', mtime: 1 }]),
         GetVaultFileIssues: mock([]),
         RecheckVaultFileIssues: mock([]),
@@ -105,6 +111,15 @@ function debugAPI() {
         EditorNavigationSave: mock({ success: true }),
         SpellcheckLoad: mock({ enabled: false, language: 'en-US' }),
         SpellcheckSave: mock({ success: true }),
+        WritingDecisionsLoad: async path => [...(reviewDecisions.get(path) || [])],
+        WritingDecisionsChange: async (path, command) => {
+            const saved = reviewDecisions.get(path) || [];
+            reviewDecisions.set(path, command.action === 'remove' ? saved.filter(item => item.id !== command.id)
+                : [...saved.filter(item => item.id !== command.decision.id), command.decision]);
+            return [...reviewDecisions.get(path)];
+        },
+        SpellingDictionaryLoad: async () => spellingWords.slice(),
+        SpellingDictionaryAdd: async word => { spellingWords = [...new Set([...spellingWords, word.toLowerCase()])]; return spellingWords.slice(); },
         LinkStyleLoad: mock({ style: 'markdown' }),
         ChangeLinkStyle: mock({ success: true, style: 'markdown', updated_links: [] }),
         FontSave: mock({ success: true }),
@@ -120,7 +135,7 @@ function debugAPI() {
         CommitCurrentFile: mock(null),
         ExportPDF: mock({ success: true, path: '/tmp/document.pdf', engine: 'chromium' }),
         WindowSetTitle: mock(undefined),
-    };
+    });
 }
 
 export function bootWhenReady() {

@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import releaseMetadata from '../../../skills/prepare-figaro-release/scripts/releaseMetadata.cjs';
+import { execFileSync } from 'node:child_process';
+import releaseMetadata from '../../../.agents/skills/prepare-figaro-release/scripts/releaseMetadata.cjs';
 
 const repositoryRoot = path.resolve('.');
 const metadataFiles = ['package.json', 'package-lock.json', 'wails.json', 'CHANGELOG.md'];
-const read = filename => fs.readFileSync(path.join(repositoryRoot, filename), 'utf8');
 const fixtureChangelog = [
     '# Changelog',
     '',
@@ -33,6 +33,19 @@ function makeReleaseFixture() {
 }
 
 describe('prepare Figaro release metadata', () => {
+    test.each([
+        ['release-check', '--check '],
+        ['release-local', ''],
+        ['release', '--push '],
+    ])('dispatches %s to its distinct release action despite Make directory diagnostics', (target, flag) => {
+        const plan = execFileSync('make', ['--dry-run', '--print-directory', target, 'VERSION=v2.3.4'], {
+            cwd: repositoryRoot,
+            encoding: 'utf8',
+        });
+        const commands = plan.split('\n').filter(line => line.startsWith('./scripts/prepare-release.sh '));
+        expect(commands).toEqual([`./scripts/prepare-release.sh ${flag}"v2.3.4"`]);
+    });
+
     test('synchronizes every version record and cuts a dated changelog release', () => {
         const root = makeReleaseFixture();
         try {
@@ -142,43 +155,4 @@ describe('prepare Figaro release metadata', () => {
         }
     });
 
-    test('commits pending changes once and resumes the matching tag safely', () => {
-        const makefile = read('Makefile');
-        const script = read('scripts/prepare-release.sh');
-        const skill = read('skills/prepare-figaro-release/SKILL.md');
-
-        expect(makefile).toMatch(/^release: check-go check-node$/m);
-        expect(makefile).toContain('RELEASE_BUMP_GOALS := $(filter major minor patch,$(MAKECMDGOALS))');
-        expect(makefile).toContain('./scripts/prepare-release.sh --push "$(RELEASE_REQUEST)"');
-        expect(makefile).toMatch(/^release-local: check-go check-node$/m);
-        expect(makefile).toContain('./scripts/prepare-release.sh "$(RELEASE_REQUEST)"');
-        for (const command of [
-            'npm ci',
-            'npm run vendor',
-            'npm run lint',
-            'npm run test:unit',
-            'go vet . ./internal/... ./cmd/...',
-            'go test . ./internal/... ./cmd/...',
-            'go test -race . ./internal/... ./cmd/...',
-            'npx playwright install chromium',
-            'npm run test:pdf',
-            'node scripts/extract-release-notes.mjs "$tag"',
-        ]) {
-            expect(script).toContain(command);
-        }
-        expect(script).not.toContain('--with-deps');
-        expect(script).toContain('git commit -m "chore(release): prepare ${tag}"');
-        expect(script).toContain('git tag -a "$tag" -m "Figaro ${tag}"');
-        expect(script).toContain('git tag --merged HEAD --sort=-v:refname');
-        expect(script).toContain('Resolved %s release from %s to v%s.');
-        expect(script).toContain('git add -A');
-        expect(script).toContain('local tag ${tag} does not point to HEAD');
-        expect(script).toContain('git push origin main');
-        expect(script).toContain('git push origin "$tag"');
-        expect(skill).toContain('make release patch');
-        expect(skill).toContain('make release-local patch');
-        expect(skill).toMatch(/all non-ignored\s+changes/);
-        expect(skill).toContain('Never infer permission\n' +
-            'to publish from “prepare”, “tag”, or “commit”.');
-    });
 });

@@ -81,7 +81,7 @@ func (a *App) GetTaskSchedules() ([]taskschedule.Resolved, error) {
 	return taskschedule.Resolve(config.Entries, scheduleTasks(cards)), nil
 }
 
-// SetTaskSchedule changes only ignored metadata. The exact source precondition
+// SetTaskSchedule changes only vault-local metadata. The exact source precondition
 // rejects stale/unsaved tasks and reconnect collisions before any write.
 func (a *App) SetTaskSchedule(task taskschedule.Task, start, end, id string) error {
 	return a.setTaskSchedule(task, start, end, id, false)

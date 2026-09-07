@@ -2,6 +2,12 @@
 
 These requirements apply to every change in this repository.
 
+For read-only audits and discussions, report findings without changing product
+files, release metadata, or the commit proposal. Repository skills are discovered
+under `.agents/skills/`; use the release skill for release preparation and the
+PKM audit skill for requested editor UX audits. Skill maintenance or an audit of
+a skill does not authorize running its product-changing workflow.
+
 ## Changelog updates are part of every feature
 
 - Every user-facing feature, behavior change, and bug fix must update
@@ -163,7 +169,7 @@ These requirements apply to every change in this repository.
 - Keep semantic defaults in `frontend/design-system/tokens.css`, stable
   art-direction selectors in `frontend/design-system/theme-surfaces.css`, and
   bundled theme files as token-only `:root` overrides. Required and optional
-  theme keys belong in `theme-contract.json`.
+  theme keys belong in `frontend/design-system/theme-contract.json`.
 - Preserve the exact eager cascade recorded by
   `frontend/design-system/style-manifest.json` in the application, catalogue,
   and `frontend/styles.css` compatibility aggregate. New responsibility
@@ -173,7 +179,9 @@ These requirements apply to every change in this repository.
 ## Prepare the Git handoff, but never commit
 
 - Once requested work is complete and verified, write a concise, helpful
-  proposed commit message to `.git/COMMIT_TEMPLATE`. Keep the repository's
+  proposed commit message to the path returned by
+  `git rev-parse --git-path COMMIT_TEMPLATE`, so linked worktrees use their own
+  Git metadata directory. Keep the repository's
   `prepare-commit-msg` hook configured to copy that proposal into a new plain
   `git commit`; do not configure `commit.template`, because Git rejects an
   otherwise valid commit when that template is saved without edits. The user
@@ -184,15 +192,20 @@ These requirements apply to every change in this repository.
   remove or revise stale details from an earlier proposal, so the message is
   accurate even when several changes are prepared without an intervening
   commit.
-- Never run `git commit` on the user's behalf except during an explicit
-  `$prepare-figaro-release` invocation. That skill verifies the complete
-  release and commits all current non-ignored repository changes with the
-  generated metadata, then creates its local annotated tag. It publishes only
-  those release refs when the user explicitly requests publication.
+- Never run `git commit` on the user's behalf except through the release skill
+  after the user approves the exact version and local commit/tag or publication
+  action. Natural-language release requests and `$prepare-figaro-release` have
+  the same authorization rules. Preparation verifies a provisional candidate
+  and recommends major/minor/patch versions for the user to choose; it does not
+  commit, tag, or publish. A version choice alone is not approval to finalize.
+  Finalization includes all current non-ignored repository changes. Publication
+  requires explicit approval for that version and action; reuse existing
+  approval while its scope remains unchanged.
 
 ## Release-preparation skill
 
 - When asked to prepare or publish a Figaro release, read and follow
-  `skills/prepare-figaro-release/SKILL.md` in full. It owns the release
-  target, metadata generation, verification, local commit and tag, and the
-  explicit-publish boundary.
+  `.agents/skills/prepare-figaro-release/SKILL.md` in full. It owns the release
+  proposal, version recommendation, verification, and approval boundaries for
+  local commit/tag creation and publication. Complete the available preparation
+  before asking the user to choose a version and give the go-ahead.

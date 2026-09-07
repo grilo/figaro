@@ -33,6 +33,20 @@ describe('Kanban Gantt view adapter', () => {
         mockPicker.mockReset();
     });
     afterEach(() => session.dispose());
+    test('defers board reprojection until the hidden Gantt view is activated', () => {
+        const existingBar = root.querySelector('.kanban-gantt-bar');
+        session.setActive(false);
+        session.update({
+            todo: [{ ...card, file: 'later.md', text: 'Later task' }],
+        }, [], { todo: '#d8574a' });
+
+        expect(root.querySelector('.kanban-gantt-bar')).toBe(existingBar);
+        expect(root.textContent).not.toContain('Later task');
+
+        session.setActive(true);
+        expect(root.textContent).toContain('Later task');
+        expect(root.querySelector('.kanban-gantt-bar')).not.toBe(existingBar);
+    });
     test('applies each date and clearing immediately without Save/Cancel; Escape only closes the prompt', async () => {
         root.querySelector('.kanban-gantt-bar').click();
         expect(root.querySelector('[data-edit="save"], [data-edit="cancel"]')).toBeNull();

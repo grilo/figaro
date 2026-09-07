@@ -7,6 +7,19 @@ import stressVault from '../../scripts/stressVaultPlan.cjs';
 
 const stressVaultPath = process.env.FIGARO_STRESS_VAULT;
 const browserReportPath = process.env.FIGARO_STRESS_BROWSER_REPORT;
+const documentSwitchReportPath = process.env.FIGARO_STRESS_DOCUMENT_SWITCH_REPORT
+    || (browserReportPath ? path.join(path.dirname(browserReportPath), 'document-switch-report.json') : '');
+const documentSwitchTrials = Number.parseInt(process.env.FIGARO_STRESS_DOCUMENT_SWITCH_TRIALS || '3', 10);
+const documentSwitchMaxMedianRatio = Number.parseFloat(
+    process.env.FIGARO_STRESS_DOCUMENT_SWITCH_MAX_MEDIAN_RATIO || '6',
+);
+
+if (!Number.isInteger(documentSwitchTrials) || documentSwitchTrials < 1) {
+    throw new Error('FIGARO_STRESS_DOCUMENT_SWITCH_TRIALS must be a positive integer');
+}
+if (!Number.isFinite(documentSwitchMaxMedianRatio) || documentSwitchMaxMedianRatio <= 0) {
+    throw new Error('FIGARO_STRESS_DOCUMENT_SWITCH_MAX_MEDIAN_RATIO must be a positive number');
+}
 
 function fixtureTree(documents) {
     const root = { children: new Map() };
@@ -46,7 +59,7 @@ function directoryPaths(items, result = []) {
     return result;
 }
 
-function materializeBrowserFixture(manifest, plan, smallContent, hugeContent) {
+function materializeBrowserFixture(manifest, plan, smallContent, hugeContent, documentContents = {}) {
     const tree = fixtureTree(plan.documents);
     const commonResults = plan.documents.map((document, index) => ({
         path: document.path,
@@ -106,7 +119,44 @@ function materializeBrowserFixture(manifest, plan, smallContent, hugeContent) {
         graph: { nodes: graphNodes, edges: graphEdges },
         smallContent,
         hugeContent,
+        documentContents,
     };
+}
+
+function largeMarkdownVariant(lineCount, kind) {
+    const lines = [`# ${kind} large document`, ''];
+    let featureCount = 0;
+    while (lines.length < lineCount) {
+        const remaining = lineCount - lines.length;
+        if (kind === 'diagrams' && remaining >= 5 && featureCount < 160) {
+            lines.push('```mermaid', `flowchart LR; A${featureCount} --> B${featureCount}`, '```', '');
+            featureCount += 1;
+        } else if (kind === 'tables' && remaining >= 5 && featureCount < 400) {
+            lines.push('| Name | Value |', '| --- | ---: |', `| Item ${featureCount} | ${featureCount} |`, '');
+            featureCount += 1;
+        } else if (kind === 'math' && featureCount < 1200) {
+            lines.push(`Equation ${featureCount}: $x_${featureCount}^2 + y_${featureCount}^2 = z_${featureCount}^2$`);
+            featureCount += 1;
+        } else if (kind === 'images' && featureCount < 500) {
+            lines.push(`![Generated image ${featureCount}](assets/generated-${featureCount}.png)`);
+            featureCount += 1;
+        } else {
+            lines.push(`Synthetic ${kind} line ${String(lines.length + 1).padStart(5, '0')} keeps byte and line scale deterministic.`);
+        }
+    }
+    return { content: `${lines.slice(0, lineCount).join('\n')}\n`, featureCount };
+}
+
+function largeDocumentContentMatrix(plan, plainContent) {
+    const paths = plan.documents.filter(document => document.template === 'huge')
+        .map(document => document.path);
+    const variants = [{ kind: 'plain', path: paths[0], content: plainContent, featureCount: 0 }];
+    for (const [index, kind] of ['diagrams', 'tables', 'math', 'images'].entries()) {
+        if (!paths[index + 1]) break;
+        const variant = largeMarkdownVariant(plan.hugeLineCount, kind);
+        variants.push({ kind, path: paths[index + 1], ...variant });
+    }
+    return variants;
 }
 
 function browserFixture(vaultPath) {
@@ -116,12 +166,19 @@ function browserFixture(vaultPath) {
         hugeDocumentCount: manifest.hugeDocumentCount,
         hugeLineCount: manifest.hugeLineCount,
     });
-    return materializeBrowserFixture(
+    const smallContent = fs.readFileSync(path.join(vaultPath, manifest.sources.small), 'utf8');
+    const hugeContent = fs.readFileSync(path.join(vaultPath, manifest.sources.huge), 'utf8');
+    const largeDocuments = largeDocumentContentMatrix(plan, hugeContent);
+    return {
+        ...materializeBrowserFixture(
         manifest,
         plan,
-        fs.readFileSync(path.join(vaultPath, manifest.sources.small), 'utf8'),
-        fs.readFileSync(path.join(vaultPath, manifest.sources.huge), 'utf8'),
-    );
+        smallContent,
+        hugeContent,
+        Object.fromEntries(largeDocuments.map(document => [document.path, document.content])),
+        ),
+        largeDocuments,
+    };
 }
 
 function largeCollectionContractFixture() {
@@ -167,7 +224,8 @@ async function installFixtureBackend(page, fixture) {
             GetVaultLoadStatus: () => mock({ generation: 1, phase: 'ready', loaded: 1, total: 1 }),
             GetFileTreeStyles: () => mock({ version: 1, entries: {}, recent_icons: [] }),
             ReadFile: filePath => mock({
-                content: filePath === data.manifest.sources.huge ? data.hugeContent : data.smallContent,
+                content: data.documentContents[filePath]
+                    || (filePath === data.manifest.sources.huge ? data.hugeContent : data.smallContent),
                 path: filePath,
                 mtime: 1,
             }),
@@ -302,18 +360,43 @@ async function isolatedScenario(context, metrics, failureName, run) {
     }
 }
 
-function writeBrowserReport(context, fixture, metrics) {
+function writeBrowserReport(context, fixture, metrics, reportPath = browserReportPath, details = {}) {
     const report = {
         vault: stressVaultPath ? path.resolve(stressVaultPath) : '',
         browser: context.browser()?.version() || 'unknown',
         manifest: fixture.manifest,
+        ...details,
         metrics,
     };
-    if (browserReportPath) {
-        fs.mkdirSync(path.dirname(browserReportPath), { recursive: true });
-        fs.writeFileSync(browserReportPath, `${JSON.stringify(report, null, 2)}\n`);
+    if (reportPath) {
+        fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+        fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
     }
     return report;
+}
+
+function median(values) {
+    const sorted = [...values].sort((left, right) => left - right);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function documentSwitchSummaries(metrics, variants) {
+    return variants.map(variant => {
+        const incoming = metrics.filter(metric => metric.kind === variant.kind && metric.direction === 'incoming');
+        const returning = metrics.filter(metric => metric.kind === variant.kind && metric.direction === 'return');
+        const incomingMedianMs = median(incoming.map(metric => metric.elapsedMs));
+        const returnMedianMs = median(returning.map(metric => metric.elapsedMs));
+        return {
+            kind: variant.kind,
+            trials: incoming.length,
+            incomingMedianMs: Math.round(incomingMedianMs * 10) / 10,
+            returnMedianMs: Math.round(returnMedianMs * 10) / 10,
+            medianRatio: Math.round((incomingMedianMs / Math.max(1, returnMedianMs)) * 100) / 100,
+            incomingP95Ms: Math.max(...incoming.map(metric => metric.elapsedMs)),
+            returnP95Ms: Math.max(...returning.map(metric => metric.elapsedMs)),
+        };
+    });
 }
 
 async function pressRepeatedly(page, key, count) {
@@ -326,6 +409,19 @@ async function waitForGraphPaint(page) {
     await page.waitForFunction(() => (
         document.querySelector('.graph-canvas')?.dataset.renderState === 'ready'
     ));
+}
+
+async function waitForMarkdownDocument(page, path, lineCount) {
+    await page.waitForFunction(async ({ expectedPath, expectedLines }) => {
+        const editor = await import('/js/editor.js');
+        const state = await import('/js/state.js');
+        const active = state.getState('openTabs').find(tab => tab.id === state.getState('activeTabId'));
+        const view = editor.getEditorView();
+        return active?.path === expectedPath
+            && editor.getEditorDocumentTabId() === active.id
+            && view?.state?.doc?.lines >= expectedLines
+            && view.dom?.dataset.markdownPresentationState === 'ready';
+    }, { expectedPath: path, expectedLines: lineCount });
 }
 
 test('preserves keyboard reachability and focus beyond a large collection window', async ({ context }) => {
@@ -701,4 +797,78 @@ test('profiles the generated 10,000-document vault at real browser layout bounda
     }
     expect(report.metrics).toBe(metrics);
     expect(metrics.some(metric => metric.name === 'startup_collapsed_tree')).toBe(true);
+});
+
+test('profiles large document switching by Markdown content type', async ({ context }) => {
+    test.skip(!stressVaultPath, 'set FIGARO_STRESS_VAULT to run the large-document switch profile');
+    test.setTimeout(5 * 60 * 1000);
+
+    const fixture = browserFixture(path.resolve(stressVaultPath));
+    const metrics = [];
+    await installFixtureBackend(context, fixture);
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
+    try {
+        await reloadStressApp(page);
+        const plain = fixture.largeDocuments[0];
+        await page.evaluate(async sourcePath => {
+            const app = await import('/js/app.js');
+            await app.handleFileOpen(sourcePath);
+        }, plain.path);
+        await waitForMarkdownDocument(page, plain.path, fixture.manifest.hugeLineCount);
+
+        for (const variant of fixture.largeDocuments.slice(1)) {
+            for (let trial = 1; trial <= documentSwitchTrials; trial += 1) {
+                await beginMetric(page);
+                await page.evaluate(async sourcePath => {
+                    const app = await import('/js/app.js');
+                    await app.handleFileOpen(sourcePath);
+                }, variant.path);
+                await waitForMarkdownDocument(page, variant.path, fixture.manifest.hugeLineCount);
+                metrics.push(await finishMetric(page, `switch_plain_to_${variant.kind}_${trial}`, {
+                    status: 'completed',
+                    kind: variant.kind,
+                    direction: 'incoming',
+                    trial,
+                    sourceBytes: Buffer.byteLength(variant.content),
+                    featureCount: variant.featureCount,
+                }));
+
+                await beginMetric(page);
+                await page.evaluate(async sourcePath => {
+                    const app = await import('/js/app.js');
+                    await app.handleFileOpen(sourcePath);
+                }, plain.path);
+                await waitForMarkdownDocument(page, plain.path, fixture.manifest.hugeLineCount);
+                metrics.push(await finishMetric(page, `switch_${variant.kind}_to_plain_${trial}`, {
+                    status: 'completed',
+                    kind: variant.kind,
+                    direction: 'return',
+                    trial,
+                    sourceBytes: Buffer.byteLength(plain.content),
+                    featureCount: variant.featureCount,
+                }));
+            }
+        }
+    } finally {
+        await page.close().catch(() => {});
+    }
+    const variants = fixture.largeDocuments.slice(1);
+    const summaries = documentSwitchSummaries(metrics, variants);
+    const report = writeBrowserReport(context, fixture, metrics, documentSwitchReportPath, {
+        documentSwitchBudget: {
+            trials: documentSwitchTrials,
+            maxMedianRatio: documentSwitchMaxMedianRatio,
+            summaries,
+        },
+    });
+    expect(report.metrics).toBe(metrics);
+    expect(metrics).toHaveLength(variants.length * documentSwitchTrials * 2);
+    expect(summaries).toHaveLength(variants.length);
+    for (const summary of summaries) {
+        expect(summary.trials).toBe(documentSwitchTrials);
+        expect(summary.incomingMedianMs).toBeGreaterThan(0);
+        expect(summary.returnMedianMs).toBeGreaterThan(0);
+        expect(summary.medianRatio).toBeLessThanOrEqual(documentSwitchMaxMedianRatio);
+    }
 });

@@ -159,11 +159,11 @@ func TestHugeVaultStress(t *testing.T) {
 		t.Fatalf("file tree documents = %d, want %d", count, manifest.DocumentCount)
 	}
 
-	app.eventEmitter = func(name string, _ ...any) {
+	app.desktopRuntime.configureForTest(nil, false, nil, func(name string, _ ...any) {
 		if name == vaultLoadEventName {
 			report.VaultLoadProgressEvents++
 		}
-	}
+	})
 	rareValue := recordHugeVaultMetric(t, &report, "search_rare_cold_index", func() (any, int, error) {
 		results, searchErr := app.SearchFiles(manifest.Needles["rare"], false)
 		return results, len(results), searchErr

@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { toggledWorkspacePresentation } from './core/workspaceTabModel.js';
 /**
  * Kanban Module - Task board with drag-drop, column management
  */
@@ -25,6 +26,7 @@ import {
     applyKanbanCardOrder,
     calibrateKanbanVirtualLayout,
     createKanbanVirtualLayout,
+    kanbanBoardInstruction,
     kanbanCardOrderRef,
     kanbanCardWindow,
     kanbanVirtualIndexAtOffset,
@@ -81,7 +83,7 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
                 <button type="button" class="ui-button" data-kanban-view="board">Board</button>
                 <button type="button" class="ui-button" data-kanban-view="gantt">Gantt</button>
             </div>
-            <p class="kanban-instruction">Tab focuses cards; arrows move them. Enter opens the note, S sets a start date, and D sets a due date.</p>
+            <p class="kanban-instruction" role="status"></p>
         </div>
         <p class="ui-notice ui-notice--danger kanban-schedule-notice" role="alert" hidden></p>
         <div class="kanban-board" id="kanban-board-main"></div><div class="kanban-gantt-host"></div></div>`;
@@ -134,7 +136,10 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
     }
     const switched = event => { if (event.detail?.type !== 'kanban') session.deactivate(); };
     const session = {
-        update: data => gantt.update(data, taskSchedules, kanbanColors, taskScheduleError),
+        update(data) {
+            wrapper.querySelector('.kanban-instruction').textContent = kanbanBoardInstruction(data);
+            gantt.update(data, taskSchedules, kanbanColors, taskScheduleError);
+        },
         activate(nextFocusCol = null) {
             activeKanbanWorkspace = session;
             applyKanbanPresentationToViews();
@@ -162,7 +167,8 @@ export function mountKanbanWorkspace(panel, focusCol = null) {
     activeKanbanWorkspace = session;
     document.addEventListener('active-tab-changed', switched);
     wrapper.querySelectorAll('[data-kanban-view]').forEach(button => button.addEventListener('click', () => {
-        kanbanViewMode = button.dataset.kanbanView; selectMode();
+        kanbanViewMode = toggledWorkspacePresentation(kanbanViewMode, button.dataset.kanbanView,
+            'board'); selectMode();
     }));
     applyKanbanPresentationToViews();
     selectMode();
@@ -1035,7 +1041,18 @@ function reconcileKanbanCards(cardsContainer, tasks, range, layout) {
     }
     let reference = endSpacer;
     for (let index = range.end - 1; index >= range.start; index -= 1) {
-        const card = existing.get(index) || createKanbanCardElement(tasks[index], index, tasks.length);
+        let card = existing.get(index);
+        const task = tasks[index];
+        if (card && (
+            card.dataset.file !== String(task?.file || '')
+            || Number(card.dataset.line) !== Number(task?.line)
+            || card.dataset.text !== String(task?.text || '')
+        )) {
+            if (activeKanbanCardMenu?.card === card) closeKanbanCardMenu();
+            card.remove();
+            card = null;
+        }
+        card ||= createKanbanCardElement(task, index, tasks.length);
         if (card.nextElementSibling !== reference) cardsContainer.insertBefore(card, reference);
         reference = card;
     }
@@ -1149,13 +1166,23 @@ async function reorderCardWithKeyboard(container, card, offset) {
             return false;
         }
         rememberedKanbanOrder.set(column, result.refs);
+        const reorderedColumn = applyKanbanCardOrder(columnCards, result.refs);
         savedKanbanBoardData = {
             ...savedKanbanBoardData,
             [column]: applyKanbanCardOrder(savedKanbanBoardData[column] || [], result.refs),
         };
-        const boardData = applyRememberedKanbanOrder(getState('kanbanBoardData') || {});
+        const boardData = {
+            ...(getState('kanbanBoardData') || {}),
+            [column]: reorderedColumn,
+        };
         setState('kanbanBoardData', boardData);
-        renderKanbanSnapshot(boardData, null, container);
+        const renderState = kanbanRenderStates.get(container);
+        if (renderState) renderState.boardData = boardData;
+        activeKanbanWorkspace?.update(boardData);
+        renderKanbanColumnWindow(container, column, {
+            anchorIndex: result.targetIndex,
+            selectedIndex: result.targetIndex,
+        });
         focusKanbanCard(container, focusedRef, column);
         statusBar.set('Task reordered');
         setTimeout(() => statusBar.set('Ready'), 1000);

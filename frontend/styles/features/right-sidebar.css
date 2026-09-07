@@ -3,7 +3,7 @@
     position: relative;
     width: 0 !important;
     min-width: 0 !important;
-    max-width: 480px;
+    max-width: none;
     background: var(--sidebar-bg);
     border-left: none !important;
     display: flex;
@@ -57,21 +57,6 @@
 
 #app.pure-editing-chrome .right-sidebar[data-pure-suppressed="true"] .right-sidebar-resizer {
     display: none !important;
-}
-
-/* PDF preview is deliberately roomier than Calendar, History, and Outline. Its controls
-   stay fixed while the isolated paper surface scrolls independently. */
-.right-sidebar.pdf-preview-mode {
-    max-width: none;
-}
-
-.right-sidebar.pdf-preview-mode.open {
-    width: var(--right-sidebar-effective-width, max(340px, var(--right-sidebar-width, 480px))) !important;
-    min-width: 340px !important;
-}
-
-.right-sidebar.pdf-preview-mode.right-sidebar--responsive-overlay.open {
-    min-width: 0 !important;
 }
 
 /* Direct manipulation must track the pointer exactly. Normal open/close
@@ -444,16 +429,6 @@ body.right-sidebar-resizing .pdf-preview-frame {
 }
 
 @media (max-width: 760px) {
-    .right-sidebar.pdf-preview-mode.open:not(.right-sidebar--responsive-overlay) {
-        width: min(100vw, 560px) !important;
-        min-width: min(100vw, 340px) !important;
-    }
-
-    .right-sidebar.pdf-preview-mode.right-sidebar--responsive-overlay.open {
-        width: var(--right-sidebar-effective-width) !important;
-        min-width: 0 !important;
-    }
-
     .pdf-preview-generate span { display: none; }
     .pdf-preview-generate { padding: 6px 7px; }
 }
@@ -681,3 +656,46 @@ body.right-sidebar-resizing .pdf-preview-frame {
     outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
 }
+
+/* Writing lenses reuse the shared pane, pickers, checkboxes, and menu surface. */
+.writing-lenses-panel { padding: 18px; }
+.writing-lenses-panel[hidden], .writing-lenses-quick[hidden], .writing-lenses-controls [hidden], .writing-lenses-quick-toggle[hidden] { display: none; }
+.writing-lenses-controls { display: flex; min-width: 0; flex-direction: column; gap: 12px; }
+.writing-lenses-field { display: flex; flex-direction: column; gap: 7px; font-size: 12px; }
+.writing-lenses-description, .writing-lenses-persistence { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.writing-lenses-layers { display: flex; min-width: 0; flex-direction: column; gap: 8px; margin: 6px 0; padding: 0; border: 0; }
+.writing-lenses-layers legend { margin-bottom: 10px; padding: 0; color: var(--text-muted); font-size: 12px; }
+.writing-lenses-layer { display: flex; align-items: center; gap: 10px; min-height: 30px; font-size: 13px; }
+.writing-lenses-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.writing-lenses-row .writing-lenses-layer { flex-wrap: wrap; min-width: 0; }
+.writing-lens-help { box-sizing: border-box; z-index: 130; width: 360px; max-width: calc(100vw - 16px); padding: 16px; overflow-y: auto; overscroll-behavior: contain; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.writing-lens-help[hidden], .writing-lens-help [hidden] { display: none; }
+.writing-lens-help-content { display: grid; gap: 12px; }
+.writing-lens-help-content p { margin: 0; }
+.writing-lens-help-content section { display: grid; gap: 4px; }
+.writing-lenses-review { margin-top: 5px; padding-top: 16px; border-top: 1px solid var(--border-color); }
+.writing-lenses-review h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+.writing-lenses-review p { margin: 0 0 12px; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+.writing-lenses-quick { width: 320px; max-width: calc(100vw - 16px); padding: 16px; overflow-y: auto; }
+.writing-lenses-quick-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; font-size: 13px; }
+.writing-lenses-quick-toggle { flex: 0 0 auto; }
+
+.writing-results, .writing-decisions { margin-top: 18px; min-width: 0; }
+.writing-results [hidden], .writing-decisions [hidden] { display: none; }
+.writing-results-list { display: flex; flex-direction: column; gap: 18px; margin-top: 14px; }
+.writing-result-group { min-width: 0; }
+.writing-result-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; }
+.writing-result-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.writing-result-evidence { box-sizing: border-box; max-width: 100%; margin: 0; padding: 10px; background: var(--code-bg); color: var(--text-muted); font-size: 11px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.writing-results:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 3px; }
+
+.writing-examples { display: grid; gap: 10px; min-width: 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.writing-examples[hidden] { display: none; }
+.writing-example { display: grid; gap: 4px; }
+.writing-example p { margin: 0; }
+.writing-details { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.writing-result-actions .ui-button { white-space: normal; overflow-wrap: anywhere; }
+
+
+.writing-result-location { max-width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.writing-result-location svg { flex-shrink: 0; }

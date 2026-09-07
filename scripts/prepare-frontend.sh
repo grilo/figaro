@@ -91,3 +91,8 @@ if [[ "$needs_vendor" == true ]]; then
 else
     printf '%s\n' "Vendored browser assets are up to date."
 fi
+
+printf '%s\n' "Building the eager production application bundle..."
+node scripts/vendor-writing.mjs
+go run ./cmd/prepare-writing-assets
+npm run build:app

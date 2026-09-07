@@ -213,7 +213,7 @@ describe('Calendar cache', () => {
         expect(window.go.desktop.App.GetCalendarMonthData).not.toHaveBeenCalled();
     });
 
-    test('switches between the centered Month split and the session Timeline presentation', async () => {
+    test('clicking Timeline again returns to Month without changing the calendar anchor', async () => {
         mountActiveCalendarWorkspace();
         window.go.desktop.App.GetCalendarTimelineData.mockResolvedValue({
             days: [{
@@ -232,7 +232,7 @@ describe('Calendar cache', () => {
         expect(document.querySelectorAll('.calendar-timeline-day')).toHaveLength(42);
         expect(document.querySelector('.calendar-timeline-note').dataset.line).toBe('4');
 
-        setCalendarPresentation('month');
+        document.querySelector('[data-calendar-presentation="timeline"]').click();
         await flushCalendar();
         expect(document.querySelector('[data-calendar-presentation="month"]').getAttribute('aria-pressed')).toBe('true');
         expect(document.getElementById('calendar-month-view').hidden).toBe(false);

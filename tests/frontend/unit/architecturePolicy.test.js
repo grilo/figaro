@@ -1,14 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { BACKEND_METHODS } from '../../../frontend/js/backendContract.js';
 
 const JS_ROOT = path.resolve('frontend/js');
 
-function sourceFiles(directory) {
+function sourceFiles(directory, extension = '.js') {
     if (!fs.existsSync(directory)) return [];
     return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
         const resolved = path.join(directory, entry.name);
-        if (entry.isDirectory()) return sourceFiles(resolved);
-        return entry.isFile() && entry.name.endsWith('.js') ? [resolved] : [];
+        if (entry.isDirectory()) return sourceFiles(resolved, extension);
+        return entry.isFile() && entry.name.endsWith(extension) ? [resolved] : [];
     });
 }
 
@@ -73,7 +74,7 @@ describe('frontend architecture policy', () => {
         for (const file of sourceFiles(path.join(JS_ROOT, 'core'))) {
             const source = fs.readFileSync(file, 'utf8');
             for (const specifier of importsIn(source)) {
-                if (specifier.startsWith('../')) {
+                if (specifier.startsWith('.') && !specifier.startsWith('./')) {
                     violations.push(`${path.relative(JS_ROOT, file)} -> ${specifier}`);
                 }
             }
@@ -86,17 +87,14 @@ describe('frontend architecture policy', () => {
         expect(violations).toEqual([]);
     });
 
-    test('application use cases do not import concrete frontend effects', () => {
+    test('application use cases import only sibling use cases, pure core policy, or packages', () => {
         const violations = [];
         for (const file of sourceFiles(path.join(JS_ROOT, 'usecases'))) {
             const source = fs.readFileSync(file, 'utf8');
             for (const specifier of importsIn(source)) {
-                if (
-                    specifier.includes('backend.js')
-                    || specifier.includes('state.js')
-                    || specifier.includes('app.js')
-                    || specifier.includes('editor.js')
-                ) {
+                if (specifier.startsWith('.')
+                    && !specifier.startsWith('./')
+                    && !specifier.startsWith('../core/')) {
                     violations.push(`${path.relative(JS_ROOT, file)} -> ${specifier}`);
                 }
             }
@@ -107,6 +105,49 @@ describe('frontend architecture policy', () => {
             }
         }
         expect(violations).toEqual([]);
+    });
+
+    test('workspace adapters do not mutate tab records owned by the tab manager', () => {
+        const violations = sourceFiles(JS_ROOT)
+            .filter(file => !file.endsWith(`${path.sep}tabManager.js`))
+            .filter(file => !file.includes(`${path.sep}core${path.sep}`))
+            .flatMap(file => {
+                const source = fs.readFileSync(file, 'utf8');
+                return [
+                    ...source.matchAll(/\b(?:tab|activeTab|t|candidate)\.(?:_content|_editGeneration|_saveGeneration|_editorTextScale|cursorState|dirty|mtime|path|title)\s*=(?!=)/g),
+                    ...source.matchAll(/delete\s+(?:tab|activeTab|t|candidate)\.(?:_content|_editGeneration|_saveGeneration|_editorTextScale|cursorState|dirty|mtime|path|title)\b/g),
+                ]
+                    .map(match => `${path.relative(JS_ROOT, file)}:${source.slice(0, match.index).split('\n').length}`);
+            });
+        expect(violations).toEqual([]);
+    });
+
+    test('browser dialogs and right-pane ownership are injected or coordinated centrally', () => {
+        const violations = [];
+        for (const file of sourceFiles(JS_ROOT)) {
+            const source = fs.readFileSync(file, 'utf8');
+            if (/window\.(?:confirmDialog|promptDialog)/.test(source)) {
+                violations.push(`${path.relative(JS_ROOT, file)} uses a dialog global`);
+            }
+            if (/['"]close-(?:outline|history|pdf-preview|raw-text-preview)['"]/.test(source)) {
+                violations.push(`${path.relative(JS_ROOT, file)} uses a peer-close event`);
+            }
+            if (/close-\$\{/.test(source)) {
+                violations.push(`${path.relative(JS_ROOT, file)} uses a dynamic peer-close event`);
+            }
+        }
+        expect(violations).toEqual([]);
+    });
+
+    test('the frontend backend contract matches every exported Go App method', () => {
+        const desktopRoot = path.resolve('internal/desktop');
+        const methodPattern = /^func\s+\(a\s+\*App\)\s+([A-Z][A-Za-z0-9_]*)\s*\(/gm;
+        const exported = sourceFiles(desktopRoot, '.go')
+            .flatMap(file => [...fs.readFileSync(file, 'utf8').matchAll(methodPattern)].map(match => match[1]))
+            .filter((name, index, names) => names.indexOf(name) === index)
+            .sort();
+
+        expect([...BACKEND_METHODS].sort()).toEqual(exported);
     });
 
     test('bundled application code is never deferred behind a dynamic import', () => {
@@ -158,6 +199,8 @@ describe('frontend architecture policy', () => {
         const entries = [
             'bootstrap.js',
             'printMarkdownRenderer.js',
+            'writingRuntime.js', // Eager worker runtime build entry (scripts/vendor-writing.mjs).
+            'writingWorker.js', 'writingSpellingWorker.js', 'writingDecisionWorker.js', // Eager standalone worker build entries (scripts/build-app-bundle.mjs).
             'markdownItRuntime.js',
             'katexRuntime.js',
         ].map(file => path.join(JS_ROOT, file));

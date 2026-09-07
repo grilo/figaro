@@ -1,4 +1,4 @@
-import { markdownDiagnostics } from '../frontend/js/markdownLint.js';
+import { markdownDiagnostics } from '../frontend/js/core/markdownLintModel.js';
 
 describe('Markdown lint diagnostics', () => {
     test('reports unclosed frontmatter and code fences with actionable hover messages', () => {

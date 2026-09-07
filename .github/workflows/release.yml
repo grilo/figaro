@@ -79,13 +79,20 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run vendor
+      - run: ./scripts/prepare-frontend.sh
       - run: npm run lint
-      - run: npm run test:unit
+      - run: npm run test:coverage
       - run: go vet . ./internal/... ./cmd/...
+      - run: ./scripts/check-go-coverage.sh
       - run: go test -race . ./internal/... ./cmd/...
       - run: npx playwright install --with-deps chromium
+      - name: Exercise the application Chromium PDF process
+        shell: bash
+        run: |
+          browser_executable="$(node --input-type=module -e \
+            "import { chromium } from 'playwright'; process.stdout.write(chromium.executablePath())")"
+          FIGARO_BROWSER_PDF_EXECUTABLE="$browser_executable" \
+            go test -v ./internal/pdfexport -run '^TestRenderChromiumPDFAgainstOptInBrowser$'
       - run: npm run test:pdf
       - name: Upload Playwright failure diagnostics
         if: failure()
@@ -127,8 +134,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run vendor
+      - run: ./scripts/prepare-frontend.sh
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |

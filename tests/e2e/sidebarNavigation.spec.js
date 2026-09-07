@@ -219,19 +219,12 @@ test('keeps Calendar, Kanban, and Graph as borderless connected sidebar workspac
             masksIdleThemeResizer: true,
         });
 
-        await destination.button.click();
-        await page.waitForTimeout(40);
-        await expect(page.locator(`#${destination.panelId}`)).not.toHaveClass(/figaro-panel-exit/);
-        await expect.poll(() => page.evaluate(async type => {
-            const { getState } = await import('/js/state.js');
-            return {
-                activeType: getState('openTabs').find(tab => tab.id === getState('activeTabId'))?.type,
-                count: getState('openTabs').filter(tab => tab.type === type).length,
-            };
-        }, destination.type)).toEqual({ activeType: destination.type, count: 1 });
+        // Workspace toggle/retention state is asserted in topBar.test.js;
+        // this browser scenario owns connected-tab paint and focus geometry.
     }
 
     const resizer = page.locator('#sidebar-resizer');
+    await graphButton.focus();
     await page.keyboard.press('Tab');
     await expect(resizer).toBeFocused();
     await expect(resizer).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');

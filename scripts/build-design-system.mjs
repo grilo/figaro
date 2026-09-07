@@ -5,6 +5,7 @@ import { build } from 'esbuild';
 import {
     designSystemBundleOptions,
     designSystemBundlePath,
+    formatDesignSystemBundle,
 } from './designSystemBundle.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -12,7 +13,7 @@ const outputPath = designSystemBundlePath(root);
 const checkOnly = process.argv.includes('--check');
 
 const result = await build(designSystemBundleOptions(root));
-const generated = result.outputFiles[0].text;
+const generated = formatDesignSystemBundle(result.outputFiles[0].text);
 
 if (checkOnly) {
     const current = await readFile(outputPath, 'utf8').catch(() => '');

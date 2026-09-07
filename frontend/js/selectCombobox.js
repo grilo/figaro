@@ -155,6 +155,12 @@ export function enhanceSelectCombobox(select, {
         menu,
         sync,
         refresh,
+        close() { setOpen(false); },
+        destroy() {
+            setOpen(false);
+            document.removeEventListener('click', closeOnOutsideClick);
+            select.removeEventListener('change', sync);
+        },
         setDisabled(disabled, { busy = false } = {}) {
             select.disabled = Boolean(disabled);
             trigger.disabled = Boolean(disabled);

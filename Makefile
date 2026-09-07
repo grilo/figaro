@@ -7,7 +7,7 @@
 .DEFAULT_GOAL := help
 .NOTPARALLEL:
 
-.PHONY: all help bootstrap doctor vendor release release-local major minor patch dev linux windows darwin clean icons install-desktop \
+.PHONY: all help bootstrap doctor vendor release-check release release-local major minor patch dev linux windows darwin clean icons install-desktop \
 	stress-vault \
 	check-go check-node check-wails check-linux-host check-linux-deps check-darwin-host check-darwin-deps check-icon-tool \
 	ensure-go-modules ensure-frontend-assets ensure-icons
@@ -15,7 +15,7 @@
 RELEASE_BUMP_GOALS := $(filter major minor patch,$(MAKECMDGOALS))
 RELEASE_REQUEST := $(if $(strip $(VERSION)),$(VERSION),$(RELEASE_BUMP_GOALS))
 
-ifneq ($(filter release release-local,$(MAKECMDGOALS)),)
+ifneq ($(filter release-check release release-local,$(MAKECMDGOALS)),)
 ifneq ($(words $(RELEASE_BUMP_GOALS)),0)
 ifneq ($(words $(RELEASE_BUMP_GOALS)),1)
 $(error choose exactly one release bump: major, minor, or patch)
@@ -71,6 +71,7 @@ help:
 	@echo "  make bootstrap   Prepare Go modules, locked npm dependencies, browser assets, and icons"
 	@echo "  make doctor      Check build prerequisites and print install hints when needed"
 	@echo "  make vendor      Force regeneration of vendored browser assets"
+	@echo "  make release-check minor       Verify a provisional version without committing or publishing"
 	@echo "  make release patch             Bump from the latest release tag, then publish"
 	@echo "  make release <major|minor|patch> Bump and publish a release"
 	@echo "  make release VERSION=vX.Y.Z    Publish an explicit stable version"
@@ -184,6 +185,9 @@ endif
 vendor: check-node
 	@FIGARO_FORCE_VENDOR=1 ./scripts/prepare-frontend.sh
 
+release-check: check-go check-node
+	@./scripts/prepare-release.sh --check "$(RELEASE_REQUEST)"
+
 release: check-go check-node
 	@./scripts/prepare-release.sh --push "$(RELEASE_REQUEST)"
 
@@ -209,8 +213,9 @@ stress-vault: check-go check-node ensure-frontend-assets
 		go test ./internal/desktop -run '^TestHugeVaultStress$$' -count=1 -v -timeout=10m
 	@FIGARO_STRESS_VAULT="$(STRESS_VAULT_PATH)" \
 		FIGARO_STRESS_BROWSER_REPORT="$(STRESS_REPORT_DIR)/browser-report.json" \
+		FIGARO_STRESS_DOCUMENT_SWITCH_REPORT="$(STRESS_REPORT_DIR)/document-switch-report.json" \
 		npx playwright test tests/e2e/hugeVaultStress.spec.js --reporter=line
-	@echo "Stress reports: $(STRESS_REPORT_DIR)/backend-report.json and $(STRESS_REPORT_DIR)/browser-report.json"
+	@echo "Stress reports: $(STRESS_REPORT_DIR)/backend-report.json, $(STRESS_REPORT_DIR)/browser-report.json, and $(STRESS_REPORT_DIR)/document-switch-report.json"
 
 # ── Production builds ────────────────────────────────────────────────────
 
@@ -219,6 +224,7 @@ linux: check-go check-wails check-linux-host check-linux-deps ensure-go-modules 
 	@echo "Output: build/bin/figaro"
 
 windows: check-go check-wails ensure-go-modules ensure-frontend-assets ensure-icons
+	go run ./cmd/prepare-writing-assets -target windows/amd64
 	$(WAILS) build -platform windows/amd64
 	@echo "Output: build/bin/figaro.exe"
 

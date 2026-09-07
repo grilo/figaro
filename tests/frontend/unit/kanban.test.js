@@ -17,6 +17,7 @@ import {
     KANBAN_CARD_TEXT_LIMIT,
     configureKanbanWorkspace,
     initKanban,
+    mountKanbanWorkspace,
     applySavedKanbanSnapshot,
     kanbanCardsForBuffer,
     overlayDirtyKanbanBuffers,
@@ -46,6 +47,27 @@ describe('live Kanban buffers and compact cards', () => {
         window.go.desktop.App.SetKanbanCardOrder.mockResolvedValue({ success: true });
         window.go.desktop.App.UpdateTaskTag.mockResolvedValue({ success: true });
         window.go.desktop.App.RemoveTagFromTask.mockResolvedValue({ success: true });
+    });
+
+    test('empty Board guidance updates with live tasks and is hidden in Gantt', async () => {
+        const panel = document.getElementById('tab-panels');
+        const session = mountKanbanWorkspace(panel);
+        await testUtils.waitFor(20);
+        const instruction = panel.querySelector('.kanban-instruction');
+        const boardButton = panel.querySelector('[data-kanban-view="board"]');
+        boardButton.click();
+        expect(instruction.getAttribute('role')).toBe('status');
+        expect(instruction.textContent).toContain('Plan trip #todo');
+        session.update({ todo: [{ file: 'note.md', line: 1, tag: 'todo', text: 'Plan trip' }], wip: [] });
+        expect(instruction.textContent).toContain('Tab focuses cards');
+        expect(instruction.textContent).not.toContain('No tasks yet');
+        panel.querySelector('[data-kanban-view="gantt"]').click();
+        expect(instruction.hidden).toBe(true);
+        session.update({ todo: [], wip: [] });
+        boardButton.click();
+        expect(instruction.hidden).toBe(false);
+        expect(instruction.textContent).toContain('Plan trip #todo');
+        session.dispose();
     });
 
     test('caps visible card text at 120 characters including a Unicode ellipsis', () => {
@@ -224,10 +246,14 @@ describe('live Kanban buffers and compact cards', () => {
             text: `Task ${index}`,
             tag: 'todo',
         }));
-        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({ todo: tasks, wip: [], done: [] });
+        window.go.desktop.App.GetKanbanBoard.mockResolvedValue({
+            todo: tasks,
+            wip: [{ file: 'stable-wip.md', file_name: 'stable-wip.md', line: 1, text: 'Stable WIP', tag: 'wip' }],
+            done: [],
+        });
         await renderKanbanBoard('kanban-board-main');
 
-        expect(document.querySelectorAll('.kanban-card')).toHaveLength(96);
+        expect(document.querySelectorAll('.kanban-card')).toHaveLength(97);
         document.querySelector('.kanban-card').focus();
         for (let index = 0; index < 150; index += 1) {
             document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
@@ -239,7 +265,9 @@ describe('live Kanban buffers and compact cards', () => {
         expect(document.activeElement.dataset.file).toBe('task-150.md');
         expect(document.activeElement.getAttribute('aria-posinset')).toBe('151');
         expect(document.activeElement.getAttribute('aria-setsize')).toBe('300');
-        expect(document.querySelectorAll('.kanban-card')).toHaveLength(96);
+        expect(document.querySelectorAll('.kanban-card')).toHaveLength(97);
+        const unaffectedTodo = document.querySelector('[data-file="task-140.md"]');
+        const unaffectedWip = document.querySelector('[data-file="stable-wip.md"]');
 
         document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
             key: 'ArrowDown', bubbles: true, cancelable: true,
@@ -249,6 +277,8 @@ describe('live Kanban buffers and compact cards', () => {
         expect(persistedRefs).toHaveLength(300);
         expect(persistedRefs[151].file).toBe('task-150.md');
         expect(document.activeElement.dataset.file).toBe('task-150.md');
+        expect(document.querySelector('[data-file="task-140.md"]')).toBe(unaffectedTodo);
+        expect(document.querySelector('[data-file="stable-wip.md"]')).toBe(unaffectedWip);
     });
 
     test('preserves overlapping card nodes when scrolling advances the virtual window', async () => {

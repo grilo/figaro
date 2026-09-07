@@ -18,9 +18,9 @@ func writeHistoryFixture(t *testing.T, path string, content string) {
 	}
 }
 
-func TestNewPreservesGitignoreAndExcludesConfig(t *testing.T) {
+func TestNewRemovesLegacyConfigIgnoreAndPreservesUserRules(t *testing.T) {
 	dir := t.TempDir()
-	writeHistoryFixture(t, filepath.Join(dir, ".gitignore"), "node_modules/\n")
+	writeHistoryFixture(t, filepath.Join(dir, ".gitignore"), "node_modules/\n.config/\n.config/private.json\n")
 
 	if _, err := New(dir); err != nil {
 		t.Fatalf("New: %v", err)
@@ -29,8 +29,8 @@ func TestNewPreservesGitignoreAndExcludesConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read gitignore: %v", err)
 	}
-	if got := string(data); !strings.Contains(got, "node_modules/\n") || !strings.Contains(got, ".config/\n") {
-		t.Fatalf("gitignore was not preserved and extended: %q", got)
+	if got := string(data); got != "node_modules/\n.config/private.json\n" {
+		t.Fatalf("gitignore migration changed user rules: %q", got)
 	}
 }
 
@@ -178,7 +178,7 @@ func TestFileUncommittedStatusMatchesFullWorktreeStateMatrix(t *testing.T) {
 			mutate: func(t *testing.T, dir string, _ *Service) []string {
 				ignorePath := filepath.Join(dir, ".gitignore")
 				ignore, err := os.ReadFile(ignorePath)
-				if err != nil {
+				if err != nil && !os.IsNotExist(err) {
 					t.Fatalf("read .gitignore: %v", err)
 				}
 				writeHistoryFixture(t, ignorePath, string(ignore)+"ignored.md\n")

@@ -157,7 +157,7 @@ describe('frontmatter Properties card', () => {
         expect(view.dom.querySelector('.cm-frontmatter-panel').parentElement.classList.contains('cm-block-widget--frontmatter-panel')).toBe(true);
         expect(view.dom.querySelector('.cm-frontmatter-panel').classList.contains('cm-frontmatter-panel--enter')).toBe(true);
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('PDF layout');
-        expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Spellcheck');
+        expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).not.toContain('Spellcheck');
         expect(view.dom.querySelector('.cm-frontmatter-panel').textContent).toContain('Table of Contents');
         expect(view.dom.querySelector('.cm-frontmatter-panel-chips').textContent).toContain('title: Report');
         expect([...view.dom.querySelectorAll('.cm-frontmatter-panel-toggle')].every(toggle => (
@@ -194,23 +194,7 @@ describe('frontmatter Properties card', () => {
         expect(stylesheetMenu.hidden).toBe(true);
         expect(view.state.doc.toString()).toContain('print-stylesheet: exports/print.css');
 
-        const spellcheck = [...view.dom.querySelectorAll('.cm-frontmatter-panel-section')]
-            .find(section => section.textContent.includes('Spellcheck'))
-            .querySelector('.cm-frontmatter-panel-select');
-        spellcheck.click();
-        const spellcheckPicker = spellcheck.closest('.ui-picker');
-        const spellcheckMenu = document.querySelector('.cm-frontmatter-combobox-menu[aria-label="Spellcheck language for this note options"]');
-        expect(spellcheck.classList.contains('ui-picker-trigger')).toBe(true);
-        expect(spellcheckMenu.classList.contains('ui-menu')).toBe(true);
-        expect(spellcheckMenu.classList.contains('open')).toBe(true);
-        expect(spellcheckMenu.parentElement).toBe(document.body);
-        expect(spellcheckMenu.querySelector('[role="option"]').classList.contains('ui-menu-item')).toBe(true);
-        [...spellcheckMenu.querySelectorAll('.cm-frontmatter-combobox-option')]
-            .find(option => option.dataset.value === 'en-GB')
-            .click();
-        expect(spellcheckMenu.classList.contains('open')).toBe(false);
-        expect(spellcheckMenu.parentElement).toBe(spellcheckPicker);
-        expect(view.state.doc.toString()).toContain('spellcheck: en-GB');
+        expect([...view.dom.querySelectorAll('.cm-frontmatter-panel-section h3')].map(node => node.textContent)).not.toContain('Spellcheck');
 
         const toc = view.dom.querySelector('.cm-frontmatter-panel-select');
         toc.click();
@@ -481,6 +465,22 @@ describe('frontmatter Properties card', () => {
         expect(panel.textContent).not.toContain('Preview PDF');
         expect(panel.querySelector('.cm-frontmatter-preview-raw-text')).toBeNull();
         expect(panel.querySelector('.cm-frontmatter-preview-pdf')).toBeNull();
+    });
+
+    test('keeps legacy spelling YAML unchanged without offering a spelling control in Properties', () => {
+        const source = '---\ntitle: Draft\nspellcheck: false\nwriting-language: en-GB\n---\n# Body';
+        const field = createFrontmatterField(StateField, StateEffect, EditorView, Decoration, WidgetType, null);
+        view = new EditorView({
+            state: EditorState.create({ doc: source, extensions: [field] }),
+            parent: document.body,
+        });
+        view.dom.querySelector('.cm-frontmatter').click();
+        const panel = view.dom.querySelector('.cm-frontmatter-panel');
+        expect(panel).not.toBeNull();
+        const controlNames = [...panel.querySelectorAll('input, select, button, [role="combobox"]')]
+            .map(control => `${control.getAttribute('aria-label') || ''} ${control.textContent}`);
+        expect(controlNames.some(name => /spellcheck|writing.language/i.test(name))).toBe(false);
+        expect(view.state.doc.toString()).toBe(source);
     });
 
     test('does not offer a second properties block while YAML is being typed', () => {

@@ -1,4 +1,4 @@
-import { markdownDiagnostics } from '../markdownLint.js';
+import { markdownDiagnostics } from '../core/markdownLintModel.js';
 import { mermaidDocumentDiagnostic, mermaidLintBlocks } from '../core/mermaidLintModel.js';
 
 /** Coordinate pure Markdown checks with the injected Mermaid parser boundary. */

@@ -3,6 +3,29 @@
 Audit snapshot: 2026-08-28. The approved consolidation is represented by the
 [visual catalogue](index.html) and used by the production interface.
 
+Writing lenses, updated 2026-09-06: the launcher and Pure trigger reuse the
+approved icon button. The pane and Pure picker compose equal lens checkboxes,
+the Settings language combobox, buttons, notices, and the opaque menu
+surface. Primary and profile controls have been removed. Apply, Ignore, Details,
+Retry, and Show more use standard buttons. The user-requested rounded, borderless
+suggestion background is the approved `.ui-suggestion` primitive; passage and
+example layout uses theme tokens. Canonical primitives own interaction states,
+and component tests cover focus, disclosure, examples, and per-note choices.
+
+Inline-writing follow-up, 2026-09-06: dotted marks reuse the existing spelling
+treatment. The hover card composes `.ui-menu` and standard buttons for Apply,
+Ignore, and spelling-only Add to dictionary; errors use the existing warning
+notice. The catalogue mounts the production card controller, and the registry
+records this menu composition; the separate suggestion family owns sidebar grouping.
+CodeMirror owns popup positioning; feature CSS supplies only sizing/layout.
+
+Block-control follow-up, 2026-09-06: the existing reveal state uses
+`data-block-control-relevant` on the gutter owner because CodeMirror replaces
+its classes when typing remaps source offsets. Canonical CSS and catalogue
+specimens share that attribute. Component coverage verifies retained state and
+pointer departure; the existing Mermaid browser workflow checks continuous
+opacity while typing. No family, primitive, or visual variant was added.
+
 Consistency follow-up, 2026-08-31: Calendar/Kanban/Graph controls now share an
 upper-left inset. The three Figaro themes route their segmented treatment
 through shared choice tokens, not feature-local state rules. Hover, selected,
@@ -54,13 +77,22 @@ generic dialogs remain non-resizable.
 
 ## Consolidated foundation
 
-Nineteen approved families now use shared production
+UX follow-up, 2026-09-04: icon buttons now apply the existing disabled treatment
+to guarded `aria-disabled` controls as well as native-disabled buttons. The
+outline stays keyboard-focusable to explain its unavailable state, with the
+standard focus ring and no hover/active promotion. The catalogue includes this
+existing-state specimen; no family, primitive, or visual variant was added.
+Narrow editor layouts reserve a lane for the existing block-guide controls,
+and the empty Board reuses its instruction area for first-task guidance.
+
+Twenty-one approved families now use shared production
 primitives in `frontend/design-system/primitives.css`. Both Figaro and this
 catalogue load that canonical asset, and `approved-components.json` records the
 approved selector set:
 
 | Family | Shared primitive | Feature classes retain |
 | --- | --- | --- |
+| Expandable sections | `.ui-disclosure` and its trigger, chevron, label, summary, body and content primitives | Expansion policy, summary values and revealed content |
 | Settings pickers | `.ui-picker`, `.ui-picker--quiet`, `.ui-picker-trigger`, `.ui-picker-menu` | Values, persistence, shared combobox wiring, and pure-plan-backed viewport placement |
 | Steppers | `.ui-stepper`, `.ui-stepper--quiet`, `.ui-stepper-button`, `.ui-stepper-value` | Font-size, text-width, and bounded editable tab-size value policy |
 | Compact actions | `.ui-button`, its quiet variant, and semantic variants | Labels, placement, and feature events |
@@ -210,7 +242,7 @@ approved disclosure control for source-code regions. CodeMirror retains
 ownership of fold ranges, announcements, pointer dispatch, and keyboard
 commands; the shared primitives own only their themed interaction states.
 Expanded controls now use the approved primitive's quiet rest state and reveal
-through a measured proximity class, gutter hover, caret relevance, or keyboard
+through a measured proximity attribute, gutter hover, caret relevance, or keyboard
 focus. A folded control stays visible. This is a visibility policy within the
 existing component contract, not a new visual variant.
 The rendered table's direct delete action reuses the approved danger-ghost
@@ -465,7 +497,7 @@ so the improvement adds neither a seam nor a component-local override.
 
 ## Verification
 
-- `tests/frontend/unit/designSystemCatalog.test.js` verifies all nineteen
+- `tests/frontend/unit/designSystemCatalog.test.js` verifies all twenty-one
   families in both the catalogue and production sources, enforces exact
   agreement between the approved registry and canonical stylesheet, rejects
   the superseded picker/stepper/action rule blocks, verifies theme-derived
@@ -491,3 +523,90 @@ so the improvement adds neither a seam nor a component-local override.
 - Continue reducing literal spacing and radius values when a changed feature
   provides a clean, tested seam; do not perform a mechanical whole-file
   rewrite.
+
+Writing review now reuses five equal checkboxes: Proofreading, Clarity,
+Directness, Inclusive language, and Formulaic writing, and the existing four-option Settings language
+combobox; the primary picker and profile control are removed. The user explicitly
+requested rounded, borderless suggestion backgrounds, approved as `.ui-suggestion`.
+Its canonical rule uses the theme background, text and radius tokens, while child
+standard action buttons retain all existing interaction states; source navigation
+adds a link icon. Unsupported lenses use the existing unchecked, disabled
+checkbox state. Their checkbox and label expose the reason through the shared
+`.ui-tooltip` and an accessible description; no new primitive or variant is added.
+The catalogue mounts the
+production results and inline controllers, including before/after and advisory
+sentence-splitting examples, contextual Inclusive language alternatives, and explicit sentence-spacing counts. Optional accented spellings, formula advice, canonical technical names, and paired-punctuation/acronym examples also reuse these controls; all five lens groups, including Formulaic writing, retain the same primitives and states. The catalogue includes the production advisory acronym example, with Ignore and no invented replacement.
+
+Durable writing decisions reuse existing buttons, disclosure behavior, suggestion
+cards, and warning notices. Inline and pane actions include Ignore this occurrence
+and document acronym acceptance; Saved review decisions in the pane/Pure picker
+uses per-record Restore/Review again controls and bounded Show more behavior.
+The catalogue uses the production views for acceptance and reversal, including
+empty, loading, disabled and error states covered by components. No component
+family, primitive, visual variant, theme token, or cascade entry was added.
+
+The writing audit fixes reuse those approved primitives: the shared animated disclosure
+compacts configured lens controls; four initial suggestion cards group identical
+occurrences and expose Previous/Next plus eligible document-scoped Apply-to-all.
+Actions precede one comparison, further alternatives use disclosure, and Details
+explains the rule before an optional Technical diagnostics button builds evidence.
+Capacity recovery and uncertain-save reconciliation reuse standard buttons and
+warning notices; saved occurrence rows show context and inactive state. The
+catalogue mounts these production views with repeated-word/bulk and pagination
+examples. No new component family, visual variant, token, or cascade link was
+introduced; the only new stylesheet hook lays out the existing Details content.
+
+
+The asynchronous writing follow-up reuses the existing status text, warning notice,
+and Retry review decisions button for background tracking failure. Restore remains
+disabled until tracking recovers, and the results view directs recovery to saved
+decisions rather than offering an ineffective analysis retry. Inactive labels
+consume worker-provided IDs; the catalogue continues to use the same production
+view. No component family, primitive, visual variant, registry entry, or cascade
+change is required.
+
+Package coverage review: updated descriptions and guidance reuse the approved checkboxes, disclosures, cards, comparisons, and actions. Distinct advice can share an underline without merging its cards; each enabled lens remains independently useful. No new component or visual variant was introduced.
+
+Lens consolidation reuses the approved checkbox and badge: legacy subsets expose
+a mixed accessibility state plus a visible **Partial** badge, with enabled-check
+details in accessible descriptions and info help. Group counts reflect the five choices; Spanish Proofreading states
+its spelling-only coverage. The subsequently approved disclosure is implemented
+as the shared family described below.
+
+## Approved animated disclosure — 2026-09-07
+
+The user approved the Figaro Dark/CRT proposal before implementation.
+`.ui-disclosure` owns the trigger, left rotating chevron, label, trailing summary,
+grid body and clipped content. `createDisclosure` supplies the native button,
+ARIA connection, immediate inert closure, child-focus return and stable DOM.
+Native Enter/Space and Tab work without a custom keymap. CSS runs the 180 ms
+reveal and its reversal; initial/document updates and reduced-motion mode are
+immediate. Closed content cannot receive focus while collapsing.
+
+Optional semantic tokens `--disclosure-surface`, `--disclosure-hover-surface`,
+and `--disclosure-active-surface` mix 8%, 13%, and 17% of the theme foreground
+into the sidebar background. `--disclosure-summary-color` blends the primary
+foreground into muted text so the smaller count remains readable on light
+surfaces too. The clipping container reserves room for child focus rings.
+The component remains visible at rest; expansion
+does not masquerade as a selected action. Focus, disabled/busy, coarse-pointer
+height, forced-colors and reduced-motion states live in `primitives.css`.
+The existing eager stylesheet links and cascade remain unchanged. The registry
+lists all seven disclosure primitives. The catalogue mounts the production lens
+view plus disabled/busy examples, including partial selections and language
+coverage. Existing quiet action buttons elsewhere retain their own appearance.
+
+Lens info help reuses the approved `.ui-icon-button`, `.ui-menu`, `.ui-notice`,
+tooltip, and shared Before/After presentation. The production catalogue specimen
+now has short summaries and persistent nonmodal help with language-specific
+examples and limitations. Feature hooks only place and size the surface and its
+contents; shared paint, hover, focus, and disabled states remain canonical. The
+registry still contains 21 families; no new primitive, visual variant, token, or
+cascade link is added. Component tests cover ownership and accessibility; the
+existing browser scenarios cover clipping, narrow scrolling, and native focus.
+
+The lens-help scrolling fix preserves the same approved presentation. Internal
+scrolling no longer repositions the popup; other placement updates account for
+borders and scrollbar chrome instead of feeding inner sizes into border-box CSS.
+Adapter regressions and repeated native wheel scrolling in the existing catalogue
+scenario cover stable dimensions. No primitive, token, or cascade change is needed.

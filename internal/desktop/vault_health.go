@@ -33,6 +33,18 @@ type VaultHealthReport struct {
 	InvalidFrontmatter []VaultHealthIssue `json:"invalid_frontmatter"`
 }
 
+type vaultHealthCache struct {
+	index         *vaultIndex
+	indexRevision uint64
+	report        *VaultHealthReport
+}
+
+func (a *App) invalidateVaultHealthCacheLocked() {
+	a.vaultHealthMu.Lock()
+	a.vaultHealthCache = vaultHealthCache{}
+	a.vaultHealthMu.Unlock()
+}
+
 var (
 	vaultHealthMarkdownLinkRE = regexp.MustCompile(`!?\[[^\]\r\n]*\]\(([^)\r\n]+)\)`)
 	attachmentExtensions      = map[string]struct{}{
@@ -52,6 +64,11 @@ func (a *App) GetVaultHealth() (*VaultHealthReport, error) {
 	if err != nil {
 		return nil, err
 	}
+	a.vaultHealthMu.Lock()
+	defer a.vaultHealthMu.Unlock()
+	if cache := a.vaultHealthCache; cache.report != nil && cache.index == index && cache.indexRevision == index.revision {
+		return cache.report, nil
+	}
 	report := &VaultHealthReport{
 		BrokenLinks:        make([]VaultHealthIssue, 0),
 		OrphanAttachments:  make([]VaultHealthIssue, 0),
@@ -66,7 +83,7 @@ func (a *App) GetVaultHealth() (*VaultHealthReport, error) {
 	}
 	defer root.Close()
 
-	files, err := visibleVaultFiles(root)
+	files, err := a.visibleVaultFilesLocked(root)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +128,31 @@ func (a *App) GetVaultHealth() (*VaultHealthReport, error) {
 	report.SimilarNotes = similarNoteNameIssues(index)
 
 	sortVaultHealthReport(report)
+	a.vaultHealthCache = vaultHealthCache{index: index, indexRevision: index.revision, report: report}
 	return report, nil
+}
+
+// visibleVaultFilesLocked reuses the root-scoped file-tree inventory when it
+// is warm. A cold health scan still performs the concrete filesystem walk, so
+// hidden-path and symlink containment remain established by the adapter.
+func (a *App) visibleVaultFilesLocked(root *os.Root) (map[string]struct{}, error) {
+	a.fileTreeBuildMu.Lock()
+	defer a.fileTreeBuildMu.Unlock()
+	if a.fileTreeEntries == nil {
+		tree, err := a.buildTree(root.FS(), ".")
+		if err != nil {
+			return nil, err
+		}
+		a.fileTreeEntries = fileTreeEntriesFromTree(tree)
+		a.fileTreeSnapshot = tree
+	}
+	files := make(map[string]struct{}, len(a.fileTreeEntries))
+	for path, entry := range a.fileTreeEntries {
+		if entry.typeName == "file" {
+			files[path] = struct{}{}
+		}
+	}
+	return files, nil
 }
 
 func similarNoteNameIssues(index *vaultIndex) []VaultHealthIssue {

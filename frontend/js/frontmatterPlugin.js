@@ -9,7 +9,6 @@
 import {
     frontmatterTemplateChange,
     frontmatterPropertyChange,
-    frontmatterPropertyRemovalChange,
     getFrontmatterValue,
     hasLeadingFrontmatter,
     parseFrontmatter,
@@ -28,15 +27,6 @@ import { mountFloatingMenu } from './floatingMenu.js';
 
 const PDF_PROPERTY_KEYS = new Set(['cover-page', 'toc-depth', 'page-numbers', 'print-stylesheet']);
 const COVER_PROPERTY_KEYS = new Set(['title', 'subtitle', 'description', 'author', 'date', 'created']);
-const SPELLCHECK_PROPERTY_KEYS = new Set(['spellcheck']);
-const spellcheckOptions = [
-    { value: '', label: 'Use global default' },
-    { value: 'en-US', label: 'English (US)' },
-    { value: 'en-GB', label: 'English (UK)' },
-    { value: 'es', label: 'Spanish (Spain)' },
-    { value: 'false', label: 'Disabled for this note' },
-    { value: '__custom__', label: 'Custom value (Edit YAML)' },
-];
 let frontmatterMenuID = 0;
 
 function selectionTouchesFrontmatter(frontmatter, selection) {
@@ -389,12 +379,6 @@ export function createFrontmatterField(
         view.dispatch({ changes: change, effects: setMode.of('panel') });
     };
 
-    const removeProperty = (view, key) => {
-        const change = frontmatterPropertyRemovalChange(view.state.doc.toString(), key);
-        if (!change) return;
-        view.dispatch({ changes: change, effects: setMode.of('panel') });
-    };
-
     const showSource = (view, frontmatter, selection = frontmatter.contentFrom) => {
         if (view.isDestroyed) return;
         view.dispatch({
@@ -684,34 +668,6 @@ export function createFrontmatterField(
             pdfSection.appendChild(pageNumberHint);
             panel.appendChild(pdfSection);
 
-            const spellcheckSection = document.createElement('section');
-            spellcheckSection.className = 'cm-frontmatter-panel-section';
-            const spellcheckTitle = document.createElement('h3');
-            spellcheckTitle.textContent = 'Spellcheck';
-            spellcheckSection.appendChild(spellcheckTitle);
-            const currentSpellcheck = getFrontmatterValue(source, 'spellcheck').trim();
-            const currentSpellcheckOption = spellcheckOptions.some(option => option.value === currentSpellcheck)
-                ? currentSpellcheck
-                : (currentSpellcheck ? '__custom__' : '');
-            spellcheckSection.appendChild(createFieldRow(
-                'Language',
-                createThemedSelect(
-                    currentSpellcheckOption,
-                    spellcheckOptions,
-                    'Spellcheck language for this note',
-                    value => {
-                        if (value === '') removeProperty(view, 'spellcheck');
-                        else if (value === '__custom__') showSource(view, this.frontmatter);
-                        else changeProperty(view, 'spellcheck', value);
-                    }
-                )
-            ));
-            const spellcheckHint = document.createElement('p');
-            spellcheckHint.className = 'cm-frontmatter-panel-hint';
-            spellcheckHint.textContent = 'Use the global default unless this note needs English (US), English (UK), Spanish, or no spellcheck.';
-            spellcheckSection.appendChild(spellcheckHint);
-            panel.appendChild(spellcheckSection);
-
             if (coverInput.checked) {
                 const coverSection = document.createElement('section');
                 coverSection.className = 'cm-frontmatter-panel-section';
@@ -742,7 +698,6 @@ export function createFrontmatterField(
 
             const genericEntries = this.frontmatter.entries.filter(entry =>
                 !PDF_PROPERTY_KEYS.has(entry.key) &&
-                !SPELLCHECK_PROPERTY_KEYS.has(entry.key) &&
                 (!coverInput.checked || !COVER_PROPERTY_KEYS.has(entry.key))
             );
             const otherSection = document.createElement('section');
@@ -801,8 +756,22 @@ export function createFrontmatterField(
         return Decoration.set(ranges, true);
     };
 
-    const buildDecorations = (state, mode, frontmatter = parseFrontmatter(state.doc.toString()), isOpening = false) => {
-        if (!frontmatter && !hasLeadingFrontmatter(state.doc.toString())) {
+    const frontmatterDocumentSource = doc => {
+        const firstLine = doc.line(1);
+        const opening = firstLine.text.charCodeAt(0) === 0xFEFF
+            ? firstLine.text.slice(1)
+            : firstLine.text;
+        if (!/^---[ \t]*\r?$/u.test(opening)) return firstLine.text;
+        for (let lineNumber = 2; lineNumber <= doc.lines; lineNumber += 1) {
+            const line = doc.line(lineNumber);
+            if (!/^(?:---|\.\.\.)[ \t]*\r?$/u.test(line.text)) continue;
+            return doc.sliceString(0, line.to < doc.length ? line.to + 1 : line.to);
+        }
+        return doc.toString();
+    };
+
+    const buildDecorations = (state, mode, frontmatter, source, isOpening = false) => {
+        if (!frontmatter && !hasLeadingFrontmatter(source)) {
             return Decoration.set([
                 Decoration.widget({ widget: new AddPropertiesWidget(), block: true, side: -1 }).range(0),
             ]);
@@ -819,14 +788,15 @@ export function createFrontmatterField(
 
     return StateField.define({
         create(state) {
-            const frontmatter = parseFrontmatter(state.doc.toString());
+            const source = frontmatterDocumentSource(state.doc);
+            const frontmatter = parseFrontmatter(source);
             const mode = frontmatter ? 'collapsed' : 'none';
-            return { mode, frontmatter, decorations: buildDecorations(state, mode, frontmatter) };
+            return { mode, frontmatter, decorations: buildDecorations(state, mode, frontmatter, source) };
         },
         update(value, transaction) {
             let mode = value.mode;
             let explicitMode = false;
-            let needsRebuild = transaction.docChanged || transaction.reconfigured;
+            let needsRebuild = transaction.docChanged;
             for (const effect of transaction.effects) {
                 if (effect.is(setMode)) {
                     if (mode !== effect.value) needsRebuild = true;
@@ -838,10 +808,11 @@ export function createFrontmatterField(
             // Parsing uses doc.toString(), so reserve it for actual document
             // changes. Arrow-key movement through the body keeps the previous
             // metadata snapshot and its block widget intact.
-            const frontmatter = transaction.docChanged || transaction.reconfigured
-                ? parseFrontmatter(transaction.state.doc.toString())
-                : value.frontmatter;
-            if (transaction.docChanged || transaction.reconfigured) {
+            const source = transaction.docChanged
+                ? frontmatterDocumentSource(transaction.state.doc)
+                : null;
+            const frontmatter = source === null ? value.frontmatter : parseFrontmatter(source);
+            if (transaction.docChanged) {
                 if (!frontmatter) mode = 'none';
                 else if (!value.frontmatter && !explicitMode) mode = 'collapsed';
             }
@@ -872,7 +843,13 @@ export function createFrontmatterField(
             return {
                 mode,
                 frontmatter,
-                decorations: buildDecorations(transaction.state, mode, frontmatter, isOpening),
+                decorations: buildDecorations(
+                    transaction.state,
+                    mode,
+                    frontmatter,
+                    source ?? frontmatterDocumentSource(transaction.state.doc),
+                    isOpening,
+                ),
             };
         },
         provide: field => EditorView.decorations.from(field, value => value.decorations),

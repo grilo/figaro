@@ -10,6 +10,98 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.36.0] - 2026-09-07
+
+### Added
+
+- Local writing review with five independently selectable lenses: Proofreading,
+  Clarity, Directness, Inclusive language, and Formulaic writing. Checks cover
+  spelling, repetition, terminology, selected grammar and punctuation, plain
+  language, readability, passive constructions, unexplained acronyms, inclusive
+  wording, and 30 optional Slopless patterns, including em dashes and curly quotes.
+- Dotted word and phrase underlines with in-place Apply, Ignore, examples, and
+  source navigation. Ctrl/Cmd+. opens review at the caret; Pure mode also supports
+  writing review and a Ctrl/Cmd+Shift+L configuration picker.
+- Identical suggestions share a card with occurrence navigation. Reviewed
+  replacements offer a document-scoped Apply-to-all action with one Undo/Redo.
+- Per-document language and lens choices, reversible ignored occurrences and
+  accepted acronyms, and a vault-wide personal spelling dictionary persist
+  across document switches and restarts. Saved decisions can be restored.
+- Compact lens help explains coverage, limitations, partial selections and
+  examples. Disabled lenses explain why they are unavailable.
+
+### Changed
+
+- README and product documentation show a current native Linux screenshot with
+  the Markdown editor, Mermaid preview, and Writing lenses.
+- Lens setup uses the shared language combobox and an animated expandable row
+  that remains visible in Dark and CRT themes. Unsupported checks clear when
+  language changes; Spanish supports spelling only. Existing partial selections
+  remain intact, and Apply to all documents copies choices across the vault.
+- Spelling is controlled by Proofreading and the document's analysis language.
+  Settings and Properties spelling controls are removed; legacy YAML is preserved.
+  There is no primary lens or separate writing-profile selector.
+- Writing review starts with four distinct suggestion cards. Actions and examples
+  precede optional technical details; overlapping lenses share equivalent advice
+  while keeping different concerns separate. Analysis and saved-decision matching
+  run in background workers with cancellation, partial results and recovery.
+- Writing advice remains optional and requires judgment: grammar coverage is
+  limited, readability does not measure quality, Formulaic writing does not detect
+  AI authorship, and individual spelling alternatives can be incorrect. Spelling
+  bulk actions require explicitly reviewed corrections. Number/unit forms such
+  as `8.1Mib`, `10MB` and `20ms` are not checked.
+- Clicking the active planning workspace returns to the previous view; clicking
+  Timeline or Gantt again returns to Month or Board. Right-pane selection and
+  width are restored when returning from Settings, planning, or another note.
+- Large notes and vaults reuse narrower search, scheduling, health, relationship,
+  graph and Kanban results. Document switching avoids repeated presentation scans,
+  and eager application bundling reduces startup module requests.
+- Vault configuration can be tracked in Git. Startup removes the old blanket
+  `.config/` ignore rule while preserving other rules; preference changes do not
+  create commits or broaden automatic per-note history.
+- Release verification now checks production bundles, real Chromium PDF output,
+  coverage floors and platform Go contracts. Repository release and editor-audit
+  skills use explicit release approval, disposable fixtures and evidence-backed
+  reports; commit-message handoff supports linked worktrees.
+
+### Fixed
+
+- Writing spelling preserves quoted words, Markdown emphasis, possessives and
+  numeric compounds; reviewed technical vocabulary avoids destructive guesses.
+  Dictionary alternatives cannot invent possession, and speculative name
+  replacements are restricted.
+- Short introductions no longer inherit long-sentence warnings, balanced URL
+  parentheses remain paired, and acronym definitions support reverse/plural
+  forms and definitions following headings. Context guards reduce misleading
+  technical-noun, accessibility, negation and comparison advice.
+- Writing edits preserve reference identifiers, wiki targets, fragments, embeds,
+  indented code and link destinations. Eligible rendered labels retain inline
+  review without changing link activation; implicit reference keys stay advisory.
+- Ignored findings follow edits, including the first edit after opening a note.
+  Renames, moves and folder merges preserve lens choices and saved decisions;
+  collisions and failed writes retain existing data. Worker/reload recovery keeps
+  newer source and available suggestions instead of silently dropping checks.
+- Right-pane launchers remain visible and highlight the selected pane. Switching
+  panes preserves width, status metrics align beneath the editor, and outline
+  launchers explain why notes without headings cannot open an outline.
+- Lens help no longer shrinks after repeated scrolling, writing popups stay clear
+  of the sidebar, and the Mermaid Style panel uses one scroll area. Hovered block
+  and diagram controls no longer flash while typing elsewhere.
+- Delayed backlink refreshes after renames no longer overwrite newer edits.
+  Arrow-key tab focus survives dirty/save updates, outline focus returns
+  correctly, and Table Editor discard cancellation restores the prior selection.
+- Markdown helper controls remain reachable at narrow widths and larger text
+  sizes. Returning from Draw.io refreshes newly created diagrams. Empty Kanban
+  boards explain how to create the first task.
+- Application instances no longer share mutable runtime, asset or external-file
+  capabilities. Tab, save and pane ownership prevents stale workspace state leaks.
+- Generated catalogue comments no longer introduce whitespace-check failures;
+  source strings retain their exact contents. Pinned writing-rule bytes survive
+  platform checkouts. Release checks tolerate nested Make
+  directory messages. Browser regressions follow the current lens controls and
+  responsive footer, wait for the active document, and account for elapsed frames
+  on busy runners.
+
 ## [1.35.2] - 2026-09-04
 
 ### Fixed
@@ -2011,7 +2103,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.35.2...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.36.0...HEAD
+[1.36.0]: https://github.com/grilo/figaro/compare/v1.35.2...v1.36.0
 [1.35.2]: https://github.com/grilo/figaro/compare/v1.35.1...v1.35.2
 [1.35.1]: https://github.com/grilo/figaro/compare/v1.35.0...v1.35.1
 [1.35.0]: https://github.com/grilo/figaro/compare/v1.34.0...v1.35.0

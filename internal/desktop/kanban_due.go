@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"figaro/internal/taskschedule"
 	"sort"
 	"strconv"
 	"strings"
@@ -8,17 +9,40 @@ import (
 )
 
 func homeTaskProjection(cardsByTag map[string][]KanbanCard, columns []string, limit int, today string) []KanbanCard {
+	return homeTaskProjectionWithSchedules(cardsByTag, columns, limit, today, nil, nil)
+}
+
+type rankedHomeTask struct {
+	card    KanbanCard
+	group   int
+	date    string
+	ordinal int
+}
+
+func homeTaskProjectionWithSchedules(
+	cardsByTag map[string][]KanbanCard,
+	columns []string,
+	limit int,
+	today string,
+	scheduled map[string]taskschedule.Entry,
+	orders map[string][]KanbanCardOrderRef,
+) []KanbanCard {
 	if limit <= 0 {
 		return []KanbanCard{}
 	}
 
-	tasks := make([]KanbanCard, 0)
+	ranked := make([]rankedHomeTask, 0, limit)
 	seen := make(map[string]struct{})
+	ordinal := 0
 	for _, column := range columns {
 		if strings.EqualFold(column, "done") {
 			continue
 		}
-		for _, card := range cardsByTag[column] {
+		cards := cardsByTag[column]
+		if len(orders[column]) > 0 {
+			cards = orderedKanbanCards(cards, orders[column])
+		}
+		for _, card := range cards {
 			if card.Completed {
 				continue
 			}
@@ -27,23 +51,37 @@ func homeTaskProjection(cardsByTag map[string][]KanbanCard, columns []string, li
 				continue
 			}
 			seen[key] = struct{}{}
-			tasks = append(tasks, card)
+			if schedule, found := scheduled[key]; found {
+				card.DueDate, card.StartDate = schedule.End, schedule.Start
+			}
+			group, date := dueSortKey(card.DueDate, today)
+			candidate := rankedHomeTask{card: card, group: group, date: date, ordinal: ordinal}
+			ordinal++
+			position := sort.Search(len(ranked), func(index int) bool {
+				current := ranked[index]
+				if candidate.group != current.group {
+					return candidate.group < current.group
+				}
+				if candidate.date != current.date {
+					return candidate.date < current.date
+				}
+				return candidate.ordinal < current.ordinal
+			})
+			if position >= limit {
+				continue
+			}
+			ranked = append(ranked, rankedHomeTask{})
+			copy(ranked[position+1:], ranked[position:])
+			ranked[position] = candidate
+			if len(ranked) > limit {
+				ranked = ranked[:limit]
+			}
 		}
 	}
 
-	sort.SliceStable(tasks, func(i, j int) bool {
-		leftGroup, leftDate := dueSortKey(tasks[i].DueDate, today)
-		rightGroup, rightDate := dueSortKey(tasks[j].DueDate, today)
-		if leftGroup != rightGroup {
-			return leftGroup < rightGroup
-		}
-		if leftDate != rightDate {
-			return leftDate < rightDate
-		}
-		return false
-	})
-	if len(tasks) > limit {
-		tasks = tasks[:limit]
+	tasks := make([]KanbanCard, len(ranked))
+	for index := range ranked {
+		tasks[index] = ranked[index].card
 	}
 	return tasks
 }

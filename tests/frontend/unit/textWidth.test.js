@@ -2,6 +2,7 @@
  * Text Width Control Integration Tests
  */
 import { testUtils } from './test_setup.js';
+import { createBackendStub } from '../../../frontend/js/backendContract.js';
 
 const mockEditorView = {
     dom: {
@@ -29,7 +30,7 @@ const mockApi = {
 beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.go = { desktop: { App: mockApi } };
+    window.go = { desktop: { App: createBackendStub(mockApi) } };
     localStorage.clear();
     document.documentElement.style.removeProperty('--editor-width');
     document.body.innerHTML = `

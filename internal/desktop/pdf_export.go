@@ -85,7 +85,7 @@ func (a *App) CreateStarterPrintStylesheet(sourcePath string, stylesheetRef stri
 		return nil, fmt.Errorf("inspect print stylesheet: %w", statErr)
 	}
 
-	css, err := loadStarterPrintStylesheet()
+	css, err := loadStarterPrintStylesheet(a.assets)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (a *App) CreateUpgradedPrintStylesheet(sourcePath string, currentRef string
 	if err != nil {
 		return &StarterPrintStylesheetResult{Success: false, Error: err.Error()}, nil
 	}
-	starterCSS, err := loadStarterPrintStylesheet()
+	starterCSS, err := loadStarterPrintStylesheet(a.assets)
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +187,8 @@ func (a *App) CreateUpgradedPrintStylesheet(sourcePath string, currentRef string
 	return result, nil
 }
 
-func loadStarterPrintStylesheet() ([]byte, error) {
-	css, err := assets.ReadFile(starterPrintStylesheetAsset)
+func loadStarterPrintStylesheet(bundle AssetFS) ([]byte, error) {
+	css, err := readBundledAsset(bundle, starterPrintStylesheetAsset)
 	if err == nil {
 		return css, nil
 	}
@@ -204,7 +204,7 @@ func loadStarterPrintStylesheet() ([]byte, error) {
 // currently omits their PDF annotations, making references and navigation lose
 // their meaning in the exported document.
 func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, printStylesheet string) (*PDFExportResult, error) {
-	ctx := a.ctx
+	ctx := a.desktopRuntime.context()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -266,7 +266,7 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 	}
 	defer os.RemoveAll(workspace)
 
-	inputHTML, err := writeInteractivePDFWorkspace(workspace, document)
+	inputHTML, err := writeInteractivePDFWorkspace(a.assets, workspace, document)
 	if err != nil {
 		return &PDFExportResult{Success: false, Error: err.Error()}, nil
 	}
@@ -291,7 +291,7 @@ func (a *App) ExportPDF(title string, htmlContent string, sourcePath string, pri
 					workspace,
 					pageNumbers,
 					tocCount,
-					defaultPDFPaginationPorts(),
+					defaultPDFPaginationPorts(a.assets),
 				)
 			})
 		}
@@ -331,11 +331,13 @@ type pdfPaginationPorts struct {
 	writeHTML    func(workspace string, document string) (string, error)
 }
 
-func defaultPDFPaginationPorts() pdfPaginationPorts {
+func defaultPDFPaginationPorts(bundle AssetFS) pdfPaginationPorts {
 	return pdfPaginationPorts{
 		resolvePages: pdfexport.ResolveTOCPageNumbers,
 		injectPages:  pdfexport.InjectTOCPageNumbers,
-		writeHTML:    writeInteractivePDFWorkspace,
+		writeHTML: func(workspace string, document string) (string, error) {
+			return writeInteractivePDFWorkspace(bundle, workspace, document)
+		},
 	}
 }
 
@@ -504,8 +506,8 @@ func enrichInteractivePDFHTML(title string, htmlContent string, baseURL string, 
 	return "<!doctype html><html><head><meta charset=\"utf-8\"><title>" + html.EscapeString(title) + "</title>" + injection + "</head><body>" + htmlContent + "</body></html>"
 }
 
-func writeInteractivePDFWorkspace(workspace string, document string) (string, error) {
-	katexURL, err := writeKaTeXAssets(workspace)
+func writeInteractivePDFWorkspace(bundle AssetFS, workspace string, document string) (string, error) {
+	katexURL, err := writeKaTeXAssets(bundle, workspace)
 	if err != nil {
 		return "", err
 	}
@@ -519,9 +521,9 @@ func writeInteractivePDFWorkspace(workspace string, document string) (string, er
 	return inputHTML, nil
 }
 
-func writeKaTeXAssets(workspace string) (string, error) {
+func writeKaTeXAssets(bundle AssetFS, workspace string) (string, error) {
 	const cssAsset = "frontend/vendored/katex/dist/katex.min.css"
-	css, err := assets.ReadFile(cssAsset)
+	css, err := readBundledAsset(bundle, cssAsset)
 	if err != nil {
 		css, err = readProjectAsset(cssAsset)
 		if err != nil {
@@ -533,7 +535,7 @@ func writeKaTeXAssets(workspace string) (string, error) {
 	if err := os.MkdirAll(fontDirectory, 0700); err != nil {
 		return "", fmt.Errorf("create KaTeX font directory: %w", err)
 	}
-	entries, err := assets.ReadDir("frontend/vendored/katex/dist/fonts")
+	entries, err := readBundledAssetDir(bundle, "frontend/vendored/katex/dist/fonts")
 	if err != nil {
 		return "", fmt.Errorf("list KaTeX fonts: %w", err)
 	}
@@ -542,7 +544,7 @@ func writeKaTeXAssets(workspace string) (string, error) {
 			continue
 		}
 		assetPath := "frontend/vendored/katex/dist/fonts/" + entry.Name()
-		font, readErr := assets.ReadFile(assetPath)
+		font, readErr := readBundledAsset(bundle, assetPath)
 		if readErr != nil {
 			return "", fmt.Errorf("load KaTeX font %q: %w", entry.Name(), readErr)
 		}

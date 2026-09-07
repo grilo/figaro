@@ -1,5 +1,6 @@
 import {
     adjacentGraphNodePath,
+    createGraphSpatialIndex,
     fitGraphViewport,
     graphLayoutBounds,
     graphNodeAppearances,
@@ -7,6 +8,8 @@ import {
     graphViewLayout,
     graphLayoutIterationCount,
     graphNodePointerAction,
+    graphSpatialCandidates,
+    graphTraceRenderPlan,
     sameGraphView,
     layoutGraph,
     normalizeVaultGraph,
@@ -150,6 +153,45 @@ describe('note graph model', () => {
         const nodes = sampleGraph().nodes;
         expect(adjacentGraphNodePath(nodes, '', 1)).toBe('2026-08-29.md');
         expect(adjacentGraphNodePath(nodes, '2026-08-29.md', -1)).toBe('Research/Graph.md');
+    });
+
+    test('limits pointer hit-test candidates to nearby world-space buckets', () => {
+        const points = Array.from({ length: 10_000 }, (_, index) => ({
+            path: `note-${index}.md`,
+            x: (index % 100) * 50,
+            y: Math.floor(index / 100) * 50,
+        }));
+        const spatial = createGraphSpatialIndex(points, 48);
+        const candidates = graphSpatialCandidates(spatial, 2500, 2500, 20);
+
+        expect(candidates.map(point => point.path)).toContain('note-5050.md');
+        expect(candidates.length).toBeLessThan(10);
+    });
+
+    test('reuses a cached large topology without repainting every node for a hub trace', () => {
+        expect(graphTraceRenderPlan({
+            nodeCount: 10000,
+            neighborCount: 9999,
+            baseCached: true,
+        })).toEqual({
+            reuseBase: true,
+            baseOpacity: 1,
+            redrawConnectedNodes: false,
+        });
+        expect(graphTraceRenderPlan({
+            nodeCount: 10000,
+            neighborCount: 4,
+            baseCached: true,
+        })).toEqual({
+            reuseBase: true,
+            baseOpacity: 0.12,
+            redrawConnectedNodes: true,
+        });
+        expect(graphTraceRenderPlan({
+            nodeCount: 100,
+            neighborCount: 99,
+            baseCached: true,
+        }).reuseBase).toBe(false);
     });
 
     test('opens nodes on double-click or Ctrl/Cmd-click and selects on a plain click', () => {

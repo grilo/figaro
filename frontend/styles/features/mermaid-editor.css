@@ -214,14 +214,10 @@
 .mermaid-editor-node-list {
     display: grid;
     gap: 2px;
-    max-height: min(196px, 30vh);
     padding: 3px;
-    overflow-x: hidden;
-    overflow-y: auto;
     border: 0;
     border-radius: 8px;
     background: var(--bg-color);
-    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .mermaid-editor-node-row.ui-menu-item {

@@ -1,9 +1,12 @@
 import {
     adjacentGraphNodePath,
+    createGraphSpatialIndex,
     fitGraphViewport,
     graphAdjacency,
     graphLayoutBounds,
     graphNodePointerAction,
+    graphSpatialCandidates,
+    graphTraceRenderPlan,
     graphViewLayout,
     graphView,
     layoutGraph,
@@ -129,7 +132,10 @@ export function createGraphView(panel, {
     let positions = new Map();
     let visibleNodes = new Map();
     let adjacency = new Map();
+    let edgesByNode = new Map();
     let nodeIconMarkup = new Map();
+    const nodeIconElements = new Map();
+    let spatialIndex = createGraphSpatialIndex([]);
     let viewport = { scale: 1, offsetX: 0, offsetY: 0 };
     let width = 800;
     let height = 520;
@@ -145,19 +151,22 @@ export function createGraphView(panel, {
     let needsFit = true;
     let labelOrder = [];
     let fullLabelOrder = [];
+    let progressiveCanvas = null;
+    let baseCanvasKey = '';
 
     function nodeByPath(path) {
         return visibleNodes.get(path) || null;
     }
 
     function indexNodeIcons() {
-        nodeIconMarkup = new Map(graph.nodes.flatMap(node => {
+        nodeIconMarkup = new Map();
+        for (const node of graph.nodes) {
             const markup = node.icon ? renderLucideIcon(node.icon, {
                 size: 24,
                 className: 'graph-node-icon-svg',
             }) : '';
-            return markup ? [[node.path, markup]] : [];
-        }));
+            if (markup) nodeIconMarkup.set(node.path, markup);
+        }
     }
 
     function screenPoint(path) {
@@ -173,23 +182,26 @@ export function createGraphView(panel, {
         if (!iconLayer) return;
         if (!nodeIconMarkup.size) {
             if (iconLayer.childElementCount) iconLayer.replaceChildren();
+            nodeIconElements.clear();
             return;
         }
         const visibleIcons = new Set();
         const tracedPath = hoveredPath || selectedPath;
         const tracedNeighbors = tracedPath ? (adjacency.get(tracedPath) || new Set()) : null;
-        for (const node of view.nodes) {
-            const markup = nodeIconMarkup.get(node.path);
+        for (const [path, markup] of nodeIconMarkup) {
+            const node = nodeByPath(path);
+            if (!node) continue;
             const point = markup ? (screenPositions?.get(node.path) || screenPoint(node.path)) : null;
             if (!markup || !point) continue;
             visibleIcons.add(node.path);
-            let element = [...iconLayer.children].find(candidate => candidate.dataset.path === node.path);
+            let element = nodeIconElements.get(node.path);
             if (!element) {
                 element = document.createElement('span');
                 element.className = 'graph-node-icon';
                 element.dataset.path = node.path;
                 element.innerHTML = markup;
                 iconLayer.append(element);
+                nodeIconElements.set(node.path, element);
             }
             const size = Math.max(14, Math.min(30, pointRadius(node) * 2.25 * viewport.scale));
             element.style.width = `${size}px`;
@@ -202,7 +214,10 @@ export function createGraphView(panel, {
                 : '0.12';
         }
         [...iconLayer.children].forEach(element => {
-            if (!visibleIcons.has(element.dataset.path)) element.remove();
+            if (!visibleIcons.has(element.dataset.path)) {
+                nodeIconElements.delete(element.dataset.path);
+                element.remove();
+            }
         });
     }
 
@@ -241,15 +256,52 @@ export function createGraphView(panel, {
         const pixelWidth = Math.max(1, Math.round(width * ratio));
         const pixelHeight = Math.max(1, Math.round(height * ratio));
         const progressive = view.nodes.length > 1000;
-        const renderCanvas = progressive ? document.createElement('canvas') : canvas;
+        if (progressive && !progressiveCanvas) progressiveCanvas = document.createElement('canvas');
+        const tracedPath = hoveredPath || selectedPath;
+        const canvasKey = [
+            width, height, ratio, viewport.scale, viewport.offsetX, viewport.offsetY,
+            view.nodes.length, view.edges.length, colors.edge, colors.accent, colors.background,
+        ].join(':');
+        const cachedBaseAvailable = progressive && progressiveCanvas?.width === pixelWidth
+            && progressiveCanvas?.height === pixelHeight && baseCanvasKey === canvasKey;
+        if (!tracedPath && cachedBaseAvailable) {
+            if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+                canvas.width = pixelWidth;
+                canvas.height = pixelHeight;
+            }
+            context.setTransform(1, 0, 0, 1, 0, 0);
+            context.clearRect(0, 0, pixelWidth, pixelHeight);
+            context.drawImage(progressiveCanvas, 0, 0);
+            syncNodeIcons();
+            return true;
+        }
+        const tracedNeighbors = tracedPath ? (adjacency.get(tracedPath) || new Set()) : null;
+        const tracePlan = graphTraceRenderPlan({
+            nodeCount: view.nodes.length,
+            neighborCount: tracedNeighbors?.size,
+            baseCached: Boolean(tracedPath && cachedBaseAvailable),
+        });
+        const traceFromCachedBase = tracePlan.reuseBase;
+        const traceConnectsAll = traceFromCachedBase && !tracePlan.redrawConnectedNodes;
+        const renderCanvas = progressive && !traceFromCachedBase ? progressiveCanvas : canvas;
         const renderContext = progressive ? renderCanvas.getContext?.('2d') : context;
         if (!renderContext) return false;
         if (renderCanvas.width !== pixelWidth || renderCanvas.height !== pixelHeight) {
             renderCanvas.width = pixelWidth;
             renderCanvas.height = pixelHeight;
         }
+        if (traceFromCachedBase) {
+            if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+                canvas.width = pixelWidth;
+                canvas.height = pixelHeight;
+            }
+            renderContext.setTransform(1, 0, 0, 1, 0, 0);
+            renderContext.clearRect(0, 0, pixelWidth, pixelHeight);
+            renderContext.globalAlpha = tracePlan.baseOpacity;
+            renderContext.drawImage(progressiveCanvas, 0, 0);
+        }
         renderContext.setTransform(ratio, 0, 0, ratio, 0, 0);
-        renderContext.clearRect(0, 0, width, height);
+        if (!traceFromCachedBase) renderContext.clearRect(0, 0, width, height);
         const request = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
         let sliceStarted = performance.now();
         const checkpoint = async () => {
@@ -260,21 +312,20 @@ export function createGraphView(panel, {
             return !disposed && version === drawRequestVersion;
         };
 
-        const tracedPath = hoveredPath || selectedPath;
-        const tracedNeighbors = tracedPath ? (adjacency.get(tracedPath) || new Set()) : null;
-        const screenPositions = new Map(layout.map(point => [point.path, {
+        const positionSource = traceFromCachedBase
+            ? [tracedPath, ...tracedNeighbors].map(path => positions.get(path)).filter(Boolean)
+            : layout;
+        const screenPositions = new Map(positionSource.map(point => [point.path, {
             x: point.x * viewport.scale + viewport.offsetX,
             y: point.y * viewport.scale + viewport.offsetY,
         }]));
-        const drawEdges = async (related, alpha, color, lineWidth) => {
+        const drawEdges = async (edges, alpha, color, lineWidth) => {
             renderContext.globalAlpha = alpha;
             renderContext.strokeStyle = color;
             renderContext.lineWidth = lineWidth;
             renderContext.beginPath();
             let batchSize = 0;
-            for (const edge of view.edges) {
-                const isRelated = Boolean(tracedPath && (edge.source === tracedPath || edge.target === tracedPath));
-                if (isRelated !== related) continue;
+            for (const edge of edges) {
                 const source = screenPositions.get(edge.source);
                 const target = screenPositions.get(edge.target);
                 if (!source || !target) continue;
@@ -292,9 +343,7 @@ export function createGraphView(panel, {
             renderContext.fillStyle = color;
             renderContext.beginPath();
             batchSize = 0;
-            for (const edge of view.edges) {
-                const isRelated = Boolean(tracedPath && (edge.source === tracedPath || edge.target === tracedPath));
-                if (isRelated !== related) continue;
+            for (const edge of edges) {
                 const source = screenPositions.get(edge.source);
                 const target = screenPositions.get(edge.target);
                 if (!source || !target) continue;
@@ -312,16 +361,25 @@ export function createGraphView(panel, {
             return true;
         };
         if (tracedPath) {
-            if (!await drawEdges(false, 0.08, colors.edge, 1.2)) return false;
-            if (!await drawEdges(true, 0.9, colors.accent, 2)) return false;
+            if (!traceFromCachedBase && !await drawEdges(
+                view.edges.filter(edge => edge.source !== tracedPath && edge.target !== tracedPath),
+                0.08,
+                colors.edge,
+                1.2,
+            )) return false;
+            if (!await drawEdges(edgesByNode.get(tracedPath) || [], 0.9, colors.accent, 2)) return false;
         } else {
-            if (!await drawEdges(false, 0.54, colors.edge, 1.2)) return false;
+            if (!await drawEdges(view.edges, 0.54, colors.edge, 1.2)) return false;
         }
 
         const labelBoxes = [];
         const regularNodes = new Map();
         const emphasizedNodes = [];
-        for (const node of view.nodes) {
+        const drawnNodes = traceFromCachedBase
+            ? (traceConnectsAll ? [nodeByPath(tracedPath)] : [tracedPath, ...tracedNeighbors]
+                .map(nodeByPath)).filter(Boolean)
+            : view.nodes;
+        for (const node of drawnNodes) {
             const point = screenPositions.get(node.path);
             if (!point) continue;
             const connected = !tracedPath || node.path === tracedPath || tracedNeighbors?.has(node.path);
@@ -415,14 +473,17 @@ export function createGraphView(panel, {
         };
         if (tracedPath) drawLabel(nodeByPath(tracedPath));
         let labelIndex = 0;
-        for (const node of labelOrder) {
+        const drawnLabels = traceFromCachedBase
+            ? (traceConnectsAll ? [] : labelOrder.filter(node => tracedNeighbors.has(node.path)))
+            : labelOrder;
+        for (const node of drawnLabels) {
             if (node.path !== tracedPath) drawLabel(node);
             labelIndex += 1;
             if (labelIndex % (GRAPH_CANVAS_BATCH_SIZE * 2) === 0 && !await checkpoint()) return false;
         }
         renderContext.globalAlpha = 1;
         if (!await checkpoint()) return false;
-        if (progressive) {
+        if (progressive && renderCanvas !== canvas) {
             if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
                 canvas.width = pixelWidth;
                 canvas.height = pixelHeight;
@@ -430,6 +491,9 @@ export function createGraphView(panel, {
             context.setTransform(1, 0, 0, 1, 0, 0);
             context.clearRect(0, 0, pixelWidth, pixelHeight);
             context.drawImage(renderCanvas, 0, 0);
+        }
+        if (progressive && !tracedPath && renderCanvas === progressiveCanvas) {
+            baseCanvasKey = canvasKey;
         }
         syncNodeIcons(screenPositions);
         return true;
@@ -470,8 +534,15 @@ export function createGraphView(panel, {
         if (topologyChanged || force) {
             layout = graphViewLayout(view.nodes, fullLayout);
             positions = new Map(layout.map(point => [point.path, point]));
+            spatialIndex = createGraphSpatialIndex(layout);
             visibleNodes = new Map(view.nodes.map(node => [node.path, node]));
             adjacency = graphAdjacency(view);
+            edgesByNode = new Map(view.nodes.map(node => [node.path, []]));
+            for (const edge of view.edges) {
+                edgesByNode.get(edge.source)?.push(edge);
+                edgesByNode.get(edge.target)?.push(edge);
+            }
+            baseCanvasKey = '';
             labelOrder = view.nodes.length === graph.nodes.length
                 ? fullLabelOrder
                 : fullLabelOrder.filter(node => visibleNodes.has(node.path));
@@ -555,9 +626,16 @@ export function createGraphView(panel, {
     function hitNode(x, y) {
         let match = null;
         let bestDistance = Infinity;
-        for (const node of view.nodes) {
-            const point = screenPoint(node.path);
-            if (!point) continue;
+        const worldX = (x - viewport.offsetX) / viewport.scale;
+        const worldY = (y - viewport.offsetY) / viewport.scale;
+        const searchRadius = 14 + 12 / Math.max(0.05, viewport.scale);
+        for (const worldPoint of graphSpatialCandidates(spatialIndex, worldX, worldY, searchRadius)) {
+            const node = nodeByPath(worldPoint.path);
+            if (!node) continue;
+            const point = {
+                x: worldPoint.x * viewport.scale + viewport.offsetX,
+                y: worldPoint.y * viewport.scale + viewport.offsetY,
+            };
             const distance = Math.hypot(x - point.x, y - point.y);
             const targetRadius = Math.max(12, pointRadius(node) * viewport.scale + 5);
             if (distance <= targetRadius && distance < bestDistance) {
@@ -767,6 +845,9 @@ export function createGraphView(panel, {
         dispose() {
             disposed = true;
             drawRequestVersion += 1;
+            nodeIconElements.clear();
+            progressiveCanvas = null;
+            baseCanvasKey = '';
             setGraphStatusActive(false);
             resizeObserver?.disconnect();
             themeObserver?.disconnect();

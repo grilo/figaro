@@ -1,11 +1,44 @@
 import {
     activeOutlineHeadingHierarchy,
     activeOutlineHeadingIndex,
+    documentOutlineControlState,
     extractOutlineHeadings,
     stickyHeadingBoundaryPosition,
 } from '../frontend/js/core/outlineModel.js';
 
 describe('Markdown document outline', () => {
+    test('keeps the launcher visible but disabled when the active Markdown note has no headings', () => {
+        expect(documentOutlineControlState({
+            enabled: true,
+            markdownReady: true,
+            hasHeadings: false,
+            open: false,
+        })).toEqual({
+            hidden: false,
+            disabled: true,
+            expanded: false,
+            tooltip: 'Document outline unavailable: this note has no headings',
+            description: 'Unavailable because this note has no headings.',
+        });
+
+        expect(documentOutlineControlState({
+            enabled: true,
+            markdownReady: true,
+            hasHeadings: true,
+            open: false,
+        })).toEqual(expect.objectContaining({
+            hidden: false,
+            disabled: false,
+            tooltip: 'Show document outline',
+        }));
+        expect(documentOutlineControlState({
+            enabled: false,
+            markdownReady: true,
+            hasHeadings: false,
+            open: false,
+        }).hidden).toBe(true);
+    });
+
     test('extracts nested ATX headings with exact source positions', () => {
         const source = '# Start\nBody\n## Decision ##\nMore\n#### Detail';
 

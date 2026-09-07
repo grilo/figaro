@@ -1,66 +1,24 @@
 import { expect, test } from '@playwright/test';
+import { waitForWelcomeEditor } from './support/editorWorkspace.js';
 
 async function openWelcomeEditor(page) {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
-    await page.evaluate(async () => {
-        const theme = await import('/js/theme.js');
-        await theme.setSpellcheckPreference({ enabled: true, language: 'en-US' });
-    });
     await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
-    await expect(page.locator('.cm-editor')).toBeVisible();
+    await waitForWelcomeEditor(page);
+    await page.locator('#writing-lenses-toggle').click();
+    const pane = page.locator('#writing-lenses-panel');
+    await pane.getByRole('combobox', { name: 'Analysis language' }).click();
+    await page.getByRole('option', { name: 'English (US)', exact: true }).click();
+    await pane.getByRole('checkbox', { name: 'Proofreading', exact: true }).check();
+    await page.locator('#writing-lenses-toggle').click();
 }
 
 async function spellcheckWords(page) {
-    return page.evaluate(async () => {
-        const { forEachDiagnostic } = await import('@codemirror/lint');
-        const view = window.__spellcheckView;
-        const words = [];
-        forEachDiagnostic(view.state, diagnostic => {
-            if (diagnostic.source === 'Figaro spellcheck') {
-                words.push(view.state.doc.sliceString(diagnostic.from, diagnostic.to));
-            }
-        });
-        return words.sort();
-    });
+    return page.locator('.cm-writing-range').allTextContents().then(words => words.sort());
 }
 
-test('does not mark a correctly spelled hyphenated compound as a spellcheck error', async ({ page }) => {
-    await openWelcomeEditor(page);
-    const source = 'Before\nA faster-than-usual pace.\nAfter';
-    await page.evaluate(async text => {
-        const editor = await import('/js/editor.js');
-        editor.setEditorContent(text);
-        const view = editor.getEditorView();
-        await new Promise(resolve => setTimeout(resolve, 80));
-        view.dispatch({ selection: { anchor: 0 } });
-        view.focus();
-        window.__spellcheckView = view;
-    }, source);
-
-    await expect.poll(() => spellcheckWords(page)).toEqual([]);
-    await expect(page.locator('.cm-spellcheck-range')).toHaveCount(0);
-
-    const content = page.locator('.cm-content');
-    await content.press('ArrowDown');
-    await expect.poll(() => page.evaluate(() => window.__spellcheckView.state.doc.lineAt(
-        window.__spellcheckView.state.selection.main.head,
-    ).number)).toBe(2);
-    await content.press('ArrowDown');
-    await expect.poll(() => page.evaluate(() => window.__spellcheckView.state.doc.lineAt(
-        window.__spellcheckView.state.selection.main.head,
-    ).number)).toBe(3);
-    await content.press('ArrowUp');
-    await expect.poll(() => page.evaluate(() => window.__spellcheckView.state.doc.lineAt(
-        window.__spellcheckView.state.selection.main.head,
-    ).number)).toBe(2);
-    await content.press('ArrowUp');
-    await expect.poll(() => page.evaluate(() => window.__spellcheckView.state.doc.lineAt(
-        window.__spellcheckView.state.selection.main.head,
-    ).number)).toBe(1);
-});
-
-test('checks offline English and Spanish prose, offers local right-click replacements, and keeps normal editor movement intact', async ({ page }) => {
+test('Proofreading spelling hover and right-click replacements preserve native keyboard and drag selection', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = 'color colour teh ete\n\nAfter the spelling range';
     await page.evaluate(async text => {
@@ -102,16 +60,15 @@ test('checks offline English and Spanish prose, offers local right-click replace
     expect(await page.evaluate(() => window.__spellcheckView.state.selection.main.to - window.__spellcheckView.state.selection.main.from))
         .toBeGreaterThan(4);
 
-    const misspelling = page.locator('.cm-spellcheck-range').first();
+    const misspelling = page.locator('.cm-writing-range').first();
     await expect(misspelling).toBeVisible();
     await misspelling.hover();
-    await expect(page.locator('.cm-tooltip-lint')).toContainText(/not in the English \(US\) dictionary/i);
+    await expect(page.getByRole('dialog', { name: 'Writing suggestions', exact: true })).toContainText('selected dictionaries');
     await page.evaluate(() => document.documentElement.style.setProperty('--link-color', 'rgb(18, 160, 176)'));
     await expect(misspelling).toHaveCSS('background-size', '4px 2px');
     expect(await misspelling.evaluate(element => getComputedStyle(element).backgroundImage)).toContain('rgb(18, 160, 176)');
-    await expect(page.locator('.cm-diagnostic-info')).toHaveCSS('border-left-color', 'rgb(18, 160, 176)');
 
-    const misspelledWord = page.locator('.cm-spellcheck-range').filter({ hasText: 'teh' });
+    const misspelledWord = page.locator('.cm-writing-range').filter({ hasText: 'teh' });
     await misspelledWord.click({ button: 'right' });
     const spellingMenu = page.locator('.editor-context-menu');
     await expect(spellingMenu).toContainText('Spelling suggestions');
@@ -127,55 +84,9 @@ test('checks offline English and Spanish prose, offers local right-click replace
     await page.keyboard.press('Control+z');
     await expect.poll(() => spellcheckWords(page)).toEqual(['colour', 'ete', 'teh']);
 
-    await page.locator('.cm-spellcheck-range').filter({ hasText: 'ete' }).click({ button: 'right' });
+    await page.locator('.cm-writing-range').filter({ hasText: 'ete' }).click({ button: 'right' });
     await expect(spellingMenu).toContainText('No suggestions found');
     await expect(spellingMenu.locator('[data-action="replace-spelling"]')).toHaveCount(0);
 
-    await page.locator('#topbar-settings').click();
-    const language = page.locator('#spellcheck-language');
-    const languageControl = page.locator('.select-combobox').filter({ has: language }).locator('.select-combobox-trigger');
-    const guidance = page.locator('#spellcheck-guidance');
-    await expect(language).toHaveClass(/select-combobox-native/);
-    await expect(language).toHaveAttribute('aria-describedby', 'spellcheck-guidance');
-    await expect(languageControl).toBeVisible();
-    await expect(languageControl).toHaveAttribute('aria-describedby', 'spellcheck-guidance');
-    await expect(guidance).toBeVisible();
-    await expect(guidance).toHaveClass(/ui-notice--info/);
-    await expect(guidance.locator('.settings-spellcheck-guidance-row')).toHaveCount(2);
-    await expect(guidance).toContainText('Vault default');
-    await expect(guidance).toContainText('Per note');
-    await expect(guidance).toHaveCSS('display', 'grid');
-    await expect(guidance).toHaveCSS('border-radius', '8px');
-    await expect(languageControl).toHaveAttribute('role', 'combobox');
-    await expect(languageControl).toHaveCSS('height', '34px');
-    await expect(languageControl).toHaveCSS('border-radius', '7px');
-    await languageControl.focus();
-    await expect(languageControl).toBeFocused();
-    await languageControl.press('ArrowDown');
-    await expect(languageControl).toHaveAttribute('aria-expanded', 'true');
-    await languageControl.press('ArrowDown');
-    await languageControl.press('Enter');
-    await expect(language).toHaveValue('en-GB');
-    await expect.poll(() => spellcheckWords(page)).toEqual(['color', 'ete', 'teh']);
-
-    await page.evaluate(() => {
-        const view = window.__spellcheckView;
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '---\nspellcheck: es\n---\nhola mundo teh' } });
-    });
-    await expect.poll(() => spellcheckWords(page)).toEqual(['teh']);
-
-    await languageControl.focus();
-    await languageControl.press('ArrowDown');
-    await languageControl.press('Home');
-    await languageControl.press('Enter');
-    await expect(language).toHaveValue('none');
-    await expect(languageControl).toContainText('None');
-    await expect(languageControl).toBeEnabled();
-    await expect.poll(() => spellcheckWords(page)).toEqual([]);
-    await languageControl.press('ArrowDown');
-    await languageControl.press('ArrowDown');
-    await languageControl.press('ArrowDown');
-    await languageControl.press('Enter');
-    await expect(language).toHaveValue('en-GB');
-    await expect.poll(() => spellcheckWords(page)).toEqual(['teh']);
+    await page.keyboard.press('Escape');
 });

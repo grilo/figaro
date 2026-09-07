@@ -8,9 +8,7 @@ function deferred() {
 
 function harness(overrides = {}) {
     const writes = [];
-    const onSaved = jest.fn(async (snapshot, result) => {
-        snapshot.tab.mtime = result.mtime;
-    });
+    const onSaved = jest.fn();
     const saver = createDocumentSave({
         persist: jest.fn(async request => {
             writes.push(request);
@@ -32,10 +30,7 @@ describe('document save use case', () => {
             .mockImplementationOnce(() => first.promise)
             .mockResolvedValueOnce({ success: true, mtime: 12 });
         const tab = { path: 'note.md', mtime: 10 };
-        const { saver } = harness({
-            persist,
-            onSaved: async (snapshot, result) => { snapshot.tab.mtime = result.mtime; },
-        });
+        const { saver } = harness({ persist });
 
         const savingFirst = saver.save(tab, 'first');
         const savingSecond = saver.save(tab, 'second');
@@ -106,6 +101,9 @@ describe('document save use case', () => {
 
         await expect(saver.save(tab, 'mine')).rejects.toThrow('External file is read-only');
         expect(confirmOverwrite).not.toHaveBeenCalled();
-        expect(onFailed).toHaveBeenCalledWith(expect.objectContaining({ tab }), expect.any(Error));
+        expect(onFailed).toHaveBeenCalledWith(expect.objectContaining({
+            tabId: tab.path,
+            path: tab.path,
+        }), expect.any(Error));
     });
 });

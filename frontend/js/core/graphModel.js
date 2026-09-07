@@ -307,6 +307,49 @@ export function graphViewLayout(nodes, fullLayout) {
         .filter(Boolean);
 }
 
+/** Bucket stable world-space graph points for bounded pointer hit testing. */
+export function createGraphSpatialIndex(points, requestedCellSize = 48) {
+    const cellSize = Math.max(8, Number(requestedCellSize) || 48);
+    const cells = new Map();
+    for (const point of points || []) {
+        const column = Math.floor(point.x / cellSize);
+        const row = Math.floor(point.y / cellSize);
+        const key = `${column}:${row}`;
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key).push(point);
+    }
+    return { cellSize, cells };
+}
+
+export function graphSpatialCandidates(index, x, y, radius) {
+    if (!index?.cells?.size) return [];
+    const distance = Math.max(0, Number(radius) || 0);
+    const left = Math.floor((x - distance) / index.cellSize);
+    const right = Math.floor((x + distance) / index.cellSize);
+    const top = Math.floor((y - distance) / index.cellSize);
+    const bottom = Math.floor((y + distance) / index.cellSize);
+    const candidates = [];
+    for (let row = top; row <= bottom; row += 1) {
+        for (let column = left; column <= right; column += 1) {
+            candidates.push(...(index.cells.get(`${column}:${row}`) || []));
+        }
+    }
+    return candidates;
+}
+
+/** Decide how a traced graph can reuse an already-painted large topology. */
+export function graphTraceRenderPlan({ nodeCount = 0, neighborCount = 0, baseCached = false } = {}) {
+    const nodes = Math.max(0, Number(nodeCount) || 0);
+    const neighbors = Math.max(0, Number(neighborCount) || 0);
+    const reuseBase = Boolean(baseCached && nodes > 1000);
+    const connectsAll = reuseBase && neighbors >= Math.max(0, nodes - 1);
+    return {
+        reuseBase,
+        baseOpacity: connectsAll ? 1 : reuseBase ? 0.12 : 0,
+        redrawConnectedNodes: reuseBase && !connectsAll,
+    };
+}
+
 export function graphLayoutBounds(layout) {
     if (!Array.isArray(layout) || !layout.length) {
         return { minX: -1, minY: -1, maxX: 1, maxY: 1, width: 2, height: 2 };

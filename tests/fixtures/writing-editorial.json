@@ -1,0 +1,523 @@
+[
+  {
+    "name": "plain prose",
+    "source": "The team wrote the report and sent it to the reader.",
+    "expected": [],
+    "lenses": [
+      "plain",
+      "repetition"
+    ]
+  },
+  {
+    "name": "useful shorter phrase",
+    "source": "We work in order to help.",
+    "expected": [
+      "style.wordiness"
+    ],
+    "lenses": [
+      "plain",
+      "repetition"
+    ]
+  },
+  {
+    "name": "familiar vocabulary",
+    "source": "We utilize ordinary words.",
+    "expected": [
+      "lexicon.complex-word"
+    ],
+    "lenses": [
+      "plain",
+      "repetition"
+    ]
+  },
+  {
+    "name": "technical request nouns stay quiet while contextual contains advice remains",
+    "source": "The request contains a body and a response code.",
+    "expected": [
+      "style.wordiness"
+    ],
+    "lenses": [
+      "plain",
+      "repetition"
+    ],
+    "workerExpected": [
+      "style.wordiness"
+    ]
+  },
+  {
+    "name": "passive with Directness unselected",
+    "source": "The report was written yesterday.",
+    "expected": [],
+    "lenses": [
+      "plain",
+      "repetition"
+    ]
+  },
+  {
+    "name": "passive with Directness selected",
+    "source": "The report was written yesterday.",
+    "expected": [
+      "syntax.passive"
+    ],
+    "lenses": [
+      "plain",
+      "repetition",
+      "direct"
+    ]
+  },
+  {
+    "name": "quoted repetition",
+    "source": "> The the phrase is quoted.\n\n\"We utilize it.\"",
+    "expected": [],
+    "lenses": [
+      "plain",
+      "repetition",
+      "direct"
+    ]
+  },
+  {
+    "name": "intentional grammatical repetition",
+    "source": "The work they had had was useful.",
+    "expected": [
+      "grammar.repeated-word"
+    ],
+    "lenses": [
+      "plain",
+      "repetition"
+    ],
+    "workerExpected": []
+  },
+  {
+    "name": "accidental repetition",
+    "source": "The the team helps.",
+    "expected": [
+      "grammar.repeated-word"
+    ],
+    "lenses": [
+      "plain",
+      "repetition"
+    ]
+  },
+  {
+    "name": "protected code and math",
+    "source": "`utilize` and $utilize$ with https://example.com/utilize",
+    "expected": [],
+    "lenses": [
+      "plain",
+      "repetition",
+      "direct"
+    ]
+  },
+  {
+    "name": "independent concepts in one sentence",
+    "source": "The report was written in order to help.",
+    "expected": [
+      "style.wordiness",
+      "syntax.passive"
+    ],
+    "lenses": [
+      "plain",
+      "repetition",
+      "direct"
+    ]
+  },
+  {
+    "name": "unsupported Spanish prose selection",
+    "source": "We utilize ordinary words.",
+    "language": "es",
+    "expected": [],
+    "lenses": [
+      "plain",
+      "repetition"
+    ]
+  },
+  {
+    "name": "consistency permits either authored form",
+    "source": "An email and an e-mail arrived.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": [
+      "style.consistency",
+      "style.consistency"
+    ]
+  },
+  {
+    "name": "consistency ignores quoted variants",
+    "source": "An email arrived. \"An e-mail arrived.\"",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": []
+  },
+  {
+    "name": "article and punctuation corrections",
+    "source": "A example , with an useful idea,, is here.",
+    "lenses": [
+      "grammar"
+    ],
+    "expected": [
+      "grammar.article",
+      "grammar.article",
+      "grammar.punctuation-spacing",
+      "grammar.repeated-comma"
+    ]
+  },
+  {
+    "name": "articles never skip quotes",
+    "source": "Use a \"safe\" example.",
+    "lenses": [
+      "grammar"
+    ],
+    "expected": []
+  },
+  {
+    "name": "readability flags a long paragraph sentence",
+    "source": "Before we publish the final report, we need to review the examples with the team, check every figure against the source material, explain the remaining limitations to our readers, and decide which recommendations should appear in the introduction.",
+    "lenses": [
+      "readability"
+    ],
+    "expected": [
+      "readability.complex-sentence",
+      "readability.long-sentence"
+    ],
+    "workerExpected": [
+      "readability.complex-sentence",
+      "readability.long-sentence"
+    ]
+  },
+  {
+    "name": "readability leaves short prose alone",
+    "source": "Keep this sentence. Start another thought here.",
+    "lenses": [
+      "readability"
+    ],
+    "expected": []
+  },
+  {
+    "name": "contraction apostrophes",
+    "source": "This isnt right and does’nt work.",
+    "lenses": [
+      "grammar"
+    ],
+    "expected": [
+      "grammar.contraction",
+      "grammar.contraction"
+    ]
+  },
+  {
+    "name": "redundant acronyms",
+    "source": "Use your PIN number at the ATM machine.",
+    "lenses": [
+      "plain"
+    ],
+    "expected": [
+      "style.redundant-acronym",
+      "style.redundant-acronym"
+    ]
+  },
+  {
+    "name": "mixed quote styles preserve wording",
+    "source": "Use \"one\" and “two”.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": [
+      "style.quotation"
+    ]
+  },
+  {
+    "name": "consistent smart quotes",
+    "source": "Use “one” and “two”.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": []
+  },
+  {
+    "name": "inclusive alternative",
+    "source": "The chairman spoke.",
+    "lenses": [
+      "inclusive"
+    ],
+    "expected": [
+      "language.inclusive"
+    ]
+  },
+  {
+    "name": "inclusive lens unselected",
+    "source": "The chairman spoke.",
+    "lenses": [
+      "grammar",
+      "plain"
+    ],
+    "expected": []
+  },
+  {
+    "name": "quoted inclusive and contraction wording",
+    "source": "‘The chairman isnt using an ATM machine.’",
+    "lenses": [
+      "inclusive",
+      "grammar",
+      "plain"
+    ],
+    "expected": []
+  },
+  {
+    "name": "proselint deduplicates cliche and jargon",
+    "source": "At the end of the day, we need synergy.",
+    "lenses": [
+      "plain"
+    ],
+    "expected": [
+      "style.stock-phrase",
+      "style.stock-phrase"
+    ],
+    "workerExpected": []
+  },
+  {
+    "name": "proselint hedging and emphasis",
+    "source": "I would argue that this works!!",
+    "lenses": [
+      "direct"
+    ],
+    "expected": [
+      "style.hedging",
+      "style.hyperbole"
+    ],
+    "workerExpected": []
+  },
+  {
+    "name": "proselint respects accurate standalone qualifiers",
+    "source": "The estimate may change. We need more evidence.",
+    "lenses": [
+      "direct"
+    ],
+    "expected": []
+  },
+  {
+    "name": "proselint quoted prose",
+    "source": "\"At the end of the day, I would argue that this works!!\"",
+    "lenses": [
+      "plain",
+      "direct"
+    ],
+    "expected": []
+  },
+  {
+    "name": "sentence spacing fixes one same-line gap",
+    "source": "One sentence.  Two sentences.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": [
+      "style.sentence-spacing"
+    ]
+  },
+  {
+    "name": "sentence spacing preserves Markdown hard breaks",
+    "source": "One sentence.  \nTwo sentences.\n\nAnother paragraph.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": []
+  },
+  {
+    "name": "diacritics are optional contextual alternatives",
+    "source": "Beyonce visited the cafe with his resume.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": [
+      "style.diacritics",
+      "style.diacritics",
+      "style.diacritics"
+    ]
+  },
+  {
+    "name": "diacritics preserve the unaccented resume verb",
+    "source": "We can resume work at the café.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": []
+  },
+  {
+    "name": "new consistency advice requires that lens",
+    "source": "Beyonce sang.  Two songs followed.",
+    "lenses": [
+      "grammar"
+    ],
+    "expected": []
+  },
+  {
+    "name": "readability formulas review complex sentences below 35 words",
+    "source": "The implementation of multidisciplinary institutional reorganization necessitates comprehensive consideration of interconnected administrative responsibilities and organizational communication requirements.",
+    "lenses": [
+      "readability"
+    ],
+    "expected": [
+      "readability.complex-sentence"
+    ]
+  },
+  {
+    "name": "readability formulas omit short complex prose",
+    "source": "Multidisciplinary institutional reorganization necessitates comprehensive consideration.",
+    "lenses": [
+      "readability"
+    ],
+    "expected": []
+  },
+  {
+    "name": "new packages preserve code and quoted wording",
+    "source": "\"Beyonce visited the cafe.  Two sentences.\"\n\n`Beyonce cafe` and $cafe$ with ./cafe",
+    "lenses": [
+      "consistency",
+      "readability"
+    ],
+    "expected": []
+  },
+  {
+    "name": "unmatched opening punctuation",
+    "source": "We reviewed (the draft.",
+    "lenses": [
+      "grammar"
+    ],
+    "expected": [
+      "grammar.unmatched-pair"
+    ]
+  },
+  {
+    "name": "balanced punctuation spans sentences",
+    "source": "The report (first draft. Second draft.) is ready.",
+    "lenses": [
+      "grammar"
+    ],
+    "expected": []
+  },
+  {
+    "name": "reviewed technical terminology",
+    "source": "We use Javascript and Github.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": [
+      "style.terminology",
+      "style.terminology"
+    ]
+  },
+  {
+    "name": "terminology leaves subjective defaults alone",
+    "source": "Our website has a front-end. The Internet is useful.",
+    "lenses": [
+      "consistency"
+    ],
+    "expected": []
+  },
+  {
+    "name": "undefined acronym",
+    "source": "The SLO is ready.",
+    "lenses": [
+      "plain"
+    ],
+    "expected": [
+      "clarity.undefined-acronym"
+    ],
+    "workerExpected": []
+  },
+  {
+    "name": "title case acronym definition",
+    "source": "The Service Level Objective (SLO) is ready.",
+    "lenses": [
+      "plain"
+    ],
+    "expected": [
+      "style.wordiness"
+    ],
+    "workerExpected": [
+      "style.wordiness"
+    ]
+  },
+  {
+    "name": "lowercase acronym definition",
+    "source": "The service level objective (SLO) is ready.",
+    "lenses": [
+      "plain"
+    ],
+    "expected": [
+      "style.wordiness"
+    ],
+    "workerExpected": [
+      "style.wordiness"
+    ]
+  },
+  {
+    "name": "familiar acronym exceptions",
+    "source": "Use the API, JSON, PDF, ATM, and PIN.",
+    "lenses": [
+      "plain"
+    ],
+    "expected": []
+  },
+  {
+    "name": "attached number-unit spelling stays untouched",
+    "source": "The file is 8.1Mib, the disk holds 10MB, and the delay is 20ms.",
+    "lenses": [
+      "plain",
+      "direct",
+      "consistency",
+      "grammar",
+      "readability",
+      "inclusive",
+      "repetition"
+    ],
+    "expected": []
+  },
+  {
+    "name": "audit article pronunciation preserves a unicorn",
+    "source": "A unicorn appeared. A European visitor arrived. An hour passed.",
+    "lenses": [
+      "grammar"
+    ],
+    "expected": []
+  },
+  {
+    "name": "audit article pronunciation corrects an unicorn",
+    "source": "An unicorn appeared.",
+    "lenses": [
+      "grammar"
+    ],
+    "expected": [
+      "grammar.article"
+    ]
+  },
+  {
+    "name": "audit inclusive review preserves personal pronouns and identity",
+    "source": "Maya is an engineer. She works here. They are disabled activists.",
+    "lenses": [
+      "inclusive"
+    ],
+    "expected": []
+  },
+  {
+    "name": "audit acronym definitions tolerate Markdown soft wraps after first use",
+    "source": "We agreed on an SLO. A service level\nobjective (SLO) sets the target.",
+    "lenses": [
+      "plain"
+    ],
+    "expected": [
+      "style.wordiness"
+    ],
+    "workerExpected": [
+      "style.wordiness"
+    ]
+  },
+  {
+    "name": "audit uppercase ordinary words are not acronym errors",
+    "source": "# DRAFT\n\nWe MUST finish. NEVER share keys. STOP here.",
+    "lenses": [
+      "plain"
+    ],
+    "expected": []
+  }
+]

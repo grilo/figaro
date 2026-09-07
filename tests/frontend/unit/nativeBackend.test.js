@@ -1,4 +1,5 @@
 import { backend, clearDebugBackend, hasBackend, installDebugBackend } from '../frontend/js/backend.js';
+import { createBackendStub } from '../frontend/js/backendContract.js';
 
 describe('native Wails backend access', () => {
     afterEach(() => {
@@ -6,7 +7,9 @@ describe('native Wails backend access', () => {
     });
 
     test('uses the exact App binding Wails publishes to the frontend', async () => {
-        const native = { GetFileTree: jest.fn().mockResolvedValue([{ path: 'Welcome.md' }]) };
+        const native = createBackendStub({
+            GetFileTree: jest.fn().mockResolvedValue([{ path: 'Welcome.md' }]),
+        });
         window.go = { desktop: { App: native } };
 
         expect(hasBackend()).toBe(true);
@@ -16,7 +19,7 @@ describe('native Wails backend access', () => {
 
     test('uses an explicit browser-debug backend only when no native binding exists', async () => {
         delete window.go;
-        const debug = { GetFileTree: jest.fn().mockResolvedValue([]) };
+        const debug = createBackendStub({ GetFileTree: jest.fn().mockResolvedValue([]) });
         installDebugBackend(debug);
 
         await expect(backend().GetFileTree()).resolves.toEqual([]);

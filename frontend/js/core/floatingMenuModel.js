@@ -11,6 +11,7 @@ export function planFloatingMenuPlacement({
     gap = 6,
     margin = 8,
     maximumHeight = 310,
+    preferredPlacement,
 }) {
     const viewport = {
         width: Math.max(0, Number(viewportWidth) || 0),
@@ -40,6 +41,11 @@ export function planFloatingMenuPlacement({
         Math.max(0, Number(menuHeight) || 0),
         Math.max(0, Number(maximumHeight) || 0),
     );
+    if (preferredPlacement === 'left' && bounds.left - safeGap - width >= safeMargin) {
+        const maxHeight = Math.min(desiredHeight, Math.max(0, viewport.height - safeMargin * 2));
+        return { top: Math.max(safeMargin, Math.min(bounds.top, viewport.height - safeMargin - maxHeight)),
+            left: bounds.left - safeGap - width, width, maxHeight, placement: 'left' };
+    }
     const placement = below >= desiredHeight || below >= above ? 'bottom' : 'top';
     const availableHeight = placement === 'bottom' ? below : above;
     const maxHeight = Math.min(desiredHeight, availableHeight);

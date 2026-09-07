@@ -28,37 +28,70 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run vendor
+      - run: ./scripts/prepare-frontend.sh
+      - run: node scripts/profile-writing.mjs
       - run: go vet . ./internal/... ./cmd/...
+      - run: ./scripts/check-go-coverage.sh
       - run: go test -race . ./internal/... ./cmd/...
+
+  backend-platform:
+    name: Go platform contracts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+      - run: go run ./cmd/prepare-writing-assets
+      - run: go test . ./internal/... ./cmd/...
 
   frontend:
     name: Frontend tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run vendor
+      - run: ./scripts/prepare-frontend.sh
       - run: npm run lint
-      - run: npm run test:unit
+      - run: npm run test:coverage
 
   browser:
     name: Browser export test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run vendor
+      - run: ./scripts/prepare-frontend.sh
       - run: npx playwright install --with-deps chromium
+      - name: Exercise the application Chromium PDF process
+        shell: bash
+        run: |
+          browser_executable="$(node --input-type=module -e \
+            "import { chromium } from 'playwright'; process.stdout.write(chromium.executablePath())")"
+          FIGARO_BROWSER_PDF_EXECUTABLE="$browser_executable" \
+            go test -v ./internal/pdfexport -run '^TestRenderChromiumPDFAgainstOptInBrowser$'
       - run: npm run test:pdf
       - name: Upload Playwright failure diagnostics
         if: failure()

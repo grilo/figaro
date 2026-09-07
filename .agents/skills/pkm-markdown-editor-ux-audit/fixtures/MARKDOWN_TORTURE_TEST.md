@@ -122,11 +122,14 @@ Test:
 
 ## Image / embed
 
-![Alt text](example-image.png)
+![Alt text](example-image.svg)
 
-![[example-image.png]]
+![[example-image.svg]]
 
-If the application can safely handle a missing attachment, observe the failure state.
+Separate missing-attachment case: ![Missing attachment](missing-image.png)
+
+The example image above exists in this fixture bundle; only this missing-image
+reference is expected to fail. Keep working and broken attachment results separate.
 
 ## Escaping and punctuation
 
@@ -152,9 +155,6 @@ Brackets: [ text ] ( text )
 
 > [!NOTE
 
-```text
-unfinished fenced block
-
 ## Long heading intended to exercise clipping truncation navigation outline behavior and horizontal geometry changes
 
 Long uninterrupted token:
@@ -165,3 +165,10 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 Return here after following links or searching elsewhere. Verify that the previous
 caret position, scroll position, active pane, and selection state behave sensibly.
+
+## Unfinished fence case
+
+Keep this case last so it cannot consume another navigation target.
+
+```text
+unfinished fenced block

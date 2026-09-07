@@ -142,12 +142,19 @@ func (a *App) GetHomeTasks(limit int) ([]KanbanCard, error) {
 	columns := append([]string(nil), a.kanbanColumns...)
 	a.mu.RUnlock()
 
-	orderedCards, err := a.scheduledBoardLocked(index)
+	scheduled, err := a.scheduledTaskDatesLocked(index)
 	if err != nil {
 		log.Printf("[kanban] Task dates unavailable: %v", err)
 	}
-	a.applyKanbanCardOrder(orderedCards)
-	return homeTaskProjection(orderedCards, columns, limit, localToday()), nil
+	a.settingsMu.RLock()
+	orderConfig, orderErr := a.loadKanbanOrderConfig()
+	a.settingsMu.RUnlock()
+	if orderErr != nil {
+		log.Printf("[kanban] Card order unavailable: %v", orderErr)
+	}
+	return homeTaskProjectionWithSchedules(
+		index.cardsByTag, columns, limit, localToday(), scheduled, orderConfig.Columns,
+	), nil
 }
 
 // GetDueTaskSummary returns the small local-date reminder projection used by
@@ -159,11 +166,11 @@ func (a *App) GetDueTaskSummary() (DueTaskSummary, error) {
 	if err != nil {
 		return DueTaskSummary{}, err
 	}
-	board, err := a.scheduledBoardLocked(index)
+	scheduled, err := a.scheduledTaskDatesLocked(index)
 	if err != nil {
 		return DueTaskSummary{}, err
 	}
-	return dueTaskSummary(dueCardsByDate(board), localToday()), nil
+	return dueTaskSummary(dueCardsByDateWithSchedules(index.cardsByTag, scheduled), localToday()), nil
 }
 
 // GetTasksDueOnDate returns each unfinished task due on a calendar day once,
@@ -178,11 +185,11 @@ func (a *App) GetTasksDueOnDate(dateStr string) ([]KanbanCard, error) {
 	if err != nil {
 		return nil, err
 	}
-	board, err := a.scheduledBoardLocked(index)
+	scheduled, err := a.scheduledTaskDatesLocked(index)
 	if err != nil {
 		return nil, err
 	}
-	return dueCardsByDate(board)[dateStr], nil
+	return dueCardsByDateWithSchedules(index.cardsByTag, scheduled)[dateStr], nil
 }
 
 // SetColumnColor sets a color for a kanban column.

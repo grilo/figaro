@@ -20,7 +20,7 @@
    preserve the document itself and yield the editor's decorative gutters. */
 .main-content.pdf-preview-compact-editor .cm-content {
     padding-right: 12px !important;
-    padding-left: 12px !important;
+    padding-left: calc(12px + var(--editor-block-writing-inset, 0px)) !important;
 }
 
 /* Tab Bar */

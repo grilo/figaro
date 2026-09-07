@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { wikiLinkRanges } from './core/noteLinks.js';
 import { taskDueMetadataPlan } from './core/taskDueMetadataModel.js';
 import { saveTaskDueMetadata } from './taskDueMetadata.js';
 /**
@@ -68,7 +69,11 @@ import { hexColorExtension, isHexColorToken } from './hexColorPlugin.js';
 import { createDocumentKeyBindings } from './codeMirrorProfiles.js';
 import { markdownInlineFormatPlan } from './core/markdownInlineFormatting.js';
 import { createEditorDocumentSession } from './usecases/editorDocumentSession.js';
-import { editorDocumentMountChunks, editorDocumentMountPlan } from './core/editorDocumentMountModel.js';
+import {
+    editorDocumentMountChunks,
+    editorDocumentMountPlan,
+    markdownPresentationStagePlan,
+} from './core/editorDocumentMountModel.js';
 import { createLinkedNoteFromCompletion } from './usecases/createLinkedNoteFromCompletion.js';
 import { createDrawioImage } from './usecases/createDrawioImage.js';
 import {
@@ -126,7 +131,7 @@ import { openMermaidEditor } from './mermaidEditor.js';
 import { openMarkdownTableEditor } from './markdownTableEditor.js';
 import { openVegaLiteChartEditor } from './vegaLiteChartEditor.js';
 import { vegaLiteChartTableSource } from './core/vegaLiteChartEditorModel.js';
-import { canonicalSpellcheckLanguage, createSpellcheckLinter, spellcheckSuggestionsAtPosition } from './spellcheck.js';
+import { canonicalSpellcheckLanguage, spellcheckSuggestionsAtPosition } from './spellcheck.js';
 import {
     isVerticalMotionKey,
     unexpectedVerticalMotionTarget,
@@ -144,6 +149,7 @@ import { emptyBlockquoteExitPlan } from './core/markdownStructuralEditing.js';
 import { codeBlockScrollbarGuardExtension } from './codeBlockInteraction.js';
 import { createBlockControlVisibilityExtension } from './blockControlVisibility.js';
 import { createPureWritingExtension, refreshPureWriting } from './pureWriting.js';
+import { writingInlineExtension, writingChangedRanges } from './writingInline.js';
 import { searchMatchStatusExtension } from './searchMatchStatus.js';
 import {
     closeSearchPanel as closeNativeSearchPanel,
@@ -174,7 +180,6 @@ let fileModeCompartment = null;
 let foldingCompartment = null;
 let lineNumbersCompartment = null;
 let markdownLintCompartment = null;
-let spellcheckCompartment = null;
 let tabSizeCompartment = null;
 let historyCompartment = null;
 let markdownFrontmatterCompartment = null;
@@ -199,6 +204,7 @@ const markdownDocumentLinter = createMarkdownDocumentLinter(validateMermaidSourc
 let markdownBlockGuidesRequested = true;
 let spellcheckRequested = false;
 let spellcheckLanguageRequested = 'en-US';
+let spellingWords = [];
 let vimRequestId = 0;
 let vimModeCM = null;
 let vimModeChangeHandler = null;
@@ -214,6 +220,7 @@ let editorTabSizeRequested = defaultTabSize;
 export function configureEditorWorkspace(ports) {
     const required = [
         'closeTab',
+        'confirm',
         'getActiveTab',
         'markTabDirty',
         'openFile',
@@ -221,6 +228,9 @@ export function configureEditorWorkspace(ports) {
         'openRawTextPreview',
         'openTab',
         'refreshFileTree',
+        'recordTabContent',
+        'recordTabCursor',
+        'recordTabEdit',
         'replaceActiveFileTab',
         'saveActiveFile',
         'saveFileSnapshot',
@@ -238,6 +248,7 @@ function workspace() {
 }
 
 function closeTab(...args) { return workspace().closeTab(...args); }
+function confirmWorkspaceAction(...args) { return workspace().confirm(...args); }
 function getActiveTab(...args) { return workspace().getActiveTab(...args); }
 function handleFileOpen(...args) { return workspace().openFile(...args); }
 function markTabDirty(...args) { return workspace().markTabDirty(...args); }
@@ -245,6 +256,9 @@ function openPDFPreview(...args) { return workspace().openPDFPreview(...args); }
 function openRawTextPreview(...args) { return workspace().openRawTextPreview(...args); }
 function openTab(...args) { return workspace().openTab(...args); }
 function refreshFileTree(...args) { return workspace().refreshFileTree(...args); }
+function recordTabContent(...args) { return workspace().recordTabContent(...args); }
+function recordTabCursor(...args) { return workspace().recordTabCursor(...args); }
+function recordTabEdit(...args) { return workspace().recordTabEdit(...args); }
 function replaceActiveFileTab(...args) { return workspace().replaceActiveFileTab(...args); }
 function saveActiveTabFile(...args) { return workspace().saveActiveFile(...args); }
 function saveFileSnapshot(...args) { return workspace().saveFileSnapshot(...args); }
@@ -985,7 +999,7 @@ async function setEditorTaskDueDate(view, position, range, date) {
             date, content: plan.content,
             saveNote: content => saveFileSnapshot(tab, content, { failurePrompt: 'always' }),
             setDue: (task, value) => backend().SetTaskDueDate(task, value),
-            isCurrent: () => !view.isDestroyed && getActiveTab() === tab && view.state.doc.toString() === plan.content,
+            isCurrent: () => !view.isDestroyed && getActiveTab()?.id === tab.id && view.state.doc.toString() === plan.content,
         });
         statusBar.set(date ? 'Due date saved' : 'Due date cleared');
         document.dispatchEvent(new CustomEvent('task-schedules-changed'));
@@ -993,12 +1007,13 @@ async function setEditorTaskDueDate(view, position, range, date) {
     } catch (error) {
         await errorDialog('Couldn’t update due date', error);
     }
-    if (!view.isDestroyed && getActiveTab() === tab) view.focus();
+    if (!view.isDestroyed && getActiveTab()?.id === tab.id) view.focus();
 }
 
 async function openTaskDueDateFromGuide(view, taskLine, returnFocusTarget) {
     if (!taskItemActionPlan(taskLine.text) || !returnFocusTarget) return null;
     const tab = getActiveTab();
+    if (!tab?.id || !tab.path) return null;
     let value;
     const expected = view.state.doc.toString();
     try {
@@ -1006,7 +1021,7 @@ async function openTaskDueDateFromGuide(view, taskLine, returnFocusTarget) {
         value = entries.find(entry => entry.task?.file === tab?.path
             && entry.task?.line === taskLine.number && entry.task.source === taskLine.text)?.end || '';
     } catch (error) { await errorDialog('Couldn’t load task dates', error); return null; }
-    const isCurrent = () => !view.isDestroyed && getActiveTab() === tab && view.state.doc.toString() === expected;
+    const isCurrent = () => !view.isDestroyed && getActiveTab()?.id === tab.id && view.state.doc.toString() === expected;
     if (!isCurrent() || !returnFocusTarget.isConnected) return null;
     return openDatePicker({
         anchor: returnFocusTarget, value, ariaLabel: 'Task due date',
@@ -1617,6 +1632,7 @@ function linkPreview() {
         }
 
         onMouseOver = (event) => {
+            if (event.target.closest?.('[data-writing-link]')) { this.hideTooltip(); return; }
             const pos = this.view.posAtCoords({ x: event.clientX, y: event.clientY });
             if (pos === null) return;
 
@@ -1808,7 +1824,7 @@ async function completeLinkedNoteCreation(view, request, plan) {
         plan,
         reviewName: options => reviewSameDirectoryNoteName({
             ...options,
-            confirm: window.confirmDialog,
+            confirm: confirmWorkspaceAction,
         }),
         createFile: (path, content) => backend().CreateFile(path, content),
         applyLink: path => applyLinkedNoteCompletion(view, request, plan, path),
@@ -2381,7 +2397,7 @@ function createEditorView() {
                 ariaLabel: 'Choose date',
                 clearLabel: 'Clear date',
                 shortcutsLabel: 'Date shortcuts',
-                onSelect: date => getActiveTab() === tab && isCurrent() && setEditorTaskDueDate(view, position, range, date),
+                onSelect: date => getActiveTab()?.id === tab.id && isCurrent() && setEditorTaskDueDate(view, position, range, date),
             });
         },
         openTableEditor: ({ view, from, to }) => {
@@ -2423,7 +2439,6 @@ function createEditorView() {
     foldingCompartment = new Compartment();
     lineNumbersCompartment = new Compartment();
     markdownLintCompartment = new Compartment();
-    spellcheckCompartment = new Compartment();
     tabSizeCompartment = new Compartment();
     historyCompartment = new Compartment();
     markdownFrontmatterCompartment = new Compartment();
@@ -2442,7 +2457,7 @@ function createEditorView() {
         EditorView.lineWrapping,
         stickyHeadingScrollMargins,
         markdownLintCompartment.of(markdownLintRequested ? [linter(markdownDocumentLinter, { delay: 500 })] : []),
-        spellcheckCompartment.of(spellcheckRequested ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })] : []),
+        writingInlineExtension,
         autocompletion({
             interactionDelay: 0,
             override: [
@@ -2574,6 +2589,8 @@ function createEditorView() {
                             docChanged: update.docChanged,
                             selectionSet: update.selectionSet,
                             viewportChanged: update.viewportChanged,
+                            documentTabId: getEditorDocumentTabId(),
+                            writingChanges: update.docChanged && !replacingDocument ? writingChangedRanges(update.changes) : undefined,
                         },
                     }));
                 }
@@ -2713,12 +2730,13 @@ function historyExtensionsForDocument(request) {
     }
 }
 
-function dispatchEditorContent(view, request, excludeFromHistory = false) {
+function dispatchEditorContent(view, request, excludeFromHistory = false, effects = []) {
     _programmaticChange = true;
     const selection = normalizedCursorState(request.cursorState, request.content.length);
     view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: request.content },
         ...(selection ? { selection, scrollIntoView: true } : { scrollIntoView: false }),
+        ...(effects.length ? { effects } : {}),
         ...(excludeFromHistory
             ? { annotations: Transaction.addToHistory.of(false) }
             : {}),
@@ -2733,17 +2751,28 @@ function cancelDeferredMarkdownPresentation() {
     deferredMarkdownFrame = null;
 }
 
+function markdownPresentationEffectMap(path, enabled = true) {
+    return {
+        image: imageBasePathCompartment.reconfigure(enabled ? imageFieldForPath(path) : []),
+        frontmatter: markdownFrontmatterCompartment.reconfigure(enabled ? markdownFrontmatterExtensions : []),
+        diagram: markdownDiagramCompartment.reconfigure(enabled ? markdownDiagramExtensions : []),
+        table: markdownTableCompartment.reconfigure(enabled ? markdownTableExtensions : []),
+        math: markdownMathCompartment.reconfigure(enabled ? markdownMathExtensions : []),
+    };
+}
+
+function markdownPresentationEffects(path, enabled = true) {
+    return Object.values(markdownPresentationEffectMap(path, enabled));
+}
+
 function scheduleDeferredMarkdownPresentation(view, request) {
     cancelDeferredMarkdownPresentation();
     const generation = deferredMarkdownGeneration;
     const schedule = window.requestAnimationFrame || (callback => window.setTimeout(callback, 0));
-    const stages = [
-        () => imageBasePathCompartment.reconfigure(imageFieldForPath(activeFilePath)),
-        () => markdownFrontmatterCompartment.reconfigure(markdownFrontmatterExtensions),
-        () => markdownDiagramCompartment.reconfigure(markdownDiagramExtensions),
-        () => markdownTableCompartment.reconfigure(markdownTableExtensions),
-        () => markdownMathCompartment.reconfigure(markdownMathExtensions),
-    ];
+    const plan = markdownPresentationStagePlan(request.content);
+    const effectMap = markdownPresentationEffectMap(activeFilePath);
+    const featureOrder = [...plan.ready, ...plan.deferred];
+    const stages = featureOrder.map(feature => effectMap[feature]);
     view.dom.dataset.markdownPresentationState = 'pending';
     const runStage = index => {
         deferredMarkdownFrame = schedule(() => {
@@ -2752,12 +2781,15 @@ function scheduleDeferredMarkdownPresentation(view, request) {
                 || getState('activeTabId') !== request.tabId
                 || editorDocumentSession.documentTabId() !== request.tabId
                 || activeFileLanguage.kind !== 'markdown') return;
-            view.dispatch({ effects: stages[index]() });
-            if (index + 1 < stages.length) runStage(index + 1);
-            else {
+            // Existing presentation fields preserve their state across an
+            // unrelated compartment update, so each frame creates exactly
+            // one feature without rescanning its siblings.
+            view.dispatch({ effects: stages[index] });
+            if (index + 1 === plan.ready.length) {
                 view.dom.dataset.markdownPresentationState = 'ready';
                 view.requestMeasure();
             }
+            if (index + 1 < stages.length) runStage(index + 1);
         });
     };
     runStage(0);
@@ -2811,23 +2843,25 @@ const editorDocumentSession = createEditorDocumentSession({
     },
     switchDocument(view, request, contentChanged) {
         captureEditorHistory(view, request.previousTabId);
-        view.dispatch({ effects: historyCompartment.reconfigure([]) });
         try {
             const mountPlan = editorDocumentMountPlan({
                 languageKind: activeFileLanguage.kind,
                 contentLength: request.content.length,
             });
+            // History must be physically removed before another buffer's
+            // field is installed. Remove Markdown presentation in that same
+            // transaction so reconfiguration never rescans the outgoing
+            // document's diagrams, tables, math, images, or frontmatter.
+            view.dispatch({
+                effects: [
+                    historyCompartment.reconfigure([]),
+                    ...(activeFileLanguage.kind === 'markdown'
+                        ? markdownPresentationEffects(activeFilePath, false)
+                        : []),
+                ],
+            });
             if (contentChanged && mountPlan.deferMarkdownPresentation) {
                 const chunks = editorDocumentMountChunks(request.content, activeFileLanguage.kind);
-                view.dispatch({
-                    effects: [
-                        imageBasePathCompartment.reconfigure([]),
-                        markdownFrontmatterCompartment.reconfigure([]),
-                        markdownDiagramCompartment.reconfigure([]),
-                        markdownTableCompartment.reconfigure([]),
-                        markdownMathCompartment.reconfigure([]),
-                    ],
-                });
                 dispatchEditorContent(view, {
                     ...request,
                     content: chunks[0],
@@ -2838,10 +2872,24 @@ const editorDocumentSession = createEditorDocumentSession({
             } else if (contentChanged) {
                 cancelDeferredMarkdownPresentation();
                 dispatchEditorContent(view, request, true);
+                view.dispatch({
+                    effects: [
+                        historyCompartment.reconfigure(historyExtensionsForDocument(request)),
+                        ...(activeFileLanguage.kind === 'markdown'
+                            ? markdownPresentationEffects(activeFilePath)
+                            : []),
+                    ],
+                });
                 view.dom.dataset.markdownPresentationState = 'ready';
+                return;
             }
             view.dispatch({
-                effects: historyCompartment.reconfigure(historyExtensionsForDocument(request)),
+                effects: [
+                    historyCompartment.reconfigure(historyExtensionsForDocument(request)),
+                    ...(activeFileLanguage.kind === 'markdown'
+                        ? markdownPresentationEffects(activeFilePath)
+                        : []),
+                ],
             });
         } catch (error) {
             cancelDeferredMarkdownPresentation();
@@ -3047,6 +3095,15 @@ async function configureEditorForFile(path) {
     let extensions;
 
     try {
+        if (language.kind === activeFileLanguage.kind
+            && (language.kind !== 'code'
+                || language.description === activeFileLanguage.description)) {
+            activeFileLanguage = language;
+            activeFilePath = path;
+            view.dom.dataset.markdownPresentationState = 'ready';
+            applyFileLanguageUI(view, language);
+            return true;
+        }
         if (language.kind === 'markdown') {
             extensions = markdownModeExtensions ? markdownModeExtensions(path) : [];
         } else if (language.kind === 'code') {
@@ -3156,19 +3213,15 @@ function setMarkdownLint(enabled) {
     });
 }
 
-/** Apply the offline spellcheck preference without changing Markdown source. */
-function setSpellcheck({ enabled = true, language = 'en-US' } = {}) {
+/** The writing lens also owns right-click spelling suggestions. */
+function setSpellcheck({ enabled = false, language = 'en-US' } = {}) {
+    const nextLanguage = canonicalSpellcheckLanguage(language);
+    if (spellcheckRequested !== Boolean(enabled) || spellcheckLanguageRequested !== nextLanguage) contextMenuRequestId++;
     spellcheckRequested = Boolean(enabled);
-    spellcheckLanguageRequested = canonicalSpellcheckLanguage(language);
-    const view = getEditorView();
-    if (!view || !spellcheckCompartment || activeFileLanguage.kind !== 'markdown') return;
-    view.dispatch({
-        effects: spellcheckCompartment.reconfigure(
-            spellcheckRequested
-                ? [linter(createSpellcheckLinter(spellcheckLanguageRequested), { delay: 700 })]
-                : []
-        ),
-    });
+    spellcheckLanguageRequested = nextLanguage;
+}
+export function setSpellingWords(words) {
+    spellingWords = words;
 }
 
 function focusEditor() { const v = getEditorView(); if (v) v.focus(); }
@@ -3187,14 +3240,10 @@ function flushPendingContentNotification() {
     contentNotificationFrame = null;
     if (!pending) return;
 
-    const tab = (getState('openTabs') || []).find(candidate => candidate?.id === pending.tabId);
-    // A switch-away captures the active document synchronously and a
-    // successful save clears its dirty state. In either case this delayed
-    // observer snapshot must not resurrect a stale dirty cache.
-    if (!tab || !tab.dirty || tab._editGeneration !== pending.generation) return;
-
     const content = materializedDocumentContent(pending.document);
-    tab._content = content;
+    // The tab owner validates the edit generation, so a delayed observer can
+    // never resurrect content after a switch or successful save.
+    if (!recordTabContent(pending.tabId, pending.generation, content)) return;
     document.dispatchEvent(new CustomEvent('file-content-changed', {
         detail: { path: pending.path, content },
     }));
@@ -3241,20 +3290,13 @@ function handleDocChange(update) {
     }
     const at = getState('openTabs').find(t => t.id === getEditorDocumentTabId());
     if (at && at.type === 'file') {
-        const becameDirty = !at.dirty;
-        at._editGeneration = (at._editGeneration || 0) + 1;
-        // Mark the model dirty synchronously. The tab-bar import only paints
-        // that fact; source snapshots below remain owned by CodeMirror until
-        // a consumer actually needs a string.
-        at.dirty = true;
-        if (becameDirty) {
-            markTabDirty(at.id, { alreadyDirty: true });
-        }
+        const updatedTab = recordTabEdit(at.id);
+        if (!updatedTab) return;
         // Kanban and the PDF preview need the current in-memory text, but
         // each can consume the newest frame rather than every transaction in
         // a rapid typing burst. Saves and tab switches read the editor state
         // directly, so this never weakens the dirty-buffer guarantee.
-        scheduleContentNotification(at, update.state.doc);
+        scheduleContentNotification(updatedTab, update.state.doc);
         scheduleStatsUpdate(update.state.doc);
     }
 }
@@ -3275,11 +3317,8 @@ function normalizedCursorState(cursorState, documentLength) {
 function rememberActiveFileCursor(update) {
     const tabId = getEditorDocumentTabId();
     if (!tabId || getState('activeTabId') !== tabId) return;
-    const tab = getState('openTabs').find(candidate => candidate.id === tabId);
-    if (!tab || tab.type !== 'file') return;
-
     const selection = update.state.selection.main;
-    tab.cursorState = { anchor: selection.anchor, head: selection.head };
+    if (!recordTabCursor(tabId, { anchor: selection.anchor, head: selection.head })) return;
     scheduleSessionSave();
 }
 
@@ -3310,7 +3349,7 @@ export async function saveAndCloseActiveFile() {
         if (!result?.success) return false;
 
         const currentTab = (getState('openTabs') || []).find(candidate => candidate.id === tab.id);
-        if (currentTab !== tab) return false;
+        if (!currentTab) return false;
         // A new edit may land while an asynchronous save is in flight. Never
         // close that newer buffer merely because the older snapshot saved.
         if (getState('activeTabId') === tab.id && getEditorContent() !== content) {
@@ -3524,15 +3563,8 @@ function markdownLinkEditForClick(view, coordinatePosition, linkElement) {
 
 /** Parse the conventional target-first wikilink covering a source position. */
 export function wikiLinkAtPosition(line, column) {
-    const links = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
-    let match;
-    while ((match = links.exec(String(line || ''))) !== null) {
-        if (column < match.index || column > match.index + match[0].length) continue;
-        return {
-            target: match[1].trim(),
-            label: (match[2] || match[1]).trim(),
-        };
-    }
+    const link = wikiLinkRanges(line).find(link => column >= link.from && column <= link.to);
+    if (link) return { target: link.target, label: link.label };
     return null;
 }
 
@@ -3824,7 +3856,7 @@ function handleContextMenu(event, view) {
     }
 
     const source = view.state.doc.toString();
-    spellcheckSuggestionsAtPosition(source, pos, spellcheckLanguageRequested)
+    spellcheckSuggestionsAtPosition(source, pos, spellcheckLanguageRequested, undefined, spellingWords)
         .then(showMenu)
         .catch(() => showMenu(null));
     return true;
@@ -4075,7 +4107,7 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false, linkE
                 const review = await reviewMissingLinkedNote({
                     tree: getState('fileTreeData'),
                     targetPath: fullPath,
-                    confirm: window.confirmDialog,
+                    confirm: confirmWorkspaceAction,
                     read: path => backend().ReadFile(path),
                     replaceTarget: path => replaceMarkdownLinkTarget(getEditorView(), linkEdit, path),
                     open: (path, existing) => openLinkedNote(path, existing, replaceCurrent),
@@ -4093,7 +4125,7 @@ async function handleLinkClick(linkPath, linkText, replaceCurrent = false, linkE
             }
             if (!creationConfirmed) {
                 const msg = `The note “${fileName}” doesn’t exist yet.\n\nPath: ${fullPath}`;
-                creationConfirmed = await window.confirmDialog('Create this note?', msg, false, false, {
+                creationConfirmed = await confirmWorkspaceAction('Create this note?', msg, false, false, {
                     icon: 'file-add',
                     confirmLabel: 'Create note',
                 });

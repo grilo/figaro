@@ -176,7 +176,7 @@ test('shows a themed Kanban loading state and applies presentation preferences f
     await viewChoice.locator('[data-kanban-view="board"]').click();
 
     await page.locator('#topbar-settings').click();
-    await expect(page.locator('.settings-panel-tab .ui-picker--quiet')).toHaveCount(7);
+    await expect(page.locator('.settings-panel-tab .ui-picker--quiet')).toHaveCount(6);
     await expect(page.locator('.settings-panel-tab .ui-stepper--quiet')).toHaveCount(3);
     await expect(page.locator('.settings-panel-tab .ui-segmented-control--quiet')).toHaveCount(2);
     const segmentedChoices = {

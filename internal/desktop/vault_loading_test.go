@@ -13,7 +13,7 @@ func TestColdVaultIndexPublishesMonotonicLoadProgress(t *testing.T) {
 	writeTestFile(t, vaultPath, "nested/charlie.md", "charlie")
 
 	var statuses []VaultLoadStatus
-	app.eventEmitter = func(name string, data ...any) {
+	app.desktopRuntime.configureForTest(nil, false, nil, func(name string, data ...any) {
 		if name != vaultLoadEventName || len(data) != 1 {
 			return
 		}
@@ -22,7 +22,7 @@ func TestColdVaultIndexPublishesMonotonicLoadProgress(t *testing.T) {
 			t.Fatalf("progress payload has type %T, want VaultLoadStatus", data[0])
 		}
 		statuses = append(statuses, status)
-	}
+	})
 
 	if _, err := app.SearchNotes("alpha", NoteSearchRequest{}); err != nil {
 		t.Fatalf("build cold vault index: %v", err)
@@ -104,11 +104,11 @@ func TestColdVaultIndexPublishesLoadError(t *testing.T) {
 	app := NewApp(t.TempDir())
 	app.vaultPath = filepath.Join(t.TempDir(), "missing-vault")
 	var last VaultLoadStatus
-	app.eventEmitter = func(name string, data ...any) {
+	app.desktopRuntime.configureForTest(nil, false, nil, func(name string, data ...any) {
 		if name == vaultLoadEventName && len(data) == 1 {
 			last, _ = data[0].(VaultLoadStatus)
 		}
-	}
+	})
 
 	if _, err := app.SearchNotes("anything", NoteSearchRequest{}); err == nil {
 		t.Fatal("cold index unexpectedly succeeded for a missing vault")

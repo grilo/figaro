@@ -1,3 +1,5 @@
+import { createWritingDecisionsView } from '../js/views/writingDecisionsView.js';
+import { createWritingResultsView } from '../js/views/writingResultsView.js';
 import {
     matchesCatalogQuery,
     normalizeThemeManifest,
@@ -7,6 +9,10 @@ import {
 import { enhanceSelectCombobox } from '../js/selectCombobox.js';
 import { enhanceSettingsPicker } from '../js/settingsPicker.js';
 import { initTooltips } from '../js/tooltip.js';
+import { createWritingInlineView } from '../js/views/writingInlineView.js';
+import { createWritingLensesView } from '../js/views/writingLensesView.js';
+import { changeWritingLenses } from '../js/core/writingLensesModel.js';
+import { createDisclosure } from '../js/disclosure.js';
 
 function sectionRecords(root) {
     return Array.from(root.querySelectorAll('[data-catalog-section]'), section => ({
@@ -157,6 +163,50 @@ export async function initDesignSystemCatalog({
     themeManifest,
 } = {}) {
     initTooltips({ root });
+    for (const host of root.querySelectorAll('[data-disclosure-state-demo]')) {
+        const busy = host.dataset.disclosureStateDemo === 'busy';
+        const content = document.createElement('p'); content.textContent = 'Related options appear below the disclosure.';
+        const disclosure = createDisclosure({ id: `catalog-disclosure-${host.dataset.disclosureStateDemo}`, label: 'Options', content });
+        disclosure.setSummary(busy ? 'Loading…' : 'Unavailable');
+        disclosure.setDisabled(true, { busy });
+        host.replaceChildren(disclosure.element);
+    }
+    for (const host of root.querySelectorAll('[data-writing-lenses-demo]')) {
+        let preferences = { language: 'en-US', lenses: ['spelling', 'plain', 'direct'] };
+        const view = createWritingLensesView({ id: 'catalog-writing-lenses',
+            onChange(action) { preferences = changeWritingLenses(preferences, action); view.update({ preferences, status: 'saved' }); },
+            onRetry() {}, onApplyAll() { view.element.querySelector('[data-save-status]').textContent = 'Example choices applied to all documents.'; } });
+        view.update({ preferences, status: 'saved' });
+        host.replaceChildren(view.element);
+    }
+    for (const host of root.querySelectorAll('[data-catalog-writing-suggestion]')) {
+        const report = text => { const status = host.querySelector('[role="status"]'); status.hidden = false; status.textContent = text; };
+        host.replaceChildren(createWritingInlineView({
+            findings: [{ id: 'catalog-word', lens: 'spelling', actual: 'teh', title: 'Possible spelling mistake', message: 'Review this word in context.',
+                fixes: [{ expected: 'teh', replacement: 'the' }] }],
+            onApply: () => report('Example replacement applied.'), onIgnore: () => report('Example occurrence ignored.'),
+            onAddWord: async () => report('Example word added.'), onClose: () => report('Example review closed.'),
+        }));
+    }
+    for (const host of root.querySelectorAll('[data-writing-result-demo]')) {
+        const view = createWritingResultsView({ onApply: () => view.announce('Example replacement applied.'),
+            onApplyAll: () => view.announce('Both example occurrences replaced in one undoable action.'),
+            onDismiss: () => view.announce('Example occurrence remembered.'), onAcceptAcronym: () => view.announce('Example acronym accepted for this document.'), onNavigate: () => view.announce('Example selected.'), onRetry() {} });
+        view.update({ current: { id: 'catalog', language: 'en-US', preferences: { lenses: ['plain', 'readability', 'inclusive', 'consistency'] }, spelling: { enabled: false } },
+            count: 7, groups: [{ text: 'We utilize words in order to help.', findings: [
+                { id: 'word', title: 'Simpler word', message: 'Consider a familiar alternative.', actual: 'utilize', kind: 'lexicon.complex-word', sources: [], fixes: [{ expected: 'utilize', replacement: 'use' }] },
+                { id: 'word-two', title: 'Simpler word', message: 'Consider a familiar alternative.', actual: 'utilize', kind: 'lexicon.complex-word', sources: [], fixes: [{ expected: 'utilize', replacement: 'use' }] },
+                { id: 'phrase', title: 'Shorter phrase', message: 'Consider a shorter alternative.', actual: 'in order to', kind: 'style.wordiness', sources: [], fixes: [{ expected: 'in order to', replacement: 'to' }] },
+                { id: 'sentence', title: 'Long sentence', message: 'Consider splitting this sentence where the idea changes.', actual: 'A long sentence in your draft.', kind: 'readability.long-sentence', sources: [], fixes: [] },
+                { id: 'inclusive', title: 'Consider inclusive wording', message: 'Review this wording in context and choose an alternative that fits your meaning.', actual: 'chairman', kind: 'language.inclusive', sources: [], fixes: [{ expected: 'chairman', replacement: 'chairperson' }] },
+                { id: 'spacing', title: 'Space between sentences', message: 'Consider using one space between sentences on the same line.', actual: 'sentence.  Two', kind: 'style.sentence-spacing', sources: [], fixes: [{ expected: 'sentence.  Two', replacement: 'sentence. Two' }] },
+                { id: 'acronym', title: 'Consider explaining this acronym', message: 'Consider spelling it out if your readers may not know it.', actual: 'SLO', kind: 'clarity.undefined-acronym', sources: [], fixes: [] },
+            ] }] });
+        const saved = createWritingDecisionsView({ id: 'catalog-saved-decisions',
+            onRestore: async () => saved.update({ status: 'saved', decisions: [] }, 'catalog'), onRetry: async () => {} });
+        saved.update({ status: 'saved', decisions: [{ id: 'catalog-accepted-acronym', type: 'acronym', acronym: 'SLO', language: 'en-US' }] }, 'catalog');
+        host.replaceChildren(view.element, saved.element);
+    }
     const sections = sectionRecords(root);
     const comboboxes = enhanceCatalogueComboboxes(root);
     const settingsPickers = enhanceCatalogueSettingsPickers(root);

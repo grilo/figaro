@@ -14,10 +14,12 @@ describe('save model', () => {
         const snapshot = createSaveSnapshot(tab, 'body', { failurePrompt: 'always' });
 
         expect(snapshot).toMatchObject({
+            tabId: 'note.md',
             path: 'note.md',
             content: 'body',
             generation: 3,
             editGeneration: 4,
+            expectedMtime: 0,
             failurePrompt: 'always',
         });
         tab._saveGeneration = 3;

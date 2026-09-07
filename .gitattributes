@@ -1,0 +1,4 @@
+# Vendored writing rules are byte-pinned by their SOURCE.json manifests.
+internal/writing/styles/**/*.yml -text
+# Preserve this upstream rule's signed-off trailing blank line and hash.
+internal/writing/styles/Microsoft/SentenceLength.yml whitespace=-blank-at-eof

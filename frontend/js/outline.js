@@ -10,9 +10,12 @@ import { getEditorContent, getEditorDocumentTabId, getEditorView } from './edito
 import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
 import { getState } from './state.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+import { claimRightPane, registerRightPaneMode } from './rightPaneCoordinator.js';
+import { setTooltip } from './tooltip.js';
 import {
     activeOutlineHeadingHierarchy,
     activeOutlineHeadingIndex,
+    documentOutlineControlState,
     extractOutlineHeadings,
     stickyHeadingBoundaryPosition,
 } from './core/outlineModel.js';
@@ -20,6 +23,7 @@ import {
 export {
     activeOutlineHeadingHierarchy,
     activeOutlineHeadingIndex,
+    documentOutlineControlState,
     extractOutlineHeadings,
     stickyHeadingBoundaryPosition,
 };
@@ -87,24 +91,26 @@ function synchronizeEditorLayoutDuringOutlineTransition(view = getEditorView()) 
     requestAnimationFrame(measure);
 }
 
-function setOutlineControlVisible(visible) {
-    const { button } = outlineElements();
-    if (button) {
-        const shouldShow = documentOutlineEnabled && visible && !sidebarOwnsOutline();
-        button.hidden = !shouldShow;
-        if (!shouldShow) {
-            button.classList.remove('is-open');
-            if (!sidebarOwnsOutline()) button.setAttribute('aria-expanded', 'false');
-        }
-    }
-}
-
-function setOutlineOpenState(open) {
+function synchronizeOutlineControl() {
     const { button } = outlineElements();
     if (!button) return;
-    button.classList.toggle('is-open', open);
-    button.setAttribute('aria-expanded', String(open));
-    button.hidden = open || !documentOutlineEnabled || !model.headings.length;
+    const state = documentOutlineControlState({
+        enabled: documentOutlineEnabled,
+        markdownReady: model.tabId !== null,
+        hasHeadings: model.headings.length > 0,
+        open: sidebarOwnsOutline(),
+    });
+    button.hidden = state.hidden;
+    // Remain in the keyboard focus order so the unavailable reason can be
+    // discovered without a pointer. Activation is guarded below.
+    button.disabled = false;
+    button.setAttribute('aria-disabled', String(state.disabled));
+    button.classList.toggle('is-open', state.expanded);
+    button.setAttribute('aria-expanded', String(state.expanded));
+    button.setAttribute('aria-pressed', String(state.expanded));
+    setTooltip(button, state.tooltip);
+    if (state.description) button.setAttribute('aria-description', state.description);
+    else button.removeAttribute('aria-description');
 }
 
 function resetModel() {
@@ -119,7 +125,7 @@ function refreshOutlineModel() {
     // B's tab while the guarded setEditorContent request is pending.
     if (!isMarkdownTab(tab) || getEditorDocumentTabId() !== tab.id) {
         resetModel();
-        setOutlineControlVisible(false);
+        synchronizeOutlineControl();
         return false;
     }
 
@@ -132,7 +138,7 @@ function refreshOutlineModel() {
             headings: extractOutlineHeadings(source),
         };
     }
-    setOutlineControlVisible(model.headings.length > 0);
+    synchronizeOutlineControl();
     if (changed) {
         if (model.headings.length) scheduleStickyHeadingMeasure();
         else renderStickyHeadingsAtPosition(-1);
@@ -254,6 +260,10 @@ function renderOutlinePanel() {
     const { content } = outlineElements();
     if (!content || !sidebarOwnsOutline()) return;
 
+    const focusedHeading = content.contains(document.activeElement)
+        ? document.activeElement.closest('.outline-item')
+        : null;
+    const focusedPosition = focusedHeading ? Number(focusedHeading.dataset.position) : null;
     content.querySelector('.outline-panel')?.remove();
     const panel = document.createElement('section');
     panel.className = 'outline-panel';
@@ -277,6 +287,10 @@ function renderOutlinePanel() {
     panel.append(list);
     content.append(panel);
     updateActiveOutlineItem();
+    if (focusedPosition !== null) {
+        const index = Math.max(0, activeOutlineHeadingIndex(model.headings, focusedPosition));
+        list.children[index]?.focus({ preventScroll: true });
+    }
 }
 
 function refreshOpenOutline({ preferViewport = false } = {}) {
@@ -291,40 +305,44 @@ function refreshOpenOutline({ preferViewport = false } = {}) {
 }
 
 function toggleOutlinePanel() {
+    if (outlineElements().button?.getAttribute('aria-disabled') === 'true') return;
     if (sidebarOwnsOutline()) {
         closeOutlinePanel();
         return;
     }
-    openOutlinePanel();
+    openOutlinePanel({ focusHeading: true });
 }
 
-export function openOutlinePanel() {
+export function openOutlinePanel({ focusHeading = false } = {}) {
     if (!documentOutlineEnabled) return false;
     refreshOutlineModel();
     if (!model.headings.length) return false;
 
-    // The right pane has one owner at a time. These events keep all cleanup
-    // local to their panels and preserve the shared splitter for the new pane.
-    document.dispatchEvent(new CustomEvent('close-history-panel'));
-    document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
-    document.dispatchEvent(new CustomEvent('close-raw-text-preview', { detail: { keepSidebarOpen: true } }));
     const { sidebar, title, resizer } = outlineElements();
     if (!sidebar) return false;
+    claimRightPane('outline', sidebar);
     sidebar.dataset.mode = 'outline';
     sidebar.classList.remove('pdf-preview-mode', 'collapsed');
     setRightSidebarOpen(sidebar, true);
     if (title) title.textContent = 'Document outline';
     resizer?.classList.add('visible');
-    setOutlineOpenState(true);
+    synchronizeOutlineControl();
     renderOutlinePanel();
+    if (focusHeading && sidebar.getAttribute('aria-hidden') !== 'true') {
+        const heading = sidebar.querySelector('.outline-item[aria-current="location"]')
+            || sidebar.querySelector('.outline-item');
+        heading?.focus({ preventScroll: true });
+    }
     synchronizeEditorLayoutDuringOutlineTransition();
     window.dispatchEvent(new Event('resize'));
     return true;
 }
 
-export function closeOutlinePanel({ keepSidebarOpen = false } = {}) {
-    const { sidebar, content, resizer } = outlineElements();
+export function closeOutlinePanel({ keepSidebarOpen = false, restoreFocus = true } = {}) {
+    const { button, sidebar, content, resizer } = outlineElements();
     const ownsSidebar = sidebar?.dataset.mode === 'outline';
+    const returnFocus = restoreFocus && !keepSidebarOpen && ownsSidebar
+        && sidebar.contains(document.activeElement);
     content?.querySelector('.outline-panel')?.remove();
     if (sidebar && ownsSidebar) {
         delete sidebar.dataset.mode;
@@ -335,8 +353,12 @@ export function closeOutlinePanel({ keepSidebarOpen = false } = {}) {
             resizer?.classList.remove('visible');
         }
     }
-    setOutlineOpenState(false);
-    setOutlineControlVisible(model.headings.length > 0);
+    synchronizeOutlineControl();
+    if (returnFocus) {
+        if (button && !button.hidden && sidebar.dataset.pureSuppressed !== 'true') {
+            button.focus({ preventScroll: true });
+        } else getEditorView()?.focus();
+    }
     synchronizeEditorLayoutDuringOutlineTransition();
     window.dispatchEvent(new Event('resize'));
 }
@@ -353,7 +375,7 @@ export function setStickyHeadingsEnabled(enabled) {
 export function setDocumentOutlineEnabled(enabled) {
     documentOutlineEnabled = Boolean(enabled);
     if (!documentOutlineEnabled && sidebarOwnsOutline()) closeOutlinePanel();
-    setOutlineControlVisible(model.headings.length > 0);
+    synchronizeOutlineControl();
 }
 
 export function initOutlinePanel() {
@@ -361,13 +383,13 @@ export function initOutlinePanel() {
     initialized = true;
 
     const { button } = outlineElements();
+    registerRightPaneMode('outline', closeOutlinePanel, openOutlinePanel);
     synchronizeStickyHeadingScrollListener();
     button?.addEventListener('click', toggleOutlinePanel);
-    document.addEventListener('close-outline-panel', event => closeOutlinePanel(event.detail || {}));
     document.addEventListener('active-tab-changed', () => {
-        if (sidebarOwnsOutline()) closeOutlinePanel();
+        if (sidebarOwnsOutline()) closeOutlinePanel({ restoreFocus: false });
         resetModel();
-        setOutlineControlVisible(false);
+        synchronizeOutlineControl();
     });
     document.addEventListener('tab-switched', refreshOpenOutline);
     document.addEventListener('editor-text-scale-applied', () => {

@@ -23,6 +23,7 @@ import {
     initEditorNavigationPreference,
     initEditorNavigationSettings,
 } from '../../../frontend/js/editorNavigationPreferences.js';
+import { createBackendStub } from '../../../frontend/js/backendContract.js';
 
 function controls() {
     document.body.innerHTML = `
@@ -58,7 +59,7 @@ describe('editor navigation preferences', () => {
             }),
             EditorNavigationSave: jest.fn().mockResolvedValue({ success: true }),
         };
-        window.go = { desktop: { App: api } };
+        window.go = { desktop: { App: createBackendStub(api) } };
         controls();
 
         await initEditorNavigationPreference();

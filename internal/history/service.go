@@ -69,7 +69,7 @@ func New(vaultPath string) (*Service, error) {
 	} else if err != nil {
 		return nil, fmt.Errorf("open git repo: %w", err)
 	}
-	if err := ensureConfigIgnored(absPath); err != nil {
+	if err := ensureConfigTrackable(absPath); err != nil {
 		return nil, err
 	}
 
@@ -92,9 +92,9 @@ func (h *Service) SetCommitCallback(callback func()) {
 	h.mu.Unlock()
 }
 
-// ensureConfigIgnored keeps Figaro's own session/settings files out of the
-// vault's automatic Git history without replacing an existing .gitignore.
-func ensureConfigIgnored(vaultPath string) error {
+// ensureConfigTrackable migrates the legacy blanket ignore without staging or
+// committing anything. Per-file autosave history retains its existing scope.
+func ensureConfigTrackable(vaultPath string) error {
 	root, err := os.OpenRoot(vaultPath)
 	if err != nil {
 		return fmt.Errorf("open vault root for gitignore: %w", err)
@@ -102,19 +102,16 @@ func ensureConfigIgnored(vaultPath string) error {
 	defer root.Close()
 
 	data, err := root.ReadFile(".gitignore")
-	if err != nil && !os.IsNotExist(err) {
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("read gitignore: %w", err)
 	}
-	content := string(data)
-	for _, line := range strings.Split(content, "\n") {
-		if strings.TrimSpace(line) == ".config/" {
-			return nil
-		}
+	content := configHistoryIgnorePlan(string(data))
+	if content == string(data) {
+		return nil
 	}
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += "\n"
-	}
-	content += ".config/\n"
 	if err := vault.WriteFileAtomic(root, ".gitignore", []byte(content), 0644); err != nil {
 		return fmt.Errorf("write gitignore: %w", err)
 	}

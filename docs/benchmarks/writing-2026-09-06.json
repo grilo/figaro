@@ -1,0 +1,372 @@
+{
+  "environment": {
+    "date": "2026-09-06",
+    "os": "Ubuntu 26.04",
+    "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+    "display": "Xvfb 1360x960, software rendering",
+    "gtk": "3.24.52",
+    "webkitgtk": "2.52.6"
+  },
+  "localCLI": {
+    "node": "v24.20.0",
+    "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+    "coldValeMs": 134.870536,
+    "editorial": [
+      {
+        "name": "plain prose",
+        "expected": [],
+        "actual": [],
+        "retextRaw": 0,
+        "valeRaw": 0,
+        "unified": 0,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "useful shorter phrase",
+        "expected": [
+          "style.wordiness"
+        ],
+        "actual": [
+          "style.wordiness"
+        ],
+        "retextRaw": 1,
+        "valeRaw": 1,
+        "unified": 1,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "familiar vocabulary",
+        "expected": [
+          "lexicon.complex-word"
+        ],
+        "actual": [
+          "lexicon.complex-word"
+        ],
+        "retextRaw": 1,
+        "valeRaw": 1,
+        "unified": 1,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "technical noun",
+        "expected": [],
+        "actual": [],
+        "retextRaw": 2,
+        "valeRaw": 0,
+        "unified": 0,
+        "suppressed": 2,
+        "pass": true
+      },
+      {
+        "name": "appropriate passive under Standard",
+        "expected": [],
+        "actual": [],
+        "retextRaw": 1,
+        "valeRaw": 1,
+        "unified": 0,
+        "suppressed": 1,
+        "pass": true
+      },
+      {
+        "name": "passive review under Direct",
+        "expected": [
+          "syntax.passive"
+        ],
+        "actual": [
+          "syntax.passive"
+        ],
+        "retextRaw": 1,
+        "valeRaw": 1,
+        "unified": 1,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "quoted repetition",
+        "expected": [],
+        "actual": [],
+        "retextRaw": 0,
+        "valeRaw": 0,
+        "unified": 0,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "intentional grammatical repetition",
+        "expected": [],
+        "actual": [],
+        "retextRaw": 0,
+        "valeRaw": 0,
+        "unified": 0,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "accidental repetition",
+        "expected": [
+          "grammar.repeated-word"
+        ],
+        "actual": [
+          "grammar.repeated-word"
+        ],
+        "retextRaw": 1,
+        "valeRaw": 0,
+        "unified": 1,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "protected code and math",
+        "expected": [],
+        "actual": [],
+        "retextRaw": 0,
+        "valeRaw": 0,
+        "unified": 0,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "independent concepts in one sentence",
+        "expected": [
+          "style.wordiness",
+          "syntax.passive"
+        ],
+        "actual": [
+          "style.wordiness",
+          "syntax.passive"
+        ],
+        "retextRaw": 2,
+        "valeRaw": 2,
+        "unified": 2,
+        "suppressed": 0,
+        "pass": true
+      },
+      {
+        "name": "unsupported Spanish prose selection",
+        "expected": [],
+        "actual": [],
+        "retextRaw": 0,
+        "valeRaw": 0,
+        "unified": 0,
+        "suppressed": 0,
+        "pass": true
+      }
+    ],
+    "measurements": [
+      {
+        "words": 1000,
+        "runs": [
+          {
+            "retextMs": 21.320866999999907,
+            "valeMs": 88.15867800000001,
+            "resolveMs": 2.210835999999972,
+            "findings": 201,
+            "retextRaw": 201,
+            "valeRaw": 201
+          },
+          {
+            "retextMs": 15.940935000000081,
+            "valeMs": 88.66344800000002,
+            "resolveMs": 3.539745999999923,
+            "findings": 201,
+            "retextRaw": 201,
+            "valeRaw": 201
+          },
+          {
+            "retextMs": 12.221497,
+            "valeMs": 88.10704699999997,
+            "resolveMs": 1.4318319999999858,
+            "findings": 201,
+            "retextRaw": 201,
+            "valeRaw": 201
+          }
+        ]
+      },
+      {
+        "words": 10000,
+        "runs": [
+          {
+            "retextMs": 147.75310400000012,
+            "valeMs": 149.50384299999996,
+            "resolveMs": 25.572928000000047,
+            "findings": 2001,
+            "retextRaw": 2001,
+            "valeRaw": 2001
+          },
+          {
+            "retextMs": 120.172102,
+            "valeMs": 136.81828300000006,
+            "resolveMs": 22.555553000000145,
+            "findings": 2001,
+            "retextRaw": 2001,
+            "valeRaw": 2001
+          },
+          {
+            "retextMs": 112.83028100000001,
+            "valeMs": 134.46720499999992,
+            "resolveMs": 22.135839999999916,
+            "findings": 2001,
+            "retextRaw": 2001,
+            "valeRaw": 2001
+          }
+        ]
+      }
+    ]
+  },
+  "nativeWebview": {
+    "runtime": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15 wails.io/605.1.15",
+    "measures": [
+      {
+        "words": 1000,
+        "runs": [
+          {
+            "retextMs": 52.99999999999977,
+            "valeMs": 106,
+            "resolveMs": 10,
+            "renderFrameMs": 14,
+            "findings": 201,
+            "retextRaw": 201,
+            "valeRaw": 201
+          },
+          {
+            "retextMs": 27,
+            "valeMs": 106,
+            "resolveMs": 6,
+            "renderFrameMs": 10,
+            "findings": 201,
+            "retextRaw": 201,
+            "valeRaw": 201
+          },
+          {
+            "retextMs": 24,
+            "valeMs": 93,
+            "resolveMs": 4,
+            "renderFrameMs": 10,
+            "findings": 201,
+            "retextRaw": 201,
+            "valeRaw": 201
+          }
+        ]
+      },
+      {
+        "words": 10000,
+        "runs": [
+          {
+            "retextMs": 160,
+            "valeMs": 143,
+            "resolveMs": 39,
+            "renderFrameMs": 19,
+            "findings": 2001,
+            "retextRaw": 2001,
+            "valeRaw": 2001
+          },
+          {
+            "retextMs": 140,
+            "valeMs": 144,
+            "resolveMs": 37,
+            "renderFrameMs": 22,
+            "findings": 2001,
+            "retextRaw": 2001,
+            "valeRaw": 2001
+          },
+          {
+            "retextMs": 157,
+            "valeMs": 141,
+            "resolveMs": 21.000000000000455,
+            "renderFrameMs": 14.999999999999545,
+            "findings": 2001,
+            "retextRaw": 2001,
+            "valeRaw": 2001
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "appReadyMs": 1319,
+    "cachedWorkerInitMs": 41,
+    "typingFrameMs": [
+      35,
+      17.999999999999545,
+      20,
+      22,
+      14.999999999999545,
+      16,
+      14,
+      21,
+      18,
+      15,
+      20,
+      16,
+      15,
+      14,
+      21.000000000000455,
+      12.999999999999545,
+      14,
+      13,
+      14,
+      13.999999999999545,
+      20,
+      18.999999999999545,
+      18,
+      16,
+      20.000000000000455,
+      17.999999999999545,
+      13,
+      17.000000000000455,
+      16,
+      14
+    ],
+    "spelling": [
+      {
+        "engine": "spelling",
+        "version": "nspell-2.1.5",
+        "rule": "figaro-spelling",
+        "from": 0,
+        "to": 3,
+        "actual": "teh",
+        "severity": "info",
+        "replacements": [
+          "the"
+        ],
+        "native": {
+          "from": 0,
+          "to": 3,
+          "word": "teh",
+          "languages": [
+            "en-US"
+          ],
+          "replacements": [
+            "the"
+          ]
+        }
+      },
+      {
+        "engine": "spelling",
+        "version": "nspell-2.1.5",
+        "rule": "figaro-spelling",
+        "from": 4,
+        "to": 7,
+        "actual": "teh",
+        "severity": "info",
+        "replacements": [
+          "the"
+        ],
+        "native": {
+          "from": 4,
+          "to": 7,
+          "word": "teh",
+          "languages": [
+            "en-US"
+          ],
+          "replacements": [
+            "the"
+          ]
+        }
+      }
+    ],
+    "coldSpellingMs": 82
+  }
+}

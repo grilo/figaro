@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"figaro/internal/taskschedule"
@@ -27,7 +28,7 @@ func newTestApp(t *testing.T) (*App, string) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	app := NewApp(tmpDir)
+	app := OpenApp(tmpDir, testAssets)
 	return app, tmpDir
 }
 
@@ -37,6 +38,41 @@ func TestGetApplicationVersionReturnsInjectedBuildMetadata(t *testing.T) {
 
 	if version := app.GetApplicationVersion(); version != "1.7.0" {
 		t.Fatalf("GetApplicationVersion() = %q, want %q", version, "1.7.0")
+	}
+}
+
+func TestNewAppConstructionDoesNotTouchTheFilesystem(t *testing.T) {
+	vaultPath := filepath.Join(t.TempDir(), "not-created")
+	app := NewApp(vaultPath)
+	if app.vaultPath != vaultPath {
+		t.Fatalf("vault path = %q, want unchanged %q", app.vaultPath, vaultPath)
+	}
+	if _, err := os.Stat(vaultPath); !os.IsNotExist(err) {
+		t.Fatalf("NewApp created or inspected its vault: %v", err)
+	}
+	if app.history != nil {
+		t.Fatal("NewApp initialized Git history")
+	}
+}
+
+func TestAppInstancesKeepInjectedAssetsSeparate(t *testing.T) {
+	first := NewApp(t.TempDir(), fstest.MapFS{
+		"frontend/themes/default.css": {Data: []byte(":root { --instance: first; }")},
+	})
+	second := NewApp(t.TempDir(), fstest.MapFS{
+		"frontend/themes/default.css": {Data: []byte(":root { --instance: second; }")},
+	})
+
+	firstCSS, err := first.GetThemeCSS("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondCSS, err := second.GetThemeCSS("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstCSS["css"] == secondCSS["css"] || !strings.Contains(firstCSS["css"], "first") || !strings.Contains(secondCSS["css"], "second") {
+		t.Fatalf("asset bundles leaked across App instances: first=%q second=%q", firstCSS["css"], secondCSS["css"])
 	}
 }
 
@@ -467,7 +503,7 @@ func TestDeletePathCanBeRestoredFromTheDurableRecentlyDeletedRegistry(t *testing
 		t.Fatalf("DeletePath = %+v, %v", deleted, err)
 	}
 	// Recreate the application to prove the recovery route survives restart.
-	reopened := NewApp(vaultPath)
+	reopened := OpenApp(vaultPath)
 	items, err := reopened.GetRecentlyDeleted()
 	if err != nil || len(items) != 1 {
 		t.Fatalf("GetRecentlyDeleted = %#v, %v", items, err)
@@ -2184,7 +2220,7 @@ func TestEmbeddedThemeAssetPath(t *testing.T) {
 		if got != want {
 			t.Errorf("embeddedThemeAssetPath(%q) = %q, want %q", name, got, want)
 		}
-		if _, err := assets.ReadFile(got); err != nil {
+		if _, err := testAssets.ReadFile(got); err != nil {
 			t.Errorf("embedded theme asset %q is unavailable: %v", got, err)
 		}
 	}
@@ -2281,7 +2317,7 @@ func TestAppMethodsWithBackgroundContext(t *testing.T) {
 	defer os.RemoveAll(vaultPath)
 
 	// Set a background context (simulating Wails startup)
-	app.ctx = context.Background()
+	app.desktopRuntime.configureForTest(context.Background(), true, nil, nil)
 
 	// All these operations must work with ctx.Background()
 	writeTestFile(t, vaultPath, "note.md", "# Test Note\nSome content #todo")
@@ -2479,14 +2515,25 @@ func TestOpenWithDefaultApplicationRejectsUnsafeAndNonFileTargets(t *testing.T) 
 func TestEmbedFS_HasIndexHTML(t *testing.T) {
 	// Verify the embedded filesystem includes index.html —
 	// the entry point for the frontend.
-	_, err := assets.ReadFile("frontend/index.html")
+	_, err := testAssets.ReadFile("frontend/index.html")
 	if err != nil {
 		t.Fatalf("embedded assets missing index.html: %v", err)
 	}
 }
 
+func TestEmbedFS_HasEagerApplicationBundle(t *testing.T) {
+	requireGeneratedFrontendAssets(t)
+	data, err := testAssets.ReadFile("frontend/app.bundle.js")
+	if err != nil {
+		t.Fatalf("embedded assets missing eager application bundle: %v", err)
+	}
+	if len(data) < 100_000 {
+		t.Fatalf("embedded application bundle is unexpectedly small: %d bytes", len(data))
+	}
+}
+
 func TestEmbedFS_HasNativeBackendModule(t *testing.T) {
-	data, err := assets.ReadFile("frontend/js/backend.js")
+	data, err := testAssets.ReadFile("frontend/js/backend.js")
 	if err != nil {
 		t.Fatalf("embedded assets missing native backend module: %v", err)
 	}
@@ -2503,7 +2550,7 @@ func TestEmbedFS_HasVendoredCodeMirror(t *testing.T) {
 		"frontend/vendored/codemirror/state/index.js",
 		"frontend/vendored/codemirror/search/index.js",
 	} {
-		if _, err := assets.ReadFile(path); err != nil {
+		if _, err := testAssets.ReadFile(path); err != nil {
 			t.Fatalf("embedded assets missing %s: %v", path, err)
 		}
 	}
@@ -2519,7 +2566,7 @@ func TestEmbedFS_HasCodeLanguageRegistry(t *testing.T) {
 		"frontend/vendored/codemirror/legacy-modes/mode/shell.js",
 		"frontend/vendored/lezer/go/index.js",
 	} {
-		if _, err := assets.ReadFile(path); err != nil {
+		if _, err := testAssets.ReadFile(path); err != nil {
 			t.Errorf("embedded code-language asset missing %s: %v", path, err)
 		}
 	}
@@ -2527,7 +2574,7 @@ func TestEmbedFS_HasCodeLanguageRegistry(t *testing.T) {
 
 func requireGeneratedFrontendAssets(t *testing.T) {
 	t.Helper()
-	if _, err := assets.ReadFile("frontend/vendored/codemirror/state/index.js"); err != nil {
+	if _, err := testAssets.ReadFile("frontend/vendored/codemirror/state/index.js"); err != nil {
 		t.Skip("generated frontend assets are absent; run make bootstrap before desktop or browser verification")
 	}
 }
@@ -2540,12 +2587,12 @@ func TestEmbedFS_HasApplicationAndDesignSystemStyles(t *testing.T) {
 		"frontend/design-system/primitives.css",
 		"frontend/design-system/approved-components.json",
 	} {
-		if _, err := assets.ReadFile(path); err != nil {
+		if _, err := testAssets.ReadFile(path); err != nil {
 			t.Fatalf("embedded assets missing %s: %v", path, err)
 		}
 	}
 
-	data, err := assets.ReadFile("frontend/design-system/style-manifest.json")
+	data, err := testAssets.ReadFile("frontend/design-system/style-manifest.json")
 	if err != nil {
 		t.Fatalf("cannot read embedded style manifest: %v", err)
 	}
@@ -2557,14 +2604,14 @@ func TestEmbedFS_HasApplicationAndDesignSystemStyles(t *testing.T) {
 	}
 	for _, stylesheet := range manifest.EagerStylesheets {
 		path := "frontend/" + stylesheet
-		if _, err := assets.ReadFile(path); err != nil {
+		if _, err := testAssets.ReadFile(path); err != nil {
 			t.Fatalf("embedded style manifest references missing %s: %v", path, err)
 		}
 	}
 }
 
 func TestEmbedFS_HasStarterPrintStylesheet(t *testing.T) {
-	data, err := assets.ReadFile(starterPrintStylesheetAsset)
+	data, err := testAssets.ReadFile(starterPrintStylesheetAsset)
 	if err != nil {
 		t.Fatalf("embedded assets missing starter print stylesheet: %v", err)
 	}
@@ -2577,7 +2624,7 @@ func TestEmbedFS_HasStarterPrintStylesheet(t *testing.T) {
 }
 
 func TestEmbedFS_HasPDFPreviewBridge(t *testing.T) {
-	data, err := assets.ReadFile("frontend/pdf/preview-frame.html")
+	data, err := testAssets.ReadFile("frontend/pdf/preview-frame.html")
 	if err != nil {
 		t.Fatalf("embedded assets missing PDF preview bridge: %v", err)
 	}
@@ -2596,7 +2643,7 @@ func TestEmbedFS_HasFontFiles(t *testing.T) {
 		"frontend/vendored/fonts/inter-latin.woff2",
 	}
 	for _, f := range files {
-		_, err := assets.ReadFile(f)
+		_, err := testAssets.ReadFile(f)
 		if err != nil {
 			t.Errorf("embedded assets missing %s: %v", f, err)
 		}
@@ -2605,14 +2652,14 @@ func TestEmbedFS_HasFontFiles(t *testing.T) {
 
 func TestEmbedFS_HasFigtreeFont(t *testing.T) {
 	// Verify at least one downloadable font was included
-	_, err := assets.ReadFile("frontend/fonts/figtree-400.woff2")
+	_, err := testAssets.ReadFile("frontend/fonts/figtree-400.woff2")
 	if err != nil {
 		t.Errorf("Figtree font not embedded: %v", err)
 	}
 }
 
 func TestEmbedFS_FontCSS_UsesPortableRelativePath(t *testing.T) {
-	data, err := assets.ReadFile("frontend/vendored/fonts/inter.css")
+	data, err := testAssets.ReadFile("frontend/vendored/fonts/inter.css")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2630,7 +2677,7 @@ func TestEmbedFS_FontCSS_UsesPortableRelativePath(t *testing.T) {
 
 func TestEmbedFS_DotFilesNotEmbedded(t *testing.T) {
 	// Hidden files at root (like .gitignore, .aider*) should NOT be embedded.
-	_, err := assets.ReadFile(".gitignore")
+	_, err := testAssets.ReadFile(".gitignore")
 	if err == nil {
 		t.Error(".gitignore should not be in embedded assets (security)")
 	}
@@ -2672,15 +2719,15 @@ func TestWailsJSON_HasCorrectDimensions(t *testing.T) {
 // 15. Native Wails / Window Control Presence in index.html
 // ============================================================================
 
-func TestIndexHTML_EagerBootstrapWaitsForNativeBinding(t *testing.T) {
+func TestIndexHTML_EagerBundleWaitsForNativeBinding(t *testing.T) {
 	data, err := os.ReadFile("frontend/index.html")
 	if err != nil {
 		t.Fatalf("cannot read index.html: %v", err)
 	}
 	content := string(data)
 	for _, expected := range []string{
-		"Load the complete application graph during startup",
-		`<script type="module" src="/js/bootstrap.js"></script>`,
+		"Load the complete, eagerly bundled application graph during startup",
+		`<script type="module" src="/app.bundle.js"></script>`,
 	} {
 		if !strings.Contains(content, expected) {
 			t.Errorf("index.html must document and load the eager native bootstrap: missing %q", expected)
@@ -2811,7 +2858,7 @@ func TestAssetServer_URLPaths(t *testing.T) {
 		"frontend/fonts/fonts.css", // embed FS path
 	}
 	for _, p := range paths {
-		_, err := assets.ReadFile(p)
+		_, err := testAssets.ReadFile(p)
 		if err == nil {
 			t.Logf("  ✓ %s accessible", p)
 		} else {

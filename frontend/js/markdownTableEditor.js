@@ -108,7 +108,7 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
         return null;
     }
 
-    const { overlay } = createDialogShell({
+    const { overlay, modal } = createDialogShell({
         title: 'Table Editor',
         description: 'Edit cell content and structure. Apply writes one change to the Markdown buffer.',
         icon: 'table',
@@ -420,12 +420,27 @@ export function openMarkdownTableEditor(mainView, originalBlock, options = {}) {
         return true;
     };
 
+    let discardFocus = null;
     const hideDiscard = () => {
         discard.hidden = true;
-        cancelButton.focus();
+        const { element, start, end, direction } = discardFocus || {};
+        if (element?.isConnected) {
+            element.focus({ preventScroll: true });
+            if (Number.isInteger(start)) element.setSelectionRange(start, end, direction);
+        } else setSelection(selection, { focus: true });
+        discardFocus = null;
     };
     const requestCancel = () => {
         if (!dirty()) return finish(false);
+        if (discard.hidden) {
+            const element = document.activeElement;
+            discardFocus = modal.contains(element) ? {
+                element,
+                start: element.selectionStart,
+                end: element.selectionEnd,
+                direction: element.selectionDirection,
+            } : null;
+        }
         discard.hidden = false;
         keepButton.focus();
         return false;

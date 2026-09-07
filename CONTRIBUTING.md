@@ -67,6 +67,39 @@ Do not commit generated vaults, build outputs, personal notes, tokens, or other
 local credentials. Preserve unrelated changes when working in an existing
 checkout.
 
+## Repository skills
+
+Both skills live under `.agents/skills/` for repository discovery:
+
+- [Prepare Figaro release](.agents/skills/prepare-figaro-release/SKILL.md) accepts
+  `$prepare-figaro-release` or a natural-language release request. It prepares
+  notes, recommends a version, and verifies a provisional candidate before
+  asking for version/action approval. It does not treat a dependency bump,
+  ordinary Git push, release question, or skill audit as a release request.
+  Follow [Release process](#release-process) for the command and approval contract.
+- [PKM / Markdown editor UX audit](.agents/skills/pkm-markdown-editor-ux-audit/SKILL.md)
+  supports full application audits, focused interaction reviews, and source-only
+  inspection. It copies its working note/image fixtures into an owned disposable
+  vault before mutation, distinguishes Chromium from packaged native evidence,
+  and reports coverage without requiring ten findings or an unsupported score.
+  Focused audits inspect the requested area; source-only reviews do not claim
+  runtime behavior. Audit findings do not authorize product implementation.
+
+Detailed evaluation lenses and task suites are linked from the short UX skill
+entry point and loaded only for the selected scope. Maintain references and UI
+metadata with each skill. Review the trigger and approval cases in
+[`tests/skills/scenarios.md`](tests/skills/scenarios.md) when changing behavior;
+structural tests cannot prove that a model interprets approval correctly.
+
+Read-only audits leave product files and the commit proposal alone. For completed
+implementation work, review the full pending diff and write the proposed message
+to the path returned by `git rev-parse --git-path COMMIT_TEMPLATE`. This also
+works in linked worktrees where `.git` is a file. Configure the tracked hook with
+`git config --local core.hooksPath .githooks`; do not set `commit.template`.
+The hook supplies the proposal to a plain `git commit` so saving it unchanged
+works, and preserves explicit messages passed with `-m`. Agents prepare the
+proposal for the user; only an approved release action may commit on their behalf.
+
 ## Architecture principles
 
 Separate behavior from effects before splitting files:
@@ -108,7 +141,7 @@ targets on a one-day bar; derive gesture ownership from measured bar position
 rather than trusting a webview's nested event target. Keep each visible dot
 centered on its painted bar edge without moving the larger hit region out of
 the bar. The native
-adapter alone writes ignored `.config/task-schedules.json`. Never add hidden
+adapter alone writes vault-local `.config/task-schedules.json`. Never add hidden
 task IDs or special `due` syntax to Markdown. Editor date pickers insert ordinary
 date links in the preferred style, never a source-derived deadline. All deadline
 readers must use the same metadata projection. First-start
@@ -240,7 +273,33 @@ workflow.
 Release commands are for maintainers publishing an approved version. They are
 intentionally documented here rather than in the application README.
 
-Use the release target from `main` when a stable release version is approved:
+Prepare a reviewable proposal before choosing a final version. The release skill
+described under [Repository skills](#repository-skills) reviews the complete
+pending work, recommends a major/minor/patch bump from the highest stable tag
+reachable from `main`, and presents all three exact candidate versions. Compatible
+fixes suggest patch, compatible new capabilities suggest minor, and incompatible
+supported workflow/data changes suggest major. The recommendation is evidence
+for the user's choice, not approval to release.
+
+Verify a provisional candidate without committing or publishing:
+
+```bash
+make release-check VERSION=vMAJOR.MINOR.PATCH
+# or, for a provisional bump from the highest stable tag reachable from HEAD:
+make release-check minor
+```
+
+This copies npm/Wails metadata and the changelog to a disposable directory,
+synchronizes the candidate there, prints and validates its exact release-note
+body, then runs the shared complete verification suite. It leaves repository
+release metadata, the Git index, commits, tags, and remotes alone; builds/tests
+may update generated artifacts. Checks can run on a feature branch. Failed or
+unavailable checks must be reported, and required native checks remain separate.
+The user reviews notes, pending-change scope, verification results, and the version
+recommendation before choosing the version and approving local finalization or
+publication. Selecting a version alone is not approval for either action.
+
+Use the release target from `main` after the version and publication are approved:
 
 ```bash
 make release patch
@@ -258,8 +317,12 @@ exact curated release-note body, runs the complete release verification suite,
 stages all current non-ignored changes into one release commit and annotated
 tag, then pushes `main` and that exact tag in order. It never deletes pending
 work, alters an existing tag, or pushes other refs. Repeating the same version
-resumes a matching tagged release after a failed push. Use `make release-local patch` or
-`make release-local VERSION=vMAJOR.MINOR.PATCH` to stop before the push.
+resumes a matching tagged release after a failed push. After approval for a local
+commit and tag, use `make release-local patch` or
+`make release-local VERSION=vMAJOR.MINOR.PATCH` to stop before the push. Local
+approval does not authorize publication. Resolve the chosen version once and use
+the explicit `VERSION` form for execution and retries: rerunning a bump after
+tagging would select the next release instead of resuming the approved one.
 The browser check downloads Playwright's pinned Chromium if necessary, but does
 not install system packages or request elevated privileges.
 `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
@@ -281,8 +344,12 @@ You can preview the body locally after the changelog has been cut with:
 node scripts/extract-release-notes.mjs vMAJOR.MINOR.PATCH
 ```
 
-`$prepare-figaro-release` invokes the publishing target only when explicitly
-asked to publish; pushing the tag starts the GitHub release workflow.
+`$prepare-figaro-release` and natural-language release requests share the same
+approval contract. Complete the available preparation before asking for the
+version choice and go-ahead. A clear approval in response to a proposal covers
+the version and action named there; do not request another confirmation unless
+the scope changes materially. Pushing the tag starts the GitHub release workflow;
+successful pushes and successful workflow publication are separate results.
 
 The workflow publishes Linux x86-64, Windows x86-64, and universal macOS
 archives, plus `SHA256SUMS`. Each archive includes `README.md`, `CHANGELOG.md`,
@@ -301,12 +368,13 @@ make bootstrap
 
 # Application packages (root Wails facade, internal modules, and dev commands)
 go vet . ./internal/... ./cmd/...
-go test . ./internal/... ./cmd/...
+./scripts/check-go-coverage.sh
 go test -race . ./internal/... ./cmd/...
 
 # JavaScript and CodeMirror behaviour
 npm run lint
 npm run test:unit
+npm run test:coverage
 
 # Only when the change affects a real browser boundary such as geometry,
 # selection/focus, clipboard/composition, frames, or printed output
@@ -340,10 +408,12 @@ success and failure matrices end to end. The release target still runs the
 complete verification suite.
 
 For changes whose cost grows with vault size, run `make stress-vault`. It
-generates an ignored 10,000-document fixture from two source templates and
-runs cold-rebuild, filesystem, sparse-link, Git-state, and large-collection
-keyboard oracles before recording backend plus browser measurements. Timings
-remain free of machine-dependent pass/fail thresholds. See
+generates an ignored 10,000-document fixture from two filesystem source
+templates, adds same-scale content variants in the browser, and runs
+cold-rebuild, filesystem, sparse-link, Git-state, large-collection keyboard,
+and document-switch oracles before recording backend and browser measurements.
+Absolute timings remain diagnostic; document switching uses repeated same-run
+plain/content medians with a generous relative regression ceiling. See
 [the huge-vault procedure](docs/TESTING.md#huge-vault-stress-profile) and
 [the reference audit](docs/HUGE_VAULT_STRESS.md).
 
@@ -465,6 +535,20 @@ bundles the browser-safe `nspell` runtime plus the checked-in dependency
 versions of the US English, UK English, and Spanish Hunspell `.aff`/`.dic`
 assets with their individual license files. Do not replace those language
 assets or remove their notices without auditing the upstream dictionary terms.
+Personal spelling words are separate vault data in
+`.config/spelling-dictionary.json`; the application validates and atomically
+adds words without modifying bundled Hunspell resources or note contents.
+
+Writing review preparation also requires Go. `scripts/prepare-frontend.sh` runs
+`scripts/vendor-writing.mjs` for the pinned remark/retext runtime and notices,
+`go run ./cmd/prepare-writing-assets` for SHA-256-verified Vale release assets,
+and the app bundler for all three eager workers. No runtime Node installation or
+analyzer download is required by the installed application. Generated executables
+under `internal/writing/assets/` and `frontend/*.worker.js` are ignored.
+Cross builds must prepare the target first (`-target windows/amd64` or
+`-target darwin/universal`); native macOS preparation includes both architectures.
+Keep pins, checksums, rule fixtures, notices, and the capability table in
+[docs/WRITING_ENGINE.md](docs/WRITING_ENGINE.md) synchronized when upgrading.
 
 Smart rich paste uses the exact Turndown version in `package.json` and copies
 its browser ESM plus MIT license through `scripts/vendor-turndown.mjs`. Keep the
@@ -615,8 +699,9 @@ the assembled webview rather than one JavaScript package in isolation.
   must render all 32 types/76 templates and all presets and prove each offered
   color paints an SVG mark; parser acceptance alone is insufficient. Flowchart UI
   changes must also exercise a long node list: the active node editor remains
-  visible on first opening, the chooser stays bounded, compact panes stay above
-  the footer, and Arrow/Home/End selection preserves focus. Ordinary style
+  visible on first opening, the chooser expands to fit every node with only
+  the Style panel scrolling, compact panes stay above the footer, and
+  Arrow/Home/End selection reveals and focuses the target row. Ordinary style
   choices must also preserve focus; an open palette must survive preview
   refreshes, Escape must close it before the dialog, and closing the dialog
   must clean it up.
@@ -636,3 +721,175 @@ Figaro is distributed under the [GNU General Public License version 3 or
 later](LICENSE). By contributing material to this repository, you agree that
 it may be distributed under those terms. Keep third-party notices and vendored
 dependency licenses intact.
+
+Writing suggestions use document-specific lens combinations, with Proofreading
+controlling spelling. Keep preference migration and example selection pure;
+the rooted adapter saves version 3 document choices atomically without discarding
+other notes or unknown fields. Preserve old YAML without applying its retired
+spellcheck controls. Keep inline/sidebar examples synchronized and render only
+validated fixes as Apply actions. The user-approved `.ui-suggestion` primitive
+owns the rounded, borderless suggestion background; feature CSS owns layout.
+
+
+Writing-lens preference changes must keep language-support policy in the pure
+model, use the existing Settings combobox, and test that unsupported checks
+are unchecked and disabled. Disabled reasons come from the pure model and use
+the shared tooltip on both checkbox and label, with an accessible description.
+New lens rules belong in the pure prose model; keep article context out of
+protected ranges and require safe, contiguous mappings for fixes. Consistency
+must leave either authored mixed-term form available; the separate reviewed
+technical-name rule offers canonical capitalization. Keep terminology defaults
+and file configuration disabled, and do not add number/unit spacing rules:
+attached forms such as `8.1Mib` are intentional. Unmatched opening punctuation
+and undefined acronyms remain advisory with general examples. Preserve the
+pinned acronym exceptions and eligible lowercase definitions without guessing
+expansions; equivalent soft wraps must stay within one eligible prose region,
+and ordinary capitals from the bundled lowercase dictionary must not become acronym warnings. Cover hyphenated and conventional eX expansions while keeping protected-region guards. Initialize the real textlint kernel/parser before worker readiness
+and test source mapping through the bundled adapter. Its sentence-spacing check suggests
+one same-line space without touching line breaks; diacritics remain optional
+contextual alternatives. Readability remains advisory at its explicit length
+and formula thresholds; keep length and complexity concerns distinct, merging
+only equivalent advice with its native sources retained.
+Keep formula advice out of short sentences, headings, tables, and protected
+content. The shared checkbox list has five groups: Proofreading, Clarity, Directness,
+Inclusive language, and Formulaic writing. Preserve the nine internal check IDs
+and exact older subsets. Group actions enable supported members together; language
+changes clear unsupported members without reselecting them on return. A partial
+group uses the existing checkbox and Partial badge; its enabled checks appear in
+the accessible description and info help. Keep the visible summary to one short
+sentence. Help reuses approved icon buttons, menu surfaces, tooltips, and shared
+Before/After examples. Provide three or four contextual illustrations for supported
+checks, filter by language, and keep limitations explicit. Examples are editorial
+guidance, not replacements for the current note. Preserve focus and portal ownership
+through pane/Pure closure, document changes, and preference updates. Floating
+help must retain its outer dimensions during repeated internal scrolling. Include
+borders and scrollbar chrome when turning scroll metrics into border-box sizes;
+internal scroll events must not trigger unnecessary placement work.
+Keep inclusive replacements restricted to reviewed generic expressions; do not
+infer pronouns or identity descriptions. Article source-range safety and
+pronunciation correctness need separate positive/negative adapter fixtures.
+Pin packages and selected Vale rule hashes with their notices. Keep quotation
+convention decisions pure and validate every changed delimiter; quote fixes
+may cross formatting only while preserving all enclosed source bytes.
+Proselint advice must not fabricate replacements or turn qualifiers into errors.
+Cover language/selection persistence together, save
+failure and retry, returning to a supported language without reselecting lenses,
+and older preferences loading without an unsolicited write. Bulk preference changes must drain pending writes and
+use the atomic settings plan; test metadata preservation and retry below the
+browser boundary. Right-pane modes register their own close/open adapters with
+the coordinator. Keep session width common to every mode and restore a pane
+only after the corresponding tab owns the mounted buffer. The footer consumes
+the same right-pane width; verify aligned buffer metrics and the physical window
+resize grip through docking, compact overlays, resizing, closing, and Pure mode.
+
+Writing review decisions belong in the per-note durable decision store, separate
+from lens defaults and the spelling dictionary. Keep matching policy pure:
+remap intact targets through known edits and require a unique full-context or
+distinctive unchanged-side match on reload. Use actual editor change ranges;
+target edits persist an exact-context-only requirement. Fail open for changed targets and
+ambiguous contexts. Reanchor writes update existing identities only, preserving
+metadata and never resurrecting removed decisions. Acronym acceptance affects
+only its canonical undefined-acronym concept and selected language. Preserve
+pessimistic saves, idempotent retry, stale-source guards, document ownership,
+and reversible per-record controls in both the pane and Pure picker. Definite
+capacity rejection must permit removal; uncertain writes require exact retry
+or explicit reconciliation. Reload must wait for in-flight tracking before
+installing the stored set, preserve queued edits without rewinding source, and
+match worker results by stable record ID. Cover removed, reordered and newly
+loaded records, tracking failure, repeated reload, and disposal. Test
+restart through rooted storage, not only browser mocks. Do not migrate decision
+records on rename without a separate collision/preservation contract.
+
+Group identical review suggestions while retaining every occurrence. Bound
+rendered cards independently of passage count. Bulk replacement is a pure
+all-or-nothing plan for reviewed single-choice kinds. Spelling additionally
+requires an explicit reviewed-correction flag; one dictionary candidate alone
+never authorizes bulk changes. Execute the plan with one guarded
+CodeMirror history transaction. Do not generalize it to contextual advice.
+Reuse approved buttons for occurrence navigation and disclosure; show writer
+explanations before lazily created technical diagnostics. Keep actual focus,
+popup containment, and native Undo/Redo checks in the existing writing scenario.
+
+
+Writing input handlers may only capture immutable source readers and numeric
+change ranges. Schedule coalesced tasks, never document scans in input callbacks
+or their microtasks. Keep prose projections/raw observations in the prose worker;
+resolve findings and presentation groups there, and compute saved/pending anchor
+identity and inactive IDs in the separate decision worker. Inject those ports in
+use-case tests; do not add a synchronous production fallback. A replacement
+prose worker must rebuild explicitly required evidence before reporting a
+complete review. Failed recovery preserves available spelling with partial
+status and Retry; later engine completion cannot conceal the missing prose.
+Test restart between analysis and resolution, failed recovery/retry, and stale
+recovery after source/ownership/configuration changes below the browser layer.
+Do not mark an editor snapshot as observed before its note controller can
+receive it. Cover mount-before-selection and the first nearby edit after Ignore
+in component tests. A failed decision reload must exit Loading independently
+of tracking failure; Retry restores the authoritative set before queued tracking.
+Render writing hints inside existing link labels through pure range/segment
+plans and a viewport-bound DOM adapter; reuse the current underline and popup,
+preserve activation and cursor behavior, and never decorate destinations.
+Pending Ignore
+commands must remain idempotent while their separate anchors follow edits. Test
+deleted targets during a delayed save and confirm the safe anchor reaches storage
+before the action finishes. Share wiki syntax protection across prose and spelling,
+including fragments and embeds; only explicit aliases are eligible wording.
+Spelling eligibility uses the bundled pure Lezer Markdown parser, not a
+line-based approximation of code or reference syntax. Keep its UTF-16 ranges
+shared by the spelling adapter and resolver; reject out-of-prose spelling
+observations before they produce actions. Preserve implicit link/image reference
+keys with advisory-only hints and retain editable explicit labels. Test both
+English dictionaries against valid possessives and misspelled stems, preserving
+the original suffix and keeping Spanish policy separate. Full-source parsing and
+resolution stay in workers during analysis, never in typing handlers.
+
+Slopless changes must update the explicit rule imports/pure policy and
+[complete included/excluded inventory](docs/WRITING_SLOPLESS.md). Keep rules
+English-only, eager and worker-local; test every selected real rule, protected
+source ranges, individual curly-mark mapping, stable duplicate identities,
+examples and reversible Ignore. The imported subset is advisory: never forward
+upstream blanket rewrite instructions or typography preferences as mandatory fixes.
+
+Package selections must not exclude a useful rule solely because another lens overlaps. Review advice separately from Apply safety. Update the full package inventory, native hash manifests, and specific real-adapter fixtures together; preserve identity, pronunciation, source, and explicitly requested unit-spacing protections.
+
+The approved writing-lens disclosure uses `createDisclosure` and `.ui-disclosure`;
+do not recreate its resting, hover, pressed, focus or motion styles in feature
+CSS. Preserve a native button, aria-controls/expanded, immediate inert/ARIA
+closure, focus return, and reduced-motion behavior. Keep note-specific expansion
+policy in `writingLensesExpansion`, and do not animate configuration loads or
+rebuild the chevron when only the selected count changes.
+
+### Writing corpus safety
+
+Preserve parsed emphasis, quote/possessive boundaries and numeric compounds in
+spelling. Mask technical identifiers only after separating Markdown delimiters.
+Keep URL-enclosing punctuation in the prose projection. Review new vocabulary
+entries separately from correction confidence; recognition never authorizes a
+replacement. Context guards must have positive controls and remain independent
+per lens. Both sentence-length paths check the mapped sentence above 30 words.
+Keep reverse/plural acronym recognition syntactic and within eligible prose.
+See [the corpus correction contract](docs/WRITING_CORPUS_FIXES.md); changes need
+real dictionary/package regressions plus pure policy and bulk-planner coverage.
+
+### Writing continuity, performance and editorial evaluation
+
+Route file-tree path mutations through the writing storage barrier. Keep document
+entry identities across renames; do not copy captured old paths into delayed
+persistence callbacks. Backend metadata relocation must preflight both records,
+preserve destination records and unknown fields, and retain rooted rollback tests.
+
+When optimizing package work, preserve every included rule and compare complete
+observations and source maps against the pinned implementation with
+`node scripts/verify-writing-performance.mjs`. Regenerate the runtime using
+`node scripts/vendor-writing.mjs`; never patch node_modules or generated bundles
+by hand. `node scripts/profile-writing.mjs --long` adds 25k/50k-word workloads.
+Performance equivalence does not prove editorial usefulness: follow the
+[corpus plan](docs/WRITING_CORPUS.md) for licensed sources, independent human
+annotations and a held-out evaluation before tuning advice.
+
+Catalogue generation normalizes trailing whitespace only inside parsed JavaScript comments; literal contents remain byte-for-byte unchanged. The build and its exact-output check share that formatter.
+
+Pinned Vale rules under `internal/writing/styles/` retain their exact source bytes
+on every platform through `.gitattributes`; their `SOURCE.json` hashes remain
+mandatory. The upstream Microsoft `SentenceLength.yml` ends in a blank line,
+so only that file permits `blank-at-eof`; other whitespace checks still apply.

@@ -51,6 +51,35 @@ describe('Code file editor mode', () => {
         expect(view.dom.querySelector('.cm-markdownBlockGutter')).not.toBeNull();
     });
 
+    test('does not reconfigure the outgoing document between Markdown files', async () => {
+        const {
+            initEditor,
+            createEditorView,
+            configureEditorForFile,
+            toggleVim,
+        } = await import('../frontend/js/editor.js');
+        await initEditor();
+        const view = createEditorView();
+        await configureEditorForFile('notes/large-a.md');
+        view.dispatch({
+            changes: {
+                from: 0,
+                to: view.state.doc.length,
+                insert: '$x^2$\n\n```mermaid\nflowchart LR; A --> B\n```',
+            },
+        });
+        const stateBeforeSwitch = view.state;
+
+        await expect(configureEditorForFile('notes/large-b.md')).resolves.toBe(true);
+
+        expect(view.state).toBe(stateBeforeSwitch);
+        expect(view.dom.dataset.fileLanguage).toBe('markdown');
+        // Preserve this suite's existing shared-view setup for the following
+        // tab-size test, which exercises Vim against the current editor.
+        await toggleVim(false);
+        await toggleVim(true);
+    });
+
     test('shares a changed tab size between normal indentation, Vim >, Markdown fences, and code files', async () => {
         const {
             configureEditorForFile,
@@ -118,7 +147,7 @@ describe('Code file editor mode', () => {
         expect(expanded.closest('.cm-markdownBlockGutter').getAttribute('aria-label')).toBe('Markdown block controls');
         expect(expanded.closest('.cm-markdownBlockGutter').classList.contains('cm-editorHelperRail')).toBe(true);
         expect(expanded.closest('.cm-markdownBlockGutter').classList.contains('cm-editorHelperRail-before')).toBe(true);
-        expect(view.dom.querySelector('.cm-markdownBlockGuideSpacer').textContent).toHaveLength(16);
+        expect(view.dom.querySelector('.cm-markdownBlockGuideSpacer').textContent).toHaveLength(6);
         expect(expanded.closest('.cm-gutters').hasAttribute('aria-hidden')).toBe(false);
 
         expanded.click();
@@ -139,6 +168,7 @@ describe('Code file editor mode', () => {
 
         setMarkdownBlockGuides(false);
         expect(view.dom.querySelector('.cm-markdownBlockGutter')).toBeNull();
+        expect(view.dom.style.getPropertyValue('--editor-block-writing-inset')).toBe('');
         expect(view.state.doc.toString()).toContain('## Goals');
         setMarkdownBlockGuides(true);
         await new Promise(resolve => setTimeout(resolve, 0));

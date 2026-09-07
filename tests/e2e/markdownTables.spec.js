@@ -187,6 +187,30 @@ test('renders GFM tables as source-preserving semantic previews', async ({ page 
 test('edits a table transactionally without turning an ordinary cell click into a range', async ({ page }) => {
     await createMarkdownEditor(page, compactTableSource);
     const original = compactTableSource;
+    // Browser-only regression: the entire helper rail must remain a real hit
+    // target at minimum width and larger text, not hide underneath the sidebar.
+    await page.setViewportSize({ width: 800, height: 720 });
+    for (const [scale, compact] of [[100, false], [150, false], [100, true], [150, true]]) {
+        await page.evaluate(async ({ scale, compact }) => {
+            const { applyEditorTextScale } = await import('/js/editorTextScale.js');
+            document.querySelector('.main-content').classList.toggle('pdf-preview-compact-editor', compact);
+            applyEditorTextScale(scale);
+            window.__markdownTableTestView.requestMeasure();
+        }, { scale, compact });
+        await page.locator('.cm-live-table').hover();
+        await expect.poll(() => page.locator('.markdown-table-editor-guide').evaluate(button => {
+            const rect = button.getBoundingClientRect();
+            const editor = document.querySelector('#editor-container').getBoundingClientRect();
+            return rect.left >= editor.left && document.elementFromPoint(
+                rect.left + rect.width / 2, rect.top + rect.height / 2,
+            ) === button;
+        })).toBe(true);
+    }
+    await page.evaluate(async () => {
+        document.querySelector('.main-content').classList.remove('pdf-preview-compact-editor');
+        (await import('/js/editorTextScale.js')).applyEditorTextScale(100);
+        window.__markdownTableTestView.requestMeasure();
+    });
     await page.locator('.cm-live-table').hover();
     await page.locator('.markdown-table-editor-guide').click();
 
@@ -251,6 +275,9 @@ test('edits a table transactionally without turning an ordinary cell click into 
     await modal.locator('.markdown-table-editor-split').click();
 
     await modal.locator('[aria-label="Cell A2"]').fill('Changed');
+    await page.keyboard.press('Escape');
+    await modal.locator('.markdown-table-editor-keep').click();
+    await expect(modal.locator('[aria-label="Cell A2"]')).toBeFocused();
     await modal.locator('.markdown-table-editor-apply').click();
     await expect(modal).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => window.__markdownTableTestView.state.doc.toString()))

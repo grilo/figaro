@@ -1,3 +1,11 @@
+/** Explain first-task creation before showing shortcuts for existing cards. */
+export function kanbanBoardInstruction(board) {
+    if (!board) return '';
+    return Object.values(board).some(cards => cards?.length > 0)
+        ? 'Tab focuses cards; arrows move them. Enter opens the note, S sets a start date, and D sets a due date.'
+        : 'No tasks yet. Add #todo, #wip, or a custom column tag to a note. For example: Plan trip #todo.';
+}
+
 export function kanbanCardOrderRef(card) {
     return {
         file: String(card?.file ?? card?.dataset?.file ?? ''),

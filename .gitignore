@@ -20,6 +20,7 @@ Thumbs.db
 /frontend/vendored/spellcheck/
 /frontend/vendored/w3c-keyname/
 /frontend/wailsjs/
+/frontend/app.bundle.js
 
 # Generated build output and application icon derivatives.
 /build/
@@ -40,3 +41,8 @@ Thumbs.db
 # Local backups and machine-specific helpers.
 *.bak
 scripts/*.local.sh
+
+# Pinned writing-engine executables and generated worker dependencies.
+/internal/writing/assets/*.gz
+/frontend/vendored/writing/
+/frontend/*.worker.js

@@ -1,0 +1,174 @@
+[
+  {
+    "ruleId": "cameraman-camerawoman",
+    "phrase": "camerawoman"
+  },
+  {
+    "ruleId": "cameramen-camerawomen",
+    "phrase": "camerawomen"
+  },
+  {
+    "ruleId": "chairmen-chairwomen",
+    "phrase": "chairwomen"
+  },
+  {
+    "ruleId": "chick-cop-policeman",
+    "phrase": "policewoman"
+  },
+  {
+    "ruleId": "policemen-policewomen",
+    "phrase": "policewomen"
+  },
+  {
+    "ruleId": "fireman-firewoman",
+    "phrase": "firewoman"
+  },
+  {
+    "ruleId": "firemen-firewomen",
+    "phrase": "firewomen"
+  },
+  {
+    "ruleId": "postman-postwoman",
+    "phrase": "postwoman"
+  },
+  {
+    "ruleId": "postmen-postwomen",
+    "phrase": "postwomen"
+  },
+  {
+    "ruleId": "repairman-repairwoman",
+    "phrase": "repairwoman"
+  },
+  {
+    "ruleId": "repairmen-repairwomen",
+    "phrase": "repairwomen"
+  },
+  {
+    "ruleId": "saleslady-salesman",
+    "phrase": "saleswoman"
+  },
+  {
+    "ruleId": "salesmen-saleswomen",
+    "phrase": "saleswomen"
+  },
+  {
+    "ruleId": "spokesman-spokeswoman",
+    "phrase": "spokeswoman"
+  },
+  {
+    "ruleId": "spokesmen-spokeswomen",
+    "phrase": "spokeswomen"
+  },
+  {
+    "ruleId": "councilman-councilwoman",
+    "phrase": "councilwoman"
+  },
+  {
+    "ruleId": "councilmen-councilwomen",
+    "phrase": "councilwomen"
+  },
+  {
+    "ruleId": "foreman-forewoman",
+    "phrase": "forewoman"
+  },
+  {
+    "ruleId": "foremen-forewomen",
+    "phrase": "forewomen"
+  },
+  {
+    "ruleId": "middleman-middlewoman",
+    "phrase": "middlewoman"
+  },
+  {
+    "ruleId": "middlemen-middlewomen",
+    "phrase": "middlewomen"
+  },
+  {
+    "ruleId": "manhour",
+    "phrase": "manhour"
+  },
+  {
+    "ruleId": "manhours",
+    "phrase": "manhours"
+  },
+  {
+    "ruleId": "manmade",
+    "phrase": "manmade"
+  },
+  {
+    "ruleId": "manned",
+    "phrase": "manned"
+  },
+  {
+    "ruleId": "unmanned",
+    "phrase": "unmanned"
+  },
+  {
+    "ruleId": "blacklisted",
+    "phrase": "blacklisted"
+  },
+  {
+    "ruleId": "blacklisting",
+    "phrase": "blacklisting"
+  },
+  {
+    "ruleId": "whitelisted",
+    "phrase": "whitelisted"
+  },
+  {
+    "ruleId": "whitelisting",
+    "phrase": "whitelisting"
+  },
+  {
+    "ruleId": "basically",
+    "phrase": "basically"
+  },
+  {
+    "ruleId": "just",
+    "phrase": "just"
+  },
+  {
+    "ruleId": "of-course",
+    "phrase": "of course"
+  },
+  {
+    "ruleId": "everyone-knows",
+    "phrase": "everyone knows"
+  },
+  {
+    "ruleId": "straightforward",
+    "phrase": "straight forward"
+  },
+  {
+    "ruleId": "obvious",
+    "phrase": "obvious"
+  },
+  {
+    "ruleId": "simple",
+    "phrase": "simple"
+  },
+  {
+    "ruleId": "easy",
+    "phrase": "easy"
+  },
+  {
+    "ruleId": "deaf-to",
+    "phrase": "blind to"
+  },
+  {
+    "ruleId": "handicapped-parking",
+    "phrase": "handicapped parking"
+  },
+  {
+    "ruleId": "wheelchair-bound",
+    "phrase": "confined to a wheelchair"
+  },
+  {
+    "ruleId": "suffers-from-disabilities",
+    "phrase": "suffers from disabilities"
+  },
+  {
+    "ruleId": "suffers-from-md",
+    "phrase": "suffers from muscular dystrophy"
+  }
+]

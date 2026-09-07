@@ -4,11 +4,57 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"figaro/internal/taskschedule"
 )
+
+func TestScheduledTaskProjectionCacheFollowsIndexRevisionAndMetadata(t *testing.T) {
+	app, vault := newTestApp(t)
+	source := "- [ ] Ship #todo"
+	writeTestFile(t, vault, "tasks.md", source+"\n")
+	if err := app.SetTaskDueDate(taskschedule.Task{File: "tasks.md", Line: 1, Source: source}, "2026-09-10"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatal(err)
+	}
+
+	app.vaultMu.RLock()
+	index := app.vaultIndex
+	first, err := app.scheduledTaskDatesLocked(index)
+	if err != nil {
+		app.vaultMu.RUnlock()
+		t.Fatal(err)
+	}
+	second, err := app.scheduledTaskDatesLocked(index)
+	app.vaultMu.RUnlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.ValueOf(first).Pointer() != reflect.ValueOf(second).Pointer() {
+		t.Fatal("unchanged task schedule projection was rebuilt")
+	}
+
+	result, err := app.SaveFile("tasks.md", source+"\nContext changed.\n", 0)
+	if err != nil || !result.Success {
+		t.Fatalf("SaveFile: result=%+v err=%v", result, err)
+	}
+	app.vaultMu.RLock()
+	third, err := app.scheduledTaskDatesLocked(app.vaultIndex)
+	app.vaultMu.RUnlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.ValueOf(third).Pointer() == reflect.ValueOf(second).Pointer() {
+		t.Fatal("note index revision did not invalidate the task schedule projection")
+	}
+	if got := third["tasks.md\x001"].End; got != "2026-09-10" {
+		t.Fatalf("scheduled due date after rebuild = %q", got)
+	}
+}
 
 func TestEditorDateLinksPreserveScheduleStartAcrossSafeNoteSave(t *testing.T) {
 	app, vault := newTestApp(t)

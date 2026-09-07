@@ -1,6 +1,6 @@
 {
   "name": "figaro",
-  "version": "1.35.2",
+  "version": "1.36.0",
   "description": "Local-first Markdown workspace for notes, planning, diagrams, and printable documents",
   "license": "GPL-3.0-or-later",
   "type": "module",
@@ -8,13 +8,14 @@
     "node": "^22.18.0 || >=24.11.0"
   },
   "scripts": {
+    "build:app": "node scripts/build-app-bundle.mjs",
     "build:design-system": "node scripts/build-design-system.mjs",
     "test": "npm run test:integrity && jest",
     "test:integrity": "node scripts/test-integrity.mjs",
     "test:unit": "npm run test:integrity && bash tests/release/prepare-release.test.sh && jest --runInBand",
     "test:watch": "jest --watch",
-    "test:coverage": "npm run test:integrity && jest --coverage",
-    "test:pdf": "playwright test",
+    "test:coverage": "npm run test:integrity && bash tests/release/prepare-release.test.sh && jest --runInBand --coverage",
+    "test:pdf": "npm run build:app && playwright test",
     "lint": "eslint frontend/js frontend/design-system",
     "lint:fix": "eslint frontend/js frontend/design-system --fix",
     "vendor": "bash scripts/vendor.sh",
@@ -31,7 +32,8 @@
     "eslint": "^10.8.0",
     "globals": "^17.7.0",
     "jest": "^30.4.2",
-    "jest-environment-jsdom": "^30.4.1"
+    "jest-environment-jsdom": "^30.4.1",
+    "js-yaml": "3.15.1"
   },
   "jest": {
     "testEnvironment": "jsdom",
@@ -61,7 +63,15 @@
     "collectCoverageFrom": [
       "frontend/js/**/*.js",
       "!tests/**/*.js"
-    ]
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 67,
+        "functions": 81,
+        "lines": 84,
+        "statements": 80
+      }
+    }
   },
   "babel": {
     "presets": [
@@ -90,7 +100,11 @@
     "@mdit/plugin-sup": "1.1.0",
     "@mdit/plugin-tasklist": "1.1.0",
     "@replit/codemirror-vim": "^6.3.0",
+    "@textlint-rule/textlint-rule-no-unmatched-pair": "2.0.4",
+    "@textlint/kernel": "15.8.0",
+    "@textlint/textlint-plugin-text": "15.8.0",
     "@uiw/codemirror-extensions-color": "4.25.11",
+    "assert": "2.1.0",
     "codemirror-live-markdown": "^0.5.1-alpha.1",
     "dictionary-en": "4.0.0",
     "dictionary-en-gb": "3.0.0",
@@ -98,7 +112,30 @@
     "katex": "^0.18.4",
     "lucide": "1.27.0",
     "markdown-it": "^15.0.0",
+    "micromark-util-decode-string": "2.0.1",
     "nspell": "2.1.5",
-    "turndown": "7.2.4"
+    "process": "0.11.10",
+    "remark-frontmatter": "5.0.0",
+    "remark-gfm": "4.0.1",
+    "remark-math": "6.0.0",
+    "remark-parse": "11.0.0",
+    "retext-contractions": "6.0.0",
+    "retext-diacritics": "5.0.0",
+    "retext-english": "5.0.0",
+    "retext-equality": "7.1.0",
+    "retext-indefinite-article": "5.0.0",
+    "retext-passive": "5.0.0",
+    "retext-quotes": "6.0.2",
+    "retext-readability": "8.0.0",
+    "retext-redundant-acronyms": "5.0.0",
+    "retext-repeated-words": "5.0.0",
+    "retext-sentence-spacing": "6.0.0",
+    "retext-simplify": "8.0.0",
+    "retext-syntax-urls": "4.0.0",
+    "slopless": "0.2.38",
+    "textlint-rule-terminology": "5.2.16",
+    "turndown": "7.2.4",
+    "unified": "11.0.5",
+    "vfile": "6.0.3"
   }
 }

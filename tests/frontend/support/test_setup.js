@@ -6,6 +6,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createBackendStub } from '../../../frontend/js/backendContract.js';
 
 // jsdom does not provide matchMedia, while every supported desktop webview does.
 if (typeof window.matchMedia !== 'function') {
@@ -79,7 +80,7 @@ function requireExplicitNativeEffect(name, mock) {
 }
 
 export function createNativeAppMock() {
-    const app = {
+    const app = createBackendStub({
         GetFileTree: jest.fn().mockResolvedValue([]),
         GetVaultFileIssues: jest.fn().mockResolvedValue([]),
         RecheckVaultFileIssues: jest.fn().mockResolvedValue([]),
@@ -168,6 +169,10 @@ export function createNativeAppMock() {
 		EditorNavigationSave: jest.fn().mockResolvedValue({ success: true }),
 		SpellcheckLoad: jest.fn().mockResolvedValue({ enabled: false, language: 'en-US' }),
 		SpellcheckSave: jest.fn().mockResolvedValue({ success: true }),
+		WritingDecisionsLoad: jest.fn().mockResolvedValue([]),
+		WritingDecisionsChange: jest.fn().mockResolvedValue([]),
+		SpellingDictionaryLoad: jest.fn().mockResolvedValue([]),
+		SpellingDictionaryAdd: jest.fn().mockImplementation(async word => [word]),
 		AutoSaveLoad: jest.fn().mockResolvedValue(300),
 		AutoSaveSave: jest.fn().mockResolvedValue({ success: true }),
 		AutoCommitLoad: jest.fn().mockResolvedValue(true),
@@ -192,7 +197,7 @@ export function createNativeAppMock() {
         WindowGetSize: jest.fn().mockResolvedValue({ w: 1280, h: 800 }),
         WindowSetSize: jest.fn().mockResolvedValue(undefined),
         WindowSetTitle: jest.fn().mockResolvedValue(undefined),
-    };
+    }, name => jest.fn().mockResolvedValue(undefined));
     for (const name of NATIVE_EFFECT_METHODS) {
         if (typeof app[name] === 'function') requireExplicitNativeEffect(name, app[name]);
     }
@@ -227,10 +232,6 @@ const mockLocalStorage = (() => {
 })();
 
 Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
-
-// Mock confirm/prompt dialogs
-window.confirmDialog = jest.fn().mockResolvedValue(true);
-window.promptDialog = jest.fn().mockResolvedValue("test");
 
 // Mock statusBar
 window.statusBar = {

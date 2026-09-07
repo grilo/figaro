@@ -1,6 +1,11 @@
 # PKM / Markdown Editor UX Regression Checklist
 
-Use after editor, layout, navigation, or knowledge-management changes.
+Select relevant cases after editor, layout, navigation, or knowledge-management
+changes. An unchecked item is not evidence of failure: record not tested,
+blocked, or unsupported in the report's coverage ledger. Exercise mutations in
+an owned disposable vault. Record browser and packaged native results separately.
+For Figaro implementation work, use `docs/TESTING.md` to choose the lowest test
+layer; this list does not require a browser test for every item.
 
 ## Editing continuity
 

@@ -103,8 +103,6 @@ describe('Vim command behavior', () => {
 
         const save = deferred();
         window.go.desktop.App.SaveFile.mockImplementationOnce(() => save.promise);
-        const confirmDialog = jest.fn().mockResolvedValue(true);
-        window.confirmDialog = confirmDialog;
         Vim.handleKey(cm, ':', 'user');
         await new Promise(resolve => setTimeout(resolve, 0));
         const exInput = view.dom.querySelector('.cm-vim-panel input');
@@ -115,8 +113,10 @@ describe('Vim command behavior', () => {
         expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
             'notes/vim.md', 'alpha beta\nmiddle\nbeta end', 10
         );
-        expect(getState('openTabs')).toContain(fileTab);
-        expect(confirmDialog).not.toHaveBeenCalled();
+        expect(getState('openTabs')).toEqual(expect.arrayContaining([
+            expect.objectContaining({ id: fileTab.id, dirty: true }),
+        ]));
+        expect(document.body.classList.contains('custom-modal-open')).toBe(false);
 
         // An edit made while the first save is in flight must keep the tab
         // open. A subsequent :wq captures and saves that newer buffer.
@@ -127,9 +127,10 @@ describe('Vim command behavior', () => {
         await new Promise(resolve => setTimeout(resolve, 0));
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        expect(getState('openTabs')).toContain(fileTab);
-        expect(fileTab.dirty).toBe(true);
-        expect(confirmDialog).not.toHaveBeenCalled();
+        expect(getState('openTabs')).toEqual(expect.arrayContaining([
+            expect.objectContaining({ id: fileTab.id, dirty: true }),
+        ]));
+        expect(document.body.classList.contains('custom-modal-open')).toBe(false);
 
         window.go.desktop.App.SaveFile.mockResolvedValueOnce({
             success: true,
@@ -146,11 +147,12 @@ describe('Vim command behavior', () => {
         expect(window.go.desktop.App.SaveFile).toHaveBeenNthCalledWith(
             2, 'notes/vim.md', 'alpha beta\nmiddle\nbeta end\nnewer text', 20
         );
-        expect(getState('openTabs')).not.toContain(fileTab);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise(resolve => setTimeout(resolve, 0));
         expect(getState('activeTabId')).toBeNull();
         expect(getState('openTabs')).toEqual([]);
         expect(document.querySelector('.workspace-home-panel.active')).not.toBeNull();
-        expect(confirmDialog).not.toHaveBeenCalled();
+        expect(document.body.classList.contains('custom-modal-open')).toBe(false);
         await toggleVim(false);
     });
 

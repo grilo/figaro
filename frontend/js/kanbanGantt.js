@@ -33,6 +33,7 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
     let pendingFocusKey = null;
     let windowKey = '';
     let rowsFrame = null;
+    let pendingUpdate = null;
     const locale = currentCalendarLocale();
     const { weekend } = localeWeekInfo(locale);
     const dateLabel = date => date ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(dateFromISO(date)) : 'Not set';
@@ -361,23 +362,32 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
     });
 
     renderHeading();
+    function applyPendingUpdate() {
+        if (!pendingUpdate || disposed) return;
+        const { board, schedules, colors, error } = pendingUpdate;
+        pendingUpdate = null;
+        endDrag(true);
+        tasks = ganttTasks(board, schedules, colors);
+        unresolved = schedules.filter(entry => !entry.task && entry.end);
+        loadError = error;
+        if (loadError) showError(loadError);
+        else notice.hidden = true;
+        const reconnect = root.querySelector('.kanban-gantt-reconnect');
+        reconnect.hidden = !unresolved.length;
+        reconnect.innerHTML = unresolved.map(entry => `<button type="button" class="ui-button ui-button--warning" data-reconnect="${escape(entry.id)}">Reconnect ${escape(entry.text)} · ${escape(entry.file)}</button>`).join('');
+        renderRows(true);
+        updateStatus();
+    }
     return {
         update(board, schedules, colors, error = '') {
             if (disposed) return;
-            endDrag(true);
-            tasks = ganttTasks(board, schedules, colors);
-            unresolved = schedules.filter(entry => !entry.task && entry.end);
-            loadError = error;
-            if (loadError) showError(loadError);
-            else notice.hidden = true;
-            const reconnect = root.querySelector('.kanban-gantt-reconnect');
-            reconnect.hidden = !unresolved.length;
-            reconnect.innerHTML = unresolved.map(entry => `<button type="button" class="ui-button ui-button--warning" data-reconnect="${escape(entry.id)}">Reconnect ${escape(entry.text)} · ${escape(entry.file)}</button>`).join('');
-            renderRows(true); updateStatus();
+            pendingUpdate = { board, schedules, colors, error };
+            if (active) applyPendingUpdate();
         },
         setActive(value) {
             active = value; root.hidden = !active;
             if (active) {
+                applyPendingUpdate();
                 if (!centered) { setDateWindow(dateWindow.anchorDate); renderHeading(); renderRows(true); viewport.center(dateWindow.anchorDate); centered = true; }
                 updateStatus();
             } else { viewport.cancelPan(); endDrag(true); closeInspector(false); }
@@ -396,6 +406,7 @@ export function createKanbanGantt(root, { saveSchedule, openTask, setStatus, now
             scroll.removeEventListener('scroll', scheduleRows);
             tasks = [];
             unresolved = [];
+            pendingUpdate = null;
             root.replaceChildren();
         },
     };

@@ -1,0 +1,747 @@
+{
+  "node": "v24.20.0",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+  "coldValeMs": 129.773182,
+  "editorial": [
+    {
+      "name": "plain prose",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "useful shorter phrase",
+      "expected": [
+        "style.wordiness"
+      ],
+      "actual": [
+        "style.wordiness"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 1,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "familiar vocabulary",
+      "expected": [
+        "lexicon.complex-word"
+      ],
+      "actual": [
+        "lexicon.complex-word"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 1,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "technical noun",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 2,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 2,
+      "pass": true
+    },
+    {
+      "name": "passive with Directness unselected",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 1,
+      "valeRaw": 1,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "passive with Directness selected",
+      "expected": [
+        "syntax.passive"
+      ],
+      "actual": [
+        "syntax.passive"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 1,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "quoted repetition",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "intentional grammatical repetition",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "accidental repetition",
+      "expected": [
+        "grammar.repeated-word"
+      ],
+      "actual": [
+        "grammar.repeated-word"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 0,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "protected code and math",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "independent concepts in one sentence",
+      "expected": [
+        "style.wordiness",
+        "syntax.passive"
+      ],
+      "actual": [
+        "style.wordiness",
+        "syntax.passive"
+      ],
+      "workerRaw": 2,
+      "valeRaw": 2,
+      "unified": 2,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "unsupported Spanish prose selection",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "consistency permits either authored form",
+      "expected": [
+        "style.consistency",
+        "style.consistency"
+      ],
+      "actual": [
+        "style.consistency",
+        "style.consistency"
+      ],
+      "workerRaw": 2,
+      "valeRaw": 0,
+      "unified": 2,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "consistency ignores quoted variants",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "article and punctuation corrections",
+      "expected": [
+        "grammar.article",
+        "grammar.article",
+        "grammar.punctuation-spacing",
+        "grammar.repeated-comma"
+      ],
+      "actual": [
+        "grammar.article",
+        "grammar.article",
+        "grammar.punctuation-spacing",
+        "grammar.repeated-comma"
+      ],
+      "workerRaw": 4,
+      "valeRaw": 0,
+      "unified": 4,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "articles never skip quotes",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "readability flags a long paragraph sentence",
+      "expected": [
+        "readability.long-sentence"
+      ],
+      "actual": [
+        "readability.long-sentence"
+      ],
+      "workerRaw": 2,
+      "valeRaw": 0,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "readability leaves short prose alone",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "contraction apostrophes",
+      "expected": [
+        "grammar.contraction",
+        "grammar.contraction"
+      ],
+      "actual": [
+        "grammar.contraction",
+        "grammar.contraction"
+      ],
+      "workerRaw": 2,
+      "valeRaw": 0,
+      "unified": 2,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "redundant acronyms",
+      "expected": [
+        "style.redundant-acronym",
+        "style.redundant-acronym"
+      ],
+      "actual": [
+        "style.redundant-acronym",
+        "style.redundant-acronym"
+      ],
+      "workerRaw": 2,
+      "valeRaw": 2,
+      "unified": 2,
+      "suppressed": 2,
+      "pass": true
+    },
+    {
+      "name": "mixed quote styles preserve wording",
+      "expected": [
+        "style.quotation"
+      ],
+      "actual": [
+        "style.quotation"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 0,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "consistent smart quotes",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "inclusive alternative",
+      "expected": [
+        "language.inclusive"
+      ],
+      "actual": [
+        "language.inclusive"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 0,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "inclusive lens unselected",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 1,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "quoted inclusive and contraction wording",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "proselint deduplicates cliche and jargon",
+      "expected": [
+        "style.stock-phrase",
+        "style.stock-phrase"
+      ],
+      "actual": [
+        "style.stock-phrase",
+        "style.stock-phrase"
+      ],
+      "workerRaw": 0,
+      "valeRaw": 3,
+      "unified": 2,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "proselint hedging and emphasis",
+      "expected": [
+        "style.hedging",
+        "style.hyperbole"
+      ],
+      "actual": [
+        "style.hedging",
+        "style.hyperbole"
+      ],
+      "workerRaw": 0,
+      "valeRaw": 2,
+      "unified": 2,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "proselint respects accurate standalone qualifiers",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "proselint quoted prose",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "sentence spacing fixes one same-line gap",
+      "expected": [
+        "style.sentence-spacing"
+      ],
+      "actual": [
+        "style.sentence-spacing"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 0,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "sentence spacing preserves Markdown hard breaks",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "diacritics are optional contextual alternatives",
+      "expected": [
+        "style.diacritics",
+        "style.diacritics",
+        "style.diacritics"
+      ],
+      "actual": [
+        "style.diacritics",
+        "style.diacritics",
+        "style.diacritics"
+      ],
+      "workerRaw": 3,
+      "valeRaw": 0,
+      "unified": 3,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "diacritics preserve the unaccented resume verb",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "new consistency advice requires that lens",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 2,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "readability formulas review complex sentences below 35 words",
+      "expected": [
+        "readability.complex-sentence"
+      ],
+      "actual": [
+        "readability.complex-sentence"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 0,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "readability formulas omit short complex prose",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "new packages preserve code and quoted wording",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "unmatched opening punctuation",
+      "expected": [
+        "grammar.unmatched-pair"
+      ],
+      "actual": [
+        "grammar.unmatched-pair"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 0,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "balanced punctuation spans sentences",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "reviewed technical terminology",
+      "expected": [
+        "style.terminology",
+        "style.terminology"
+      ],
+      "actual": [
+        "style.terminology",
+        "style.terminology"
+      ],
+      "workerRaw": 2,
+      "valeRaw": 0,
+      "unified": 2,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "terminology leaves subjective defaults alone",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "undefined acronym",
+      "expected": [
+        "clarity.undefined-acronym"
+      ],
+      "actual": [
+        "clarity.undefined-acronym"
+      ],
+      "workerRaw": 0,
+      "valeRaw": 1,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "title case acronym definition",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 1,
+      "valeRaw": 1,
+      "unified": 0,
+      "suppressed": 1,
+      "pass": true
+    },
+    {
+      "name": "lowercase acronym definition",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 1,
+      "valeRaw": 2,
+      "unified": 0,
+      "suppressed": 2,
+      "pass": true
+    },
+    {
+      "name": "familiar acronym exceptions",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 2,
+      "unified": 0,
+      "suppressed": 2,
+      "pass": true
+    },
+    {
+      "name": "attached number-unit spelling stays untouched",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "audit article pronunciation preserves a unicorn",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 0,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "audit article pronunciation corrects an unicorn",
+      "expected": [
+        "grammar.article"
+      ],
+      "actual": [
+        "grammar.article"
+      ],
+      "workerRaw": 1,
+      "valeRaw": 0,
+      "unified": 1,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "audit inclusive review preserves personal pronouns and identity",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 1,
+      "unified": 0,
+      "suppressed": 0,
+      "pass": true
+    },
+    {
+      "name": "audit acronym definitions tolerate Markdown soft wraps after first use",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 1,
+      "valeRaw": 3,
+      "unified": 0,
+      "suppressed": 3,
+      "pass": true
+    },
+    {
+      "name": "audit uppercase ordinary words are not acronym errors",
+      "expected": [],
+      "actual": [],
+      "workerRaw": 0,
+      "valeRaw": 4,
+      "unified": 0,
+      "suppressed": 4,
+      "pass": true
+    }
+  ],
+  "measurements": [
+    {
+      "workload": "ordinary prose",
+      "words": 1000,
+      "runs": [
+        {
+          "workerMs": 47.18619899999976,
+          "valeMs": 93.00200899999982,
+          "resolveMs": 2.363476000000446,
+          "findings": 201,
+          "workerRaw": 201,
+          "valeRaw": 201
+        },
+        {
+          "workerMs": 39.37625100000059,
+          "valeMs": 93.51174399999945,
+          "resolveMs": 1.6925200000005134,
+          "findings": 201,
+          "workerRaw": 201,
+          "valeRaw": 201
+        },
+        {
+          "workerMs": 47.74009500000011,
+          "valeMs": 91.37242800000058,
+          "resolveMs": 1.56391800000074,
+          "findings": 201,
+          "workerRaw": 201,
+          "valeRaw": 201
+        }
+      ]
+    },
+    {
+      "workload": "ordinary prose",
+      "words": 10000,
+      "runs": [
+        {
+          "workerMs": 381.78182300000026,
+          "valeMs": 133.94414499999948,
+          "resolveMs": 23.293918000000303,
+          "findings": 2001,
+          "workerRaw": 2001,
+          "valeRaw": 2001
+        },
+        {
+          "workerMs": 375.18572399999994,
+          "valeMs": 135.68503499999952,
+          "resolveMs": 19.937643000000207,
+          "findings": 2001,
+          "workerRaw": 2001,
+          "valeRaw": 2001
+        },
+        {
+          "workerMs": 339.99051300000065,
+          "valeMs": 135.11204199999975,
+          "resolveMs": 17.823207000000366,
+          "findings": 2001,
+          "workerRaw": 2001,
+          "valeRaw": 2001
+        }
+      ]
+    },
+    {
+      "workload": "technical names and punctuation",
+      "words": 1000,
+      "runs": [
+        {
+          "workerMs": 46.08051500000056,
+          "valeMs": 91.25987600000008,
+          "resolveMs": 0.07095400000071095,
+          "findings": 0,
+          "workerRaw": 0,
+          "valeRaw": 0
+        },
+        {
+          "workerMs": 43.44870400000036,
+          "valeMs": 92.22060199999942,
+          "resolveMs": 0.09751699999924313,
+          "findings": 0,
+          "workerRaw": 0,
+          "valeRaw": 0
+        },
+        {
+          "workerMs": 42.19685599999957,
+          "valeMs": 91.72575000000052,
+          "resolveMs": 0.05703399999947578,
+          "findings": 0,
+          "workerRaw": 0,
+          "valeRaw": 0
+        }
+      ]
+    },
+    {
+      "workload": "technical names and punctuation",
+      "words": 10000,
+      "runs": [
+        {
+          "workerMs": 882.630494,
+          "valeMs": 103.12731100000019,
+          "resolveMs": 0.23448999999891385,
+          "findings": 0,
+          "workerRaw": 0,
+          "valeRaw": 0
+        },
+        {
+          "workerMs": 879.1514189999998,
+          "valeMs": 100.20867299999918,
+          "resolveMs": 0.33174700000017765,
+          "findings": 0,
+          "workerRaw": 0,
+          "valeRaw": 0
+        },
+        {
+          "workerMs": 887.0641510000005,
+          "valeMs": 102.730986999999,
+          "resolveMs": 0.255565999999817,
+          "findings": 0,
+          "workerRaw": 0,
+          "valeRaw": 0
+        }
+      ]
+    }
+  ]
+}

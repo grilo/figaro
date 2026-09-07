@@ -1,0 +1,14 @@
+{
+  "repository": "https://github.com/vale-cli/write-good",
+  "revision": "c9ceca7f574248a201d5524b001099c5626c7519",
+  "license": "MIT",
+  "sha256": {
+    "Cliches.yml": "8889c96b78c96a0ea7b05f514dd3035d87f9670d21d7a9422cf0b0f582e336a1",
+    "Illusions.yml": "6c362d8d6a960928e4465756e6b093182d06ba3e2b59005281a5dfebb5bff07b",
+    "Passive.yml": "c0d702236dc8b128f9ce7c26bde0754f17c962798744379f2d2113e98834f012",
+    "So.yml": "ff7e8b290e0274d116c33f13d99e2b7c710068ee619f22926774f982b003c432",
+    "ThereIs.yml": "8877286f0efc806f0dbc6bd4127021c8ed71925fc88f485a044abfccacfeb829",
+    "TooWordy.yml": "79c423bef70b00186b71637dc64b964b3270272221febe836e49e2887ca40b40",
+    "Weasel.yml": "a5b5bc0de632dd09f3dee86c70d1f0bf5c607ec9b6462af8f992a14fcfe2a0fc"
+  }
+}

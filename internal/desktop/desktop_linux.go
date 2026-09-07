@@ -94,9 +94,9 @@ func removeStaleLinuxFigaroIcons(iconRoot string, currentAssetName string) error
 	return errors.Join(cleanupErrors...)
 }
 
-func readLinuxIconAsset(size int) ([]byte, error) {
+func readLinuxIconAsset(bundle AssetFS, size int) ([]byte, error) {
 	srcPath := fmt.Sprintf("frontend/icon-%d.png", size)
-	data, err := assets.ReadFile(srcPath)
+	data, err := readBundledAsset(bundle, srcPath)
 	if err == nil {
 		return data, nil
 	}
@@ -129,7 +129,7 @@ func (a *App) ensureDesktopIntegration() {
 
 	iconAssets := make(map[int][]byte, len(linuxDesktopIconSizes))
 	for _, size := range linuxDesktopIconSizes {
-		data, readErr := readLinuxIconAsset(size)
+		data, readErr := readLinuxIconAsset(a.assets, size)
 		if readErr != nil {
 			log.Printf("[desktop] Cannot read icon-%d.png: %v", size, readErr)
 			continue

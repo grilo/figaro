@@ -12,6 +12,7 @@ export function globalShortcutAction(event = {}) {
     if (key === 'f') return shifted ? 'global-search' : 'document-find';
     if (key === 'n' && !event.repeat) return shifted ? 'daily-note' : 'quick-note';
     if (key === 'b' && shifted) return 'toggle-sidebar';
+    if (key === 'l' && shifted && !event.repeat) return 'writing-lenses';
     return null;
 }
 

@@ -2,6 +2,137 @@ import { expect, test } from '@playwright/test';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+// Browser boundary: the actual cascade, intermediate reveal geometry, and native
+// keyboard traversal cannot be established by the disclosure component tests.
+async function assertWritingDisclosure(page, testInfo) {
+    const host = page.locator('[data-writing-lenses-demo]');
+    const trigger = host.locator('.ui-disclosure-trigger');
+    const body = host.locator('.ui-disclosure-body');
+    for (const theme of ['default', 'figaro-crt-phosphor', 'figaro-light']) {
+        if (await page.locator('#theme-select').inputValue() !== theme) await page.locator('#theme-select').selectOption(theme);
+        await expect(page.locator('#theme-status')).toHaveText(`18 themes · ${{ default: 'Figaro Dark', 'figaro-crt-phosphor': 'Figaro CRT Phosphor', 'figaro-light': 'Figaro Light' }[theme]}`);
+        await trigger.scrollIntoViewIfNeeded();
+        await page.mouse.move(0, 0);
+        await expect.poll(() => trigger.evaluate(element => {
+            const probe = document.createElement('span'); probe.style.background = 'var(--disclosure-surface)';
+            element.append(probe);
+            const settled = getComputedStyle(element).backgroundColor === getComputedStyle(probe).backgroundColor;
+            probe.remove(); return settled;
+        })).toBe(true);
+        const rest = await trigger.evaluate(element => {
+            const context = document.createElement('canvas').getContext('2d');
+            const luminance = color => {
+                context.fillStyle = color; context.fillRect(0, 0, 1, 1);
+                return [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map(v => {
+                    v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4;
+                }).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+            };
+            const style = getComputedStyle(element);
+            const background = luminance(style.backgroundColor);
+            const contrast = color => {
+                const text = luminance(color);
+                return (Math.max(background, text) + .05) / (Math.min(background, text) + .05);
+            };
+            return { background: style.backgroundColor,
+                labelContrast: contrast(style.color),
+                summaryContrast: contrast(getComputedStyle(element.querySelector('.ui-disclosure-summary')).color) };
+        });
+        expect(rest.background).not.toBe('rgba(0, 0, 0, 0)');
+        expect(rest.labelContrast, `${theme}: ${JSON.stringify(rest)}`).toBeGreaterThanOrEqual(4.5);
+        expect(rest.summaryContrast, `${theme}: ${JSON.stringify(rest)}`).toBeGreaterThanOrEqual(4.5);
+        await trigger.hover();
+        await expect.poll(() => trigger.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe(rest.background);
+        await trigger.focus();
+        await page.keyboard.press('Tab');
+        await expect(host.locator('[data-apply-all]')).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(trigger).toBeFocused();
+        await expect(trigger).toHaveCSS('outline-style', 'solid');
+        if (theme !== 'figaro-light') {
+            await page.mouse.move(0, 0); await trigger.evaluate(element => element.blur());
+            await expect.poll(() => trigger.evaluate(element => getComputedStyle(element).backgroundColor)).toBe(rest.background);
+            await host.screenshot({ path: testInfo.outputPath(`lenses-${theme}-collapsed.png`) });
+        }
+    }
+    await page.locator('#theme-select').selectOption('default');
+    await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
+    await trigger.scrollIntoViewIfNeeded();
+    const samples = await trigger.evaluate(async button => {
+        const body = button.parentElement.querySelector('.ui-disclosure-body');
+        const arrow = button.querySelector('.ui-disclosure-chevron');
+        const values = [body.getBoundingClientRect().height];
+        button.click();
+        const start = performance.now();
+        while (performance.now() - start < 260) {
+            await new Promise(requestAnimationFrame);
+            values.push(body.getBoundingClientRect().height);
+        }
+        return { values, arrow: getComputedStyle(arrow).transform,
+            state: button.parentElement.dataset.expanded, grid: getComputedStyle(body).gridTemplateRows,
+            duration: getComputedStyle(body).transitionDuration, clipHeight: body.firstElementChild.scrollHeight };
+    });
+    const finalHeight = samples.values.at(-1);
+    expect(finalHeight, JSON.stringify(samples)).toBeGreaterThan(50);
+    expect(samples.values.some(value => value > 1 && value < finalHeight - 1)).toBe(true);
+    expect(samples.arrow).toBe('matrix(0, 1, -1, 0, 0, 0)');
+    await trigger.focus(); await page.keyboard.press('Tab');
+    await expect(host.getByRole('checkbox', { name: /Proofreading/ })).toBeFocused();
+    await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Space');
+    await expect.poll(() => body.evaluate(el => el.getBoundingClientRect().height)).toBe(0);
+    await page.keyboard.press('Tab');
+    await expect(host.locator('[data-apply-all]')).toBeFocused();
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await trigger.focus(); await page.keyboard.press('Enter');
+    await expect(body).toHaveCSS('transition-duration', '0s');
+    await expect(host.locator('.ui-disclosure-chevron')).toHaveCSS('transition-duration', '0s');
+    await expect.poll(() => body.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(50);
+    await page.setViewportSize({ width: 360, height: 740 });
+    await trigger.scrollIntoViewIfNeeded();
+    const rect = await trigger.boundingBox();
+    expect(rect.x).toBeGreaterThanOrEqual(0);
+    expect(rect.x + rect.width).toBeLessThanOrEqual(360);
+    await host.screenshot({ path: testInfo.outputPath('lenses-expanded-narrow.png') });
+    await page.setViewportSize({ width: 360, height: 420 });
+    const info = host.getByRole('button', { name: 'About Formulaic writing', exact: true });
+    await info.click();
+    const help = page.getByRole('dialog', { name: 'About Formulaic writing', exact: true });
+    await expect(help).toBeVisible();
+    const helpRect = await help.boundingBox();
+    expect(helpRect.x).toBeGreaterThanOrEqual(8);
+    expect(helpRect.x + helpRect.width).toBeLessThanOrEqual(352);
+    expect(helpRect.y).toBeGreaterThanOrEqual(8);
+    expect(helpRect.y + helpRect.height).toBeLessThanOrEqual(412);
+    await expect(help).toHaveCSS('overflow-y', 'auto');
+    await expect.poll(() => help.evaluate(element => {
+        const probe = document.createElement('div'); probe.className = 'ui-menu'; document.body.append(probe);
+        const equal = getComputedStyle(element).backgroundColor === getComputedStyle(probe).backgroundColor;
+        probe.remove(); return equal;
+    })).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('lens-help-narrow.png') });
+    // Repeated real scrolling must not feed the painted inner width back into
+    // border-box sizing or gradually shrink the help surface.
+    await expect.poll(() => help.evaluate(element => element.scrollHeight - element.clientHeight)).toBeGreaterThan(40);
+    const beforeScrolling = await help.boundingBox();
+    await help.hover();
+    for (let cycle = 0; cycle < 4; cycle += 1) {
+        await page.mouse.wheel(0, 10000);
+        await expect.poll(() => help.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+        expect(await help.boundingBox()).toEqual(beforeScrolling);
+        await expect.poll(() => help.evaluate(element => element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(1);
+        await page.mouse.wheel(0, -10000);
+        await expect.poll(() => help.evaluate(element => element.scrollTop)).toBe(0);
+    }
+    expect(await help.boundingBox()).toEqual(beforeScrolling);
+    await page.keyboard.press('Shift+Tab');
+    await expect(help).toBeHidden();
+    await expect(host.getByRole('checkbox', { name: 'Formulaic writing', exact: true })).toBeFocused();
+    await trigger.press('Enter');
+    await expect.poll(() => body.evaluate(el => el.getBoundingClientRect().height)).toBe(0);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.setViewportSize({ width: 1280, height: 720 });
+}
+
 test('dismisses a tooltip when its stationary-pointer owner reflows or is removed', async ({ page }) => {
     await page.goto('/design-system/');
     const trigger = page.getByRole('button', { name: 'Show document outline' });
@@ -60,7 +191,7 @@ test('renders file attention as a supplemental themed state without changing row
     await expect(status).toContainText('Saving blocked — action required');
 });
 
-test('catalogues current elements with themed combobox geometry and seamless steppers', async ({ page }) => {
+test('catalogues themed comboboxes, seamless steppers, and animated writing disclosures', async ({ page }, testInfo) => {
     await page.goto('/design-system/');
 
     await expect(page.getByRole('heading', { name: 'Every visible pattern, in one place.' })).toBeVisible();
@@ -71,6 +202,7 @@ test('catalogues current elements with themed combobox geometry and seamless ste
     await expect(themeSelect).toHaveValue('default');
     await expect(page.locator('#theme-status')).toHaveText('18 themes · Figaro Dark');
     await expect(page.locator('[data-token="--accent-color"] .ds-token-value')).toHaveText('#d8574a');
+    await assertWritingDisclosure(page, testInfo);
 
     // Computed cascade boundary: every segmented choice consumes the shared
     // theme tokens in all three Figaro themes, including selected paint.

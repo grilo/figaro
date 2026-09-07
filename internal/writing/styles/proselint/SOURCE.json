@@ -1,0 +1,21 @@
+{
+  "repository": "https://github.com/vale-cli/proselint",
+  "revision": "8e24adbaa5dc6593b331f8bfab23c9af044af406",
+  "license": "BSD-3-Clause",
+  "sha256": {
+    "Airlinese.yml": "ff0126755cbd37ccf178cf761ef025278e348c9ac27ff00631cc7697bbdfe169",
+    "Archaisms.yml": "c0dfef39db2d9b04779e4e7669b20c748e7113ad965c65060ccd504ef8e5f0a0",
+    "Cliches.yml": "d4a09a4127483ba38f268f077c6a00c5b6db9418add88ee09508b9d9ae5dac9b",
+    "CorporateSpeak.yml": "6b3e26cafe8892a2b10817729346b1da5778412b80f0d777e01cd90134f8c93c",
+    "Hedging.yml": "5d1f1d96bd82050b799181e3d725ded38db74990a834b91b66e38dc54d149e00",
+    "Hyperbole.yml": "7aafff98b8d2359000c111de3e1d98eeb1a1940c7c538411b18a492ba3abfe02",
+    "Jargon.yml": "83b666dfcc820da071db98c900cd020fcac5848b70b1686b9c546e3f5453daeb",
+    "Malapropisms.yml": "6a679fc43902eda41a8c2cfa375b05425026a8699ba294bd67077397c39b6e16",
+    "Oxymorons.yml": "de86dd98d6baf6b0e6ad79cde3b5cb0657fba27d702b77b5b1a103c45c325163",
+    "RASSyndrome.yml": "4c2a0ed3f764282889aed15092c5589dac922e829015575d003dc157312e3487",
+    "Skunked.yml": "d79d00342abfcbef4838474883824fb3e9f4331f0eeab84ea8a7d9b49a61a67b",
+    "Spelling.yml": "8fe0bc5c0721feabc3e2b3b77a0639942cc210c71e32e6997b081ec5f4b3a407",
+    "Uncomparables.yml": "e4ff6c5fa481b91c70f2cd2303c70b3601d519c0f2053307ca5b3c57c26768d2",
+    "Very.yml": "431b67451ce3a74a0fecba1b22d8898bc972613ee6f94381e2b676bf01b0bf64"
+  }
+}

@@ -41,18 +41,6 @@ export function getBufferEditorTextScale(tab, configuredScale = getConfiguredEdi
     return editorTextScaleForBuffer(tab?._editorTextScale, configuredScale);
 }
 
-export function setBufferEditorTextScale(tab, scale) {
-    if (!tab || tab.type !== 'file') return normalizeEditorTextScale(scale);
-    const normalized = normalizeEditorTextScale(scale);
-    tab._editorTextScale = normalized;
-    return normalized;
-}
-
-export function resetBufferEditorTextScale(tab, configuredScale = getConfiguredEditorTextScale()) {
-    if (tab && tab.type === 'file') delete tab._editorTextScale;
-    return normalizeEditorTextScale(configuredScale);
-}
-
 function pointerAnchor(view, event) {
     if (!view?.posAtCoords || !view?.coordsAtPos || !event) return null;
     const position = view.posAtCoords({ x: event.clientX, y: event.clientY });

@@ -163,11 +163,11 @@ func (a *App) GetCalendarMonthData(year int, month int) (*CalendarMonthData, err
 		return nil, err
 	}
 	calendarIndex := index.calendar
-	board, err := a.scheduledBoardLocked(index)
+	scheduled, err := a.scheduledTaskDatesLocked(index)
 	if err != nil {
 		return nil, err
 	}
-	tasksByDate := dueCardsByDate(board)
+	tasksByDate := dueCardsByDateWithSchedules(index.cardsByTag, scheduled)
 	dueDaysByMonth := make(map[string][]int)
 	for date := range tasksByDate {
 		addCalendarMonthDay(dueDaysByMonth, date)

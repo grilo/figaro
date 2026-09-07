@@ -43,6 +43,17 @@ same curated Added/Changed/Fixed content rather than GitHub-generated commit
 summaries. The metadata synchronizer owns version/date movement and comparison
 links from 1.14.0 onward; historical headings remain untouched.
 
+The discoverable release skill lives in `.agents/skills/prepare-figaro-release/`.
+Its proposal phase uses `scripts/prepare-release.sh --check` to run the existing
+metadata synchronizer and curated-note parser against a disposable copy of the
+four release metadata files. `scripts/verify-release.sh` owns the shared effect
+sequence for provisional and approved releases; the proposal path never stages,
+commits, tags, pushes, or cuts the repository changelog. Finalization applies the
+selected metadata and repeats verification before creating refs. User intent,
+version recommendation, and approval of the final action belong to the skill;
+the shell targets implement the explicit check, local, and publishing operations.
+Native checks remain separately recorded where the testing contract requires them.
+
 ## Design-system review surface
 
 `frontend/design-system/` owns the canonical token contract,
@@ -67,6 +78,10 @@ positioning escapes scroll-container clipping without changing the approved
 picker presentation. `floatingMenu.js` owns that shared body-overlay mount,
 scroll/resize tracking, and restoration lifecycle for Settings, Link Style,
 native-select replacements, document properties, and Kanban card actions.
+Internal popup scrolling skips repositioning because the invoker has not moved.
+External scroll/resize and explicit updates measure outer border-box dimensions,
+including borders and scrollbar chrome, so repeated placement cannot subtract
+those pixels from an already constrained surface.
 Mermaid Diagram/Template controls opt into that adapter's approved quiet picker
 variant, and Graph search opts into the same quiet field primitive as Search
 notes; their feature styles own only sizing and placement.
@@ -76,7 +91,7 @@ Chart Editor color choices, while feature adapters own only the selected value
 and subsequent effect. `catalog.css` is limited to the page shell and to containing open
 menus, dialogs, and loaders for inspection.
 
-`approved-components.json` is the architectural gate for the nineteen accepted
+`approved-components.json` is the architectural gate for the twenty-one accepted
 families. Extending it with a family, primitive, or visual variant requires
 explicit approval before implementation. Focused tests verify that every
 registered selector is implemented in `primitives.css`, that no unregistered
@@ -222,8 +237,15 @@ left and right adapters invert only the physical direction required by their
 mounting side and keep ARIA values synchronized with pointer and keyboard
 changes.
 
-The fixed-height footer consumes that same `--shell-sidebar-width` plan as a
-two-column grid. Its application-status adapter owns only the left live region,
+The fixed-height footer consumes that same `--shell-sidebar-width` plan for its
+application region, a flexible buffer region, and a trailing right-pane spacer.
+The right-sidebar adapter publishes `--shell-right-sidebar-width` from the same
+layout plan as the pane, including overlay placement and pointer/keyboard
+resizing, and clears it when the pane closes. The buffer region uses container
+queries to hide lower-priority metrics as its available width shrinks. The
+window resize grip sits outside that contained region at the physical window
+corner and follows the existing footer reveal/Pure visibility rules.
+Its application-status adapter owns only the left live region,
 startup progress, delayed activity, and optional Undo action; its buffer region
 separates non-live state into a left-anchored history/relationship/editor-state
 group and a right-anchored document-metrics group. Collapsing retains the
@@ -501,6 +523,11 @@ image source, never to a folded range.
 the native Wails binding at `window.go.desktop.App` using its generated PascalCase
 method names. Browser debugging installs an explicit same-shaped mock through
 that module, rather than emulating a retired desktop runtime.
+`frontend/js/backendContract.js` is the canonical JavaScript inventory of that
+facade. Debug and shared test doubles are generated from it, production binding
+discovery requires the complete surface, and an architecture test compares the
+inventory with every exported Go `*App` method so either side fails immediately
+when the bridge contract drifts.
 
 ## Dependency direction and I/O boundaries
 
@@ -526,9 +553,25 @@ New code and staged refactors use four layers:
 `frontend/js/app.js` is the sole workspace composition root. Feature adapters
 declare narrow `configure*Workspace` ports for tab, editor, file-tree, preview,
 and save coordination; `app.js` injects the concrete operations during eager
-startup. Only `bootstrap.js` imports `app.js`, and only `app.js` imports
+startup. File-tree refresh/transfer and document-save use cases are constructed
+only when those ports are installed, rather than capturing browser effects at
+module evaluation. Dialog decisions are passed as ports instead of published on
+`window`. Only `bootstrap.js` imports `app.js`, and only `app.js` imports
 `tabManager.js`. The first-party module graph is acyclic, so feature modules do
 not recover composition-root access through an import loop.
+
+`tabManager.js` is the sole owner of workspace tab records.
+`core/workspaceTabModel.js` returns immutable edit, content, cursor, temporary
+text-scale, restore, and save-generation transitions; CodeMirror and startup call those owner ports
+instead of mutating objects obtained from `state.js`. Save snapshots carry
+plain IDs, generations, revisions, and content rather than live tab references,
+so queued effects cannot mutate or retain an obsolete state object.
+
+The shared right pane has the equivalent single-owner protocol.
+`rightPaneCoordinator.js` registers each mode's cleanup callback and transfers
+ownership before the next adapter mounts. History, Document Outline, Raw Text,
+and PDF Preview know only their own lifecycle; they do not broadcast or listen
+for pairwise peer-close events.
 
 The Go executable keeps a deliberately thin root `main.go` because it alone can
 embed the root-owned `frontend/` tree and `wails.json`. It passes those immutable
@@ -536,6 +579,19 @@ inputs to `internal/desktop.Run`, which assembles Wails and owns the bound
 `desktop.App`. Desktop capabilities and their package-internal tests live
 beside that composition root under `internal/desktop`; pure logic and use cases
 continue to point inward to the smaller packages described above.
+`NewApp` constructs only in-memory collaborators; the explicit `OpenApp`
+composition step resolves and creates the vault, loads persisted color policy,
+and attaches Git history. A regression test proves bare construction creates no
+directory or repository.
+The bound `desktop.App` remains the Wails API facade, but no longer owns a
+package-global asset filesystem or exposes unrelated runtime/capability locks.
+`Run` injects the immutable `AssetFS` into each App instance;
+`runtimeBridge` owns Wails context, readiness, focus, and event delivery; and
+`externalFileRegistry` owns launch-file capability IDs and synchronization.
+`vaultLoadTracker` independently owns progress generations, bounded emission
+cadence, and its lock-protected status snapshot while App only publishes the
+tracker's decisions.
+Tests prove separate App instances cannot leak asset bundles into one another.
 
 This is a behavioral boundary, not a directory-size target. Dividing a large
 module into smaller services is not sufficient if those services still mix
@@ -598,10 +654,18 @@ finish before the application advertises the affected feature as ready. The bund
 classic renderer scripts remain static startup dependencies but use `defer` so
 they do not block HTML parsing; language parser warming begins immediately and
 settles before `window._appReady`, without delaying the initial Markdown
-buffer. A source-level architecture test rejects dynamic imports and source
+buffer. Production embeds one minified `app.bundle.js` ESM entry assembled by
+`scripts/build-app-bundle.mjs`; it still contains and initializes the complete
+static application graph eagerly. The development server substitutes the raw
+`js/bootstrap.js` entry so source modules remain inspectable during browser
+testing. A source-level architecture test rejects dynamic imports and source
 modules that are unreachable through static imports or explicit worker edges
 from the application bootstrap or the three print-renderer build entries,
-while the assembled startup check verifies the single static bootstrap path.
+while assembled startup checks verify the production bundle and development
+substitution contracts. The browser harness can explicitly request the
+production entry, where it proves the generated bundle boots without falling
+back to first-party source-module requests; normal development requests retain
+the inspectable source graph.
 
 Demand-driven **work** is distinct from lazy-loaded **application code**.
 Operations that inherently require a user selection or current vault content,
@@ -652,6 +716,13 @@ seam before its callers were rewired:
     inspection pass for absolute-path, file-type, nested-tree, duplicate-name,
     resolution, and recursive-copy checks while retaining root-scoped execution
     and rollback in the desktop adapter.
+13. Workspace tab writes moved behind immutable pure transitions, including
+    queued save generations and restored cursor state.
+14. Shared right-pane modes replaced pairwise close events with one ownership
+    coordinator, and dialog effects became injected workspace ports.
+15. The frontend/Go bridge gained a parity-checked canonical contract, while
+    the desktop facade received instance-scoped assets plus dedicated runtime
+    and external-file capability components.
 
 The frontend backend adapter absorbed the generated Wails namespace change, so
 user workflows and application use-case contracts remain unchanged. Further
@@ -689,7 +760,13 @@ full-vault layout remains authoritative for every filtered projection;
 identity-equal projections skip rebuild and paint entirely. At large scale the
 model bounds force refinement, while the adapter paints edges, arrows, nodes,
 and labels into an off-screen canvas in interruptible time-budgeted slices and
-atomically publishes only the latest completed frame.
+atomically publishes only the latest completed frame. A screen-space grid
+limits pointer hit-testing to nearby nodes, and per-node edge adjacency avoids
+walking every edge for a sparse trace. The completed untraced large topology is
+cached by viewport, palette, and graph identity: clearing a trace republishes
+that canvas directly, while a trace composites the cached base with only its
+related edges and nodes. Filtering or any topology/appearance change
+invalidates the base.
 
 The cold-build adapter first discovers the exact ordinary Markdown workload,
 then reads and transforms that retained path list. It publishes discovery,
@@ -731,16 +808,16 @@ in the same vault lock. The recursive native watcher sends a debounced set of
 changed paths to the backend: a one-file external edit similarly rereads and
 reprojects only that file, while creates/removes update the tree as needed.
 Recent Figaro-originated write events are recognized so the watcher does not
-repeat the save work. After an internal copy reaches disk, Figaro validates all
-pre-existing Markdown metadata while excluding the known new destination. A
-current index is extended by parsing only the copied subtree, and exact copied
-paths acknowledge the corresponding watcher batch; a stale index falls back
-to one cold rebuild. A move or referenced-file rename preview first verifies
-the warm index against a
-metadata-only Markdown walk, prunes link rewriting to indexed source/target
-candidates, then remaps only affected file records and reconstructs derived
-projections from retained memory. Any stale snapshot falls back to the complete
-root-scoped rewrite scan and cold index rebuild. Other ambiguous broad changes,
+repeat the save work. After an internal copy reaches disk, an active watcher is
+the production authority for intervening external changes, so a current index
+parses only the copied subtree and exact copied paths acknowledge the
+corresponding watcher batch. Watcher-less adapters retain the complete
+pre-existing Markdown metadata validation and cold fallback used by tests and
+unsupported environments. A move or referenced-file rename prunes link
+rewriting to indexed source/target candidates, then remaps path-derived records
+while retaining already parsed bodies, tokens, trigrams, and content-derived
+projections. The index revision advances on every rebuild and mutation so
+dependent caches cannot outlive their source. Other ambiguous broad changes,
 such as merges or an unscoped notification, deliberately invalidate and rebuild
 one coherent snapshot; correctness wins over a speculative partial update.
 
@@ -756,6 +833,9 @@ tokenization, bounded prefix/edit expansion, BM25F field scoring, and
 best-passage selection without filesystem or Wails dependencies. The native
 index incrementally maintains sorted term postings, document frequencies,
 field lengths, and a vocabulary over title, headings, tags, path, and body.
+Cold rebuilds append postings in deterministic path order and therefore avoid
+per-entry sorted insertion; incremental replacements retain exact sorted
+remove/insert semantics.
 Exact variants lead prefix and conservative fuzzy variants; field and match
 weights live in explicit global, title-only, and link-completion profiles.
 Case-sensitive search reanalyzes only candidate text against the original
@@ -782,9 +862,10 @@ returns the complete hierarchy; this cache removes rediscovery cost without
 changing tree membership, sorting, hidden-path, or symlink rules.
 
 Relationships reuse that same index for both reverse backlinks and unlinked
-mentions. A mention scan walks cached source only, excludes fenced code and
-existing link syntax, and returns a small context window around each
-plain-text title match. Linking one mention is a root-scoped, line-specific
+mentions. Trigram postings first exclude files that cannot contain the target
+title; the exact mention scan then walks only candidate cached sources,
+excludes fenced code and existing link syntax, and returns a small context
+window around each plain-text title match. Linking one mention is a root-scoped, line-specific
 atomic write: it rechecks the current source under the vault lock, refuses
 ambiguous/stale targets, updates the affected index entry, and renders the
 user's selected Markdown or conventional Wikilink syntax. The frontend saves
@@ -792,9 +873,9 @@ open Markdown buffers before that operation so an in-memory edit cannot be
 silently overwritten.
 
 Vault health is deliberately separate from the hot index projections. It is a
-user-triggered, read-only root-scoped walk: cached Markdown source checks
+user-triggered, read-only root-scoped analysis: cached Markdown source checks
 vault-local Markdown/Wikilinks and structural frontmatter delimiters, while
-the visible regular-file walk identifies common unreferenced attachments and
+the warm file-tree inventory identifies common unreferenced attachments and
 repeated basenames. The pure `internal/notenames` package canonicalizes Markdown
 names and applies the conservative content-overlap rule used for possible
 duplicates: same-folder variants need no content evidence, while cross-folder
@@ -812,12 +893,16 @@ pure same-folder creation/insertion plan plus an injected coordinator;
 the backend create must succeed before the adapter replaces the typed prefix,
 while cancellation and failure perform no editor transaction. Dot-directories and
 symlinks are excluded; external URLs, mail links, and code fences are not
-findings. The report contains only vault-relative paths and lines, so UI
-navigation needs no filesystem access.
+findings. A report cache is keyed by index identity and revision; any known or
+ambiguous vault mutation invalidates it. The report contains only
+vault-relative paths and lines, so UI navigation needs no filesystem access.
 
 The full Kanban board remains available for its workspace, but the Today dashboard asks the
-backend for its bounded unfinished-card projection and due-task summary directly. Due work is
-deduplicated by source line, prioritized ahead of undated work, and joined from private task metadata onto copies of indexed cards. The Markdown
+backend for its bounded unfinished-card projection and due-task summary directly. A bounded top-k selection avoids copying and sorting the complete
+board for that small result. Due work is deduplicated by source line,
+prioritized ahead of undated work, and joined from private task metadata onto copies of indexed cards. The joined schedule projection is cached by index
+revision and schedule revision, so Calendar, Today, and due-task reads do not
+repeat a full-board overlay. The Markdown
 index never interprets due-link syntax. Pure Go and JavaScript helpers own
 date validation, local-day comparison, priority, locale week normalization, month-grid construction,
 note-intensity buckets, shared sidebar/picker month presentation, accessible day-label composition,
@@ -935,7 +1020,7 @@ path, and disposal cancels any queued projection.
 `internal/taskschedule` owns pure identity reconciliation, immutable date
 updates, collision refusal, and path rewriting. `task_schedules.go` supplies
 current indexed source references and root-scoped atomic JSON I/O under the
-vault/settings locks. `.config/task-schedules.json` is private, ignored
+vault/settings locks. `.config/task-schedules.json` is separate vault-local
 application state: it supplies Board, Gantt, Calendar, Today, and reminders
 without modifying notes or adding Calendar links. `task_schedule_projection.go`
 joins resolved dates onto copies without mutating the Markdown index.
@@ -1009,7 +1094,7 @@ write lock while the history adapter enumerates the target through `os.Root`,
 stages the exact current target—including tracked children already removed—and
 creates or identifies the commit that reconstructs it. The pure
 `internal/recovery` registry rules order, find, and remove opaque records; the
-desktop coordinator atomically persists those records in ignored
+desktop coordinator atomically persists those records in vault-local
 `.config/recently-deleted.json` before `RemoveAll`. The archive path refuses
 unrelated staged entries and restores the prior index if staging or commit
 fails. Any preparation, archive, or registry error aborts removal, so the
@@ -1045,12 +1130,242 @@ allocation.
 
 ## Outline navigation
 
+Writing lenses share the right-pane coordinator and responsive layout.
+The coordinator applies the pure `core/rightPaneState.js` tab-selection plan,
+closes the outgoing owner, and invokes the registered opener only after the
+matching tab activation mounts its buffer. Pane selection is per tab; requested
+splitter width is shared across modes. Settings and planning round trips
+therefore restore the document pane without copying stale preview content.
+`usecases/writingLensesApplyAll.js` drains document writes before its injected
+atomic vault update, then replaces all cached preferences after outstanding
+loads settle. The pure Go plan validates all entries and preserves metadata.
+`usecases/writingPathContinuity.js` gates storage access around file-tree native
+rename/move/merge calls; active writes finish first and queued operations resolve
+a mutable document entry's current path after completion. `core/writingPathModel.js`
+prioritizes specific merge collision names over the containing folder mapping.
+Mounted preference/review controllers retain their identity and retry state.
+`internal/settings/writing_relocation.go` plans document-key changes without I/O
+and preserves opaque fields; `internal/writing/relocation.go` applies them through
+a narrow injected writer with reverse rollback, including uncertain writes.
+The desktop adapter supplies root-scoped atomic writes and holds `writingStateMu`
+across metadata and path mutation. This lock is distinct from the Vale lifecycle
+lock and from general settings. Destination records are not merged or overwritten.
+`core/writingLensesModel.js` normalizes independent lens combinations, language,
+and buffer-ownership decisions for nine internal check families exposed as five UI groups.
+`writingLensGroups` composes Proofreading, Clarity, Directness, Inclusive language,
+and Formulaic writing; `writingLensGroupState` derives selected/partial state and
+language-specific coverage without changing persisted IDs or analyzer memberships.
+Group actions expand only supported members; loading preserves exact legacy subsets.
+`writingLensesExpansion` owns loaded-document/default versus explicit expansion
+policy without DOM effects. The eagerly imported `disclosure.js` DOM adapter
+composes the shared `.ui-disclosure` primitive, native button, stable summary and
+chevron, and inert/ARIA visibility. CSS owns the reversible in-flow animation;
+there are no timer, measured-height or editor dependencies.
+`core/writingLensHelpModel.js` owns editorial examples, limitations, and language-specific
+help content as pure data. `writingLensesModel` separates the one-sentence summary
+from partial/support detail. `views/writingLensHelpView.js` owns the nonmodal
+help portal and dismissal/focus lifecycle, reusing the shared example renderer
+and approved menu/icon buttons. `core/floatingMenuModel.js` plans optional left
+placement with the existing vertical fallback; `floatingMenu.js` measures and
+positions it. The shared pane/Pure view owns help across document changes and
+parent closure. All modules are eagerly imported; opening help performs no
+analysis, source transformation, or preference write.
+The model derives each disabled-lens explanation
+from language support and preference state. The shared writing view publishes
+that reason to the existing checkbox/label tooltip and accessible description.
+`usecases/writingLensesPreferences.js` owns
+serialized/coalesced persistence and retry state. The views compose
+the existing Settings combobox, checkboxes, buttons, and notices, plus the user-approved
+rounded borderless suggestion primitive. `core/writingInlineModel.js` selects current visible ranges
+and overlapping occurrences without I/O. `writingInline.js` owns the CodeMirror
+current-finding state, viewport-only marks, hover geometry constrained to the
+visible editor, and keyboard focus; `views/writingInlineView.js`
+composes the approved menu and buttons. `core/writingLinkModel.js` computes exact
+label ranges and disjoint paint segments without effects. `writingLinkHints.js`
+adapts mounted link widgets through public CodeMirror DOM positions, limits
+matching to the viewport, and decorates labels after drawing without rebuilding
+widgets. Covered source marks schedule a measure write even when CodeMirror
+needs no redraw. Hover requires the painted plan to belong to the current
+finding array, so cached choices cannot outlive result invalidation. Link hover uses the existing writing tooltip with the widget
+range for geometry and retains destination information. A document transaction clears marks
+synchronously. Every popup action captures its displayed analysis identity and
+uses the same fresh-source guard as pane actions. The editor eagerly registers
+the extension; the snapshot adapter publishes effects without re-running engines.
+`core/writingTokenCache.js` owns a bounded LRU computation cache; the vendor build
+wraps the unchanged pinned Slopless tokenizer through `writingSloplessCache.js`.
+Each analysis clears it in `finally`, and callers receive copies. No package
+files in node_modules are modified. `core/writingParagraphModel.js` rebases a
+paragraph, while `writingParagraphRule.js` supplies the original rule with that
+local tree and reports against the original node. This avoids quadratic prefix
+allocation by sentence-splitter without approximating punctuation checks.
+`core/writingWorkBudget.js` and `internal/writing/budget.go` keep size-based timeout
+policy separate from timer/process adapters: two seconds per started 64 Ki source
+units, bounded to 5–30 seconds. Worker initialization remains five seconds, and
+cancellation still terminates workers/processes immediately.
+`core/writingTechnicalModel.js` separates URL contents from surrounding punctuation
+and shares technical-token ranges between prose projection and spelling. Spelling
+masks parsed emphasis delimiters before identifying paths; token boundaries
+preserve quotes, possessives and numeric compounds. `core/spellingVocabulary.js`
+contains recognition-only English terms. The dictionary adapter marks reviewed
+corrections explicitly; the pure bulk planner requires this flag for spelling.
+`core/writingContextModel.js` bounds phrase context to nearby prose in the same
+block, guarding technical noun senses and reader-assumption advice. Acronym
+definitions are cached per acronym within one resolution, never in global state.
+`core/writingAdditionalRules.js` owns curated consistency, punctuation, and
+sentence-length rules over mapped prose, with no external effects. The eager
+runtime eagerly initializes pinned article, contraction, redundant-acronym,
+quotation, equality, sentence-spacing, diacritics, and readability plugins and
+rejects context spanning hidden text. `core/writingPackagePolicy.js` holds the
+formula thresholds and paragraph eligibility, and expands spacing observations
+to meaningful adjacent words without crossing protected content or line breaks.
+The same pure policy restricts equality advice to reviewed generic expressions
+and handles reviewed/uncertain article pronunciations; exact source mapping is
+separate from editorial suitability.
+Mapping version 11 includes package pins, reviewed terms/acronym exceptions, editorial policy version 4, spelling vocabulary version 1, and formula options in snapshot
+identity. The resolver keeps formula and length advice distinct, merging only equivalent
+concerns and retaining every contributing lens and native source. Enabled lenses
+alone may supply fixes; unreviewed simplification matches remain advisory. Readability never generates fixes.
+`core/writingTypographyModel.js` identifies balanced quotations and derives
+existing punctuation conventions without I/O. A second mapped projection
+exposes quotation punctuation to its own checker while prose wording remains
+masked. The pure resolver validates each delimiter before composing a single
+source-preserving quote edit, including across Markdown formatting. Fourteen pinned
+proselint rules are extracted with the shared private Vale configuration and
+notices; equivalent cliché/jargon spans retain both sources in one finding.
+The use case requests Vale for the Plain language, Directness, Repetition,
+Consistency, or Readability check families; enabling one through its UI group
+runs missing Vale work before evidence can be reused. Every
+finding retains its exact source slice separately from its projected wording so
+sentence-wide marks across Markdown formatting keep the same freshness guard.
+
+`writingRuntime.js` is a build entry for the eagerly loaded retext/textlint worker. It
+parses Markdown into prose with exact source mappings and retains analyzer-native
+evidence. Its asynchronous `analyzeWriting` coordinates retext with the actual
+textlint kernel and maintained text parser in `writingTextlintRuntime.js`.
+The adapter initializes the punctuation, terminology and selected Slopless rules before worker readiness; failed initialization
+terminates that worker and remains retryable. `core/writingTextlintModel.js` owns
+the reviewed names, escaped-mark projection, relevance prefilter, native span
+conversion, reviewed uppercase-word exceptions, and acronym-definition recognition
+across soft wraps within one eligible projection region. Ordinary
+prose without opening marks or reviewed names skips punctuation/terminology execution, while
+the dependencies remain eager. Build adapters disable terminology's optional
+Node file loaders with explicit errors; browser `assert`/`process` dependencies
+support the real kernel. No runtime filesystem or dynamic import is introduced.
+`writingSloplessRuntime.js` statically imports 30 public Slopless 0.2.38 rule modules
+into this worker. Its CLI is not bundled. `core/writingSloplessModel.js` owns
+selection, neutral messages/examples, native-range validation, curly-mark splitting
+and first-occurrence anchors for each verified repeated word. Smart-quotes uses the typography projection;
+other rules use protected prose. Snapshot configuration includes the exact rule map.
+The new Formulaic writing lens only filters the resulting advisory findings.
+See [the complete rule inventory](docs/WRITING_SLOPLESS.md).
+Six checksum-pinned Microsoft rules join seven write-good and fourteen proselint
+rules in the private Vale style set. Sentence-length first-word anchors expand to
+a complete eligible paragraph sentence in the pure adapter. All selections and
+remaining exclusions are recorded in [the package review](docs/WRITING_PACKAGE_REVIEW.md).
+The resolver suppresses familiar/defined acronyms with retained reasons and
+offers advisory examples, without guessing expansions or checking unit spacing.
+`core/noteLinks.js` shares wiki target/alias ranges between editor navigation and both writing/spelling exclusions.
+`core/writingAnalysisModel.js` purely converts coordinates, maps
+canonical concepts, resolves conservative equivalence/conflicts, applies policy,
+groups passages, maps display continuity, and validates fixes.
+`core/writingDecisionsModel.js` constructs unique context anchors, remaps intact
+targets through plain ranges adapted from actual CodeMirror changes, conservatively matches a distinctive
+surviving side on reload, and applies
+language-scoped occurrence/acronym suppression without I/O. Decisions participate
+in snapshot configuration, so changing them reuses current analyzer evidence
+while invalidating stale actions. `usecases/writingDecisions.js` owns one note's
+pessimistic load/change/retry/reconcile state and debounced anchor updates through
+injected storage/timer and background tracking ports. Input observation only queues immutable source readers and numeric ranges; deferred jobs track both committed and pending records. Pending commands remain immutable, while separate anchors reconcile source changes before a response takes effect. Inactive IDs are computed in the decision worker, never by the view. Definite capacity rejection releases the pending
+command so removals remain possible; uncertain writes keep idempotent retry
+until an explicit reload reconciles disk. Reload requests coalesce and wait for
+the active tracking job to settle before replacing decisions. Tracking pauses
+between edits during loading; remaining source changes run against the loaded
+set, with ID-based result matching and no stale-source append. Each workspace caches
+these controllers by path. The two `WritingDecisions*` bindings lock rooted
+read/modify/write around pure `internal/settings/writing_decisions.go` plans.
+Version 1 `.config/writing-decisions.json` preserves unknown fields and other
+notes, bounds record/file size, rejects colliding IDs, and supports idempotent
+add/remove/reanchor commands. Reanchor updates only context on an existing
+identity, preserving unknown fields and never resurrecting a removed record.
+The optional `exactOnly` field disables fallback after target edits/deletions;
+restoring the original full context (including Undo) can reactivate the decision.
+`views/writingDecisionsView.js` shows context/inactive records and composes approved buttons,
+notices and suggestion cards in both existing review surfaces. Reversal remains
+available independently of selected lenses or whether the original text exists.
+`usecases/writingAnalysis.js` owns bounded snapshot generations, debounce,
+latest-request scheduling, partial results, and display identity through
+injected analyzer, background resolver, and timer ports. `core/writingReviewWork.js` owns pure resolution, identity continuity, presentation grouping, and decision-tracking transformations. Result generations reject late resolutions as well as late analyzer responses. `writingLenses.js` adapts the owned editor snapshot,
+document-specific preferences, source navigation, and isolated undoable transactions.
+`core/writingReviewModel.js` groups identical suggestions independently of passage
+size and plans all-or-nothing bulk edits only for reviewed single-choice kinds.
+Every bulk range shares the normal snapshot/source guard and must not overlap;
+one CodeMirror dispatch creates one history item. The results view mounts four
+distinct cards per page, cycles source occurrences, and creates raw diagnostics
+only on request. Shared view helpers disclose extra alternatives and explain rules
+before technical evidence; configured lens controls start collapsed.
+Spelling runs the existing conservative nspell implementation in a separate
+cancellable worker, with one scan and cached suggestions per unique word.
+`core/spellingModel.js` uses the eagerly bundled Lezer Markdown parser for
+UTF-16 eligibility shared by spelling, context menus and background resolution.
+Reference IDs/definitions and indented code are excluded. Defined implicit
+link/image labels remain advisory because their text also owns the reference key;
+the resolver withholds all wording fixes crossing those labels.
+`core/frontmatterRegionModel.js` shares exact leading-YAML ranges with metadata,
+including unfinished frontmatter. `core/spellingSuggestionsModel.js` owns the
+pure dictionary/suggestion policy through supplied checkers: English possessives
+validate their stems and retain the authored suffix in corrections. Loading
+dictionaries remains in `spellcheck.js`.
+`usecases/spellingDictionary.js` serializes additions through injected load/add
+ports and publishes accepted words only after successful persistence. The writing
+snapshot includes those words in its effective configuration. Inline review and right-click spelling filter accepted whole words. The Spelling
+lens owns all spelling enablement and language; no standalone linter is mounted.
+`internal/settings/spelling_words.go` validates and plans dictionary changes
+purely; `app_spelling_dictionary.go` owns the locked rooted read/atomic-write
+boundary for `.config/spelling-dictionary.json`, preserving unreadable data.
+
+`writingAdapters.js` eagerly creates three bundled workers (prose/resolution, spelling, and decision tracking) and initializes
+Vale before workspace readiness. Prose and resolution requests serialize through the same worker so full projections and raw observations remain there; only Vale input and resolved results cross the UI boundary.
+`usecases/writingProse.js` owns the worker-local source cache through an injected
+analysis port. Resolution carries an explicit `proseRequired` flag: cache misses
+rebuild inside the worker, and failed recovery returns independent spelling
+with `proseFailure`, excluding unmappable Vale output. The analysis coordinator
+keeps that review partial and retryable until recovery actually succeeds.
+Decision requests serialize separately across document controllers. No worker failure falls back to synchronous UI computation. `internal/writing` embeds the checksum-pinned
+platform executable and seven selected Vale rule files (two write-good, four
+proselint, and Microsoft.Acronyms), extracts them to a private cache
+directory, and runs fixed arguments/configuration on stdin. It bounds input/output,
+terminates superseded or timed-out processes, and removes its runtime directory
+on shutdown. The desktop binding owns this adapter; analyzers never read notes or
+vault styles directly. Missing runtime assets produce unavailable/partial results,
+not fallback work on the typing thread. Build preparation and capability limits
+are detailed in [docs/WRITING_ENGINE.md](docs/WRITING_ENGINE.md).
+
+`internal/settings/writing_lenses.go` validates and plans preference migration
+and updates independently of I/O. The desktop adapter loads version 1/2/3
+`.config/writing-lenses.json` and atomically saves version 3 through the rooted
+vault adapter. Legacy primary/overlays become default lens combinations; each
+note path can store its own combination and language. Unknown fields and other
+notes survive; corrupt/newer records are refused. The workspace adapter keeps
+separate preference controllers per path, so late loads, save errors, and retries
+remain bound to the initiating document. The history adapter's pure ignore migration
+removes the exact legacy `.config/` rule while preserving other patterns and line
+endings. Configuration is eligible for explicit vault Git tracking; startup and
+preference saves neither stage nor commit it, and automatic note history remains
+file-scoped.
+
 Outline is intentionally a source-navigation surface rather than another
 CodeMirror live-preview feature. `core/outlineModel.js` parses only the active
 Markdown document's headings, keeps their document offsets, ignores
 frontmatter plus heading-shaped text in fenced code, derives every active
 ancestor, and decides whether a measured line has crossed the visible sticky
-boundary. The DOM adapter renders that hierarchy in an edge-to-edge, flat
+boundary. The same pure model keeps the launcher present but disabled for an
+active Markdown note with no headings, including its explanatory tooltip and
+accessible-description content. Guarded `aria-disabled` preserves keyboard
+focus so the same tooltip is reachable without a pointer. Explicit open focuses
+the current/first heading; close from the pane restores the launcher/editor.
+Refresh retains a focused heading without stealing outside focus, and pane
+replacement or tab switching never restores stale launcher focus.
+The DOM adapter renders that hierarchy in an edge-to-edge, flat
 editor-top strip and renders the same typed headings in the right pane; both
 dispatch ordinary selection and scroll transactions when activated. Sticky
 titles consume the shared `--font-size-editor` token, while the level marker
@@ -1067,7 +1382,8 @@ phase resolves one line through CodeMirror's height map, and the write phase
 touches the sticky DOM only when the hierarchy signature changes. This follows
 the visible covered edge instead of the deliberately batched virtual viewport
 without parsing Markdown or forcing layout from the scroll handler. The small
-top-right launcher is hidden while the outline owns the right pane. History,
+top-right launcher uses the approved icon-button disabled state when the model
+has no headings and remains visible with a pressed state while the outline owns the right pane. History,
 Raw Text Preview, and PDF Preview release the outline before taking that shared
 pane.
 
@@ -1078,7 +1394,7 @@ File tabs share one CodeMirror `EditorView`, but never its undo state. The pure
 changes document ownership, rejects stale mounts, and requires a history swap
 even when the incoming text is byte-for-byte identical. The editor adapter
 serializes history against the outgoing file-tab object in a `WeakMap`, removes
-the dedicated history compartment while installing the target source, and
+history and the complete Markdown presentation together before installing the target source, and
 marks that whole-document transaction as excluded from history. It restores
 the target's serialized state only when the saved document exactly matches the
 incoming text; new, closed-and-reopened, or externally changed buffers start
@@ -1088,13 +1404,18 @@ ownership decision while making it impossible for Undo or Redo to replay a
 document replacement from another tab.
 
 `core/editorDocumentMountModel.js` separately decides when a Markdown source is
-large enough to require a staged mount and splits it at a source line boundary.
-The editor adapter installs those chunks as two history-free transactions,
-then restores image, frontmatter, diagram, table, and math presentation in
-separate animation frames. The active tab and document owner guard every stage;
-switching away cancels queued work, while edits made after source completion are
-retained. Visible source, saved cursor, isolated undo history, and the complete
-Markdown feature set are unchanged—only their scheduling differs.
+large enough to require a staged mount, splits it at a source line boundary,
+and returns a pure content-sensitive presentation plan. The editor adapter
+installs those chunks as two history-free transactions while presentation is
+absent, restores the target history, then prioritizes leading frontmatter and
+only the image, diagram, table, or math stages whose markers occur in the
+incoming source. Dormant authoring fields attach afterward, preserving the
+ability to type new syntax without placing their initial scans on the ready
+path. Feature scanners have cheap marker exits and frontmatter materializes
+only the leading prefix. The active tab and document owner guard every stage;
+switching away cancels queued work, while edits made after source completion
+are retained. Visible source, saved cursor, isolated undo history, and the
+complete Markdown feature set are unchanged—only their scheduling differs.
 
 ## Editor text scale ownership
 
@@ -1306,8 +1627,10 @@ to its left control with one activation rectangle, narrows heading sections to
 the approach lane, and gives folded, caret, and keyboard-focus states explicit
 precedence. The `blockControlVisibility.js` ViewPlugin measures source,
 control, and content coordinates, tracks pointer/focus input, and writes only a
-relevance class; the approved primitive owns opacity, hit testing, and
-reduced-motion behavior. A control's visual relevance range is distinct from
+`data-block-control-relevant` attribute on the gutter owner. CodeMirror
+replaces that owner's classes when edits remap source offsets, so an attribute
+preserves reveal state until the next geometry measurement without a flash.
+The approved primitive owns opacity, hit testing, and reduced-motion behavior. A control's visual relevance range is distinct from
 its fold range, so a heading-line caret reveals the guide without changing the
 folded source.
 `markdownBlockGuides.js` is the CodeMirror adapter: it reads Lezer's top-level
@@ -1342,17 +1665,20 @@ wheel/touch input is owned by the preview only while that axis can move, then
 the browser chains it to CodeMirror at either boundary. No wheel listener,
 synthetic delta forwarding, or selection transaction participates.
 `core/editorBlockActionLayoutModel.js` separately turns the measured writing
-edges and untransformed helper-rail edges into bounded before/after offsets,
-measured rail widths, and the existing stacked-layout decision. Its DOM adapter
-reads CodeMirror's centered content box, padding, and current transforms, then
-publishes CSS properties that move only the interactive helper gutters. The
-left rail's hidden spacer uses the syntax model's maximum permitted label
-length, and an equal negative flex margin makes that stable width an overlay;
+edges and untransformed helper-rail edges into a bounded rail offset, width,
+and missing writing-margin inset. The DOM adapter subtracts the previously
+applied inset before remeasurement so the reservation cannot oscillate. CSS
+reserves missing space as left content padding, including compact PDF splits;
+removing block guides clears it. The left rail's hidden spacer uses the longest
+label needed by the parsed document and its enabled actions, not a hypothetical
+maximum-length fence. An equal negative flex margin makes that stable width an overlay;
 folding a parent can therefore remove a wider child guide without recentering
-the document. The document width, prose layout, and ordinary CodeMirror gutters
-remain unchanged as text width, window width, folding, or side panes change.
+the document. Document edits and newly parsed blocks can update the reservation.
+The ordinary centered layout stays unchanged when its margin
+holds the rail; narrow windows or larger text reserve only the missing space
+before prose, without hover- or focus-triggered reflow.
 The table provider remains first-party and eager. `markdownBlockGuides.js`
-stacks fold, editor, and delete controls for the same source range;
+stacks fold, editor, chart, and delete controls for the same source range;
 `liveMarkdownTablePlugin.js` owns only the measured read-only replacement and
 rendered-cell-to-source pointer adaptation. The guide-launched
 `markdownTableEditor.js` is an isolated modal adapter over the pure
@@ -1360,7 +1686,8 @@ rendered-cell-to-source pointer adaptation. The guide-launched
 source serialization, merge-coordinate shifting, and disabled reasons do not
 read CodeMirror or the DOM. The modal owns temporary Undo/Redo and performs no
 root change until Apply revalidates the original source and dispatches one
-replacement transaction. Its shell and pane frames consume the borderless
+replacement transaction. The discard notice remembers its initiating control
+and native selection; Keep editing or Escape restores that editing context. Its shell and pane frames consume the borderless
 modal-surface contract, while ordinary toolbar actions reuse the approved
 outlined compact button and one feature-owned divider separates Rows from
 Columns. The internal cell grid, danger actions, focus, and forced-colors
@@ -1586,15 +1913,11 @@ root supplies the same eagerly loaded Mermaid parser adapter used by preview
 and export. CodeMirror's async linter discards a completed result if its source
 document has since changed.
 
-Offline spellcheck is another independent, off-by-default idle-time linter
-compartment. Its
-three Hunspell assets (US English, UK English, and Spanish) are served from
-the embedded frontend bundle and cached in the webview; text is never sent to
-a service. The Settings language combobox maps **None** to the global
-`spellcheck: false` preference while retaining `spellcheck_language` as the
-last valid dictionary for later re-enablement. When enabled, those preferences
-provide the fallback, while a note's leading `spellcheck` frontmatter can
-select one or more bundled dictionaries or disable that note. A hyphenated prose compound
+Proofreading owns local spelling checks through its dedicated spelling worker and
+shared inline findings. Its English US/UK and Spanish Hunspell assets are bundled
+and cached locally. The document’s lens combination and analysis language are
+authoritative; Settings and frontmatter no longer configure spelling. Legacy
+settings/YAML are preserved without effect. A hyphenated prose compound
 is accepted when every component is recognized by the same active dictionary,
 so terms such as `faster-than-usual` remain unmarked despite dictionary
 compound gaps. A right-click resolves
@@ -1617,8 +1940,8 @@ where possible, avoiding a whole-document tokenization per keypress.
 ## Session state is not settings
 
 `settings.json` stores durable preferences such as theme, fonts, tab size, Vim visual-row
-and rendered-block motions, the Markdown-lint toggle, and the spellcheck enabled
-state plus last selected global language. Open tabs, their ordering, current per-file cursor
+and rendered-block motions and the Markdown-lint toggle. Per-note writing
+lenses and language live in `.config/writing-lenses.json`. Open tabs, their ordering, current per-file cursor
 selections, and the active workspace state live in the dedicated session record.
 Cursor updates are coalesced into portable session writes and installed before
 the restored active file is mounted. Keeping them separate makes startup recovery
@@ -1775,15 +2098,15 @@ print CSS, page geometry, cover pages, or a generated table of contents.
 The module listens for active document changes, saves, and matching tab
 switches so it keeps the current note snapshot without competing with the
 editor's source of truth. It shares the sidebar ownership protocol with
-History, Outline, and PDF Preview; each view dispatches the corresponding close
-event before taking the pane.
+History, Outline, and PDF Preview; the central right-pane coordinator releases
+the current owner before another view takes the pane.
 
 `editorPreviewLaunchers.js` is the eager DOM adapter for the compact Raw
 Markdown and PDF icon buttons beneath the Outline launcher. Injected active-tab,
 document-ownership, and preview ports keep it independent of either preview
 implementation; it exposes open state, hides outside an owned Markdown buffer,
-and uses the existing mutually exclusive right-pane events rather than creating
-a second preview state machine.
+and asks the same coordinator to release an already-active preview rather than
+creating a second preview state machine or a peer-specific close event.
 
 For scroll following, `core/rawTextPreviewModel.js` purely clamps a measured
 source anchor or source-progress fallback to the raw pane's scroll range.
@@ -1910,11 +2233,12 @@ source and delegates color menus to the existing Kanban palette adapter.
 Phase-only status updates retain the controls and palette anchor; effective
 color refreshes update swatches in place. Source/selection rebuilds restore a
 stable semantic focus key. For flowcharts it keeps the selected-node editor
-first, ahead of both the bounded
-chooser, implements roving listbox focus locally, and asks the preview adapter
-only for the selected authored id. The chooser preserves its nested scroll
-offset across DOM refreshes and uses the approved menu-item row so pointer-down
-paint cannot translate its geometry. Both the active editor and chooser use
+first, ahead of the full-height chooser and diagram defaults, implements roving
+listbox focus locally, and asks the preview adapter only for the selected
+authored id. The Style panel owns scrolling and preserves its offset across
+DOM refreshes; the chooser has no height cap or nested overflow container. It
+uses the approved menu-item row so pointer-down paint cannot translate its
+geometry. Both the active editor and chooser use
 feature-owned identity/shape/color grid layout without owning control states.
 The modal also reuses the approved quiet picker and segmented-choice variants;
 feature CSS removes redundant shell, pane, heading, and node-list frames while
@@ -1994,14 +2318,14 @@ the padded, centered writing edge through block-action CSS properties during
 ordinary geometry updates and the bounded transition. A pure layout model
 bounds that left-rail inset and decides from the measured editor-to-writing-edge
 gap whether a full text action can fit without entering the sidebar. Mermaid
-and table actions normally share the helper stack; a constrained table action
-uses its measured fallback row above the grid instead of overlapping either
-neighboring surface.
+and table actions share the helper stack; a constrained writing margin gains
+stable left padding instead of an overlapping or clipped action row.
 The left-side layout hook positions both entries in each control stack
 toward the writing surface without redefining the shared button primitive. It
 uses the primitive's editor-sized monospace typography, compensates for
 CodeMirror's 16 px gutter padding, and translates the helper rail just outside
-the writing edge. Document width and block measurements stay unchanged.
+the writing edge. Editor width stays unchanged; the writing column is measured
+with its reserved helper lane before pointer interaction.
 
 | Direction | Messages | Purpose |
 | --- | --- | --- |
@@ -2042,7 +2366,7 @@ parent waits 80 ms for resize events to settle, resumes the bridge, and sends
 one authoritative editor-to-preview position. Any queued frame scroll report
 is cancelled when the pause message arrives.
 
-The docked preview has a 340 px minimum width and no arbitrary maximum. While
+Every docked right-pane mode shares a 240 px minimum width and no arbitrary maximum. While
 space is available, the splitter preserves a 320 px editor floor. If the
 workspace cannot fit both minima, the pure presentation plan moves that same
 pane into bounded trailing-overlay placement; CodeMirror retains its full
@@ -2240,12 +2564,15 @@ opt-in system-browser test exercises the real isolated CDP validation on a
 developer machine.
 
 The opt-in huge-vault profile follows the same layering. A pure CommonJS plan
-defines the deterministic 10,000-document hierarchy and the two source
-templates; a thin Node adapter materializes those sources and filesystem
-copies. The Go profile exercises real root-scoped vault and Git adapters, while
-one focused Playwright profile measures only irreducible DOM, layout,
-CodeMirror-viewport, and keyboard-update costs with equivalent planned
-payloads. Absolute timings remain reports rather than test assertions. See
+defines the deterministic 10,000-document hierarchy and the two filesystem
+source templates; a thin Node adapter materializes those sources and copies.
+The browser adapter adds same-scale in-memory Markdown variants containing
+diagrams, tables, inline math, or images so document switching can distinguish
+source size from presentation density. The Go profile exercises real
+root-scoped vault and Git adapters, while focused Playwright profiles measure
+only irreducible DOM, layout, CodeMirror-viewport, and keyboard-update costs
+with equivalent planned payloads. General browser and document-switch metrics
+use separate reports. Absolute timings remain reports rather than test assertions. See
 [`docs/HUGE_VAULT_STRESS.md`](docs/HUGE_VAULT_STRESS.md) for the measured
 boundaries and [`docs/TESTING.md`](docs/TESTING.md) for the repeatable command.
 

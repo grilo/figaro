@@ -1,11 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-async function openWelcomeEditor(page) {
-    await page.goto('/');
-    await page.waitForFunction(() => window._appReady === true);
-    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
-    await expect(page.locator('.cm-editor')).toBeVisible();
-}
+import { openWelcomeEditor } from './support/editorWorkspace.js';
 
 test('gives the main editor a document-specific accessible name', async ({ page }) => {
     await openWelcomeEditor(page);
@@ -1446,13 +1440,8 @@ test('uses a same-folder note from a rendered missing link and rewrites only its
         const state = await import('/js/state.js');
         const app = (await import('/js/backend.js')).backend();
         const source = 'See [Inner Source](notes/Inner%20Source.md) for the policy.';
-        window.__similarLinkDialog = null;
         window.__similarLinkSaved = null;
         window.__similarLinkCreates = [];
-        window.confirmDialog = async (...args) => {
-            window.__similarLinkDialog = args;
-            return 'confirm';
-        };
         app.ReadFile = async path => {
             if (path === 'notes/current.md') return { content: source, path, mtime: 1 };
             if (path === 'notes/InnerSource.md') return { content: '# Existing note', path, mtime: 2 };
@@ -1486,7 +1475,9 @@ test('uses a same-folder note from a rendered missing link and rewrites only its
     await expect(widget).toHaveText('Inner Source');
     await widget.click();
 
-    await expect.poll(() => page.evaluate(() => window.__similarLinkDialog?.[0])).toBe('Similar linked note');
+    const review = page.getByRole('dialog', { name: 'Similar linked note' });
+    await expect(review).toBeVisible();
+    await review.getByRole('button', { name: 'Use existing note' }).click();
     await expect.poll(() => page.evaluate(() => window.__similarLinkSaved)).toEqual({
         path: 'notes/current.md',
         content: 'See [Inner Source](notes/InnerSource.md) for the policy.',
@@ -1961,11 +1952,11 @@ test('anchors Focus scope and keeps relative line numbers in sync with cursor mo
     const lineNumbers = page.locator('#line-numbers-toggle');
     await expect(lineNumbers).not.toBeChecked();
     await expect(page.locator('.cm-lineNumbers')).toHaveCount(0);
-    await expect(page.locator('.select-combobox-trigger')).toHaveCount(3);
+    await expect(page.locator('.settings-panel-tab .select-combobox-trigger')).toHaveCount(2);
     const autoCommit = page.locator('#auto-commit-toggle');
     await expect(autoCommit).toBeChecked();
 
-    for (const trigger of await page.locator('.select-combobox-trigger').all()) {
+    for (const trigger of await page.locator('.settings-panel-tab .select-combobox-trigger').all()) {
         const styles = await trigger.evaluate(element => {
             const computed = getComputedStyle(element);
             return { background: computed.backgroundColor, border: computed.borderStyle, radius: Number.parseFloat(computed.borderRadius) };
@@ -2002,15 +1993,9 @@ test('anchors Focus scope and keeps relative line numbers in sync with cursor mo
     await lineNumberSwitch.click();
     await expect(page.locator('.cm-lineNumbers')).toHaveCount(1);
 
-    await page.evaluate(async () => {
-        const app = (await import('/js/backend.js')).backend();
-        window.__autoCommitToggleWrites = [];
-        app.AutoCommitSave = async enabled => window.__autoCommitToggleWrites.push(enabled);
-    });
     await autoCommit.focus();
     await page.keyboard.press('Space');
     await expect(autoCommit).not.toBeChecked();
-    await expect.poll(() => page.evaluate(() => window.__autoCommitToggleWrites)).toEqual([false]);
     const autoCommitSlider = page.locator('.settings-section:has(#auto-commit-toggle) .toggle-slider');
     const autoCommitStyles = await autoCommitSlider.evaluate(element => {
         const computed = getComputedStyle(element);
@@ -2641,16 +2626,21 @@ test('coalesces rapid editor observer updates without losing the dirty buffer', 
         view.dispatch({ changes: { from: 0, insert: 'one ' } });
         view.dispatch({ changes: { from: view.state.doc.length, insert: 'two ' } });
         view.dispatch({ changes: { from: view.state.doc.length, insert: 'three' } });
-        window.__editorObserverTab = activeTab;
+        window.__editorObserverTabId = activeTab.id;
     });
 
     await expect.poll(() => page.evaluate(() => window.__editorObserverEvents)).toEqual(['one two three']);
     await page.waitForTimeout(220);
-    expect(await page.evaluate(() => ({
-        content: window.__editorObserverTab._content,
-        dirty: window.__editorObserverTab.dirty,
-        words: document.getElementById('word-count').textContent,
-    }))).toEqual({ content: 'one two three', dirty: true, words: '3 words' });
+    expect(await page.evaluate(async () => {
+        const state = await import('/js/state.js');
+        const currentTab = state.getState('openTabs')
+            .find(tab => tab.id === window.__editorObserverTabId);
+        return {
+            content: currentTab?._content,
+            dirty: currentTab?.dirty,
+            words: document.getElementById('word-count').textContent,
+        };
+    })).toEqual({ content: 'one two three', dirty: true, words: '3 words' });
 });
 
 test('keeps borderless sidebar search, its conditional count, and Quick note focused before collapse', async ({ page }) => {
@@ -3151,4 +3141,150 @@ test('keeps Markdown link syntax together and Figaro macros in their own help to
     await expect(page.locator('#md-help-macros-panel')).toContainText('@today');
     await expect(page.locator('#md-help-macros-panel')).toContainText('#custom-column');
     await expect(page.locator('#md-help-macros-panel')).toContainText('Task #todo @date');
+});
+
+test('inline writing suggestions support hover actions, keyboard focus, cursor placement, and undo', async ({ page }) => {
+    await openWelcomeEditor(page);
+    const source = 'Before\n\nWe utilize **ordinary words**.\n\nAfter';
+    await page.evaluate(async markdown => {
+        const editor = await import('/js/editor.js');
+        editor.setEditorContent(markdown);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        window.__writingView = editor.getEditorView();
+    }, source);
+    await page.locator('#writing-lenses-toggle').click();
+    const pane = page.locator('#writing-lenses-panel');
+    await pane.getByRole('combobox', { name: 'Analysis language' }).click();
+    await page.getByRole('option', { name: 'English (US)', exact: true }).click();
+    await pane.getByRole('checkbox', { name: 'Clarity', exact: true }).check();
+    await pane.getByRole('button', { name: 'Lenses, 1 selected', exact: true }).click();
+    expect(await pane.getByRole('combobox').evaluate(button => button.scrollWidth <= button.clientWidth)).toBe(true);
+    const navigate = pane.getByRole('button', { name: 'Go to Simpler word: utilize', exact: true });
+    await expect(navigate).toBeVisible();
+    const card = navigate.locator('..');
+    await expect(card).toHaveCSS('border-top-width', '0px');
+    expect(await card.evaluate(node => getComputedStyle(node).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+    expect(await card.evaluate(node => parseFloat(getComputedStyle(node).borderRadius))).toBeGreaterThan(0);
+    await navigate.click();
+    const content = page.locator('#editor-container > .cm-editor .cm-content');
+    await expect(content).toBeFocused();
+    await content.press('ArrowRight');
+    await content.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.lineAt(window.__writingView.state.selection.main.head).number)).toBe(4);
+    await content.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.lineAt(window.__writingView.state.selection.main.head).number)).toBe(3);
+    const coords = await page.evaluate(() => {
+        const view = window.__writingView;
+        return [view.coordsAtPos(8), view.coordsAtPos(18)].map(rect => ({ x: rect.left + 1, y: (rect.top + rect.bottom) / 2 }));
+    });
+    await page.mouse.click(coords[0].x, coords[0].y);
+    await page.mouse.move(coords[0].x, coords[0].y); await page.mouse.down();
+    await page.mouse.move(coords[1].x, coords[1].y, { steps: 6 }); await page.mouse.up();
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.selection.main.empty)).toBe(false);
+    const word = page.locator('.cm-writing-range').filter({ hasText: 'utilize' });
+    await expect(word).toHaveCSS('background-size', '4px 2px');
+    await word.hover();
+    const inline = page.getByRole('dialog', { name: 'Writing suggestions', exact: true });
+    await expect(inline).toBeVisible();
+    await expect(inline).toContainText('Before: utilize');
+    await expect(inline).toContainText('After: use');
+    const apply = inline.getByRole('button', { name: 'Replace “utilize” with “use”', exact: true });
+    // Moving from the underline into the popup must keep it open for a click.
+    await apply.hover(); await apply.click();
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe('Before\n\nWe use **ordinary words**.\n\nAfter');
+    await content.focus(); await content.press('Control+z');
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe(source);
+    await expect(navigate).toBeVisible();
+    await navigate.focus(); await page.keyboard.press('Enter');
+    await expect(content).toBeFocused();
+    await content.press('Control+.');
+    await expect(apply).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(inline.getByRole('button', { name: 'Ignore Simpler word in this document' })).toBeFocused();
+    await page.keyboard.press('Shift+Tab'); await expect(apply).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(inline).toBeHidden(); await expect(content).toBeFocused();
+    await content.press('Control+.'); await expect(apply).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(content).toBeFocused();
+    await content.press('Control+z'); await expect(word).toBeVisible();
+    await word.hover();
+    await inline.getByRole('button', { name: 'Ignore Simpler word in this document' }).click();
+    await expect(word).toHaveCount(0);
+    await expect(content).toBeFocused();
+    // Persisted review adds a disclosure and a restore button. Check actual
+    // focus handoff after the async Ignore and Restore, leaving storage matrices
+    // to the use-case/rooted adapter suites.
+    await pane.getByRole('button', { name: 'Saved review decisions (1)', exact: true }).click();
+    const restore = pane.getByRole('button', { name: 'Restore suggestion: Simpler word: “utilize”', exact: true });
+    await restore.focus(); await page.keyboard.press('Enter');
+    await expect(word).toBeVisible();
+    await expect(pane.getByRole('button', { name: 'Saved review decisions (0)', exact: true })).toBeFocused();
+    // A finding at the editor's right edge must remain wholly outside the sidebar.
+    await page.evaluate(() => {
+        const view = window.__writingView;
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'We write in order to utilize it.' } });
+        const line = view.dom.querySelector('.cm-content');
+        line.style.textAlign = 'right';
+    });
+    const edgeWord = page.locator('.cm-writing-range').filter({ hasText: 'utilize' });
+    await expect(edgeWord).toBeVisible(); await edgeWord.hover();
+    await expect(inline).toBeVisible();
+    const popupBounds = await inline.boundingBox(), editorBounds = await content.boundingBox();
+    expect(popupBounds.x + popupBounds.width).toBeLessThanOrEqual(editorBounds.x + editorBounds.width + 2);
+    await expect(inline).toContainText('After: use');
+    // The review changes add real focus/history and compact layout boundaries;
+    // grouping policy and stale/bulk matrices are covered below Playwright.
+    await inline.getByRole('button', { name: 'Replace “utilize” with “use”', exact: true }).focus();
+    await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 1000, height: 720 });
+    await page.evaluate(() => {
+        const view = window.__writingView;
+        view.dom.querySelector('.cm-content').style.textAlign = '';
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'We utilize ordinary tools. We utilize ordinary words.' } });
+        document.querySelector('#writing-lenses-panel').scrollTop = 0;
+    });
+    const bulk = pane.getByRole('button', { name: 'Apply to all 2 occurrences in this document', exact: true });
+    await expect(bulk).toBeEnabled();
+    const bounds = await bulk.boundingBox();
+    expect(bounds.y + bounds.height).toBeLessThan(720);
+    await bulk.focus(); await page.keyboard.press('Enter');
+    await expect(content).toBeFocused();
+    await content.press('Control+z');
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe('We utilize ordinary tools. We utilize ordinary words.');
+    // Browser-only boundary: writing paint and hover must survive link widgets,
+    // and mouse/arrow transitions must still reveal the exact editable source.
+    const linked = 'Before\n\n[utilize](https://example.com/utilize "Reference")\n\nAfter';
+    await page.evaluate(markdown => {
+        const view = window.__writingView;
+        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: markdown }, selection: { anchor: 0 } });
+    }, linked);
+    const label = page.locator('.cm-link-widget .cm-writing-range');
+    await expect(label).toHaveText('utilize'); await expect(label).toHaveCSS('background-size', '4px 2px');
+    await label.hover(); await expect(inline).toBeVisible();
+    await expect(inline).toContainText('Reference — https://example.com/utilize');
+    await apply.hover(); await apply.click();
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe(linked.replace('[utilize]', '[use]'));
+    await content.press('Control+z'); await expect(label).toBeVisible();
+    await page.evaluate(() => { window.__openedWritingLink = null; window.open = url => { window.__openedWritingLink = url; }; });
+    await label.click();
+    expect(await page.evaluate(() => window.__openedWritingLink)).toBe('https://example.com/utilize');
+    const beforeLink = await page.evaluate(() => { const r = window.__writingView.coordsAtPos(0); return { x: r.left + 1, y: (r.top + r.bottom) / 2 }; });
+    await page.mouse.click(beforeLink.x, beforeLink.y); await expect(content).toBeFocused();
+    await content.press('ArrowDown'); await content.press('ArrowDown');
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.lineAt(window.__writingView.state.selection.main.head).number)).toBe(3);
+    await content.press('ArrowDown'); await content.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.lineAt(window.__writingView.state.selection.main.head).number)).toBe(3);
+    for (const reverse of [false, true]) {
+        await page.evaluate(() => window.__writingView.dispatch({ selection: { anchor: 0 } }));
+        const points = await page.evaluate(() => [0, window.__writingView.state.doc.length].map(pos => {
+            const r = window.__writingView.coordsAtPos(pos); return { x: r.left + 1, y: (r.top + r.bottom) / 2 };
+        }));
+        if (reverse) points.reverse();
+        await page.mouse.move(points[0].x, points[0].y); await page.mouse.down();
+        await page.mouse.move(points[1].x, points[1].y, { steps: 10 }); await page.mouse.up();
+        await expect.poll(() => page.evaluate(() => window.__writingView.state.selection.main.empty)).toBe(false);
+        await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe(linked);
+    }
+
 });

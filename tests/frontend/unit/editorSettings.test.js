@@ -15,6 +15,7 @@ jest.mock('../frontend/js/editor.js', () => ({
 }));
 
 import { getAutoCommitEnabled } from '../frontend/js/automation.js';
+import { createBackendStub } from '../../../frontend/js/backendContract.js';
 
 function settingsDOM() {
     document.body.innerHTML = `
@@ -23,8 +24,6 @@ function settingsDOM() {
         <input type="checkbox" id="line-numbers-toggle" checked>
         <input type="checkbox" id="markdown-lint-toggle" checked>
         <input type="checkbox" id="editor-breadcrumbs-toggle">
-        <select id="spellcheck-language" aria-describedby="spellcheck-guidance"><option value="none">None</option><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="es">Spanish (Spain)</option></select>
-        <div id="spellcheck-guidance">Spellcheck scope</div>
         <div class="font-size-control">
             <button id="font-size-down">−</button>
             <span id="font-size-value">100%</span>
@@ -69,7 +68,7 @@ describe('editor settings', () => {
             AutoCommitLoad: jest.fn().mockResolvedValue(true),
             AutoCommitSave: jest.fn().mockResolvedValue({ success: true }),
         };
-        window.go = { desktop: { App: api } };
+        window.go = { desktop: { App: createBackendStub(api) } };
         localStorage.clear();
         settingsDOM();
 
@@ -80,7 +79,8 @@ describe('editor settings', () => {
 
         expect(mockSetLineNumbers).toHaveBeenCalledWith(false);
         expect(mockSetMarkdownLint).toHaveBeenCalledWith(true);
-        expect(mockSetSpellcheck).toHaveBeenCalledWith({ enabled: true, language: 'en-US' });
+        expect(mockSetSpellcheck).not.toHaveBeenCalled();
+        expect(api.SpellcheckLoad).not.toHaveBeenCalled();
         expect(document.getElementById('line-numbers-toggle').checked).toBe(false);
         expect(document.getElementById('markdown-lint-toggle').checked).toBe(true);
         expect(document.getElementById('editor-breadcrumbs-toggle').checked).toBe(false);
@@ -90,15 +90,11 @@ describe('editor settings', () => {
         expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('16.2px');
 
         const selects = Array.from(document.querySelectorAll('select'));
-        expect(selects).toHaveLength(2);
+        expect(selects).toHaveLength(1);
         expect(document.getElementById('auto-save-interval').classList.contains('select-combobox-native')).toBe(true);
-        expect(document.getElementById('spellcheck-language').classList.contains('select-combobox-native')).toBe(true);
-        expect(document.querySelectorAll('.select-combobox-trigger')).toHaveLength(2);
+        expect(document.querySelectorAll('.select-combobox-trigger')).toHaveLength(1);
         expect([...document.querySelectorAll('.select-combobox')]
             .every(picker => picker.classList.contains('ui-picker--quiet'))).toBe(true);
-        expect(document.getElementById('spellcheck-language')._figaroCombobox.trigger.getAttribute('role')).toBe('combobox');
-        expect(document.getElementById('spellcheck-language')._figaroCombobox.trigger.getAttribute('aria-describedby')).toBe('spellcheck-guidance');
-        expect(document.getElementById('spellcheck-language').value).toBe('en-US');
         expect(document.querySelector('#auto-commit-toggle').checked).toBe(true);
 
         document.querySelector('.tab-size-up').click();
@@ -125,31 +121,6 @@ describe('editor settings', () => {
         await settle();
         expect(api.MarkdownLintSave).toHaveBeenCalledWith(false);
         expect(mockSetMarkdownLint).toHaveBeenLastCalledWith(false);
-
-        const spellcheckLanguage = document.getElementById('spellcheck-language');
-        spellcheckLanguage.value = 'en-GB';
-        spellcheckLanguage.dispatchEvent(new Event('change', { bubbles: true }));
-        await settle();
-        expect(api.SpellcheckSave).toHaveBeenCalledWith(true, 'en-GB');
-        expect(mockSetSpellcheck).toHaveBeenLastCalledWith({ enabled: true, language: 'en-GB' });
-
-        spellcheckLanguage.value = 'none';
-        spellcheckLanguage.dispatchEvent(new Event('change', { bubbles: true }));
-        await settle();
-        expect(api.SpellcheckSave).toHaveBeenCalledWith(false, 'en-GB');
-        expect(mockSetSpellcheck).toHaveBeenLastCalledWith({ enabled: false, language: 'en-GB' });
-        expect(spellcheckLanguage.value).toBe('none');
-        expect(spellcheckLanguage.disabled).toBe(false);
-        expect(spellcheckLanguage._figaroCombobox.trigger.disabled).toBe(false);
-
-        api.SpellcheckSave.mockResolvedValueOnce({ success: false, error: 'read-only settings' });
-        spellcheckLanguage.value = 'es';
-        spellcheckLanguage.dispatchEvent(new Event('change', { bubbles: true }));
-        await settle();
-        expect(api.SpellcheckSave).toHaveBeenLastCalledWith(true, 'es');
-        expect(spellcheckLanguage.value).toBe('none');
-        expect(mockSetSpellcheck).toHaveBeenLastCalledWith({ enabled: false, language: 'en-GB' });
-        expect(spellcheckLanguage.title).toMatch(/could not save the spellcheck preference/i);
 
         api.MarkdownLintSave.mockResolvedValueOnce({ success: false, error: 'read-only settings' });
         markdownLintToggle.checked = true;

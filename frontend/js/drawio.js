@@ -20,6 +20,7 @@ let workspacePorts = null;
 export function configureDrawioWorkspace(ports) {
     if (
         typeof ports?.markTabDirty !== 'function'
+        || typeof ports?.recordTabMtime !== 'function'
         || typeof ports?.saveFileSnapshot !== 'function'
         || typeof ports?.refreshFileTree !== 'function'
     ) throw new TypeError('Draw.io workspace ports are incomplete');
@@ -84,8 +85,8 @@ export async function renderDrawioTab(panel, tab) {
         if (!panel.isConnected || panel._drawioRequestId !== requestId || panel._drawioPath !== tab.path) return;
         if (!result) throw new Error('Diagram file was not found');
 
-        tab.mtime = result.mtime;
-        mountDrawioEditor(panel, tab, result.content || '');
+        workspace().recordTabMtime(tab.id, result.mtime);
+        mountDrawioEditor(panel, { ...tab, mtime: result.mtime }, result.content || '');
     } catch (error) {
         log.error('Unable to open draw.io diagram:', error);
         if (panel.isConnected && panel._drawioRequestId === requestId) {

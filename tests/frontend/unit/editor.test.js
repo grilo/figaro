@@ -6,12 +6,31 @@
 describe('Editor Module - CodeMirror Initialization', () => {
     async function configureTaskWorkspace() {
         const { configureEditorWorkspace } = await import('../frontend/js/editor.js');
-        const { getState } = await import('../frontend/js/state.js');
+        const { getState, setState } = await import('../frontend/js/state.js');
+        const updateTab = (tabId, patch) => {
+            let updated = null;
+            setState('openTabs', (getState('openTabs') || []).map(tab => {
+                if (tab.id !== tabId) return tab;
+                updated = { ...tab, ...patch };
+                return updated;
+            }));
+            return updated;
+        };
         const ports = {
             getActiveTab: () => (getState('openTabs') || []).find(tab => tab.id === getState('activeTabId')),
-            closeTab: jest.fn(), markTabDirty: jest.fn(), openFile: jest.fn(),
+            closeTab: jest.fn(), confirm: jest.fn().mockResolvedValue(true), markTabDirty: jest.fn(), openFile: jest.fn(),
             openPDFPreview: jest.fn(), openRawTextPreview: jest.fn(), openTab: jest.fn(),
-            refreshFileTree: jest.fn(), replaceActiveFileTab: jest.fn(),
+            refreshFileTree: jest.fn(),
+            recordTabContent: jest.fn((tabId, generation, content) => Boolean(updateTab(tabId, { _content: content, _editGeneration: generation }))),
+            recordTabCursor: jest.fn((tabId, cursorState) => Boolean(updateTab(tabId, { cursorState }))),
+            recordTabEdit: jest.fn(tabId => {
+                const tab = (getState('openTabs') || []).find(candidate => candidate.id === tabId);
+                return tab ? updateTab(tabId, {
+                    dirty: true,
+                    _editGeneration: (tab._editGeneration || 0) + 1,
+                }) : null;
+            }),
+            replaceActiveFileTab: jest.fn(),
             saveActiveFile: jest.fn(), saveFileSnapshot: jest.fn().mockResolvedValue({ success: true }), switchTab: jest.fn(),
         };
         configureEditorWorkspace(ports);
@@ -421,8 +440,11 @@ describe('Editor Module - CodeMirror Initialization', () => {
                 setSelectedCompletion,
             } = await import('@codemirror/autocomplete');
             const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
-            const { setState } = await import('../frontend/js/state.js');
+            const { getState, setState } = await import('../frontend/js/state.js');
             setState('kanbanCompletionColumns', ['urgent']);
+            const tab = { id: 'tasks.md', path: 'tasks.md', title: 'tasks.md', type: 'file', dirty: false };
+            setState('openTabs', [tab]);
+            setState('activeTabId', tab.id);
 
             await initEditor();
             const view = createEditorView();
@@ -1018,7 +1040,7 @@ describe('UI Smoke Tests — editor initialization and rendering', () => {
         test('rewrites only a clicked Markdown destination as a normal dirty editor change', async () => {
             document.body.innerHTML = '<div id="editor-container"></div>';
             const { initEditor, createEditorView, replaceMarkdownLinkTarget, setEditorContent } = await import('../frontend/js/editor.js');
-            const { setState } = await import('../frontend/js/state.js');
+            const { getState, setState } = await import('../frontend/js/state.js');
             const tab = { id: 'notes/current.md', path: 'notes/current.md', title: 'current.md', type: 'file', dirty: false };
             setState('openTabs', [tab]);
             setState('activeTabId', tab.id);
@@ -1036,7 +1058,7 @@ describe('UI Smoke Tests — editor initialization and rendering', () => {
             }, 'notes/InnerSource.md')).toBe(true);
 
             expect(view.state.doc.toString()).toBe('See [Inner Source](notes/InnerSource.md) today.');
-            expect(tab.dirty).toBe(true);
+            expect(getState('openTabs').find(candidate => candidate.id === tab.id).dirty).toBe(true);
             expect(replaceMarkdownLinkTarget(view, {
                 from: 19,
                 to: 42,

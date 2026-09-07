@@ -1,6 +1,11 @@
 import { planFloatingMenuPlacement } from '../../../frontend/js/core/floatingMenuModel.js';
 
 describe('floating menu placement', () => {
+    test('lens help prefers the editor side, clamps height and falls back above or below in narrow windows', () => {
+        const dimensions = { trigger: { top: 290, bottom: 318, left: 800, right: 828, width: 28 }, menuWidth: 360, menuHeight: 620, maximumHeight: 620, viewportWidth: 900, viewportHeight: 400, preferredPlacement: 'left' };
+        expect(planFloatingMenuPlacement(dimensions)).toEqual({ top: 8, left: 434, width: 360, maxHeight: 384, placement: 'left' });
+        expect(planFloatingMenuPlacement({ ...dimensions, viewportWidth: 360, trigger: { top: 290, bottom: 318, left: 304, right: 332, width: 28 } })).toEqual({ top: 8, left: 8, width: 344, maxHeight: 276, placement: 'top' });
+    });
     test('opens below when the complete menu fits and clamps it to the viewport sides', () => {
         expect(planFloatingMenuPlacement({
             trigger: { top: 40, right: 230, bottom: 70, left: 180, width: 80 },

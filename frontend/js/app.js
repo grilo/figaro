@@ -6,20 +6,27 @@ import { backend, waitForBackend } from './backend.js';
 
 import { log } from './log.js';
 import { state, initState, subscribe, setState, getState } from './state.js';
-import { configureEditorWorkspace, initEditor, getEditorContent, getEditorDocumentTabId, openEditorSearch } from './editor.js';
+import { configureEditorWorkspace, initEditor, getEditorContent, getEditorDocumentTabId, getEditorView, openEditorSearch } from './editor.js';
 import { preloadLanguageSupport } from './languageSupport.js';
 import { initializeDiagramRenderers } from './diagramRenderer.js';
 import {
     initTabManager,
+    configureTabManagerWorkspace,
     openTab,
     closeTab,
     switchTab,
     getActiveTab,
     markTabDirty,
+    recordTabContent,
+    recordTabCursor,
+    recordTabEdit,
+    recordTabMtime,
+    restoreTabCursorStates,
     updateTabTitle,
     saveActiveFile as saveActiveTabFile,
     saveFileSnapshot,
     showWorkspaceHome,
+    toggleWorkspaceTab,
     prepareTabsForVaultLinkRewrite,
     refreshTabsForUpdatedLinks,
     replaceActiveFileTab,
@@ -34,7 +41,7 @@ import { configureCalendarWorkspace, initCalendar, navigateCalendarMonth, invali
 import { configureKanbanWorkspace, initKanban, refreshKanbanData } from './kanban.js';
 import { configureDatePickerCalendarSource } from './datePicker.js';
 import { initStatusBarPresentation, statusBar } from './statusBar.js';
-import { confirmDialog, promptDialog } from './dialogs.js';
+import { confirmDialog } from './dialogs.js';
 import { configureSearchWorkspace, initSearch, performGlobalSearch, clearGlobalSearch, handleSearchKeydown } from './search.js';
 import { configureBacklinksWorkspace, initBacklinks } from './backlinks.js';
 import { loadSession, saveSession } from './session.js';
@@ -47,10 +54,14 @@ import { sidebarLayoutPlan } from './core/sidebarLayoutModel.js';
 import { globalShortcutAction } from './core/globalShortcutModel.js';
 import { localISODate } from './core/dueDateModel.js';
 import { configureHistoryWorkspace, initHistoryPanel } from './historyPanel.js';
-import { closePDFPreview, configurePDFPreviewWorkspace, initPDFPreview, openPDFPreview } from './pdfPreview.js';
-import { closeRawTextPreview, initRawTextPreview, openRawTextPreview } from './rawTextPreview.js';
+import { configurePDFPreviewWorkspace, initPDFPreview, openPDFPreview } from './pdfPreview.js';
+import { initRawTextPreview, openRawTextPreview } from './rawTextPreview.js';
 import { initOutlinePanel } from './outline.js';
 import { initEditorPreviewLaunchers } from './editorPreviewLaunchers.js';
+import { createWritingAdapters } from './writingAdapters.js';
+import { initWritingLenses } from './writingLenses.js';
+import { createSpellingDictionary } from './usecases/spellingDictionary.js';
+import { setSpellingWords, setSpellcheck } from './editor.js';
 import { registerVaultChangeEvents } from './vaultEvents.js';
 import { configureLinkStyleWorkspace, initLinkStylePreference } from './linkStyle.js';
 import { setAutoCommitEnabled } from './automation.js';
@@ -58,6 +69,7 @@ import { initWindowChrome, closeNativeWindow, setWindowCloseRequestHandler } fro
 import { initEditorBreadcrumb } from './editorBreadcrumb.js';
 import { initPureEditingChrome } from './pureEditingChrome.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+import { closeActiveRightPane } from './rightPaneCoordinator.js';
 import { createVaultLoadingSession } from './usecases/vaultLoading.js';
 import { createStartupHydration } from './usecases/startupHydration.js';
 import { renderVaultLoading, removeVaultLoading } from './views/vaultLoadingView.js';
@@ -80,6 +92,8 @@ import {
 // Keep composed workspace operations available through the public app facade.
 export { openTab, closeTab, switchTab, getActiveTab, markTabDirty, updateTabTitle };
 
+let writingLensesController = null;
+
 configureBacklinksWorkspace({
     openTab,
     prepareTabsForVaultLinkRewrite,
@@ -87,9 +101,10 @@ configureBacklinksWorkspace({
 });
 configureCalendarWorkspace({ openTab });
 configureClipboardImageWorkspace({ refreshFileTree });
-configureDrawioWorkspace({ markTabDirty, saveFileSnapshot, refreshFileTree });
+configureDrawioWorkspace({ markTabDirty, recordTabMtime, saveFileSnapshot, refreshFileTree });
 configureEditorWorkspace({
     closeTab,
+    confirm: confirmDialog,
     getActiveTab,
     markTabDirty,
     openFile: handleFileOpen,
@@ -97,6 +112,9 @@ configureEditorWorkspace({
     openRawTextPreview,
     openTab,
     refreshFileTree,
+    recordTabContent,
+    recordTabCursor,
+    recordTabEdit,
     replaceActiveFileTab,
     saveActiveFile: saveActiveTabFile,
     saveFileSnapshot,
@@ -110,6 +128,7 @@ configureFileTreeWorkspace({
     prepareTabsForPathCopy,
     prepareTabsForPathDelete,
     prepareTabsForPathMove,
+    moveWritingPaths: operation => writingLensesController ? writingLensesController.movePaths(operation) : operation(),
     refreshTabsForUpdatedLinks,
     updateTabsForMovedPath,
 });
@@ -120,10 +139,7 @@ configureLinkStyleWorkspace({ prepareTabsForVaultLinkRewrite, refreshTabsForUpda
 configurePDFPreviewWorkspace({ openFile: handleFileOpen, saveFileSnapshot });
 configureSearchWorkspace({ openTab });
 configureVaultHealthWorkspace({ openTab });
-
-// Make dialogs globally accessible for other modules
-window.confirmDialog = confirmDialog;
-window.promptDialog = promptDialog;
+configureTabManagerWorkspace({ confirm: confirmDialog });
 
 let autoSaveTimer = null;
 let vaultEventsInitialized = false;
@@ -158,6 +174,7 @@ function claimExternalLaunchFile(file) {
 function externalLaunchOptions() {
     return {
         closeTab,
+        confirm: confirmDialog,
         onExternalKept: addExternalFileTreeEntry,
         onImported: () => refreshFileTree(),
         onImportError: error => {
@@ -317,8 +334,7 @@ export function initTopBar() {
     const rightSidebar = document.getElementById('right-sidebar');
     if (calBtn) {
         calBtn.addEventListener('click', () => {
-            if (getActiveTab()?.type === 'calendar-workspace') return;
-            openTab('calendar-workspace', 'Calendar', 'calendar-workspace');
+            toggleWorkspaceTab('calendar-workspace', 'Calendar', 'calendar-workspace');
         });
     }
 
@@ -326,11 +342,7 @@ export function initTopBar() {
     const rsClose = document.getElementById('right-sidebar-close');
     if (rsClose && rightSidebar) {
         rsClose.addEventListener('click', () => {
-            if (rightSidebar.dataset.mode === 'pdf-preview') closePDFPreview();
-            else if (rightSidebar.dataset.mode === 'raw-text-preview') closeRawTextPreview();
-            else if (rightSidebar.dataset.mode === 'history') document.dispatchEvent(new CustomEvent('close-history-panel'));
-            else if (rightSidebar.dataset.mode === 'outline') document.dispatchEvent(new CustomEvent('close-outline-panel'));
-            else {
+            if (!closeActiveRightPane()) {
                 setRightSidebarOpen(rightSidebar, false);
                 rightSidebar.style.width = '';
                 rightSidebar.style.minWidth = '';
@@ -340,28 +352,17 @@ export function initTopBar() {
         });
     }
 
-    // Settings remains a title-bar toggle; sidebar workspaces remain selected.
-    const toggleWorkspaceTab = (id, title, type, data = {}) => {
-        if (getState('activeTabId') === id) {
-            closeTab(id, null, { animate: true });
-            return;
-        }
-        openTab(id, title, type, data);
-    };
-
     const kanbanBtn = document.getElementById('sidebar-kanban');
     if (kanbanBtn) {
         kanbanBtn.addEventListener('click', () => {
-            if (getActiveTab()?.type === 'kanban') return;
-            openTab('kanban', 'Kanban', 'kanban');
+            toggleWorkspaceTab('kanban', 'Kanban', 'kanban');
         });
     }
 
     const graphBtn = document.getElementById('sidebar-graph');
     if (graphBtn) {
         graphBtn.addEventListener('click', () => {
-            if (getActiveTab()?.type === 'graph') return;
-            openTab('graph', 'Graph', 'graph');
+            toggleWorkspaceTab('graph', 'Graph', 'graph');
         });
     }
 
@@ -437,6 +438,7 @@ function initKeyboardShortcuts() {
         const shortcut = globalShortcutAction(e);
         if (shortcut) {
             if (shortcut === 'document-find' && getActiveTab()?.type !== 'file') return;
+            if (shortcut === 'writing-lenses' && !/\.(?:md|markdown|mdown|mkdn)$/iu.test(getActiveTab()?.path || '')) return;
             e.preventDefault();
             e.stopPropagation();
 
@@ -452,6 +454,8 @@ function initKeyboardShortcuts() {
                 document.getElementById('global-search-input')?.focus();
             } else if (shortcut === 'document-find') {
                 openEditorSearch();
+            } else if (shortcut === 'writing-lenses') {
+                writingLensesController?.toggle();
             }
             return;
         }
@@ -564,12 +568,7 @@ async function restoreOpenTabs() {
     // Install cursor states before the restored active tab is mounted. The
     // file loader applies this snapshot during its document replacement.
     if (state._restoredCursorStates) {
-        const tabs = getState('openTabs');
-        for (const t of tabs) {
-            if (t.type === 'file' && state._restoredCursorStates[t.id]) {
-                t.cursorState = state._restoredCursorStates[t.id];
-            }
-        }
+        restoreTabCursorStates(state._restoredCursorStates);
         state._restoredCursorStates = null;
     }
 
@@ -670,6 +669,30 @@ export async function initApp() {
     // Document outline; Calendar remains independent in the left sidebar.
     initPDFPreview();
     initRawTextPreview();
+    const spellingDictionary = createSpellingDictionary({
+        load: () => backend().SpellingDictionaryLoad(),
+        add: word => backend().SpellingDictionaryAdd(word),
+        onChange: words => {
+            setSpellingWords(words);
+            document.dispatchEvent(new Event('figaro:spellcheck-changed'));
+        },
+    });
+    await spellingDictionary.restore().catch(error => log.warn('Could not load the spelling dictionary:', error));
+    writingLensesController = initWritingLenses({
+        dictionary: spellingDictionary,
+        setSpelling: setSpellcheck,
+        getActiveTab,
+        getEditorDocumentTabId,
+        getView: getEditorView,
+        analysisPorts: createWritingAdapters(backend()),
+        focusEditor: () => getEditorView()?.focus(),
+        loadDecisions: path => backend().WritingDecisionsLoad(path),
+        changeDecisions: (path, command) => backend().WritingDecisionsChange(path, command),
+        loadPreferences: path => backend().WritingLensesLoad(path),
+        savePreferences: (path, preferences) => backend().WritingLensesSave(path, preferences),
+        applyAllPreferences: preferences => backend().WritingLensesApplyAll(preferences),
+    });
+    await writingLensesController?.ready;
     initEditorPreviewLaunchers({
         getActiveTab,
         getEditorContent,
@@ -743,7 +766,7 @@ export async function initApp() {
             return;
         }
         const names = dirty.map(t => t.title).join(', ');
-        const choice = await window.confirmDialog?.(
+        const choice = await confirmDialog(
             'Unsaved changes',
             `These files have unsaved changes: ${names}\n\nSave them before exiting?`,
             false,

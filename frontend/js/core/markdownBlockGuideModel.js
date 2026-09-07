@@ -7,6 +7,16 @@ const fencedCodeGuidePattern = new RegExp(
     `^[a-z0-9][a-z0-9.+#_-]{0,${MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH - 1}}$`,
 );
 
+/** Reserve the document's longest label, not a hypothetical 16-character fence. */
+export function markdownBlockGuideSpacerLength(guides, { showImageReset = false } = {}) {
+    // Six characters cover editor/delete actions and the pair of task buttons.
+    return guides.reduce((length, guide) => Math.max(
+        length,
+        guide.label.length,
+        showImageReset && (guide.type === 'image' || guide.type === 'drawio') ? 'original size'.length : 0,
+    ), 6);
+}
+
 export function markdownHeadingLevel(nodeName) {
     const match = headingPattern.exec(String(nodeName || ''));
     return match ? Number(match[1]) : null;

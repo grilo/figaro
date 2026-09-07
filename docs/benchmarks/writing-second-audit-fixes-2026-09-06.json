@@ -1,0 +1,95 @@
+{
+  "date": "2026-09-06",
+  "scope": "Second writing audit fixes and background review",
+  "runtime": "Native Wails, GTK 3.24.52 / WebKitGTK 2.52.6, private Xvfb, owned vault",
+  "configuration": {
+    "mapping": "7",
+    "editorial": "2",
+    "preferenceSchema": 3,
+    "decisionSchema": 1,
+    "lenses": 8
+  },
+  "fixture": {
+    "charactersApprox": 34000,
+    "repeatedTerms": 500,
+    "inactiveDecisions": 100
+  },
+  "measure": "Actual native beforeinput to next requestAnimationFrame; local diagnostic samples, not average/paint guarantees",
+  "disabledControlMs": 20.000000000014552,
+  "disabledInactiveMs": 16,
+  "allLensesEnabledMs": [
+    17,
+    12,
+    11,
+    12,
+    12,
+    12,
+    10
+  ],
+  "duringRefresh": [
+    {
+      "ms": 16,
+      "status": "Analyzing\u2026"
+    },
+    {
+      "ms": 17.000000000029104,
+      "status": "Analyzing\u2026"
+    },
+    {
+      "ms": 14,
+      "status": "Analyzing\u2026"
+    },
+    {
+      "ms": 11,
+      "status": "Analyzing\u2026"
+    },
+    {
+      "ms": 11,
+      "status": "Analyzing\u2026"
+    },
+    {
+      "ms": 10,
+      "status": "Analyzing\u2026"
+    }
+  ],
+  "previousAuditInactiveMs": 2361,
+  "nativeChecks": {
+    "wikiTargetsPreserved": true,
+    "safeAliasesChanged": true,
+    "undoRestoredLinks": true,
+    "acronymMarks": [
+      "SLO"
+    ],
+    "pendingSaveDelayMs": 1500,
+    "deletedIgnoreExactOnly": true,
+    "survivorVisibleAfterRestart": true,
+    "keyboardApplyAndUndo": true,
+    "arrowsAndBidirectionalDrag": true
+  },
+  "nativeBinarySha256": "f19c54b4ea5fdbb920420bb246fe93bd5a79f0e622c147c90cc29e43e0756c3f",
+  "limits": [
+    "Linux native only; Windows/macOS not exercised",
+    "Synthetic repeated-text stress fixture; not real-user effectiveness scoring",
+    "Final programmatic-replacement event guard additionally covered in component/Chromium regression"
+  ],
+  "verification": {
+    "frontendSuites": 253,
+    "frontendTests": 1772,
+    "go": [
+      "internal/settings (cached)",
+      "internal/desktop",
+      "internal/writing (cached)"
+    ],
+    "browser": [
+      "production startup: three eager workers",
+      "Spelling hover/right-click, keyboard and drag selection"
+    ],
+    "lint": "passed",
+    "testIntegrity": "passed",
+    "applicationBuild": "passed",
+    "catalogueBuild": "passed",
+    "documentationAudit": "Current worker, source-protection, acronym, pending-decision and mapping contracts synchronized; remaining mapping 6 and main-thread timings explicitly historical; other matches still correct; PDF rendering/styling unchanged",
+    "designSystem": "Existing primitives and variants reused; no registry/cascade change",
+    "nativeEvidence": "/home/grilo/Downloads/figaro-writing-second-fixes-2026-09-06/evidence"
+  }
+}

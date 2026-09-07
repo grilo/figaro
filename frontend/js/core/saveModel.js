@@ -1,11 +1,12 @@
 export function createSaveSnapshot(tab, content, options = {}) {
     if (!tab?.path || typeof content !== 'string') return null;
     return Object.freeze({
-        tab,
+        tabId: tab.id || tab.path,
         path: tab.path,
         content,
-        generation: (tab._saveGeneration || 0) + 1,
+        generation: options.generation || (tab._saveGeneration || 0) + 1,
         editGeneration: tab._editGeneration || 0,
+        expectedMtime: tab.mtime || 0,
         externalFileId: tab.externalFileId || null,
         failurePrompt: options.failurePrompt || 'once',
     });

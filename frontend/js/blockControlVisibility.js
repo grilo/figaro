@@ -82,7 +82,9 @@ export function createBlockControlVisibilityExtension(ViewPlugin) {
                 read: view => readVisibility(view, this.pointer),
                 write: measurements => {
                     for (const { owner, reveal } of measurements) {
-                        owner.classList.toggle('is-block-control-relevant', reveal);
+                        // CodeMirror replaces gutter className when source offsets
+                        // remap markers. Keep relevance across that redraw.
+                        owner.toggleAttribute('data-block-control-relevant', reveal);
                     }
                 },
             });

@@ -27,6 +27,98 @@ const themeContract = JSON.parse(
 );
 
 describe('design-system catalogue', () => {
+    test('approved disclosure primitives own motion, accessible fallback styles and production catalogue states', async () => {
+        const styles = fs.readFileSync(path.resolve('frontend/design-system/primitives.css'), 'utf8');
+        expect(styles).toMatch(/\.ui-disclosure-trigger\s*\{[^}]*background:\s*var\(--disclosure-surface\)/s);
+        expect(styles).toMatch(/\.ui-disclosure-body\s*\{[^}]*grid-template-rows:\s*0fr[^}]*visibility:\s*hidden/s);
+        expect(styles).toMatch(/\.ui-disclosure-content\s*\{[^}]*padding-inline:\s*3px/s);
+        expect(styles).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.ui-disclosure \.ui-disclosure-body,/);
+        expect(styles).toMatch(/@media \(forced-colors: active\)\s*\{\s*\.ui-disclosure-trigger\s*\{\s*border-color:\s*ButtonText/);
+        const source = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
+        expect(source).toContain('data-disclosure-state-demo="disabled"');
+        expect(source).toContain('data-disclosure-state-demo="busy"');
+        document.body.innerHTML = '<div data-disclosure-state-demo="disabled"></div><div data-disclosure-state-demo="busy"></div>';
+        await initDesignSystemCatalog({ root: document });
+        expect([...document.querySelectorAll('.ui-disclosure-trigger')].every(button => button.disabled)).toBe(true);
+        expect(document.querySelector('[aria-busy="true"]').textContent).toContain('Loading…');
+    });
+
+    test('writing lens catalogue consumes the five production groups and partial-selection badge', async () => {
+        const source = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
+        expect(source).toContain('data-writing-lenses-demo');
+        document.body.innerHTML = '<div data-writing-lenses-demo></div>';
+        await initDesignSystemCatalog({ root: document });
+        expect(document.querySelectorAll('input[type="checkbox"]')).toHaveLength(5);
+        const proofreading = document.querySelector('input[value="proofreading"]');
+        expect(proofreading.indeterminate).toBe(true);
+        expect(proofreading.closest('label').querySelector('.ui-badge').hidden).toBe(false);
+        expect(document.querySelectorAll('[data-lens-help]')).toHaveLength(5);
+        expect(document.querySelector('#catalog-writing-lenses-proofreading-description').textContent).not.toContain('Enabled checks');
+        document.querySelector('[data-lens-help="proofreading"]').click();
+        const help = document.getElementById('catalog-writing-lenses-help');
+        expect(help.parentNode).toBe(document.body);
+        expect(help.querySelectorAll('.writing-example')).toHaveLength(4);
+        expect(help.textContent).toContain('Enabled checks: Spelling');
+        help.querySelector('button').click();
+        proofreading.click();
+        expect(proofreading.checked).toBe(true);
+        expect(proofreading.indeterminate).toBe(false);
+        expect(proofreading.closest('label').querySelector('.ui-badge').hidden).toBe(true);
+        document.querySelector('[data-apply-all]').click();
+        expect(document.querySelector('[data-save-status]').textContent).toBe('Example choices applied to all documents.');
+    });
+
+    test('writing catalogue shows production Readability, Inclusive language, sentence-spacing, and undefined-acronym examples', async () => {
+        document.body.innerHTML = '<div data-writing-result-demo></div>';
+        await initDesignSystemCatalog({ root: document });
+        expect(document.querySelectorAll('[data-finding]')).toHaveLength(4);
+        const repeated = document.querySelector('[data-finding="word"]');
+        expect(repeated.textContent).toContain('Occurrence 1 of 2');
+        repeated.querySelector('[data-writing-bulk]').click();
+        expect(document.querySelector('.writing-results [role="status"]').textContent).toContain('Both example occurrences replaced');
+        [...document.querySelectorAll('button')].find(button => button.textContent.startsWith('Show more suggestions')).click();
+        const row = document.querySelector('[data-finding="sentence"]');
+        expect(row.classList.contains('ui-suggestion')).toBe(true);
+        expect(row.textContent).toContain('ExampleBefore: We finished the draft');
+        expect(row.querySelector('[aria-label^="Replace"]')).toBeNull();
+        expect(row.querySelector('[aria-label="Ignore Long sentence"]')).not.toBeNull();
+        const inclusive = document.querySelector('[data-finding="inclusive"]');
+        expect(inclusive.classList.contains('ui-suggestion')).toBe(true);
+        expect(inclusive.textContent).toContain('Before: chairmanAfter: chairperson');
+        expect(inclusive.querySelector('[aria-label="Replace “chairman” with “chairperson”"]')).not.toBeNull();
+        const spacing = document.querySelector('[data-finding="spacing"]');
+        expect(spacing.classList.contains('ui-suggestion')).toBe(true);
+        expect(spacing.textContent).toContain('Suggested spacing (2 spaces → 1)');
+        expect(spacing.querySelector('[aria-label="Replace “sentence.  Two” with “sentence. Two”"]').classList.contains('ui-button')).toBe(true);
+        const acronym = document.querySelector('[data-finding="acronym"]');
+        expect(acronym.classList.contains('ui-suggestion')).toBe(true);
+        expect(acronym.textContent).toContain('service level objective (SLO)');
+        expect(acronym.querySelector('[aria-label^="Replace"]')).toBeNull();
+        expect(acronym.querySelector('[aria-label="Accept “SLO” in this document"]')).not.toBeNull();
+        const savedToggle = document.querySelector('.writing-decisions [aria-controls]');
+        savedToggle.click();
+        const restore = document.querySelector('.writing-decisions [data-decision]');
+        expect(restore.textContent).toBe('Review acronym again');
+        restore.click();
+        expect(document.querySelector('.writing-decisions').textContent).toContain('No saved review decisions');
+        expect(acronym.querySelector('[aria-label="Ignore Consider explaining this acronym"]').classList.contains('ui-button')).toBe(true);
+    });
+
+    test('block control reveal specimens use the attribute preserved by CodeMirror gutter updates', () => {
+        const source = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
+        const styles = fs.readFileSync(path.resolve('frontend/design-system/primitives.css'), 'utf8');
+        const template = document.createElement('template');
+        template.innerHTML = source;
+        expect(template.content.querySelectorAll('.cm-gutterElement[data-block-control-relevant]').length)
+            .toBe(2);
+        for (const primitive of ['.ui-editor-fold-control', '.ui-editor-block-guide']) {
+            expect(styles).toContain(`.cm-gutterElement[data-block-control-relevant] ${primitive}`);
+        }
+        expect(source + styles).not.toContain('is-block-control-relevant');
+        expect(componentRegistry.families.find(family => family.id === 'editor-fold-control').description)
+            .toContain('data-block-control-relevant');
+    });
+
     test('indexes the shared component families and intentional feature variants', () => {
         const source = fs.readFileSync(path.resolve('frontend/design-system/index.html'), 'utf8');
         const template = document.createElement('template');
@@ -119,6 +211,13 @@ describe('design-system catalogue', () => {
         expect(catalogue.querySelector(
             '[aria-disabled="true"][data-ui-tooltip*="non-stacked"] .ui-checkbox:disabled',
         )).not.toBeNull();
+        const unavailableOutline = catalogue.querySelector('.ui-icon-button[aria-disabled="true"]');
+        expect(unavailableOutline).not.toBeNull();
+        expect(unavailableOutline.disabled).toBe(false);
+        expect(unavailableOutline.dataset.uiTooltip).toContain('no headings');
+        const primitives = fs.readFileSync(path.resolve('frontend/design-system/primitives.css'), 'utf8');
+        expect(primitives).toContain(".ui-icon-button[aria-disabled='true']");
+        expect(primitives).toContain(".ui-icon-button:hover:not(:disabled):not([aria-disabled='true'])");
 
         const ids = Array.from(catalogue.querySelectorAll('[id]'), element => element.id);
         expect(new Set(ids).size).toBe(ids.length);
@@ -228,6 +327,7 @@ describe('design-system catalogue', () => {
         )].sort();
 
         expect(componentRegistry.families.map(family => family.id)).toEqual([
+            'disclosure',
             'picker',
             'stepper',
             'button',
@@ -247,6 +347,7 @@ describe('design-system catalogue', () => {
             'spinner',
             'skeleton',
             'progress',
+            'suggestion',
         ]);
         expect(implementedSelectors).toEqual(approvedSelectors);
         expect(featureStyles).not.toMatch(/^\.ui-[a-z0-9-]+(?:\s|:|,|\{)/m);
@@ -581,6 +682,7 @@ describe('design-system catalogue', () => {
             'frontend/js/rawTextPreview.js',
             'frontend/js/pdfPreview.js',
             'frontend/js/datePicker.js',
+            'frontend/js/disclosure.js',
             'frontend/js/editor.js',
             'frontend/js/markdownBlockGuides.js',
             'frontend/js/markdownImagePlugin.js',
@@ -589,6 +691,7 @@ describe('design-system catalogue', () => {
             'frontend/js/tabManager.js',
             'frontend/js/tooltip.js',
             'frontend/js/vaultHealth.js',
+            'frontend/js/views/writingResultsView.js',
         ].map(file => fs.readFileSync(path.resolve(file), 'utf8')).join('\n');
 
         for (const primitive of componentRegistry.families.map(family => `ui-${family.id}`)) {

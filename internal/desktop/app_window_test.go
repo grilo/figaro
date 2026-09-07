@@ -62,7 +62,7 @@ func (f *fakeWindowRuntime) IsNormal(context.Context) bool {
 func TestWindowCommandsUseInjectedRuntime(t *testing.T) {
 	app, _ := newTestApp(t)
 	window := &fakeWindowRuntime{positionX: 100, positionY: 200, width: 640, height: 300}
-	app.ctx = context.Background()
+	app.desktopRuntime.configureForTest(context.Background(), true, nil, nil)
 	app.windowRuntime = window
 
 	app.WindowSetTitle("Project brief.md — Figaro")
@@ -84,7 +84,7 @@ func TestWindowCommandsUseInjectedRuntime(t *testing.T) {
 func TestWindowLifecycleCommandsCaptureStateThenUseInjectedRuntime(t *testing.T) {
 	app, _ := newTestApp(t)
 	window := &fakeWindowRuntime{}
-	app.ctx = context.Background()
+	app.desktopRuntime.configureForTest(context.Background(), true, nil, nil)
 	app.windowRuntime = window
 
 	app.WindowMinimize()
@@ -104,7 +104,7 @@ func TestWindowLifecycleCommandsCaptureStateThenUseInjectedRuntime(t *testing.T)
 func TestWindowStartResizePlansNativeGeometry(t *testing.T) {
 	app, _ := newTestApp(t)
 	window := &fakeWindowRuntime{positionX: 100, positionY: 200, width: 640, height: 300}
-	app.ctx = context.Background()
+	app.desktopRuntime.configureForTest(context.Background(), true, nil, nil)
 	app.windowRuntime = window
 
 	app.WindowStartResize("SW")
@@ -143,7 +143,7 @@ func TestPlanWindowResizeCoversEveryDirection(t *testing.T) {
 
 func TestWindowRuntimeFailuresAreNotSilentlySwallowed(t *testing.T) {
 	app, _ := newTestApp(t)
-	app.ctx = context.Background()
+	app.desktopRuntime.configureForTest(context.Background(), true, nil, nil)
 	app.windowRuntime = &fakeWindowRuntime{panicTitle: true}
 
 	defer func() {

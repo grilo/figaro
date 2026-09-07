@@ -48,6 +48,12 @@ export const graphIcon = (size = 16, sw = 2) => s(size, sw,
 
 // ── Misc ──
 
+export const infoIcon = (size = 16, sw = 2) => s(size, sw,
+    '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>');
+
+export const chevronRightIcon = (size = 16, sw = 2) => s(size, sw,
+    '<polyline points="9 6 15 12 9 18"/>');
+
 export const warningIcon = (size = 14, sw = 2) => s(size, sw,
     '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>' +
     '<line x1="12" y1="9" x2="12" y2="13"/>' +

@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -103,5 +104,33 @@ func TestSearchUnlinkedMentionsMatchesUnicodeNoteTitlesWithoutBreakingByteRanges
 	}
 	if got := readTestFile(t, vaultPath, "source.md"); got != "[Café](Caf%C3%A9.md) needs a decision.\n" {
 		t.Fatalf("Unicode linked source = %q", got)
+	}
+}
+
+func TestUnlinkedMentionCandidatesExcludeIrrelevantIndexedNotes(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "Atlas.md", "# Atlas\n")
+	writeTestFile(t, vaultPath, "mention.md", "Atlas needs a decision.\n")
+	for index := 0; index < 200; index++ {
+		writeTestFile(t, vaultPath, fmt.Sprintf("irrelevant-%03d.md", index), "Completely unrelated words.\n")
+	}
+
+	app.vaultMu.RLock()
+	index, err := app.ensureVaultIndexLocked()
+	if err != nil {
+		app.vaultMu.RUnlock()
+		t.Fatal(err)
+	}
+	candidates := unlinkedMentionCandidatePaths(index, "Atlas")
+	app.vaultMu.RUnlock()
+	if len(candidates) != 2 {
+		t.Fatalf("candidate paths = %#v, want only target and mention", candidates)
+	}
+	if _, found := candidates["mention.md"]; !found {
+		t.Fatalf("mention.md missing from candidates: %#v", candidates)
+	}
+	mentions, err := app.SearchUnlinkedMentions("Atlas.md")
+	if err != nil || len(mentions) != 1 || mentions[0].Path != "mention.md" {
+		t.Fatalf("unlinked mentions = %#v, err=%v", mentions, err)
 	}
 }

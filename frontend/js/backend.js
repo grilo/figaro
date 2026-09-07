@@ -7,6 +7,8 @@
  * backend without pretending to be a desktop runtime.
  */
 
+import { assertBackendContract, missingBackendMethods } from './backendContract.js';
+
 const debugBackendKey = '__figaroDebugBackend';
 
 function nativeBackend() {
@@ -16,7 +18,7 @@ function nativeBackend() {
 
 export function hasBackend() {
     const app = nativeBackend() || window[debugBackendKey];
-    return typeof app?.GetFileTree === 'function';
+    return Boolean(app) && missingBackendMethods(app).length === 0;
 }
 
 export function backend() {
@@ -28,10 +30,7 @@ export function backend() {
 }
 
 export function installDebugBackend(app) {
-    if (!app || typeof app.GetFileTree !== 'function') {
-        throw new TypeError('A debug backend must implement GetFileTree');
-    }
-    window[debugBackendKey] = app;
+    window[debugBackendKey] = assertBackendContract(app, 'Debug backend');
 }
 
 export function clearDebugBackend() {

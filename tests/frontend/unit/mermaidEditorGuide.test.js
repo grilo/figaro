@@ -92,7 +92,7 @@ describe('Mermaid Editor block guide', () => {
 
         synchronizeEditorBlockActionLayout(view, 1000);
 
-        expect(view.dom.style.getPropertyValue('--editor-block-before-rail-offset')).toBe('130px');
+        expect(view.dom.style.getPropertyValue('--editor-block-before-rail-offset')).toBe('128px');
         expect(view.dom.style.getPropertyValue('--editor-block-before-rail-width')).toBe('80px');
         expect(view.dom.style.getPropertyValue('--editor-block-after-rail-offset')).toBe('');
         expect(view.dom.style.getPropertyValue('--editor-block-after-rail-width')).toBe('');

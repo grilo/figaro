@@ -79,13 +79,7 @@ func readExternalMarkdownFile(path string) (*ReadFileResult, error) {
 // before the frontend is ready, in which case it is simply omitted and never
 // becomes an editable tab.
 func (a *App) GetLaunchExternalFiles() ([]*ExternalLaunchFile, error) {
-	a.externalFilesMu.RLock()
-	ids := append([]string(nil), a.launchExternalIDs...)
-	paths := make(map[string]string, len(a.launchExternalFiles))
-	for id, path := range a.launchExternalFiles {
-		paths[id] = path
-	}
-	a.externalFilesMu.RUnlock()
+	ids, paths := a.externalFiles.snapshot()
 
 	files := make([]*ExternalLaunchFile, 0, len(ids))
 	for _, id := range ids {

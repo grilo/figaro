@@ -5,6 +5,11 @@ function fileName(path) {
     return String(path || '').split(/[\\/]/).pop() || 'Untitled.md';
 }
 
+function requiredConfirm(confirm) {
+    if (typeof confirm !== 'function') throw new TypeError('External-file confirmation port is required');
+    return confirm;
+}
+
 // Resolve only the Markdown files the native process received at launch. The
 // backend keeps the capability mapping, so this module never asks it to open
 // an arbitrary path supplied by the webview.
@@ -22,7 +27,7 @@ export async function openLaunchExternalFiles(openTab, {
 // event cannot show the same prompt twice.
 export async function openExternalLaunchFiles(files, openTab, {
     api = backend(),
-    confirm = window.confirmDialog,
+    confirm,
     closeTab,
     onExternalKept = () => {},
     onImported = async () => {},
@@ -46,7 +51,7 @@ export async function openExternalLaunchFiles(files, openTab, {
                 openTab,
                 closeTab,
                 api,
-                confirm,
+                confirm: requiredConfirm(confirm),
                 onImported,
             });
         } catch (error) {
@@ -69,13 +74,13 @@ export async function offerExternalFileImport(tab, {
     openTab,
     closeTab,
     api = backend(),
-    confirm = window.confirmDialog,
+    confirm,
     onImported = async () => {},
 } = {}) {
     if (!tab?.externalFileId || !tab.path || typeof openTab !== 'function' || typeof api?.CopyExternalPaths !== 'function') {
         return false;
     }
-    const shouldImport = await confirm(
+    const shouldImport = await requiredConfirm(confirm)(
         'Import this note into the vault?',
         `“${tab.title || fileName(tab.path)}” is outside this vault. Importing copies it into the vault without replacing an existing note. Keeping it outside adds a temporary root shortcut and continues saving to the original file.`,
         false,
@@ -100,7 +105,7 @@ export async function offerExternalFileImport(tab, {
 // when the batch consists of a single folder.
 export async function importDroppedExternalPaths(paths, targetDirectory, {
     api = backend(),
-    confirm = window.confirmDialog,
+    confirm,
 } = {}) {
     const sourcePaths = Array.isArray(paths) ? paths.filter(Boolean) : [];
     if (!sourcePaths.length || typeof api?.MergeExternalPaths !== 'function') {
@@ -108,7 +113,7 @@ export async function importDroppedExternalPaths(paths, targetDirectory, {
     }
     const count = sourcePaths.length;
     const label = count === 1 ? `“${fileName(sourcePaths[0])}”` : `${count} items`;
-    const choice = await confirm(
+    const choice = await requiredConfirm(confirm)(
         count === 1 ? 'How should Figaro handle this drop?' : 'How should Figaro handle these drops?',
         `${label} can be inserted into the current note as a path, or copied into the vault. Imported folders keep their complete structure, existing files are never overwritten, and the originals stay where they are.`,
         false,
@@ -129,11 +134,11 @@ export async function importDroppedExternalPaths(paths, targetDirectory, {
 // import/cancel decision. Unlike an editor drop, there is no path-insertion
 // action and cancellation leaves the tree and source items unchanged.
 export async function confirmExternalTreeImport(paths, targetDirectory, {
-    confirm = window.confirmDialog,
+    confirm,
 } = {}) {
     const prompt = externalTreeImportPrompt(paths, targetDirectory);
-    if (!prompt || typeof confirm !== 'function') return false;
-    const choice = await confirm(
+    if (!prompt) return false;
+    const choice = await requiredConfirm(confirm)(
         prompt.title,
         prompt.message,
         false,

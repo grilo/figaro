@@ -1,4 +1,5 @@
 import { backend } from './backend.js';
+import { toggledWorkspacePresentation } from './core/workspaceTabModel.js';
 /**
  * Calendar Module - Monthly calendar widget and date search results
  */
@@ -160,7 +161,8 @@ export function initCalendar() {
             ? event.target.closest('[data-calendar-presentation]')
             : null;
         if (!choice) return;
-        setCalendarPresentation(choice.dataset.calendarPresentation);
+        setCalendarPresentation(toggledWorkspacePresentation(calendarPresentation(), choice.dataset.calendarPresentation,
+            'month'));
     });
     // Delegate from the document because tests and workspace restoration can
     // replace the grid element after this module has initialized.

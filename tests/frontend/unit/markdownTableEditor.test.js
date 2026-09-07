@@ -174,6 +174,40 @@ describe('Markdown table editor modal', () => {
         expect(harness.source).toContain('| Changed | 2 |');
     });
 
+    test('Keep editing and Escape from the discard notice restore the edited cell and selection', () => {
+        const harness = editorHarness();
+        const dialog = openMarkdownTableEditor(harness.view, harness.block);
+        const alpha = dialog.overlay.querySelector('[aria-label="Cell A2"]');
+        alpha.value = 'Changed Alpha';
+        alpha.dispatchEvent(new Event('input', { bubbles: true }));
+        alpha.focus();
+        alpha.setSelectionRange(2, 6, 'backward');
+        const escape = () => document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Escape', bubbles: true, cancelable: true,
+        }));
+        escape();
+        const keep = dialog.overlay.querySelector('.markdown-table-editor-keep');
+        expect(document.activeElement).toBe(keep);
+        keep.click();
+        expect(document.activeElement).toBe(alpha);
+        expect([alpha.selectionStart, alpha.selectionEnd, alpha.selectionDirection]).toEqual([2, 6, 'backward']);
+        escape();
+        escape();
+        expect(document.activeElement).toBe(alpha);
+        expect([alpha.selectionStart, alpha.selectionEnd, alpha.selectionDirection]).toEqual([2, 6, 'backward']);
+        expect(alpha.value).toBe('Changed Alpha');
+        expect(harness.view.dispatch).not.toHaveBeenCalled();
+
+        const cancel = dialog.overlay.querySelector('.markdown-table-editor-cancel');
+        cancel.focus();
+        cancel.click();
+        keep.click();
+        expect(document.activeElement).toBe(cancel);
+        escape();
+        dialog.overlay.querySelector('.markdown-table-editor-discard-confirm').click();
+        expect(harness.source).toBe(tableSource);
+    });
+
     test('uses local Undo without touching the buffer and confirms dirty Escape cancellation', () => {
         const harness = editorHarness();
         const dialog = openMarkdownTableEditor(harness.view, harness.block);

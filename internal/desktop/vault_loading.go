@@ -1,5 +1,7 @@
 package desktop
 
+import "sync"
+
 const (
 	VaultLoadPending     = "pending"
 	VaultLoadDiscovering = "discovering"
@@ -23,12 +25,94 @@ type VaultLoadStatus struct {
 	Error      string `json:"error,omitempty"`
 }
 
+type vaultLoadTracker struct {
+	mu       sync.RWMutex
+	status   VaultLoadStatus
+	emitStep int
+	lastEmit int
+}
+
+func newVaultLoadTracker() *vaultLoadTracker {
+	return &vaultLoadTracker{status: VaultLoadStatus{Phase: VaultLoadPending}}
+}
+
+func (t *vaultLoadTracker) snapshot() VaultLoadStatus {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.status
+}
+
+func (t *vaultLoadTracker) begin() VaultLoadStatus {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.status = VaultLoadStatus{Generation: t.status.Generation + 1, Phase: VaultLoadDiscovering}
+	t.emitStep = 1
+	t.lastEmit = 0
+	return t.status
+}
+
+func (t *vaultLoadTracker) progress(generation int, loaded int, total int) (VaultLoadStatus, bool) {
+	if total < 0 {
+		total = 0
+	}
+	if loaded < 0 {
+		loaded = 0
+	}
+	if loaded > total {
+		loaded = total
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.status.Generation != generation {
+		return VaultLoadStatus{}, false
+	}
+	phaseChanged := t.status.Phase != VaultLoadLoading
+	if phaseChanged || t.status.Total != total {
+		t.emitStep = vaultLoadEmissionStep(total)
+		t.lastEmit = 0
+	}
+	t.status = VaultLoadStatus{
+		Generation: generation,
+		Phase:      VaultLoadLoading,
+		Loaded:     loaded,
+		Total:      total,
+	}
+	shouldEmit := phaseChanged || loaded == 0 || loaded == total || loaded-t.lastEmit >= t.emitStep
+	if shouldEmit {
+		t.lastEmit = loaded
+	}
+	return t.status, shouldEmit
+}
+
+func (t *vaultLoadTracker) setPhase(generation int, phase string) (VaultLoadStatus, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.status.Generation != generation {
+		return VaultLoadStatus{}, false
+	}
+	t.status.Phase = phase
+	t.status.Error = ""
+	return t.status, true
+}
+
+func (t *vaultLoadTracker) fail(generation int, loadErr error) (VaultLoadStatus, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.status.Generation != generation {
+		return VaultLoadStatus{}, false
+	}
+	t.status.Phase = VaultLoadError
+	if loadErr != nil {
+		t.status.Error = loadErr.Error()
+	}
+	return t.status, true
+}
+
 // GetVaultLoadStatus remains responsive while the vault index is being built
 // because it deliberately does not acquire vaultMu.
 func (a *App) GetVaultLoadStatus() VaultLoadStatus {
-	a.vaultLoadMu.RLock()
-	defer a.vaultLoadMu.RUnlock()
-	return a.vaultLoadStatus
+	return a.vaultLoad.snapshot()
 }
 
 func vaultLoadEmissionStep(total int) int {
@@ -43,80 +127,26 @@ func vaultLoadEmissionStep(total int) int {
 }
 
 func (a *App) beginVaultLoad() int {
-	a.vaultLoadMu.Lock()
-	generation := a.vaultLoadStatus.Generation + 1
-	status := VaultLoadStatus{Generation: generation, Phase: VaultLoadDiscovering}
-	a.vaultLoadStatus = status
-	a.vaultLoadEmitStep = 1
-	a.vaultLoadLastEmit = 0
-	a.vaultLoadMu.Unlock()
+	status := a.vaultLoad.begin()
 	a.emitRuntimeEventData(vaultLoadEventName, status)
-	return generation
+	return status.Generation
 }
 
 func (a *App) reportVaultLoadProgress(generation int, loaded int, total int) {
-	if total < 0 {
-		total = 0
-	}
-	if loaded < 0 {
-		loaded = 0
-	}
-	if loaded > total {
-		loaded = total
-	}
-
-	a.vaultLoadMu.Lock()
-	if a.vaultLoadStatus.Generation != generation {
-		a.vaultLoadMu.Unlock()
-		return
-	}
-	phaseChanged := a.vaultLoadStatus.Phase != VaultLoadLoading
-	if phaseChanged || a.vaultLoadStatus.Total != total {
-		a.vaultLoadEmitStep = vaultLoadEmissionStep(total)
-		a.vaultLoadLastEmit = 0
-	}
-	a.vaultLoadStatus = VaultLoadStatus{
-		Generation: generation,
-		Phase:      VaultLoadLoading,
-		Loaded:     loaded,
-		Total:      total,
-	}
-	shouldEmit := phaseChanged || loaded == 0 || loaded == total || loaded-a.vaultLoadLastEmit >= a.vaultLoadEmitStep
-	if shouldEmit {
-		a.vaultLoadLastEmit = loaded
-	}
-	status := a.vaultLoadStatus
-	a.vaultLoadMu.Unlock()
-
+	status, shouldEmit := a.vaultLoad.progress(generation, loaded, total)
 	if shouldEmit {
 		a.emitRuntimeEventData(vaultLoadEventName, status)
 	}
 }
 
 func (a *App) setVaultLoadPhase(generation int, phase string) {
-	a.vaultLoadMu.Lock()
-	if a.vaultLoadStatus.Generation != generation {
-		a.vaultLoadMu.Unlock()
-		return
+	if status, changed := a.vaultLoad.setPhase(generation, phase); changed {
+		a.emitRuntimeEventData(vaultLoadEventName, status)
 	}
-	a.vaultLoadStatus.Phase = phase
-	a.vaultLoadStatus.Error = ""
-	status := a.vaultLoadStatus
-	a.vaultLoadMu.Unlock()
-	a.emitRuntimeEventData(vaultLoadEventName, status)
 }
 
 func (a *App) failVaultLoad(generation int, loadErr error) {
-	a.vaultLoadMu.Lock()
-	if a.vaultLoadStatus.Generation != generation {
-		a.vaultLoadMu.Unlock()
-		return
+	if status, changed := a.vaultLoad.fail(generation, loadErr); changed {
+		a.emitRuntimeEventData(vaultLoadEventName, status)
 	}
-	a.vaultLoadStatus.Phase = VaultLoadError
-	if loadErr != nil {
-		a.vaultLoadStatus.Error = loadErr.Error()
-	}
-	status := a.vaultLoadStatus
-	a.vaultLoadMu.Unlock()
-	a.emitRuntimeEventData(vaultLoadEventName, status)
 }

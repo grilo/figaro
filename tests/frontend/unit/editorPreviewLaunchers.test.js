@@ -1,10 +1,15 @@
 import { initEditorPreviewLaunchers } from '../../../frontend/js/editorPreviewLaunchers.js';
+import {
+    registerRightPaneMode,
+    resetRightPaneModesForTests,
+} from '../../../frontend/js/rightPaneCoordinator.js';
 
 describe('editor Raw/PDF preview launchers', () => {
     let controller;
     let activeTab;
 
     beforeEach(() => {
+        resetRightPaneModesForTests();
         document.body.innerHTML = `
             <button id="raw-text-preview-toggle" hidden></button>
             <button id="pdf-preview-toggle" hidden></button>
@@ -43,6 +48,18 @@ describe('editor Raw/PDF preview launchers', () => {
             path: 'notes/Report.md', title: 'Report.md', content: '# Unsaved report',
         });
         expect(rawButton.getAttribute('aria-expanded')).toBe('true');
+
+        registerRightPaneMode('raw-text-preview', () => {
+            const sidebar = document.getElementById('right-sidebar');
+            delete sidebar.dataset.mode;
+            sidebar.classList.remove('open');
+        });
+        rawButton.click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(rawButton.getAttribute('aria-expanded')).toBe('false');
+
+        rawButton.click();
+        await new Promise(resolve => setTimeout(resolve, 0));
 
         pdfButton.click();
         await new Promise(resolve => setTimeout(resolve, 0));

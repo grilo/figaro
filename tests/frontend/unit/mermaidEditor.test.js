@@ -282,7 +282,7 @@ describe('Mermaid Editor dialog', () => {
         expect(dialog.editorView.state.doc.toString().match(/%% Figaro node styles/gu)).toHaveLength(1);
     });
 
-    test('keeps individual node controls before a bounded keyboard-operable node list', async () => {
+    test('keeps individual node controls before the keyboard-operable node list and preserves the shared Style scroll position', async () => {
         const { dialog } = open([
             'flowchart LR',
             '  A[Christmas] --> B[Go shopping] --> C[Let me think] --> D[Laptop]',
@@ -322,15 +322,14 @@ describe('Mermaid Editor dialog', () => {
         expect(rows[1].querySelector('.mermaid-editor-node-shape').textContent).toBe('Pill');
         expect(selectedControls.querySelector('.mermaid-editor-color-button').classList.contains('ui-icon-button')).toBe(true);
 
-        nodeList.scrollTop = 24;
+        stylePanel.scrollTop = 24;
         rows[0].focus();
         rows[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-        const refreshedList = stylePanel.querySelector('.mermaid-editor-node-list');
         const selectedRow = stylePanel.querySelector('.mermaid-editor-node-row[aria-selected="true"]');
         expect(selectedRow.dataset.nodeId).toBe('B');
         expect(selectedRow.tabIndex).toBe(0);
         expect(document.activeElement).toBe(selectedRow);
-        expect(refreshedList.scrollTop).toBe(24);
+        expect(stylePanel.scrollTop).toBe(24);
         expect(stylePanel.querySelector('.mermaid-editor-selected-node').getAttribute('aria-label'))
             .toBe('Editing node Go shopping');
     });

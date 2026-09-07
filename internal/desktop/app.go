@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"figaro/internal/writing"
 	"fmt"
 	"io/fs"
 	"log"
@@ -26,32 +27,35 @@ import (
 // All exported receiver methods with signature (ctx context.Context, ...) (T, error)
 // are automatically exposed as async JS functions on the Go binding object.
 type App struct {
-	ctx                 context.Context
+	writingMu           sync.Mutex
+	writingEngine       *writing.Engine
+	assets              AssetFS
 	vaultPath           string
 	devInspectorAddress string
 	vaultMu             sync.RWMutex
 	fileTreeBuildMu     sync.Mutex
 	sessionMu           sync.RWMutex
 	mu                  sync.RWMutex
-	runtimeMu           sync.RWMutex
-	externalFilesMu     sync.RWMutex
-	launchExternalFiles map[string]string
-	launchExternalIDs   []string
-	launchExternalNext  int
+	desktopRuntime      *runtimeBridge
+	externalFiles       *externalFileRegistry
 	settingsMu          sync.RWMutex
+	writingStateMu      sync.RWMutex
+	taskProjectionMu    sync.Mutex
+	vaultHealthMu       sync.Mutex
 	machineSettingsMu   sync.RWMutex
 	windowStateMu       sync.Mutex
 	calendarMu          sync.Mutex
 	watcherMu           sync.Mutex
 	vaultIndexBuildMu   sync.Mutex
 	vaultStartupOnce    sync.Once
-	vaultLoadMu         sync.RWMutex
 	fileIssuesMu        sync.RWMutex
 	fileVersions        map[string]float64
 	kanbanColumns       []string
 	kanbanColors        map[string]string
 	calendarIndex       *calendarDateIndex
 	vaultIndex          *vaultIndex
+	taskProjection      taskScheduleProjectionCache
+	vaultHealthCache    vaultHealthCache
 	fileTreeEntries     map[string]fileTreeCacheEntry
 	fileTreeSnapshot    []*FileTreeItem
 	fileIssues          map[string]VaultFileIssue
@@ -63,14 +67,8 @@ type App struct {
 	windowState         windowState
 	machineSettingsPath string
 	applicationVersion  string
-	runtimeEventsReady  bool
-	vaultLoadStatus     VaultLoadStatus
-	vaultLoadEmitStep   int
-	vaultLoadLastEmit   int
-	eventEmitter        func(name string, data ...any)
-	windowShow          func(context.Context)
+	vaultLoad           *vaultLoadTracker
 	windowRuntime       windowRuntime
-	windowFocusPending  bool
 }
 
 // SystemColumns are the three built-in kanban columns always present.
@@ -161,8 +159,32 @@ func removeHashtag(content, tag string) string {
 	return result.String()
 }
 
-// NewApp creates the App instance. Called once in main().
-func NewApp(vaultPath string) *App {
+// NewApp constructs the in-memory facade only. It performs no filesystem or
+// Git work, which keeps dependency assembly independently testable.
+func NewApp(vaultPath string, bundledAssets ...AssetFS) *App {
+	var assetBundle AssetFS
+	if len(bundledAssets) > 0 {
+		assetBundle = bundledAssets[0]
+	}
+	return &App{
+		assets:              assetBundle,
+		vaultPath:           vaultPath,
+		fileVersions:        make(map[string]float64),
+		kanbanColors:        make(map[string]string),
+		kanbanColumns:       append([]string{}, SystemColumns...),
+		externalFiles:       newExternalFileRegistry(),
+		internalVaultWrites: make(map[string]internalVaultWriteAck),
+		fileIssues:          make(map[string]VaultFileIssue),
+		windowState:         defaultWindowState(),
+		vaultLoad:           newVaultLoadTracker(),
+		desktopRuntime:      newRuntimeBridge(runtime.WindowShow),
+		windowRuntime:       wailsWindowRuntime{},
+	}
+}
+
+// OpenApp resolves and prepares the selected vault, then attaches adapters
+// whose construction necessarily performs filesystem or Git I/O.
+func OpenApp(vaultPath string, bundledAssets ...AssetFS) *App {
 	absPath, err := filepath.Abs(vaultPath)
 	if err != nil {
 		log.Printf("[vault] Cannot resolve vault path: %v", err)
@@ -174,23 +196,11 @@ func NewApp(vaultPath string) *App {
 	if err := os.MkdirAll(filepath.Join(absPath, ".config"), 0700); err != nil { // #nosec G703 -- configuration is created only beneath the explicitly selected vault root.
 		log.Printf("[vault] Cannot create vault configuration directory: %v", err)
 	}
-	if resolved, err := filepath.EvalSymlinks(absPath); err == nil {
+	if resolved, resolveErr := filepath.EvalSymlinks(absPath); resolveErr == nil {
 		absPath = resolved
 	}
 
-	a := &App{
-		vaultPath:           absPath,
-		fileVersions:        make(map[string]float64),
-		kanbanColors:        make(map[string]string),
-		kanbanColumns:       append([]string{}, SystemColumns...),
-		launchExternalFiles: make(map[string]string),
-		internalVaultWrites: make(map[string]internalVaultWriteAck),
-		fileIssues:          make(map[string]VaultFileIssue),
-		windowState:         defaultWindowState(),
-		vaultLoadStatus:     VaultLoadStatus{Phase: VaultLoadPending},
-		windowShow:          runtime.WindowShow,
-		windowRuntime:       wailsWindowRuntime{},
-	}
+	a := NewApp(absPath, bundledAssets...)
 	a.loadColors()
 
 	// Initialize git history service
@@ -378,16 +388,7 @@ func (a *App) ensureWelcomeNote() {
 
 // startup captures the Wails context.
 func (a *App) startup(ctx context.Context) {
-	a.runtimeMu.Lock()
-	a.ctx = ctx
-	a.runtimeEventsReady = true
-	focusPending := a.windowFocusPending
-	a.windowFocusPending = false
-	showWindow := a.windowShow
-	a.runtimeMu.Unlock()
-	if focusPending && showWindow != nil {
-		showWindow(ctx)
-	}
+	a.desktopRuntime.start(ctx)
 	log.Println("[go] App.startup() — Wails context captured")
 	a.migrateLegacyPDFBrowserPreference()
 	a.ensureSettingsDefaults()
@@ -423,11 +424,7 @@ func (a *App) StartVaultLoad() bool {
 // system at process launch. The frontend receives opaque IDs rather than
 // arbitrary filesystem paths it could use to request unrelated files.
 func (a *App) setLaunchExternalFiles(paths []string) {
-	a.externalFilesMu.Lock()
-	a.launchExternalFiles = make(map[string]string)
-	a.launchExternalIDs = nil
-	a.launchExternalNext = 0
-	a.externalFilesMu.Unlock()
+	a.externalFiles.reset()
 	a.registerLaunchExternalFiles(paths)
 }
 
@@ -436,11 +433,7 @@ func (a *App) setLaunchExternalFiles(paths []string) {
 // one operating-system request share one capability, while a later explicit
 // launch remains a new request and can bring the existing window forward.
 func (a *App) registerLaunchExternalFiles(paths []string) []*ExternalLaunchFile {
-	type candidate struct {
-		path  string
-		mtime float64
-	}
-	candidates := make([]candidate, 0, len(paths))
+	candidates := make([]externalLaunchCandidate, 0, len(paths))
 	knownPaths := make(map[string]struct{}, len(paths))
 	for _, path := range paths {
 		clean := filepath.Clean(path)
@@ -459,40 +452,13 @@ func (a *App) registerLaunchExternalFiles(paths []string) []*ExternalLaunchFile 
 			continue
 		}
 		knownPaths[key] = struct{}{}
-		candidates = append(candidates, candidate{path: clean, mtime: externalFileMtime(info)})
+		candidates = append(candidates, externalLaunchCandidate{path: clean, mtime: externalFileMtime(info)})
 	}
-
-	a.externalFilesMu.Lock()
-	defer a.externalFilesMu.Unlock()
-	registered := make([]*ExternalLaunchFile, 0, len(candidates))
-	for _, candidate := range candidates {
-		a.launchExternalNext++
-		id := fmt.Sprintf("external-%d", a.launchExternalNext)
-		a.launchExternalFiles[id] = candidate.path
-		a.launchExternalIDs = append(a.launchExternalIDs, id)
-		registered = append(registered, &ExternalLaunchFile{
-			ID:    id,
-			Name:  filepath.Base(candidate.path),
-			Path:  candidate.path,
-			Mtime: candidate.mtime,
-		})
-	}
-	return registered
+	return a.externalFiles.register(candidates)
 }
 
 func (a *App) requestWindowFocus() {
-	a.runtimeMu.Lock()
-	ctx := a.ctx
-	showWindow := a.windowShow
-	if ctx == nil || !a.runtimeEventsReady {
-		a.windowFocusPending = true
-		a.runtimeMu.Unlock()
-		return
-	}
-	a.runtimeMu.Unlock()
-	if showWindow != nil {
-		showWindow(ctx)
-	}
+	a.desktopRuntime.requestFocus()
 }
 
 // handleSecondInstanceLaunch receives a validated operating-system launch
@@ -508,9 +474,7 @@ func (a *App) handleSecondInstanceLaunch(args []string, workingDirectory string)
 }
 
 func (a *App) launchExternalFilePath(id string) (string, error) {
-	a.externalFilesMu.RLock()
-	path, ok := a.launchExternalFiles[id]
-	a.externalFilesMu.RUnlock()
+	path, ok := a.externalFiles.path(id)
 	if !ok || path == "" {
 		return "", fmt.Errorf("external launch file is not available")
 	}
@@ -520,6 +484,13 @@ func (a *App) launchExternalFilePath(id string) (string, error) {
 // domReady is called from OnDomReady; defined in run.go.
 // shutdown is called from OnShutdown.
 func (a *App) shutdown(ctx context.Context) {
+	a.writingMu.Lock()
+	engine := a.writingEngine
+	a.writingEngine = nil
+	a.writingMu.Unlock()
+	if engine != nil {
+		engine.Close()
+	}
 	a.stopVaultWatcher()
 }
 
@@ -694,19 +665,5 @@ func (a *App) emitRuntimeEvent(name string) {
 }
 
 func (a *App) emitRuntimeEventData(name string, data ...any) {
-	if name == "" {
-		return
-	}
-	if a.eventEmitter != nil {
-		a.eventEmitter(name, data...)
-		return
-	}
-	a.runtimeMu.RLock()
-	ctx := a.ctx
-	ready := a.runtimeEventsReady
-	a.runtimeMu.RUnlock()
-	if ctx == nil || !ready {
-		return
-	}
-	runtime.EventsEmit(ctx, name, data...)
+	a.desktopRuntime.emit(name, data...)
 }

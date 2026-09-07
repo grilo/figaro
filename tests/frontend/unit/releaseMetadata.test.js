@@ -52,7 +52,10 @@ describe('release metadata and documentation', () => {
         expect(workflow).not.toContain('--generate-notes');
         expect(workflow.match(/cp README\.md CHANGELOG\.md LICENSE/g)).toHaveLength(2);
         expect(workflow).toContain('Copy-Item README.md, CHANGELOG.md, LICENSE');
-        expect(readme).toContain('docs/images/figaro-editor.jpg');
+        expect(readme).toContain('docs/images/figaro-editor.png');
+        expect(productReference).toContain('images/figaro-editor.png');
+        expect(fs.readFileSync('docs/images/figaro-editor.png').subarray(0, 8).toString('hex'))
+            .toBe('89504e470d0a1a0a');
         expect(readme).not.toContain('make release');
         expect(readme).not.toContain('$prepare-figaro-release');
         expect(productReference).not.toContain('make release');
@@ -82,6 +85,33 @@ describe('release metadata and documentation', () => {
         expect(playwrightConfig).toContain("trace: process.env.CI ? 'retain-on-failure' : 'off'");
     });
 
+    test('rebuilds production assets and gates coverage and platform contracts in automation', () => {
+        const ciWorkflow = read('.github/workflows/test.yml');
+        const releaseWorkflow = read('.github/workflows/release.yml');
+        const manifest = JSON.parse(read('package.json'));
+        const goCoverage = read('scripts/check-go-coverage.sh');
+
+        expect(ciWorkflow.match(/run: \.\/scripts\/prepare-frontend\.sh/g)).toHaveLength(3);
+        expect(releaseWorkflow.match(/run: \.\/scripts\/prepare-frontend\.sh/g)).toHaveLength(2);
+        expect(ciWorkflow).toContain('npm run test:coverage');
+        expect(releaseWorkflow).toContain('npm run test:coverage');
+        expect(ciWorkflow).toContain('./scripts/check-go-coverage.sh');
+        expect(releaseWorkflow).toContain('./scripts/check-go-coverage.sh');
+        expect(ciWorkflow).toContain('os: [windows-latest, macos-latest]');
+        expect(ciWorkflow).toMatch(/backend-platform:[\s\S]*?- run: go test \. \.\/internal\/\.\.\. \.\/cmd\/\.\.\./);
+        expect(ciWorkflow).toContain('TestRenderChromiumPDFAgainstOptInBrowser');
+        expect(releaseWorkflow).toContain('TestRenderChromiumPDFAgainstOptInBrowser');
+        expect(manifest.scripts['test:pdf']).toContain('npm run build:app');
+        expect(goCoverage).toContain('minimum="${FIGARO_GO_COVERAGE_MIN:-72}"');
+        expect(goCoverage).toContain('go test -covermode=atomic -coverprofile="$profile" . ./internal/... ./cmd/...');
+        expect(manifest.jest.coverageThreshold.global).toEqual({
+            branches: 67,
+            functions: 81,
+            lines: 84,
+            statements: 80,
+        });
+    });
+
     test('requires every affected documentation surface to stay synchronized', () => {
         const instructions = read('AGENTS.md');
         const contributing = read('CONTRIBUTING.md');
@@ -90,7 +120,7 @@ describe('release metadata and documentation', () => {
         for (const path of ['README.md', 'docs/PROMPT.md', 'ARCHITECTURE.md', 'CONTRIBUTING.md', 'docs/TESTING.md', 'docs/LIVEPREVIEW.md', 'docs/PDF_STYLING.md']) {
             expect(instructions).toContain(`\`${path}\``);
         }
-        expect(instructions).toContain('`skills/prepare-figaro-release/SKILL.md`');
+        expect(instructions).toContain('`.agents/skills/prepare-figaro-release/SKILL.md`');
         expect(contributing).toContain('Audit every affected document in the same change.');
     });
 });

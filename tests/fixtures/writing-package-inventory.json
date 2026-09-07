@@ -1,0 +1,109 @@
+{
+  "write-good": {
+    "included": [
+      "Cliches",
+      "Illusions",
+      "Passive",
+      "So",
+      "ThereIs",
+      "TooWordy",
+      "Weasel"
+    ],
+    "excluded": [
+      "E-Prime"
+    ]
+  },
+  "proselint": {
+    "included": [
+      "Airlinese",
+      "Archaisms",
+      "Cliches",
+      "CorporateSpeak",
+      "Hedging",
+      "Hyperbole",
+      "Jargon",
+      "Malapropisms",
+      "Oxymorons",
+      "RASSyndrome",
+      "Skunked",
+      "Spelling",
+      "Uncomparables",
+      "Very"
+    ],
+    "excluded": [
+      "AnimalLabels",
+      "Annotations",
+      "Apologizing",
+      "But",
+      "Currency",
+      "Cursing",
+      "DateCase",
+      "DateMidnight",
+      "DateRedundancy",
+      "DateSpacing",
+      "DenizenLabels",
+      "Diacritical",
+      "GenderBias",
+      "GroupTerms",
+      "LGBTOffensive",
+      "LGBTTerms",
+      "Needless",
+      "Nonwords",
+      "P-Value",
+      "Typography"
+    ]
+  },
+  "Microsoft": {
+    "included": [
+      "Acronyms",
+      "Adverbs",
+      "Jargon",
+      "Passive",
+      "SentenceLength",
+      "Wordiness"
+    ],
+    "excluded": [
+      "AMPM",
+      "Accessibility",
+      "Auto",
+      "Avoid",
+      "BiasFree",
+      "Contractions",
+      "Dashes",
+      "DateFormat",
+      "DateNumbers",
+      "DateOrder",
+      "Ellipses",
+      "ExclamationPoints",
+      "FirstPerson",
+      "Foreign",
+      "Gender",
+      "GenderBias",
+      "GeneralURL",
+      "HeadingAcronyms",
+      "HeadingColons",
+      "HeadingPunctuation",
+      "Headings",
+      "Hyphens",
+      "Militaristic",
+      "Negative",
+      "Ordinal",
+      "OxfordComma",
+      "Percentages",
+      "Plurals",
+      "QuestionMarks",
+      "Quotes",
+      "RangeTime",
+      "Semicolon",
+      "Spacing",
+      "Suspended",
+      "Terms",
+      "UIVerbs",
+      "URLFormat",
+      "Units",
+      "Uppercase",
+      "Vocab",
+      "We"
+    ]
+  }
+}

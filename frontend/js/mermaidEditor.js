@@ -482,7 +482,6 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
         const styleState = mermaidStyleConfigState(source, inspection?.config);
         const focusKey = styleContent.contains(document.activeElement) ? document.activeElement.dataset.styleFocus : '';
         const scrollTop = styleContent.scrollTop;
-        const nodeListScrollTop = styleContent.querySelector('.mermaid-editor-node-list')?.scrollTop || 0;
         paintedSource = source;
         paintedError = hasErrors;
         paintedInspection = !!inspection;
@@ -705,8 +704,6 @@ export function openMermaidEditor(mainView, originalBlock, options = {}) {
             styleContent.append(typeSection, appearance);
         }
         styleContent.scrollTop = scrollTop;
-        const refreshedNodeList = styleContent.querySelector('.mermaid-editor-node-list');
-        if (refreshedNodeList) refreshedNodeList.scrollTop = nodeListScrollTop;
         if (revealSelectedFlowchartNode) {
             revealSelectedFlowchartNode = false;
             styleContent.querySelector('.mermaid-editor-selected-node')?.scrollIntoView?.({ block: 'nearest' });

@@ -6,6 +6,12 @@ import { initHelpPopup } from '../frontend/js/helpPopup.js';
 import { normalizedKanbanColumns } from '../frontend/js/core/taskDueDateCompletionModel.js';
 
 describe('Figaro help', () => {
+    test('documents the Writing lenses shortcut for normal and Pure mode', () => {
+        const shortcuts = loadPopup().querySelector('#md-help-shortcuts-panel');
+        const row = [...shortcuts.querySelectorAll('tr')].find(item => item.textContent.includes('Ctrl/Cmd+Shift+L'));
+        expect(row).toBeDefined();
+        expect(row.textContent).toContain('Writing lenses pane / Pure picker');
+    });
     function loadDocument() {
         const source = fs.readFileSync(path.resolve('frontend/index.html'), 'utf8');
         const template = document.createElement('template');

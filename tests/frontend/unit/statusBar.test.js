@@ -13,6 +13,10 @@ describe('status bar', () => {
         jest.useRealTimers();
     });
 
+    test('keeps the window resize grip outside the buffer status container', () => {
+        expect(document.getElementById('resize-grip').parentElement.id).toBe('status-bar');
+    });
+
     test('groups editor state on the left and document metrics on the right in reading order', () => {
         const childIds = selector => [...document.querySelector(selector).children]
             .map(child => child.id)
@@ -37,7 +41,6 @@ describe('status bar', () => {
             'word-count',
             'char-count',
             'reading-time',
-            'resize-grip',
         ]);
     });
 

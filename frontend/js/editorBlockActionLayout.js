@@ -33,10 +33,13 @@ function measureWritingEdges(view) {
     const contentRect = content.getBoundingClientRect();
     const viewportRect = view.dom.getBoundingClientRect();
     const contentStyle = ownerWindow.getComputedStyle(content);
+    const appliedInset = numericPixels(view.dom.style.getPropertyValue('--editor-block-writing-inset'));
     const before = railMeasurement(beforeRail, ownerWindow);
     return {
         viewportLeft: viewportRect.left,
-        writingLeft: contentRect.left + numericPixels(contentStyle.paddingLeft),
+        // Recover the ordinary writing edge so reserving the lane does not
+        // disable itself on the next CodeMirror measurement.
+        writingLeft: contentRect.left + numericPixels(contentStyle.paddingLeft) - appliedInset,
         beforeRailBaseRight: before.baseRight,
         beforeRailWidth: before.width,
     };
@@ -48,5 +51,11 @@ export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getB
     const layout = editorBlockActionLayout(width, measureWritingEdges(view));
     view.dom.style.setProperty('--editor-block-before-rail-offset', `${layout.beforeRailOffset}px`);
     view.dom.style.setProperty('--editor-block-before-rail-width', `${layout.beforeRailWidth}px`);
-    view.scrollDOM?.classList.toggle('cm-editor-block-actions-stacked', layout.stacked);
+    view.dom.style.setProperty('--editor-block-writing-inset', `${layout.writingInset}px`);
+}
+
+export function clearEditorBlockActionLayout(view) {
+    for (const property of ['--editor-block-before-rail-offset', '--editor-block-before-rail-width', '--editor-block-writing-inset']) {
+        view.dom.style.removeProperty(property);
+    }
 }

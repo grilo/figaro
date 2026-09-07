@@ -1,6 +1,12 @@
 import { globalShortcutAction, isSidebarToggleShortcut } from '../frontend/js/core/globalShortcutModel.js';
 
 describe('global shortcut policy', () => {
+    test('opens writing lenses on Ctrl/Cmd+Shift+L without stealing unshifted keys', () => {
+        expect(globalShortcutAction({ key: 'L', ctrlKey: true, shiftKey: true })).toBe('writing-lenses');
+        expect(globalShortcutAction({ key: 'L', metaKey: true, shiftKey: true })).toBe('writing-lenses');
+        expect(globalShortcutAction({ key: 'l', ctrlKey: true })).toBeNull();
+        expect(globalShortcutAction({ key: 'L', ctrlKey: true, shiftKey: true, repeat: true })).toBeNull();
+    });
     test('reserves unshifted Ctrl/Cmd+B for Bold and shifts the sidebar shortcut', () => {
         expect(isSidebarToggleShortcut({ key: 'b', ctrlKey: true })).toBe(false);
         expect(isSidebarToggleShortcut({ key: 'B', metaKey: true, shiftKey: true })).toBe(true);

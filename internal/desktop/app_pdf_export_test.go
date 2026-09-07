@@ -403,7 +403,7 @@ func TestRenderChromiumPDFPassesKeepsSinglePassAndRejectsPaginationDrift(t *test
 func TestWriteInteractivePDFWorkspaceIncludesKaTeXStylesheetAndFonts(t *testing.T) {
 	requireGeneratedKaTeXRuntime(t)
 	workspace := t.TempDir()
-	inputPath, err := writeInteractivePDFWorkspace(workspace, "<!doctype html><html><head></head><body><span class=\"katex\">x</span></body></html>")
+	inputPath, err := writeInteractivePDFWorkspace(testAssets, workspace, "<!doctype html><html><head></head><body><span class=\"katex\">x</span></body></html>")
 	if err != nil {
 		t.Fatalf("writeInteractivePDFWorkspace error: %v", err)
 	}
@@ -424,7 +424,7 @@ func TestWriteInteractivePDFWorkspaceIncludesKaTeXStylesheetAndFonts(t *testing.
 
 func requireGeneratedKaTeXRuntime(t *testing.T) {
 	t.Helper()
-	if _, err := assets.ReadFile("frontend/vendored/katex/dist/katex.min.css"); err != nil {
+	if _, err := testAssets.ReadFile("frontend/vendored/katex/dist/katex.min.css"); err != nil {
 		t.Skip("generated KaTeX runtime is absent; run make bootstrap before PDF verification")
 	}
 }

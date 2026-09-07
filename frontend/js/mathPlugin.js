@@ -66,6 +66,9 @@ function buildMathState(state) {
     const doc = state.doc;
     const cursor = state.selection.main.head;
     const text = doc.toString();
+    if (!text.includes('$')) {
+        return { decorations: Decoration.none, ranges };
+    }
 
     // Block math: $$...$$
     const blockRe = /\$\$\s*([\s\S]*?)\s*\$\$/g;
@@ -88,22 +91,18 @@ function buildMathState(state) {
         }
     }
 
-    // Inline math: $...$ (single-line, not inside code blocks)
-    // Only match simple inline math that doesn't span lines
-    const lines = text.split('\n');
-    let pos = 0;
-    for (const line of lines) {
-        const inlineRe = /\$([^$\n]+)\$/g;
-        while ((m = inlineRe.exec(line)) !== null) {
-            const start = pos + m.index;
-            const end = start + m[0].length;
-            ranges.push({ from: start, to: end });
-            if (cursor >= start && cursor <= end) continue;
-            decorations.push(Decoration.replace({
-                widget: new MathWidget(m[1], false)
-            }).range(start, end));
-        }
-        pos += line.length + 1;
+    // Inline math: $...$ (single-line, not inside code blocks). Scan the
+    // document directly so large notes do not allocate an array and a regex
+    // for every source line during activation.
+    const inlineRe = /\$([^$\n]+)\$/g;
+    while ((m = inlineRe.exec(text)) !== null) {
+        const start = m.index;
+        const end = start + m[0].length;
+        ranges.push({ from: start, to: end });
+        if (cursor >= start && cursor <= end) continue;
+        decorations.push(Decoration.replace({
+            widget: new MathWidget(m[1], false)
+        }).range(start, end));
     }
 
     return {

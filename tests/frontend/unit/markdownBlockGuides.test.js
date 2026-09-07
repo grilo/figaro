@@ -1,14 +1,18 @@
 import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import { foldEffect } from '@codemirror/language';
 import { markdownLanguage } from '@codemirror/lang-markdown';
 import {
     fencedCodeGuideLabel,
     leadingFrontmatterEnd,
     MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH,
     markdownBlockGuideKind,
+    markdownBlockGuideSpacerLength,
 } from '../../../frontend/js/core/markdownBlockGuideModel.js';
 import { markdownFoldAnchorPlan } from '../../../frontend/js/core/markdownFoldAnchorModel.js';
 import {
     buildMarkdownBlockGuides,
+    createMarkdownBlockGuidesExtension,
     buildTaskItemActionLines,
     markdownGuideForBlockWidget,
 } from '../../../frontend/js/markdownBlockGuides.js';
@@ -19,6 +23,37 @@ function guidePlan(source) {
 }
 
 describe('Markdown block guide model', () => {
+    test('helper reservation covers actual document labels and image actions without a hypothetical longest fence', () => {
+        expect(markdownBlockGuideSpacerLength([])).toBe(6);
+        const { guides } = guidePlan('# Heading\n```mermaid\ngraph LR\n```');
+        expect(markdownBlockGuideSpacerLength(guides)).toBe(7);
+        expect(markdownBlockGuideSpacerLength([{ label: 'image', type: 'image' }], { showImageReset: true })).toBe(13);
+        expect(markdownBlockGuideSpacerLength([{ label: 'abcdefghijklmnop', type: 'code' }])).toBe(16);
+    });
+
+    test('helper spacer keeps nested labels reserved through folding and updates after document edits', () => {
+        const parent = document.body.appendChild(document.createElement('div'));
+        const view = new EditorView({
+            parent,
+            state: EditorState.create({
+                doc: '# Heading\n```mermaid\ngraph LR\n```',
+                extensions: [markdownLanguage, createMarkdownBlockGuidesExtension()],
+            }),
+        });
+        try {
+            const spacer = () => parent.querySelector('.cm-markdownBlockGuideSpacer').textContent;
+            expect(spacer()).toBe('x'.repeat(7));
+            const heading = buildMarkdownBlockGuides(view.state)[0];
+            view.dispatch({ effects: foldEffect.of({ from: heading.foldFrom, to: heading.foldTo }) });
+            expect(spacer()).toBe('x'.repeat(7));
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '# Only heading' } });
+            expect(spacer()).toBe('x'.repeat(6));
+        } finally {
+            view.destroy();
+            parent.remove();
+        }
+    });
+
     test('classifies headings, fenced code, tables, and standalone images', () => {
         expect(markdownBlockGuideKind({ name: 'ATXHeading3' })).toBe('h3');
         expect(markdownBlockGuideKind({ name: 'Paragraph', source: 'plain prose' })).toBeNull();

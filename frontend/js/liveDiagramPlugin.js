@@ -67,6 +67,8 @@ function parseFenceCloser(line) {
 export function scanDiagramFences(doc) {
     const diagrams = [];
     let open = null;
+    const source = doc.toString();
+    if (!/\b(?:mermaid|vega(?:-lite)?)\b/iu.test(source)) return diagrams;
 
     const finish = (closeLine, recoveredFence) => {
         if (DIAGRAM_LANGS.has(open.language)) {
@@ -542,8 +544,8 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
     return StateField.define({
         create: buildState,
         update(value, transaction) {
-            if (transaction.docChanged || transaction.reconfigured) {
-                if (transaction.reconfigured || changesNeedDiagramRescan(value, transaction)) {
+            if (transaction.docChanged) {
+                if (changesNeedDiagramRescan(value, transaction)) {
                     return buildState(transaction.state);
                 }
                 return mapState(value, transaction.changes);

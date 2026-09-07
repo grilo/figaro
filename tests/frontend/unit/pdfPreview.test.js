@@ -57,7 +57,7 @@ import {
 import { exportMarkdownToPDF, renderPrintableMarkdownWithDiagrams } from '../frontend/js/pdfExport.js';
 import { saveFileSnapshot } from '../frontend/js/tabManager.js';
 import { handleFileOpen } from '../frontend/js/app.js';
-import { initRightSidebarResizer } from '../frontend/js/historyPanel.js';
+import { initRightSidebarResizer, updateRightSidebarEditorLayout } from '../frontend/js/historyPanel.js';
 import { pdfStyleReferenceDialog } from '../frontend/js/dialogs.js';
 
 function waitForPreview(delay = 40) {
@@ -134,6 +134,20 @@ describe('live PDF preview', () => {
 
     afterEach(() => {
         closePDFPreview();
+    });
+
+    test('right-pane geometry updates the buffer footer inset and clears it when closed', () => {
+        const sidebar = document.getElementById('right-sidebar');
+        const app = document.getElementById('app');
+        sidebar.classList.add('open');
+        updateRightSidebarEditorLayout(1000, 280);
+        expect(app.style.getPropertyValue('--shell-right-sidebar-width')).toBe('280px');
+        updateRightSidebarEditorLayout(520, 320);
+        expect(sidebar.classList.contains('right-sidebar--responsive-overlay')).toBe(true);
+        expect(app.style.getPropertyValue('--shell-right-sidebar-width')).toBe('320px');
+        sidebar.classList.remove('open');
+        updateRightSidebarEditorLayout();
+        expect(app.style.getPropertyValue('--shell-right-sidebar-width')).toBe('');
     });
 
     test('resolves explicit and fallback stylesheets relative to the note', () => {
@@ -596,7 +610,7 @@ describe('live PDF preview', () => {
         }));
         expect(sidebar.style.width).toBe('488px');
         expect(resizer.getAttribute('aria-valuenow')).toBe('488');
-        expect(resizer.getAttribute('aria-valuemin')).toBe('340');
+        expect(resizer.getAttribute('aria-valuemin')).toBe('240');
         expect(resizer.getAttribute('aria-valuemax')).toBe('960');
 
         resizer.dispatchEvent(new KeyboardEvent('keydown', {

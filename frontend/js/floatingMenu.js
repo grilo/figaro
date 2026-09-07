@@ -10,6 +10,7 @@ export function mountFloatingMenu(anchor, menu, {
     maximumWidth = 280,
     gap = 6,
     margin = 8,
+    preferredPlacement,
 } = {}) {
     if (!anchor?.isConnected || !menu?.isConnected) return null;
     const parent = menu.parentNode;
@@ -22,18 +23,24 @@ export function mountFloatingMenu(anchor, menu, {
     menu.style.position = 'fixed';
     document.body.append(menu);
 
-    const position = () => {
+    const position = event => {
         if (!mounted || !anchor.isConnected || !menu.isConnected) return;
+        // Scrolling the popup's contents does not move its invoking control.
+        if (event?.type === 'scroll' && event.target instanceof Node && menu.contains(event.target)) return;
         const trigger = anchor.getBoundingClientRect();
-        const intrinsicWidth = menu.scrollWidth || trigger.width;
+        // scrollWidth/Height exclude borders and scrollbar chrome. Feeding those
+        // inner dimensions into border-box CSS subtracts that chrome every time.
+        const bounds = menu.getBoundingClientRect();
+        const intrinsicWidth = Math.max(bounds.width, menu.scrollWidth + menu.offsetWidth - menu.clientWidth) || trigger.width;
         const requestedWidth = Math.max(trigger.width, Math.min(maximumWidth, intrinsicWidth));
         const placement = planFloatingMenuPlacement({
             trigger,
-            menuHeight: menu.scrollHeight,
+            menuHeight: menu.scrollHeight + menu.offsetHeight - menu.clientHeight,
             menuWidth: requestedWidth,
             viewportWidth: window.innerWidth,
             viewportHeight: window.innerHeight,
             maximumHeight,
+            preferredPlacement,
             gap,
             margin,
         });

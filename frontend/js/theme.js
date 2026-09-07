@@ -24,15 +24,9 @@ import {
     persistConfiguredEditorTextScale,
 } from './editorTextScale.js';
 import {
-    normalizeSpellcheckPreference,
-    spellcheckPreferenceFromSetting,
-    spellcheckSettingValue,
-} from './spellcheckPreference.js';
-import {
     getEditorView,
     setLineNumbers,
     setMarkdownLint,
-    setSpellcheck,
     setVimRevealBlocks,
     setVimVisualRows,
     toggleVim,
@@ -71,12 +65,7 @@ let currentMarkdownLintEnabled = true;
 let markdownLintPreferenceLoaded = false;
 let markdownLintPreferenceLoadPromise = null;
 let markdownLintSaveQueue = Promise.resolve();
-let currentSpellcheckPreference = { enabled: false, language: 'en-US' };
-let persistedSpellcheckPreference = { enabled: false, language: 'en-US' };
-let spellcheckPreferenceLoaded = false;
-let spellcheckPreferenceLoadPromise = null;
-let spellcheckPreferenceRevision = 0;
-let spellcheckSaveQueue = Promise.resolve();
+
 const startupAppearanceStorageKey = 'figaro:startup-appearance-v1';
 
 function persistStartupAppearance() {
@@ -137,7 +126,6 @@ export async function initTheme() {
         initVimRevealBlocksPreference(),
         initLineNumbersPreference(),
         initMarkdownLintPreference(),
-        initSpellcheckPreference(),
         initEditorNavigationPreference(),
     ]);
 }
@@ -561,84 +549,6 @@ export async function setMarkdownLintPreference(enabled) {
     }
 }
 
-function syncSpellcheckControls(preference) {
-    document.querySelectorAll('#spellcheck-language').forEach(select => {
-        select.value = spellcheckSettingValue(preference);
-        select._figaroCombobox?.sync?.();
-    });
-}
-
-async function applySpellcheckPreference(preference) {
-    setSpellcheck(preference);
-}
-
-export function getSpellcheckPreference() {
-    return { ...currentSpellcheckPreference };
-}
-
-/** Load and apply the global offline spellcheck fallback exactly once. */
-export async function initSpellcheckPreference() {
-    if (spellcheckPreferenceLoaded) return getSpellcheckPreference();
-    if (spellcheckPreferenceLoadPromise) return spellcheckPreferenceLoadPromise;
-
-    spellcheckPreferenceLoadPromise = (async () => {
-        try {
-            const result = await backend().SpellcheckLoad();
-            currentSpellcheckPreference = normalizeSpellcheckPreference(result);
-            persistedSpellcheckPreference = { ...currentSpellcheckPreference };
-            spellcheckPreferenceLoaded = true;
-            syncSpellcheckControls(currentSpellcheckPreference);
-            await applySpellcheckPreference(currentSpellcheckPreference);
-        } catch (error) {
-            log.warn('Could not load spellcheck preference:', error);
-        } finally {
-            spellcheckPreferenceLoadPromise = null;
-        }
-        return getSpellcheckPreference();
-    })();
-    return spellcheckPreferenceLoadPromise;
-}
-
-/** Apply and persist the global fallback while preserving a newer UI choice. */
-export async function setSpellcheckPreference(preference) {
-    if (!spellcheckPreferenceLoaded) await initSpellcheckPreference();
-    const requested = normalizeSpellcheckPreference({ ...currentSpellcheckPreference, ...preference });
-    const revision = ++spellcheckPreferenceRevision;
-    currentSpellcheckPreference = requested;
-    syncSpellcheckControls(requested);
-
-    try {
-        await applySpellcheckPreference(requested);
-    } catch (error) {
-        log.warn('Could not apply spellcheck preference:', error);
-        if (revision === spellcheckPreferenceRevision) {
-            currentSpellcheckPreference = { ...persistedSpellcheckPreference };
-            syncSpellcheckControls(currentSpellcheckPreference);
-        }
-        return false;
-    }
-
-    const saveAttempt = spellcheckSaveQueue.then(async () => {
-        const result = await backend().SpellcheckSave(requested.enabled, requested.language);
-        if (!result?.success) throw new Error(result?.error || 'Spellcheck preference was not saved');
-        persistedSpellcheckPreference = { ...requested };
-        return true;
-    });
-    spellcheckSaveQueue = saveAttempt.catch(() => {});
-    try {
-        await saveAttempt;
-        return true;
-    } catch (error) {
-        log.warn('Could not save spellcheck preference:', error);
-        if (revision === spellcheckPreferenceRevision) {
-            currentSpellcheckPreference = { ...persistedSpellcheckPreference };
-            syncSpellcheckControls(currentSpellcheckPreference);
-            try { await applySpellcheckPreference(currentSpellcheckPreference); } catch (_) { /* original error is logged above */ }
-        }
-        return false;
-    }
-}
-
 export async function initSettingsPanel(root = document) {
     log.debug('[settings] initSettingsPanel started');
     try {
@@ -753,36 +663,6 @@ export async function initSettingsPanel(root = document) {
             });
         }
         await initEditorNavigationSettings(root);
-
-        const spellcheckLanguage = findIn(root, '#spellcheck-language');
-        if (spellcheckLanguage) {
-            const preference = await initSpellcheckPreference();
-            if (!isActivePanel(root)) return;
-            const spellcheckPicker = enhanceSelectCombobox(spellcheckLanguage, {
-                ariaLabel: 'Spellcheck language',
-                className: 'ui-picker--quiet',
-            });
-            spellcheckLanguage.value = spellcheckSettingValue(preference);
-            spellcheckPicker?.sync();
-
-            const save = async () => {
-                if (spellcheckPicker) spellcheckPicker.setDisabled(true, { busy: true });
-                else spellcheckLanguage.disabled = true;
-                const saved = await setSpellcheckPreference(spellcheckPreferenceFromSetting(
-                    spellcheckLanguage.value,
-                    getSpellcheckPreference(),
-                ));
-                if (!isActivePanel(root)) return;
-                const currentPreference = getSpellcheckPreference();
-                spellcheckLanguage.value = spellcheckSettingValue(currentPreference);
-                const failure = saved ? '' : 'Could not save the spellcheck preference.';
-                spellcheckLanguage.title = failure;
-                spellcheckPicker?.sync();
-                if (spellcheckPicker) spellcheckPicker.setDisabled(false);
-                else spellcheckLanguage.disabled = false;
-            };
-            spellcheckLanguage.addEventListener('change', save);
-        }
 
         await initTabSizeSettings(root);
         initFontSize(root);

@@ -54,7 +54,7 @@ describe('Workspace navigation', () => {
         expect(document.getElementById('sidebar-projects')).toBeNull();
     });
 
-    test('opens the all-notes Graph and keeps the selected side tab open', async () => {
+    test('reselecting Graph returns to the previous document and keeps its workspace mounted', async () => {
         setState('openTabs', [{
             id: 'notes/Roadmap.md',
             title: 'Roadmap.md',
@@ -82,7 +82,7 @@ describe('Workspace navigation', () => {
         button.click();
         await Promise.resolve();
         expect(getState('openTabs').filter(tab => tab.type === 'graph')).toHaveLength(1);
-        expect(getState('activeTabId')).toBe('graph');
+        expect(getState('activeTabId')).toBe('notes/Roadmap.md');
         expect(document.getElementById('graph-workspace-panel').classList.contains('figaro-panel-exit')).toBe(false);
     });
 
@@ -133,7 +133,7 @@ describe('Workspace navigation', () => {
 
         button.click();
 
-        expect(getState('activeTabId')).toBe('calendar-workspace');
+        expect(getState('activeTabId')).toBeNull();
         expect(getState('openTabs').filter(tab => tab.type === 'calendar-workspace')).toHaveLength(1);
         expect(view.closest('.tab-panel')?.classList.contains('figaro-panel-exit')).toBe(false);
     });
@@ -181,7 +181,7 @@ describe('Workspace navigation', () => {
 
         expect(getState('sidebarCollapsed')).toBe(true);
         expect(sidebar.classList.contains('collapsed')).toBe(true);
-        expect(getState('activeTabId')).toBe('calendar-workspace');
+        expect(getState('activeTabId')).toBeNull();
     });
 
     test('keeps Kanban on the connected sidebar tab without creating a title-bar tab', () => {
@@ -189,6 +189,9 @@ describe('Workspace navigation', () => {
         const settingsButton = document.getElementById('topbar-settings');
 
         kanbanButton.click();
+        kanbanButton.click();
+        expect(getState('activeTabId')).toBeNull();
+        expect(kanbanButton.hasAttribute('aria-current')).toBe(false);
         kanbanButton.click();
 
         expect(getState('openTabs').filter(tab => tab.id === 'kanban')).toHaveLength(1);

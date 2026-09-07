@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/vale-cli/Microsoft",
+  "revision": "8b272ae9d6d6d82d54e3aafa8c1eb4550e4e971e",
+  "sha256": {
+    "Acronyms.yml": "4280c2738c117fd1c0880ed957a6a2805492d7797edb7ef9fb9f26d2d3306e0a",
+    "Adverbs.yml": "914a4fcfcc8f0c1b6d4cc174f2bc80ec4c31e2d40d1386fdf01dc0e0914480e0",
+    "Jargon.yml": "1cd8050f648211227f9c23b358ec20db576c4718dec9c1688340630be847127f",
+    "Passive.yml": "6735ca9ebda4123407a02ef55cb370d1850026e6a37bfa4218d9927ebad57b9c",
+    "SentenceLength.yml": "6f497c1d95fc881e8ac6003d77876e1e5e647c96f7b5885d95036d396d828597",
+    "Wordiness.yml": "7e6c608b56a6946b921a3986a9254cdf389551361ee5dfc16bfac4b528430c38"
+  }
+}

@@ -75,6 +75,17 @@ status instead of cloning its animation or paint. An ordinary disabled
 `.ui-button` represents an unavailable action and uses no busy cursor; a
 genuinely pending button also declares `aria-busy="true"` (or the equivalent
 internal busy hook) so its wait treatment has explicit operation ownership.
+Native-disabled and guarded `aria-disabled` icon buttons share the same disabled
+appearance. The latter stay focusable for explanations and retain the standard
+focus ring; their controller must refuse activation.
+Inline writing review composes the approved menu surface, standard buttons, and
+warning notice; its dotted mark shares existing spellcheck paint. The catalogue
+uses the production card controller, including applicable spelling actions.
+
+Editor fold and block-guide primitives read their existing reveal state from
+`data-block-control-relevant` on the gutter owner. This survives CodeMirror
+source-offset updates without flashing; the catalogue uses the same attribute.
+
 The approved `.ui-button--quiet` variant removes resting border and surface
 paint for low-emphasis actions while retaining themed hover, active, focus,
 disabled, and busy behavior. Expanded Properties uses it for its icon-and-label
@@ -231,3 +242,92 @@ When adding or changing a visible production element:
 Catalogue-only containment rules are acceptable for pinning menus, dialogs,
 and loaders in view. They must not redefine the element's production visual
 language.
+
+Writing review now reuses five equal checkboxes: Proofreading, Clarity,
+Directness, Inclusive language, and Formulaic writing, and the existing four-option Settings language
+combobox; the primary picker and profile control are removed. The user explicitly
+requested rounded, borderless suggestion backgrounds, approved as `.ui-suggestion`.
+Its canonical rule uses the theme background, text and radius tokens, while child
+standard action buttons retain all existing interaction states; source navigation
+adds a link icon. Unsupported lenses use the existing unchecked, disabled
+checkbox state. Their checkbox and label expose the reason through the shared
+`.ui-tooltip` and an accessible description; no new primitive or variant is added.
+The catalogue mounts the
+production results and inline controllers, including before/after and advisory
+sentence-splitting examples, contextual Inclusive language alternatives, and explicit sentence-spacing counts. Optional accented spellings, formula advice, canonical technical names, and paired-punctuation/acronym examples also reuse these controls; all five lens groups, including Formulaic writing, retain the same primitives and states. The catalogue includes the production advisory acronym example, with Ignore and no invented replacement.
+
+Durable writing decisions reuse existing buttons, disclosure behavior, suggestion
+cards, and warning notices. Inline and pane actions include Ignore this occurrence
+and document acronym acceptance; Saved review decisions in the pane/Pure picker
+uses per-record Restore/Review again controls and bounded Show more behavior.
+The catalogue uses the production views for acceptance and reversal, including
+empty, loading, disabled and error states covered by components. No component
+family, primitive, visual variant, theme token, or cascade entry was added.
+
+The writing audit fixes reuse those approved primitives: the shared animated disclosure
+compacts configured lens controls; four initial suggestion cards group identical
+occurrences and expose Previous/Next plus eligible document-scoped Apply-to-all.
+Actions precede one comparison, further alternatives use disclosure, and Details
+explains the rule before an optional Technical diagnostics button builds evidence.
+Capacity recovery and uncertain-save reconciliation reuse standard buttons and
+warning notices; saved occurrence rows show context and inactive state. The
+catalogue mounts these production views with repeated-word/bulk and pagination
+examples. No new component family, visual variant, token, or cascade link was
+introduced; the only new stylesheet hook lays out the existing Details content.
+
+
+The asynchronous writing follow-up reuses the existing status text, warning notice,
+and Retry review decisions button for background tracking failure. Restore remains
+disabled until tracking recovers, and the results view directs recovery to saved
+decisions rather than offering an ineffective analysis retry. Inactive labels
+consume worker-provided IDs; the catalogue continues to use the same production
+view. No component family, primitive, visual variant, registry entry, or cascade
+change is required.
+
+The package coverage review changes lens descriptions and suggestion content within the same checkbox and suggestion-card contracts. The catalogue consumes those production models. No primitive, variant, token, or style-manifest change is required.
+
+Lens consolidation reuses the approved checkbox and badge: legacy subsets expose
+a mixed accessibility state plus a visible **Partial** badge, with enabled-check
+details in accessible descriptions and info help. Group counts reflect the five choices; Spanish Proofreading states
+its spelling-only coverage. The subsequently approved disclosure is implemented
+as the shared family described below.
+
+## Approved animated disclosure — 2026-09-07
+
+The user approved the Figaro Dark/CRT proposal before implementation.
+`.ui-disclosure` owns the trigger, left rotating chevron, label, trailing summary,
+grid body and clipped content. `createDisclosure` supplies the native button,
+ARIA connection, immediate inert closure, child-focus return and stable DOM.
+Native Enter/Space and Tab work without a custom keymap. CSS runs the 180 ms
+reveal and its reversal; initial/document updates and reduced-motion mode are
+immediate. Closed content cannot receive focus while collapsing.
+
+Optional semantic tokens `--disclosure-surface`, `--disclosure-hover-surface`,
+and `--disclosure-active-surface` mix 8%, 13%, and 17% of the theme foreground
+into the sidebar background. `--disclosure-summary-color` blends the primary
+foreground into muted text so the smaller count remains readable on light
+surfaces too. The clipping container reserves room for child focus rings.
+The component remains visible at rest; expansion
+does not masquerade as a selected action. Focus, disabled/busy, coarse-pointer
+height, forced-colors and reduced-motion states live in `primitives.css`.
+The existing eager stylesheet links and cascade remain unchanged. The registry
+lists all seven disclosure primitives. The catalogue mounts the production lens
+view plus disabled/busy examples, including partial selections and language
+coverage. Existing quiet action buttons elsewhere retain their own appearance.
+
+Lens info help reuses the approved `.ui-icon-button`, `.ui-menu`, `.ui-notice`,
+tooltip, and shared Before/After presentation. The production catalogue specimen
+now has short summaries and persistent nonmodal help with language-specific
+examples and limitations. Feature hooks only place and size the surface and its
+contents; shared paint, hover, focus, and disabled states remain canonical. The
+registry still contains 21 families; no new primitive, visual variant, token, or
+cascade link is added. Component tests cover ownership and accessibility; the
+existing browser scenarios cover clipping, narrow scrolling, and native focus.
+
+The lens-help scrolling fix preserves the same approved presentation. Internal
+scrolling no longer repositions the popup; other placement updates account for
+borders and scrollbar chrome instead of feeding inner sizes into border-box CSS.
+Adapter regressions and repeated native wheel scrolling in the existing catalogue
+scenario cover stable dimensions. No primitive, token, or cascade change is needed.
+
+The catalogue builder normalizes trailing whitespace in parsed JavaScript comments without changing literal contents. `--check` compares this same deterministic output.

@@ -7,24 +7,10 @@
  * parsed and re-serialized by the editor.
  */
 
-const OPENING_BOUNDARY_RE = /^---[ \t]*$/;
-const CLOSING_BOUNDARY_RE = /^(?:---|\.\.\.)[ \t]*$/;
+import { getFrontmatterRegion } from './core/frontmatterRegionModel.js';
+export { getFrontmatterRegion } from './core/frontmatterRegionModel.js';
 const PROPERTY_RE = /^([A-Za-z0-9][A-Za-z0-9_.-]*)[ \t]*:[ \t]*(.*)$/;
 const SINGLE_QUOTE = String.fromCharCode(39);
-
-function lineEnd(source, from) {
-    const newline = source.indexOf('\n', from);
-    return newline === -1 ? source.length : newline;
-}
-
-function lineText(source, from, to) {
-    const text = source.slice(from, to);
-    return text.endsWith('\r') ? text.slice(0, -1) : text;
-}
-
-function nextLineStart(source, end) {
-    return end < source.length ? end + 1 : source.length;
-}
 
 function inlineCommentIndex(value) {
     let quote = null;
@@ -83,42 +69,10 @@ function parseEntries(content) {
     return entries;
 }
 
-function findLeadingFrontmatter(source) {
-    const text = String(source || '');
-    const openingFrom = text.charCodeAt(0) === 0xFEFF ? 1 : 0;
-    const openingEnd = lineEnd(text, openingFrom);
-    if (!OPENING_BOUNDARY_RE.test(lineText(text, openingFrom, openingEnd))) return null;
-
-    const contentFrom = nextLineStart(text, openingEnd);
-    let from = contentFrom;
-    while (from < text.length) {
-        const end = lineEnd(text, from);
-        if (CLOSING_BOUNDARY_RE.test(lineText(text, from, end))) {
-            return {
-                from: 0,
-                to: nextLineStart(text, end),
-                contentFrom,
-                contentTo: from,
-                closed: true,
-            };
-        }
-        from = nextLineStart(text, end);
-    }
-
-    // While a user is still creating the frontmatter, keep the region open
-    // through EOF so completion can assist with its first properties.
-    return { from: 0, to: text.length, contentFrom, contentTo: text.length, closed: false };
-}
-
-/** Return the exact leading frontmatter range without parsing or rewriting it. */
-export function getFrontmatterRegion(source) {
-    return findLeadingFrontmatter(String(source || ''));
-}
-
 /** Return a leading frontmatter region only when `position` is in its YAML. */
 export function getFrontmatterRegionAt(source, position) {
     const text = String(source || '');
-    const region = findLeadingFrontmatter(text);
+    const region = getFrontmatterRegion(text);
     if (!region) return null;
     const pos = Math.max(0, Math.min(Number(position) || 0, text.length));
     const inside = pos >= region.contentFrom &&
@@ -133,7 +87,7 @@ export function getFrontmatterRegionAt(source, position) {
  */
 export function parseFrontmatter(source) {
     const text = String(source || '');
-    const region = findLeadingFrontmatter(text);
+    const region = getFrontmatterRegion(text);
     if (!region?.closed) return null;
     return {
         ...region,
@@ -159,7 +113,7 @@ export function initialFrontmatterBodySelection(source, {
 
 /** Whether the document starts with a complete or currently-being-edited YAML block. */
 export function hasLeadingFrontmatter(source) {
-    return Boolean(findLeadingFrontmatter(source));
+    return Boolean(getFrontmatterRegion(source));
 }
 
 export function getFrontmatterValue(source, key) {

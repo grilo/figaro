@@ -92,6 +92,8 @@ export function configureFileTreeWorkspace(ports) {
         throw new TypeError('File-tree workspace ports are incomplete');
     }
     workspacePorts = Object.freeze({ ...ports });
+    fileTreeRefresh = createFileTreeRefreshService();
+    fileTreeTransfer = createFileTreeTransferService();
 }
 
 function workspace() {
@@ -105,40 +107,48 @@ function handleFileOpen(...args) { return workspace().openFile(...args); }
 function openTab(...args) { return workspace().openTab(...args); }
 function prepareTabsForPathCopy(...args) { return workspace().prepareTabsForPathCopy(...args); }
 function prepareTabsForPathDelete(...args) { return workspace().prepareTabsForPathDelete(...args); }
+function moveWritingPaths(operation) { return workspace().moveWritingPaths ? workspace().moveWritingPaths(operation) : operation(); }
 function prepareTabsForPathMove(...args) { return workspace().prepareTabsForPathMove(...args); }
 function refreshTabsForUpdatedLinks(...args) { return workspace().refreshTabsForUpdatedLinks(...args); }
 function updateTabsForMovedPath(...args) { return workspace().updateTabsForMovedPath(...args); }
 
-const fileTreeRefresh = createFileTreeRefresh({
-    readTree: () => backend().GetFileTree(),
-    readStyles: () => backend().GetFileTreeStyles(),
-    fallbackStyles: () => fileTreeStyles,
-    publish: ({ tree, styles }) => {
-        fileTreeStyles = normalizeFileTreeStyles(styles);
-        setState('fileTreeData', tree);
-        setState('selectedTreePaths', reconcileSelectedTreePaths(getState('selectedTreePaths'), tree));
-        reconcileInternalClipboard(tree);
-        renderFileTree();
-        document.dispatchEvent(new CustomEvent('vault-file-tree-refreshed', {
-            detail: { tree },
-        }));
-    },
-    onLoading: () => statusBar.set('Loading file tree...'),
-    onReady: () => statusBar.set('Ready'),
-    onStylesFailed: error => log.warn('Could not refresh file-tree appearance:', error),
-    onFailed: error => {
-        log.error('Failed to load file tree:', error);
-        statusBar.set('Failed to load file tree');
-    },
-});
+let fileTreeRefresh = null;
+let fileTreeTransfer = null;
 
-const fileTreeTransfer = createFileTreeTransfer({
-    prepareCopy: path => prepareTabsForPathCopy(path),
-    copyPath: (path, targetDirectory) => backend().CopyPath(path, targetDirectory),
-    refresh: () => refreshFileTree(),
-    onPrepare: source => statusBar.set(`Saving “${source.path.split('/').pop()}” before copying…`),
-    onCopy: source => statusBar.set(`Copying “${source.path.split('/').pop()}”…`),
-});
+function createFileTreeRefreshService() {
+    return createFileTreeRefresh({
+        readTree: () => backend().GetFileTree(),
+        readStyles: () => backend().GetFileTreeStyles(),
+        fallbackStyles: () => fileTreeStyles,
+        publish: ({ tree, styles }) => {
+            fileTreeStyles = normalizeFileTreeStyles(styles);
+            setState('fileTreeData', tree);
+            setState('selectedTreePaths', reconcileSelectedTreePaths(getState('selectedTreePaths'), tree));
+            reconcileInternalClipboard(tree);
+            renderFileTree();
+            document.dispatchEvent(new CustomEvent('vault-file-tree-refreshed', {
+                detail: { tree },
+            }));
+        },
+        onLoading: () => statusBar.set('Loading file tree...'),
+        onReady: () => statusBar.set('Ready'),
+        onStylesFailed: error => log.warn('Could not refresh file-tree appearance:', error),
+        onFailed: error => {
+            log.error('Failed to load file tree:', error);
+            statusBar.set('Failed to load file tree');
+        },
+    });
+}
+
+function createFileTreeTransferService() {
+    return createFileTreeTransfer({
+        prepareCopy: path => prepareTabsForPathCopy(path),
+        copyPath: (path, targetDirectory) => backend().CopyPath(path, targetDirectory),
+        refresh: () => refreshFileTree(),
+        onPrepare: source => statusBar.set(`Saving “${source.path.split('/').pop()}” before copying…`),
+        onCopy: source => statusBar.set(`Copying “${source.path.split('/').pop()}”…`),
+    });
+}
 
 const contextMenuViewportMargin = 8;
 
@@ -589,6 +599,7 @@ export async function createInboxNote() {
  * Refresh file tree from backend
  */
 export async function refreshFileTree() {
+    if (!fileTreeRefresh) throw new Error('File-tree workspace ports were not configured');
     return fileTreeRefresh.refresh();
 }
 
@@ -1425,6 +1436,7 @@ export async function pasteInternalClipboard(targetPath = '', targetType = 'root
         finishActivity = null;
     };
     try {
+        if (!fileTreeTransfer) throw new Error('File-tree workspace ports were not configured');
         const transfer = await fileTreeTransfer.copy(entries, targetDirectory);
         remainingEntries = transfer.remaining || entries;
         if (!transfer.success) {
@@ -1724,7 +1736,7 @@ export async function moveInternalPath(sourcePath, targetDir) {
             return false;
         }
         statusBar.set(`Moving “${itemName}”…`);
-        let result = await backend().MovePath(sourcePath, targetDir);
+        let result = await moveWritingPaths(() => backend().MovePath(sourcePath, targetDir));
         let merged = false;
         if (!result?.success && result?.merge_available) {
             finishActivity();
@@ -1745,7 +1757,7 @@ export async function moveInternalPath(sourcePath, targetDir) {
             }
             statusBar.set(`Merging “${directoryName}”…`);
             finishActivity = beginFileTreeActivity();
-            result = await backend().MergeDirectory(sourcePath, targetDir);
+            result = await moveWritingPaths(() => backend().MergeDirectory(sourcePath, targetDir));
             merged = true;
         }
         if (!result?.success) {
@@ -1862,7 +1874,9 @@ export async function copyExternalDrop(paths, targetDirectory, {
         let result;
         let openImportedFiles = false;
         if (confirmImport) {
-            const dropped = await importDroppedExternalPaths(paths, targetDirectory);
+            const dropped = await importDroppedExternalPaths(paths, targetDirectory, {
+                confirm: confirmDialog,
+            });
             if (dropped.action === 'cancel') {
                 statusBar.set('Drop cancelled');
                 setTimeout(() => statusBar.set('Ready'), 1800);
@@ -2481,9 +2495,9 @@ async function renameTreePath(path, type) {
                 finishActivity = beginFileTreeActivity();
             }
         }
-        const result = type === 'file'
-            ? await backend().RenamePathWithLinkUpdates(path, newPath, updateLinks)
-            : await backend().RenamePath(path, newPath);
+        const result = await moveWritingPaths(() => type === 'file'
+            ? backend().RenamePathWithLinkUpdates(path, newPath, updateLinks)
+            : backend().RenamePath(path, newPath));
         if (!result.success) {
             finishActivity();
             await errorDialog(`Couldn’t rename ${kind}`, result.error, `The ${kind} could not be renamed.`);

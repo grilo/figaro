@@ -9,12 +9,14 @@ export function createDocumentSave({
     confirmOverwrite,
     shouldCommit = () => false,
     commit = async () => {},
+    onStarted = () => {},
     onSaved = async () => {},
     onFailed = () => {},
 }) {
     const queues = new Map();
+    const generations = new Map();
 
-    async function persistSnapshot(snapshot) {
+    async function persistSnapshot(snapshot, queuedMtime = snapshot.expectedMtime) {
         const write = expectedMtime => persist({
             path: snapshot.path,
             externalFileId: snapshot.externalFileId,
@@ -23,7 +25,7 @@ export function createDocumentSave({
         });
 
         try {
-            let result = await write(snapshot.tab.mtime || 0);
+            let result = await write(queuedMtime);
             let successMessage = 'Saved';
             const firstDisposition = saveResultDisposition(result);
             if (firstDisposition === 'failure') {
@@ -64,14 +66,25 @@ export function createDocumentSave({
     }
 
     function save(tab, content, options = {}) {
-        const snapshot = createSaveSnapshot(tab, content, options);
+        const tabId = tab?.id || tab?.path;
+        const generation = Math.max(
+            (tab?._saveGeneration || 0) + 1,
+            (generations.get(tabId) || 0) + 1,
+        );
+        const snapshot = createSaveSnapshot(tab, content, { ...options, generation });
         if (!snapshot) return Promise.resolve(null);
-        tab._saveGeneration = snapshot.generation;
+        generations.set(snapshot.tabId, snapshot.generation);
+        onStarted(snapshot);
 
-        const previous = queues.get(snapshot.path) || Promise.resolve();
+        const previous = queues.get(snapshot.path);
         const queued = previous
-            .catch(() => {})
-            .then(() => persistSnapshot(snapshot));
+            ? previous
+                .catch(() => null)
+                .then(result => persistSnapshot(
+                    snapshot,
+                    result?.success ? result.mtime : snapshot.expectedMtime,
+                ))
+            : persistSnapshot(snapshot);
 
         queues.set(snapshot.path, queued);
         queued.finally(() => {

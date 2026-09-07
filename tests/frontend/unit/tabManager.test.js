@@ -4,6 +4,7 @@
  */
 
 import { testUtils } from './test_setup.js';
+import { createBackendStub } from '../../../frontend/js/backendContract.js';
 
 // Mock state (using jest.fn for proper hoisting)
 const mockState = {
@@ -92,18 +93,19 @@ import { initSettingsPanel } from '../frontend/js/theme.js';
 import { createGraphView } from '../frontend/js/graphView.js';
 import { setAutoCommitEnabled } from '../frontend/js/automation.js';
 import { statusBar } from '../frontend/js/statusBar.js';
-import { errorDialog, saveFailureDialog } from '../frontend/js/dialogs.js';
+import { confirmDialog, errorDialog, saveFailureDialog } from '../frontend/js/dialogs.js';
 import { helpSettingsEntries } from '../frontend/js/helpPopup.js';
 import { mountKanbanWorkspace } from '../frontend/js/kanban.js';
-// confirmDialog accessed via window.confirmDialog
-
 import { 
+    configureTabManagerWorkspace,
     initTabManager, 
     openTab, 
     closeTab, 
-    switchTab, 
+    switchTab,
+    toggleWorkspaceTab,
     getActiveTab, 
     markTabDirty, 
+    recordTabEdit,
     updateTabTitle,
     reorderTab,
     movedTabPath,
@@ -128,14 +130,14 @@ function deferred() {
 }
 
 // Mock native Wails App binding.
-window.go = { desktop: { App: {
+window.go = { desktop: { App: createBackendStub({
     SaveFile: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() }),
     SaveSession: jest.fn().mockResolvedValue({ success: true }),
     ReadFile: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
     ReadLaunchExternalFile: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
     CommitCurrentFile: jest.fn().mockResolvedValue(null),
     GetApplicationVersion: jest.fn().mockResolvedValue('1.7.0'),
-} } };
+}) } };
 
 describe('Tab Manager', () => {
     beforeEach(() => {
@@ -150,6 +152,8 @@ describe('Tab Manager', () => {
         localStorage.clear();
         getEditorDocumentTabId.mockReturnValue(null);
         getEditorContent.mockReturnValue('');
+        configureTabManagerWorkspace({ confirm: confirmDialog });
+        confirmDialog.mockResolvedValue(true);
         saveFailureDialog.mockResolvedValue(false);
         setAutoCommitEnabled(true);
         mountKanbanWorkspace.mockImplementation(() => ({ activate: jest.fn(), dispose: jest.fn() }));
@@ -164,7 +168,7 @@ describe('Tab Manager', () => {
             expect(tab.type).toBe('file');
             expect(tab.path).toBe('test.md');
             expect(tab.mtime).toBe(1000);
-            expect(tab.dirty).toBe(false);
+            expect(getState('openTabs').find(candidate => candidate.id === tab.id).dirty).toBe(false);
             expect(getState('activeTabId')).toBe('test.md');
         });
 
@@ -653,22 +657,11 @@ describe('Tab Manager', () => {
             }
         });
 
-        test('presents Spellcheck scope as concise accessible guidance', () => {
+        test('Settings has no spellchecking controls because the document lens owns them', () => {
             openTab('settings', 'Settings', 'settings');
             const panel = document.querySelector('.tab-panel[data-tab-id="settings"]');
-            const language = panel.querySelector('#spellcheck-language');
-            const guidance = panel.querySelector('#spellcheck-guidance');
-            const rows = guidance.querySelectorAll('.settings-spellcheck-guidance-row');
-
-            expect(language.getAttribute('aria-describedby')).toBe('spellcheck-guidance');
-            expect(guidance.classList.contains('ui-notice')).toBe(true);
-            expect(guidance.classList.contains('ui-notice--info')).toBe(true);
-            expect(guidance.getAttribute('role')).toBe('note');
-            expect(rows).toHaveLength(2);
-            expect(rows[0].querySelector('strong').textContent).toBe('Vault default');
-            expect(rows[0].textContent).toContain('None');
-            expect(rows[1].querySelector('strong').textContent).toBe('Per note');
-            expect(rows[1].querySelector('code').textContent).toBe('spellcheck: false');
+            expect(panel.querySelector('#spellcheck-language')).toBeNull();
+            expect(panel.textContent).not.toContain('Spellcheck');
         });
 
         test('does not let an older read overwrite a newer load of the same tab', async () => {
@@ -710,7 +703,7 @@ describe('Tab Manager', () => {
             document.getElementById('editor-container').dispatchEvent(scaleUp);
 
             expect(scaleUp.defaultPrevented).toBe(true);
-            expect(first._editorTextScale).toBe(120);
+            expect(getState('openTabs').find(candidate => candidate.id === first.id)?._editorTextScale).toBe(120);
             expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('19.44px');
             expect(document.documentElement.style.getPropertyValue('--line-height-editor')).toBe('1.65');
             expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 120%');
@@ -723,7 +716,7 @@ describe('Tab Manager', () => {
             });
             document.getElementById('editor-container').dispatchEvent(ordinaryWheel);
             expect(ordinaryWheel.defaultPrevented).toBe(false);
-            expect(first._editorTextScale).toBe(120);
+            expect(getState('openTabs').find(candidate => candidate.id === first.id)?._editorTextScale).toBe(120);
 
             const second = openTab('second.md', 'Second', 'file', { path: 'second.md', isNew: true });
             await testUtils.waitFor(0);
@@ -736,7 +729,8 @@ describe('Tab Manager', () => {
             expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 120%');
 
             document.getElementById('editor-scale-status').click();
-            expect(first).not.toHaveProperty('_editorTextScale');
+            expect(getState('openTabs').find(candidate => candidate.id === first.id))
+                .not.toHaveProperty('_editorTextScale');
             expect(document.documentElement.style.getPropertyValue('--font-size-editor')).toBe('17.82px');
             expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 110%');
             expect(focusEditor).toHaveBeenCalled();
@@ -753,16 +747,23 @@ describe('Tab Manager', () => {
                 bubbles: true,
                 cancelable: true,
             }));
-            expect(tab._editorTextScale).toBe(110);
+            expect(getState('openTabs').find(candidate => candidate.id === tab.id)?._editorTextScale).toBe(110);
 
             localStorage.setItem('editor-font-size', '120');
             document.dispatchEvent(new CustomEvent('figaro:editor-text-scale-default-changed', {
                 detail: { scale: 120 },
             }));
-            expect(tab).not.toHaveProperty('_editorTextScale');
+            expect(getState('openTabs').find(candidate => candidate.id === tab.id))
+                .not.toHaveProperty('_editorTextScale');
             expect(document.getElementById('editor-scale-status').textContent).toBe('Scale 120%');
 
-            tab._editorTextScale = 140;
+            document.getElementById('editor-container').dispatchEvent(new WheelEvent('wheel', {
+                deltaY: -100,
+                ctrlKey: true,
+                bubbles: true,
+                cancelable: true,
+            }));
+            expect(getState('openTabs').find(candidate => candidate.id === tab.id)?._editorTextScale).toBe(130);
             await closeTab(tab.id);
             const reopened = openTab('note.md', 'Note', 'file', { path: 'note.md', isNew: true });
             expect(reopened).not.toHaveProperty('_editorTextScale');
@@ -895,6 +896,19 @@ describe('Tab Manager', () => {
             expect(setEditorContent).toHaveBeenCalledWith('', 'note-1', cursorState);
         });
 
+        test('clicking a selected workspace returns to the previous view and retains its mounted state', async () => {
+            openTab('file1', 'Memo.md', 'file', { path: 'Memo.md', isNew: true });
+            await switchTab('file1');
+            for (const [id, title, type] of [['kanban', 'Kanban', 'kanban'], ['calendar-workspace', 'Calendar', 'calendar-workspace'], ['graph', 'Graph', 'graph']]) {
+                toggleWorkspaceTab(id, title, type);
+                expect(getState('activeTabId')).toBe(id);
+                const panel = document.querySelector(`[data-tab-id="${id}"].tab-panel`);
+                await toggleWorkspaceTab(id, title, type);
+                expect(getState('activeTabId')).toBe('file1');
+                expect(document.querySelector(`[data-tab-id="${id}"].tab-panel`)).toBe(panel);
+            }
+        });
+
         test('keeps persistent sidebar workspaces open when a close is requested', async () => {
             openTab('note-1', 'Note 1', 'file', { path: 'note-1.md' });
             for (const [id, title, type] of [
@@ -922,7 +936,7 @@ describe('Tab Manager', () => {
         });
 
         test('should not close dirty tab without confirmation', async () => {
-            window.confirmDialog = jest.fn().mockResolvedValue(false);
+            confirmDialog.mockResolvedValueOnce(false);
             
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
@@ -932,7 +946,7 @@ describe('Tab Manager', () => {
             await closeTab('tab1');
             
             expect(getState('openTabs').length).toBe(2);
-            expect(window.confirmDialog).toHaveBeenCalledWith(
+            expect(confirmDialog).toHaveBeenCalledWith(
                 'Discard unsaved changes?',
                 '“Tab 1” has changes that have not been saved. Closing it will discard them.',
                 true,
@@ -1150,8 +1164,7 @@ describe('Tab Manager', () => {
 
 			const preparing = prepareTabsForVaultLinkRewrite();
 			await testUtils.waitFor(0);
-			tab._editGeneration = 1;
-			tab.dirty = true;
+			recordTabEdit(tab.id);
 			save.resolve({ success: true, mtime: 11 });
 
 			await expect(preparing).resolves.toEqual({
@@ -1172,6 +1185,33 @@ describe('Tab Manager', () => {
             expect(mockState.openTabs[0]).toEqual(expect.objectContaining({
                 _content: '[Moved](archive/moved.txt)', mtime: 42,
             }));
+        });
+
+        test('does not let a delayed link refresh replace an edit made while reading', async () => {
+            const read = deferred();
+            mockState.openTabs = [{
+                id: 'notes/backlink.md',
+                title: 'Backlink',
+                type: 'file',
+                path: 'notes/backlink.md',
+                dirty: false,
+                _editGeneration: 2,
+            }];
+            mockState.activeTabId = 'notes/backlink.md';
+            window.go.desktop.App.ReadFile.mockReturnValueOnce(read.promise);
+
+            const refreshing = refreshTabsForUpdatedLinks(['notes/backlink.md']);
+            recordTabEdit('notes/backlink.md');
+            read.resolve({
+                path: 'notes/backlink.md', content: '[Moved](archive/moved.txt)', mtime: 42,
+            });
+
+            await expect(refreshing).resolves.toBe(false);
+            expect(setEditorContent).not.toHaveBeenCalled();
+            expect(mockState.openTabs[0]).toEqual(expect.objectContaining({
+                dirty: true, _editGeneration: 3,
+            }));
+            expect(mockState.openTabs[0]).not.toHaveProperty('_content');
         });
     });
 
@@ -1241,7 +1281,7 @@ describe('Tab Manager', () => {
             await expect(saveFileSnapshot(tab, 'saved despite Git failure')).resolves.toEqual(
                 expect.objectContaining({ success: true, historyCommitSucceeded: false }),
             );
-            expect(tab.dirty).toBe(false);
+            expect(getState('openTabs').find(candidate => candidate.id === tab.id).dirty).toBe(false);
             expect(statusBar.set).toHaveBeenLastCalledWith('Saved; history commit failed');
         });
 
@@ -1330,8 +1370,9 @@ describe('Tab Manager', () => {
             resolveSecond({ success: true, mtime: 12 });
             await secondSave;
 
-            expect(tab.mtime).toBe(12);
-            expect(tab.dirty).toBe(false);
+            const savedTab = getState('openTabs').find(candidate => candidate.id === tab.id);
+            expect(savedTab.mtime).toBe(12);
+            expect(savedTab.dirty).toBe(false);
         });
     });
 
@@ -1461,6 +1502,17 @@ describe('Tab Manager', () => {
             const dirtyTab = tabStrip.querySelector('.tab.dirty');
             expect(dirtyTab).not.toBeNull();
             expect(dirtyTab.classList.contains('ui-document-tab--dirty')).toBe(true);
+        });
+
+        test('preserves the focused logical tab when a dirty transition repaints the rail', () => {
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+            document.querySelector('[data-tab-id="tab2"]').focus();
+
+            markTabDirty('tab1');
+
+            expect(document.activeElement.dataset.tabId).toBe('tab2');
+            expect(document.activeElement.getAttribute('role')).toBe('tab');
         });
 
         test('should sort pinned tabs first', () => {

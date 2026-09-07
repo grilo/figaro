@@ -6,13 +6,13 @@ import {
 } from '../frontend/js/core/rightSidebarLayout.js';
 
 describe('right sidebar layout', () => {
-    test('clamps history and PDF resizing to their different contracts', () => {
+    test('clamps every pane to the same workspace and editor limits', () => {
         expect(rightSidebarWidth({
             startX: 500,
             currentX: 0,
             startWidth: 320,
             workspaceWidth: 1000,
-        })).toBe(480);
+        })).toBe(680);
         expect(rightSidebarWidth({
             startX: 500,
             currentX: 0,
@@ -64,4 +64,12 @@ describe('right sidebar layout', () => {
             overlay: true,
         })).toBe(340);
     });
+});
+
+test('switching a narrow or wide right pane to PDF retains its requested width', () => {
+    for (const width of [260, 320, 650]) {
+        const ordinary = rightSidebarPresentation({ workspaceWidth: 1100, preferredWidth: width });
+        expect(rightSidebarPresentation({ workspaceWidth: 1100, preferredWidth: width, pdfPreview: true })).toEqual(ordinary);
+        expect(ordinary.width).toBe(width);
+    }
 });

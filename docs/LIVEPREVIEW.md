@@ -1,5 +1,26 @@
 # Functional & Behavioral Specification: Obsidian-Style Live Preview for CodeMirror 6
 
+Writing lenses analyze the owned unsaved Markdown snapshot and review suggestions
+in the shared pane and on dotted inline marks, including in Pure mode. The
+marks decorate only visible existing text without added padding; they add no replacement or block widgets. Writing popups stay within the visible editor/viewport intersection so the
+sidebar cannot cover examples or actions. Hover opens the shared menu/button composition for Apply, Ignore, and spelling-only
+Add to dictionary. Ctrl/Cmd+. opens it from the caret, Tab/Shift+Tab navigate,
+and Escape returns focus. Source edits immediately clear old marks and popups.
+Explicit finding navigation focuses its
+mapped source range. Apply validates owner/revision/configuration/exact source
+and makes one isolated undoable phrase transaction; result arrival never moves
+the selection. Reference IDs/definitions and indented code never receive spelling marks or
+actions. Explicit reference labels remain eligible; defined shortcut/collapsed
+link and image labels are advisory because changing their text also changes
+the reference key. The same restriction applies to prose fixes. Spelling leaves valid English
+possessives unmarked, and stem corrections preserve the authored suffix.
+Proofreading owns its inline marks and right-click actions;
+its document language is authoritative and legacy Settings/Properties have no
+effect. Both review paths honor accepted spelling words after successful saves. Test Arrow Up/Down from both directions, mouse placement, drag selection,
+and undo around rendered Markdown after pane transitions or suggestion navigation.
+PDF preview and export consume the same resulting Markdown through their existing
+renderers; this feature introduces no Markdown syntax or PDF styling change.
+
 ## 1. High-Level Core Philosophy
 Implement a CodeMirror 6 (CM6) extension that creates an inline "Live Preview" experience for Markdown. The system operates on a binary visibility rule driven by the user's cursor/selection state:
 
@@ -15,7 +36,7 @@ Your implementation must accurately transition states for the following elements
 ### Headers (`# Heading`)
 * **Cursor on line:** Show the `#` marks. Apply the corresponding heading typography class to the line block.
 * **Cursor off line:** Hide the `#` marks and any trailing spaces. Keep the typography styling active on the line to prevent layout snapping.
-* **Typed block guides and folding:** Editor-sized monospace gutter labels exist only for top-level headings, fenced code blocks, tables, and standalone image lines. Expanded controls rest at zero opacity with pointer events disabled. Non-heading stacks reveal when the pointer enters the rendered block or its uninterrupted approach rectangle through the 42px left rail; heading guides reveal only for the caret, keyboard focus, or that narrow rail lane. Folded controls remain visible and operable until expanded. Headings use `h1`–`h6`; a typed fence uses the normalized first language token such as `yaml`, while an untyped fence uses `code`; tables use `table`; ordinary images use `image`; and editable images use `drawio`. The left rail is right-aligned just outside the centered writing surface. Mermaid and Draw.io use a fold/`editor` stack; sized images use `image`/`original size`; tables use `table`/`editor`/`chart`/`delete`; and managed Vega-Lite charts use `vega-lite`/`editor`/`table`. **original size** is disabled when no authored image size exists and otherwise removes only the size hint. Each secondary action sits directly beneath its fold control, inherits the same helper primitive, and remains outside the writing surface. A hidden maximum-length spacer keeps the rail's overlay width stable when folding removes nested labels, so the centered content never shifts. Every guide aligns with the top of its corresponding line or rendered block. Activating a fence, table, or image guide makes its live-preview provider yield to CodeMirror's native fold row; expanding restores the rendered widget whenever the cursor remains outside that source. A Draw.io `editor` action resolves the authored note-relative or vault-root destination and opens the existing diagram directly, creating it through the same safe workflow when absent; a table `editor` action opens the isolated transactional grid, `chart` opens the reversible Chart Editor, and the managed Vega-Lite `table` action restores its embedded original after confirmation. Activating a heading guide folds its complete section through the last block before the next peer or ancestor, so descendants remain grouped with their parent. The adapter preserves the clicked guide's viewport coordinate and introduces only the trailing scroll reserve needed to prevent end-of-document clamping, so the same pointer coordinate can immediately reverse the action. Frontmatter, prose, lists, quotes, math, HTML, rules, and indented code receive no guide. Folding is editor-only and never changes source, Raw Text Preview, or PDF output. Heading-shaped fence content remains part of its code block rather than becoming a heading guide. Source-code modes keep their normal chevron fold gutter, with the same quiet expanded and persistent folded states.
+* **Typed block guides and folding:** Editor-sized monospace gutter labels exist only for top-level headings, fenced code blocks, tables, and standalone image lines. Expanded controls rest at zero opacity with pointer events disabled. Non-heading stacks reveal when the pointer enters the rendered block or its uninterrupted approach rectangle through the 42px left rail; heading guides reveal only for the caret, keyboard focus, or that narrow rail lane. Typing that shifts source positions preserves the hovered stack without restarting its reveal; pointer departure still clears that state. Folded controls remain visible and operable until expanded. Headings use `h1`–`h6`; a typed fence uses the normalized first language token such as `yaml`, while an untyped fence uses `code`; tables use `table`; ordinary images use `image`; and editable images use `drawio`. The left rail is right-aligned just outside the centered writing surface. Mermaid and Draw.io use a fold/`editor` stack; sized images use `image`/`original size`; tables use `table`/`editor`/`chart`/`delete`; and managed Vega-Lite charts use `vega-lite`/`editor`/`table`. **original size** is disabled when no authored image size exists and otherwise removes only the size hint. Each secondary action sits directly beneath its fold control, inherits the same helper primitive, and remains outside the writing surface. A hidden spacer reserves the longest label needed by the parsed document, including image actions and labels inside folded headings. It avoids a hypothetical maximum-length fence reservation while keeping folding and scrolling from shrinking the lane; document edits and newly parsed blocks may update it. If the normal margin is too narrow, a pure layout decision adds the missing left content padding to keep every helper inside the editor and outside source; the adapter subtracts its prior reservation before remeasurement. Hover/focus never resize the lane, and disabling guides removes it. Every guide aligns with the top of its corresponding line or rendered block. Activating a fence, table, or image guide makes its live-preview provider yield to CodeMirror's native fold row; expanding restores the rendered widget whenever the cursor remains outside that source. A Draw.io `editor` action resolves the authored note-relative or vault-root destination and opens the existing diagram directly, creating it through the same safe workflow when absent; a table `editor` action opens the isolated transactional grid, `chart` opens the reversible Chart Editor, and the managed Vega-Lite `table` action restores its embedded original after confirmation. Activating a heading guide folds its complete section through the last block before the next peer or ancestor, so descendants remain grouped with their parent. The adapter preserves the clicked guide's viewport coordinate and introduces only the trailing scroll reserve needed to prevent end-of-document clamping, so the same pointer coordinate can immediately reverse the action. Frontmatter, prose, lists, quotes, math, HTML, rules, and indented code receive no guide. Folding is editor-only and never changes source, Raw Text Preview, or PDF output. Heading-shaped fence content remains part of its code block rather than becoming a heading guide. Source-code modes keep their normal chevron fold gutter, with the same quiet expanded and persistent folded states.
 
 ### Inline Styles (Bold `**text**`, Italic `*text*`, Code `` `code` ``)
 * **Cursor inside node bounds:** Show the boundary delimiters (`**`, `*`, `` ` ``). Keep the inner text styled (bolded, italicized, or monospaced).
@@ -32,7 +53,7 @@ Your implementation must accurately transition states for the following elements
 * **Shared indentation:** The vault-persistent Tab Size setting supplies one 2–8-space (four-space default) CodeMirror tab-size/indent unit to ordinary Markdown, revealed fences, source-code files, Vim `>`, the focused Mermaid source editor, and rendered GFM table source. Rendered fences and Raw Text Preview use the matching CSS tab width. Changing the preference does not rewrite existing source or affect printable output.
 * **Printable parity:** PDF Preview and generated PDFs reuse that highlighter and emit `.figaro-print-code` plus highlight.js-compatible token classes. Unsupported languages remain escaped, printable source text; highlighting never changes the saved fence.
 * **Horizontal-rule print meaning:** The editor continues to render `---`, `***`, and `___` as ordinary thematic separators with normal cursor reveal. The printable renderer alone turns a standalone body `---` thematic-break token into an invisible page break; frontmatter delimiters and Setext heading underlines keep their parser-defined roles, while `***` and `___` stay visible rules.
-* **GFM tables:** CodeMirror's Markdown syntax tree identifies tables, and Figaro replaces an unfocused table range—including immediately adjacent Figaro merge metadata—with a read-only `.cm-live-table` semantic preview. Selecting the range reveals the exact source; a primary rendered-cell click maps the cell's source row/column to the first authored content position after leading whitespace, while a drag from that cell remains a root-editor selection. The ordinary right-click menu stays editor-wide. The guide-launched modal provides editable auto-growing cell text, guarded row/column structure, and a hidden-by-default read-only Markdown pane. Ordinary clicks and unmodified drags retain native textarea caret/selection behavior; only Shift-click, Shift-drag, or Alt+Shift+Arrow starts a rectangular cell range. Its labelled icon toolbar uses separate editing and structural rows, grouping the theme-tinted Delete Row/Delete Column controls at the structural row's end. Merge/Split are contextual, header cells are tinted, and operations that cut a span are disabled with themed tooltips. Modal history is isolated; Apply revalidates and replaces the exact source range once, Cancel has no root transaction, and dirty Escape asks before discarding. In-session Split can restore cached cell values; after reopening it keeps the combined anchor and clears covered cells. The table preview keeps the full writing-column width but uses compact 90% typography, a 1.4 line height, and reduced outer/cell padding. Its visual surface is the sole overflow owner: wheel/touch gestures move it first and chain to CodeMirror at its boundary, native scrollbar presses remain inside it, and a fitting table passes wheel input straight through the document. The live preview and PDF renderer share Markdown-It output for alignment, inline formatting, literal code, `<br>` line breaks, anchored bare `^` row spans, and rectangular spans stored as invisible `<!-- figaro:table-merge A2:C3 -->` metadata.
+* **GFM tables:** CodeMirror's Markdown syntax tree identifies tables, and Figaro replaces an unfocused table range—including immediately adjacent Figaro merge metadata—with a read-only `.cm-live-table` semantic preview. Selecting the range reveals the exact source; a primary rendered-cell click maps the cell's source row/column to the first authored content position after leading whitespace, while a drag from that cell remains a root-editor selection. The ordinary right-click menu stays editor-wide. The guide-launched modal provides editable auto-growing cell text, guarded row/column structure, and a hidden-by-default read-only Markdown pane. Ordinary clicks and unmodified drags retain native textarea caret/selection behavior; only Shift-click, Shift-drag, or Alt+Shift+Arrow starts a rectangular cell range. Its labelled icon toolbar uses separate editing and structural rows, grouping the theme-tinted Delete Row/Delete Column controls at the structural row's end. Merge/Split are contextual, header cells are tinted, and operations that cut a span are disabled with themed tooltips. Modal history is isolated; Apply revalidates and replaces the exact source range once, Cancel has no root transaction, and dirty Escape asks before discarding. Keep editing and Escape from confirmation restore the initiating cell/control and native text selection without changing the draft. In-session Split can restore cached cell values; after reopening it keeps the combined anchor and clears covered cells. The table preview keeps the full writing-column width but uses compact 90% typography, a 1.4 line height, and reduced outer/cell padding. Its visual surface is the sole overflow owner: wheel/touch gestures move it first and chain to CodeMirror at its boundary, native scrollbar presses remain inside it, and a fitting table passes wheel input straight through the document. The live preview and PDF renderer share Markdown-It output for alignment, inline formatting, literal code, `<br>` line breaks, anchored bare `^` row spans, and rectangular spans stored as invisible `<!-- figaro:table-merge A2:C3 -->` metadata.
 * **Structured editor modal resizing:** The Table, Mermaid, and Chart editor modals alone expose the approved lower-right resize handle. Pointer dragging or focused Arrow keys resize within the viewport, Home restores the default, and each editor's modal-container rules reflow its panes. The size is session-only. Escape cancels an active drag before the modal's normal dirty-draft guard runs.
 * **PDF scroll anchors:** Printable block tokens carry body-relative Markdown line ranges. The PDF frame and CodeMirror synchronize the source position at a shared 30% viewport marker, while generated covers/contents and other unmapped regions retain percentage fallback. Diagram SVG replacement inherits its source fence range. This scroll-only bridge never changes the editor selection: Arrow Up/Down, Vim motion, mouse placement, and bidirectional drag selection remain CodeMirror-owned.
 * **Quiet PDF refresh:** PDF Preview shows preparation feedback for its first document only. Once a snapshot is visible, editing Markdown keeps that settled page and status in place without flashing the transient loading badge or updating copy; the replacement is sent when ready, and failures still surface in the status row.
@@ -297,16 +318,17 @@ interval smooths scroll events without deriving its position from rendered
 widget heights. Its **Copy to Clipboard** action copies the complete current
 source snapshot and does not depend on editor or DOM selection.
 
-Every rendered table extends its left block guide into a three-button stack.
-`table` remains the fold/expand control; `editor` opens the isolated grid; and
+Every rendered table extends its left block guide into a four-button stack.
+`table` remains the fold/expand control; `editor` opens the isolated grid;
+`chart` opens the reversible Chart Editor; and
 `delete` removes the complete table plus adjacent merge metadata, returns focus
 to the root editor, and remains undoable through shared CodeMirror history.
 The destructive action is visually quiet at rest and adopts the theme's danger
 color on hover or keyboard focus. All controls remain outside the writing
-surface while the left margin can contain them. If the measured editor margin
-is narrower than an action, the stack moves into a content-sized row above the
-grid; it never enters the sidebar or covers cells. The table retains the full
-available width in either layout. Right-clicking a table uses the same ordinary
+surface. If the margin cannot hold the stable helper rail, the writing column
+reserves the missing left padding rather than moving actions above the grid.
+Controls never enter the sidebar or cover cells; the table fills the resulting
+writing width. Right-clicking a table uses the same ordinary
 editor menu as prose; table structure is owned by the guide-launched modal.
 
 The Mermaid block widget also uses the shared pre-parse security policy. Source
@@ -330,6 +352,14 @@ CodeMirror measurement bridge follows that transition until the width is stable.
 The Mermaid and table stacks follow the left writing edge in the same frame;
 neither intersects rendered content or jumps to the top of the text body.
 
+Document ownership changes remove the outgoing buffer's complete Markdown
+presentation before replacing its source, so switching tabs cannot trigger a
+fresh scan of the file being left. Large incoming buffers are installed in two
+line-boundary source chunks. A pure content plan then prioritizes leading
+frontmatter and only the diagram, table, math, or image stages whose marker is
+present; dormant authoring fields attach after the editor reports the document
+ready. Each stage rechecks ownership, and a newer switch cancels the remainder.
+
 The focused Mermaid Editor owns a separate CodeMirror state. It copies the
 root editor's current tab size and spaces-only indentation unit before receiving
 input, so ordinary Tab and Vim `>` cannot diverge from the surrounding note. Parsing is
@@ -351,12 +381,13 @@ transform the temporary native Mermaid source, so live preview, printable
 preview, and export do not require a second styling format. Parser errors
 suppress styling controls, and unsupported compact YAML remains untouched. The
 flowchart panel labels global colors as defaults, groups the curve with those
-defaults, and presents the active node's fill and shape first, before a bounded
-node chooser and the diagram-wide controls. That active editor uses an
-ellipsized identity, centered shape control, and trailing color action. The
+defaults, and presents the active node's fill and shape first, before a full-height
+node chooser and the diagram-wide controls. The chooser expands to fit all
+elements, leaving the Style panel as the single scroll owner. That active editor
+uses an ellipsized identity, centered shape control, and trailing color action. The
 chooser repeats the order in stable summary rows; a
-pointer press or selection rebuild cannot translate the row or reset its inner
-scroll offset. Its rows, color actions, and fixed choices consume the approved
+pointer press or selection rebuild cannot translate the row or reset the Style
+panel's scroll offset. Its rows, color actions, and fixed choices consume the approved
 menu-item, icon-button, and segmented primitives instead of feature-owned
 interaction paint. Parsed identities include chained
 and standalone nodes without treating icon labels as nodes. Native and
@@ -471,3 +502,99 @@ history, Arrow Up/Down, mouse placement, and drag selection stay on the root
 CodeMirror editor. The separately invoked modal uses native cell textareas and
 its own temporary history; it is not a nested live-preview editor or cursor
 bridge.
+
+Writing review uses the note’s independent lens combination and language. The
+spelling checks under Proofreading feed the same viewport-only dotted marks; no standalone spelling
+compartment or frontmatter switch competes with it. Tooltip examples and sidebar
+suggestion backgrounds do not alter source decoration geometry. Rendered
+ordinary links, explicit wiki aliases and reference labels carry the same dotted
+marks inside their existing widgets. Pure label mapping excludes destinations;
+post-draw decoration retains widget identity and dimensions. Hover uses the
+whole widget range for stable popup geometry and retains destination information.
+Source reveal, normal activation, mouse selection, vertical movement and Undo
+keep their existing contracts; no writing markup enters saved or printed text. Before/after
+wording is explanatory; only a validated fix may edit a contiguous source range.
+Proofreading, Clarity, Directness, Inclusive language, and Formulaic writing reuse those marks
+and guarded edits. Quote-style review can underline a whole quotation, including
+rendered emphasis; one Apply changes only its validated delimiters and one Undo
+restores the exact source. Inclusive alternatives and advisory proselint examples
+use the existing tooltip/card controls. Sentence-spacing findings mark adjacent
+words around the gap and show explicit space counts; their fixes preserve line
+breaks and require contiguous source. Optional accent alternatives use the same
+guarded controls and never rewrite encoded or discontinuous Markdown.
+Technical-name fixes use those same controls while retaining canonical case.
+Unmatched opening marks and undefined acronyms receive ordinary dotted marks
+with advisory examples and persistent Ignore; no automatic closing mark or acronym expansion
+is offered. Attached numbers/units such as `8.1Mib` do not receive spacing advice.
+Readability marks complete long or complex sentences, including across rendered
+emphasis, with length/formula explanations and general examples. Equivalent length evidence shares one suggestion; length
+and formula advice remain separate concerns. Source freshness
+compares the exact captured Markdown slice, while the finding’s readable text
+remains projected prose. No readability action rewrites a sentence. Test vertical
+movement in both directions and forward/reverse drag selection across the marks
+in the browser and packaged native webview.
+
+
+Right-pane changes share one 240px minimum and requested session width across
+Outline, History, Raw, PDF, and Writing lenses. Responsive overlay placement
+retains the existing editor floor and exposed strip. Tab activation restores a
+note's pane only after its editor buffer owns the view. Launcher visibility,
+selected paint, and Settings/planning round trips must not disturb Arrow Up/Down,
+mouse placement, or drag selection in the editor. The status bar’s buffer region
+ends at the visible pane edge using that same width, including in overlay mode.
+Its compact metrics respond to the remaining width without changing editor
+height; the window resize grip stays at the physical corner. Verify those
+boundaries and editor cursor/selection behavior in Chromium and packaged WebKitGTK.
+
+Inline Ignore now awaits the durable per-document save before dismissing advice.
+Undefined acronyms additionally offer document-wide acceptance for that language.
+Failed saves keep the popup advice available; Retry is in Saved review decisions.
+Successful async actions restore editor focus only while the originating editor
+and source still own it. The pane/Pure picker can restore each saved choice with
+existing buttons. These controls do not replace text or alter decoration geometry;
+verify native Tab/Shift+Tab, Enter/Escape, arrow movement, and drag selection.
+
+Writing review audit fixes retain mark-only geometry. Inline controls precede
+one comparison, expose two alternatives initially, and keep hidden alternatives
+out of Tab order. The pane collapses configured lens controls and bounds initial
+cards to four distinct suggestions, including dense single passages. Identical
+suggestions retain occurrence navigation; eligible Apply-to-all uses a single
+CodeMirror transaction with isolated history and restores editor focus. Verify
+native keyboard Undo/Redo, bidirectional arrows/drag selection, sidebar-edge
+hover paths, and compact/light/enlarged-text geometry using the existing focused
+writing browser/native workflow. Ctrl/Cmd+. with no current result is consumed
+so GTK does not substitute its emoji picker.
+
+
+Writing result resolution and saved-decision matching now execute in workers.
+The editor update callback queues a source reader plus actual changed ranges;
+it never materializes or scans the document for review. Stale marks still clear
+synchronously, and async results must pass the current owner/revision/configuration
+guard. Saved and pending Ignore anchors follow those ranges off the UI thread.
+The decision list consumes computed active IDs rather than searching source.
+Wiki destinations/fragments and embeds are excluded from every lens; explicit
+aliases retain safe source mappings. Preserve native cursor/selection, Ctrl+.,
+Undo/Redo, and pending-save focus behavior as results arrive asynchronously.
+
+Formulaic writing adds advisory Slopless findings to the existing inline review
+path. Unspaced em dashes and individual curly quotes/apostrophes use the same
+non-replacing marks. Quoted words remain protected, while the quote delimiters
+can be reviewed. No new decoration type, widget, cursor geometry or Markdown
+transformation is introduced. Examples and persistent Ignore use the existing
+shared controls; this lens never applies automatic rhetorical rewrites.
+
+The independent-lens package expansion reuses existing marks and tooltip components. Equivalent concerns share a finding across enabled lenses, while different concerns at the same span remain navigable separately. Apply comes only from enabled lenses with reviewed source-safe edits; broader advisory matches still show examples and Ignore. No widget layout or cursor geometry changes.
+
+The writing-lens setup uses the shared animated disclosure in the right pane.
+Its reveal remains inside that pane and does not resize the editor or status
+bar. Collapsed choices become inert immediately; Pure keeps setup exposed.
+This control changes no CodeMirror decoration, widget, cursor keymap, or saved
+Markdown. Existing pane/Pure cursor and drag-selection checks remain required
+when those editor boundaries change.
+
+Lens info help is a persistent nonmodal portal outside the editor and clipped
+pane/Pure containers. Escape/Close returns to its info button; outside focus or
+pointer dismisses it, and Tab resumes the lens row order. Entering Pure closes
+help owned by the suppressed pane. Internal help scrolling keeps its outer dimensions and does not reposition the
+popup or scroll the buffer. Illustrative examples never edit Markdown or
+start analysis; this adds no CodeMirror decoration, widget, or cursor keymap.

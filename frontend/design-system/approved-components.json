@@ -11,12 +11,35 @@
   ],
   "families": [
     {
+      "id": "disclosure",
+      "description": "User-approved Figaro Dark/CRT mockup: visible neutral resting surface, left rotating chevron, trailing summary and a 180 ms in-flow reveal. Closed content is inert and hidden from assistive technology; keyboard focus, disabled/busy, forced-colors and reduced-motion states are explicit.",
+      "primitives": [
+        ".ui-disclosure",
+        ".ui-disclosure-trigger",
+        ".ui-disclosure-chevron",
+        ".ui-disclosure-label",
+        ".ui-disclosure-summary",
+        ".ui-disclosure-body",
+        ".ui-disclosure-content"
+      ]
+    },
+    {
       "id": "picker",
-      "primitives": [".ui-picker", ".ui-picker--quiet", ".ui-picker-trigger", ".ui-picker-menu"]
+      "primitives": [
+        ".ui-picker",
+        ".ui-picker--quiet",
+        ".ui-picker-trigger",
+        ".ui-picker-menu"
+      ]
     },
     {
       "id": "stepper",
-      "primitives": [".ui-stepper", ".ui-stepper--quiet", ".ui-stepper-button", ".ui-stepper-value"]
+      "primitives": [
+        ".ui-stepper",
+        ".ui-stepper--quiet",
+        ".ui-stepper-button",
+        ".ui-stepper-value"
+      ]
     },
     {
       "id": "button",
@@ -33,31 +56,58 @@
     {
       "id": "segmented-control",
       "description": "Shared pill-shaped choice controls with a theme-tokenized sliding selection highlight. Keyboard focus and reduced-motion behavior remain explicit.",
-      "primitives": [".ui-segmented-control", ".ui-segmented-control--quiet"]
+      "primitives": [
+        ".ui-segmented-control",
+        ".ui-segmented-control--quiet"
+      ]
     },
     {
       "id": "icon-button",
-      "primitives": [".ui-icon-button", ".ui-icon-button--small", ".ui-icon-button--danger"]
+      "description": "Native-disabled and guarded aria-disabled controls share the existing disabled appearance; aria-disabled remains focusable for explanations and retains the standard focus ring.",
+      "primitives": [
+        ".ui-icon-button",
+        ".ui-icon-button--small",
+        ".ui-icon-button--danger"
+      ]
     },
     {
       "id": "badge",
-      "primitives": [".ui-badge", ".ui-badge--muted", ".ui-badge--warning"]
+      "description": "Existing badges also label partially enabled writing groups; Partial uses the base primitive without a new visual variant.",
+      "primitives": [
+        ".ui-badge",
+        ".ui-badge--muted",
+        ".ui-badge--warning"
+      ]
     },
     {
       "id": "menu",
-      "primitives": [".ui-menu", ".ui-menu-item", ".ui-menu-label", ".ui-menu-separator"]
+      "description": "Existing menu surfaces also host inline writing explanations and quiet Apply, Ignore, and spelling dictionary actions; their controls retain the approved button states.",
+      "primitives": [
+        ".ui-menu",
+        ".ui-menu-item",
+        ".ui-menu-label",
+        ".ui-menu-separator"
+      ]
     },
     {
       "id": "tooltip",
-      "primitives": [".ui-tooltip"]
+      "primitives": [
+        ".ui-tooltip"
+      ]
     },
     {
       "id": "field",
-      "primitives": [".ui-field", ".ui-field--quiet"]
+      "primitives": [
+        ".ui-field",
+        ".ui-field--quiet"
+      ]
     },
     {
       "id": "checkbox",
-      "primitives": [".ui-checkbox"]
+      "description": "Writing groups reuse the existing checkbox; preserved subsets expose the native mixed accessibility state and a visible Partial badge. Group coverage is described beside the control.",
+      "primitives": [
+        ".ui-checkbox"
+      ]
     },
     {
       "id": "date-picker",
@@ -104,6 +154,7 @@
     },
     {
       "id": "editor-fold-control",
+      "description": "Existing block reveal states use data-block-control-relevant on the gutter owner so source-offset updates preserve visibility while the pointer remains over the block.",
       "primitives": [
         ".ui-editor-fold-control",
         ".ui-editor-block-guide",
@@ -112,25 +163,40 @@
     },
     {
       "id": "image-resize-handle",
-      "primitives": [".ui-image-resize-handle"]
+      "primitives": [
+        ".ui-image-resize-handle"
+      ]
     },
     {
       "id": "graph-canvas",
-      "primitives": [".ui-graph-canvas"]
+      "primitives": [
+        ".ui-graph-canvas"
+      ]
     },
     {
       "id": "spinner",
-      "primitives": [".ui-spinner"]
+      "primitives": [
+        ".ui-spinner"
+      ]
     },
     {
       "id": "skeleton",
-      "primitives": [".ui-skeleton"]
+      "primitives": [
+        ".ui-skeleton"
+      ]
     },
     {
       "id": "progress",
       "primitives": [
         ".ui-progress",
         ".ui-progress-value"
+      ]
+    },
+    {
+      "id": "suggestion",
+      "description": "User-approved rounded, borderless backgrounds visually separate writing suggestions, including grouped identical occurrences. Navigation, disclosure, and individual or bulk actions use existing button states.",
+      "primitives": [
+        ".ui-suggestion"
       ]
     }
   ]

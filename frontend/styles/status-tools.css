@@ -5,7 +5,7 @@
    ========================================================================== */
 .status-bar {
     display: grid;
-    grid-template-columns: var(--shell-sidebar-width) minmax(0, 1fr);
+    grid-template-columns: var(--shell-sidebar-width) minmax(0, 1fr) var(--shell-right-sidebar-width, 0px);
     align-items: center;
     height: var(--status-bar-height);
     min-height: var(--status-bar-height);
@@ -24,6 +24,10 @@
         grid-template-columns var(--motion-layout-duration) var(--motion-ease-out),
         border-color var(--motion-content-duration) ease;
 }
+
+/* The buffer footer follows the pane's shared width, including its exposed
+   editor strip in overlay mode. Pointer resizing has no animation lag. */
+body.right-sidebar-resizing .status-bar { transition: none; }
 
 /* Calendar keeps the shared footer footprint so workspace switches cannot
    resize the main row. Its buffer telemetry is meaningless in this planning
@@ -55,7 +59,8 @@
     white-space: nowrap;
 }
 
-#app.pure-editing-chrome #status-action {
+#app.pure-editing-chrome #status-action,
+#app.pure-editing-chrome #resize-grip {
     display: none;
 }
 
@@ -188,10 +193,11 @@
 }
 
 .status-right {
+    container: buffer-status / inline-size;
     position: relative;
     width: 100%;
     height: 100%;
-    padding: 0 2px 0 12px;
+    padding: 0 28px 0 12px;
     justify-content: space-between;
     gap: 24px;
     overflow: hidden;
@@ -286,7 +292,8 @@
 }
 
 .status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-left,
-.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-right {
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) .status-buffer-right,
+.status-bar[data-writing-rest="true"]:not([data-editor-side-reveal="true"]):not([data-editor-scale-reveal="true"]):not(:hover):not(:focus-within) #resize-grip {
     opacity: 0;
     pointer-events: none;
     transform: translateY(3px);
@@ -315,6 +322,9 @@
 }
 
 #resize-grip {
+    position: fixed;
+    right: 0;
+    bottom: 0;
     cursor: nwse-resize;
     padding: 0 2px 0 6px;
     margin-right: -2px;
@@ -812,4 +822,19 @@
 
 .file-tree-style-search-results:empty {
     display: none;
+}
+
+/* Pane width, rather than window width, determines which buffer details fit. */
+@container buffer-status (max-width: 520px) {
+    .status-buffer-left { display: none; }
+    .status-buffer-right { gap: 8px; }
+    .status-detail-extended { display: none; }
+}
+
+@container buffer-status (max-width: 360px) {
+    .status-detail-reading { display: none; }
+}
+
+@container buffer-status (max-width: 220px) {
+    .status-detail-word { display: none; }
 }

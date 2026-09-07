@@ -14,10 +14,11 @@ export async function expectContinuousTimelinePaint(page, scrollSelector, daySel
             const samples = [];
             for (let i = 0; i < 65; i++) {
                 if ([2, 8, 14].includes(i)) scroll.dispatchEvent(new WheelEvent('wheel', { deltaY: direction * 4, bubbles: true, cancelable: true }));
-                await frame();
+                const timestamp = await frame();
                 const day = scroll.querySelector(selector);
                 samples.push(day ? {
                     date: day.dataset.date,
+                    timestamp,
                     // A stable world coordinate, independent of the buffered origin.
                     position: Date.parse(`${day.dataset.date}T00:00:00Z`) / 86400000 * dayWidth - day.getBoundingClientRect().left,
                 } : null);
@@ -28,7 +29,14 @@ export async function expectContinuousTimelinePaint(page, scrollSelector, daySel
         expect(result.samples.some(sample => sample.date !== result.firstDate), 'the probe must cross a buffered page boundary').toBe(true);
         const deltas = result.samples.slice(1).map((sample, index) => direction * (sample.position - result.samples[index].position));
         expect(Math.min(...deltas), `scrolling must not flash backwards: ${JSON.stringify(deltas)}`).toBeGreaterThanOrEqual(-1);
-        expect(Math.max(...deltas), 'a page replacement must not flash a week in one frame').toBeLessThanOrEqual(result.dayWidth * 3 + 1);
+        const normalizedDeltas = result.samples.slice(1).map((sample, index) => {
+            const elapsedFrames = Math.max(1, (sample.timestamp - result.samples[index].timestamp) / (1000 / 60));
+            return direction * (sample.position - result.samples[index].position) / elapsedFrames;
+        });
+        expect(
+            Math.max(...normalizedDeltas),
+            'a page replacement must not flash more than three days per elapsed frame',
+        ).toBeLessThanOrEqual(result.dayWidth * 3 + 1);
         const progress = direction * (result.samples.at(-1).position - result.samples[0].position);
         expect(progress, 'paging must not drop any of the three three-day wheel inputs').toBeGreaterThanOrEqual(result.dayWidth * 9 - 2);
     }

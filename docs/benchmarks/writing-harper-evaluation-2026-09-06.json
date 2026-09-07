@@ -1,0 +1,1099 @@
+{
+  "package": "harper.js",
+  "version": "2.7.0",
+  "license": "Apache-2.0",
+  "node": "v24.20.0",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+  "setupMs": 535.925554,
+  "ruleCount": 823,
+  "binaryBytes": {
+    "harper_wasm_bg.wasm": 15848134,
+    "harper_wasm_slim_bg.wasm": 15634488
+  },
+  "editorial": [
+    {
+      "name": "plain prose",
+      "expectedFigaro": [],
+      "lintMs": 13.878438000000074,
+      "findings": []
+    },
+    {
+      "name": "useful shorter phrase",
+      "expectedFigaro": [
+        "style.wordiness"
+      ],
+      "lintMs": 3.2980590000000802,
+      "findings": []
+    },
+    {
+      "name": "familiar vocabulary",
+      "expectedFigaro": [
+        "lexicon.complex-word"
+      ],
+      "lintMs": 2.5398779999999306,
+      "findings": []
+    },
+    {
+      "name": "technical noun",
+      "expectedFigaro": [],
+      "lintMs": 2.890247000000045,
+      "findings": []
+    },
+    {
+      "name": "passive with Directness unselected",
+      "expectedFigaro": [],
+      "lintMs": 2.4324910000000273,
+      "findings": []
+    },
+    {
+      "name": "passive with Directness selected",
+      "expectedFigaro": [
+        "syntax.passive"
+      ],
+      "lintMs": 1.3207649999999376,
+      "findings": []
+    },
+    {
+      "name": "quoted repetition",
+      "expectedFigaro": [],
+      "lintMs": 1.235904000000005,
+      "findings": [
+        {
+          "rule": "NoFrenchSpaces",
+          "actual": "                ",
+          "message": "French spaces are generally not recommended.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 0,
+            "to": 16
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "intentional grammatical repetition",
+      "expectedFigaro": [],
+      "lintMs": 3.118133999999941,
+      "findings": [
+        {
+          "rule": "RepeatedWords",
+          "actual": "had had",
+          "message": "Did you mean to repeat this word?",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "had"
+            }
+          ],
+          "projectedSpan": {
+            "from": 14,
+            "to": 21
+          },
+          "range": {
+            "from": 14,
+            "to": 21,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "accidental repetition",
+      "expectedFigaro": [
+        "grammar.repeated-word"
+      ],
+      "lintMs": 1.8285449999999628,
+      "findings": [
+        {
+          "rule": "RepeatedWords",
+          "actual": "The the",
+          "message": "Did you mean to repeat this word?",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "The"
+            }
+          ],
+          "projectedSpan": {
+            "from": 0,
+            "to": 7
+          },
+          "range": {
+            "from": 0,
+            "to": 7,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "protected code and math",
+      "expectedFigaro": [],
+      "lintMs": 2.4418860000000677,
+      "findings": [
+        {
+          "rule": "Spaces",
+          "actual": "                            ",
+          "message": "There are 28 spaces where there should be only one.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 12,
+            "to": 40
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "independent concepts in one sentence",
+      "expectedFigaro": [
+        "style.wordiness",
+        "syntax.passive"
+      ],
+      "lintMs": 2.2463940000000093,
+      "findings": []
+    },
+    {
+      "name": "consistency permits either authored form",
+      "expectedFigaro": [
+        "style.consistency",
+        "style.consistency"
+      ],
+      "lintMs": 2.2726189999999633,
+      "findings": []
+    },
+    {
+      "name": "consistency ignores quoted variants",
+      "expectedFigaro": [],
+      "lintMs": 2.1552880000000414,
+      "findings": [
+        {
+          "rule": "NoFrenchSpaces",
+          "actual": "                     ",
+          "message": "French spaces are generally not recommended.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 17,
+            "to": 38
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "article and punctuation corrections",
+      "expectedFigaro": [
+        "grammar.article",
+        "grammar.article",
+        "grammar.punctuation-spacing",
+        "grammar.repeated-comma"
+      ],
+      "lintMs": 3.3739199999999983,
+      "findings": [
+        {
+          "rule": "AnA",
+          "actual": "A",
+          "message": "Incorrect indefinite article.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "AN"
+            }
+          ],
+          "projectedSpan": {
+            "from": 0,
+            "to": 1
+          },
+          "range": {
+            "from": 0,
+            "to": 1,
+            "editable": true
+          },
+          "matchesProjection": true
+        },
+        {
+          "rule": "AnA",
+          "actual": "an",
+          "message": "Incorrect indefinite article.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "a"
+            }
+          ],
+          "projectedSpan": {
+            "from": 17,
+            "to": 19
+          },
+          "range": {
+            "from": 17,
+            "to": 19,
+            "editable": true
+          },
+          "matchesProjection": true
+        },
+        {
+          "rule": "CommaFixes",
+          "actual": " ",
+          "message": "Don't use a space before a comma.",
+          "suggestions": [
+            {
+              "kind": 1,
+              "replacement": ""
+            }
+          ],
+          "projectedSpan": {
+            "from": 9,
+            "to": 10
+          },
+          "range": {
+            "from": 9,
+            "to": 10,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "articles never skip quotes",
+      "expectedFigaro": [],
+      "lintMs": 1.5697760000000471,
+      "findings": [
+        {
+          "rule": "AnA",
+          "actual": "a",
+          "message": "Incorrect indefinite article.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "an"
+            }
+          ],
+          "projectedSpan": {
+            "from": 4,
+            "to": 5
+          },
+          "range": {
+            "from": 4,
+            "to": 5,
+            "editable": true
+          },
+          "matchesProjection": true
+        },
+        {
+          "rule": "Spaces",
+          "actual": "        ",
+          "message": "There are 8 spaces where there should be only one.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 5,
+            "to": 13
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "readability flags a long paragraph sentence",
+      "expectedFigaro": [
+        "readability.long-sentence"
+      ],
+      "lintMs": 7.51141599999994,
+      "findings": []
+    },
+    {
+      "name": "readability leaves short prose alone",
+      "expectedFigaro": [],
+      "lintMs": 2.761662000000001,
+      "findings": []
+    },
+    {
+      "name": "contraction apostrophes",
+      "expectedFigaro": [
+        "grammar.contraction",
+        "grammar.contraction"
+      ],
+      "lintMs": 25.02034399999991,
+      "findings": [
+        {
+          "rule": "SpellCheck",
+          "actual": "isnt",
+          "message": "Did you mean to spell `isnt` this way?",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "isn't"
+            },
+            {
+              "kind": 0,
+              "replacement": "inst"
+            },
+            {
+              "kind": 0,
+              "replacement": "int"
+            }
+          ],
+          "projectedSpan": {
+            "from": 5,
+            "to": 9
+          },
+          "range": {
+            "from": 5,
+            "to": 9,
+            "editable": true
+          },
+          "matchesProjection": true
+        },
+        {
+          "rule": "SpellCheck",
+          "actual": "does’nt",
+          "message": "Did you mean `doesn't`?",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "doesn't"
+            }
+          ],
+          "projectedSpan": {
+            "from": 20,
+            "to": 27
+          },
+          "range": {
+            "from": 20,
+            "to": 27,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "redundant acronyms",
+      "expectedFigaro": [
+        "style.redundant-acronym",
+        "style.redundant-acronym"
+      ],
+      "lintMs": 2.4063619999999446,
+      "findings": [
+        {
+          "rule": "RedundantAcronyms",
+          "actual": "PIN number",
+          "message": "The acronym's last letter already stands for the last word. Use just the acronym or the full phrase.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "PIN"
+            },
+            {
+              "kind": 0,
+              "replacement": "personal identification number"
+            }
+          ],
+          "projectedSpan": {
+            "from": 9,
+            "to": 19
+          },
+          "range": {
+            "from": 9,
+            "to": 19,
+            "editable": true
+          },
+          "matchesProjection": true
+        },
+        {
+          "rule": "RedundantAcronyms",
+          "actual": "ATM machine",
+          "message": "The acronym's last letter already stands for the last word. Use just the acronym or the full phrase.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "ATM"
+            },
+            {
+              "kind": 0,
+              "replacement": "automated teller machine"
+            },
+            {
+              "kind": 0,
+              "replacement": "automatic teller machine"
+            }
+          ],
+          "projectedSpan": {
+            "from": 27,
+            "to": 38
+          },
+          "range": {
+            "from": 27,
+            "to": 38,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "mixed quote styles preserve wording",
+      "expectedFigaro": [
+        "style.quotation"
+      ],
+      "lintMs": 1.3808609999999817,
+      "findings": [
+        {
+          "rule": "Spaces",
+          "actual": "       ",
+          "message": "There are 7 spaces where there should be only one.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 3,
+            "to": 10
+          },
+          "range": null,
+          "matchesProjection": true
+        },
+        {
+          "rule": "Spaces",
+          "actual": "      ",
+          "message": "There are 6 spaces where there should be only one.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 13,
+            "to": 19
+          },
+          "range": null,
+          "matchesProjection": true
+        },
+        {
+          "rule": "Spaces",
+          "actual": "      ",
+          "message": "Unnecessary space at the end of the sentence.",
+          "suggestions": [
+            {
+              "kind": 1,
+              "replacement": ""
+            }
+          ],
+          "projectedSpan": {
+            "from": 13,
+            "to": 19
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "consistent smart quotes",
+      "expectedFigaro": [],
+      "lintMs": 1.037311999999929,
+      "findings": [
+        {
+          "rule": "Spaces",
+          "actual": "       ",
+          "message": "There are 7 spaces where there should be only one.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 3,
+            "to": 10
+          },
+          "range": null,
+          "matchesProjection": true
+        },
+        {
+          "rule": "Spaces",
+          "actual": "      ",
+          "message": "There are 6 spaces where there should be only one.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 13,
+            "to": 19
+          },
+          "range": null,
+          "matchesProjection": true
+        },
+        {
+          "rule": "Spaces",
+          "actual": "      ",
+          "message": "Unnecessary space at the end of the sentence.",
+          "suggestions": [
+            {
+              "kind": 1,
+              "replacement": ""
+            }
+          ],
+          "projectedSpan": {
+            "from": 13,
+            "to": 19
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "inclusive alternative",
+      "expectedFigaro": [
+        "language.inclusive"
+      ],
+      "lintMs": 1.5505319999999756,
+      "findings": []
+    },
+    {
+      "name": "inclusive lens unselected",
+      "expectedFigaro": [],
+      "lintMs": 0.9062279999999419,
+      "findings": []
+    },
+    {
+      "name": "quoted inclusive and contraction wording",
+      "expectedFigaro": [],
+      "lintMs": 0.9122949999999719,
+      "findings": [
+        {
+          "rule": "NoFrenchSpaces",
+          "actual": "                                         ",
+          "message": "French spaces are generally not recommended.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 0,
+            "to": 41
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "proselint deduplicates cliche and jargon",
+      "expectedFigaro": [
+        "style.stock-phrase",
+        "style.stock-phrase"
+      ],
+      "lintMs": 2.7753849999999147,
+      "findings": []
+    },
+    {
+      "name": "proselint hedging and emphasis",
+      "expectedFigaro": [
+        "style.hedging",
+        "style.hyperbole"
+      ],
+      "lintMs": 2.208558000000039,
+      "findings": [
+        {
+          "rule": "Hedging",
+          "actual": "I would argue that",
+          "message": "You're hedging.",
+          "suggestions": [],
+          "projectedSpan": {
+            "from": 0,
+            "to": 18
+          },
+          "range": {
+            "from": 0,
+            "to": 18,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "proselint respects accurate standalone qualifiers",
+      "expectedFigaro": [],
+      "lintMs": 2.462130000000002,
+      "findings": []
+    },
+    {
+      "name": "proselint quoted prose",
+      "expectedFigaro": [],
+      "lintMs": 0.9901089999999613,
+      "findings": [
+        {
+          "rule": "NoFrenchSpaces",
+          "actual": "                                                        ",
+          "message": "French spaces are generally not recommended.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 0,
+            "to": 56
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "sentence spacing fixes one same-line gap",
+      "expectedFigaro": [
+        "style.sentence-spacing"
+      ],
+      "lintMs": 1.9776069999999208,
+      "findings": [
+        {
+          "rule": "NoFrenchSpaces",
+          "actual": "  ",
+          "message": "French spaces are generally not recommended.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 13,
+            "to": 15
+          },
+          "range": {
+            "from": 13,
+            "to": 15,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "sentence spacing preserves Markdown hard breaks",
+      "expectedFigaro": [],
+      "lintMs": 2.037684000000013,
+      "findings": []
+    },
+    {
+      "name": "diacritics are optional contextual alternatives",
+      "expectedFigaro": [
+        "style.diacritics",
+        "style.diacritics",
+        "style.diacritics"
+      ],
+      "lintMs": 2.9852500000000646,
+      "findings": [
+        {
+          "rule": "SpellCheck",
+          "actual": "Beyonce",
+          "message": "Did you mean to spell `Beyonce` this way?",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "Beyond"
+            },
+            {
+              "kind": 0,
+              "replacement": "Bayonne"
+            },
+            {
+              "kind": 0,
+              "replacement": "Begone"
+            }
+          ],
+          "projectedSpan": {
+            "from": 0,
+            "to": 7
+          },
+          "range": {
+            "from": 0,
+            "to": 7,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "diacritics preserve the unaccented resume verb",
+      "expectedFigaro": [],
+      "lintMs": 2.051537999999937,
+      "findings": []
+    },
+    {
+      "name": "new consistency advice requires that lens",
+      "expectedFigaro": [],
+      "lintMs": 2.250442000000021,
+      "findings": [
+        {
+          "rule": "NoFrenchSpaces",
+          "actual": "  ",
+          "message": "French spaces are generally not recommended.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 13,
+            "to": 15
+          },
+          "range": {
+            "from": 13,
+            "to": 15,
+            "editable": true
+          },
+          "matchesProjection": true
+        },
+        {
+          "rule": "SpellCheck",
+          "actual": "Beyonce",
+          "message": "Did you mean to spell `Beyonce` this way?",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "Beyond"
+            },
+            {
+              "kind": 0,
+              "replacement": "Bayonne"
+            },
+            {
+              "kind": 0,
+              "replacement": "Begone"
+            }
+          ],
+          "projectedSpan": {
+            "from": 0,
+            "to": 7
+          },
+          "range": {
+            "from": 0,
+            "to": 7,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "name": "readability formulas review complex sentences below 35 words",
+      "expectedFigaro": [
+        "readability.complex-sentence"
+      ],
+      "lintMs": 2.933891000000017,
+      "findings": []
+    },
+    {
+      "name": "readability formulas omit short complex prose",
+      "expectedFigaro": [],
+      "lintMs": 1.8778010000000904,
+      "findings": []
+    },
+    {
+      "name": "new packages preserve code and quoted wording",
+      "expectedFigaro": [],
+      "lintMs": 1.6588429999999335,
+      "findings": [
+        {
+          "rule": "NoFrenchSpaces",
+          "actual": "                                           ",
+          "message": "French spaces are generally not recommended.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 0,
+            "to": 43
+          },
+          "range": null,
+          "matchesProjection": true
+        },
+        {
+          "rule": "Spaces",
+          "actual": "       ",
+          "message": "There are 7 spaces where there should be only one.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 57,
+            "to": 64
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    }
+  ],
+  "probes": [
+    {
+      "source": "She go to school every day.",
+      "lintMs": 2.3135819999999967,
+      "findings": [
+        {
+          "rule": "PronounVerbAgreement",
+          "actual": "go",
+          "message": "The form of the verb must agree in grammatical number with the pronoun.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "goes"
+            }
+          ],
+          "projectedSpan": {
+            "from": 4,
+            "to": 6
+          },
+          "range": {
+            "from": 4,
+            "to": 6,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "source": "She goes to school every day.",
+      "lintMs": 1.7770639999999958,
+      "findings": []
+    },
+    {
+      "source": "These is useful examples.",
+      "lintMs": 1.5983320000000276,
+      "findings": []
+    },
+    {
+      "source": "These are useful examples.",
+      "lintMs": 1.6414399999999887,
+      "findings": []
+    },
+    {
+      "source": "😀 This are wrong.",
+      "lintMs": 2.0744720000000143,
+      "findings": []
+    },
+    {
+      "source": "😀 This is right.",
+      "lintMs": 1.592850999999996,
+      "findings": []
+    },
+    {
+      "source": "😀 She go to school every day.",
+      "lintMs": 1.895983000000001,
+      "findings": [
+        {
+          "rule": "PronounVerbAgreement",
+          "actual": "go",
+          "message": "The form of the verb must agree in grammatical number with the pronoun.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "goes"
+            }
+          ],
+          "projectedSpan": {
+            "from": 7,
+            "to": 9
+          },
+          "range": {
+            "from": 7,
+            "to": 9,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "source": "The work they had had was useful.",
+      "lintMs": 0.9083719999999857,
+      "findings": [
+        {
+          "rule": "RepeatedWords",
+          "actual": "had had",
+          "message": "Did you mean to repeat this word?",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "had"
+            }
+          ],
+          "projectedSpan": {
+            "from": 14,
+            "to": 21
+          },
+          "range": {
+            "from": 14,
+            "to": 21,
+            "editable": true
+          },
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "source": "Use a \"safe\" example.",
+      "lintMs": 0.9668099999998958,
+      "findings": [
+        {
+          "rule": "AnA",
+          "actual": "a",
+          "message": "Incorrect indefinite article.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": "an"
+            }
+          ],
+          "projectedSpan": {
+            "from": 4,
+            "to": 5
+          },
+          "range": {
+            "from": 4,
+            "to": 5,
+            "editable": true
+          },
+          "matchesProjection": true
+        },
+        {
+          "rule": "Spaces",
+          "actual": "        ",
+          "message": "There are 8 spaces where there should be only one.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 5,
+            "to": 13
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    },
+    {
+      "source": "We can resume work at the cafe.",
+      "lintMs": 2.1599489999999832,
+      "findings": []
+    },
+    {
+      "source": "The API returns a JSON response.",
+      "lintMs": 2.0616899999999987,
+      "findings": []
+    },
+    {
+      "source": "---\ntext: She go to school.\n---\n> These is useful.\n\n`This are wrong` and $This are wrong$\n\n\"She go to school.\"",
+      "lintMs": 1.9396780000000717,
+      "findings": [
+        {
+          "rule": "NoFrenchSpaces",
+          "actual": "                   ",
+          "message": "French spaces are generally not recommended.",
+          "suggestions": [
+            {
+              "kind": 0,
+              "replacement": " "
+            }
+          ],
+          "projectedSpan": {
+            "from": 9,
+            "to": 28
+          },
+          "range": null,
+          "matchesProjection": true
+        }
+      ]
+    }
+  ],
+  "measurements": [
+    {
+      "words": 1000,
+      "runs": [
+        {
+          "lintMs": 17.970111999999972,
+          "findings": 0
+        },
+        {
+          "lintMs": 15.501490999999987,
+          "findings": 0
+        },
+        {
+          "lintMs": 15.507325000000037,
+          "findings": 0
+        }
+      ]
+    },
+    {
+      "words": 10000,
+      "runs": [
+        {
+          "lintMs": 149.05216800000005,
+          "findings": 0
+        },
+        {
+          "lintMs": 144.62609299999986,
+          "findings": 0
+        },
+        {
+          "lintMs": 142.24862099999996,
+          "findings": 0
+        }
+      ]
+    }
+  ]
+}

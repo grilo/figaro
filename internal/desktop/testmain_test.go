@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+var testAssets AssetFS
+
 type directoryAssetFS struct {
 	fs.FS
 }
@@ -38,7 +40,7 @@ func TestMain(m *testing.M) {
 	if err := os.Chdir(repositoryRoot); err != nil {
 		panic(err)
 	}
-	assets = directoryAssetFS{FS: os.DirFS(repositoryRoot)}
+	testAssets = directoryAssetFS{FS: os.DirFS(repositoryRoot)}
 	code := m.Run()
 	_ = os.Chdir(originalDirectory)
 	os.Exit(code)

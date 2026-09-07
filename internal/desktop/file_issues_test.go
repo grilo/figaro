@@ -204,7 +204,7 @@ func TestUnavailableGitHistoryIsReportedWhileNotesRemainWritable(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(vaultPath, ".git"), []byte("not a repository"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	app := NewApp(vaultPath)
+	app := OpenApp(vaultPath)
 
 	issues := app.GetVaultFileIssues()
 	if len(issues) != 1 || issues[0].Code != fileIssueHistoryUnavailable || issues[0].Severity != "warning" {

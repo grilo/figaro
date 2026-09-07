@@ -85,3 +85,31 @@ func TestGetVaultHealthSeparatesRepeatedFilenamesFromPossibleDuplicateNotes(t *t
 		t.Fatalf("second similar pair = %#v, want same-folder InnerSource notes", report.SimilarNotes[1])
 	}
 }
+
+func TestGetVaultHealthCachesAnUnchangedIndexAndInvalidatesAfterSave(t *testing.T) {
+	app, vaultPath := newTestApp(t)
+	writeTestFile(t, vaultPath, "Note.md", "[Missing](missing.md)\n")
+
+	first, err := app.GetVaultHealth()
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := app.GetVaultHealth()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Fatal("unchanged vault health did not reuse its cached report")
+	}
+	result, err := app.SaveFile("Note.md", "# Fixed\n", 0)
+	if err != nil || !result.Success {
+		t.Fatalf("SaveFile: result=%+v err=%v", result, err)
+	}
+	third, err := app.GetVaultHealth()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if third == second || len(third.BrokenLinks) != 0 {
+		t.Fatalf("health cache remained stale after save: %#v", third)
+	}
+}

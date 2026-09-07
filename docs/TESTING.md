@@ -2,6 +2,125 @@
 
 ## Strategy: prove behavior at the lowest capable layer
 
+Spelling regressions cover Lezer-parsed reference IDs/definitions, indented code
+(including nested lists/quotes), continued prose, unfinished/BOM/CRLF frontmatter,
+Unicode offsets, explicit labels and advisory implicit link/image labels.
+`writingSpelling.test.js` uses both bundled English dictionaries for valid
+possessives, unknown stems and suffix-preserving corrections; it also feeds real
+results into the pane to prove misleading Apply/bulk controls are absent.
+Resolver tests reject protected or corrupt spelling ranges and protect implicit
+reference keys from other prose fixes. These eligibility and grammar cases
+belong below the browser layer; retain the existing link interaction and eager
+startup boundary checks rather than adding a browser matrix.
+
+Writing review has focused tests for real pinned retext/textlint output, Markdown/UTF-16
+mapping, conservative Vale/retext equivalence, independent lens filtering, conflicting
+fixes, counts, and occurrence continuity. Use-case tests cover debounce/coalescing,
+late work after ownership/configuration changes, partial failures, persisted suppression, and
+current-input reuse and accepted-word filtering. `writingInline.test.js` checks
+current ranges, overlapping advice, immediate mark/tooltip invalidation, real
+CodeMirror Escape handling, spelling-only actions, keyboard exit, and retryable
+dictionary errors. `spellingDictionary.test.js` covers serialized/pessimistic
+saves, load retry, and inline/context-menu filtering. Document-preference tests
+cover independent combinations, late loads, and save failures while switching notes. Pure Go
+dictionary tests validate words, schema, and preservation; rooted adapter tests
+cover reopen/deduplication, unchanged notes, permissions, corrupt-file refusal,
+and outside symlinks. Component tests cover accessible actions, bounded distinct-card
+mounting, identical-occurrence grouping, focus, and one isolated CodeMirror undo transaction. Worker tests prove
+actual termination and cancellation before initialization. `writingProse.test.js`
+checks replacement-worker cache recovery, matching-source reuse, exclusion of
+unrequested prose, and failed recovery retaining partial spelling. Adapter tests
+exercise restart between analysis and delayed spelling resolution; the analysis
+use-case test drives the real result view to prove partial status, Retry, full
+recovery, and rejection of late recovery after ownership/language changes. Real Go adapter tests
+verify packaged Vale rule IDs/Unicode coordinates, fixed configuration, bounded
+input, process cancellation/deadline reaping, and cleanup. Rooted settings tests
+cover explicit v1/v2-to-v3 migration, separate note choices and restart, unknown fields, corrupt/newer refusal, and an
+outside `.config` symlink; history tests preserve file-scoped commits.
+
+`writingDecisionsModel.test.js` checks unique-context occurrence anchors,
+Unicode/serialization, language scope, known-edit anchor remapping, distinctive
+one-sided reload matching, ambiguous/changed-target refusal, and
+acronym acceptance without hiding other advice. `writingDecisions.test.js` proves
+pessimistic save/retry, idempotent command reuse, per-document isolation and late
+completion after disposal, reload overlapping background tracking after an
+uncertain removal, reordered/new loaded IDs, queued edits without source rewind,
+failed tracking during reload, overlapping tracking/load failures in both completion
+orders with one successful retry, reload coalescing, queued reanchors during an in-flight save, definite
+capacity recovery, and uncertain-write reconciliation through injected ports. The integration suite recreates
+the controller and switches notes, adds future acronym occurrences, and reverses
+each decision through production components. It also delivers a new note’s
+mount event before its controller is selected, then proves that first-edit
+Ignore anchors survive nearby/multiple edits and controller recreation. View tests assert loading/disabled,
+error/retry, empty state, accessible disclosures, standard buttons and scoped
+restore callbacks. Pure Go plans cover version/schema/record validation, unknown
+metadata, ID collisions and replay; rooted adapters prove actual new-App reload,
+concurrent read/modify/write, context-only reanchor/restart without resurrection,
+reversal, private permissions, corrupt-file
+preservation and outside symlink refusal without changing Markdown. Persistence
+belongs below the browser layer; the existing inline browser scenario adds only
+async Ignore/Restore focus handoff. Repeat actual keyboard/pointer operations
+and Pure restoration in the packaged native webview.
+
+The existing `outline.spec.js` covers shared-pane/Pure geometry and focus. One
+`editorUX.spec.js` writing scenario covers source navigation around rendered
+Markdown, arrow movement, mouse/drag selection, dotted computed paint, the
+hover-to-popup pointer path, visible before/after examples, borderless rounded
+suggestion backgrounds, sidebar-edge popup containment, Apply/Ignore, Ctrl/Cmd+., Tab/Shift+Tab, Escape,
+keyboard activation, focus restoration, and undo. The same boundary scenario
+covers rendered-link paint, hover-to-Apply, preserved link activation, vertical
+source transitions and drag selection in both directions. `writingLinkHints.test.js`
+keeps exact inline/wiki/reference label mapping, overlapping sentence hints,
+protected destinations, widget identity, trimmed reference-label padding, tooltip restoration and
+immediate stale-hover rejection before repaint
+below the browser layer.
+`productionBundle.spec.js` verifies actual worker initialization without browser errors, eager bundles, and no post-ready feature
+module requests. Repeat these editor checks in the packaged native webview;
+Linux WebKitGTK results and 1k/10k-word measurements are in
+[WRITING_ENGINE.md](WRITING_ENGINE.md). Windows/macOS native checks require those
+platforms; CI runs their Go adapter contracts. Reproduce the local editorial and
+Node timing report with `node scripts/profile-writing.mjs` after frontend preparation.
+
+`writingNextPackages.test.js` exercises real sentence-spacing, diacritics, and
+readability output: Unicode/Markdown-safe fixes, line-break preservation, optional
+accented names versus the unaccented verb “resume,” short/protected sentence
+exclusions, and one finding retaining length/formula evidence. The use-case
+regression covers retry, individual Apply, and occurrence Ignore; component
+coverage checks explicit space counts and accessible replacement buttons. These
+rule additions do not change CodeMirror decoration or cursor geometry. Keep the
+rule matrix below the browser layer and reuse the assembled production startup
+check for eager dependencies. Harper's isolated evaluation and reproduction
+command are recorded in [WRITING_ENGINE.md](WRITING_ENGINE.md#harper-evaluation).
+
+`writingSlopless.test.js` runs every one of the 30 selected real Slopless rules,
+checks the complete 77-rule inclusion/exclusion inventory, protected Markdown,
+CRLF/Unicode/encoded offsets, individual curly marks, stable merged evidence,
+examples, reversible serialized Ignore, and unchanged Consistency behavior.
+The analysis use-case checks independent Formulaic execution, debounce and stale
+results; component tests cover the independent Formulaic writing checkbox and existing styled actions.
+Rooted preference tests cover Formulaic choices across restart and Apply to all.
+These rules change no CodeMirror extension, cursor geometry or PDF syntax; reuse
+the assembled production startup check for browser worker compatibility.
+
+`writingTextlint.test.js` exercises the real unmatched-pair and terminology rules,
+their exact Unicode/Markdown ranges, canonical case, independent lens selection,
+advisory examples, protected content, and the relevance prefilter. It also proves
+familiar acronym exceptions and lowercase definitions against pure projected
+prose. The native Go regression verifies the exact Microsoft.Acronyms pin/hash,
+sole bundled Microsoft rule, definitions, familiar acronyms, and attached units.
+Editorial fixtures explicitly preserve `8.1Mib`, `10MB`, and `20ms`. Worker tests
+cover initialization failure/termination/retry; use-case tests retain successful
+JavaScript findings after Vale timeout and exercise safe Apply/Ignore. Existing
+inline/catalogue components cover the new examples and accessible buttons.
+These additions change no CodeMirror extension, decoration geometry, or PDF syntax.
+
+The inline-review follow-up was checked in the packaged Linux WebKitGTK app
+with disposable vault data: dark/light popup styling, hover Apply and Undo,
+Ignore, Ctrl+., Tab/Shift+Tab, Escape, bidirectional arrow/drag selection, and
+Pure mode. A spelling dictionary addition survived restart and left note text
+unchanged. The code/model tests own failure and stale-action matrices; the
+native check establishes the actual webview geometry and focus boundary.
+
 Figaro uses a test pyramid that keeps most coverage fast, deterministic, and
 close to the behavior it protects. End-to-end tests are a deliberately small
 boundary suite, not the default test type.
@@ -130,7 +249,11 @@ painted caret is a browser geometry boundary; it repeats return navigation and
 Undo without duplicating the pure spacing matrix.
 
 Architecture guardrails reject imports that point from the pure core back to
-adapters or composition roots. They also walk static imports and explicit
+adapters or composition roots. Use cases may import only sibling use cases,
+pure core modules, or packages. The same suite rejects direct tab-record writes
+outside `tabManager.js`, browser-global dialog ports, and pairwise right-pane
+close events. It compares `backendContract.js` with every exported Go `*App`
+method so native API drift fails before browser startup. Guardrails also walk static imports and explicit
 worker edges from the eager bootstrap and print-renderer build entries so an
 orphaned first-party module fails the suite instead of silently remaining in
 the tree. The graph must remain acyclic, only `bootstrap.js` may import the
@@ -139,6 +262,16 @@ frontend `app.js` composition root, and only `app.js` may import
 first-party modules expose the named APIs their consumers and focused tests
 actually use. Add a guard when introducing the first module in a new layer
 rather than relying on naming conventions alone.
+
+Production asset tests additionally require `index.html` to reference the
+generated eager `app.bundle.js` entry, while the development handler must
+substitute `js/bootstrap.js` and omit the bundle. `npm run build:app` proves the
+static graph bundles without introducing first-use module loading. The browser
+suite also opens `?figaro-entry=production`, requires the generated bundle to
+boot without first-party `/js/` requests, and loads one bundled font through the
+real `FontFaceSet` API. CI and release preparation use
+`scripts/prepare-frontend.sh`, so ignored production assets are always rebuilt
+from the checked-out source instead of inherited from a developer workspace.
 
 ### Test-integrity guardrails
 
@@ -160,6 +293,9 @@ preference write, or window command must first configure that method's exact
 success or failure response. An unconfigured call throws immediately, and the
 after-test check still fails if production code caught that error. The binding
 is recreated for each test so mock behavior cannot leak into the next case.
+Its complete backend double is generated from `backendContract.js`; focused
+tests override only the methods they exercise instead of maintaining another
+partial facade inventory.
 
 ```bash
 npm run test:integrity
@@ -225,9 +361,7 @@ dirty-buffer authority.
 Scale-sensitive changes can use the opt-in deterministic vault profile. The
 generator writes one small source and one 10,000-line source, then creates
 renamed filesystem copies across a deep hierarchy until the vault contains
-10,000 Markdown documents. By default, 250 of those files form one portable
-project/task set; `--project-tasks` changes that allocation while preserving
-the requested total document count. Generated data and JSON reports live under
+10,000 Markdown documents. Generated data and JSON reports live under
 the ignored `stress-vault/` directory; no fixture notes are checked into Git.
 
 Run the complete profile with:
@@ -239,16 +373,23 @@ make stress-vault
 The target regenerates only a directory carrying the generator's
 `.figaro-stress-vault.json` marker, then runs the real desktop/backend adapter
 profile and the focused Chromium layout profile. It writes
-`stress-vault/backend-report.json` and `stress-vault/browser-report.json`.
-Neither test has timing assertions because hardware and filesystem caches vary;
-the reports are measurement evidence, not a release gate. Install Playwright's
-pinned Chromium first if it is not already available.
+`stress-vault/backend-report.json`, `stress-vault/browser-report.json`, and
+`stress-vault/document-switch-report.json`.
+Absolute backend and general-browser timings remain measurement evidence because
+hardware and filesystem caches vary. The document-switch profile alternates
+three content-heavy/plain trials, records median and worst-observed timings, and
+fails only when a content-heavy median exceeds the same-run return-to-plain
+median by more than six times. Override the trial count or generous relative
+budget with `FIGARO_STRESS_DOCUMENT_SWITCH_TRIALS` and
+`FIGARO_STRESS_DOCUMENT_SWITCH_MAX_MEDIAN_RATIO`. Install Playwright's pinned
+Chromium first if it is not already available.
 
 To run or customize the boundaries separately:
 
 ```bash
 node scripts/generate-stress-vault.mjs \
-  --output stress-vault/huge-vault --project-tasks 250 --replace
+  --output stress-vault/huge-vault --documents 10000 --huge-documents 5 \
+  --huge-lines 10000 --replace
 
 FIGARO_STRESS_VAULT="$PWD/stress-vault/huge-vault" \
 FIGARO_STRESS_REPORT="$PWD/stress-vault/backend-report.json" \
@@ -256,6 +397,7 @@ go test ./internal/desktop -run '^TestHugeVaultStress$' -count=1 -v -timeout=10m
 
 FIGARO_STRESS_VAULT="$PWD/stress-vault/huge-vault" \
 FIGARO_STRESS_BROWSER_REPORT="$PWD/stress-vault/browser-report.json" \
+FIGARO_STRESS_DOCUMENT_SWITCH_REPORT="$PWD/stress-vault/document-switch-report.json" \
 npx playwright test tests/e2e/hugeVaultStress.spec.js --reporter=line
 
 VAULT_PATH="$PWD/stress-vault/huge-vault" make dev
@@ -269,13 +411,17 @@ ranked rare, prefix, typo, and link-completion searches.
 The browser test supplies equivalent 10,000-item responses to isolate real DOM,
 layout, CodeMirror virtualization, keyboard rerender behavior, and bounded
 large-collection rendering. Its backend fixture includes Graph and private task
-schedule projections. Each scenario writes the accumulated JSON report before
-the next isolated page starts, so a later failure cannot erase earlier evidence.
-The Graph timings wait for the latest complete canvas frame, and the large-note
-timing waits for every staged Markdown presentation feature before measuring
-cursor movement and a tail edit. `editorDocumentMountModel.test.js` separately
-proves that only large Markdown inputs split, that the split stays on a line
-boundary, and that joining its chunks preserves the source byte-for-byte.
+schedule projections. Each general scenario writes the accumulated browser
+report before the next isolated page starts, so a later failure cannot erase
+earlier evidence. A separate document-switch report compares equally scaled
+plain source with in-memory variants containing 160 Mermaid diagrams, 400 GFM
+tables, 1,200 inline equations, or 500 images; it waits for the requested tab,
+CodeMirror document owner, line count, and presentation-ready signal. The Graph
+timings likewise wait for the latest complete canvas frame.
+`editorDocumentMountModel.test.js` separately proves that only large Markdown
+inputs split, that the split stays on a line boundary, that joining its chunks
+preserves the source byte-for-byte, and that content markers select the expected
+presentation stages.
 Opening the generated vault through `make dev`
 remains the native packaged-webview smoke check. Current reference measurements
 and prioritized findings live in
@@ -399,12 +545,13 @@ make bootstrap
 
 # Application packages: Wails facade, internal modules, and dev commands
 go vet . ./internal/... ./cmd/...
-go test . ./internal/... ./cmd/...
+./scripts/check-go-coverage.sh
 go test -race . ./internal/... ./cmd/...
 
 # Frontend unit and integration tests
 npm run lint
 npm run test:unit
+npm run test:coverage
 
 # Browser-only geometry, event, frame, and printable-document boundaries
 npx playwright install chromium # first run only
@@ -421,7 +568,20 @@ FIGARO_PLAYWRIGHT_PORT=34116 npm run test:pdf
 
 `cmd/devserver` sends `Cache-Control: no-store`; its focused Go test protects
 that contract so catalogue and browser checks cannot silently reuse stale
-assets after a source edit.
+assets after a source edit. Normal requests retain inspectable source modules;
+the production-entry query is reserved for the focused generated-bundle smoke.
+
+All CodeMirror browser tests that open `Welcome.md` reuse
+`tests/e2e/support/editorWorkspace.js`. Its readiness contract requires the
+selected file, active tab, and actual CodeMirror document owner to agree; a
+visible `.cm-editor` alone is not sufficient after asynchronous tab activation.
+
+Coverage is a ratchet, not the only definition of quality. Jest enforces the
+current global floor while focused tests still belong at the lowest useful
+layer. `scripts/check-go-coverage.sh` similarly enforces the repository-wide Go
+statement floor and prints the measured total. CI additionally runs internal Go
+package contracts on Windows and macOS; native packaged-webview geometry remains
+the explicit platform smoke boundary described below.
 
 Browser tests that configure preference-backed editor behavior after startup
 must wait for `window._appReady === true` before changing it. Otherwise the
@@ -587,8 +747,8 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   preparation.
 - Editor behavior, CodeMirror language modes, current-note heading-fragment
   completion, typed Markdown block-guide folding, exact Raw Text Preview, persistent Markdown diagnostics
-  and their hover/F8 guidance, offline spellcheck's global **None** state and
-  language/frontmatter overrides, the dynamic editor accessible name,
+  and their hover/F8 guidance, per-note Proofreading and the analysis language,
+  ignored legacy settings/frontmatter, the dynamic editor accessible name,
   per-buffer undo/redo ownership, one-Enter empty-list and empty-blockquote exit, smart URL paste
   for native, Vim Visual `p`, and editor-menu paths, and wrapped-list cursor/selection geometry,
   frontmatter, footnotes, diagrams, tabs, session
@@ -653,7 +813,9 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   the full-width, non-overlapping History source comparison before restoration,
   plus the nested Document outline's visual hierarchy, active-section
   tracking, top-right launcher positioned beneath the complete sticky
-  hierarchy, each sticky ancestor entering separately as its real source row
+  hierarchy, keyboard-open current-heading focus and close-to-launcher restoration,
+  a focusable explanatory disabled launcher on heading-free notes, guarded
+  Enter/Space activation, immediate re-enablement when a heading appears, each sticky ancestor entering separately as its real source row
   crosses the covered editor edge even while CodeMirror's virtual viewport is
   unchanged, sticky title text matching CodeMirror's computed normal font size,
   full-width flush strip geometry without floating-card radius or shadow, keyboard jump,
@@ -718,6 +880,38 @@ Update them whenever a release version, license, changelog convention,
 packaged documentation file, tag workflow, Make target, or
 release-preparation skill changes; they prevent a tag from publishing binaries
 whose visible metadata disagrees with the source release.
+
+`tests/release/prepare-release.test.sh` also executes provisional verification
+on a dirty feature branch. It checks the shared verification command sequence,
+the exact candidate notes, successful and interrupted checks, and malformed
+notes while preserving repository metadata, staged/unstaged/untracked work,
+commits, tags, and a local bare remote. Tool processes are replaced at the shell
+boundary; this tests release coordination, not the full Go/browser suite itself.
+It also checks that approved publication runs the same verification sequence and
+that verification failure prevents finalization from creating commits or tags.
+`scripts/verify-release.sh` is shared by provisional and approved release paths.
+
+`tests/frontend/unit/skillContracts.test.js` parses actual skill YAML, checks
+discovery and local reference resolution, and parses the UX Markdown fixture to
+prove its heading, note, and attachment cases remain usable. The intentionally
+unfinished fence is last and only the designated missing image is absent.
+`tests/frontend/unit/commitHandoff.test.js` uses disposable Git repositories and
+a linked worktree to prove plain commits consume distinct proposals and explicit
+messages remain intact. These checks require no application/browser scenario.
+
+For a skill behavior change, also review the realistic prompts and expected
+actions in `tests/skills/scenarios.md`. They cover version recommendations,
+preparation versus finalization/publication approval, unchanged approved retries,
+unrelated requests, and focused/source-only UX evidence. This is a behavioral
+review set, not automated model coverage or permission to publish during a test.
+
+UX audit reports identify scope, dirty build state, runtime/engine, theme, scale,
+fixture vault, and evidence availability. Each task/runtime records passed,
+failed, not tested, blocked, or unsupported. Source-only inspection cannot prove
+geometry, focus, persistence, or input behavior. Withhold aggregate scores for
+partial coverage; do not relabel unavailable native checks as passed Chromium
+checks. Use owned disposable vaults for mutating exercises and retain relevant
+evidence before cleaning up only those artifacts.
 
 The browser suite is intentionally not a substitute for the desktop webview:
 when changing the PDF preview bridge, also run the packaged Linux build and
@@ -931,8 +1125,8 @@ paint. The upper and lower
 workspace-edge pseudo-elements must each be pointer-transparent, use the same
 radius as the tab, and paint a radial concave junction outside the selected
 row; hover, focus, and drag states
-must remain available. Clicking any selected control is inert rather than
-closing its workspace. Settings alone retains its de-duplicated title-bar workspace tab and
+must remain available. Clicking a selected workspace control returns to the previous view without
+destroying its mounted session; repeat Timeline/Gantt returns to Month/Board. Settings alone retains its de-duplicated title-bar workspace tab and
 active-click `figaro-panel-exit` behavior. That transition must honor the shared
 reduced-motion duration, remain safe under repeated close requests, and retain
 any workspace opened while the exit is running. Keep the pure title-bar projection in
@@ -1211,6 +1405,8 @@ CSS page-margin output, an unnumbered cover that still counts as physical page
 1, numbered following pages, and link annotations. Set
 `FIGARO_PDF_TEST_OUTPUT=/tmp/pdfs/figaro-page-number-contract.pdf` to retain the
 otherwise temporary PDF for `pdfinfo`, `pdftotext`, and `pdftoppm` inspection.
+Ordinary and release CI supply Playwright's pinned Chromium executable and run
+this boundary; an unconfigured local `go test` continues to skip it.
 
 ## PDF browser discovery and Snap confinement regressions
 
@@ -1310,6 +1506,21 @@ npx playwright test tests/e2e/windowsAltGr.spec.js
 ```
 
 ## Block widget and cursor regressions
+
+Helper-rail containment uses `editorBlockActionLayoutModel.test.js` for the
+missing-margin plan and `editorBlockActionLayout.test.js` for stable repeated
+measurements and clearance when no rail remains. `markdownBlockGuides.test.js`
+checks document-sized reservation, image actions, and stability through folding.
+The existing transactional table browser case checks real center-hit ownership
+at 800px and 100%/150% editor size, with normal and compact PDF-split padding.
+Keep its table/selection cursor matrix and the native smoke below;
+hover/focus must not cause reflow, and guides may not cover source or sidebars.
+
+Outline focus and disabled activation are covered by `outlinePanel.test.js`,
+including refresh and pane replacement; `outline.spec.js` proves real Tab,
+Enter/Space, tooltip and focus restoration. `kanbanKeyboardModel.test.js`
+owns empty-versus-populated instruction copy, while `kanban.test.js` checks
+live updates and Board/Gantt exposure without an extra browser workflow.
 
 CodeMirror block widgets have a strict measured-height contract documented in
 [`LIVEPREVIEW.md`](LIVEPREVIEW.md#4-block-widget-geometry-contract). Any new
@@ -1445,7 +1656,7 @@ npx playwright test tests/e2e/editorUX.spec.js \
   --grep "keeps rendered block source footprints stable"
 ```
 
-The Properties picker adds a browser-only paint, movement-intent, and pointer
+The Properties disclosure adds a browser-only paint, movement-intent, and pointer
 boundary to that contract. `frontmatterPresentationModel.test.js` proves that
 ordinary selection jumps retain the card while upward intent reveals it;
 `blockWidgetLayout.test.js` owns its explicit widget paint layer and the
@@ -1456,17 +1667,14 @@ and CRLF input, while rejecting incomplete or non-leading blocks.
 selection, remembered and explicit line positions win, and non-Markdown modes
 bypass the policy; `editor.test.js` verifies that the resolved offset becomes
 the real CodeMirror anchor/head while the Properties card stays rendered.
-`frontmatterProperties.spec.js` opens a
-language option whose center extends below the card, verifies that option is
-the topmost hit target in the shared body overlay, hovers and activates it, and confirms the document
-selection remains on its original body line. It verifies that **Edit YAML**
+`frontmatterProperties.spec.js` verifies that **Edit YAML**
 uses the approved quiet button and file-code glyph, has transparent border and
 surface plus muted text at rest, and restores tonal hover paint and the shared
 keyboard-focus halo. It also proves Home/document
 start and Vim `gg` preserve Properties, Arrow Up / Vim `k` reveal raw YAML,
 Arrow Down exits it, and bidirectional mouse selection leaves the replacement
 rendered. Keep this focused regression when
-changing frontmatter animation, block-widget stacking, picker positioning, or
+changing frontmatter animation, block-widget stacking, or
 CodeMirror line positioning:
 
 ```bash
@@ -1587,7 +1795,15 @@ ranges remain exact. `blockControlVisibilityModel.test.js` separately proves
 the rendered-block-to-rail activation rectangle, the narrower heading lane,
 and folded/focus/caret overrides. The real CodeMirror component must exercise editor-sized,
 typed, accessible collapse/expand controls, disabling and re-enabling the
-gutter, and show that folding never edits source. The browser boundary must
+gutter, and show that folding never edits source.
+`blockControlVisibility.test.js` uses real CodeMirror gutter updates to prove
+that typing before a hovered diagram preserves its reveal state even before
+the next measurement, updates action offsets, and still hides on pointer leave.
+The existing Mermaid Editor browser workflow samples both left controls on
+every animation frame while the stationary pointer hovers the diagram and
+keyboard input changes preceding prose; opacity must stay at one and return
+to zero after pointer departure. Repeat that hover/typing check in the packaged
+native webview alongside the cursor and drag checks below. The browser boundary must
 compare guide and editor font sizes; prove an expanded non-heading guide is
 transparent and non-hit-testable at rest; hover its rendered block, cross the
 complete approach corridor in pointer steps, and activate the still-visible
@@ -1627,6 +1843,15 @@ fold-state or ARIA-only assertion is not sufficient. In a native WebKitGTK,
 WebView2, and WKWebView build, repeat those cursor and drag checks with both
 line numbers off and on.
 
+The 2026-09-06 hover regression check passed in the packaged Linux WebKitGTK
+app on an isolated display with disposable vaults. Both controls stayed at
+opacity one throughout 21 sampled typing frames in the default dark theme
+and 22 in Figaro Light with line numbers enabled; pointer departure returned
+both to zero. Arrow Down/Up crossed the folded source in both directions,
+mouse placement reached the following line, and forward/reverse drags selected
+across it with line numbers off and on. Windows WebView2 and macOS WKWebView
+were unavailable locally and were not verified by this run.
+
 `relativeLineNumbers.test.js` owns the pure distance/spacer rules and a concrete
 CodeMirror gutter update when the primary cursor changes lines. The focused
 Settings/editor browser scenario keeps the gutter enabled while exercising
@@ -1662,7 +1887,7 @@ Cancel dispatches nothing. Focused-source Escape must reach the modal and show
 the shared dirty-draft confirmation; **Discard** closes without a root
 transaction. Component tests prove Source/Style switching,
 type-specific panel replacement, Kanban palette reuse, invalid-source
-suppression, selected-node controls preceding a long bounded list, roving
+suppression, selected-node controls preceding the full element list, roving
 Arrow/Home/End node selection, style-control focus restoration, palette survival
 across preview statuses, reset swatch synchronization, explicit node-editing instructions, and one
 native source update per style choice. It also asserts the approved quiet
@@ -1671,7 +1896,7 @@ the ordinary outlined binding for **Replace with template**,
 the absence of decorative modal/pane/heading/list/row borders alongside the
 retained source-gutter divider, the node row's identity/shape/color
 order, the active editor's name/shape/color ordering and real long-name
-ellipsis, shape summary, and nested scroll restoration. A DOM-adapter test
+ellipsis, shape summary, and shared Style-panel scroll restoration. A DOM-adapter test
 covers keyboard preview navigation, rendered-node selection versus drag
 panning, and source-free transforms, while the shared combobox test proves dynamic
 option refresh. One browser workflow owns the irreducible focus, compact
@@ -1681,12 +1906,13 @@ fitting, larger preview-pane growth up to the bounded dialog and narrow
 stacking without footer clipping (including short windows), pointer-resized modal
 geometry, modal-width-driven pane stacking, Home reset, left-rail control alignment, first-success empty-state
 removal, real Mermaid SVG node-id selection, applied node fill, Style-panel
-overflow, long-list containment, selected-editor visibility on first opening
-and after preview selection, focus after shape/color changes, palette Escape
+overflow, full-height element-list layout with a single Style scrollbar,
+wheel scrolling over rows and keyboard focus reaching both list ends,
+selected-editor visibility on first opening and after preview selection, focus after shape/color changes, palette Escape
 and preview-refresh survival, non-checkbox node swatches, rendered-diagram collapse/expand, lint tooltip/SVG, stale-preview,
 borderless gutter, and undo boundaries. That browser workflow samples the
 pointer-down frame and three following animation frames, requiring identical
-node-row geometry and the same nested scroll offset so a final-state-only check
+node-row geometry and the same Style-panel scroll offset so a final-state-only check
 cannot miss press wiggle or refresh jumps; a focused companion verifies inherited Vim mode
 and wrapped display-row motion after the first diagnostics transaction, while
 `tests/e2e/mermaidRenderer.spec.js` replaces the former parser-only loop with
@@ -1867,8 +2093,9 @@ span-aware row/column guards. `markdownTableEditor.test.js` owns the two-row
 labelled-icon toolbar, grouped danger actions, accessible cell names, ordinary
 native pointer ownership, Shift-click/Shift-drag selection, contextual
 disabled tooltips, read-only source, local history, one Apply dispatch, and
-dirty Escape confirmation. It also owns canonical outlined ordinary toolbar-button bindings.
-`markdownTableEditorGuide.test.js` owns the three-action guide and complete
+dirty Escape confirmation and exact cell/control plus selection restoration
+through Keep editing or Escape-from-confirmation. It also owns canonical outlined ordinary toolbar-button bindings.
+`markdownTableEditorGuide.test.js` owns the four-action guide and complete
 table-plus-metadata deletion. `markdownTables.test.js` covers the semantic DOM
 adapter, exact source reveal, rectangular rendering, and the absence of legacy
 table commands from the ordinary right-click menu.
@@ -2483,15 +2710,15 @@ to the OS clipboard without making a clipboard denial break the Vim command.
 Keep the text/shape and replay-key decisions in `vimClipboardModel.test.js` and
 the actual adapter/register integration in `vimCommands.test.js`.
 
-Offline spellcheck must retain the same editor movement and selection contract:
-its disabled-by-default global **None** state, explicit enablement with the US-English
-fallback, themed keyboard-operable language combobox, settings-level disablement
-across every note, Spanish frontmatter
-override, per-note `false` opt-out, themed dotted marker, and local-only
-dictionary assets are covered by unit and browser regressions.
-The Settings regression must keep the scope guidance as two concise rows using
-the approved information-notice primitive and preserve its `aria-describedby`
-relationship on the visible themed combobox trigger.
+Proofreading’s spelling checks must retain the same editor movement and selection contract.
+Component/use-case tests prove that selecting it detects `teh` despite legacy
+Settings disablement and `spellcheck: false` YAML, and that deselecting it clears
+findings without changing source. Language configuration covers English US/UK
+and Spanish; no Settings or Properties control may gate it. Pure tests own
+language selection, dictionary rules, and Markdown exclusions. The focused
+`spellcheck.spec.js` workflow covers native hover/right-click, keyboard Apply,
+Undo, and drag selection through the shared inline marks. Legacy browser-only
+language/settings matrices were removed after lower-layer coverage was updated.
 Correctly spelled hyphenated compounds must remain unmarked, while a
 misspelled component must retain its diagnostic.
 Right-clicking an underlined prose word must offer only active-dictionary,
@@ -2564,7 +2791,7 @@ npm run test:unit -- --runTestsByPath \
   tests/frontend/unit/spellcheck.test.js \
   tests/frontend/unit/drawioEditor.test.js \
   tests/frontend/unit/drawio.test.js
-go test ./internal/desktop -run 'Test(Vim|MarkdownLint|Spellcheck)'
+go test ./internal/desktop -run 'Test(Vim|MarkdownLint|WritingLenses|WritingLensCombinations|SpellingDictionary)'
 npx playwright test tests/e2e/vimVisualRows.spec.js tests/e2e/markdownTables.spec.js tests/e2e/markdownLint.spec.js tests/e2e/markdownListIndent.spec.js tests/e2e/spellcheck.spec.js tests/e2e/drawioLoading.spec.js tests/e2e/drawio.spec.js
 ```
 
@@ -2654,3 +2881,238 @@ covers caret-anchored `@date`, Arrow Up/Down, and task mouse/drag selection; nor
 macro completion component tests cover Enter/Tab/Space and source undo. The
 task-rail component also refuses handoff after switching notes, including an
 identical-source note while loading or choosing its date.
+
+
+Right-pane restoration regressions cover per-tab open/closed selections, stale
+activation rejection, Settings and planning toggles, and one width policy in the
+pure/coordinator/component suites. The existing Outline launcher browser scenario
+checks compact button geometry, selected paint, visibility of every launcher,
+switching below the old PDF width minimum, and the restored Settings round trip.
+It also checks buffer-status alignment with the pane open, resized, switched,
+overlaid, and closed; compact metrics fit the exposed buffer and the window
+resize grip stays at the window corner. The existing Pure-mode scenario keeps
+its word-count-only footer assertion.
+The existing writing picker scenario checks the portalled Settings combobox,
+Pure focus, vertical cursor movement and mouse selection. Language-support and
+apply-all ordering/error/metadata matrices stay below the browser layer in the
+writing view/use-case and rooted Go settings tests. The pure lens model proves
+that language changes uncheck unsupported lenses without selecting them again
+on return; preference tests cover atomic save/retry and cleanup of older choices
+without a startup write. The model also covers each disabled-lens explanation;
+`writingAdditionalRules.test.js` covers curated term alternatives, capitalization,
+punctuation, the above-30-word readability boundary, and protected spans. Real runtime
+fixtures cover article pronunciation, quoted context, Unicode and Markdown
+mapping, independent lens selection, and advisory-only long sentences. Use-case
+coverage checks new-lens failure/retry and requesting Vale after it becomes
+needed. Rooted preferences tests save/reopen the new IDs and preserve note text;
+the bulk settings plan covers them for existing documents and defaults.
+Components exercise the shared tooltip on checkbox/label, unchanged selection on
+click, live reason updates, removal on enabling, and accessible descriptions.
+The existing writing-picker browser scenario verifies native hover delivery
+from a disabled checkbox and its label and viewport containment of the tooltip.
+That same scenario covers a sentence-wide Readability underline across emphasis,
+its advisory example, the taller Pure picker, and native keyboard/drag geometry.
+Components assert unchecked/disabled states and the footer layout adapter’s
+shared width and close reset. Native WebKitGTK must also
+check pane widths, footer alignment, corner-grip placement, restoration, combobox
+focus, and cursor/selection behavior.
+
+The package expansion adds `writingPackages.test.js` and
+`writingTypographyModel.test.js`: real pinned package outputs, contextual
+Inclusive language alternatives, protected quotes/paths, separate contraction
+and typography goals, paired quotation edits across formatting, encoded-marker
+refusal, and proselint provenance/deduplication are checked below the browser.
+Rooted Go tests persist Inclusive language with the existing lenses and verify
+the fourteen selected proselint rules against their pinned SHA-256 manifest. The
+real-adapter editorial report uses `expected` for combined output and optional
+`workerExpected` for JavaScript-only output in fixtures that require Vale. The existing writing-picker
+browser scenario checks consolidated lens controls, paired quote Apply/Undo, and the
+same Pure/keyboard/drag geometry; native WebKitGTK repeats those boundaries.
+
+The next package additions use `writingNextPackages.test.js` for same-line
+spacing, optional diacritics, and conservative formula eligibility and distinct length/complexity advice.
+The pure package-policy model protects projection boundaries; real package
+fixtures cover output and source mapping. Existing use-case/component suites
+verify retry, individual actions, space-count labels, and optional accent wording.
+No new editor decoration or layout is introduced by these rules.
+
+### Writing review audit regressions
+
+`writingEditorialSafety.test.js` exercises the actual pinned adapters for correct
+and incorrect article pronunciations, wrapped context, US/UK uncertainty, and
+inclusive pronoun/identity false corrections. The shared editorial fixture report
+adds independent negative examples for unicorn/hour, personal references, soft
+wrapped acronym definitions, and ordinary uppercase words. These establish
+specific correctness cases, not an aggregate language-accuracy claim.
+
+`writingReviewModel.test.js` proves grouping and all-or-nothing bulk planning
+for 120 occurrences, protected source, stale ownership/revision/configuration,
+analyzing states, overlaps, and contextual/multiple-choice exclusions. Component
+tests bound both single-passage and many-passage cards to four initially, expose
+occurrence navigation, accessible Show more focus, early actions, lazy technical
+diagnostics, and alternative disclosure. The real CodeMirror integration proves
+bulk edit/Undo/Redo without touching code, reanchored Ignore after recreation,
+and deletion of an ignored paragraph without relocating Ignore to similar text.
+The existing writing browser scenario checks only actual bulk focus/history and
+compact geometry in addition to its existing pointer/keyboard boundary.
+
+
+### Second writing audit and asynchronous review regressions
+
+`writingRuntime`, `writingSpelling`, and `writingDecisionsIntegration` cover wiki
+destinations, fragments, embeds, explicit display aliases, and guarded bulk Undo.
+`writingTextlint` covers ordinary capital words from bundled dictionary data,
+hyphenated/eX acronym expansions, real undefined acronyms, and protected-boundary
+negative cases. `writingDecisionsModel` bounds context searches for 1,000 inactive
+records against 500 repeated terms without a timing-sensitive unit assertion.
+`writingDecisions` injects background tracking, proves input observation does not
+read source or invoke work, and covers worker failure/retry, immutable uncertain
+commands, pending edits, deletion, and persistence. Real CodeMirror integration
+recreates the controller after delayed storage to prove the correct occurrence
+remains visible. `writingAnalysis` rejects late background resolutions;
+`writingAdapters` proves eager worker wiring, ordered cross-note jobs, and actual
+cancellation. The existing production startup browser check expects all three
+workers ready without new feature requests after startup.
+
+For the native boundary, use an owned vault to compare a ~34k-character note with
+500 repeated terms and 100 inactive decisions against a zero-decision control.
+Record actual beforeinput-to-next-frame latency with lenses disabled and enabled,
+plus stale-result, delayed Ignore, restart, Ctrl+., arrows, bidirectional drag, and
+bulk Undo/Redo checks. Report these as local observations, not universal latency
+guarantees. Pure correctness and backend failure matrices remain below the browser.
+
+### Third writing audit recovery regressions
+
+The decision use-case tests reproduce an uncertain removal followed by Reload
+while a tracking response is pending. They cover surviving/new/reordered IDs,
+queued edits without source rewind, tracking failure, coalesced reloads, and
+disposal. The prose use case and adapter tests reproduce a worker replacement
+after analysis but before resolution, including delayed spelling, cache reuse,
+and explicit partial failure if recovery cannot rebuild the missing prose.
+The analysis test uses the production result view to verify retained spelling,
+the warning and Retry action, successful full retry, and late recovery guards.
+These failure sequences belong below the browser; native fault injection checks
+the assembled bridge/worker integration without adding browser test branches.
+
+The independent-lens package review adds `writingPackageReview.test.js` and
+shared native fixtures: every restored Vale rule, each added Inclusive pattern,
+shared concern identity, enabled-lens-only fixes, separate same-sentence advice,
+and serialized Ignore are checked below the browser. Native Go tests execute
+all twenty restored Vale rules and validate Unicode ranges and pinned files.
+The existing terminology/Slopless suites cover every selected term/rule.
+Use-case regressions cover new Vale lens routing and missing-evidence cache
+invalidation while typing proceeds. See [the package review](WRITING_PACKAGE_REVIEW.md).
+
+### Consolidated writing lens controls
+
+`writingLensesModel` proves that five groups cover all nine check families, full
+group activation/deactivation, lossless legacy subsets, spelling-only Spanish
+Proofreading, and no automatic re-enabling on return to English.
+`writingLensesView` checks five labels, group counts, native mixed state with the
+approved Partial badge, disabled reasons, live short summaries, and whole-group
+events. Preferences tests reopen controllers after save/retry to verify complete
+group persistence without startup writes. The pane/Pure integration confirms
+shared grouped choices and spelling activation while preserving document ownership.
+Existing browser selectors use Proofreading and Clarity; no new browser scenario
+or editor decoration/geometry change is introduced by consolidation. The subsequent approved disclosure is covered by the regressions below.
+
+### Animated writing disclosure
+
+`disclosure.test.js` covers ARIA linkage, summary updates, inert closed content,
+rapid reversals, stable icon DOM, programmatic focus return, disabled/busy
+recovery, and disposal. `writingLensesModel` owns document/loading/default
+expansion policy; view tests prove that saves preserve expansion and Pure keeps
+its controls visible. Catalogue tests enforce registration and production reuse.
+The existing catalogue browser workflow verifies actual resting label/summary
+contrast in Figaro Dark, CRT and Light, hover/focus paint, intermediate grid
+height and chevron rotation, Tab skipping/re-entry, narrow layout and reduced
+motion. The existing writing-picker workflow retains assembled pane/Pure focus
+and editor cursor/selection coverage. No editor widget, decoration, saved text,
+PDF rendering or geometry policy changes.
+
+### Writing lens help
+
+`writingLensHelp.test.js` covers short summaries, three/four editorial examples,
+partial-selection detail, language-specific coverage, unsupported examples,
+limitations, independent info actions, ARIA, persistent help, dismissal/focus,
+live updates, and document/owner/disposal cleanup. `floatingMenuModel` proves
+left placement, height clamping, and narrow-window fallback with plain geometry.
+The pane/Pure integration checks portal containment, nested Escape, and release
+when switching to Pure. The existing catalogue browser scenario checks narrow
+help scrolling and shared theme paint; the existing writing-picker scenario
+checks clipping, pointer persistence, native Tab/Shift+Tab, focus return and Pure
+containment. No extra end-to-end scenario or editor geometry change is introduced.
+`floatingMenu.test.js` models border and native-scrollbar metrics to prove stable
+outer dimensions during explicit/ancestor/resize placement and skipped internal
+scroll events. The catalogue workflow uses four actual wheel-driven top/bottom
+round trips in a short viewport and asserts unchanged help bounds; this browser
+boundary catches the real scroll-metric feedback that jsdom cannot render.
+
+### Writing corpus safety regressions
+
+`writingCorpusSafety.test.js` covers technical vocabulary and acronym plurals,
+reviewed-only spelling bulk plans and controls, dictionary apostrophe safety,
+quote/possessive boundaries, all four emphasis forms, numeric compounds, balanced
+URL punctuation, mapped sentence-length thresholds, contextual noun/inclusive
+guards, and forward/reverse/plural acronym definitions. Each family retains
+positive controls for useful advice and protected-source negative cases. The
+existing package inventory remains intact; updated fixtures distinguish contextual
+suppression from removing a provider rule. Pure and real-package tests establish
+these changes; they do not alter CodeMirror geometry or require another browser
+workflow. Existing worker cancellation/recovery and long-note checks remain
+required. Corpus counts are diagnostic observations, not precision/recall or
+production-readiness scores; see [WRITING_CORPUS_FIXES.md](WRITING_CORPUS_FIXES.md).
+
+### Writing rename continuity and long-note analysis
+
+`writingPathContinuity` tests pending storage before/during rename, failure
+release and retry. `writingPathModel` coverage in the same suite distinguishes
+folder boundaries and specific merge copy names. The mounted writing-lenses
+component retains choices and reversible decisions at the new path; the existing
+file-tree scenarios assert native move/merge/rename calls use the barrier.
+`internal/settings/writing_relocation_test.go` covers pure metadata preservation
+and conflicts. Desktop rooted tests cover rename, folder move, merge collision
+names, restart/Restore, corrupt records, escaping symlinks, private permissions,
+rollback and temporary-file cleanup. The injected writer test covers an uncertain
+second write; a real rooted failure separately proves first-file rollback and
+outside-path protection.
+
+`writingTokenCache`, `writingParagraphRule` and `writingWorkBudget` tests establish
+bounded reuse, independent token objects, unchanged relative offsets and bounded
+source-size deadlines. Worker lifecycle tests retain short-job timeouts, prove
+long-job cancellation/recovery and cap stalled resolution at thirty seconds.
+Native tests verify the actual child receives its long-note budget and is killed
+and reaped promptly on cancellation; ordinary initialization/short-job deadlines
+remain five seconds.
+
+Run `node scripts/verify-writing-performance.mjs` for exact real-package findings
+and source-map comparisons, an upstream punctuation comparison, and the real
+worker message boundary with foreground timers, cancellation and recovery. Run
+`node scripts/profile-writing.mjs --long` for the existing 51 combined editorial
+fixtures and 1k/10k plus unique numbered 25k/50k technical workloads. Keep timing
+reports and environment metadata; do not encode noisy stopwatch thresholds in
+unit tests. Foreground Node timers are not native typing/input-to-paint evidence.
+No editor decoration/layout changed here; existing cursor/native webview checks
+remain applicable rather than duplicating them for pure computations.
+
+The [writing usefulness corpus proposal](WRITING_CORPUS.md) defines the separate
+editorial evaluation: licensed untouched prose, reviewed minimal pairs, whole
+documents, harmful-Apply tracking, noise per 1,000 words and held-out human review.
+It is a proposal, not a collected or annotated corpus or a quality pass claim.
+
+`designSystemBundle.test.js` checks that generated catalogue comments lose trailing whitespace while strings and template literals retain their exact contents; regeneration remains idempotent.
+
+Release-action dispatch regressions explicitly enable Make directory diagnostics and still require exactly the selected release command; nested Make output cannot masquerade as the command under test.
+
+Release browser regressions use the current five-lens disclosure and scope Settings
+combobox checks to the active Settings panel. Spelling is no longer a startup
+preference gate or a Properties picker. At narrow buffer widths, the status bar
+hides its editor-state group, keeps visible metrics inside the buffer, and leaves
+the window resize grip at the physical corner. `statusBar.test.js` owns group names
+and reading order; `editorSettings.test.js` owns auto-commit writes and rollback.
+The README and product specification share the current native Linux screenshot;
+`releaseMetadata.test.js` verifies both references and the bundled PNG signature.
+
+The rooted writing adapter tests verify every pinned Vale rule against its
+`SOURCE.json` hash. Git attributes preserve those bytes across platform checkouts;
+the exact Microsoft sentence-length rule retains its upstream final blank line.

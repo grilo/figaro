@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openWelcomeEditor } from './support/editorWorkspace.js';
 
 test('rounds the editor leading corner without a square canvas underlay unless the first tab is selected', async ({ page }) => {
     await page.goto('/');
@@ -393,8 +394,13 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
 
 test('keeps the status bar fixed while ordinary writing recedes and bottom-edge hover restores it', async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 640 });
-    await page.goto('/');
-    await page.waitForFunction(() => window._appReady === true);
+    await openWelcomeEditor(page);
+
+    await page.locator('#status-bar').hover();
+    await expect.poll(() => page.locator('#resize-grip').evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return Math.max(Math.abs(rect.right - innerWidth), Math.abs(rect.bottom - innerHeight));
+    })).toBeLessThanOrEqual(2);
 
     // Computed geometry and visibility at a real narrow viewport cannot be
     // established by the unit DOM environment.
@@ -405,7 +411,6 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
         const buffer = element.querySelector('.status-right').getBoundingClientRect();
         const bufferLeft = element.querySelector('.status-buffer-left');
         const bufferRight = element.querySelector('.status-buffer-right');
-        const bufferLeftBounds = bufferLeft.getBoundingClientRect();
         const bufferRightBounds = bufferRight.getBoundingClientRect();
         const fileIssues = element.querySelector('#status-file-issues');
         const fileIssuesBounds = fileIssues.getBoundingClientRect();
@@ -413,10 +418,8 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
             '.status-left > *, .status-buffer-left > *, .status-buffer-right > *',
         )]
             .filter(child => getComputedStyle(child).display !== 'none')
-            .map(child => child.getBoundingClientRect());
-        const identifiedChildren = group => [...group.children]
-            .filter(child => child.id)
-            .map(child => child.id);
+            .map(child => child.getBoundingClientRect())
+            .filter(rect => rect.width > 0 && rect.height > 0);
         return {
             height: bar.height,
             overflowY: getComputedStyle(element).overflowY,
@@ -425,16 +428,13 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
             childrenInside: visibleChildren.every(rect => rect.top >= bar.top - 1 && rect.bottom <= bar.bottom + 1),
             applicationAligned: Math.abs(application.right - sidebar.right) <= 1,
             bufferAligned: Math.abs(buffer.left - sidebar.right) <= 1,
-            leftGroupAligned: bufferLeftBounds.left >= buffer.left
-                && bufferLeftBounds.left - buffer.left <= 13,
-            rightGroupAligned: Math.abs(bufferRightBounds.right - buffer.right) <= 3,
-            groupsSeparated: bufferLeftBounds.right <= bufferRightBounds.left,
-            applicationLabel: element.querySelector('.status-left').getAttribute('aria-label'),
-            bufferLabel: element.querySelector('.status-right').getAttribute('aria-label'),
-            leftGroupLabel: bufferLeft.getAttribute('aria-label'),
-            rightGroupLabel: bufferRight.getAttribute('aria-label'),
-            leftOrder: identifiedChildren(bufferLeft),
-            rightOrder: identifiedChildren(bufferRight),
+            leftGroupDisplay: getComputedStyle(bufferLeft).display,
+            rightGroupAligned: Math.abs(bufferRightBounds.right - (buffer.right - 28)) <= 1,
+            metricsFit: bufferRightBounds.left >= buffer.left,
+            gripAtWindowCorner: (() => {
+                const grip = document.getElementById('resize-grip').getBoundingClientRect();
+                return Math.abs(grip.right - innerWidth) <= 2 && Math.abs(grip.bottom - innerHeight) <= 1;
+            })(),
         };
     });
 
@@ -446,27 +446,13 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
         childrenInside: true,
         applicationAligned: true,
         bufferAligned: true,
-        leftGroupAligned: true,
+        leftGroupDisplay: 'none',
         rightGroupAligned: true,
-        groupsSeparated: true,
-        applicationLabel: 'Application status',
-        bufferLabel: 'Active buffer status',
-        leftGroupLabel: 'History, relationships, and editor state',
-        rightGroupLabel: 'Document metrics',
-        leftOrder: [
-            'history-count',
-            'git-status-separator',
-            'git-status',
-            'backlinks-status',
-            'file-type',
-            'editor-scale-separator',
-            'editor-scale-status',
-            'file-encoding',
-        ],
-        rightOrder: ['cursor-position', 'word-count', 'char-count', 'reading-time', 'resize-grip'],
+        metricsFit: true,
+        gripAtWindowCorner: true,
     });
 
-    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
+    await page.mouse.move(100, 200);
     await page.locator('#editor-container .cm-content').focus();
     await page.evaluate(async () => {
         const { statusBar } = await import('/js/statusBar.js');

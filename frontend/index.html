@@ -172,9 +172,11 @@
     <script defer src="/vendored/vega/vega-lite.min.js"></script>
     <script defer src="/vendored/vega/vega-embed.min.js"></script>
     <script defer src="/vendored/lucide/lucide.min.js"></script>
-    <!-- Load the complete application graph during startup. The bootstrap waits
-         for Wails' bound Go App object before it initializes the workspace. -->
-    <script type="module" src="/js/bootstrap.js"></script>
+    <!-- Load the complete, eagerly bundled application graph during startup.
+         The bundle's bootstrap waits for Wails' bound Go App object before it
+         initializes the workspace. The development server substitutes the
+         source bootstrap so a reload still reflects local edits. -->
+    <script type="module" src="/app.bundle.js"></script>
 </head>
 <body>
     <div id="app" data-startup-hydrating="true">
@@ -211,6 +213,11 @@
                 </div>
             </div>
             <div class="top-bar-right">
+                <button type="button" id="writing-lenses-quick-toggle" class="ui-icon-button writing-lenses-quick-toggle"
+                        title="Writing lenses (Ctrl/Cmd+Shift+L)" aria-label="Writing lenses"
+                        aria-controls="writing-lenses-quick" aria-haspopup="dialog" aria-expanded="false" hidden>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M8 9h8M8 13h6M8 17h3"/></svg>
+                </button>
                 <span class="md-cheatsheet-wrapper topbar-cheatsheet">
                     <button type="button" class="ui-icon-button md-cheatsheet-trigger" id="md-cheatsheet-trigger" title="Figaro help (F1)" aria-label="Open Figaro help" aria-expanded="false" aria-haspopup="dialog" aria-controls="md-cheatsheet-popup">?</button>
                     <div class="md-cheatsheet-popup" id="md-cheatsheet-popup" role="dialog" aria-label="Figaro help" hidden>
@@ -287,6 +294,8 @@
                                 <tr><td><code>Ctrl/Cmd+Shift+N</code></td><td>New daily note</td></tr>
                                 <tr><td><code>Ctrl/Cmd+Shift+F</code></td><td>Focus global search</td></tr>
                                 <tr><td><code>Ctrl/Cmd+Shift+B</code></td><td>Toggle sidebar</td></tr>
+                                <tr><td><code>Ctrl/Cmd+Shift+L</code></td><td>Writing lenses pane / Pure picker</td></tr>
+                                <tr><td><code>Ctrl/Cmd+.</code></td><td>Review writing suggestions at the caret</td></tr>
                                 <tr><td><code>Ctrl+PageUp</code> <code>Ctrl+PageDown</code></td><td>Previous / next open buffer</td></tr>
                                 <tr><td><code>Ctrl/Cmd+W</code></td><td>Close current buffer</td></tr>
                                 <tr><td><code>Ctrl/Cmd+S</code></td><td>Save current file</td></tr>
@@ -418,7 +427,7 @@
                     <div class="editor-navigation-overlay">
                         <nav id="sticky-heading-stack" class="sticky-heading-stack" aria-label="Sticky heading hierarchy" hidden></nav>
                         <div class="editor-navigation-launchers">
-                            <button type="button" id="outline-toggle" class="ui-icon-button editor-navigation-launcher editor-outline-launcher"
+                            <button type="button" id="outline-toggle" class="ui-button ui-icon-button editor-navigation-launcher editor-outline-launcher"
                                     title="Show document outline" aria-label="Show document outline"
                                     aria-controls="right-sidebar" aria-expanded="false" hidden>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -429,19 +438,24 @@
                                     <path d="M3 5v12a2 2 0 0 0 2 2h3"></path>
                                 </svg>
                             </button>
-                            <button type="button" id="raw-text-preview-toggle" class="ui-icon-button editor-navigation-launcher editor-preview-launcher"
+                            <button type="button" id="raw-text-preview-toggle" class="ui-button ui-icon-button editor-navigation-launcher editor-preview-launcher"
                                     title="Preview raw Markdown" aria-label="Preview raw Markdown"
                                     aria-controls="right-sidebar" aria-expanded="false" hidden>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <path d="M4 4h16v16H4z"></path><path d="m8 9-2 3 2 3"></path><path d="m16 9 2 3-2 3"></path><path d="m13 7-2 10"></path>
                                 </svg>
                             </button>
-                            <button type="button" id="pdf-preview-toggle" class="ui-icon-button editor-navigation-launcher editor-preview-launcher"
+                            <button type="button" id="pdf-preview-toggle" class="ui-button ui-icon-button editor-navigation-launcher editor-preview-launcher"
                                     title="Preview PDF" aria-label="Preview PDF"
                                     aria-controls="right-sidebar" aria-expanded="false" hidden>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <path d="M6 2h9l5 5v15H6z"></path><path d="M14 2v6h6"></path><path d="M9 13h6"></path><path d="M9 17h4"></path>
                                 </svg>
+                            </button>
+                            <button type="button" id="writing-lenses-toggle" class="ui-button ui-icon-button editor-navigation-launcher"
+                                    title="Writing lenses (Ctrl/Cmd+Shift+L)" aria-label="Writing lenses"
+                                    aria-controls="right-sidebar" aria-expanded="false" hidden>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M8 9h8M8 13h6M8 17h3"/></svg>
                             </button>
                         </div>
                     </div>
@@ -572,15 +586,16 @@
                     <span id="char-count" class="status-detail-extended">0 chars</span>
                     <span class="status-separator status-detail-reading">|</span>
                     <span id="reading-time" class="status-detail-reading">0 min read</span>
-                    <span id="resize-grip" title="Drag corner to resize">
-                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <line x1="16" y1="2" x2="2" y2="16"></line>
-                            <line x1="16" y1="8" x2="8" y2="16"></line>
-                            <line x1="16" y1="14" x2="14" y2="16"></line>
-                        </svg>
-                    </span>
+
                 </div>
             </div>
+            <span id="resize-grip" title="Drag corner to resize">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="16" y1="2" x2="2" y2="16"></line>
+                    <line x1="16" y1="8" x2="8" y2="16"></line>
+                    <line x1="16" y1="14" x2="14" y2="16"></line>
+                </svg>
+            </span>
         </footer>
 
 

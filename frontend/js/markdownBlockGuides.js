@@ -10,10 +10,10 @@ import {
     unfoldEffect,
 } from '@codemirror/language';
 import { markdownHeadingFoldingExtension } from './markdownHeadingFolding.js';
-import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
+import { clearEditorBlockActionLayout, synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
 import {
     leadingFrontmatterEnd,
-    MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH,
+    markdownBlockGuideSpacerLength,
     markdownHeadingLevel,
     markdownBlockGuidePlan,
 } from './core/markdownBlockGuideModel.js';
@@ -355,10 +355,19 @@ class MarkdownBlockGuideMarker extends GutterMarker {
 }
 
 class MarkdownBlockGuideSpacer extends GutterMarker {
+    constructor(length) {
+        super();
+        this.length = length;
+    }
+
+    eq(other) {
+        return this.length === other.length;
+    }
+
     toDOM() {
         const spacer = document.createElement('span');
         spacer.className = 'cm-markdownBlockGuideSpacer';
-        spacer.textContent = 'x'.repeat(MARKDOWN_BLOCK_GUIDE_MAX_LABEL_LENGTH);
+        spacer.textContent = 'x'.repeat(this.length);
         spacer.setAttribute('aria-hidden', 'true');
         return spacer;
     }
@@ -421,8 +430,6 @@ class TaskItemActionMarker extends GutterMarker {
         return controls;
     }
 }
-
-const spacerMarker = new MarkdownBlockGuideSpacer();
 
 function guideOnLine(state, lineFrom) {
     return buildMarkdownBlockGuides(state).find(guide => guide.lineFrom === lineFrom) || null;
@@ -515,6 +522,7 @@ export function createMarkdownBlockGuidesExtension({
     const showTaskCalendar = typeof openTaskCalendar === 'function';
     const markerPlugin = ViewPlugin.fromClass(class {
         constructor(view) {
+            this.view = view;
             synchronizeEditorBlockActionLayout(view);
             this.rebuild(view);
         }
@@ -532,6 +540,10 @@ export function createMarkdownBlockGuidesExtension({
                 || syntaxTree(update.startState) !== syntaxTree(update.state)) {
                 this.rebuild(update.view);
             }
+        }
+
+        destroy() {
+            clearEditorBlockActionLayout(this.view);
         }
 
         rebuild(view) {
@@ -597,8 +609,16 @@ export function createMarkdownBlockGuidesExtension({
             markers(view) {
                 return view.plugin(markerPlugin)?.markers || RangeSet.empty;
             },
-            initialSpacer() {
-                return spacerMarker;
+            initialSpacer(view) {
+                return new MarkdownBlockGuideSpacer(markdownBlockGuideSpacerLength(
+                    view.plugin(markerPlugin)?.guides || [], { showImageReset },
+                ));
+            },
+            updateSpacer(spacer, update) {
+                const length = markdownBlockGuideSpacerLength(
+                    update.view.plugin(markerPlugin)?.guides || [], { showImageReset },
+                );
+                return spacer.length === length ? spacer : new MarkdownBlockGuideSpacer(length);
             },
             widgetMarker(view, _widget, block) {
                 return widgetGuide(view, block);

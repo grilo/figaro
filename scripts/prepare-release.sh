@@ -11,14 +11,15 @@ fail() {
 }
 
 publish=false
-if [ "${1:-}" = '--push' ]; then
-    publish=true
-    shift
-fi
+check_only=false
+case "${1:-}" in
+    --push) publish=true; shift ;;
+    --check) check_only=true; shift ;;
+esac
 
 requested_version="${1:-}"
 if [ "$#" -ne 1 ] || [ -z "$requested_version" ]; then
-    fail 'use: make release major|minor|patch or make release VERSION=vMAJOR.MINOR.PATCH'
+    fail 'use: make release-check|release-local|release major|minor|patch or VERSION=vMAJOR.MINOR.PATCH'
 fi
 
 case "$requested_version" in
@@ -45,6 +46,21 @@ case "$requested_version" in
 esac
 tag="v${version}"
 
+# Validate the proposed metadata and exact notes in a disposable directory.
+# Verification can run on a feature branch; finalizing a release requires main.
+if [ "$check_only" = true ]; then
+    preview_root="$(mktemp -d)"
+    trap 'rm -rf -- "$preview_root"' EXIT
+    cp package.json package-lock.json wails.json CHANGELOG.md "$preview_root/"
+    node .agents/skills/prepare-figaro-release/scripts/sync-release-metadata.mjs \
+        "$version" --root "$preview_root" --date "$(date +%F)"
+    (cd "$preview_root" && node "$repository_root/scripts/extract-release-notes.mjs" "$tag")
+    ./scripts/verify-release.sh
+    printf '\nProvisional release %s verified; version selection and release approval are still required.\n' "$tag"
+    printf 'Repository release metadata, index, commits, tags, and remotes were not changed by release preparation.\n'
+    exit 0
+fi
+
 if [ "$(git branch --show-current)" != 'main' ]; then
     fail 'release preparation requires the main branch'
 fi
@@ -68,30 +84,16 @@ fi
 
 release_date="$(date +%F)"
 if [ "$tag_exists" = true ]; then
-    metadata_check="$(node skills/prepare-figaro-release/scripts/sync-release-metadata.mjs \
+    metadata_check="$(node .agents/skills/prepare-figaro-release/scripts/sync-release-metadata.mjs \
         "$version" --date "$release_date" --dry-run)"
     if printf '%s\n' "$metadata_check" | grep -q '^  '; then
         fail "local tag ${tag} exists, but its checked-out metadata is not synchronized"
     fi
 else
-    node skills/prepare-figaro-release/scripts/sync-release-metadata.mjs "$version" --date "$release_date"
+    node .agents/skills/prepare-figaro-release/scripts/sync-release-metadata.mjs "$version" --date "$release_date"
 fi
 node scripts/extract-release-notes.mjs "$tag" >/dev/null
-git diff --check
-git diff --cached --check
-
-npm ci
-npm run vendor
-npm run lint
-npm run test:unit
-go vet . ./internal/... ./cmd/...
-go test . ./internal/... ./cmd/...
-go test -race . ./internal/... ./cmd/...
-npx playwright install chromium
-npm run test:pdf
-
-git diff --check
-git diff --cached --check
+./scripts/verify-release.sh
 
 if [ "$tag_exists" = false ]; then
     git add -A

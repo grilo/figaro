@@ -1,11 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-async function openWelcomeEditor(page) {
-    await page.goto('/');
-    await page.waitForFunction(() => window._appReady === true);
-    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
-    await expect(page.locator('.cm-editor')).toBeVisible();
-}
+import { openWelcomeEditor } from './support/editorWorkspace.js';
 
 test('small Mermaid diagrams keep their edge handle reachable and commit height once on release', async ({ page }) => {
     await openWelcomeEditor(page);
@@ -199,7 +193,35 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
 
     const collapseDiagram = page.getByRole('button', { name: 'Collapse mermaid code block' });
     await page.locator('.cm-live-diagram').hover();
-    await expect(collapseDiagram).toBeVisible();
+    await expect(collapseDiagram).toHaveCSS('opacity', '1');
+    await expect(helper).toHaveCSS('opacity', '1');
+    // A stationary pointer must keep both controls painted while typing remaps
+    // their gutter markers. Final visibility alone misses the intermediate flash.
+    await page.evaluate(() => {
+        window.__mermaidControlFrames = [];
+        const sample = () => {
+            for (const control of document.querySelectorAll('.cm-editor-block-guide-stack button')) {
+                window.__mermaidControlFrames.push(Number(getComputedStyle(control).opacity));
+            }
+            window.__mermaidControlFrame = requestAnimationFrame(sample);
+        };
+        sample();
+    });
+    await page.keyboard.type('Typing ', { delay: 50 });
+    const controlFrames = await page.evaluate(() => {
+        cancelAnimationFrame(window.__mermaidControlFrame);
+        return window.__mermaidControlFrames;
+    });
+    expect(controlFrames.length).toBeGreaterThan(10);
+    expect(Math.min(...controlFrames)).toBeGreaterThanOrEqual(0.99);
+    await page.evaluate(() => window.__mermaidEditorMainView.dispatch({
+        changes: { from: 0, to: 'Typing '.length }, selection: { anchor: 0 },
+    }));
+    await page.mouse.move(5, 5);
+    await expect(helper).toHaveCSS('opacity', '0');
+    await expect(collapseDiagram).toHaveCSS('opacity', '0');
+    await page.locator('.cm-live-diagram').hover();
+    await expect(collapseDiagram).toHaveCSS('opacity', '1');
     await collapseDiagram.click();
     await expect(page.locator('.cm-live-diagram')).toHaveCount(0);
     await expect(page.locator('.cm-foldPlaceholder')).toHaveCount(1);
@@ -322,7 +344,14 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     await expect(modal.locator('.mermaid-editor-node-row')).toHaveCount(7);
     await expect(modal.locator('.mermaid-editor-combobox').first()).toHaveClass(/ui-picker--quiet/);
     const nodeList = modal.locator('.mermaid-editor-node-list');
-    await nodeList.evaluate(element => { element.scrollTop = 24; });
+    const stylePanel = modal.locator('.mermaid-editor-style-content');
+    // Real overflow geometry: every element expands the list; only the Style
+    // panel scrolls, including while row selection rebuilds its contents.
+    await expect(nodeList).toHaveCSS('max-height', 'none');
+    await expect(nodeList).toHaveCSS('overflow-y', 'visible');
+    expect(await nodeList.evaluate(list => list.scrollHeight - list.clientHeight)).toBe(0);
+    expect(await stylePanel.evaluate(panel => panel.scrollHeight - panel.clientHeight)).toBeGreaterThan(0);
+    await stylePanel.evaluate(panel => { panel.scrollTop = 24; });
     const nodeRows = modal.locator('.mermaid-editor-node-row');
     const rowGeometry = async () => nodeRows.evaluateAll(rows => rows.map(row => {
         const rect = row.getBoundingClientRect();
@@ -347,7 +376,7 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     });
     expect(pressedRows).toEqual(baselineRows);
     expect(settledFrames.every(frame => JSON.stringify(frame) === JSON.stringify(baselineRows))).toBe(true);
-    expect(await nodeList.evaluate(element => element.scrollTop)).toBe(24);
+    expect(await stylePanel.evaluate(panel => panel.scrollTop)).toBe(24);
     expect(await nodeRows.first().evaluate(row => {
         const identity = row.querySelector('.mermaid-editor-node-identity');
         const shape = row.querySelector('.mermaid-editor-node-shape');
@@ -361,6 +390,28 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
             && getComputedStyle(name).textOverflow === 'ellipsis'
             && name.scrollWidth > name.clientWidth;
     })).toBe(true);
+    // Native focus scrolling must reveal both ends through the outer panel,
+    // and wheel input over a row must use that same scroll owner.
+    await nodeRows.first().focus();
+    await nodeRows.first().press('End');
+    await expect(nodeRows.last()).toBeFocused();
+    expect(await nodeRows.last().evaluate(row => {
+        const bounds = row.getBoundingClientRect();
+        const panel = row.closest('.mermaid-editor-style-content').getBoundingClientRect();
+        return bounds.top >= panel.top - 1 && bounds.bottom <= panel.bottom + 1;
+    })).toBe(true);
+    await nodeRows.last().press('ArrowUp');
+    await expect(nodeRows.nth(5)).toBeFocused();
+    await nodeRows.nth(5).press('ArrowDown');
+    await expect(nodeRows.last()).toBeFocused();
+    await nodeRows.last().press('Home');
+    await expect(nodeRows.first()).toBeFocused();
+    await stylePanel.evaluate(panel => { panel.scrollTop = 0; });
+    await nodeRows.first().hover();
+    await page.mouse.wheel(0, 160);
+    await expect.poll(() => stylePanel.evaluate(panel => panel.scrollTop)).toBeGreaterThan(0);
+    expect(await nodeList.evaluate(list => list.scrollTop)).toBe(0);
+    await stylePanel.evaluate(panel => { panel.scrollTop = 24; });
     const directionChoice = modal.getByRole('group', { name: 'Direction' });
     await expect(directionChoice.getByRole('button')).toHaveCount(4);
     expect(await directionChoice.evaluate(element => {
@@ -411,7 +462,7 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
         return {
             editorBeforeList: Boolean(editor.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING),
             editorVisible: editorRect.top >= panelRect.top && editorRect.bottom <= panelRect.bottom,
-            listIsBounded: list.scrollHeight > list.clientHeight,
+            listFullyExpanded: list.scrollHeight === list.clientHeight,
             swatchRadius: getComputedStyle(list.querySelector('.mermaid-editor-node-swatch')).borderRadius,
             modalBorder: getComputedStyle(modal).borderTopWidth,
             paneBorder: getComputedStyle(pane).borderTopWidth,
@@ -426,7 +477,7 @@ test('edits a Mermaid block with templates, live diagnostics, and last-known-goo
     expect(nodeEditorLayout).toEqual({
         editorBeforeList: true,
         editorVisible: true,
-        listIsBounded: true,
+        listFullyExpanded: true,
         swatchRadius: '50%',
         modalBorder: '0px',
         paneBorder: '0px',

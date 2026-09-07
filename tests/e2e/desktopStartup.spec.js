@@ -461,7 +461,6 @@ test('hydrates input and layout preferences before the first restored editor fra
                 VimRevealBlocksLoad: { enabled: true },
                 LineNumbersLoad: { enabled: true },
                 MarkdownLintLoad: { enabled: false },
-                SpellcheckLoad: { enabled: false, language: 'en-US' },
                 EditorNavigationLoad: {
                     stickyHeadings: false,
                     blockGuides: false,
@@ -531,7 +530,6 @@ test('hydrates input and layout preferences before the first restored editor fra
             VimRevealBlocksLoad: () => held('VimRevealBlocksLoad'),
             LineNumbersLoad: () => held('LineNumbersLoad'),
             MarkdownLintLoad: () => held('MarkdownLintLoad'),
-            SpellcheckLoad: () => held('SpellcheckLoad'),
             EditorNavigationLoad: () => held('EditorNavigationLoad'),
             AutoSaveLoad: () => Promise.resolve(300),
         };
@@ -558,7 +556,6 @@ test('hydrates input and layout preferences before the first restored editor fra
         'VimRevealBlocksLoad',
         'LineNumbersLoad',
         'MarkdownLintLoad',
-        'SpellcheckLoad',
         'EditorNavigationLoad',
     ];
     await expect.poll(() => page.evaluate(() => window.__hydrationCalls.map(call => call.method)))

@@ -7,27 +7,45 @@ import {
 } from '../frontend/js/spellcheck.js';
 
 describe('offline Markdown spellcheck', () => {
-    test('uses the global default, honours frontmatter overrides, and allows a note to opt out', () => {
-        expect(resolveSpellcheckConfiguration('# Note', 'en-GB')).toEqual({
-            enabled: true,
-            languages: ['en-GB'],
-            overridden: false,
-        });
-        expect(resolveSpellcheckConfiguration('---\nspellcheck: [en_GB, es]\n---\n# Note')).toEqual({
-            enabled: true,
-            languages: ['en-GB', 'es'],
-            overridden: true,
-        });
-        expect(resolveSpellcheckConfiguration('---\nspellcheck: false\n---\n# Note')).toEqual({
-            enabled: false,
-            languages: [],
-            overridden: true,
-        });
-        expect(resolveSpellcheckConfiguration('---\nspellcheck: unsupported\n---\n# Note', 'es')).toEqual({
-            enabled: true,
-            languages: ['es'],
-            overridden: false,
-        });
+    test('reference identifiers, definitions and nested indented code never become spelling targets', async () => {
+        const source = '\uFEFF---\r\ntitle: teh\r\n...\r\n\r\n😀 [teh label][teh]\r\n\r\n[teh]: https://example.com "teh title"\r\n\r\n    const teh = true;\r\n\r\n- item\r\n\r\n      const teh = true;\r\n\r\n>     const teh = true;\r\n\r\n`teh` and [teh](teh.md)';
+        const words = spellcheckWordRanges(source);
+        expect(words.filter(word => word.word === 'teh').map(word => word.from)).toEqual([source.indexOf('[teh label]') + 1, source.lastIndexOf('[teh]') + 1]);
+        expect(words.map(word => word.word)).not.toEqual(expect.arrayContaining(['title', 'const']));
+        for (const word of words) expect(source.slice(word.from, word.to)).toBe(word.word);
+        const checker = jest.fn();
+        for (const pos of [source.indexOf('[teh]:') + 1, source.indexOf('][teh]') + 2, source.indexOf('const teh') + 7]) {
+            expect(spellcheckWordAtPosition(source, pos)).toBeNull();
+            await expect(spellcheckSuggestionsAtPosition(source, pos, 'en-US', checker)).resolves.toBeNull();
+        }
+        expect(checker).not.toHaveBeenCalled();
+        expect(spellcheckWordRanges('---\ntitle: teh')).toEqual([]);
+        // Four spaces continuing a paragraph are prose, not an indented code block.
+        expect(spellcheckWordRanges('A paragraph\n    teh continuation').map(word => word.word)).toContain('teh');
+    });
+
+    test('collapsed and shortcut reference labels are advisory while explicit and ordinary bracketed labels remain editable', async () => {
+        const source = '[teh][] [TEH] [teh][id] [typo]\n\n[teh]: destination\n[id]: destination';
+        const words = spellcheckWordRanges(source);
+        expect(words).toEqual([
+            { from: 1, to: 4, word: 'teh', editable: false },
+            { from: 15, to: 18, word: 'teh' },
+            { from: 25, to: 29, word: 'typo' },
+        ]);
+        const checker = async () => ({ correct: word => word === 'the', suggest: () => [] });
+        await expect(spellcheckSuggestionsAtPosition(source, 2, 'en-US', checker)).resolves.toMatchObject({ suggestions: [] });
+        await expect(spellcheckSuggestionsAtPosition(source, 16, 'en-US', checker)).resolves.toMatchObject({ suggestions: ['the'] });
+        expect(spellcheckWordRanges('[Teh]\n\n[teh]: x')[0]).toMatchObject({ word: 'Teh', editable: false });
+        expect(spellcheckWordRanges('![teh][] ![teh] ![teh][id]\n\n[teh]: x\n[id]: x').map(word => word.editable !== false)).toEqual([false, false, true]);
+    });
+
+    test('uses the lens language and ignores retired frontmatter opt-outs and language overrides', () => {
+        for (const legacy of ['false', '[en_GB, es]', 'es', 'unsupported']) {
+            expect(resolveSpellcheckConfiguration(`---\nspellcheck: ${legacy}\n---\nteh`, 'en-US'))
+                .toEqual({ enabled: true, languages: ['en-US'], overridden: false });
+        }
+        expect(resolveSpellcheckConfiguration('teh', 'none')).toEqual({ enabled: false, languages: [], overridden: false });
+        expect(resolveSpellcheckConfiguration('qeu', 'es').languages).toEqual(['es']);
     });
 
     test('checks prose but excludes frontmatter, code, URLs, email, and link destinations', async () => {
@@ -45,11 +63,11 @@ describe('offline Markdown spellcheck', () => {
         ].join('\n');
         const knownWords = new Set(['colour', 'is', 'correct', 'link', 'text', 'and', 'stay', 'untouched', 'remains', 'an', 'acronym']);
         const getChecker = jest.fn(async language => ({
-            correct: word => language === 'en-GB' && knownWords.has(word.toLowerCase()),
+            correct: word => language === 'en-US' && knownWords.has(word.toLowerCase()),
         }));
 
         const diagnostics = await spellcheckDiagnostics(source, 'en-US', getChecker);
-        expect(getChecker).toHaveBeenCalledWith('en-GB');
+        expect(getChecker).toHaveBeenCalledWith('en-US');
         expect(diagnostics.map(diagnostic => source.slice(diagnostic.from, diagnostic.to))).toEqual(['Teh']);
         expect(diagnostics[0]).toMatchObject({
             severity: 'info',

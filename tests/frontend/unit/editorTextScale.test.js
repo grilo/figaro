@@ -4,8 +4,6 @@ import {
     getConfiguredEditorTextScale,
     persistConfiguredEditorTextScale,
     renderEditorTextScaleStatus,
-    resetBufferEditorTextScale,
-    setBufferEditorTextScale,
 } from '../frontend/js/editorTextScale.js';
 
 describe('editor text scale adapter', () => {
@@ -24,13 +22,11 @@ describe('editor text scale adapter', () => {
         expect(persistConfiguredEditorTextScale(110)).toBe(110);
         expect(localStorage.getItem('editor-font-size')).toBe('110');
 
-        const tab = { id: 'note.md', type: 'file' };
-        expect(getBufferEditorTextScale(tab)).toBe(110);
-        setBufferEditorTextScale(tab, 130);
-        expect(getBufferEditorTextScale(tab)).toBe(130);
+        expect(getBufferEditorTextScale({ id: 'note.md', type: 'file' })).toBe(110);
+        expect(getBufferEditorTextScale({
+            id: 'note.md', type: 'file', _editorTextScale: 130,
+        })).toBe(130);
         expect(localStorage.getItem('editor-font-size')).toBe('110');
-        expect(resetBufferEditorTextScale(tab)).toBe(110);
-        expect(tab).not.toHaveProperty('_editorTextScale');
     });
 
     test('applies only font size, retains a stable line-height ratio, and anchors reflow', () => {

@@ -26,6 +26,7 @@ var markdownBacklinkRE = regexp.MustCompile(`\[([^\]\r\n]*)\]\(([^)\s\r\n]+)\)`)
 // Kanban and calendar structures make their common queries independent of the
 // number of notes altogether.
 type vaultIndex struct {
+	revision                uint64
 	files                   map[string]vaultIndexedFile
 	paths                   []string
 	tags                    map[string]struct{}
@@ -317,13 +318,24 @@ var indexedSearchFields = []searchmodel.Field{
 }
 
 func (index *vaultIndex) addSearchDocument(file vaultIndexedFile) {
+	index.addSearchDocumentWithOrder(file, false)
+}
+
+// addSearchDocumentWithOrder uses append-only postings while a complete index
+// is rebuilt in path order. Incremental updates retain sorted insertion because
+// a saved note can arrive anywhere in the existing path sequence.
+func (index *vaultIndex) addSearchDocumentWithOrder(file vaultIndexedFile, pathsAlreadySorted bool) {
 	for fieldIndex := searchmodel.Field(0); fieldIndex < searchmodel.FieldCount; fieldIndex++ {
 		index.searchFieldLengths[fieldIndex] += file.searchDocument.Fields[fieldIndex].Length
 	}
 	newVocabulary := make([]string, 0)
 	for _, term := range searchmodel.UniqueTerms(file.searchDocument, indexedSearchFields...) {
 		postings, exists := index.searchTermPostings[term]
-		index.searchTermPostings[term] = insertSortedPath(postings, file.path)
+		if pathsAlreadySorted {
+			index.searchTermPostings[term] = append(postings, file.path)
+		} else {
+			index.searchTermPostings[term] = insertSortedPath(postings, file.path)
+		}
 		index.searchDocumentFrequency[term] = len(index.searchTermPostings[term])
 		if !exists && index.searchVocabularyReady {
 			newVocabulary = append(newVocabulary, term)
@@ -443,15 +455,20 @@ func (index *vaultIndex) rebuildDerived() {
 	index.searchFieldLengths = [searchmodel.FieldCount]int{}
 	index.backlinksByTarget = make(map[string][]BacklinkResult)
 	for _, path := range index.paths {
-		index.addFileContributions(index.files[path])
+		index.addFileContributionsWithOrder(index.files[path], true)
 	}
 	index.sortAllCards()
 	index.sortAllLinkedNotes()
 	index.sortAllBacklinks()
 	index.rebuildSearchVocabulary()
+	index.revision++
 }
 
 func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
+	index.addFileContributionsWithOrder(file, false)
+}
+
+func (index *vaultIndex) addFileContributionsWithOrder(file vaultIndexedFile, pathsAlreadySorted bool) {
 	for _, tag := range file.tags {
 		index.tagCounts[tag]++
 		index.tags[tag] = struct{}{}
@@ -488,15 +505,19 @@ func (index *vaultIndex) addFileContributions(file vaultIndexedFile) {
 	}
 	if file.searchIndexed {
 		for _, trigram := range file.searchTrigrams {
-			index.searchTrigrams[trigram] = insertSortedPath(
-				index.searchTrigrams[trigram],
-				file.path,
-			)
+			if pathsAlreadySorted {
+				index.searchTrigrams[trigram] = append(index.searchTrigrams[trigram], file.path)
+			} else {
+				index.searchTrigrams[trigram] = insertSortedPath(
+					index.searchTrigrams[trigram],
+					file.path,
+				)
+			}
 		}
 	} else {
 		index.searchUnindexedFiles[file.path] = struct{}{}
 	}
-	index.addSearchDocument(file)
+	index.addSearchDocumentWithOrder(file, pathsAlreadySorted)
 	for target, backlink := range file.backlinks {
 		index.backlinksByTarget[target] = append(index.backlinksByTarget[target], backlink)
 	}
@@ -642,6 +663,7 @@ func (index *vaultIndex) replaceFile(file vaultIndexedFile) {
 	for target := range file.backlinks {
 		sortBacklinks(index.backlinksByTarget[target])
 	}
+	index.revision++
 }
 
 // searchCandidates returns the files that might contain a case-insensitive
@@ -719,6 +741,7 @@ func (index *vaultIndex) removeFile(path string) {
 	index.removeFileContributions(file)
 	delete(index.files, path)
 	index.removePath(path)
+	index.revision++
 }
 
 func (index *vaultIndex) insertPath(path string) {
@@ -899,28 +922,71 @@ func (a *App) refreshVaultIndexAfterMoveLocked(
 			continue
 		}
 
-		text := vaultIndexedText{
-			content:        file.content,
-			searchLower:    file.searchLower,
-			searchTrigrams: file.searchTrigrams,
-			searchIndexed:  file.searchIndexed,
-			searchHeadings: file.searchHeadings,
-			searchDocument: file.searchDocument,
+		delete(index.files, oldPath)
+		if !contentChanged {
+			// A rename preserves regular-file metadata and the immutable body
+			// analysis. Only path-derived records need remapping; the file-tree
+			// cache was already remapped as one in-memory prefix operation.
+			index.files[futurePath] = remapVaultIndexedFile(file, futurePath)
+			continue
 		}
-		if contentChanged {
-			text = pooledVaultIndexedText(textPool, updatedContent)
-		}
+
 		info, err := root.Stat(filepath.FromSlash(futurePath))
 		if err != nil {
-			return fmt.Errorf("inspect moved Markdown %q: %w", futurePath, err)
+			return fmt.Errorf("inspect rewritten Markdown %q: %w", futurePath, err)
 		}
-		a.updateFileTreeCacheFileLocked(futurePath, info)
-		delete(index.files, oldPath)
+		text := pooledVaultIndexedText(textPool, updatedContent)
 		index.files[futurePath] = indexMarkdownText(futurePath, info, text)
 	}
 	index.rebuildDerived()
 	a.publishVaultIndexLocked(index)
 	return nil
+}
+
+// remapVaultIndexedFile updates only values derived from a note's vault path.
+// Its content-derived slices remain shared and immutable, avoiding a second
+// Markdown/search parse for every file in a renamed directory.
+func remapVaultIndexedFile(file vaultIndexedFile, futurePath string) vaultIndexedFile {
+	futurePath = filepath.ToSlash(futurePath)
+	file.path = futurePath
+	file.name = filepath.Base(futurePath)
+	file.searchDocument.Fields[searchmodel.FieldTitle] = searchmodel.Analyze(
+		strings.TrimSuffix(file.name, filepath.Ext(file.name)), false,
+	)
+	file.searchDocument.Fields[searchmodel.FieldPath] = searchmodel.Analyze(
+		strings.TrimSuffix(file.path, filepath.Ext(file.path)), false,
+	)
+	file.linkTargets = links.MarkdownLinkTargets(file.content, file.path)
+	file.dailyNote = ""
+	if matches := dailyNoteFilenameRE.FindStringSubmatch(file.name); len(matches) == 2 && isCalendarDate(matches[1]) {
+		file.dailyNote = matches[1]
+	}
+
+	file.cards = append([]KanbanCard(nil), file.cards...)
+	for index := range file.cards {
+		file.cards[index].File = file.path
+		file.cards[index].FileName = file.name
+	}
+	file.linked = remapLinkedNotes(file.linked, file.path, file.name)
+	file.noteLinks = remapLinkedNotes(file.noteLinks, file.path, file.name)
+	backlinks := file.backlinks
+	file.backlinks = make(map[string]BacklinkResult, len(backlinks))
+	for target, backlink := range backlinks {
+		backlink.Path = file.path
+		backlink.Name = file.name
+		file.backlinks[target] = backlink
+	}
+	return file
+}
+
+func remapLinkedNotes(notes map[string]LinkedNote, path string, name string) map[string]LinkedNote {
+	remapped := make(map[string]LinkedNote, len(notes))
+	for key, note := range notes {
+		note.Path = path
+		note.Name = name
+		remapped[key] = note
+	}
+	return remapped
 }
 
 // refreshVaultStateAfterCopyLocked walks only the newly copied subtree. It
@@ -996,5 +1062,6 @@ func (a *App) refreshVaultStateAfterCopyLocked(
 
 func (a *App) invalidateVaultIndexLocked() {
 	a.vaultIndex = nil
+	a.invalidateVaultHealthCacheLocked()
 	a.invalidateCalendarIndexLocked()
 }

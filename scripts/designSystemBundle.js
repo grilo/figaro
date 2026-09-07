@@ -1,6 +1,17 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { parse } from '@babel/parser';
+
+/** Normalize generated comments without changing strings or template literals. */
+export function formatDesignSystemBundle(source) {
+    const comments = parse(source, { sourceType: 'script' }).comments || [];
+    for (const comment of comments.toReversed()) {
+        const text = source.slice(comment.start, comment.end).replace(/[\t ]+(?=\r?$)/gm, '');
+        source = source.slice(0, comment.start) + text + source.slice(comment.end);
+    }
+    return source;
+}
 
 const DESIGN_SYSTEM_SOURCE_FILES = [
     'frontend/design-system/catalogEntry.js',

@@ -1,11 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-async function openWelcomeEditor(page) {
-    await page.goto('/');
-    await page.waitForFunction(() => window._appReady === true);
-    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
-    await expect(page.locator('.cm-editor')).toBeVisible();
-}
+import { openWelcomeEditor } from './support/editorWorkspace.js';
 
 async function chartEditorCollisionReport(modal) {
     return modal.evaluate(root => {

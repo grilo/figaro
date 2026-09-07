@@ -1,17 +1,16 @@
 import {
-    EDITOR_BLOCK_ACTION_MIN_RAIL_SPACE,
     editorBlockActionLayout,
 } from '../../../frontend/js/core/editorBlockActionLayoutModel.js';
 
 describe('editor block action layout model', () => {
     test('keeps an unmeasured helper rail stationary at every valid width', () => {
         expect(editorBlockActionLayout(359)).toEqual({
-            stacked: false,
+            writingInset: 0,
             beforeRailOffset: 0,
             beforeRailWidth: 0,
         });
         expect(editorBlockActionLayout(720)).toEqual({
-            stacked: false,
+            writingInset: 0,
             beforeRailOffset: 0,
             beforeRailWidth: 0,
         });
@@ -24,8 +23,8 @@ describe('editor block action layout model', () => {
             beforeRailBaseRight: 397,
             beforeRailWidth: 88,
         })).toEqual({
-            stacked: false,
-            beforeRailOffset: 169,
+            writingInset: 0,
+            beforeRailOffset: 167,
             beforeRailWidth: 88,
         });
 
@@ -35,20 +34,20 @@ describe('editor block action layout model', () => {
             beforeRailBaseRight: 100,
             beforeRailWidth: 60,
         })).toEqual({
-            stacked: true,
-            beforeRailOffset: -24,
+            writingInset: 0,
+            beforeRailOffset: -26,
             beforeRailWidth: 60,
         });
     });
 
     test('bounds invalid or negative measurements before publication', () => {
         expect(editorBlockActionLayout(-40)).toEqual({
-            stacked: false,
+            writingInset: 0,
             beforeRailOffset: 0,
             beforeRailWidth: 0,
         });
         expect(editorBlockActionLayout(Number.NaN)).toEqual({
-            stacked: false,
+            writingInset: 0,
             beforeRailOffset: 0,
             beforeRailWidth: 0,
         });
@@ -58,24 +57,27 @@ describe('editor block action layout model', () => {
             beforeRailBaseRight: 0,
             beforeRailWidth: 1000,
         })).toMatchObject({
-            stacked: false,
+            writingInset: 0,
             beforeRailOffset: 400,
             beforeRailWidth: 400,
         });
     });
 
-    test('uses the measured left margin instead of allowing controls beneath the sidebar', () => {
+    test('reserves the missing writing margin so full table actions cannot fall beneath the sidebar', () => {
         expect(editorBlockActionLayout(500, {
             viewportLeft: 300,
-            writingLeft: 300 + EDITOR_BLOCK_ACTION_MIN_RAIL_SPACE - 1,
+            writingLeft: 333,
             beforeRailBaseRight: 330,
             beforeRailWidth: 120,
-        }).stacked).toBe(true);
+        })).toEqual({ writingInset: 93, beforeRailOffset: 90, beforeRailWidth: 120 });
         expect(editorBlockActionLayout(500, {
             viewportLeft: 300,
-            writingLeft: 300 + EDITOR_BLOCK_ACTION_MIN_RAIL_SPACE,
+            writingLeft: 424,
             beforeRailBaseRight: 330,
             beforeRailWidth: 120,
-        }).stacked).toBe(false);
+        })).toEqual({ writingInset: 2, beforeRailOffset: 90, beforeRailWidth: 120 });
+        expect(editorBlockActionLayout(500, {
+            viewportLeft: 300, writingLeft: 333, beforeRailBaseRight: 330, beforeRailWidth: 180,
+        })).toEqual({ writingInset: 153, beforeRailOffset: 150, beforeRailWidth: 180 });
     });
 });

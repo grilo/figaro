@@ -8,6 +8,9 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
+
+	searchmodel "figaro/internal/search"
 )
 
 // SearchUnlinkedMentions returns plain-text uses of a note's filename title
@@ -32,9 +35,13 @@ func (a *App) SearchUnlinkedMentions(targetPath string) ([]BacklinkResult, error
 		return []BacklinkResult{}, nil
 	}
 
+	candidates := unlinkedMentionCandidatePaths(index, title)
 	results := make([]BacklinkResult, 0)
 	for _, path := range index.paths {
 		if path == target.path {
+			continue
+		}
+		if _, candidate := candidates[path]; !candidate {
 			continue
 		}
 		file := index.files[path]
@@ -79,6 +86,16 @@ func (a *App) SearchUnlinkedMentions(targetPath string) ([]BacklinkResult, error
 		return results[i].LineNum < results[j].LineNum
 	})
 	return results, nil
+}
+
+// unlinkedMentionCandidatePaths reuses the complete-search trigram index as a
+// conservative prefilter. The exact standalone/link-aware matcher still owns
+// the result, so normalization collisions can only add work, never matches.
+func unlinkedMentionCandidatePaths(index *vaultIndex, title string) map[string]struct{} {
+	if index == nil {
+		return map[string]struct{}{}
+	}
+	return index.searchCandidates(searchmodel.Normalize(strings.TrimSpace(title), false))
 }
 
 // LinkUnlinkedMention replaces one plain-text mention with a vault link in the
@@ -203,39 +220,56 @@ func vaultLinkTarget(sourcePath, raw string, implicitMarkdown bool) string {
 }
 
 func standaloneTitleRangeOutsideLinks(line, title string) (int, int, bool) {
-	linkRanges := make([][]int, 0)
-	linkRanges = append(linkRanges, markdownBacklinkRE.FindAllStringIndex(line, -1)...)
-	linkRanges = append(linkRanges, wikiRelationshipLinkRE.FindAllStringIndex(line, -1)...)
 	title = strings.TrimSpace(title)
-	needle := []rune(title)
-	haystack := []rune(line)
-	if len(needle) == 0 || len(needle) > len(haystack) {
+	titleRunes := utf8.RuneCountInString(title)
+	if titleRunes == 0 || titleRunes > utf8.RuneCountInString(line) {
 		return 0, 0, false
 	}
-	byteOffsets := make([]int, 0, len(haystack)+1)
-	for byteOffset := range line {
-		byteOffsets = append(byteOffsets, byteOffset)
-	}
-	byteOffsets = append(byteOffsets, len(line))
-	for startRune := 0; startRune <= len(haystack)-len(needle); startRune++ {
-		endRune := startRune + len(needle)
-		if !strings.EqualFold(string(haystack[startRune:endRune]), title) {
+	for start := 0; start < len(line); {
+		_, startSize := utf8.DecodeRuneInString(line[start:])
+		end := start
+		for count := 0; count < titleRunes && end < len(line); count++ {
+			_, size := utf8.DecodeRuneInString(line[end:])
+			end += size
+		}
+		if !strings.EqualFold(line[start:end], title) {
+			start += startSize
 			continue
 		}
-		start, end := byteOffsets[startRune], byteOffsets[endRune]
-		withinLink := false
-		for _, linkRange := range linkRanges {
-			if start < linkRange[1] && end > linkRange[0] {
-				withinLink = true
-				break
-			}
+		previousIsWord := false
+		if start > 0 {
+			previous, _ := utf8.DecodeLastRuneInString(line[:start])
+			previousIsWord = isTitleWordRune(previous)
 		}
-		if !withinLink && (startRune == 0 || !isTitleWordRune(haystack[startRune-1])) &&
-			(endRune == len(haystack) || !isTitleWordRune(haystack[endRune])) {
+		nextIsWord := false
+		if end < len(line) {
+			next, _ := utf8.DecodeRuneInString(line[end:])
+			nextIsWord = isTitleWordRune(next)
+		}
+		if !previousIsWord && !nextIsWord && !markdownRangeOverlapsLink(line, start, end) {
 			return start, end, true
 		}
+		start += startSize
 	}
 	return 0, 0, false
+}
+
+func markdownRangeOverlapsLink(line string, start int, end int) bool {
+	for _, expression := range []*regexp.Regexp{markdownBacklinkRE, wikiRelationshipLinkRE} {
+		offset := 0
+		for offset < len(line) {
+			match := expression.FindStringIndex(line[offset:])
+			if match == nil {
+				break
+			}
+			matchStart, matchEnd := offset+match[0], offset+match[1]
+			if start < matchEnd && end > matchStart {
+				return true
+			}
+			offset = matchEnd
+		}
+	}
+	return false
 }
 
 func markdownMentionTarget(targetPath string) string {

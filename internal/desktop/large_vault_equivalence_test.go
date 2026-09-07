@@ -363,3 +363,47 @@ func TestCopyFallsBackToColdRebuildWhenWarmIndexMissesExternalChange(t *testing.
 	assertStringSet(t, "fallback urgent cards", observableKanbanPaths(afterCopy.Kanban["urgent"]),
 		[]string{"unseen.md"})
 }
+
+func TestCopyWithActiveWatcherKeepsWarmIndexAndLaterReconcilesQueuedExternalChange(t *testing.T) {
+	vaultPath := t.TempDir()
+	app := NewApp(vaultPath)
+	writeTestFile(t, vaultPath, "source.md", "alpha marker\n")
+	if _, err := app.GetKanbanBoard(); err != nil {
+		t.Fatal(err)
+	}
+	warmIndex := app.vaultIndex
+
+	watcher, err := newVaultWatcherWithChanges(vaultPath, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer watcher.Close()
+	app.watcherMu.Lock()
+	app.vaultWatcher = watcher
+	app.watcherStopping = false
+	app.watcherMu.Unlock()
+
+	writeTestFile(t, vaultPath, "queued-external.md", "beta marker\n- [ ] External #urgent\n")
+	result, err := app.CopyPath("source.md", ".")
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("CopyPath with active watcher: result=%+v err=%v", result, err)
+	}
+	if app.vaultIndex != warmIndex {
+		t.Fatal("active-watcher copy replaced the warm vault index")
+	}
+	if _, found := app.vaultIndex.files["queued-external.md"]; found {
+		t.Fatal("copy unexpectedly consumed a watcher-owned external change")
+	}
+
+	app.handleVaultFilesystemChanges([]vaultWatchChange{{
+		Path: filepath.Join(vaultPath, "queued-external.md"),
+		Op:   fsnotify.Create,
+	}})
+	if app.vaultIndex != warmIndex {
+		t.Fatal("watcher reconciliation replaced the warm vault index")
+	}
+	board, err := app.GetKanbanBoard()
+	if err != nil || len(board["urgent"]) != 1 {
+		t.Fatalf("queued watcher change was not reconciled: board=%#v err=%v", board, err)
+	}
+}

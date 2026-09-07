@@ -1,7 +1,8 @@
 /**
- * Font System Integration Tests — verifies real font changes
+ * Font system component tests — verifies selection, persistence, and applied styles.
  */
 import { testUtils } from './test_setup.js';
+import { createBackendStub } from '../../../frontend/js/backendContract.js';
 
 // Simulate the editor view
 const mockEditorView = {
@@ -29,12 +30,18 @@ const mockApi = {
     VimLoad: jest.fn(() => Promise.resolve({ enabled: false })),
 };
 
+let animationFrame;
+
 beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.go = { desktop: { App: mockApi } };
+    window.go = { desktop: { App: createBackendStub(mockApi) } };
     mockEditorView.dom.style.fontFamily = '';
     document.documentElement.style.removeProperty('--font-editor');
+    animationFrame = jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+        callback(performance.now());
+        return 1;
+    });
     document.body.innerHTML = `
         <button id="font-picker-btn"><span id="font-current-name">Inter</span></button>
         <div id="font-picker-menu"></div>
@@ -45,10 +52,17 @@ beforeEach(() => {
     `;
 });
 
+afterEach(() => animationFrame.mockRestore());
+
 async function loadThemeModule() {
     // Force fresh import
     const mod = await import('../frontend/js/theme.js');
     return mod;
+}
+
+async function settleFontSelection() {
+    await Promise.resolve();
+    await Promise.resolve();
 }
 
 describe('Font Application', () => {
@@ -63,7 +77,7 @@ describe('Font Application', () => {
         figtree.click();
 
         // Check CSS variable was set
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
         const value = document.documentElement.style.getPropertyValue('--font-editor');
         expect(value).toContain('Figtree');
     });
@@ -76,7 +90,7 @@ describe('Font Application', () => {
         const ibm = Array.from(items).find(i => i.dataset.id === 'ibm-plex-sans');
         ibm.click();
 
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
         const style = document.getElementById('dynamic-font-style');
         expect(style).toBeTruthy();
         expect(style.textContent).toContain('IBM Plex Sans');
@@ -91,7 +105,7 @@ describe('Font Application', () => {
         const fira = Array.from(items).find(i => i.dataset.id === 'fira-sans');
         fira.click();
 
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
         expect(mockApi.FontSave).toHaveBeenCalledWith('fira-sans');
     });
 
@@ -155,7 +169,7 @@ describe('Font Application', () => {
         expect(cascadia).toBeTruthy();
         cascadia.click();
 
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await settleFontSelection();
         expect(document.documentElement.style.getPropertyValue('--font-code')).toContain('Cascadia Code');
         expect(document.getElementById('dynamic-code-font-style').textContent).toContain('.cm-code-file');
         expect(codeContent.style.fontFamily).toContain('Cascadia Code');

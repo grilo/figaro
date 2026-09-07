@@ -36,7 +36,7 @@ func embeddedThemeAssetPath(name string) string {
 // GetThemes returns the list of available themes from themes/manifest.json.
 func (a *App) GetThemes() (map[string]interface{}, error) {
 	path := embeddedThemeAssetPath("manifest.json")
-	data, err := assets.ReadFile(path)
+	data, err := readBundledAsset(a.assets, path)
 	if err != nil {
 		data, err = readProjectAsset(path) // fallback for dev mode
 		if err != nil {
@@ -61,7 +61,7 @@ func (a *App) GetThemeCSS(themeID string) (map[string]string, error) {
 		return nil, fmt.Errorf("invalid theme id")
 	}
 	path := embeddedThemeAssetPath(themeID + ".css")
-	data, err := assets.ReadFile(path)
+	data, err := readBundledAsset(a.assets, path)
 	if err != nil {
 		data, err = readProjectAsset(path) // fallback for dev mode
 		if err != nil {
@@ -174,7 +174,7 @@ func (a *App) PDFBrowserLoad() (*PDFBrowserSettingResult, error) {
 // PDFBrowserChoose opens the native file chooser, verifies the selected
 // executable can run Chromium headless mode, and only then persists it.
 func (a *App) PDFBrowserChoose() (*PDFBrowserSettingResult, error) {
-	ctx := a.ctx
+	ctx := a.desktopRuntime.context()
 	if ctx == nil {
 		return &PDFBrowserSettingResult{Success: false, Error: "application window is not ready"}, nil
 	}

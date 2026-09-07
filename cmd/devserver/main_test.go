@@ -3,6 +3,9 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -47,5 +50,33 @@ func TestDevServerDisablesAssetCaching(t *testing.T) {
 
 	if got := response.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q; want %q", got, "no-store")
+	}
+}
+
+func TestDevelopmentEntryUsesSourceModulesWhileProductionUsesBundle(t *testing.T) {
+	root := t.TempDir()
+	index := `<script type="module" src="/app.bundle.js"></script>`
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte(index), 0600); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	response := httptest.NewRecorder()
+	developmentAssetHandler(root).ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `/js/bootstrap.js`) {
+		t.Fatalf("development index = %d %q, want source bootstrap", response.Code, response.Body.String())
+	}
+	if strings.Contains(response.Body.String(), `/app.bundle.js`) {
+		t.Fatal("development index retained the production bundle")
+	}
+
+	productionRequest := httptest.NewRequest(http.MethodGet, "/?figaro-entry=production", nil)
+	productionResponse := httptest.NewRecorder()
+	developmentAssetHandler(root).ServeHTTP(productionResponse, productionRequest)
+	if productionResponse.Code != http.StatusOK || !strings.Contains(productionResponse.Body.String(), `/app.bundle.js`) {
+		t.Fatalf("production index = %d %q, want eager bundle", productionResponse.Code, productionResponse.Body.String())
+	}
+	if strings.Contains(productionResponse.Body.String(), `/js/bootstrap.js`) {
+		t.Fatal("production index was rewritten to the source bootstrap")
 	}
 }

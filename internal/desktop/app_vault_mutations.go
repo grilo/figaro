@@ -173,6 +173,12 @@ func (a *App) PreviewRenamePath(oldRel string, newRel string) (*SaveFileResult, 
 }
 
 func (a *App) renamePathLocked(oldRel string, newRel string, updateLinks bool) (*SaveFileResult, error) {
+	a.writingStateMu.Lock()
+	defer a.writingStateMu.Unlock()
+	return a.renamePathWritingLocked(oldRel, newRel, updateLinks)
+}
+
+func (a *App) renamePathWritingLocked(oldRel string, newRel string, updateLinks bool) (*SaveFileResult, error) {
 	oldClean, err := vaultRelativePath(oldRel)
 	if err != nil {
 		return nil, err
@@ -199,6 +205,10 @@ func (a *App) renamePathLocked(oldRel string, newRel string, updateLinks bool) (
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
+	writingChanges, err := planWritingPathMove(root, oldClean, newClean)
+	if err != nil {
+		return nil, err
+	}
 	if err := root.MkdirAll(filepath.Dir(newClean), 0755); err != nil {
 		return nil, err
 	}
@@ -219,12 +229,18 @@ func (a *App) renamePathLocked(oldRel string, newRel string, updateLinks bool) (
 			return nil, fmt.Errorf("validate link index for move: %w", err)
 		}
 	}
-	if err := root.Rename(oldClean, newClean); err != nil {
+	rollbackWriting, err := applyWritingPathMove(root, writingChanges)
+	if err != nil {
 		return nil, err
+	}
+	if err := root.Rename(oldClean, newClean); err != nil {
+		return nil, errors.Join(err, rollbackWriting())
 	}
 	if applied, err := applyVaultLinkRewrites(root, linkRewrites); err != nil {
 		restoreErr := restoreVaultLinkRewrites(root, applied)
 		renameErr := root.Rename(newClean, oldClean)
+		writingErr := rollbackWriting()
+		err = errors.Join(err, writingErr)
 		a.resetFileVersionsLocked()
 		if restoreErr != nil || renameErr != nil {
 			return nil, fmt.Errorf("%w (rollback links: %v; rollback move: %v)", err, restoreErr, renameErr)
@@ -339,6 +355,8 @@ type directoryMergeRename struct {
 func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileResult, error) {
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
+	a.writingStateMu.Lock()
+	defer a.writingStateMu.Unlock()
 
 	sourceClean, err := vaultRelativePath(sourceRel)
 	if err != nil {
@@ -392,21 +410,31 @@ func (a *App) MergeDirectory(sourceRel string, targetDirRel string) (*SaveFileRe
 		rollbackErr := a.rollbackDirectoryMergeRenamesLocked(renames)
 		return &SaveFileResult{Success: false, Error: errors.Join(fmt.Errorf("collect links for merge: %w", err), rollbackErr).Error()}, nil
 	}
+	writingChanges, err := planWritingPathMove(root, sourceClean, destination)
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: errors.Join(err, a.rollbackDirectoryMergeRenamesLocked(renames)).Error()}, nil
+	}
+	rollbackWriting, err := applyWritingPathMove(root, writingChanges)
+	if err != nil {
+		return &SaveFileResult{Success: false, Error: errors.Join(err, a.rollbackDirectoryMergeRenamesLocked(renames)).Error()}, nil
+	}
 	createdPaths := make([]string, 0)
 	if err := copyPreparedDirectoryMerge(root, sourceClean, destination, &createdPaths); err != nil {
+		writingErr := rollbackWriting()
 		cleanupErr := removeMergedPaths(root, createdPaths)
 		rollbackErr := a.rollbackDirectoryMergeRenamesLocked(renames)
-		return &SaveFileResult{Success: false, Error: errors.Join(fmt.Errorf("copy merged directory: %w", err), cleanupErr, rollbackErr).Error()}, nil
+		return &SaveFileResult{Success: false, Error: errors.Join(fmt.Errorf("copy merged directory: %w", err), cleanupErr, rollbackErr, writingErr).Error()}, nil
 	}
 	applied, err := applyVaultLinkRewrites(root, linkRewrites)
 	if err != nil {
 		restoreErr := restoreVaultLinkRewrites(root, applied)
+		writingErr := rollbackWriting()
 		cleanupErr := removeMergedPaths(root, createdPaths)
 		rollbackErr := a.rollbackDirectoryMergeRenamesLocked(renames)
-		return &SaveFileResult{Success: false, Error: errors.Join(err, restoreErr, cleanupErr, rollbackErr).Error()}, nil
+		return &SaveFileResult{Success: false, Error: errors.Join(err, restoreErr, cleanupErr, rollbackErr, writingErr).Error()}, nil
 	}
 	if err := root.RemoveAll(sourceClean); err != nil {
-		return &SaveFileResult{Success: false, Error: fmt.Sprintf("Merged contents were copied, but the source folder could not be removed: %v", err)}, nil
+		return &SaveFileResult{Success: false, Error: errors.Join(fmt.Errorf("Merged contents were copied, but the source folder could not be removed: %w", err), rollbackWriting()).Error()}, nil
 	}
 	a.invalidateFileTreeCacheLocked()
 
@@ -488,7 +516,7 @@ func (a *App) prepareDirectoryMergeCollisionsLocked(
 		if err != nil {
 			return err
 		}
-		result, err := a.renamePathLocked(sourcePath, renamedSource, true)
+		result, err := a.renamePathWritingLocked(sourcePath, renamedSource, true)
 		if err != nil {
 			return err
 		}
@@ -509,7 +537,7 @@ func (a *App) rollbackDirectoryMergeRenamesLocked(renames []directoryMergeRename
 	var rollbackErrors []error
 	for index := len(renames) - 1; index >= 0; index-- {
 		rename := renames[index]
-		result, err := a.renamePathLocked(rename.newPath, rename.oldPath, true)
+		result, err := a.renamePathWritingLocked(rename.newPath, rename.oldPath, true)
 		if err != nil {
 			rollbackErrors = append(rollbackErrors, err)
 		} else if !result.Success {
@@ -686,7 +714,7 @@ func (a *App) CopyPath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 		return &SaveFileResult{Success: false, Error: fmt.Sprintf("Could not preserve links in copied item %q: %v", filepath.Base(sourceClean), rewriteErr)}, nil
 	}
 
-	indexCurrent, validationErr := vaultIndexMatchesMarkdownFilesExcluding(root, a.vaultIndex, destination)
+	indexCurrent, validationErr := a.copyIndexIsCurrentLocked(root, destination)
 	if validationErr != nil {
 		log.Printf("[vault-index] Could not validate the warm index after copying %q: %v", filepath.ToSlash(destination), validationErr)
 		indexCurrent = false
@@ -712,6 +740,21 @@ func (a *App) CopyPath(sourceRel string, targetDirRel string) (*SaveFileResult, 
 		log.Printf("[file-tree] Could not copy styles from %q to %q: %v", filepath.ToSlash(sourceClean), filepath.ToSlash(destination), err)
 	}
 	return &SaveFileResult{Success: true, Path: filepath.ToSlash(destination), UpdatedLinks: updatedLinks}, nil
+}
+
+// copyIndexIsCurrentLocked avoids a synchronous all-note metadata walk when a
+// native watcher is active. Copying changes only the new subtree, so any
+// unrelated external edit already queued by the watcher remains independently
+// reconcilable. Filesystems without a watcher retain the exact validation and
+// cold-rebuild fallback.
+func (a *App) copyIndexIsCurrentLocked(root *os.Root, destination string) (bool, error) {
+	a.watcherMu.Lock()
+	watcherActive := a.vaultWatcher != nil && !a.watcherStopping
+	a.watcherMu.Unlock()
+	if watcherActive {
+		return a.vaultIndex != nil, nil
+	}
+	return vaultIndexMatchesMarkdownFilesExcluding(root, a.vaultIndex, destination)
 }
 
 func vaultPathIsSameOrDescendant(parent, candidate string) bool {

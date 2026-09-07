@@ -158,8 +158,6 @@ describe('markdown editor interactions', () => {
         setState('activeTabId', tab.id);
         window.go.desktop.App.ReadFile.mockClear();
         window.go.desktop.App.CreateFile.mockClear();
-        const confirmDialog = jest.fn().mockResolvedValue(true);
-        window.confirmDialog = confirmDialog;
 
         await initEditor();
         view = createEditorView();
@@ -194,7 +192,7 @@ describe('markdown editor interactions', () => {
         expect(getState('openTabs')).toEqual([tab]);
         expect(window.go.desktop.App.ReadFile).not.toHaveBeenCalled();
         expect(window.go.desktop.App.CreateFile).not.toHaveBeenCalled();
-        expect(confirmDialog).not.toHaveBeenCalled();
+        expect(document.body.classList.contains('custom-modal-open')).toBe(false);
     });
 
     test('opens rendered and revealed external links in the system browser on Ctrl/Cmd-click and shows the shortcut hint', async () => {
@@ -280,6 +278,7 @@ describe('markdown editor interactions', () => {
         const replaceActiveFileTab = jest.fn();
         configureEditorWorkspace({
             closeTab: jest.fn(),
+            confirm: jest.fn().mockResolvedValue(true),
             getActiveTab: () => current,
             markTabDirty: jest.fn(),
             openFile: jest.fn(),
@@ -287,6 +286,9 @@ describe('markdown editor interactions', () => {
             openRawTextPreview: jest.fn(),
             openTab,
             refreshFileTree: jest.fn(),
+            recordTabContent: jest.fn().mockReturnValue(true),
+            recordTabCursor: jest.fn().mockReturnValue(true),
+            recordTabEdit: jest.fn(tabId => ({ id: tabId, path: current.path, type: 'file', dirty: true, _editGeneration: 1 })),
             replaceActiveFileTab,
             saveActiveFile: jest.fn(),
             saveFileSnapshot: jest.fn(),

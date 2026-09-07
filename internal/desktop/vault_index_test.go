@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	searchmodel "figaro/internal/search"
+
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -93,6 +95,78 @@ func TestIndexMarkdownFileBuildsTagsCardsDatesAndBacklinksInOneDocumentWalk(t *t
 	}
 	if len(indexed.cards) != 3 {
 		t.Fatalf("cards = %#v, want three standalone hashtag cards", indexed.cards)
+	}
+}
+
+func TestVaultIndexBulkRebuildAppendsSortedPostingsAndAdvancesRevision(t *testing.T) {
+	_, vaultPath := newTestApp(t)
+	index := newVaultIndex()
+	for _, path := range []string{"zeta.md", "alpha.md", "middle.md"} {
+		content := "shared search body\n"
+		writeTestFile(t, vaultPath, path, content)
+		info, err := os.Stat(filepath.Join(vaultPath, path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		index.files[path] = indexMarkdownFile(path, info, []byte(content))
+	}
+
+	index.rebuildDerived()
+	if got, want := index.paths, []string{"alpha.md", "middle.md", "zeta.md"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("paths = %#v, want %#v", got, want)
+	}
+	if got, want := index.searchTermPostings["shared"], index.paths; !reflect.DeepEqual(got, want) {
+		t.Fatalf("term postings = %#v, want sorted %#v", got, want)
+	}
+	if got, want := index.searchTrigrams["sha"], index.paths; !reflect.DeepEqual(got, want) {
+		t.Fatalf("trigram postings = %#v, want sorted %#v", got, want)
+	}
+	if index.revision != 1 {
+		t.Fatalf("revision = %d, want 1", index.revision)
+	}
+	index.rebuildDerived()
+	if index.revision != 2 {
+		t.Fatalf("revision after second rebuild = %d, want 2", index.revision)
+	}
+}
+
+func TestRemapVaultIndexedFileReusesBodyAnalysisAndUpdatesPathDerivedRecords(t *testing.T) {
+	_, vaultPath := newTestApp(t)
+	content := strings.Join([]string{
+		"# Project day",
+		"- [ ] Review #todo",
+		"[Target](./Target.md)",
+		"[Launch](2026-09-01.md)",
+	}, "\n")
+	writeTestFile(t, vaultPath, "Old/2026-09-04.md", content)
+	info, err := os.Stat(filepath.Join(vaultPath, "Old", "2026-09-04.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := indexMarkdownFile("Old/2026-09-04.md", info, []byte(content))
+	remapped := remapVaultIndexedFile(original, "Archive/2026-09-04.md")
+
+	if remapped.path != "Archive/2026-09-04.md" || remapped.cards[0].File != remapped.path {
+		t.Fatalf("remapped path records = %#v", remapped)
+	}
+	if got, want := remapped.linkTargets, []string{"2026-09-01.md", "Archive/Target.md"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("link targets = %#v, want %#v", got, want)
+	}
+	if got := remapped.backlinks["./target.md"]; got.Path != remapped.path || got.Name != remapped.name {
+		t.Fatalf("remapped backlink = %#v", got)
+	}
+	if got := remapped.noteLinks["2026-09-01"]; got.Path != remapped.path || got.Name != remapped.name {
+		t.Fatalf("remapped linked note = %#v", got)
+	}
+	if len(original.searchTrigrams) == 0 || &original.searchTrigrams[0] != &remapped.searchTrigrams[0] {
+		t.Fatal("path-only remap copied immutable body trigrams")
+	}
+	if body := searchmodel.FieldBody; len(original.searchDocument.Fields[body].Terms) == 0 ||
+		&original.searchDocument.Fields[body].Terms[0] != &remapped.searchDocument.Fields[body].Terms[0] {
+		t.Fatal("path-only remap copied immutable body term statistics")
+	}
+	if original.cards[0].File != "Old/2026-09-04.md" {
+		t.Fatalf("remap mutated original cards: %#v", original.cards)
 	}
 }
 

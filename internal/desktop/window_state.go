@@ -239,5 +239,7 @@ func (a *App) captureWindowState(ctx context.Context) {
 // from the frontend. Startup and shutdown deliberately do not call this: on
 // Linux those phases can fall outside the lifetime of a realised GTK window.
 func (a *App) WindowCaptureState() {
-	a.captureWindowState(a.ctx)
+	if ctx := a.desktopRuntime.context(); ctx != nil {
+		a.captureWindowState(ctx)
+	}
 }

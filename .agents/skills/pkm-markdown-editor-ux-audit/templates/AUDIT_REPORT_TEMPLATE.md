@@ -2,7 +2,12 @@
 
 **Product:**
 **Build / commit:**
+**Dirty state:**
 **Platform:**
+**Runtime / engine:**
+**Theme / scale:**
+**Mode / scope:** full / focused / source-only
+**Disposable vault / fixture:**
 **Audit date:**
 **Auditor:**
 **Evidence available:** screenshots / video / DOM / accessibility tree / source / logs / other
@@ -11,7 +16,8 @@
 
 ## 1. Executive verdict
 
-Summarize the overall usability level in 5–10 sentences.
+Summarize the observed outcome and its evidence limits. For focused or
+source-only work, limit the verdict to the inspected scope.
 
 Include:
 
@@ -25,21 +31,24 @@ Include:
 
 ## 2. Scorecard
 
-| Category | Score / 10 | Weight | Rationale |
-|---|---:|---:|---|
-| Writing & editing mechanics | | 25% | |
-| Navigation & refinding | | 15% | |
-| Knowledge linking & organization | | 10% | |
-| Information architecture & workspace | | 10% | |
-| Data confidence, undo & recovery | | 10% | |
-| Keyboard & accessibility | | 10% | |
-| Visual/writing ergonomics | | 10% | |
-| Discoverability & learnability | | 5% | |
-| Perceived responsiveness & stability | | 5% | |
+| Category | Coverage | Score / 10 | Weight | Evidence / rationale |
+|---|---|---:|---:|---|
+| Writing & editing mechanics | | | 25% | |
+| Navigation & refinding | | | 15% | |
+| Knowledge linking & organization | | | 10% | |
+| Information architecture & workspace | | | 10% | |
+| Data confidence, undo & recovery | | | 10% | |
+| Keyboard & accessibility | | | 10% | |
+| Visual/writing ergonomics | | | 10% | |
+| Discoverability & learnability | | | 5% | |
+| Perceived responsiveness & stability | | | 5% | |
 
-**Weighted score:** /100
+**Weighted score:** /100, or withheld with reason
 
-Treat this score as a comparative heuristic, not a scientific measurement.
+Follow the evidence and scoring rules in [SKILL.md](../SKILL.md). Never silently
+exclude untested/blocked categories. Only unsupported categories may be reweighted.
+Withhold the aggregate for partial/source-only audits, missing applicable coverage,
+or an S4 issue. Treat a supported score as a heuristic, not scientific measurement.
 
 ---
 
@@ -53,13 +62,14 @@ Treat this score as a comparative heuristic, not a scientific measurement.
 - **Framework tags:**
 - **Location:**
 - **Evidence:**
+- **Evidence type / runtime:**
 - **Reproduction:**
 - **Impact:**
 - **Recommendation:**
 - **Acceptance criteria:**
 - **Screenshot/reference:**
 
-Repeat for the ten most consequential findings.
+Repeat for up to ten consequential findings; fewer or no findings is valid.
 
 ---
 
@@ -173,28 +183,31 @@ Identify changes likely to resolve multiple findings.
 
 ## 10. Regression checklist
 
-Use the dedicated regression checklist and add product-specific cases discovered
+Use [the regression checklist](REGRESSION_CHECKLIST.md) and add product-specific cases discovered
 during the audit.
 
 ---
 
 ## Appendix A — Tested tasks
 
-| Task | Tested? | Notes |
-|---|---|---|
-| Orientation | | |
-| Capture | | |
-| Basic writing | | |
-| Markdown torture note | | |
-| Live Preview transitions | | |
-| Paste | | |
-| Navigation / refinding | | |
-| Linking | | |
-| Organization | | |
-| Tabs / panes | | |
-| Keyboard-only pass | | |
-| Visual resilience | | |
-| Failure / recovery | | |
+Use passed, failed, not tested, blocked, or unsupported. Record separate rows for
+different runtimes; include a reason for blocked/unsupported tasks.
+
+| Task | Status | Runtime / evidence | Notes |
+|---|---|---|---|
+| Orientation | | | |
+| Capture | | | |
+| Basic writing | | | |
+| Markdown torture note | | | |
+| Live Preview transitions | | | |
+| Paste | | | |
+| Navigation / refinding | | | |
+| Linking | | | |
+| Organization | | | |
+| Tabs / panes | | | |
+| Keyboard-only pass | | | |
+| Visual resilience | | | |
+| Failure / recovery | | | |
 
 ## Appendix B — Unverified concerns
 

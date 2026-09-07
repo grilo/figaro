@@ -26,4 +26,26 @@ export function editorDocumentMountChunks(content, languageKind = 'plain') {
     return [source.slice(0, split), source.slice(split)];
 }
 
+/**
+ * Order live-Markdown features so presentation needed by the current source
+ * becomes ready before dormant authoring features are attached. Dormant
+ * fields still load immediately afterward, so newly typed syntax activates
+ * without another feature-code load.
+ */
+export function markdownPresentationStagePlan(content) {
+    const source = String(content ?? '');
+    const detected = {
+        image: source.includes('!['),
+        diagram: /(?:^|\n)[ \t]{0,3}(?:`{3,}|~{3,})[^\n]*(?:mermaid|vega(?:-lite)?)/iu.test(source),
+        table: source.includes('|'),
+        math: source.includes('$'),
+    };
+    const order = ['image', 'frontmatter', 'diagram', 'table', 'math'];
+    const ready = order.filter(feature => feature === 'frontmatter' || detected[feature]);
+    return {
+        ready,
+        deferred: order.filter(feature => !ready.includes(feature)),
+    };
+}
+
 export { LARGE_MARKDOWN_DOCUMENT_BYTES };

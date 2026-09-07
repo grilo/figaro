@@ -2,6 +2,27 @@ const HEADING = /^(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/;
 const FENCE = /^\s*(`{3,}|~{3,})/;
 const SETEXT = /^\s*(=+|-+)\s*$/;
 
+export const OUTLINE_AVAILABLE_TOOLTIP = 'Show document outline';
+export const OUTLINE_EMPTY_TOOLTIP = 'Document outline unavailable: this note has no headings';
+
+/** Decide how the outline launcher represents the active note. */
+export function documentOutlineControlState({
+    enabled,
+    markdownReady,
+    hasHeadings,
+    open,
+}) {
+    const hidden = !enabled || !markdownReady;
+    const disabled = !hidden && !hasHeadings;
+    return {
+        hidden,
+        disabled,
+        expanded: Boolean(open),
+        tooltip: disabled ? OUTLINE_EMPTY_TOOLTIP : OUTLINE_AVAILABLE_TOOLTIP,
+        description: disabled ? 'Unavailable because this note has no headings.' : '',
+    };
+}
+
 /**
  * Return source positions for Markdown headings while deliberately ignoring
  * frontmatter and fenced code.

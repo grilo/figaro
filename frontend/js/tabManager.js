@@ -11,6 +11,7 @@ import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorConte
 import { statusBar } from './statusBar.js';
 import { errorDialog, saveFailureDialog } from './dialogs.js';
 import { closeHistoryPanel, refreshHistoryIfOpen } from './historyPanel.js';
+import { switchRightPaneTab, restoreRightPaneTab, forgetRightPaneTab } from './rightPaneCoordinator.js';
 import { playEntranceAnimation, playExitAnimation } from './motion.js';
 import { shouldCommitOnSave } from './automation.js';
 import { renderHome } from './home.js';
@@ -34,6 +35,16 @@ import { isDiskFullError, isLatestSave, savedLatestEdit, saveFailureStatusMessag
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
 import { boundedAdjacentTabId } from './core/tabNavigationModel.js';
+import {
+    recordWorkspaceTabContent,
+    recordWorkspaceTabCursor,
+    recordWorkspaceTabEdit,
+    recordWorkspaceTabTextScale,
+    restoreWorkspaceTabCursors,
+    resetWorkspaceTabTextScale,
+    resetWorkspaceTabTextScales,
+    updateWorkspaceTab,
+} from './core/workspaceTabModel.js';
 import { wheelTabNavigationPlan } from './core/tabWheelModel.js';
 import { editorTextScaleWheelPlan } from './core/editorTextScaleModel.js';
 import {
@@ -41,8 +52,6 @@ import {
     getBufferEditorTextScale,
     getConfiguredEditorTextScale,
     renderEditorTextScaleStatus,
-    resetBufferEditorTextScale,
-    setBufferEditorTextScale,
 } from './editorTextScale.js';
 import {
     compactTabTitle,
@@ -90,6 +99,8 @@ export function setView(type) {
  * Existing tabs remain open and can be selected again from the tab strip.
  */
 export function showWorkspaceHome() {
+    ++tabActivationGeneration;
+    switchRightPaneTab(null);
     const currentTab = getActiveTab();
     snapshotActiveFileTab(currentTab);
 
@@ -124,12 +135,28 @@ let tabDropIndicator = null;
 let tabPointerDrag = null;
 let suppressTabClick = false;
 let previousTabActivationStack = [];
+const workspaceReturnTargets = new Map();
 let tabActivationGeneration = 0;
 let pendingExternalActivationId = 0;
 let tabWheelAccumulatedDeltaY = 0;
 let tabWheelLastEventAt = 0;
 let editorTextScaleWheelAccumulatedDeltaY = 0;
 let editorTextScaleWheelLastEventAt = 0;
+let confirmWorkspaceAction = null;
+
+export function configureTabManagerWorkspace({ confirm } = {}) {
+    if (typeof confirm !== 'function') {
+        throw new TypeError('Tab manager confirm port is required');
+    }
+    confirmWorkspaceAction = confirm;
+    saveFailureEpisodes.clear();
+    documentSave = createDocumentSaveService();
+}
+
+function confirmTabAction(...args) {
+    if (!confirmWorkspaceAction) throw new Error('Tab manager workspace ports were not configured');
+    return confirmWorkspaceAction(...args);
+}
 
 const tabDragSelectionGuardClass = 'tab-drag-selection-guard';
 const tabWheelGestureGapMs = 240;
@@ -148,9 +175,10 @@ function synchronizeEditorTextScale(tab = getActiveTab(), { anchorEvent = null }
 function resetActiveEditorTextScale() {
     const tab = getActiveTab();
     if (!tab || tab.type !== 'file') return false;
-    resetBufferEditorTextScale(tab, getConfiguredEditorTextScale());
+    const transition = resetWorkspaceTabTextScale(getState('openTabs'), tab.id);
+    if (transition.changed) setState('openTabs', transition.tabs);
     editorTextScaleWheelAccumulatedDeltaY = 0;
-    synchronizeEditorTextScale(tab);
+    synchronizeEditorTextScale(transition.tab || tab);
     focusEditor();
     return true;
 }
@@ -185,15 +213,16 @@ function handleEditorTextScaleWheel(event) {
     statusBar.revealEditorScale(3000);
     editorTextScaleWheelLastEventAt = eventTime;
     if (plan.scale !== currentScale) {
-        setBufferEditorTextScale(tab, plan.scale);
-        synchronizeEditorTextScale(tab, { anchorEvent: event });
+        const transition = recordWorkspaceTabTextScale(getState('openTabs'), tab.id, plan.scale);
+        if (transition.changed) setState('openTabs', transition.tabs);
+        synchronizeEditorTextScale(transition.tab || tab, { anchorEvent: event });
     }
 }
 
 function handleConfiguredEditorTextScaleChanged() {
-    for (const tab of getState('openTabs')) {
-        if (tab?.type === 'file') delete tab._editorTextScale;
-    }
+    const tabs = getState('openTabs');
+    const reset = resetWorkspaceTabTextScales(tabs);
+    if (reset !== tabs) setState('openTabs', reset);
     editorTextScaleWheelAccumulatedDeltaY = 0;
     editorTextScaleWheelLastEventAt = 0;
     synchronizeEditorTextScale(getActiveTab());
@@ -775,6 +804,20 @@ export function openTab(id, title, type, data = {}, forceNew = false) {
     return tab;
 }
 
+export function toggleWorkspaceTab(id, title, type, data = {}) {
+    const active = getActiveTab();
+    if (active?.type === type) {
+        if (type === 'settings') return closeTab(active.id, null, { animate: true });
+        const previous = workspaceReturnTargets.has(type) ? workspaceReturnTargets.get(type)
+            : nextTabAfterClose(active.id, getState('openTabs'));
+        if (previous && getState('openTabs').some(tab => tab.id === previous)) return switchTab(previous);
+        showWorkspaceHome();
+        return;
+    }
+    workspaceReturnTargets.set(type, active?.id || null);
+    return openTab(id, title, type, data);
+}
+
 export async function switchTab(tabId, {
     preserveTabFocus = false,
     preparedFile: suppliedPreparedFile = null,
@@ -850,6 +893,7 @@ export async function switchTab(tabId, {
     // Capture before the target document replaces the shared CodeMirror
     // document. Its temporary selection must never overwrite this snapshot.
     const cursorState = tab.searchLine ? null : (tab.cursorState ? { ...tab.cursorState } : null);
+    switchRightPaneTab(tabId);
     
     setState('activeTabId', tabId);
     editorTextScaleWheelAccumulatedDeltaY = 0;
@@ -887,6 +931,11 @@ export async function switchTab(tabId, {
         setTimeout(() => focusEditor(), 0);
     }
     await contentReady;
+    if (activationId === tabActivationGeneration && getState('activeTabId') === tabId
+        && tab.type === 'file' && getEditorDocumentTabId() === tabId) {
+        try { await restoreRightPaneTab(tabId, { path: tab.path, title: tab.title, content: getEditorContent() }); }
+        catch (error) { log.error('Could not restore document pane:', error); statusBar.set('Couldn’t restore the document pane. Open it to retry.'); }
+    }
     if (!preserveTabFocus && tab.type === 'settings' && activationId === tabActivationGeneration) {
         document.querySelector('.tab-panel.active .settings-view-title')?.focus({ preventScroll: true });
     } else if (!preserveTabFocus && tab.type === 'graph' && activationId === tabActivationGeneration) {
@@ -947,6 +996,10 @@ async function renderTabContent(
     }
 }
 
+function refreshReactivatedImages(tab, enabled) {
+    if (enabled && tab.id === getState('activeTabId')) setImageBasePath(tab.path);
+}
+
 async function renderFileTab(
     panel,
     tab,
@@ -955,6 +1008,12 @@ async function renderFileTab(
     preparedFileConfigured = false,
 ) {
     if (!tab.path) return;
+    // Returning from a panel (notably Draw.io) can reactivate the document
+    // already owned by the shared editor. No source replacement occurs in
+    // that case, so explicitly refresh image presentation after the target is
+    // current; a diagram edited in the panel must not keep its stale widget.
+    const refreshMountedImagePresentation = getEditorDocumentTabId() === tab.id
+        && isMarkdownFilePath(tab.path);
     if (preparedFile) {
         const loadId = (tab._loadGeneration || 0) + 1;
         tab._loadGeneration = loadId;
@@ -969,6 +1028,7 @@ async function renderFileTab(
             fileMountSelection(tab, preparedFile.content, cursorState),
         );
         if (mounted === false) return;
+        refreshReactivatedImages(tab, refreshMountedImagePresentation);
         tab._content = preparedFile.content;
         tab.mtime = preparedFile.mtime;
         tab.dirty = false;
@@ -984,10 +1044,11 @@ async function renderFileTab(
         if (tab._content == null) tab._content = '';
         const mounted = await setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
         if (mounted === false) return;
+        refreshReactivatedImages(tab, refreshMountedImagePresentation);
         document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
         return;
     }
-    await loadFileContent(tab, cursorState);
+    await loadFileContent(tab, cursorState, refreshMountedImagePresentation);
 }
 
 function fileMountSelection(tab, content, rememberedSelection = null) {
@@ -999,7 +1060,7 @@ function fileMountSelection(tab, content, rememberedSelection = null) {
     });
 }
 
-async function loadFileContent(tab, cursorState = null) {
+async function loadFileContent(tab, cursorState = null, refreshMountedImagePresentation = false) {
     const loadId = (tab._loadGeneration || 0) + 1;
     tab._loadGeneration = loadId;
     try {
@@ -1011,6 +1072,7 @@ async function loadFileContent(tab, cursorState = null) {
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId) return;
             const mounted = await setEditorContent(tab._content, tab.id, fileMountSelection(tab, tab._content, cursorState));
             if (mounted === false) return;
+            refreshReactivatedImages(tab, refreshMountedImagePresentation);
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
             focusSearchLine(tab);
             return;
@@ -1046,6 +1108,7 @@ async function loadFileContent(tab, cursorState = null) {
             if (!configured || tab.id !== getState('activeTabId') || tab._loadGeneration !== loadId || tab.dirty) return;
             const mounted = await setEditorContent(result.content, tab.id, fileMountSelection(tab, result.content, cursorState));
             if (mounted === false) return;
+            refreshReactivatedImages(tab, refreshMountedImagePresentation);
             tab._content = result.content;
             tab.mtime = result.mtime;
             document.dispatchEvent(new CustomEvent('tab-switched', { detail: { path: tab.path } }));
@@ -1179,7 +1242,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
     if (isSidebarWorkspaceTab(tab)) return false;
     
     if (tab.dirty && (tab.type === 'file' || tab.type === 'drawio')) {
-        const shouldClose = await window.confirmDialog(
+        const shouldClose = await confirmTabAction(
             'Discard unsaved changes?',
             `“${tab.title}” has changes that have not been saved. Closing it will discard them.`,
             true,
@@ -1208,6 +1271,8 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         panel.remove();
     }
     removeTabFromActivationHistory(tabId);
+    forgetRightPaneTab(tabId);
+    saveFailureEpisodes.delete(tabId);
     
     // Unpin if pinned
     const pinned = getState('pinnedTabs');
@@ -1262,7 +1327,7 @@ export async function replaceActiveFileTab(id, title, type, data = {}) {
     // or the destination was opened while the save was in flight.
     const tabs = getState('openTabs');
     const current = tabs.find(tab => tab.id === activeTab.id);
-    if (getState('activeTabId') !== activeTab.id || current !== activeTab || tabs.some(tab => tab.id === id)) {
+    if (getState('activeTabId') !== activeTab.id || !current || current.dirty || tabs.some(tab => tab.id === id)) {
         openTab(id, title, type, data);
         return false;
     }
@@ -1406,7 +1471,8 @@ async function persistTabsBeforePathOperation(tabsToPrepare, operation) {
             if (!result?.success) {
                 return { success: false, error: result?.error || `Could not save "${tab.title}" before ${operation} it` };
             }
-            if (tab.dirty) {
+            const current = getState('openTabs').find(candidate => candidate.id === tab.id);
+            if (current?.dirty) {
                 return { success: false, error: `"${tab.title}" changed while it was being saved; links were not rewritten` };
             }
         } catch (error) {
@@ -1433,11 +1499,12 @@ export async function refreshTabsForUpdatedLinks(paths) {
         .filter(Boolean));
     if (!updatedPaths.size) return false;
 
-    const tabs = getState('openTabs');
     let changed = false;
 
-    for (const tab of tabs) {
+    for (const tab of getState('openTabs')) {
         if (tab?.type !== 'file' || !updatedPaths.has(normalizeTabPath(tab.path)) || tab.dirty) continue;
+        const tabId = tab.id;
+        const requestedPath = normalizeTabPath(tab.path);
         try {
             const file = await backend().ReadFile(tab.path);
             // A user edit or tab move while the read was in flight always wins
@@ -1446,21 +1513,36 @@ export async function refreshTabsForUpdatedLinks(paths) {
                 recordVaultFileIssue(file.issue);
                 continue;
             }
-            if (!file || file.binary || tab.dirty || !updatedPaths.has(normalizeTabPath(tab.path))) continue;
-            tab._content = file.content;
-            tab.mtime = file.mtime;
-            if (tab.id === getState('activeTabId')) {
-                const mounted = await setEditorContent(file.content, tab.id);
+            let current = getState('openTabs').find(candidate => candidate.id === tabId);
+            if (!file || file.binary || current?.type !== 'file' || current.dirty
+                || normalizeTabPath(current.path) !== requestedPath
+                || !updatedPaths.has(requestedPath)) continue;
+            const expectedEditGeneration = current._editGeneration || 0;
+            if (tabId === getState('activeTabId')) {
+                const mounted = await setEditorContent(file.content, tabId);
                 if (mounted === false) continue;
+                current = getState('openTabs').find(candidate => candidate.id === tabId);
+                if (current?.type !== 'file' || current.dirty
+                    || (current._editGeneration || 0) !== expectedEditGeneration
+                    || normalizeTabPath(current.path) !== requestedPath) continue;
             }
-            changed = true;
+            const transition = updateWorkspaceTab(getState('openTabs'), tabId, candidate => (
+                candidate.type === 'file' && !candidate.dirty
+                && (candidate._editGeneration || 0) === expectedEditGeneration
+                && normalizeTabPath(candidate.path) === requestedPath
+                    ? { _content: file.content, mtime: file.mtime }
+                    : null
+            ));
+            if (transition.changed) {
+                setState('openTabs', transition.tabs);
+                changed = true;
+            }
         } catch (error) {
             log.warn('Could not refresh a link-updated tab:', error);
         }
     }
 
     if (changed) {
-        setState('openTabs', [...tabs]);
         saveTabsToStorage();
     }
     return changed;
@@ -1527,29 +1609,67 @@ export function markTabDirty(tabId, { alreadyDirty = false } = {}) {
     // transition after this module has loaded. Do not revive a tab which was
     // saved in that small interval, but do repaint and notify listeners when
     // the dirty transition remains current.
-    if (alreadyDirty) {
-        if (!tab.dirty) return;
-    } else if (!tab.dirty) {
-        tab.dirty = true;
-    } else {
-        return;
-    }
-
-    setState('openTabs', [...tabs]);
+    if (alreadyDirty ? !tab.dirty : tab.dirty) return;
+    const transition = updateWorkspaceTab(tabs, tabId, { dirty: true });
+    if (!transition.changed) return;
+    setState('openTabs', transition.tabs);
     renderTabBar();
-    if (tab.id === getState('activeTabId') && tab.path) {
-        document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: tab.path } }));
+    if (transition.tab.id === getState('activeTabId') && transition.tab.path) {
+        document.dispatchEvent(new CustomEvent('active-file-dirty', { detail: { path: transition.tab.path } }));
     }
+}
+
+/** Record a CodeMirror edit through the tab owner's immutable transition. */
+export function recordTabEdit(tabId) {
+    const transition = recordWorkspaceTabEdit(getState('openTabs'), tabId);
+    if (!transition.changed) return null;
+    setState('openTabs', transition.tabs);
+    if (transition.becameDirty) {
+        renderTabBar();
+        if (transition.tab.id === getState('activeTabId') && transition.tab.path) {
+            document.dispatchEvent(new CustomEvent('active-file-dirty', {
+                detail: { path: transition.tab.path },
+            }));
+        }
+    }
+    return transition.tab;
+}
+
+export function recordTabContent(tabId, generation, content) {
+    const transition = recordWorkspaceTabContent(getState('openTabs'), tabId, generation, content);
+    if (!transition.changed) return false;
+    setState('openTabs', transition.tabs);
+    return true;
+}
+
+export function recordTabCursor(tabId, cursorState) {
+    const transition = recordWorkspaceTabCursor(getState('openTabs'), tabId, cursorState);
+    if (!transition.changed) return false;
+    setState('openTabs', transition.tabs);
+    return true;
+}
+
+export function recordTabMtime(tabId, mtime) {
+    const transition = updateWorkspaceTab(getState('openTabs'), tabId, { mtime });
+    if (!transition.changed) return null;
+    setState('openTabs', transition.tabs);
+    return transition.tab;
+}
+
+export function restoreTabCursorStates(cursorStates) {
+    const tabs = getState('openTabs');
+    const restored = restoreWorkspaceTabCursors(tabs, cursorStates);
+    if (restored === tabs) return false;
+    setState('openTabs', restored);
+    return true;
 }
 
 export function updateTabTitle(tabId, title) {
     const tabs = getState('openTabs');
-    const tab = tabs.find(t => t.id === tabId);
-    if (tab) {
-        tab.title = title;
-        setState('openTabs', [...tabs]);
-        renderTabBar();
-    }
+    const transition = updateWorkspaceTab(tabs, tabId, { title });
+    if (!transition.changed) return;
+    setState('openTabs', transition.tabs);
+    renderTabBar();
 }
 
 function togglePinTab(tabId) {
@@ -1575,6 +1695,11 @@ export function renderTabBar() {
     
     if (!tabStrip) return;
     
+    // Dirty/save transitions may repaint the rail after keyboard activation.
+    // Remember the focused logical tab before replacing its DOM node so an
+    // asynchronous owner update cannot drop focus onto the document body.
+    const focusedTabId = document.activeElement?.closest?.('#tab-strip .tab')?.dataset?.tabId;
+
     // Sort: pinned first, then unpinned.
     const sorted = sortTabsForDisplay(titleBarTabs(tabs), pinned);
     const keyboardTabId = sorted.some(tab => tab.id === activeId)
@@ -1618,6 +1743,11 @@ export function renderTabBar() {
         </div>
     `;}).join('');
     refreshTabOverflowLayout(tabStrip);
+    if (focusedTabId) {
+        [...tabStrip.querySelectorAll('.tab')]
+            .find(element => element.dataset.tabId === focusedTabId)
+            ?.focus({ preventScroll: true });
+    }
 }
 
 function getTabIcon(type) {
@@ -1703,15 +1833,15 @@ function contentSnapshotForTab(tab) {
     return typeof tab._content === 'string' ? tab._content : '';
 }
 
-const saveFailureEpisodes = new WeakMap();
+const saveFailureEpisodes = new Map();
 
-function waitForModalClose(tab, episode) {
+function waitForModalClose(tabId, episode) {
     if (episode.waitingForModal) return;
     episode.waitingForModal = true;
     document.addEventListener('figaro:modal-closed', () => {
         episode.waitingForModal = false;
         setTimeout(() => {
-            if (saveFailureEpisodes.get(tab) === episode) void presentSaveFailure(tab, episode);
+            if (saveFailureEpisodes.get(tabId) === episode) void presentSaveFailure(tabId, episode);
         }, 0);
     }, { once: true });
 }
@@ -1731,27 +1861,28 @@ async function copyUnsavedText(tab) {
     }
 }
 
-async function presentSaveFailure(tab, episode) {
-    if (saveFailureEpisodes.get(tab) !== episode || episode.prompting || episode.dismissed) return;
-    if (!getState('openTabs').includes(tab) || !tab.dirty) {
-        saveFailureEpisodes.delete(tab);
+async function presentSaveFailure(tabId, episode) {
+    if (saveFailureEpisodes.get(tabId) !== episode || episode.prompting || episode.dismissed) return;
+    const tab = getState('openTabs').find(candidate => candidate.id === tabId);
+    if (!tab?.dirty) {
+        saveFailureEpisodes.delete(tabId);
         return;
     }
     if (document.body.classList.contains('custom-modal-open')) {
-        waitForModalClose(tab, episode);
+        waitForModalClose(tabId, episode);
         return;
     }
 
     episode.prompting = true;
     const choice = await saveFailureDialog(tab.title, episode.error);
     episode.prompting = false;
-    if (saveFailureEpisodes.get(tab) !== episode) return;
+    if (saveFailureEpisodes.get(tabId) !== episode) return;
 
     if (choice === 'confirm') {
         try {
             await saveFileSnapshot(tab, contentSnapshotForTab(tab), { failurePrompt: 'retry' });
         } catch (_) {
-            if (saveFailureEpisodes.get(tab) === episode) void presentSaveFailure(tab, episode);
+            if (saveFailureEpisodes.get(tabId) === episode) void presentSaveFailure(tabId, episode);
         }
         return;
     }
@@ -1760,7 +1891,8 @@ async function presentSaveFailure(tab, episode) {
 }
 
 function reportSaveFailure(snapshot, error) {
-    const { tab } = snapshot;
+    const tab = getState('openTabs').find(candidate => candidate.id === snapshot.tabId);
+    if (!tab) return;
     if (!isLatestSave(tab, snapshot)) return;
     statusBar.set(saveFailureStatusMessage(error));
     const diskFull = isDiskFullError(error);
@@ -1778,42 +1910,54 @@ function reportSaveFailure(snapshot, error) {
             : 'Retry the save, check file permissions, or copy the unsaved text before closing Figaro.',
     });
 
-    let episode = saveFailureEpisodes.get(tab);
+    let episode = saveFailureEpisodes.get(snapshot.tabId);
     if (!episode) {
         episode = { error, prompting: false, dismissed: false, waitingForModal: false };
-        saveFailureEpisodes.set(tab, episode);
+        saveFailureEpisodes.set(snapshot.tabId, episode);
     } else {
         episode.error = error;
         if (snapshot.failurePrompt === 'always') episode.dismissed = false;
     }
-    if (!episode.dismissed) void presentSaveFailure(tab, episode);
+    if (!episode.dismissed) void presentSaveFailure(snapshot.tabId, episode);
 }
 
-const documentSave = createDocumentSave({
-    persist: ({ path, externalFileId, content, expectedMtime }) => externalFileId
-        ? backend().SaveLaunchExternalFile(externalFileId, content, expectedMtime)
-        : backend().SaveFile(path, content, expectedMtime),
-    confirmOverwrite: () => window.confirmDialog(
-        'File changed outside Figaro',
-        'Another application saved a newer version of this file. Overwriting will replace those external changes with the version currently open in Figaro.',
-        true,
-        false,
-        { confirmLabel: 'Overwrite file', cancelLabel: 'Keep external version', icon: 'warning' },
-    ),
-    shouldCommit: () => shouldCommitOnSave(),
-    commit: path => backend().CommitCurrentFile(path),
-    onSaved: applySaveSuccess,
-    onFailed: (snapshot, error) => {
-        log.error('Save failed:', error);
-        reportSaveFailure(snapshot, error);
-    },
-});
+let documentSave = null;
+
+function createDocumentSaveService() {
+    return createDocumentSave({
+        persist: ({ path, externalFileId, content, expectedMtime }) => externalFileId
+            ? backend().SaveLaunchExternalFile(externalFileId, content, expectedMtime)
+            : backend().SaveFile(path, content, expectedMtime),
+        confirmOverwrite: () => confirmTabAction(
+            'File changed outside Figaro',
+            'Another application saved a newer version of this file. Overwriting will replace those external changes with the version currently open in Figaro.',
+            true,
+            false,
+            { confirmLabel: 'Overwrite file', cancelLabel: 'Keep external version', icon: 'warning' },
+        ),
+        shouldCommit: () => shouldCommitOnSave(),
+        commit: path => backend().CommitCurrentFile(path),
+        onStarted: snapshot => {
+            const transition = updateWorkspaceTab(getState('openTabs'), snapshot.tabId, {
+                _saveGeneration: snapshot.generation,
+            });
+            if (transition.changed) setState('openTabs', transition.tabs);
+        },
+        onSaved: applySaveSuccess,
+        onFailed: (snapshot, error) => {
+            log.error('Save failed:', error);
+            reportSaveFailure(snapshot, error);
+        },
+    });
+}
 
 // Queue saves by path. Every subsequent save reads the tab's latest mtime only
 // after its predecessor finishes, turning the backend's optimistic check into
 // a real per-file compare-and-swap sequence.
 export function saveFileSnapshot(tab, content, options = {}) {
-    return documentSave.save(tab, content, options);
+    if (!documentSave) throw new Error('Tab manager workspace ports were not configured');
+    const current = getState('openTabs').find(candidate => candidate.id === tab?.id);
+    return documentSave.save(current || tab, content, options);
 }
 
 async function applySaveSuccess(snapshot, result, {
@@ -1821,18 +1965,15 @@ async function applySaveSuccess(snapshot, result, {
     historyCommitError,
     successMessage,
 }) {
-    const { tab, content } = snapshot;
-    saveFailureEpisodes.delete(tab);
-    resolveRuntimeFileIssue(tab.path, ['disk_full', 'save_failed']);
-    tab.mtime = result.mtime;
-    const tabsForPath = getState('openTabs').filter(candidate => (candidate.type === 'file' || candidate.type === 'drawio') && candidate.path === tab.path);
-    tabsForPath.forEach(candidate => {
-        candidate.mtime = result.mtime;
-    });
+    const { content } = snapshot;
+    let tab = getState('openTabs').find(candidate => candidate.id === snapshot.tabId);
+    if (!tab) return;
+    saveFailureEpisodes.delete(snapshot.tabId);
+    resolveRuntimeFileIssue(snapshot.path, ['disk_full', 'save_failed']);
     if (historyCommitFailed) {
         log.warn('File saved, but its history commit failed:', historyCommitError);
         recordRuntimeFileIssue({
-            path: tab.path,
+            path: snapshot.path,
             code: 'history_failed',
             severity: 'warning',
             title: 'Local history could not be updated',
@@ -1840,15 +1981,24 @@ async function applySaveSuccess(snapshot, result, {
             guidance: 'Your note is safe. Check the vault’s Git repository and storage, then save again.',
         });
     } else {
-        resolveRuntimeFileIssue(tab.path, ['history_failed']);
+        resolveRuntimeFileIssue(snapshot.path, ['history_failed']);
     }
     if (!isLatestSave(tab, snapshot)) return;
 
     const latestEdit = savedLatestEdit(tab, snapshot);
-    if (latestEdit) {
-        tab.dirty = false;
-        tab._content = null;
-    }
+    const nextTabs = getState('openTabs').map(candidate => {
+        if ((candidate.type !== 'file' && candidate.type !== 'drawio') || candidate.path !== snapshot.path) {
+            return candidate;
+        }
+        const patch = { mtime: result.mtime };
+        if (candidate.id === snapshot.tabId && latestEdit) {
+            patch.dirty = false;
+            patch._content = null;
+        }
+        return { ...candidate, ...patch };
+    });
+    setState('openTabs', nextTabs);
+    tab = nextTabs.find(candidate => candidate.id === snapshot.tabId);
     updateTabTitle(tab.id, tab.title);
     if (!tab.externalFileId) {
         document.dispatchEvent(new CustomEvent('vault-file-saved', {
@@ -2162,31 +2312,6 @@ function renderSettingsTab(panel, _tab) {
                             <input type="checkbox" id="markdown-lint-toggle" aria-label="Show Markdown lint" title="Marks common Markdown structure problems and moves between them with F8." checked>
                             <span class="toggle-slider"></span>
                         </label>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <div class="settings-section-icon">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Z"/><path d="M9.5 9.5h.01M14.5 9.5h.01M9 13c.8.7 1.8 1 3 1s2.2-.3 3-1"/></svg>
-                        <span>Spellcheck</span>
-                    </div>
-                    <div class="settings-row settings-row--select">
-                        <label class="settings-row-label" for="spellcheck-language">Language</label>
-                        <select id="spellcheck-language" aria-label="Spellcheck language" aria-describedby="spellcheck-guidance">
-                            <option value="none" selected>None</option>
-                            <option value="en-US">English (US)</option>
-                            <option value="en-GB">English (UK)</option>
-                            <option value="es">Spanish (Spain)</option>
-                        </select>
-                    </div>
-                    <div id="spellcheck-guidance" class="ui-notice ui-notice--info settings-spellcheck-guidance" role="note">
-                        <div class="settings-spellcheck-guidance-row">
-                            <strong>Vault default</strong>
-                            <span><b>None</b> turns spellcheck off across all notes.</span>
-                        </div>
-                        <div class="settings-spellcheck-guidance-row">
-                            <strong>Per note</strong>
-                            <span>Frontmatter can override the language or set <code>spellcheck: false</code>.</span>
-                        </div>
                     </div>
                 </div>
                 <div class="settings-section">

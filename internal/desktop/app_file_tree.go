@@ -178,6 +178,7 @@ func buildFileTreeFromEntries(entries map[string]fileTreeCacheEntry) []*FileTree
 func (a *App) invalidateFileTreeCacheLocked() {
 	a.fileTreeEntries = nil
 	a.fileTreeSnapshot = nil
+	a.invalidateVaultHealthCacheLocked()
 }
 
 func visibleFileTreeCachePath(rel string) (string, bool) {
@@ -221,6 +222,7 @@ func (a *App) updateFileTreeCacheFileLocked(rel string, info fs.FileInfo) {
 	a.ensureFileTreeCacheDirectoriesLocked(clean)
 	a.fileTreeEntries[clean] = fileTreeCacheEntry{typeName: typeName, mtime: mtime}
 	a.fileTreeSnapshot = nil
+	a.invalidateVaultHealthCacheLocked()
 }
 
 func (a *App) refreshFileTreeCachePath(rel string) {
@@ -254,6 +256,7 @@ func (a *App) addFileTreeCacheDirectoryLocked(rel string) {
 	a.ensureFileTreeCacheDirectoriesLocked(clean)
 	a.fileTreeEntries[clean] = fileTreeCacheEntry{typeName: "directory"}
 	a.fileTreeSnapshot = nil
+	a.invalidateVaultHealthCacheLocked()
 }
 
 func (a *App) removeFileTreeCachePathLocked(rel string) {
@@ -271,6 +274,7 @@ func (a *App) removeFileTreeCachePathLocked(rel string) {
 		}
 	}
 	a.fileTreeSnapshot = nil
+	a.invalidateVaultHealthCacheLocked()
 }
 
 func (a *App) remapFileTreeCachePathLocked(oldRel string, newRel string) {
@@ -308,6 +312,7 @@ func (a *App) remapFileTreeCachePathLocked(oldRel string, newRel string) {
 	}
 	a.ensureFileTreeCacheDirectoriesLocked(newClean)
 	a.fileTreeSnapshot = nil
+	a.invalidateVaultHealthCacheLocked()
 }
 
 func (a *App) buildTree(vaultFS fs.FS, dir string) ([]*FileTreeItem, error) {

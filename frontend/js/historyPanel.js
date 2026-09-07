@@ -22,6 +22,7 @@ import {
 } from './core/rightSidebarLayout.js';
 import { paneSeparatorKeyboardPlan } from './core/paneSeparatorModel.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+import { claimRightPane, registerRightPaneMode } from './rightPaneCoordinator.js';
 
 let saveWorkspaceFileSnapshot = null;
 
@@ -53,7 +54,7 @@ let gitCommitInProgress = false;
 let responsiveLayoutBound = false;
 
 export function initHistoryPanel() {
-    document.addEventListener('close-history-panel', closeHistoryPanel);
+    registerRightPaneMode('history', closeHistoryPanel, openHistoryPanel);
 
     // Status bar click
     const countEl = document.getElementById('history-count');
@@ -333,11 +334,7 @@ async function openHistoryPanel() {
     const sidebar = document.getElementById('right-sidebar');
     if (!sidebar || !currentFilePath) return;
 
-    // History owns the right pane while open. Ask the other pane modes to
-    // release their content first so switching stays predictable.
-    document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
-    document.dispatchEvent(new CustomEvent('close-pdf-preview', { detail: { keepSidebarOpen: true } }));
-    document.dispatchEvent(new CustomEvent('close-raw-text-preview', { detail: { keepSidebarOpen: true } }));
+    claimRightPane('history', sidebar);
     const histContent = document.getElementById('history-content');
     const rightTitle = document.getElementById('right-sidebar-title');
 
@@ -647,7 +644,7 @@ async function exitHistoryMode() {
     }
 }
 
-export function closeHistoryPanel() {
+export function closeHistoryPanel({ keepSidebarOpen = false } = {}) {
     const sidebar = document.getElementById('right-sidebar');
     const ownsSidebar = sidebar?.dataset.mode === 'history';
     if (!ownsSidebar && !viewingHistory) return;
@@ -659,11 +656,13 @@ export function closeHistoryPanel() {
     const resizer = document.getElementById('right-sidebar-resizer');
     if (sidebar && ownsSidebar) {
         delete sidebar.dataset.mode;
-        setRightSidebarOpen(sidebar, false);
-        sidebar.style.width = '';
-        sidebar.style.minWidth = '';
+        if (!keepSidebarOpen) {
+            setRightSidebarOpen(sidebar, false);
+            sidebar.style.width = '';
+            sidebar.style.minWidth = '';
+        }
     }
-    if (resizer && ownsSidebar) resizer.classList.remove('visible');
+    if (resizer && ownsSidebar && !keepSidebarOpen) resizer.classList.remove('visible');
 
     if (viewingHistory) exitHistoryMode();
 
@@ -678,13 +677,14 @@ function elementWidth(element) {
     return Number.isFinite(offsetWidth) && offsetWidth > 0 ? offsetWidth : 0;
 }
 
-function configuredRightSidebarWidth(pdfPreview) {
+function configuredRightSidebarWidth() {
     const value = Number.parseFloat(getComputedStyle(document.documentElement)
         .getPropertyValue('--right-sidebar-width'));
-    return Number.isFinite(value) && value > 0 ? value : (pdfPreview ? 480 : 320);
+    return Number.isFinite(value) && value > 0 ? value : 320;
 }
 
 function clearPreviewSidebarPresentation(sidebar) {
+    document.getElementById('app')?.style.removeProperty('--shell-right-sidebar-width');
     sidebar?.classList.remove('right-sidebar--responsive-overlay');
     sidebar?.style.removeProperty('--right-sidebar-effective-width');
     const main = document.getElementById('main-content');
@@ -701,8 +701,7 @@ export function updateRightSidebarEditorLayout(
     if (!main) return;
     const sidebarOpen = Boolean(sidebar?.classList.contains('open'));
     const isPDFPreview = Boolean(sidebarOpen && sidebar.classList.contains('pdf-preview-mode'));
-    const isRawPreview = Boolean(sidebarOpen && sidebar.classList.contains('raw-text-preview-mode'));
-    if (!isPDFPreview && !isRawPreview) {
+    if (!sidebarOpen) {
         clearPreviewSidebarPresentation(sidebar);
         main.classList.remove('pdf-preview-compact-editor');
         return null;
@@ -721,11 +720,12 @@ export function updateRightSidebarEditorLayout(
         workspaceWidth,
         preferredWidth: Number.isFinite(preferredWidthOverride)
             ? preferredWidthOverride
-            : configuredRightSidebarWidth(isPDFPreview),
+            : configuredRightSidebarWidth(),
         pdfPreview: isPDFPreview,
     });
     sidebar.classList.toggle('right-sidebar--responsive-overlay', plan.overlay);
     sidebar.style.setProperty('--right-sidebar-effective-width', `${plan.width}px`);
+    document.getElementById('app')?.style.setProperty('--shell-right-sidebar-width', `${plan.width}px`);
     main.classList.toggle('right-sidebar-overlay-active', plan.overlay);
     if (plan.overlay) main.style.setProperty('--right-sidebar-overlay-width', `${plan.width}px`);
     else main.style.removeProperty('--right-sidebar-overlay-width');

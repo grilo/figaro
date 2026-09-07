@@ -1,9 +1,10 @@
 /**
- * Font Rendering Integration Tests
- * Verifies that fonts actually render when applied (not just CSS variable changes)
+ * Font application component tests. The production-bundle browser smoke owns
+ * actual FontFace loading; these cases keep DOM styling and editor measurement deterministic.
  */
 import { testUtils } from './test_setup.js';
 import { readFileSync } from 'node:fs';
+import { createBackendStub } from '../../../frontend/js/backendContract.js';
 
 // Mock editor with querySelector for direct DOM manipulation
 const mockCmEditor = document.createElement('div');
@@ -37,10 +38,12 @@ const mockApi = {
     VimLoad: jest.fn(() => Promise.resolve({ enabled: false })),
 };
 
+let animationFrame;
+
 beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(() => Promise.resolve({ ok: true }));
-    window.go = { desktop: { App: mockApi } };
+    window.go = { desktop: { App: createBackendStub(mockApi) } };
     document.head.innerHTML = '';
     document.body.innerHTML = `
         <button id="font-picker-btn"><span id="font-current-name">Inter</span></button>
@@ -51,7 +54,13 @@ beforeEach(() => {
     document.body.appendChild(mockCmEditor);
     document.documentElement.style.removeProperty('--font-editor');
     document.documentElement.style.removeProperty('--font-ui');
+    animationFrame = jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+        callback(performance.now());
+        return 1;
+    });
 });
+
+afterEach(() => animationFrame.mockRestore());
 
 async function loadThemeModule() {
     return await import('../frontend/js/theme.js');
@@ -67,6 +76,11 @@ function chooseFont(fontId) {
     return target;
 }
 
+async function settleFontSelection() {
+    await Promise.resolve();
+    await Promise.resolve();
+}
+
 describe('Font Rendering', () => {
     test('Injected style element contains correct font-family', async () => {
         const { initSettingsPanel } = await loadThemeModule();
@@ -74,7 +88,7 @@ describe('Font Rendering', () => {
 
         chooseFont('figtree');
 
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
         const style = document.getElementById('dynamic-font-style');
         expect(style).toBeTruthy();
         expect(style.textContent).toContain("font-family: 'Figtree'");
@@ -87,7 +101,7 @@ describe('Font Rendering', () => {
 
         chooseFont('figtree');
 
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
         // Check that the DOM elements have inline style set
         expect(mockCmEditor.style.fontFamily).toContain('Figtree');
         expect(mockCmContent.style.fontFamily).toContain('Figtree');
@@ -100,7 +114,7 @@ describe('Font Rendering', () => {
 
         chooseFont('ibm-plex-sans');
 
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
         expect(mockEditorView.requestMeasure).toHaveBeenCalled();
     });
 
@@ -110,7 +124,7 @@ describe('Font Rendering', () => {
 
         chooseFont('figtree');
 
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
         expect(document.documentElement.style.getPropertyValue('--font-editor')).toContain('Figtree');
     });
 
@@ -119,7 +133,7 @@ describe('Font Rendering', () => {
         await initSettingsPanel();
 
         chooseFont('figtree');
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
 
         expect(document.documentElement.style.getPropertyValue('--font-ui')).toContain('Figtree');
     });
@@ -137,7 +151,7 @@ describe('Font Rendering', () => {
 
         chooseFont('figtree');
 
-        await new Promise(r => setTimeout(r, 300));
+        await settleFontSelection();
         const value = document.documentElement.style.getPropertyValue('--font-editor');
         // Must include a fallback
         expect(value).toContain('var(--font-sans)');

@@ -26,7 +26,6 @@ export const helpSettingsEntries = [
     ['Enter rendered blocks', '#vim-reveal-blocks-toggle', 'Editor · Vim mode', ['live preview', 'j', 'k']],
     ['Line numbers', '#line-numbers-toggle', 'Editor', ['gutter']],
     ['Markdown diagnostics', '#markdown-lint-toggle', 'Editor', ['lint', 'F8', 'problems']],
-    ['Spellcheck', '#spellcheck-language', 'Editor', ['language', 'dictionary']],
     ['Links style', '#link-style-select', 'Editor', ['wikilinks', 'markdown links']],
     ['Kanban card density', '[data-kanban-density="comfortable"]', 'Kanban', ['compact', 'comfortable']],
     ['Kanban column flow', '[data-kanban-layout="side-by-side"]', 'Kanban', ['stacked', 'layout']],

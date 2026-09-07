@@ -22,25 +22,19 @@ func TestSingleInstanceForwardsMarkdownAndFocusesExistingWindow(t *testing.T) {
 
 	app := NewApp(filepath.Join(root, "vault"))
 	app.setLaunchExternalFiles([]string{initial})
-	app.runtimeMu.Lock()
-	app.ctx = context.Background()
-	app.runtimeEventsReady = true
 	focusCount := 0
-	app.windowShow = func(context.Context) {
-		focusCount++
-	}
-	app.runtimeMu.Unlock()
-
 	var emittedName string
 	var emittedFiles []*ExternalLaunchFile
 	emitCount := 0
-	app.eventEmitter = func(name string, data ...any) {
+	app.desktopRuntime.configureForTest(context.Background(), true, func(context.Context) {
+		focusCount++
+	}, func(name string, data ...any) {
 		emitCount++
 		emittedName = name
 		if len(data) == 1 {
 			emittedFiles, _ = data[0].([]*ExternalLaunchFile)
 		}
-	}
+	})
 
 	lock := figaroSingleInstanceLock(app)
 	if lock == nil || lock.UniqueId != figaroSingleInstanceID || lock.OnSecondInstanceLaunch == nil {

@@ -392,6 +392,7 @@ class MarkdownImageWidget extends WidgetType {
 
 function imageDecorations(state, options) {
     const decorations = [];
+    if (!state.doc.toString().includes('![')) return Decoration.none;
     const dragging = state.field(mouseSelectingField, false);
     syntaxTree(state).iterate({
         enter(node) {
@@ -453,7 +454,7 @@ export function createMarkdownImageField({
     return StateField.define({
         create: state => imageDecorations(state, options),
         update(decorations, transaction) {
-            if (transaction.docChanged || transaction.reconfigured) {
+            if (transaction.docChanged) {
                 return imageDecorations(transaction.state, options);
             }
             const dragging = transaction.state.field(mouseSelectingField, false);

@@ -1,13 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { openWelcomeEditor } from './support/editorWorkspace.js';
 
 test.setTimeout(120_000);
-
-async function openWelcomeEditor(page) {
-    await page.goto('/');
-    await page.waitForFunction(() => window._appReady === true);
-    await page.locator('.file-tree-item[data-path="Welcome.md"] > .file-tree-node').click();
-    await expect(page.locator('#editor-container > .cm-editor')).toBeVisible();
-}
 
 test('uses one persisted tab size for normal and Vim indentation across editor surfaces', async ({ page }) => {
     await openWelcomeEditor(page);

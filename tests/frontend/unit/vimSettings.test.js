@@ -3,6 +3,8 @@ const mockSetVimVisualRows = jest.fn(() => true);
 const mockSetVimRevealBlocks = jest.fn(() => true);
 const mockSetMarkdownBlockGuides = jest.fn();
 
+import { createBackendStub } from '../../../frontend/js/backendContract.js';
+
 jest.mock('../frontend/js/editor.js', () => ({
     getEditorView: jest.fn(() => null),
     toggleVim: mockToggleVim,
@@ -48,7 +50,7 @@ describe('Vim preference lifecycle', () => {
             EditorNavigationLoad: jest.fn().mockResolvedValue({ stickyHeadings: true, blockGuides: true, documentOutline: true }),
             EditorNavigationSave: jest.fn().mockResolvedValue({ success: true }),
         };
-        window.go = { desktop: { App: api } };
+        window.go = { desktop: { App: createBackendStub(api) } };
         settingsDOM();
 
         const {

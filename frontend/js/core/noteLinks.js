@@ -181,3 +181,16 @@ export function planMarkdownLinkTargetReplacement(document, edit, existingPath) 
     if (source.slice(from, to) !== expectedTarget) return null;
     return { from, to, insert: encodeMarkdownLinkTarget(existingPath) };
 }
+/** Target-first wiki syntax shared by editor navigation and prose protection. */
+export function wikiLinkRanges(source) {
+    const links = [];
+    for (const match of String(source || '').matchAll(/!?\[\[([^\]|\r\n]+)(?:\|([^\]\r\n]+))?\]\]/g)) {
+        let escapes = 0;
+        for (let at = match.index - 1; at >= 0 && source[at] === '\\'; at--) escapes++;
+        if (escapes % 2) continue;
+        const from = match.index, to = from + match[0].length, embed = match[0][0] === '!';
+        const aliasFrom = match[2] === undefined || embed ? to : to - 2 - match[2].length;
+        links.push({ from, to, target: match[1].trim(), label: (match[2] || match[1]).trim(), aliasFrom, aliasTo: to - 2, embed });
+    }
+    return links;
+}

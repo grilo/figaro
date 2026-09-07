@@ -61,6 +61,10 @@
     "--warning-color"
   ],
   "optionalSemanticTokens": [
+    "--disclosure-surface",
+    "--disclosure-hover-surface",
+    "--disclosure-active-surface",
+    "--disclosure-summary-color",
     "--window-border-color",
     "--window-border-highlight",
     "--window-border-shadow",

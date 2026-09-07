@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestFrontendStartsFromEagerBootstrapAndNormalizesWebKitLocale(t *testing.T) {
+func TestFrontendStartsFromEagerBundleAndNormalizesWebKitLocale(t *testing.T) {
 	runData, err := os.ReadFile("internal/desktop/run.go")
 	if err != nil {
 		t.Fatalf("read native desktop assembly: %v", err)
@@ -29,8 +29,8 @@ func TestFrontendStartsFromEagerBootstrapAndNormalizesWebKitLocale(t *testing.T)
 		}
 	}
 	index := string(indexData)
-	if !strings.Contains(index, `<script type="module" src="/js/bootstrap.js"></script>`) {
-		t.Error("frontend entry point does not eagerly load bootstrap.js")
+	if !strings.Contains(index, `<script type="module" src="/app.bundle.js"></script>`) {
+		t.Error("frontend entry point does not eagerly load the production bundle")
 	}
 	if strings.Contains(source, "import(") || strings.Contains(index, "import(") {
 		t.Error("startup entry points must not defer application code with dynamic imports")

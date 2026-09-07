@@ -21,6 +21,7 @@ import { pdfExportErrorDialog, pdfStyleReferenceDialog } from './dialogs.js';
 import { updateRightSidebarEditorLayout } from './historyPanel.js';
 import { getEditorContent, getEditorView } from './editor.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
+import { claimRightPane, registerRightPaneMode } from './rightPaneCoordinator.js';
 import { planPDFPreviewImageSource } from './core/pdfPreviewImageModel.js';
 
 const previewDebounceMs = 320;
@@ -1427,9 +1428,7 @@ export async function openPDFPreview({ path, title, content } = {}) {
     const resizer = document.getElementById('right-sidebar-resizer');
     if (!panel || !sidebar) throw new Error('PDF preview panel is unavailable.');
 
-    document.dispatchEvent(new CustomEvent('close-history-panel'));
-    document.dispatchEvent(new CustomEvent('close-outline-panel', { detail: { keepSidebarOpen: true } }));
-    document.dispatchEvent(new CustomEvent('close-raw-text-preview', { detail: { keepSidebarOpen: true } }));
+    claimRightPane(previewMode, sidebar);
     previewRequestId++;
     if (previewTimer) clearTimeout(previewTimer);
     previewTimer = null;
@@ -1446,7 +1445,7 @@ export async function openPDFPreview({ path, title, content } = {}) {
     preview.stylesheetError = '';
     preview.documentHTML = '';
 
-    if (!preview.content && !await loadPreviewSource(preview.path)) {
+    if (typeof content !== 'string' && !await loadPreviewSource(preview.path)) {
         throw new Error('Markdown file could not be read for preview.');
     }
 
@@ -1508,10 +1507,10 @@ export function initPDFPreview() {
 
     if (!previewInitialized) {
         previewInitialized = true;
+        registerRightPaneMode(previewMode, closePDFPreview, openPDFPreview);
         document.addEventListener('file-content-changed', handleEditorContentChange);
         document.addEventListener('vault-file-saved', handleVaultFileSaved);
         document.addEventListener('vault-file-tree-refreshed', handleFileTreeRefresh);
-        document.addEventListener('close-pdf-preview', event => closePDFPreview(event.detail || {}));
         document.addEventListener('tab-switched', handlePreviewTabSwitch);
         document.addEventListener('right-sidebar-resize-start', suspendScrollSyncForResize);
         document.addEventListener('right-sidebar-resize-end', resumeScrollSyncAfterResize);

@@ -1,5 +1,6 @@
 jest.mock('../frontend/js/tabManager.js', () => ({
     markTabDirty: jest.fn(),
+    recordTabMtime: jest.fn(),
     saveFileSnapshot: jest.fn(),
 }));
 
@@ -13,7 +14,7 @@ jest.mock('../frontend/js/dialogs.js', () => ({
 
 import { errorDialog } from '../frontend/js/dialogs.js';
 import { refreshFileTree } from '../frontend/js/fileTree.js';
-import { markTabDirty, saveFileSnapshot } from '../frontend/js/tabManager.js';
+import { markTabDirty, recordTabMtime, saveFileSnapshot } from '../frontend/js/tabManager.js';
 import { configureDrawioWorkspace, disposeDrawioTab, drawioEditorOrigin, drawioExportTimeoutMs, renderDrawioTab } from '../frontend/js/drawio.js';
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -31,7 +32,7 @@ describe('draw.io editor protocol', () => {
     let consoleError;
 
     beforeEach(() => {
-        configureDrawioWorkspace({ markTabDirty, saveFileSnapshot, refreshFileTree });
+        configureDrawioWorkspace({ markTabDirty, recordTabMtime, saveFileSnapshot, refreshFileTree });
         document.body.innerHTML = '';
         consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
         panel = document.createElement('div');
@@ -89,7 +90,10 @@ describe('draw.io editor protocol', () => {
         await flush();
         await flush();
 
-        expect(saveFileSnapshot).toHaveBeenCalledWith(tab, savedSVG);
+        expect(saveFileSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+            id: tab.id,
+            mtime: 10,
+        }), savedSVG);
         expect(refreshFileTree).toHaveBeenCalled();
     });
 

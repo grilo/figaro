@@ -2,6 +2,7 @@ import {
     editorDocumentMountPlan,
     editorDocumentMountChunks,
     LARGE_MARKDOWN_DOCUMENT_BYTES,
+    markdownPresentationStagePlan,
 } from '../../../frontend/js/core/editorDocumentMountModel.js';
 
 describe('editor document mount policy', () => {
@@ -27,5 +28,22 @@ describe('editor document mount policy', () => {
         expect(chunks[0].endsWith('\n')).toBe(true);
         expect(chunks.join('')).toBe(source);
         expect(editorDocumentMountChunks(source, 'code')).toEqual([source]);
+    });
+
+    test('prioritizes only presentation features present in a large document', () => {
+        expect(markdownPresentationStagePlan([
+            '# Report',
+            '```mermaid',
+            'flowchart LR; A --> B',
+            '```',
+            '$x^2$',
+        ].join('\n'))).toEqual({
+            ready: ['frontmatter', 'diagram', 'math'],
+            deferred: ['image', 'table'],
+        });
+        expect(markdownPresentationStagePlan('# Plain note')).toEqual({
+            ready: ['frontmatter'],
+            deferred: ['image', 'diagram', 'table', 'math'],
+        });
     });
 });

@@ -103,6 +103,10 @@
     --ui-menu-radius: 8px;
     --ui-item-radius: 5px;
     --ui-badge-height: 20px;
+    --disclosure-surface: color-mix(in srgb, var(--text-color) 8%, var(--sidebar-bg));
+    --disclosure-hover-surface: color-mix(in srgb, var(--text-color) 13%, var(--sidebar-bg));
+    --disclosure-active-surface: color-mix(in srgb, var(--text-color) 17%, var(--sidebar-bg));
+    --disclosure-summary-color: color-mix(in srgb, var(--text-color) 40%, var(--text-muted));
     /* Optional theme art direction. Palette-only themes inherit these neutral
        values; distinctive themes override only tokens, never selectors. */
     --app-surface: var(--bg-color);

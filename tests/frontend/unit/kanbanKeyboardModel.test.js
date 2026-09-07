@@ -3,6 +3,7 @@ import {
     applyKanbanCardOrder,
     calibrateKanbanVirtualLayout,
     createKanbanVirtualLayout,
+    kanbanBoardInstruction,
     kanbanCardOrderRef,
     kanbanCardWindow,
     kanbanVirtualIndexAtOffset,
@@ -12,6 +13,13 @@ import {
 } from '../frontend/js/core/kanbanKeyboardModel.js';
 
 describe('Kanban keyboard decisions', () => {
+    test('empty boards teach first-task creation; populated boards show card shortcuts', () => {
+        expect(kanbanBoardInstruction(null)).toBe('');
+        expect(kanbanBoardInstruction({ todo: [], wip: [], done: [] }))
+            .toBe('No tasks yet. Add #todo, #wip, or a custom column tag to a note. For example: Plan trip #todo.');
+        expect(kanbanBoardInstruction({ todo: [], custom: [{ text: 'Existing task' }] }))
+            .toBe('Tab focuses cards; arrows move them. Enter opens the note, S sets a start date, and D sets a due date.');
+    });
     const refs = [
         { file: 'tasks.md', line: 1, text: 'First' },
         { file: 'tasks.md', line: 2, text: 'Second' },

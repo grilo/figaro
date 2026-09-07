@@ -31,10 +31,19 @@ type AssetFS interface {
 	ReadDir(name string) ([]fs.DirEntry, error)
 }
 
-// assets is initialized once by the composition root before any App is
-// constructed. Keeping this read-only adapter package-scoped avoids threading
-// the same immutable bundle through every existing Wails method.
-var assets AssetFS
+func readBundledAsset(bundle AssetFS, name string) ([]byte, error) {
+	if bundle == nil {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
+	}
+	return bundle.ReadFile(name)
+}
+
+func readBundledAssetDir(bundle AssetFS, name string) ([]fs.DirEntry, error) {
+	if bundle == nil {
+		return nil, &fs.PathError{Op: "readdir", Path: name, Err: fs.ErrNotExist}
+	}
+	return bundle.ReadDir(name)
+}
 
 const figaroSingleInstanceID = "io.github.figaro.Figaro"
 
@@ -52,8 +61,6 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	if bundledAssets == nil {
 		return errors.New("desktop assets are required")
 	}
-	assets = bundledAssets
-
 	log.SetFlags(log.Ltime | log.Lshortfile)
 	log.Println("figaro starting...")
 
@@ -67,7 +74,7 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	}
 	log.Println("Vault selected")
 
-	app := NewApp(vaultPath)
+	app := OpenApp(vaultPath, bundledAssets)
 	applicationVersion, applicationVersionErr := appinfo.ProductVersion(wailsConfiguration)
 	if applicationVersionErr != nil {
 		log.Printf("[app] Application version is unavailable: %v", applicationVersionErr)
@@ -92,7 +99,7 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	}
 	// Position is deliberately absent from windowState. Wails centers the
 	// initial window on Windows, macOS, and Linux before applying this state.
-	linuxWindowIcon, iconErr := assets.ReadFile("frontend/icon-256.png")
+	linuxWindowIcon, iconErr := bundledAssets.ReadFile("frontend/icon-256.png")
 	if iconErr != nil {
 		// The launcher still has a filesystem-installed icon on Linux; this
 		// only affects the native window/dock representation.
@@ -119,7 +126,7 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 		// Frameless for native custom title bar.
 		Frameless: true,
 		AssetServer: &assetserver.Options{
-			Assets:  assets,
+			Assets:  bundledAssets,
 			Handler: vaultHandler,
 		},
 		BackgroundColour: &options.RGBA{R: 21, G: 21, B: 21, A: 255},
@@ -256,7 +263,8 @@ func (a *App) domReady(ctx context.Context) {
 			} catch (_) {
 				Object.defineProperty(navigator, 'language', { value: 'en-US', configurable: true });
 			}
-			// bootstrap.js is loaded statically by index.html. It waits for the
+			// The generated application bundle is loaded statically by index.html.
+			// Its bootstrap waits for the
 			// Wails binding and owns the single application-startup path.
 		})();
 	`)

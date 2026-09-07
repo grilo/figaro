@@ -18,7 +18,9 @@
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
-![Figaro Dark showing a Markdown roadmap, populated vault, activity calendar, due task, document outline, and buffer status](docs/images/figaro-editor.jpg)
+![Figaro Dark with a Markdown draft, a live Mermaid diagram, and Writing lenses](docs/images/figaro-editor.png)
+
+*The native Linux app in September 2026, with local writing suggestions beside the draft.*
 
 Figaro is a desktop knowledge workspace built around ordinary files. It combines
 a source-first Markdown editor with search, backlinks, a vault graph, daily
@@ -88,7 +90,10 @@ hand without changing the underlying Markdown.
   without finding the asset in the file tree. Expanded block controls stay
   transparent until the pointer approaches their block/left rail, the caret
   enters their source, or keyboard focus reaches them; the approach lane has no
-  dead gap, and folded controls remain visible. Home/document-start navigation and Vim
+  dead gap. Hovered controls stay visible while typing, and folded controls
+  remain visible. Narrow windows reserve enough
+  writing-margin space to keep controls clear of the sidebar and text.
+  Home/document-start navigation and Vim
   `gg` leave Properties rendered; Arrow Up (equivalent to Vim `k`) deliberately enters its
   raw YAML. Opening a Markdown note with complete Properties and no remembered
   or requested position starts the cursor on its first body line. Click a
@@ -105,8 +110,11 @@ hand without changing the underlying Markdown.
   conservative typo tolerance, accent-insensitive matching, best-match excerpts,
   and low-result spelling suggestions,
   backlinks, unlinked mentions, a top-right document-outline launcher that
-  stays beneath the sticky hierarchy, recent notes, pins, and file-tree
-  customization. Long tabs preserve their differentiating filename ending and
+  stays beneath the sticky hierarchy and remains visible with an explanatory
+  disabled state when a Markdown note has no headings (Tab exposes the same
+  explanation as hover). Opening the outline focuses the current heading;
+  closing from the pane restores the launcher. Also use recent notes, pins, and
+  file-tree customization. Long tabs preserve their differentiating filename ending and
   show their parent path; at narrow widths the parent path yields space before
   the filename does. Repeated arrow presses continue through the tab list,
   while vertical mouse-wheel input and Ctrl+PageUp/PageDown switch buffers and
@@ -135,9 +143,12 @@ hand without changing the underlying Markdown.
   available without creating tens of thousands of DOM elements. Kanban's
   window uses measured card heights and retains overlapping cards while its
   edges move, avoiding visual jumps or repeated hover elevation during a fast
-  scroll. Very large
-  Markdown notes mount source and full live presentation in short phases, so
-  opening one does not monopolize the interface.
+  scroll. Very large Markdown notes mount source and live presentation in
+  short, content-aware phases. Switching files releases the outgoing note
+  without rescanning it, then prioritizes only the incoming presentation
+  features that are present; notes containing hundreds of rendered diagrams,
+  tables, equations, or images still require proportionally more browser work
+  than plain text of the same size.
 - **Connected note graph.** Open **Graph** below the file tree to explore every
   saved Markdown note and its links. Borderless zoom controls, a compact
   borderless search field matching Search notes,
@@ -180,6 +191,13 @@ hand without changing the underlying Markdown.
   contents, use a standalone `---` as a PDF page break, apply vault-local print
   CSS, and generate linked PDFs. Compact Raw and PDF icons sit directly beneath
   the Document outline launcher on every Markdown buffer.
+- **Local writing review.** The lens button beneath PDF, or Ctrl/Cmd+Shift+L,
+  opens grouped suggestions from Proofreading, Clarity, Directness, Inclusive
+  language, and Formulaic writing. Combine checks per note and choose English US/UK for prose and
+  spelling, or Spanish for spelling. Select a finding to visit its source,
+  apply a verified phrase replacement, undo it normally, or ignore it with a decision
+  remembered across restarts. Hover underlines for examples and actions. Pure mode provides the
+  same configuration controls; Proofreading controls spelling checks.
 - **Built-in reference.** Press F1 or use the title-bar `?` to search Markdown
   syntax, Macros, Shortcuts, and Settings. Help results jump to the matching
   reference row without dismissing the reference when clicked; Settings results
@@ -289,6 +307,229 @@ open with language-aware syntax highlighting, folding, completion, and
 indentation guides. Vault-specific settings and workspace state live in
 `.config/` inside the vault.
 
+Configuration is eligible for Git tracking. On opening a vault, Figaro removes
+the legacy blanket `.config/` ignore rule it previously inserted, preserving
+other ignore rules. Commit that folder with your normal vault Git workflow to
+carry preferences with its history. Per-note automatic history still commits
+only the saved note; changing preferences does not create a commit.
+
+Choose any combination of **Proofreading**, **Clarity**, **Directness**,
+**Inclusive language**, and **Formulaic writing**
+under **Lenses**. Each note remembers its own combination
+and analysis language by path in `.config/writing-lenses.json`. There is no
+primary lens or writing profile: selecting Directness directly enables
+passive-construction advice, qualifying-phrase review, and emphatic-punctuation advice.
+Proofreading combines spelling, repetition, consistency, and grammar/punctuation;
+Clarity combines plain language and readability. No checks have been removed.
+Older partial combinations remain intact and display **Partial** beside the group.
+Its info button lists enabled checks; selecting the group enables all supported
+checks, and unchecking a selected group disables them together.
+
+**Proofreading’s consistency checks** find mixed forms of selected terms, such as “email/e-mail,”
+“website/web site,” and “PDF/pdf.” Both occurrences offer the other form so you
+can choose which to keep. **Proofreading’s grammar and punctuation checks** check “a/an,” spaces before
+commas, semicolons, colons, question marks and exclamation marks, and repeated
+commas. **Clarity’s readability checks** highlight paragraph sentences containing more than 30
+words and complex sentences where several readability formulas agree. Formula
+checks skip sentences shorter than 15 words. Equivalent length observations
+merge, while length and complexity advice remain separate. Examples suggest simpler wording or splitting a thought,
+without an automatic rewrite or reading-grade score. These estimates do not
+measure writing quality. Grammar covers selected checks; it does not detect
+subject–verb agreement or contextual homophones such as “their/there.” Spelling
+also cannot check those in context. The prose checks support English US and UK.
+
+**Proofreading’s grammar and punctuation checks** also catch missing or misplaced contraction
+apostrophes, such as “isnt” and “does’nt.” **Clarity** checks redundant
+acronyms (“ATM machine”), clichés, and corporate jargon. **Directness** invites
+you to review selected qualifying phrases and repeated emphatic punctuation;
+keep qualifiers that express real uncertainty.
+
+**Proofreading’s consistency checks** suggest one space between sentences on the same line, preserving
+intentional line breaks. They also offer optional accented spellings such as
+“Beyonce” → “Beyoncé” and “cafe” → “café”; apply them only when they fit your
+intended name and spelling. Each spacing example states the space counts.
+
+**Proofreading’s grammar and punctuation checks** also flag unmatched opening marks such as an unclosed
+parenthesis, with an example to help you review it. **Proofreading’s consistency checks** offer
+corrections for selected technical names, including “Javascript” → “JavaScript”
+and “Github” → “GitHub.” **Clarity** suggests explaining unfamiliar
+three-to-five-letter uppercase acronyms, accepting definitions such as
+“service level objective (SLO),” even across a soft line break and anywhere
+in eligible prose before or after first use. Familiar exceptions and reviewed
+ordinary capitals such as MUST and DRAFT stay quiet. This recognizes patterns,
+not the meaning or correctness of an expansion. Acronym advice
+offers a general example without guessing the expansion. Number/unit spacing
+is not checked: forms such as `8.1Mib`, `10MB`, and `20ms` stay as written.
+
+**Proofreading’s consistency checks** also check quotation and apostrophe styles. It follows the
+prevailing style in the note, using the first occurrence to break ties, and
+uses the first quotation in that style to choose outer single or double quotes.
+A quote fix changes its paired/nested delimiters together, preserving the exact
+wording and Markdown formatting. **Inclusive language** is an optional lens for
+generic roles, exclusionary expressions, and accessibility descriptions.
+Reviewed alternatives such as “chairman” → “chairperson” offer Apply; broader
+checks provide contextual advice for manual review.
+It leaves personal pronouns and neutral identity labels to the author; a safe
+source range alone does not make a replacement appropriate. Article checks
+preserve correct phrases such as “a unicorn” and “an hour,” and withhold
+pronunciation-dependent cases such as “herb” and “historic.”
+Cliché, jargon, qualifying-phrase, and emphasis advice includes general examples
+without automatic rewrites. All checks run locally.
+
+**Formulaic writing** is an optional English lens with 30 local Slopless rules
+for stock framing, clichés, wordiness, repeated openings/words, layered
+qualifications, and rhetorical templates. It also reviews **unspaced em dashes**, **curly quotation marks**, and
+**curly apostrophes**. These are style preferences, not evidence of AI authorship.
+The lens gives contextual examples and reversible Ignore actions without automatic
+rewrites. Its typography advice marks punctuation alone; quoted wording stays
+protected. Checks run in the background worker after typing pauses. See the
+[complete included/excluded rule list](docs/WRITING_SLOPLESS.md).
+
+The **Analysis language** combobox comes first and uses the same control as Settings.
+For a configured note, **Lenses** shows the selected count on the right and
+keeps the five-checkbox setup collapsed so suggestions appear sooner. Its visible
+resting surface stays discoverable in Figaro Dark and Figaro CRT. Click the row
+or press Enter/Space while focused to rotate the arrow and reveal the choices
+below. The 180 ms animation follows reduced-motion preferences. Collapsed choices
+are skipped by Tab. Each lens has a short summary and an info button beside its name.
+Click the info button for coverage, limitations, and three or four illustrative
+Before/After examples for supported checks. Help keeps its size while you scroll through it. Escape
+or its Close button returns to the info button, and clicking elsewhere dismisses it.
+Partial-selection details also live here. Help remains available for disabled
+lenses and explains their language requirements. New, unconfigured notes
+show setup immediately; the Pure picker also keeps configuration visible.
+Choose **English (US)** or **English (UK)** for spelling and prose checks, or
+**Spanish** for spelling only under Proofreading. Selecting a language clears
+unsupported checks; groups with no supported checks are unchecked and disabled.
+Proofreading’s description identifies its spelling-only Spanish coverage.
+Changing back leaves the cleared checks off until selected again, so Proofreading
+can show Partial when returning from Spanish to English. Hover an unavailable
+checkbox or its label to see why it cannot be
+activated. **None** unchecks and disables every lens; new notes have no selected
+lenses or language. Existing vault lens choices become defaults for
+notes without saved choices and migrate on the next explicit save. Closing the
+pane or entering Pure mode preserves the choices; Ctrl/Cmd+Shift+L opens the
+same controls in Pure. **Apply to all documents**, beneath the saved-choices
+message, copies this combination and language to all existing documents and sets
+the defaults for future notes in this vault. It never edits note text. Failed saves retain your choices with **Retry**; invalid
+or newer preference files remain intact and require a successful load retry.
+Spelling is controlled entirely by Proofreading and the note’s analysis language. The old Settings
+picker and Properties field are gone; existing `spellcheck` and `writing-language`
+frontmatter stays intact as ordinary metadata and does not override the lenses.
+
+Review uses the current unsaved Markdown after a 500 ms typing pause. Analysis,
+finding resolution, and saved-decision matching run asynchronously in local
+workers. Typing does not scan the decision history or wait for checks; stale
+results are discarded. Eligible
+words and phrases receive the existing subtle dotted underline, including visible
+labels in ordinary links, wiki aliases, and reference links. Link review keeps
+the destination information available and preserves normal link activation. Hover a mark
+for an explanation, before/after wording when available, and **Apply** or **Ignore this occurrence**, or put the caret in it and press
+**Ctrl/Cmd+.**. Tab/Shift+Tab move through the actions; Escape closes the popup
+and restores editor focus. This also works in Pure mode with the pane closed.
+Each pane suggestion has a rounded, borderless background, a link icon that
+jumps to its source, and visible **Apply**, **Ignore this occurrence**, and **Details** buttons.
+Passage excerpts and the repeated hover hint are omitted. Passive
+advice includes a clearly labelled general example of naming the actor. Only
+verified contiguous word/phrase replacements have **Apply**; passive and
+readability advice have no automatic rewrite. **Ignore this occurrence** remembers
+that specific suggestion for this document across switches and restarts, without
+changing its text. Edits, ownership changes,
+and configuration changes invalidate old actions. Failed checks leave explicitly
+partial results with **Retry analysis**. After a worker restarts, missing prose
+analysis is rebuilt in the background before the review is marked complete. If
+rebuilding fails, available spelling suggestions stay visible with the partial
+warning and Retry action. Identical advice shares one card with
+an occurrence count and **Previous/Next** navigation. The pane starts with four
+distinct suggestions, adding four through **Show more suggestions**, even when
+one passage contains hundreds of findings.
+
+For repeated reviewed replacements with one choice, **Apply “…” to all N
+occurrences** changes only that suggestion’s current occurrences in this document,
+as one Undo/Redo action. Every range is revalidated together before any edit.
+Contextual advice, multiple alternatives, articles, and quotation-style changes
+remain individual decisions. There is no blanket fix-all across unrelated rules.
+Actions precede one before/after comparison; more than two alternatives use
+**More alternatives**. **Details** explains the rule and when to keep your wording;
+engine data is available separately under **Technical diagnostics**.
+
+Spelling skips reference identifiers/definitions and indented code as well as
+fenced/inline code, frontmatter, destinations and URLs. Explicit `[label][id]`
+labels remain checkable. When `[label]` or `[label][]` also identifies a defined
+reference, hints explain why Apply is unavailable; give the link a separate
+label before changing its wording. This protection also applies to image
+references and other lenses. English spelling accepts valid possessives such as
+“users’” and “James'”; correcting a misspelled stem preserves its apostrophe
+and possessive suffix. Underscore and asterisk emphasis receive the same checks;
+closing quotes, numeric compounds such as `base-10`, and `8.1Mib` stay intact.
+A reviewed English technical vocabulary avoids corrections to terms such as
+Jupyter and subclasses. Spelling **Apply to all** requires a reviewed correction,
+not merely one dictionary candidate; other suggestions need your judgment.
+
+Spelling popups also offer **Add to dictionary**. A successful addition is
+remembered across notes and restarts in this vault’s
+`.config/spelling-dictionary.json`, using case-insensitive whole-word matching
+across its spelling languages. It applies to inline review and right-click
+spelling suggestions. A failed save leaves the suggestion available with a retryable error.
+**Ignore this occurrence** remembers only that occurrence in this document.
+
+Undefined-acronym suggestions also offer **Accept “SLO” in this document**.
+It suppresses that acronym throughout the note, including future occurrences,
+for the selected analysis language. Both actions save only after a successful
+write to `.config/writing-decisions.json`. Failed loads offer **Retry review
+decisions**. After an uncertain save, retry the same action or **Reload saved
+decisions** to reconcile what actually reached disk. Reload waits for active
+background tracking and retains edits made meanwhile, so removed decisions
+cannot replace surviving ones in the saved list. If reload and background
+tracking both fail, Retry reloads saved decisions before resuming tracking.
+Reaching the 1,000-decision
+limit explains how to make room and leaves Restore available. These choices
+are separate from lens defaults and **Apply to all documents**.
+
+Open **Saved review decisions** in the Writing lenses pane or Pure picker to
+reverse a choice with **Restore suggestion** or **Review acronym again**.
+Ignored occurrences follow known nearby edits that leave the target intact;
+updated context is saved automatically after a short pause, including the first
+nearby edit after opening a note. This also covers
+edits made while Ignore is still saving: a deleted target stays inactive,
+and its safe anchor is saved before the new Ignore action finishes. On reload, a unique
+full-context match or a sufficiently distinctive unchanged side can identify it.
+After an edit touching the target, only its original full context can reactivate
+the decision; deleting one repeated passage cannot move Ignore to another.
+Ambiguous or changed targets stay visible. The saved list shows surrounding
+context and labels unmatched records **Inactive**, with removal still available.
+Choices are stored by note path and language. Renaming or moving notes and folders
+inside Figaro preserves lens choices, ignored occurrences and accepted acronyms,
+including collision copies in folder merges. Pending saves follow the new path;
+conflicting saved writing data stops the move without overwriting either record.
+Renames performed outside Figaro are not automatically matched to these records.
+
+The packaged engines work offline. All prose lenses skip quotes,
+blockquotes, code, math, frontmatter, link destinations, URLs, and recognized
+technical tokens. Wiki-link targets, heading fragments, and embeds are protected
+in every lens; explicit display aliases can still receive suggestions.
+Acronym review recognizes hyphenated expansions such as “user-experience design
+(UXD)” and uses ordinary dictionary words to avoid warnings on capitals such as
+KEEP and SHORT. Definitions may precede or follow the acronym, including plural
+forms such as “Digital Object Identifiers (DOIs)”, anywhere in eligible prose.
+Recognition uses matching initials and a limited “of” word order; it does not
+check the expansion’s meaning. Length advice starts above 30 words and checks
+the highlighted sentence itself. URL punctuation, technical noun uses, and
+accessibility phrases such as “easy read” receive contextual guards.
+See the [corpus corrections and evaluation limits](docs/WRITING_CORPUS_FIXES.md).
+Plain language shows broader phrase advice, while Apply remains restricted to
+reviewed replacements. Each lens works on its own: shared concerns merge when
+lenses overlap, and different advice about the same sentence stays separate.
+See the [package coverage review](docs/WRITING_PACKAGE_REVIEW.md) for restored
+checks, 29 technical names, broader Inclusive advice, and remaining exclusions. See [Writing engine](docs/WRITING_ENGINE.md)
+for that set, exact dependencies, capability limits, and measured performance.
+Long-note review shares repeated tokenization and avoids redundant punctuation
+parsing work while retaining every rule. Analysis stays in background workers and
+processes, with cancellation on further typing and bounded size-aware deadlines.
+The [usefulness corpus proposal](docs/WRITING_CORPUS.md) describes freely
+redistributable source candidates and the human review needed to measure whether
+suggestions improve real writing.
+
 **Settings → Editor → Tab Size** sets one indentation width for the whole
 writing environment. It defaults to four spaces and can be changed from 2 to
 8 with the `− number +` control. Normal Tab/Shift+Tab, Vim `>`, Markdown code
@@ -364,7 +605,9 @@ Row/column commands disable with an explanation when they would cut through a
 merge, and the final column and header remain protected. Undo/Redo in the
 window affects only its temporary draft; **Apply** writes one undoable
 CodeMirror transaction, while **Cancel** writes nothing and confirms before
-discarding changes. **Show Markdown** exposes a read-only source view. Figaro
+discarding changes. **Keep editing**, or Escape from that confirmation,
+returns to the previous cell and text selection. **Show Markdown** exposes a
+read-only source view. Figaro
 stores rectangular spans as adjacent `<!-- figaro:table-merge A2:C3 -->`
 metadata, which the live and printable renderers consume without displaying.
 
@@ -434,7 +677,8 @@ Import/Keep outside choice there instead of opening another window.
 Files and folders can also be copied or dropped into the tree. Figaro asks
 before importing, preserves directory structure, and never silently overwrites
 existing content. An internal copy updates only the new subtree in Figaro's
-warm discovery data, so large vaults do not rediscover every unrelated note
+warm discovery data; while the native watcher is active, its maintained
+snapshot also avoids a synchronous metadata pass over every unrelated note
 before showing the result. F2 renames the focused vault item, Delete opens the
 recovery-aware confirmation, and Ctrl/Cmd+X, Ctrl/Cmd+C, and Ctrl/Cmd+V provide
 conventional Cut/Copy/Paste. The tree context menu shows those shortcuts and
@@ -519,10 +763,9 @@ Pressing Enter on an empty list item or blockquote exits one structural level
 immediately; nested quotes step outward one level at a time. Deleting a numbered
 list item renumbers its remaining siblings from the list's original starting
 number, including within nested lists, as part of the same Undo step.
-Offline spellcheck is disabled by default; choose **Settings → Spellcheck →
-Language** to select English (US), English (UK), Spanish (Spain), or **None**.
-The setting separates the vault default from per-note frontmatter controls, and
-spellcheck text never leaves the device.
+Offline spelling is a per-note **Writing lenses → Proofreading** spelling check. Choose the
+note’s analysis language (English US/UK or Spanish); new notes start with no
+checks selected. Text never leaves the device.
 
 Optional Vim editing keeps wrapped-row motion and Visual selections compatible
 with rendered Markdown, and vertical motions stop at the exact first and last
@@ -564,7 +807,9 @@ while matching results are open. A panel-shaped top-bar icon now toggles the
 workspace sidebar, while a nested-list icon opens the current note's outline.
 
 Kanban cards are ordinary Markdown lines with standalone hashtags; checkbox
-task syntax is optional. Scheduling stays in private metadata, not date strings:
+task syntax is optional. An empty Board explains first-task creation with a
+`Plan trip #todo` example; card shortcuts replace it once tasks exist.
+Scheduling stays in private metadata, not date strings:
 
 ```markdown
 - [ ] Submit report #todo
@@ -658,7 +903,7 @@ An empty Gantt keeps a centered **No tasks yet** explanation visible even when
 the wide date track has been scrolled away from its origin. Drag and resize
 instructions remain hidden until at least one task exists.
 
-Task schedules live in `vault/.config/task-schedules.json`, outside Git history,
+Task schedules live in `vault/.config/task-schedules.json`, eligible for Git tracking,
 not in your Markdown. Save dirty notes before scheduling them. Unique task text
 keeps its dates when lines shift or column tags change; Figaro file/folder moves
 also retain schedules. Renamed task text and ambiguous duplicate edits keep their
@@ -677,7 +922,9 @@ borderless, opens on its right side, and blends into its central workspace when
 selected, including across themes that tint the sidebar divider or resize hit
 area. Its two workspace-side junctions use the same rounded browser-tab radius
 instead of ending in square notches. None creates a duplicate document-title
-tab, and reselecting the active control keeps that workspace open. Hashtags and
+tab. Clicking the active control again returns to the view used before opening
+it, retaining the mounted planning workspace. Clicking Timeline again returns
+to Month; clicking Gantt again returns to Board. Hashtags and
 **Open board** reuse the same
 Kanban workspace and can focus the relevant column. Graph keeps one all-notes
 canvas session without adding graph-only chrome to the shared right pane.
@@ -853,9 +1100,11 @@ connection choices plus a node list: select a node there or directly in the
 preview, then assign a Kanban-palette color or choose its original, rounded, or
 pill shape. The active editor keeps the ellipsized node identity on the left,
 its shape control centered, and its color action on the right; height-stable
-chooser rows summarize those same three parts. Selecting a row does not move
-the list or reset its scroll position. The selected node's editor appears first,
-above the height-bounded list and the diagram-wide defaults.
+chooser rows summarize those same three parts. Selecting a visible row keeps
+its position and the Style panel's scroll offset stable. The selected node's editor
+appears first, above the full-height list and the diagram-wide defaults. The
+element list expands to fit every node; the Style panel provides the single
+scrollbar for the list and its controls.
 Mermaid's Diagram/Template pickers, segmented choices, and color actions reuse
 the same approved quiet control primitives as Settings. The outer dialog,
 source/preview panes, headings, and node list use tonal separation without
@@ -892,8 +1141,16 @@ body as one undoable edit; **Cancel** leaves the note unchanged.
 Raw Text Preview shows the exact Markdown source, including frontmatter. It
 follows the main editor's matching source position with a small smoothing delay
 and can copy the complete current Markdown snapshot directly to the clipboard.
-When the navigation pane leaves insufficient room to dock Raw or PDF Preview
-beside a usable editor, the existing preview pane overlays the trailing edge
+All right-pane modes share the current splitter width; switching between Outline,
+Raw, PDF, and Writing lenses keeps every launcher visible and highlights the
+selected one. Each open document remembers its selected pane for the session,
+including when returning from Settings or a planning view. Closing a pane is
+also remembered. The status bar’s document metrics stay beneath the editor,
+following the pane edge as it opens, closes, or resizes. Narrow buffer space
+hides lower-priority details without wrapping; the window resize grip stays at
+the window corner. All modes resize from 240px while preserving a 320px editor
+when docked. When there is insufficient room beside a usable editor, the pane
+overlays the trailing edge
 instead. The document keeps its layout width, at least 180px remains visible at
 normal compact-window sizes, and widening the window docks the pane again.
 PDF Preview adds pagination, cover pages, a depth-limited table of contents,
@@ -966,6 +1223,11 @@ actually saved.
 Issues and pull requests are welcome. Development setup, build targets, test
 commands, release procedures, design-system rules, and repository conventions
 are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+The repository includes skills for preparing a verified release proposal with a
+recommended version and for auditing editor UX. Release finalization and
+publication require your explicit approval; see the
+[repository skill workflows](CONTRIBUTING.md#repository-skills).
 
 ## License
 

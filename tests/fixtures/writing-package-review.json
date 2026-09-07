@@ -1,0 +1,143 @@
+[
+  {
+    "rule": "write-good.Cliches",
+    "source": "That was a blessing in disguise.",
+    "actual": "blessing in disguise",
+    "lens": "plain",
+    "kind": "style.stock-phrase"
+  },
+  {
+    "rule": "write-good.Illusions",
+    "source": "We sent the the draft.",
+    "actual": "the the",
+    "lens": "repetition",
+    "kind": "grammar.repeated-word"
+  },
+  {
+    "rule": "write-good.So",
+    "source": "So, the draft is ready.",
+    "actual": "So,",
+    "lens": "direct",
+    "kind": "style.opening-transition"
+  },
+  {
+    "rule": "write-good.ThereIs",
+    "source": "There are three tests.",
+    "actual": "There are",
+    "lens": "direct",
+    "kind": "syntax.indirect-opening"
+  },
+  {
+    "rule": "write-good.Weasel",
+    "source": "The file is very large.",
+    "actual": "very",
+    "lens": "direct",
+    "kind": "style.modifier"
+  },
+  {
+    "rule": "proselint.Airlinese",
+    "source": "We are deplaning now.",
+    "actual": "deplaning",
+    "lens": "plain",
+    "kind": "style.stock-phrase"
+  },
+  {
+    "rule": "proselint.Archaisms",
+    "source": "Please find enclosed the invoice.",
+    "actual": "Please find enclosed",
+    "lens": "plain",
+    "kind": "style.archaism"
+  },
+  {
+    "rule": "proselint.Jargon",
+    "source": "We answered in the affirmative.",
+    "actual": "in the affirmative",
+    "lens": "plain",
+    "kind": "style.stock-phrase"
+  },
+  {
+    "rule": "proselint.Malapropisms",
+    "source": "They attack my voracity.",
+    "actual": "attack my voracity",
+    "lens": "plain",
+    "kind": "style.word-choice"
+  },
+  {
+    "rule": "proselint.Oxymorons",
+    "source": "We generally always finish early.",
+    "actual": "generally always",
+    "lens": "plain",
+    "kind": "style.contradiction"
+  },
+  {
+    "rule": "proselint.RASSyndrome",
+    "source": "Enter your PIN number.",
+    "actual": "PIN number",
+    "lens": "plain",
+    "kind": "style.redundant-acronym"
+  },
+  {
+    "rule": "proselint.Skunked",
+    "source": "The label is deceptively simple.",
+    "actual": "deceptively",
+    "lens": "plain",
+    "kind": "style.disputed-term"
+  },
+  {
+    "rule": "proselint.Spelling",
+    "source": "The advisor met the adviser.",
+    "actual": "adviser",
+    "lens": "consistency",
+    "kind": "style.consistency"
+  },
+  {
+    "rule": "proselint.Uncomparables",
+    "source": "The proof is very unique.",
+    "actual": "very unique",
+    "lens": "direct",
+    "kind": "style.absolute-modifier"
+  },
+  {
+    "rule": "proselint.Very",
+    "source": "The file is very large.",
+    "actual": "very",
+    "lens": "direct",
+    "kind": "style.modifier"
+  },
+  {
+    "rule": "Microsoft.Adverbs",
+    "source": "We accidentally sent the file.",
+    "actual": "accidentally",
+    "lens": "direct",
+    "kind": "style.modifier"
+  },
+  {
+    "rule": "Microsoft.Jargon",
+    "source": "We should bucketize these records.",
+    "actual": "bucketize",
+    "lens": "plain",
+    "kind": "style.stock-phrase"
+  },
+  {
+    "rule": "Microsoft.Passive",
+    "source": "The report was written today.",
+    "actual": "was written",
+    "lens": "direct",
+    "kind": "syntax.passive"
+  },
+  {
+    "rule": "Microsoft.Wordiness",
+    "source": "We left in order to catch the train.",
+    "actual": "in order to",
+    "lens": "plain",
+    "kind": "style.wordiness"
+  },
+  {
+    "rule": "Microsoft.SentenceLength",
+    "source": "Before we publish the final report, we need to review the examples with the team, check every figure against the source material, explain the remaining limitations to our readers, and decide which recommendations should appear in the introduction.",
+    "actual": "Before we publish the final report, we need to review the examples with the team, check every figure against the source material, explain the remaining limitations to our readers, and decide which recommendations should appear in the introduction.",
+    "lens": "readability",
+    "kind": "readability.long-sentence",
+    "nativeActual": "Before"
+  }
+]
