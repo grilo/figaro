@@ -113,6 +113,38 @@ describe('release metadata and documentation', () => {
         });
     });
 
+    test('blocks release publication when Windows or macOS platform contracts fail', () => {
+        const { jobs } = yaml.safeLoad(read('.github/workflows/release.yml'));
+        const build = jobs.build;
+        expect(build.needs).toBe('verify');
+        expect(build['continue-on-error']).toBeUndefined();
+        expect(build.if).toBeUndefined();
+        expect(build['runs-on']).toBe('${{ matrix.os }}');
+        expect(build.strategy.matrix.include.map(platform => platform.os))
+            .toEqual(expect.arrayContaining(['windows-latest', 'macos-latest']));
+
+        const assetsIndex = build.steps.findIndex(step => step.name === 'Prepare platform test assets');
+        const testIndex = build.steps.findIndex(step => step.name === 'Test native platform contracts');
+        expect(assetsIndex).toBeGreaterThan(-1);
+        expect(testIndex).toBeGreaterThan(assetsIndex);
+        expect(build.steps[assetsIndex]).toEqual({
+            name: 'Prepare platform test assets',
+            if: "runner.os != 'Linux'",
+            run: 'go run ./cmd/prepare-writing-assets',
+        });
+        expect(build.steps[testIndex]).toEqual({
+            name: 'Test native platform contracts',
+            if: "runner.os != 'Linux'",
+            run: 'go test . ./internal/... ./cmd/...',
+        });
+        for (const name of ['Build Windows binary', 'Build universal macOS application', 'Upload packaged binary']) {
+            expect(build.steps.findIndex(step => step.name === name)).toBeGreaterThan(testIndex);
+        }
+        // Default success gating must apply to the complete build matrix.
+        expect(jobs.publish.needs).toBe('build');
+        expect(jobs.publish.if).toBeUndefined();
+    });
+
     test('scopes the Ubuntu PDF sandbox override to the trusted fixture step only', () => {
         for (const filename of ['.github/workflows/test.yml', '.github/workflows/release.yml']) {
             const workflow = yaml.safeLoad(read(filename));

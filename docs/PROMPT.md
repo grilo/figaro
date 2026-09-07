@@ -1354,6 +1354,8 @@ Figaro initializes a local Git repository in the vault. **Auto-Save** writes the
   Renames/folder moves made in Figaro record path boundaries transactionally in
   `.config/activity-paths.json`, including collision copies during merges.
   Recorded Git renames outside Figaro use similarity detection where possible.
+  Notes inside folders support activity on Linux, Windows, and macOS; native
+  path separators do not change their Git identity or recorded dates.
 - Edits observed in the live editor immediately receive the local edit day as
   an ephemeral display date, while retaining their unrecorded status. Same-day
   recorded and temporary passages share one marker; its tooltip identifies

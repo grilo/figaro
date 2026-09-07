@@ -10,6 +10,15 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.37.3] - 2026-09-07
+
+### Fixed
+
+- Activity dates and recorded changes now load for notes inside folders on Windows,
+  including after renames, folder moves, and merges.
+- Windows and macOS backend tests must pass before release downloads can be
+  published, preventing a successful build from masking a platform failure.
+
 ## [1.37.2] - 2026-09-07
 
 ### Added
@@ -2177,7 +2186,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.37.2...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.37.3...HEAD
+[1.37.3]: https://github.com/grilo/figaro/compare/v1.37.2...v1.37.3
 [1.37.2]: https://github.com/grilo/figaro/compare/v1.37.1...v1.37.2
 [1.37.1]: https://github.com/grilo/figaro/compare/v1.37.0...v1.37.1
 [1.37.0]: https://github.com/grilo/figaro/compare/v1.36.1...v1.37.0

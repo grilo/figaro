@@ -18,6 +18,44 @@ func activityApp(t *testing.T, dir string) *App {
 	}
 	return app
 }
+
+func TestGetFileActivityNormalizesNestedVaultPathsForGit(t *testing.T) {
+	dir := t.TempDir()
+	app := activityApp(t, dir)
+	const source = "Meetings/Quarterly Review/Note.md"
+	const content = "Keep the recorded meeting date."
+	writeTestFile(t, dir, source, content)
+	if err := app.history.CommitFile(source); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{
+		source,
+		`Meetings\Quarterly Review\Note.md`,
+		`Meetings/Quarterly Review\Note.md`,
+		"Meetings/./Quarterly Review/Note.md",
+	} {
+		t.Run(path, func(t *testing.T) {
+			result, err := app.GetFileActivity(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Source != content || len(result.Events) != 1 || result.Revision == "" {
+				t.Fatalf("missing nested note activity: %#v", result)
+			}
+		})
+	}
+	for _, path := range []string{"../outside.md", `..\outside.md`, `C:\outside.md`, "Note\x00.md"} {
+		t.Run(path, func(t *testing.T) {
+			if _, err := app.GetFileActivity(path); err == nil {
+				t.Fatalf("accepted invalid activity path %q", path)
+			}
+		})
+	}
+	if readTestFile(t, dir, source) != content {
+		t.Fatal("reading activity changed the note")
+	}
+}
+
 func TestActivityFollowsUncommittedRenameFolderMoveAndMergeAcrossRestart(t *testing.T) {
 	for _, kind := range []string{"rename", "folder", "merge"} {
 		t.Run(kind, func(t *testing.T) {

@@ -44,6 +44,12 @@ same curated Added/Changed/Fixed content rather than GitHub-generated commit
 summaries. The metadata synchronizer owns version/date movement and comparison
 links from 1.14.0 onward; historical headings remain untouched.
 
+The release workflow verifies backend behavior on Linux, then runs the complete
+Go platform contracts on the Windows and macOS build runners before compiling
+their packages. Each prepares embedded writing assets before testing. Publication
+depends on success of the entire build matrix; an ordinary CI failure cannot be
+masked by a successful native compile of the same broken platform behavior.
+
 The discoverable release skill lives in `.agents/skills/prepare-figaro-release/`.
 Its proposal phase uses `scripts/prepare-release.sh --check` to run the existing
 metadata synchronizer and curated-note parser against a disposable copy of the
@@ -1081,6 +1087,10 @@ It follows persisted Figaro move boundaries and detected Git renames. The
 rooted `activity_paths.go` adapter bounds metadata reads; desktop relocation
 includes `.config/activity-paths.json` in the same atomic, rollback-capable move
 transaction as writing choices. No activity state is inserted into Markdown.
+The desktop activity entry point validates vault containment first, then converts
+the native path to Git's slash-separated form. The history adapter continues to
+reject backslashes, drive prefixes, and escaping paths; Windows folder paths are
+normalized at the caller boundary rather than weakening that validation.
 
 `core/activityModel.js` owns draft alignment, Markdown passage projection, local
 day grouping, compact year-bearing date labels, selected-range remapping, and

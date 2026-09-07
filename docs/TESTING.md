@@ -881,6 +881,13 @@ packaged documentation file, tag workflow, Make target, or
 release-preparation skill changes; they prevent a tag from publishing binaries
 whose visible metadata disagrees with the source release.
 
+The release metadata suite also parses the actual workflow to require native
+Windows and macOS Go tests before compilation and artifact upload. It checks
+asset preparation, mandatory failure propagation, and publication's dependency
+on the entire build matrix. These contracts prevent publishing a build whose
+platform tests failed in ordinary CI. Local release checks cover the current
+host; native Windows/macOS results are still required in the tag workflow.
+
 `tests/release/prepare-release.test.sh` also executes provisional verification
 on a dirty feature branch. It checks the shared verification command sequence,
 the exact candidate notes, successful and interrupted checks, and malformed
@@ -3159,6 +3166,14 @@ relocation tests exercise real rooted rename/folder/merge operations across
 restart and subsequent commits, collision preservation, metadata corruption,
 symlink containment, rollback and private permissions. Editor navigation tests
 cover the opt-in setting's persistence and frontend failed-save rollback.
+
+`TestGetFileActivityNormalizesNestedVaultPathsForGit` exercises the desktop entry
+point with slash, backslash, mixed, and normalized nested paths (including spaces),
+checks that recorded activity loads without modifying the note, and rejects
+traversal, drive-prefixed, and NUL-containing paths. It runs on each native CI and
+release platform so Windows `filepath` normalization is tested with Windows
+semantics. The existing rename/folder/merge restart regression also runs there;
+the lower-level history tests retain their strict rejection of backslashes.
 
 Frontend `activityModel`, `activityReview`, `activityWorkerClient`,
 `activityGutter`, `activityPane`, and `activityView` unit tests own grouping, source offsets,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	settingsmodel "figaro/internal/settings"
 )
@@ -162,5 +163,6 @@ func (a *App) GetFileActivity(relPath string) (*activity.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	return a.history.GetFileActivity(clean)
+	// Vault paths use native separators; Git object paths always use slashes.
+	return a.history.GetFileActivity(filepath.ToSlash(clean))
 }

@@ -59,7 +59,8 @@ dates** in **Settings → Editor → Navigation**, then click a margin date such
 of the text when you switch line numbers or block guides on or off. Adding a new
 meeting at the top preserves the older text's dates. New writing shows today's
 date immediately while waiting for history to record it. Use explicit date links
-for the meeting's scheduled day.
+for the meeting's scheduled day. Activity works for notes inside folders too,
+and follows renames and moves made in Figaro on every supported platform.
 
 [Explore notes and planning →](docs/NOTES_AND_PLANNING.md)
 

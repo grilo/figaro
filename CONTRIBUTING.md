@@ -351,6 +351,15 @@ the version and action named there; do not request another confirmation unless
 the scope changes materially. Pushing the tag starts the GitHub release workflow;
 successful pushes and successful workflow publication are separate results.
 
+The tag workflow runs the full Go test suite on native Windows and macOS runners
+before building their packages, in addition to Linux release verification. Writing
+test assets are generated first. All platform tests and builds must pass before
+the publication job can run; a Windows binary compiling successfully is not proof
+that Windows behavior passed. Also inspect the ordinary CI run for the same commit
+when reporting release health, since it includes checks such as the dependency
+audit beyond the tag workflow. Local release verification tests the current host;
+cross-compiling does not replace these native platform runs.
+
 The workflow publishes Linux x86-64, Windows x86-64, and universal macOS
 archives, plus `SHA256SUMS`. Each archive includes `README.md`, `CHANGELOG.md`,
 and `LICENSE`. Builds are currently unsigned.
