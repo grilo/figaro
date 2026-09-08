@@ -21,13 +21,15 @@ import { selectedWritingLenses } from './core/writingAnalysisModel.js';
 import { planWritingBulkFix } from './core/writingReviewModel.js';
 
 /** Workspace adapter for owned snapshots, existing panes, and validated editor edits. */
-export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusEditor, loadPreferences, savePreferences, applyAllPreferences, loadDecisions = async () => [], changeDecisions = async () => { throw new Error('Review storage unavailable'); }, getView, analysisPorts, dictionary, setSpelling = () => {} }) {
+export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusEditor, loadPreferences, savePreferences, applyAllPreferences, loadDecisions = async () => [], changeDecisions = async () => { throw new Error('Review storage unavailable'); }, getView, analysisPorts, dictionary, dictionaryReady = Promise.resolve(), setSpelling = () => {} }) {
     const sidebar = document.getElementById('right-sidebar');
     const content = document.getElementById('right-sidebar-content');
     const launcher = document.getElementById('writing-lenses-toggle');
     const quick = document.getElementById('writing-lenses-quick-toggle');
     if (!sidebar || !content || !launcher || !quick) return null;
     const mode = 'writing-lenses';
+    let dictionaryLoaded = false;
+    const dictionaryRestored = dictionaryReady.finally(() => { dictionaryLoaded = true; refreshAnalysis(true); });
     let analysis, resultsView, lastDocument, lastSource = '', revision = 0;
     let observedDocument, observedPath, decisionViewKey, refreshTimer;
     let disposed = false;
@@ -115,7 +117,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         const tab = activeDocument(), view = getView?.();
         const saved = preferences?.snapshot();
         const reviewState = decisions?.snapshot();
-        if (!tab || tab.path !== preferencePath || !view || !saved || reviewState?.status === 'loading' || ['loading', 'load-error'].includes(saved.status)) return null;
+        if (!dictionaryLoaded || !tab || tab.path !== preferencePath || !view || !saved || reviewState?.status === 'loading' || ['loading', 'load-error'].includes(saved.status)) return null;
         if (lastDocument !== view.state.doc) { lastDocument = view.state.doc; lastSource = view.state.doc.toString(); revision++; }
         const language = saved.preferences.language;
         const effectiveSpelling = { language, words: dictionary?.words() || [],
@@ -309,7 +311,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
     const observer = new MutationObserver(queueRefresh);
     observer.observe(sidebar, { attributes: true, attributeFilter: ['class', 'data-mode'] });
     refresh();
-    const ready = Promise.all([documents.get(preferencePath)?.ready, analysisPorts?.ready]).then(async () => { await decisions?.flushSource(); refreshAnalysis(true); });
+    const ready = Promise.all([documents.get(preferencePath)?.ready, analysisPorts?.ready, dictionaryRestored]).then(async () => { await decisions?.flushSource(); refreshAnalysis(true); });
     return {
         toggle, refresh, ready, movePaths: continuity.move,
         destroy() {

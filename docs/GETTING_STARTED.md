@@ -75,7 +75,12 @@ Keep the whole vault, including `.config/`, when backing up your workspace.
 
 ## Save, history, and recovery
 
-Auto-Save writes notes to disk. Local Git history records versions according to
+Auto-Save writes notes to disk and is active before the restored editor becomes
+editable. Writing engines and vault indexing can continue preparing in the
+background. Every editor save writes to disk first, then attempts Git history,
+then updates task metadata and the index. A slow history operation does not
+hold up the next disk write; a follow-up failure leaves saved text intact.
+Local Git history records versions according to
 your Auto-Commit setting; **Save to history** records the active file when it has
 changes to save. It does not include unrelated staged files. Undo and Redo belong
 to each open document, so switching tabs also switches editing history.
@@ -97,3 +102,40 @@ Use their recovery actions, such as **Check again**, to resolve the issue. Files
 than 50 MB cannot enter the editor.
 
 Local history is useful for recovery. Keep an independent backup too.
+
+## Troubleshoot a slow launch
+
+After a slow launch, open **Settings → Vault care → Open startup logs** to show
+Figaro's local timing logs in your file manager. Each launch has its own `.jsonl`
+file. A text editor can open it, including after Figaro was force-closed. The
+folder normally keeps the latest ten launches; if older files cannot be removed,
+additional logs may remain until a later launch can clean them up.
+
+The logs distinguish restoring the document, preparing writing services, and
+indexing the vault. Each stage records its beginning and completion, or a failure
+marker when that operation returns an error. A long `duration_ms` identifies slow
+work; a `begin` without a matching completion can help locate interrupted work.
+Stages overlap, so their durations should not be added together. These timings
+narrow down the affected stage but cannot identify antivirus or OneDrive as the
+cause on their own.
+
+`elapsed_ms` uses the native process clock; `webview_ms` preserves the original
+page-clock sample for events delivered by the UI. Bridge delivery can take time,
+so use `duration_ms` to compare how long each stage took.
+
+Logs contain the Figaro version, platform, timestamps, fixed stage labels, and
+durations. They contain no note text, filenames, vault paths, or raw error
+messages, and Figaro does not upload them. Log writes run independently from
+editing and saving; unavailable or slow log storage cannot hold up those actions.
+Existing settings and WebView storage remain in their current locations.
+
+If Figaro cannot open Settings, the log folder is:
+
+| Platform | Startup logs |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\Figaro\logs` |
+| macOS | `~/Library/Caches/Figaro/logs` |
+| Linux | `$XDG_CACHE_HOME/Figaro/logs`, normally `~/.cache/Figaro/logs` |
+
+You can delete these logs whenever Figaro is closed. They are diagnostics, not
+note history or backups.

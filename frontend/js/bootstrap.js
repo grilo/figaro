@@ -1,3 +1,4 @@
+import { startupTimings } from './startupDiagnostics.js';
 import { hasBackend, installDebugBackend } from './backend.js';
 import { initApp } from './app.js';
 import { startupBackendDecision } from './core/bootstrapModel.js';
@@ -15,6 +16,7 @@ function startApp() {
     bootStarted = true;
     window._appBootStarted = true;
     Promise.resolve(initApp()).catch((error) => {
+        startupTimings.fail('bootstrap');
         window._appInitError = String(error?.stack || error?.message || error);
         console.error('Figaro startup failed:', error);
         const status = document.getElementById('status-text');
@@ -28,6 +30,8 @@ function debugAPI() {
     const reviewDecisions = new Map();
     let spellingWords = [];
     return createBackendStub({
+        RecordStartupTiming: mock(undefined),
+        OpenStartupLogs: mock({ success: false, error: 'Startup logs are available in the desktop application.' }),
         WritingInitialize: async () => { throw new Error('Native writing checks require the desktop application'); },
         WritingAnalyze: async () => { throw new Error('Native writing checks require the desktop application'); },
         WritingCancel: mock(undefined),
@@ -43,7 +47,9 @@ function debugAPI() {
         SetFileTreePinned: mock({ version: 1, entries: {}, recent_icons: [] }),
         ReadFile: mock({ content: '# Welcome\n\nStart writing.', path: 'Welcome.md', mtime: 1 }),
         ReadDiagram: mock(null),
+        RefreshSavedFile: mock(null),
         SaveFile: mock({ success: true }),
+        SaveFileToDisk: mock({ success: true }),
         SaveClipboardImage: mock({ success: true, path: 'image1.png', markdown: '![Image1](image1.png)' }),
         CreateFile: mock({ success: true }),
         CreateInboxNote: mock({ success: true, path: 'Inbox/Quick-note.md', mtime: 1 }),

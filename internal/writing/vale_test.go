@@ -16,6 +16,28 @@ import (
 	"time"
 )
 
+func TestWritingStartupTimingsDistinguishCachePreparationFromProcessLaunch(t *testing.T) {
+	var stages []string
+	engine, err := OpenWithTimings(func(stage string) func(error) {
+		stages = append(stages, stage+":begin")
+		return func(err error) {
+			phase := "end"
+			if err != nil {
+				phase = "error"
+			}
+			stages = append(stages, stage+":"+phase)
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer engine.Close()
+	want := []string{"writing-cache:begin", "writing-cache:end", "writing-process:begin", "writing-process:end"}
+	if !reflect.DeepEqual(stages, want) {
+		t.Fatalf("wrong preparation stages: %v", stages)
+	}
+}
+
 func TestPackageReviewRunsEveryRestoredValeRuleWithExactSourceRanges(t *testing.T) {
 	data, err := os.ReadFile("../../tests/fixtures/writing-package-review.json")
 	if err != nil {
@@ -286,8 +308,8 @@ func TestBundledValePinnedRulesAndUnicodePositions(t *testing.T) {
 	}
 	dir := engine.dir
 	engine.Close()
-	if _, err = os.Stat(dir); !os.IsNotExist(err) {
-		t.Fatal("temporary engine resources retained", err)
+	if _, err = os.Stat(dir); err != nil {
+		t.Fatal("verified engine cache was removed on close", err)
 	}
 	if _, err = engine.Analyze("closed", "text"); err == nil {
 		t.Fatal("closed engine accepted work")

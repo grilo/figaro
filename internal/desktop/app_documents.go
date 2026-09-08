@@ -282,6 +282,16 @@ type ClipboardImageResult struct {
 
 // SaveFile writes content to a file, with optional conflict detection via expected_mtime.
 func (a *App) SaveFile(relPath string, content string, expectedMtime float64) (*SaveFileResult, error) {
+	return a.saveFile(relPath, content, expectedMtime, false)
+}
+
+// SaveFileToDisk is the editor's durability boundary. Git and projections are
+// separate follow-up operations; neither can prevent or roll back this write.
+func (a *App) SaveFileToDisk(relPath string, content string, expectedMtime float64) (*SaveFileResult, error) {
+	return a.saveFile(relPath, content, expectedMtime, true)
+}
+
+func (a *App) saveFile(relPath string, content string, expectedMtime float64, diskOnly bool) (*SaveFileResult, error) {
 	a.vaultMu.Lock()
 	defer a.vaultMu.Unlock()
 
@@ -301,6 +311,7 @@ func (a *App) SaveFile(relPath string, content string, expectedMtime float64) (*
 		root:     root,
 		cleanRel: cleanRel,
 		abs:      abs,
+		diskOnly: diskOnly,
 	}}
 	result, err := service.Save(notes.SaveRequest{
 		Content:         content,
@@ -324,6 +335,7 @@ type vaultNoteSaveRepository struct {
 	root     *os.Root
 	cleanRel string
 	abs      string
+	diskOnly bool
 }
 
 func (r *vaultNoteSaveRepository) CurrentVersion() (float64, bool) {
@@ -335,6 +347,9 @@ func (r *vaultNoteSaveRepository) CurrentVersion() (float64, bool) {
 }
 
 func (r *vaultNoteSaveRepository) Write(content string) (float64, error) {
+	if r.diskOnly {
+		return r.writeToDisk(content)
+	}
 	if err := r.app.writeNoteWithTaskSchedules(r.root, r.cleanRel, content); err != nil {
 		return 0, err
 	}

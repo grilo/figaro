@@ -88,6 +88,10 @@ test('boots through the native Wails binding with the workspace overview, vault 
         welcome: await window.go.desktop.App.ReadFile('Welcome.md'),
     }));
     expect(nativeState.installed, browserMessages.join('\n')).toBe(true);
+    // One assembled check that startup diagnostics reach the native bridge.
+    expect(nativeState.calls).toEqual(expect.arrayContaining([expect.objectContaining({
+        method: 'RecordStartupTiming', args: [expect.objectContaining({ stage: 'ready', phase: 'mark' })],
+    })]));
     expect(nativeState.welcome.content).toContain('This text came through the native Wails binding.');
 
     await expect(page.locator('#status-text')).toHaveText('Ready');
@@ -274,13 +278,15 @@ test('restores the saved active buffer directly into persistent Pure mode', asyn
     expect(result.saves.at(-1).args[0].activeTabId).toBe('remembered.md');
 });
 
-test('restores the themed active buffer before background vault indexing and tree loading finish', async ({ page }) => {
+test('restores a protected editable buffer while writing engines, Git, indexing and tree loading remain pending', async ({ page }) => {
     await page.addInitScript(() => {
         const handlers = {};
         const calls = [];
         let resolveTree;
         let resolveTheme;
-        let resolveActiveFile;
+        let resolveActiveFile, resolveWriting, resolveDictionary, resolveGit;
+        const gitReady = new Promise(resolve => { resolveGit = resolve; });
+        window.__releaseWriting = () => { resolveWriting(); resolveDictionary([]); resolveGit(); };
         localStorage.setItem('figaro:startup-appearance-v1', JSON.stringify({
             theme: 'github',
             fontEditor: "'Inter', sans-serif",
@@ -305,6 +311,16 @@ test('restores the themed active buffer before background vault indexing and tre
         });
 
         const responses = {
+            WritingInitialize: () => new Promise(resolve => { resolveWriting = resolve; }),
+            SpellingDictionaryLoad: () => new Promise(resolve => { resolveDictionary = resolve; }),
+            WritingDecisionsLoad: () => Promise.resolve([]),
+            WritingLensesLoad: () => Promise.resolve({ language: 'none', lenses: [] }),
+            WritingAnalyze: () => Promise.resolve('{}'),
+            SaveFileToDisk: (_path, content) => { window.__savedStartupText = content; return Promise.resolve({ success: true, mtime: 2 }); },
+            RefreshSavedFile: () => Promise.resolve(),
+            AutoCommitLoad: () => Promise.resolve(true),
+            CommitCurrentFile: () => gitReady,
+            GetVaultFileIssues: () => Promise.resolve([]),
             StartVaultLoad: () => Promise.resolve(true),
             GetVaultLoadStatus: () => Promise.resolve({
                 generation: 1,
@@ -339,7 +355,7 @@ test('restores the themed active buffer before background vault indexing and tre
             }),
             ThemeLoad: () => new Promise(resolve => { resolveTheme = resolve; }),
             TabSizeLoad: () => Promise.resolve({ size: 4 }),
-            AutoSaveLoad: () => Promise.resolve(300),
+            AutoSaveLoad: () => Promise.resolve(5),
         };
         window.go = {
             desktop: {
@@ -379,6 +395,13 @@ test('restores the themed active buffer before background vault indexing and tre
     await page.keyboard.type(' Early edit.');
     await expect(page.locator('.cm-content')).toContainText('Early edit.');
     expect(await page.evaluate(() => window._appReady)).toBe(false);
+    await expect.poll(() => page.evaluate(() => window.__savedStartupText), { timeout: 10000 }).toContain('Early edit.');
+    await page.keyboard.type(' Saved before closing.');
+    await page.locator('#win-close').click();
+    await expect(page.getByRole('dialog')).toContainText('Unsaved changes');
+    await page.getByRole('button', { name: 'Save and exit', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => window.__startupCalls.includes('WindowClose'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => window.__savedStartupText)).toContain('Saved before closing.');
 
     const startupCalls = await page.evaluate(() => window.__startupCalls);
     expect(startupCalls.indexOf('ThemeLoad')).toBeLessThan(startupCalls.indexOf('GetThemeCSS'));
@@ -423,6 +446,9 @@ test('restores the themed active buffer before background vault indexing and tre
         loaded: 2072,
         total: 2072,
     }));
+    await expect(page.locator('#vault-loading-panel')).toBeHidden();
+    expect(await page.evaluate(() => window._appReady)).toBe(false);
+    await page.evaluate(() => window.__releaseWriting());
     await page.waitForFunction(() => window._appReady === true);
     await expect(page.locator('#vault-loading-panel')).toBeHidden();
     await expect(page.locator('.cm-content')).toContainText('Early edit.');

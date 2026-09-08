@@ -271,7 +271,7 @@ async function installFixtureBackend(page, fixture) {
             GetTomorrowLink: () => mock('2026-08-12'),
             GetYesterdayLink: () => mock('2026-08-10'),
             SaveSession: () => mock({ success: true }),
-            SaveFile: () => mock({ success: true, mtime: 2 }),
+            SaveFileToDisk: () => mock({ success: true, mtime: 2 }),
             SetKanbanCardOrder: (column, refs) => {
                 const cards = data.board[column] || [];
                 const byReference = new Map(cards.map(card => [

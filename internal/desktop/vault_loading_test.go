@@ -140,7 +140,7 @@ func TestInitialFileTreeReadSharesTheVaultReadLock(t *testing.T) {
 	app, vaultPath := newTestApp(t)
 	writeTestFile(t, vaultPath, "restored.md", "# Restored\n")
 
-	// The initial index owns this same read lock for its complete cold build.
+	// Tree readers may share this lock; initial indexing reads privately without it.
 	// GetFileTree must therefore remain a fellow reader rather than queueing a
 	// writer which would put the restored workspace behind the index again.
 	app.vaultMu.RLock()
@@ -157,7 +157,7 @@ func TestInitialFileTreeReadSharesTheVaultReadLock(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		app.vaultMu.RUnlock()
-		t.Fatal("GetFileTree waited for the initial index read lock")
+		t.Fatal("GetFileTree waited for another reader")
 	}
 	app.vaultMu.RUnlock()
 }

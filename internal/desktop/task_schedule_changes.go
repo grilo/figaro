@@ -35,7 +35,11 @@ func (a *App) writeNoteWithTaskSchedules(root *os.Root, path, content string) er
 	if err != nil {
 		return err
 	}
-	before := taskschedule.TasksInDocument(filepath.ToSlash(path), string(original))
+	return a.updateSavedTaskSchedules(path, string(original), content, write)
+}
+
+func (a *App) updateSavedTaskSchedules(path, original, content string, write func() error) error {
+	before := taskschedule.TasksInDocument(filepath.ToSlash(path), original)
 	after := taskschedule.TasksInDocument(filepath.ToSlash(path), content)
 	started := taskschedule.StartedTasks(before, after)
 	dateEdits := taskschedule.DateEdits(before, after)

@@ -24,6 +24,46 @@ function harness(overrides = {}) {
 }
 
 describe('document save use case', () => {
+    test('a failed post-save presentation never reports an acknowledged write as a disk failure', async () => {
+        const onFailed = jest.fn(), onFollowupFailed = jest.fn();
+        const { saver } = harness({ onSaved: async () => { throw new Error('view unavailable'); }, onFailed, onFollowupFailed });
+        await expect(saver.save({ path: 'note.md', mtime: 10 }, 'safe')).resolves.toMatchObject({ success: true });
+        expect(onFailed).not.toHaveBeenCalled();
+        expect(onFollowupFailed).toHaveBeenCalled();
+    });
+    test('writes the next edit to disk while Git is held, and indexes only after each Git attempt', async () => {
+        const history = deferred(), calls = [];
+        const refreshIndex = jest.fn(async () => { calls.push('index'); });
+        let version = 10;
+        const { saver } = harness({
+            persist: async request => { calls.push(`disk:${request.content}`); return { success: true, mtime: ++version }; },
+            shouldCommit: () => true,
+            commit: async () => { calls.push('git'); await history.promise; },
+            refreshIndex,
+        });
+        const first = saver.save({ path: 'note.md', mtime: 10 }, 'first');
+        const second = saver.save({ path: 'note.md', mtime: 10 }, 'second', { durabilityOnly: true });
+        await expect(second).resolves.toMatchObject({ success: true, mtime: 12 });
+        expect(calls).toEqual(['disk:first', 'git', 'disk:second', 'git']);
+        expect(refreshIndex).not.toHaveBeenCalled();
+        history.resolve(); await first; await saver.pendingForPath('note.md');
+        expect(refreshIndex).toHaveBeenCalledTimes(2);
+    });
+
+    test('Git and index failures cannot reclassify an acknowledged disk save as a failed save', async () => {
+        const onFailed = jest.fn(), onFollowupFailed = jest.fn(), order = [];
+        const { saver } = harness({
+            persist: async () => { order.push('disk'); return { success: true, mtime: 11 }; },
+            shouldCommit: () => true,
+            commit: async () => { order.push('git'); throw new Error('Git locked'); },
+            refreshIndex: async () => { order.push('index'); throw new Error('index unavailable'); },
+            onFailed, onFollowupFailed,
+        });
+        await expect(saver.save({ path: 'note.md', mtime: 10 }, 'safe')).resolves.toMatchObject({ success: true });
+        expect(order).toEqual(['disk', 'git', 'index']);
+        expect(onFailed).not.toHaveBeenCalled();
+        expect(onFollowupFailed).toHaveBeenCalledWith(expect.anything(), expect.any(Error));
+    });
     test('serializes one path and reads the revision after the prior save', async () => {
         const first = deferred();
         const persist = jest.fn()

@@ -10,6 +10,26 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.38.0] - 2026-09-08
+
+### Added
+
+- Local startup timing logs help identify slow launch stages. Open their folder
+  from **Settings → Vault care → Open startup logs**; logs contain no note text
+  or vault paths and keep up to ten launches.
+
+### Fixed
+
+- Restored notes are editable while writing lenses and vault indexing prepare in
+  the background; Auto-Save and the close guard are active before editing begins.
+- Saving writes the note to disk first. Slow Git history work cannot delay the
+  next disk save, and task-metadata or index failures leave saved text intact.
+- Initial indexing no longer holds up saves on slow or synced storage, and its
+  completed results preserve notes edited, created, or removed during the scan.
+- Vale reuses a verified local cache of its executable and rules instead of
+  extracting a new copy each launch. Damaged or outdated cache files are rebuilt,
+  and engine preparation cannot block application shutdown.
+
 ## [1.37.3] - 2026-09-07
 
 ### Fixed
@@ -2186,7 +2206,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.37.3...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.38.0...HEAD
+[1.38.0]: https://github.com/grilo/figaro/compare/v1.37.3...v1.38.0
 [1.37.3]: https://github.com/grilo/figaro/compare/v1.37.2...v1.37.3
 [1.37.2]: https://github.com/grilo/figaro/compare/v1.37.1...v1.37.2
 [1.37.1]: https://github.com/grilo/figaro/compare/v1.37.0...v1.37.1

@@ -34,6 +34,7 @@ export const helpSettingsEntries = [
     ['Auto-commit', '#auto-commit-toggle', 'Automation', ['git', 'history']],
     ['PDF browser engine', '#pdf-browser-choose', 'PDF Export', ['chromium', 'edge', 'executable']],
     ['Vault health', '#open-vault-health', 'Vault care', ['broken links', 'orphans', 'duplicates']],
+    ['Startup logs', '#open-startup-logs', 'Vault care', ['slow launch', 'timings', 'troubleshooting']],
     ['Recently deleted', '#recently-deleted-list', 'Vault care', ['restore', 'trash']],
     ['Application version', '#application-version', 'About', ['figaro version']],
 ].map(([title, selector, category, keywords]) => ({

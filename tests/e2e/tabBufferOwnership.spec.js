@@ -24,7 +24,7 @@ test('rapid tab switching saves the owned dirty buffer and rejects a stale defer
         }
 
         window.__tabOwnershipSaveCalls = [];
-        app.SaveFile = async (path, content, mtime) => {
+        app.SaveFileToDisk = async (path, content, mtime) => {
             window.__tabOwnershipSaveCalls.push({ path, content, mtime });
             return { success: true, path, mtime: 2 };
         };

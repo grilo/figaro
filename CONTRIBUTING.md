@@ -236,13 +236,23 @@ recreate their hover, press, focus, open, selected, or disabled paint. Rows
 that must remain geometrically stationary on pointer press should consume the
 approved menu-item primitive rather than the translating button primitive.
 The themed shell and restored active buffer may become interactive while eager
-vault indexing, tree construction, and parser warming continue. Saved
+vault indexing, writing engines and their dictionary, tree construction, and
+parser warming continue. Install the close guard and restore Auto-Save before
+revealing the editor. Disk-save acknowledgements release subsequent writes;
+Git and index follow-up work must not own that queue. Initial vault scans build
+private snapshots without holding the lock needed by saves, and reconcile
+concurrent changes before publication. Saved
 interaction and geometry preferences are different: start their independent
 reads concurrently and keep them behind the startup-hydration barrier so the
 restored editor's first visible frame is already authoritative. Restored tab
 activation must await the editor document-session mount before the two-frame
 presentation reveal begins. Preserve that short critical path as well as the
 later `window._appReady` boundary.
+Startup timings use injected clocks and nonblocking reporting. Keep stage names
+fixed and content-free, and never await diagnostics delivery or disk writes.
+Use **Settings → Vault care → Open startup logs** to inspect a native launch;
+see [startup troubleshooting](docs/GETTING_STARTED.md#troubleshoot-a-slow-launch)
+for paths and the recorded fields.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the complete dependency and startup
 decisions.

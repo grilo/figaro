@@ -25,18 +25,6 @@ func (a *App) syncKanbanColumns() {
 	a.syncKanbanColumnsLocked()
 }
 
-// initializeVaultIndex performs the read-only initial projection without
-// invalidating the independent file-tree cache. It intentionally shares the
-// vault read lock with GetFileTree, so startup discovery cannot prevent the
-// restored workspace tree from becoming available.
-func (a *App) initializeVaultIndex() {
-	a.vaultMu.RLock()
-	defer a.vaultMu.RUnlock()
-	if _, err := a.ensureVaultIndexLocked(); err != nil {
-		log.Printf("[vault-index] Could not index vault: %v", err)
-	}
-}
-
 // syncKanbanColumnsLocked requires vaultMu to be held for writing, so cache
 // invalidation and the replacement scan publish one coherent snapshot.
 func (a *App) syncKanbanColumnsLocked() {

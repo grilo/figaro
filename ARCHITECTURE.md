@@ -652,8 +652,8 @@ application code needed by normal workflows is ready, not merely that the
 initial shell is visible.
 
 Asynchronous startup is still allowed: independent initialization may run in
-parallel, and non-interactive background work such as vault indexing, tree
-construction, and parser warming may continue after the themed shell and
+parallel, and background work such as vault indexing, writing engines and
+dictionary restoration, tree construction, and parser warming may continue after the themed shell and
 restored active buffer are usable. Interaction- or geometry-affecting saved
 preferences instead settle behind the startup hydration barrier before the
 editor is mounted or exposed. All eager work must begin during startup and
@@ -779,7 +779,7 @@ The cold-build adapter first discovers the exact ordinary Markdown workload,
 then reads and transforms that retained path list. It publishes discovery,
 loading, finalization, ready, and error snapshots through a progress mutex that
 is independent of the main vault lock; `GetVaultLoadStatus` therefore remains
-responsive while the index owns that lock. Count-based event sampling bounds a
+responsive throughout discovery and indexing. Count-based event sampling bounds a
 10,000-note build to about one hundred bridge updates, with phase boundaries
 always delivered. Native startup leaves both the recursive watcher and cold
 index pending. A small webview-local mirror paints the last confirmed bundled
@@ -799,15 +799,40 @@ Once that authoritative buffer is visible and usable, the frontend invokes
 the idempotent `StartVaultLoad` port, reconciles the current snapshot, and
 starts the initial file-tree read while remaining parser warming continues.
 
-The cold index holds a vault read lock, so the initial `GetFileTree` read can
-run beside it; a dedicated tree-build mutex prevents duplicate cache builds,
-while vault mutations still wait for both readers. The initial index build does
-not invalidate an independently built tree cache. A pure generation/phase
+Startup diagnostics are observational. `internal/startup.Trace` receives a
+clock and a nonblocking emitter, validates fixed native/webview stage names,
+deduplicates events, and caps a launch at 128 events. The native composition root
+starts this trace before opening the vault. The `startupTimings` frontend use
+case receives a monotonic clock, buffers at most 64 events before bridge
+connection, and serializes reporting without making application work await
+delivery. This preserves stage order across concurrent Wails dispatch.
+`RecordStartupTiming` rejects arbitrary
+labels, non-finite durations, and out-of-range values; no note data, paths, or
+raw error strings are serialized. Normal recording ends at frontend readiness;
+spans already started may finish, and shutdown remains observable.
+
+`startup.Sink` opens and writes on its own bounded worker queue. Storage failure
+or a full queue drops diagnostics instead of delaying startup, saves, or native
+calls; process shutdown grants at most 100 ms for draining. The desktop log
+adapter uses exclusive, private JSONL files under `os.UserCacheDir()/Figaro/logs`,
+a pure ten-launch retention plan, and rooted removal of matching regular logs.
+It preserves unrelated files and symlinks. Existing settings and WebView storage
+are unchanged. `OpenStartupLogs` takes no path argument and opens only that
+configured directory using the existing file-manager adapter. Settings reuses
+approved buttons and notices for pending, success, and retryable failure states.
+
+The initial index reads and transforms a private snapshot without the vault
+lock. Concurrent note writes are journaled and reconciled before publication;
+unknown subtree changes restart the scan. Early sidebar queries return loading
+instead of starting a synchronous scan before `StartVaultLoad`. The independent
+`GetFileTree` read uses a dedicated tree-build mutex to prevent duplicate cache
+builds, and initial indexing does not invalidate its cache. A pure generation/phase
 reducer rejects delayed or regressive updates. A small DOM adapter updates the
 approved determinate progress primitive in the file-tree-aligned
 application-status region, leaving the active editor interactive. `window._appReady` is published only after the
-index reaches a terminal phase and the initial tree and language
-warming have settled. Successful completion hides the compact progress; an
+index reaches a terminal phase and the initial tree, language warming, and
+writing initialization have settled. Successful indexing hides compact progress
+independently of remaining writing preparation; an
 index error remains visible.
 
 Figaro writes known Markdown files atomically and updates that one index entry
@@ -1037,9 +1062,13 @@ application state: it supplies Board, Gantt, Calendar, Today, and reminders
 without modifying notes or adding Calendar links. `task_schedule_projection.go`
 joins resolved dates onto copies without mutating the Markdown index.
 `transitions.go` plans first starts on actual moves into non-TODO columns;
-initial indexing never starts tasks. The save/tag-move adapter calls the injected
-`CommitChange` coordinator: write metadata, replace the note atomically, and
-restore metadata if the note write fails. Existing starts and overdue deadlines
+initial indexing never starts tasks. Explicit tag moves and the synchronous
+native save command use `CommitChange`: write metadata, atomically replace the
+note, and restore metadata if replacement fails. Editor saves instead establish
+durability first through `SaveFileToDisk`; after the Git attempt,
+`RefreshSavedFile` applies metadata against the retained prior text without
+rewriting the note. A metadata failure is reported separately and retains its
+retry baseline. Existing starts and overdue deadlines
 are preserved; an end date before the actual start is a valid late task.
 Unique canonical task text follows line/tag changes; duplicates require their
 unchanged source-task fingerprint. Unresolved records are preserved rather than
@@ -1370,18 +1399,23 @@ purely; `app_spelling_dictionary.go` owns the locked rooted read/atomic-write
 boundary for `.config/spelling-dictionary.json`, preserving unreadable data.
 
 `writingAdapters.js` eagerly creates three bundled workers (prose/resolution, spelling, and decision tracking) and initializes
-Vale before workspace readiness. Prose and resolution requests serialize through the same worker so full projections and raw observations remain there; only Vale input and resolved results cross the UI boundary.
+Vale during startup without placing its readiness promise on the editor reveal barrier. Prose and resolution requests serialize through the same worker so full projections and raw observations remain there; only Vale input and resolved results cross the UI boundary.
 `usecases/writingProse.js` owns the worker-local source cache through an injected
 analysis port. Resolution carries an explicit `proseRequired` flag: cache misses
 rebuild inside the worker, and failed recovery returns independent spelling
 with `proseFailure`, excluding unmappable Vale output. The analysis coordinator
 keeps that review partial and retryable until recovery actually succeeds.
 Decision requests serialize separately across document controllers. No worker failure falls back to synchronous UI computation. `internal/writing` embeds the checksum-pinned
-platform executable and seven selected Vale rule files (two write-good, four
-proselint, and Microsoft.Acronyms), extracts them to a private cache
-directory, and runs fixed arguments/configuration on stdin. It bounds input/output,
-terminates superseded or timed-out processes, and removes its runtime directory
-on shutdown. The desktop binding owns this adapter; analyzers never read notes or
+platform executable and selected write-good, proselint, and Microsoft rules.
+`writing/cache.go` derives a cache identity from the bundled binary, configuration,
+and rules; verifies cached content and permissions; and prepares a complete
+sibling before replacing a damaged installation through `os.Root`. The cache
+uses `os.UserCacheDir()` (LocalAppData on Windows), survives shutdown, and never
+loads styles from the vault. The adapter runs fixed arguments/configuration on
+stdin, bounds input/output, and terminates superseded or timed-out processes.
+Native preparation releases the engine-state mutex during filesystem/process
+work, so cancellation and shutdown remain available; a late result after
+shutdown is closed rather than published. The desktop binding owns this adapter; analyzers never read notes or
 vault styles directly. Missing runtime assets produce unavailable/partial results,
 not fallback work on the typing thread. Build preparation and capability limits
 are detailed in [docs/WRITING_ENGINE.md](docs/WRITING_ENGINE.md).
@@ -2647,7 +2681,21 @@ acknowledgements. `tabManager.js` applies accepted reads to the current tab,
 so cursor snapshots cannot strand metadata on a replaced object. Ownership,
 load, edit, and save generations reject stale completions without discarding
 new typing. `usecases/documentSave.js` serializes writes through an injected
-persistence port. Each successful write acknowledges its version before the
-optional history commit; later failed or cancelled writes retain that queue
-baseline. Save completion clears dirty state only for the matching latest
-edit. Actual disk conflicts still require explicit overwrite permission.
+persistence port. `SaveFileToDisk` is the editor's durability boundary: atomic
+replacement, disk-version acknowledgement, and a small pending-change record.
+Each acknowledged write releases the next disk write and clears dirty state
+only for the matching latest edit. Git work follows independently, then
+`RefreshSavedFile` updates task metadata and the index. Secondary failures are
+reported separately without changing the successful disk result. The existing
+`SaveFile` command retains its synchronous projection contract for other native
+clients. Later failed or cancelled writes retain the queue's latest disk
+version, and actual disk conflicts still require explicit overwrite permission.
+`usecases/editorSaveProtection.js` installs close and unload handlers before
+editor reveal; save-and-exit waits for durability rather than optional Git.
+
+The initial Markdown scan builds a private snapshot without `vaultMu`. Saves,
+creates, and removals record changes under that lock; pure reconciliation and
+index construction run outside it, and publication occurs only after the change
+journal is drained. Unknown subtree changes restart discovery. Index-dependent
+queries return a loading error while the initial snapshot is pending, and the
+completion event refreshes consumers. The file tree remains independent.

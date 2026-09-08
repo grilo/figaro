@@ -33,6 +33,12 @@ and Tab Size. Tab Size defaults to four spaces and accepts values from two to
 eight; it does not rewrite existing indentation. Press Escape, then Tab or
 Shift+Tab, to move keyboard focus out of the document editor.
 
+Your restored note is ready to edit while writing engines and vault indexing
+prepare in the background. Auto-Save and the close guard are installed before
+you can type. Saving writes the note to disk first; Git history and task/index
+updates follow. A failure in those follow-up steps leaves your saved text intact.
+The bundled writing engine reuses a verified local cache across launches.
+
 ## Focus on a draft
 
 Collapsing the sidebar enters **Pure mode**. The writing fills the window,

@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"errors"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -10,8 +11,10 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 	"strings"
+	"time"
 
 	"figaro/internal/appinfo"
+	"figaro/internal/startup"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -74,11 +77,27 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 	}
 	log.Println("Vault selected")
 
-	app := OpenApp(vaultPath, bundledAssets)
 	applicationVersion, applicationVersionErr := appinfo.ProductVersion(wailsConfiguration)
 	if applicationVersionErr != nil {
 		log.Printf("[app] Application version is unavailable: %v", applicationVersionErr)
 	}
+	var trace *startup.Trace
+	var logDir string
+	if cache, err := os.UserCacheDir(); err == nil {
+		logDir = startupLogsDirectory(cache)
+		sink := startup.NewSink(func() (io.WriteCloser, error) { return openStartupLog(logDir, applicationVersion, time.Now()) })
+		trace = startup.NewTrace(time.Now, sink.Emit)
+		trace.Mark("process")
+		defer func() {
+			trace.Mark("shutdown")
+			select {
+			case <-sink.Close():
+			case <-time.After(100 * time.Millisecond):
+			}
+		}()
+	}
+	app := openApp(vaultPath, trace, bundledAssets)
+	app.startupLogDir = logDir
 	app.configureApplicationVersion(applicationVersion)
 	app.setLaunchExternalFiles(markdownLaunchPaths(launchArgs))
 	app.devInspectorAddress = inspectorAddress
@@ -115,6 +134,7 @@ func Run(bundledAssets AssetFS, wailsConfiguration []byte, launchArgs []string) 
 		}()
 	}
 
+	trace.Mark("webview-launch")
 	return wails.Run(&options.App{
 		Title:              "Figaro",
 		Width:              windowState.Width,
@@ -233,6 +253,7 @@ func configureWebKitInspector() string {
 
 // domReady is called after the frontend has loaded.
 func (a *App) domReady(ctx context.Context) {
+	a.startupTrace.Mark("dom-ready")
 	// Keep the native canvas dark if a webview briefly exposes the document
 	// background. The theme-aware window outline itself lives in the eager
 	// base stylesheet so browser and packaged-webview rendering share one

@@ -329,19 +329,51 @@ settle before its scheduled source replacement, while the DOM presentation
 test owns the later two-frame conceal/reveal scheduler. Keep failures and
 concurrency below the browser layer; they do not need geometry.
 
+Startup timing regressions live in `internal/startup`: injected-clock tests
+cover durations, incomplete spans, allowlisted bridge fields, deduplication,
+bounds, and readiness; blocked open/write adapters prove log I/O cannot hold up
+producers or shutdown. `startup_logs_test.go` uses real temporary directories
+for private files, exclusive same-time launches, retention after clock reversal,
+and preservation of unrelated files and symlinks. It checks the exact folder
+passed to the file-manager adapter and retryable launcher/storage failures.
+`startupTimings.test.js` proves eager work begins immediately and preserves its
+result/error even when reporting hangs, throws, or rejects. These tests also
+verify that asynchronous bridge delivery preserves stage order, and
+help-search tests locate the startup log action by slow-launch keywords. Settings
+tests cover the actual Vault care button, its separation from the health action,
+accessible feedback, pending duplicate clicks, failures, and retry. Health
+description copy is asserted here rather than in the browser scenario. The existing assembled startup scenario checks that
+timing events reach the native bridge; pure timing assertions remain below the
+browser layer. Native QA should confirm incremental JSONL events while services
+are held, then the readiness marker after release.
+
 Initial vault progress is split across the same boundaries. Root-adapter tests
 prove exact Markdown discovery and monotonically increasing counts; desktop
 tests prove that work remains pending until the idempotent `StartVaultLoad`
 request, then covers ordered phases, an independently readable final snapshot,
-a bounded event count, and an initial tree read that can share the vault read
-lock with indexing. Pure frontend tests cover restoration planning, inactive
+a bounded event count, and an independent initial tree read.
+`startup_responsiveness_test.go` holds a real rooted scan read while a disk save
+completes, then checks concurrent edit/create/delete reconciliation and loading
+queries. It also proves pending Vale preparation cannot block cancellation or
+shutdown, early sidebar requests cannot start a synchronous scan, and secondary
+metadata failure cannot undo a disk save. Held metadata work must leave the next
+disk write available, and delayed projections must survive own-write watcher
+acknowledgements while respecting newer writes and removals.
+`writing/cache_test.go` covers warm reuse without rewrites, rule-driven cache
+identity, damage repair, unexpected styles, permissions, symlink containment,
+and concurrent preparation. Pure frontend tests cover restoration planning, inactive
 metadata-only tabs, progress normalization, settlement, percentage/copy, and
 stale-generation rejection; the DOM test owns the hidden-to-present transition
 and accessible progress attributes. The one `desktopStartup.spec.js` browser
 case is retained because only a real page can prove the mirrored theme paints
 before the bridge resolves, the selected note is mounted and editable before
 `StartVaultLoad`, inactive tabs cause no reads, and compact footer progress
-keeps its full track height while the tree and index remain unfinished. Its
+keeps its full track height while the tree and index remain unfinished. That
+same scenario holds Vale, dictionary restoration, and Git while typing, saving,
+and exercising the native-close button. `editorSaveProtection.test.js` owns
+handler installation, interval restoration, cancellation, and failed-save
+behavior; `documentSave.test.js` proves disk → Git → index sequencing, later
+disk writes during held Git, and separate secondary failures. Its
 startup-hydration scenario deliberately holds every preference response and
 records intermediate animation frames. That browser-only harness proves the
 first shell uses the saved sidebar width and an accurate starting status, no

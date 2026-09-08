@@ -15,7 +15,7 @@ export async function saveDirtyDocumentsBeforeExit({
         if (typeof content !== 'string') return false;
         try {
             const result = await save(tab, content, { failurePrompt: 'always' });
-            if (!result?.success || tab.dirty) return false;
+            if (!result?.success || currentTabs().find(current => current.id === tab.id)?.dirty) return false;
         } catch (_) {
             return false;
         }

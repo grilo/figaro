@@ -1,6 +1,16 @@
 import { saveDirtyDocumentsBeforeExit } from '../frontend/js/usecases/windowClose.js';
 
 describe('save dirty documents before native exit', () => {
+    test('uses the current immutable tab state after a disk acknowledgement', async () => {
+        const original = { id: 'note', type: 'file', dirty: true };
+        let current = original;
+        await expect(saveDirtyDocumentsBeforeExit({
+            tabs: [original], activeId: 'note', activeContent: () => 'saved',
+            save: async () => { current = { ...current, dirty: false }; return { success: true }; },
+            currentTabs: () => [current],
+        })).resolves.toBe(true);
+        expect(original.dirty).toBe(true);
+    });
     test('allows closing only after every dirty buffer is saved', async () => {
         const active = { id: 'active', type: 'file', dirty: true };
         const background = { id: 'background', type: 'file', dirty: true, _content: 'background body' };

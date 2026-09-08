@@ -1531,7 +1531,7 @@ test('uses a same-folder note from a rendered missing link and rewrites only its
             if (path === 'notes/InnerSource.md') return { content: '# Existing note', path, mtime: 2 };
             return null;
         };
-        app.SaveFile = async (path, content) => {
+        app.SaveFileToDisk = async (path, content) => {
             window.__similarLinkSaved = { path, content };
             return { success: true, path, mtime: 3 };
         };
@@ -3101,7 +3101,7 @@ test('restores an old file version as a fresh latest History commit after confir
         ];
         app.GetFileHistory = async () => window.__historyEntries;
         app.GetFileVersion = async () => 'Historical version';
-        app.SaveFile = async (_path, content) => {
+        app.SaveFileToDisk = async (_path, content) => {
             window.__historySaves.push(content);
             return { success: true, mtime: ++mtime };
         };

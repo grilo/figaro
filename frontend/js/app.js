@@ -1,3 +1,4 @@
+import { startupTimings } from './startupDiagnostics.js';
 import { backend, waitForBackend } from './backend.js';
 /**
  * figaro - Main Application Entry Point
@@ -75,7 +76,7 @@ import { createVaultLoadingSession } from './usecases/vaultLoading.js';
 import { createStartupHydration } from './usecases/startupHydration.js';
 import { renderVaultLoading, removeVaultLoading } from './views/vaultLoadingView.js';
 import { revealStartupWorkspace } from './views/startupView.js';
-import { saveDirtyDocumentsBeforeExit } from './usecases/windowClose.js';
+import { installEditorSaveProtection } from './usecases/editorSaveProtection.js';
 import { initSettingsNavigation } from './settingsNavigation.js';
 import { configureClipboardImageWorkspace } from './clipboardImage.js';
 import { configureDrawioWorkspace } from './drawio.js';
@@ -249,6 +250,9 @@ export function initVaultChangeNotifications(runtime = window.runtime) {
             refreshFileIssues().catch(() => {});
         },
         onKanbanIndexed: () => {
+            invalidateCalendarCache();
+            refreshCalendarIfVisible();
+            document.dispatchEvent(new CustomEvent('vault-filesystem-changed'));
             refreshKanbanData().catch(() => {});
             refreshFileIssues().catch(() => {});
         },
@@ -582,6 +586,29 @@ async function restoreOpenTabs() {
     return { restored: true, deferredActiveTabId };
 }
 
+function installStartupSaveProtection() {
+    return installEditorSaveProtection({
+        listen: (name, handler) => window.addEventListener(name, handler),
+        registerClose: setWindowCloseRequestHandler,
+        loadInterval: () => backend().AutoSaveLoad(),
+        configureInterval: configureAutoSave,
+        tabs: () => getState('openTabs'),
+        activeId: () => getState('activeTabId'),
+        activeContent: getEditorContent,
+        save: (tab, content, options) => saveFileSnapshot(tab, content, { ...options, durabilityOnly: true }),
+        close: closeNativeWindow,
+        saveSession,
+        confirmClose: dirty => confirmDialog(
+            'Unsaved changes',
+            `These files have unsaved changes: ${dirty.map(tab => tab.title).join(', ')}\n\nSave them before exiting?`,
+            false, false, {
+                tone: 'warning', icon: 'warning', confirmLabel: 'Save and exit',
+                cancelLabel: 'Keep editing', extraLabel: 'Exit without saving', extraDanger: true,
+            },
+        ),
+    });
+}
+
 /**
  * Initialize all application modules
  */
@@ -595,7 +622,7 @@ export async function initApp() {
     initStatusBarPresentation();
     initFileIssues();
     statusBar.set('Initializing...');
-    const languageSupportReady = preloadLanguageSupport();
+    const languageSupportReady = startupTimings.measure('parsers', preloadLanguageSupport);
     initializeDiagramRenderers();
     
     // Initialize persistent state
@@ -615,38 +642,40 @@ export async function initApp() {
     
     // Wait until Wails has published the bound Go App object.
     statusBar.set('Connecting to backend...');
-    await waitForBackend();
+    await startupTimings.measure('backend', waitForBackend);
+    startupTimings.connect(timing => backend().RecordStartupTiming(timing));
     // Configuration and Git-open findings already exist before the background
     // vault scan. Publish them passively now; indexing will merge its per-file
     // findings later without opening a startup dialog.
-    await refreshFileIssues();
+    await startupTimings.measure('file-issues', refreshFileIssues);
 
     // Apply the persisted shell appearance before exposing or starting vault
     // discovery. The loading surface therefore never flashes the bundled
     // default theme while a different saved theme is being read.
-    await initThemeAppearance();
+    await startupTimings.measure('appearance', initThemeAppearance);
 
     // Subscribe before explicitly starting the backend work. Hydrate all
     // interaction- and geometry-affecting state concurrently with the portable
     // session, then expose the restored editor with one authoritative profile.
     initVaultChangeNotifications();
     statusBar.set('Restoring workspace...');
-    await startupHydration.hydrate();
+    await startupTimings.measure('preferences', () => startupHydration.hydrate());
     
     // Initialize editor (CodeMirror 6)
     statusBar.set('Loading editor...');
-    await initEditor();
+    await startupTimings.measure('editor', initEditor);
     
-    // Initialize tab manager
+    // Protect the restored editor before it can accept input.
     initTabManager();
+    const saveProtectionReady = startupTimings.measure('save-protection', installStartupSaveProtection);
     initEditorBreadcrumb();
     initFileTree();
 
     // The backend has already pruned stale portable paths. Recreate inactive
     // tabs as metadata only, then await the single active file read before any
     // full-vault discovery can compete with it.
-    const restoration = await restoreOpenTabs();
-    await initializeExternalLaunchHandling();
+    const restoration = await startupTimings.measure('restore-document', restoreOpenTabs);
+    await startupTimings.measure('launch-documents', initializeExternalLaunchHandling);
     
     // Initialize calendar
     initCalendar();
@@ -662,7 +691,7 @@ export async function initApp() {
 
     // Initialize history panel
     initHistoryPanel();
-    await initActivity();
+    await startupTimings.measure('activity', initActivity);
 
     // Outline shares the right sidebar with History and PDF Preview.
     initOutlinePanel();
@@ -679,22 +708,27 @@ export async function initApp() {
             document.dispatchEvent(new Event('figaro:spellcheck-changed'));
         },
     });
-    await spellingDictionary.restore().catch(error => log.warn('Could not load the spelling dictionary:', error));
-    writingLensesController = initWritingLenses({
-        dictionary: spellingDictionary,
-        setSpelling: setSpellcheck,
-        getActiveTab,
-        getEditorDocumentTabId,
-        getView: getEditorView,
-        analysisPorts: createWritingAdapters(backend()),
-        focusEditor: () => getEditorView()?.focus(),
-        loadDecisions: path => backend().WritingDecisionsLoad(path),
-        changeDecisions: (path, command) => backend().WritingDecisionsChange(path, command),
-        loadPreferences: path => backend().WritingLensesLoad(path),
-        savePreferences: (path, preferences) => backend().WritingLensesSave(path, preferences),
-        applyAllPreferences: preferences => backend().WritingLensesApplyAll(preferences),
+    const dictionaryReady = startupTimings.measure('dictionary', () => spellingDictionary.restore()).catch(error => log.warn('Could not load the spelling dictionary:', error));
+    const writingReady = startupTimings.measure('writing', () => {
+        writingLensesController = initWritingLenses({
+            dictionary: spellingDictionary,
+            dictionaryReady,
+            setSpelling: setSpellcheck,
+            getActiveTab,
+            getEditorDocumentTabId,
+            getView: getEditorView,
+            analysisPorts: createWritingAdapters(backend()),
+            focusEditor: () => getEditorView()?.focus(),
+            loadDecisions: path => backend().WritingDecisionsLoad(path),
+            changeDecisions: (path, command) => backend().WritingDecisionsChange(path, command),
+            loadPreferences: path => backend().WritingLensesLoad(path),
+            savePreferences: (path, preferences) => backend().WritingLensesSave(path, preferences),
+            applyAllPreferences: preferences => backend().WritingLensesApplyAll(preferences),
+        });
+        return writingLensesController?.ready;
+    }).catch(error => {
+        log.warn('Writing lenses could not finish startup:', error);
     });
-    await writingLensesController?.ready;
     initEditorPreviewLaunchers({
         getActiveTab,
         getEditorContent,
@@ -710,14 +744,17 @@ export async function initApp() {
     // CodeMirror derives line-number width and restored scroll geometry from
     // the mounted document. Let those measurements settle while the editor is
     // concealed, then publish one stable first buffer frame.
-    await revealStartupWorkspace();
+    await saveProtectionReady;
+    await startupTimings.measure('reveal', revealStartupWorkspace);
 
     // The editor or launch document is now visible with its saved interaction
     // profile. Start background vault work without putting it on that barrier.
     vaultLoadingSession.start();
-    await backend().StartVaultLoad();
-    await vaultLoadingSession.connect();
-    const vaultReady = vaultLoadingSession.waitUntilSettled();
+    await startupTimings.measure('vault-start', async () => {
+        await backend().StartVaultLoad();
+        await vaultLoadingSession.connect();
+    });
+    const vaultReady = startupTimings.measure('vault-ready', () => vaultLoadingSession.waitUntilSettled());
 
     if (restoration.deferredActiveTabId) {
         switchTab(restoration.deferredActiveTabId).catch(error => {
@@ -725,7 +762,7 @@ export async function initApp() {
         });
     }
 
-    const fileTreeReady = refreshFileTree();
+    const fileTreeReady = startupTimings.measure('file-tree', refreshFileTree);
 
     if (!restoration.restored && !getState('activeTabId')) {
         // A missing, empty, or pruned workspace begins at the overview rather
@@ -744,73 +781,12 @@ export async function initApp() {
     if (vaultStatus.phase === 'ready') vaultLoadingSession.finish();
     if (vaultStatus.phase === 'ready') await refreshFileIssues();
     
+    statusBar.set('Preparing writing lenses…');
+    await writingReady;
     statusBar.set('Ready');
     window._appReady = true;
+    startupTimings.mark('ready');
 
-    window.addEventListener('figaro:auto-save-interval', (event) => {
-        configureAutoSave(Number(event.detail?.seconds) || 0);
-    });
-
-    // ── Auto-save timer (frequent, content-only, no git commit) ──
-    (async () => {
-        try {
-            const interval = await backend().AutoSaveLoad();
-            configureAutoSave(interval);
-        } catch (_) { /* noop */ }
-    })();
-
-    // ── Exit prompt: warn about unsaved changes ──
-    setWindowCloseRequestHandler(async () => {
-        const tabs = getState('openTabs');
-        const dirty = tabs.filter(t => t.dirty && t.type === 'file');
-        if (dirty.length === 0) {
-            closeNativeWindow();
-            return;
-        }
-        const names = dirty.map(t => t.title).join(', ');
-        const choice = await confirmDialog(
-            'Unsaved changes',
-            `These files have unsaved changes: ${names}\n\nSave them before exiting?`,
-            false,
-            false,
-            {
-                tone: 'warning',
-                icon: 'warning',
-                confirmLabel: 'Save and exit',
-                cancelLabel: 'Keep editing',
-                extraLabel: 'Exit without saving',
-                extraDanger: true,
-            }
-        );
-        if (choice === 'confirm') {
-            const saved = await saveDirtyDocumentsBeforeExit({
-                tabs: dirty,
-                activeId: getState('activeTabId'),
-                activeContent: getEditorContent,
-                save: saveFileSnapshot,
-                currentTabs: () => getState('openTabs'),
-            });
-            if (saved) closeNativeWindow();
-        } else if (choice === 'extra') {
-            closeNativeWindow();
-        }
-    });
-
-    // Handle window close - save dirty tabs and persist session
-    window.addEventListener('beforeunload', async (_e) => {
-        if (autoSaveTimer) clearInterval(autoSaveTimer);
-        const tabs = getState('openTabs');
-        const activeId = getState('activeTabId');
-        for (const tab of tabs) {
-            if (tab.dirty && tab.type === 'file') {
-                const content = tab.id === activeId ? getEditorContent() : tab._content;
-                if (typeof content === 'string') await saveFileSnapshot(tab, content).catch(() => {});
-            }
-        }
-        // Save session state via backend API
-        saveSession();
-    });
-    
     // Expose API for debugging
     window.app = {
         state,

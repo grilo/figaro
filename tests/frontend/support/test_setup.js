@@ -91,6 +91,8 @@ export function createNativeAppMock() {
         ReadFile: jest.fn().mockResolvedValue({ content: "", mtime: Date.now() / 1000, path: "" }),
         ReadDiagram: jest.fn().mockResolvedValue(null),
         SaveFile: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() / 1000 }),
+        RefreshSavedFile: jest.fn().mockResolvedValue(),
+        SaveFileToDisk: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() / 1000 }),
         SaveClipboardImage: jest.fn().mockResolvedValue({ success: true, path: 'image1.png', markdown: '![Image1](image1.png)' }),
         SaveSession: jest.fn().mockResolvedValue({ success: true }),
         LoadSession: jest.fn().mockResolvedValue({}),

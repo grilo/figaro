@@ -448,7 +448,7 @@ describe('Calendar cache', () => {
         const details = document.getElementById('cal-linked-notes');
         expect(details.textContent).toContain('Linked notes');
         expect(details.textContent).toContain('plan.md');
-        expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
     });
 
     test('renders compact empty-date guidance when a selected date has no tasks or linked notes', async () => {

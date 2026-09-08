@@ -102,15 +102,15 @@ describe('Vim command behavior', () => {
         expect(view.state.selection.main.head).toBe(6);
 
         const save = deferred();
-        window.go.desktop.App.SaveFile.mockImplementationOnce(() => save.promise);
+        window.go.desktop.App.SaveFileToDisk.mockImplementationOnce(() => save.promise);
         Vim.handleKey(cm, ':', 'user');
         await new Promise(resolve => setTimeout(resolve, 0));
         const exInput = view.dom.querySelector('.cm-vim-panel input');
         exInput.value = 'wq';
         commandKey(exInput, 'Enter', 13);
-        await waitForMockCall(window.go.desktop.App.SaveFile);
+        await waitForMockCall(window.go.desktop.App.SaveFileToDisk);
 
-        expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
+        expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith(
             'notes/vim.md', 'alpha beta\nmiddle\nbeta end', 10
         );
         expect(getState('openTabs')).toEqual(expect.arrayContaining([
@@ -132,7 +132,7 @@ describe('Vim command behavior', () => {
         ]));
         expect(document.body.classList.contains('custom-modal-open')).toBe(false);
 
-        window.go.desktop.App.SaveFile.mockResolvedValueOnce({
+        window.go.desktop.App.SaveFileToDisk.mockResolvedValueOnce({
             success: true,
             mtime: 30,
             path: 'notes/vim.md',
@@ -142,9 +142,9 @@ describe('Vim command behavior', () => {
         const secondExInput = view.dom.querySelector('.cm-vim-panel input');
         secondExInput.value = 'wq';
         commandKey(secondExInput, 'Enter', 13);
-        await waitForMockCall(window.go.desktop.App.SaveFile, 2);
+        await waitForMockCall(window.go.desktop.App.SaveFileToDisk, 2);
 
-        expect(window.go.desktop.App.SaveFile).toHaveBeenNthCalledWith(
+        expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenNthCalledWith(
             2, 'notes/vim.md', 'alpha beta\nmiddle\nbeta end\nnewer text', 20
         );
         await new Promise(resolve => setTimeout(resolve, 0));

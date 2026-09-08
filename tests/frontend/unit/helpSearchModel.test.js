@@ -1,4 +1,5 @@
 import { helpSearchResults } from '../frontend/js/core/helpSearchModel.js';
+import { helpSettingsEntries } from '../frontend/js/helpPopup.js';
 
 const entries = [
     { title: 'Emphasis', category: 'Help · Markdown', detail: '**bold** *italic*' },
@@ -7,6 +8,11 @@ const entries = [
 ];
 
 describe('help search model', () => {
+    test('finds the startup log Settings destination by slow-launch troubleshooting keywords', () => {
+        expect(helpSearchResults('slow launch', helpSettingsEntries)).toEqual([
+            expect.objectContaining({ title: 'Startup logs', selector: '#open-startup-logs', type: 'setting' }),
+        ]);
+    });
     test('finds syntax and Settings keywords without executing anything', () => {
         expect(helpSearchResults('bold', entries).map(entry => entry.title)).toEqual(['Emphasis']);
         expect(helpSearchResults('vim', entries).map(entry => entry.title)).toEqual(['Vim mode']);

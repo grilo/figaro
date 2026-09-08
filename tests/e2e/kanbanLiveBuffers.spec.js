@@ -22,7 +22,7 @@ test('renders unsaved hashtags immediately and keeps long Kanban cards compact',
         window.__kanbanLiveSaveCalls = [];
         window.__kanbanBoardReads = 0;
         window.__kanbanColumnReads = 0;
-        app.SaveFile = async (...args) => {
+        app.SaveFileToDisk = async (...args) => {
             window.__kanbanLiveSaveCalls.push(args);
             return { success: true, mtime: 2 };
         };

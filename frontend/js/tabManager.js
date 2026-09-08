@@ -1,3 +1,4 @@
+import { initStartupLogsSettings } from './views/startupLogsSettings.js';
 import { backend } from './backend.js';
 /**
  * Tab Manager - Handles tab creation, switching, closing, and state
@@ -257,7 +258,7 @@ function snapshotActiveFileTab(tab) {
     }
     const cursorState = saveCursorState(tab.id);
     if (cursorState) tab.cursorState = cursorState;
-    if (tab.dirty) void saveFileSnapshot(tab, contentSnapshotForTab(tab)).catch(() => {});
+    if (tab.dirty && !saveFailureEpisodes.has(tab.id)) void saveFileSnapshot(tab, contentSnapshotForTab(tab)).catch(() => {});
 }
 
 function normalizeTabPath(path) {
@@ -1941,7 +1942,7 @@ function createDocumentSaveService() {
     return createDocumentSave({
         persist: ({ path, externalFileId, content, expectedMtime }) => externalFileId
             ? backend().SaveLaunchExternalFile(externalFileId, content, expectedMtime)
-            : backend().SaveFile(path, content, expectedMtime),
+            : backend().SaveFileToDisk(path, content, expectedMtime),
         confirmOverwrite: () => confirmTabAction(
             'File changed on disk',
             'The saved file changed since this note was loaded or last saved. Overwriting will replace the version on disk with the text currently open in Figaro.',
@@ -1951,6 +1952,16 @@ function createDocumentSaveService() {
         ),
         shouldCommit: () => shouldCommitOnSave(),
         commit: path => backend().CommitCurrentFile(path),
+        refreshIndex: async path => {
+            await backend().RefreshSavedFile(path);
+            resolveRuntimeFileIssue(path, ['index_update_failed']);
+        },
+        onFollowupFailed: (snapshot, error) => recordRuntimeFileIssue({
+            path: snapshot.path, code: 'index_update_failed', severity: 'warning',
+            title: 'Saved note needs a metadata refresh',
+            detail: `Your document is saved on disk. Its task metadata or index could not be refreshed: ${error?.message || error}.`,
+            guidance: 'Keep editing. Save again to retry the update.',
+        }),
         onStarted: snapshot => {
             const transition = updateWorkspaceTab(getState('openTabs'), snapshot.tabId, {
                 _saveGeneration: snapshot.generation,
@@ -1958,9 +1969,18 @@ function createDocumentSaveService() {
             if (transition.changed) setState('openTabs', transition.tabs);
         },
         onPersisted: (snapshot, result) => {
+            saveFailureEpisodes.delete(snapshot.tabId);
+            resolveRuntimeFileIssue(snapshot.path, ['disk_full', 'save_failed']);
             const tabs = getState('openTabs');
             const next = acknowledgeWorkspaceFileSave(tabs, snapshot, result);
             if (next !== tabs) setState('openTabs', next);
+            const current = getState('openTabs').find(tab => tab.id === snapshot.tabId);
+            if (current && isLatestSave(current, snapshot) && savedLatestEdit(current, snapshot)) {
+                const transition = updateWorkspaceTab(getState('openTabs'), snapshot.tabId, { dirty: false, _content: null });
+                if (transition.changed) setState('openTabs', transition.tabs);
+                updateTabTitle(current.id, current.title);
+                if (getState('activeTabId') === current.id) statusBar.set('Saved');
+            }
         },
         onSaved: applySaveSuccess,
         onFailed: (snapshot, error) => {
@@ -1987,8 +2007,6 @@ async function applySaveSuccess(snapshot, result, {
     const { content } = snapshot;
     let tab = getState('openTabs').find(candidate => candidate.id === snapshot.tabId);
     if (!tab) return;
-    saveFailureEpisodes.delete(snapshot.tabId);
-    resolveRuntimeFileIssue(snapshot.path, ['disk_full', 'save_failed']);
     if (historyCommitFailed) {
         log.warn('File saved, but its history commit failed:', historyCommitError);
         recordRuntimeFileIssue({
@@ -2462,6 +2480,19 @@ function renderSettingsTab(panel, _tab) {
                         <button type="button" id="open-vault-health" class="ui-button settings-action-btn">Review…</button>
                     </div>
                 </div>
+                <div class="settings-section startup-logs-setting">
+                    <div class="pdf-browser-setting-copy">
+                        <div class="settings-section-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                            <span>Startup logs</span>
+                        </div>
+                        <p id="startup-logs-description" class="settings-section-desc">Local timings for troubleshooting slow launches. Contains no note text or vault paths.</p>
+                        <p id="startup-logs-status" role="status" aria-live="polite" hidden></p>
+                    </div>
+                    <div class="pdf-browser-actions">
+                        <button type="button" id="open-startup-logs" class="ui-button settings-action-btn" aria-describedby="startup-logs-description">Open startup logs</button>
+                    </div>
+                </div>
                 <div class="settings-section recently-deleted-setting">
                     <div class="recently-deleted-setting-copy">
                         <div class="settings-section-icon">
@@ -2490,6 +2521,8 @@ function renderSettingsTab(panel, _tab) {
         </div>
         </div>`;
     panel.appendChild(container);
+
+    initStartupLogsSettings(container, () => backend().OpenStartupLogs());
 
     container.querySelector('#open-vault-health')?.addEventListener('click', () => {
         openTab('vault-health', 'Vault health', 'health');

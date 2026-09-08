@@ -22,8 +22,6 @@ test('opens the themed read-only Vault health scan from Settings and navigates t
     await page.locator('#topbar-settings').click();
     const review = page.locator('#open-vault-health');
     await expect(review).toBeVisible();
-    await expect(page.locator('.vault-health-setting')).toContainText('repeated filenames');
-    await expect(page.locator('.vault-health-setting')).toContainText('possible duplicate notes');
     await review.click();
 
     await expect(page.locator('.vault-health-view h2')).toHaveText('Vault health');

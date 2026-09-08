@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"figaro/internal/startup"
 	"figaro/internal/writing"
 	"fmt"
 	"io/fs"
@@ -27,8 +28,12 @@ import (
 // All exported receiver methods with signature (ctx context.Context, ...) (T, error)
 // are automatically exposed as async JS functions on the Go binding object.
 type App struct {
+	startupTrace        *startup.Trace
+	startupLogDir       string
 	writingMu           sync.Mutex
 	writingEngine       *writing.Engine
+	writingOpening      *writingInitialization
+	writingStopped      bool
 	assets              AssetFS
 	vaultPath           string
 	devInspectorAddress string
@@ -54,6 +59,10 @@ type App struct {
 	kanbanColors        map[string]string
 	calendarIndex       *calendarDateIndex
 	vaultIndex          *vaultIndex
+	vaultIndexScan      *vaultIndexScan
+	vaultStartupPending bool
+	pendingFileSaves    map[string]*pendingFileSave
+	fileSaveFollowupMu  sync.Mutex
 	taskProjection      taskScheduleProjectionCache
 	vaultHealthCache    vaultHealthCache
 	fileTreeEntries     map[string]fileTreeCacheEntry
@@ -185,6 +194,12 @@ func NewApp(vaultPath string, bundledAssets ...AssetFS) *App {
 // OpenApp resolves and prepares the selected vault, then attaches adapters
 // whose construction necessarily performs filesystem or Git I/O.
 func OpenApp(vaultPath string, bundledAssets ...AssetFS) *App {
+	return openApp(vaultPath, nil, bundledAssets...)
+}
+
+func openApp(vaultPath string, trace *startup.Trace, bundledAssets ...AssetFS) *App {
+	finish := trace.Begin("vault-open")
+	defer finish(nil)
 	absPath, err := filepath.Abs(vaultPath)
 	if err != nil {
 		log.Printf("[vault] Cannot resolve vault path: %v", err)
@@ -201,10 +216,13 @@ func OpenApp(vaultPath string, bundledAssets ...AssetFS) *App {
 	}
 
 	a := NewApp(absPath, bundledAssets...)
+	a.startupTrace = trace
 	a.loadColors()
 
 	// Initialize git history service
+	finishHistory := trace.Begin("history-open")
 	hs, err := NewHistoryService(absPath)
+	finishHistory(err)
 	if err != nil {
 		log.Println("[history] Failed to init:", err)
 		code := fileIssueHistoryUnavailable
@@ -388,17 +406,24 @@ func (a *App) ensureWelcomeNote() {
 
 // startup captures the Wails context.
 func (a *App) startup(ctx context.Context) {
+	finish := a.startupTrace.Begin("native-startup")
+	defer finish(nil)
+	a.deferInitialVaultIndex()
 	a.desktopRuntime.start(ctx)
 	log.Println("[go] App.startup() — Wails context captured")
+	finishSettings := a.startupTrace.Begin("settings")
 	a.migrateLegacyPDFBrowserPreference()
 	a.ensureSettingsDefaults()
+	finishSettings(nil)
 
 	// Desktop integration uses Linux's XDG/GNOME conventions. Other Wails
 	// platforms provide their own app registration model.
 	if goruntime.GOOS == "linux" {
 		go a.ensureDesktopIntegration()
 	}
+	finishWelcome := a.startupTrace.Begin("welcome-note")
 	a.ensureWelcomeNote()
+	finishWelcome(nil)
 	a.watcherMu.Lock()
 	a.watcherStopping = false
 	a.watcherMu.Unlock()
@@ -412,10 +437,7 @@ func (a *App) StartVaultLoad() bool {
 	a.vaultStartupOnce.Do(func() {
 		started = true
 		go a.startVaultWatcher()
-		go func() {
-			a.initializeVaultIndex()
-			a.emitRuntimeEvent("vault:kanban-indexed")
-		}()
+		a.startInitialVaultIndex(nil)
 	})
 	return started
 }
@@ -484,13 +506,21 @@ func (a *App) launchExternalFilePath(id string) (string, error) {
 // domReady is called from OnDomReady; defined in run.go.
 // shutdown is called from OnShutdown.
 func (a *App) shutdown(ctx context.Context) {
+	a.startupTrace.Mark("shutdown")
 	a.writingMu.Lock()
+	a.writingStopped = true
 	engine := a.writingEngine
 	a.writingEngine = nil
 	a.writingMu.Unlock()
 	if engine != nil {
 		engine.Close()
 	}
+	a.vaultMu.Lock()
+	if a.vaultIndexScan != nil {
+		a.vaultIndexScan.cancel()
+		a.vaultIndexScan = nil
+	}
+	a.vaultMu.Unlock()
 	a.stopVaultWatcher()
 }
 

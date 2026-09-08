@@ -74,7 +74,10 @@ document.
 
 ![An invitation draft with an in-place suggestion to shorten “in order to” to “to”](docs/images/figaro-writing.png)
 
-Checks run locally in the background. You can ignore a suggestion, add a word
+Checks run locally in the background. Your restored note is available while
+writing lenses and vault indexing get ready, with Auto-Save and close protection
+already active. Saves write your text to disk first; Git history and index
+updates follow. You can ignore a suggestion, add a word
 to your dictionary, or return to a saved review decision later. Your choices
 survive restarts. Repeated suggestions share a card, and suitable replacements
 offer an action to apply the same change throughout the document.
@@ -84,6 +87,9 @@ hints need judgment. Formulaic writing cannot tell you who wrote a text.
 English US and UK support spelling and prose checks; Spanish supports spelling only.
 
 [Learn about writing and lenses →](docs/WRITING.md)
+
+If a launch is slow, **Settings → Vault care → Open startup logs** opens local
+timings for troubleshooting. See [startup troubleshooting](docs/GETTING_STARTED.md#troubleshoot-a-slow-launch).
 
 ## Turn a draft into a document
 

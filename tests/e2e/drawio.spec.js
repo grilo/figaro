@@ -32,7 +32,7 @@ test('saves an editable SVG through the real diagrams.net iframe', async ({ page
                 mtime: 1,
                 content: '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
             });
-            app.SaveFile = async (path, content) => {
+            app.SaveFileToDisk = async (path, content) => {
                 window.__drawioSaveRecords.push({ path, content });
                 return { success: true, path, mtime: 2 };
             };

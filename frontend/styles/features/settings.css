@@ -101,6 +101,14 @@
 .pdf-browser-status[data-kind="configured"] { color: var(--text-color); }
 .pdf-browser-status[data-kind="error"] { color: var(--danger-color); }
 
+.settings-panel-tab #startup-logs-status {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
 .pdf-browser-actions {
     display: flex;
     flex-wrap: wrap;
@@ -108,7 +116,8 @@
     gap: 7px;
 }
 
-.vault-health-setting {
+.vault-health-setting,
+.startup-logs-setting {
     align-items: start;
 }
 

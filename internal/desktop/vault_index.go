@@ -786,6 +786,9 @@ func (index *vaultIndex) columns() []string {
 // once for concurrent readers. The caller must hold vaultMu for reading or
 // writing, which prevents a published snapshot from changing underneath it.
 func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
+	if a.vaultStartupPending || a.vaultIndexScan != nil {
+		return nil, errVaultIndexLoading
+	}
 	a.vaultIndexBuildMu.Lock()
 	defer a.vaultIndexBuildMu.Unlock()
 	if a.vaultIndex != nil {
@@ -793,6 +796,21 @@ func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
 	}
 
 	generation := a.beginVaultLoad()
+	index, issues, err := a.readVaultIndex(generation, func(root *os.Root, path string) ([]byte, error) { return root.ReadFile(path) })
+	if err != nil {
+		return nil, err
+	}
+	a.setVaultLoadPhase(generation, VaultLoadFinalizing)
+	index.rebuildDerived()
+	a.replaceVaultFileIssues(issues)
+	a.publishVaultIndexLocked(index)
+	a.setVaultLoadPhase(generation, VaultLoadReady)
+	return index, nil
+}
+
+// readVaultIndex builds an unpublished snapshot. The read port permits slow
+// storage and cancellation to be exercised without replacing vault containment.
+func (a *App) readVaultIndex(generation int, read vaultIndexRead) (*vaultIndex, map[string]VaultFileIssue, error) {
 	index := newVaultIndex()
 	issues := make(map[string]VaultFileIssue)
 	textPool := make(map[string]vaultIndexedText)
@@ -801,7 +819,7 @@ func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
 			issues[rel] = *issue
 			return nil
 		}
-		data, readErr := root.ReadFile(filepath.FromSlash(rel))
+		data, readErr := read(root, filepath.FromSlash(rel))
 		if readErr != nil {
 			issues[rel] = *vaultFileReadIssue(rel, readErr)
 			return nil
@@ -820,14 +838,9 @@ func (a *App) ensureVaultIndexLocked() (*vaultIndex, error) {
 	}); err != nil {
 		indexErr := fmt.Errorf("index vault Markdown: %w", err)
 		a.failVaultLoad(generation, indexErr)
-		return nil, indexErr
+		return nil, nil, indexErr
 	}
-	a.setVaultLoadPhase(generation, VaultLoadFinalizing)
-	index.rebuildDerived()
-	a.replaceVaultFileIssues(issues)
-	a.publishVaultIndexLocked(index)
-	a.setVaultLoadPhase(generation, VaultLoadReady)
-	return index, nil
+	return index, issues, nil
 }
 
 func (a *App) publishVaultIndexLocked(index *vaultIndex) {
@@ -843,6 +856,7 @@ func (a *App) publishVaultIndexLocked(index *vaultIndex) {
 // updateVaultIndexFileLocked performs the common fast path: a single known
 // Markdown file was saved by Figaro. It never reopens unrelated notes.
 func (a *App) updateVaultIndexFileLocked(rel string, info fs.FileInfo, content string) {
+	delete(a.pendingFileSaves, filepath.FromSlash(rel))
 	a.updateFileTreeCacheFileLocked(rel, info)
 	if !strings.HasSuffix(strings.ToLower(rel), ".md") {
 		return
@@ -858,6 +872,7 @@ func (a *App) updateVaultIndexFileLocked(rel string, info fs.FileInfo, content s
 		return
 	}
 	a.removeVaultFileIssue(rel)
+	a.recordVaultIndexChangeLocked(rel, vaultIndexChange{info: info, content: content})
 	if a.vaultIndex == nil {
 		a.invalidateCalendarIndexLocked()
 		return
@@ -868,6 +883,8 @@ func (a *App) updateVaultIndexFileLocked(rel string, info fs.FileInfo, content s
 }
 
 func (a *App) removeVaultIndexFileLocked(rel string) {
+	delete(a.pendingFileSaves, filepath.FromSlash(rel))
+	a.recordVaultIndexChangeLocked(rel, vaultIndexChange{removed: true, issue: a.vaultIndexIssue(rel)})
 	if a.vaultIndex == nil {
 		a.invalidateCalendarIndexLocked()
 		return
@@ -877,7 +894,15 @@ func (a *App) removeVaultIndexFileLocked(rel string) {
 }
 
 func (a *App) removeVaultIndexPathLocked(rel string) {
+	for path := range a.pendingFileSaves {
+		if path == filepath.FromSlash(rel) || strings.HasPrefix(path, filepath.FromSlash(rel)+string(filepath.Separator)) {
+			delete(a.pendingFileSaves, path)
+		}
+	}
 	a.removeFileTreeCachePathLocked(rel)
+	if a.vaultIndexScan != nil {
+		a.vaultIndexScan.invalidated = true
+	}
 	if a.vaultIndex == nil {
 		a.invalidateCalendarIndexLocked()
 		return
@@ -1061,6 +1086,10 @@ func (a *App) refreshVaultStateAfterCopyLocked(
 }
 
 func (a *App) invalidateVaultIndexLocked() {
+	a.pendingFileSaves = nil
+	if a.vaultIndexScan != nil {
+		a.vaultIndexScan.invalidated = true
+	}
 	a.vaultIndex = nil
 	a.invalidateVaultHealthCacheLocked()
 	a.invalidateCalendarIndexLocked()

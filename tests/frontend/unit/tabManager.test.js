@@ -132,7 +132,8 @@ function deferred() {
 
 // Mock native Wails App binding.
 window.go = { desktop: { App: createBackendStub({
-    SaveFile: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() }),
+    RefreshSavedFile: jest.fn().mockResolvedValue(),
+    SaveFileToDisk: jest.fn().mockResolvedValue({ success: true, mtime: Date.now() }),
     SaveSession: jest.fn().mockResolvedValue({ success: true }),
     ReadFile: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
     ReadLaunchExternalFile: jest.fn().mockResolvedValue({ content: '', mtime: Date.now(), path: '' }),
@@ -259,9 +260,9 @@ describe('Tab Manager', () => {
             await testUtils.waitFor(0);
             const current = getActiveTab();
             expect(current.mtime).toBe(20);
-            window.go.desktop.App.SaveFile.mockResolvedValueOnce({ success: true, mtime: 21 });
+            window.go.desktop.App.SaveFileToDisk.mockResolvedValueOnce({ success: true, mtime: 21 });
             await saveFileSnapshot(current,'Edited note.');
-            expect(window.go.desktop.App.SaveFile).toHaveBeenLastCalledWith('revision.md','Edited note.',20);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenLastCalledWith('revision.md','Edited note.',20);
             expect(confirmDialog).not.toHaveBeenCalled();
         });
 
@@ -524,6 +525,57 @@ describe('Tab Manager', () => {
             expect(secondPanel).not.toBe(firstPanel);
             expect(initSettingsPanel).toHaveBeenCalledTimes(2);
             expect(initSettingsPanel).toHaveBeenLastCalledWith(secondPanel);
+        });
+
+        test('opens startup logs from Vault care with accessible pending and success feedback', async () => {
+            let resolve;
+            const open = jest.fn(() => new Promise(done => { resolve = done; }));
+            window.go.desktop.App.OpenStartupLogs = open;
+            openTab('settings', 'Settings', 'settings');
+            const button = document.querySelector('#open-startup-logs');
+            const status = document.querySelector('#startup-logs-status');
+            expect(button.textContent).toBe('Open startup logs');
+            expect(button.closest('.startup-logs-setting')).not.toBeNull();
+            const healthSections = document.querySelectorAll('.vault-health-setting');
+            expect(healthSections).toHaveLength(1);
+            expect(healthSections[0].textContent).toContain('repeated filenames');
+            expect(healthSections[0].textContent).toContain('possible duplicate notes');
+            expect(button.classList.contains('ui-button')).toBe(true);
+            expect(button.closest('.settings-card').querySelector('h2').textContent).toBe('Vault care');
+            expect(button.getAttribute('aria-describedby')).toBe('startup-logs-description');
+            expect(status.getAttribute('role')).toBe('status');
+            expect(status.hidden).toBe(true);
+            button.click();
+            button.click();
+            expect(open).toHaveBeenCalledTimes(1);
+            expect(button.disabled).toBe(true);
+            expect(button.getAttribute('aria-busy')).toBe('true');
+            expect(button.textContent).toBe('Opening…');
+            resolve({ success: true });
+            await Promise.resolve();
+            expect(button.disabled).toBe(false);
+            expect(button.hasAttribute('aria-busy')).toBe(false);
+            expect(status.className).toBe('ui-notice ui-notice--success');
+            expect(status.hidden).toBe(false);
+        });
+
+        test.each(['result', 'rejection'])('startup logs folder %s failure is visible and retryable', async kind => {
+            const open = jest.fn().mockResolvedValue({ success: true });
+            if (kind === 'result') open.mockResolvedValueOnce({ success: false, error: 'Storage unavailable' });
+            else open.mockRejectedValueOnce(new Error('Storage unavailable'));
+            window.go.desktop.App.OpenStartupLogs = open;
+            openTab('settings', 'Settings', 'settings');
+            const button = document.querySelector('#open-startup-logs');
+            const status = document.querySelector('#startup-logs-status');
+            button.click();
+            await Promise.resolve();
+            expect(status.textContent).toBe('Storage unavailable');
+            expect(status.className).toBe('ui-notice ui-notice--danger');
+            expect(button.disabled).toBe(false);
+            button.click();
+            await Promise.resolve();
+            expect(open).toHaveBeenCalledTimes(2);
+            expect(status.textContent).toBe('Opened the startup log folder.');
         });
 
         test('renders a browser executable fallback in Settings', () => {
@@ -846,7 +898,7 @@ describe('Tab Manager', () => {
 
         test('rapid switching saves each dirty tab from its owned buffer instead of the stale visible document', async () => {
             const saveB = deferred();
-            window.go.desktop.App.SaveFile.mockImplementationOnce(() => saveB.promise);
+            window.go.desktop.App.SaveFileToDisk.mockImplementationOnce(() => saveB.promise);
             mockState.openTabs = [
                 { id: 'a', title: 'A', type: 'file', path: 'a.md', dirty: true, _content: 'A draft', _editGeneration: 1 },
                 { id: 'b', title: 'B', type: 'file', path: 'b.md', dirty: true, _content: 'B draft', _editGeneration: 1 },
@@ -858,7 +910,7 @@ describe('Tab Manager', () => {
             switchTab('a');
             await testUtils.waitFor(0);
 
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith('b.md', 'B draft', 0);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('b.md', 'B draft', 0);
             expect(mockState.openTabs[1]._content).toBe('B draft');
             saveB.resolve({ success: true, mtime: 3 });
             await testUtils.waitFor(0);
@@ -1009,11 +1061,11 @@ describe('Tab Manager', () => {
         test('saves a dirty source tab before reusing it for a link destination', async () => {
             openTab('source.md', 'Source', 'file', { path: 'source.md', mtime: 1 });
             markTabDirty('source.md');
-            window.go.desktop.App.SaveFile.mockResolvedValueOnce({ success: true, mtime: 2 });
+            window.go.desktop.App.SaveFileToDisk.mockResolvedValueOnce({ success: true, mtime: 2 });
 
             await replaceActiveFileTab('target.md', 'Target', 'file', { path: 'target.md', mtime: 3 });
 
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith('source.md', '', 1);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('source.md', '', 1);
             expect(getState('openTabs')).toEqual([
                 expect.objectContaining({ id: 'target.md', path: 'target.md', type: 'file' }),
             ]);
@@ -1023,7 +1075,7 @@ describe('Tab Manager', () => {
         test('preserves a dirty source tab when saving before navigation fails', async () => {
             openTab('source.md', 'Source', 'file', { path: 'source.md', mtime: 1 });
             markTabDirty('source.md');
-            window.go.desktop.App.SaveFile.mockRejectedValueOnce(new Error('disk full'));
+            window.go.desktop.App.SaveFileToDisk.mockRejectedValueOnce(new Error('disk full'));
 
             await replaceActiveFileTab('target.md', 'Target', 'file', { path: 'target.md', mtime: 3 });
 
@@ -1078,7 +1130,7 @@ describe('Tab Manager', () => {
                 success: false,
                 error: 'Save "Diagram" before moving it',
             });
-            expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
         });
 
         test('requires an explicitly saved Draw.io editor before copying it', async () => {
@@ -1089,7 +1141,7 @@ describe('Tab Manager', () => {
                 success: false,
                 error: 'Save "Design" before copying it',
             });
-            expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
         });
 
         test('saves dirty source content before copying without saving unrelated dirty notes', async () => {
@@ -1102,8 +1154,8 @@ describe('Tab Manager', () => {
 
             await expect(prepareTabsForPathCopy('Projects')).resolves.toEqual({ success: true });
 
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith(
                 'Projects/plan.md', 'latest visible plan', 10
             );
             expect(mockState.openTabs[0].dirty).toBe(false);
@@ -1120,8 +1172,8 @@ describe('Tab Manager', () => {
 
             await expect(prepareTabsForPathDelete('Projects')).resolves.toEqual({ success: true });
 
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith(
                 'Projects/plan.md', 'latest visible plan', 10
             );
             expect(mockState.openTabs[0].dirty).toBe(false);
@@ -1151,7 +1203,7 @@ describe('Tab Manager', () => {
             mockState.activeTabId = 'moved.txt';
 
             await expect(prepareTabsForPathMove('moved.txt')).resolves.toEqual({ success: true });
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith(
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith(
                 'notes/backlink.md', '[Moved](moved.txt)', expect.anything()
             );
         });
@@ -1166,9 +1218,9 @@ describe('Tab Manager', () => {
 			getEditorContent.mockReturnValueOnce('active latest');
 
 			await expect(prepareTabsForVaultLinkRewrite()).resolves.toEqual({ success: true });
-			expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(2);
-			expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith('active.md', 'active latest', 10);
-			expect(window.go.desktop.App.SaveFile).toHaveBeenCalledWith('notes/other.md', 'other latest', 20);
+			expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(2);
+			expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('active.md', 'active latest', 10);
+			expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledWith('notes/other.md', 'other latest', 20);
 		});
 
 		test('cancels a vault-wide rewrite if a note changes while its save is in flight', async () => {
@@ -1177,7 +1229,7 @@ describe('Tab Manager', () => {
 			mockState.openTabs = [tab];
 			mockState.activeTabId = tab.id;
 			getEditorContent.mockReturnValueOnce('snapshot');
-			window.go.desktop.App.SaveFile.mockReturnValueOnce(save.promise);
+			window.go.desktop.App.SaveFileToDisk.mockReturnValueOnce(save.promise);
 
 			const preparing = prepareTabsForVaultLinkRewrite();
 			await testUtils.waitFor(0);
@@ -1264,7 +1316,7 @@ describe('Tab Manager', () => {
             );
 
             expect(window.go.desktop.App.SaveLaunchExternalFile).toHaveBeenCalledWith('1', 'saved outside the vault', 10);
-            expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+            expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
             expect(window.go.desktop.App.CommitCurrentFile).not.toHaveBeenCalled();
         });
 
@@ -1272,7 +1324,7 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.desktop.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
+            window.go.desktop.App.SaveFileToDisk.mockResolvedValue({ success: true, mtime: 11 });
 
             setAutoCommitEnabled(true);
             await expect(saveFileSnapshot(tab, 'saved and committed')).resolves.toEqual(
@@ -1291,7 +1343,7 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.desktop.App.SaveFile.mockResolvedValue({ success: true, mtime: 11 });
+            window.go.desktop.App.SaveFileToDisk.mockResolvedValue({ success: true, mtime: 11 });
             window.go.desktop.App.CommitCurrentFile.mockRejectedValueOnce(new Error('git unavailable'));
             setAutoCommitEnabled(true);
 
@@ -1306,7 +1358,7 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.desktop.App.SaveFile.mockRejectedValueOnce(new Error('permission denied'));
+            window.go.desktop.App.SaveFileToDisk.mockRejectedValueOnce(new Error('permission denied'));
 
             await expect(saveFileSnapshot(tab, 'unsaved body')).rejects.toThrow('permission denied');
 
@@ -1322,7 +1374,7 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.desktop.App.SaveFile.mockRejectedValue(new Error('read-only filesystem'));
+            window.go.desktop.App.SaveFileToDisk.mockRejectedValue(new Error('read-only filesystem'));
 
             await expect(saveFileSnapshot(tab, 'first attempt')).rejects.toThrow('read-only filesystem');
             await Promise.resolve();
@@ -1342,7 +1394,7 @@ describe('Tab Manager', () => {
             mockState.activeTabId = tab.id;
             getEditorDocumentTabId.mockReturnValue(tab.id);
             getEditorContent.mockReturnValue('latest unsaved body');
-            window.go.desktop.App.SaveFile.mockRejectedValueOnce(new Error('disk is full'));
+            window.go.desktop.App.SaveFileToDisk.mockRejectedValueOnce(new Error('disk is full'));
             saveFailureDialog.mockResolvedValueOnce('extra');
             const originalClipboard = navigator.clipboard;
             const writeText = jest.fn().mockResolvedValue(undefined);
@@ -1363,7 +1415,7 @@ describe('Tab Manager', () => {
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
             let diskVersion = 11;
-            window.go.desktop.App.SaveFile.mockReset().mockImplementation(async (_path, _content, expected) => {
+            window.go.desktop.App.SaveFileToDisk.mockReset().mockImplementation(async (_path, _content, expected) => {
                 recordTabCursor(tab.id, { anchor: 1, head: 1 });
                 return expected && expected !== diskVersion
                     ? { success: false, error: 'File modified externally' }
@@ -1374,7 +1426,7 @@ describe('Tab Manager', () => {
             await saveFileSnapshot(tab, 'next save');
             await saveFileSnapshot(tab, 'third save');
             expect(confirmDialog).toHaveBeenCalledTimes(1);
-            expect(window.go.desktop.App.SaveFile.mock.calls.map(call => call[2])).toEqual([10, 0, 12, 13]);
+            expect(window.go.desktop.App.SaveFileToDisk.mock.calls.map(call => call[2])).toEqual([10, 0, 12, 13]);
             expect(getActiveTab().mtime).toBe(14);
         });
 
@@ -1382,10 +1434,10 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true, _content: 'draft' };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.desktop.App.SaveFile.mockReset().mockResolvedValueOnce({ success: false, error: 'File modified externally', mtime: 11 });
+            window.go.desktop.App.SaveFileToDisk.mockReset().mockResolvedValueOnce({ success: false, error: 'File modified externally', mtime: 11 });
             confirmDialog.mockResolvedValueOnce(false);
             await saveFileSnapshot(tab, 'draft');
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(1);
             expect(getActiveTab()).toMatchObject({ dirty: true, _content: 'draft', mtime: 10 });
             expect(confirmDialog).toHaveBeenCalledWith(
                 'File changed on disk', expect.stringContaining('since this note was loaded or last saved'),
@@ -1399,7 +1451,7 @@ describe('Tab Manager', () => {
             mockState.activeTabId = tab.id;
             let resolveFirst;
             const first = new Promise(resolve => { resolveFirst = resolve; });
-            window.go.desktop.App.SaveFile
+            window.go.desktop.App.SaveFileToDisk
                 .mockImplementationOnce(() => first)
                 .mockRejectedValueOnce(new Error('permission denied'))
                 .mockResolvedValueOnce({ success: true, mtime: 12 });
@@ -1410,7 +1462,7 @@ describe('Tab Manager', () => {
             await failing;
             expect(getActiveTab()).toMatchObject({ mtime: 11, dirty: true });
             await saveFileSnapshot(tab, 'retry');
-            expect(window.go.desktop.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'retry', 11);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenLastCalledWith('note.md', 'retry', 11);
         });
 
         test('serializes snapshots for one file using the prior save revision', async () => {
@@ -1421,7 +1473,7 @@ describe('Tab Manager', () => {
             const tab = { id: 'note', type: 'file', path: 'note.md', title: 'Note', mtime: 10, dirty: true };
             mockState.openTabs = [tab];
             mockState.activeTabId = tab.id;
-            window.go.desktop.App.SaveFile
+            window.go.desktop.App.SaveFileToDisk
                 .mockImplementationOnce(() => first)
                 .mockImplementationOnce(() => second);
 
@@ -1429,15 +1481,15 @@ describe('Tab Manager', () => {
             const secondSave = saveFileSnapshot(tab, 'second version');
             await testUtils.waitFor(0);
 
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(1);
-            expect(window.go.desktop.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'first version', 10);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(1);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenLastCalledWith('note.md', 'first version', 10);
 
             resolveFirst({ success: true, mtime: 11 });
             await firstSave;
             await testUtils.waitFor(0);
 
-            expect(window.go.desktop.App.SaveFile).toHaveBeenCalledTimes(2);
-            expect(window.go.desktop.App.SaveFile).toHaveBeenLastCalledWith('note.md', 'second version', 11);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenCalledTimes(2);
+            expect(window.go.desktop.App.SaveFileToDisk).toHaveBeenLastCalledWith('note.md', 'second version', 11);
 
             resolveSecond({ success: true, mtime: 12 });
             await secondSave;

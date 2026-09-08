@@ -163,7 +163,7 @@ describe('live Kanban buffers and compact cards', () => {
         expect(board.textContent).toContain('A newly typed item');
         expect(getState('kanbanColumns')).toContain('urgent');
         expect(getState('kanbanCompletionColumns')).not.toContain('urgent');
-        expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
         expect(window.go.desktop.App.GetKanbanBoard).not.toHaveBeenCalled();
         expect(window.go.desktop.App.GetKanbanColumns).not.toHaveBeenCalled();
     });
@@ -567,7 +567,7 @@ describe('live Kanban buffers and compact cards', () => {
         await testUtils.waitFor(0);
         expect(mockKanbanErrorDialog).toHaveBeenCalled();
         expect(document.querySelector('.kanban-card').textContent).toContain('Keep me');
-        expect(window.go.desktop.App.SaveFile).not.toHaveBeenCalled();
+        expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
         expect(window.go.desktop.App.RemoveTagFromTask).not.toHaveBeenCalled();
         window.go.desktop.App.SetTaskSchedule.mockClear();
         setState('openTabs', [{ type: 'file', path: 'note.md', dirty: true, _content: source }]);

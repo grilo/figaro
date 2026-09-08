@@ -9,6 +9,8 @@ export function createDocumentSave({
     confirmOverwrite,
     shouldCommit = () => false,
     commit = async () => {},
+    refreshIndex = async () => {},
+    onFollowupFailed = () => {},
     onStarted = () => {},
     onPersisted = () => {},
     onSaved = async () => {},
@@ -17,7 +19,7 @@ export function createDocumentSave({
     const queues = new Map();
     const generations = new Map();
 
-    async function persistSnapshot(snapshot, queue) {
+    async function persistSnapshot(snapshot, queue, acknowledge) {
         const write = expectedMtime => persist({
             path: snapshot.path,
             externalFileId: snapshot.externalFileId,
@@ -25,6 +27,7 @@ export function createDocumentSave({
             expectedMtime,
         });
 
+        let persistedResult = null;
         try {
             let result = await write(queue.mtime);
             let successMessage = 'Saved';
@@ -42,8 +45,10 @@ export function createDocumentSave({
                 }
             }
 
+            persistedResult = result;
             queue.mtime = result.mtime;
             onPersisted(snapshot, result);
+            acknowledge(result);
 
             const autoCommitEnabled = !snapshot.externalFileId && shouldCommit(snapshot);
             let historyCommitFailed = false;
@@ -57,6 +62,10 @@ export function createDocumentSave({
                 }
             }
             result.historyCommitSucceeded = autoCommitEnabled && !historyCommitFailed;
+            if (!snapshot.externalFileId) {
+                try { await refreshIndex(snapshot.path); }
+                catch (error) { onFollowupFailed(snapshot, error); }
+            }
             await onSaved(snapshot, result, {
                 historyCommitFailed,
                 historyCommitError,
@@ -64,6 +73,11 @@ export function createDocumentSave({
             });
             return result;
         } catch (error) {
+            if (persistedResult) {
+                acknowledge(persistedResult);
+                onFollowupFailed(snapshot, error);
+                return persistedResult;
+            }
             onFailed(snapshot, error);
             throw error;
         }
@@ -81,21 +95,26 @@ export function createDocumentSave({
         onStarted(snapshot);
 
         const queue = queues.get(snapshot.path) || { mtime: snapshot.expectedMtime, pending: null };
-        const queued = queue.pending
-            ? queue.pending.catch(() => null).then(() => persistSnapshot(snapshot, queue))
-            : persistSnapshot(snapshot, queue);
-        queue.pending = queued;
+        let acknowledge;
+        const durable = new Promise(resolve => { acknowledge = resolve; });
+        const previous = queue.pending;
+        queue.pending = durable;
+        const run = () => persistSnapshot(snapshot, queue, acknowledge);
+        const queued = previous ? previous.then(run) : run();
+        // Release subsequent disk writes even after a rejected/cancelled save.
+        queued.then(acknowledge, () => acknowledge(null));
+        queue.completion = queued;
         queues.set(snapshot.path, queue);
         queued.finally(() => {
-            if (queue.pending === queued) queues.delete(snapshot.path);
+            if (queue.completion === queued) queues.delete(snapshot.path);
         }).catch(() => {});
-        return queued;
+        return options.durabilityOnly ? Promise.race([durable, queued]) : queued;
     }
 
     return {
         save,
         pendingForPath(path) {
-            return queues.get(path)?.pending || null;
+            return queues.get(path)?.completion || null;
         },
     };
 }
