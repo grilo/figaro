@@ -2,8 +2,9 @@
 
 Writing review connects the Writing lenses pane and Pure picker to editor
 snapshots, saved preferences, and spelling checks.
-The implementation uses packaged Vale CLI output because its stdin/JSON and
-process-cancellation boundary is smaller than importing its application internals.
+The backend compiles a restricted Vale source library and preserves its JSON
+alert contract. A bounded asynchronous coordinator owns deadlines, cancellation,
+and engine reuse independently of editor interaction and saving.
 The prose parser and pure resolver run in the same eager worker. The resolver
 interprets observations, applies policy, protects source ranges, and groups
 equivalent advice. Full projections and raw
@@ -40,7 +41,7 @@ with the note’s selected analysis language. There is no automatic language det
 
 | Dependency / immutable pin | Upstream and notices | Emitted checks / scope | Fix support |
 | --- | --- | --- | --- |
-| Vale 3.20.0 | [Vale release](https://github.com/vale-cli/vale/releases/tag/v3.20.0), MIT in `internal/writing/assets/LICENSE` | Packaged native CLI; explicit Figaro configuration, stdin prose, JSON output | Selected rules are advisory; no native generated actions |
+| Vale 3.20.0 | [Vale release](https://github.com/vale-cli/vale/releases/tag/v3.20.0), MIT in `third_party/vale/LICENSE` | Embedded Go library; in-memory Figaro rules, projected prose, compatible JSON output | Selected rules are advisory; no native generated actions |
 | write-good `c9ceca7f574248a201d5524b001099c5626c7519` | [Pinned style source](https://github.com/vale-cli/write-good/tree/c9ceca7f574248a201d5524b001099c5626c7519), MIT in `internal/writing/styles/LICENSE` | Seven rules: Passive, TooWordy, Cliches, Illusions, So, ThereIs, Weasel; E-Prime and Vale built-ins disabled | Detection only; compatible retext evidence can contribute a phrase fix |
 | retext-passive 5.0.0 | [Source](https://github.com/retextjs/retext-passive), MIT | `retext-passive` plus native rule IDs; participle-based possible passive detection | Advisory only |
 | retext-simplify 8.0.0 | [Source](https://github.com/retextjs/retext-simplify), MIT | `retext-simplify` plus native message subtypes; all native phrases map to contextual wordiness or vocabulary advice | Seven reviewed phrase forms offer verified alternatives, case matched, contiguous source only |
@@ -86,19 +87,27 @@ uses dictionary-es 4.0.0. Existing dictionary-specific notices remain in
 Generated `frontend/vendored/writing/NOTICES.txt` carries dependency notices.
 Selecting a lens does not change those spelling resources.
 
-Build preparation verifies release-archive SHA-256 values before extracting the
-Vale executable. `cmd/prepare-writing-assets/main.go` is the checksum manifest
-for Linux, Windows, and macOS amd64/arm64. Native macOS preparation embeds both
-architectures; cross builds explicitly prepare their target. Runtime extracts
-only bundled assets to a private cache directory and removes it on shutdown.
-Configuration (`--config` plus `--no-global`) and process working directory are controlled by Figaro, never
-inferred from the vault. Source passes through stdin and is not written to a
-scratch note. Vale input/output is bounded at 4 MiB. Initialization has a
-five-second deadline; analysis uses source-size budgets bounded to 5–30 seconds
-(two seconds per started 64 Ki UTF-16 units in workers or UTF-8 bytes in Vale).
-Workers use the full source for resolve/recovery and the larger before/after
-source for decision tracking. Cancellation still terminates active work immediately. The installed app needs no Node, package manager, network
-analyzer, custom styles, or user-installed Vale.
+Vale 3.20.0 is compiled from the adapted source in `third_party/vale`; builds do
+not download, package, extract, or launch its executable. Rules and local NLP data
+initialize eagerly in memory. The fixed plain-text facade accepts Figaro's 27
+trusted rules, rejects external/script styles, and does not discover host config
+or interpret note text as a filename. The original [prototype measurements](VALE_EMBEDDED_PROTOTYPE.md)
+are historical; the [integration report](VALE_INTEGRATION.md) records current
+production-adapter validation and profiling.
+
+`internal/writing` owns one analysis worker and at most one queued replacement.
+Cancellation/deadlines return to callers promptly, obsolete results are discarded,
+and close never waits for the worker. Actual native execution stops cooperatively:
+regex matches have 100 ms budgets, complete match walks have a one-second budget
+and 65,536-match limit, NLP expansion is limited to 65,536 blocks, and collected
+alerts to 32,768. Input and bridge output retain their 4 MiB bounds. Hitting a
+limit returns a recoverable error, never a successful truncated scan. Rule workers
+are limited to two; saving and index work do not share their queue or locks.
+These limits do not claim process-level hard termination or isolate fatal runtime
+errors. Source-size request deadlines remain 5–30 seconds.
+
+The installed app needs no Node, package manager, analyzer download, custom
+styles, or user-installed Vale. JavaScript workers still terminate on cancellation.
 
 ## Asynchronous execution contract
 
@@ -462,7 +471,7 @@ explicit request. All controls reuse approved primitives and existing theme stat
 
 [Labelled fixtures](../tests/fixtures/writing-editorial.json) contain both desired
 and undesired advice. `node scripts/profile-writing.mjs` runs the actual pinned
-retext, textlint, and packaged Vale implementations, checks canonical kinds (not just total
+retext, textlint, and embedded Vale implementations, checks canonical kinds (not just total
 counts), and reports raw observations, suppression, and unique results. CI runs
 this report after asset preparation. Normal unit tests also cover these fixtures.
 The current report uses `workerRaw`/`workerMs` for combined JavaScript analysis;
@@ -1129,3 +1138,13 @@ This supports an opt-in beta, not an unqualified production-readiness claim for
 suggestion usefulness. The next quality gate is better individual spelling
 candidate eligibility plus an independently reviewed, frozen evaluation set.
 No release metadata, tag, commit or publication was produced by this assessment.
+
+## Embedded Vale experiment, 2026-09-08
+
+A standalone Go prototype loads the current rules from memory and reuses Vale's
+engine without a helper executable. All 80 fixture/document comparisons preserve
+complete CLI alerts. The [measured report](VALE_EMBEDDED_PROTOTYPE.md) records
+short-note gains, long-note costs, cancellation limits, and platform coverage.
+The experiment led to the current embedded production adapter. Its original
+measurements remain a record of the prototype, rather than a claim about every
+platform or the current app.

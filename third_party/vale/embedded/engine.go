@@ -1,0 +1,61 @@
+// Package embedded exposes the local, plain-text Vale engine to Figaro.
+package embedded
+
+import (
+	"context"
+	"errors"
+	"io/fs"
+
+	"github.com/vale-cli/vale/v3/internal/check"
+	"github.com/vale-cli/vale/v3/internal/core"
+	"github.com/vale-cli/vale/v3/internal/lint"
+	"github.com/vale-cli/vale/v3/internal/nlp"
+)
+
+type Alert = core.Alert
+
+type Engine struct {
+	linter *lint.Linter
+	gate   chan struct{}
+}
+
+func New(rules fs.FS) (*Engine, error) {
+	nlp.Prepare()
+	cfg, err := core.NewConfig(&core.CLIFlags{InExt: ".txt", IgnoreGlobal: true, InMemory: true})
+	if err != nil {
+		return nil, err
+	}
+	// Equivalent to Figaro's fixed *.txt configuration; no host config discovery.
+	cfg.GBaseStyles = []string{"write-good", "proselint", "Microsoft"}
+	cfg.GChecks["Vale.Spelling"] = false
+	cfg.GChecks["Vale.Repetition"] = false
+	mgr, err := check.NewMemoryManager(cfg, rules)
+	if err != nil {
+		return nil, err
+	}
+	return &Engine{linter: lint.NewMemoryLinter(mgr), gate: make(chan struct{}, 1)}, nil
+}
+
+func (e *Engine) Analyze(ctx context.Context, source string) ([]Alert, error) {
+	if len(source) > 4<<20 {
+		return nil, errors.New("writing input exceeds 4 MiB")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	select {
+	case e.gate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	defer func() { <-e.gate }()
+	files, err := e.linter.LintStringContext(ctx, source)
+	if err != nil {
+		return nil, err
+	}
+	alerts := []Alert{}
+	for _, file := range files {
+		alerts = append(alerts, file.SortedAlerts()...)
+	}
+	return alerts, nil
+}

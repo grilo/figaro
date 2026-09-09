@@ -10,6 +10,15 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.38.1] - 2026-09-09
+
+### Changed
+
+- Writing lenses now run Vale directly inside Figaro, reusing in-memory rules
+  without extracting Vale files or launching a separate executable. Cancellation,
+  shutdown, and saving stay independent of pending analysis; unusually expensive
+  scans stop with a recoverable error rather than returning incomplete findings.
+
 ## [1.38.0] - 2026-09-08
 
 ### Added
@@ -2206,7 +2215,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.38.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.38.1...HEAD
+[1.38.1]: https://github.com/grilo/figaro/compare/v1.38.0...v1.38.1
 [1.38.0]: https://github.com/grilo/figaro/compare/v1.37.3...v1.38.0
 [1.37.3]: https://github.com/grilo/figaro/compare/v1.37.2...v1.37.3
 [1.37.2]: https://github.com/grilo/figaro/compare/v1.37.1...v1.37.2

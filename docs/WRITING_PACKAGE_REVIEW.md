@@ -21,7 +21,7 @@ guards and stricter spelling replacement safety while retaining this inventory.
 
 ## Execution and safety
 
-All application modules remain eagerly bundled. Slopless and retext execute in the existing prose worker after the 500 ms debounce; the native Vale process runs asynchronously after projection. Plain language, Directness, Repetition, Consistency, and Readability now request Vale evidence independently. Enabling one after a cached Formulaic-only result starts the missing analysis. Typing still clears stale results immediately and invalidates late generations; no analyzer runs synchronously in the typing handler.
+All application modules remain eagerly bundled. Slopless and retext execute in the existing prose worker after the 500 ms debounce; the embedded Vale worker runs asynchronously after projection. Plain language, Directness, Repetition, Consistency, and Readability now request Vale evidence independently. Enabling one after a cached Formulaic-only result starts the missing analysis. Typing still clears stale results immediately and invalidates late generations; no analyzer runs synchronously in the typing handler.
 
 Microsoft’s sentence-length rule emits a first-word anchor. The pure Vale adapter validates it and maps it to the full existing prose sentence before source validation and deduplication; the corpus follow-up also verifies that sentence’s own above-30-word count. The local length check uses the same threshold. Protected text and unmappable spans remain rejected. Slopless frequency reports identify the first occurrence of each repeated word and its verified count, so separate words can be ignored independently.
 
@@ -82,7 +82,7 @@ The remaining rules encode a Microsoft house style or need information outside p
 
 ## Verification
 
-Focused regressions cover all 30 Slopless rules, all 20 restored Vale rules through the real native process and pure adapter, all 43 restored Inclusive IDs, and all 29 canonical technical names. Resolver tests prove independent lenses, enabled-lens-only actions, exact concern deduplication, separate same-sentence advice, and serialized/restored Ignore. Use-case tests prove newly supported Vale lenses invalidate a missing-evidence cache and accept typing while analysis is pending. Existing protected-source, pronunciation, identity, cancellation, retry, and worker-startup tests remain applicable.
+Focused regressions cover all 30 Slopless rules, all 20 restored Vale rules through the real embedded engine and pure adapter, all 43 restored Inclusive IDs, and all 29 canonical technical names. Resolver tests prove independent lenses, enabled-lens-only actions, exact concern deduplication, separate same-sentence advice, and serialized/restored Ignore. Use-case tests prove newly supported Vale lenses invalidate a missing-evidence cache and accept typing while analysis is pending. Existing protected-source, pronunciation, identity, cancellation, retry, and worker-startup tests remain applicable.
 
 No component, CodeMirror decoration mechanism, layout, or cursor geometry changes in this review. UI coverage uses the existing styled cards, examples, and actions; browser validation is the representative assembled eager-startup boundary rather than duplicated end-to-end rule cases.
 

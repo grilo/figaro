@@ -1,110 +1,189 @@
-// Package writing owns the isolated, offline Vale process and its bundled assets.
+// Package writing coordinates bounded, offline analysis with the embedded Vale engine.
 package writing
 
 import (
-	"bytes"
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"os/exec"
-	"path/filepath"
+	"io/fs"
 	"sync"
 	"time"
+
+	"github.com/vale-cli/vale/v3/embedded"
 )
 
-//go:embed assets/* styles
+//go:embed styles
 var bundled embed.FS
 
 const Version = "3.20.0"
 const maxBytes = 4 << 20
 
+// analyzer is the effect boundary owned by the worker. It is never called by
+// concurrent requests, and no request or close path waits for it to finish.
+type analyzer interface {
+	Analyze(context.Context, string) ([]embedded.Alert, error)
+}
+
+type analysisResult struct {
+	output string
+	err    error
+}
+type analysisRequest struct {
+	id, text string
+	ctx      context.Context
+	cancel   context.CancelFunc
+	result   chan analysisResult
+}
+
 type Engine struct {
-	mu             sync.Mutex
-	runMu          sync.Mutex
-	dir            string
-	executable     string
-	current        string
-	cancel         context.CancelFunc
-	closed         bool
-	cancelled      map[string]bool
-	commandContext func(context.Context, string, ...string) *exec.Cmd
+	mu        sync.Mutex
+	worker    analyzer
+	jobs      chan *analysisRequest
+	stop      chan struct{}
+	done      chan struct{}
+	requests  map[string]*analysisRequest
+	cancelled map[string]bool
+	closed    bool
+	budget    func(int) time.Duration
 }
 
 func Open() (*Engine, error) {
 	return OpenWithTimings(func(string) func(error) { return func(error) {} })
 }
 
-// OpenWithTimings reports only fixed stages, leaving clocks and log I/O to the caller.
+// OpenWithTimings reports a fixed stage, leaving log I/O to the composition root.
 func OpenWithTimings(begin func(string) func(error)) (*Engine, error) {
-	finishCache := begin("writing-cache")
-	dir, executable, err := prepareBundledCache()
-	finishCache(err)
+	finish := begin("writing-rules")
+	rules, err := fs.Sub(bundled, "styles")
 	if err != nil {
+		finish(err)
 		return nil, err
 	}
-	engine := &Engine{dir: dir, executable: executable, commandContext: exec.CommandContext}
-	finishProcess := begin("writing-process")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	command := exec.CommandContext(ctx, engine.executable, "--version")
-	hideProcessWindow(command)
-	_, err = command.Output()
-	finishProcess(err)
+	worker, err := embedded.New(rules)
+	finish(err)
 	if err != nil {
-		return nil, fmt.Errorf("writing engine could not start: %w", err)
+		return nil, fmt.Errorf("writing engine could not initialize: %w", err)
 	}
-	return engine, nil
+	return newEngine(worker), nil
 }
 
-type limitedBuffer struct{ bytes.Buffer }
+func newEngine(worker analyzer) *Engine {
+	engine := &Engine{worker: worker, jobs: make(chan *analysisRequest, 1), stop: make(chan struct{}), done: make(chan struct{}), requests: map[string]*analysisRequest{}, cancelled: map[string]bool{}, budget: func(size int) time.Duration { return time.Duration(AnalysisBudgetMillis(size)) * time.Millisecond }}
+	go engine.run()
+	return engine
+}
 
-func (b *limitedBuffer) Write(data []byte) (int, error) {
-	if b.Len()+len(data) > maxBytes {
-		return 0, fmt.Errorf("writing output exceeds limit")
+// encodeAlerts preserves the bridge's Vale JSON contract and rejects oversized
+// output. The embedded library also bounds intermediate matches and alerts.
+func encodeAlerts(alerts []embedded.Alert) (string, error) {
+	files := map[string][]embedded.Alert{}
+	if len(alerts) > 0 {
+		files["stdin.txt"] = alerts
 	}
-	return b.Buffer.Write(data)
+	data, err := json.Marshal(files)
+	if err != nil {
+		return "", err
+	}
+	if len(data) > maxBytes {
+		return "", errors.New("writing output exceeds limit")
+	}
+	return string(data), nil
+}
+
+func (e *Engine) run() {
+	defer func() {
+		e.mu.Lock()
+		e.requests = nil
+		e.worker = nil
+		e.mu.Unlock()
+		close(e.done)
+	}()
+	for {
+		select {
+		case <-e.stop:
+			return
+		case request := <-e.jobs:
+			result := e.execute(request)
+			// A cancelled caller may already have returned; this buffered send
+			// never waits and the next scan still waits for actual worker exit.
+			e.mu.Lock()
+			delete(e.requests, request.id)
+			e.mu.Unlock()
+			request.result <- result
+		}
+	}
+}
+
+func (e *Engine) execute(request *analysisRequest) (result analysisResult) {
+	defer func() {
+		if recover() != nil {
+			result = analysisResult{err: errors.New("writing analysis failed")}
+		}
+	}()
+	if err := request.ctx.Err(); err != nil {
+		return analysisResult{err: err}
+	}
+	alerts, err := e.worker.Analyze(request.ctx, request.text)
+	if cancelled := request.ctx.Err(); cancelled != nil {
+		return analysisResult{err: cancelled}
+	}
+	if err != nil {
+		return analysisResult{err: fmt.Errorf("writing analysis failed: %w", err)}
+	}
+	output, err := encodeAlerts(alerts)
+	return analysisResult{output: output, err: err}
 }
 
 func (e *Engine) Analyze(id, text string) (string, error) {
-	if len(text) > maxBytes {
-		return "", fmt.Errorf("document exceeds writing analysis limit")
-	}
-	e.runMu.Lock()
-	defer e.runMu.Unlock()
 	e.mu.Lock()
-	if e.closed {
+	if err := admitRequest(len(text), e.closed || e.jobs == nil, e.cancelled[id], e.requests[id] != nil, len(e.requests)); err != nil {
 		e.mu.Unlock()
-		return "", fmt.Errorf("writing engine is closed")
+		return "", err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(AnalysisBudgetMillis(len(text)))*time.Millisecond)
-	if e.cancelled[id] {
+	ctx, cancel := context.WithTimeout(context.Background(), e.budget(len(text)))
+	request := &analysisRequest{id: id, text: text, ctx: ctx, cancel: cancel, result: make(chan analysisResult, 1)}
+	e.requests[id] = request
+	select {
+	case e.jobs <- request:
+		e.mu.Unlock()
+	default:
+		delete(e.requests, id)
 		e.mu.Unlock()
 		cancel()
-		return "", context.Canceled
+		return "", errors.New("writing engine is busy")
 	}
-	e.current, e.cancel = id, cancel
-	e.mu.Unlock()
-	defer func() { cancel(); e.mu.Lock(); e.cancel = nil; e.current = ""; e.mu.Unlock() }()
-	command := e.commandContext(ctx, e.executable, "--config="+filepath.Join(e.dir, "figaro.ini"), "--no-global", "--output=JSON", "--ext=.txt", "--no-exit")
-	command.Dir = e.dir
-	command.Stdin = bytes.NewBufferString(text)
-	command.WaitDelay = time.Second
-	var output, stderr limitedBuffer
-	command.Stdout, command.Stderr = &output, &stderr
-	hideProcessWindow(command)
-	err := command.Run()
-	if ctx.Err() != nil {
+	defer func() { cancel(); e.mu.Lock(); e.removeQueued(request); e.mu.Unlock() }()
+
+	select {
+	case <-ctx.Done():
 		return "", ctx.Err()
+	case result := <-request.result:
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		return result.output, result.err
 	}
-	if err != nil {
-		return "", fmt.Errorf("writing analysis failed: %w", err)
-	}
-	if !bytes.HasPrefix(bytes.TrimSpace(output.Bytes()), []byte("{")) {
-		return "", errors.New("invalid writing engine output")
-	}
-	return output.String(), nil
 }
+
+// admitRequest is the pure work-admission policy. The coordinator applies it
+// under its lock before retaining another snapshot or creating its deadline.
+func admitRequest(size int, closed, cancelled, duplicate bool, retained int) error {
+	switch {
+	case size > maxBytes:
+		return errors.New("document exceeds writing analysis limit")
+	case closed:
+		return errors.New("writing engine is closed")
+	case cancelled:
+		return context.Canceled
+	case duplicate || retained >= 2:
+		return errors.New("writing engine is busy")
+	default:
+		return nil
+	}
+}
+
 func (e *Engine) Cancel(id string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -112,18 +191,41 @@ func (e *Engine) Cancel(id string) {
 		e.cancelled = map[string]bool{}
 	}
 	e.cancelled[id] = true
-	if e.current == id && e.cancel != nil {
-		e.cancel()
+	if request := e.requests[id]; request != nil {
+		request.cancel()
+		e.removeQueued(request)
 	}
 }
+
 func (e *Engine) Close() {
 	e.mu.Lock()
-	e.closed = true
-	if e.cancel != nil {
-		e.cancel()
+	defer e.mu.Unlock()
+	if e.closed {
+		return
 	}
-	e.mu.Unlock()
-	e.runMu.Lock()
-	defer e.runMu.Unlock()
-	// Verified bundled assets belong to the reusable cache, not this session.
+	e.closed = true
+	for _, request := range e.requests {
+		request.cancel()
+	}
+	if e.stop != nil {
+		close(e.stop)
+		select {
+		case <-e.jobs:
+		default:
+		}
+	}
+}
+
+// removeQueued requires mu. A cancelled pending snapshot must not occupy the
+// replacement slot while active work is reaching a cooperative checkpoint.
+func (e *Engine) removeQueued(request *analysisRequest) {
+	select {
+	case queued := <-e.jobs:
+		if queued == request {
+			delete(e.requests, request.id)
+		} else {
+			e.jobs <- queued
+		}
+	default:
+	}
 }

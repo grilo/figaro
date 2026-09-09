@@ -12,6 +12,19 @@ require (
 	golang.org/x/text v0.41.0
 )
 
+require (
+	github.com/adrg/xdg v0.5.3 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.7.1 // indirect
+	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
+	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/jdkato/prose/v3 v3.2.1 // indirect
+	github.com/jdkato/regexp2/v2 v2.5.5 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
+	gopkg.in/neurosnap/sentences.v1 v1.0.7 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
 // Keep Windows AltGr/dead-key input inside WebView2 instead of reposting it to
 // the native window. Remove this replacement once the fix ships upstream.
 replace github.com/wailsapp/wails/v2 => github.com/grilo/wails/v2 v2.14.0-figaro.1
@@ -54,6 +67,7 @@ require (
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
+	github.com/vale-cli/vale/v3 v3.20.0
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
@@ -65,3 +79,5 @@ require (
 	golang.org/x/net v0.56.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
+
+replace github.com/vale-cli/vale/v3 => ./third_party/vale

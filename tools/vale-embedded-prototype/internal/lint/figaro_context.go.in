@@ -1,0 +1,58 @@
+package lint
+
+import (
+	"context"
+	"fmt"
+	"github.com/vale-cli/vale/v3/internal/check"
+	"github.com/vale-cli/vale/v3/internal/core"
+	"github.com/vale-cli/vale/v3/internal/nlp"
+	"sync"
+)
+
+func NewMemoryLinter(mgr *check.Manager) *Linter {
+	return &Linter{Manager: mgr, inScope: &sync.Map{}, ctx: context.Background()}
+}
+
+// LintStringContext requires exclusive ownership. Cancellation checkpoints cannot
+// interrupt NLP.Compute, source mapping, or allocation already in progress.
+func (l *Linter) LintStringContext(ctx context.Context, source string) (files []*core.File, err error) {
+	l.ctx = ctx
+	defer func() {
+		l.ctx = context.Background()
+		if caught := recover(); caught != nil {
+			files = nil
+			err = fmt.Errorf("lint failed: %v", caught)
+		}
+	}()
+	files, err = l.LintString(source)
+	if cancelled := ctx.Err(); cancelled != nil {
+		return nil, cancelled
+	}
+	return files, err
+}
+
+func (l *Linter) cancelled() error {
+	if l.ctx == nil {
+		return nil
+	}
+	return l.ctx.Err()
+}
+
+// Recovery belongs inside each worker: recovering in the outer goroutine cannot
+// contain a panic from Vale's concurrent rule workers.
+func (l *Linter) runRule(rule check.Rule, block nlp.Block, file *core.File) (alerts []core.Alert, err error) {
+	if err = l.cancelled(); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if caught := recover(); caught != nil {
+			alerts = nil
+			err = fmt.Errorf("rule %s failed: %v", rule.Fields().Name, caught)
+		}
+		if cancelled := l.cancelled(); cancelled != nil {
+			alerts = nil
+			err = cancelled
+		}
+	}()
+	return rule.Run(block, file, l.Manager.Config)
+}

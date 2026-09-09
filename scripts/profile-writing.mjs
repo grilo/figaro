@@ -1,31 +1,19 @@
-import { writingWorkBudget } from '../frontend/js/core/writingWorkBudget.js';
+import { openNativeWritingProfile } from './writing-native-profile.mjs';
 // Reproducible real-adapter editorial/latency report; no latency pass/fail threshold.
 import { performance } from 'node:perf_hooks';
-import { readFileSync, writeFileSync, cpSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir, cpus } from 'node:os';
-import { join } from 'node:path';
-import { gunzipSync } from 'node:zlib';
-import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { cpus } from 'node:os';
 import { analyzeWriting } from '../frontend/vendored/writing/runtime.js';
 import { resolveWritingFindings, valeWritingObservations } from '../frontend/js/core/writingAnalysisModel.js';
 
 const preferences = { lenses: ['plain', 'direct', 'repetition'], language: 'en-US' };
 const samples = JSON.parse(readFileSync(new URL('../tests/fixtures/writing-editorial.json', import.meta.url)));
-const directory = mkdtempSync(join(tmpdir(), 'figaro-writing-profile-'));
+const engine = await openNativeWritingProfile();
 try {
-    const executable = join(directory, process.platform === 'win32' ? 'vale.exe' : 'vale');
-    const platform = process.platform === 'win32' ? 'windows' : process.platform;
-    const architecture = process.arch === 'x64' ? 'amd64' : process.arch;
-    const cold = performance.now();
-    writeFileSync(executable, gunzipSync(readFileSync(new URL(`../internal/writing/assets/vale-3.20.0-${platform}-${architecture}.gz`, import.meta.url))), { mode: 0o700 });
-    cpSync(new URL('../internal/writing/styles', import.meta.url), join(directory, 'styles'), { recursive: true });
-    const config = join(directory, 'figaro.ini');
-    writeFileSync(config, readFileSync(new URL('../internal/writing/styles/figaro.ini', import.meta.url)));
-    execFileSync(executable, ['--version'], { timeout: 5000 });
-    const coldValeMs = performance.now() - cold;
+    const coldValeMs = engine.initializationMs;
     async function analyze(source) {
         const start = performance.now(), data = await analyzeWriting(source), parsed = performance.now();
-        const raw = execFileSync(executable, [`--config=${config}`, '--no-global', '--output=JSON', '--ext=.txt', '--no-exit'], { cwd: directory, input: data.projection.text, timeout: writingWorkBudget(data.projection.text), maxBuffer: 4 << 20, encoding: 'utf8' });
+        const raw = await engine.analyze(data.projection.text);
         const native = performance.now(), vale = valeWritingObservations(raw, data.projection);
         return { ...data, observations: [...data.observations, ...vale], workerRaw: data.observations.length, valeRaw: vale.length,
             times: { workerMs: parsed - start, valeMs: native - parsed } };
@@ -69,4 +57,4 @@ try {
     }
     console.log(JSON.stringify({ node: process.version, cpu: cpus()[0]?.model, coldValeMs, editorial, measurements }, null, 2));
     if (editorial.some(item => !item.pass)) process.exitCode = 1;
-} finally { rmSync(directory, { recursive: true, force: true }); }
+} finally { await engine.close(); }

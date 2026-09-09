@@ -37,7 +37,8 @@ Your restored note is ready to edit while writing engines and vault indexing
 prepare in the background. Auto-Save and the close guard are installed before
 you can type. Saving writes the note to disk first; Git history and task/index
 updates follow. A failure in those follow-up steps leaves your saved text intact.
-The bundled writing engine reuses a verified local cache across launches.
+The writing engine runs inside Figaro and reuses its bundled rules in memory.
+It does not extract or launch a separate Vale executable.
 
 ## Focus on a draft
 

@@ -1,22 +1,18 @@
 package writing
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 )
 
-func TestWritingStartupTimingsDistinguishCachePreparationFromProcessLaunch(t *testing.T) {
+func TestWritingStartupTimingsReportEmbeddedRuleInitialization(t *testing.T) {
 	var stages []string
 	engine, err := OpenWithTimings(func(stage string) func(error) {
 		stages = append(stages, stage+":begin")
@@ -32,7 +28,7 @@ func TestWritingStartupTimingsDistinguishCachePreparationFromProcessLaunch(t *te
 		t.Fatal(err)
 	}
 	defer engine.Close()
-	want := []string{"writing-cache:begin", "writing-cache:end", "writing-process:begin", "writing-process:end"}
+	want := []string{"writing-rules:begin", "writing-rules:end"}
 	if !reflect.DeepEqual(stages, want) {
 		t.Fatalf("wrong preparation stages: %v", stages)
 	}
@@ -191,7 +187,7 @@ func TestBundledMicrosoftSelectedRulesPreserveAttachedUnits(t *testing.T) {
 			t.Fatalf("got %s for %q, want %d acronyms", output, sample.source, sample.matches)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(engine.dir, "styles", "Microsoft", "LICENSE")); err != nil {
+	if _, err := bundled.ReadFile("styles/Microsoft/LICENSE"); err != nil {
 		t.Fatal("Microsoft notice missing", err)
 	}
 }
@@ -253,7 +249,7 @@ func TestBundledProselintOnlySelectedPinnedRulesRunOffline(t *testing.T) {
 	if !reflect.DeepEqual(seen, allowed) {
 		t.Fatalf("missing selected rules: %s", output)
 	}
-	if _, err := os.Stat(filepath.Join(engine.dir, "styles", "proselint", "LICENSE")); err != nil {
+	if _, err := bundled.ReadFile("styles/proselint/LICENSE"); err != nil {
 		t.Fatal("bundled notice missing", err)
 	}
 }
@@ -306,85 +302,8 @@ func TestBundledValePinnedRulesAndUnicodePositions(t *testing.T) {
 	if _, err = engine.Analyze("oversized", strings.Repeat("a", maxBytes+1)); err == nil {
 		t.Fatal("accepted oversized input")
 	}
-	dir := engine.dir
 	engine.Close()
-	if _, err = os.Stat(dir); err != nil {
-		t.Fatal("verified engine cache was removed on close", err)
-	}
 	if _, err = engine.Analyze("closed", "text"); err == nil {
 		t.Fatal("closed engine accepted work")
-	}
-}
-
-func TestWritingProcessHelper(t *testing.T) {
-	path := os.Getenv("FIGARO_WRITING_PROCESS_HELPER")
-	if path == "" {
-		return
-	}
-	if err := os.WriteFile(path, []byte("started"), 0600); err != nil {
-		os.Exit(2)
-	}
-	time.Sleep(30 * time.Second)
-	os.Exit(0)
-}
-
-func TestWritingCancellationAndDeadlineTerminateTheProcess(t *testing.T) {
-	for _, mode := range []string{"cancel", "deadline", "pre-cancel"} {
-		t.Run(mode, func(t *testing.T) {
-			ready := filepath.Join(t.TempDir(), "ready")
-			var command *exec.Cmd
-			engine := &Engine{dir: t.TempDir(), commandContext: func(ctx context.Context, _ string, args ...string) *exec.Cmd {
-				if mode == "cancel" {
-					deadline, ok := ctx.Deadline()
-					if !ok || time.Until(deadline) < 9*time.Second || time.Until(deadline) > 10*time.Second {
-						t.Error("long note did not receive its bounded budget")
-					}
-				}
-				command = exec.CommandContext(ctx, os.Args[0], "-test.run=^TestWritingProcessHelper$", "--")
-				command.Env = append(os.Environ(), "FIGARO_WRITING_PROCESS_HELPER="+ready)
-				return command
-			}}
-			defer engine.Close()
-			if mode == "pre-cancel" {
-				engine.Cancel("job")
-			}
-			done := make(chan error, 1)
-			text := "unsaved prose"
-			if mode == "cancel" {
-				text = strings.Repeat("word ", 60000)
-			}
-			go func() { _, err := engine.Analyze("job", text); done <- err }()
-			if mode == "cancel" {
-				until := time.Now().Add(3 * time.Second)
-				for {
-					if _, err := os.Stat(ready); err == nil {
-						break
-					}
-					if time.Now().After(until) {
-						t.Fatal("child did not start")
-					}
-					time.Sleep(10 * time.Millisecond)
-				}
-				engine.Cancel("job")
-			}
-			select {
-			case err := <-done:
-				want := context.Canceled
-				if mode == "deadline" {
-					want = context.DeadlineExceeded
-				}
-				if !errors.Is(err, want) {
-					t.Fatalf("got %v, want %v", err, want)
-				}
-				if mode != "pre-cancel" && (command.ProcessState == nil || command.ProcessState.Success()) {
-					t.Fatal("child was not reaped after termination")
-				}
-				if mode == "pre-cancel" && command != nil {
-					t.Fatal("pre-cancelled work launched")
-				}
-			case <-time.After(7 * time.Second):
-				t.Fatal("writing process remained active")
-			}
-		})
 	}
 }

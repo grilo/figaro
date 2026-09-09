@@ -20,7 +20,7 @@ var nativeStages = map[string]bool{
 	"process": true, "vault-open": true, "history-open": true,
 	"native-startup": true, "settings": true, "welcome-note": true,
 	"webview-launch": true, "dom-ready": true, "writing": true,
-	"writing-cache": true, "writing-process": true, "vault-index": true,
+	"writing-rules": true, "vault-index": true,
 	"shutdown": true,
 }
 

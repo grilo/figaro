@@ -15,7 +15,7 @@ func TestStartupTimingsMeasureStagesAndPreserveIncompleteWork(t *testing.T) {
 	var events []Event
 	trace := NewTrace(func() time.Time { return now }, func(e Event) { events = append(events, e) })
 	trace.Mark("process")
-	finish := trace.Begin("writing-cache")
+	finish := trace.Begin("writing-rules")
 	if len(events) != 2 || events[1].Phase != "begin" {
 		t.Fatalf("missing in-progress marker: %+v", events)
 	}
@@ -59,7 +59,7 @@ func TestStartupTimingsStopAtReadyButCloseExistingSpansAndRecordShutdown(t *test
 	finish := trace.Begin("vault-index")
 	trace.Frontend(FrontendTiming{"ready", "mark", 80, 0})
 	trace.Frontend(FrontendTiming{"dictionary", "mark", 90, 0})
-	trace.Begin("writing-cache")(nil)
+	trace.Begin("writing-rules")(nil)
 	finish(nil)
 	trace.Mark("shutdown")
 	trace.Mark("shutdown")

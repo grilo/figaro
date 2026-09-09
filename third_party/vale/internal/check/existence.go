@@ -1,0 +1,124 @@
+package check
+
+import (
+	"fmt"
+	"strings"
+
+	rx "github.com/vale-cli/vale/v3/internal/regex"
+
+	"github.com/vale-cli/vale/v3/internal/core"
+	"github.com/vale-cli/vale/v3/internal/nlp"
+)
+
+// Existence checks for the present of Tokens.
+type Existence struct {
+	Definition `mapstructure:",squash"`
+	Raw        []string
+	Tokens     []string
+	// `exceptions` (`array`): An array of strings to be ignored.
+	Exceptions []string
+	exceptRe   *rx.Regexp
+	phraseRe   *rx.Regexp
+	pattern    *rx.Regexp
+	Append     bool
+	IgnoreCase bool
+	Nonword    bool
+	Vocab      bool
+}
+
+// NewExistence creates a new `Rule` that extends `Existence`.
+func NewExistence(cfg *core.Config, generic baseCheck, path string) (Existence, error) {
+	rule := Existence{Vocab: true}
+
+	err := decodeRule(generic, &rule)
+	if err != nil {
+		return rule, readStructureError(err, path)
+	}
+
+	err = checkScopes(rule.Scope, path)
+	if err != nil {
+		return rule, err
+	}
+
+	// `Vocab` is a list of accepted *words*, so it only makes sense to treat
+	// it as a set of exceptions for word-based rules. For `nonword` rules --
+	// whose tokens match arbitrary spans (e.g. `"[^"]+"[.,]`) -- a vocab word
+	// would suppress any match that merely *contains* it (e.g. `"plugh",`).
+	//
+	// See https://github.com/errata-ai/vale/issues/1058.
+	re, err := updateExceptions(rule.Exceptions, cfg.AcceptedTokens, rule.Vocab && !rule.Nonword)
+	if err != nil {
+		return rule, core.NewE201FromPosition(err.Error(), path, 1)
+	}
+	rule.exceptRe = re
+	rule.phraseRe = buildPhraseRe(rule.Exceptions, cfg.AcceptedTokens, rule.Vocab && !rule.Nonword)
+
+	regex := makeRegexp(
+		cfg.WordTemplate,
+		rule.IgnoreCase,
+		func() bool { return !rule.Nonword && len(rule.Tokens) > 0 },
+		func() string { return strings.Join(rule.Raw, "") },
+		rule.Append)
+
+	parsed := []string{}
+	for _, token := range rule.Tokens {
+		if strings.TrimSpace(token) != "" {
+			parsed = append(parsed, token)
+		}
+	}
+	regex = fmt.Sprintf(regex, strings.Join(parsed, "|"))
+
+	re, err = rx.Compile(regex)
+	if err != nil {
+		return rule, core.NewE201FromPosition(err.Error(), path, 1)
+	}
+	rule.pattern = re
+
+	return rule, nil
+}
+
+// Run executes the `existence`-based rule.
+//
+// This is simplest of the available extension points: it looks for any matches
+// of its internal `pattern` (calculated from `NewExistence`) against the
+// provided text.
+func (e Existence) Run(blk nlp.Block, f *core.File, cfg *core.Config) ([]core.Alert, error) {
+	alerts := []core.Alert{}
+
+	// Rule out the pattern before the engine sees it: almost every rule is
+	// asked about text it cannot match, and a substring search is far cheaper
+	// than a regular expression. A false answer here is definitive.
+	if !e.pattern.MightMatch(blk.Lower) {
+		return alerts, nil
+	}
+
+	for _, loc := range e.pattern.FindAllStringIndex(blk.Text, -1) {
+		f.Checkpoint()
+		converted, err := re2Loc(blk.Text, loc)
+		if err != nil {
+			return alerts, err
+		}
+
+		observed := strings.TrimSpace(converted)
+		if !isMatch(e.exceptRe, observed) && !withinPhrase(e.phraseRe, blk.Text, loc) {
+			a, erra := alertFor(e.Definition, loc, converted, cfg)
+			if erra != nil {
+				return alerts, erra
+			}
+			anchor(&a, blk)
+			alerts = append(alerts, a)
+		}
+	}
+
+	return alerts, nil
+}
+
+// Fields provides access to the internal rule definition.
+func (e Existence) Fields() Definition {
+	return e.Definition
+}
+
+// Pattern is the internal regex pattern used by this rule.
+func (e Existence) Pattern() string {
+	return e.pattern.String()
+}

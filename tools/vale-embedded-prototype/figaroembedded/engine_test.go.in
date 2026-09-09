@@ -1,0 +1,165 @@
+package figaroembedded
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"reflect"
+	"sort"
+	"strings"
+	"sync"
+	"testing"
+	"testing/fstest"
+	"time"
+)
+
+func mustEngine(t *testing.T) *Engine {
+	t.Helper()
+	e, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+func canonicalAlerts(alerts []Alert) []string {
+	result := make([]string, 0, len(alerts))
+	for _, alert := range alerts {
+		data, _ := json.Marshal(alert)
+		result = append(result, string(data))
+	}
+	sort.Strings(result)
+	return result
+}
+
+func TestEmbeddedRulesIgnoreHostConfigAndTreatFileNamesAsText(t *testing.T) {
+	t.Chdir(t.TempDir())
+	source := "The file is very large."
+	if err := os.WriteFile(source, []byte("Small file."), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(".vale.ini", []byte("THIS IS INVALID CONFIG"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	e := mustEngine(t)
+	alerts, err := e.Analyze(context.Background(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range alerts {
+		if a.Check == "proselint.Very" {
+			return
+		}
+	}
+	t.Fatalf("literal text was not linted: %v", alerts)
+}
+
+func TestEmbeddedEngineDoesNotLeakAcronymOrConsistencyStateBetweenDocuments(t *testing.T) {
+	shared := mustEngine(t)
+	cases := []string{"Application programming interface (API). The advisor met the adviser.", "The API is ready.", "The advisor arrived.", "The file is very large.", "Nothing to report."}
+	for repeat := 0; repeat < 3; repeat++ {
+		for _, source := range cases {
+			want, err := mustEngine(t).Analyze(context.Background(), source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := shared.Analyze(context.Background(), source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(canonicalAlerts(got), canonicalAlerts(want)) {
+				t.Fatalf("state leaked: %q: %v != %v", source, got, want)
+			}
+		}
+	}
+}
+
+func TestEmbeddedCancelledQueuedRequestReturnsWithoutOwningEngine(t *testing.T) {
+	e := mustEngine(t)
+	e.gate <- struct{}{}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { _, err := e.Analyze(ctx, "The file is very large."); done <- err }()
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("queued cancellation stalled")
+	}
+	<-e.gate
+}
+
+func TestEmbeddedLongNoteCancellationReturnsAndEngineCanBeReused(t *testing.T) {
+	e := mustEngine(t)
+	source := strings.Repeat("The report was written in order to help the team utilize clear language.\n\n", 12000)
+	ctx, cancel := context.WithCancel(context.Background())
+	start := time.Now()
+	timer := time.AfterFunc(20*time.Millisecond, cancel)
+	defer timer.Stop()
+	_, err := e.Analyze(ctx, source)
+	elapsed := time.Since(start)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected actual cancellation: %v", err)
+	}
+	if elapsed > 3*time.Second {
+		t.Fatalf("cancellation took %s", elapsed)
+	}
+	t.Logf("cancellation requested at 20ms, worker returned at %s", elapsed)
+	if _, err := e.Analyze(context.Background(), "The file is very large."); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEmbeddedPathologicalRegexErrorsAreBoundedAndWorkerSurvives(t *testing.T) {
+	rule := []byte("extends: existence\nmessage: 'Bad pattern.'\nlevel: warning\nnonword: true\nraw: ['^(a+)+$']\n")
+	e, err := newWithRules(fstest.MapFS{"proselint.Pathological.yml": {Data: rule}, "proselint.AlsoPathological.yml": {Data: rule}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	_, err = e.Analyze(context.Background(), strings.Repeat("a", 10000)+"!")
+	elapsed := time.Since(start)
+	if err == nil || !strings.Contains(err.Error(), "timeout") {
+		t.Fatalf("expected regex timeout: %v", err)
+	}
+	if elapsed > 3*time.Second {
+		t.Fatalf("regex took %s", elapsed)
+	}
+	t.Logf("regex timeout returned at %s", elapsed)
+	if _, err := e.Analyze(context.Background(), "plain text"); err != nil {
+		t.Fatalf("reuse: %v", err)
+	}
+}
+
+func TestEmbeddedConcurrentCallersSerializeWithoutRaces(t *testing.T) {
+	e := mustEngine(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 6; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := e.Analyze(context.Background(), "The file is very large.")
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestEmbeddedInputLimitAndPreCancelledRequest(t *testing.T) {
+	e := mustEngine(t)
+	if _, err := e.Analyze(context.Background(), strings.Repeat("a", (4<<20)+1)); err == nil {
+		t.Fatal("oversized input accepted")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	alerts, err := e.Analyze(ctx, "The file is very large.")
+	if !errors.Is(err, context.Canceled) || !reflect.DeepEqual(alerts, []Alert(nil)) {
+		t.Fatalf("%v %v", alerts, err)
+	}
+}

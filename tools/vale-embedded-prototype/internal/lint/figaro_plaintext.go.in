@@ -1,0 +1,15 @@
+//go:build figaro_plaintext
+
+package lint
+
+import (
+	"errors"
+	"github.com/vale-cli/vale/v3/internal/core"
+)
+
+func (l *Linter) lintCode(_ *core.File) error {
+	return errors.New("Figaro embedded prototype accepts projected prose only")
+}
+func (l *Linter) lintFragments(_ *core.File) error {
+	return errors.New("Figaro embedded prototype accepts projected prose only")
+}

@@ -74,7 +74,8 @@ document.
 
 ![An invitation draft with an in-place suggestion to shorten “in order to” to “to”](docs/images/figaro-writing.png)
 
-Checks run locally in the background. Your restored note is available while
+Checks run locally in the background. Vale is built into Figaro and reuses its
+rules in memory, without extracting or launching a separate executable. Your restored note is available while
 writing lenses and vault indexing get ready, with Auto-Save and close protection
 already active. Saves write your text to disk first; Git history and index
 updates follow. You can ignore a suggestion, add a word

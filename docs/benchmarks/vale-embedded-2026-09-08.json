@@ -1,0 +1,1730 @@
+{
+  "upstream": "github.com/vale-cli/vale/v3@v3.20.0",
+  "baselineSHA256": "17bd39892f5c2e2f62c72d85be47facd83c21d39597154996134d15e34af4428",
+  "platform": "linux/amd64",
+  "go": "go1.26.6",
+  "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor (8 cores / 16 threads)",
+  "embeddedInitMs": 26.252,
+  "embeddedTotalWallMs": 26326.6713389894,
+  "embeddedHeapAfterGCMiB": 10.893806457519531,
+  "results": [
+    {
+      "name": "tests/fixtures/writing-editorial.json:0:plain prose",
+      "sourceSHA256": "5740e8c77ce87e598171860e49e7feed634bd2bdb53b7af7dda21a498f584783",
+      "sourceBytes": 54,
+      "words": 11,
+      "cliMillis": [
+        116.81698801112361,
+        107.9465770162642,
+        115.70982402190566
+      ],
+      "embeddedMillis": [
+        7.092,
+        0.152,
+        0.196
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:1:useful shorter phrase",
+      "sourceSHA256": "2e0854edc4d44b6508f35fa75f84f213348884cca2d51bb402cff62677eaae42",
+      "sourceBytes": 27,
+      "words": 6,
+      "cliMillis": [
+        104.74918101681396,
+        103.16124698147178,
+        105.17604000051506
+      ],
+      "embeddedMillis": [
+        0.15,
+        0.14,
+        0.202
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:2:familiar vocabulary",
+      "sourceSHA256": "facc66b196213de1cf7df5bfb4a413cd980c1691ffc7ad2bbe1f85089f2754f1",
+      "sourceBytes": 28,
+      "words": 4,
+      "cliMillis": [
+        106.9011609943118,
+        105.11299601057544,
+        103.79044699948281
+      ],
+      "embeddedMillis": [
+        0.111,
+        0.108,
+        0.122
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:3:technical request nouns stay quiet while contextual contains advice remains",
+      "sourceSHA256": "25effee17c6db85905f216553e362eb7b9f2a074582e72154c25b30e776fd51a",
+      "sourceBytes": 50,
+      "words": 9,
+      "cliMillis": [
+        102.29782399255782,
+        102.72233601426706,
+        114.10076398169622
+      ],
+      "embeddedMillis": [
+        0.144,
+        0.131,
+        0.136
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:4:passive with Directness unselected",
+      "sourceSHA256": "6ac938d2cda80d28ccd11833cb85db9b16a1db880a0c4303bd6a54253c5b8a1b",
+      "sourceBytes": 35,
+      "words": 5,
+      "cliMillis": [
+        115.67366501549259,
+        110.58990200399421,
+        107.62407400761731
+      ],
+      "embeddedMillis": [
+        0.097,
+        0.085,
+        0.077
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:5:passive with Directness selected",
+      "sourceSHA256": "6ac938d2cda80d28ccd11833cb85db9b16a1db880a0c4303bd6a54253c5b8a1b",
+      "sourceBytes": 35,
+      "words": 5,
+      "cliMillis": [
+        112.13859901181422,
+        109.7872219979763,
+        108.57060001580976
+      ],
+      "embeddedMillis": [
+        0.12,
+        0.142,
+        0.13
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:6:quoted repetition",
+      "sourceSHA256": "7c01f3728507035305248d9ae66445c3fc016bb19d0736e320ddb06894622f8a",
+      "sourceBytes": 18,
+      "words": 0,
+      "cliMillis": [
+        106.30903398850933,
+        110.55170602048747,
+        125.14328400720842
+      ],
+      "embeddedMillis": [
+        0.054,
+        0.07,
+        0.038
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:7:intentional grammatical repetition",
+      "sourceSHA256": "c17df395a34a7a7b4a8da42f4e480f8c23b8e1168b689a63e4f6bc5ebbb32a61",
+      "sourceBytes": 35,
+      "words": 7,
+      "cliMillis": [
+        117.40932299289852,
+        117.92283799150027,
+        112.24329099059105
+      ],
+      "embeddedMillis": [
+        0.086,
+        0.122,
+        0.087
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:8:accidental repetition",
+      "sourceSHA256": "23d030db3143c201682484889e596c89be11618eb8808d302cd9828841225d40",
+      "sourceBytes": 21,
+      "words": 4,
+      "cliMillis": [
+        118.79700899589807,
+        105.46500500640832,
+        113.9779890072532
+      ],
+      "embeddedMillis": [
+        0.507,
+        0.239,
+        0.07
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:9:protected code and math",
+      "sourceSHA256": "8ca8bd75c0af1a72c1a7f8eeb346ebdf1bea37333cd70e95a776b3e62227b53b",
+      "sourceBytes": 46,
+      "words": 4,
+      "cliMillis": [
+        107.9987290140707,
+        106.62272002082318,
+        110.1834409928415
+      ],
+      "embeddedMillis": [
+        0.085,
+        0.049,
+        0.245
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:10:independent concepts in one sentence",
+      "sourceSHA256": "02a49050647b4caca342b62816ecca54b706b70e305fc8b70fac1c3b704399cf",
+      "sourceBytes": 42,
+      "words": 8,
+      "cliMillis": [
+        112.36679900321178,
+        107.6540169888176,
+        116.54291398008354
+      ],
+      "embeddedMillis": [
+        0.191,
+        0.11,
+        0.153
+      ],
+      "cliAlerts": 4,
+      "embeddedAlerts": 4,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:11:unsupported Spanish prose selection",
+      "sourceSHA256": "facc66b196213de1cf7df5bfb4a413cd980c1691ffc7ad2bbe1f85089f2754f1",
+      "sourceBytes": 28,
+      "words": 4,
+      "cliMillis": [
+        109.00799700175412,
+        103.42016199138016,
+        107.14727998129092
+      ],
+      "embeddedMillis": [
+        0.174,
+        0.053,
+        0.221
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:12:consistency permits either authored form",
+      "sourceSHA256": "81ff6258807789ca1873f21f47a7db4bd65170869249655500030f16f7da579b",
+      "sourceBytes": 33,
+      "words": 6,
+      "cliMillis": [
+        110.32808799063787,
+        110.41706398827955,
+        114.0613010211382
+      ],
+      "embeddedMillis": [
+        0.089,
+        0.051,
+        0.103
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:13:consistency ignores quoted variants",
+      "sourceSHA256": "f05d032500b38b1080d4a69e990064e5d946268b2d9550e8debb125d688eac07",
+      "sourceBytes": 40,
+      "words": 3,
+      "cliMillis": [
+        109.80623299838044,
+        110.62734900042415,
+        110.27164198458195
+      ],
+      "embeddedMillis": [
+        0.097,
+        0.068,
+        0.064
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:14:article and punctuation corrections",
+      "sourceSHA256": "c166e03e56f556246bca00bc40876ac6009dbe399f2739ece957bbb8b7eb8ce9",
+      "sourceBytes": 44,
+      "words": 9,
+      "cliMillis": [
+        111.32444199756719,
+        109.64569699717686,
+        113.83706200285815
+      ],
+      "embeddedMillis": [
+        0.192,
+        0.108,
+        0.1
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:15:articles never skip quotes",
+      "sourceSHA256": "07e08273fa50c9f4b23e12820cdaf6eff0c9fd41a3d60e55a031ef266fd824d5",
+      "sourceBytes": 23,
+      "words": 3,
+      "cliMillis": [
+        115.84658201900311,
+        113.3576610009186,
+        114.96102600358427
+      ],
+      "embeddedMillis": [
+        0.093,
+        0.059,
+        0.069
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:16:readability flags a long paragraph sentence",
+      "sourceSHA256": "23b57b7ba691965e055b668842752f109591f4db35168372b4cbfb4d820363f8",
+      "sourceBytes": 249,
+      "words": 38,
+      "cliMillis": [
+        114.63428501156159,
+        110.53139599971473,
+        109.53307399176992
+      ],
+      "embeddedMillis": [
+        0.344,
+        0.34,
+        0.312
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:17:readability leaves short prose alone",
+      "sourceSHA256": "5d9f28f94088184545437e337be481a13c9d9e3139384fd60d60f36e306d775a",
+      "sourceBytes": 49,
+      "words": 7,
+      "cliMillis": [
+        105.99691499373876,
+        104.30082300445065,
+        112.92668199166656
+      ],
+      "embeddedMillis": [
+        0.098,
+        0.143,
+        0.126
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:18:contraction apostrophes",
+      "sourceSHA256": "da93b21bf7260f21bfc5502d22725aa9aadf897827cac00ed83a78cc90e38229",
+      "sourceBytes": 37,
+      "words": 6,
+      "cliMillis": [
+        106.7496619943995,
+        106.98497900739312,
+        113.33077101153322
+      ],
+      "embeddedMillis": [
+        0.114,
+        0.529,
+        0.172
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:19:redundant acronyms",
+      "sourceSHA256": "3ae37424b65cfccd33f6f646d38bcf6a401924ea5d7884d5360f30c9bf047136",
+      "sourceBytes": 41,
+      "words": 8,
+      "cliMillis": [
+        122.87462700624019,
+        110.69501200108789,
+        105.38074598298408
+      ],
+      "embeddedMillis": [
+        0.317,
+        0.34,
+        0.1
+      ],
+      "cliAlerts": 4,
+      "embeddedAlerts": 4,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:20:mixed quote styles preserve wording",
+      "sourceSHA256": "15625af6b292eb811f41cd87ade8866d52f9c45aea2a68939165b7de1b8c79fe",
+      "sourceBytes": 22,
+      "words": 3,
+      "cliMillis": [
+        105.16122300759889,
+        114.33178198058158,
+        110.94102598144673
+      ],
+      "embeddedMillis": [
+        0.068,
+        0.044,
+        0.048
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:21:consistent smart quotes",
+      "sourceSHA256": "15625af6b292eb811f41cd87ade8866d52f9c45aea2a68939165b7de1b8c79fe",
+      "sourceBytes": 22,
+      "words": 3,
+      "cliMillis": [
+        109.247273998335,
+        117.02836299082264,
+        117.79909100732766
+      ],
+      "embeddedMillis": [
+        0.054,
+        0.06,
+        0.074
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:22:inclusive alternative",
+      "sourceSHA256": "c2fa2e121c1a842e0055c6644d731a3750e7a77cc5cee15bd19c95ed3fa02717",
+      "sourceBytes": 21,
+      "words": 3,
+      "cliMillis": [
+        111.2619929772336,
+        121.96996802231297,
+        114.72364800283685
+      ],
+      "embeddedMillis": [
+        0.191,
+        0.065,
+        0.046
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:23:inclusive lens unselected",
+      "sourceSHA256": "c2fa2e121c1a842e0055c6644d731a3750e7a77cc5cee15bd19c95ed3fa02717",
+      "sourceBytes": 21,
+      "words": 3,
+      "cliMillis": [
+        107.2669530112762,
+        108.28082798980176,
+        104.41723102121614
+      ],
+      "embeddedMillis": [
+        0.056,
+        0.066,
+        0.049
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:24:quoted inclusive and contraction wording",
+      "sourceSHA256": "fe61834c905018debc908135d4b88e1750ee13fd876d374ef3d54fb43dd1bb58",
+      "sourceBytes": 43,
+      "words": 0,
+      "cliMillis": [
+        110.63429899513721,
+        120.77565700747073,
+        120.33498397795483
+      ],
+      "embeddedMillis": [
+        0.077,
+        0.045,
+        0.088
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:25:proselint deduplicates cliche and jargon",
+      "sourceSHA256": "9825955e45f97b74622b89339331e0a150cc305d8b602be4c6fe4f557c15601c",
+      "sourceBytes": 41,
+      "words": 9,
+      "cliMillis": [
+        119.57061401335523,
+        121.24103397945873,
+        123.30854299943894
+      ],
+      "embeddedMillis": [
+        0.112,
+        0.115,
+        0.105
+      ],
+      "cliAlerts": 3,
+      "embeddedAlerts": 3,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:26:proselint hedging and emphasis",
+      "sourceSHA256": "c117e7fa2664e2bdafb1a7e71d6fe512a3a41299fb64a1d4e25878fed75118f1",
+      "sourceBytes": 33,
+      "words": 6,
+      "cliMillis": [
+        115.57918001199141,
+        116.85604299418628,
+        112.58415700285695
+      ],
+      "embeddedMillis": [
+        0.119,
+        0.09,
+        0.062
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:27:proselint respects accurate standalone qualifiers",
+      "sourceSHA256": "46e2852e95286d58e0322a602d101a9d32aee438e7b54177aa0a9524c9b473d9",
+      "sourceBytes": 49,
+      "words": 8,
+      "cliMillis": [
+        120.23854799917899,
+        112.55653799162246,
+        113.81774899200536
+      ],
+      "embeddedMillis": [
+        0.135,
+        0.087,
+        0.079
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:28:proselint quoted prose",
+      "sourceSHA256": "8efe9652ec785781f44b7db8d631e82270b5db8ead0c53a5f269e451f2c56f42",
+      "sourceBytes": 58,
+      "words": 0,
+      "cliMillis": [
+        115.68821300170384,
+        116.25975399510935,
+        116.88358098035678
+      ],
+      "embeddedMillis": [
+        0.075,
+        0.105,
+        0.04
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:29:sentence spacing fixes one same-line gap",
+      "sourceSHA256": "c3f34b9a91680ff53e32ee10f1f19e0073f6c6716293ee0952f476aca4579cf2",
+      "sourceBytes": 31,
+      "words": 4,
+      "cliMillis": [
+        107.99262899672613,
+        110.87914198287763,
+        105.402845016215
+      ],
+      "embeddedMillis": [
+        0.085,
+        0.059,
+        0.063
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:30:sentence spacing preserves Markdown hard breaks",
+      "sourceSHA256": "1dca2b6d6f17134ca2bd1550e4d83453ec686e9f8815cb33b2a51aeaf310a113",
+      "sourceBytes": 50,
+      "words": 6,
+      "cliMillis": [
+        114.06281901872717,
+        117.50562698580325,
+        114.1650479985401
+      ],
+      "embeddedMillis": [
+        0.159,
+        0.075,
+        0.096
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:31:diacritics are optional contextual alternatives",
+      "sourceSHA256": "41cad1b40a5336f19ff8b21fb4f4ecd959fd498f307b45f6b6daa4f3968bf450",
+      "sourceBytes": 43,
+      "words": 7,
+      "cliMillis": [
+        115.32571900170296,
+        121.44538600114174,
+        111.69912898913026
+      ],
+      "embeddedMillis": [
+        0.099,
+        0.05,
+        0.063
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:32:diacritics preserve the unaccented resume verb",
+      "sourceSHA256": "38ac9b6fd3ddad84d55a2d8825886099dcbbaad174b2d9a8794574bb06fc17ec",
+      "sourceBytes": 34,
+      "words": 7,
+      "cliMillis": [
+        117.61972800013609,
+        106.35314500541426,
+        112.96559299807996
+      ],
+      "embeddedMillis": [
+        0.075,
+        0.059,
+        0.071
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:33:new consistency advice requires that lens",
+      "sourceSHA256": "28dbdaf46b30a28baa69abc437475c9b299b17b0584a523746826931d3625ecf",
+      "sourceBytes": 36,
+      "words": 5,
+      "cliMillis": [
+        110.01808801665902,
+        112.20784398028627,
+        108.8479419995565
+      ],
+      "embeddedMillis": [
+        0.06,
+        0.069,
+        0.108
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:34:readability formulas review complex sentences below 35 words",
+      "sourceSHA256": "cd8802e7f6431639ee7334cfb374eadd820235d1a15ce36d7ff8562cf7bd2362",
+      "sourceBytes": 208,
+      "words": 17,
+      "cliMillis": [
+        111.31845400086604,
+        109.06671799602918,
+        112.58367000846192
+      ],
+      "embeddedMillis": [
+        1.088,
+        0.301,
+        0.266
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:35:readability formulas omit short complex prose",
+      "sourceSHA256": "c77ca7757733df8287c3437e89223b9052eb561a5dfafdd87cd8c8452814595c",
+      "sourceBytes": 90,
+      "words": 6,
+      "cliMillis": [
+        103.8438440009486,
+        107.20050800591707,
+        115.32567700487562
+      ],
+      "embeddedMillis": [
+        0.114,
+        0.13,
+        0.083
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:36:new packages preserve code and quoted wording",
+      "sourceSHA256": "14af1140906f87ed7b1498b9f3c94ca5ca0454b64e775673cd8f8ddb7e89a15d",
+      "sourceBytes": 70,
+      "words": 4,
+      "cliMillis": [
+        112.21670400118455,
+        111.73823900753632,
+        110.13769599958323
+      ],
+      "embeddedMillis": [
+        0.088,
+        0.05,
+        0.096
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:37:unmatched opening punctuation",
+      "sourceSHA256": "a218d678c2b4df59ac6fe9b6ad83825dd6a86f1433f0d20266cf861ec1cd4620",
+      "sourceBytes": 25,
+      "words": 4,
+      "cliMillis": [
+        112.30827498366125,
+        106.4596910146065,
+        105.44499001116492
+      ],
+      "embeddedMillis": [
+        0.149,
+        0.156,
+        0.076
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:38:balanced punctuation spans sentences",
+      "sourceSHA256": "91fc5ad6ff10c9c2e56762a17e0a84ae0a69621b15839caf9b378a7be7f25540",
+      "sourceBytes": 51,
+      "words": 8,
+      "cliMillis": [
+        108.17263298667967,
+        108.12690001330338,
+        109.92401500698179
+      ],
+      "embeddedMillis": [
+        0.141,
+        0.094,
+        0.067
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:39:reviewed technical terminology",
+      "sourceSHA256": "24e109de89294cddb9f6400c09e0083b6fe6685d1e29ca118777cbd3a5511588",
+      "sourceBytes": 31,
+      "words": 5,
+      "cliMillis": [
+        113.93931400380097,
+        117.60731000686064,
+        113.92346298089251
+      ],
+      "embeddedMillis": [
+        0.115,
+        0.131,
+        0.048
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:40:terminology leaves subjective defaults alone",
+      "sourceSHA256": "f20bcd7ff1acbb95572ff172c803bd240a6e865443eaff4cfe674f38fa78eb1d",
+      "sourceBytes": 54,
+      "words": 9,
+      "cliMillis": [
+        105.98941499483772,
+        115.12945400318131,
+        114.41451101563871
+      ],
+      "embeddedMillis": [
+        0.114,
+        0.128,
+        0.18
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:41:undefined acronym",
+      "sourceSHA256": "90293912e30eb0d45a74f4e647c3253ac39fca7122e1ab5827b1c3f68531cf7f",
+      "sourceBytes": 19,
+      "words": 4,
+      "cliMillis": [
+        109.91969201131724,
+        104.67092099133879,
+        107.41574500571005
+      ],
+      "embeddedMillis": [
+        0.146,
+        0.253,
+        0.084
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:42:title case acronym definition",
+      "sourceSHA256": "af810abd03c1690d8fc6612df65b94c70d6f96f48b51aacc5b6bd21d5aded47f",
+      "sourceBytes": 45,
+      "words": 7,
+      "cliMillis": [
+        108.80774399265647,
+        112.67239801236428,
+        105.81717197783291
+      ],
+      "embeddedMillis": [
+        0.105,
+        0.077,
+        0.068
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:43:lowercase acronym definition",
+      "sourceSHA256": "f75fc26904cdaeff3d02b5a068328141a6864cc205d76afd44520d7516b6cd5b",
+      "sourceBytes": 45,
+      "words": 7,
+      "cliMillis": [
+        103.47822698531672,
+        111.12777699599974,
+        115.40938500547782
+      ],
+      "embeddedMillis": [
+        0.107,
+        0.102,
+        0.106
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:44:familiar acronym exceptions",
+      "sourceSHA256": "d0b7a1d229d218372b8a318e34bed91e2330b367d5d9d6f9214b85e632d09bf1",
+      "sourceBytes": 39,
+      "words": 8,
+      "cliMillis": [
+        108.06044001947157,
+        110.38723099045455,
+        108.43301299610175
+      ],
+      "embeddedMillis": [
+        0.083,
+        0.219,
+        0.444
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:45:attached number-unit spelling stays untouched",
+      "sourceSHA256": "f16e41dbf268cff36664b7da38a04872790c84fcd3a078002d8cbd2c609ae997",
+      "sourceBytes": 65,
+      "words": 13,
+      "cliMillis": [
+        109.63775400887243,
+        105.34434198052622,
+        105.34151300089434
+      ],
+      "embeddedMillis": [
+        0.811,
+        0.141,
+        0.131
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:46:audit article pronunciation preserves a unicorn",
+      "sourceSHA256": "56d6d4275bbe2a8d2298651715cfd09bb8a693fcfc0e0a092720ae7a2081a472",
+      "sourceBytes": 65,
+      "words": 10,
+      "cliMillis": [
+        110.94727899762802,
+        103.63895702175796,
+        109.83289100113325
+      ],
+      "embeddedMillis": [
+        0.128,
+        0.136,
+        0.109
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:47:audit article pronunciation corrects an unicorn",
+      "sourceSHA256": "66ed4c1e582d1524c6b8d0497ab13815fa06d01f0990747c061910eecf8139f9",
+      "sourceBytes": 22,
+      "words": 3,
+      "cliMillis": [
+        114.0558049955871,
+        110.66638398915529,
+        115.13688799459487
+      ],
+      "embeddedMillis": [
+        0.078,
+        0.032,
+        0.086
+      ],
+      "cliAlerts": 0,
+      "embeddedAlerts": 0,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:48:audit inclusive review preserves personal pronouns and identity",
+      "sourceSHA256": "9dc8ed873ef0ad52ad8f8738652c1e092277b0101603441f8e741f392ddbc5ca",
+      "sourceBytes": 67,
+      "words": 11,
+      "cliMillis": [
+        107.60821201256476,
+        109.85174600500613,
+        110.20181200001389
+      ],
+      "embeddedMillis": [
+        0.12,
+        0.148,
+        0.179
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:49:audit acronym definitions tolerate Markdown soft wraps after first use",
+      "sourceSHA256": "5de38a0bb7b3422d5378f0d7bec7a2dd3ed61aa1feb74e3b68d2d727d64d6fa0",
+      "sourceBytes": 71,
+      "words": 13,
+      "cliMillis": [
+        104.47570099495351,
+        106.92441900027916,
+        104.9386540253181
+      ],
+      "embeddedMillis": [
+        0.173,
+        0.222,
+        0.134
+      ],
+      "cliAlerts": 3,
+      "embeddedAlerts": 3,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-editorial.json:50:audit uppercase ordinary words are not acronym errors",
+      "sourceSHA256": "f088d6882591fd91b0dce0ea1e6ea9054f58bbe9ccf6ff956e3d6bbc16a35437",
+      "sourceBytes": 53,
+      "words": 9,
+      "cliMillis": [
+        109.7443999897223,
+        109.5493620086927,
+        107.36349801300094
+      ],
+      "embeddedMillis": [
+        0.116,
+        0.092,
+        0.101
+      ],
+      "cliAlerts": 4,
+      "embeddedAlerts": 4,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:0:write-good.Cliches",
+      "sourceSHA256": "e0c500716d3ae5e742c4566fb4e6edfb800ac4ae9d7455639d381793d8cf21b6",
+      "sourceBytes": 34,
+      "words": 6,
+      "cliMillis": [
+        106.98051701183431,
+        108.65892001311295,
+        120.74774299981073
+      ],
+      "embeddedMillis": [
+        0.103,
+        0.095,
+        0.046
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:1:write-good.Illusions",
+      "sourceSHA256": "b21e9e7f6431cea4e11a8a7cf8fe3fc41fe9032b5ecc7b99e8261762b8a0f2a5",
+      "sourceBytes": 24,
+      "words": 5,
+      "cliMillis": [
+        116.62823200458661,
+        110.2399290248286,
+        112.02493301243521
+      ],
+      "embeddedMillis": [
+        0.078,
+        0.055,
+        0.115
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:2:write-good.So",
+      "sourceSHA256": "d1c00f8e3cba85465a2a5f9a01d74329c768f8890f72102bf739144c4b29fa1b",
+      "sourceBytes": 25,
+      "words": 5,
+      "cliMillis": [
+        115.44634500751272,
+        116.08026598696597,
+        111.23045199201442
+      ],
+      "embeddedMillis": [
+        0.083,
+        0.098,
+        0.094
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:3:write-good.ThereIs",
+      "sourceSHA256": "61a662af581f9586914229f85b867074a03610a8ba449cbc31b908f7072bdb9a",
+      "sourceBytes": 24,
+      "words": 4,
+      "cliMillis": [
+        111.55283197876997,
+        109.37975801061839,
+        105.71691999211907
+      ],
+      "embeddedMillis": [
+        0.093,
+        0.045,
+        0.054
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:4:write-good.Weasel",
+      "sourceSHA256": "3b41c982d5977ac8497752e290158630674b55200c26bb47b522555a88828fa6",
+      "sourceBytes": 25,
+      "words": 5,
+      "cliMillis": [
+        111.08764799428172,
+        108.58848999487236,
+        106.3975790166296
+      ],
+      "embeddedMillis": [
+        0.124,
+        0.501,
+        0.391
+      ],
+      "cliAlerts": 3,
+      "embeddedAlerts": 3,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:5:proselint.Airlinese",
+      "sourceSHA256": "f25033ac591f58c5f3a20b172559a34923f27bf8e78577233d939c02c8cee212",
+      "sourceBytes": 23,
+      "words": 4,
+      "cliMillis": [
+        107.31235999264754,
+        108.47856299369596,
+        103.94110600464046
+      ],
+      "embeddedMillis": [
+        0.133,
+        0.121,
+        0.05
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:6:proselint.Archaisms",
+      "sourceSHA256": "5831f9a357e0d312f2c3664f2a6122b8615c8e885e867ab04eb01b7b95b5c3f9",
+      "sourceBytes": 35,
+      "words": 5,
+      "cliMillis": [
+        110.02139098127373,
+        107.39870101679116,
+        109.95973099488765
+      ],
+      "embeddedMillis": [
+        0.073,
+        0.082,
+        0.077
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:7:proselint.Jargon",
+      "sourceSHA256": "e52682e92f856eb6cfb92f800a20f097abb3ba6be0c454ec7ce26a1df766a0e3",
+      "sourceBytes": 33,
+      "words": 5,
+      "cliMillis": [
+        106.12045699963346,
+        108.44259700388648,
+        106.73543802113272
+      ],
+      "embeddedMillis": [
+        0.099,
+        0.096,
+        0.101
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:8:proselint.Malapropisms",
+      "sourceSHA256": "642d956bf2458f0d72a000b9521f6b7ee5d780fd8ec661fa1cdef346dd1a9aa8",
+      "sourceBytes": 26,
+      "words": 4,
+      "cliMillis": [
+        107.4518199893646,
+        103.55591800180264,
+        108.13747200882062
+      ],
+      "embeddedMillis": [
+        0.099,
+        0.067,
+        0.065
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:9:proselint.Oxymorons",
+      "sourceSHA256": "3bba139ab038665fcf1443bd433a5133a4eff1866439f71cfce0d2554cfa29b8",
+      "sourceBytes": 35,
+      "words": 5,
+      "cliMillis": [
+        110.16652401303872,
+        110.64851100672968,
+        110.32426898600534
+      ],
+      "embeddedMillis": [
+        0.077,
+        0.082,
+        0.077
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:10:proselint.RASSyndrome",
+      "sourceSHA256": "84197c8bc99063545e7bb9f3f059252105420ce452fad8aecf0b61c9147a1a2c",
+      "sourceBytes": 24,
+      "words": 4,
+      "cliMillis": [
+        122.17513701762073,
+        116.50988698238507,
+        114.0821729786694
+      ],
+      "embeddedMillis": [
+        0.071,
+        0.075,
+        0.109
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:11:proselint.Skunked",
+      "sourceSHA256": "dd5a446bf0415ecb8397b8efe34eba892d247273b0111dbf678848990657f991",
+      "sourceBytes": 34,
+      "words": 5,
+      "cliMillis": [
+        120.59225200209767,
+        115.62996299471706,
+        116.66682100621983
+      ],
+      "embeddedMillis": [
+        0.161,
+        0.088,
+        0.1
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:12:proselint.Spelling",
+      "sourceSHA256": "b12ca1d42be8a7c69b0f0cbff64719dc5ef1b950693473630184c09ba08d4b06",
+      "sourceBytes": 30,
+      "words": 5,
+      "cliMillis": [
+        107.05222401884384,
+        108.39001697604544,
+        110.08684799890034
+      ],
+      "embeddedMillis": [
+        0.094,
+        0.114,
+        0.061
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:13:proselint.Uncomparables",
+      "sourceSHA256": "d63d198281e8b8b5a0eebcf844337e6377505e0583009b510394b9c6ce48be7e",
+      "sourceBytes": 27,
+      "words": 5,
+      "cliMillis": [
+        107.529822998913,
+        103.55941799934953,
+        104.35522999614477
+      ],
+      "embeddedMillis": [
+        0.078,
+        0.069,
+        0.126
+      ],
+      "cliAlerts": 4,
+      "embeddedAlerts": 4,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:14:proselint.Very",
+      "sourceSHA256": "3b41c982d5977ac8497752e290158630674b55200c26bb47b522555a88828fa6",
+      "sourceBytes": 25,
+      "words": 5,
+      "cliMillis": [
+        103.43132901471108,
+        103.75947199645452,
+        103.80253801122308
+      ],
+      "embeddedMillis": [
+        0.121,
+        0.091,
+        0.076
+      ],
+      "cliAlerts": 3,
+      "embeddedAlerts": 3,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:15:Microsoft.Adverbs",
+      "sourceSHA256": "1ededae49079200fe70cc591fc1864b3d907a930684bb185b197593b2fb108d3",
+      "sourceBytes": 32,
+      "words": 5,
+      "cliMillis": [
+        101.43837498617359,
+        102.47356400941499,
+        106.83979300665669
+      ],
+      "embeddedMillis": [
+        0.091,
+        0.05,
+        0.11
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:16:Microsoft.Jargon",
+      "sourceSHA256": "2e5b001b50a64615d0a7e47542652f33b205ee49ca58aa248b933ec24084596e",
+      "sourceBytes": 36,
+      "words": 5,
+      "cliMillis": [
+        107.43869701400399,
+        106.00370200700127,
+        104.90025000763126
+      ],
+      "embeddedMillis": [
+        0.062,
+        0.088,
+        0.082
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:17:Microsoft.Passive",
+      "sourceSHA256": "7c7dea6d8787296408991e5b3d42e3c1bd6991eb4bed28a963c580d5dbf6fb25",
+      "sourceBytes": 31,
+      "words": 5,
+      "cliMillis": [
+        103.61811198526993,
+        103.83786601596512,
+        103.9655770000536
+      ],
+      "embeddedMillis": [
+        0.067,
+        0.049,
+        0.612
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:18:Microsoft.Wordiness",
+      "sourceSHA256": "f62a0e430edb85890e3ffc95fb6e4d3326190e4b95b8337ffc9cbd644a56aae0",
+      "sourceBytes": 38,
+      "words": 8,
+      "cliMillis": [
+        104.26980198826641,
+        107.39786201156676,
+        106.45798197947443
+      ],
+      "embeddedMillis": [
+        0.334,
+        0.491,
+        0.244
+      ],
+      "cliAlerts": 2,
+      "embeddedAlerts": 2,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "tests/fixtures/writing-package-review.json:19:Microsoft.SentenceLength",
+      "sourceSHA256": "23b57b7ba691965e055b668842752f109591f4db35168372b4cbfb4d820363f8",
+      "sourceBytes": 249,
+      "words": 38,
+      "cliMillis": [
+        109.99370701028965,
+        107.48748801415786,
+        114.37114598811604
+      ],
+      "embeddedMillis": [
+        0.346,
+        0.299,
+        0.467
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "README.md",
+      "sourceSHA256": "ca709ca4760779f412a999b4015bec9fc8178706345656cb7373e1389bf479e9",
+      "sourceBytes": 5157,
+      "words": 847,
+      "cliMillis": [
+        111.73903298913501,
+        109.06055598752573,
+        111.45231401314959
+      ],
+      "embeddedMillis": [
+        7.216,
+        5.77,
+        4.824
+      ],
+      "cliAlerts": 4,
+      "embeddedAlerts": 4,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "ARCHITECTURE.md",
+      "sourceSHA256": "0a78c335133c16fc2747ada0202e70007912091ca649a67b9c4463a4e34442a7",
+      "sourceBytes": 170061,
+      "words": 23185,
+      "cliMillis": [
+        1499.0271169808693,
+        1425.4666450142395,
+        1535.7822540099733
+      ],
+      "embeddedMillis": [
+        1334.658,
+        1324.861,
+        1361.731
+      ],
+      "cliAlerts": 636,
+      "embeddedAlerts": 636,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "CONTRIBUTING.md",
+      "sourceSHA256": "af30f9928b2eefc8f766fdc02deac5c0f604996cf2da02d93703b6abc2f77203",
+      "sourceBytes": 44736,
+      "words": 6280,
+      "cliMillis": [
+        228.93112699966878,
+        218.37196499109268,
+        206.3470440043602
+      ],
+      "embeddedMillis": [
+        110.395,
+        105.228,
+        103.516
+      ],
+      "cliAlerts": 115,
+      "embeddedAlerts": 115,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "CHANGELOG.md",
+      "sourceSHA256": "d8bca596edd7cdfe4e09666d274f8d4da61c42cd3bfc2f7dbbd53b2ba8f52eab",
+      "sourceBytes": 8641,
+      "words": 1269,
+      "cliMillis": [
+        112.4676930194255,
+        110.98433399456553,
+        111.28432597615756
+      ],
+      "embeddedMillis": [
+        7.902,
+        6.665,
+        10.369
+      ],
+      "cliAlerts": 49,
+      "embeddedAlerts": 49,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "docs/PROMPT.md",
+      "sourceSHA256": "b64e29678c80c97ad0dc296f52e14d5be38d225b5d5ebae5db613b69ad97114d",
+      "sourceBytes": 267927,
+      "words": 38417,
+      "cliMillis": [
+        3520.6683150026947,
+        3588.066920026904,
+        3590.5293770192657
+      ],
+      "embeddedMillis": [
+        3437.236,
+        3486.342,
+        3468.718
+      ],
+      "cliAlerts": 1036,
+      "embeddedAlerts": 1036,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "synthetic/1000-words",
+      "sourceSHA256": "3cb5600465a54f79ca82de1ad1ed65e2bfd3eade013eeb31d1b513a087cc8af4",
+      "sourceBytes": 5814,
+      "words": 1008,
+      "cliMillis": [
+        122.94085099711083,
+        125.1296819827985,
+        126.24668300850317
+      ],
+      "embeddedMillis": [
+        6.318,
+        6.534,
+        5.289
+      ],
+      "cliAlerts": 336,
+      "embeddedAlerts": 336,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "synthetic/10000-words",
+      "sourceSHA256": "8f4b35cd46594693dfb5b77275051d46c7d57a5be2a7242d457406a21c74ae83",
+      "sourceBytes": 58270,
+      "words": 10008,
+      "cliMillis": [
+        275.424742983887,
+        271.91100700292736,
+        283.76352100167423
+      ],
+      "embeddedMillis": [
+        152.332,
+        143.863,
+        146.744
+      ],
+      "cliAlerts": 3336,
+      "embeddedAlerts": 3336,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "synthetic/50000-words",
+      "sourceSHA256": "78619346e94d851364f3ce03fcbe44fe0af3cfdebc5e29ffd97b0a5e85050d54",
+      "sourceBytes": 293358,
+      "words": 50004,
+      "cliMillis": [
+        3719.1100750060286,
+        3916.9983380124904,
+        4076.879640982952
+      ],
+      "embeddedMillis": [
+        3505.976,
+        3803.803,
+        3561.706
+      ],
+      "cliAlerts": 16668,
+      "embeddedAlerts": 16668,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    },
+    {
+      "name": "unicode-crlf",
+      "sourceSHA256": "eb1ac74b3a8e6f8b145cf4906c56d64653914cb9c25a92b176bc4bcab7b0b21d",
+      "sourceBytes": 91,
+      "words": 8,
+      "cliMillis": [
+        122.24092698306777,
+        125.78929800656624,
+        117.2314409923274
+      ],
+      "embeddedMillis": [
+        0.435,
+        0.104,
+        0.13
+      ],
+      "cliAlerts": 1,
+      "embeddedAlerts": 1,
+      "cliStable": true,
+      "embeddedStable": true,
+      "equal": true
+    }
+  ],
+  "allEqual": true,
+  "date": "2026-09-08",
+  "baseCommit": "61a28af94b5557d57865a65710cc3f9100d66ec9",
+  "sourceModuleChecksum": "h1:T8/M9+llPaqXCdKbQcn/zJWNOJX6YWFNIXfdoi1jVRg=",
+  "buildTags": [
+    "figaro_plaintext"
+  ],
+  "cgoEnabledForHarness": false,
+  "sourceProjection": "Figaro production analyzeWriting().projection.text; no text truncation",
+  "comparison": "Multiset of every serialized alert field including duplicates; all three repetitions stable for both engines",
+  "rawAlertsAcrossSamples": 22253,
+  "validation": {
+    "goVet": "passed",
+    "raceTests": 7,
+    "raceResult": "passed",
+    "crossBuilds": [
+      "windows/amd64",
+      "darwin/arm64"
+    ],
+    "nativeRun": "linux/amd64 only",
+    "cancelRequestMs": 20,
+    "cancelReturnedMs": 27.36978,
+    "pathologicalRegexReturnedMs": 147.690925,
+    "syscalls": {
+      "execveCalls": 1,
+      "networkCalls": 0,
+      "styleFileCalls": 0,
+      "filesystemWrites": 0
+    },
+    "separate50kPeakRSSKiB": 137488
+  },
+  "limits": [
+    "No Wails or native Windows/macOS execution was tested.",
+    "Cooperative cancellation does not prove a hard request deadline.",
+    "The harness retains full output; the production adapter has a 4 MiB output cap.",
+    "Performance equivalence is not editorial usefulness.",
+    "Heap after GC is retained heap; peak RSS is a separate standalone 50k workload."
+  ]
+}

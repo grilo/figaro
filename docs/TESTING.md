@@ -33,8 +33,8 @@ unrequested prose, and failed recovery retaining partial spelling. Adapter tests
 exercise restart between analysis and delayed spelling resolution; the analysis
 use-case test drives the real result view to prove partial status, Retry, full
 recovery, and rejection of late recovery after ownership/language changes. Real Go adapter tests
-verify packaged Vale rule IDs/Unicode coordinates, fixed configuration, bounded
-input, process cancellation/deadline reaping, and cleanup. Rooted settings tests
+verify embedded Vale rule IDs/Unicode coordinates, fixed in-memory configuration,
+bounded input/output, and cancellation/deadline/close independent of worker exit. Rooted settings tests
 cover explicit v1/v2-to-v3 migration, separate note choices and restart, unknown fields, corrupt/newer refusal, and an
 outside `.config` symlink; history tests preserve file-scoped commits.
 
@@ -359,9 +359,10 @@ shutdown, early sidebar requests cannot start a synchronous scan, and secondary
 metadata failure cannot undo a disk save. Held metadata work must leave the next
 disk write available, and delayed projections must survive own-write watcher
 acknowledgements while respecting newer writes and removals.
-`writing/cache_test.go` covers warm reuse without rewrites, rule-driven cache
-identity, damage repair, unexpected styles, permissions, symlink containment,
-and concurrent preparation. Pure frontend tests cover restoration planning, inactive
+`writing/embedded_test.go` covers exact CLI alert parity, host-configuration
+isolation, literal filename inputs, one active/one pending scan, cancelled queue
+replacement, deadlines, prompt close, regex timeout/reuse, unsupported styles,
+source limits, and failure recovery. Pure frontend tests cover restoration planning, inactive
 metadata-only tabs, progress normalization, settlement, percentage/copy, and
 stale-generation rejection; the DOM test owns the hidden-to-present transition
 and accessible progress attributes. The one `desktopStartup.spec.js` browser
@@ -3120,9 +3121,9 @@ outside-path protection.
 bounded reuse, independent token objects, unchanged relative offsets and bounded
 source-size deadlines. Worker lifecycle tests retain short-job timeouts, prove
 long-job cancellation/recovery and cap stalled resolution at thirty seconds.
-Native tests verify the actual child receives its long-note budget and is killed
-and reaped promptly on cancellation; ordinary initialization/short-job deadlines
-remain five seconds.
+Native tests verify long-note budgets, prompt caller cancellation, bounded
+admission, and cooperative engine reuse. JavaScript workers retain termination
+and five-second ordinary initialization/short-job deadlines.
 
 Run `node scripts/verify-writing-performance.mjs` for exact real-package findings
 and source-map comparisons, an upstream punctuation comparison, and the real
@@ -3138,6 +3139,19 @@ The [writing usefulness corpus proposal](WRITING_CORPUS.md) defines the separate
 editorial evaluation: licensed untouched prose, reviewed minimal pairs, whole
 documents, harmful-Apply tracking, noise per 1,000 words and held-out human review.
 It is a proposal, not a collected or annotated corpus or a quality pass claim.
+
+The [embedded Vale evaluation](VALE_EMBEDDED_PROTOTYPE.md) is historical evidence.
+Production regressions compare complete alert multisets against 72 pinned CLI
+fixtures, including Unicode and repeated runs, and exercise the worker lifecycle
+with held fake analyzers plus real rules. Run `go test -race ./internal/writing`
+and `(cd third_party/vale && go test ./...)`. `node scripts/profile-writing.mjs`
+now profiles the production adapter. The [integration report](VALE_INTEGRATION.md)
+records native Linux save/typing/cancellation evidence, syscall observations,
+and platform limits. Native Windows/macOS execution remains required for those
+platforms. `scripts/check-go-coverage.sh` also runs the nested Vale tests; native
+platform CI runs them separately. The release metadata regression rejects
+executable-preparation steps and requires notices in each archive. No benchmark
+establishes editorial usefulness.
 
 `designSystemBundle.test.js` checks that generated catalogue comments lose trailing whitespace while strings and template literals retain their exact contents; regeneration remains idempotent.
 

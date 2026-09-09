@@ -134,12 +134,13 @@ jobs:
           go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
-      - name: Prepare platform test assets
-        if: runner.os != 'Linux'
-        run: go run ./cmd/prepare-writing-assets
       - name: Test native platform contracts
         if: runner.os != 'Linux'
         run: go test . ./internal/... ./cmd/...
+      - name: Test embedded Vale on the native platform
+        if: runner.os != 'Linux'
+        working-directory: third_party/vale
+        run: go test ./...
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -192,7 +193,7 @@ jobs:
           archive="figaro-${GITHUB_REF_NAME}-linux-amd64"
           mkdir -p "dist/$archive"
           install -m 0755 build/bin/figaro "dist/$archive/figaro"
-          cp README.md CHANGELOG.md LICENSE "dist/$archive/"
+          cp README.md CHANGELOG.md LICENSE THIRD_PARTY_NOTICES.md "dist/$archive/"
           tar -C dist -czf "dist/$archive.tar.gz" "$archive"
       - name: Package Windows binary
         if: runner.os == 'Windows'
@@ -201,7 +202,7 @@ jobs:
           $archive = "figaro-$($env:GITHUB_REF_NAME)-windows-amd64"
           New-Item -ItemType Directory -Path "dist/$archive" -Force | Out-Null
           Copy-Item build/bin/figaro.exe "dist/$archive/figaro.exe"
-          Copy-Item README.md, CHANGELOG.md, LICENSE "dist/$archive/"
+          Copy-Item README.md, CHANGELOG.md, LICENSE, THIRD_PARTY_NOTICES.md "dist/$archive/"
           Compress-Archive -Path "dist/$archive" -DestinationPath "dist/$archive.zip"
       - name: Package universal macOS application
         if: runner.os == 'macOS'
@@ -210,7 +211,7 @@ jobs:
           archive="figaro-${GITHUB_REF_NAME}-macos-universal"
           mkdir -p "dist/$archive"
           cp -R build/bin/figaro.app "dist/$archive/figaro.app"
-          cp README.md CHANGELOG.md LICENSE "dist/$archive/"
+          cp README.md CHANGELOG.md LICENSE THIRD_PARTY_NOTICES.md "dist/$archive/"
           ditto -c -k --sequesterRsrc --keepParent "dist/$archive" "dist/$archive.zip"
       - name: Upload packaged binary
         uses: actions/upload-artifact@v7

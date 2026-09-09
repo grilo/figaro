@@ -1,0 +1,81 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/vale-cli/vale/v3/figaroembedded"
+	"os"
+	"reflect"
+	"runtime"
+	"sort"
+	"time"
+)
+
+type Sample struct {
+	Name   string `json:"name"`
+	Source string `json:"source"`
+}
+type Result struct {
+	Name   string                 `json:"name"`
+	Millis []float64              `json:"millis"`
+	Alerts []figaroembedded.Alert `json:"alerts"`
+	Stable bool                   `json:"stable"`
+	Error  string                 `json:"error,omitempty"`
+}
+
+func canonical(alerts []figaroembedded.Alert) []string {
+	result := make([]string, 0, len(alerts))
+	for _, a := range alerts {
+		data, _ := json.Marshal(a)
+		result = append(result, string(data))
+	}
+	sort.Strings(result)
+	return result
+}
+
+func main() {
+	if len(os.Args) != 2 {
+		panic("usage: figaro-prototype samples.json")
+	}
+	input, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+	var samples []Sample
+	if err := json.Unmarshal(input, &samples); err != nil {
+		panic(err)
+	}
+	start := time.Now()
+	engine, err := figaroembedded.New()
+	if err != nil {
+		panic(err)
+	}
+	initMS := float64(time.Since(start).Microseconds()) / 1000
+	output := []Result{}
+	for _, sample := range samples {
+		r := Result{Name: sample.Name, Stable: true}
+		for i := 0; i < 3; i++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			start = time.Now()
+			alerts, err := engine.Analyze(ctx, sample.Source)
+			elapsed := float64(time.Since(start).Microseconds()) / 1000
+			cancel()
+			r.Millis = append(r.Millis, elapsed)
+			if err != nil {
+				r.Error = err.Error()
+				break
+			}
+			if i > 0 && !reflect.DeepEqual(canonical(r.Alerts), canonical(alerts)) {
+				r.Stable = false
+			}
+			r.Alerts = alerts
+		}
+		output = append(output, r)
+		fmt.Fprintf(os.Stderr, "%s: %v ms (%d alerts) %s\n", r.Name, r.Millis, len(r.Alerts), r.Error)
+	}
+	runtime.GC()
+	var memory runtime.MemStats
+	runtime.ReadMemStats(&memory)
+	json.NewEncoder(os.Stdout).Encode(map[string]any{"initMs": initMS, "results": output, "heapAfterGCMiB": float64(memory.HeapAlloc) / (1 << 20), "go": runtime.Version(), "platform": runtime.GOOS + "/" + runtime.GOARCH})
+}

@@ -224,7 +224,6 @@ linux: check-go check-wails check-linux-host check-linux-deps ensure-go-modules 
 	@echo "Output: build/bin/figaro"
 
 windows: check-go check-wails ensure-go-modules ensure-frontend-assets ensure-icons
-	go run ./cmd/prepare-writing-assets -target windows/amd64
 	$(WAILS) build -platform windows/amd64
 	@echo "Output: build/bin/figaro.exe"
 

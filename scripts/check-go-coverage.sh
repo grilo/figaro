@@ -9,6 +9,8 @@ minimum="${FIGARO_GO_COVERAGE_MIN:-72}"
 profile="$(mktemp)"
 trap 'rm -f "$profile"' EXIT
 
+# The local Vale module has its own retained upstream and work-limit tests.
+(cd third_party/vale && go test -race ./...)
 go test -covermode=atomic -coverprofile="$profile" . ./internal/... ./cmd/...
 total="$(go tool cover -func="$profile" | awk '$1 == "total:" { gsub(/%/, "", $3); print $3 }')"
 if [[ -z "$total" ]]; then

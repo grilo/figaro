@@ -1305,13 +1305,21 @@ existing punctuation conventions without I/O. A second mapped projection
 exposes quotation punctuation to its own checker while prose wording remains
 masked. The pure resolver validates each delimiter before composing a single
 source-preserving quote edit, including across Markdown formatting. Fourteen pinned
-proselint rules are extracted with the shared private Vale configuration and
+proselint rules are loaded from embedded data with the fixed Vale configuration and
 notices; equivalent cliché/jargon spans retain both sources in one finding.
 The use case requests Vale for the Plain language, Directness, Repetition,
 Consistency, or Readability check families; enabling one through its UI group
 runs missing Vale work before evidence can be reused. Every
 finding retains its exact source slice separately from its projected wording so
 sentence-wide marks across Markdown formatting keep the same freshness guard.
+
+Vale's adapted Go library is vendored in `third_party/vale`. The in-memory facade
+is the analyzer port consumed by `internal/writing`: one worker, one pending
+replacement, prompt cancellation/close responses, cooperative engine checkpoints,
+and bounded regex/alert/output work. Rule and local NLP initialization stays
+outside editor readiness and shutdown locks. No CLI or executable assets are
+part of application composition. The [prototype report](docs/VALE_EMBEDDED_PROTOTYPE.md)
+retains historical measurements and explains the process-isolation tradeoff.
 
 `writingRuntime.js` is a build entry for the eagerly loaded retext/textlint worker. It
 parses Markdown into prose with exact source mappings and retains analyzer-native
@@ -1405,20 +1413,21 @@ analysis port. Resolution carries an explicit `proseRequired` flag: cache misses
 rebuild inside the worker, and failed recovery returns independent spelling
 with `proseFailure`, excluding unmappable Vale output. The analysis coordinator
 keeps that review partial and retryable until recovery actually succeeds.
-Decision requests serialize separately across document controllers. No worker failure falls back to synchronous UI computation. `internal/writing` embeds the checksum-pinned
-platform executable and selected write-good, proselint, and Microsoft rules.
-`writing/cache.go` derives a cache identity from the bundled binary, configuration,
-and rules; verifies cached content and permissions; and prepares a complete
-sibling before replacing a damaged installation through `os.Root`. The cache
-uses `os.UserCacheDir()` (LocalAppData on Windows), survives shutdown, and never
-loads styles from the vault. The adapter runs fixed arguments/configuration on
-stdin, bounds input/output, and terminates superseded or timed-out processes.
-Native preparation releases the engine-state mutex during filesystem/process
-work, so cancellation and shutdown remain available; a late result after
-shutdown is closed rather than published. The desktop binding owns this adapter; analyzers never read notes or
-vault styles directly. Missing runtime assets produce unavailable/partial results,
-not fallback work on the typing thread. Build preparation and capability limits
-are detailed in [docs/WRITING_ENGINE.md](docs/WRITING_ENGINE.md).
+Decision requests serialize separately across document controllers. No worker failure falls back to synchronous UI computation. `internal/writing` embeds only the selected write-good, proselint, and Microsoft
+rules. The locally adapted Vale 3.20.0 Go module in `third_party/vale` compiles
+into Figaro, initializes sentence data and rules from memory, and never extracts
+or starts a helper executable. A pure admission policy accepts at most one active
+scan and one pending replacement. The coordinator owns deadlines and cancellation
+through an injected analyzer port; callers and shutdown never wait for an active
+scan to reach its next cooperative checkpoint. Pending cancelled snapshots are
+reclaimed immediately. The worker serializes actual engine calls, bounds JSON
+output, and suppresses late results. The library adds match, block, alert, and
+regex-time limits; failures remain retryable instead of becoming partial successful
+scans. Desktop initialization releases its state mutex while preparing the engine
+and closes a late result after shutdown. Analyzers receive projected strings and
+trusted embedded rules, never note paths or vault styles. No failure falls back to
+the typing thread. Build preparation, source provenance, and limits are detailed
+in [docs/WRITING_ENGINE.md](docs/WRITING_ENGINE.md).
 
 `internal/settings/writing_lenses.go` validates and plans preference migration
 and updates independently of I/O. The desktop adapter loads version 1/2/3

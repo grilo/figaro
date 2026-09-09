@@ -1,0 +1,9 @@
+{
+  "module": "github.com/vale-cli/vale/v3",
+  "version": "v3.20.0",
+  "revision": "fdc4cc754f58d953f668586dc1891064a746e0a2",
+  "sum": "h1:T8/M9+llPaqXCdKbQcn/zJWNOJX6YWFNIXfdoi1jVRg=",
+  "license": "MIT",
+  "upstream": "https://github.com/vale-cli/vale",
+  "adaptation": "Local projected-prose library; see README.md. No CLI, executables, tree-sitter parsers or markup converters."
+}

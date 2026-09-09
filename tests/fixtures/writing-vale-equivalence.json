@@ -1,0 +1,1676 @@
+[
+  {
+    "name": "tests/fixtures/writing-editorial.json:0:plain prose",
+    "source": "The team wrote the report and sent it to the reader.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:1:useful shorter phrase",
+    "source": "We work in order to help.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "replace",
+          "Params": [
+            "to"
+          ]
+        },
+        "Span": [
+          9,
+          19
+        ],
+        "Check": "Microsoft.Wordiness",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Consider using 'to' instead of 'in order to'.",
+        "Severity": "suggestion",
+        "Match": "in order to",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          9,
+          19
+        ],
+        "Check": "write-good.TooWordy",
+        "Description": "",
+        "Link": "",
+        "Message": "'in order to' is too wordy.",
+        "Severity": "warning",
+        "Match": "in order to",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:2:familiar vocabulary",
+    "source": "We utilize ordinary words.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "replace",
+          "Params": [
+            "use"
+          ]
+        },
+        "Span": [
+          4,
+          10
+        ],
+        "Check": "Microsoft.Wordiness",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Consider using 'use' instead of 'utilize'.",
+        "Severity": "suggestion",
+        "Match": "utilize",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          4,
+          10
+        ],
+        "Check": "write-good.TooWordy",
+        "Description": "",
+        "Link": "",
+        "Message": "'utilize' is too wordy.",
+        "Severity": "warning",
+        "Match": "utilize",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:3:technical request nouns stay quiet while contextual contains advice remains",
+    "source": "The request contains a body and a response code.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:4:passive with Directness unselected",
+    "source": "The report was written yesterday.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          22
+        ],
+        "Check": "Microsoft.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'was written' looks like passive voice.",
+        "Severity": "suggestion",
+        "Match": "was written",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          22
+        ],
+        "Check": "write-good.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'was written' may be passive voice. Use active voice if you can.",
+        "Severity": "warning",
+        "Match": "was written",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:5:passive with Directness selected",
+    "source": "The report was written yesterday.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          22
+        ],
+        "Check": "Microsoft.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'was written' looks like passive voice.",
+        "Severity": "suggestion",
+        "Match": "was written",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          22
+        ],
+        "Check": "write-good.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'was written' may be passive voice. Use active voice if you can.",
+        "Severity": "warning",
+        "Match": "was written",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:6:quoted repetition",
+    "source": "                \n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:7:intentional grammatical repetition",
+    "source": "The work they had had was useful.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "edit",
+          "Params": [
+            "truncate",
+            " "
+          ]
+        },
+        "Span": [
+          15,
+          21
+        ],
+        "Check": "write-good.Illusions",
+        "Description": "",
+        "Link": "",
+        "Message": "'had' is repeated!",
+        "Severity": "warning",
+        "Match": "had had",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:8:accidental repetition",
+    "source": "The the team helps.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:9:protected code and math",
+    "source": "￼ and ￼ with                            \n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:10:independent concepts in one sentence",
+    "source": "The report was written in order to help.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          22
+        ],
+        "Check": "Microsoft.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'was written' looks like passive voice.",
+        "Severity": "suggestion",
+        "Match": "was written",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          22
+        ],
+        "Check": "write-good.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'was written' may be passive voice. Use active voice if you can.",
+        "Severity": "warning",
+        "Match": "was written",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "replace",
+          "Params": [
+            "to"
+          ]
+        },
+        "Span": [
+          24,
+          34
+        ],
+        "Check": "Microsoft.Wordiness",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Consider using 'to' instead of 'in order to'.",
+        "Severity": "suggestion",
+        "Match": "in order to",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          24,
+          34
+        ],
+        "Check": "write-good.TooWordy",
+        "Description": "",
+        "Link": "",
+        "Message": "'in order to' is too wordy.",
+        "Severity": "warning",
+        "Match": "in order to",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:11:unsupported Spanish prose selection",
+    "source": "We utilize ordinary words.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "replace",
+          "Params": [
+            "use"
+          ]
+        },
+        "Span": [
+          4,
+          10
+        ],
+        "Check": "Microsoft.Wordiness",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Consider using 'use' instead of 'utilize'.",
+        "Severity": "suggestion",
+        "Match": "utilize",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          4,
+          10
+        ],
+        "Check": "write-good.TooWordy",
+        "Description": "",
+        "Link": "",
+        "Message": "'utilize' is too wordy.",
+        "Severity": "warning",
+        "Match": "utilize",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:12:consistency permits either authored form",
+    "source": "An email and an e-mail arrived.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:13:consistency ignores quoted variants",
+    "source": "An email arrived.                     \n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:14:article and punctuation corrections",
+    "source": "A example , with an useful idea,, is here.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:15:articles never skip quotes",
+    "source": "Use a        example.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:16:readability flags a long paragraph sentence",
+    "source": "Before we publish the final report, we need to review the examples with the team, check every figure against the source material, explain the remaining limitations to our readers, and decide which recommendations should appear in the introduction.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          6
+        ],
+        "Check": "Microsoft.SentenceLength",
+        "Description": "",
+        "Link": "",
+        "Message": "Try to keep sentences short (< 30 words).",
+        "Severity": "suggestion",
+        "Match": "Before",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:17:readability leaves short prose alone",
+    "source": "Keep this sentence. Start another thought here.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:18:contraction apostrophes",
+    "source": "This isnt right and does’nt work.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:19:redundant acronyms",
+    "source": "Use your PIN number at the ATM machine.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          10,
+          12
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'PIN' has no definition.",
+        "Severity": "suggestion",
+        "Match": "PIN",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "edit",
+          "Params": [
+            "split",
+            " ",
+            "0"
+          ]
+        },
+        "Span": [
+          10,
+          19
+        ],
+        "Check": "proselint.RASSyndrome",
+        "Description": "",
+        "Link": "",
+        "Message": "'PIN number' is redundant.",
+        "Severity": "error",
+        "Match": "PIN number",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          28,
+          30
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'ATM' has no definition.",
+        "Severity": "suggestion",
+        "Match": "ATM",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "edit",
+          "Params": [
+            "split",
+            " ",
+            "0"
+          ]
+        },
+        "Span": [
+          28,
+          38
+        ],
+        "Check": "proselint.RASSyndrome",
+        "Description": "",
+        "Link": "",
+        "Message": "'ATM machine' is redundant.",
+        "Severity": "error",
+        "Match": "ATM machine",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:20:mixed quote styles preserve wording",
+    "source": "Use       and      .\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:21:consistent smart quotes",
+    "source": "Use       and      .\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:22:inclusive alternative",
+    "source": "The chairman spoke.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:23:inclusive lens unselected",
+    "source": "The chairman spoke.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:24:quoted inclusive and contraction wording",
+    "source": "                                         \n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:25:proselint deduplicates cliche and jargon",
+    "source": "At the end of the day, we need synergy.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          21
+        ],
+        "Check": "proselint.Cliches",
+        "Description": "",
+        "Link": "",
+        "Message": "'At the end of the day' is a cliche.",
+        "Severity": "error",
+        "Match": "At the end of the day",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          21
+        ],
+        "Check": "proselint.CorporateSpeak",
+        "Description": "",
+        "Link": "",
+        "Message": "'At the end of the day' is corporate speak.",
+        "Severity": "error",
+        "Match": "At the end of the day",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          32,
+          38
+        ],
+        "Check": "proselint.CorporateSpeak",
+        "Description": "",
+        "Link": "",
+        "Message": "'synergy' is corporate speak.",
+        "Severity": "error",
+        "Match": "synergy",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:26:proselint hedging and emphasis",
+    "source": "I would argue that this works!!\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          18
+        ],
+        "Check": "proselint.Hedging",
+        "Description": "",
+        "Link": "",
+        "Message": "'I would argue that' is hedging.",
+        "Severity": "error",
+        "Match": "I would argue that",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          25,
+          31
+        ],
+        "Check": "proselint.Hyperbole",
+        "Description": "",
+        "Link": "",
+        "Message": "'works!!' is hyperbolic.",
+        "Severity": "error",
+        "Match": "works!!",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:27:proselint respects accurate standalone qualifiers",
+    "source": "The estimate may change. We need more evidence.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:28:proselint quoted prose",
+    "source": "                                                        \n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:29:sentence spacing fixes one same-line gap",
+    "source": "One sentence.  Two sentences.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:30:sentence spacing preserves Markdown hard breaks",
+    "source": "One sentence.\nTwo sentences.\n\nAnother paragraph.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:31:diacritics are optional contextual alternatives",
+    "source": "Beyonce visited the cafe with his resume.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:32:diacritics preserve the unaccented resume verb",
+    "source": "We can resume work at the café.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:33:new consistency advice requires that lens",
+    "source": "Beyonce sang.  Two songs followed.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:34:readability formulas review complex sentences below 35 words",
+    "source": "The implementation of multidisciplinary institutional reorganization necessitates comprehensive consideration of interconnected administrative responsibilities and organizational communication requirements.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:35:readability formulas omit short complex prose",
+    "source": "Multidisciplinary institutional reorganization necessitates comprehensive consideration.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:36:new packages preserve code and quoted wording",
+    "source": "                                           \n\n￼ and ￼ with       \n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:37:unmatched opening punctuation",
+    "source": "We reviewed (the draft.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:38:balanced punctuation spans sentences",
+    "source": "The report (first draft. Second draft.) is ready.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:39:reviewed technical terminology",
+    "source": "We use Javascript and Github.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:40:terminology leaves subjective defaults alone",
+    "source": "Our website has a front-end. The Internet is useful.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:41:undefined acronym",
+    "source": "The SLO is ready.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          5,
+          7
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'SLO' has no definition.",
+        "Severity": "suggestion",
+        "Match": "SLO",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:42:title case acronym definition",
+    "source": "The Service Level Objective (SLO) is ready.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          19,
+          27
+        ],
+        "Check": "write-good.TooWordy",
+        "Description": "",
+        "Link": "",
+        "Message": "'Objective' is too wordy.",
+        "Severity": "warning",
+        "Match": "Objective",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:43:lowercase acronym definition",
+    "source": "The service level objective (SLO) is ready.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          19,
+          27
+        ],
+        "Check": "write-good.TooWordy",
+        "Description": "",
+        "Link": "",
+        "Message": "'objective' is too wordy.",
+        "Severity": "warning",
+        "Match": "objective",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          30,
+          32
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'SLO' has no definition.",
+        "Severity": "suggestion",
+        "Match": "SLO",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:44:familiar acronym exceptions",
+    "source": "Use the API, JSON, PDF, ATM, and PIN.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          25,
+          27
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'ATM' has no definition.",
+        "Severity": "suggestion",
+        "Match": "ATM",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          34,
+          36
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'PIN' has no definition.",
+        "Severity": "suggestion",
+        "Match": "PIN",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:45:attached number-unit spelling stays untouched",
+    "source": "The file is       , the disk holds 10MB, and the delay is 20ms.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:46:audit article pronunciation preserves a unicorn",
+    "source": "A unicorn appeared. A European visitor arrived. An hour passed.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:47:audit article pronunciation corrects an unicorn",
+    "source": "An unicorn appeared.\n\n",
+    "alerts": []
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:48:audit inclusive review preserves personal pronouns and identity",
+    "source": "Maya is an engineer. She works here. They are disabled activists.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          43,
+          54
+        ],
+        "Check": "Microsoft.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'are disabled' looks like passive voice.",
+        "Severity": "suggestion",
+        "Match": "are disabled",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          43,
+          54
+        ],
+        "Check": "write-good.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'are disabled' may be passive voice. Use active voice if you can.",
+        "Severity": "warning",
+        "Match": "are disabled",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:49:audit acronym definitions tolerate Markdown soft wraps after first use",
+    "source": "We agreed on an SLO. A service level\nobjective (SLO) sets the target.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          17,
+          19
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'SLO' has no definition.",
+        "Severity": "suggestion",
+        "Match": "SLO",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          9
+        ],
+        "Check": "write-good.TooWordy",
+        "Description": "",
+        "Link": "",
+        "Message": "'objective' is too wordy.",
+        "Severity": "warning",
+        "Match": "objective",
+        "Line": 2
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          14
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'SLO' has no definition.",
+        "Severity": "suggestion",
+        "Match": "SLO",
+        "Line": 2
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-editorial.json:50:audit uppercase ordinary words are not acronym errors",
+    "source": "DRAFT\n\nWe MUST finish. NEVER share keys. STOP here.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          5
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'DRAFT' has no definition.",
+        "Severity": "suggestion",
+        "Match": "DRAFT",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          4,
+          7
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'MUST' has no definition.",
+        "Severity": "suggestion",
+        "Match": "MUST",
+        "Line": 3
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          17,
+          21
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'NEVER' has no definition.",
+        "Severity": "suggestion",
+        "Match": "NEVER",
+        "Line": 3
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          35,
+          38
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'STOP' has no definition.",
+        "Severity": "suggestion",
+        "Match": "STOP",
+        "Line": 3
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:0:write-good.Cliches",
+    "source": "That was a blessing in disguise.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          31
+        ],
+        "Check": "proselint.Cliches",
+        "Description": "",
+        "Link": "",
+        "Message": "'blessing in disguise' is a cliche.",
+        "Severity": "error",
+        "Match": "blessing in disguise",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          31
+        ],
+        "Check": "write-good.Cliches",
+        "Description": "",
+        "Link": "",
+        "Message": "Try to avoid using clichés like 'blessing in disguise'.",
+        "Severity": "warning",
+        "Match": "blessing in disguise",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:1:write-good.Illusions",
+    "source": "We sent the the draft.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "edit",
+          "Params": [
+            "truncate",
+            " "
+          ]
+        },
+        "Span": [
+          9,
+          15
+        ],
+        "Check": "write-good.Illusions",
+        "Description": "",
+        "Link": "",
+        "Message": "'the' is repeated!",
+        "Severity": "warning",
+        "Match": "the the",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:2:write-good.So",
+    "source": "So, the draft is ready.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          3
+        ],
+        "Check": "write-good.So",
+        "Description": "",
+        "Link": "",
+        "Message": "Don't start a sentence with 'So,'.",
+        "Severity": "error",
+        "Match": "So,",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:3:write-good.ThereIs",
+    "source": "There are three tests.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          9
+        ],
+        "Check": "write-good.ThereIs",
+        "Description": "",
+        "Link": "",
+        "Message": "Don't start a sentence with 'There are'.",
+        "Severity": "error",
+        "Match": "There are",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:4:write-good.Weasel",
+    "source": "The file is very large.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "remove",
+          "Params": null
+        },
+        "Span": [
+          13,
+          16
+        ],
+        "Check": "Microsoft.Adverbs",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Remove 'very' if it's not important to the meaning of the statement.",
+        "Severity": "warning",
+        "Match": "very",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          13,
+          16
+        ],
+        "Check": "proselint.Very",
+        "Description": "",
+        "Link": "",
+        "Message": "Remove 'very'.",
+        "Severity": "error",
+        "Match": "very",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          13,
+          16
+        ],
+        "Check": "write-good.Weasel",
+        "Description": "",
+        "Link": "",
+        "Message": "'very' is a weasel word!",
+        "Severity": "warning",
+        "Match": "very",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:5:proselint.Airlinese",
+    "source": "We are deplaning now.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          8,
+          16
+        ],
+        "Check": "proselint.Airlinese",
+        "Description": "",
+        "Link": "",
+        "Message": "'deplaning' is airlinese.",
+        "Severity": "error",
+        "Match": "deplaning",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:6:proselint.Archaisms",
+    "source": "Please find enclosed the invoice.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          20
+        ],
+        "Check": "proselint.Archaisms",
+        "Description": "",
+        "Link": "",
+        "Message": "'Please find enclosed' is archaic.",
+        "Severity": "error",
+        "Match": "Please find enclosed",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:7:proselint.Jargon",
+    "source": "We answered in the affirmative.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          13,
+          30
+        ],
+        "Check": "proselint.Jargon",
+        "Description": "",
+        "Link": "",
+        "Message": "'in the affirmative' is jargon.",
+        "Severity": "error",
+        "Match": "in the affirmative",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:8:proselint.Malapropisms",
+    "source": "They attack my voracity.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          6,
+          23
+        ],
+        "Check": "proselint.Malapropisms",
+        "Description": "",
+        "Link": "",
+        "Message": "'attack my voracity' is a malapropism.",
+        "Severity": "error",
+        "Match": "attack my voracity",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:9:proselint.Oxymorons",
+    "source": "We generally always finish early.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "remove",
+          "Params": null
+        },
+        "Span": [
+          4,
+          12
+        ],
+        "Check": "Microsoft.Adverbs",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Remove 'generally' if it's not important to the meaning of the statement.",
+        "Severity": "warning",
+        "Match": "generally",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          4,
+          19
+        ],
+        "Check": "proselint.Oxymorons",
+        "Description": "",
+        "Link": "",
+        "Message": "'generally always' is an oxymoron.",
+        "Severity": "error",
+        "Match": "generally always",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:10:proselint.RASSyndrome",
+    "source": "Enter your PIN number.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          14
+        ],
+        "Check": "Microsoft.Acronyms",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/acronyms",
+        "Message": "'PIN' has no definition.",
+        "Severity": "suggestion",
+        "Match": "PIN",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "edit",
+          "Params": [
+            "split",
+            " ",
+            "0"
+          ]
+        },
+        "Span": [
+          12,
+          21
+        ],
+        "Check": "proselint.RASSyndrome",
+        "Description": "",
+        "Link": "",
+        "Message": "'PIN number' is redundant.",
+        "Severity": "error",
+        "Match": "PIN number",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:11:proselint.Skunked",
+    "source": "The label is deceptively simple.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          14,
+          24
+        ],
+        "Check": "proselint.Skunked",
+        "Description": "",
+        "Link": "",
+        "Message": "'deceptively' is a bit of a skunked term — impossible to use without issue.",
+        "Severity": "error",
+        "Match": "deceptively",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:12:proselint.Spelling",
+    "source": "The advisor met the adviser.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          21,
+          27
+        ],
+        "Check": "proselint.Spelling",
+        "Description": "",
+        "Link": "",
+        "Message": "Inconsistent spelling of 'adviser'.",
+        "Severity": "error",
+        "Match": "adviser",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:13:proselint.Uncomparables",
+    "source": "The proof is very unique.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "remove",
+          "Params": null
+        },
+        "Span": [
+          14,
+          17
+        ],
+        "Check": "Microsoft.Adverbs",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Remove 'very' if it's not important to the meaning of the statement.",
+        "Severity": "warning",
+        "Match": "very",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "edit",
+          "Params": [
+            "split",
+            " ",
+            "1"
+          ]
+        },
+        "Span": [
+          14,
+          24
+        ],
+        "Check": "proselint.Uncomparables",
+        "Description": "",
+        "Link": "",
+        "Message": "'very unique' is not comparable",
+        "Severity": "error",
+        "Match": "very unique",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          14,
+          17
+        ],
+        "Check": "proselint.Very",
+        "Description": "",
+        "Link": "",
+        "Message": "Remove 'very'.",
+        "Severity": "error",
+        "Match": "very",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          14,
+          17
+        ],
+        "Check": "write-good.Weasel",
+        "Description": "",
+        "Link": "",
+        "Message": "'very' is a weasel word!",
+        "Severity": "warning",
+        "Match": "very",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:14:proselint.Very",
+    "source": "The file is very large.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "remove",
+          "Params": null
+        },
+        "Span": [
+          13,
+          16
+        ],
+        "Check": "Microsoft.Adverbs",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Remove 'very' if it's not important to the meaning of the statement.",
+        "Severity": "warning",
+        "Match": "very",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          13,
+          16
+        ],
+        "Check": "proselint.Very",
+        "Description": "",
+        "Link": "",
+        "Message": "Remove 'very'.",
+        "Severity": "error",
+        "Match": "very",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          13,
+          16
+        ],
+        "Check": "write-good.Weasel",
+        "Description": "",
+        "Link": "",
+        "Message": "'very' is a weasel word!",
+        "Severity": "warning",
+        "Match": "very",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:15:Microsoft.Adverbs",
+    "source": "We accidentally sent the file.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "remove",
+          "Params": null
+        },
+        "Span": [
+          4,
+          15
+        ],
+        "Check": "Microsoft.Adverbs",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Remove 'accidentally' if it's not important to the meaning of the statement.",
+        "Severity": "warning",
+        "Match": "accidentally",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:16:Microsoft.Jargon",
+    "source": "We should bucketize these records.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "replace",
+          "Params": [
+            "group"
+          ]
+        },
+        "Span": [
+          11,
+          19
+        ],
+        "Check": "Microsoft.Jargon",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/avoid-jargon",
+        "Message": "Consider using 'group' instead of the jargon 'bucketize'.",
+        "Severity": "suggestion",
+        "Match": "bucketize",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:17:Microsoft.Passive",
+    "source": "The report was written today.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          22
+        ],
+        "Check": "Microsoft.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'was written' looks like passive voice.",
+        "Severity": "suggestion",
+        "Match": "was written",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          12,
+          22
+        ],
+        "Check": "write-good.Passive",
+        "Description": "",
+        "Link": "",
+        "Message": "'was written' may be passive voice. Use active voice if you can.",
+        "Severity": "warning",
+        "Match": "was written",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:18:Microsoft.Wordiness",
+    "source": "We left in order to catch the train.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "replace",
+          "Params": [
+            "to"
+          ]
+        },
+        "Span": [
+          9,
+          19
+        ],
+        "Check": "Microsoft.Wordiness",
+        "Description": "",
+        "Link": "https://learn.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences",
+        "Message": "Consider using 'to' instead of 'in order to'.",
+        "Severity": "suggestion",
+        "Match": "in order to",
+        "Line": 1
+      },
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          9,
+          19
+        ],
+        "Check": "write-good.TooWordy",
+        "Description": "",
+        "Link": "",
+        "Message": "'in order to' is too wordy.",
+        "Severity": "warning",
+        "Match": "in order to",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "tests/fixtures/writing-package-review.json:19:Microsoft.SentenceLength",
+    "source": "Before we publish the final report, we need to review the examples with the team, check every figure against the source material, explain the remaining limitations to our readers, and decide which recommendations should appear in the introduction.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          1,
+          6
+        ],
+        "Check": "Microsoft.SentenceLength",
+        "Description": "",
+        "Link": "",
+        "Message": "Try to keep sentences short (< 30 words).",
+        "Severity": "suggestion",
+        "Match": "Before",
+        "Line": 1
+      }
+    ]
+  },
+  {
+    "name": "unicode-crlf",
+    "source": "Café 😀:                                           \n\nThe advisor met the adviser. API.\n\n",
+    "alerts": [
+      {
+        "Action": {
+          "Name": "",
+          "Params": null
+        },
+        "Span": [
+          21,
+          27
+        ],
+        "Check": "proselint.Spelling",
+        "Description": "",
+        "Link": "",
+        "Message": "Inconsistent spelling of 'adviser'.",
+        "Severity": "error",
+        "Match": "adviser",
+        "Line": 3
+      }
+    ]
+  }
+]

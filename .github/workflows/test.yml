@@ -48,8 +48,10 @@ jobs:
           go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
-      - run: go run ./cmd/prepare-writing-assets
       - run: go test . ./internal/... ./cmd/...
+      - name: Test embedded Vale on the native platform
+        working-directory: third_party/vale
+        run: go test ./...
 
   frontend:
     name: Frontend tests

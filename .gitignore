@@ -42,7 +42,7 @@ Thumbs.db
 *.bak
 scripts/*.local.sh
 
-# Pinned writing-engine executables and generated worker dependencies.
+# Obsolete local CLI assets (not bundled) and generated worker dependencies.
 /internal/writing/assets/*.gz
 /frontend/vendored/writing/
 /frontend/*.worker.js

@@ -123,15 +123,9 @@ describe('release metadata and documentation', () => {
         expect(build.strategy.matrix.include.map(platform => platform.os))
             .toEqual(expect.arrayContaining(['windows-latest', 'macos-latest']));
 
-        const assetsIndex = build.steps.findIndex(step => step.name === 'Prepare platform test assets');
         const testIndex = build.steps.findIndex(step => step.name === 'Test native platform contracts');
-        expect(assetsIndex).toBeGreaterThan(-1);
-        expect(testIndex).toBeGreaterThan(assetsIndex);
-        expect(build.steps[assetsIndex]).toEqual({
-            name: 'Prepare platform test assets',
-            if: "runner.os != 'Linux'",
-            run: 'go run ./cmd/prepare-writing-assets',
-        });
+        expect(testIndex).toBeGreaterThan(-1);
+        expect(build.steps.some(step => /prepare-writing-assets/.test(step.run || ''))).toBe(false);
         expect(build.steps[testIndex]).toEqual({
             name: 'Test native platform contracts',
             if: "runner.os != 'Linux'",
@@ -143,6 +137,21 @@ describe('release metadata and documentation', () => {
         // Default success gating must apply to the complete build matrix.
         expect(jobs.publish.needs).toBe('build');
         expect(jobs.publish.if).toBeUndefined();
+    });
+
+    test('builds with embedded Vale source and ships its notices without preparing executables', () => {
+        for (const filename of ['.github/workflows/test.yml', '.github/workflows/release.yml', 'scripts/prepare-frontend.sh', 'Makefile']) {
+            expect(read(filename)).not.toContain('prepare-writing-assets');
+        }
+        const workflow = yaml.safeLoad(read('.github/workflows/release.yml'));
+        const nativeTests = workflow.jobs.build.steps.find(step => step.name === 'Test embedded Vale on the native platform');
+        expect(nativeTests['working-directory']).toBe('third_party/vale');
+        expect(nativeTests.run).toBe('go test ./...');
+        for (const step of workflow.jobs.build.steps.filter(step => /^Package /.test(step.name || ''))) {
+            expect(step.run).toContain('THIRD_PARTY_NOTICES.md');
+        }
+        expect(read('THIRD_PARTY_NOTICES.md')).toContain(read('third_party/vale/LICENSE').trim());
+        expect(read('go.mod')).toContain('replace github.com/vale-cli/vale/v3 => ./third_party/vale');
     });
 
     test('scopes the Ubuntu PDF sandbox override to the trusted fixture step only', () => {

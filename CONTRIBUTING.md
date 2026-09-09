@@ -362,9 +362,9 @@ the scope changes materially. Pushing the tag starts the GitHub release workflow
 successful pushes and successful workflow publication are separate results.
 
 The tag workflow runs the full Go test suite on native Windows and macOS runners
-before building their packages, in addition to Linux release verification. Writing
-test assets are generated first. All platform tests and builds must pass before
-the publication job can run; a Windows binary compiling successfully is not proof
+before building their packages, in addition to Linux release verification. The
+embedded Vale module is tested separately without executable preparation. All
+platform tests and builds must pass before the publication job can run; a Windows binary compiling successfully is not proof
 that Windows behavior passed. Also inspect the ordinary CI run for the same commit
 when reporting release health, since it includes checks such as the dependency
 audit beyond the tag workflow. Local release verification tests the current host;
@@ -372,7 +372,7 @@ cross-compiling does not replace these native platform runs.
 
 The workflow publishes Linux x86-64, Windows x86-64, and universal macOS
 archives, plus `SHA256SUMS`. Each archive includes `README.md`, `CHANGELOG.md`,
-and `LICENSE`. Builds are currently unsigned.
+`LICENSE`, and `THIRD_PARTY_NOTICES.md`. Builds are currently unsigned.
 
 ## Testing and verification
 
@@ -558,16 +558,13 @@ Personal spelling words are separate vault data in
 `.config/spelling-dictionary.json`; the application validates and atomically
 adds words without modifying bundled Hunspell resources or note contents.
 
-Writing review preparation also requires Go. `scripts/prepare-frontend.sh` runs
-`scripts/vendor-writing.mjs` for the pinned remark/retext runtime and notices,
-`go run ./cmd/prepare-writing-assets` for SHA-256-verified Vale release assets,
-and the app bundler for the three writing workers and the activity worker. No runtime Node installation or
-analyzer download is required by the installed application. Generated executables
-under `internal/writing/assets/` and `frontend/*.worker.js` are ignored.
-Cross builds must prepare the target first (`-target windows/amd64` or
-`-target darwin/universal`); native macOS preparation includes both architectures.
-Keep pins, checksums, rule fixtures, notices, and the capability table in
-[docs/WRITING_ENGINE.md](docs/WRITING_ENGINE.md) synchronized when upgrading.
+Writing review preparation runs `scripts/vendor-writing.mjs` for the pinned
+remark/retext runtime and notices, then bundles the writing and activity workers.
+Vale's adapted source is vendored in `third_party/vale` and compiled by Go; its
+27 YAML rules are embedded from `internal/writing/styles`. Native and cross builds
+need no Vale executable download or target preparation. Generated browser workers
+remain ignored; obsolete local CLI `.gz` files are ignored but never bundled.
+See `third_party/vale/README.md` for source provenance, update checks, and limits.
 
 Smart rich paste uses the exact Turndown version in `package.json` and copies
 its browser ESM plus MIT license through `scripts/vendor-turndown.mjs`. Keep the
@@ -909,6 +906,14 @@ by hand. `node scripts/profile-writing.mjs --long` adds 25k/50k-word workloads.
 Performance equivalence does not prove editorial usefulness: follow the
 [corpus plan](docs/WRITING_CORPUS.md) for licensed sources, independent human
 annotations and a held-out evaluation before tuning advice.
+
+The [integration report](docs/VALE_INTEGRATION.md) records the current native
+checks and limitations. The [embedded Vale evaluation](docs/VALE_EMBEDDED_PROTOTYPE.md) records the original
+prototype. Production profiling now uses `cmd/writing-profile` through
+`node scripts/profile-writing.mjs --long`. The optional prototype comparison tool
+can still download a checksum-verified upstream CLI into a disposable directory;
+normal builds and tests do not use it. Preserve the pinned CLI alert fixtures,
+race-tested lifecycle checks, and independent native platform validation.
 
 Catalogue generation normalizes trailing whitespace only inside parsed JavaScript comments; literal contents remain byte-for-byte unchanged. The build and its exact-output check share that formatter.
 
