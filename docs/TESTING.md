@@ -2563,7 +2563,12 @@ buffers have identical source. `editor.test.js` supplies the real CodeMirror
 component boundary: edit file A, mount file B, verify Undo cannot change B,
 edit and undo within B, repeat the identical-source switch, return to A and
 restore only A's operations, then prove a changed source invalidates its stale
-history. This behavior is fully observable below a browser, so it does not add
+history. The fixture configures its own workspace ports and successful
+`SaveSession` response, moves the cursor, and advances fake time through the
+350 ms session-save delay. It asserts that the save ran and cleans up its view,
+timers, and active-tab state, so a slow CI runner cannot expose an unconfigured
+write or leak a pending save into the next test. This behavior is fully
+observable below a browser, so it does not add
 a redundant Playwright scenario; the existing tab-buffer browser spec remains
 responsible only for asynchronous activation and visible owner pairing.
 

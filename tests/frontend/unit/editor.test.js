@@ -623,7 +623,8 @@ describe('Editor Module - CodeMirror Initialization', () => {
             setState('activeTabId', null);
         });
 
-        test('keeps undo history inside the active file buffer', async () => {
+        test('keeps undo history inside the active file buffer while delayed session saves complete', async () => {
+            window.go.desktop.App.SaveSession.mockResolvedValue({ success: true });
             const { redo, redoDepth, undo, undoDepth } = await import('@codemirror/commands');
             const { setState } = await import('../frontend/js/state.js');
             const {
@@ -633,59 +634,72 @@ describe('Editor Module - CodeMirror Initialization', () => {
                 setEditorContent,
             } = await import('../frontend/js/editor.js');
 
+            await configureTaskWorkspace();
             await initEditor();
+            jest.useFakeTimers();
             const view = createEditorView();
-            const fileTabs = ['first.md', 'second.md', 'third.md'].map(id => ({
-                id,
-                path: id,
-                title: id,
-                type: 'file',
-            }));
-            setState('openTabs', fileTabs);
-            const mount = async (tabId, content) => {
-                setState('activeTabId', tabId);
-                setEditorContent(content, tabId);
-                await new Promise(resolve => setTimeout(resolve, 0));
-                expect(getEditorDocumentTabId()).toBe(tabId);
-            };
+            try {
+                const fileTabs = ['first.md', 'second.md', 'third.md'].map(id => ({
+                    id,
+                    path: id,
+                    title: id,
+                    type: 'file',
+                }));
+                setState('openTabs', fileTabs);
+                const mount = async (tabId, content) => {
+                    setState('activeTabId', tabId);
+                    setEditorContent(content, tabId);
+                    await jest.advanceTimersByTimeAsync(0);
+                    expect(getEditorDocumentTabId()).toBe(tabId);
+                };
 
-            await mount('first.md', 'First buffer');
-            view.dispatch({ changes: { from: view.state.doc.length, insert: ' edit' } });
-            expect(undoDepth(view.state)).toBe(1);
+                await mount('first.md', 'First buffer');
+                view.dispatch({ changes: { from: view.state.doc.length, insert: ' edit' } });
+                expect(undoDepth(view.state)).toBe(1);
 
-            await mount('second.md', 'Second buffer');
-            expect(undo(view)).toBe(false);
-            expect(redo(view)).toBe(false);
-            expect(view.state.doc.toString()).toBe('Second buffer');
+                // Slow runners must exercise the same configured save effect as fast ones.
+                view.dispatch({ selection: { anchor: view.state.doc.length } });
+                await jest.advanceTimersByTimeAsync(350);
+                expect(window.go.desktop.App.SaveSession).toHaveBeenCalled();
 
-            view.dispatch({ changes: { from: view.state.doc.length, insert: ' edit' } });
-            expect(undo(view)).toBe(true);
-            expect(view.state.doc.toString()).toBe('Second buffer');
-            expect(redoDepth(view.state)).toBe(1);
+                await mount('second.md', 'Second buffer');
+                expect(undo(view)).toBe(false);
+                expect(redo(view)).toBe(false);
+                expect(view.state.doc.toString()).toBe('Second buffer');
 
-            // Ownership still needs a fresh history boundary when the next
-            // buffer happens to contain exactly the same source text.
-            await mount('third.md', 'Second buffer');
-            expect(undo(view)).toBe(false);
-            expect(redo(view)).toBe(false);
-            expect(view.state.doc.toString()).toBe('Second buffer');
+                view.dispatch({ changes: { from: view.state.doc.length, insert: ' edit' } });
+                expect(undo(view)).toBe(true);
+                expect(view.state.doc.toString()).toBe('Second buffer');
+                expect(redoDepth(view.state)).toBe(1);
 
-            // Returning to the unchanged first buffer restores only its own
-            // history, never an event captured from the intervening buffers.
-            await mount('first.md', 'First buffer edit');
-            expect(undo(view)).toBe(true);
-            expect(view.state.doc.toString()).toBe('First buffer');
-            expect(redo(view)).toBe(true);
-            expect(view.state.doc.toString()).toBe('First buffer edit');
+                // Ownership still needs a fresh history boundary when the next
+                // buffer happens to contain exactly the same source text.
+                await mount('third.md', 'Second buffer');
+                expect(undo(view)).toBe(false);
+                expect(redo(view)).toBe(false);
+                expect(view.state.doc.toString()).toBe('Second buffer');
 
-            // A changed external snapshot invalidates that tab's saved
-            // history instead of applying old positions to new source.
-            await mount('second.md', 'Externally changed second buffer');
-            expect(undo(view)).toBe(false);
-            expect(redo(view)).toBe(false);
-            expect(view.state.doc.toString()).toBe('Externally changed second buffer');
-            setState('openTabs', []);
-            setState('activeTabId', null);
+                // Returning to the unchanged first buffer restores only its own
+                // history, never an event captured from the intervening buffers.
+                await mount('first.md', 'First buffer edit');
+                expect(undo(view)).toBe(true);
+                expect(view.state.doc.toString()).toBe('First buffer');
+                expect(redo(view)).toBe(true);
+                expect(view.state.doc.toString()).toBe('First buffer edit');
+
+                // A changed external snapshot invalidates that tab's saved
+                // history instead of applying old positions to new source.
+                await mount('second.md', 'Externally changed second buffer');
+                expect(undo(view)).toBe(false);
+                expect(redo(view)).toBe(false);
+                expect(view.state.doc.toString()).toBe('Externally changed second buffer');
+            } finally {
+                view.destroy();
+                jest.clearAllTimers();
+                jest.useRealTimers();
+                setState('openTabs', []);
+                setState('activeTabId', null);
+            }
         });
 
         test('opens and closes the native find panel', async () => {
