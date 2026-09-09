@@ -119,6 +119,12 @@ Stages overlap, so their durations should not be added together. These timings
 narrow down the affected stage but cannot identify antivirus or OneDrive as the
 cause on their own.
 
+If the window appears but the file tree and buttons never work, include that
+symptom and the exact Figaro version in your report. A log ending at `dom-ready`
+only confirms that the page loaded; application code may not have started or
+connected to the backend. It does not establish a slow vault scan. You can open
+the log folder directly using the paths below when Settings is unavailable.
+
 `elapsed_ms` uses the native process clock; `webview_ms` preserves the original
 page-clock sample for events delivered by the UI. Bridge delivery can take time,
 so use `duration_ms` to compare how long each stage took.

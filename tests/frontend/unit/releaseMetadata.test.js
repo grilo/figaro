@@ -139,6 +139,22 @@ describe('release metadata and documentation', () => {
         expect(jobs.publish.if).toBeUndefined();
     });
 
+    test('runs Windows release asset preparation synchronously in Bash before compiling', () => {
+        const workflow = yaml.safeLoad(read('.github/workflows/release.yml'));
+        const steps = workflow.jobs.build.steps;
+        const preparation = steps.findIndex(step => step.run === './scripts/prepare-frontend.sh');
+        expect(preparation).toBeGreaterThan(-1);
+        expect(steps[preparation].shell).toBe('bash');
+        expect(steps[preparation].if).toBeUndefined();
+        expect(steps[preparation]['continue-on-error']).toBeUndefined();
+        expect(steps.findIndex(step => step.name === 'Build Windows binary')).toBeGreaterThan(preparation);
+        // PowerShell can dispatch .sh through a file association without waiting
+        // for it. Every shared release Bash script needs an explicit interpreter.
+        for (const step of steps.filter(step => /^\.\/scripts\/.*\.sh/.test(step.run || ''))) {
+            expect(step.shell).toBe('bash');
+        }
+    });
+
     test('builds with embedded Vale source and ships its notices without preparing executables', () => {
         for (const filename of ['.github/workflows/test.yml', '.github/workflows/release.yml', 'scripts/prepare-frontend.sh', 'Makefile']) {
             expect(read(filename)).not.toContain('prepare-writing-assets');

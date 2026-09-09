@@ -10,6 +10,14 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.38.2] - 2026-09-09
+
+### Fixed
+
+- Windows releases include the generated application code and writing/activity
+  workers, fixing startup that stopped at an empty file tree with unresponsive
+  controls. Production builds now fail if those assets are missing.
+
 ## [1.38.1] - 2026-09-09
 
 ### Changed
@@ -2215,7 +2223,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.38.1...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.38.2...HEAD
+[1.38.2]: https://github.com/grilo/figaro/compare/v1.38.1...v1.38.2
 [1.38.1]: https://github.com/grilo/figaro/compare/v1.38.0...v1.38.1
 [1.38.0]: https://github.com/grilo/figaro/compare/v1.37.3...v1.38.0
 [1.37.3]: https://github.com/grilo/figaro/compare/v1.37.2...v1.37.3

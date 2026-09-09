@@ -74,6 +74,13 @@ keeps exact inline/wiki/reference label mapping, overlapping sentence hints,
 protected destinations, widget identity, trimmed reference-label padding, tooltip restoration and
 immediate stale-hover rejection before repaint
 below the browser layer.
+`TestProductionBuildRejectsMissingStartupBundleAndWorkers` uses Go's actual embed
+validation in a temporary module: source-only builds work without generated
+files, a prepared production build is accepted, and removing the application
+bundle or any worker fails the production build. `releaseMetadata.test.js`
+requires an explicit, synchronous Bash preparation step before Windows
+compilation. These checks cover packaging; they do not claim WebView2 execution.
+
 `productionBundle.spec.js` verifies actual worker initialization without browser errors, eager bundles, and no post-ready feature
 module requests. Repeat these editor checks in the packaged native webview;
 Linux WebKitGTK results and 1k/10k-word measurements are in
@@ -270,7 +277,8 @@ static graph bundles without introducing first-use module loading. The browser
 suite also opens `?figaro-entry=production`, requires the generated bundle to
 boot without first-party `/js/` requests, and loads one bundled font through the
 real `FontFaceSet` API. CI and release preparation use
-`scripts/prepare-frontend.sh`, so ignored production assets are always rebuilt
+`scripts/prepare-frontend.sh` (explicitly through Bash on every release platform),
+so ignored production assets are rebuilt
 from the checked-out source instead of inherited from a developer workspace.
 
 ### Test-integrity guardrails
@@ -517,7 +525,7 @@ npx playwright test tests/e2e/hugeVaultStress.spec.js \
 ## Layout
 
 ```
-main.go / main_test.go
+main.go / main_test.go / assets_production.go
     Thin executable/embed boundary and its packaged-input contract.
 
 internal/

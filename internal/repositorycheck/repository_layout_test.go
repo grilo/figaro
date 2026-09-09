@@ -1,6 +1,9 @@
 package repositorycheck
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,9 +18,28 @@ func TestDesktopApplicationStaysBehindThinRootLauncher(t *testing.T) {
 		t.Fatalf("list root Go sources: %v", err)
 	}
 	sort.Strings(rootSources)
-	if want := []string{"main.go", "main_test.go"}; !reflect.DeepEqual(rootSources, want) {
+	if want := []string{"assets_production.go", "main.go", "main_test.go"}; !reflect.DeepEqual(rootSources, want) {
 		t.Fatalf("root Go sources = %v, want only the launcher and its embed contract %v", rootSources, want)
 	}
+
+	// Embed patterns must live at the executable boundary. The production-only
+	// guard may declare embedded bytes, but cannot add imports or runtime logic.
+	guard, err := parser.ParseFile(token.NewFileSet(), "assets_production.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dependency := range guard.Imports {
+		if dependency.Path.Value != `"embed"` {
+			t.Fatalf("production asset guard imports runtime dependency %s", dependency.Path.Value)
+		}
+	}
+	ast.Inspect(guard, func(node ast.Node) bool {
+		switch node.(type) {
+		case *ast.FuncDecl, *ast.FuncLit, *ast.CallExpr:
+			t.Fatal("production asset guard contains runtime logic; keep it in internal/desktop")
+		}
+		return true
+	})
 
 	launcher, err := os.ReadFile("main.go")
 	if err != nil {

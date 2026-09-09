@@ -828,6 +828,13 @@ the Git index, and the confined worktree; unmerged entries remain dirty and
 submodules retain the complete-status fallback.
 
 ### 12.2 Initialization Sequence
+
+Desktop packages contain the generated application entry point and all four
+writing/activity workers. Production compilation rejects missing generated
+entries, so an unprepared checkout cannot ship a visible shell with no working
+application controls. Release asset preparation completes in Bash on every
+platform before compilation.
+
 1. Paint the shell with the last confirmed local theme/font mirror, the normalized saved sidebar width, and **Starting Figaro…** status; begin bundled language-parser warming, restore other webview-local UI state, and initialize backend-independent navigation and window controls.
 2. Wait for Wails to publish the native `window.go.desktop.App` binding, then read and apply the authoritative vault-backed theme/font appearance and subscribe to vault notifications.
 3. Start the portable session, tab-size, link-style, automation, and complete interaction/layout preference reads together. Do not initialize or expose CodeMirror until this hydration barrier settles.
@@ -850,6 +857,12 @@ than 100 ms to drain at exit. JSONL logs live in the standard local cache's
 unrelated files and symlinks. Existing settings and WebView directories stay in
 place. `OpenStartupLogs()` opens only this diagnostics directory and returns a
 save-style success/error result; it does not accept arbitrary paths.
+
+`dom-ready` records native DOM readiness, not completion of JavaScript startup.
+Frontend timings reach the log only after the application connects to the
+backend. If controls are inert and that is the final event, investigate the
+frontend entry and bridge as well as native work; the event alone does not
+establish slow indexing, antivirus scanning, or OneDrive synchronization.
 
 Frontend code accesses Go only through `frontend/js/backend.js`. It calls the
 native `window.go.desktop.App` methods with their generated PascalCase names; the
@@ -1926,7 +1939,10 @@ all:frontend
 
 Generated browser modules and icon derivatives are intentionally absent from a
 clean checkout. `make dev` and package targets regenerate them before Wails
-builds the embedded filesystem.
+builds the embedded filesystem. Under Wails' `production` tag,
+`assets_production.go` also names the application bundle and each of the four
+workers explicitly. Missing generated entries fail compilation; the broad
+directory embed alone cannot establish that the frontend was prepared.
 
 ### 34.2 Embedded FS vs Disk Reads
 - **Asset server**: Serves embedded files via Wails `AssetServer` — all CSS/JS/images loaded by the frontend come from the embedded FS.

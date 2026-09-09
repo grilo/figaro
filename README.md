@@ -90,7 +90,9 @@ English US and UK support spelling and prose checks; Spanish supports spelling o
 [Learn about writing and lenses →](docs/WRITING.md)
 
 If a launch is slow, **Settings → Vault care → Open startup logs** opens local
-timings for troubleshooting. See [startup troubleshooting](docs/GETTING_STARTED.md#troubleshoot-a-slow-launch).
+timings for troubleshooting. If the controls do not respond, the
+[startup troubleshooting guide](docs/GETTING_STARTED.md#troubleshoot-a-slow-launch)
+also lists the log folders you can open directly.
 
 ## Turn a draft into a document
 

@@ -278,6 +278,13 @@ supported by the current host. See the `help` target in the [Makefile](Makefile)
 On Fedora, `./scripts/build-fedora.sh` delegates to the same `make linux`
 workflow.
 
+Production builds require the generated application bundle and all four workers:
+the explicit embed patterns in `assets_production.go` reject missing outputs at
+compile time. Run `make bootstrap` before invoking Wails directly. In automation,
+run `scripts/prepare-frontend.sh` with `shell: bash`, including on Windows;
+PowerShell's `.sh` file association does not guarantee completion or failure
+propagation. Source-only Go backend tests do not require generated frontend files.
+
 ## Release process
 
 Release commands are for maintainers publishing an approved version. They are

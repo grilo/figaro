@@ -80,6 +80,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: ./scripts/prepare-frontend.sh
+        shell: bash
       - run: npm run lint
       - run: npm run test:coverage
       - run: go vet . ./internal/... ./cmd/...
@@ -146,6 +147,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: ./scripts/prepare-frontend.sh
+        shell: bash
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |

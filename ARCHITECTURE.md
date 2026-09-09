@@ -23,7 +23,11 @@ Figaro is a Wails desktop application with three layers:
 The Wails asset server embeds `frontend/` at package-build time. Backend code
 may use an on-disk fallback during development, but a released application must
 not depend on a package manager, content delivery network (CDN), or source
-checkout at runtime.
+checkout at runtime. `assets_production.go` adds explicit embed patterns for the
+generated application entry and all four workers under Wails' `production` tag.
+A missing file therefore fails compilation instead of yielding a shell whose
+JavaScript entry point cannot load. Source-only backend tests remain available
+without generating the frontend.
 
 The composition root separately embeds `wails.json`, validates its
 `info.productVersion` through the pure `internal/appinfo` parser, and injects
@@ -46,7 +50,9 @@ links from 1.14.0 onward; historical headings remain untouched.
 
 The release workflow verifies backend behavior on Linux, then runs the complete
 Go platform contracts on the Windows and macOS build runners before compiling
-their packages. Each prepares embedded writing assets before testing. Publication
+their packages. Frontend preparation runs synchronously through an explicit
+Bash shell on every release build platform, including Windows; PowerShell file
+associations must not launch the `.sh` generator outside the build step. Publication
 depends on success of the entire build matrix; an ordinary CI failure cannot be
 masked by a successful native compile of the same broken platform behavior.
 
@@ -580,8 +586,10 @@ ownership before the next adapter mounts. History, Document Outline, Raw Text,
 and PDF Preview know only their own lifecycle; they do not broadcast or listen
 for pairwise peer-close events.
 
-The Go executable keeps a deliberately thin root `main.go` because it alone can
-embed the root-owned `frontend/` tree and `wails.json`. It passes those immutable
+The Go executable keeps a deliberately thin root `main.go` to embed the
+root-owned `frontend/` tree and `wails.json`. Its production-only asset guard
+also lives at this boundary; the repository check rejects function declarations,
+calls, and imports other than `embed` in that file. The launcher passes its immutable
 inputs to `internal/desktop.Run`, which assembles Wails and owns the bound
 `desktop.App`. Desktop capabilities and their package-internal tests live
 beside that composition root under `internal/desktop`; pure logic and use cases
