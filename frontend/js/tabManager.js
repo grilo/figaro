@@ -533,7 +533,12 @@ export function initTabManager() {
             }
         });
 
-        // Middle-click to close tab
+        // Windows webviews can start autoscroll on press, before auxclick fires.
+        tabStrip.addEventListener('mousedown', (e) => {
+            if (e.button === 1 && e.target.closest('.tab')) e.preventDefault();
+        });
+
+        // Middle-click to close tab on release, retaining the normal close guard.
         tabStrip.addEventListener('auxclick', (e) => {
             if (e.button === 1) {
                 const tabEl = e.target.closest('.tab');

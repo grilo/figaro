@@ -816,6 +816,14 @@ Use the explicit root-plus-`internal/...` package set rather than `go test
   flush leading-tab alignment across overflow-button measurement, the actual
   flex widths, horizontal scrolling, and computed pseudo-element fade opacity
   that cannot be represented by jsdom.
+  `tabManager.test.js` also verifies middle-button press cancellation over tab
+  surfaces, closing on release, unchanged input outside tabs, and cancelled
+  dirty-tab closure. The same pointer browser scenario verifies that a trusted
+  middle press is prevented while its subsequent `auxclick` still closes the
+  tab. In packaged Windows/WebView2, middle-click a tab label and its close
+  button: no autoscroll cursor should appear, and release should close only
+  that tab. Cancel closing a dirty note and verify its text remains. Chromium
+  on Linux proves the event sequence, not the Windows autoscroll UI.
 - Browser rendering of cover pages, table of contents, fenced-code token colors,
   Mermaid, Vega, and Vega-Lite in the PDF export pipeline; focused printable
   renderer coverage also proves that CodeMirror table `<br>` markers become

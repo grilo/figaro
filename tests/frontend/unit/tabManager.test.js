@@ -2054,16 +2054,58 @@ describe('Tab Manager', () => {
     });
 
     describe('middle-click close', () => {
-        test('should close tab on middle-click', () => {
+        test.each(['.tab', '.tab-title', '.tab-close'])(
+            'prevents middle-button autoscroll over %s and closes only on release', (selector) => {
+                initTabManager();
+                openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+                openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
+                renderTabBar();
+
+                const tabEl = document.querySelector('[data-tab-id="tab1"]');
+                const target = selector === '.tab' ? tabEl : tabEl.querySelector(selector);
+                const press = new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true });
+                target.dispatchEvent(press);
+                expect(press.defaultPrevented).toBe(true);
+                expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab1', 'tab2']);
+                expect(getState('activeTabId')).toBe('tab2');
+                expect(confirmDialog).not.toHaveBeenCalled();
+
+                target.dispatchEvent(new MouseEvent('mouseup', { button: 1, bubbles: true }));
+                const click = new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true });
+                target.dispatchEvent(click);
+                expect(click.defaultPrevented).toBe(true);
+                expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab2']);
+            });
+
+        test('leaves primary/right presses and middle presses outside tabs unchanged', () => {
+            initTabManager();
+            openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
+            const tab = document.querySelector('[data-tab-id="tab1"]');
+            for (const [target, button] of [
+                [tab, 0], [tab, 2], [document.getElementById('tab-strip'), 1],
+                [document.body, 1],
+            ]) {
+                const press = new MouseEvent('mousedown', { button, bubbles: true, cancelable: true });
+                target.dispatchEvent(press);
+                expect(press.defaultPrevented).toBe(false);
+            }
+            expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab1']);
+        });
+
+        test('middle-click still keeps a dirty tab open when closing is cancelled', async () => {
             initTabManager();
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
-            renderTabBar();
-            
-            const tabEl = document.querySelector('[data-tab-id="tab1"]');
-            tabEl.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }));
-            
-            expect(getState('openTabs').length).toBe(1);
+            getState('openTabs').find(tab => tab.id === 'tab1').dirty = true;
+            confirmDialog.mockResolvedValueOnce(false);
+            const target = document.querySelector('[data-tab-id="tab1"]');
+            target.dispatchEvent(new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true }));
+            target.dispatchEvent(new MouseEvent('mouseup', { button: 1, bubbles: true }));
+            target.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }));
+            await Promise.resolve();
+            expect(confirmDialog).toHaveBeenCalledTimes(1);
+            expect(getState('openTabs').map(tab => tab.id)).toEqual(['tab1', 'tab2']);
+            expect(getState('openTabs')[0].dirty).toBe(true);
         });
     });
 });

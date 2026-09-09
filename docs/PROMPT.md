@@ -133,7 +133,11 @@ Each theme defines these properties (with theme-specific colors):
 - **Cursor memory**: Each file tab continuously remembers its latest cursor/selection. It is restored after switching back or closing a workspace view such as Settings, and is included in the portable session for restart recovery.
 - **Undo ownership**: Each open file buffer owns independent Undo and Redo state. Activating another file swaps the shared CodeMirror view to that buffer's history—even when both files contain identical text—and the incoming document load is not undoable. Returning to an unchanged open buffer restores its earlier operations; if its source changed externally while inactive, Figaro discards the stale history instead of mapping old edits onto new text. No operation from another tab can replace its contents.
 - **Close button (✕)**: Every tab has a close button, always visible even when tabs are narrow. Closing a dirty file tab prompts for confirmation.
-- **Middle-click**: Middle-clicking any tab closes it immediately.
+- **Middle-click**: Releasing the middle button over a tab closes it through the
+  normal unsaved-change guard. A middle-button press on the tab, its label, or
+  its close button prevents the webview's default autoscroll/paste action;
+  pressing alone does not close or activate the tab. Other mouse buttons and
+  middle-button presses outside tabs retain their existing behavior.
 - **Pin tab**: Right-click a tab and choose "Pin Tab" to pin it. Pinned tabs stay at the leftmost position and use an accented file icon plus stronger title. Pinning persists across restarts.
 - **Drag reorder**: Tabs follow primary-pointer movement directly after a small drag threshold instead of relying on native HTML drag-and-drop. Dragging anywhere except the close control reorders the tab, suppresses native text selection across the complete application while the gesture is active, and shows a precise before/after marker. The selection guard begins only after the threshold and is removed on drop or cancellation, so normal selection elsewhere is unaffected. Pinned and unpinned tabs remain separate groups so a drag cannot accidentally unpin or pin a tab. Cancellation leaves the order unchanged, and the resulting order persists with the session.
 - **Safe empty state**: Closing the final tab keeps the centered workspace overview visible instead of leaving the workspace blank or creating a synthetic tab.
@@ -949,7 +953,7 @@ browser debugging fallback is installed explicitly with the same method shape.
 | Click Quick note | Sidebar or collapsed rail | Create and focus a collision-safe timestamped note in `Inbox` |
 | Ctrl/Cmd+N | App | Create and focus a Quick Note in `Inbox` |
 | Middle-click tab | Tab bar | Close tab |
-| Right-click tab | Tab bar | Pin/Unpin tab |
+| Right-click tab | Tab bar | Open tab context menu, including Pin/Unpin |
 | Right-click editor | Editor | Context menu (Cut, Copy, Paste, Select All, Preview Raw Text, Preview PDF); table structure stays in the table guide's dedicated editor |
 | Tab / Shift-Tab | Editor source or list | Indent / dedent by the global Tab Size; rendered tables reveal source for ordinary editing |
 | Escape, then Tab / Shift+Tab | Editor | Temporarily yield Tab indentation and move keyboard focus to the next / previous application control |

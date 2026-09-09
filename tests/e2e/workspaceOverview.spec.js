@@ -527,7 +527,7 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
     });
 });
 
-test('reorders document tabs with a real pointer drag', async ({ page }) => {
+test('reorders tabs with a real pointer and prevents middle-click autoscroll before closing', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window._appReady === true);
 
@@ -581,6 +581,22 @@ test('reorders document tabs with a real pointer drag', async ({ page }) => {
         const { getState } = await import('/js/state.js');
         return getState('openTabs').map(tab => tab.id);
     })).toEqual(['drag-2.md', 'drag-3.md', 'drag-1.md']);
+
+    // A trusted press must be cancelled without suppressing the later auxclick.
+    await page.evaluate(() => {
+        document.addEventListener('mousedown', event => {
+            if (event.button === 1) {
+                window.__tabMiddlePress = { prevented: event.defaultPrevented, trusted: event.isTrusted };
+            }
+        }, { once: true });
+    });
+    await source.locator('.tab-title').hover();
+    await page.mouse.down({ button: 'middle' });
+    expect(await page.evaluate(() => window.__tabMiddlePress)).toEqual({ prevented: true, trusted: true });
+    await expect(source).toBeVisible();
+    await page.mouse.up({ button: 'middle' });
+    await expect(source).toHaveCount(0);
+    await expect(page.locator('#tab-strip .tab')).toHaveCount(2);
 });
 
 test('keeps differentiating filename endings and parent paths visible on long tabs', async ({ page }) => {

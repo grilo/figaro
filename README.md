@@ -48,6 +48,9 @@ Search helps you return to a phrase, a topic, or a half-remembered title.
 Backlinks show which notes mention the current one. The graph gives you
 another way to explore those connections.
 
+Keep several notes open in tabs, and middle-click a tab to close it. Figaro asks
+before discarding unsaved changes.
+
 When a note becomes a project, its tasks can stay beside the thinking that
 produced them. Add a hashtag such as `#todo` to put a task on the board. Use
 Calendar for dates or Gantt for a longer schedule. Open a card to return to its

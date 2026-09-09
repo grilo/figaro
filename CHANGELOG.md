@@ -10,6 +10,13 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.38.3] - 2026-09-09
+
+### Fixed
+
+- Middle-clicking a tab closes it without activating the Windows autoscroll
+  cursor. Unsaved changes still receive the usual close protection.
+
 ## [1.38.2] - 2026-09-09
 
 ### Fixed
@@ -2223,7 +2230,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.38.2...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.38.3...HEAD
+[1.38.3]: https://github.com/grilo/figaro/compare/v1.38.2...v1.38.3
 [1.38.2]: https://github.com/grilo/figaro/compare/v1.38.1...v1.38.2
 [1.38.1]: https://github.com/grilo/figaro/compare/v1.38.0...v1.38.1
 [1.38.0]: https://github.com/grilo/figaro/compare/v1.37.3...v1.38.0
