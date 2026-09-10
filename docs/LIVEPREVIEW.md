@@ -291,18 +291,27 @@ then uses normal browser chaining to continue through the document at its top
 or bottom. A horizontal-only scrollbar therefore never traps a vertical
 gesture. Table source height is its header plus the separator and body rows.
 
-Mermaid live widgets use a bounded source-keyed SVG cache with in-flight
-deduplication, so CodeMirror virtualization does not rerun the Mermaid engine
-for identical source. Cached SVG ids are rebased for each mounted widget so
-internal references remain local. First-time diagram renders are serialized
-through an injected queue and scheduled after a short scroll-quiet period and
-an idle opportunity; the loading state remains inside the already measured
-source footprint while the editor is moving. Mermaid source without an authored
-theme or custom theme variables receives a temporary `base` theme built from
-Figaro's text, muted, border, panel, hover, and active tokens. Its live widget
-and focused-editor canvas use `--editor-surface`; explicit Mermaid styling keeps
-the portable document appearance. The temporary source variant participates in
-the render-cache key, so it cannot be reused by printable HTML or PDF output.
+Mermaid, Vega and Vega-Lite widgets reuse unchanged SVG output when remounted.
+Mermaid keeps its source-keyed 64-entry cache; Vega/Vega-Lite additionally bound
+retained source/output to 4,194,304 UTF-16 code units and key effective appearance,
+normalized container dimensions and font generation. Each mount receives unique
+SVG IDs with local references preserved. Source edits and appearance/size/font
+changes invalidate pending widget results and refresh output. Vega specs reading external data, time, randomness or window/screen state
+bypass reuse so revisits fetch fresh data.
+
+The shared render queue waits 120 ms after typing, composition or scrolling, then
+an idle opportunity. Further input cancels that idle slot; composition blocks it
+even if the idle timeout expires. Already running renderer JavaScript cannot be
+preempted. Graphic fitting coalesces resize notifications into an animation frame
+outside observer delivery; disposed widgets cancel pending fitting. Source-height
+rulers defer resize notifications into a frame, including restored scrolled notes.
+Source/mount updates still measure before paint to preserve replacement height. Ordinary prose edits retain existing widgets. Inline SVG, measured
+source footprints, source reveal, keyboard movement and mouse selection retain
+their existing contracts. Mermaid source without authored theme/custom variables
+still receives a temporary application palette from Figaro tokens. Its widget
+and focused canvas use `--editor-surface`; explicit source styling remains
+authoritative. Printable consumers retain authored appearance and separate cache
+identity.
 
 This generalized source-footprint policy is editor-only. Successfully loaded
 images use the separate authored-geometry/source-placeholder contract above;

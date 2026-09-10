@@ -143,6 +143,7 @@ export async function applyTheme(themeId) {
             ensureStyleEl().textContent = result.css;
             document.getElementById('startup-theme')?.remove();
             persistStartupAppearance();
+            document.dispatchEvent(new CustomEvent('figaro:appearance-changed'));
             return true;
         }
         document.getElementById('startup-theme')?.remove();
@@ -865,6 +866,7 @@ function applyFont(fontId, initial, root = document) {
             style.id = 'dynamic-font-style';
             document.head.appendChild(style);
         }
+        document.dispatchEvent(new CustomEvent('figaro:appearance-changed'));
         style.textContent = `.cm-editor:not(.cm-code-file), .cm-editor:not(.cm-code-file) .cm-content, .cm-editor:not(.cm-code-file) .cm-line, .cm-editor:not(.cm-code-file) .cm-scroller { font-family: ${family} !important; }`;
 
         requestAnimationFrame(() => {

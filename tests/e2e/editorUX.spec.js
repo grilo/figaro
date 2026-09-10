@@ -18,8 +18,7 @@ test('opens a URL-labelled external Markdown link with a real modifier click', a
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
         const source = '[https://google.com](https://google.com)\n\nTail';
-        editor.setEditorContent(source, 'Welcome.md');
-        await new Promise(resolve => requestAnimationFrame(resolve));
+        await editor.setEditorContent(source, 'Welcome.md');
         const view = editor.getEditorView();
         view.dispatch({ selection: { anchor: source.length } });
         view.focus();
@@ -403,6 +402,9 @@ test('opens file, tab, and editor context menus from the keyboard', async ({ pag
 });
 
 test('turns a pasted URL into a Markdown link for regular and Vim Visual paste paths', async ({ page }) => {
+    // These paths exercise ClipboardEvent delivery, Vim key handling, and
+    // context-menu focus/selection. Await each document mount before selecting
+    // text so a delayed replacement cannot reset Visual mode during paste.
     await openWelcomeEditor(page);
     const pasteURL = async () => page.evaluate(() => {
         const view = window.__figaroSmartPasteView;
@@ -419,7 +421,7 @@ test('turns a pasted URL into a Markdown link for regular and Vim Visual paste p
 
     await page.evaluate(async () => {
         const editor = await import('/js/editor.js');
-        editor.setEditorContent('Selected words');
+        await editor.setEditorContent('Selected words');
         const view = editor.getEditorView();
         view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
         view.focus();
@@ -434,7 +436,7 @@ test('turns a pasted URL into a Markdown link for regular and Vim Visual paste p
         const editor = await import('/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
         const view = editor.getEditorView();
-        editor.setEditorContent('Selected words');
+        await editor.setEditorContent('Selected words');
         await editor.toggleVim(true);
         view.dispatch({ selection: { anchor: 0 } });
         Vim.handleKey(getCM(view), 'v', 'user');
@@ -452,7 +454,7 @@ test('turns a pasted URL into a Markdown link for regular and Vim Visual paste p
         const editor = await import('/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
         const view = editor.getEditorView();
-        editor.setEditorContent('Selected words');
+        await editor.setEditorContent('Selected words');
         await editor.toggleVim(false);
         await editor.toggleVim(true);
         view.dispatch({ selection: { anchor: 0 } });
@@ -474,7 +476,7 @@ test('turns a pasted URL into a Markdown link for regular and Vim Visual paste p
         const editor = await import('/js/editor.js');
         const { Vim, getCM } = await import('@replit/codemirror-vim');
         const view = editor.getEditorView();
-        editor.setEditorContent('Selected words');
+        await editor.setEditorContent('Selected words');
         await editor.toggleVim(false);
         await editor.toggleVim(true);
         view.dispatch({ selection: { anchor: 0 } });

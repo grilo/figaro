@@ -224,6 +224,55 @@ describe('diagram renderer startup', () => {
         expect(finalize).toHaveBeenCalledTimes(1);
     });
 
+    test.each(['vega', 'vega-lite'])('revisiting unchanged %s output reuses rendering with unique local SVG references', async language => {
+        window.vegaEmbed.mockResolvedValue({ view: {
+            toSVG: jest.fn().mockResolvedValue('<svg viewBox="0 0 40 30"><defs><clipPath id="clip1"><rect width="40" height="30"/></clipPath></defs><g clip-path="url(#clip1)"><text>clip1 label</text></g><use href="#clip1"/></svg>'),
+            finalize: jest.fn(),
+        } });
+        const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+        const source = JSON.stringify({ width: 'container', data: { values: [1, 2] } });
+        const [first, second] = await Promise.all([
+            renderDiagramSVG(language, source, 'first', { containerWidth: 700 }),
+            renderDiagramSVG(language, source, 'second', { containerWidth: 700 }),
+        ]);
+        await renderDiagramSVG(language, source, 'revisit', { containerWidth: 700 });
+        expect(window.vegaEmbed).toHaveBeenCalledTimes(1);
+        const host = document.createElement('div'); host.innerHTML = first + second;
+        const ids = [...host.querySelectorAll('[id]')].map(node => node.id);
+        expect(new Set(ids).size).toBe(2);
+        for (const svg of host.querySelectorAll('svg')) {
+            const id = svg.querySelector('[id]').id;
+            expect(svg.querySelector('g').getAttribute('clip-path')).toBe(`url(#${id})`);
+            expect(svg.querySelector('use').getAttribute('href')).toBe(`#${id}`);
+            expect(svg.querySelector('text').textContent).toBe('clip1 label');
+        }
+        await renderDiagramSVG(language, source, 'resized', { containerWidth: 800 });
+        await renderDiagramSVG(language, source.replace('[1,2]', '[1,3]'), 'edited', { containerWidth: 800 });
+        expect(window.vegaEmbed).toHaveBeenCalledTimes(3);
+        expect(window.vegaEmbed.mock.calls[1][0].style.width).toBe('800px');
+    });
+
+    test('Vega appearance and loaded font changes invalidate output; external data is always refreshed', async () => {
+        const fonts = new EventTarget(); fonts.status = 'loaded';
+        const previous = Object.getOwnPropertyDescriptor(document, 'fonts');
+        Object.defineProperty(document, 'fonts', { configurable: true, value: fonts });
+        window.vegaEmbed.mockResolvedValue({ view: { toSVG: async () => '<svg viewBox="0 0 40 30"/>', finalize() {} } });
+        try {
+            const { renderDiagramSVG } = await import('../frontend/js/diagramRenderer.js');
+            const render = () => renderDiagramSVG('vega-lite', '{"mark":"bar"}', 'test', { appearance: 'application' });
+            await render(); await render(); expect(window.vegaEmbed).toHaveBeenCalledTimes(1);
+            document.documentElement.style.setProperty('--text-color', '#00ff00');
+            await render(); expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
+            fonts.dispatchEvent(new Event('loadingdone'));
+            await render(); expect(window.vegaEmbed).toHaveBeenCalledTimes(3);
+            await renderDiagramSVG('vega-lite', '{"data":{"url":"data.csv"}}');
+            await renderDiagramSVG('vega-lite', '{"data":{"url":"data.csv"}}');
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(5);
+        } finally {
+            if (previous) Object.defineProperty(document, 'fonts', previous); else delete document.fonts;
+        }
+    });
+
     test('rejects a zero-geometry Vega SVG instead of presenting a silent blank preview', async () => {
         const finalize = jest.fn();
         window.vegaEmbed.mockResolvedValue({

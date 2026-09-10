@@ -66,6 +66,33 @@ async function settleFontSelection() {
 }
 
 describe('Font Application', () => {
+    test('applied theme/font changes notify mounted chart previews after appearance is available', async () => {
+        const { initSettingsPanel, applyTheme } = await loadThemeModule();
+        await initSettingsPanel();
+        const appearances = [];
+        const changed = () => appearances.push({
+            theme: document.getElementById('theme-style')?.textContent,
+            font: document.documentElement.style.getPropertyValue('--font-editor'),
+        });
+        document.addEventListener('figaro:appearance-changed', changed);
+        try {
+            await applyTheme('default');
+            expect(appearances).toHaveLength(1);
+            expect(appearances[0].theme).toContain('--bg-color: #111');
+            document.querySelector('.font-picker-item[data-id="figtree"]').click();
+            expect(appearances).toHaveLength(2);
+            expect(appearances[1].font).toContain('Figtree');
+            mockApi.GetThemeCSS.mockRejectedValueOnce(new Error('unavailable'));
+            await applyTheme('missing');
+            expect(appearances).toHaveLength(2);
+        } finally {
+            document.removeEventListener('figaro:appearance-changed', changed);
+            document.querySelector('.font-picker-item[data-id="inter"]').click();
+            await settleFontSelection();
+            await applyTheme('default');
+        }
+    });
+
     test('--font-editor CSS variable is set when applyFont runs', async () => {
         const { initSettingsPanel } = await loadThemeModule();
         await initSettingsPanel();

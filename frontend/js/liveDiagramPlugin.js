@@ -15,6 +15,8 @@ import { diagramLanguages, renderDiagramSVG } from './diagramRenderer.js';
 import { wrapBlockWidget } from './blockWidget.js';
 import { fitGraphicToSourceFootprint, markSourceFootprint } from './sourceFootprint.js';
 import { createDiagramRenderQueue } from './usecases/diagramRenderQueue.js';
+import { scheduleDiagramAfterQuiet } from './usecases/diagramQuietScheduler.js';
+import { vegaRenderDimensions, vegaUsesContainerSize } from './core/diagramRenderCacheModel.js';
 import {
     setVegaLiteChartHeight,
     vegaLiteChartHeight,
@@ -130,7 +132,7 @@ function setMessage(container, className, text) {
 }
 
 const DIAGRAM_IDLE_TIMEOUT = 500;
-const DIAGRAM_SCROLL_QUIET_PERIOD = 50;
+const pendingViewActivity = new WeakMap();
 
 function scheduleDiagramIdle(callback, view) {
     const win = view?.dom?.ownerDocument?.defaultView || globalThis;
@@ -139,69 +141,31 @@ function scheduleDiagramIdle(callback, view) {
         return { cancel: () => win.clearTimeout(handle) };
     }
 
-    let cancelled = false;
-    let timer = null;
-    let idleHandle = null;
-    let lastScrollTop = view.scrollDOM.scrollTop;
-    let scrollListener = null;
-
-    const clearSchedule = () => {
-        if (timer !== null) {
-            win.clearTimeout(timer);
-            timer = null;
-        }
-        if (idleHandle !== null) {
-            win.cancelIdleCallback?.(idleHandle);
-            idleHandle = null;
-        }
-        if (scrollListener) {
-            view.scrollDOM.removeEventListener('scroll', scrollListener);
-            scrollListener = null;
-        }
-    };
-
-    const run = () => {
-        if (cancelled) return;
-        clearSchedule();
-        callback();
-    };
-
-    const runWhenQuiet = () => {
-        if (cancelled) return;
-        timer = null;
-        const currentScrollTop = view.scrollDOM.scrollTop;
-        if (currentScrollTop !== lastScrollTop) {
-            lastScrollTop = currentScrollTop;
-            timer = win.setTimeout(runWhenQuiet, DIAGRAM_SCROLL_QUIET_PERIOD);
-            return;
-        }
-
-        if (typeof win.requestIdleCallback === 'function') {
-            idleHandle = win.requestIdleCallback(run, { timeout: DIAGRAM_IDLE_TIMEOUT });
-        } else {
-            timer = win.setTimeout(run, DIAGRAM_SCROLL_QUIET_PERIOD);
-        }
-    };
-
-    scrollListener = () => {
-        if (cancelled) return;
-        lastScrollTop = view.scrollDOM.scrollTop;
-        if (idleHandle !== null) {
-            win.cancelIdleCallback?.(idleHandle);
-            idleHandle = null;
-        }
-        if (timer !== null) win.clearTimeout(timer);
-        timer = win.setTimeout(runWhenQuiet, DIAGRAM_SCROLL_QUIET_PERIOD);
-    };
-    view.scrollDOM.addEventListener('scroll', scrollListener, { passive: true });
-    timer = win.setTimeout(runWhenQuiet, DIAGRAM_SCROLL_QUIET_PERIOD);
-    return {
-        cancel() {
-            if (cancelled) return;
-            cancelled = true;
-            clearSchedule();
+    return scheduleDiagramAfterQuiet(callback, {
+        now: () => win.performance.now(),
+        setTimer: (run, delay) => win.setTimeout(run, delay),
+        clearTimer: handle => win.clearTimeout(handle),
+        requestIdle: run => typeof win.requestIdleCallback === 'function'
+            ? win.requestIdleCallback(run, { timeout: DIAGRAM_IDLE_TIMEOUT })
+            : win.setTimeout(run, 0),
+        cancelIdle: handle => typeof win.cancelIdleCallback === 'function'
+            ? win.cancelIdleCallback(handle) : win.clearTimeout(handle),
+        isBusy: () => view.composing,
+        observeActivity: activity => {
+            pendingViewActivity.set(view, activity);
+            const events = [
+                [view.scrollDOM, 'scroll'], [view.scrollDOM, 'wheel'],
+                [view.contentDOM, 'keydown'], [view.contentDOM, 'beforeinput'],
+                [view.contentDOM, 'input'], [view.contentDOM, 'compositionstart'],
+                [view.contentDOM, 'compositionupdate'], [view.contentDOM, 'compositionend'],
+            ];
+            events.forEach(([target, event]) => target?.addEventListener(event, activity, { passive: true }));
+            return () => {
+                if (pendingViewActivity.get(view) === activity) pendingViewActivity.delete(view);
+                events.forEach(([target, event]) => target?.removeEventListener(event, activity));
+            };
         },
-    };
+    });
 }
 
 function createDiagramWidget(WidgetType, renderQueue) {
@@ -381,15 +345,45 @@ function createDiagramWidget(WidgetType, renderQueue) {
                 this.createDiagramResizeHandle(view, wrapper);
                 this.applyDiagramHeight(wrapper, this.diagramHeight);
             }
-            this.renderTask = renderQueue.enqueue(
-                () => this.renderInto(content, wrapper),
-                view,
-            );
+            const requestRender = () => {
+                if (this.destroyed) return;
+                const version = ++this.renderVersion;
+                this.renderTask?.cancel?.();
+                this.renderTask = renderQueue.enqueue(() => this.renderInto(content, wrapper, version), view);
+            };
+            // Container width and appearance are render inputs, even while the
+            // source remains unchanged. Invalidate pending output immediately;
+            // generate its replacement through the same quiet queue.
+            let width = vegaRenderDimensions(content.clientWidth || wrapper.clientWidth).width;
+            let responsive = false;
+            if (this.lang !== 'mermaid') {
+                try { responsive = vegaUsesContainerSize(JSON.parse(this.code)); } catch (_) { /* render reports malformed source */ }
+            }
+            const resize = responsive && typeof ResizeObserver === 'function'
+                ? new ResizeObserver(() => {
+                    const next = vegaRenderDimensions(content.clientWidth || wrapper.clientWidth).width;
+                    if (next === width) return;
+                    width = next;
+                    requestRender();
+                }) : null;
+            resize?.observe(content);
+            const doc = content.ownerDocument;
+            doc.addEventListener('figaro:appearance-changed', requestRender);
+            doc.fonts?.addEventListener('loadingdone', requestRender);
+            doc.fonts?.addEventListener('loadingerror', requestRender);
+            this.stopRenderObservation?.();
+            this.stopRenderObservation = () => {
+                resize?.disconnect();
+                doc.removeEventListener('figaro:appearance-changed', requestRender);
+                doc.fonts?.removeEventListener('loadingdone', requestRender);
+                doc.fonts?.removeEventListener('loadingerror', requestRender);
+            };
+            requestRender();
             return wrapper;
         }
 
-        async renderInto(container, root) {
-            const version = ++this.renderVersion;
+        async renderInto(container, root, version = ++this.renderVersion) {
+            if (this.destroyed || version !== this.renderVersion) return;
 
             try {
                 const svg = await renderDiagramSVG(this.lang, this.code, 'figaro-live-diagram', {
@@ -428,6 +422,7 @@ function createDiagramWidget(WidgetType, renderQueue) {
             this.destroyed = true;
             this.renderVersion++;
             this.renderTask?.cancel?.();
+            this.stopRenderObservation?.();
             this.stopGraphicFit?.();
         }
     };
@@ -564,6 +559,11 @@ export function createDiagramField(StateField, EditorView, Decoration, WidgetTyp
             )) return buildState(transaction.state);
             return value;
         },
-        provide: field => EditorView.decorations.from(field, value => value.decorations),
+        provide: field => [
+            EditorView.decorations.from(field, value => value.decorations),
+            EditorView.updateListener.of(update => {
+                if (update.docChanged) pendingViewActivity.get(update.view)?.();
+            }),
+        ],
     });
 }

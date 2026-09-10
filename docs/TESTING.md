@@ -232,7 +232,10 @@ bridge, show the shortcut hint, and never route a vault Markdown target there.
 Its URL-labelled rendered-link case makes pointer-to-source mapping fail, so
 native replacement-widget geometry cannot prevent external activation. A
 focused real-browser case sends actual Ctrl modifiers to the rendered label and
-revealed source for that exact URL-labelled syntax.
+revealed source for that exact URL-labelled syntax. That fixture and the
+URL-over-selection clipboard/Vim/context-menu fixture await `setEditorContent()`
+completion before placing the caret or entering Visual mode; an animation frame
+does not acknowledge the separately scheduled document replacement.
 `tests/frontend/unit/editor.test.js` owns the assembled DOM distinction between
 unresolved source and a defined reference widget. The one
 representative `tests/e2e/editorUX.spec.js` workflow verifies the unresolved
@@ -1687,12 +1690,28 @@ gesture. Pointer cancellation must restore the starting frame, preserve source,
 and add no history item; a press/release without geometry movement must likewise
 leave source and history untouched.
 
-Mermaid virtualization has a separate performance contract. The pure
-`diagramRenderCacheModel.test.js` suite covers normalized source keys and SVG
-id rebasing, `diagramRenderQueue.test.js` covers serialized work and
-cancellation, and `diagramRenderer.test.js` covers cached and concurrent
-same-source renders plus separation between temporary application-themed and
-authored printable Mermaid source. The focused Mermaid and PDF browser
+Diagram virtualization has a separate performance contract.
+`diagramRenderCacheModel.test.js` covers source, geometry/font/appearance keys,
+external/volatile-data bypass and local SVG references. `diagramOutputReuse.test.js`
+counts unchanged revisits and genuine edits, bounds completed/pending retention,
+and rejects cache publication after invalidation. `diagramRenderQueue.test.js`
+proves serialization/cancellation; `diagramQuietScheduler.test.js` injects timers,
+idle callbacks and activity to prove continuous typing/scroll deferral, a keystroke
+after idle was queued, cancellation races and composition timeout behavior.
+`diagramRenderer.test.js` covers real DOM adapters with counted Mermaid/Vega
+ports, per-mount SVG IDs, theme/font/size changes and connected render targets.
+`liveDiagramPlugin.test.js` uses real CodeMirror for DOM and transaction-driven
+input, resized/changed appearances, stale publication and observer disposal.
+`graphicFootprintObservation.test.js` proves resize fitting is coalesced outside
+observer delivery and disposed callbacks cannot measure old graphics. It also
+checks that restored-note source rulers wait outside observer delivery and
+coalesce resize notifications while source replacement measurements remain
+available before paint.
+`tabPresentationModel.test.js` covers displayed-state projection; `tabManager.test.js`
+proves text/caret publications preserve DOM/focus and avoid overflow reads while
+state remains current, and exercises genuine resize, dirty/save and tab changes.
+
+The focused Mermaid and PDF browser
 regressions compare the computed live canvas/connector paint and prove that a
 preceding application render cannot contaminate printable output. The browser regression in
 `tests/e2e/vimVisualRows.spec.js` scrolls through a long note with repeated
@@ -2510,6 +2529,23 @@ service tests prove the exact archived contents, ignored-file inclusion, and
 unrelated-index isolation; root-scoped desktop tests prove removal occurs only
 after a recoverable revision exists. Do not duplicate this deterministic
 contract in Playwright.
+
+`tabNavigationModel.test.js` proves that close/delete activation returns the
+most recent surviving ID and consumes history without mutating inputs, skips
+removed entries, and falls back to a file, another tab, or Home.
+`tabManager.test.js` reproduces three saved notes, returns to the first,
+deletes its tab after filesystem success, verifies the surviving active tab and
+editor mount agree, and closes both remaining buffers to Home without writes
+to the deleted path. Repeat that sequence in the packaged native webview:
+confirm deletion in the file tree, edit/save the selected survivor, then use
+Ctrl/Cmd+W and the close button. The deleted text must not remain editable;
+Git must retain its saved version and the other files must remain intact.
+
+On 10 September 2026, that sequence passed in a fresh production-tagged
+WebKitGTK 2.52.6 build on hidden Weston with a disposable vault. Native disk
+and Git checks confirmed the survivor's new text was saved and the deleted
+note's original text remained in history. The run used injected DOM events and
+CodeMirror transactions; Windows/WebView2 and macOS/WKWebView remain unverified.
 
 ## External Markdown launch regressions
 
@@ -3372,3 +3408,27 @@ selection in both directions, Mermaid control hover/departure, 20 edits without
 control flashing, exact source preservation, and current gutter offsets. The
 headless software renderer does not measure physical input latency or establish
 Windows/WebView2 performance.
+
+### Chart-heavy editing performance verification
+
+The dated measurements and remaining platform limits are recorded in
+[Editor performance verification](EDITOR_PERFORMANCE.md).
+
+Use equivalent 10,000-word fixtures with 100 internal references and 25 Mermaid,
+Vega, Vega-Lite or managed charts, plus references-only and ordinary-image controls.
+Enable Figaro Dark, visual navigation, sticky headings, block guides, activity dates,
+line numbers and Markdown lint. Compare lenses disabled and enabled. Separate cold
+scrolling, deliberate visits, return scrolling, sustained typing/Backspace, and
+editing with Outline and Writing lenses panes open. Count renderer starts and tab
+replacements, record editor work and frame gaps, and verify exact source restoration.
+Cold-input coverage must send key/input events or CodeMirror transactions while a
+previously unseen diagram is queued, then prove deferred work resumes after quiet.
+A timer or idle timeout cannot authorize rendering during active composition.
+
+Keep policy and renderer-work counts below the browser; do not use millisecond
+latency thresholds in CI. Extend the existing Chart Editor geometry workflow for
+responsive width, preserving the cursor/drag/resize checks. Repeat native Welcome
+line 23 Up/Down, arrows into each changed diagram type from both directions, mouse
+placement and drag selection around source replacements in the packaged webview.
+Windows WebView2 must be measured on the affected laptop: Linux and Chromium
+results cannot certify its physical input latency, WebView2 version or compositor.

@@ -91,6 +91,8 @@ changes. Optional margin dates open Activity directly; enable them under
 
 Deleting a vault item bypasses the system Trash. Figaro first saves affected
 editors and records the item in local history. If that fails, deletion stops.
+Successful deletion closes the affected tabs. If the active note was deleted,
+Figaro selects the most recently used remaining tab, or Home when none remain.
 Use the status bar's **Undo** immediately after deletion, or open
 **Settings → Vault care → Recently deleted** later. Restore refuses to overwrite
 an item that now occupies the original path.

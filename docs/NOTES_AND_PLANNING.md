@@ -28,6 +28,10 @@ Use F2 to rename, Delete for the recovery-aware deletion confirmation, and
 Ctrl/Cmd+X, C, or V to cut, copy, and paste. Ctrl/Cmd-click or keyboard Space
 selects multiple internal files and folders. Escape cancels a pending cut.
 
+Deleting an open note closes its tab. If it was active, Figaro returns to the
+most recently used remaining tab, or Home when none remain. You can continue
+editing, saving, and closing the remaining notes normally.
+
 When renaming a referenced note, Figaro asks what to do with incoming Markdown
 links. Update them, keep their authored destinations, or cancel. Folder moves
 preserve links. **Merge Notes** needs at least two Markdown notes selected in

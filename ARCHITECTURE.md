@@ -571,6 +571,11 @@ module evaluation. Dialog decisions are passed as ports instead of published on
 not recover composition-root access through an import loop.
 
 `tabManager.js` is the sole owner of workspace tab records.
+`core/tabPresentationModel.js` projects only visible tab properties for rail
+invalidation. Text, caret, mtime and generation publications preserve tab DOM and
+skip overflow measurement; dirty/save, title/path, order, pinning and active-tab
+changes still update it. The existing resize observer owns geometry changes.
+Save/session state publications remain synchronous and independent of this guard.
 `core/workspaceTabModel.js` returns immutable edit, content, cursor, temporary
 text-scale, restore, and save-generation transitions; CodeMirror and startup call those owner ports
 instead of mutating objects obtained from `state.js`. Save snapshots carry
@@ -1180,6 +1185,14 @@ unrelated staged entries and restores the prior index if staging or commit
 fails. Any preparation, archive, or registry error aborts removal, so the
 recorded bytes and filesystem deletion cannot be reordered by another Figaro
 mutation.
+
+After successful deletion, tab removal uses the same pure
+`core/tabNavigationModel.js` close-navigation plan as ordinary tab closing.
+The plan returns a surviving tab ID and the remaining activation history;
+`tabManager.js` owns the state update and editor activation. It prefers the
+most recently used surviving tab, then a remaining file, then another tab;
+the empty workspace shows Home. The adapter passes the ID directly so the
+deleted document cannot remain editable without a corresponding open tab.
 
 Recovery reverses that coordinator without treating Git as a filesystem API.
 The history adapter reads regular-file and symlink blobs from the exact commit;
@@ -2310,14 +2323,35 @@ not. Explicit Mermaid styling bypasses the transformation. Because the
 transformed source is the cache input, application and printable SVGs cannot
 alias even though they retain one shared render engine.
 
-Mermaid's render-performance seam keeps the cache policy in the pure
-`core/diagramRenderCacheModel.js` module. The shared renderer owns a bounded
-source-keyed LRU and in-flight promise map, and rebases generated SVG ids each
-time cached output is mounted so editor and printable consumers can share the
-result safely. The live-diagram adapter injects
-`usecases/diagramRenderQueue.js`; its browser scheduling port waits for a
-scroll-quiet interval and an idle opportunity, while queue ordering and
-cancellation remain testable without DOM or timers.
+Diagram render identity and reusable-input policy live in pure
+`core/diagramRenderCacheModel.js`. Mermaid retains its 64-entry SVG LRU and
+in-flight coalescing. Vega/Vega-Lite use `usecases/diagramOutputReuse.js`, with an
+injected renderer, a 64-entry LRU and a budget of 4,194,304 UTF-16 code units for retained
+keys and SVGs (about 8 MiB of UTF-16 payload). Pending-key retention is also bounded.
+Vega keys include effective source/configuration, normalized container dimensions,
+and font identity/loading generation. External URLs/images and expressions reading time, randomness or window/screen
+state bypass reuse; failures and empty output are retryable. Font completion
+or a replaced engine clears entries and prevents earlier work from repopulating
+them. The DOM adapter rewrites generated SVG IDs and local references per mount,
+without replacing label text or external links. Printable and live callers share
+this renderer, with separate effective appearance/geometry inputs.
+
+The live adapter injects `usecases/diagramRenderQueue.js` and
+`usecases/diagramQuietScheduler.js`. The scheduler waits 120 ms after key/input,
+composition, wheel or scroll activity, then requests idle execution. New input
+revokes an already queued idle slot; composition also blocks timeout execution.
+Timer, idle, activity-observation and composition ports are injected. A running
+DOM renderer is still main-thread work and cannot be preempted. Source changes,
+widget disposal, container resizing and appearance/font changes reject stale
+results immediately; replacements use the same quiet queue. Graphic fitting coalesces resize
+notifications into the next animation frame, outside observer delivery, and
+cancels measurements on disposal. Source-height rulers defer resize-originated requests outside observer delivery;
+source/mount changes still measure before paint to preserve replacement height.
+Source-footprint geometry and the inline SVG
+representation remain unchanged.
+
+Measured tab, inline-SVG and native workload results are recorded in
+[Editor performance verification](docs/EDITOR_PERFORMANCE.md).
 
 The focused Mermaid Editor reuses that adapter without adding another rendering
 path. The configured Markdown-guide extension adds an **editor** action beneath

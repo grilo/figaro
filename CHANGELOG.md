@@ -10,6 +10,23 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.40.0] - 2026-09-10
+
+### Fixed
+
+- Deleting the active note switches to the most recently used remaining tab,
+  keeping editing, saving, and closing attached to the correct file instead of
+  leaving an editable deleted note on screen.
+
+- Typing and moving the caret no longer rebuild the tab strip or force its layout,
+  improving editing responsiveness in long notes with diagrams and charts.
+- Unchanged Vega and Vega-Lite charts reuse bounded preview output when revisited.
+  Source edits, appearance changes, and container resizing refresh the chart.
+- Diagram rendering waits for a pause in typing or scrolling, including text
+  composition, and discards results that became outdated while rendering.
+- Restoring scrolled notes and resizing charts defer source-height and graphic
+  measurements outside resize-observer delivery, avoiding repeated layout work.
+
 ## [1.39.0] - 2026-09-10
 
 ### Changed
@@ -2247,7 +2264,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.39.0...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.40.0...HEAD
+[1.40.0]: https://github.com/grilo/figaro/compare/v1.39.0...v1.40.0
 [1.39.0]: https://github.com/grilo/figaro/compare/v1.38.3...v1.39.0
 [1.38.3]: https://github.com/grilo/figaro/compare/v1.38.2...v1.38.3
 [1.38.2]: https://github.com/grilo/figaro/compare/v1.38.1...v1.38.2

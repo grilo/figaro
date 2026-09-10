@@ -18,6 +18,16 @@ export function titleBarTabs(tabs = []) {
     return tabs.filter(tab => !isSidebarWorkspaceTab(tab));
 }
 
+/** Only visible tab state invalidates the rail; never inspect document text. */
+export function tabBarRenderKey(tabs, activeId, pinned = []) {
+    return JSON.stringify([
+        activeId,
+        titleBarTabs(tabs).map(tab => [
+            tab.id, tab.type, tab.title, tab.path, Boolean(tab.dirty), pinned.includes(tab.id),
+        ]),
+    ]);
+}
+
 export function tabLocationLabel(tab) {
     const path = normalizedPath(tab?.path);
     if (!path) return '';

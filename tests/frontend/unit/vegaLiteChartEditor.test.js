@@ -21,9 +21,9 @@ const tableSource = [
     '| Feb | 56 | 24 |',
 ].join('\n');
 
-const flush = async () => {
-    for (let index = 0; index < 8; index += 1) await Promise.resolve();
-};
+// Let the complete asynchronous renderer/use-case chain settle, without
+// depending on how many Promise continuations the renderer uses internally.
+const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('Vega-Lite Chart Editor dialog', () => {
     let view;
@@ -138,6 +138,7 @@ describe('Vega-Lite Chart Editor dialog', () => {
             .mockImplementationOnce(() => new Promise(resolve => { finishLatest = resolve; }));
 
         const dialog = openTable();
+        await flush();
         dialog.overlay.querySelector('[data-chart-orientation="horizontal"]').click();
         dialog.overlay.querySelector('[data-chart-orientation="vertical"]').click();
         dialog.overlay.querySelector('[data-chart-orientation="horizontal"]').click();

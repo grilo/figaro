@@ -2,10 +2,28 @@ import {
     compactTabTitle,
     tabAccessibleLabel,
     tabLocationLabel,
+    tabBarRenderKey,
     titleBarTabs,
 } from '../frontend/js/core/tabPresentationModel.js';
 
 describe('tab presentation', () => {
+    test('tab invalidation ignores editing metadata but includes every displayed property and order', () => {
+        const tab = { id: 'a', type: 'file', title: 'A', path: 'A.md', dirty: true };
+        const key = tabBarRenderKey([tab], 'a', []);
+        expect(tabBarRenderKey([{ ...tab, _content: 'new text', _editGeneration: 8,
+            cursorState: { anchor: 7, head: 8 }, mtime: 90 }], 'a', [])).toBe(key);
+        for (const patch of [{ id: 'b' }, { type: 'settings' }, { title: 'B' },
+            { path: 'folder/A.md' }, { dirty: false }]) {
+            expect(tabBarRenderKey([{ ...tab, ...patch }], 'a', [])).not.toBe(key);
+        }
+        expect(tabBarRenderKey([tab], 'b', [])).not.toBe(key);
+        expect(tabBarRenderKey([tab], 'a', ['a'])).not.toBe(key);
+        const second = { ...tab, id: 'b' };
+        expect(tabBarRenderKey([tab, second], 'a', []))
+            .not.toBe(tabBarRenderKey([second, tab], 'a', []));
+        expect(tabBarRenderKey([tab, { id: 'kanban', type: 'kanban', title: 'Board' }], 'a', []))
+            .toBe(key);
+    });
     test('keeps every sidebar-owned workspace out of the title-bar tab rail', () => {
         const tabs = [
             { id: 'notes/plan.md', type: 'file' },

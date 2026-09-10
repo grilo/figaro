@@ -730,6 +730,13 @@ the assembled webview rather than one JavaScript package in isolation.
   choices must also preserve focus; an open palette must survive preview
   refreshes, Escape must close it before the dialog, and closing the dialog
   must clean it up.
+- Changes to diagram performance must preserve bounded source/output reuse,
+  external-data refresh, per-mount SVG references, font/theme/size invalidation,
+  and cancellation during typing or composition. Put work-count and injected
+  scheduling assertions below the browser. Keep tab text/caret publications
+  independent of tab DOM reconstruction and overflow measurements. Repeat
+  responsive-chart and cursor geometry checks on the native webview; use recorded
+  workloads rather than timing thresholds in CI.
 - A tab-size change must keep the pure 2–8/default/step rules, backend restart
   persistence, Settings rollback and bounds, root Markdown and code facets,
   Vim `>`, Mermaid, rendered GFM tables, rendered-code, Raw Text Preview, Arrow Up/Down,

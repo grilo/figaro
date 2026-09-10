@@ -46,6 +46,69 @@ describe('live diagram preview', () => {
         delete window.vegaEmbed;
     });
 
+    function mountPreview(language = 'vega-lite') {
+        const diagramField = createDiagramField(StateField, EditorView, Decoration, WidgetType,
+            () => false, mouseSelectingField);
+        view = new EditorView({ state: EditorState.create({
+            doc: ['Before', '', '```' + language,
+                language === 'mermaid' ? 'flowchart TD\n A --> B' : '{"width":"container","mark":"bar"}',
+                '```', '', 'After'].join('\n'),
+            extensions: [markdownLanguage, mouseSelectingField, diagramField],
+        }), parent: document.body });
+        return view.dom.querySelector('.cm-live-diagram-view');
+    }
+
+    test('diagram adapter postpones pending rendering during repeated key input and releases it after quiet', async () => {
+        jest.useFakeTimers();
+        window.vegaEmbed = jest.fn().mockResolvedValue({ view: {
+            toSVG: async () => '<svg viewBox="0 0 40 30"/>', finalize() {},
+        } });
+        try {
+            const container = mountPreview();
+            for (let i = 0; i < 15; i++) {
+                if (i < 7) view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
+                else view.dispatch({ changes: { from: 0, insert: 'x' }, userEvent: 'input.type' });
+                await jest.advanceTimersByTimeAsync(33);
+            }
+            expect(window.vegaEmbed).not.toHaveBeenCalled();
+            await jest.advanceTimersByTimeAsync(150);
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(1);
+            expect(container.querySelector('svg')).not.toBeNull();
+        } finally { view.destroy(); jest.useRealTimers(); }
+    });
+
+    test('Vega preview rejects late output after appearance/width changes and disconnects observation on destroy', async () => {
+        jest.useFakeTimers();
+        let finishOld;
+        window.vegaEmbed = jest.fn().mockImplementationOnce(() => new Promise(resolve => {
+            finishOld = () => resolve({ view: { toSVG: async () => '<svg data-version="old" viewBox="0 0 40 30"/>', finalize() {} } });
+        })).mockResolvedValue({ view: { toSVG: async () => '<svg data-version="new" viewBox="0 0 40 30"/>', finalize() {} } });
+        const resizeCallbacks = [];
+        const observer = jest.spyOn(window, 'ResizeObserver').mockImplementation(callback => ({
+            observe: element => { if (element.classList?.contains('cm-live-diagram-view')) resizeCallbacks.push(callback); },
+            disconnect: jest.fn(),
+        }));
+        try {
+            const container = mountPreview();
+            Object.defineProperty(container, 'clientWidth', { configurable: true, value: 700 });
+            await jest.advanceTimersByTimeAsync(150);
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(1);
+            document.dispatchEvent(new CustomEvent('figaro:appearance-changed'));
+            Object.defineProperty(container, 'clientWidth', { configurable: true, value: 800 });
+            resizeCallbacks[0]();
+            finishOld(); await jest.advanceTimersByTimeAsync(50);
+            expect(container.querySelector('[data-version="old"]')).toBeNull();
+            await jest.advanceTimersByTimeAsync(150);
+            expect(container.querySelector('[data-version="new"]')).not.toBeNull();
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
+            expect(window.vegaEmbed.mock.calls[1][0].style.width).toBe('800px');
+            view.destroy();
+            document.dispatchEvent(new CustomEvent('figaro:appearance-changed'));
+            await jest.advanceTimersByTimeAsync(500);
+            expect(window.vegaEmbed).toHaveBeenCalledTimes(2);
+        } finally { observer.mockRestore(); jest.useRealTimers(); }
+    });
+
     test('owns diagram fences while the standard code preview renders other fences', async () => {
         const fence = '`'.repeat(3);
         const source = [

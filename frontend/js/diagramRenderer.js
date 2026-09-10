@@ -15,7 +15,11 @@ import {
 import {
     diagramRenderCacheKey,
     rebaseDiagramSvgIds,
+    rebaseSvgAttribute,
+    vegaRenderCacheKey,
+    vegaRenderDimensions,
 } from './core/diagramRenderCacheModel.js';
+import { createDiagramOutputReuse } from './usecases/diagramOutputReuse.js';
 
 export const diagramLanguages = ['mermaid', 'vega', 'vega-lite'];
 
@@ -25,6 +29,10 @@ const DIAGRAM_RENDER_CACHE_LIMIT = 64;
 const diagramRenderCache = new Map();
 const pendingDiagramRenders = new Map();
 let mermaidJob = Promise.resolve();
+let initializedVega = null;
+let observedFonts = null;
+let fontGeneration = 0;
+const vegaOutput = createDiagramOutputReuse({ render: renderVegaOutput });
 
 // Mermaid's parsers share theme/configuration state. Keep inspection and its
 // snapshot atomic with respect to all other validation/render requests.
@@ -107,7 +115,7 @@ async function renderMermaidSVG(code, idPrefix) {
 export function initializeDiagramRenderers() {
     return {
         mermaid: initialiseMermaid(),
-        vega: typeof window !== 'undefined' && typeof window.vegaEmbed === 'function',
+        vega: initialiseVega(),
     };
 }
 
@@ -224,10 +232,8 @@ function applicationThemedMermaidSource(source) {
     }).source;
 }
 
-function createVegaRenderTarget(containerWidth, chartHeight) {
+function createVegaRenderTarget({ width, height }) {
     const target = document.createElement('div');
-    const width = Math.min(1600, Math.max(320, Math.round(Number(containerWidth) || 640)));
-    const height = Math.min(1200, Math.max(360, Math.round(Number(chartHeight) || 340) + 80));
     target.dataset.figaroVegaRenderTarget = 'true';
     target.setAttribute('aria-hidden', 'true');
     target.style.position = 'fixed';
@@ -240,6 +246,57 @@ function createVegaRenderTarget(containerWidth, chartHeight) {
     target.style.pointerEvents = 'none';
     (document.body || document.documentElement).append(target);
     return target;
+}
+
+function initialiseVega() {
+    const embed = typeof window !== 'undefined' ? window.vegaEmbed : null;
+    if (typeof embed !== 'function') return false;
+    if (initializedVega !== embed) {
+        vegaOutput.clear();
+        initializedVega = embed;
+    }
+    if (typeof document !== 'undefined' && document.fonts && observedFonts !== document.fonts) {
+        observedFonts = document.fonts;
+        observedFonts.addEventListener('loadingdone', () => {
+            fontGeneration++;
+            vegaOutput.clear();
+        });
+        observedFonts.addEventListener('loadingerror', () => {
+            fontGeneration++;
+            vegaOutput.clear();
+        });
+    }
+    return true;
+}
+
+async function renderVegaOutput({ language, spec, dimensions, embed }) {
+    // Connected geometry is required for portable width: "container" in WebKit.
+    const target = createVegaRenderTarget(dimensions);
+    let result;
+    try {
+        result = await embed(target, spec, { mode: language, actions: false, renderer: 'svg' });
+        if (typeof result?.view?.toSVG !== 'function') return null;
+        return assertRenderableVegaSVG(await result.view.toSVG());
+    } finally {
+        try { result?.view?.finalize?.(); } finally { target.remove(); }
+    }
+}
+
+function uniqueVegaSvg(svg, idPrefix) {
+    if (!svg) return svg;
+    const host = document.createElement('template');
+    host.innerHTML = svg;
+    const prefix = `${String(idPrefix || 'figaro-diagram').replace(/[^\w-]/gu, '-')}-vega-${++renderSequence}`;
+    const ids = new Map([...host.content.querySelectorAll('[id]')]
+        .map((element, index) => [element.id, `${prefix}-${index}`]));
+    if (!ids.size) return svg;
+    for (const element of host.content.querySelectorAll('*')) {
+        for (const attribute of [...element.attributes]) {
+            const value = rebaseSvgAttribute(attribute.name, attribute.value, ids);
+            if (value !== attribute.value) attribute.value = value;
+        }
+    }
+    return host.innerHTML;
 }
 
 function assertRenderableVegaSVG(svg) {
@@ -274,31 +331,22 @@ export async function renderDiagramSVG(language, source, idPrefix = 'figaro-diag
     }
 
     if ((normalizedLanguage === 'vega' || normalizedLanguage === 'vega-lite') &&
-        typeof window !== 'undefined' &&
-        typeof window.vegaEmbed === 'function' &&
+        initialiseVega() &&
         typeof document !== 'undefined') {
         const authoredSpec = JSON.parse(code);
         const spec = options.appearance === 'application'
             ? applicationThemedVegaSpec(authoredSpec)
             : authoredSpec;
-        // Keep the target in the live document while Vega measures a portable
-        // `width: "container"` spec. WebKitGTK reports zero geometry for the
-        // equivalent detached node even when it has an inline width.
-        const target = createVegaRenderTarget(options.containerWidth, spec.height);
-        let result;
-
-        try {
-            result = await window.vegaEmbed(target, spec, {
-                mode: normalizedLanguage === 'vega-lite' ? 'vega-lite' : 'vega',
-                actions: false,
-                renderer: 'svg',
-            });
-            if (typeof result?.view?.toSVG !== 'function') return null;
-            return assertRenderableVegaSVG(await result.view.toSVG());
-        } finally {
-            result?.view?.finalize?.();
-            target.remove();
-        }
+        const dimensions = vegaRenderDimensions(options.containerWidth, spec.height);
+        const fonts = [fontGeneration, document.fonts?.status,
+            getComputedStyle(document.documentElement).font,
+            cssThemeValue('--font-editor', ''), cssThemeValue('--font-ui', '')];
+        const key = document.fonts?.status === 'loading' ? null
+            : vegaRenderCacheKey(normalizedLanguage, spec, dimensions, fonts);
+        const svg = await vegaOutput.render(key, {
+            language: normalizedLanguage, spec, dimensions, embed: window.vegaEmbed,
+        });
+        return uniqueVegaSvg(svg, idPrefix);
     }
 
     return null;

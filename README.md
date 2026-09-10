@@ -49,7 +49,10 @@ Backlinks show which notes mention the current one. The graph gives you
 another way to explore those connections.
 
 Keep several notes open in tabs, and middle-click a tab to close it. Figaro asks
-before discarding unsaved changes.
+before discarding unsaved changes. Typing and moving the caret keep the tab strip
+stable, including in long notes with charts.
+Deleting the active note from the file tree closes its tab and returns to the
+most recently used remaining tab. Closing the final tab returns to Home.
 
 Use **Document outline** to jump through a long note. Selecting a heading brings
 it to the top of the editor, with its section ready to read below it.
@@ -104,7 +107,8 @@ also lists the log folders you can open directly.
 
 Build a table, sketch a Mermaid diagram, or turn a table into a chart without
 leaving your note. Figaro renders these alongside your writing and carries them
-into PDF output.
+into PDF output. Unchanged chart previews are reused when you return to them,
+and pending diagrams wait for a pause in typing or scrolling.
 
 ![A library proposal beside its styled PDF preview in Figaro](docs/images/figaro-pdf.png)
 

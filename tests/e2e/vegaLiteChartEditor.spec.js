@@ -418,6 +418,22 @@ test('converts a simple table into a themed, complete chart and resizes it as on
     const chart = page.locator('.cm-block-widget--figaro-chart');
     await expect(chart).toBeVisible();
     await expect(chart.locator('svg')).toBeVisible();
+    // Browser-only boundary: connected container measurement and cached SVG
+    // replacement must preserve visible chart geometry after a pane/viewport resize.
+    const originalViewport = page.viewportSize();
+    const beforeWidth = await chart.locator('.cm-live-diagram-view').evaluate(element => element.clientWidth);
+    const originalChartSource = await page.evaluate(() => window.__chartEditorView.state.doc.toString());
+    await page.setViewportSize({ width: originalViewport.width - 220, height: originalViewport.height });
+    await expect.poll(() => chart.locator('.cm-live-diagram-view').evaluate(element => element.clientWidth))
+        .toBeLessThan(beforeWidth);
+    await expect.poll(() => chart.locator('svg').evaluate(svg => {
+        const viewport = svg.parentElement.getBoundingClientRect();
+        const bounds = svg.getBoundingClientRect();
+        return bounds.width > 0 && bounds.height > 0 && bounds.width <= viewport.width + 1;
+    })).toBe(true);
+    await page.setViewportSize(originalViewport);
+    await expect.poll(() => chart.locator('.cm-live-diagram-view').evaluate(element => element.clientWidth)).toBe(beforeWidth);
+    expect(await page.evaluate(() => window.__chartEditorView.state.doc.toString())).toBe(originalChartSource);
     const documentPaint = await chartPaintReport(chart, '.cm-live-diagram', authoredColor);
     expect(documentPaint.matchingPaint).toBeGreaterThan(0);
     expect(documentPaint.expectedPaint).toBe(previewPaint.expectedPaint);

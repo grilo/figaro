@@ -126,13 +126,21 @@ export const sourceFootprintExtension = ViewPlugin.fromClass(class {
     constructor(view) {
         this.view = view;
         this.scheduled = false;
+        this.resizeFrame = null;
         this.width = 0;
         this.resizeObserver = typeof ResizeObserver === 'function'
             ? new ResizeObserver(entries => {
                 const width = entries[0]?.contentRect?.width || view.contentDOM.clientWidth;
                 if (Math.abs(width - this.width) < 0.5) return;
                 this.width = width;
-                this.schedule();
+                if (this.resizeFrame !== null) return;
+                // Ruler writes must not run inside ResizeObserver delivery.
+                // Mount/source changes still measure before the next paint so
+                // a revealed block and its replacement retain equal height.
+                this.resizeFrame = view.dom.ownerDocument.defaultView.requestAnimationFrame(() => {
+                    this.resizeFrame = null;
+                    this.schedule();
+                });
             })
             : null;
         this.resizeObserver?.observe(view.contentDOM);
@@ -166,6 +174,7 @@ export const sourceFootprintExtension = ViewPlugin.fromClass(class {
     }
 
     destroy() {
+        if (this.resizeFrame !== null) this.view.dom.ownerDocument.defaultView.cancelAnimationFrame(this.resizeFrame);
         this.resizeObserver?.disconnect();
         this.mutationObserver?.disconnect();
     }
@@ -198,9 +207,19 @@ function contentBoxSize(element) {
  */
 export function fitGraphicToSourceFootprint(root, viewport, graphic) {
     observers.get(root)?.disconnect?.();
+    const win = root.ownerDocument.defaultView;
+    let frame = null;
+    let stopped = false;
+    let observer = null;
+    const registration = { disconnect: () => {
+        stopped = true;
+        if (frame !== null) win.cancelAnimationFrame(frame);
+        observer?.disconnect();
+        if (observers.get(root) === registration) observers.delete(root);
+    } };
 
     const fit = () => {
-        if (!root.isConnected) return;
+        if (stopped || !root.isConnected) return;
         graphic.style.removeProperty('transform');
         const available = contentBoxSize(viewport);
         const content = elementSize(graphic);
@@ -219,15 +238,20 @@ export function fitGraphicToSourceFootprint(root, viewport, graphic) {
 
     queueMicrotask(fit);
     if (typeof ResizeObserver === 'function') {
-        const observer = new ResizeObserver(fit);
+        // Fitting changes SVG geometry. Defer writes out of ResizeObserver's
+        // delivery cycle so responsive chart replacement cannot recurse there.
+        observer = new ResizeObserver(() => {
+            if (stopped || frame !== null) return;
+            frame = win.requestAnimationFrame(() => {
+                frame = null;
+                fit();
+            });
+        });
         observer.observe(root);
         observer.observe(graphic);
-        observers.set(root, observer);
     }
-    return () => {
-        observers.get(root)?.disconnect?.();
-        observers.delete(root);
-    };
+    observers.set(root, registration);
+    return registration.disconnect;
 }
 
 /** Recompute fixed slots after CodeMirror's configured line height changes. */

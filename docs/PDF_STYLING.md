@@ -330,3 +330,12 @@ exception is the bottom-center physical number emitted by `page-numbers: true`
 on Chromium 131 or newer. Customize it through the three
 `--figaro-page-number-*` variables above; do not rely on custom `@top-*` or
 `@bottom-*` margin boxes for a cross-platform Figaro PDF.
+
+### Diagram output reuse
+
+Live and printable consumers share the bounded diagram renderer. Vega/Vega-Lite
+cache identity includes the effective specification, appearance, container size
+and font generation; cached SVG IDs and local references are unique per mount.
+External-data specifications bypass reuse. PDF preview and generated PDFs retain
+their existing authored appearance and sizing; the editor's typing/scroll quiet
+scheduler does not delay printable rendering.

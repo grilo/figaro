@@ -87,7 +87,7 @@ jest.mock('../frontend/js/drawio.js', () => ({
     renderDrawioTab: jest.fn().mockResolvedValue(),
 }));
 
-import { state, setState, getState } from '../frontend/js/state.js';
+import { state, setState, getState, subscribe } from '../frontend/js/state.js';
 import { getEditorView, getEditorContent, getEditorDocumentTabId, setEditorContent, focusEditor, saveCursorState } from '../frontend/js/editor.js';
 import { initSettingsPanel } from '../frontend/js/theme.js';
 import { createGraphView } from '../frontend/js/graphView.js';
@@ -106,6 +106,7 @@ import {
     getActiveTab, 
     markTabDirty, 
     recordTabEdit,
+    recordTabContent,
     recordTabCursor,
     updateTabTitle,
     reorderTab,
@@ -1112,6 +1113,45 @@ describe('Tab Manager', () => {
             expect(getState('pinnedTabs')).toEqual(['archive/notes/diagram.drawio.svg']);
         });
 
+        test('deleting the active saved file among three notes activates the previous buffer and lets both survivors close', async () => {
+            const paths = ['delete-first.md', 'delete-second.md', 'delete-third.md'];
+            const readFile = window.go.desktop.App.ReadFile;
+            const originalRead = readFile.getMockImplementation();
+            readFile.mockImplementation(async path => ({ path, content: `Saved ${path}`, mtime: 1000 }));
+            try {
+                for (const path of paths) {
+                    openTab(path, path, 'file', { path });
+                    await testUtils.waitFor(0);
+                    await saveFileSnapshot(getActiveTab(), `Saved ${path}`);
+                }
+                await switchTab(paths[0]);
+                expect(getActiveTab().dirty).toBe(false);
+                window.go.desktop.App.SaveFileToDisk.mockClear();
+                confirmDialog.mockClear();
+
+                expect(closeTabsForDeletedPath(paths[0])).toBe(true);
+                await testUtils.waitFor(0);
+
+                expect(getState('openTabs').map(tab => tab.id)).toEqual(paths.slice(1));
+                expect(getActiveTab()?.id).toBe(paths[2]);
+                expect(document.querySelector('.tab.active')?.dataset.tabId).toBe(paths[2]);
+                expect(setEditorContent.mock.calls.at(-1).slice(0, 2)).toEqual([`Saved ${paths[2]}`, paths[2]]);
+                expect(window.go.desktop.App.SaveFileToDisk).not.toHaveBeenCalled();
+
+                await closeTab(getActiveTab().id);
+                await testUtils.waitFor(0);
+                expect(getActiveTab()?.id).toBe(paths[1]);
+                expect(setEditorContent.mock.calls.at(-1).slice(0, 2)).toEqual([`Saved ${paths[1]}`, paths[1]]);
+                await closeTab(getActiveTab().id);
+                expect(getState('openTabs')).toEqual([]);
+                expect(getActiveTab()).toBeNull();
+                expect(document.querySelector('.workspace-home-panel.active')).not.toBeNull();
+                expect(confirmDialog).not.toHaveBeenCalled();
+            } finally {
+                readFile.mockImplementation(originalRead);
+            }
+        });
+
         test('closes deleted Draw.io tabs and restores the workspace overview after the final editor tab disappears', () => {
             mockState.openTabs = [{ id: 'diagram.drawio.svg', title: 'Diagram', type: 'drawio', path: 'diagram.drawio.svg' }];
             mockState.activeTabId = 'diagram.drawio.svg';
@@ -1527,6 +1567,39 @@ describe('Tab Manager', () => {
     });
 
     describe('renderTabBar', () => {
+        test('text and caret publications preserve tab nodes and avoid overflow reads after the dirty transition', () => {
+            initTabManager();
+            const publish = subscribe.mock.calls.find(([key]) => key === 'openTabs')[1];
+            mockState.openTabs = [{ id: 'a', type: 'file', title: 'A', path: 'A.md', dirty: false }];
+            mockState.activeTabId = 'a';
+            publish();
+            const clean = document.querySelector('#tab-strip .tab');
+            recordTabEdit('a');
+            publish();
+            const dirty = document.querySelector('#tab-strip .tab');
+            expect(dirty).not.toBe(clean);
+            expect(dirty.classList.contains('dirty')).toBe(true);
+            dirty.focus();
+            const strip = document.getElementById('tab-strip');
+            const layout = jest.fn(() => 400);
+            Object.defineProperty(strip, 'scrollWidth', { configurable: true, get: layout });
+            for (let i = 1; i <= 10; i++) {
+                const tab = recordTabEdit('a');
+                publish();
+                recordTabContent('a', tab._editGeneration, `text ${i}`);
+                publish();
+                recordTabCursor('a', { anchor: i, head: i });
+                publish();
+            }
+            expect(document.querySelector('#tab-strip .tab')).toBe(dirty);
+            expect(document.activeElement).toBe(dirty);
+            expect(layout).not.toHaveBeenCalled();
+            expect(getActiveTab()).toMatchObject({ _content: 'text 10', cursorState: { anchor: 10, head: 10 } });
+            mockState.openTabs = [{ ...getActiveTab(), dirty: false }];
+            publish();
+            expect(document.querySelector('#tab-strip .tab').classList.contains('dirty')).toBe(false);
+            expect(layout).toHaveBeenCalled();
+        });
         test('should render tabs in tab strip', () => {
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
@@ -1679,6 +1752,12 @@ describe('Tab Manager', () => {
         });
 
         test('keeps newly opened and selected active tabs visible and only exposes All tabs while crowded', () => {
+            let resize;
+            const observer = jest.spyOn(window, 'ResizeObserver').mockImplementation(callback => {
+                resize = callback;
+                return { observe() {}, disconnect() {} };
+            });
+            initTabManager();
             openTab('tab1', 'Tab 1', 'file', { path: 'tab1.md' });
             openTab('tab2', 'Tab 2', 'file', { path: 'tab2.md' });
 
@@ -1702,7 +1781,7 @@ describe('Tab Manager', () => {
                 });
             try {
                 tabStrip.scrollLeft = 0;
-                renderTabBar();
+                resize();
                 expect(getState('activeTabId')).toBe('tab2');
                 expect(tabStrip.scrollLeft).toBe(220);
                 expect(allTabsButton.hidden).toBe(false);
@@ -1718,11 +1797,12 @@ describe('Tab Manager', () => {
                     clientWidth: { configurable: true, value: 500 },
                     scrollWidth: { configurable: true, value: 240 },
                 });
-                renderTabBar();
+                resize();
                 expect(allTabsButton.hidden).toBe(true);
                 expect(tabBar.classList.contains('tabs-overflow')).toBe(false);
             } finally {
                 rectSpy.mockRestore();
+                observer.mockRestore();
             }
         });
 

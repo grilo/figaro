@@ -35,7 +35,7 @@ import { initSettingsPanel } from './theme.js';
 import { isDiskFullError, isLatestSave, savedLatestEdit, saveFailureStatusMessage, saveStatusMessage } from './core/saveModel.js';
 import { activeTabScrollTarget, tabOverflowState } from './core/tabOverflowModel.js';
 import { hasTabDragStarted, reorderedTabs } from './core/tabReorderModel.js';
-import { boundedAdjacentTabId } from './core/tabNavigationModel.js';
+import { boundedAdjacentTabId, tabCloseNavigationPlan } from './core/tabNavigationModel.js';
 import {
     acknowledgeWorkspaceFileSave,
     beginWorkspaceFileLoad,
@@ -63,6 +63,7 @@ import {
     isSidebarWorkspaceTab,
     tabAccessibleLabel,
     tabLocationLabel,
+    tabBarRenderKey,
     titleBarTabs,
 } from './core/tabPresentationModel.js';
 import { createDocumentSave } from './usecases/documentSave.js';
@@ -278,20 +279,15 @@ function removeTabFromActivationHistory(tabId) {
     previousTabActivationStack = previousTabActivationStack.filter(storedId => storedId !== tabId);
 }
 
-function nextTabAfterClose(closingTabId, remainingTabs) {
-    if (!remainingTabs.length) return null;
-    const openTabIds = new Set(remainingTabs.map(tab => tab.id));
-    while (previousTabActivationStack.length) {
-        const candidateId = previousTabActivationStack.pop();
-        if (candidateId !== closingTabId && openTabIds.has(candidateId)) {
-            return candidateId;
-        }
-    }
-    return null;
-}
-
-function fallbackTabIdAfterClose(remainingTabs) {
-    return remainingTabs.find(tab => tab.type === 'file')?.id || remainingTabs[0]?.id || null;
+function nextTabIdAfterClose(closingTabId, remainingTabs, useFallback = true) {
+    const plan = tabCloseNavigationPlan({
+        closingTabId,
+        remainingTabs,
+        activationHistory: previousTabActivationStack,
+        useFallback,
+    });
+    previousTabActivationStack = plan.activationHistory;
+    return plan.tabId;
 }
 
 /**
@@ -819,7 +815,7 @@ export function toggleWorkspaceTab(id, title, type, data = {}) {
     if (active?.type === type) {
         if (type === 'settings') return closeTab(active.id, null, { animate: true });
         const previous = workspaceReturnTargets.has(type) ? workspaceReturnTargets.get(type)
-            : nextTabAfterClose(active.id, getState('openTabs'));
+            : nextTabIdAfterClose(active.id, getState('openTabs'), false);
         if (previous && getState('openTabs').some(tab => tab.id === previous)) return switchTab(previous);
         showWorkspaceHome();
         return;
@@ -1309,8 +1305,7 @@ export async function closeTab(tabId, event, { animate = false } = {}) {
         setState('activeTabId', null);
         showWorkspaceHome();
     } else if (activeId === tabId) {
-        const preferredTabId = nextTabAfterClose(tabId, newTabs) || fallbackTabIdAfterClose(newTabs);
-        switchTab(preferredTabId);
+        switchTab(nextTabIdAfterClose(tabId, newTabs));
     }
     return true;
 }
@@ -1603,8 +1598,7 @@ export function closeTabsForDeletedPath(deletedPath) {
         setState('activeTabId', null);
         showWorkspaceHome();
     } else if (closingIds.has(activeId)) {
-        const preferred = nextTabAfterClose(activeId, newTabs) || { id: fallbackTabIdAfterClose(newTabs) };
-        switchTab(preferred.id);
+        switchTab(nextTabIdAfterClose(activeId, newTabs));
     } else {
         saveTabsToStorage();
         renderTabBar();
@@ -1707,6 +1701,8 @@ function togglePinTab(tabId) {
 /**
  * Render tab bar — pinned tabs sorted leftmost
  */
+const tabBarRenderKeys = new WeakMap();
+
 export function renderTabBar() {
     const tabStrip = document.getElementById('tab-strip');
     const activeId = getState('activeTabId');
@@ -1714,6 +1710,8 @@ export function renderTabBar() {
     const pinned = getState('pinnedTabs');
     
     if (!tabStrip) return;
+    const renderKey = tabBarRenderKey(tabs, activeId, pinned);
+    if (tabBarRenderKeys.get(tabStrip) === renderKey) return;
     
     // Dirty/save transitions may repaint the rail after keyboard activation.
     // Remember the focused logical tab before replacing its DOM node so an
@@ -1762,6 +1760,7 @@ export function renderTabBar() {
                     aria-label="Close ${escapeHtml(tab.title)}" title="Close ${escapeHtml(tab.title)}">✕</button>
         </div>
     `;}).join('');
+    tabBarRenderKeys.set(tabStrip, renderKey);
     refreshTabOverflowLayout(tabStrip);
     if (focusedTabId) {
         [...tabStrip.querySelectorAll('.tab')]
