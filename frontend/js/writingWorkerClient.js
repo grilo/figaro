@@ -1,7 +1,9 @@
 import { writingWorkBudget } from './core/writingWorkBudget.js';
 
-/** Eager worker lifecycle. Timed-out and superseded work is actually terminated. */
-export function createWritingWorker({ createWorker = () => new Worker('/writing.worker.js', { type: 'module' }), schedule = setTimeout, unschedule = clearTimeout } = {}) {
+/** Eager workers. Cooperative cancellation retains caches; timeout/error still
+ * terminates the worker, and its acknowledgement gates the next request.
+ */
+export function createWritingWorker({ createWorker = () => new Worker('/writing.worker.js', { type: 'module' }), schedule = setTimeout, unschedule = clearTimeout, cooperative = false } = {}) {
     let worker, pending, readyResolve, readyReject, readyTimer, disposed = false;
     let sequence = 0;
     let ready;
@@ -15,7 +17,8 @@ export function createWritingWorker({ createWorker = () => new Worker('/writing.
                 if (event.data.initializationError) { fail(new Error(event.data.initializationError)); return; }
                 if (event.data.ready) { unschedule(readyTimer); readyResolve(); return; }
                 if (!pending || event.data.id !== pending.id) return;
-                const job = pending; pending = null; unschedule(job.timer);
+                const job = pending; pending = null; unschedule(job.timer); job.drain();
+                if (job.cancelled) return;
                 if (event.data.error) {
                     const error = new Error(event.data.error); job.reject(error); fail(error);
                 } else job.resolve(event.data.result);
@@ -25,7 +28,7 @@ export function createWritingWorker({ createWorker = () => new Worker('/writing.
     }
     function fail(error) {
         unschedule(readyTimer); readyReject?.(error);
-        if (pending) { unschedule(pending.timer); pending.reject(error); pending = null; }
+        if (pending) { unschedule(pending.timer); pending.reject(error); pending.drain(); pending = null; }
         worker?.terminate(); worker = null;
     }
     start();
@@ -36,14 +39,27 @@ export function createWritingWorker({ createWorker = () => new Worker('/writing.
             if (!worker) start();
             const ticket = ++sequence;
             await ready;
+            if (pending) await pending.drained;
+            if (ticket !== sequence || disposed) throw new Error('Writing analysis cancelled');
+            if (!worker) { start(); await ready; }
             if (ticket !== sequence || disposed) throw new Error('Writing analysis cancelled');
             return new Promise((resolve, reject) => {
                 const id = ticket;
                 const timer = schedule(() => fail(new Error('Writing analysis timed out')), writingWorkBudget(source));
-                pending = { id, resolve, reject, timer }; worker.postMessage({ id, source, language });
+                let drain;
+                const drained = new Promise(done => { drain = done; });
+                pending = { id, resolve, reject, timer, drained, drain }; worker.postMessage({ id, source, language });
             });
         },
-        cancel() { sequence++; if (pending) { fail(new Error('Writing analysis cancelled')); if (!disposed) start(); } },
+        cancel() {
+            sequence++;
+            if (!pending || pending.cancelled) return;
+            if (cooperative) {
+                pending.cancelled = true;
+                pending.reject(new Error('Writing analysis cancelled'));
+                worker.postMessage({ cancel: pending.id });
+            } else { fail(new Error('Writing analysis cancelled')); if (!disposed) start(); }
+        },
         destroy() { disposed = true; fail(new Error('Writing worker closed')); },
     };
 }

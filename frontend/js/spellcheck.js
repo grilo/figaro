@@ -106,18 +106,23 @@ export function createSpellcheckLinter(defaultLanguage, acceptedWords = []) {
 }
 
 /** Writing worker adapter: one prose scan and one conservative lookup per unique word. */
-export async function writingSpellingObservations(source, defaultLanguage, getChecker = loadSpellchecker) {
+export async function writingSpellingObservations(source, defaultLanguage, getChecker = loadSpellchecker, { suggestions = new Map(), checkpoint = async () => {} } = {}) {
     const config = resolveSpellcheckConfiguration(source, defaultLanguage);
     if (!config.enabled) return [];
     const checkers = await Promise.all(config.languages.map(getChecker));
-    const suggestions = new Map();
     const observations = [];
+    const languageKey = config.languages.join(':');
+    let checked = 0;
     for (const range of spellcheckWordRanges(source)) {
-        if (!suggestions.has(range.word)) {
-            suggestions.set(range.word, isCorrectlySpelledProseWord(range.word, checkers, config.languages) ? null
+        if (checked++ % 32 === 0) await checkpoint();
+        const key = `${languageKey}:${range.word}`;
+        if (!suggestions.has(key)) {
+            if (suggestions.size >= 4096) suggestions.delete(suggestions.keys().next().value);
+            suggestions.set(key, isCorrectlySpelledProseWord(range.word, checkers, config.languages) ? null
                 : highConfidenceSuggestions(range.word, checkers, config.languages).map(value => matchSuggestionCase(value, range.word)));
         }
-        const candidates = suggestions.get(range.word);
+        const candidates = suggestions.get(key);
+        suggestions.delete(key); suggestions.set(key, candidates);
         if (candidates === null) continue;
         const replacements = range.editable === false ? [] : candidates;
         const reviewed = reviewedSpellingCorrection(range.word, config.languages);

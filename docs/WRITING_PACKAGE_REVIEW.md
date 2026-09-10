@@ -21,7 +21,7 @@ guards and stricter spelling replacement safety while retaining this inventory.
 
 ## Execution and safety
 
-All application modules remain eagerly bundled. Slopless and retext execute in the existing prose worker after the 500 ms debounce; the embedded Vale worker runs asynchronously after projection. Plain language, Directness, Repetition, Consistency, and Readability now request Vale evidence independently. Enabling one after a cached Formulaic-only result starts the missing analysis. Typing still clears stale results immediately and invalidates late generations; no analyzer runs synchronously in the typing handler.
+All application modules remain eagerly bundled. Slopless and retext execute in the existing prose worker after deferred snapshot bookkeeping and the 500 ms analysis debounce; the embedded Vale worker runs asynchronously after projection. Plain language, Directness, Repetition, Consistency, and Readability now request Vale evidence independently. Enabling one after a cached Formulaic-only result starts the missing analysis. Typing still clears stale results immediately and invalidates late generations; no analyzer runs synchronously in the typing handler.
 
 Microsoft’s sentence-length rule emits a first-word anchor. The pure Vale adapter validates it and maps it to the full existing prose sentence before source validation and deduplication; the corpus follow-up also verifies that sentence’s own above-30-word count. The local length check uses the same threshold. Protected text and unmappable spans remain rejected. Slopless frequency reports identify the first occurrence of each repeated word and its verified count, so separate words can be ignored independently.
 

@@ -2,12 +2,46 @@ import { createWritingWorker } from '../../../frontend/js/writingWorkerClient.js
 
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
-function harness() {
+function harness(options = {}) {
     const workers = [];
     const createWorker = () => { const worker = { postMessage: jest.fn(), terminate: jest.fn() }; workers.push(worker); return worker; };
-    const client = createWritingWorker({ createWorker, schedule: setTimeout, unschedule: clearTimeout });
+    const client = createWritingWorker({ createWorker, schedule: setTimeout, unschedule: clearTimeout, ...options });
     return { client, workers };
 }
+
+test('cooperative cancellation retains a warm worker, discards stale results and waits for acknowledgement before the latest job', async () => {
+    const { client, workers } = harness({ cooperative: true });
+    const worker = workers[0]; worker.onmessage({ data: { ready: true } });
+    const old = client.analyze('old'); const rejected = expect(old).rejects.toThrow('cancelled');
+    await Promise.resolve(); const first = worker.postMessage.mock.calls[0][0];
+    client.cancel(); client.cancel(); await rejected;
+    const skipped = client.analyze('skipped'); const skippedRejected = expect(skipped).rejects.toThrow('cancelled');
+    await Promise.resolve(); client.cancel();
+    const latest = client.analyze('latest'); await Promise.resolve();
+    expect(worker.postMessage).toHaveBeenCalledTimes(2);
+    expect(worker.postMessage).toHaveBeenLastCalledWith({ cancel: first.id });
+    worker.onmessage({ data: { id: first.id, result: 'stale' } });
+    await skippedRejected; await Promise.resolve();
+    expect(worker.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'latest' }));
+    const next = worker.postMessage.mock.calls.at(-1)[0];
+    worker.onmessage({ data: { id: next.id, result: 'fresh' } });
+    await expect(latest).resolves.toBe('fresh');
+    expect(workers).toHaveLength(1); expect(worker.terminate).not.toHaveBeenCalled(); client.destroy();
+});
+
+test('unresponsive cooperative cancellation still times out and recovers through a replacement worker', async () => {
+    const { client, workers } = harness({ cooperative: true }); workers[0].onmessage({ data: { ready: true } });
+    const old = client.analyze('old'); const rejected = expect(old).rejects.toThrow('cancelled');
+    await Promise.resolve(); client.cancel(); await rejected;
+    const latest = client.analyze('latest'); await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(5000);
+    expect(workers[0].terminate).toHaveBeenCalledTimes(1);
+    expect(workers).toHaveLength(2);
+    workers[1].onmessage({ data: { ready: true } }); await Promise.resolve();
+    const job = workers[1].postMessage.mock.calls[0][0];
+    workers[1].onmessage({ data: { id: job.id, result: [] } });
+    await expect(latest).resolves.toEqual([]); client.destroy();
+});
 test('writing worker initializes eagerly, returns matched jobs, and actually terminates a timeout', async () => {
     const { client, workers } = harness();
     expect(workers).toHaveLength(1);

@@ -30,8 +30,10 @@ test('reserves newly installed gutter widths before positioning rails against ce
         expect(dom.style.getPropertyValue('--editor-block-before-rail-offset')).toBe('63px');
         expect(dom.style.getPropertyValue('--editor-activity-rail-offset')).toBe('19px');
         expect(dom.style.getPropertyValue('--editor-block-writing-inset')).toBe('0px');
+        const write = jest.spyOn(dom.style, 'setProperty');
         synchronizeEditorBlockActionLayout({ dom, contentDOM, scrollDOM });
         expect(measurements).toHaveLength(3);
+        expect(write).not.toHaveBeenCalled();
     } finally {
         dom.remove();
     }

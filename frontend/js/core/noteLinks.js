@@ -159,6 +159,14 @@ export function markdownReferenceDefinitions(document) {
     return definitions;
 }
 
+/** Ordinary prose edits cannot change the reference table. Fence/frontmatter
+ * boundaries and definition lines must invalidate it, including joined lines.
+ */
+export function markdownReferenceLinesMayChange(before, after) {
+    const structural = /^\s*(?:\[|`{3,}|~{3,}|---|\.\.\.)/m;
+    return structural.test(before) || structural.test(after);
+}
+
 export function resolveMarkdownReferenceLink(source, definitions) {
     const link = markdownReferenceLink(source);
     if (!link) return null;

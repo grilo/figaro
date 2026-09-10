@@ -54,6 +54,15 @@ describe('status bar', () => {
         expect(styles).not.toMatch(/#app:has\(#calendar-workspace-panel\.tab-panel\.active\) > \.status-bar\s*\{[^}]*display:\s*none/s);
     });
 
+    test('keeps regular-mode status contents visible while Pure retains its minimal footer', () => {
+        const styles = fs.readFileSync(path.resolve('frontend/styles/status-tools.css'), 'utf8');
+
+        expect(styles).not.toMatch(/\[data-writing-rest=/);
+        expect(styles).toMatch(/#app\.pure-editing-chrome \.status-left\s*\{[^}]*clip-path:\s*inset\(50%\)/s);
+        expect(styles).toMatch(/#app\.pure-editing-chrome \.status-buffer-left\s*\{[^}]*display:\s*none/s);
+        expect(styles).toMatch(/#app\.pure-editing-chrome \.status-buffer-right > #word-count\s*\{[^}]*display:\s*inline !important/s);
+    });
+
     test('announces complete messages and does not let an old clear hide newer activity', () => {
         const status = document.getElementById('status-text');
         const applicationRegion = document.querySelector('.status-left');
@@ -130,7 +139,7 @@ describe('status bar', () => {
         expect(spinner.hidden).toBe(true);
     });
 
-    test('recedes for ordinary focus and uses the native scroller margins as reveal lanes', async () => {
+    test('tracks focused idle writing and native scroller margins without hiding the regular footer', async () => {
         const editor = document.querySelector('#editor-container');
         const scroller = document.createElement('div');
         scroller.className = 'cm-scroller';
@@ -173,7 +182,7 @@ describe('status bar', () => {
         expect(document.getElementById('status-bar').dataset.writingRest).toBe('false');
     });
 
-    test('reveals modified-wheel scale feedback for three seconds and then fades it', () => {
+    test('clears the informational modified-wheel scale marker after three seconds', () => {
         const footer = document.getElementById('status-bar');
         expect(statusBar.revealEditorScale()).toBe(true);
         expect(footer.dataset.editorScaleReveal).toBe('true');

@@ -51,6 +51,10 @@ function measureWritingEdges(view) {
 /** Publish one measured action layout for rendered blocks and the left helper rail. */
 export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getBoundingClientRect?.().width) {
     if (!view || view.isDestroyed || !Number.isFinite(width)) return;
+    const setPixels = (property, value) => {
+        const pixels = `${value}px`;
+        if (view.dom.style.getPropertyValue(property) !== pixels) view.dom.style.setProperty(property, pixels);
+    };
     let layout = editorBlockActionLayout(width, measureWritingEdges(view));
     // A newly installed gutter initially occupies flex space. Publish its
     // negative-margin reservation before measuring the centered writing edge;
@@ -60,14 +64,14 @@ export function synchronizeEditorBlockActionLayout(view, width = view?.dom?.getB
         ['--editor-block-before-rail-width', layout.beforeRailWidth],
     ];
     if (widths.some(([property, value]) => numericPixels(view.dom.style.getPropertyValue(property)) !== value)) {
-        for (const [property, value] of widths) view.dom.style.setProperty(property, `${value}px`);
+        for (const [property, value] of widths) setPixels(property, value);
         layout = editorBlockActionLayout(width, measureWritingEdges(view));
     }
-    view.dom.style.setProperty('--editor-activity-rail-offset', `${layout.activityRailOffset ?? 0}px`);
-    view.dom.style.setProperty('--editor-activity-rail-width', `${layout.activityRailWidth ?? 0}px`);
-    view.dom.style.setProperty('--editor-block-before-rail-offset', `${layout.beforeRailOffset}px`);
-    view.dom.style.setProperty('--editor-block-before-rail-width', `${layout.beforeRailWidth}px`);
-    view.dom.style.setProperty('--editor-block-writing-inset', `${layout.writingInset}px`);
+    setPixels('--editor-activity-rail-offset', layout.activityRailOffset ?? 0);
+    setPixels('--editor-activity-rail-width', layout.activityRailWidth ?? 0);
+    setPixels('--editor-block-before-rail-offset', layout.beforeRailOffset);
+    setPixels('--editor-block-before-rail-width', layout.beforeRailWidth);
+    setPixels('--editor-block-writing-inset', layout.writingInset);
 }
 
 export function clearEditorBlockActionLayout(view) {

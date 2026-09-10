@@ -8,6 +8,24 @@ const decision = { id: 'one', type: 'acronym', acronym: 'SLO', language: 'en-US'
 const command = { action: 'add', decision };
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const settle = async () => { for (let n = 0; n < 8; n++) await Promise.resolve(); };
+
+test('editing without saved decisions coalesces snapshots and reads only the latest buffer after typing pauses', async () => {
+    jest.useFakeTimers();
+    const controller = createWritingDecisions({ load: async () => [], schedule: setTimeout, unschedule: clearTimeout });
+    try {
+        await controller.restore();
+        const readers = [];
+        for (let at = 0; at < 20; at++) {
+            const read = jest.fn(() => `version ${at}`); readers.push(read); controller.observeSource(read);
+            await jest.advanceTimersByTimeAsync(30);
+        }
+        expect(readers.every(read => read.mock.calls.length === 0)).toBe(true);
+        await jest.advanceTimersByTimeAsync(70);
+        expect(readers.slice(0, -1).every(read => read.mock.calls.length === 0)).toBe(true);
+        expect(readers.at(-1)).toHaveBeenCalledTimes(1);
+        expect(controller.snapshot().tracking).toBe(false);
+    } finally { controller.destroy(); jest.useRealTimers(); }
+});
 function occurrenceFixture() {
     const source = ['First context. We utilize original words.', 'Second context. We utilize clear language.', 'Third context. We utilize other examples.']
         .join('\n\n' + 'Neutral context. '.repeat(8) + '\n\n') + ' Closing context.'.repeat(8);

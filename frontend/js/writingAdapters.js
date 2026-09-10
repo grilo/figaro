@@ -2,7 +2,7 @@ import { createWritingWorker } from './writingWorkerClient.js';
 
 export function createWritingAdapters(native) {
     const session = crypto.randomUUID();
-    const proseWorker = createWritingWorker();
+    const proseWorker = createWritingWorker({ cooperative: true });
     let proseQueue = Promise.resolve(), epoch = 0;
     const requestProse = (input, operation) => {
         const token = epoch;
@@ -14,7 +14,7 @@ export function createWritingAdapters(native) {
     };
     const cancelProse = () => { epoch++; proseWorker.cancel(); };
     const retext = { analyze: source => requestProse(source), cancel: cancelProse };
-    const spellingWorker = createWritingWorker({ createWorker: () => new Worker('/spelling.worker.js', { type: 'module' }) });
+    const spellingWorker = createWritingWorker({ createWorker: () => new Worker('/spelling.worker.js', { type: 'module' }), cooperative: true });
     const decisionWorker = createWritingWorker({ createWorker: () => new Worker('/decisions.worker.js', { type: 'module' }) });
     // Decision jobs are ordered across documents; analysis may be superseded.
     let decisionQueue = Promise.resolve();

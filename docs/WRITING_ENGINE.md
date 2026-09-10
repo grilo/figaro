@@ -107,7 +107,7 @@ These limits do not claim process-level hard termination or isolate fatal runtim
 errors. Source-size request deadlines remain 5–30 seconds.
 
 The installed app needs no Node, package manager, analyzer download, custom
-styles, or user-installed Vale. JavaScript workers still terminate on cancellation.
+styles, or user-installed Vale. Prose and spelling workers now cancel cooperatively and retain warm caches; errors and timeouts still terminate them.
 
 ## Asynchronous execution contract
 
@@ -547,7 +547,7 @@ Use-case tests separately establish the maximum of one active and one latest
 pending request, 500 ms debounce, immediate stale-action invalidation, and real
 worker/process cancellation. At that historical stage, main-thread resolution took up to 39 ms on
 this dense fixture. The second-audit implementation below moves it into the worker. Paragraph incremental
-analysis is deferred; passage mounting is paged without dropping finding counts.
+analysis was deferred at that stage (implemented on 10 September below); passage mounting is paged without dropping finding counts.
 
 Raw measurements and editorial output are in
 [writing-2026-09-06.json](benchmarks/writing-2026-09-06.json).
@@ -584,7 +584,7 @@ startup, real focus, selection geometry, and undo.
 No full-sentence rewrites, Apply all, displayed readability grades, structural analysis,
 custom rules, persistent style-rule ignores, remote AI, or writing profiles
 are included. Personal spelling words are the explicit persistence exception.
-English checks are opt-in and whole-document; quotations and technical-token
+English checks are opt-in and cover the complete document; quotations and technical-token
 recognition are conservative heuristics. An unavailable/failed provider is reported
 as partial and can be retried; it never establishes that a document is clean.
 
@@ -1148,3 +1148,26 @@ short-note gains, long-note costs, cancellation limits, and platform coverage.
 The experiment led to the current embedded production adapter. Its original
 measurements remain a record of the prototype, rather than a claim about every
 platform or the current app.
+
+## Incremental editing work — 10 September 2026
+
+Unchanged projected paragraphs reuse exact retext/textlint package results, with
+native diagnostic positions rebased onto the current projection. Cold paragraphs
+are batched to amortize package setup. Each paragraph cache retains at most
+2,048 entries / 4 MiB estimated text-and-result data. Spelling reuses up to 4,096
+language/word lookups while recomputing current-source eligibility and ranges.
+Markdown projection, punctuation conventions, consistency, acronym definitions,
+review resolution and native Vale still receive complete-note context.
+
+Workers yield between bounded batches and spelling groups; cancellation rejects
+the caller immediately, discards late results, and waits for acknowledgement
+before starting another job on the same warm worker. Timeout and error handling
+still terminate/recreate the worker. Snapshot/decision bookkeeping waits 100 ms
+through typing bursts, before the existing 500 ms analysis debounce. Saved
+anchors retain edit order; empty stores read only the latest buffered document.
+
+A local synthetic 600-paragraph comparison measured about 879 ms for the full
+prose scan, 754 ms for a cold incremental scan and 67 ms after changing one
+paragraph. The edit rescanned one paragraph and reused 599. Findings were equal.
+These are indicative Linux/Node worker-engine timings, excluding Vale, spelling,
+rendering and laptop input-to-paint; they are not a Windows responsiveness claim.

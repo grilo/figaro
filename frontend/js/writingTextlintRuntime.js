@@ -1,3 +1,5 @@
+import { createWritingParagraphChecks } from './usecases/writingParagraphChecks.js';
+import { localTextlintMessages, offsetTextlintMessage, writingParagraphChunks } from './core/writingIncrementalModel.js';
 import { localParagraphRule } from './writingParagraphRule.js';
 import { writingSloplessCache } from './writingSloplessCache.js';
 // Concrete package adapter: the kernel executes the actual pinned rule modules.
@@ -36,4 +38,43 @@ export async function analyzeWritingTextlint(projection) {
         ]);
         return results.flat();
     } finally { writingSloplessCache.clear(); }
+}
+
+/** All pinned rules in these packs operate on sentences, strings, or paragraphs.
+ * Keep this boundary covered by full-scan equivalence when upgrading packages.
+ */
+export function createIncrementalWritingTextlint() {
+    const prose = createWritingParagraphChecks({ analyze: async text => {
+        writingSloplessCache.clear();
+        try {
+            return await Promise.all([
+                writingTextlintNeeded({ text }) ? kernel.lintText(text, options).then(value => value.messages) : [],
+                /\p{L}/u.test(text) ? kernel.lintText(text, sloplessOptions).then(value => value.messages) : [],
+            ]);
+        } finally { writingSloplessCache.clear(); }
+    } });
+    const quotes = createWritingParagraphChecks({ analyze: text => /[“”‘’]/u.test(text)
+        ? kernel.lintText(text, quoteOptions).then(value => value.messages) : [] });
+    return {
+        async analyze(projection, checkpoint) {
+            await writingTextlintReady;
+            const input = writingTextlintProjection(projection);
+            const typography = writingTextlintProjection(projection.typography || projection);
+            const messages = [[], [], []];
+            const chunks = writingParagraphChunks(input.text);
+            const results = await prose.checkMany(chunks, checkpoint, (values, chunk) => values.map(value => localTextlintMessages(value, chunk)));
+            for (let at = 0; at < chunks.length; at++) {
+                const chunk = chunks[at], values = results[at];
+                for (let i = 0; i < values.length; i++) messages[i].push(...values[i].map(message => offsetTextlintMessage(message, chunk)));
+            }
+            const quoteChunks = writingParagraphChunks(typography.text);
+            const quoteResults = await quotes.checkMany(quoteChunks, checkpoint, localTextlintMessages);
+            for (let at = 0; at < quoteChunks.length; at++) {
+                const chunk = quoteChunks[at], values = quoteResults[at];
+                messages[2].push(...values.map(message => offsetTextlintMessage(message, chunk)));
+            }
+            return [textlintWritingObservations(messages[0], input), sloplessWritingObservations(messages[1], input), sloplessWritingObservations(messages[2], typography)].flat();
+        },
+        stats: () => ({ prose: prose.stats(), quotes: quotes.stats() }),
+    };
 }

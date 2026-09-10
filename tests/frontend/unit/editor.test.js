@@ -1051,6 +1051,30 @@ describe('UI Smoke Tests — editor initialization and rendering', () => {
             expect(widget?.getAttribute('href')).toBe('notes/Target.md');
         });
 
+        test('reference links reuse definitions for cursor and ordinary prose edits but invalidate structural changes', async () => {
+            document.body.innerHTML = '<div id="editor-container"></div>';
+            const { initEditor, createEditorView } = await import('../frontend/js/editor.js');
+            const links = await import('../frontend/js/core/noteLinks.js');
+            const scan = jest.spyOn(links, 'markdownReferenceDefinitions');
+            await initEditor(); const view = createEditorView();
+            const source = 'Above\n\n[a link]\n\nBelow\n\n[a link]: notes/Target.md';
+            try {
+                view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
+                const initial = scan.mock.calls.length;
+                view.dispatch({ selection: { anchor: 1 } });
+                view.dispatch({ selection: { anchor: source.length } });
+                view.dispatch({ changes: { from: 1, insert: 'text' } });
+                expect(scan).toHaveBeenCalledTimes(initial);
+                const target = view.state.doc.toString().indexOf('Target');
+                view.dispatch({ changes: { from: target, to: target + 6, insert: 'Other' }, selection: { anchor: 0 } });
+                expect(scan).toHaveBeenCalledTimes(initial + 1);
+                expect(view.dom.querySelector('.cm-reference-link-widget')?.getAttribute('href')).toBe('notes/Other.md');
+                view.dispatch({ changes: { from: 0, insert: '```\n' } });
+                expect(scan).toHaveBeenCalledTimes(initial + 2);
+                expect(view.dom.querySelector('.cm-reference-link-widget')).toBeNull();
+            } finally { view.destroy(); scan.mockRestore(); }
+        });
+
         test('rewrites only a clicked Markdown destination as a normal dirty editor change', async () => {
             document.body.innerHTML = '<div id="editor-container"></div>';
             const { initEditor, createEditorView, replaceMarkdownLinkTarget, setEditorContent } = await import('../frontend/js/editor.js');

@@ -1,7 +1,7 @@
 import { Annotation, EditorState, Transaction, RangeSet, RangeSetBuilder, RangeValue, StateEffect, StateField } from '@codemirror/state';
 import { Decoration, GutterMarker, ViewPlugin, gutter } from '@codemirror/view';
 import { foldedRanges } from '@codemirror/language';
-import { activityDateKey, applyProvisionalActivityDate, formatActivityMarginDate, groupActivityPassages } from './core/activityModel.js';
+import { applyProvisionalActivityDate, formatActivityMarginDate, groupActivityPassages } from './core/activityModel.js';
 import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
 
 export const setActivityData = StateEffect.define();
@@ -10,7 +10,11 @@ export const activityEditDate = Annotation.define();
 /** The editor adapter distinguishes user edits from document mounts and supplies local time. */
 export function activityEditDateExtension({
     isDocumentReplacement = () => false,
-    dateForTime = time => activityDateKey(time / 1000, Intl.DateTimeFormat().resolvedOptions().timeZone),
+    dateForTime = time => {
+        if (!Number.isFinite(time) || time <= 0) return '';
+        const date = new Date(time);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    },
 } = {}) {
     return EditorState.transactionExtender.of(transaction => transaction.docChanged && !isDocumentReplacement()
         ? { annotations: activityEditDate.of(dateForTime(transaction.annotation(Transaction.time))) } : null);
@@ -119,10 +123,27 @@ function markerEntries(view) {
 }
 
 const markerPlugin = ViewPlugin.fromClass(class {
-    constructor(view) { this.rebuild(view); }
-    update(update) {
-        if (update.docChanged || update.viewportChanged || update.geometryChanged || update.startState.field(activityState) !== update.state.field(activityState) || foldedRanges(update.startState) !== foldedRanges(update.state)) this.rebuild(update.view);
+    constructor(view) {
+        this.rebuild(view);
+        this.resize = new ResizeObserver(entries => {
+            const width = entries[0]?.contentRect.width;
+            if (width === this.width) return;
+            this.width = width;
+            if (view.state.field(activityState).enabled) this.measureLayout(view);
+        });
+        this.resize.observe(view.dom);
+        if (view.state.field(activityState).enabled) this.measureLayout(view);
     }
+    update(update) {
+        const before = update.startState.field(activityState), after = update.state.field(activityState);
+        const toggled = before.enabled !== after.enabled;
+        if (toggled || (after.enabled && (update.docChanged || update.viewportChanged || update.geometryChanged || before !== after || foldedRanges(update.startState) !== foldedRanges(update.state)))) this.rebuild(update.view);
+        if (toggled || (after.enabled && update.geometryChanged && !update.docChanged && !update.viewportChanged && !update.heightChanged)) this.measureLayout(update.view);
+    }
+    measureLayout(view) {
+        view.requestMeasure({ key: this, read: () => view.dom.getBoundingClientRect().width, write: width => synchronizeEditorBlockActionLayout(view, width) });
+    }
+    destroy() { this.resize.disconnect(); }
     rebuild(view) {
         const data = view.state.field(activityState);
         view.dom.classList.toggle('activity-dates-enabled', data.enabled);
@@ -141,7 +162,6 @@ const markerPlugin = ViewPlugin.fromClass(class {
             }
         }
         this.decorations = Decoration.set(highlights);
-        view.requestMeasure({ key: this, read: () => view.dom.getBoundingClientRect().width, write: width => synchronizeEditorBlockActionLayout(view, width) });
     }
 }, { decorations: value => value.decorations });
 

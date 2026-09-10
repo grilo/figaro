@@ -86,6 +86,7 @@ import {
     markdownEditorNavigationAtPosition,
     markdownLinkDestinationAtPosition,
     markdownReferenceDefinitions,
+    markdownReferenceLinesMayChange,
     markdownReferenceLink,
     modifiedExternalBrowserURL,
     planMarkdownLinkTargetReplacement,
@@ -1879,9 +1880,13 @@ class ReferenceLinkWidget extends WidgetType {
 }
 
 function referenceLinkPlugin() {
+    let document, definitions;
     const buildDecorations = view => {
         const state = view.state;
-        const definitions = markdownReferenceDefinitions(state.doc.toString());
+        if (document !== state.doc) {
+            definitions = markdownReferenceDefinitions(state.doc.toString());
+            document = state.doc;
+        }
 
         const decorations = [];
         const seen = new Set();
@@ -1928,6 +1933,14 @@ function referenceLinkPlugin() {
         }
 
         update(update) {
+            if (update.docChanged && document === update.startState.doc) {
+                let invalidate = false;
+                update.changes.iterChangedRanges((fromA, toA, fromB, toB) => {
+                    const lines = (doc, from, to) => doc.sliceString(doc.lineAt(from).from, doc.lineAt(to).to);
+                    invalidate ||= markdownReferenceLinesMayChange(lines(update.startState.doc, fromA, toA), lines(update.state.doc, fromB, toB));
+                });
+                if (!invalidate) document = update.state.doc;
+            }
             if (update.docChanged || update.viewportChanged || update.selectionSet) {
                 this.decorations = buildDecorations(update.view);
                 return;

@@ -102,7 +102,7 @@ describe('Writing lenses pane and Pure picker', () => {
     });
 });
 
-test('writing pane applies one undoable CodeMirror phrase edit and refuses an outdated action', async () => {
+test('writing pane restores findings after immediate Undo to the same document object and refuses outdated actions', async () => {
     const { EditorState } = await import('@codemirror/state');
     const { EditorView } = await import('@codemirror/view');
     const { history, undo } = await import('@codemirror/commands');
@@ -111,7 +111,9 @@ test('writing pane applies one undoable CodeMirror phrase edit and refuses an ou
     resetRightPaneModesForTests();
     document.body.innerHTML = '<div id="app"><button id="writing-lenses-toggle"></button><button id="writing-lenses-quick-toggle"></button><aside id="right-sidebar"><span id="right-sidebar-title"></span><div id="right-sidebar-content"></div></aside><div id="editor-test"></div></div>';
     const source = 'We utilize **ordinary words**.';
-    const view = new EditorView({ parent: document.getElementById('editor-test'), state: EditorState.create({ doc: source, extensions: [history()] }) });
+    const view = new EditorView({ parent: document.getElementById('editor-test'), state: EditorState.create({ doc: source, extensions: [history(), EditorView.updateListener.of(update => {
+        if (update.docChanged) document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true, documentTabId: 'memo' } }));
+    })] }) });
     const ports = { ...writingTestPorts, retext: { analyze: async text => analyzeRetext(text), cancel() {} }, vale: { analyze: async () => '{}', cancel() {} }, spelling: async () => [], ready: Promise.resolve(), destroy() {} };
     const controller = initWritingLenses({ getActiveTab: () => ({ id: 'memo', type: 'file', path: 'Memo.md' }), getEditorDocumentTabId: () => 'memo', getView: () => view, getSpellingPreferences: () => ({ enabled: false, language: 'es' }), focusEditor: () => view.focus(), loadPreferences: async () => ({ primary: 'plain', language: 'en-US' }), savePreferences: jest.fn(async () => {}), analysisPorts: ports });
     try {
@@ -119,7 +121,10 @@ test('writing pane applies one undoable CodeMirror phrase edit and refuses an ou
         document.querySelector('[aria-label="Replace “utilize” with “use”"]').click();
         expect(view.state.doc.toString()).toBe('We use **ordinary words**.');
         expect(undo(view)).toBe(true); expect(view.state.doc.toString()).toBe(source);
-        controller.refresh(); await jest.advanceTimersByTimeAsync(500);
+        controller.refresh(); await jest.advanceTimersByTimeAsync(600);
+        const { inlineWritingState } = await import('../../../frontend/js/writingInline.js');
+        expect(view.state.field(inlineWritingState).findings).not.toHaveLength(0);
+        expect(document.querySelector('.writing-results').inert).toBe(false);
         const stale = document.querySelector('[aria-label="Replace “utilize” with “use”"]');
         view.dispatch({ changes: { from: 0, insert: 'Now ' } });
         stale.click();
@@ -175,7 +180,7 @@ test('Proofreading detects teh despite legacy Settings and frontmatter disableme
         getSpellingPreferences: legacy, setSpelling,
         analysisPorts: { ...writingTestPorts, retext: { cancel() {} }, vale: { cancel() {} }, spelling, destroy() {} } });
     try {
-        await controller.ready; await jest.advanceTimersByTimeAsync(0);
+        await controller.ready; controller.toggle(); await jest.advanceTimersByTimeAsync(0);
         expect(legacy).not.toHaveBeenCalled();
         expect(document.querySelector('[aria-label="Replace “teh” with “the”"]')).not.toBeNull();
         expect(setSpelling).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: true, language: 'en-US' }));
@@ -198,12 +203,54 @@ test('programmatic document replacement refreshes asynchronous lenses even witho
         loadPreferences: async () => ({ lenses: ['plain'], language: 'en-US' }), savePreferences: async () => {},
         analysisPorts: { ...writingTestPorts, retext: { analyze: analyzeWriting, cancel() {} }, vale: { analyze: async () => '{}', cancel() {} }, spelling: async () => [] } });
     try {
-        await controller.ready; await jest.advanceTimersByTimeAsync(0);
+        await controller.ready; controller.toggle(); await jest.advanceTimersByTimeAsync(0);
         expect(document.querySelector('[aria-label="Replace “utilize” with “use”"]')).toBeNull();
         view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'We utilize ordinary words.' } });
         document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true, documentTabId: 'memo' } }));
         await jest.advanceTimersByTimeAsync(600);
         expect(document.querySelector('[aria-label="Replace “utilize” with “use”"]')).not.toBeNull();
+    } finally { controller.destroy(); view.destroy(); jest.useRealTimers(); }
+});
+
+test('sustained typing defers lens snapshots, closed-pane cards and status-only inline updates', async () => {
+    const { EditorState } = await import('@codemirror/state');
+    const { EditorView } = await import('@codemirror/view');
+    const { analyzeRetext } = await import('../../../frontend/vendored/writing/runtime.js');
+    const { setInlineWriting } = await import('../../../frontend/js/writingInline.js');
+    jest.useFakeTimers(); resetRightPaneModesForTests();
+    document.body.innerHTML = '<div id="app"><button id="writing-lenses-toggle"></button><button id="writing-lenses-quick-toggle"></button><aside id="right-sidebar"><span id="right-sidebar-title"></span><div id="right-sidebar-content"></div></aside></div>';
+    const inlinePublications = [];
+    const view = new EditorView({ parent: document.body, state: EditorState.create({ doc: 'We utilize prose.', extensions: [EditorView.updateListener.of(update => {
+        for (const transaction of update.transactions) for (const effect of transaction.effects) {
+            if (effect.is(setInlineWriting)) inlinePublications.push(effect.value.snapshot?.resultVersion);
+        }
+    })] }) });
+    const analyze = jest.fn(async source => analyzeRetext(source));
+    const controller = initWritingLenses({ getActiveTab: () => ({ id: 'memo', type: 'file', path: 'Memo.md' }), getEditorDocumentTabId: () => 'memo', getView: () => view,
+        loadPreferences: async () => ({ lenses: ['plain'], language: 'en-US' }), savePreferences: async () => {},
+        analysisPorts: { ...writingTestPorts, retext: { analyze, cancel() {} }, vale: { analyze: async () => '{}', cancel() {} }, spelling: async () => [] } });
+    try {
+        await controller.ready; await jest.advanceTimersByTimeAsync(0); analyze.mockClear(); inlinePublications.length = 0;
+        const readers = [];
+        for (let at = 0; at < 20; at++) {
+            view.dispatch({ changes: { from: view.state.doc.length, insert: 'x' } });
+            readers.push(jest.spyOn(view.state.doc, 'toString'));
+            document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true, documentTabId: 'memo' } }));
+            await jest.advanceTimersByTimeAsync(30);
+        }
+        expect(analyze).not.toHaveBeenCalled();
+        expect(document.querySelector('.writing-results').inert).toBe(true);
+        expect(readers.every(read => read.mock.calls.length === 0)).toBe(true);
+        await jest.advanceTimersByTimeAsync(600);
+        expect(analyze).toHaveBeenCalledTimes(1);
+        expect(inlinePublications.length).toBeGreaterThan(0);
+        expect(new Set(inlinePublications).size).toBe(inlinePublications.length);
+        expect(readers.slice(0, -1).every(read => read.mock.calls.length === 0)).toBe(true);
+        expect(document.querySelector('.writing-result-group')).toBeNull();
+        controller.toggle();
+        expect(document.querySelector('.writing-result-group')).not.toBeNull();
+        expect(document.querySelector('.writing-results').inert).toBe(false);
+        readers.forEach(read => read.mockRestore());
     } finally { controller.destroy(); view.destroy(); jest.useRealTimers(); }
 });
 

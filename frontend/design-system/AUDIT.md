@@ -313,13 +313,12 @@ width plan; its buffer-status region retains the existing telemetry and native
 history/backlink actions, arranged as a left-anchored state group and a
 right-anchored document-metrics group. `--application-status-surface` lets
 themes join the left region to navigation without duplicating status selectors.
-The ordinary-writing rest treatment preserves that same 24px shell and content:
-it clears every item while hover, focus, progress, activity, errors, and actions
-restore the full presentation. Only the application-status contents change
-opacity; its region remains fully
-opaque so `--application-status-surface` continues the sidebar plane rather
-than blending with the buffer surface. It therefore adds no compact-footer
-component family.
+Ordinary writing preserves that same 24px shell with application text, available
+buffer metrics, and the resize grip continuously visible. Focus and hover no
+longer hide or restore the footer. Its opaque application-status region keeps
+`--application-status-surface` joined to the sidebar plane. Pure mode alone
+uses the existing minimal footer composition; no component family or visual
+variant is added.
 
 Calendar reuses that exact footer shell instead of removing it: the 24px row
 and file-tree-aligned application-status region remain painted and live, while

@@ -31,6 +31,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
     let dictionaryLoaded = false;
     const dictionaryRestored = dictionaryReady.finally(() => { dictionaryLoaded = true; refreshAnalysis(true); });
     let analysis, resultsView, lastDocument, lastSource = '', revision = 0;
+    let inlineVersion, inlineDocument;
     let observedDocument, observedPath, decisionViewKey, refreshTimer;
     let disposed = false;
     let placement = null;
@@ -118,13 +119,16 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         const saved = preferences?.snapshot();
         const reviewState = decisions?.snapshot();
         if (!dictionaryLoaded || !tab || tab.path !== preferencePath || !view || !saved || reviewState?.status === 'loading' || ['loading', 'load-error'].includes(saved.status)) return null;
-        if (lastDocument !== view.state.doc) { lastDocument = view.state.doc; lastSource = view.state.doc.toString(); revision++; }
+        const selected = selectedWritingLenses(saved.preferences);
+        if (lastDocument !== view.state.doc || (selected.length && lastSource === undefined)) {
+            lastDocument = view.state.doc; lastSource = selected.length ? view.state.doc.toString() : undefined; revision++;
+        }
         const language = saved.preferences.language;
         const effectiveSpelling = { language, words: dictionary?.words() || [],
             enabled: selectedWritingLenses(saved.preferences).includes('spelling') && writingLensSupportsLanguage('spelling', language) };
-        const review = decisions?.snapshot().decisions || [];
+        const review = reviewState?.decisions || [];
         const decisionsPending = Boolean(reviewState?.tracking), decisionsFailed = reviewState?.status === 'tracking-error';
-        return { id: tab.id, revision, source: lastSource, language, preferences: saved.preferences, decisions: review, decisionsPending, decisionsFailed,
+        return { id: tab.id, revision, source: lastSource ?? '', language, preferences: saved.preferences, decisions: review, decisionsPending, decisionsFailed,
             spelling: effectiveSpelling, configuration: JSON.stringify([writingEngineConfiguration, saved.preferences, language, effectiveSpelling, review, decisionsPending, decisionsFailed]) };
     }
     function refreshAnalysis(immediate = false) {
@@ -132,6 +136,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         updateDecisionViews();
     }
     function currentAnalysis(previous = analysis.snapshot().analyzed) {
+        if (lastDocument !== getView?.()?.state.doc) return false;
         const fresh = editorSnapshot();
         return fresh && fresh.id === previous?.id && fresh.revision === previous?.revision && fresh.configuration === previous?.configuration;
     }
@@ -185,8 +190,13 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         });
         panel.append(resultsView.element);
         analysis = createWritingAnalysis({ ...analysisPorts, schedule: setTimeout, unschedule: clearTimeout, onChange: value => {
-            resultsView.update(value);
+            // An obsolete worker completion must not serialize the new buffer
+            // or rebuild review DOM while the author is still typing.
+            if (value.current && lastDocument !== getView?.()?.state.doc) return;
+            if (!panel.hidden) resultsView.update(value);
             setSpelling(value.current?.spelling || { enabled: false });
+            if (inlineVersion === value.resultVersion && inlineDocument === getView?.()?.state.doc) return;
+            inlineVersion = value.resultVersion; inlineDocument = getView?.()?.state.doc;
             updateInlineWriting(getView?.(), currentAnalysis() ? value : null, {
                 apply: (id, index) => actions.apply(id, index, value.analyzed),
                 applyAll: id => actions.applyAll(id, value.analyzed),
@@ -253,6 +263,7 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         if (!activeDocument() || !preferences) return;
         claimRightPane(mode, sidebar);
         sidebar.dataset.mode = mode; panel.hidden = false;
+        if (analysis) resultsView.update(analysis.snapshot());
         document.getElementById('right-sidebar-title').textContent = 'Writing lenses';
         setRightSidebarOpen(sidebar, true); sidebar.classList.remove('collapsed');
         document.getElementById('right-sidebar-resizer')?.classList.add('visible');
@@ -273,14 +284,20 @@ export function initWritingLenses({ getActiveTab, getEditorDocumentTabId, focusE
         observedDocument = doc; observedPath = tab.path;
         review.observeSource(() => doc.toString(), changes);
     }
-    const queueRefresh = () => {
-        if (disposed || refreshTimer !== undefined) return;
-        refreshTimer = setTimeout(() => { refreshTimer = undefined; refresh(); }, 0);
+    const queueRefresh = (delay = 0) => {
+        if (disposed) return;
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => { refreshTimer = undefined; refresh(); }, typeof delay === 'number' ? delay : 0);
     };
     const onEditorUpdate = event => {
         if ((event.detail?.docChanged || event.detail?.writingChanges) && event.detail.documentTabId === activeDocument()?.id) {
+            // Undo can restore the very same immutable Text object before the
+            // deferred snapshot runs. Every authored transaction still owns a
+            // new revision and has cleared the editor's inline findings.
+            revision++;
+            resultsView?.invalidate();
             observeEditorSource(event.detail.writingChanges);
-            queueRefresh();
+            queueRefresh(100);
         }
     };
     const onPureChange = () => {

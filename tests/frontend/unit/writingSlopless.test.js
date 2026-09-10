@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { analyzeWriting, prepareWritingSource, writingRuntimeReady } from '../../../frontend/vendored/writing/runtime.js';
+import { analyzeWriting, analyzeWritingFull, prepareWritingSource, writingRuntimeReady } from '../../../frontend/vendored/writing/runtime.js';
 import { resolveWritingFindings, writingEngineConfiguration } from '../../../frontend/js/core/writingAnalysisModel.js';
 import { writingSloplessRules, writingSloplessVersion, sloplessWritingObservations } from '../../../frontend/js/core/writingSloplessModel.js';
 import { writingSuggestionExamples, writingSuggestionExplanation } from '../../../frontend/js/core/writingSuggestionModel.js';
@@ -66,9 +66,12 @@ test('Formulaic writing documents every included and excluded public Slopless ru
     expect(excluded).toHaveLength(47);
 });
 
-test.each(Object.entries(fixtures))('Formulaic writing executes real Slopless %s with exact source and advisory examples', async (rule, text) => {
+test.each(Object.entries(fixtures))('Formulaic writing executes real Slopless %s with full-scan equivalence, exact source and advisory examples', async (rule, text) => {
     const source = `😀 Intro.\n\n${text}\n\nAnother paragraph.`;
     const { data, findings } = await review(source);
+    expect(data).toEqual(await analyzeWritingFull(source));
+    const shifted = `A new introduction.\n\n${source}`;
+    expect(await analyzeWriting(shifted)).toEqual(await analyzeWritingFull(shifted));
     expect(data.observations.some(raw => raw.rule === `slopless/${rule}`)).toBe(true);
     const matching = findings.filter(f => f.sources.some(raw => raw.rule === `slopless/${rule}`));
     expect(matching.length).toBeGreaterThan(0);

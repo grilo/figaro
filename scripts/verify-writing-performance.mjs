@@ -6,7 +6,7 @@ import { TextlintKernel } from '@textlint/kernel';
 import textPluginModule from '@textlint/textlint-plugin-text';
 import unmatchedPair from '@textlint-rule/textlint-rule-no-unmatched-pair';
 import { parse } from '@textlint/text-to-ast';
-import { analyzeWriting as original } from '../frontend/js/writingRuntime.js';
+import { analyzeWritingFull as original } from '../frontend/js/writingRuntime.js';
 import { analyzeWriting as bundled } from '../frontend/vendored/writing/runtime.js';
 import { localParagraphRule } from '../frontend/js/writingParagraphRule.js';
 import { writingSloplessCache } from '../frontend/js/writingSloplessCache.js';
@@ -44,7 +44,9 @@ writingSloplessCache.clear();
 const boot = `import { parentPort } from 'node:worker_threads';
     globalThis.self = { postMessage: value => parentPort.postMessage(value), addEventListener: (_, listener) => parentPort.on('message', data => listener({data})) };
     await import(${JSON.stringify(new URL('../frontend/js/writingWorker.js', import.meta.url).href)});`;
-const client = createWritingWorker({ createWorker() {
+let workersCreated = 0;
+const client = createWritingWorker({ cooperative: true, createWorker() {
+    workersCreated++;
     const worker = new Worker(new URL('data:text/javascript,' + encodeURIComponent(boot)));
     const adapter = { postMessage: value => worker.postMessage(value), terminate: () => void worker.terminate() };
     worker.on('message', data => adapter.onmessage?.({ data })); worker.on('error', error => adapter.onerror?.(error));
@@ -63,5 +65,6 @@ try {
     const rejection = assert.rejects(cancelled, /cancelled/);
     await new Promise(resolve => setTimeout(resolve, 50)); client.cancel(); await rejection;
     assert.ok((await client.analyze('Fresh note.')).projection.text.includes('Fresh note.'));
+    assert.equal(workersCreated, 1, 'ordinary cancellation must retain the initialized prose worker');
 } finally { clearInterval(interval); client.destroy(); }
 console.log(JSON.stringify({ foregroundTimers: ticks, maximumForegroundGapMs: maximumGapMs, realWorkerCancellationAndRecovery: true, equivalentWritingProbes: probes.length, equivalentPunctuationProbes: pairProbes.length, paragraphOrigin: observed.range[0], pass: true }, null, 2));

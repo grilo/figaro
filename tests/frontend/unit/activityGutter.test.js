@@ -45,6 +45,36 @@ test('activity setting does not change content, selection, or editor undo state'
     expect(passages(hidden)).toHaveLength(3);
 });
 
+test('hidden activity dates do no rail measurements while typing, and toggling dates restores measured layout', () => {
+    const parent = document.body.appendChild(document.createElement('div'));
+    const view = new EditorView({ parent, state: EditorState.create({ doc: source, extensions: [activityGutterExtension] }) });
+    const plugin = view.plugin(activityGutterExtension[1]);
+    const measure = jest.spyOn(plugin, 'measureLayout');
+    try {
+        for (let at = 0; at < 20; at++) view.dispatch({ changes: { from: 0, insert: 'x' } });
+        plugin.update({ startState: view.state, state: view.state, view, viewportChanged: true });
+        expect(measure).not.toHaveBeenCalled();
+        view.dispatch({ effects: setActivityData.of({ enabled: true }) });
+        expect(measure).toHaveBeenCalledTimes(1);
+        measure.mockClear();
+        view.dispatch({ changes: { from: 0, insert: 'x' } });
+        plugin.update({ startState: view.state, state: view.state, view, viewportChanged: true });
+        expect(measure).not.toHaveBeenCalled();
+        view.dispatch({ effects: setActivityData.of({ enabled: false }) });
+        expect(measure).toHaveBeenCalledTimes(1);
+    } finally { view.destroy(); parent.remove(); }
+});
+
+test('temporary edit dates use local calendar fields without constructing Intl formatters on each key', () => {
+    const formatter = jest.spyOn(Intl, 'DateTimeFormat');
+    const time = new Date(2026, 8, 10, 12).getTime();
+    const current = EditorState.create({ doc: '', extensions: [activityGutterExtension, activityEditDateExtension()] });
+    const edited = current.update({ changes: { from: 0, insert: 'Today' }, annotations: Transaction.time.of(time) }).state;
+    expect(passages(edited)[0].date).toBe('2026-09-10');
+    expect(formatter).not.toHaveBeenCalled();
+    formatter.mockRestore();
+});
+
 test('year-bearing date markers keep full accessible dates and open a group without moving the cursor', () => {
     const parent = document.createElement('div'); document.body.append(parent);
     const open = jest.fn(); configureActivityGutter({ open });

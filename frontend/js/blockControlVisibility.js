@@ -25,9 +25,11 @@ function blockRectFor(view, control, ownerRect) {
 }
 
 function readVisibility(view, pointer) {
+    const controls = [...view.dom.querySelectorAll(controlSelector)];
+    if (!controls.length) return [];
     const contentRect = view.contentDOM.getBoundingClientRect();
     const selection = view.state.selection.main;
-    return [...view.dom.querySelectorAll(controlSelector)].map(control => {
+    return controls.map(control => {
         const owner = control.closest('.cm-gutterElement');
         if (!owner) return null;
         const ownerRect = owner.getBoundingClientRect();
@@ -55,7 +57,7 @@ function readVisibility(view, pointer) {
 }
 
 /** Keep pointer geometry in a DOM adapter; the reveal policy remains pure. */
-export function createBlockControlVisibilityExtension(ViewPlugin) {
+export function createBlockControlVisibilityExtension(ViewPlugin, { schedule = setTimeout, unschedule = clearTimeout } = {}) {
     return ViewPlugin.fromClass(class {
         constructor(view) {
             this.view = view;
@@ -68,7 +70,7 @@ export function createBlockControlVisibilityExtension(ViewPlugin) {
                 this.pointer = null;
                 this.schedule();
             };
-            this.handleFocusChange = () => this.schedule();
+            this.handleFocusChange = () => this.schedule(0, true);
             view.dom.addEventListener('pointermove', this.handlePointerMove);
             view.dom.addEventListener('pointerleave', this.handlePointerLeave);
             view.dom.addEventListener('focusin', this.handleFocusChange);
@@ -76,26 +78,36 @@ export function createBlockControlVisibilityExtension(ViewPlugin) {
             this.schedule();
         }
 
-        schedule() {
+        schedule(delay = 32, restart = false) {
+            if (this.timer !== undefined && !restart) return;
+            unschedule(this.timer);
+            this.timer = schedule(() => {
+                this.timer = undefined;
+                this.measure();
+            }, delay);
+        }
+
+        measure() {
             this.view.requestMeasure({
                 key: this,
-                read: view => readVisibility(view, this.pointer),
+                read: view => this.timer === undefined ? readVisibility(view, this.pointer) : [],
                 write: measurements => {
                     for (const { owner, reveal } of measurements) {
                         // CodeMirror replaces gutter className when source offsets
                         // remap markers. Keep relevance across that redraw.
-                        owner.toggleAttribute('data-block-control-relevant', reveal);
+                        if (owner.hasAttribute('data-block-control-relevant') !== reveal) owner.toggleAttribute('data-block-control-relevant', reveal);
                     }
                 },
             });
         }
 
         update(update) {
-            if (update.docChanged || update.selectionSet || update.viewportChanged
-                || update.geometryChanged) this.schedule();
+            if (update.docChanged || update.selectionSet) this.schedule(100, true);
+            else if (update.viewportChanged || update.geometryChanged) this.schedule();
         }
 
         destroy() {
+            unschedule(this.timer);
             this.view.dom.removeEventListener('pointermove', this.handlePointerMove);
             this.view.dom.removeEventListener('pointerleave', this.handlePointerLeave);
             this.view.dom.removeEventListener('focusin', this.handleFocusChange);

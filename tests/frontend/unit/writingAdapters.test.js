@@ -37,12 +37,12 @@ test('background decision tracking preserves ordered document ownership without 
     expect(workers[2].terminate).not.toHaveBeenCalled();
 });
 
-test('superseding prose terminates its running job and rejects queued resolution before it can reach a new note', async () => {
+test('superseding prose preserves the worker and rejects queued resolution before it can reach a new note', async () => {
     const old = adapters.retext.analyze('old'); const oldRejected = expect(old).rejects.toThrow('cancelled');
     const resolve = adapters.review.resolve({ job: { source: 'old' } }); const queuedRejected = expect(resolve).rejects.toThrow('cancelled');
     await turn(); adapters.retext.cancel(); await oldRejected; await queuedRejected;
-    expect(workers[0].terminate).toHaveBeenCalledTimes(1);
-    expect(workers[0].postMessage).toHaveBeenCalledTimes(1);
+    expect(workers[0].terminate).not.toHaveBeenCalled();
+    expect(workers[0].postMessage).toHaveBeenLastCalledWith({ cancel: workers[0].postMessage.mock.calls[0][0].id });
 });
 
 test('worker restart between analysis and resolution restores grammar when delayed spelling arrives', async () => {

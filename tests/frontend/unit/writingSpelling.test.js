@@ -81,3 +81,19 @@ test('spelling excludes wiki targets and embeds but retains explicit alias words
     const source = '[[teh]] [[teh#teh]] [[teh|good]] ![[teh]] ![[Target|teh]] [[Target|teh]] [teh](teh.md)';
     expect(spellcheckWordRanges(source).map(range => source.slice(range.from, range.to))).toEqual(['good', 'teh', 'teh']);
 });
+
+test('warm spelling reuses word checks across edits, remaps occurrences and separates languages', async () => {
+    const checker = { correct: jest.fn(word => word === 'the'), spell: jest.fn(word => ({ correct: word === 'the' })), suggest: jest.fn(() => []) };
+    const getChecker = async () => checker, suggestions = new Map();
+    await writingSpellingObservations('teh', 'en-US', getChecker, { suggestions });
+    checker.correct.mockClear();
+    const moved = await writingSpellingObservations('the\n\nteh', 'en-US', getChecker, { suggestions });
+    expect(moved).toMatchObject([{ from: 5, to: 8, actual: 'teh', replacements: ['the'] }]);
+    expect(checker.correct).toHaveBeenCalledTimes(1);
+    expect(checker.correct).toHaveBeenCalledWith('the');
+    checker.correct.mockClear();
+    await writingSpellingObservations('teh', 'en-GB', getChecker, { suggestions });
+    expect(checker.correct).toHaveBeenCalledWith('teh');
+    expect(await writingSpellingObservations('`teh`', 'en-US', getChecker, { suggestions })).toEqual([]);
+    await expect(writingSpellingObservations('teh', 'en-US', getChecker, { suggestions, checkpoint: async () => { throw new Error('cancelled'); } })).rejects.toThrow('cancelled');
+});

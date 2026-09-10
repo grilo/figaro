@@ -392,7 +392,7 @@ test('keeps the active tab inside the real overflow viewport and exposes themed 
     });
 });
 
-test('keeps the status bar fixed while ordinary writing recedes and bottom-edge hover restores it', async ({ page }) => {
+test('keeps the status bar visible and fixed while writing outside Pure mode', async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 640 });
     await openWelcomeEditor(page);
 
@@ -458,31 +458,32 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
         const { statusBar } = await import('/js/statusBar.js');
         statusBar.clear();
     });
-    await expect(page.locator('#status-bar')).toHaveAttribute('data-writing-rest', 'true');
-    const readQuietStatus = () => page.locator('#status-bar').evaluate(element => ({
+    const readWritingStatus = () => page.locator('#status-bar').evaluate(element => ({
         applicationOpacity: getComputedStyle(element.querySelector('.status-left')).opacity,
         applicationTextOpacity: getComputedStyle(element.querySelector('#status-text')).opacity,
         applicationBackground: getComputedStyle(element.querySelector('.status-left')).backgroundColor,
         sidebarBackground: getComputedStyle(document.querySelector('#sidebar')).backgroundColor,
         leftOpacity: getComputedStyle(element.querySelector('.status-buffer-left')).opacity,
         rightOpacity: getComputedStyle(element.querySelector('.status-buffer-right')).opacity,
+        gripOpacity: getComputedStyle(element.querySelector('#resize-grip')).opacity,
         wordText: element.querySelector('#word-count').textContent,
         quietWords: getComputedStyle(element.querySelector('.status-right'), '::after').content,
         quietOpacity: getComputedStyle(element.querySelector('.status-right'), '::after').opacity,
         height: element.getBoundingClientRect().height,
     }));
-    await expect.poll(readQuietStatus)
+    await expect.poll(readWritingStatus)
         .toMatchObject({
             applicationOpacity: '1',
-            applicationTextOpacity: '0',
-            leftOpacity: '0',
-            rightOpacity: '0',
+            applicationTextOpacity: '1',
+            leftOpacity: '1',
+            rightOpacity: '1',
+            gripOpacity: '0.35',
             quietOpacity: '0',
             height: 24,
         });
-    const quietStatus = await readQuietStatus();
-    expect(quietStatus.quietWords).toBe(JSON.stringify(quietStatus.wordText));
-    expect(quietStatus.applicationBackground).toBe(quietStatus.sidebarBackground);
+    const writingStatus = await readWritingStatus();
+    expect(writingStatus.quietWords).toBe(JSON.stringify(writingStatus.wordText));
+    expect(writingStatus.applicationBackground).toBe(writingStatus.sidebarBackground);
 
     await page.locator('#status-bar').hover();
     await expect.poll(() => page.locator('#status-bar').evaluate(element => ({
@@ -495,7 +496,6 @@ test('keeps the status bar fixed while ordinary writing recedes and bottom-edge 
         const { statusBar } = await import('/js/statusBar.js');
         statusBar.setWithAction('Deleted “Draft.md” ·', 'Undo', () => {});
     });
-    await expect(page.locator('#status-bar')).toHaveAttribute('data-writing-rest', 'false');
     const activeStatusGeometry = () => page.locator('#status-bar').evaluate(element => {
         const application = element.querySelector('.status-left');
         const applicationBounds = application.getBoundingClientRect();

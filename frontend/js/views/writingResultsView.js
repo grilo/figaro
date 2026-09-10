@@ -31,8 +31,12 @@ export function createWritingResultsView({ onNavigate, onApply, onApplyAll, onDi
     }
     const api = {
         element,
+        // One property invalidates every old card without walking/rebuilding
+        // its controls during an editor input event.
+        invalidate() { element.inert = true; },
         announce(text) { status.textContent = text; },
         update(value) {
+            element.inert = false;
             lastValue = value;
             if (owner !== value.current?.id) { owner = value.current?.id; limit = writingReviewPageSize; positions.clear(); }
             const { current, groups = [], count = 0, states = {}, rejected = 0 } = value;

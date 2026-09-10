@@ -31,7 +31,7 @@ you need it. You don't need an account.
   under version control.
 - **Find room to write.** Markdown renders around the line you are editing.
   Collapse the sidebar for Pure mode, with optional typewriter scrolling and
-  paragraph focus.
+  paragraph focus. Outside Pure mode, the status bar stays visible while you write.
 - **Revise with local feedback.** Choose writing lenses for spelling, clarity,
   directness, inclusive language, or formulaic phrasing. Review suggestions
   beside your words and decide what to keep.
@@ -51,6 +51,9 @@ another way to explore those connections.
 Keep several notes open in tabs, and middle-click a tab to close it. Figaro asks
 before discarding unsaved changes.
 
+Use **Document outline** to jump through a long note. Selecting a heading brings
+it to the top of the editor, with its section ready to read below it.
+
 When a note becomes a project, its tasks can stay beside the thinking that
 produced them. Add a hashtag such as `#todo` to put a task on the board. Use
 Calendar for dates or Gantt for a longer schedule. Open a card to return to its
@@ -69,7 +72,7 @@ and follows renames and moves made in Figaro on every supported platform.
 
 ## Refine a draft in your own voice
 
-Writing lenses underline words and phrases for review. Hover a suggestion to
+Writing lenses underline words and phrases for review. Unchanged paragraphs and spelling lookups are reused as you edit; review work waits while you type. Hover a suggestion to
 see its explanation and, where available, a replacement you can apply in
 place. Choose any combination of **Proofreading**, **Clarity**,
 **Directness**, **Inclusive language**, and **Formulaic writing** for each

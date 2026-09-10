@@ -907,7 +907,14 @@ preserve destination records and unknown fields, and retain rooted rollback test
 
 When optimizing package work, preserve every included rule and compare complete
 observations and source maps against the pinned implementation with
-`node scripts/verify-writing-performance.mjs`. Regenerate the runtime using
+`node scripts/verify-writing-performance.mjs`. Incremental paragraph checks must
+match the complete full-scan result, including native positions and source maps,
+after edits, moves, splits and Markdown boundary changes. Keep document-wide
+policies global; never partition a new rule without establishing its scope.
+Caches stay bounded and memory-only. Prose/spelling cancellation retains warm
+workers, acknowledges completion before another job, and preserves timeout/error
+termination. Regress sustained input, deferred gutter work and stale actions at
+the lowest capable layer. Regenerate the runtime using
 `node scripts/vendor-writing.mjs`; never patch node_modules or generated bundles
 by hand. `node scripts/profile-writing.mjs --long` adds 25k/50k-word workloads.
 Performance equivalence does not prove editorial usefulness: follow the

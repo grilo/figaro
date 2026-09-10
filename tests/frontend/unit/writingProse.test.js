@@ -10,7 +10,7 @@ const input = { job, proseRequired: true, spelling };
 test('a replacement prose worker rebuilds required grammar evidence before completing later spelling results', async () => {
     const analyze = jest.fn(analyzeWriting), worker = createWritingProse({ analyze });
     const value = await worker.resolve(input);
-    expect(analyze).toHaveBeenCalledWith(source);
+    expect(analyze).toHaveBeenCalledWith(source, undefined);
     expect(value.result.groups.flatMap(group => group.findings).map(item => item.kind)).toEqual(['grammar.article', 'grammar.spelling']);
     expect(value.result.findings[0].fixes[0]).toMatchObject({ expected: 'a', replacement: 'an' });
     expect(value.result.inlineFindings).toHaveLength(2);
@@ -23,7 +23,7 @@ test('worker resolution reuses matching prose and rebuilds a missing source with
     await worker.resolve(input); expect(analyze).toHaveBeenCalledTimes(1);
     const next = { ...input, job: { ...job, source: 'We saw an apple.' }, spelling: [] };
     expect((await worker.resolve(next)).result.count).toBe(0);
-    expect(analyze).toHaveBeenLastCalledWith(next.job.source);
+    expect(analyze).toHaveBeenLastCalledWith(next.job.source, undefined);
 });
 
 test('failed or unrequested prose stays excluded while independent spelling remains available', async () => {

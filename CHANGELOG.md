@@ -10,6 +10,23 @@ remain as originally published.
 
 _No changes yet._
 
+## [1.39.0] - 2026-09-10
+
+### Changed
+
+- The status bar stays visible while writing outside Pure mode. Pure mode keeps
+  its minimal word-count footer.
+
+### Fixed
+
+- Selecting a heading in Document outline places it at the top of the editor,
+  below any sticky headings, so its section is immediately readable.
+- Editing and scrolling avoid repeated reference-link scans and inactive activity
+  gutter measurements. Block controls wait briefly during typing before updating.
+- Writing lenses reuse unchanged paragraph checks and spelling lookups, retain
+  initialized workers across edits, and defer review bookkeeping during typing.
+  Document-wide context and source-safe suggestion checks are preserved.
+
 ## [1.38.3] - 2026-09-09
 
 ### Fixed
@@ -2230,7 +2247,8 @@ _No changes yet._
   remains.
 - Legacy workspace-tab keys are removed from `settings.json`.
 
-[Unreleased]: https://github.com/grilo/figaro/compare/v1.38.3...HEAD
+[Unreleased]: https://github.com/grilo/figaro/compare/v1.39.0...HEAD
+[1.39.0]: https://github.com/grilo/figaro/compare/v1.38.3...v1.39.0
 [1.38.3]: https://github.com/grilo/figaro/compare/v1.38.2...v1.38.3
 [1.38.2]: https://github.com/grilo/figaro/compare/v1.38.1...v1.38.2
 [1.38.1]: https://github.com/grilo/figaro/compare/v1.38.0...v1.38.1

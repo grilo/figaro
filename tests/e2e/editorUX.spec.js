@@ -3279,7 +3279,10 @@ test('inline writing suggestions support hover actions, keyboard focus, cursor p
     await content.focus(); await content.press('Control+z');
     await expect.poll(() => page.evaluate(() => window.__writingView.state.doc.toString())).toBe(source);
     await expect(navigate).toBeVisible();
-    await navigate.focus(); await page.keyboard.press('Enter');
+    // Deferred refresh leaves old cards inert until current results return.
+    await expect(pane.locator('.writing-results')).toHaveJSProperty('inert', false);
+    await navigate.focus(); await expect(navigate).toBeFocused();
+    await page.keyboard.press('Enter');
     await expect(content).toBeFocused();
     await content.press('Control+.');
     await expect(apply).toBeFocused();

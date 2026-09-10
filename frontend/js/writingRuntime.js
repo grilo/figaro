@@ -26,10 +26,16 @@ import { decodeString } from 'micromark-util-decode-string';
 import { additionalWritingObservations } from './core/writingAdditionalRules.js';
 import { writingQuotationSpans, writingTypographyConvention } from './core/writingTypographyModel.js';
 import { readabilityOptions, writingPackageObservation } from './core/writingPackagePolicy.js';
-import { analyzeWritingTextlint, writingTextlintReady } from './writingTextlintRuntime.js';
+import { analyzeWritingTextlint, createIncrementalWritingTextlint, writingTextlintReady } from './writingTextlintRuntime.js';
+import { createWritingParagraphChecks } from './usecases/writingParagraphChecks.js';
+import { offsetWritingPlace, writingParagraphChunks } from './core/writingIncrementalModel.js';
 
 export const writingRuntimeReady = writingTextlintReady;
-export async function analyzeWriting(source) {
+export async function analyzeWriting(source, options) {
+    return incremental.analyze(source, options);
+}
+// Reference path for package equivalence tests and corpus verification.
+export async function analyzeWritingFull(source) {
     await writingRuntimeReady;
     const result = analyzeRetext(source);
     result.observations.push(...await analyzeWritingTextlint(result.projection));
@@ -122,10 +128,8 @@ export function prepareWritingSource(source) {
     return result;
 }
 
-export function analyzeRetext(source) {
-    const projection = prepareWritingSource(source);
-    const convention = writingTypographyConvention(projection);
-    const file = new VFile(projection.text);
+function collectRetext(text) {
+    const file = new VFile(text);
     const tree = prose.parse(file);
     prose.runSync(tree, file);
     const sentences = [];
@@ -134,8 +138,19 @@ export function analyzeRetext(source) {
         else for (const child of node.children || []) visit(child);
     }
     visit(tree);
-    projection.sentences = sentences;
-    const messages = file.messages.filter(message => {
+    return { sentences, messages: file.messages.map(({ source, ruleId, reason, note, actual, expected, place }) =>
+        ({ source, ruleId, reason, note, actual, expected, place })) };
+}
+
+export function analyzeRetext(source) {
+    const projection = prepareWritingSource(source);
+    return finishRetext(projection, collectRetext(projection.text));
+}
+
+function finishRetext(projection, collected) {
+    const convention = writingTypographyConvention(projection);
+    projection.sentences = collected.sentences;
+    const messages = collected.messages.map(message => ({ ...message })).filter(message => {
         if (message.source === 'retext-contractions') {
             const straight = value => value.replace(/’/g, '\'');
             if (straight(message.actual) === straight(message.expected[0])) return false;
@@ -182,3 +197,40 @@ export function analyzeRetext(source) {
     }
     return { projection, observations: [...observations, ...additionalWritingObservations(projection)] };
 }
+
+/** Parse Markdown for correct exclusions, then reuse the expensive paragraph
+ * checks. Convention, consistency, and acronym policy retain the whole document.
+ */
+export function createIncrementalWritingAnalyzer() {
+    const retext = createWritingParagraphChecks({ analyze: collectRetext });
+    const textlint = createIncrementalWritingTextlint();
+    const order = Object.keys(versions);
+    return {
+        async analyze(source, { checkpoint = async () => {} } = {}) {
+            await writingRuntimeReady;
+            await checkpoint();
+            const projection = prepareWritingSource(source);
+            const collected = { messages: [], sentences: [] };
+            const chunks = writingParagraphChunks(projection.text);
+            const values = await retext.checkMany(chunks, checkpoint, (value, chunk) => ({
+                messages: value.messages.filter(message => message.place?.start.offset >= chunk.from && message.place.start.offset < chunk.from + chunk.text.length)
+                    .map(message => ({ ...message, place: offsetWritingPlace(message.place, { from: -chunk.from, line: 2 - chunk.line }) })),
+                sentences: value.sentences.filter(sentence => sentence.start >= chunk.from && sentence.start < chunk.from + chunk.text.length)
+                    .map(sentence => ({ start: sentence.start - chunk.from, end: sentence.end - chunk.from })),
+            }));
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i], value = values[i];
+                collected.messages.push(...value.messages.map(message => ({ ...message, place: offsetWritingPlace(message.place, chunk) })));
+                collected.sentences.push(...value.sentences.map(sentence => ({ start: sentence.start + chunk.from, end: sentence.end + chunk.from })));
+            }
+            collected.messages.sort((a, b) => order.indexOf(a.source) - order.indexOf(b.source));
+            await checkpoint();
+            const result = finishRetext(projection, collected);
+            result.observations.push(...await textlint.analyze(projection, checkpoint));
+            await checkpoint();
+            return result;
+        },
+        stats: () => ({ retext: retext.stats(), textlint: textlint.stats() }),
+    };
+}
+const incremental = createIncrementalWritingAnalyzer();

@@ -7,6 +7,7 @@
  */
 
 import { getEditorContent, getEditorDocumentTabId, getEditorView } from './editor.js';
+import { EditorView } from '@codemirror/view';
 import { synchronizeEditorBlockActionLayout } from './editorBlockActionLayout.js';
 import { getState } from './state.js';
 import { setRightSidebarOpen } from './rightSidebarState.js';
@@ -15,6 +16,7 @@ import { setTooltip } from './tooltip.js';
 import {
     activeOutlineHeadingHierarchy,
     activeOutlineHeadingIndex,
+    advanceOutlineHeadingAlignment,
     documentOutlineControlState,
     extractOutlineHeadings,
     stickyHeadingBoundaryPosition,
@@ -39,6 +41,7 @@ let stickyMeasureView = null;
 let stickyScrollDOM = null;
 let stickyScrollHandler = null;
 let outlineLayoutMeasureRequest = 0;
+let stopHeadingAlignment = () => {};
 let model = {
     tabId: null,
     source: null,
@@ -114,6 +117,7 @@ function synchronizeOutlineControl() {
 }
 
 function resetModel() {
+    stopHeadingAlignment();
     model = { tabId: null, source: null, headings: [] };
     renderStickyHeadingsAtPosition(-1);
 }
@@ -132,6 +136,7 @@ function refreshOutlineModel() {
     const source = getEditorContent();
     const changed = model.tabId !== tab.id || model.source !== source;
     if (changed) {
+        stopHeadingAlignment();
         model = {
             tabId: tab.id,
             source,
@@ -171,9 +176,44 @@ function updateActiveOutlineItem(preferViewport = false) {
 function navigateToHeading(from) {
     const view = getEditorView();
     if (!view || !Number.isInteger(from)) return;
-    view.dispatch({ selection: { anchor: from }, scrollIntoView: true });
+    stopHeadingAlignment();
+    const source = view.state.doc;
+    const stickyHeight = () => {
+        const { sticky } = outlineElements();
+        return sticky && !sticky.hidden ? sticky.getBoundingClientRect().height : 0;
+    };
+    let alignment = { height: stickyHeight(), adjustments: 0 }, frame;
+    let active = true;
+    const inputs = ['wheel', 'touchstart', 'pointerdown', 'keydown'];
+    const cancel = () => {
+        active = false;
+        cancelAnimationFrame(frame);
+        observer.disconnect();
+        for (const type of inputs) document.removeEventListener(type, cancel, true);
+        if (stopHeadingAlignment === cancel) stopHeadingAlignment = () => {};
+    };
+    stopHeadingAlignment = cancel;
+    const current = () => active && !view.isDestroyed && view === getEditorView() && view.state.doc === source && view.state.selection.main.head === from;
+    // Sticky layout can arrive several frames after the first scroll. Observe
+    // its actual changes instead of guessing when layout has finished. There
+    // is no polling; the next user input releases the observer before handling.
+    const observer = new ResizeObserver(() => {
+        if (!current()) { cancel(); return; }
+        alignment = advanceOutlineHeadingAlignment(alignment, stickyHeight());
+        if (!alignment.realign) return;
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+            if (!current()) { cancel(); return; }
+            view.dispatch({ effects: EditorView.scrollIntoView(from, { y: 'start' }) });
+            if (!alignment.pending) cancel();
+        });
+    });
+    view.dispatch({ selection: { anchor: from }, effects: EditorView.scrollIntoView(from, { y: 'start' }) });
     view.focus();
     updateActiveOutlineItem();
+    const { sticky } = outlineElements();
+    if (active && sticky) observer.observe(sticky); else cancel();
+    for (const type of inputs) if (active) document.addEventListener(type, cancel, { passive: true, capture: true });
 }
 
 function headingButton(heading, className) {

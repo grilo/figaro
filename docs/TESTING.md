@@ -27,7 +27,7 @@ dictionary tests validate words, schema, and preservation; rooted adapter tests
 cover reopen/deduplication, unchanged notes, permissions, corrupt-file refusal,
 and outside symlinks. Component tests cover accessible actions, bounded distinct-card
 mounting, identical-occurrence grouping, focus, and one isolated CodeMirror undo transaction. Worker tests prove
-actual termination and cancellation before initialization. `writingProse.test.js`
+warm cooperative cancellation, timeout termination, and cancellation before initialization. `writingProse.test.js`
 checks replacement-worker cache recovery, matching-source reuse, exclusion of
 unrequested prose, and failed recovery retaining partial spelling. Adapter tests
 exercise restart between analysis and delayed spelling resolution; the analysis
@@ -1573,10 +1573,28 @@ Keep its table/selection cursor matrix and the native smoke below;
 hover/focus must not cause reflow, and guides may not cover source or sidebars.
 
 Outline focus and disabled activation are covered by `outlinePanel.test.js`,
-including refresh and pane replacement; `outline.spec.js` proves real Tab,
-Enter/Space, tooltip and focus restoration. `kanbanKeyboardModel.test.js`
+including refresh, pane replacement, and top-aligned scroll effects without
+source edits, changed sticky-height settlement, and cancellation on input or
+source/cursor/view changes. A delayed ResizeObserver callback must still correct
+the position after many quiet frames; cancellation disconnects it and prevents
+queued corrections. The pure outline tests bound corrections to six actual
+height changes. `outline.spec.js` proves real Tab, Enter/Space, tooltip and focus
+restoration, plus heading placement beneath the sticky strip when jumping down
+with Enter and back up with a mouse click. The existing sticky hierarchy case
+retains bidirectional Up/Down after navigation. Repeat heading placement and
+cursor checks in the native packaged webview; jsdom cannot establish scrolling
+geometry. `kanbanKeyboardModel.test.js`
 owns empty-versus-populated instruction copy, while `kanban.test.js` checks
 live updates and Board/Gantt exposure without an extra browser workflow.
+
+On 10 September 2026, top-aligned Outline navigation passed 20 focused unit
+tests, the two existing navigation/sticky-hierarchy Chromium workflows, and 13
+checks in a production-tagged WebKitGTK build on disposable headless Weston.
+Both native jumps placed the heading 5.2 px below the sticky strip. Welcome
+line 23 Up/Down, heading arrows, bidirectional mouse selection, document-end
+boundaries, and exact source preservation passed. Native DOM focus was verified;
+the headless display has no physical keyboard seat and does not prove OS window
+focus or Windows/WebView2 behavior.
 
 CodeMirror block widgets have a strict measured-height contract documented in
 [`LIVEPREVIEW.md`](LIVEPREVIEW.md#4-block-widget-geometry-contract). Any new
@@ -2420,8 +2438,8 @@ Tab activation rerenders the tab DOM, so unit and browser coverage must prove
 two consecutive Left/Right presses keep focus on the newly mounted active tab.
 The real narrow viewport also owns the status bar's 24px fixed-height contract,
 the file-tree/buffer region boundary, the left/right anchoring and DOM order of
-the two active-buffer groups, its ordinary-writing rest state, bottom-edge
-hover restoration, urgent-status override, and the collapsed 44px application-status
+the two active-buffer groups, persistent visibility during focused ordinary
+writing and bottom-edge hover, and the collapsed 44px application-status
 presentation: full live text and tooltip remain available, its compact activity
 state stays inside the rail, and **Undo** remains visible and operable. Theme
 coverage compares the native application-status surface with the file tree and
@@ -2431,8 +2449,10 @@ actions, per-episode Auto-Save deduplication, and the live status semantics.
 `windowClose.test.js` proves that native close is allowed only after every
 requested write succeeds and no newer edit remains dirty.
 The ordinary-writing browser assertion must compare the application-status
-background with the sidebar while its text is transparent, proving that content
-opacity cannot expose the editor-coloured parent surface beneath that region.
+background with the sidebar while its text and available buffer groups remain
+opaque, and keep the resize grip visible. `statusBar.test.js` guards against
+restoring writing-rest CSS hiding; the existing Pure-mode browser case proves
+the word-count-only footer remains intact.
 
 Run the focused contract with:
 
@@ -3143,8 +3163,9 @@ bounded reuse, independent token objects, unchanged relative offsets and bounded
 source-size deadlines. Worker lifecycle tests retain short-job timeouts, prove
 long-job cancellation/recovery and cap stalled resolution at thirty seconds.
 Native tests verify long-note budgets, prompt caller cancellation, bounded
-admission, and cooperative engine reuse. JavaScript workers retain termination
-and five-second ordinary initialization/short-job deadlines.
+admission, and cooperative engine reuse. JavaScript workers retain timeout/error termination and five-second ordinary
+initialization/short-job deadlines. Prose/spelling cancellation retains the warm
+worker and waits for its acknowledgement before admitting another job.
 
 Run `node scripts/verify-writing-performance.mjs` for exact real-package findings
 and source-map comparisons, an upstream punctuation comparison, and the real
@@ -3306,3 +3327,48 @@ placement, and drag selection in both directions. Four ordinary native saves
 retained matching tab/disk versions. A deliberate external edit preserved the
 draft and external file on cancellation; one approved overwrite followed by
 three further saves produced no repeat warning.
+
+### Incremental writing and deferred editor work
+
+`writingIncremental.test.js` compares complete results with the full-scan package
+path over the editorial fixtures and paragraph edit/prepend/move/delete/split
+sequences. It asserts one changed paragraph is checked again, current native
+positions, bounded caches, cancellation/reuse, Markdown protection changes and
+global conventions. Each of the 30 enabled Slopless rule fixtures also compares
+complete incremental and full-scan results before and after prepending prose.
+Spelling tests verify cross-edit lookup reuse, language
+separation, current ranges and cancellation. Worker-client/adapter tests own warm
+cancellation, stale replies, queued replacements and timeout recovery. The real
+worker check in `verify-writing-performance.mjs` asserts cancellation/recovery
+without creating another worker.
+
+The writing-lenses component exercises sustained edits without intermediate
+snapshot materialization or analysis, deferred cards in closed panes, and stale
+Apply rejection. Immediate Apply/Undo restores inline findings; stale cards are
+inert until fresh results arrive. Status-only updates do not republish inline
+findings. Decision tests prove empty stores read only the latest queued buffer
+while existing persistence tests retain ordered saved/pending anchors.
+Reference-link component tests prove cache reuse on cursor/prose edits and
+invalidation for targets and fences. Activity tests assert no hidden rail
+measurements and correct live toggles; layout tests reject redundant CSS writes.
+Block-control tests use an injected clock (without advancing CodeMirror's own
+layout timers) to prove typing debounce, pointer coalescing, immediate focus
+scheduling, hover continuity and cleanup. Empty rails do no content measurement.
+
+Run the existing editorUX reference-navigation and activity/guide alignment
+scenarios, plus the Mermaid Editor hover/typing workflow. They already exercise
+real Up/Down, pointer placement, drag selection and gutter geometry; do not add
+another browser matrix for cache policy. Repeat the native Welcome cursor and
+hover/drag checks on available packaged webviews. Engine timings and passing
+Chromium tests cannot establish the affected laptop's WebView2 responsiveness.
+
+On 10 September 2026, seven focused Chromium scenarios passed across the editor,
+Mermaid, and Outline suites. A production-tagged WebKitGTK 2.52.6 build also passed
+14 checks in each of two disposable headless Weston vaults, using Figaro Dark
+with block guides and with activity dates/line numbers enabled. The build-only
+instrumentation dispatched keyboard and mouse events against native editor
+geometry: Welcome line 23 Up/Down, reference replacement navigation and drag
+selection in both directions, Mermaid control hover/departure, 20 edits without
+control flashing, exact source preservation, and current gutter offsets. The
+headless software renderer does not measure physical input latency or establish
+Windows/WebView2 performance.

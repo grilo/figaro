@@ -71,6 +71,57 @@ describe('outline focus and unavailable launcher', () => {
         expect(document.activeElement).toBe(outside);
     });
 
+    test('outline heading activation requests top alignment and editor focus without editing source', () => {
+        outline.openOutlinePanel();
+        document.querySelectorAll('.outline-item')[1].click();
+        expect(mockView.dispatch).toHaveBeenCalledTimes(1);
+        const transaction = mockView.dispatch.mock.calls[0][0];
+        expect(transaction.selection).toEqual({ anchor: mockSource.indexOf('## Second') });
+        expect(transaction.effects.value).toMatchObject({ y: 'start', range: { anchor: mockSource.indexOf('## Second') } });
+        expect(transaction.changes).toBeUndefined();
+        expect(mockView.focus).toHaveBeenCalledTimes(1);
+    });
+
+    test.each(['settle', 'wheel', 'touchstart', 'pointerdown', 'keydown', 'source change', 'cursor change', 'destroy'])('outline top alignment respects sticky height and stops on %s', action => {
+        jest.useFakeTimers();
+        let resized;
+        const disconnect = jest.fn();
+        const resizeSpy = jest.spyOn(global, 'ResizeObserver').mockImplementation(callback => {
+            resized = callback;
+            return { observe() {}, disconnect };
+        });
+        try {
+            outline.openOutlinePanel();
+            const sticky = document.getElementById('sticky-heading-stack');
+            let height = 30;
+            sticky.hidden = false;
+            jest.spyOn(sticky, 'getBoundingClientRect').mockImplementation(() => ({ height }));
+            mockView.state.doc = {};
+            mockView.state.selection.main.head = mockSource.indexOf('## Second');
+            document.querySelectorAll('.outline-item')[1].click();
+            // Slow layout may arrive long after several unchanged animation
+            // frames. It must still align, without polling while it waits.
+            jest.advanceTimersByTime(500);
+            expect(mockView.dispatch).toHaveBeenCalledTimes(1);
+            height = 60;
+            if (action === 'source change') mockView.state.doc = {};
+            else if (action === 'cursor change') mockView.state.selection.main.head++;
+            else if (action === 'destroy') mockView.isDestroyed = true;
+            else if (action !== 'settle') document.dispatchEvent(new Event(action));
+            resized();
+            jest.advanceTimersByTime(200);
+            expect(mockView.dispatch).toHaveBeenCalledTimes(action === 'settle' ? 2 : 1);
+            if (action === 'settle') {
+                const followup = mockView.dispatch.mock.calls[1][0];
+                expect(followup.effects.value.y).toBe('start');
+                expect(followup.selection).toBeUndefined();
+                expect(followup.changes).toBeUndefined();
+            }
+            document.dispatchEvent(new Event('keydown'));
+            expect(disconnect).toHaveBeenCalled();
+        } finally { resizeSpy.mockRestore(); jest.clearAllTimers(); jest.useRealTimers(); }
+    });
+
     test('unavailable outline stays focusable and explained without accepting activation', () => {
         mockSource = 'No headings';
         document.dispatchEvent(new CustomEvent('editor-view-updated', { detail: { docChanged: true } }));

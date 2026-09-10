@@ -32,7 +32,8 @@ function mount(store, source = 'We utilize words. The SLO is ready.', beforeSave
                 return { Check: 'Microsoft.Acronyms', Match: 'SLO', Line: prefix.split('\n').length, Span: [col, col + 2] };
             }) }), cancel() {} },
         } });
-    return { controller, view, switchNote(path, source) {
+    const ready = controller.ready.then(() => controller.toggle());
+    return { controller: { ...controller, ready }, view, switchNote(path, source) {
         tab = { ...tab, id: path, path };
         if (source !== undefined) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: source } });
         else controller.refresh();
@@ -157,7 +158,7 @@ test('async saved-decision refresh keeps the current note context and says Analy
     const app = mount(store, 'We utilize ordinary words.', async () => {}, track);
     try {
         await app.controller.ready; await settle(); delay = true;
-        app.view.dispatch({ changes: { from: 0, insert: 'Today ' } }); await settle();
+        app.view.dispatch({ changes: { from: 0, insert: 'Today ' } }); await jest.advanceTimersByTimeAsync(100);
         expect(pane().querySelector('.writing-results [role=status]').textContent).toBe('Analyzing…');
         expect(button('Ignore Simpler word')).toBeNull();
         delay = false; finish(); await jest.advanceTimersByTimeAsync(600);

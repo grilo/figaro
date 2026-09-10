@@ -257,7 +257,7 @@ layout plan as the pane, including overlay placement and pointer/keyboard
 resizing, and clears it when the pane closes. The buffer region uses container
 queries to hide lower-priority metrics as its available width shrinks. The
 window resize grip sits outside that contained region at the physical window
-corner and follows the existing footer reveal/Pure visibility rules.
+corner, remains visible during ordinary writing, and is hidden in Pure mode.
 Its application-status adapter owns only the left live region,
 startup progress, delayed activity, and optional Undo action; its buffer region
 separates non-live state into a left-anchored history/relationship/editor-state
@@ -266,16 +266,13 @@ complete live sentence offscreen for assistive technology, exposes it through
 the shared tooltip, reduces vault progress to a
 20px track, and preserves the action target. No second footer, resize observer,
 or duplicate sidebar-width calculation is introduced. The pure
-`core/statusBarPresentationModel.js` decision separates an idle application
-state—exact **Ready** status with no action, spinner, or vault progress—from the
-focused ordinary-writing rest state. `statusBar.js` owns focus and activity
-observation, and its DOM adapter treats passive pointer targets inside the
-CodeMirror scroller but outside `.cm-content` as equivalent left/right reveal
-lanes. It publishes those states to the existing footer without measuring
-layout or intercepting input. CSS
-removes every item during focused ordinary writing without changing the 24px
-geometry; the application-status surface remains opaque and continues the
-sidebar plane. In Pure mode, CSS makes the footer surface transparent and
+`core/statusBarPresentationModel.js` decision distinguishes idle application
+status from focused writing; `statusBar.js` publishes those informational
+markers and observes activity and editor-margin pointer targets. They no longer
+control footer visibility: normal-mode CSS keeps the application text, available
+buffer groups, and resize grip visible throughout focus and pointer changes,
+with the same 24px footprint and opaque application-status surface.
+In Pure mode, CSS makes the footer surface transparent and
 non-interactive, clips but retains the application live region for assistive
 technology, removes invisible actions from focus, and exposes only the real
 `#word-count` node at bottom-right during healthy operation. An active
@@ -1284,7 +1281,7 @@ allocation by sentence-splitter without approximating punctuation checks.
 `core/writingWorkBudget.js` and `internal/writing/budget.go` keep size-based timeout
 policy separate from timer/process adapters: two seconds per started 64 Ki source
 units, bounded to 5–30 seconds. Worker initialization remains five seconds, and
-cancellation still terminates workers/processes immediately.
+cancellation rejects callers immediately. Prose and spelling workers stop at cooperative checkpoints and retain caches; initialization failures, errors and deadlines still terminate them. Native Vale uses its existing cooperative worker.
 `core/writingTechnicalModel.js` separates URL contents from surrounding punctuation
 and shares technical-token ranges between prose projection and spelling. Spelling
 masks parsed emphasis delimiters before identifying paths; token boundaries
@@ -1395,7 +1392,7 @@ distinct cards per page, cycles source occurrences, and creates raw diagnostics
 only on request. Shared view helpers disclose extra alternatives and explain rules
 before technical evidence; configured lens controls start collapsed.
 Spelling runs the existing conservative nspell implementation in a separate
-cancellable worker, with one scan and cached suggestions per unique word.
+cancellable worker, with current-source eligibility and up to 4,096 cached lookups keyed by language and exact word across edits.
 `core/spellingModel.js` uses the eagerly bundled Lezer Markdown parser for
 UTF-16 eligibility shared by spelling, context menus and background resolution.
 Reference IDs/definitions and indented code are excluded. Defined implicit
@@ -1417,7 +1414,18 @@ boundary for `.config/spelling-dictionary.json`, preserving unreadable data.
 `writingAdapters.js` eagerly creates three bundled workers (prose/resolution, spelling, and decision tracking) and initializes
 Vale during startup without placing its readiness promise on the editor reveal barrier. Prose and resolution requests serialize through the same worker so full projections and raw observations remain there; only Vale input and resolved results cross the UI boundary.
 `usecases/writingProse.js` owns the worker-local source cache through an injected
-analysis port. Resolution carries an explicit `proseRequired` flag: cache misses
+analysis port. `usecases/writingParagraphChecks.js` admits bounded exact-input
+paragraph caches through injected package/checkpoint ports. Cold misses run in
+batches of at most 64 paragraphs (a 16 Ki-character target, with a single larger
+paragraph kept intact). Each of the three caches has a 2,048-entry / 4 MiB
+estimated retained-data cap. `core/writingIncrementalModel.js` splits projected
+paragraphs and rebases native positions; it never stores source maps in caches.
+Markdown projection, convention and consistency policy, acronym definitions,
+source eligibility, and native Vale still see the complete current document.
+The worker adapter yields between batches after about 8 ms; an individual
+synchronous package call is not preemptible, and the watchdog remains the bound.
+Cancellation acknowledgements gate the next request so old and new scans cannot
+mutate caches concurrently. Resolution carries an explicit `proseRequired` flag: cache misses
 rebuild inside the worker, and failed recovery returns independent spelling
 with `proseFailure`, excluding unmappable Vale output. The analysis coordinator
 keeps that review partial and retryable until recovery actually succeeds.
@@ -1464,8 +1472,17 @@ Refresh retains a focused heading without stealing outside focus, and pane
 replacement or tab switching never restores stale launcher focus.
 The DOM adapter renders that hierarchy in an edge-to-edge, flat
 editor-top strip and renders the same typed headings in the right pane; both
-dispatch ordinary selection and scroll transactions when activated. Sticky
-titles consume the shared `--font-size-editor` token, while the level marker
+dispatch ordinary selection transactions with CodeMirror's `scrollIntoView`
+effect using `y: 'start'` when activated. Navigation aligns the heading at the
+top of the available editor viewport, respecting the sticky strip's scroll
+margin and the document's scroll limits. It retains editor focus and normal
+cursor behavior without changing source. A ResizeObserver follows actual sticky
+height changes after a jump; there is no frame polling or assumption about how
+quickly layout completes. The pure plan permits at most six corrections, and
+each changed height coalesces into a next-frame scroll effect. The next user
+input releases the observer before handling; source, ownership, or cursor changes
+also invalidate correction. Source/tab changes disconnect it immediately.
+Sticky titles consume the shared `--font-size-editor` token, while the level marker
 remains compact metadata; the measured scroll margin absorbs the resulting
 row height without changing editor source geometry.
 CodeMirror's scroll margin matches the strip's measured height, so the
@@ -1531,10 +1548,9 @@ state, and closing the tab naturally destroys it. A permanent Settings change
 clears all open overrides before applying the new baseline. Pointer-triggered
 reflow uses CodeMirror read/write correction passes to retain the source point
 beneath the wheel; the unitless line-height ratio remains constant so font and
-row height are not scaled twice. The input adapter asks `statusBar.js` to
-temporarily override only the normal writing-rest transparency marker; that
-adapter owns the resettable three-second timer and restores the quiet
-presentation without changing the footer's fixed geometry.
+row height are not scaled twice. The status row remains visible outside Pure
+mode, so scale changes are immediately observable without a temporary reveal. The existing three-second
+scale-gesture marker is informational and no longer changes footer opacity.
 
 ## UI continuity surfaces
 
@@ -2716,3 +2732,28 @@ index construction run outside it, and publication occurs only after the change
 journal is drained. Unknown subtree changes restart discovery. Index-dependent
 queries return a loading error while the initial snapshot is pending, and the
 completion event refreshes consumers. The file tree remains independent.
+
+### Editing responsiveness
+
+Reference-link definitions are cached by immutable editor document identity.
+Cursor and viewport updates reuse the table; ordinary prose edits inspect only
+the affected old/new lines. Definition and fence/frontmatter boundary edits
+invalidate the complete table conservatively. The activity gutter does not
+rebuild hidden markers or measure rails on each edit/scroll. Width observation,
+visibility changes and relevant geometry changes still refresh its layout; CSS
+variables are written only when their values change. Temporary authored dates
+use local calendar fields without constructing Intl formatters on every key.
+
+Block-control visibility coalesces pointer/viewport work at 32 ms and waits for
+100 ms of quiet after text/selection changes. Focus requests take the next task;
+existing hovered state and current action ranges remain usable during the delay.
+Empty rails do not read content geometry. All pending work is disposed with the
+editor. Lens snapshots and decision bookkeeping similarly wait 100 ms; the
+analysis coordinator then retains its 500 ms debounce. Empty decision stores
+materialize only the latest queued source, while saved/pending anchors retain
+ordered edits. Closed suggestion panes do not build cards, and stale completions
+cannot serialize the new buffer or publish actionable old findings.
+Editing immediately marks old cards inert; fresh results restore interaction.
+Status-only analysis updates do not republish unchanged inline decorations.
+Each edit advances the source revision even when Undo restores the same immutable
+document object before the deferred snapshot runs.

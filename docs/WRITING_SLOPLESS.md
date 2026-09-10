@@ -128,7 +128,8 @@ interaction-triggered module import is used. Package upgrades require another
 rule review and an updated inventory; upstream additions are never enabled
 automatically.
 
-Regression coverage is in `writingSlopless.test.js`: each included real rule,
+Regression coverage is in `writingSlopless.test.js`: each included real rule
+with complete full-scan/incremental equivalence before and after prepending prose,
 protected Markdown, CRLF/Unicode/encoded source, exact typography marks,
 same-concern deduplication, distinct-concern retention, examples, independent selection, preserved Consistency behavior,
 and reversible serialized Ignore. Shared use-case/worker tests cover debounce,
@@ -141,9 +142,13 @@ The additional density rules remain contextual: complex-word clusters, more than
 
 ### Long-note runtime adapter
 
-The vendor build wraps the pinned tokenizer with Figaro's bounded per-analysis
-cache, preserving the original tokenization function and returning separate token
-objects to callers. No Slopless rule is removed or reconfigured for performance.
+The vendor build wraps the pinned tokenizer with Figaro's bounded cache, cleared
+between package batches, preserving the original tokenization function and
+returning separate token objects to callers. Exact unchanged paragraphs also
+reuse raw rule diagnostics across edits, rebased onto the current Markdown
+projection. All included rules operate within paragraphs, sentences, or strings;
+document-wide Figaro policy still receives the complete note. No Slopless rule is
+removed or reconfigured for performance.
 The build checks the wrapper seam when vendoring; complete real-package output
 equivalence is checked by `node scripts/verify-writing-performance.mjs`. See
 [long-note evidence](WRITING_ENGINE.md#rename-continuity-and-long-note-performance--7-september-2026)

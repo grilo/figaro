@@ -1,12 +1,26 @@
 import {
     activeOutlineHeadingHierarchy,
     activeOutlineHeadingIndex,
+    advanceOutlineHeadingAlignment,
     documentOutlineControlState,
     extractOutlineHeadings,
     stickyHeadingBoundaryPosition,
 } from '../frontend/js/core/outlineModel.js';
 
 describe('Markdown document outline', () => {
+    test('heading top alignment waits for actual sticky height changes and bounds repeated corrections', () => {
+        const initial = { height: 0, adjustments: 0 };
+        let state = advanceOutlineHeadingAlignment(initial, 60);
+        expect(state).toMatchObject({ realign: true, pending: true });
+        state = advanceOutlineHeadingAlignment(state, 60);
+        expect(state).toMatchObject({ realign: false, pending: true });
+        expect(advanceOutlineHeadingAlignment(state, 60)).toMatchObject({ realign: false, pending: true });
+        state = initial;
+        for (let frame = 1; frame <= 6; frame++) state = advanceOutlineHeadingAlignment(state, frame * 20);
+        expect(state.pending).toBe(false);
+        expect(advanceOutlineHeadingAlignment(state, 200).realign).toBe(false);
+    });
+
     test('keeps the launcher visible but disabled when the active Markdown note has no headings', () => {
         expect(documentOutlineControlState({
             enabled: true,

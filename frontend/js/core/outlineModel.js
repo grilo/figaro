@@ -98,6 +98,13 @@ export function activeOutlineHeadingIndex(headings, position) {
     return high;
 }
 
+/** Bound corrections to actual sticky-height changes after an explicit jump. */
+export function advanceOutlineHeadingAlignment(previous, height) {
+    const realign = height !== previous.height && previous.adjustments < 6;
+    const adjustments = previous.adjustments + Number(realign);
+    return { height, adjustments, realign, pending: adjustments < 6 };
+}
+
 /** Return every active ancestor, including the current heading. */
 export function activeOutlineHeadingHierarchy(headings, position) {
     const activeIndex = activeOutlineHeadingIndex(headings, position);

@@ -14,8 +14,9 @@ export function createWritingDecisions({ load, change, track, schedule, unschedu
         timer = schedule(() => { void flushAnchors().catch(() => {}); }, 500);
     };
     const scheduleSource = () => {
-        if (!schedule || sourceTimer || sourceWork || disposed || sourceBlocked()) return;
-        sourceTimer = schedule(() => { sourceTimer = undefined; void flushSource().catch(() => {}); }, 0);
+        if (!schedule || sourceWork || disposed || sourceBlocked()) return;
+        unschedule?.(sourceTimer);
+        sourceTimer = schedule(() => { sourceTimer = undefined; void flushSource().catch(() => {}); }, 100);
     };
     function observeSource(next, changes) {
         if (disposed || (typeof next === 'string' && next === source && !edits.length)) return;
@@ -27,6 +28,9 @@ export function createWritingDecisions({ load, change, track, schedule, unschedu
         if (!edits.length || disposed || sourceBlocked()) return;
         const work = async () => {
             while (edits.length && !disposed && !sourceBlocked()) {
+                // With no anchors to follow, intermediate buffers have no
+                // semantic value. Materialize only the most recent buffer.
+                if (!decisions.length && !pending && edits.length > 1) edits.splice(0, edits.length - 1);
                 const edit = edits[0], next = typeof edit.next === 'function' ? edit.next() : edit.next;
                 // The pending command remains immutable for an idempotent storage retry.
                 // Its separate anchor follows every edit, including deletion, before publication.

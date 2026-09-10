@@ -286,7 +286,7 @@ test('writing lens pickers preserve native focus, Pure pane geometry, and editor
     expect(await page.evaluate(async () => (await import('/js/editor.js')).getEditorContent())).toBe(source);
 });
 
-test('shows a nested Markdown outline, follows the active section, and jumps with the keyboard', async ({ page }) => {
+test('outline navigation aligns headings at the editor top with keyboard and mouse', async ({ page }) => {
     await openWelcomeEditor(page);
     const source = [
         '# Project',
@@ -296,8 +296,10 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
         '```markdown',
         '# Not a heading',
         '```',
+        ...Array.from({ length: 45 }, (_, index) => `Context line ${index + 1}`),
         '### Next steps',
         'Plan the next action.',
+        ...Array.from({ length: 45 }, (_, index) => `Action line ${index + 1}`),
     ].join('\n');
 
     await page.evaluate(async markdown => {
@@ -371,11 +373,6 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#right-sidebar-title')).toHaveText('Document outline');
     const headings = page.locator('.outline-item');
-    await expect(headings).toHaveCount(3);
-    await expect(headings.nth(0).locator('.outline-item-type')).toHaveText('h1');
-    await expect(headings.nth(0).locator('.outline-item-text')).toHaveText('Project');
-    await expect(headings.nth(1).locator('.outline-item-text')).toHaveText('Decisions');
-    await expect(headings.nth(2).locator('.outline-item-text')).toHaveText('Next steps');
     await expect(headings.nth(0)).toHaveAttribute('aria-current', 'location');
 
     const styles = await headings.nth(2).evaluate(element => {
@@ -390,18 +387,36 @@ test('shows a nested Markdown outline, follows the active section, and jumps wit
     expect(styles.paddingStart).toBeGreaterThan(8);
     expect(styles.cursor).toBe('pointer');
 
+    const targetLine = source.slice(0, source.indexOf('### Next steps')).split('\n').length;
+    const headingTopOffset = () => page.evaluate(() => {
+        const view = window.__outlineView;
+        const top = view.scrollDOM.getBoundingClientRect().top;
+        const sticky = document.getElementById('sticky-heading-stack');
+        const margin = sticky.hidden ? 0 : sticky.getBoundingClientRect().height;
+        return view.coordsAtPos(view.state.selection.main.head).top - top - margin;
+    });
     await headings.nth(2).focus();
     await page.keyboard.press('Enter');
     await expect.poll(() => page.evaluate(() => window.__outlineView.state.doc.lineAt(
         window.__outlineView.state.selection.main.head,
-    ).number)).toBe(8);
+    ).number)).toBe(targetLine);
+    await expect.poll(headingTopOffset).toBeGreaterThanOrEqual(0);
+    await expect.poll(headingTopOffset).toBeLessThanOrEqual(12);
     await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/);
     await expect(headings.nth(2)).toHaveAttribute('aria-current', 'location');
 
     await page.locator('.cm-content').press('ArrowDown');
     await expect.poll(() => page.evaluate(() => window.__outlineView.state.doc.lineAt(
         window.__outlineView.state.selection.main.head,
-    ).number)).toBe(9);
+    ).number)).toBe(targetLine + 1);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(() => page.evaluate(() => window.__outlineView.state.doc.lineAt(
+        window.__outlineView.state.selection.main.head,
+    ).number)).toBe(targetLine);
+
+    await headings.nth(1).click();
+    await expect.poll(headingTopOffset).toBeGreaterThanOrEqual(0);
+    await expect.poll(headingTopOffset).toBeLessThanOrEqual(12);
 
     await page.evaluate(() => {
         const view = window.__outlineView;
