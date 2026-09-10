@@ -99,7 +99,7 @@
     "@mdit/plugin-sub": "1.1.0",
     "@mdit/plugin-sup": "1.1.0",
     "@mdit/plugin-tasklist": "1.1.0",
-    "@replit/codemirror-vim": "^6.3.0",
+    "@replit/codemirror-vim": "^6.4.0",
     "@textlint-rule/textlint-rule-no-unmatched-pair": "2.0.4",
     "@textlint/kernel": "15.8.0",
     "@textlint/textlint-plugin-text": "15.8.0",
