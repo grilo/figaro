@@ -60,6 +60,12 @@ fi
 MOCK
         chmod 755 "$root/scripts/$script"
     done
+    cat > "$root/scripts/profile-writing.mjs" <<'MOCK'
+import { appendFileSync } from 'node:fs';
+const command = 'node scripts/profile-writing.mjs';
+if (process.env.FIGARO_TEST_COMMAND_LOG) appendFileSync(process.env.FIGARO_TEST_COMMAND_LOG, `${command}\n`);
+if (process.env.FIGARO_TEST_FAIL_COMMAND === command) process.exitCode = 42;
+MOCK
     cp "$repository_root/.agents/skills/prepare-figaro-release/scripts/"{sync-release-metadata.mjs,releaseMetadata.cjs} \
         "$root/.agents/skills/prepare-figaro-release/scripts/"
     cp "$repository_root/"{package.json,package-lock.json,wails.json,CHANGELOG.md} "$root/"
@@ -127,6 +133,7 @@ cat > "$check_root/expected" <<'COMMANDS'
 prepare-frontend.sh
 npm run lint
 npm run test:coverage
+node scripts/profile-writing.mjs
 go vet . ./internal/... ./cmd/...
 check-go-coverage.sh
 go test -race . ./internal/... ./cmd/...
@@ -166,7 +173,7 @@ test ! -s "$check_root/commands"
 mkdir -p "$check_root/failing-finalization"
 make_fixture "$check_root/failing-finalization"
 failure_head="$(git -C "$check_root/failing-finalization" rev-parse HEAD)"
-if FIGARO_TEST_FAIL_COMMAND='npm run test:coverage' \
+if FIGARO_TEST_FAIL_COMMAND='node scripts/profile-writing.mjs' \
     run_release "$check_root/failing-finalization" --push v2.3.4 > "$check_root/output" 2>&1; then
     printf 'expected finalization verification failure to prevent release refs\n' >&2
     exit 1

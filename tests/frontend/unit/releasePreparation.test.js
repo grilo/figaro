@@ -33,6 +33,12 @@ function makeReleaseFixture() {
 }
 
 describe('prepare Figaro release metadata', () => {
+    test('main CI and tag verification both run the native editorial profile', () => {
+        for (const workflow of ['test.yml', 'release.yml']) {
+            const source = fs.readFileSync(path.join(repositoryRoot, '.github/workflows', workflow), 'utf8');
+            expect(source).toMatch(/^\s+- run: node scripts\/profile-writing\.mjs$/m);
+        }
+    });
     test.each([
         ['release-check', '--check '],
         ['release-local', ''],

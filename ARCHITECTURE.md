@@ -1387,9 +1387,13 @@ to meaningful adjacent words without crossing protected content or line breaks.
 The same pure policy restricts equality advice to reviewed generic expressions
 and handles reviewed/uncertain article pronunciations; exact source mapping is
 separate from editorial suitability.
-Mapping version 23 includes curated grammar policy 8, package pins, reviewed terms/acronym exceptions, editorial policy version 8, spelling vocabulary version 4, and formula options in snapshot
+Mapping version 24 includes curated grammar policy 8, package pins, reviewed terms/acronym exceptions, editorial policy version 8, spelling vocabulary version 4, and formula options in snapshot
 identity. The resolver keeps formula and length advice distinct, merging only equivalent
-concerns and retaining every contributing lens and native source. Enabled lenses
+concerns and retaining every contributing lens and native source. A pure comma-spacing
+comparison trims unchanged context from the two reviewed rules’ safe edits. Only
+identical minimal edits adopt the local occurrence range, intent and action; the
+original native observation remains attached. Different edits, advisory-only
+observations, protected ranges and unrelated grammar rules retain their identities. Enabled lenses
 alone may supply fixes; unreviewed simplification matches remain advisory. Readability never generates fixes.
 `core/writingTypographyModel.js` identifies balanced quotations and derives
 existing punctuation conventions without I/O. A second mapped projection

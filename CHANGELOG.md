@@ -8,7 +8,12 @@ remain as originally published.
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- Proofreading shows one comma-spacing suggestion and one Apply action when
+  multiple grammar checks propose the same correction.
+- Release verification now checks combined JavaScript and native grammar results,
+  catching writing-profile failures before a release is committed or published.
 
 ## [1.41.0] - 2026-09-20
 

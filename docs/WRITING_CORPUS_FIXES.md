@@ -2,7 +2,7 @@
 
 This contract follows the eight-document pattern audit. It covers correctness
 and review safety; it does not establish general writing quality or complete
-grammar coverage. Mapping version 23 (including the later grammar-context and quality updates), editorial policy 8, local-rule version 3
+grammar coverage. Mapping version 24 (including the later grammar-context and quality updates), editorial policy 8, local-rule version 3
 and spelling vocabulary version 4 invalidate older analysis snapshots. This corpus-safety work preserves provider versions, independent lens memberships,
 and saved review data. The later [curated grammar expansion](WRITING_HARPER.md)
 adds separately reviewed rules.

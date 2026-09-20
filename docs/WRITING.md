@@ -118,7 +118,9 @@ is ready” and “fewer time,” while preserving “fewer time slots.”
 These include 15 reviewed Harper-port rules and 160 Figaro checks. Apply checks the exact current text and can
 be undone; Ignore remembers only that rule at that occurrence. Uncertain cases
 and paragraphs with masked quoted/code context are left alone. See the
-[curated grammar scope](WRITING_HARPER.md) for examples and limits.
+[curated grammar scope](WRITING_HARPER.md) for examples and limits. When local
+and native checks suggest the same comma-spacing edit, Proofreading shows one
+finding and one Apply action; different corrections remain separate.
 
 Further context checks catch “What dose this sign mean?” and “We all seam to
 agree,” while preserving “beware in the forest” and “a software rendered game.”

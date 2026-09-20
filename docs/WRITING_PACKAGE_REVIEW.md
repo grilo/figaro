@@ -26,7 +26,7 @@ All application modules remain eagerly bundled. Slopless and retext execute in t
 
 Microsoft’s sentence-length rule emits a first-word anchor. The pure Vale adapter validates it and maps it to the full existing prose sentence before source validation and deduplication; the corpus follow-up also verifies that sentence’s own above-30-word count. The local length check uses the same threshold. Protected text and unmappable spans remain rejected. Slopless frequency reports identify the first occurrence of each repeated word and its verified count, so separate words can be ignored independently.
 
-Current mapping version **23**, editorial policy **8**, spelling vocabulary **4**, with curated grammar policy **8** (the initial package review used mapping 10 / policy 3). Dependency versions and upstream revisions are unchanged. The 29 canonical names are defined in `frontend/js/core/writingTextlintModel.js`; the 43 additional Inclusive advisory IDs are in `frontend/js/core/writingPackagePolicy.js` and have individual real-adapter fixtures.
+Current mapping version **24**, editorial policy **8**, spelling vocabulary **4**, with curated grammar policy **8** (the initial package review used mapping 10 / policy 3). Dependency versions and upstream revisions are unchanged. The 29 canonical names are defined in `frontend/js/core/writingTextlintModel.js`; the 43 additional Inclusive advisory IDs are in `frontend/js/core/writingPackagePolicy.js` and have individual real-adapter fixtures.
 
 ## Package-by-package decisions
 

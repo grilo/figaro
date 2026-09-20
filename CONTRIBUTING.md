@@ -457,6 +457,9 @@ commit and tag, use `make release-local patch` or
 approval does not authorize publication. Resolve the chosen version once and use
 the explicit `VERSION` form for execution and retries: rerunning a bump after
 tagging would select the next release instead of resuming the approved one.
+Both local release verification and tag CI run `node scripts/profile-writing.mjs`
+to check combined native/JavaScript editorial outcomes. A mismatch stops local
+finalization before commit/tag creation and stops tag CI before publication.
 The browser check downloads Playwright's pinned Chromium if necessary, but does
 not install system packages or request elevated privileges.
 `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)

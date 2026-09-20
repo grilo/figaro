@@ -151,6 +151,7 @@ such as `async`, `dotfiles`, and `etag`, lower-camel-case identifiers, and acron
 defined in your note avoid misleading spelling replacements. Balanced multiline
 parentheses and literal scheduling phrases receive fewer false warnings.
 Equivalent “there is/are” advice shares one finding across selected lenses.
+Matching comma-spacing corrections also appear once, with one Apply action.
 Review also catches “the box of tools were,” “had saw the tool,” and “amount of
 times.” Possible comma splices receive advice without an automatic rewrite.
 API members, Ctrl, args, backoff and debounce avoid spelling guesses that change

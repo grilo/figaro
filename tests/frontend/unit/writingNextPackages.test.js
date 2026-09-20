@@ -138,7 +138,7 @@ test('new package pins and conservative readability policy participate in snapsh
     for (const [name, key] of [['sentence-spacing', 'sentenceSpacing'], ['diacritics', 'diacritics'], ['readability', 'readability']]) {
         expect(writingEngineConfiguration[key]).toBe(pkg.dependencies[`retext-${name}`]);
     }
-    expect(writingEngineConfiguration.mapping).toBe('23');
+    expect(writingEngineConfiguration.mapping).toBe('24');
     expect(writingEngineConfiguration.readabilityOptions).toEqual(readabilityOptions);
     expect(readabilityOptions).toEqual({ age: 16, minWords: 15, threshold: 5 / 7 });
 });

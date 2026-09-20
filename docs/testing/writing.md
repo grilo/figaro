@@ -4,6 +4,17 @@
 
 ## Writing review regression coverage
 
+`writingAnalysisModel.test.js` covers equivalent local/native comma-spacing edits
+with different source spans, Unicode/CRLF/Markdown offsets, input ordering, one
+Apply action, retained provenance, and distinct conflicting or advisory corrections.
+`node scripts/profile-writing.mjs` verifies all combined native/JavaScript editorial
+fixtures in main CI, tag CI, and local release verification. Its failure must stop
+release finalization before a commit or tag; the shell release tests inject that failure.
+The 2026-09-20 packaged Linux WebKitGTK regression passed seven checks with the
+actual native and worker analyzers: one finding/action, exact Apply, fresh removal,
+one Undo, one restored finding, and persisted Ignore. Input used DOM-dispatched
+clicks/keys and CodeMirror transactions in an isolated disposable vault.
+
 `spellingDictionarySettings.test.js` covers accessible loading/empty states,
 normalized search, bounded lists, Add/Remove/Undo, pending/failed mutations,
 retry focus, concurrent additions, and disposal. It also proves the compact
@@ -45,7 +56,7 @@ unknown-field preservation, and unchanged note text/private permissions. These a
 URLs, email, explicit paths, identifiers and common filenames. Real spelling
 cases cover all-caps errors, ordinary capitals, conservative name guesses, and
 composed/decomposed accents at exact source offsets. The runtime test proves the
-same technical policy reaches prose projection; mapping version 23 invalidates
+same technical policy reaches prose projection; mapping version 24 invalidates
 older evidence.
 Resolver tests reject protected or corrupt spelling ranges. They also protect
 implicit reference keys from other prose fixes. Test these eligibility and

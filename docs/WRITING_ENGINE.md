@@ -7,7 +7,10 @@ alert contract. A bounded asynchronous coordinator owns deadlines, cancellation,
 and engine reuse independently of editor interaction and saving.
 The prose parser and pure resolver run in the same eager worker. The resolver
 interprets observations, applies policy, protects source ranges, and groups
-equivalent advice. Full projections and raw
+equivalent advice. Local and native comma-spacing checks merge only when their
+safe edits change exactly the same source characters to the same replacement.
+The combined finding retains both sources, the local occurrence identity, and
+one Apply action. Overlap or a shared comma alone is insufficient. Full projections and raw
 observations stay there. Separate eager workers run spelling and durable-decision
 tracking. The UI receives resolved suggestions and computed active decision IDs. The user-approved suggestion primitive adds rounded, borderless grouping.
 
@@ -230,7 +233,7 @@ length findings from Figaro and Microsoft retain both native sources. Microsoft
 uses the same threshold; its native anchor expands only when the mapped sentence itself exceeds 30 words. The local check preserves eligible long-sentence coverage when native sentence boundaries disagree. The explanation distinguishes measured length from formula
 estimates and includes a general splitting/simplifying example; no automatic
 rewrite or reading-grade score is offered, and the estimates do not measure
-writing quality. Mapping/configuration version 23 includes package pins, editorial policy version 8, spelling vocabulary version 4,
+writing quality. Mapping/configuration version 24 includes package pins, editorial policy version 8, spelling vocabulary version 4,
 reviewed terms/acronym exceptions, and formula options so stale findings cannot survive a policy change. All prose
 lenses support English US/UK, save independently with the existing version 3
 preferences, and reuse dotted marks, grouped cards, Ignore, and guarded fixes.
@@ -350,7 +353,7 @@ invented possessive apostrophes are withheld, while reviewed contraction shapes
 remain available. Generated English alternatives cannot merely remove a final
 plural `s` from an unknown word. Recognition of a term never
 authorizes a rewrite. Analysis parsing and resolution remain worker-only; no scans are added
-to input handlers. Mapping/configuration version 23 invalidates older evidence.
+to input handlers. Mapping/configuration version 24 invalidates older evidence.
 
 ## Corpus context guards
 
@@ -504,7 +507,7 @@ removes one occurrence decision; **Review acronym again** removes one acronym
 acceptance. Reversal is available even with disabled lenses or changed text.
 The controls show saving/errors and preserve accessible focus. Successful async
 inline actions restore focus only while the originating editor/source still
-owns it. The decisions participate in mapping/configuration version 23; adding
+owns it. The decisions participate in mapping/configuration version 24; adding
 or removing them reuses current analyzer evidence and invalidates stale actions.
 
 ## Bounded review and bulk changes
@@ -542,7 +545,9 @@ explicit request. All controls reuse approved primitives and existing theme stat
 and undesired advice. `node scripts/profile-writing.mjs` runs the actual pinned
 retext, textlint, and embedded Vale implementations, checks canonical kinds (not just total
 counts), and reports raw observations, suppression, and unique results. CI runs
-this report after asset preparation. Normal unit tests also cover these fixtures.
+this report after asset preparation in both main and tag workflows. Local release
+verification also runs it before creating commits or tags; failures stop publication.
+Normal unit tests additionally cover these fixtures with JavaScript providers.
 The current report uses `workerRaw`/`workerMs` for combined JavaScript analysis;
 older reports' `retextRaw`/`retextMs` fields reflect the earlier retext-only worker.
 Timing workloads include both ordinary prose and repeated technical names with

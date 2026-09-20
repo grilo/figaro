@@ -83,6 +83,7 @@ jobs:
         shell: bash
       - run: npm run lint
       - run: npm run test:coverage
+      - run: node scripts/profile-writing.mjs
       - run: go vet . ./internal/... ./cmd/...
       - run: ./scripts/check-go-coverage.sh
       - run: go test -race . ./internal/... ./cmd/...

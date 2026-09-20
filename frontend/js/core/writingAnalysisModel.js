@@ -10,7 +10,7 @@ import { spellingVocabularyVersion } from './spellingVocabulary.js';
 import { writingAdvisoryContext } from './writingContextModel.js';
 import { writingTypographyConvention } from './writingTypographyModel.js';
 
-export const writingMappingVersion = '23';
+export const writingMappingVersion = '24';
 export const writingEngineConfiguration = Object.freeze({ mapping: writingMappingVersion, grammar: writingGrammarVersion, spellingVocabulary: spellingVocabularyVersion, vale: '3.20.0',
     writeGood: 'c9ceca7f574248a201d5524b001099c5626c7519', proselint: '8e24adbaa5dc6593b331f8bfab23c9af044af406',
     passive: '5.0.0', simplify: '8.0.0', repetition: '5.0.0', spelling: 'nspell-2.1.5', article: '5.0.0',
@@ -237,6 +237,21 @@ function equivalent(left, right, candidates, source) {
     }
     return true;
 }
+function commaSpacingEditKey(entry) {
+    if (entry.rejected || entry.suppressed || entry.fixes.length !== 1) return null;
+    const { from, expected, replacement } = entry.fixes[0];
+    // Compare the edit itself, not the word/gap context chosen by each engine.
+    // Only horizontal whitespace around one comma may participate.
+    if (/[\r\n]/u.test(expected + replacement) || expected.split(',').length !== 2
+        || expected.replace(/[ \t]/gu, '') !== replacement.replace(/[ \t]/gu, '')) return null;
+    let start = 0, end = expected.length, replacementEnd = replacement.length;
+    while (start < end && start < replacementEnd && expected[start] === replacement[start]) start++;
+    while (end > start && replacementEnd > start && expected[end - 1] === replacement[replacementEnd - 1]) {
+        end--; replacementEnd--;
+    }
+    if (start === end && start === replacementEnd) return null;
+    return JSON.stringify([from + start, from + end, replacement.slice(start, replacementEnd)]);
+}
 export function resolveWritingFindings({ source, projection = { units: [], regions: [], sentences: [] }, observations = [], preferences, decisions = [], language = preferences?.language }) {
     const p = normalizeWritingLenses(preferences);
     const selected = selectedWritingLenses(p);
@@ -247,6 +262,20 @@ export function resolveWritingFindings({ source, projection = { units: [], regio
     const doubledArticles = evidence.filter(entry => entry.raw.rule === 'Harper.AnAnother' && !entry.rejected);
     for (const entry of evidence) {
         if (entry.kind === 'grammar.article' && doubledArticles.some(other => other.from <= entry.from && other.to >= entry.to)) entry.suppressed = 'Covered by the doubled-article correction';
+    }
+    const commaCorrections = new Map();
+    for (const entry of evidence) {
+        if (entry.raw.rule !== 'figaro-punctuation-spacing' || entry.intent !== 'review') continue;
+        const key = commaSpacingEditKey(entry);
+        if (key) commaCorrections.set(key, entry);
+    }
+    for (const entry of evidence) {
+        if (entry.raw.rule !== 'FigaroGrammar.CommaFixes' || entry.intent !== entry.raw.rule) continue;
+        const local = commaCorrections.get(commaSpacingEditKey(entry));
+        if (!local) continue;
+        // Use the existing local occurrence and action; retain native raw evidence.
+        Object.assign(entry, { kind: local.kind, intent: local.intent, from: local.from, to: local.to,
+            actual: local.actual, sourceText: local.sourceText, fixes: local.fixes });
     }
     const candidates = evidence.filter(entry => !entry.rejected).sort((a, b) => a.from - b.from || b.to - a.to || compare(a.raw.rule, b.raw.rule) || compare(JSON.stringify(a.raw), JSON.stringify(b.raw)));
     const byStart = new Map(), intents = new Map();

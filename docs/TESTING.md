@@ -988,3 +988,8 @@ Optional editor wheel smoothing uses the pure/controller/adapter matrix in
 `wheelScroll.test.js`, preference persistence in `state.test.js`, and one
 real-wheel geometry workflow in `editorUX.spec.js`. See
 [optional wheel scrolling](testing/editor.md#optional-wheel-scrolling).
+
+The native editorial profile (`node scripts/profile-writing.mjs`) is required by
+main CI, tag CI, and local release verification. It combines actual JavaScript
+and Go grammar observations, covering cross-engine duplicates that JavaScript-only
+fixtures cannot detect. See [writing regressions](testing/writing.md#writing-review-regression-coverage).

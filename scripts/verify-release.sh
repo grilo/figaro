@@ -11,6 +11,7 @@ git diff --cached --check
 ./scripts/prepare-frontend.sh
 npm run lint
 npm run test:coverage
+node scripts/profile-writing.mjs
 go vet . ./internal/... ./cmd/...
 ./scripts/check-go-coverage.sh
 go test -race . ./internal/... ./cmd/...

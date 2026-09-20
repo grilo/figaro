@@ -98,6 +98,67 @@ test('writing conflict policy withholds mutually exclusive goals but retains sam
     for (const item of conflicting.findings) { expect(item.fixes).toEqual([]); expect(item.message).toContain('conflict'); }
 });
 
+test.each([
+    'A example , with an useful idea,, is here.',
+    '😀 é **Some words , with others.**',
+    'First paragraph.\r\n\r\nSome words , with others.',
+    'Some words \t, with others. More words , with more.',
+])('comma spacing merges identical edits from different engine ranges: %s', source => {
+    const data = analyzeRetext(source);
+    const native = [...data.projection.text.matchAll(/[ \t]+,[ \t]*/gu)].map(match => ({
+        engine: 'vale', rule: 'FigaroGrammar.CommaFixes', intent: 'FigaroGrammar.CommaFixes',
+        from: match.index, to: match.index + match[0].length, actual: match[0], replacements: [', '],
+    }));
+    const input = { source, ...data, preferences: { lenses: ['grammar'], language: 'en-US' } };
+    const baseline = resolveWritingFindings(input);
+    const observations = [...data.observations, ...native];
+    const result = resolveWritingFindings({ ...input, observations });
+    expect(result.count).toBe(baseline.count);
+    const merged = result.findings.filter(finding => finding.kind === 'grammar.punctuation-spacing');
+    expect(merged).toHaveLength(native.length);
+    for (const finding of merged) {
+        expect(finding.sources.map(raw => raw.rule).sort()).toEqual(['FigaroGrammar.CommaFixes', 'figaro-punctuation-spacing']);
+        expect(finding.fixes).toHaveLength(1);
+        const local = baseline.findings.find(item => item.from === finding.from && item.to === finding.to);
+        expect(finding.id).toBe(local.id);
+        expect(finding.fixes).toEqual(local.fixes);
+        const [fix] = finding.fixes;
+        expect(source.slice(fix.from, fix.to)).toBe(fix.expected);
+    }
+    expect(resolveWritingFindings({ ...input, observations: observations.reverse() }).groups).toEqual(result.groups);
+});
+
+test.each([
+    { replacements: [',  '] },
+    { replacements: [', ', ',  '] },
+    { replacements: [',\n'] },
+    { replacements: ['; '] },
+    { replacements: [] },
+    { intent: 'retain authored spacing' },
+])('comma overlap alone does not merge different or advisory corrections: %j', overrides => {
+    const source = 'Some words , with others.';
+    const data = analyzeRetext(source);
+    const from = source.indexOf(' , ');
+    const native = { engine: 'vale', rule: 'FigaroGrammar.CommaFixes', intent: 'FigaroGrammar.CommaFixes',
+        from, to: from + 3, actual: ' , ', replacements: [', '], ...overrides };
+    const result = resolveWritingFindings({ source, ...data, observations: [...data.observations, native],
+        preferences: { lenses: ['grammar'] } });
+    expect(result.count).toBe(2);
+    expect(result.findings.map(finding => finding.sources.length)).toEqual([1, 1]);
+});
+
+test('standalone native comma corrections keep their identity and Apply action', () => {
+    const source = 'Some words,with others.';
+    const data = analyzeRetext(source);
+    const from = source.indexOf(',');
+    const result = resolveWritingFindings({ source, ...data, observations: [{ engine: 'vale',
+        rule: 'FigaroGrammar.CommaFixes', intent: 'FigaroGrammar.CommaFixes',
+        from, to: from + 1, actual: ',', replacements: [', '] }], preferences: { lenses: ['grammar'] } });
+    expect(result.count).toBe(1);
+    expect(result.findings[0]).toMatchObject({ kind: 'grammar.figarogrammar.commafixes',
+        intent: 'FigaroGrammar.CommaFixes', fixes: [{ from, to: from + 1, expected: ',', replacement: ', ' }] });
+});
+
 test('prose fixes also preserve implicit reference keys while explicit link labels remain editable', () => {
     const source = '[utilize][] [utilize][guide] [utilize]\n\n[utilize]: https://example.com/a\n[guide]: https://example.com/b';
     const result = resolve(source);

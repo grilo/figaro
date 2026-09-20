@@ -486,7 +486,8 @@
       "docs/testing/writing.md#writing-quality-regression-coverage",
       "docs/WRITING_CORPUS_FIXES.md#suggestion-relevance",
       "docs/WRITING_SLOPLESS.md#integration-and-limits",
-      "docs/WRITING_CORPUS_FIXES.md#descriptive-and-existential-context"
+      "docs/WRITING_CORPUS_FIXES.md#descriptive-and-existential-context",
+      "docs/testing/writing.md#writing-review-regression-coverage"
     ],
     "tests": [
       "tests/frontend/unit/writingQuality.test.js",
@@ -498,7 +499,8 @@
       "tests/frontend/unit/writingRelevance.test.js",
       "tests/frontend/unit/writingPackageReview.test.js",
       "tests/frontend/unit/writingSlopless.test.js",
-      "tests/frontend/unit/writingDescriptionContext.test.js"
+      "tests/frontend/unit/writingDescriptionContext.test.js",
+      "tests/frontend/unit/writingAnalysisModel.test.js"
     ],
     "symbols": {
       "frontend/js/core/writingContextModel.js": [
@@ -507,7 +509,8 @@
         "writingInclusiveContext"
       ],
       "frontend/js/core/writingAnalysisModel.js": [
-        "resolveWritingFindings"
+        "resolveWritingFindings",
+        "commaSpacingEditKey"
       ],
       "frontend/js/core/writingTextlintModel.js": [
         "textlintWritingObservations",
@@ -519,7 +522,8 @@
       ]
     },
     "extraChecks": [
-      "Run the production whole-document evaluator on frozen regression and fresh manifests; record every finding and offered edit separately from expectations. Runtime changes also require existing eager-startup and packaged native boundaries."
+      "Run the production whole-document evaluator on frozen regression and fresh manifests; record every finding and offered edit separately from expectations. Runtime changes also require existing eager-startup and packaged native boundaries.",
+      "Run node scripts/profile-writing.mjs to combine production native and JavaScript editorial findings."
     ]
   },
   {
@@ -1370,7 +1374,9 @@
     "sources": [
       "scripts/prepare-release.sh",
       "scripts/verify-release.sh",
-      ".githooks/prepare-commit-msg"
+      ".githooks/prepare-commit-msg",
+      "scripts/profile-writing.mjs",
+      ".github/workflows/release.yml"
     ],
     "docs": [
       "CONTRIBUTING.md#release-process",
@@ -1383,7 +1389,8 @@
       "tests/frontend/unit/commitHandoff.test.js"
     ],
     "extraChecks": [
-      "For release preparation read the complete release skill; focused checks neither finalize nor replace its verification and version/action approval."
+      "For release preparation read the complete release skill; focused checks neither finalize nor replace its verification and version/action approval.",
+      "Run bash tests/release/prepare-release.test.sh, including native editorial-profile failure before finalization."
     ]
   },
   {
